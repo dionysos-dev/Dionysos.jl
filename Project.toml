@@ -1,6 +1,6 @@
 name = "Dionysos"
 uuid = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
-authors = ["Guillaume Berger <guillaume.berger@uclouvain.be>", Benoît Legat <benoit.legat@uclouvain.be>"]
+authors = ["Guillaume Berger <guillaume.berger@uclouvain.be>", "Benoît Legat <benoit.legat@uclouvain.be>"]
 version = "0.0.1"
 
 [compat]
