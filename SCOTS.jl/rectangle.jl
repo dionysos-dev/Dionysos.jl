@@ -2,6 +2,9 @@ struct HyperRectangle{T, VT<:AbstractVector{T}}
     lb::VT
     ub::VT
 end
+function Base.in(x::AbstractVector, rect::HyperRectangle)
+    return all(i -> rect.lb[i] .<= x[i] .<= rect.ub[i], eachindex(x))
+end
 function Base.isempty(rect::HyperRectangle)
     return any(i -> rect.lb[i] > rect.ub[i], eachindex(rect.lb))
 end

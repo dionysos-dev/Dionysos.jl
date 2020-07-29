@@ -13,32 +13,28 @@ function get_coords_by_pos(grid_space, pos)
     return grid_space.orig + pos.*grid_space.h
 end
 
-function get_pos_lim_from_box_inner(grid_space, lb, ub)
-    lbI = ceil.(Int, (lb - grid_space.orig)./grid_space.h .+ 0.5)
-    ubI = floor.(Int, (ub - grid_space.orig)./grid_space.h .- 0.5)
-    return (lbI, ubI)
+function get_pos_lim_inner(grid_space, rect)
+    lbI =  ceil.(Int, (rect.lb - grid_space.orig)./grid_space.h .+ 0.5)
+    ubI = floor.(Int, (rect.ub - grid_space.orig)./grid_space.h .- 0.5)
+    return HyperRectangle(lbI, ubI)
 end
 
-function get_pos_lim_from_box_outer(grid_space, lb, ub)
-    lbI = ceil.(Int, (lb - grid_space.orig)./grid_space.h .- 0.5)
-    ubI = floor.(Int, (ub - grid_space.orig)./grid_space.h .+ 0.5)
-    return (lbI, ubI)
+function get_pos_lim_outer(grid_space, rect)
+    lbI =  ceil.(Int, (rect.lb - grid_space.orig) ./ grid_space.h .- 0.5)
+    ubI = floor.(Int, (rect.ub - grid_space.orig) ./ grid_space.h .+ 0.5)
+    return HyperRectangle(lbI, ubI)
 end
 
-function get_pos_lim_from_box(grid_space, lb, ub, incl_mode::INCL_MODE)
+function get_pos_lim(grid_space, rect, incl_mode::INCL_MODE)
     if incl_mode == INNER
-        return get_pos_lim_from_box_inner(grid_space, lb, ub)
+        return get_pos_lim_inner(grid_space, rect)
     else
-        return get_pos_lim_from_box_outer(grid_space, lb, ub)
+        return get_pos_lim_outer(grid_space, rect)
     end
 end
 
-function _make_iterator_from_lims(lbI, ubI)
-    return (collect(pos) for pos in Iterators.product((UnitRange(x...) for x in zip(lbI, ubI))...))
-end
-
-function _is_pos_in_lims(pos, lbI, ubI)
-    return all(lbI .<= pos .<= ubI)
+function _make_iterator_from_lims(rect)
+    return (collect(pos) for pos in Iterators.product((UnitRange(x...) for x in zip(rect.lb, rect.ub))...))
 end
 
 function add_to_gridspace_by_pos!(grid_space::GridSpaceHash, pos)
@@ -49,15 +45,12 @@ function add_to_gridspace_by_coords!(grid_space, x)
     add_to_gridspace_by_pos!(grid_space, get_pos_by_coords(grid_space, x))
 end
 
-function add_to_gridspace_by_box!(grid_space, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lim_from_box(grid_space, lb, ub, incl_mode)
-    pos_coll = _make_iterator_from_lims(lbI, ubI)
+function add_to_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lim(grid_space, rect, incl_mode)
+    pos_coll = _make_iterator_from_lims(rectI)
     for pos in pos_coll
         add_to_gridspace_by_pos!(grid_space, pos)
     end
-end
-function add_to_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
-    add_to_gridspace_by_box!(grid_space, rect.lb, rect.ub, incl_mode)
 end
 
 function remove_from_gridspace_by_ref!(grid_space::GridSpaceHash, ref)
@@ -72,24 +65,20 @@ function remove_from_gridspace_by_coords!(grid_space, x)
     remove_from_gridspace_by_pos!(grid_space, get_pos_by_coords(grid_space, x))
 end
 
-function remove_from_gridspace_by_box!(grid_space, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lim_from_box(grid_space, lb, ub, incl_mode)
-    pos_coll = _make_iterator_from_lims(lbI, ubI)
+function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lim(grid_space, rect, incl_mode)
+    pos_coll = _make_iterator_from_lims(rectI)
     if length(pos_coll) < get_gridspace_size(grid_space)
         for pos in pos_coll
             remove_from_gridspace_by_pos!(grid_space, pos)
         end
     else
         for rp in enumerate_gridspace_ref_pos(grid_space)
-            if _is_pos_in_lims(rp[2], lbI, ubI)
+            if rp[2] in rectI
                 remove_from_gridspace_by_ref!(grid_space, rp[1])
             end
         end
     end
-end
-
-function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
-    remove_from_gridspace_by_box!(grid_space, rect.lb, rect.ub, incl_mode)
 end
 
 function get_ref_by_pos(grid_space::GridSpaceHash, pos)

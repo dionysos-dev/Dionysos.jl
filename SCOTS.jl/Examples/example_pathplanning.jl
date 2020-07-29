@@ -50,7 +50,7 @@ function path_planning(
     u0 = [0.0, 0.0]
     h = [0.3, 0.3]
     U_grid = AB.NewGridSpaceHash(u0, h)
-    AB.add_to_gridspace_by_box!(U_grid, lb, ub, AB.OUTER)
+    AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
     tstep = 0.3
     n_sys = 3

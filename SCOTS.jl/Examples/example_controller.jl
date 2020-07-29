@@ -14,7 +14,7 @@ ub = [5.0, 5.0]
 x0 = [0.0, 0.0]
 h = [0.47, 0.23]
 X_grid = AB.NewGridSpaceHash(x0, h)
-AB.add_to_gridspace_by_box!(X_grid, lb, ub, AB.INNER)
+AB.add_to_gridspace!(X_grid, AB.HyperRectangle(lb, ub), AB.INNER)
 X_full = AB.NewSubSpace(X_grid)
 AB.add_to_subspace_all!(X_full)
 
@@ -23,7 +23,7 @@ ub = [2.0]
 u0 = [0.0]
 h = [1.0]
 U_grid = AB.NewGridSpaceHash(u0, h)
-AB.add_to_gridspace_by_box!(U_grid, lb, ub, AB.OUTER)
+AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 1.0
 n_sys = 3
@@ -38,9 +38,9 @@ trans_map_sys = AB.NewTransitionMapHash(X_grid, U_grid, X_grid)
 AB.set_transitions_from_controlsystem!(trans_map_sys, cont_sys)
 
 X_init = AB.NewSubSpace(X_grid)
-AB.add_to_subspace_by_box!(X_init, [-3.0, -3.0], [-2.9, -2.9], AB.OUTER)
+AB.add_to_subspace!(X_init, AB.HyperRectangle([-3.0, -3.0], [-2.9, -2.9]), AB.OUTER)
 X_reach = AB.NewSubSpace(X_grid)
-AB.add_to_subspace_by_box!(X_reach, [0.0, 0.0], [4.0, 4.0], AB.OUTER)
+AB.add_to_subspace!(X_reach, AB.HyperRectangle([0.0, 0.0], [4.0, 4.0]), AB.OUTER)
 
 trans_map_contr = AB.NewTransitionMapHash(X_grid, U_grid, X_grid)
 AB.set_controller_reach!(trans_map_contr, trans_map_sys, X_init, X_reach)

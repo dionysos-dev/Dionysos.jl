@@ -14,14 +14,14 @@ ub = [10.0, 11.0]
 x0 = [0.0, 0.0]
 h = [1.0, 2.0]
 X_grid = AB.NewGridSpaceHash(x0, h)
-AB.add_to_gridspace_by_box!(X_grid, lb, ub, AB.OUTER)
+AB.add_to_gridspace!(X_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 lb = [-1.0]
 ub = [1.0]
 u0 = [0.0]
 h = [0.5]
 U_grid = AB.NewGridSpaceHash(u0, h)
-AB.add_to_gridspace_by_box!(U_grid, lb, ub, AB.OUTER)
+AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 0.5
 n_sys = 3
