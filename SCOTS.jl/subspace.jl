@@ -23,24 +23,20 @@ function add_to_subspace_by_coords!(sub_space, x)
     add_to_subspace_by_pos!(sub_space, get_pos_by_coords(sub_space.grid_space, x))
 end
 
-function add_to_subspace_by_box!(sub_space, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lim_from_box(sub_space.grid_space, lb, ub, incl_mode)
-    pos_coll = _make_iterator_from_lims(lbI, ubI)
+function add_to_subspace!(sub_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lim(sub_space.grid_space, rect, incl_mode)
+    pos_coll = _make_iterator_from_lims(rectI)
     if length(pos_coll) < get_gridspace_size(sub_space.grid_space)
         for pos in pos_coll
             add_to_subspace_by_pos!(sub_space, pos)
         end
     else
         for rp in enumerate_gridspace_ref_pos(sub_space.grid_space)
-            if _is_pos_in_lims(rp[2], lbI, ubI)
+            if rp[2] in rectI
                 add_to_subspace_by_ref!(sub_space, rp[1])
             end
         end
     end
-end
-
-function add_to_subspace!(sub_space, rect::HyperRectangle, incl_mode::INCL_MODE)
-    add_to_subspace_by_box!(sub_space, rect.lb, rect.ub, incl_mode)
 end
 
 function remove_from_subspace_by_ref!(sub_space::SubSpaceHash, ref)
@@ -55,9 +51,9 @@ function remove_from_subspace_by_coords!(sub_space, x)
     remove_from_subspace_by_pos!(sub_space, get_pos_by_coords(sub_space.grid_space, x))
 end
 
-function remove_from_subspace_by_box!(sub_space, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lim_from_box(sub_space.grid_space, lb, ub, incl_mode)
-    pos_coll = _make_iterator_from_lims(lbI, ubI)
+function remove_from_subspace!(sub_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lim(sub_space.grid_space, rect, incl_mode)
+    pos_coll = _make_iterator_from_lims(rectI)
     if length(pos_coll) < get_subspace_size(sub_space)
         for pos in pos_coll
             remove_from_subspace_by_pos!(sub_space, pos)
@@ -66,7 +62,7 @@ function remove_from_subspace_by_box!(sub_space, lb, ub, incl_mode::INCL_MODE)
         for ref in enumerate_subspace_ref(sub_space)
             if ref !== sub_space.grid_space.overflow_ref
                 pos = get_pos_by_ref(sub_space.grid_space, ref)
-                if _is_pos_in_lims(pos, lbI, ubI)
+                if pos in rectI
                     remove_from_subspace_by_ref!(sub_space, ref)
                 end
             end
