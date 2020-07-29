@@ -35,14 +35,15 @@ AB.add_to_subspace!(sub_space, AB.HyperRectangle([0.0, 0.0], [5.0, 5.0]), AB.INN
 display(sub_space)
 
 @static if get(ENV, "TRAVIS", "false") == "false"
+    include("../src/plotting.jl")
     fig = PyPlot.figure()
     ax = fig.gca()
 
-    AB.plot_subspace!(ax, 1:2, sub_space, fa = 0.3)
-    AB.plot_box!(ax, 1:2, [1.0, 0.0], [8.0, 10.0])
-    AB.plot_box!(ax, 1:2, [5.0, 5.0], [10000.0, 10000.0])
-    AB.plot_box!(ax, 1:2, [1.0, 1.0], [2.0, 2.0])
-    AB.plot_box!(ax, 1:2, [0.0, 0.0], [5.0, 5.0])
+    Plot.subspace!(ax, 1:2, sub_space, fa = 0.3)
+    Plot.box!(ax, 1:2, [1.0, 0.0], [8.0, 10.0])
+    Plot.box!(ax, 1:2, [5.0, 5.0], [10000.0, 10000.0])
+    Plot.box!(ax, 1:2, [1.0, 1.0], [2.0, 2.0])
+    Plot.box!(ax, 1:2, [0.0, 0.0], [5.0, 5.0])
 
     ax.set_xlim([-2.0, 14.0])
     ax.set_ylim([-2.0, 14.0])

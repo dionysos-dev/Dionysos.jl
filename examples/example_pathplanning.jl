@@ -1,4 +1,5 @@
 include("../src/abstraction.jl")
+include("../src/plotting.jl")
 
 module PathPlanning
 
@@ -39,9 +40,9 @@ function path_planning(
     ax.set_xlim([-0.2, ub_x + 0.2])
     ax.set_ylim([-0.2, 10.2])
 
-    AB.plot_subspace!(ax, 1:2, X_full, fa = 0.0)
-    AB.plot_subspace!(ax, 1:2, X_init, fc = "green")
-    AB.plot_subspace!(ax, 1:2, X_reach, fc = "yellow")
+    Plot.subspace!(ax, 1:2, X_full, fa = 0.0)
+    Plot.subspace!(ax, 1:2, X_init, fc = "green")
+    Plot.subspace!(ax, 1:2, X_reach, fc = "yellow")
 
     nsteps === nothing && return
 
@@ -80,7 +81,7 @@ function path_planning(
     @time AB.set_controller_reach!(trans_map_contr, trans_map_sys, X_init, X_reach)
 
     x0 = [0.4, 0.4, 0.0]
-    AB.plot_trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, nsteps)
+    Plot.trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, nsteps)
 end
 
 end  # module PathPlanning

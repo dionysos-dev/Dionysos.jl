@@ -1,8 +1,6 @@
 module Abstraction
 
 using LinearAlgebra
-using PyPlot
-using PyCall
 
 @enum INCL_MODE INNER OUTER
 
@@ -56,11 +54,6 @@ include("subspace.jl")
 include("controlsystem.jl")
 include("transitionmap.jl")
 include("macros.jl")
-
-
-
-include("plotting.jl")
-
 
 
 # include("controlsystem.jl")

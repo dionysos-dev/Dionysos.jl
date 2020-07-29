@@ -1,4 +1,11 @@
 # All plotting functions
+module Plot
+
+import ..Abstraction
+AB = Abstraction
+
+using PyPlot
+using PyCall
 
 const spatial = pyimport_conda("scipy.spatial", "scipy")
 FC(c, a) =  matplotlib.colors.colorConverter.to_rgba(c, alpha = a)
@@ -9,7 +16,7 @@ end
 
 ## =============================================================================
 # Cells
-function plot_subspace!(ax, vars, sub_space;
+function subspace!(ax, vars, sub_space;
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     #---------------------------------------------------------------------------
     grid_space = sub_space.grid_space
@@ -17,11 +24,11 @@ function plot_subspace!(ax, vars, sub_space;
     fca = FC(fc, fa)
     eca = FC(ec, ea)
 
-    pos_coll = (get_pos_by_ref(grid_space, ref) for ref in enumerate_subspace_ref(sub_space))
+    pos_coll = (AB.get_pos_by_ref(grid_space, ref) for ref in AB.enumerate_subspace_ref(sub_space))
     verts_vec = Vector{Vector{Float64}}[]
 
     for pos in unique(x -> x[vars], pos_coll)
-        c = get_coords_by_pos(grid_space, pos)[vars]
+        c = AB.get_coords_by_pos(grid_space, pos)[vars]
         push!(verts_vec, verts_rect(c, grid_space.h[vars]/2))
     end
 
@@ -34,7 +41,7 @@ end
 
 ## =============================================================================
 # Sets
-function plot_box!(ax, vars, lb, ub;
+function box!(ax, vars, lb, ub;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && length(lb) == length(ub) >= 2
@@ -51,7 +58,7 @@ end
 
 ## =============================================================================
 # Trajectory open loop
-function plot_trajectory_open_loop!(ax, vars, cont_sys, x0, u, nstep;
+function trajectory_open_loop!(ax, vars, cont_sys, x0, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && length(x0) >= 2
@@ -76,7 +83,7 @@ end
 
 ## =============================================================================
 # Images
-function plot_cell_image!(ax, vars, X_sub, U_sub, cont_sys;
+function cell_image!(ax, vars, X_sub, U_sub, cont_sys;
         nsub = fill(5, X_sub.grid_space.dim), fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5)
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && X_sub.grid_space.dim >= 2
@@ -85,9 +92,9 @@ function plot_cell_image!(ax, vars, X_sub, U_sub, cont_sys;
     verts_list = Vector{Vector{Float64}}[]
     ns = nsub .- 1
 
-    for x_ref in enumerate_subspace_ref(X_sub), u_ref in enumerate_subspace_ref(U_sub)
-        x = get_coords_by_ref(X_sub.grid_space, x_ref)
-        u = get_coords_by_ref(U_sub.grid_space, u_ref)
+    for x_ref in AB.enumerate_subspace_ref(X_sub), u_ref in AB.enumerate_subspace_ref(U_sub)
+        x = AB.get_coords_by_ref(X_sub.grid_space, x_ref)
+        u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
         pos_ = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
         x_coll = (x + pos.*X_sub.grid_space.h for pos in Iterators.product(pos_...))
         sys_map = x -> (cont_sys.sys_map!(x, u, cont_sys.tstep); return x)
@@ -106,7 +113,7 @@ end
 
 ## =============================================================================
 # Outer-approximation
-function plot_cell_approx!(ax, vars, X_sub, U_sub, cont_sys;
+function cell_approx!(ax, vars, X_sub, U_sub, cont_sys;
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5)
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && X_sub.grid_space.dim >= 2
@@ -114,9 +121,9 @@ function plot_cell_approx!(ax, vars, X_sub, U_sub, cont_sys;
     eca = FC(ec, ea)
     verts_list = Vector{Vector{Float64}}[]
 
-    for x_ref in enumerate_subspace_ref(X_sub), u_ref in enumerate_subspace_ref(U_sub)
-        x = get_coords_by_ref(X_sub.grid_space, x_ref)
-        u = get_coords_by_ref(U_sub.grid_space, u_ref)
+    for x_ref in AB.enumerate_subspace_ref(X_sub), u_ref in AB.enumerate_subspace_ref(U_sub)
+        x = AB.get_coords_by_ref(X_sub.grid_space, x_ref)
+        u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
         cont_sys.sys_map!(x, u, cont_sys.tstep)
         r = X_sub.grid_space.h/2 + cont_sys.meas_noise
         cont_sys.bound_map!(r, u, cont_sys.tstep)
@@ -133,25 +140,25 @@ end
 
 ## =============================================================================
 # Trajectory closed loop
-function plot_trajectory_closed_loop!(ax, vars, cont_sys, trans_map, x0, nstep;
+function trajectory_closed_loop!(ax, vars, cont_sys, trans_map, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
     #---------------------------------------------------------------------------
     X_grid = trans_map.X_grid
     x0 = copy(x0)
     for i = 1:nstep
-        x_ref = get_ref_by_coords(X_grid, x0)
+        x_ref = AB.get_ref_by_coords(X_grid, x0)
         if x_ref === X_grid.overflow_ref
             @warn("Trajectory out of domain")
             return
         end
-        uy_ref_coll = get_transition_image(trans_map, x_ref)
+        uy_ref_coll = AB.get_transition_image(trans_map, x_ref)
         if isempty(uy_ref_coll)
             @warn("Uncontrollable state")
             return
         end
         u_ref = iterate(uy_ref_coll)[1][1]
-        u = get_coords_by_ref(trans_map.U_grid, u_ref)
-        plot_trajectory_open_loop!(
+        u = AB.get_coords_by_ref(trans_map.U_grid, u_ref)
+        trajectory_open_loop!(
             ax, vars, cont_sys, x0, u, 1, lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
         cont_sys.sys_map!(x0, u, cont_sys.tstep)
     end
@@ -258,3 +265,4 @@ function plotapprox!(ax, vars, sym_model, iX_list, iU_list;
     ax.add_collection(poly_list)
 end
 =#
+end

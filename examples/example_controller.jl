@@ -1,4 +1,5 @@
 include("../src/abstraction.jl")
+include("../src/plotting.jl")
 
 module TestMain
 
@@ -74,18 +75,18 @@ end
 fig = PyPlot.figure()
 ax = fig.gca()
 
-AB.plot_subspace!(ax, 1:2, X_full, fa = 0.1)
-AB.plot_subspace!(ax, 1:2, X_init)
-AB.plot_subspace!(ax, 1:2, X_reach)
+Plot.subspace!(ax, 1:2, X_full, fa = 0.1)
+Plot.subspace!(ax, 1:2, X_init)
+Plot.subspace!(ax, 1:2, X_reach)
 
 for (Xs, Us, Ys) in XUY_simple_
-    AB.plot_subspace!(ax, 1:2, Xs, fc = "green")
-    AB.plot_subspace!(ax, 1:2, Ys, fc = "blue")
-    AB.plot_cell_image!(ax, 1:2, Xs, Us, cont_sys)
-    AB.plot_cell_approx!(ax, 1:2, Xs, Us, cont_sys)
+    Plot.subspace!(ax, 1:2, Xs, fc = "green")
+    Plot.subspace!(ax, 1:2, Ys, fc = "blue")
+    Plot.cell_image!(ax, 1:2, Xs, Us, cont_sys)
+    Plot.cell_approx!(ax, 1:2, Xs, Us, cont_sys)
 end
 
-AB.plot_trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, 10)
+Plot.trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, 10)
 
 ax.set_xlim([-5.3, 5.3])
 ax.set_ylim([-5.3, 5.3])
