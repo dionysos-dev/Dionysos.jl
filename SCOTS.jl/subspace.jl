@@ -39,6 +39,10 @@ function add_to_subspace_by_box!(sub_space, lb, ub, incl_mode::INCL_MODE)
     end
 end
 
+function add_to_subspace!(sub_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    add_to_subspace_by_box!(sub_space, rect.lb, rect.ub, incl_mode)
+end
+
 function remove_from_subspace_by_ref!(sub_space::SubSpaceHash, ref)
     delete!(sub_space.elems, ref)
 end
