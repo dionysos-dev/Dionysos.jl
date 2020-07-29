@@ -6,19 +6,22 @@ module PathPlanning
 import Main.Abstraction
 using PyPlot
 AB = Main.Abstraction
+import Main.Plot
 
 function path_planning(
-    ub_x, nsteps = nothing;
+    ub_x;
+    nsteps = nothing,
     X_lb = [1.0, 2.2,  2.2, 3.4,  4.6, 5.8,  5.8,  7.0, 8.2, 8.4,  9.3, 8.4,  9.3, 8.4,  9.3],
     X_ub = [1.2, 2.4,  2.4, 3.6,  4.8, 6.0,  6.0,  7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0],
     Y_lb = [0.0, 0.0,  6.0, 0.0,  1.0, 0.0,  7.0,  1.0, 0.0, 8.2,  7.0, 5.8,  4.6, 3.4,  2.2],
-    Y_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6]
+    Y_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6],
+    η = 0.2
 )
     frame = AB.HyperRectangle([0.0, 0.0, -pi - 0.4], [ub_x, 10.0, pi + 0.4])
     init = AB.HyperRectangle([0.4, 0.4, 0.0], [0.4, 0.4, 0.0])
     target = AB.HyperRectangle([ub_x - 1.0, 0.5, -100.0], [ub_x - 0.4, 0.8, 100.0])
     x0 = [0.0, 0.0, 0.0]
-    h = [0.2, 0.2, 0.2]
+    h = [η, η, η]
     X_grid = AB.NewGridSpaceHash(x0, h)
     AB.add_to_gridspace!(X_grid, frame, AB.OUTER)
     for i in eachindex(X_lb)

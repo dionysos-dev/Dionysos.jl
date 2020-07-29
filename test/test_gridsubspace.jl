@@ -3,7 +3,6 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Main.Abstraction
-using PyPlot
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
@@ -36,6 +35,7 @@ display(sub_space)
 
 @static if get(ENV, "TRAVIS", "false") == "false"
     include("../src/plotting.jl")
+    using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()
 

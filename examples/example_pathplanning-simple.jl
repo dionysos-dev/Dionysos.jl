@@ -1,2 +1,2 @@
 include("example_pathplanning.jl")
-PathPlanning.path_planning(4.0, 100)
+PathPlanning.path_planning(4.0, nsteps=100)
