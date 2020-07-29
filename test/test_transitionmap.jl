@@ -3,7 +3,6 @@ include("../src/abstraction.jl")
 module TestMain
 
 import Main.Abstraction
-using PyPlot
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing

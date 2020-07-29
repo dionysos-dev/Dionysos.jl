@@ -3,7 +3,6 @@ include("../src/abstraction.jl")
 module TestMain
 
 import Main.Abstraction
-using PyPlot
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
@@ -57,18 +56,21 @@ for y_ref in y_ref_coll
     AB.add_to_subspace_by_ref!(Y_simple, y_ref)
 end
 
-fig = PyPlot.figure()
-ax = fig.gca()
+@static if get(ENV, "TRAVIS", "false") == "false"
+    using PyPlot
+    fig = PyPlot.figure()
+    ax = fig.gca()
 
-AB.plot_subspace!(ax, 1:2, X_full, fa = 0.1)
-AB.plot_subspace!(ax, 1:2, X_simple)
-AB.plot_subspace!(ax, 1:2, Y_simple)
-AB.plot_trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
-AB.plot_cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
-AB.plot_cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
+    AB.plot_subspace!(ax, 1:2, X_full, fa = 0.1)
+    AB.plot_subspace!(ax, 1:2, X_simple)
+    AB.plot_subspace!(ax, 1:2, Y_simple)
+    AB.plot_trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
+    AB.plot_cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
+    AB.plot_cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
 
-ax.set_xlim([-1.0, 11.0])
-ax.set_ylim([-2.0, 14.0])
+    ax.set_xlim([-1.0, 11.0])
+    ax.set_ylim([-2.0, 14.0])
+end
 
 sleep(0.1) # used for good printing
 println("End test")

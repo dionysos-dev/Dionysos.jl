@@ -3,7 +3,6 @@ include("../src/abstraction.jl")
 module TestMain
 
 import Main.Abstraction
-using PyPlot
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
@@ -35,8 +34,11 @@ meas_noise = [1.0, 1.0]*0.01
 
 cont_sys = AB.NewControlSystemRK4(tstep, F_sys, L_bound, sys_noise, meas_noise, n_sys, n_bound)
 
-fig = PyPlot.figure()
-ax = fig.gca()
+@static if get(ENV, "TRAVIS", "false") == "false"
+    using PyPlot
+    fig = PyPlot.figure()
+    ax = fig.gca()
+end
 
 x_pos = [1, 1]
 u_pos = [1]
@@ -47,13 +49,15 @@ AB.add_to_subspace_by_pos!(X_simple, x_pos)
 U_simple = AB.NewSubSpace(U_grid)
 AB.add_to_subspace_by_pos!(U_simple, u_pos)
 
-AB.plot_subspace!(ax, 1:2, X_simple)
-AB.plot_trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
-AB.plot_cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
-AB.plot_cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
+@static if get(ENV, "TRAVIS", "false") == "false"
+    AB.plot_subspace!(ax, 1:2, X_simple)
+    AB.plot_trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
+    AB.plot_cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
+    AB.plot_cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
 
-ax.set_xlim([-10.0, 10.0])
-ax.set_ylim([-10.0, 10.0])
+    ax.set_xlim([-10.0, 10.0])
+    ax.set_ylim([-10.0, 10.0])
+end
 
 sleep(0.1) # used for good printing
 println("End test")
