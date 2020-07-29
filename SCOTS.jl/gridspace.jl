@@ -56,6 +56,9 @@ function add_to_gridspace_by_box!(grid_space, lb, ub, incl_mode::INCL_MODE)
         add_to_gridspace_by_pos!(grid_space, pos)
     end
 end
+function add_to_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    add_to_gridspace_by_box!(grid_space, rect.lb, rect.ub, incl_mode)
+end
 
 function remove_from_gridspace_by_ref!(grid_space::GridSpaceHash, ref)
     delete!(grid_space.elems, ref)
@@ -83,6 +86,10 @@ function remove_from_gridspace_by_box!(grid_space, lb, ub, incl_mode::INCL_MODE)
             end
         end
     end
+end
+
+function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
+    remove_from_gridspace_by_box!(grid_space, rect.lb, rect.ub, incl_mode)
 end
 
 function get_ref_by_pos(grid_space::GridSpaceHash, pos)

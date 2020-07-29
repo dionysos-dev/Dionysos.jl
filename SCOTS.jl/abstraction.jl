@@ -50,6 +50,7 @@ end
 #     infos::Dict{String,Bool}
 # end
 
+include("rectangle.jl")
 include("gridspace.jl")
 include("subspace.jl")
 include("controlsystem.jl")
