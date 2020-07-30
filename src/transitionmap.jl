@@ -25,14 +25,15 @@ function get_transition_image(trans_map::TransitionMapHash, x_ref)
     _check_sorted_unique(trans_map)
     idx_list_x = searchsorted(trans_map.elems, (x_ref,), by = x -> x[1])
     uy_ref_coll = Pair{UInt64,Vector{UInt64}}[]
-    cur_u = nothing
-    cur_i = 0
-    for i in idx_list_x
+    if isempty(idx_list_x)
+        return uy_ref_coll
+    end
+    cur_i = idx_list_x[1]
+    cur_u = uy_ref_coll[i][1]
+    for i in idx_list_x[2:end]
         _, u, y = trans_map.elems[i]
-        if cur_u === nothing || cur_u != u
-            if cur_u !== nothing
-                push!(uy_ref_coll, cur_u => UInt64[trans_map.elems[j][3] for j in cur_i:i])
-            end
+        if cur_u != u
+            push!(uy_ref_coll, cur_u => UInt64[trans_map.elems[j][3] for j in cur_i:(i-1)])
             cur_u = u
             cur_i = i
         end
