@@ -9,15 +9,15 @@ end
 
 ## =============================================================================
 # Cells
-function plot_subspace!(ax, vars, sub_space::SubSpace{N};
+function plot_subset!(ax, vars, sub_set::SubSet{N};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where N
     #---------------------------------------------------------------------------
-    grid_space = sub_space.grid_space
+    grid_space = sub_set.grid_space
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
 
-    pos_iter = (get_pos_by_ref(grid_space, ref) for ref in enumerate_subspace_ref(sub_space))
+    pos_iter = (get_pos_by_ref(grid_space, ref) for ref in enumerate_subset_ref(sub_set))
     verts_vec = NTuple{4, Tuple{Float64, Float64}}[]
 
     for pos in unique(x -> x[vars], pos_iter)
@@ -85,7 +85,7 @@ function plot_cell_image!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
     verts_list = Vector{Tuple{Float64, Float64}}[]
     ns = nsub .- 1
 
-    for x_ref in enumerate_subspace_ref(X_sub), u_ref in enumerate_subspace_ref(U_sub)
+    for x_ref in enumerate_subset_ref(X_sub), u_ref in enumerate_subset_ref(U_sub)
         x = get_coords_by_ref(X_sub.grid_space, x_ref)
         u = get_coords_by_ref(U_sub.grid_space, u_ref)
         subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
@@ -114,7 +114,7 @@ function plot_cell_approx!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
     eca = FC(ec, ea)
     verts_list = NTuple{4, Tuple{Float64, Float64}}[]
 
-    for x_ref in enumerate_subspace_ref(X_sub), u_ref in enumerate_subspace_ref(U_sub)
+    for x_ref in enumerate_subset_ref(X_sub), u_ref in enumerate_subset_ref(U_sub)
         x = get_coords_by_ref(X_sub.grid_space, x_ref)
         u = get_coords_by_ref(U_sub.grid_space, u_ref)
         Fx = cont_sys.sys_map(x, u, cont_sys.tstep)
@@ -137,11 +137,11 @@ function plot_trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
     #---------------------------------------------------------------------------
     X_grid = sym_model.X_grid
-    U_sub = NewSubSpace(sym_model.U_grid)
-    Y_sub = NewSubSpace(sym_model.Y_grid)
+    U_sub = NewSubSet(sym_model.U_grid)
+    Y_sub = NewSubSet(sym_model.Y_grid)
     for i = 1:nstep
-        remove_from_subspace_all!(U_sub)
-        remove_from_subspace_all!(Y_sub)
+        remove_from_subset_all!(U_sub)
+        remove_from_subset_all!(Y_sub)
         x_ref = get_ref_by_coords(X_grid, x0)
         if x_ref === X_grid.overflow_ref
             @warn("Trajectory out of domain")
@@ -152,7 +152,7 @@ function plot_trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
             return
         end
         add_inputs_images_by_xref!(U_sub, Y_sub, sym_model, x_ref)
-        u_ref = iterate(enumerate_subspace_ref(U_sub))[1]
+        u_ref = iterate(enumerate_subset_ref(U_sub))[1]
         u = get_coords_by_ref(sym_model.U_grid, u_ref)
         plot_trajectory_open_loop!(ax, vars, cont_sys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)

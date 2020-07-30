@@ -55,11 +55,11 @@ function add_images_by_xref_uref!(Y_sub, sym_model::SymbolicModelHash, x_ref, u_
     ensure_sorted!(sym_model)
     ensure_unique!(sym_model)
     idx_iter = searchsorted(sym_model.elems, (x_ref, u_ref), by = x -> x[1:2])
-    add_to_subspace_by_ref_coll!(Y_sub, sym_model.elems[idx][3] for idx in idx_iter)
+    add_to_subset_by_ref_coll!(Y_sub, sym_model.elems[idx][3] for idx in idx_iter)
 end
 
 # "Set" (vs "add") assumes Y_sub is empty initially... May fail if not respected
-function set_images_by_xref_uref!(Y_sub::SubSpaceHash, sym_model::SymbolicModelHash, x_ref, u_ref)
+function set_images_by_xref_uref!(Y_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, u_ref)
     add_images_by_xref_uref!(Y_sub, sym_model, x_ref, u_ref)
     Y_sub.issorted = true
     Y_sub.isunique = true
@@ -83,22 +83,22 @@ function add_inputs_by_xref_ysub!(U_sub, sym_model::SymbolicModelHash, x_ref, Y_
         refs = sym_model.elems[idx]
         if refs[2] != uref_prev
             if all_in
-                add_to_subspace_by_ref!(U_sub, uref_prev)
+                add_to_subset_by_ref!(U_sub, uref_prev)
             else
                 all_in = true
             end
             uref_prev = refs[2]
         end
-        all_in = all_in && is_ref_in_subspace(Y_sub, refs[3])
+        all_in = all_in && is_ref_in_subset(Y_sub, refs[3])
     end
 
     if all_in
-        add_to_subspace_by_ref!(U_sub, refs[2])
+        add_to_subset_by_ref!(U_sub, refs[2])
     end
 end
 
 # "Set" (vs "add") assumes U_sub is empty initially... May fail if not respected
-function set_inputs_by_xref_ysub!(U_sub::SubSpaceHash, sym_model::SymbolicModelHash, x_ref, Y_sub)
+function set_inputs_by_xref_ysub!(U_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, Y_sub)
     add_inputs_by_xref_ysub!(U_sub, sym_model, x_ref, Y_sub)
     U_sub.issorted = true
     U_sub.isunique = true
@@ -113,10 +113,10 @@ function add_inputs_images_by_xref!(U_sub, Y_sub, sym_model::SymbolicModelHash, 
     for idx in idx_iter
         refs = sym_model.elems[idx]
         if refs[2] != uref_prev
-            add_to_subspace_by_ref!(U_sub, refs[2])
+            add_to_subset_by_ref!(U_sub, refs[2])
             uref_prev = refs[2]
         end
-        add_to_subspace_by_ref!(Y_sub, refs[3])
+        add_to_subset_by_ref!(Y_sub, refs[3])
     end
 end
 

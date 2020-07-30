@@ -17,9 +17,9 @@ struct GridSpaceHash{N} <: GridSpace{N}
     overflow_pos::NTuple{N, Int}
 end
 
-abstract type SubSpace{N} end
+abstract type SubSet{N} end
 
-mutable struct SubSpaceHash{N} <: SubSpace{N}
+mutable struct SubSetHash{N} <: SubSet{N}
     grid_space::GridSpaceHash{N}
     elems::Vector{UInt64}
     issorted::Bool
@@ -46,7 +46,7 @@ mutable struct SymbolicModelHash <: SymbolicModel
 end
 
 include("gridspace.jl")
-include("subspace.jl")
+include("subset.jl")
 include("controlsystem.jl")
 include("symbolicmodel.jl")
 include("macros.jl")

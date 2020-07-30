@@ -38,43 +38,43 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_reach)
 	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
 	X_grid = sym_model_sys.X_grid
 	U_grid = sym_model_sys.U_grid
-	X_remain = NewSubSpace(X_grid)
+	X_remain = NewSubSet(X_grid)
 	for x_ref in enumerate_gridspace_ref(X_grid)
 		if is_xref_controllable(sym_model_sys, x_ref)
-			add_to_subspace_by_new_ref!(X_remain, x_ref)
+			add_to_subset_by_new_ref!(X_remain, x_ref)
 		end
 	end
-	# size_remain = get_subspace_size(X_remain)
-	X_init2 = NewSubSpace(X_grid)
-	union_subspaces!(X_init2, X_init)
-	X_reach2 = NewSubSpace(X_grid)
-	# sizehint_subspace!(X_reach2, size_remain)
-	union_subspaces!(X_reach2, X_reach)
-	setdiff_subspaces!(X_remain, X_reach)
-	setdiff_subspaces!(X_init2, X_reach)
-	X_reach_new = NewSubSpace(X_grid)
-	U_enabled = NewSubSpace(U_grid)
+	# size_remain = get_subset_size(X_remain)
+	X_init2 = NewSubSet(X_grid)
+	union_subsets!(X_init2, X_init)
+	X_reach2 = NewSubSet(X_grid)
+	# sizehint_subset!(X_reach2, size_remain)
+	union_subsets!(X_reach2, X_reach)
+	setdiff_subsets!(X_remain, X_reach)
+	setdiff_subsets!(X_init2, X_reach)
+	X_reach_new = NewSubSet(X_grid)
+	U_enabled = NewSubSet(U_grid)
 
-	while ~is_subspace_empty(X_init2)
+	while ~is_subset_empty(X_init2)
 		print(".")
-		remove_from_subspace_all!(X_reach_new)
-		for x_ref in enumerate_subspace_ref(X_remain)
-			remove_from_subspace_all!(U_enabled)
+		remove_from_subset_all!(X_reach_new)
+		for x_ref in enumerate_subset_ref(X_remain)
+			remove_from_subset_all!(U_enabled)
 			set_inputs_by_xref_ysub!(U_enabled, sym_model_sys, x_ref, X_reach2)
-			if is_subspace_empty(U_enabled)
+			if is_subset_empty(U_enabled)
 				continue
 			end
-			add_to_subspace_by_new_ref!(X_reach_new, x_ref)
+			add_to_subset_by_new_ref!(X_reach_new, x_ref)
 			add_to_symmodel_by_new_refs_coll!(sym_model_contr,
-				(x_ref, u_ref, x_ref) for u_ref in enumerate_subspace_ref(U_enabled))
+				(x_ref, u_ref, x_ref) for u_ref in enumerate_subset_ref(U_enabled))
 		end
-		if is_subspace_empty(X_reach_new)
+		if is_subset_empty(X_reach_new)
 			println("\nset_controller_reach! terminated without covering init set")
 			return
 		end
-		union_subspaces!(X_reach2, X_reach_new)
-		setdiff_subspaces!(X_remain, X_reach_new)
-		setdiff_subspaces!(X_init2, X_reach_new)
+		union_subsets!(X_reach2, X_reach_new)
+		setdiff_subsets!(X_remain, X_reach_new)
+		setdiff_subsets!(X_init2, X_reach_new)
 	end
 	println("\nset_controller_reach! terminated with success")
 end

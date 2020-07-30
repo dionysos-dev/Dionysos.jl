@@ -32,22 +32,22 @@ AB.remove_from_gridspace_by_box!(X_grid, (9.3, 4.6, -100.0), (10.0, 5.0, 100.0),
 AB.remove_from_gridspace_by_box!(X_grid, (8.4, 3.4, -100.0), (9.3, 3.8, 100.0), AB.OUTER)
 AB.remove_from_gridspace_by_box!(X_grid, (9.3, 2.2, -100.0), (10.0, 2.6, 100.0), AB.OUTER)
 
-X_full = AB.NewSubSpace(X_grid)
-AB.add_to_subspace_all!(X_full)
+X_full = AB.NewSubSet(X_grid)
+AB.add_to_subset_all!(X_full)
 
-X_init = AB.NewSubSpace(X_grid)
-AB.add_to_subspace_by_box!(X_init, (0.4, 0.4, 0.0), (0.4, 0.4, 0.0), AB.OUTER)
-X_reach = AB.NewSubSpace(X_grid)
-AB.add_to_subspace_by_box!(X_reach, (9.0, 0.5, -100.0), (9.6, 0.8, 100.0), AB.OUTER)
+X_init = AB.NewSubSet(X_grid)
+AB.add_to_subset_by_box!(X_init, (0.4, 0.4, 0.0), (0.4, 0.4, 0.0), AB.OUTER)
+X_reach = AB.NewSubSet(X_grid)
+AB.add_to_subset_by_box!(X_reach, (9.0, 0.5, -100.0), (9.6, 0.8, 100.0), AB.OUTER)
 
 fig = PyPlot.figure()
 ax = fig.gca(aspect = "equal")
 ax.set_xlim((-0.2, 10.2))
 ax.set_ylim((-0.2, 10.2))
 
-AB.plot_subspace!(ax, 1:2, X_full, fa = 0.0)
-AB.plot_subspace!(ax, 1:2, X_init, fc = "green")
-AB.plot_subspace!(ax, 1:2, X_reach, fc = "yellow")
+AB.plot_subset!(ax, 1:2, X_full, fa = 0.0)
+AB.plot_subset!(ax, 1:2, X_init, fc = "green")
+AB.plot_subset!(ax, 1:2, X_reach, fc = "yellow")
 
 lb = (-1.0, -1.0)
 ub = (1.0, 1.0)
@@ -57,8 +57,8 @@ U_grid = AB.NewGridSpaceHash(u0, h)
 AB.add_to_gridspace_by_box!(U_grid, lb, ub, AB.OUTER)
 
 tstep = 0.3
-n_sys = 3
-n_bound = 3
+n_sys = 5
+n_bound = 5
 function F_sys(x, u)
       alpha = atan(tan(u[2])/2)
       return (
@@ -83,30 +83,30 @@ sym_model_contr = AB.NewSymbolicModelHash(X_grid, U_grid, X_grid)
 x0 = (0.4, 0.4, 0.0)
 AB.plot_trajectory_closed_loop!(ax, 1:2, cont_sys, sym_model_contr, x0, 1000)
 
-x_ref = iterate(AB.enumerate_subspace_ref(X_init))[1]
+x_ref = iterate(AB.enumerate_subset_ref(X_init))[1]
 display(x_ref)
 x0 = AB.get_coords_by_ref(X_grid, x_ref)
-X_simple = AB.NewSubSpace(X_grid)
+X_simple = AB.NewSubSet(X_grid)
 XUY_simple_ = Any[]
 
 # for i = 1:6
 #     # global x_ref, X_grid, U_grid, XUY_simple_
-#     Xs = AB.NewSubSpace(X_grid)
-#     Ys = AB.NewSubSpace(X_grid)
-#     Us = AB.NewSubSpace(U_grid)
+#     Xs = AB.NewSubSet(X_grid)
+#     Ys = AB.NewSubSet(X_grid)
+#     Us = AB.NewSubSet(U_grid)
 #     AB.add_inputs_images_by_xref!(Us, Xs, sym_model_contr, x_ref)
-#     for u_ref in AB.enumerate_subspace_ref(Us)
+#     for u_ref in AB.enumerate_subset_ref(Us)
 #         AB.add_images_by_xref_uref!(Ys, sym_model_sys, x_ref, u_ref)
 #     end
 #     push!(XUY_simple_, (Xs, Us, Ys))
-#     if ~AB.is_subspace_empty(Ys)
-#         x_ref = iterate(AB.enumerate_subspace_ref(Ys))[1]
+#     if ~AB.is_subset_empty(Ys)
+#         x_ref = iterate(AB.enumerate_subset_ref(Ys))[1]
 #     end
 # end
 #
 # for (Xs, Us, Ys) in XUY_simple_
-#     AB.plot_subspace!(ax, 1:2, Xs, fc = "green")
-#     AB.plot_subspace!(ax, 1:2, Ys, fc = "blue")
+#     AB.plot_subset!(ax, 1:2, Xs, fc = "green")
+#     AB.plot_subset!(ax, 1:2, Ys, fc = "blue")
 #     AB.plot_cell_image!(ax, 1:2, Xs, Us, cont_sys)
 #     AB.plot_cell_approx!(ax, 1:2, Xs, Us, cont_sys)
 # end
