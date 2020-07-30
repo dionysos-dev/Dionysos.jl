@@ -2,12 +2,14 @@ include("../src/abstraction.jl")
 
 module TestMain
 
+using Test
 import Main.Abstraction
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
 
+@testset "Transitions" begin
 lb = [0.0, 0.0]
 ub = [10.0, 11.0]
 x0 = [0.0, 0.0]
@@ -37,6 +39,7 @@ meas_noise = [1.0, 1.0]*0.01*0
 cont_sys = AB.NewControlSystemRK4(tstep, F_sys, L_bound, sys_noise, meas_noise, n_sys, n_bound)
 trans_map = trans_map = AB.NewTransitionMapHash(X_grid, U_grid, X_grid)
 AB.set_transitions_from_controlsystem!(trans_map, cont_sys)
+@test length(trans_map.elems) == 1145
 
 x_pos = [1, 2]
 u_pos = [1]
@@ -45,6 +48,7 @@ u = AB.get_coords_by_pos(U_grid, u_pos)
 x_ref = AB.get_ref_by_pos(X_grid, x_pos)
 u_ref = AB.get_ref_by_pos(U_grid, u_pos)
 y_ref_coll = AB.get_transition_image(trans_map, x_ref, u_ref)[1][2]
+@test length(y_ref_coll) == 18
 display(y_ref_coll)
 
 X_simple = AB.NewSubSpace(X_grid)
@@ -71,6 +75,7 @@ end
 
     ax.set_xlim([-1.0, 11.0])
     ax.set_ylim([-2.0, 14.0])
+end
 end
 
 sleep(0.1) # used for good printing

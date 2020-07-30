@@ -9,6 +9,7 @@ AB = Main.Abstraction
 sleep(0.1) # used for good printing
 println("Started test")
 
+@testset "Control" begin
 lb = [0.0, 0.0]
 ub = [10.0, 11.0]
 x0 = [0.0, 0.0]
@@ -64,6 +65,7 @@ AB.add_to_subspace_by_pos!(U_simple, u_pos)
 
     ax.set_xlim([-10.0, 10.0])
     ax.set_ylim([-10.0, 10.0])
+end
 end
 
 sleep(0.1) # used for good printing
