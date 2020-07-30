@@ -1,41 +1,42 @@
 module Abstraction
 
 using LinearAlgebra
+using StaticArrays
 
 @enum INCL_MODE INNER OUTER
 
 abstract type GridSpace end
 
-struct GridSpaceHash <: GridSpace
+struct GridSpaceHash{N} <: GridSpace
     dim::Int
-    orig::Vector{Float64}
-    h::Vector{Float64}
-    elems::Dict{UInt64,Vector{Int}}
+    orig::SVector{N,Float64}
+    h::SVector{N,Float64}
+    elems::Dict{UInt64,SVector{N,Int}}
     overflow_ref::UInt64
-    overflow_pos::Vector{Int}
+    overflow_pos::SVector{N,Int}
 end
 
 abstract type SubSpace end
 
-struct SubSpaceHash <: SubSpace
-    grid_space::GridSpaceHash
+struct SubSpaceHash{N} <: SubSpace
+    grid_space::GridSpaceHash{N}
     elems::Set{UInt64}
 end
 
-struct ControlSystem
+struct ControlSystem{N}
     tstep::Float64
-    sys_noise::Vector{Float64}
-    meas_noise::Vector{Float64}
-    sys_map!::Function
-    bound_map!::Function
+    sys_noise::SVector{N,Float64}
+    meas_noise::SVector{N,Float64}
+    sys_map::Function
+    bound_map::Function
 end
 
 abstract type TransitionMap end
 
-struct TransitionMapHash <: TransitionMap
-    X_grid::GridSpaceHash
-    U_grid::GridSpaceHash
-    Y_grid::GridSpaceHash
+struct TransitionMapHash{NX, NU, NY} <: TransitionMap
+    X_grid::GridSpaceHash{NX}
+    U_grid::GridSpaceHash{NU}
+    Y_grid::GridSpaceHash{NY}
     elems::Vector{Tuple{UInt64,UInt64,UInt64}}
     infos::Dict{String,Bool}
 end

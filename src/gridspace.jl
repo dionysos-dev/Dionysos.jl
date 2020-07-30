@@ -1,7 +1,6 @@
-function NewGridSpaceHash(orig, h)
-    @assert length(orig) == length(h)
-    D = Dict{UInt64,Vector{Int}}()
-    overflow_pos = Vector{Int}(undef, length(orig))
+function NewGridSpaceHash(orig::SVector{N}, h::SVector{N}) where N
+    D = Dict{UInt64,SVector{N,Int}}()
+    overflow_pos = zero(SVector{N,Int}) .+ typemin(Int)
     return GridSpaceHash(length(orig), orig, h, D, UInt64(0), overflow_pos)
 end
 
@@ -33,8 +32,11 @@ function get_pos_lim(grid_space, rect, incl_mode::INCL_MODE)
     end
 end
 
+function _ranges(rect::HyperRectangle{T, SVector{N, T}}) where {T, N}
+    return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), N)
+end
 function _make_iterator_from_lims(rect)
-    return (collect(pos) for pos in Iterators.product((UnitRange(x...) for x in zip(rect.lb, rect.ub))...))
+    return (SVector(pos...) for pos in Iterators.product(_ranges(rect)...))
 end
 
 function add_to_gridspace_by_pos!(grid_space::GridSpaceHash, pos)

@@ -71,7 +71,7 @@ function trajectory_open_loop!(ax, vars, cont_sys, x0, u, nstep;
     x0 = copy(x0)
 
     for i = 2:Nstep
-        cont_sys.sys_map!(x0, u, tstep)
+        x0 = cont_sys.sys_map(x0, u, tstep)
         X1_vec[i] = x0[vars[1]]
         X2_vec[i] = x0[vars[2]]
     end
@@ -97,7 +97,7 @@ function cell_image!(ax, vars, X_sub, U_sub, cont_sys;
         u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
         pos_ = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
         x_coll = (x + pos.*X_sub.grid_space.h for pos in Iterators.product(pos_...))
-        sys_map = x -> (cont_sys.sys_map!(x, u, cont_sys.tstep); return x)
+        sys_map = x -> cont_sys.sys_map(x, u, cont_sys.tstep)
         Fx_coll = (sys_map(x) for x in x_coll)
         Fxproj_vec = [Fx[vars] for Fx in Fx_coll][:]
         hull = spatial.ConvexHull([Fx[i] for Fx in Fxproj_vec, i in 1:2])
@@ -124,9 +124,9 @@ function cell_approx!(ax, vars, X_sub, U_sub, cont_sys;
     for x_ref in AB.enumerate_subspace_ref(X_sub), u_ref in AB.enumerate_subspace_ref(U_sub)
         x = AB.get_coords_by_ref(X_sub.grid_space, x_ref)
         u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
-        cont_sys.sys_map!(x, u, cont_sys.tstep)
+        x = cont_sys.sys_map(x, u, cont_sys.tstep)
         r = X_sub.grid_space.h/2 + cont_sys.meas_noise
-        cont_sys.bound_map!(r, u, cont_sys.tstep)
+        r = cont_sys.bound_map(r, u, cont_sys.tstep)
         r += cont_sys.meas_noise
         push!(verts_list, verts_rect(x[vars], r[vars]))
     end
@@ -160,7 +160,7 @@ function trajectory_closed_loop!(ax, vars, cont_sys, trans_map, x0, nstep;
         u = AB.get_coords_by_ref(trans_map.U_grid, u_ref)
         trajectory_open_loop!(
             ax, vars, cont_sys, x0, u, 1, lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
-        cont_sys.sys_map!(x0, u, cont_sys.tstep)
+        x0 = cont_sys.sys_map(x0, u, cont_sys.tstep)
     end
 end
 

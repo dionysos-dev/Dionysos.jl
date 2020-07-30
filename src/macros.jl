@@ -5,7 +5,7 @@
 # end
 
 function set_transitions_from_controlsystem!(trans_map, cont_sys)
-	println("set_transitions_from_controlsystem! sarted")
+	println("set_transitions_from_controlsystem! started")
 	remove_all_transitions!(trans_map)
 	X_grid = trans_map.X_grid
 	U_grid = trans_map.U_grid
@@ -16,11 +16,11 @@ function set_transitions_from_controlsystem!(trans_map, cont_sys)
 	for u_rp in enumerate_gridspace_ref_pos(U_grid)
 		u = get_coords_by_pos(U_grid, u_rp[2])
 		r = X_grid.h/2 + cont_sys.meas_noise
-		cont_sys.bound_map!(r, u, cont_sys.tstep)
-		r[:] += cont_sys.meas_noise
+		r = cont_sys.bound_map(r, u, cont_sys.tstep)
+		r += cont_sys.meas_noise
 		for x_rp in enumerate_gridspace_ref_pos(X_grid)
 			x = get_coords_by_pos(X_grid, x_rp[2])
-			cont_sys.sys_map!(x, u, tstep)
+			x = cont_sys.sys_map(x, u, tstep)
             y_rectI = get_pos_lim_outer(X_grid, HyperRectangle(x - r, x + r))
 		    y_pos_coll = _make_iterator_from_lims(y_rectI)
 			y_ref_coll = (get_ref_by_pos(X_grid, y_pos) for y_pos in y_pos_coll)
