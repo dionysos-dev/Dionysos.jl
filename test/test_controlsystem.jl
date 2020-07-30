@@ -2,6 +2,7 @@ include("../src/abstraction.jl")
 
 module TestMain
 
+using Test
 import Main.Abstraction
 AB = Main.Abstraction
 
@@ -13,7 +14,9 @@ ub = [10.0, 11.0]
 x0 = [0.0, 0.0]
 h = [1.0, 2.0]
 X_grid = AB.NewGridSpaceHash(x0, h)
+@test AB.get_gridspace_size(X_grid) == 0
 AB.add_to_gridspace!(X_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_gridspace_size(X_grid) == 77
 
 lb = [-1.0]
 ub = [1.0]
@@ -21,6 +24,7 @@ u0 = [0.0]
 h = [0.5]
 U_grid = AB.NewGridSpaceHash(u0, h)
 AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_gridspace_size(U_grid) == 5
 
 tstep = 0.5
 n_sys = 3
@@ -47,8 +51,10 @@ x = AB.get_coords_by_pos(X_grid, x_pos)
 u = AB.get_coords_by_pos(U_grid, u_pos)
 X_simple = AB.NewSubSpace(X_grid)
 AB.add_to_subspace_by_pos!(X_simple, x_pos)
+@test AB.get_subspace_size(X_simple) == 1
 U_simple = AB.NewSubSpace(U_grid)
 AB.add_to_subspace_by_pos!(U_simple, u_pos)
+@test AB.get_subspace_size(U_simple) == 1
 
 @static if get(ENV, "TRAVIS", "false") == "false"
     Plot.subspace!(ax, 1:2, X_simple)
