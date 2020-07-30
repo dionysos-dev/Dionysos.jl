@@ -24,12 +24,18 @@ end
 function get_transition_image(trans_map::TransitionMapHash, x_ref)
     _check_sorted_unique(trans_map)
     idx_list_x = searchsorted(trans_map.elems, (x_ref,), by = x -> x[1])
-    trans_coll_x = trans_map.elems[idx_list_x]
-    u_ref_coll = unique(trans[2] for trans in trans_coll_x)
-    uy_ref_coll = Vector{Pair{UInt64,Vector{UInt64}}}(undef, length(u_ref_coll))
-    for (i, u_ref) in enumerate(u_ref_coll)
-        idx_list_u = searchsorted(trans_coll_x, (x_ref, u_ref), by = x -> x[2])
-        uy_ref_coll[i] = u_ref => [trans_coll_x[idx][3] for idx in idx_list_u]
+    uy_ref_coll = Pair{UInt64,Vector{UInt64}}[]
+    cur_u = nothing
+    cur_i = 0
+    for i in idx_list_x
+        _, u, y = trans_map.elems[i]
+        if cur_u === nothing || cur_u != u
+            if cur_u !== nothing
+                push!(uy_ref_coll, cur_u => UInt64[trans_map.elems[j][3] for j in cur_i:i])
+            end
+            cur_u = u
+            cur_i = i
+        end
     end
     return uy_ref_coll
 end
