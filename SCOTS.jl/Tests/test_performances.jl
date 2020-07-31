@@ -80,18 +80,32 @@ function DoTest()
     @time removeSetdiff!(a2, n) # Faster but make a2 unique...
     println()
 
+    println("Push Set vs sorted vector")
+    n = 3000000
+    a1 = sort(collect(1:2*n))
+    sizehint!(a1, n + 2)
+    a2 = Set(1:2*n)
+    sizehint!(a2, n + 2)
+    @time push!(a1, n)
+    @time push!(a2, n)
+    println()
+
     println("Set vs sorted vector for membership")
     function inSortedVector(V, x)
         idx = searchsorted(V, x)
         return ~isempty(idx)
     end
+    function inVector(V, x)
+        return in(V, x)
+    end
     function inSet(S, x)
         in(S, x)
     end
-    n = 3000
+    n = 3000000
     a1 = sort(collect(1:2*n))
     a2 = Set(1:2*n)
     @time inSortedVector(a1, n)
+    @time inVector(a1, n)
     @time inSet(a2, n) # Faster !!!
     println()
 

@@ -1,59 +1,94 @@
+# function NewSubSet(grid_space::GridSpaceHash{N}) where N
+#     return SubSetHash{N}(grid_space, UInt64[], true, true)
+# end
+
 function NewSubSet(grid_space::GridSpaceHash{N}) where N
-    return SubSetHash{N}(grid_space, UInt64[], true, true)
+    return SubSetHash{N}(grid_space, Set{UInt64}())
 end
 
-function ensure_sorted!(sub_set::SubSetHash)
-    if ~sub_set.issorted
-        # display("subset not sorted")
-        sort!(sub_set.elems)
-        sub_set.issorted = true
-    end
-end
-
-function ensure_unique!(sub_set::SubSetHash)
-    if ~sub_set.isunique
-        # display("subset not unique")
-        unique!(sub_set.elems)
-        sub_set.isunique = true
-    end
-end
+# function ensure_sorted!(sub_set::SubSetHash)
+#     if ~sub_set.issorted
+#         # display("subset not sorted")
+#         sort!(sub_set.elems)
+#         sub_set.issorted = true
+#     end
+# end
+#
+# function ensure_unique!(sub_set::SubSetHash)
+#     if ~sub_set.isunique
+#         # display("subset not unique")
+#         unique!(sub_set.elems)
+#         sub_set.isunique = true
+#     end
+# end
 
 function sizehint_subset!(sub_set::SubSetHash, size_max)
     sizehint!(sub_set.elems, size_max)
 end
 
+# function add_to_subset_by_ref!(sub_set::SubSetHash, ref)
+#     push!(sub_set.elems, ref)
+#     sub_set.issorted = false
+#     sub_set.isunique = false
+# end
+
 function add_to_subset_by_ref!(sub_set::SubSetHash, ref)
     push!(sub_set.elems, ref)
-    sub_set.issorted = false
-    sub_set.isunique = false
 end
+
+# function add_to_subset_by_new_ref!(sub_set::SubSetHash, ref)
+#     push!(sub_set.elems, ref)
+#     sub_set.issorted = false
+# end
 
 function add_to_subset_by_new_ref!(sub_set::SubSetHash, ref)
     push!(sub_set.elems, ref)
-    sub_set.issorted = false
 end
+
+# function add_to_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
+#     append!(sub_set.elems, ref_coll)
+#     if ~isempty(ref_coll)
+#         sub_set.issorted = false
+#         sub_set.isunique = false
+#     end
+# end
 
 function add_to_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
-    append!(sub_set.elems, ref_coll)
-    if ~isempty(ref_coll)
-        sub_set.issorted = false
-        sub_set.isunique = false
-    end
+    union!(sub_set.elems, ref_coll)
 end
+
+# function add_to_subset_by_new_ref_coll!(sub_set::SubSetHash, ref_coll)
+#     append!(sub_set.elems, ref_coll)
+#     if ~isempty(ref_coll)
+#         sub_set.issorted = false
+#     end
+# end
 
 function add_to_subset_by_new_ref_coll!(sub_set::SubSetHash, ref_coll)
-    append!(sub_set.elems, ref_coll)
-    if ~isempty(ref_coll)
-        sub_set.issorted = false
-    end
+    union!(sub_set.elems, ref_coll)
 end
 
+# function union_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
+#     append!(sub_set1.elems, sub_set2.elems)
+#     if ~is_subset_empty(sub_set2)
+#         sub_set1.issorted = false
+#         sub_set1.isunique = false
+#     end
+# end
+
 function union_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
-    append!(sub_set1.elems, sub_set2.elems)
-    if ~is_subset_empty(sub_set2)
-        sub_set1.issorted = false
-        sub_set1.isunique = false
-    end
+    union!(sub_set1.elems, sub_set2.elems)
+end
+
+# function union_new_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
+#     append!(sub_set1.elems, sub_set2.elems)
+#     if ~is_subset_empty(sub_set2)
+#         sub_set1.issorted = false
+#     end
+# end
+
+function union_new_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
+    union!(sub_set1.elems, sub_set2.elems)
 end
 
 function add_to_subset_all!(sub_set::SubSetHash)
@@ -91,22 +126,43 @@ function add_to_subset_by_box!(sub_set, lb, ub, incl_mode::INCL_MODE)
     end
 end
 
+# Seems faster than getindex -> deleteat!, and also make Vec unique and preserves order
+# Not guaranteed to work with ref = single element (http://www.jlhub.com/julia/manual/en/function/setdiff)
+# function remove_from_subset_by_ref!(sub_set::SubSetHash, ref)
+#     setdiff!(sub_set.elems, ref)
+#     sub_set.isunique = true
+# end
+
 function remove_from_subset_by_ref!(sub_set::SubSetHash, ref)
     setdiff!(sub_set.elems, ref)
 end
+
+# function remove_from_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
+#     setdiff!(sub_set.elems, ref_coll)
+#     sub_set.isunique = true
+# end
 
 function remove_from_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
     setdiff!(sub_set.elems, ref_coll)
 end
 
+# function setdiff_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
+#     setdiff!(sub_set1.elems, sub_set2.elems)
+#     sub_set.isunique = true
+# end
+
 function setdiff_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
     setdiff!(sub_set1.elems, sub_set2.elems)
 end
 
+# function remove_from_subset_all!(sub_set::SubSetHash)
+#     empty!(sub_set.elems)
+#     sub_set.issorted = true
+#     sub_set.isunique = true
+# end
+
 function remove_from_subset_all!(sub_set::SubSetHash)
     empty!(sub_set.elems)
-    sub_set.issorted = true
-    sub_set.isunique = true
 end
 
 function remove_from_subset_by_pos!(sub_set, pos)
@@ -143,26 +199,34 @@ function remove_from_subset_by_box!(sub_set, lb, ub, incl_mode::INCL_MODE)
     end
 end
 
+# function enumerate_subset_ref(sub_set::SubSetHash)
+#     ensure_unique!(sub_set)
+#     return sub_set.elems
+# end
+
 function enumerate_subset_ref(sub_set::SubSetHash)
-    ensure_unique!(sub_set)
     return sub_set.elems
 end
 
+# function is_ref_in_subset(sub_set::SubSetHash, ref)
+#     ensure_sorted!(sub_set)
+#     ensure_unique!(sub_set)
+#     return ~isempty(searchsorted(sub_set.elems, ref))
+# end
+
 function is_ref_in_subset(sub_set::SubSetHash, ref)
-    ensure_sorted!(sub_set)
-    ensure_unique!(sub_set)
-    return ~isempty(searchsorted(sub_set.elems, ref))
+    return in(ref, sub_set.elems)
 end
 
+# function get_subset_size(sub_set::SubSetHash)
+#     ensure_unique!(sub_set)
+#     return length(sub_set.elems)
+# end
+
 function get_subset_size(sub_set::SubSetHash)
-    ensure_unique!(sub_set)
     return length(sub_set.elems)
 end
 
 function is_subset_empty(sub_set::SubSetHash)
     return isempty(sub_set.elems)
-end
-
-function sizehint_subset!(sub_set::SubSetHash, size_max)
-    sizehint!(sub_set.elems, size_max)
 end

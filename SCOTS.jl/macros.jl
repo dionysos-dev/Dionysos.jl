@@ -60,7 +60,7 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_reach)
 		remove_from_subset_all!(X_reach_new)
 		for x_ref in enumerate_subset_ref(X_remain)
 			remove_from_subset_all!(U_enabled)
-			set_inputs_by_xref_ysub!(U_enabled, sym_model_sys, x_ref, X_reach2)
+			add_inputs_by_xref_ysub!(U_enabled, sym_model_sys, x_ref, X_reach2)
 			if is_subset_empty(U_enabled)
 				continue
 			end
@@ -72,7 +72,7 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_reach)
 			println("\nset_controller_reach! terminated without covering init set")
 			return
 		end
-		union_subsets!(X_reach2, X_reach_new)
+		union_new_subsets!(X_reach2, X_reach_new)
 		setdiff_subsets!(X_remain, X_reach_new)
 		setdiff_subsets!(X_init2, X_reach_new)
 	end
