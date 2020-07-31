@@ -100,6 +100,8 @@ function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INC
     end
 end
 
+has_pos(grid_space::GridSpaceHash, pos) = haskey(grid_space.elems, hash(pos))
+
 function get_ref_by_pos(grid_space::GridSpaceHash, pos)
     return getkey(grid_space.elems, hash(pos), grid_space.overflow_ref)
 end
