@@ -41,12 +41,12 @@ end
 
 ## =============================================================================
 # Sets
-function box!(ax, vars, lb, ub;
+function set!(ax, vars, rect::AB.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     #---------------------------------------------------------------------------
-    @assert length(vars) == 2 && length(lb) == length(ub) >= 2
-    c = (lb .+ ub)./2
-    h = (ub .- lb)./2
+    @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
+    c = (rect.lb .+ rect.ub)./2
+    h = (rect.ub .- rect.lb)./2
     poly_list = matplotlib.collections.PolyCollection([verts_rect(c[vars], h[vars])])
     fca = FC(fc, fa)
     eca = FC(ec, ea)

@@ -51,10 +51,10 @@ display(sub_set)
     ax.set_xlim((-2.0, 14.0))
     ax.set_ylim((-2.0, 14.0))
     Plot.subset!(ax, 1:2, sub_set, fa = 0.3)
-    Plot.box!(ax, 1:2, (1.0, 0.0), (8.0, 10.0))
-    Plot.box!(ax, 1:2, (5.0, 5.0), (10000.0, 10000.0))
-    Plot.box!(ax, 1:2, (1.0, 1.0), (2.0, 2.0))
-    Plot.box!(ax, 1:2, (0.0, 0.0), (5.0, 5.0))
+    Plot.set!(ax, 1:2, AB.HyperRectangle((1.0, 0.0), (8.0, 10.0)))
+    Plot.set!(ax, 1:2, AB.HyperRectangle((5.0, 5.0), (10000.0, 10000.0)))
+    Plot.set!(ax, 1:2, AB.HyperRectangle((1.0, 1.0), (2.0, 2.0)))
+    Plot.set!(ax, 1:2, AB.HyperRectangle((0.0, 0.0), (5.0, 5.0)))
 end
 end
 
