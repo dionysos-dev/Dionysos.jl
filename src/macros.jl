@@ -17,12 +17,11 @@ function set_symmodel_from_controlsystem!(sym_model, cont_sys)
 			x = cont_sys.sys_map(x, u, tstep)
             rectI = get_pos_lims_outer(X_grid, HyperRectangle(x .- r, x .+ r))
 		    ypos_iter = Iterators.product(_ranges(rectI)...)
-			yref_iter = (get_ref_by_pos(X_grid, y_pos) for y_pos in ypos_iter)
-			if any(yref_iter .=== X_grid.overflow_ref)
+			if any(y_pos -> !has_pos(X_grid, y_pos), ypos_iter)
 				continue
 			end
-			add_to_symmodel_by_new_refs_coll!(sym_model, (x_rp[1], u_rp[1], y_ref) for y_ref in yref_iter)
-			n_trans += length(yref_iter)
+			add_to_symmodel_by_new_refs_coll!(sym_model, (x_rp[1], u_rp[1], get_ref_by_pos(X_grid, y_pos)) for y_pos in ypos_iter)
+			n_trans += length(ypos_iter)
         end
     end
 	println("set_symmodel_from_controlsystem! terminated with success: $(n_trans) transitions created")
