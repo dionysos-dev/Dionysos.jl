@@ -17,42 +17,42 @@ function path_planning(
     Y_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6],
     η = 0.2
 )
-    frame = AB.HyperRectangle([0.0, 0.0, -pi - 0.4], [ub_x, 10.0, pi + 0.4])
-    init = AB.HyperRectangle([0.4, 0.4, 0.0], [0.4, 0.4, 0.0])
-    target = AB.HyperRectangle([ub_x - 1.0, 0.5, -100.0], [ub_x - 0.4, 0.8, 100.0])
-    x0 = [0.0, 0.0, 0.0]
-    h = [η, η, η]
+    frame = AB.HyperRectangle((0.0, 0.0, -pi - 0.4), (ub_x, 10.0, pi + 0.4))
+    init = AB.HyperRectangle((0.4, 0.4, 0.0), (0.4, 0.4, 0.0))
+    target = AB.HyperRectangle((ub_x - 1.0, 0.5, -100.0), (ub_x - 0.4, 0.8, 100.0))
+    x0 = (0.0, 0.0, 0.0)
+    h = (η, η, η)
     X_grid = AB.NewGridSpaceHash(x0, h)
     AB.add_to_gridspace!(X_grid, frame, AB.OUTER)
     for i in eachindex(X_lb)
-        box = AB.HyperRectangle([X_lb[i], Y_lb[i], frame.lb[3]], [X_ub[i], Y_ub[i], frame.ub[3]])
+        box = AB.HyperRectangle((X_lb[i], Y_lb[i], frame.lb[3]), (X_ub[i], Y_ub[i], frame.ub[3]))
         if box ⊆ frame && isempty(box ∩ init) && isempty(box ∩ target)
             AB.remove_from_gridspace!(X_grid, box, AB.OUTER)
         end
     end
-    X_full = AB.NewSubSpace(X_grid)
-    AB.add_to_subspace_all!(X_full)
+    X_full = AB.NewSubSet(X_grid)
+    AB.add_to_subset_all!(X_full)
 
-    X_init = AB.NewSubSpace(X_grid)
-    AB.add_to_subspace!(X_init, init, AB.OUTER)
-    X_reach = AB.NewSubSpace(X_grid)
-    AB.add_to_subspace!(X_reach, target, AB.OUTER)
+    X_init = AB.NewSubSet(X_grid)
+    AB.add_to_subset!(X_init, init, AB.OUTER)
+    X_reach = AB.NewSubSet(X_grid)
+    AB.add_to_subset!(X_reach, target, AB.OUTER)
 
     fig = PyPlot.figure()
     ax = fig.gca(aspect = "equal")
     ax.set_xlim([-0.2, ub_x + 0.2])
     ax.set_ylim([-0.2, 10.2])
 
-    Plot.subspace!(ax, 1:2, X_full, fa = 0.0)
-    Plot.subspace!(ax, 1:2, X_init, fc = "green")
-    Plot.subspace!(ax, 1:2, X_reach, fc = "yellow")
+    Plot.subset!(ax, 1:2, X_full, fa = 0.0)
+    Plot.subset!(ax, 1:2, X_init, fc = "green")
+    Plot.subset!(ax, 1:2, X_reach, fc = "yellow")
 
     nsteps === nothing && return
 
-    lb = [-1.0, -1.0]
-    ub = [1.0, 1.0]
-    u0 = [0.0, 0.0]
-    h = [0.3, 0.3]
+    lb = (-1.0, -1.0)
+    ub = (1.0, 1.0)
+    u0 = (0.0, 0.0)
+    h = (0.3, 0.3)
     U_grid = AB.NewGridSpaceHash(u0, h)
     AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
@@ -61,29 +61,26 @@ function path_planning(
     n_bound = 3
     function F_sys(x, u)
           alpha = atan(tan(u[2])/2)
-          return [
+          return (
                 u[1]*cos(alpha + x[3])/cos(alpha),
                 u[1]*sin(alpha + x[3])/cos(alpha),
-                u[1]*tan(u[2])]
+                u[1]*tan(u[2]))
     end
-    function L_bound(u)
+    function L_bound(r, u)
           alpha = atan(tan(u[2])/2)
-          return [
-                0.0 0.0 u[1]/cos(alpha);
-                0.0 0.0 u[1]/cos(alpha);
-                0.0 0.0 0.0]
+          return (u[1]/cos(alpha)*r[3], u[1]/cos(alpha)*r[3], 0.0)
     end
-    sys_noise = zeros(3)
-    meas_noise = zeros(3)
+    sys_noise = (0.0, 0.0, 0.0)
+    meas_noise = (0.0, 0.0, 0.0)
 
     cont_sys = AB.NewControlSystemRK4(tstep, F_sys, L_bound, sys_noise, meas_noise, n_sys, n_bound)
-    trans_map_sys = AB.NewTransitionMapHash(X_grid, U_grid, X_grid)
-    @time AB.set_transitions_from_controlsystem!(trans_map_sys, cont_sys)
+    trans_map_sys = AB.NewSymbolicModelHash(X_grid, U_grid, X_grid)
+    @time AB.set_symmodel_from_controlsystem!(trans_map_sys, cont_sys)
 
-    trans_map_contr = AB.NewTransitionMapHash(X_grid, U_grid, X_grid)
+    trans_map_contr = AB.NewSymbolicModelHash(X_grid, U_grid, X_grid)
     @time AB.set_controller_reach!(trans_map_contr, trans_map_sys, X_init, X_reach)
 
-    x0 = [0.4, 0.4, 0.0]
+    x0 = (0.4, 0.4, 0.0)
     Plot.trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, nsteps)
 end
 

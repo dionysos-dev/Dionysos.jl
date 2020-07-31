@@ -43,13 +43,13 @@ mutable struct SymbolicModelHash <: SymbolicModel
     isunique::Bool
 end
 
+include("rectangle.jl")
 include("gridspace.jl")
 include("subset.jl")
 include("controlsystem.jl")
 include("symbolicmodel.jl")
 include("macros.jl")
 
-include("plotting.jl")
 include("utils.jl")
 
 end  # module Abstraction

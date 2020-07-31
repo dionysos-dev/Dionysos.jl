@@ -1,39 +1,39 @@
 # To have type-stable Iterators.product
-function _make_iterator_from_lims(lb::NTuple{1, Int}, ub::NTuple{1, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{1,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]))
 end
 
-function _make_iterator_from_lims(lb::NTuple{2, Int}, ub::NTuple{2, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]),
-        UnitRange(lb[2], ub[2]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{2,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]),
+        UnitRange(rect.lb[2], rect.ub[2]))
 end
 
-function _make_iterator_from_lims(lb::NTuple{3, Int}, ub::NTuple{3, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]),
-        UnitRange(lb[2], ub[2]),
-        UnitRange(lb[3], ub[3]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{3,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]),
+        UnitRange(rect.lb[2], rect.ub[2]),
+        UnitRange(rect.lb[3], rect.ub[3]))
 end
 
-function _make_iterator_from_lims(lb::NTuple{4, Int}, ub::NTuple{4, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]),
-        UnitRange(lb[2], ub[2]),
-        UnitRange(lb[3], ub[3]),
-        UnitRange(lb[4], ub[4]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{4,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]),
+        UnitRange(rect.lb[2], rect.ub[2]),
+        UnitRange(rect.lb[3], rect.ub[3]),
+        UnitRange(rect.lb[4], rect.ub[4]))
 end
 
-function _make_iterator_from_lims(lb::NTuple{5, Int}, ub::NTuple{5, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]),
-        UnitRange(lb[2], ub[2]),
-        UnitRange(lb[3], ub[3]),
-        UnitRange(lb[4], ub[4]),
-        UnitRange(lb[5], ub[5]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{5,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]),
+        UnitRange(rect.lb[2], rect.ub[2]),
+        UnitRange(rect.lb[3], rect.ub[3]),
+        UnitRange(rect.lb[4], rect.ub[4]),
+        UnitRange(rect.lb[5], rect.ub[5]))
 end
 
-function _make_iterator_from_lims(lb::NTuple{6, Int}, ub::NTuple{6, Int})
-    return Iterators.product(UnitRange(lb[1], ub[1]),
-        UnitRange(lb[2], ub[2]),
-        UnitRange(lb[3], ub[3]),
-        UnitRange(lb[4], ub[4]),
-        UnitRange(lb[5], ub[5]),
-        UnitRange(lb[6], ub[6]))
+function _make_iterator_from_lims(rect::HyperRectangle{NTuple{6,Int}})
+    return Iterators.product(UnitRange(rect.lb[1], rect.ub[1]),
+        UnitRange(rect.lb[2], rect.ub[2]),
+        UnitRange(rect.lb[3], rect.ub[3]),
+        UnitRange(rect.lb[4], rect.ub[4]),
+        UnitRange(rect.lb[5], rect.ub[5]),
+        UnitRange(rect.lb[6], rect.ub[6]))
 end

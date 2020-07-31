@@ -9,7 +9,7 @@ end
 
 ## =============================================================================
 # Cells
-function plot_subset!(ax, vars, sub_set::SubSet{N};
+function subset!(ax, vars, sub_set::AB.SubSet{N};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where N
     #---------------------------------------------------------------------------
     grid_space = sub_set.grid_space
@@ -17,11 +17,11 @@ function plot_subset!(ax, vars, sub_set::SubSet{N};
     fca = FC(fc, fa)
     eca = FC(ec, ea)
 
-    pos_iter = (get_pos_by_ref(grid_space, ref) for ref in enumerate_subset_ref(sub_set))
+    pos_iter = (AB.get_pos_by_ref(grid_space, ref) for ref in AB.enumerate_subset_ref(sub_set))
     verts_vec = NTuple{4, Tuple{Float64, Float64}}[]
 
     for pos in unique(x -> x[vars], pos_iter)
-        c = get_coords_by_pos(grid_space, pos)[vars]
+        c = AB.get_coords_by_pos(grid_space, pos)[vars]
         push!(verts_vec, verts_rect(c, grid_space.h[vars]./2))
     end
 
@@ -51,7 +51,7 @@ end
 
 ## =============================================================================
 # Trajectory open loop
-function plot_trajectory_open_loop!(ax, vars, cont_sys, x0::NTuple{N, Float64}, u, nstep;
+function trajectory_open_loop!(ax, vars, cont_sys, x0::NTuple{N, Float64}, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5) where N
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && N >= 2
@@ -76,7 +76,7 @@ end
 
 ## =============================================================================
 # Images
-function plot_cell_image!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
+function cell_image!(ax, vars, X_sub, U_sub, cont_sys::AB.ControlSystem{N};
         nsub = fill(5, N), fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where N
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && N >= 2
@@ -85,9 +85,9 @@ function plot_cell_image!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
     verts_list = Vector{Tuple{Float64, Float64}}[]
     ns = nsub .- 1
 
-    for x_ref in enumerate_subset_ref(X_sub), u_ref in enumerate_subset_ref(U_sub)
-        x = get_coords_by_ref(X_sub.grid_space, x_ref)
-        u = get_coords_by_ref(U_sub.grid_space, u_ref)
+    for x_ref in AB.enumerate_subset_ref(X_sub), u_ref in AB.enumerate_subset_ref(U_sub)
+        x = AB.get_coords_by_ref(X_sub.grid_space, x_ref)
+        u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
         subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
         subpos_iter = Iterators.product(subpos_axes...)
         x_iter = (x .+ subpos.*X_sub.grid_space.h for subpos in subpos_iter)
@@ -106,7 +106,7 @@ end
 
 ## =============================================================================
 # Outer-approximation
-function plot_cell_approx!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
+function cell_approx!(ax, vars, X_sub, U_sub, cont_sys::AB.ControlSystem{N};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
     #---------------------------------------------------------------------------
     @assert length(vars) == 2 && N >= 2
@@ -114,9 +114,9 @@ function plot_cell_approx!(ax, vars, X_sub, U_sub, cont_sys::ControlSystem{N};
     eca = FC(ec, ea)
     verts_list = NTuple{4, Tuple{Float64, Float64}}[]
 
-    for x_ref in enumerate_subset_ref(X_sub), u_ref in enumerate_subset_ref(U_sub)
-        x = get_coords_by_ref(X_sub.grid_space, x_ref)
-        u = get_coords_by_ref(U_sub.grid_space, u_ref)
+    for x_ref in AB.enumerate_subset_ref(X_sub), u_ref in AB.enumerate_subset_ref(U_sub)
+        x = AB.get_coords_by_ref(X_sub.grid_space, x_ref)
+        u = AB.get_coords_by_ref(U_sub.grid_space, u_ref)
         Fx = cont_sys.sys_map(x, u, cont_sys.tstep)
         r = X_sub.grid_space.h./2 .+ cont_sys.meas_noise
         Fr = cont_sys.bound_map(r, u, cont_sys.tstep)
@@ -133,28 +133,28 @@ end
 
 ## =============================================================================
 # Trajectory closed loop
-function plot_trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
+function trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
     #---------------------------------------------------------------------------
     X_grid = sym_model.X_grid
-    U_sub = NewSubSet(sym_model.U_grid)
-    Y_sub = NewSubSet(sym_model.Y_grid)
+    U_sub = AB.NewSubSet(sym_model.U_grid)
+    Y_sub = AB.NewSubSet(sym_model.Y_grid)
     for i = 1:nstep
-        remove_from_subset_all!(U_sub)
-        remove_from_subset_all!(Y_sub)
-        x_ref = get_ref_by_coords(X_grid, x0)
+        AB.remove_from_subset_all!(U_sub)
+        AB.remove_from_subset_all!(Y_sub)
+        x_ref = AB.get_ref_by_coords(X_grid, x0)
         if x_ref === X_grid.overflow_ref
             @warn("Trajectory out of domain")
             return
         end
-        if ~is_xref_controllable(sym_model, x_ref)
+        if ~AB.is_xref_controllable(sym_model, x_ref)
             @warn("Uncontrollable state")
             return
         end
-        add_inputs_images_by_xref!(U_sub, Y_sub, sym_model, x_ref)
-        u_ref = iterate(enumerate_subset_ref(U_sub))[1]
-        u = get_coords_by_ref(sym_model.U_grid, u_ref)
-        plot_trajectory_open_loop!(ax, vars, cont_sys, x0, u, 1,
+        AB.add_inputs_images_by_xref!(U_sub, Y_sub, sym_model, x_ref)
+        u_ref = iterate(AB.enumerate_subset_ref(U_sub))[1]
+        u = AB.get_coords_by_ref(sym_model.U_grid, u_ref)
+        Plot.trajectory_open_loop!(ax, vars, cont_sys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
         x0 = cont_sys.sys_map(x0, u, cont_sys.tstep)
     end
