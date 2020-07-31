@@ -16,7 +16,7 @@ function set_symmodel_from_controlsystem!(sym_model, cont_sys)
 			x = get_coords_by_pos(X_grid, x_rp[2])
 			x = cont_sys.sys_map(x, u, tstep)
             rectI = get_pos_lims_outer(X_grid, HyperRectangle(x .- r, x .+ r))
-		    ypos_iter = _make_iterator_from_lims(rectI)
+		    ypos_iter = Iterators.product(_ranges(rectI)...)
 			yref_iter = (get_ref_by_pos(X_grid, y_pos) for y_pos in ypos_iter)
 			if any(yref_iter .=== X_grid.overflow_ref)
 				continue

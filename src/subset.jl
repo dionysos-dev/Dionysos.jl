@@ -114,15 +114,12 @@ end
 
 function add_to_subset!(sub_set, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(sub_set.grid_space, rect, incl_mode)
-    pos_iter = _make_iterator_from_lims(rectI)
-    display(rectI)
+    pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_gridspace_size(sub_set.grid_space)
         add_to_subset_by_pos_coll!(sub_set, pos_iter)
     else
         for rp in enumerate_gridspace_ref_pos(sub_set.grid_space)
-            display("hey")
             if rp[2] in rectI
-                display("ho")
                 add_to_subset_by_ref!(sub_set, rp[1])
             end
         end
@@ -187,7 +184,7 @@ end
 
 function remove_from_subset!(sub_set, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(sub_set.grid_space, rect, incl_mode)
-    pos_iter = _make_iterator_from_lims(rectI)
+    pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_subset_size(sub_set)
         remove_from_subset_by_pos_coll!(sub_set, pos_iter)
     else
