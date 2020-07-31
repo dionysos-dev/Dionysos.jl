@@ -126,10 +126,41 @@ function DoTest()
     # Yes
     println()
 
-    function make_iter(ranges)
-        return Iterators.product(ranges...)
+    println("Delete or not transitions?")
+    function get(a, x)
+        i = searchsorted(a, x)
+        return i
     end
-    @code_warntype make_iter([1:5, 1:6])
+    function getremove(a, x)
+        i = searchsorted(a, x)
+        deleteat!(a, i)
+        return i
+    end
+    n = Int(1e7)
+    x1 = collect(1:n)
+    x2 = collect(1:n)
+    @time for x = 1:n/2 get(x1, x) end # Comparable but probably more deterministic
+    @time for x = 1:n/2 getremove(x2, x) end
+    println()
+
+    println("Set or vec for transitions?")
+    function filterVec(V, x)
+        idx = searchsorted(V, x, by = x -> x[1])
+        for i in idx
+            V[i]
+        end
+    end
+    function filterSet(S, x)
+        for s in filter(e -> e[1] == x, S)
+            s
+        end
+    end
+    n = 20000
+    x1 = [(i÷100, i÷5, i) for i = 1:n]
+    x2 = Set((i÷100, i÷5, i) for i = 1:n)
+    @time for x = 1:n/2 filterVec(x1, x) end # Much much Faster
+    @time for x = 1:n/2 filterSet(x2, x) end
+    println()
 end
 
 println("---------------------------------------------------------------------")

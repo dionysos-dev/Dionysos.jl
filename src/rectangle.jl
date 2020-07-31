@@ -20,7 +20,3 @@ end
 function Base.issubset(a::HyperRectangle, b::HyperRectangle)
     return all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
 end
-
-function name(args)
-    body
-end
