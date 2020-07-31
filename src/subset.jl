@@ -7,7 +7,7 @@ function NewSubSet(grid_space::GridSpaceHash{N}) where N
 end
 
 # function ensure_sorted!(sub_set::SubSetHash)
-#     if ~sub_set.issorted
+#     if !sub_set.issorted
 #         # display("subset not sorted")
 #         sort!(sub_set.elems)
 #         sub_set.issorted = true
@@ -15,7 +15,7 @@ end
 # end
 #
 # function ensure_unique!(sub_set::SubSetHash)
-#     if ~sub_set.isunique
+#     if !sub_set.isunique
 #         # display("subset not unique")
 #         unique!(sub_set.elems)
 #         sub_set.isunique = true
@@ -47,7 +47,7 @@ end
 
 # function add_to_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
 #     append!(sub_set.elems, ref_coll)
-#     if ~isempty(ref_coll)
+#     if !isempty(ref_coll)
 #         sub_set.issorted = false
 #         sub_set.isunique = false
 #     end
@@ -59,7 +59,7 @@ end
 
 # function add_to_subset_by_new_ref_coll!(sub_set::SubSetHash, ref_coll)
 #     append!(sub_set.elems, ref_coll)
-#     if ~isempty(ref_coll)
+#     if !isempty(ref_coll)
 #         sub_set.issorted = false
 #     end
 # end
@@ -70,7 +70,7 @@ end
 
 # function union_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
 #     append!(sub_set1.elems, sub_set2.elems)
-#     if ~is_subset_empty(sub_set2)
+#     if !is_subset_empty(sub_set2)
 #         sub_set1.issorted = false
 #         sub_set1.isunique = false
 #     end
@@ -82,7 +82,7 @@ end
 
 # function union_new_subsets!(sub_set1::SubSetHash, sub_set2::SubSetHash)
 #     append!(sub_set1.elems, sub_set2.elems)
-#     if ~is_subset_empty(sub_set2)
+#     if !is_subset_empty(sub_set2)
 #         sub_set1.issorted = false
 #     end
 # end
@@ -211,7 +211,7 @@ end
 # function is_ref_in_subset(sub_set::SubSetHash, ref)
 #     ensure_sorted!(sub_set)
 #     ensure_unique!(sub_set)
-#     return ~isempty(searchsorted(sub_set.elems, ref))
+#     return !isempty(searchsorted(sub_set.elems, ref))
 # end
 
 function is_ref_in_subset(sub_set::SubSetHash, ref)
@@ -229,4 +229,8 @@ end
 
 function is_subset_empty(sub_set::SubSetHash)
     return isempty(sub_set.elems)
+end
+
+function is_subset1_in_subset2(sub_set1::SubSetHash, sub_set2::SubSetHash)
+    return ⊆(sub_set1.elems, sub_set2.elems)
 end

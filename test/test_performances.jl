@@ -93,7 +93,7 @@ function DoTest()
     println("Set vs sorted vector for membership")
     function inSortedVector(V, x)
         idx = searchsorted(V, x)
-        return ~isempty(idx)
+        return !isempty(idx)
     end
     function inVector(V, x)
         return in(V, x)

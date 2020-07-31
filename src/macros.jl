@@ -55,7 +55,7 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
 	xref_new_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
 	uref_enabled_coll = get_gridspace_reftype(sym_model_sys.U_grid)[]
 
-	while ~is_subset_empty(X_init2)
+	while !is_subset_empty(X_init2)
 		print(".")
 		empty!(xref_new_coll)
 		for x_ref in enumerate_subset_ref(X_remain)
@@ -81,7 +81,7 @@ end
 
 # "Set" assumes sym_model_contr is empty initially... May fail if not respected
 function set_controller_safe!(sym_model_contr, sym_model_sys, X_init, X_safe)
-	@assert X_init.grid_space == X_target.grid_space ==
+	@assert X_init.grid_space == X_safe.grid_space ==
 		sym_model_contr.X_grid == sym_model_contr.Y_grid
 		sym_model_sys.X_grid == sym_model_sys.Y_grid
 	println("set_controller_reach! started")
@@ -89,43 +89,42 @@ function set_controller_safe!(sym_model_contr, sym_model_sys, X_init, X_safe)
 	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
 	X_grid = sym_model_sys.X_grid
 	U_grid = sym_model_sys.U_grid
-	X_remain = NewSubSet(X_grid)
-	for x_ref in enumerate_gridspace_ref(X_grid)
+	X_safe2 = NewSubSet(X_grid)
+	for x_ref in enumerate_subset_ref(X_safe)
 		if is_xref_controllable(sym_model_sys, x_ref)
-			add_to_subset_by_new_ref!(X_remain, x_ref)
+			add_to_subset_by_new_ref!(X_safe2, x_ref)
 		end
 	end
-	# size_remain = get_subset_size(X_remain)
-	X_init2 = NewSubSet(X_grid)
-	union_subsets!(X_init2, X_init)
-	X_target2 = NewSubSet(X_grid)
-	# sizehint_subset!(X_target2, size_remain)
-	union_subsets!(X_target2, X_target)
-	setdiff_subsets!(X_remain, X_target)
-	setdiff_subsets!(X_init2, X_target)
-	xref_new_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
+	xref_remove_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
 	uref_enabled_coll = get_gridspace_reftype(sym_model_sys.U_grid)[]
 
-	while ~is_subset_empty(X_init2)
+	while true
 		print(".")
-		empty!(xref_new_coll)
-		for x_ref in enumerate_subset_ref(X_remain)
+		display(get_subset_size(X_safe2))
+		empty!(xref_remove_coll)
+		for x_ref in enumerate_subset_ref(X_safe2)
 			empty!(uref_enabled_coll)
-			add_inputs_by_xref_ysub!(uref_enabled_coll, sym_model_sys, x_ref, X_target2)
+			add_inputs_by_xref_ysub!(uref_enabled_coll, sym_model_sys, x_ref, X_safe2)
 			if isempty(uref_enabled_coll)
-				continue
+				push!(xref_remove_coll, x_ref)
 			end
-			push!(xref_new_coll, x_ref)
-			add_to_symmodel_by_new_refs_coll!(sym_model_contr,
-				(x_ref, u_ref, x_ref) for u_ref in uref_enabled_coll)
 		end
-		if isempty(xref_new_coll)
-			println("\nset_controller_reach! terminated without covering init set")
-			return
+		if isempty(xref_remove_coll)
+			break
 		end
-		add_to_subset_by_new_ref_coll!(X_target2, xref_new_coll)
-		remove_from_subset_by_ref_coll!(X_remain, xref_new_coll)
-		remove_from_subset_by_ref_coll!(X_init2, xref_new_coll)
+		remove_from_subset_by_ref_coll!(X_safe2, xref_remove_coll)
 	end
-	println("\nset_controller_reach! terminated with success")
+
+	for x_ref in enumerate_subset_ref(X_safe2)
+		empty!(uref_enabled_coll)
+		add_inputs_by_xref_ysub!(uref_enabled_coll, sym_model_sys, x_ref, X_safe2)
+		add_to_symmodel_by_new_refs_coll!(sym_model_contr,
+			(x_ref, u_ref, x_ref) for u_ref in uref_enabled_coll)
+	end
+
+	if is_subset1_in_subset2(X_init, X_safe2)
+		println("\nset_controller_safe! terminated with success")
+	else
+		println("\nset_controller_safe! terminated without covering init set")
+	end
 end
