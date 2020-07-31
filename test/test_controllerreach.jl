@@ -70,7 +70,7 @@ for i = 1:6
     AB.add_to_subset_by_ref_coll!(Us, uref_coll)
     AB.add_to_subset_by_ref_coll!(Ys, yref_coll)
     push!(XUY_simple_, (Xs, Us, Ys))
-    if ~AB.is_subset_empty(Ys)
+    if !AB.is_subset_empty(Ys)
         x_ref = iterate(AB.enumerate_subset_ref(Ys))[1]
     end
 end
@@ -80,7 +80,7 @@ end
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()
-    ax.set_xlim((-5.3, 5.3))
+    ax.set_xlim((-5.5, 5.5))
     ax.set_ylim((-5.3, 5.3))
     Plot.subset!(ax, 1:2, X_full, fa = 0.1)
     Plot.subset!(ax, 1:2, X_init)

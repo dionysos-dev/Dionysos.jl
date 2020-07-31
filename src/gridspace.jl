@@ -38,6 +38,10 @@ function get_pos_lims(grid_space, rect, incl_mode::INCL_MODE)
     end
 end
 
+function _ranges(rect::HyperRectangle{NTuple{N, T}}) where {T, N}
+    return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
+end
+
 function add_to_gridspace_by_pos!(grid_space::GridSpaceHash, pos)
     push!(grid_space.elems, hash(pos) => pos)
 end
@@ -54,7 +58,7 @@ end
 
 function add_to_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(grid_space, rect, incl_mode)
-    pos_iter = _make_iterator_from_lims(rectI)
+    pos_iter = Iterators.product(_ranges(rectI)...)
     add_to_gridspace_by_pos_coll!(grid_space, pos_iter)
 end
 
@@ -84,7 +88,7 @@ end
 
 function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(grid_space, rect, incl_mode)
-    pos_iter = _make_iterator_from_lims(rectI)
+    pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_gridspace_size(grid_space)
         remove_from_gridspace_by_pos_coll!(grid_space, pos_iter)
     else

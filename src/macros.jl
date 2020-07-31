@@ -16,7 +16,7 @@ function set_symmodel_from_controlsystem!(sym_model, cont_sys)
 			x = get_coords_by_pos(X_grid, x_rp[2])
 			x = cont_sys.sys_map(x, u, tstep)
             rectI = get_pos_lims_outer(X_grid, HyperRectangle(x .- r, x .+ r))
-		    ypos_iter = _make_iterator_from_lims(rectI)
+		    ypos_iter = Iterators.product(_ranges(rectI)...)
 			yref_iter = (get_ref_by_pos(X_grid, y_pos) for y_pos in ypos_iter)
 			if any(yref_iter .=== X_grid.overflow_ref)
 				continue
@@ -30,9 +30,9 @@ end
 
 # "Set" assumes sym_model_contr is empty initially... May fail if not respected
 function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
-	@assert X_init.grid_space == X_target.grid_space ==
-		sym_model_contr.X_grid == sym_model_contr.Y_grid
-		sym_model_sys.X_grid == sym_model_sys.Y_grid
+	@assert X_init.grid_space === X_target.grid_space ===
+		sym_model_contr.X_grid === sym_model_contr.Y_grid
+		sym_model_sys.X_grid === sym_model_sys.Y_grid
 	println("set_controller_reach! started")
 	# Commented sizehints because seems not to improve performances
 	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
@@ -55,7 +55,7 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
 	xref_new_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
 	uref_enabled_coll = get_gridspace_reftype(sym_model_sys.U_grid)[]
 
-	while ~is_subset_empty(X_init2)
+	while !is_subset_empty(X_init2)
 		print(".")
 		empty!(xref_new_coll)
 		for x_ref in enumerate_subset_ref(X_remain)
@@ -77,4 +77,54 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
 		remove_from_subset_by_ref_coll!(X_init2, xref_new_coll)
 	end
 	println("\nset_controller_reach! terminated with success")
+end
+
+# "Set" assumes sym_model_contr is empty initially... May fail if not respected
+function set_controller_safe!(sym_model_contr, sym_model_sys, X_init, X_safe)
+	@assert X_init.grid_space === X_safe.grid_space ===
+		sym_model_contr.X_grid === sym_model_contr.Y_grid
+		sym_model_sys.X_grid === sym_model_sys.Y_grid
+	println("set_controller_reach! started")
+	# Commented sizehints because seems not to improve performances
+	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
+	X_grid = sym_model_sys.X_grid
+	U_grid = sym_model_sys.U_grid
+	X_safe2 = NewSubSet(X_grid)
+	for x_ref in enumerate_subset_ref(X_safe)
+		if is_xref_controllable(sym_model_sys, x_ref)
+			add_to_subset_by_new_ref!(X_safe2, x_ref)
+		end
+	end
+	xref_remove_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
+	uref_enabled_coll = get_gridspace_reftype(sym_model_sys.U_grid)[]
+
+	while true
+		print(".")
+		display(get_subset_size(X_safe2))
+		empty!(xref_remove_coll)
+		for x_ref in enumerate_subset_ref(X_safe2)
+			empty!(uref_enabled_coll)
+			add_inputs_by_xref_ysub!(uref_enabled_coll, sym_model_sys, x_ref, X_safe2)
+			if isempty(uref_enabled_coll)
+				push!(xref_remove_coll, x_ref)
+			end
+		end
+		if isempty(xref_remove_coll)
+			break
+		end
+		remove_from_subset_by_ref_coll!(X_safe2, xref_remove_coll)
+	end
+
+	for x_ref in enumerate_subset_ref(X_safe2)
+		empty!(uref_enabled_coll)
+		add_inputs_by_xref_ysub!(uref_enabled_coll, sym_model_sys, x_ref, X_safe2)
+		add_to_symmodel_by_new_refs_coll!(sym_model_contr,
+			(x_ref, u_ref, x_ref) for u_ref in uref_enabled_coll)
+	end
+
+	if is_subset1_in_subset2(X_init, X_safe2)
+		println("\nset_controller_safe! terminated with success")
+	else
+		println("\nset_controller_safe! terminated without covering init set")
+	end
 end

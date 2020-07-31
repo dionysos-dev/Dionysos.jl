@@ -4,7 +4,7 @@ function NewSymbolicModelHash(X_grid::GridSpaceHash, U_grid::GridSpaceHash, Y_gr
 end
 
 function ensure_sorted!(sym_model::SymbolicModelHash)
-    if ~sym_model.issorted
+    if !sym_model.issorted
         # display("sym_model not sorted")
         sort!(sym_model.elems)
         sym_model.issorted = true
@@ -12,7 +12,7 @@ function ensure_sorted!(sym_model::SymbolicModelHash)
 end
 
 function ensure_unique!(sym_model::SymbolicModelHash)
-    if ~sym_model.isunique
+    if !sym_model.isunique
         # display("sym_model not unique")
         unique!(sym_model.elems)
         sym_model.isunique = true
@@ -32,7 +32,7 @@ end
 
 function add_to_symmodel_by_refs_coll!(sym_model::SymbolicModelHash, refs_coll)
     append!(sym_model.elems, refs_coll)
-    if ~isempty(refs_coll)
+    if !isempty(refs_coll)
         sym_model.issorted = false
         sym_model.isunique = false
     end
@@ -40,7 +40,7 @@ end
 
 function add_to_symmodel_by_new_refs_coll!(sym_model::SymbolicModelHash, refs_coll)
     append!(sym_model.elems, refs_coll)
-    if ~isempty(refs_coll)
+    if !isempty(refs_coll)
         sym_model.issorted = false
     end
 end
@@ -77,7 +77,7 @@ end
 function is_xref_controllable(sym_model::SymbolicModelHash, x_ref)
     ensure_sorted!(sym_model)
     idx_iter_x = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-    return ~isempty(idx_iter_x)
+    return !isempty(idx_iter_x)
 end
 
 # function add_inputs_by_xref_ysub!(U_sub, sym_model::SymbolicModelHash, x_ref, Y_sub)

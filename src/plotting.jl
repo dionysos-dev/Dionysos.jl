@@ -154,7 +154,7 @@ function trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
             @warn("Trajectory out of domain")
             return
         end
-        if ~AB.is_xref_controllable(sym_model, x_ref)
+        if !AB.is_xref_controllable(sym_model, x_ref)
             @warn("Uncontrollable state")
             return
         end
