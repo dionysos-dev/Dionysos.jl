@@ -7,7 +7,8 @@ function set_symmodel_from_controlsystem!(sym_model, cont_sys)
 	tstep = cont_sys.tstep
 	n_trans = 0
 
-	for u_rp in enumerate_gridspace_ref_pos(U_grid)
+	# Updates every 1 seconds
+	@showprogress 1 "Computing symbolic control system: " for u_rp in enumerate_gridspace_ref_pos(U_grid)
 		u = get_coords_by_pos(U_grid, u_rp[2])
 		r = X_grid.h./2 .+ cont_sys.meas_noise
 		r = cont_sys.bound_map(r, u, cont_sys.tstep)
@@ -55,8 +56,9 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
 	xref_new_coll = get_gridspace_reftype(sym_model_sys.X_grid)[]
 	uref_enabled_coll = get_gridspace_reftype(sym_model_sys.U_grid)[]
 
+	prog = ProgressUnknown("# iterations computing controller:")
 	while !is_subset_empty(X_init2)
-		print(".")
+		ProgressMeter.next!(prog)
 		empty!(xref_new_coll)
 		for x_ref in enumerate_subset_ref(X_remain)
 			empty!(uref_enabled_coll)
@@ -76,6 +78,7 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
 		remove_from_subset_by_ref_coll!(X_remain, xref_new_coll)
 		remove_from_subset_by_ref_coll!(X_init2, xref_new_coll)
 	end
+	ProgressMeter.finish!(prog)
 	println("\nset_controller_reach! terminated with success")
 end
 

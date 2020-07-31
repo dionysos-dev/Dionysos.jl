@@ -1,6 +1,7 @@
 module Abstraction
 
 using LinearAlgebra
+using ProgressMeter
 
 @enum INCL_MODE INNER OUTER
 
