@@ -3,13 +3,13 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Test
-import Main.Abstraction
+using Main.Abstraction
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
 
-@testset "Transitions" begin
+@testset "FromControlSystem" begin
 lb = (0.0, 0.0)
 ub = (10.0, 11.0)
 x0 = (0.0, 0.0)
@@ -53,7 +53,9 @@ AB.add_to_subset_by_pos!(X_simple, x_pos)
 U_simple = AB.NewSubSet(U_grid)
 AB.add_to_subset_by_pos!(U_simple, u_pos)
 Y_simple = AB.NewSubSet(X_grid)
-yref_vec = AB.add_images_by_xref_uref!(Y_simple, sym_model, x_ref, u_ref)
+yref_coll = AB.get_gridspace_reftype(X_grid)[]
+AB.add_images_by_xref_uref!(yref_coll, sym_model, x_ref, u_ref)
+AB.add_to_subset_by_ref_coll!(Y_simple, yref_coll)
 display(Y_simple)
 
 @static if get(ENV, "TRAVIS", "false") == "false"
@@ -61,16 +63,14 @@ display(Y_simple)
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()
-
+    ax.set_xlim([-1.0, 11.0])
+    ax.set_ylim([-2.0, 14.0])
     Plot.subset!(ax, 1:2, X_full, fa = 0.1)
     Plot.subset!(ax, 1:2, X_simple)
     Plot.subset!(ax, 1:2, Y_simple)
     Plot.trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
     Plot.cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
     Plot.cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
-
-    ax.set_xlim([-1.0, 11.0])
-    ax.set_ylim([-2.0, 14.0])
 end
 end
 

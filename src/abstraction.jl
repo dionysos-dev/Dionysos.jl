@@ -16,11 +16,9 @@ end
 
 abstract type SubSet{N} end
 
-mutable struct SubSetHash{N} <: SubSet{N}
+struct SubSetHash{N} <: SubSet{N}
     grid_space::GridSpaceHash{N}
-    elems::Vector{UInt64}
-    issorted::Bool
-    isunique::Bool
+    elems::Set{UInt64}
 end
 
 struct ControlSystem{N}
@@ -44,7 +42,7 @@ end
 
 include("rectangle.jl")
 include("gridspace.jl")
-include("subspace.jl")
+include("subset.jl")
 include("controlsystem.jl")
 include("symbolicmodel.jl")
 include("macros.jl")

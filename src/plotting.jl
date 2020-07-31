@@ -41,12 +41,12 @@ end
 
 ## =============================================================================
 # Sets
-function box!(ax, vars, lb, ub;
+function set!(ax, vars, rect::AB.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     #---------------------------------------------------------------------------
-    @assert length(vars) == 2 && length(lb) == length(ub) >= 2
-    c = (lb .+ ub)./2
-    h = (ub .- lb)./2
+    @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
+    c = (rect.lb .+ rect.ub)./2
+    h = (rect.ub .- rect.lb)./2
     poly_list = matplotlib.collections.PolyCollection([verts_rect(c[vars], h[vars])])
     fca = FC(fc, fa)
     eca = FC(ec, ea)
@@ -158,114 +158,14 @@ function trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
             @warn("Uncontrollable state")
             return
         end
-        AB.add_inputs_images_by_xref!(U_sub, Y_sub, sym_model, x_ref)
-        u_ref = iterate(AB.enumerate_subset_ref(U_sub))[1]
+        uref_coll = AB.get_gridspace_reftype(sym_model.U_grid)[]
+        yref_coll = AB.get_gridspace_reftype(sym_model.Y_grid)[]
+        AB.add_inputs_images_by_xref!(uref_coll, yref_coll, sym_model, x_ref)
+        u_ref = uref_coll[1]
         u = AB.get_coords_by_ref(sym_model.U_grid, u_ref)
         Plot.trajectory_open_loop!(ax, vars, cont_sys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
         x0 = cont_sys.sys_map(x0, u, cont_sys.tstep)
     end
 end
-
-#=
-## =============================================================================
-# Sets
-function plotset!(ax, vars, grid_sub, set::AbstractPolyhedron;
-        rad = Inf, fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
-    #---------------------------------------------------------------------------
-    # Plots the Polyhedron set. Use rad if set is not bounded.
-    @assert length(vars) == 2 && grid_space.dim >= 2
-    set = Projection(set, vars)
-
-    if rad < Inf
-        H_list = constraints_list(set ∩ BallInf(zeros(2), rad))
-        set = HPolyhedron(Vector{LazySets.HalfSpace{Float64,Array{Float64,1}}}(H_list))
-    end
-
-    poly_list = matplotlib.collections.PolyCollection([vertices_list(set)])
-    fca = FC(fc, fa)
-    eca = FC(ec, ea)
-    poly_list.set_facecolor(fca)
-    poly_list.set_edgecolor(eca)
-    poly_list.set_linewidth(ew)
-    ax.add_collection(poly_list)
-end
-
-## =============================================================================
-# Images
-function plotimage!(ax, vars, sym_model, iX_list, iU_list;
-        nsub = fill(5, sym_model.X_space.dim), fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5)
-    #---------------------------------------------------------------------------
-    # Plots (convex hull) of images of cells in iX_list with inputs in iU_list
-    @assert length(vars) == 2 && sym_model.X_space.dim >= 2
-    if isempty(iX_list) || isempty(iU_list)
-        return
-    end
-    iX_list_ = _preprocess_idxlist(sym_model.X_space, iX_list, soft = true)
-    iU_list_ = _preprocess_idxlist(sym_model.U_space, iU_list, soft = true)
-    fca = FC(fc, fa)
-    eca = FC(ec, ea)
-
-    X_space = sym_model.X_space
-    U_space = sym_model.U_space
-    cont_sys = sym_model.cont_sys
-    idx_iter = Iterators.product(iX_list_, iU_list_)
-    vertlist_list = Vector{Vector{Float64}}[]
-
-    for (iX, iU) in idx_iter
-        u = U_space.orig + U_space.cell_list[iU].*U_space.h
-        nsub = nsub .- 1
-        subs = [((0:nsub[i])./nsub[i] .- 0.5) for i = 1:length(nsub)]
-        sub_iter = Iterators.product(subs...)
-        xsub = sub -> X_space.orig + (X_space.cell_list[iX] .+ sub).*X_space.h
-        sys_map = x -> cont_sys.sysbound_map(x, zeros(X_space.dim), u)[1][vars]
-        F_list = [sys_map(xsub(sub)) for sub in sub_iter][:]
-        convex_hull!(F_list)
-        push!(vertlist_list, F_list)
-    end
-
-    poly_list = matplotlib.collections.PolyCollection(vertlist_list)
-    poly_list.set_facecolor(fca)
-    poly_list.set_edgecolor(eca)
-    poly_list.set_linewidth(ew)
-    ax.add_collection(poly_list)
-end
-
-## =============================================================================
-# Overapproximation
-function plotapprox!(ax, vars, sym_model, iX_list, iU_list;
-        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5)
-    #---------------------------------------------------------------------------
-    # Plots ouverapproximation of the images of cells in iX_list with inputs in iU_list.
-    # Use the "growth bound" function.
-    @assert length(vars) == 2
-    if isempty(iX_list) || isempty(iU_list)
-        return
-    end
-    iX_list_ = _preprocess_idxlist(sym_model.X_space, iX_list, soft = true)
-    iU_list_ = _preprocess_idxlist(sym_model.U_space, iU_list, soft = true)
-    fca = FC(fc, fa)
-    eca = FC(ec, ea)
-
-    X_space = sym_model.X_space
-    U_space = sym_model.U_space
-    cont_sys = sym_model.cont_sys
-    idx_iter = Iterators.product(iX_list_, iU_list_)
-    vertlist_list = Vector{Vector{Float64}}[]
-
-    for (iX, iU) in idx_iter
-        cx = X_space.orig + X_space.cell_list[iX].*X_space.h
-        u = U_space.orig + U_space.cell_list[iU].*U_space.h
-        Fx, rad = cont_sys.sysbound_map(cx, X_space.h/2 + cont_sys.meas_noise, u)
-        rad += cont_sys.meas_noise
-        push!(vertlist_list, _rectangle_vertlist(Fx[vars], 2*rad[vars], [2, 2]))
-    end
-
-    poly_list = matplotlib.collections.PolyCollection(vertlist_list)
-    poly_list.set_facecolor(fca)
-    poly_list.set_edgecolor(eca)
-    poly_list.set_linewidth(ew)
-    ax.add_collection(poly_list)
-end
-=#
-end
+end  # Plot

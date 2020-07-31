@@ -131,3 +131,7 @@ end
 function is_gridspace_empty(grid_space::GridSpaceHash)
     return isempty(grid_space.elems)
 end
+
+function get_gridspace_reftype(grid_space::GridSpaceHash)
+    return UInt64
+end

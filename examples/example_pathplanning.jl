@@ -3,29 +3,26 @@ include("../src/plotting.jl")
 
 module PathPlanning
 
-import Main.Abstraction
+using Main.Abstraction
 using PyPlot
+using Main.Plot
 AB = Main.Abstraction
-import Main.Plot
 
-function path_planning(
-    ub_x;
-    nsteps = nothing,
-    X_lb = [1.0, 2.2,  2.2, 3.4,  4.6, 5.8,  5.8,  7.0, 8.2, 8.4,  9.3, 8.4,  9.3, 8.4,  9.3],
-    X_ub = [1.2, 2.4,  2.4, 3.6,  4.8, 6.0,  6.0,  7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0],
-    Y_lb = [0.0, 0.0,  6.0, 0.0,  1.0, 0.0,  7.0,  1.0, 0.0, 8.2,  7.0, 5.8,  4.6, 3.4,  2.2],
-    Y_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6],
-    η = 0.2
-)
-    frame = AB.HyperRectangle((0.0, 0.0, -pi - 0.4), (ub_x, 10.0, pi + 0.4))
+function path_planning(frame_length; nsteps = nothing,
+    X1_lb = [1.0, 2.2,  2.2, 3.4,  4.6, 5.8,  5.8,  7.0, 8.2, 8.4,  9.3, 8.4,  9.3, 8.4,  9.3],
+    X1_ub = [1.2, 2.4,  2.4, 3.6,  4.8, 6.0,  6.0,  7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0],
+    X2_lb = [0.0, 0.0,  6.0, 0.0,  1.0, 0.0,  7.0,  1.0, 0.0, 8.2,  7.0, 5.8,  4.6, 3.4,  2.2],
+    X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6],
+    h = (0.2, 0.2, 0.2))
+    #---------------------------------------------------------------------------
+    frame = AB.HyperRectangle((0.0, 0.0, -pi - 0.4), (frame_length, 10.0, pi + 0.4))
     init = AB.HyperRectangle((0.4, 0.4, 0.0), (0.4, 0.4, 0.0))
-    target = AB.HyperRectangle((ub_x - 1.0, 0.5, -100.0), (ub_x - 0.4, 0.8, 100.0))
+    target = AB.HyperRectangle((frame_length - 1.0, 0.5, -100.0), (frame_length - 0.4, 0.8, 100.0))
     x0 = (0.0, 0.0, 0.0)
-    h = (η, η, η)
     X_grid = AB.NewGridSpaceHash(x0, h)
     AB.add_to_gridspace!(X_grid, frame, AB.OUTER)
-    for i in eachindex(X_lb)
-        box = AB.HyperRectangle((X_lb[i], Y_lb[i], frame.lb[3]), (X_ub[i], Y_ub[i], frame.ub[3]))
+    for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
+        box = AB.HyperRectangle((x1lb, x2lb, frame.lb[3]), (x1ub, x2ub, frame.ub[3]))
         if box ⊆ frame && isempty(box ∩ init) && isempty(box ∩ target)
             AB.remove_from_gridspace!(X_grid, box, AB.OUTER)
         end
@@ -35,17 +32,17 @@ function path_planning(
 
     X_init = AB.NewSubSet(X_grid)
     AB.add_to_subset!(X_init, init, AB.OUTER)
-    X_reach = AB.NewSubSet(X_grid)
-    AB.add_to_subset!(X_reach, target, AB.OUTER)
+    X_target = AB.NewSubSet(X_grid)
+    AB.add_to_subset!(X_target, target, AB.OUTER)
 
     fig = PyPlot.figure()
     ax = fig.gca(aspect = "equal")
-    ax.set_xlim([-0.2, ub_x + 0.2])
+    ax.set_xlim([-0.2, frame_length + 0.2])
     ax.set_ylim([-0.2, 10.2])
 
     Plot.subset!(ax, 1:2, X_full, fa = 0.0)
     Plot.subset!(ax, 1:2, X_init, fc = "green")
-    Plot.subset!(ax, 1:2, X_reach, fc = "yellow")
+    Plot.subset!(ax, 1:2, X_target, fc = "yellow")
 
     nsteps === nothing && return
 
@@ -57,8 +54,8 @@ function path_planning(
     AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
     tstep = 0.3
-    n_sys = 3
-    n_bound = 3
+    n_sys = 5
+    n_bound = 5
     function F_sys(x, u)
           alpha = atan(tan(u[2])/2)
           return (
@@ -78,7 +75,7 @@ function path_planning(
     @time AB.set_symmodel_from_controlsystem!(trans_map_sys, cont_sys)
 
     trans_map_contr = AB.NewSymbolicModelHash(X_grid, U_grid, X_grid)
-    @time AB.set_controller_reach!(trans_map_contr, trans_map_sys, X_init, X_reach)
+    @time AB.set_controller_reach!(trans_map_contr, trans_map_sys, X_init, X_target)
 
     x0 = (0.4, 0.4, 0.0)
     Plot.trajectory_closed_loop!(ax, 1:2, cont_sys, trans_map_contr, x0, nsteps)
