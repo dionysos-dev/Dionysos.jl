@@ -158,8 +158,10 @@ function trajectory_closed_loop!(ax, vars, cont_sys, sym_model, x0, nstep;
             @warn("Uncontrollable state")
             return
         end
-        AB.add_inputs_images_by_xref!(U_sub, Y_sub, sym_model, x_ref)
-        u_ref = iterate(AB.enumerate_subset_ref(U_sub))[1]
+        uref_coll = AB.get_gridspace_reftype(sym_model.U_grid)[]
+        yref_coll = AB.get_gridspace_reftype(sym_model.Y_grid)[]
+        AB.add_inputs_images_by_xref!(uref_coll, yref_coll, sym_model, x_ref)
+        u_ref = uref_coll[1]
         u = AB.get_coords_by_ref(sym_model.U_grid, u_ref)
         Plot.trajectory_open_loop!(ax, vars, cont_sys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)

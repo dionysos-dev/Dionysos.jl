@@ -1,8 +1,6 @@
 module Abstraction
 
 using LinearAlgebra
-using PyPlot
-using PyCall
 
 @enum INCL_MODE INNER OUTER
 

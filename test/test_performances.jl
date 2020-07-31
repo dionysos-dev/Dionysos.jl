@@ -125,6 +125,11 @@ function DoTest()
     @time append!(x, 1:1001)
     # Yes
     println()
+
+    function make_iter(ranges)
+        return Iterators.product(ranges...)
+    end
+    @code_warntype make_iter([1:5, 1:6])
 end
 
 println("---------------------------------------------------------------------")

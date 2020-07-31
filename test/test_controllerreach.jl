@@ -59,10 +59,16 @@ for i = 1:6
     Xs = AB.NewSubSet(X_grid)
     Ys = AB.NewSubSet(X_grid)
     Us = AB.NewSubSet(U_grid)
-    AB.add_inputs_images_by_xref!(Us, Xs, sym_model_contr, x_ref)
-    for u_ref in AB.enumerate_subset_ref(Us)
-        AB.add_images_by_xref_uref!(Ys, sym_model_sys, x_ref, u_ref)
+    xref_coll = AB.get_gridspace_reftype(X_grid)[]
+    uref_coll = AB.get_gridspace_reftype(U_grid)[]
+    yref_coll = AB.get_gridspace_reftype(X_grid)[]
+    AB.add_inputs_images_by_xref!(uref_coll, xref_coll, sym_model_contr, x_ref)
+    for u_ref in uref_coll
+        AB.add_images_by_xref_uref!(yref_coll, sym_model_sys, x_ref, u_ref)
     end
+    AB.add_to_subset_by_ref_coll!(Xs, xref_coll)
+    AB.add_to_subset_by_ref_coll!(Us, uref_coll)
+    AB.add_to_subset_by_ref_coll!(Ys, yref_coll)
     push!(XUY_simple_, (Xs, Us, Ys))
     if ~AB.is_subset_empty(Ys)
         x_ref = iterate(AB.enumerate_subset_ref(Ys))[1]

@@ -53,7 +53,9 @@ AB.add_to_subset_by_pos!(X_simple, x_pos)
 U_simple = AB.NewSubSet(U_grid)
 AB.add_to_subset_by_pos!(U_simple, u_pos)
 Y_simple = AB.NewSubSet(X_grid)
-yref_vec = AB.add_images_by_xref_uref!(Y_simple, sym_model, x_ref, u_ref)
+yref_coll = AB.get_gridspace_reftype(X_grid)[]
+AB.add_images_by_xref_uref!(yref_coll, sym_model, x_ref, u_ref)
+AB.add_to_subset_by_ref_coll!(Y_simple, yref_coll)
 display(Y_simple)
 
 @static if get(ENV, "TRAVIS", "false") == "false"
