@@ -84,7 +84,6 @@ x0 = (0.4, 0.4, 0.0)
 AB.plot_trajectory_closed_loop!(ax, 1:2, cont_sys, sym_model_contr, x0, 100)
 
 x_ref = iterate(AB.enumerate_subset_ref(X_init))[1]
-display(x_ref)
 x0 = AB.get_coords_by_ref(X_grid, x_ref)
 X_simple = AB.NewSubSet(X_grid)
 XUY_simple_ = Any[]

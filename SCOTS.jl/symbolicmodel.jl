@@ -59,11 +59,11 @@ function add_images_by_xref_uref!(Y_sub, sym_model::SymbolicModelHash, x_ref, u_
 end
 
 # "Set" (vs "add") assumes Y_sub is empty initially... May fail if not respected
-function set_images_by_xref_uref!(Y_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, u_ref)
-    add_images_by_xref_uref!(Y_sub, sym_model, x_ref, u_ref)
-    Y_sub.issorted = true
-    Y_sub.isunique = true
-end
+# function set_images_by_xref_uref!(Y_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, u_ref)
+#     add_images_by_xref_uref!(Y_sub, sym_model, x_ref, u_ref)
+#     Y_sub.issorted = true
+#     Y_sub.isunique = true
+# end
 
 function is_xref_controllable(sym_model::SymbolicModelHash, x_ref)
     ensure_sorted!(sym_model)
@@ -98,11 +98,11 @@ function add_inputs_by_xref_ysub!(U_sub, sym_model::SymbolicModelHash, x_ref, Y_
 end
 
 # "Set" (vs "add") assumes U_sub is empty initially... May fail if not respected
-function set_inputs_by_xref_ysub!(U_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, Y_sub)
-    add_inputs_by_xref_ysub!(U_sub, sym_model, x_ref, Y_sub)
-    U_sub.issorted = true
-    U_sub.isunique = true
-end
+# function set_inputs_by_xref_ysub!(U_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, Y_sub)
+#     add_inputs_by_xref_ysub!(U_sub, sym_model, x_ref, Y_sub)
+#     U_sub.issorted = true
+#     U_sub.isunique = true
+# end
 
 function add_inputs_images_by_xref!(U_sub, Y_sub, sym_model::SymbolicModelHash, x_ref)
     ensure_sorted!(sym_model)
