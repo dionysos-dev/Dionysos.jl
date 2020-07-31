@@ -30,9 +30,9 @@ end
 
 # "Set" assumes sym_model_contr is empty initially... May fail if not respected
 function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
-	@assert X_init.grid_space == X_target.grid_space ==
-		sym_model_contr.X_grid == sym_model_contr.Y_grid
-		sym_model_sys.X_grid == sym_model_sys.Y_grid
+	@assert X_init.grid_space === X_target.grid_space ===
+		sym_model_contr.X_grid === sym_model_contr.Y_grid
+		sym_model_sys.X_grid === sym_model_sys.Y_grid
 	println("set_controller_reach! started")
 	# Commented sizehints because seems not to improve performances
 	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
@@ -81,9 +81,9 @@ end
 
 # "Set" assumes sym_model_contr is empty initially... May fail if not respected
 function set_controller_safe!(sym_model_contr, sym_model_sys, X_init, X_safe)
-	@assert X_init.grid_space == X_safe.grid_space ==
-		sym_model_contr.X_grid == sym_model_contr.Y_grid
-		sym_model_sys.X_grid == sym_model_sys.Y_grid
+	@assert X_init.grid_space === X_safe.grid_space ===
+		sym_model_contr.X_grid === sym_model_contr.Y_grid
+		sym_model_sys.X_grid === sym_model_sys.Y_grid
 	println("set_controller_reach! started")
 	# Commented sizehints because seems not to improve performances
 	# sizehint_symmodel!(sym_model_contr, get_symmodel_size(sym_model_sys))
