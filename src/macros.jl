@@ -1,6 +1,6 @@
 # "Set" assumes sym_model is empty initially... May fail if not respected
 function set_symmodel_from_controlsystem!(sym_model, cont_sys)
-	println("set_symmodel_from_controlsystem! sarted")
+	println("set_symmodel_from_controlsystem! started")
 	X_grid = sym_model.X_grid
 	U_grid = sym_model.U_grid
 	Y_grid = sym_model.Y_grid
