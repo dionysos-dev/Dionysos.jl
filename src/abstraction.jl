@@ -1,7 +1,6 @@
 module Abstraction
 
 using LinearAlgebra
-using StaticArrays
 
 @enum INCL_MODE INNER OUTER
 
@@ -50,7 +49,6 @@ include("controlsystem.jl")
 include("symbolicmodel.jl")
 include("macros.jl")
 
-include("plotting.jl")
 include("utils.jl")
 
 end  # module Abstraction
