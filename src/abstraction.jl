@@ -1,7 +1,6 @@
 module Abstraction
 
 using LinearAlgebra
-using StaticArrays
 using PyPlot
 using PyCall
 

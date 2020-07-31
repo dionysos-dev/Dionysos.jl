@@ -89,7 +89,7 @@ function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INC
         remove_from_gridspace_by_pos_coll!(grid_space, pos_iter)
     else
         for rp in enumerate_gridspace_ref_pos(grid_space)
-            if is_pos_in_lims(rp[2], lbI, ubI)
+            if rp[2] in rectI
                 remove_from_gridspace_by_ref!(grid_space, rp[1])
             end
         end

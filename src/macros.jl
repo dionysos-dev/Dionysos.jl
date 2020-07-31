@@ -29,8 +29,8 @@ function set_symmodel_from_controlsystem!(sym_model, cont_sys)
 end
 
 # "Set" assumes sym_model_contr is empty initially... May fail if not respected
-function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_reach)
-	@assert X_init.grid_space == X_reach.grid_space ==
+function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_target)
+	@assert X_init.grid_space == X_target.grid_space ==
 		sym_model_contr.X_grid == sym_model_contr.Y_grid
 		sym_model_sys.X_grid == sym_model_sys.Y_grid
 	println("set_controller_reach! started")
@@ -47,34 +47,34 @@ function set_controller_reach!(sym_model_contr, sym_model_sys, X_init, X_reach)
 	# size_remain = get_subset_size(X_remain)
 	X_init2 = NewSubSet(X_grid)
 	union_subsets!(X_init2, X_init)
-	X_reach2 = NewSubSet(X_grid)
-	# sizehint_subset!(X_reach2, size_remain)
-	union_subsets!(X_reach2, X_reach)
-	setdiff_subsets!(X_remain, X_reach)
-	setdiff_subsets!(X_init2, X_reach)
-	X_reach_new = NewSubSet(X_grid)
+	X_target2 = NewSubSet(X_grid)
+	# sizehint_subset!(X_target2, size_remain)
+	union_subsets!(X_target2, X_target)
+	setdiff_subsets!(X_remain, X_target)
+	setdiff_subsets!(X_init2, X_target)
+	X_target_new = NewSubSet(X_grid)
 	U_enabled = NewSubSet(U_grid)
 
 	while ~is_subset_empty(X_init2)
 		print(".")
-		remove_from_subset_all!(X_reach_new)
+		remove_from_subset_all!(X_target_new)
 		for x_ref in enumerate_subset_ref(X_remain)
 			remove_from_subset_all!(U_enabled)
-			add_inputs_by_xref_ysub!(U_enabled, sym_model_sys, x_ref, X_reach2)
+			add_inputs_by_xref_ysub!(U_enabled, sym_model_sys, x_ref, X_target2)
 			if is_subset_empty(U_enabled)
 				continue
 			end
-			add_to_subset_by_new_ref!(X_reach_new, x_ref)
+			add_to_subset_by_new_ref!(X_target_new, x_ref)
 			add_to_symmodel_by_new_refs_coll!(sym_model_contr,
 				(x_ref, u_ref, x_ref) for u_ref in enumerate_subset_ref(U_enabled))
 		end
-		if is_subset_empty(X_reach_new)
+		if is_subset_empty(X_target_new)
 			println("\nset_controller_reach! terminated without covering init set")
 			return
 		end
-		union_new_subsets!(X_reach2, X_reach_new)
-		setdiff_subsets!(X_remain, X_reach_new)
-		setdiff_subsets!(X_init2, X_reach_new)
+		union_new_subsets!(X_target2, X_target_new)
+		setdiff_subsets!(X_remain, X_target_new)
+		setdiff_subsets!(X_init2, X_target_new)
 	end
 	println("\nset_controller_reach! terminated with success")
 end

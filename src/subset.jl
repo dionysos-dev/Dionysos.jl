@@ -112,14 +112,17 @@ function add_to_subset_by_coords!(sub_set, x)
     add_to_subset_by_pos!(sub_set, get_pos_by_coords(sub_set.grid_space, x))
 end
 
-function add_to_subset_by_box!(sub_set, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lims_from_box(sub_set.grid_space, lb, ub, incl_mode)
-    pos_iter = _make_iterator_from_lims(lbI, ubI)
+function add_to_subset!(sub_set, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lims(sub_set.grid_space, rect, incl_mode)
+    pos_iter = _make_iterator_from_lims(rectI)
+    display(rectI)
     if length(pos_iter) < get_gridspace_size(sub_set.grid_space)
         add_to_subset_by_pos_coll!(sub_set, pos_iter)
     else
         for rp in enumerate_gridspace_ref_pos(sub_set.grid_space)
-            if is_pos_in_lims(rp[2], lbI, ubI)
+            display("hey")
+            if rp[2] in rectI
+                display("ho")
                 add_to_subset_by_ref!(sub_set, rp[1])
             end
         end
@@ -182,16 +185,16 @@ function remove_from_subset_by_coords!(sub_set, x)
     remove_from_subset_by_pos!(sub_set, get_pos_by_coords(sub_set.grid_space, x))
 end
 
-function remove_from_subset_by_box!(sub_set, lb, ub, incl_mode::INCL_MODE)
-    lbI, ubI = get_pos_lims_from_box(sub_set.grid_space, lb, ub, incl_mode)
-    pos_iter = _make_iterator_from_lims(lbI, ubI)
+function remove_from_subset!(sub_set, rect::HyperRectangle, incl_mode::INCL_MODE)
+    rectI = get_pos_lims(sub_set.grid_space, rect, incl_mode)
+    pos_iter = _make_iterator_from_lims(rectI)
     if length(pos_iter) < get_subset_size(sub_set)
         remove_from_subset_by_pos_coll!(sub_set, pos_iter)
     else
         for ref in enumerate_subset_ref(sub_set)
             if ref !== sub_set.grid_space.overflow_ref
                 pos = get_pos_by_ref(sub_set.grid_space, ref)
-                if is_pos_in_lims(pos, lbI, ubI)
+                if pos in rectI
                     remove_from_subset_by_ref!(sub_set, ref)
                 end
             end

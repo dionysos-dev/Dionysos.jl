@@ -2,28 +2,30 @@ include("../src/abstraction.jl")
 
 module TestMain
 
-import Main.Abstraction
-using PyPlot
-using StaticArrays
+using Test
+using Main.Abstraction
 AB = Main.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
 
-@testset "Control" begin
+@testset "ControlSystem" begin
 lb = (0.0, 0.0)
 ub = (10.0, 11.0)
 x0 = (0.0, 0.0)
 h = (1.0, 2.0)
 X_grid = AB.NewGridSpaceHash(x0, h)
-AB.add_to_gridspace_by_box!(X_grid, lb, ub, AB.OUTER)
+@test AB.get_gridspace_size(X_grid) == 0
+AB.add_to_gridspace!(X_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_gridspace_size(X_grid) == 77
 
 lb = (-1.0,)
 ub = (1.0,)
 u0 = (0.0,)
 h = (0.5,)
 U_grid = AB.NewGridSpaceHash(u0, h)
-AB.add_to_gridspace_by_box!(U_grid, lb, ub, AB.OUTER)
+AB.add_to_gridspace!(U_grid, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_gridspace_size(U_grid) == 5
 
 tstep = 1.0
 n_sys = 3
@@ -37,8 +39,6 @@ meas_noise = (1.0, 1.0).*0.01
 
 cont_sys = AB.NewControlSystemRK4(tstep, F_sys, L_bound, sys_noise, meas_noise, n_sys, n_bound)
 
-fig = PyPlot.figure()
-ax = fig.gca()
 
 x_pos = (1, 1)
 u_pos = (1,)
@@ -52,13 +52,16 @@ AB.add_to_subset_by_pos!(U_simple, u_pos)
 @test AB.get_subset_size(U_simple) == 1
 
 @static if get(ENV, "TRAVIS", "false") == "false"
+    include("../src/plotting.jl")
+    using PyPlot
+    fig = PyPlot.figure()
+    ax = fig.gca()
+    ax.set_xlim((-10.0, 10.0))
+    ax.set_ylim((-10.0, 10.0))
     Plot.subset!(ax, 1:2, X_simple)
     Plot.trajectory_open_loop!(ax, 1:2, cont_sys, x, u, 50)
     Plot.cell_image!(ax, 1:2, X_simple, U_simple, cont_sys)
     Plot.cell_approx!(ax, 1:2, X_simple, U_simple, cont_sys)
-
-    ax.set_xlim((-10.0, 10.0))
-    ax.set_ylim((-10.0, 10.0))
 end
 end
 
