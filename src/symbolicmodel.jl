@@ -1,5 +1,5 @@
 function NewSymbolicModelHash(X_grid::GridSpaceHash, U_grid::GridSpaceHash, Y_grid::GridSpaceHash)
-    elems = Tuple{UInt64,UInt64,UInt64}[]
+    elems = Tuple{CellRef,CellRef,CellRef}[]
     return SymbolicModelHash(X_grid, U_grid, Y_grid, elems, true, true)
 end
 

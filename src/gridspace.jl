@@ -5,10 +5,12 @@
 # end
 
 function NewGridSpaceHash(orig::NTuple{N, Float64}, h::NTuple{N, Float64}) where N
-    D = Dict{UInt64, NTuple{N, Int}}()
+    D = Dict{CellRef, NTuple{N, Int}}()
     overflow_pos = Tuple(typemin(Int) for i = 1:N)
-    return GridSpaceHash(orig, h, D, UInt64(0), overflow_pos)
+    return GridSpaceHash{N}(orig, h, D, CellRef(0), overflow_pos)
 end
+
+cell_ref(pos) = CellRef(hash(pos))
 
 function get_pos_by_coords(grid_space, x::Tuple)
     return round.(Int, (x .- grid_space.orig)./grid_space.h)
@@ -43,12 +45,12 @@ function _ranges(rect::HyperRectangle{NTuple{N, T}}) where {T, N}
 end
 
 function add_to_gridspace_by_pos!(grid_space::GridSpaceHash, pos)
-    push!(grid_space.elems, hash(pos) => pos)
+    push!(grid_space.elems, cell_ref(pos) => pos)
 end
 
 function add_to_gridspace_by_pos_coll!(grid_space::GridSpaceHash, pos_coll)
     for pos in pos_coll
-        push!(grid_space.elems, hash(pos) => pos)
+        push!(grid_space.elems, cell_ref(pos) => pos)
     end
 end
 
@@ -73,7 +75,7 @@ function remove_from_gridspace_by_ref_coll!(grid_space, ref_coll)
 end
 
 function remove_from_gridspace_by_pos!(grid_space::GridSpaceHash, pos)
-    delete!(grid_space.elems, hash(pos))
+    delete!(grid_space.elems, cell_ref(pos))
 end
 
 function remove_from_gridspace_by_pos_coll!(grid_space, pos_coll)
@@ -100,10 +102,10 @@ function remove_from_gridspace!(grid_space, rect::HyperRectangle, incl_mode::INC
     end
 end
 
-has_pos(grid_space::GridSpaceHash, pos) = haskey(grid_space.elems, hash(pos))
+has_pos(grid_space::GridSpaceHash, pos) = haskey(grid_space.elems, cell_ref(pos))
 
 function get_ref_by_pos(grid_space::GridSpaceHash, pos)
-    return getkey(grid_space.elems, hash(pos), grid_space.overflow_ref)
+    return getkey(grid_space.elems, cell_ref(pos), grid_space.overflow_ref)
 end
 
 function get_pos_by_ref(grid_space::GridSpaceHash, ref)
@@ -139,5 +141,5 @@ function is_gridspace_empty(grid_space::GridSpaceHash)
 end
 
 function get_gridspace_reftype(grid_space::GridSpaceHash)
-    return UInt64
+    return CellRef
 end

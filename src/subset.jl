@@ -1,9 +1,9 @@
 # function NewSubSet(grid_space::GridSpaceHash{N}) where N
-#     return SubSetHash{N}(grid_space, UInt64[], true, true)
+#     return SubSetHash{N}(grid_space, CellRef[], true, true)
 # end
 
 function NewSubSet(grid_space::GridSpaceHash{N}) where N
-    return SubSetHash{N}(grid_space, Set{UInt64}())
+    return SubSetHash{N}(grid_space, Set{CellRef}())
 end
 
 # function ensure_sorted!(sub_set::SubSetHash)
@@ -133,8 +133,8 @@ end
 #     sub_set.isunique = true
 # end
 
-function remove_from_subset_by_ref!(sub_set::SubSetHash, ref)
-    setdiff!(sub_set.elems, ref)
+function remove_from_subset_by_ref!(sub_set::SubSetHash, ref::CellRef)
+    delete!(sub_set.elems, ref)
 end
 
 # function remove_from_subset_by_ref_coll!(sub_set::SubSetHash, ref_coll)
