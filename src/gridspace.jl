@@ -79,6 +79,10 @@ function remove_set!(gridspace, rect::HyperRectangle, incl_mode::INCL_MODE)
     end
 end
 
+function has_pos(gridspace::GridSpaceList, pos)
+    return in(pos, gridspace.elems)
+end
+
 function enum_pos(gridspace::GridSpaceList)
     return gridspace.elems
 end

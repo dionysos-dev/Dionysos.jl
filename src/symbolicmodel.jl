@@ -38,3 +38,35 @@ end
 function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
     return symmodel.upos2int[upos]
 end
+
+function compute_symmodel_from_controlsystem!(symmodel, contsys)
+	println("set_symmodel_from_controlsystem! started")
+	Xgrid = symmodel.Xgrid
+	Ugrid = symmodel.Ugrid
+	Ygrid = symmodel.Ygrid
+	tstep = contsys.tstep
+	ntrans = 0
+
+	# Updates every 1 seconds
+	@showprogress 1 "Computing symbolic control system: " for upos in enum_pos(Ugrid)
+		symbol = get_symbol_by_upos(symmodel, upos)
+		u = get_coord_by_pos(Ugrid, upos)
+		r = Xgrid.h./2 .+ contsys.measnoise
+		r = contsys.bound_map(r, u, contsys.tstep)
+		r = r .+ contsys.measnoise
+		for xpos in enum_pos(Xgrid)
+			source = get_state_by_xpos(symmodel, xpos)
+			x = get_coord_by_pos(Xgrid, xpos)
+			x = contsys.sys_map(x, u, tstep)
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x .- r, x .+ r))
+		    ypos_iter = Iterators.product(_ranges(rectI)...)
+			any(x -> !has_pos(Xgrid, x), ypos_iter) && continue
+			for ypos in ypos_iter
+				target = get_state_by_xpos(symmodel, ypos)
+				add_transitions!(symmodel.autom, source, symbol, target)
+			end
+			ntrans += length(ypos_iter)
+        end
+    end
+	println("compute_symmodel_from_controlsystem! terminated with success: $(n_trans) transitions created")
+end
