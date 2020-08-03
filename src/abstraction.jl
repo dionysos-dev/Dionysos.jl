@@ -41,13 +41,21 @@ end
 
 abstract type SymbolicModel end
 
-mutable struct SymbolicModelHash{N1, N2, N3} <: SymbolicModel
-    X_grid::GridSpaceHash{N1}
-    U_grid::GridSpaceHash{N2}
-    Y_grid::GridSpaceHash{N3}
-    elems::Vector{Tuple{CellRef, CellRef, CellRef}}
+struct SymbolicModelHash{NX, NU, S<:Automaton} <: SymbolicModel
+    X_grid::GridSpaceHash{NX}
+    U_grid::GridSpaceHash{NU}
+    automaton::S
+    xreflist::Vector{Int}
+    ureflist::Vector{Int}
+end
+
+abstract type Automaton end
+
+mutable struct AutomatonList <: Automaton
+    nstates::Int
+    nsymbols::Int
+    transitions::Vector{Tuple{Int, Int, Int}}
     issorted::Bool
-    isunique::Bool
 end
 
 include("rectangle.jl")
