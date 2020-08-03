@@ -22,10 +22,10 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
 end
 
 function NewControlSystemRK4(tstep, F_sys, L_bound, sysnoise::NTuple{N, Float64},
-	measnoise::NTuple{N, Float64}, n_sys, n_bound) where N
+	measnoise::NTuple{N, Float64}, nsys, nbound) where N
 	#---------------------------------------------------------------------------
-	sys_map = (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, n_sys)
+	sys_map = (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)
 	F_bound = (r, u) -> L_bound(r, u) .+ sysnoise
-	bound_map = (r, u, tstep) -> RungeKutta4(F_bound, r, u, tstep, n_bound)
+	bound_map = (r, u, tstep) -> RungeKutta4(F_bound, r, u, tstep, nbound)
 	return ControlSystem(tstep, sysnoise, measnoise, sys_map, bound_map)
 end

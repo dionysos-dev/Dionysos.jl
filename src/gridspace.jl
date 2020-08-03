@@ -7,7 +7,7 @@ struct GridSpaceList{N} <: GridSpace{N}
 end
 
 function NewGridSpaceList(orig::NTuple{N, Float64}, h::NTuple{N, Float64}) where N
-    return GridSpaceList{N}(orig, h, D, Set{NTuple{N, Int}}())
+    return GridSpaceList{N}(orig, h, Set{NTuple{N, Int}}())
 end
 
 function get_pos_by_coord(gridspace, x::Tuple)
@@ -42,15 +42,15 @@ function _ranges(rect::HyperRectangle{NTuple{N, T}}) where {T, N}
     return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
 end
 
-function add_position!(gridspace::GridSpaceList, pos)
+function add_pos!(gridspace::GridSpaceList, pos)
     push!(gridspace.elems, pos)
 end
 
-function add_coord!(gridspace, x)
+function add_coord!(gridspace::GridSpace, x)
     add_pos!(gridspace, get_pos_by_coord(gridspace, x))
 end
 
-function add_set!(gridspace, rect::HyperRectangle, incl_mode::INCL_MODE)
+function add_set!(gridspace::GridSpace, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(gridspace, rect, incl_mode)
     for pos in Iterators.product(_ranges(rectI)...)
         add_pos!(gridspace, pos)
@@ -61,14 +61,14 @@ function remove_pos!(gridspace::GridSpaceList, pos)
     delete!(gridspace.elems, pos)
 end
 
-function remove_coord!(gridspace, x)
+function remove_coord!(gridspace::GridSpace, x)
     remove_pos!(gridspace, get_pos_by_coord(gridspace, x))
 end
 
-function remove_set!(gridspace, rect::HyperRectangle, incl_mode::INCL_MODE)
+function remove_set!(gridspace::GridSpace, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(gridspace, rect, incl_mode)
     pos_iter = Iterators.product(_ranges(rectI)...)
-    if length(pos_iter) < get_gridspace_size(gridspace)
+    if length(pos_iter) < get_ncells(gridspace)
         for pos in pos_iter
             remove_pos!(gridspace, pos)
         end
@@ -79,7 +79,7 @@ function remove_set!(gridspace, rect::HyperRectangle, incl_mode::INCL_MODE)
     end
 end
 
-function has_pos(gridspace::GridSpaceList, pos)
+function Base.in(pos, gridspace::GridSpaceList)
     return in(pos, gridspace.elems)
 end
 
@@ -91,6 +91,10 @@ function get_ncells(gridspace::GridSpaceList)
     return length(gridspace.elems)
 end
 
-function isempty(gridspace::GridSpaceList)
+function Base.isempty(gridspace::GridSpaceList)
     return isempty(gridspace.elems)
+end
+
+function get_somepos(gridspace::GridSpaceList)
+    return first(gridspace.elems)
 end

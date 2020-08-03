@@ -5,20 +5,16 @@ using ProgressMeter
 
 @enum INCL_MODE INNER OUTER
 
-abstract type Automaton end
-
-mutable struct AutomatonList <: Automaton
-    nstates::Int
-    nsymbols::Int
-    transitions::Vector{Tuple{Int, Int, Int}}
-    issorted::Bool
-end
-
 include("rectangle.jl")
 include("gridspace.jl")
+include("subset.jl")
 include("controlsystem.jl")
+include("automaton.jl")
 include("symbolicmodel.jl")
-include("macros.jl")
+include("controller.jl")
+
+
+# include("macros.jl")
 
 # include("utils.jl")
 

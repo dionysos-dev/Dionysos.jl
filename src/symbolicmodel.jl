@@ -3,7 +3,7 @@ abstract type SymbolicModel end
 struct SymbolicModelList{NX, NU, S<:Automaton} <: SymbolicModel
     Xgrid::GridSpaceList{NX}
     Ugrid::GridSpaceList{NU}
-    automaton::S
+    autom::S
     xpos2int::Dict{NTuple{NX, Int}, Int}
     xint2pos::Vector{NTuple{NX, Int}}
     upos2int::Dict{NTuple{NU, Int}, Int}
@@ -19,8 +19,9 @@ function NewSymbolicModelListList(
     xpos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Xgrid)))
     uint2pos = [pos for pos in enum_pos(Ugrid)]
     upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Ugrid)))
-    automaton = NewAutomatonList(nx, nu)
-    return SymbolicModelList(Xgrid, Ugrid, automaton, xpos2int, xint2pos, upos2int, uint2pos)
+    autom = NewAutomatonList(nx, nu)
+    return SymbolicModelList(
+		Xgrid, Ugrid, autom, xpos2int, xint2pos, upos2int, uint2pos)
 end
 
 function get_xpos_by_state(symmodel::SymbolicModelList, state)
@@ -39,11 +40,11 @@ function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
     return symmodel.upos2int[upos]
 end
 
+# Assumes that automaton is "empty"
 function compute_symmodel_from_controlsystem!(symmodel, contsys)
-	println("set_symmodel_from_controlsystem! started")
+	println("compute_symmodel_from_controlsystem! started")
 	Xgrid = symmodel.Xgrid
 	Ugrid = symmodel.Ugrid
-	Ygrid = symmodel.Ygrid
 	tstep = contsys.tstep
 	ntrans = 0
 
@@ -60,13 +61,14 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
 			x = contsys.sys_map(x, u, tstep)
             rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x .- r, x .+ r))
 		    ypos_iter = Iterators.product(_ranges(rectI)...)
-			any(x -> !has_pos(Xgrid, x), ypos_iter) && continue
+			any(x -> !(x ∈ Xgrid), ypos_iter) && continue
 			for ypos in ypos_iter
 				target = get_state_by_xpos(symmodel, ypos)
-				add_transitions!(symmodel.autom, source, symbol, target)
+				add_transition!(symmodel.autom, source, symbol, target)
 			end
 			ntrans += length(ypos_iter)
         end
     end
-	println("compute_symmodel_from_controlsystem! terminated with success: $(n_trans) transitions created")
+	println("compute_symmodel_from_controlsystem! terminated with success: ",
+		"$(ntrans) transitions created")
 end
