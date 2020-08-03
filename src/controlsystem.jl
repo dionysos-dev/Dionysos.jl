@@ -1,3 +1,11 @@
+struct ControlSystem{N, Fsys<:Function, Fbound<:Function}
+    tstep::Float64
+    sys_noise::NTuple{N, Float64}
+    meas_noise::NTuple{N, Float64}
+    sys_map::Fsys
+    bound_map::Fbound
+end
+
 function RungeKutta4(F, x, u, tstep, nsub::Int)
 	τ = tstep/nsub
 	for i = 1:nsub

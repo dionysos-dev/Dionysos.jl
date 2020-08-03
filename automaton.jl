@@ -17,13 +17,6 @@ function add_transition!(autom::AutomatonList, source, symbol, target)
     autom.issorted = false
 end
 
-function add_transitions!(autom::AutomatonList, translist)
-    append!(autom.transitions, translist)
-    if !isempty(translist)
-        autom.issorted = false
-    end
-end
-
 function empty!(autom::AutomatonList)
     empty!(autom.transitions)
     autom.issorted = true
