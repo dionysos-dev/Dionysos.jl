@@ -87,9 +87,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 			return
 		end
 		setdiff!(initset, nexttargetlist)
-		temp = targetlist
-		targetlist = nexttargetlist
-		nexttargetlist = temp
+		targetlist, nexttargetlist = nexttargetlist, targetlist
 		empty!(nexttargetlist)
 	end
 
