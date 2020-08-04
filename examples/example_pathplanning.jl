@@ -7,6 +7,7 @@ using Main.Abstraction
 using PyPlot
 using Main.Plot
 AB = Main.Abstraction
+using ProfileView
 
 function path_planning(frame_length; nsteps = nothing,
     X1_lb = [1.0, 2.2,  2.2, 3.4,  4.6, 5.8,  5.8,  7.0, 8.2, 8.4,  9.3, 8.4,  9.3, 8.4,  9.3],
@@ -87,7 +88,9 @@ function path_planning(frame_length; nsteps = nothing,
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
     contr = AB.NewControllerList()
-    @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+    npoststable = [0 for i = 1:symmodel.autom.nstates, j = 1:symmodel.autom.nsymbols]
+    display("npoststable created")
+    @time AB.compute_controller_reach!(npoststable, contr, symmodel.autom, initlist, targetlist)
 
     x0 = (0.4, 0.4, 0.0)
     Plot.trajectory_closed_loop!(ax, 1:2, contsys, symmodel, contr, x0, nsteps)

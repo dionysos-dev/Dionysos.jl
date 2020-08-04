@@ -52,11 +52,11 @@ function _compute_npoststable(npoststable, autom)
 end
 
 # Assumes contr is "empty"
-function compute_controller_reach!(contr, autom, initlist, targetlist)
+function compute_controller_reach!(npoststable, contr, autom, initlist, targetlist)
 	println("compute_controller_reach! started")
 	nstates = autom.nstates
 	nsymbols = autom.nsymbols
-	npoststable = [0 for i = 1:nstates, j = 1:nsymbols]
+	# npoststable = [0 for i = 1:nstates, j = 1:nsymbols]
 	_compute_npoststable(npoststable, autom)
 	initset = Set(initlist)
 	targetlist = Set(targetlist)
