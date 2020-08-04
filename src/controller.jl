@@ -42,7 +42,7 @@ end
 
 function _compute_npoststable(npoststable, autom)
 	soursymblist = Tuple{Int, Int}[]
-    for target in 1:autom.nstates
+    for target = 1:autom.nstates
 		empty!(soursymblist)
 		compute_pre!(soursymblist, autom, target)
 		for soursymb in soursymblist
@@ -70,16 +70,25 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 
 	prog = ProgressUnknown("# iterations computing controller:")
 	while !isempty(initset)
+		ProgressMeter.next!(prog)
 		for source in targetset
 			for symbol = 1:nsymbols
-				npoststable[source, symbol] = -1
+				npoststable[source, symbol] = 0
 			end
 		end
-		ProgressMeter.next!(prog)
 		for target in targetset
 			empty!(soursymblist)
 			compute_pre!(soursymblist, autom, target)
 			for soursymb in soursymblist
+				# Second approach seems faster. Also tried with storing the value
+				# of npoststable[soursymb[1], soursymb[2]], and with @views...
+				# if npoststable[soursymb[1], soursymb[2]] > 1
+				# 	npoststable[soursymb[1], soursymb[2]] -= 1
+				# elseif npoststable[soursymb[1], soursymb[2]] == 1
+				# 	npoststable[soursymb[1], soursymb[2]] = 0
+				# 	push!(nexttargetset, soursymb[1])
+				# 	add_pair!(contr, soursymb[1], soursymb[2])
+				# end
 				npoststable[soursymb[1], soursymb[2]] -= 1
 				if npoststable[soursymb[1], soursymb[2]] == 0
 					push!(nexttargetset, soursymb[1])
@@ -89,16 +98,90 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 		end
 		if isempty(nexttargetset)
 			println("\ncompute_controller_reach! terminated without covering init set")
-			return
+			break
 		end
 		setdiff!(initset, nexttargetset)
 		targetset, nexttargetset = nexttargetset, targetset
 		empty!(nexttargetset)
 		# unique!(targetlist)
 	end
-
 	ProgressMeter.finish!(prog)
+
 	println("\ncompute_controller_reach! terminated with success")
+end
+
+function _compute_pairstable(pairstable, autom)
+	soursymblist = Tuple{Int, Int}[]
+    for target = 1:autom.nstates
+		empty!(soursymblist)
+		compute_pre!(soursymblist, autom, target)
+		for soursymb in soursymblist
+			pairstable[soursymb[1], soursymb[2]] = true
+		end
+	end
+end
+
+function compute_controller_safe!(contr, autom, initlist, safelist)
+	println("compute_controller_safe! started")
+	nstates = autom.nstates
+	nsymbols = autom.nsymbols
+	pairstable = [false for i = 1:nstates, j = 1:nsymbols]
+	_compute_pairstable(pairstable, autom)
+	nsymbolslist = sum(pairstable, dims = 2)
+	safeset = Set(safelist)
+	for source in safeset
+		if nsymbolslist[source] == 0
+			delete!(safeset, source)
+		end
+	end
+	unsafeset = Set(1:nstates)
+	setdiff!(unsafeset, safeset)
+	for source in unsafeset
+		for symbol = 1:nsymbols
+			pairstable[source, symbol] = false
+		end
+	end
+	nextunsafeset = Set{Int}()
+	soursymblist = Tuple{Int, Int}[]
+
+	prog = ProgressUnknown("# iterations computing controller:")
+	while true
+		ProgressMeter.next!(prog)
+		for target in unsafeset
+			empty!(soursymblist)
+			compute_pre!(soursymblist, autom, target)
+			for soursymb in soursymblist
+				if pairstable[soursymb[1], soursymb[2]]
+					pairstable[soursymb[1], soursymb[2]] = false
+					nsymbolslist[soursymb[1]] -= 1
+					if nsymbolslist[soursymb[1]] == 0
+						push!(nextunsafeset, soursymb[1])
+					end
+				end
+			end
+		end
+		if isempty(nextunsafeset)
+			break
+		end
+		setdiff!(safeset, nextunsafeset)
+		unsafeset, nextunsafeset = nextunsafeset, unsafeset
+		empty!(nextunsafeset)
+	end
+	ProgressMeter.finish!(prog)
+
+	for source in safeset
+		for symbol = 1:nsymbols
+			if pairstable[source, symbol]
+				add_pair!(contr, source, symbol)
+			end
+		end
+	end
+
+	if ⊆(initlist, safeset)
+		println("\ncompute_controller_safe! terminated with success")
+	else
+		println("\ncompute_controller_safe! terminated without covering init set")
+	end
 end
 
 # # "Set" assumes symmodel_contr is empty initially... May fail if not respected

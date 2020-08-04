@@ -53,7 +53,7 @@ for pos in AB.enum_pos(Xtarget)
     push!(targetlist, AB.get_state_by_xpos(symmodel, pos))
 end
 
-contr =  AB.NewControllerList()
+contr = AB.NewControllerList()
 AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 @test AB.get_npairs(contr) == 836
 
