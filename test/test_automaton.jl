@@ -39,8 +39,6 @@ AB.compute_pre!(soursymblist, autom, 4)
 AB.compute_pre!(soursymblist, autom, 8)
 @test length(soursymblist) == 4
 @test all(x -> x in soursymblist, [(5, 6), (5, 7), (8, 6), (8, 7)])
-
-
 end
 
 sleep(0.1) # used for good printing
