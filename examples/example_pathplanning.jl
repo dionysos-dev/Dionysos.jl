@@ -88,9 +88,7 @@ function path_planning(frame_length; nsteps = nothing,
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
     contr = AB.NewControllerList()
-    npoststable = [0 for i = 1:symmodel.autom.nstates, j = 1:symmodel.autom.nsymbols]
-    display("npoststable created")
-    @time AB.compute_controller_reach!(npoststable, contr, symmodel.autom, initlist, targetlist)
+    @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 
     x0 = (0.4, 0.4, 0.0)
     Plot.trajectory_closed_loop!(ax, 1:2, contsys, symmodel, contr, x0, nsteps)
