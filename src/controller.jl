@@ -61,6 +61,9 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 	initset = Set(initlist)
 	targetlist = Set(targetlist)
 	nexttargetlist = Set{Int}()
+	# initset = copy(initlist)
+	# targetlist = copy(targetlist)
+	# nexttargetlist = Int[]
 	soursymblist = Tuple{Int, Int}[]
 
 	prog = ProgressUnknown("# iterations computing controller:")
@@ -89,6 +92,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 		setdiff!(initset, nexttargetlist)
 		targetlist, nexttargetlist = nexttargetlist, targetlist
 		empty!(nexttargetlist)
+		# unique!(targetlist)
 	end
 
 	ProgressMeter.finish!(prog)
