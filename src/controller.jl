@@ -63,6 +63,10 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 	initset = Set(initlist)
 	targetset = Set(targetlist)
 	nexttargetset = Set{Int}()
+	# Setdiff!() seems faster on Sets (see also test_performances.jl).
+	# Also we need nexttargetlist to be unique (because push!(nexttargetlist, soursymb[1])
+	# may add the same source several times).
+	# After comparison, the implementation with Sets seems faster.
 	# initset = copy(initlist)
 	# targetlist = copy(targetlist)
 	# nexttargetlist = Int[]
