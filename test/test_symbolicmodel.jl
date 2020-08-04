@@ -12,48 +12,32 @@ println("Started test")
 @testset "SymbolicModel" begin
 x0 = (0.0, 0.0)
 h = (1.0, 2.0)
-X_grid = AB.NewGridSpaceHash(x0, h)
-Y_sub = AB.NewSubSet(X_grid)
-AB.add_to_subset_by_ref!(Y_sub, AB.CellRef(10))
-AB.add_to_subset_by_ref!(Y_sub, AB.CellRef(45))
-display(Y_sub)
+Xgrid = AB.NewGridSpaceList(x0, h)
+AB.add_pos!(Xgrid, (1, 1))
+AB.add_pos!(Xgrid, (2, 2))
 
 u0 = (0.0,)
 h = (0.5,)
-U_grid = AB.NewGridSpaceHash(u0, h)
+Ugrid = AB.NewGridSpaceList(u0, h)
+AB.add_pos!(Ugrid, (0,))
 
-sym_model = AB.NewSymbolicModelHash(X_grid, U_grid, X_grid)
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef( 5), AB.CellRef(6), AB.CellRef( 9))
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef( 5), AB.CellRef(6), AB.CellRef(10))
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef( 5), AB.CellRef(7), AB.CellRef(45))
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef(15), AB.CellRef(6), AB.CellRef(45))
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef( 5), AB.CellRef(6), AB.CellRef( 5))
-AB.add_to_symmodel_by_refs!(sym_model, AB.CellRef(15), AB.CellRef(7), AB.CellRef(45))
-display(sym_model)
+symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
+stateslist = Int[]
+push!(stateslist, AB.get_state_by_xpos(symmodel, (1, 1)))
+push!(stateslist, AB.get_state_by_xpos(symmodel, (2, 2)))
+sort!(stateslist)
+@test all(stateslist .== [1, 2])
 
-zref_coll = AB.get_gridspace_reftype(X_grid)[]
-uref_coll = AB.get_gridspace_reftype(U_grid)[]
+xposlist = Tuple{Int, Int}[]
+push!(xposlist, AB.get_xpos_by_state(symmodel, 1))
+push!(xposlist, AB.get_xpos_by_state(symmodel, 2))
+sort!(xposlist)
+@test all(xposlist .== [(1, 1), (2, 2)])
 
-AB.add_images_by_xref_uref!(zref_coll, sym_model, AB.CellRef(5), AB.CellRef(6))
-display(zref_coll)
-@test length(zref_coll) == 3
-AB.add_images_by_xref_uref!(zref_coll, sym_model, AB.CellRef(15), AB.CellRef(6))
-display(zref_coll)
-AB.add_images_by_xref_uref!(zref_coll, sym_model, AB.CellRef(15), AB.CellRef(5))
-display(zref_coll)
-@test length(zref_coll) == 4
-
-AB.add_inputs_by_xref_ysub!(uref_coll, sym_model, AB.CellRef(5), Y_sub)
-display(uref_coll)
-@test length(uref_coll) == 1
-AB.add_inputs_by_xref_ysub!(uref_coll, sym_model, AB.CellRef(15), Y_sub)
-display(uref_coll)
-@test length(uref_coll) == 3
-AB.add_to_subset_by_ref!(Y_sub, AB.CellRef(9))
-AB.add_to_subset_by_ref!(Y_sub, AB.CellRef(5))
-AB.add_inputs_by_xref_ysub!(uref_coll, sym_model, AB.CellRef(5), Y_sub)
-display(uref_coll)
-@test length(uref_coll) == 5
+uposlist = Tuple{Int}[]
+push!(uposlist, AB.get_upos_by_symbol(symmodel, 1))
+sort!(uposlist)
+@test all(uposlist .== [(0,)])
 end
 
 sleep(0.1) # used for good printing

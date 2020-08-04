@@ -1,3 +1,11 @@
+struct ControlSystem{N, Fsys<:Function, Fbound<:Function}
+    tstep::Float64
+    sysnoise::NTuple{N, Float64}
+    measnoise::NTuple{N, Float64}
+    sys_map::Fsys
+    bound_map::Fbound
+end
+
 function RungeKutta4(F, x, u, tstep, nsub::Int)
 	τ = tstep/nsub
 	for i = 1:nsub
@@ -13,10 +21,11 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
 	return x
 end
 
-function NewControlSystemRK4(tstep, F_sys, L_bound, sys_noise::NTuple{N, Float64},
-		meas_noise::NTuple{N, Float64}, n_sys, n_bound) where N
-	sys_map = (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, n_sys)
-	F_bound = (r, u) -> L_bound(r, u) .+ sys_noise
-	bound_map = (r, u, tstep) -> RungeKutta4(F_bound, r, u, tstep, n_bound)
-	return ControlSystem(tstep, sys_noise, meas_noise, sys_map, bound_map)
+function NewControlSystemRK4(tstep, F_sys, L_bound, sysnoise::NTuple{N, Float64},
+	measnoise::NTuple{N, Float64}, nsys, nbound) where N
+	#---------------------------------------------------------------------------
+	sys_map = (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)
+	F_bound = (r, u) -> L_bound(r, u) .+ sysnoise
+	bound_map = (r, u, tstep) -> RungeKutta4(F_bound, r, u, tstep, nbound)
+	return ControlSystem(tstep, sysnoise, measnoise, sys_map, bound_map)
 end

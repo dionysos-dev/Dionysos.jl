@@ -1,181 +1,75 @@
-function NewSymbolicModelHash(X_grid::GridSpaceHash, U_grid::GridSpaceHash, Y_grid::GridSpaceHash)
-    elems = Tuple{CellRef,CellRef,CellRef}[]
-    return SymbolicModelHash(X_grid, U_grid, Y_grid, elems, true, true)
+abstract type SymbolicModel end
+
+struct SymbolicModelList{NX, NU, S<:Automaton} <: SymbolicModel
+    Xgrid::GridSpaceList{NX}
+    Ugrid::GridSpaceList{NU}
+    autom::S
+    xpos2int::Dict{NTuple{NX, Int}, Int}
+    xint2pos::Vector{NTuple{NX, Int}}
+    upos2int::Dict{NTuple{NU, Int}, Int}
+    uint2pos::Vector{NTuple{NU, Int}}
 end
 
-function ensure_sorted!(sym_model::SymbolicModelHash)
-    if !sym_model.issorted
-        # display("sym_model not sorted")
-        sort!(sym_model.elems)
-        sym_model.issorted = true
-    end
+function NewSymbolicModelListList(
+    Xgrid::GridSpaceList{NX}, Ugrid::GridSpaceList{NU}) where {NX, NU}
+    #---------------------------------------------------------------------------
+    nx = get_ncells(Xgrid)
+    nu = get_ncells(Ugrid)
+    xint2pos = [pos for pos in enum_pos(Xgrid)]
+    xpos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Xgrid)))
+    uint2pos = [pos for pos in enum_pos(Ugrid)]
+    upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Ugrid)))
+    autom = NewAutomatonList(nx, nu)
+    return SymbolicModelList(
+		Xgrid, Ugrid, autom, xpos2int, xint2pos, upos2int, uint2pos)
 end
 
-function ensure_unique!(sym_model::SymbolicModelHash)
-    if !sym_model.isunique
-        # display("sym_model not unique")
-        unique!(sym_model.elems)
-        sym_model.isunique = true
-    end
+function get_xpos_by_state(symmodel::SymbolicModelList, state)
+    return symmodel.xint2pos[state]
 end
 
-function add_to_symmodel_by_refs!(sym_model::SymbolicModelHash, x_ref, u_ref, y_ref)
-    push!(sym_model.elems, (x_ref, u_ref, y_ref))
-    sym_model.issorted = false
-    sym_model.isunique = false
+function get_state_by_xpos(symmodel::SymbolicModelList, xpos)
+    return symmodel.xpos2int[xpos]
 end
 
-function add_to_symmodel_by_new_refs!(sym_model::SymbolicModelHash, x_ref, u_ref, y_ref)
-    push!(sym_model.elems, (x_ref, u_ref, y_ref))
-    sym_model.issorted = false
+function get_upos_by_symbol(symmodel::SymbolicModelList, symbol)
+    return symmodel.uint2pos[symbol]
 end
 
-function add_to_symmodel_by_refs_coll!(sym_model::SymbolicModelHash, refs_coll)
-    append!(sym_model.elems, refs_coll)
-    if !isempty(refs_coll)
-        sym_model.issorted = false
-        sym_model.isunique = false
-    end
+function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
+    return symmodel.upos2int[upos]
 end
 
-function add_to_symmodel_by_new_refs_coll!(sym_model::SymbolicModelHash, refs_coll)
-    append!(sym_model.elems, refs_coll)
-    if !isempty(refs_coll)
-        sym_model.issorted = false
-    end
-end
+# Assumes that automaton is "empty"
+function compute_symmodel_from_controlsystem!(symmodel, contsys)
+	println("compute_symmodel_from_controlsystem! started")
+	Xgrid = symmodel.Xgrid
+	Ugrid = symmodel.Ugrid
+	tstep = contsys.tstep
+	ntrans = 0
 
-function remove_from_symmodel_all!(sym_model)
-    empty!(sym_model.elems)
-    sym_model.issorted = true
-    sym_model.isunique = true
-end
-
-# function add_images_by_xref_uref!(Y_sub, sym_model::SymbolicModelHash, x_ref, u_ref)
-#     ensure_sorted!(sym_model)
-#     ensure_unique!(sym_model)
-#     idx_iter = searchsorted(sym_model.elems, (x_ref, u_ref), by = x -> x[1:2])
-#     add_to_subset_by_ref_coll!(Y_sub, sym_model.elems[idx][3] for idx in idx_iter)
-# end
-
-function add_images_by_xref_uref!(yref_coll, sym_model::SymbolicModelHash, x_ref, u_ref)
-    ensure_sorted!(sym_model)
-    ensure_unique!(sym_model)
-    idx_iter = searchsorted(sym_model.elems, (x_ref, u_ref), by = x -> x[1:2])
-    for idx in idx_iter
-        push!(yref_coll, sym_model.elems[idx][3])
-    end
-end
-
-# "Set" (vs "add") assumes Y_sub is empty initially... May fail if not respected
-# function set_images_by_xref_uref!(Y_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, u_ref)
-#     add_images_by_xref_uref!(Y_sub, sym_model, x_ref, u_ref)
-#     Y_sub.issorted = true
-#     Y_sub.isunique = true
-# end
-
-function is_xref_controllable(sym_model::SymbolicModelHash, x_ref)
-    ensure_sorted!(sym_model)
-    idx_iter_x = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-    return !isempty(idx_iter_x)
-end
-
-# function add_inputs_by_xref_ysub!(U_sub, sym_model::SymbolicModelHash, x_ref, Y_sub)
-#     ensure_sorted!(sym_model)
-#     ensure_unique!(sym_model)
-#     idx_iter = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-#     uref_prev = U_sub.grid_space.overflow_ref
-#     refs = (x_ref, uref_prev, Y_sub.grid_space.overflow_ref)
-#     all_in = false
-#
-#     for idx in idx_iter
-#         refs = sym_model.elems[idx]
-#         if refs[2] != uref_prev
-#             if all_in
-#                 add_to_subset_by_ref!(U_sub, uref_prev)
-#             else
-#                 all_in = true
-#             end
-#             uref_prev = refs[2]
-#         end
-#         all_in = all_in && is_ref_in_subset(Y_sub, refs[3])
-#     end
-#
-#     if all_in
-#         add_to_subset_by_ref!(U_sub, refs[2])
-#     end
-# end
-
-function add_inputs_by_xref_ysub!(uref_coll, sym_model::SymbolicModelHash, x_ref, Y_sub)
-    ensure_sorted!(sym_model)
-    ensure_unique!(sym_model)
-    idx_iter = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-    uref_prev = sym_model.U_grid.overflow_ref
-    refs = (x_ref, uref_prev, sym_model.Y_grid.overflow_ref)
-    all_in = false
-
-    for idx in idx_iter
-        refs = sym_model.elems[idx]
-        if refs[2] != uref_prev
-            if all_in
-                push!(uref_coll, uref_prev)
-            else
-                all_in = true
-            end
-            uref_prev = refs[2]
+	# Updates every 1 seconds
+	@showprogress 1 "Computing symbolic control system: " (
+	for upos in enum_pos(Ugrid)
+		symbol = get_symbol_by_upos(symmodel, upos)
+		u = get_coord_by_pos(Ugrid, upos)
+		r = Xgrid.h./2 .+ contsys.measnoise
+		r = contsys.bound_map(r, u, contsys.tstep)
+		r = r .+ contsys.measnoise
+		for xpos in enum_pos(Xgrid)
+			source = get_state_by_xpos(symmodel, xpos)
+			x = get_coord_by_pos(Xgrid, xpos)
+			x = contsys.sys_map(x, u, tstep)
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x .- r, x .+ r))
+		    ypos_iter = Iterators.product(_ranges(rectI)...)
+			any(x -> !(x ∈ Xgrid), ypos_iter) && continue
+			for ypos in ypos_iter
+				target = get_state_by_xpos(symmodel, ypos)
+				add_transition!(symmodel.autom, source, symbol, target)
+			end
+			ntrans += length(ypos_iter)
         end
-        all_in = all_in && is_ref_in_subset(Y_sub, refs[3])
-    end
-
-    if all_in
-        push!(uref_coll, refs[2])
-    end
-end
-
-# "Set" (vs "add") assumes U_sub is empty initially... May fail if not respected
-# function set_inputs_by_xref_ysub!(U_sub::SubSetHash, sym_model::SymbolicModelHash, x_ref, Y_sub)
-#     add_inputs_by_xref_ysub!(U_sub, sym_model, x_ref, Y_sub)
-#     U_sub.issorted = true
-#     U_sub.isunique = true
-# end
-
-# function add_inputs_images_by_xref!(U_sub, Y_sub, sym_model::SymbolicModelHash, x_ref)
-#     ensure_sorted!(sym_model)
-#     ensure_unique!(sym_model)
-#     idx_iter = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-#     uref_prev = U_sub.grid_space.overflow_ref
-#
-#     for idx in idx_iter
-#         refs = sym_model.elems[idx]
-#         if refs[2] != uref_prev
-#             add_to_subset_by_ref!(U_sub, refs[2])
-#             uref_prev = refs[2]
-#         end
-#         add_to_subset_by_ref!(Y_sub, refs[3])
-#     end
-# end
-
-function add_inputs_images_by_xref!(uref_coll, yref_coll, sym_model::SymbolicModelHash, x_ref)
-    ensure_sorted!(sym_model)
-    ensure_unique!(sym_model)
-    idx_iter = searchsorted(sym_model.elems, (x_ref,), by = x -> x[1])
-    uref_prev = sym_model.U_grid.overflow_ref
-
-    for idx in idx_iter
-        refs = sym_model.elems[idx]
-        if refs[2] != uref_prev
-            push!(uref_coll, refs[2])
-            uref_prev = refs[2]
-        end
-        push!(yref_coll, refs[3])
-    end
-end
-
-function get_symmodel_size(sym_model::SymbolicModelHash)
-    ensure_unique!(sym_model)
-    return length(sym_model.elems)
-end
-
-function sizehint_symmodel!(sym_model::SymbolicModelHash, size_max)
-    sizehint!(sym_model.elems, size_max)
+    end)
+	println("compute_symmodel_from_controlsystem! terminated with success: ",
+		"$(ntrans) transitions created")
 end
