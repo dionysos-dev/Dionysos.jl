@@ -48,7 +48,7 @@ function compute_pre!(soursymblist, autom::AutomatonList, target)
     ensure_sorted!(autom)
     idxlist = searchsorted(autom.transitions, (target,), by = x -> x[1])
     for idx in idxlist
-        push!(soursymblist, (autom.transitions[1][2], autom.transitions[1][3]))
+        push!(soursymblist, (autom.transitions[idx][2], autom.transitions[idx][3]))
     end
 end
 
