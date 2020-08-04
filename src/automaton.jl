@@ -38,9 +38,10 @@ end
 
 function compute_post!(targetlist, autom::AutomatonList, source, symbol)
     ensure_sorted!(autom)
-    check = x -> x[2] == source && x[3] == symbol
-    for trans in Iterators.filter(check, autom.transitions)
-        push!(targetlist, trans[1])
+    for trans in autom.transitions
+        if trans[2] == source && trans[3] == symbol
+            push!(targetlist, trans[1])
+        end
     end
 end
 

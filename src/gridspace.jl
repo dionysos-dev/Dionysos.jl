@@ -73,8 +73,10 @@ function remove_set!(gridspace::GridSpace, rect::HyperRectangle, incl_mode::INCL
             remove_pos!(gridspace, pos)
         end
     else
-        for pos in Iterators.filter(x -> x in rectI, enum_pos(gridspace))
-            remove_pos!(gridspace, pos)
+        for pos in enum_pos(gridspace)
+            if pos ∈ rectI
+                remove_pos!(gridspace, pos)
+            end
         end
     end
 end

@@ -37,8 +37,10 @@ function add_set!(subset::SubSet, rect::HyperRectangle, incl_mode::INCL_MODE)
             add_pos!(subset, pos)
         end
     else
-        for pos in Iterators.filter(x -> x in rectI, enum_pos(subset.gridspace))
-            add_pos!(subset, pos)
+        for pos in enum_pos(subset.gridspace)
+            if pos ∈ rectI
+                add_pos!(subset, pos)
+            end
         end
     end
 end
@@ -67,8 +69,10 @@ function remove_set!(subset::SubSet, rect::HyperRectangle, incl_mode::INCL_MODE)
             remove_pos!(subset, pos)
         end
     else
-        for pos in Iterators.filter(x -> x in rectI, enum_pos(subset.gridspace))
-            remove_pos!(subset, pos)
+        for pos in enum_pos(subset.gridspace)
+            if pos ∈ rectI
+                remove_pos!(subset, pos)
+            end
         end
     end
 end
