@@ -59,8 +59,8 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 	npoststable = [0 for i = 1:nstates, j = 1:nsymbols]
 	_compute_npoststable(npoststable, autom)
 	initset = Set(initlist)
-	targetlist = Set(targetlist)
-	nexttargetlist = Set{Int}()
+	targetset = Set(targetlist)
+	nexttargetset = Set{Int}()
 	# initset = copy(initlist)
 	# targetlist = copy(targetlist)
 	# nexttargetlist = Int[]
@@ -68,30 +68,30 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
 
 	prog = ProgressUnknown("# iterations computing controller:")
 	while !isempty(initset)
-		for source in targetlist
+		for source in targetset
 			for symbol = 1:nsymbols
 				npoststable[source, symbol] = -1
 			end
 		end
 		ProgressMeter.next!(prog)
-		for target in targetlist
+		for target in targetset
 			empty!(soursymblist)
 			compute_pre!(soursymblist, autom, target)
 			for soursymb in soursymblist
 				npoststable[soursymb[1], soursymb[2]] -= 1
 				if npoststable[soursymb[1], soursymb[2]] == 0
-					push!(nexttargetlist, soursymb[1])
+					push!(nexttargetset, soursymb[1])
 					add_pair!(contr, soursymb[1], soursymb[2])
 				end
 			end
 		end
-		if isempty(nexttargetlist)
+		if isempty(nexttargetset)
 			println("\ncompute_controller_reach! terminated without covering init set")
 			return
 		end
-		setdiff!(initset, nexttargetlist)
-		targetlist, nexttargetlist = nexttargetlist, targetlist
-		empty!(nexttargetlist)
+		setdiff!(initset, nexttargetset)
+		targetset, nexttargetset = nexttargetset, targetset
+		empty!(nexttargetset)
 		# unique!(targetlist)
 	end
 
