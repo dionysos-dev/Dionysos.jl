@@ -13,9 +13,4 @@ include("automaton.jl")
 include("symbolicmodel.jl")
 include("controller.jl")
 
-
-# include("macros.jl")
-
-# include("utils.jl")
-
 end  # module Abstraction

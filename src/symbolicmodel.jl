@@ -49,7 +49,8 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
 	ntrans = 0
 
 	# Updates every 1 seconds
-	@showprogress 1 "Computing symbolic control system: " for upos in enum_pos(Ugrid)
+	@showprogress 1 "Computing symbolic control system: " (
+	for upos in enum_pos(Ugrid)
 		symbol = get_symbol_by_upos(symmodel, upos)
 		u = get_coord_by_pos(Ugrid, upos)
 		r = Xgrid.h./2 .+ contsys.measnoise
@@ -68,7 +69,7 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
 			end
 			ntrans += length(ypos_iter)
         end
-    end
+    end)
 	println("compute_symmodel_from_controlsystem! terminated with success: ",
 		"$(ntrans) transitions created")
 end

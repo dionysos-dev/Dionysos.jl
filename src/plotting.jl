@@ -14,7 +14,6 @@ function verts_rect(c, h)
     return (c .+ (-h[1], -h[2]), c .+ (-h[1], h[2]), c .+ (h[1], h[2]), c .+ (h[1], -h[2]))
 end
 
-## =============================================================================
 # Cells
 function subset!(ax, vars, subset::AB.SubSet{N};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where N
@@ -38,7 +37,6 @@ function subset!(ax, vars, subset::AB.SubSet{N};
     ax.add_collection(polylist)
 end
 
-## =============================================================================
 # Sets
 function set!(ax, vars, rect::AB.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
@@ -55,7 +53,6 @@ function set!(ax, vars, rect::AB.HyperRectangle;
     ax.add_collection(polylist)
 end
 
-## =============================================================================
 # Trajectory open loop
 function trajectory_open_loop!(ax, vars, contsys, x0::NTuple{N, Float64}, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5) where N
@@ -81,7 +78,6 @@ function trajectory_open_loop!(ax, vars, contsys, x0::NTuple{N, Float64}, u, nst
         ls = "None", marker = ".", ms = ms, mfc = mc, mec = mc)
 end
 
-## =============================================================================
 # Images
 function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N};
         nsub = fill(5, N),
@@ -112,7 +108,6 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N};
     ax.add_collection(polylist)
 end
 
-## =============================================================================
 # Outer-approximation
 function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
@@ -139,7 +134,6 @@ function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N};
     ax.add_collection(polylist)
 end
 
-## =============================================================================
 # Trajectory closed loop
 function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
