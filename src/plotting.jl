@@ -97,7 +97,7 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N};
         x_iter = (x .+ subpos.*Xsub.gridspace.h for subpos in subpos_iter)
         Fx_iter = (contsys.sys_map(x, u, contsys.tstep) for x in x_iter)
         Fxlist = [Fx[vars] for Fx in Fx_iter][:]
-        hull = spatial.ConvexHull([Fx[i] for Fx in Fxlist, i in 1:2])
+        hull = spatial.ConvexHull([Fx[i] for Fx in Fxlist, i = 1:2])
         push!(vertslist, Fxlist[hull.vertices .+ 1])
     end
 
@@ -136,7 +136,7 @@ end
 
 # Trajectory closed loop
 function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
-        lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5)
+        lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5, randchoose = false)
     #---------------------------------------------------------------------------
     Xgrid = symmodel.Xgrid
     Usub = AB.NewSubSet(symmodel.Ugrid)
@@ -154,7 +154,11 @@ function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
             @warn("Uncontrollable state")
             return
         end
-        symbol = symbollist[1]
+        if randchoose
+            symbol = rand(symbollist)
+        else
+            symbol = symbollist[1]
+        end
         upos = AB.get_upos_by_symbol(symmodel, symbol)
         u = AB.get_coord_by_pos(symmodel.Ugrid, upos)
         Plot.trajectory_open_loop!(ax, vars, contsys, x0, u, 1,
