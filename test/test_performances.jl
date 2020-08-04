@@ -136,7 +136,7 @@ function DoTest()
         deleteat!(a, i)
         return i
     end
-    n = Int(1e7)
+    n = Int(1e4)
     x1 = collect(1:n)
     x2 = collect(1:n)
     @time for x = 1:n/2 get(x1, x) end # Comparable but probably more deterministic
@@ -155,11 +155,21 @@ function DoTest()
             s
         end
     end
-    n = 20000
+    n = 200
     x1 = [(i÷100, i÷5, i) for i = 1:n]
     x2 = Set((i÷100, i÷5, i) for i = 1:n)
     @time for x = 1:n/2 filterVec(x1, x) end # Much much Faster
     @time for x = 1:n/2 filterSet(x2, x) end
+    println()
+
+    println("Set vs Vector for setdiff")
+    n = 50000
+    X1 = collect(1:n)
+    X2 = Set(1:n)
+    Z1 = collect(0.8*n:1.2*n)
+    Z2 = Set(0.8*n:1.2*n)
+    @time setdiff!(X1, Z1)
+    @time setdiff!(X2, Z2)
     println()
 end
 
