@@ -3,6 +3,7 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Test
+using StaticArrays
 using Main.Abstraction
 AB = Main.Abstraction
 
@@ -10,19 +11,19 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "ControlSystem" begin
-lb = (0.0, 0.0)
-ub = (10.0, 11.0)
-x0 = (0.0, 0.0)
-h = (1.0, 2.0)
+lb = SVector(0.0, 0.0)
+ub = SVector(10.0, 11.0)
+x0 = SVector(0.0, 0.0)
+h = SVector(1.0, 2.0)
 Xgrid = AB.NewGridSpaceList(x0, h)
 @test AB.get_ncells(Xgrid) == 0
 AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 @test AB.get_ncells(Xgrid) == 77
 
-lb = (-1.0,)
-ub = (1.0,)
-u0 = (0.0,)
-h = (0.5,)
+lb = SVector(-1.0)
+ub = SVector(1.0)
+u0 = SVector(0.0)
+h = SVector(0.5)
 Ugrid = AB.NewGridSpaceList(u0, h)
 AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 @test AB.get_ncells(Ugrid) == 5
@@ -32,10 +33,10 @@ nsys = 3
 nbound = 3
 # F_sys(x, u) = (1.0-cos(x(2)), -x(1) + u(1)
 # L_bound(u) = (0.0 1.0; 1.0 0.0)
-F_sys(x, u) = (u[1], -cos(x[1]))
-L_bound(r, u) = (0.0, r[1])
-sysnoise = (1.0, 1.0).*0.01
-measnoise = (1.0, 1.0).*0.01
+F_sys(x, u) = SVector(u[1], -cos(x[1]))
+L_bound(u) = SMatrix{2,2}(0.0, 1.0, 0.0, 0.0)
+sysnoise = SVector(1.0, 1.0)*0.01
+measnoise = SVector(1.0, 1.0)*0.01
 
 contsys = AB.NewControlSystemRK4(tstep, F_sys, L_bound, sysnoise, measnoise, nsys, nbound)
 

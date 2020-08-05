@@ -1,7 +1,7 @@
 abstract type Controller end
 
 mutable struct ControllerList
-    pairs::Vector{Tuple{Int, Int}}
+    pairs::Vector{Tuple{Int,Int}}
     issorted::Bool
 end
 
@@ -70,7 +70,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     # initset = copy(initlist)
     # targetlist = copy(targetlist)
     # nexttargetlist = Int[]
-    soursymblist = Tuple{Int, Int}[]
+    soursymblist = Tuple{Int,Int}[]
 
     prog = ProgressUnknown("# iterations computing controller:")
     while !isempty(initset)

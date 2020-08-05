@@ -3,6 +3,7 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Test
+using StaticArrays
 using Main.Abstraction
 AB = Main.Abstraction
 
@@ -10,14 +11,14 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "SymbolicModel" begin
-x0 = (0.0, 0.0)
-h = (1.0, 2.0)
+x0 = SVector(0.0, 0.0)
+h = SVector(1.0, 2.0)
 Xgrid = AB.NewGridSpaceList(x0, h)
 AB.add_pos!(Xgrid, (1, 1))
 AB.add_pos!(Xgrid, (2, 2))
 
-u0 = (0.0,)
-h = (0.5,)
+u0 = SVector(0.0)
+h = SVector(0.5)
 Ugrid = AB.NewGridSpaceList(u0, h)
 AB.add_pos!(Ugrid, (0,))
 

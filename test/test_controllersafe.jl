@@ -3,6 +3,7 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Test
+using StaticArrays
 using Main.Abstraction
 AB = Main.Abstraction
 
@@ -10,29 +11,29 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "ControllerReach" begin
-lb = (-5.0, -5.0)
-ub = (5.0, 5.0)
-x0 = (0.0, 0.0)
-h = (0.47, 0.23)
+lb = SVector(-5.0, -5.0)
+ub = SVector(5.0, 5.0)
+x0 = SVector(0.0, 0.0)
+h = SVector(0.47, 0.23)
 Xgrid = AB.NewGridSpaceList(x0, h)
 AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 Xfull = AB.NewSubSet(Xgrid)
 AB.add_all!(Xfull)
 
-lb = (-4.0,)
-ub = (4.0,)
-u0 = (0.0,)
-h = (0.5,)
+lb = SVector(-4.0)
+ub = SVector(4.0)
+u0 = SVector(0.0)
+h = SVector(0.5)
 Ugrid = AB.NewGridSpaceList(u0, h)
 AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 0.2
 nsys = 3
 nbound = 3
-F_sys(x, u) = (u[1], -x[2] + u[1])
-sysnoise = (1.0, 1.0).*0.001
-measnoise = (1.0, 1.0).*0.001
-L_bound(r, u) = (-0*r[1], -r[2])
+F_sys(x, u) = SVector(u[1], -x[2] + u[1])
+sysnoise = SVector(1.0, 1.0)*0.001
+measnoise = SVector(1.0, 1.0)*0.001
+L_bound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, -1.0)
 
 contsys = AB.NewControlSystemRK4(
     tstep, F_sys, L_bound, sysnoise, measnoise, nsys, nbound)
@@ -41,7 +42,7 @@ AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 @test AB.get_ntrans(symmodel.autom) == 62077
 
 Xinit = AB.NewSubSet(Xgrid)
-AB.add_set!(Xinit, AB.HyperRectangle((-3.0, -3.0), (-2.9, -2.9)), AB.OUTER)
+AB.add_set!(Xinit, AB.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), AB.OUTER)
 initlist = Int[]
 for pos in AB.enum_pos(Xinit)
     push!(initlist, AB.get_state_by_xpos(symmodel, pos))
@@ -49,7 +50,7 @@ end
 
 Xsafe = AB.NewSubSet(Xgrid)
 AB.add_all!(Xsafe)
-AB.remove_set!(Xsafe, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
+AB.remove_set!(Xsafe, AB.HyperRectangle(SVector(-1.0, -2.0), SVector(-1.1, 4.0)), AB.OUTER)
 safelist = Int[]
 for pos in AB.enum_pos(Xsafe)
     push!(safelist, AB.get_state_by_xpos(symmodel, pos))
