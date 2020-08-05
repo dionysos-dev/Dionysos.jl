@@ -8,7 +8,7 @@ mutable struct AutomatonList <: Automaton
 end
 
 function NewAutomatonList(nstates, nsymbols)
-    transitions = Tuple{Int, Int, Int}[]
+    transitions = Tuple{Int,Int,Int}[]
     return AutomatonList(nstates, nsymbols, transitions, true)
 end
 
