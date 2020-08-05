@@ -3,7 +3,7 @@ abstract type Automaton end
 mutable struct AutomatonList <: Automaton
     nstates::Int
     nsymbols::Int
-    transitions::Vector{Tuple{Int, Int, Int}}
+    transitions::Vector{Tuple{Int,Int,Int}}
     issorted::Bool
 end
 
