@@ -1,5 +1,9 @@
 using StaticArrays
 
+struct T{F<:Function}
+    func::F
+end
+
 function DoTest()
     sleep(0.1)
     println("Is (...) a perf-killer if we used with collect?")
@@ -193,6 +197,15 @@ function DoTest()
     @time for i = 1:1000 x = sum2(X, Y) end # Superfast both
     # @code_warntype sum3(X, Y)
     # @code_warntype sum4(X, Y)
+    println()
+
+    println("Float*Float or Float*Int?")
+    N = 50000
+    x = 1.0
+    y = 2.0
+    @time for i = 1:N x*2 + 5 + y/3 end
+    @time for i = 1:N x*2 + 5.0 + y/3.0 end
+    # Similar
     println()
 end
 
