@@ -15,6 +15,7 @@ lb = SVector(0.0, 0.0)
 ub = SVector(10.0, 11.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
+# h = SVector(0.2, 0.2)
 Xgrid = AB.NewGridSpaceList(x0, h)
 @test AB.get_ncells(Xgrid) == 0
 AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
@@ -33,13 +34,15 @@ nsys = 3
 # F_sys(x, u) = (1.0-cos(x(2)), -x(1) + u(1)
 # L_growthbound(u) = (0.0 1.0; 1.0 0.0)
 F_sys(x, u) = SVector(u[1], -cos(x[1]))
-DF_sys(x, u) = SMatrix{2,2}(0.0, 0.0, )
-L_growthbound(u) = SMatrix{2,2}(0.0, 1.0, 0.0, 0.0)
-sysnoise = SVector(1.0, 1.0)*0.01
-measnoise = SVector(1.0, 1.0)*0.01
+DF_sys(x, u) = @SMatrix [0.0 0.0; sin(x[1]) 0.0]
+bound_DF(u) = 1.0
+# DDF_1 = [0.0 0.0; 0.0 0.0]
+# DDF_2 = [cos(x[1]) 0.0; 0.0 0.0]
+bound_DDF(u) = 1.0
+measnoise = SVector(1.0, 1.0)*0.0
 
-contsys = AB.NewControlSystemGrowthRK4(
-    tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
+contsys = AB.NewControlSystemLinearizedRK4(
+    tstep, F_sys, DF_sys, bound_DF, bound_DDF, measnoise, nsys)
 
 xpos = (1, 1)
 upos = (1,)

@@ -15,6 +15,7 @@ lb = SVector(0.0, 0.0)
 ub = SVector(10.0, 11.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
+# h = SVector(0.2, 0.2)
 Xgrid = AB.NewGridSpaceList(x0, h)
 @test AB.get_ncells(Xgrid) == 0
 AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)

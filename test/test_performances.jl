@@ -1,4 +1,5 @@
 using StaticArrays
+using LinearAlgebra
 
 struct T{F<:Function}
     func::F
@@ -61,6 +62,16 @@ function DoTest()
     z = Tuple(rand(n))
     @time all(x .< y .<= z) # Much faster
     @time all(i -> (x[i] <= y[i] <= z[i]), eachindex(x))
+    println()
+
+    println("Check all2")
+    A = SMatrix{6,6}(rand(6, 6))
+    x = SVector{6}(rand(6))
+    b = SVector{6}(rand(6))
+    idx = SVector{6}(1:6)
+    @time all(abs.(A*x) .<= b) # Much faster
+    @time all(x -> x <= 0, abs.(A*x) - b)
+    @time all(i -> abs(dot(A[i,idx],x)) <= b[i], eachindex(x))
     println()
 
     println("Delete value in vector")

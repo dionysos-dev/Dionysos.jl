@@ -39,11 +39,12 @@ function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
 end
 
 # Assumes that automaton is "empty"
-function compute_symmodel_from_controlsystem!(symmodel, contsys)
+function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGrowth)
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
     tstep = contsys.tstep
+    r = Xgrid.h/2 + contsys.measnoise
     ntrans = 0
 
     # Updates every 1 seconds
@@ -51,13 +52,51 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
     for upos in enum_pos(Ugrid)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = get_coord_by_pos(Ugrid, upos)
-        r = Xgrid.h/2 + contsys.measnoise
-        r = contsys.growthbound_map(r, u, contsys.tstep)
-        r = r + contsys.measnoise
+        Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
         for xpos in enum_pos(Xgrid)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xgrid, xpos)
-            x = contsys.sys_map(x, u, tstep)
+            Fx = contsys.sys_map(x, u, tstep)
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx - Fr, Fx + Fr))
+            ypos_iter = Iterators.product(_ranges(rectI)...)
+            any(x -> !(x ∈ Xgrid), ypos_iter) && continue
+            for ypos in ypos_iter
+                target = get_state_by_xpos(symmodel, ypos)
+                add_transition!(symmodel.autom, source, symbol, target)
+            end
+            ntrans += length(ypos_iter)
+        end
+    end)
+    println("compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created")
+end
+
+function compute_symmodel_from_controlsystem!(
+        symmodel, contsys::ControlSystemLinearized{N,T}) where {N,T}
+    println("compute_symmodel_from_controlsystem! started")
+    Xgrid = symmodel.Xgrid
+    Ugrid = symmodel.Ugrid
+    tstep = contsys.tstep
+    ntrans = 0
+    _I_ = SMatrix{N,N,T}(I)
+    _H_ = _I_.*Xgrid.h/2
+    e = norm(Xgrid.h/2 + contsys.measnoise, Inf)
+    rad =
+
+    # Updates every 1 seconds
+    @showprogress 1 "Computing symbolic control system: " (
+    for upos in enum_pos(Ugrid)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = get_coord_by_pos(Ugrid, upos)
+        Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
+        for xpos in enum_pos(Xgrid)
+            source = get_state_by_xpos(symmodel, xpos)
+            x = get_coord_by_pos(Xgrid, xpos)
+            Fx, DFx = contsys.linsys_map(x, _I_, u, tstep)
+            A = inv(DFx)
+            b = Xgrid.h/2 + abs.(A)*Fr
+            Poly = CenteredPolytope(A, b)
+            rad =
             rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x - r, x + r))
             ypos_iter = Iterators.product(_ranges(rectI)...)
             any(x -> !(x ∈ Xgrid), ypos_iter) && continue
