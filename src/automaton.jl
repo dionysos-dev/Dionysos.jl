@@ -3,12 +3,12 @@ abstract type Automaton end
 mutable struct AutomatonList <: Automaton
     nstates::Int
     nsymbols::Int
-    transitions::Vector{Tuple{Int, Int, Int}}
+    transitions::Vector{Tuple{Int,Int,Int}}
     issorted::Bool
 end
 
 function NewAutomatonList(nstates, nsymbols)
-    transitions = Tuple{Int, Int, Int}[]
+    transitions = Tuple{Int,Int,Int}[]
     return AutomatonList(nstates, nsymbols, transitions, true)
 end
 

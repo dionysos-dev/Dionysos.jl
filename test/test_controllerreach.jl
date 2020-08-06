@@ -3,6 +3,7 @@ include("../src/abstraction.jl")
 module TestMain
 
 using Test
+using StaticArrays
 using Main.Abstraction
 AB = Main.Abstraction
 
@@ -10,30 +11,30 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "ControllerReach" begin
-lb = (-5.0, -5.0)
-ub = (5.0, 5.0)
-x0 = (0.0, 0.0)
-h = (0.47, 0.23)
+lb = SVector(-5.0, -5.0)
+ub = SVector(5.0, 5.0)
+x0 = SVector(0.0, 0.0)
+h = SVector(0.47, 0.23)
 Xgrid = AB.NewGridSpaceList(x0, h)
 AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 AB.remove_set!(Xgrid, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
 Xfull = AB.NewSubSet(Xgrid)
 AB.add_all!(Xfull)
 
-lb = (-2.0,)
-ub = (2.0,)
-u0 = (0.0,)
-h = (1.0,)
+lb = SVector(-2.0)
+ub = SVector(2.0)
+u0 = SVector(0.0)
+h = SVector(1.0)
 Ugrid = AB.NewGridSpaceList(u0, h)
 AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 1.0
 nsys = 3
 nbound = 3
-F_sys(x, u) = (1.0, u[1])
-sysnoise = (1.0, 1.0).*0.001
-measnoise = (1.0, 1.0).*0.001
-L_bound(r, u) = (0.0, 0.0)
+F_sys(x, u) = SVector(1.0, u[1])
+sysnoise = SVector(1.0, 1.0)*0.001
+measnoise = SVector(1.0, 1.0)*0.001
+L_bound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, 0.0)
 
 contsys = AB.NewControlSystemRK4(
     tstep, F_sys, L_bound, sysnoise, measnoise, nsys, nbound)
@@ -41,13 +42,13 @@ symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
 Xinit = AB.NewSubSet(Xgrid)
-AB.add_set!(Xinit, AB.HyperRectangle((-3.0, -3.0), (-2.9, -2.9)), AB.OUTER)
+AB.add_set!(Xinit, AB.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), AB.OUTER)
 initlist = Int[]
 for pos in AB.enum_pos(Xinit)
     push!(initlist, AB.get_state_by_xpos(symmodel, pos))
 end
 Xtarget = AB.NewSubSet(Xgrid)
-AB.add_set!(Xtarget, AB.HyperRectangle((0.0, 0.0), (4.0, 4.0)), AB.OUTER)
+AB.add_set!(Xtarget, AB.HyperRectangle(SVector(0.0, 0.0), SVector(4.0, 4.0)), AB.OUTER)
 targetlist = Int[]
 for pos in AB.enum_pos(Xtarget)
     push!(targetlist, AB.get_state_by_xpos(symmodel, pos))

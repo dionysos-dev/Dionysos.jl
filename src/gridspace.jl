@@ -1,32 +1,32 @@
-abstract type GridSpace{N} end
+abstract type GridSpace{N,T} end
 
-struct GridSpaceList{N} <: GridSpace{N}
-    orig::NTuple{N, Float64}
-    h::NTuple{N, Float64}
-    elems::Set{NTuple{N, Int}}
+struct GridSpaceList{N,T} <: GridSpace{N,T}
+    orig::SVector{N,T}
+    h::SVector{N,T}
+    elems::Set{NTuple{N,Int}}
 end
 
-function NewGridSpaceList(orig::NTuple{N, Float64}, h::NTuple{N, Float64}) where N
-    return GridSpaceList{N}(orig, h, Set{NTuple{N, Int}}())
+function NewGridSpaceList(orig::SVector{N,T}, h::SVector{N,T}) where {N,T}
+    return GridSpaceList(orig, h, Set{NTuple{N,Int}}())
 end
 
-function get_pos_by_coord(gridspace, x::Tuple)
-    return round.(Int, (x .- gridspace.orig)./gridspace.h)
+function get_pos_by_coord(gridspace::GridSpace{N}, x) where N
+    return ntuple(i -> round(Int, (x[i] - gridspace.orig[i])/gridspace.h[i]), Val(N))
 end
 
 function get_coord_by_pos(gridspace, pos)
     return gridspace.orig .+ pos.*gridspace.h
 end
 
-function get_pos_lims_inner(gridspace, rect)
-    lbI = ceil.(Int, (rect.lb .- gridspace.orig)./gridspace.h .+ 0.5)
-    ubI = floor.(Int, (rect.ub .- gridspace.orig)./gridspace.h .- 0.5)
+function get_pos_lims_inner(gridspace::GridSpace{N}, rect) where N
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - gridspace.orig[i])/gridspace.h[i] + 0.5), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] - gridspace.orig[i])/gridspace.h[i] - 0.5), Val(N))
     return HyperRectangle(lbI, ubI)
 end
 
-function get_pos_lims_outer(gridspace, rect)
-    lbI = ceil.(Int, (rect.lb .- gridspace.orig)./gridspace.h .- 0.5)
-    ubI = floor.(Int, (rect.ub .- gridspace.orig)./gridspace.h .+ 0.5)
+function get_pos_lims_outer(gridspace::GridSpace{N}, rect) where N
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - gridspace.orig[i])/gridspace.h[i] - 0.5), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] - gridspace.orig[i])/gridspace.h[i] + 0.5), Val(N))
     return HyperRectangle(lbI, ubI)
 end
 
@@ -38,7 +38,7 @@ function get_pos_lims(gridspace, rect, incl_mode::INCL_MODE)
     end
 end
 
-function _ranges(rect::HyperRectangle{NTuple{N, T}}) where {T, N}
+function _ranges(rect::HyperRectangle{NTuple{N,T}}) where {N,T}
     return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
 end
 

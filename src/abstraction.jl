@@ -2,6 +2,7 @@ module Abstraction
 
 using LinearAlgebra
 using ProgressMeter
+using StaticArrays
 
 @enum INCL_MODE INNER OUTER
 

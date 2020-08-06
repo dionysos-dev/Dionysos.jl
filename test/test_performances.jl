@@ -1,3 +1,5 @@
+using StaticArrays
+
 function DoTest()
     sleep(0.1)
     println("Is (...) a perf-killer if we used with collect?")
@@ -170,6 +172,27 @@ function DoTest()
     Z2 = Set(0.8*n:1.2*n)
     @time setdiff!(X1, Z1)
     @time setdiff!(X2, Z2)
+    println()
+
+    println("Tuple + SVector broadcast")
+    function sum1(X::SVector{N}, Y::NTuple{N}) where N
+        return Tuple(X .+ Y)
+    end
+    function sum2(X::SVector{N}, Y::NTuple{N}) where N
+        return ntuple(i -> X[i] + Y[i], Val(N))
+    end
+    function sum3(X::SVector{N}, Y::NTuple{N}) where N
+        return X .+ Y
+    end
+    function sum4(X::SVector{N}, Y::NTuple{N}) where N
+        return X .+ SVector(Y)
+    end
+    X = @SVector [1,2,3,4,5]
+    Y = (5,6,7,8,9)
+    @time for i = 1:1000 x = sum1(X, Y) end
+    @time for i = 1:1000 x = sum2(X, Y) end # Superfast both
+    # @code_warntype sum3(X, Y)
+    # @code_warntype sum4(X, Y)
     println()
 end
 

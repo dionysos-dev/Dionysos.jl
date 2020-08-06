@@ -1,18 +1,16 @@
-abstract type SymbolicModel end
+abstract type SymbolicModel{N,M,S1<:GridSpace{N},S2<:GridSpace{M},A<:Automaton} end
 
-struct SymbolicModelList{NX, NU, S<:Automaton} <: SymbolicModel
-    Xgrid::GridSpaceList{NX}
-    Ugrid::GridSpaceList{NU}
-    autom::S
-    xpos2int::Dict{NTuple{NX, Int}, Int}
-    xint2pos::Vector{NTuple{NX, Int}}
-    upos2int::Dict{NTuple{NU, Int}, Int}
-    uint2pos::Vector{NTuple{NU, Int}}
+struct SymbolicModelList{N,M,S1,S2,A} <: SymbolicModel{N,M,S1,S2,A}
+    Xgrid::S1
+    Ugrid::S2
+    autom::A
+    xpos2int::Dict{NTuple{N,Int},Int}
+    xint2pos::Vector{NTuple{N,Int}}
+    upos2int::Dict{NTuple{M,Int},Int}
+    uint2pos::Vector{NTuple{M,Int}}
 end
 
-function NewSymbolicModelListList(
-    Xgrid::GridSpaceList{NX}, Ugrid::GridSpaceList{NU}) where {NX, NU}
-    #---------------------------------------------------------------------------
+function NewSymbolicModelListList(Xgrid, Ugrid)
     nx = get_ncells(Xgrid)
     nu = get_ncells(Ugrid)
     xint2pos = [pos for pos in enum_pos(Xgrid)]
@@ -53,14 +51,14 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
     for upos in enum_pos(Ugrid)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = get_coord_by_pos(Ugrid, upos)
-        r = Xgrid.h./2 .+ contsys.measnoise
+        r = Xgrid.h/2 + contsys.measnoise
         r = contsys.bound_map(r, u, contsys.tstep)
-        r = r .+ contsys.measnoise
+        r = r + contsys.measnoise
         for xpos in enum_pos(Xgrid)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xgrid, xpos)
             x = contsys.sys_map(x, u, tstep)
-            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x .- r, x .+ r))
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x - r, x + r))
             ypos_iter = Iterators.product(_ranges(rectI)...)
             any(x -> !(x ∈ Xgrid), ypos_iter) && continue
             for ypos in ypos_iter
