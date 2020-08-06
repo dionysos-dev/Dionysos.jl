@@ -67,26 +67,32 @@ function path_planning(frame_length; nsteps = nothing,
 
     tstep = 0.3
     nsys = 5
-    nbound = 5
+    ngrowthbound = 5
     function F_sys(x, u)
-          alpha = atan(tan(u[2])/2)
-          return SVector(
-                u[1]*cos(alpha + x[3])/cos(alpha),
-                u[1]*sin(alpha + x[3])/cos(alpha),
-                u[1]*tan(u[2]))
+    alpha = atan(tan(u[2])/2)
+    return SVector(
+        u[1]*cos(alpha + x[3])/cos(alpha),
+        u[1]*sin(alpha + x[3])/cos(alpha),
+        u[1]*tan(u[2]))
     end
-    function L_bound(u)
-          alpha = atan(tan(u[2])/2)
-          return SMatrix{3,3}(
-            0.0, 0.0, u[1]/cos(alpha),
-            0.0, 0.0, u[1]/cos(alpha),
-            0.0, 0.0, 0.0)
+    # Both have the same speed
+    function L_growthbound(u)
+        alpha = atan(tan(u[2])/2)
+        # Both have the same speed
+        # return @SMatrix [
+        #     0.0 0.0 u[1]/cos(alpha);
+        #     0.0 0.0 u[1]/cos(alpha);
+        #     0.0 0.0 0.0]
+        return SMatrix{3,3}(
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            u[1]/cos(alpha), u[1]/cos(alpha), 0.0)
     end
     sysnoise = SVector(0.0, 0.0, 0.0)
     measnoise = SVector(0.0, 0.0, 0.0)
 
-    contsys = AB.NewControlSystemRK4(
-        tstep, F_sys, L_bound, sysnoise, measnoise, nsys, nbound)
+    contsys = AB.NewControlSystemGrowthRK4(
+        tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 

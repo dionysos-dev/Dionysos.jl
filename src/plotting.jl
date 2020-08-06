@@ -112,7 +112,7 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
+function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemGrowth{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
@@ -124,7 +124,7 @@ function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
         u = AB.get_coord_by_pos(Usub.gridspace, upos)
         Fx = contsys.sys_map(x, u, contsys.tstep)
         r = Xsub.gridspace.h/2 + contsys.measnoise
-        Fr = contsys.bound_map(r, u, contsys.tstep)
+        Fr = contsys.growthbound_map(r, u, contsys.tstep)
         Fr = Fr + contsys.measnoise
         push!(vertslist, verts_rect(project(Fx, vars), project(Fr, vars)))
     end

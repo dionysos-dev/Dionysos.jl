@@ -52,7 +52,7 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = get_coord_by_pos(Ugrid, upos)
         r = Xgrid.h/2 + contsys.measnoise
-        r = contsys.bound_map(r, u, contsys.tstep)
+        r = contsys.growthbound_map(r, u, contsys.tstep)
         r = r + contsys.measnoise
         for xpos in enum_pos(Xgrid)
             source = get_state_by_xpos(symmodel, xpos)

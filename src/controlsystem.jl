@@ -1,9 +1,11 @@
-struct ControlSystem{N,T,F1<:Function,F2<:Function}
+abstract type ControlSystem{N,T} end
+
+struct ControlSystemGrowth{N,T,F1<:Function,F2<:Function} <: ControlSystem{N,T}
     tstep::Float64
     sysnoise::SVector{N,T}
     measnoise::SVector{N,T}
     sys_map::F1
-    bound_map::F2
+    growthbound_map::F2
 end
 
 function RungeKutta4(F, x, u, tstep, nsub::Int)
@@ -21,29 +23,29 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
     return x
 end
 
-function NewControlSystemRK4(tstep, F_sys, L_bound, sysnoise::SVector{N,T},
-        measnoise::SVector{N,T}, nsys, nbound) where {N,T}
+function NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise::SVector{N,T},
+        measnoise::SVector{N,T}, nsys, ngrowthbound) where {N,T}
     sys_map = let nsys = nsys
         (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)
     end
-    F_bound = let sysnoise = sysnoise
-        (r, u) -> L_bound(u)*r + sysnoise
+    F_growthbound = let sysnoise = sysnoise
+        (r, u) -> L_growthbound(u)*r + sysnoise
     end
-    bound_map = let nbound = nbound
-        (r, u, tstep) -> RungeKutta4(F_bound, r, u, tstep, nbound)
+    growthbound_map = let ngrowthbound = ngrowthbound
+        (r, u, tstep) -> RungeKutta4(F_growthbound, r, u, tstep, ngrowthbound)
     end
-    return ControlSystem(tstep, sysnoise, measnoise, sys_map, bound_map)
+    return ControlSystemGrowth(tstep, sysnoise, measnoise, sys_map, growthbound_map)
 end
 
-struct ControlSystemLin{N,T,F1<:Function,F2<:Function,F3<:Function}
+struct ControlSystemLinearized{N,T,F1<:Function,F2<:Function,F3<:Function} <: ControlSystem{N,T}
     tstep::Float64
-    sys_map::F1
     measnoise::SVector{N,T}
+    sys_map::F1
     linsys_map::F2
-    bound_map::F3
+    error_map::F3
 end
 
-function RungeKutta4Lin(F, DF, x, dx, u, tstep, nsub::Int)
+function RungeKutta4Linearized(F, DF, x, dx, u, tstep, nsub::Int)
     τ = tstep/nsub
     for i = 1:nsub
         Fx1 = F(x, u)
@@ -67,19 +69,23 @@ function RungeKutta4Lin(F, DF, x, dx, u, tstep, nsub::Int)
 end
 
 # Give an upper-bound on x(t) staisfying x'(t) ≦ a*x(t) + b*exp(2at)
-function BoundExp(a, b, tstep)
-    ρ = exp(a*tstep)
-    return b/a*ρ*(ρ - 1.0)
+function BoundSecondOrder(a, b, tstep)
+    if a ≈ 0.0
+        return b*tstep
+    else
+        ρ = exp(a*tstep)
+        return b/a*ρ*(ρ - 1.0)
+    end
 end
 
-function NewControlSystemRK4(tstep, F_sys, DF_sys, DF_bound, DDF_bound,
-        measenoise::SVector{N,T}, nsys, nbound) where {N,T}
+function NewControlSystemLinearizedRK4(
+        tstep, F_sys, DF_sys, bound_DF, bound_DDF, measenoise, nsys)
     sys_map = let nsys = nsys
         (x, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)
     end
     linsys_map = let nsys = nsys
-        (x, dx, u, tstep) -> RungeKutta4Lin(F_sys, x, dx, u, tstep, nsys)
+        (x, dx, u, tstep) -> RungeKutta4Linearized(F_sys, x, dx, u, tstep, nsys)
     end
-    bound_map = (r, u, tstep) -> BoundExp(DDF_bound(u), DF_bound(u), tstep)*r
-    return ControlSystemLin(tstep, sysnoise, measnoise, sys_map, bound_map)
+    error_map = (r, u, tstep) -> BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep)*r
+    return ControlSystemLinearized(tstep, measnoise, sys_map, linsys_map, error_map)
 end

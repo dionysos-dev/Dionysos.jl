@@ -1,5 +1,5 @@
 include("test_gridsubspace.jl")
-include("test_controlsystem.jl")
+include("test_controlsystemgrowth.jl")
 include("test_automaton.jl")
 include("test_symbolicmodel.jl")
 include("test_fromcontrolsystem.jl")
