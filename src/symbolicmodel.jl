@@ -80,9 +80,9 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemLi
     tstep = contsys.tstep
     ntrans = 0
     _I_ = _makeIdentity(symmodel.Xgrid)
-    _H_ = _I_.*Xgrid.h/2
+    _H_ = _I_.*(Xgrid.h/sqrt(2))
     e = norm(Xgrid.h/2 + contsys.measnoise, Inf)
-    rad =
+    trans_list = Tuple{Int,Int,Int}
 
     # Updates every 1 seconds
     @showprogress 1 "Computing symbolic control system: " (
@@ -91,15 +91,17 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemLi
         u = get_coord_by_pos(Ugrid, upos)
         Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
         for xpos in enum_pos(Xgrid)
+            empty!(trans_list)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xgrid, xpos)
             Fx, DFx = contsys.linsys_map(x, _I_, u, tstep)
             A = inv(DFx)
             b = Xgrid.h/2 + abs.(A)*Fr
             Poly = CenteredPolytope(A, b)
-            rad =
-            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(x - r, x + r))
+            rad = opnorm(DFx*_H_, 2)
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx .- rad, Fx .+ rad))
             ypos_iter = Iterators.product(_ranges(rectI)...)
+            for ypos in ypos_iter ### TODO
             any(x -> !(x ∈ Xgrid), ypos_iter) && continue
             for ypos in ypos_iter
                 target = get_state_by_xpos(symmodel, ypos)
