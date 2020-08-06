@@ -41,7 +41,7 @@ function compute_enabled_symbols!(symbollist, contr::ControllerList, source)
 end
 
 function _compute_npoststable(npoststable, autom)
-    soursymblist = Tuple{Int, Int}[]
+    soursymblist = Tuple{Int,Int}[]
     for target = 1:autom.nstates
         empty!(soursymblist)
         compute_pre!(soursymblist, autom, target)

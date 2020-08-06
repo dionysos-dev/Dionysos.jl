@@ -71,14 +71,15 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
         "$(ntrans) transitions created")
 end
 
-function compute_symmodel_from_controlsystem!(
-        symmodel, contsys::ControlSystemLinearized{N,T}) where {N,T}
+_makeIdentity(gridspace::GridSpace{N,T}) where {N,T} = SMatrix{N,N,T}(I)
+
+function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemLinearized)
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
     tstep = contsys.tstep
     ntrans = 0
-    _I_ = SMatrix{N,N,T}(I)
+    _I_ = _makeIdentity(symmodel.Xgrid)
     _H_ = _I_.*Xgrid.h/2
     e = norm(Xgrid.h/2 + contsys.measnoise, Inf)
     rad =
