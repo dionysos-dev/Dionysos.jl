@@ -72,9 +72,10 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     # nexttargetlist = Int[]
     soursymblist = Tuple{Int,Int}[]
 
-    prog = ProgressUnknown("# iterations computing controller:")
+    # Commented because it changes the number of allocations
+    # prog = ProgressUnknown("# iterations computing controller:")
     while !isempty(initset)
-        ProgressMeter.next!(prog)
+        # ProgressMeter.next!(prog)
         for source in targetset
             for symbol = 1:nsymbols
                 npoststable[source, symbol] = 0
@@ -102,7 +103,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         end
         if isempty(nexttargetset)
             println("\ncompute_controller_reach! terminated without covering init set")
-            ProgressMeter.finish!(prog)
+            # ProgressMeter.finish!(prog)
             return
         end
         setdiff!(initset, nexttargetset)
@@ -110,7 +111,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         empty!(nexttargetset)
         # unique!(targetlist)
     end
-    ProgressMeter.finish!(prog)
+    # ProgressMeter.finish!(prog)
     println("\ncompute_controller_reach! terminated with success")
 end
 
