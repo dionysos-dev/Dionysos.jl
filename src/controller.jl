@@ -102,7 +102,8 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         end
         if isempty(nexttargetset)
             println("\ncompute_controller_reach! terminated without covering init set")
-            break
+            ProgressMeter.finish!(prog)
+            return
         end
         setdiff!(initset, nexttargetset)
         targetset, nexttargetset = nexttargetset, targetset
@@ -110,7 +111,6 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         # unique!(targetlist)
     end
     ProgressMeter.finish!(prog)
-
     println("\ncompute_controller_reach! terminated with success")
 end
 

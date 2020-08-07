@@ -47,6 +47,7 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
     tstep = contsys.tstep
     r = Xgrid.h/2.0 + contsys.measnoise
     ntrans = 0
+    # iii = 0
 
     # Updates every 1 seconds
     @showprogress 1 "Computing symbolic control system: " (
@@ -62,16 +63,23 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
             ypos_iter = Iterators.product(_ranges(rectI)...)
             any(x -> !(x ∈ Xgrid), ypos_iter) && continue
             for ypos in ypos_iter
+                # display(ypos)
                 target = get_state_by_xpos(symmodel, ypos)
                 add_transition!(symmodel.autom, source, symbol, target)
             end
             ntrans += length(ypos_iter)
+            # iii += 1
+            # if iii > 10
+            #     return
+            # end
         end
     end)
     println("compute_symmodel_from_controlsystem! terminated with success: ",
         "$(ntrans) transitions created")
 end
 
+# TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
+# So not critical for the moment...
 function compute_symmodel_from_controlsystem!(
         symmodel::SymbolicModel{N}, contsys::ControlSystemLinearized) where N
     println("compute_symmodel_from_controlsystem! started")
@@ -79,9 +87,11 @@ function compute_symmodel_from_controlsystem!(
     Ugrid = symmodel.Ugrid
     tstep = contsys.tstep
     ntrans = 0
-    _H_ = SMatrix{N,N}(I).*(Xgrid.h/2.0)
-    e = norm(Xgrid.h/2.0 + contsys.measnoise, Inf)
+    r = Xgrid.h/2.0 + contsys.measnoise
+    _H_ = SMatrix{N,N}(I).*r
+    e = norm(r, Inf)
     trans_list = Tuple{Int,Int,Int}[]
+    # iii = 0
 
     # Updates every 1 seconds
     @showprogress 1 "Computing symbolic control system: " (
@@ -89,7 +99,8 @@ function compute_symmodel_from_controlsystem!(
         symbol = get_symbol_by_upos(symmodel, upos)
         u = get_coord_by_pos(Ugrid, upos)
         Fe = contsys.error_map(e, u, contsys.tstep)
-        Fr = contsys.measnoise + Xgrid.h/2.0 .+ Fe
+        # display(Fe)
+        Fr = r .+ Fe
         for xpos in enum_pos(Xgrid)
             empty!(trans_list)
             source = get_state_by_xpos(symmodel, xpos)
@@ -98,13 +109,14 @@ function compute_symmodel_from_controlsystem!(
             A = inv(DFx)
             b = abs.(A)*Fr .+ 1.0
             HP = CenteredPolyhedron(A, b)
-            rad = contsys.measnoise .+ (opnorm(DFx*_H_, 2)*sqrt(2.0) + Fe)
-            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx .- rad, Fx .+ rad))
+            rad = contsys.measnoise + sum(abs.(DFx), dims = 2)[:] .+ Fe
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx - rad, Fx + rad))
             ypos_iter = Iterators.product(_ranges(rectI)...)
             allin = true
             for ypos in ypos_iter
                 y = get_coord_by_pos(Xgrid, ypos) - Fx
                 !(y in HP) && continue
+                # display(ypos)
                 if !(ypos in Xgrid)
                     allin = false
                     break
@@ -118,6 +130,10 @@ function compute_symmodel_from_controlsystem!(
                 end
                 ntrans += length(trans_list)
             end
+            # iii += 1
+            # if iii > 10
+            #     return
+            # end
         end
     end)
     println("compute_symmodel_from_controlsystem! terminated with success: ",
