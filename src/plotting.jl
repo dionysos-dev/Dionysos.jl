@@ -10,7 +10,6 @@ using LazySets
 using Polyhedra
 using CDDLib
 using PyPlot
-using PyCall
 
 FC(c, a) =  matplotlib.colors.colorConverter.to_rgba(c, alpha = a)
 const _mult = (SVector(-1,-1), SVector(-1,1), SVector(1,1), SVector(1,-1))

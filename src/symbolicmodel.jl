@@ -151,6 +151,7 @@ function compute_symmodel_from_controlsystem!(
             A = inv(DFx)
             b = abs.(A)*Fr .+ 1.0
             HP = CenteredPolyhedron(A, b)
+            # TODO: can we improve abs.(DFx)*_ONE_?
             rad = contsys.measnoise + abs.(DFx)*_ONE_ .+ Fe
             rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx - rad, Fx + rad))
             ypos_iter = Iterators.product(_ranges(rectI)...)
