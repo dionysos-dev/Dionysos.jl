@@ -1,13 +1,13 @@
-abstract type SubSet{N,T,S<:GridSpace{N,T}} end
+abstract type SubSet{N} end
 
 # Without S, add_set! and remove_set! where not type-stable...
-struct SubSetList{N,T,S} <: SubSet{N,T,S}
+struct SubSetList{N,S<:GridSpace{N}} <: SubSet{N}
     gridspace::S
     elems::Set{NTuple{N,Int}}
 end
 
-function NewSubSet(gridspace::S) where {N,T,S<:GridSpace{N,T}}
-    return SubSetList{N,T,S}(gridspace, Set{NTuple{N,Int}}())
+function NewSubSet(gridspace::S) where {N,S<:GridSpace{N}}
+    return SubSetList(gridspace, Set{NTuple{N,Int}}())
 end
 
 function add_pos!(subset::SubSetList, pos)

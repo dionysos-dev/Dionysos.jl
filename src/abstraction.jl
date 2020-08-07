@@ -7,6 +7,7 @@ using StaticArrays
 @enum INCL_MODE INNER OUTER
 
 include("rectangle.jl")
+include("polyhedron.jl")
 include("gridspace.jl")
 include("subset.jl")
 include("controlsystem.jl")

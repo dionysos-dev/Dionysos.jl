@@ -1,12 +1,12 @@
-abstract type GridSpace{N,T} end
+abstract type GridSpace{N} end
 
-struct GridSpaceList{N,T} <: GridSpace{N,T}
-    orig::SVector{N,T}
-    h::SVector{N,T}
+struct GridSpaceList{N,VT<:SVector{N}} <: GridSpace{N}
+    orig::VT
+    h::VT
     elems::Set{NTuple{N,Int}}
 end
 
-function NewGridSpaceList(orig::SVector{N,T}, h::SVector{N,T}) where {N,T}
+function NewGridSpaceList(orig::VT, h::VT) where {N,VT<:SVector{N}}
     return GridSpaceList(orig, h, Set{NTuple{N,Int}}())
 end
 

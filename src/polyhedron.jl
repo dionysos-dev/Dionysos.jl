@@ -1,5 +1,5 @@
 # Polyhedron defined by {x : |[Ax]_i| ≦ b_i ∀ i}
-struct CenteredPolyhedron{T,S<:AbstractArray,MT<:S{T,2},VT<:S{T,1}}
+struct CenteredPolyhedron{MT,VT}
     A::MT
     b::VT
 end

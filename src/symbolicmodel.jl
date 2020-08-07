@@ -1,6 +1,6 @@
-abstract type SymbolicModel{N,M,S1<:GridSpace{N},S2<:GridSpace{M},A<:Automaton} end
+abstract type SymbolicModel{N,M} end
 
-struct SymbolicModelList{N,M,S1,S2,A} <: SymbolicModel{N,M,S1,S2,A}
+struct SymbolicModelList{N,M,S1<:GridSpace{N},S2<:GridSpace{M},A<:Automaton} <: SymbolicModel{N,M}
     Xgrid::S1
     Ugrid::S2
     autom::A
@@ -10,6 +10,7 @@ struct SymbolicModelList{N,M,S1,S2,A} <: SymbolicModel{N,M,S1,S2,A}
     uint2pos::Vector{NTuple{M,Int}}
 end
 
+# ListList refers to List for SymbolicModel, and List for automaton
 function NewSymbolicModelListList(Xgrid, Ugrid)
     nx = get_ncells(Xgrid)
     nu = get_ncells(Ugrid)
@@ -44,7 +45,7 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
     tstep = contsys.tstep
-    r = Xgrid.h/2 + contsys.measnoise
+    r = Xgrid.h/2.0 + contsys.measnoise
     ntrans = 0
 
     # Updates every 1 seconds
@@ -71,43 +72,52 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
         "$(ntrans) transitions created")
 end
 
-_makeIdentity(gridspace::GridSpace{N,T}) where {N,T} = SMatrix{N,N,T}(I)
-
-function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemLinearized)
+function compute_symmodel_from_controlsystem!(
+        symmodel::SymbolicModel{N}, contsys::ControlSystemLinearized) where N
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
     tstep = contsys.tstep
     ntrans = 0
-    _I_ = _makeIdentity(symmodel.Xgrid)
-    _H_ = _I_.*(Xgrid.h/sqrt(2))
-    e = norm(Xgrid.h/2 + contsys.measnoise, Inf)
-    trans_list = Tuple{Int,Int,Int}
+    _H_ = SMatrix{N,N}(I).*(Xgrid.h/2.0)
+    e = norm(Xgrid.h/2.0 + contsys.measnoise, Inf)
+    trans_list = Tuple{Int,Int,Int}[]
 
     # Updates every 1 seconds
     @showprogress 1 "Computing symbolic control system: " (
     for upos in enum_pos(Ugrid)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = get_coord_by_pos(Ugrid, upos)
-        Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
+        Fe = contsys.error_map(e, u, contsys.tstep)
+        Fr = contsys.measnoise + Xgrid.h/2.0 .+ Fe
         for xpos in enum_pos(Xgrid)
             empty!(trans_list)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xgrid, xpos)
-            Fx, DFx = contsys.linsys_map(x, _I_, u, tstep)
+            Fx, DFx = contsys.linsys_map(x, _H_, u, tstep)
             A = inv(DFx)
-            b = Xgrid.h/2 + abs.(A)*Fr
-            Poly = CenteredPolytope(A, b)
-            rad = opnorm(DFx*_H_, 2)
+            b = abs.(A)*Fr .+ 1.0
+            HP = CenteredPolyhedron(A, b)
+            rad = contsys.measnoise .+ (opnorm(DFx*_H_, 2)*sqrt(2.0) + Fe)
             rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx .- rad, Fx .+ rad))
             ypos_iter = Iterators.product(_ranges(rectI)...)
-            for ypos in ypos_iter ### TODO
-            any(x -> !(x ∈ Xgrid), ypos_iter) && continue
+            allin = true
             for ypos in ypos_iter
+                y = get_coord_by_pos(Xgrid, ypos) - Fx
+                !(y in HP) && continue
+                if !(ypos in Xgrid)
+                    allin = false
+                    break
+                end
                 target = get_state_by_xpos(symmodel, ypos)
-                add_transition!(symmodel.autom, source, symbol, target)
+                push!(trans_list, (source, symbol, target))
             end
-            ntrans += length(ypos_iter)
+            if allin
+                for trans in trans_list
+                    add_transition!(symmodel.autom, trans...)
+                end
+                ntrans += length(trans_list)
+            end
         end
     end)
     println("compute_symmodel_from_controlsystem! terminated with success: ",

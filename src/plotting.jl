@@ -24,19 +24,19 @@ function project(x, vars)
 end
 
 # Cells
-function subset!(ax, vars, subset::AB.SubSet{N,T,S};
-        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T,S}
+function subset!(ax, vars, subset::AB.SubSet{N};
+        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where N
     gridspace = subset.gridspace
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     h = project(gridspace.h, vars)
 
-    vertslist = NTuple{4,SVector{2,T}}[]
+    vertslist = NTuple{4,SVector{2,eltype(gridspace.orig)}}[]
 
     for pos in unique(x -> x[vars], AB.enum_pos(subset))
         c = project(AB.get_coord_by_pos(gridspace, pos), vars)
-        push!(vertslist, verts_rect(c, h/2))
+        push!(vertslist, verts_rect(c, h/2.0))
     end
 
     polylist = matplotlib.collections.PolyCollection(vertslist)
@@ -50,8 +50,8 @@ end
 function set!(ax, vars, rect::AB.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
-    c = (rect.lb .+ rect.ub)./2
-    h = (rect.ub .- rect.lb)./2
+    c = (rect.lb + rect.ub)/2.0
+    h = (rect.ub - rect.lb)/2.0
     polylist = matplotlib.collections.PolyCollection([verts_rect(c[vars], h[vars])])
     fca = FC(fc, fa)
     eca = FC(ec, ea)
@@ -86,13 +86,13 @@ function trajectory_open_loop!(ax, vars, contsys, x0::SVector{N,T}, u, nstep;
 end
 
 # Images
-function cell_image!(ax, vars, Xsub::AB.SubSet{N,T}, Usub, contsys;
+function cell_image!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys;
         nsub = fill(5, N),
-        fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
+        fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where N
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = Vector{SVector{2,T}}[]
+    vertslist = Vector{SVector{2,eltype(Xsub.gridspace.orig)}}[]
     ns = nsub .- 1
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
@@ -113,14 +113,13 @@ function cell_image!(ax, vars, Xsub::AB.SubSet{N,T}, Usub, contsys;
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xsub::AB.SubSet{N,T}, Usub,
-        contsys::AB.ControlSystemGrowth;
-        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
+function cell_approx!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys::AB.ControlSystemGrowth;
+        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = NTuple{4,SVector{2,T}}[]
-    r = Xsub.gridspace.h/2 + contsys.measnoise
+    vertslist = NTuple{4,SVector{2,eltype(Xsub.gridspace.orig)}}[]
+    r = Xsub.gridspace.h/2.0 + contsys.measnoise
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
         x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
@@ -138,24 +137,24 @@ function cell_approx!(ax, vars, Xsub::AB.SubSet{N,T}, Usub,
     ax.add_collection(polylist)
 end
 
-function cell_approx!(ax, vars, Xsub::AB.SubSet{N,T}, Usub,
-        contsys::AB.ControlSystemLinearized;
-        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
+function cell_approx!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys::AB.ControlSystemLinearized;
+        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = Vector{SVector{2,T}}[]
-    _I_ = SMatrix{N,N}(1.0I)
-    e = norm(Xsub.gridspace.h/2 + contsys.measnoise, Inf)
+    vertslist = Vector{SVector{2,eltype(Xsub.gridspace.orig)}}[]
+    _H_ = SMatrix{N,N}(I).*(Xsub.gridspace.h/2.0)
+    # _I_ = SMatrix{N,N,eltype(Xsub.gridspace.orig)}(I)
+    e = norm(Xsub.gridspace.h/2.0 + contsys.measnoise, Inf)
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
         x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
         u = AB.get_coord_by_pos(Usub.gridspace, upos)
-        Fx, DFx = contsys.linsys_map(x, _I_, u, contsys.tstep)
-        iDFx = inv(DFx)
+        Fx, DFx = contsys.linsys_map(x, _H_, u, contsys.tstep)
+        A = inv(DFx)
         Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
-        δ = Xsub.gridspace.h/2 + abs.(iDFx)*Fr
-        HP = HPolytope([iDFx; -iDFx], vcat(δ, δ))
+        b = abs.(A)*Fr .+ 1.0
+        HP = HPolytope([A; -A], vcat(b, b))
         verts1 = vertices_list(HP, backend=CDDLib.Library())
         verts2 = [project(Fx + v, vars) for v in verts1]
         push!(vertslist, convex_hull(verts2))

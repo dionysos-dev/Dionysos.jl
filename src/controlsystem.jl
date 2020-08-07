@@ -12,13 +12,13 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
     τ = tstep/nsub
     for i = 1:nsub
         Fx1 = F(x, u)
-        xrk = x + Fx1*(τ/2)
+        xrk = x + Fx1*(τ/2.0)
         Fx2 = F(xrk, u)
-        xrk = x + Fx2*(τ/2)
+        xrk = x + Fx2*(τ/2.0)
         Fx3 = F(xrk, u)
         xrk = x + Fx3*τ
         Fx4 = F(xrk, u)
-        x = x + (Fx1 + Fx2*2 + Fx3*2 + Fx4)*(τ/6)
+        x = x + (Fx1 + Fx2*2.0 + Fx3*2.0 + Fx4)*(τ/6.0)
     end
     return x
 end
@@ -52,20 +52,20 @@ function RungeKutta4Linearized(F, DF, x, dx, u, tstep, nsub::Int)
     for i = 1:nsub
         Fx1 = F(x, u)
         DFx1 = DF(x, u)*dx
-        xrk = x + Fx1*(τ/2)
-        dxrk = dx + DFx1*(τ/2)
+        xrk = x + Fx1*(τ/2.0)
+        dxrk = dx + DFx1*(τ/2.0)
         Fx2 = F(xrk, u)
         DFx2 = DF(xrk, u)*dxrk
-        xrk = x + Fx2*(τ/2)
-        dxrk = dx + DFx2*(τ/2)
+        xrk = x + Fx2*(τ/2.0)
+        dxrk = dx + DFx2*(τ/2.0)
         Fx3 = F(xrk, u)
         DFx3 = DF(xrk, u)*dxrk
         xrk = x + Fx3*τ
         dxrk = dx + DFx3*τ
         Fx4 = F(xrk, u)
         DFx4 = DF(xrk, u)*dxrk
-        x += (Fx1 + Fx2*2 + Fx3*2 + Fx4)*(τ/6)
-        dx += (DFx1 + DFx2*2 + DFx3*2 + DFx4)*(τ/6)
+        x += (Fx1 + Fx2*2.0 + Fx3*2.0 + Fx4)*(τ/6.0)
+        dx += (DFx1 + DFx2*2.0 + DFx3*2.0 + DFx4)*(τ/6.0)
     end
     return (x, dx)
 end
@@ -76,7 +76,7 @@ function BoundSecondOrder(a, b, tstep)
         return b*tstep
     else
         ρ = exp(a*tstep)
-        return (b/a)*ρ*(ρ - 1.0)/2
+        return (b/a)*ρ*(ρ - 1.0)/2.0
     end
 end
 
