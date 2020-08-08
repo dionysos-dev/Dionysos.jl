@@ -69,11 +69,11 @@ function path_planning(frame_length; nsteps = nothing,
     nsys = 5
     ngrowthbound = 5
     function F_sys(x, u)
-    α = atan(tan(u[2])/2)
-    return SVector{3}(
-        u[1]*cos(α + x[3])/cos(α),
-        u[1]*sin(α + x[3])/cos(α),
-        u[1]*tan(u[2]))
+        α = atan(tan(u[2])/2)
+        return SVector{3}(
+            u[1]*cos(α + x[3])/cos(α),
+            u[1]*sin(α + x[3])/cos(α),
+            u[1]*tan(u[2]))
     end
     # There was a mistake below: forgot the abs !!!
     # Now we have 23784452 transitions for pathplanning-hard
