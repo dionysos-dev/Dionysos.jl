@@ -23,15 +23,15 @@ function project(x, vars)
 end
 
 # Cells
-function subset!(ax, vars, subset::AB.SubSet{N};
-        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where N
+function subset!(ax, vars, subset::AB.SubSet{N,T};
+        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
     gridspace = subset.gridspace
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     h = project(gridspace.h, vars)
 
-    vertslist = NTuple{4,SVector{2,eltype(gridspace.orig)}}[]
+    vertslist = NTuple{4,SVector{2,T}}[]
 
     for pos in unique(x -> x[vars], AB.enum_pos(subset))
         c = project(AB.get_coord_by_pos(gridspace, pos), vars)
@@ -61,7 +61,7 @@ function set!(ax, vars, rect::AB.HyperRectangle;
 end
 
 # Trajectory open loop
-function trajectory_open_loop!(ax, vars, contsys, x0::SVector{N,T}, u, nstep;
+function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     tstep = contsys.tstep/nsub
@@ -85,13 +85,13 @@ function trajectory_open_loop!(ax, vars, contsys, x0::SVector{N,T}, u, nstep;
 end
 
 # Images
-function cell_image!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys;
+function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
         nsub = fill(5, N),
-        fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where N
+        fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = Vector{SVector{2,eltype(Xsub.gridspace.orig)}}[]
+    vertslist = Vector{SVector{2,T}}[]
     ns = nsub .- 1
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
@@ -112,12 +112,12 @@ function cell_image!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys;
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys::AB.ControlSystemGrowth;
-        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
+function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemGrowth{N,T};
+        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = NTuple{4,SVector{2,eltype(Xsub.gridspace.orig)}}[]
+    vertslist = NTuple{4,SVector{2,T}}[]
     r = Xsub.gridspace.h/2.0 + contsys.measnoise
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
@@ -136,14 +136,13 @@ function cell_approx!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys::AB.ControlSys
     ax.add_collection(polylist)
 end
 
-function cell_approx!(ax, vars, Xsub::AB.SubSet{N}, Usub, contsys::AB.ControlSystemLinearized;
-        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where N
+function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemLinearized{N,T};
+        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    vertslist = Vector{SVector{2,eltype(Xsub.gridspace.orig)}}[]
+    vertslist = Vector{SVector{2,T}}[]
     _H_ = SMatrix{N,N}(I).*(Xsub.gridspace.h/2.0)
-    # _I_ = SMatrix{N,N,eltype(Xsub.gridspace.orig)}(I)
     e = norm(Xsub.gridspace.h/2.0 + contsys.measnoise, Inf)
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)

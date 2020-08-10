@@ -1,9 +1,9 @@
-abstract type ControlSystem end
+abstract type ControlSystem{N,T} end
 
-struct ControlSystemGrowth{VT<:SVector,F1<:Function,F2<:Function} <: ControlSystem
+struct ControlSystemGrowth{N,T,F1<:Function,F2<:Function} <: ControlSystem{N,T}
     tstep::Float64
-    sysnoise::VT
-    measnoise::VT
+    sysnoise::SVector{N,T}
+    measnoise::SVector{N,T}
     sys_map::F1
     growthbound_map::F2
 end
@@ -23,25 +23,25 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
     return x
 end
 
-function NewControlSystemGrowthRK4(
-        tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
+function NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise::SVector{N,T},
+        measnoise::SVector{N,T}, nsys, ngrowthbound) where {N,T}
     sys_map = let nsys = nsys
-        ((x::SVector{N,T1}, u::SVector{M,T2}, tstep) where {N,M,T1,T2}) ->
-            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T1}
+        (x::SVector{N,T}, u, tstep) ->
+            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
     end
     F_growthbound = let sysnoise = sysnoise
         (r, u) -> L_growthbound(u)*r + sysnoise
     end
     growthbound_map = let ngrowthbound = ngrowthbound
-        ((r::SVector{N,T1}, u::SVector{M,T2}, tstep) where {N,M,T1,T2}) ->
-            RungeKutta4(F_growthbound, r, u, tstep, ngrowthbound)::SVector{N,T1}
+        (r::SVector{N,T}, u, tstep) ->
+            RungeKutta4(F_growthbound, r, u, tstep, ngrowthbound)::SVector{N,T}
     end
     return ControlSystemGrowth(tstep, sysnoise, measnoise, sys_map, growthbound_map)
 end
 
-struct ControlSystemLinearized{VT<:SVector,F1<:Function,F2<:Function,F3<:Function} <: ControlSystem
+struct ControlSystemLinearized{N,T,F1<:Function,F2<:Function,F3<:Function} <: ControlSystem{N,T}
     tstep::Float64
-    measnoise::VT
+    measnoise::SVector{N,T}
     sys_map::F1
     linsys_map::F2
     error_map::F3
@@ -80,18 +80,18 @@ function BoundSecondOrder(a, b, tstep)
     end
 end
 
-function NewControlSystemLinearizedRK4(
-        tstep, F_sys, DF_sys, bound_DF, bound_DDF, measnoise, nsys)
+function NewControlSystemLinearizedRK4(tstep, F_sys, DF_sys, bound_DF, bound_DDF,
+        measnoise::SVector{N,T}, nsys) where {N,T}
     sys_map = let nsys = nsys
-        ((x::SVector{N,T1}, u::SVector{M,T2}, tstep) where {N,M,T1,T2}) ->
-            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T1}
+        (x::SVector{N,T}, u, tstep) ->
+            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
     end
     linsys_map = let nsys = nsys
-        ((x::SVector{N,T1}, dx::SMatrix{N,N,T1}, u::SVector{M,T2}, tstep) where {N,M,T1,T2}) ->
+        (x::SVector{N,T}, dx::SMatrix{N,N,T}, u, tstep) ->
             RungeKutta4Linearized(
-                F_sys, DF_sys, x, dx, u, tstep, nsys)::Tuple{SVector{N,T1},SMatrix{N,N,T1}}
+                F_sys, DF_sys, x, dx, u, tstep, nsys)::Tuple{SVector{N,T},SMatrix{N,N,T}}
     end
-    error_map = ((r::T1, u::SVector{M,T2}, tstep) where {N,M,T1,T2}) ->
-        BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep)*(r^2)::T1
+    error_map = (r::T, u, tstep) ->
+        BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep)*(r^2)::T
     return ControlSystemLinearized(tstep, measnoise, sys_map, linsys_map, error_map)
 end

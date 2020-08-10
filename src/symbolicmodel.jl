@@ -44,7 +44,8 @@ end
 # we go through the list only once; this requires to store the transitions in a
 # vector (trans_list). This approach uses a bit more allocations than the OLD one
 # (29 vs 24/26) on pathplanning-simple/hard but is faster in both cases.
-function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGrowth)
+function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
+        contsys::ControlSystemGrowth{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
@@ -91,7 +92,8 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
 end
 
 # Assumes that automaton is "empty"
-function compute_symmodel_from_controlsystem_OLD!(symmodel, contsys::ControlSystemGrowth)
+function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
+        contsys::ControlSystemGrowth{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
@@ -129,8 +131,8 @@ end
 
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
-function compute_symmodel_from_controlsystem!(
-        symmodel::SymbolicModel{N}, contsys::ControlSystemLinearized) where N
+function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
+        contsys::ControlSystemLinearized{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
     Ugrid = symmodel.Ugrid
