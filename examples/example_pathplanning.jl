@@ -114,6 +114,11 @@ function path_planning(frame_length; nsteps = nothing,
     end
 
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    # Uncomment to compare new and OLD versions
+    # @time AB.compute_symmodel_from_controlsystem_OLD!(symmodel, contsys)
+    # @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    # @time AB.compute_symmodel_from_controlsystem_OLD!(symmodel, contsys)
+    # return
 
     contr = AB.NewControllerList()
     @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)

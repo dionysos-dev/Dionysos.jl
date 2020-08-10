@@ -40,6 +40,10 @@ function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
 end
 
 # Assumes that automaton is "empty"
+# Compare to OLD implementation (see below), we do not make a first check before:
+# we go through the list only once; this requires to store the transitions in a
+# vector (trans_list). This approach uses a bit more allocations than the OLD one
+# (29 vs 24/26) on pathplanning-simple/hard but is faster in both cases.
 function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGrowth)
     println("compute_symmodel_from_controlsystem! started")
     Xgrid = symmodel.Xgrid
@@ -47,7 +51,7 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
     tstep = contsys.tstep
     r = Xgrid.h/2.0 + contsys.measnoise
     ntrans = 0
-    # Added to reduce number of allocations (compare with commented implementation below)
+    # Vector to store transitions
     trans_list = Tuple{Int,Int,Int}[]
 
     # Updates every 1 seconds
@@ -86,39 +90,42 @@ function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGr
         "$(ntrans) transitions created")
 end
 
-# # Assumes that automaton is "empty"
-# function compute_symmodel_from_controlsystem!(symmodel, contsys::ControlSystemGrowth)
-#     println("compute_symmodel_from_controlsystem! started")
-#     Xgrid = symmodel.Xgrid
-#     Ugrid = symmodel.Ugrid
-#     tstep = contsys.tstep
-#     r = Xgrid.h/2.0 + contsys.measnoise
-#     ntrans = 0
-#
-#     # Updates every 1 seconds
-#     # @showprogress 1 "Computing symbolic control system: " (
-#     for upos in enum_pos(Ugrid)
-#         symbol = get_symbol_by_upos(symmodel, upos)
-#         u = get_coord_by_pos(Ugrid, upos)
-#         Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
-#         for xpos in enum_pos(Xgrid)
-#             source = get_state_by_xpos(symmodel, xpos)
-#             x = get_coord_by_pos(Xgrid, xpos)
-#             Fx = contsys.sys_map(x, u, tstep)
-#             rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx - Fr, Fx + Fr))
-#             ypos_iter = Iterators.product(_ranges(rectI)...)
-#             any(x -> !(x ∈ Xgrid), ypos_iter) && continue
-#             for ypos in ypos_iter
-#                 target = get_state_by_xpos(symmodel, ypos)
-#                 add_transition!(symmodel.autom, source, symbol, target)
-#             end
-#             ntrans += length(ypos_iter)
-#         end
-#     end
-#     # )
-#     println("compute_symmodel_from_controlsystem! terminated with success: ",
-#         "$(ntrans) transitions created")
-# end
+# Assumes that automaton is "empty"
+function compute_symmodel_from_controlsystem_OLD!(symmodel, contsys::ControlSystemGrowth)
+    println("compute_symmodel_from_controlsystem! started")
+    Xgrid = symmodel.Xgrid
+    Ugrid = symmodel.Ugrid
+    tstep = contsys.tstep
+    r = Xgrid.h/2.0 + contsys.measnoise
+    ntrans = 0
+    # Define the function out of loop. This allowed to recudes the allocations
+    # from 1.6M (on pathplanning-simple) to 24!
+    not_in_Xgrid = x -> !(x ∈ Xgrid)
+
+    # Updates every 1 seconds
+    # @showprogress 1 "Computing symbolic control system: " (
+    for upos in enum_pos(Ugrid)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = get_coord_by_pos(Ugrid, upos)
+        Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
+        for xpos in enum_pos(Xgrid)
+            source = get_state_by_xpos(symmodel, xpos)
+            x = get_coord_by_pos(Xgrid, xpos)
+            Fx = contsys.sys_map(x, u, tstep)
+            rectI = get_pos_lims_outer(Xgrid, HyperRectangle(Fx - Fr, Fx + Fr))
+            ypos_iter = Iterators.product(_ranges(rectI)...)
+            any(not_in_Xgrid, ypos_iter) && continue
+            for ypos in ypos_iter
+                target = get_state_by_xpos(symmodel, ypos)
+                add_transition!(symmodel.autom, source, symbol, target)
+            end
+            ntrans += length(ypos_iter)
+        end
+    end
+    # )
+    println("compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created")
+end
 
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
