@@ -41,7 +41,7 @@ function compute_enabled_symbols!(symbollist, contr::ControllerList, source)
 end
 
 function _compute_npoststable(npoststable, autom)
-    soursymblist = Tuple{Int, Int}[]
+    soursymblist = Tuple{Int,Int}[]
     for target = 1:autom.nstates
         empty!(soursymblist)
         compute_pre!(soursymblist, autom, target)
@@ -52,7 +52,7 @@ function _compute_npoststable(npoststable, autom)
 end
 
 # Assumes contr is "empty"
-function compute_controller_reach!(contr, autom, initlist, targetlist)
+function compute_controller_reach!(contr, autom, initlist, targetlist; verbose = false)
     println("compute_controller_reach! started")
     nstates = autom.nstates
     nsymbols = autom.nsymbols
@@ -72,9 +72,14 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     # nexttargetlist = Int[]
     soursymblist = Tuple{Int,Int}[]
 
-    prog = ProgressUnknown("# iterations computing controller:")
+    # Commented because it changes the number of allocations
+    if verbose
+        prog = ProgressUnknown("# iterations computing controller:")
+    end
     while !isempty(initset)
-        ProgressMeter.next!(prog)
+        if verbose
+            ProgressMeter.next!(prog)
+        end
         for source in targetset
             for symbol = 1:nsymbols
                 npoststable[source, symbol] = 0
@@ -102,15 +107,19 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         end
         if isempty(nexttargetset)
             println("\ncompute_controller_reach! terminated without covering init set")
-            break
+            if verbose
+                ProgressMeter.finish!(prog)
+            end
+            return
         end
         setdiff!(initset, nexttargetset)
         targetset, nexttargetset = nexttargetset, targetset
         empty!(nexttargetset)
         # unique!(targetlist)
     end
-    ProgressMeter.finish!(prog)
-
+    if verbose
+        ProgressMeter.finish!(prog)
+    end
     println("\ncompute_controller_reach! terminated with success")
 end
 

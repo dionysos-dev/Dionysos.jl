@@ -1,4 +1,9 @@
 using StaticArrays
+using LinearAlgebra
+
+struct T{F<:Function}
+    func::F
+end
 
 function DoTest()
     sleep(0.1)
@@ -57,6 +62,16 @@ function DoTest()
     z = Tuple(rand(n))
     @time all(x .< y .<= z) # Much faster
     @time all(i -> (x[i] <= y[i] <= z[i]), eachindex(x))
+    println()
+
+    println("Check all2")
+    A = SMatrix{6,6}(rand(6, 6))
+    x = SVector{6}(rand(6))
+    b = SVector{6}(rand(6))
+    idx = SVector{6}(1:6)
+    @time all(abs.(A*x) .<= b) # Much faster
+    @time all(x -> x <= 0, abs.(A*x) - b)
+    @time all(i -> abs(dot(A[i,idx],x)) <= b[i], eachindex(x))
     println()
 
     println("Delete value in vector")
@@ -193,6 +208,15 @@ function DoTest()
     @time for i = 1:1000 x = sum2(X, Y) end # Superfast both
     # @code_warntype sum3(X, Y)
     # @code_warntype sum4(X, Y)
+    println()
+
+    println("Float*Float or Float*Int?")
+    N = 50000
+    x = 1.0
+    y = 2.0
+    @time for i = 1:N x*2 + 5 + y/3 end
+    @time for i = 1:N x*2 + 5.0 + y/3.0 end
+    # Similar
     println()
 end
 

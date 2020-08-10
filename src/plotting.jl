@@ -4,11 +4,13 @@ module Plot
 import ..Abstraction
 AB = Abstraction
 
+using LinearAlgebra
 using StaticArrays
+using LazySets
+using Polyhedra
+using CDDLib
 using PyPlot
-using PyCall
 
-const spatial = pyimport_conda("scipy.spatial", "scipy")
 FC(c, a) =  matplotlib.colors.colorConverter.to_rgba(c, alpha = a)
 const _mult = (SVector(-1,-1), SVector(-1,1), SVector(1,1), SVector(1,-1))
 
@@ -21,8 +23,8 @@ function project(x, vars)
 end
 
 # Cells
-function subset!(ax, vars, subset::AB.SubSet{N,T,S};
-        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T,S}
+function subset!(ax, vars, subset::AB.SubSet{N,T};
+        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
     gridspace = subset.gridspace
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
@@ -33,7 +35,7 @@ function subset!(ax, vars, subset::AB.SubSet{N,T,S};
 
     for pos in unique(x -> x[vars], AB.enum_pos(subset))
         c = project(AB.get_coord_by_pos(gridspace, pos), vars)
-        push!(vertslist, verts_rect(c, h/2))
+        push!(vertslist, verts_rect(c, h/2.0))
     end
 
     polylist = matplotlib.collections.PolyCollection(vertslist)
@@ -47,8 +49,8 @@ end
 function set!(ax, vars, rect::AB.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
-    c = (rect.lb .+ rect.ub)./2
-    h = (rect.ub .- rect.lb)./2
+    c = (rect.lb + rect.ub)/2.0
+    h = (rect.ub - rect.lb)/2.0
     polylist = matplotlib.collections.PolyCollection([verts_rect(c[vars], h[vars])])
     fca = FC(fc, fa)
     eca = FC(ec, ea)
@@ -59,7 +61,7 @@ function set!(ax, vars, rect::AB.HyperRectangle;
 end
 
 # Trajectory open loop
-function trajectory_open_loop!(ax, vars, contsys, x0::SVector{N,T}, u, nstep;
+function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     tstep = contsys.tstep/nsub
@@ -99,9 +101,7 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
         subpos_iter = Iterators.product(subpos_axes...)
         x_iter = (x + subpos.*Xsub.gridspace.h for subpos in subpos_iter)
         Fx_iter = (contsys.sys_map(x, u, contsys.tstep) for x in x_iter)
-        Fxplist = [project(Fx, vars) for Fx in Fx_iter][:]
-        hull = spatial.ConvexHull([Fxp[i] for Fxp in Fxplist, i = 1:2])
-        push!(vertslist, Fxplist[hull.vertices .+ 1])
+        push!(vertslist, convex_hull([project(Fx, vars) for Fx in Fx_iter][:]))
     end
 
     polylist = matplotlib.collections.PolyCollection(vertslist)
@@ -112,21 +112,50 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
+function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemGrowth{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     vertslist = NTuple{4,SVector{2,T}}[]
+    r = Xsub.gridspace.h/2.0 + contsys.measnoise
 
     for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
         x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
         u = AB.get_coord_by_pos(Usub.gridspace, upos)
         Fx = contsys.sys_map(x, u, contsys.tstep)
-        r = Xsub.gridspace.h/2 + contsys.measnoise
-        Fr = contsys.bound_map(r, u, contsys.tstep)
+        Fr = contsys.growthbound_map(r, u, contsys.tstep)
         Fr = Fr + contsys.measnoise
         push!(vertslist, verts_rect(project(Fx, vars), project(Fr, vars)))
+    end
+
+    polylist = matplotlib.collections.PolyCollection(vertslist)
+    polylist.set_facecolor(fca)
+    polylist.set_edgecolor(eca)
+    polylist.set_linewidth(ew)
+    ax.add_collection(polylist)
+end
+
+function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemLinearized{N,T};
+        fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
+    @assert length(vars) == 2 && N >= 2
+    fca = FC(fc, fa)
+    eca = FC(ec, ea)
+    vertslist = Vector{SVector{2,T}}[]
+    _H_ = SMatrix{N,N}(I).*(Xsub.gridspace.h/2.0)
+    e = norm(Xsub.gridspace.h/2.0 + contsys.measnoise, Inf)
+
+    for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
+        x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
+        u = AB.get_coord_by_pos(Usub.gridspace, upos)
+        Fx, DFx = contsys.linsys_map(x, _H_, u, contsys.tstep)
+        A = inv(DFx)
+        Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
+        b = abs.(A)*Fr .+ 1.0
+        HP = HPolytope([A; -A], vcat(b, b))
+        verts1 = vertices_list(HP, backend=CDDLib.Library())
+        verts2 = [project(Fx + v, vars) for v in verts1]
+        push!(vertslist, convex_hull(verts2))
     end
 
     polylist = matplotlib.collections.PolyCollection(vertslist)

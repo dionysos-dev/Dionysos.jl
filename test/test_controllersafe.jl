@@ -29,14 +29,14 @@ AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 0.2
 nsys = 3
-nbound = 3
+ngrowthbound = 3
 F_sys(x, u) = SVector(u[1], -x[2] + u[1])
 sysnoise = SVector(1.0, 1.0)*0.001
 measnoise = SVector(1.0, 1.0)*0.001
-L_bound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, -1.0)
+L_growthbound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, -1.0)
 
-contsys = AB.NewControlSystemRK4(
-    tstep, F_sys, L_bound, sysnoise, measnoise, nsys, nbound)
+contsys = AB.NewControlSystemGrowthRK4(
+    tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 @test AB.get_ntrans(symmodel.autom) == 62077
