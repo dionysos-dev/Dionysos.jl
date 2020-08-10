@@ -98,7 +98,7 @@ function compute_symmodel_from_controlsystem_OLD!(symmodel, contsys::ControlSyst
     tstep = contsys.tstep
     r = Xgrid.h/2.0 + contsys.measnoise
     ntrans = 0
-    # Define the function out of loop. This allowed to recudes the allocations
+    # Define the function out of the loop. This allowed to recudes the allocations
     # from 1.6M (on pathplanning-simple) to 24!
     not_in_Xgrid = x -> !(x ∈ Xgrid)
 
