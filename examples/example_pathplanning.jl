@@ -56,8 +56,8 @@ function path_planning(frame_length; nsteps = nothing,
 
     fig = PyPlot.figure()
     ax = fig.gca(aspect = "equal")
-    ax.set_xlim([-0.2, frame_length + 0.2])
-    ax.set_ylim([-0.2, 10.2])
+    ax.set_xlim((-0.2, frame_length + 0.2))
+    ax.set_ylim((-0.2, 10.2))
 
     Plot.subset!(ax, 1:2, Xfull, fa = 0.0)
     Plot.subset!(ax, 1:2, Xinit, fc = "green")
