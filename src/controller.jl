@@ -52,7 +52,7 @@ function _compute_npoststable(npoststable, autom)
 end
 
 # Assumes contr is "empty"
-function compute_controller_reach!(contr, autom, initlist, targetlist)
+function compute_controller_reach!(contr, autom, initlist, targetlist; verbose = false)
     println("compute_controller_reach! started")
     nstates = autom.nstates
     nsymbols = autom.nsymbols
@@ -73,9 +73,13 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     soursymblist = Tuple{Int,Int}[]
 
     # Commented because it changes the number of allocations
-    # prog = ProgressUnknown("# iterations computing controller:")
+    if verbose
+        prog = ProgressUnknown("# iterations computing controller:")
+    end
     while !isempty(initset)
-        # ProgressMeter.next!(prog)
+        if verbose
+            ProgressMeter.next!(prog)
+        end
         for source in targetset
             for symbol = 1:nsymbols
                 npoststable[source, symbol] = 0
@@ -103,7 +107,9 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         end
         if isempty(nexttargetset)
             println("\ncompute_controller_reach! terminated without covering init set")
-            # ProgressMeter.finish!(prog)
+            if verbose
+                ProgressMeter.finish!(prog)
+            end
             return
         end
         setdiff!(initset, nexttargetset)
@@ -111,7 +117,9 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
         empty!(nexttargetset)
         # unique!(targetlist)
     end
-    # ProgressMeter.finish!(prog)
+    if verbose
+        ProgressMeter.finish!(prog)
+    end
     println("\ncompute_controller_reach! terminated with success")
 end
 

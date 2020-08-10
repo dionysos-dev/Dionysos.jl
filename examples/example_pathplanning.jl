@@ -14,7 +14,7 @@ function path_planning(frame_length; nsteps = nothing,
     X1_ub = [1.2, 2.4,  2.4, 3.6,  4.8, 6.0,  6.0,  7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0],
     X2_lb = [0.0, 0.0,  6.0, 0.0,  1.0, 0.0,  7.0,  1.0, 0.0, 8.2,  7.0, 5.8,  4.6, 3.4,  2.2],
     X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6],
-    h = SVector(0.2, 0.2, 0.2), approx_mode = "nothing")
+    h = SVector(0.2, 0.2, 0.2), approx_mode = "nothing", verbose = false)
     #---------------------------------------------------------------------------
     frame = AB.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(frame_length, 10.0, pi + 0.4))
     init = AB.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
@@ -121,7 +121,8 @@ function path_planning(frame_length; nsteps = nothing,
     # return
 
     contr = AB.NewControllerList()
-    @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+    @time AB.compute_controller_reach!(
+        contr, symmodel.autom, initlist, targetlist, verbose = verbose)
 
     x0 = SVector(0.4, 0.4, 0.0)
     Plot.trajectory_closed_loop!(ax, 1:2, contsys, symmodel, contr, x0, nsteps)
