@@ -93,8 +93,6 @@ function dcdc_boost(; nstep = nothing,
         ax.set_xlim((1.15, 1.55))
         ax.set_ylim((5.45, 5.85))
 
-        println("Start plotting")
-
         # Plot.subset!(ax, 1:2, Xfull, fa = 0.0, ew = 0.5)
         # Plot.subset!(ax, 1:2, Xinit, fc = "green")
         # Plot.subset!(ax, 1:2, Xsafe, fc = "yellow")
