@@ -104,7 +104,7 @@ function path_planning(x1_max; nstep = nothing,
 
     empty!(symmodel.autom)
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    # Uncommet for fair eval of perfs
+    # Uncomment for fair eval of perfs
     empty!(symmodel.autom)
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
@@ -118,7 +118,7 @@ function path_planning(x1_max; nstep = nothing,
 
     empty!(contr)
     @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
-    # Uncommet for fair eval of perfs
+    # Uncomment for fair eval of perfs
     empty!(contr)
     @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 
