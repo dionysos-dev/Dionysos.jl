@@ -149,9 +149,9 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     nextunsafeset = Set{Int}()
     soursymblist = Tuple{Int, Int}[]
 
-    prog = ProgressUnknown("# iterations computing controller:")
+    # prog = ProgressUnknown("# iterations computing controller:")
     while true
-        ProgressMeter.next!(prog)
+        # ProgressMeter.next!(prog)
         for target in unsafeset
             empty!(soursymblist)
             compute_pre!(soursymblist, autom, target)
@@ -172,7 +172,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         unsafeset, nextunsafeset = nextunsafeset, unsafeset
         empty!(nextunsafeset)
     end
-    ProgressMeter.finish!(prog)
+    # ProgressMeter.finish!(prog)
 
     for source in safeset
         for symbol = 1:nsymbols
