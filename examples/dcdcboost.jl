@@ -16,7 +16,7 @@ function dcdc_boost(; nstep = nothing,
     frameX = AB.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85))
     x0 = SVector(0.0, 0.0)
     h = SVector(2.0/4.0e3, 2.0/4.0e3)
-    Xgrid = AB.NewGridSpaceList(x0, h)
+    Xgrid = AB.NewGridSpace(x0, h)
     AB.add_set!(Xgrid, frameX, AB.INNER)
     Xfull = AB.NewSubSet(Xgrid)
     AB.add_all!(Xfull)
@@ -24,7 +24,7 @@ function dcdc_boost(; nstep = nothing,
     frameU = AB.HyperRectangle(SVector(1), SVector(2))
     u0 = SVector(1)
     h = SVector(1)
-    Ugrid = AB.NewGridSpaceList(u0, h)
+    Ugrid = AB.NewGridSpace(u0, h)
     AB.add_set!(Ugrid, frameU, AB.OUTER)
 
     symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
@@ -93,9 +93,9 @@ function dcdc_boost(; nstep = nothing,
         ax.set_xlim((1.15, 1.55))
         ax.set_ylim((5.45, 5.85))
 
-        # Plot.subset!(ax, 1:2, Xfull, fa = 0.0, ew = 0.5)
-        # Plot.subset!(ax, 1:2, Xinit, fc = "green")
-        # Plot.subset!(ax, 1:2, Xsafe, fc = "yellow")
+        # Plot.domain!(ax, 1:2, Xfull, fa = 0.0, ew = 0.5)
+        # Plot.domain!(ax, 1:2, Xinit, fc = "green")
+        # Plot.domain!(ax, 1:2, Xsafe, fc = "yellow")
 
         # xpos = AB.get_pos_by_coord(Xgrid, SVector(1.2, 5.6))
         # upos = AB.get_pos_by_coord(Ugrid, SVector(2))
@@ -114,8 +114,8 @@ function dcdc_boost(; nstep = nothing,
         #     AB.add_pos!(Ysimple, AB.get_xpos_by_state(symmodel, target))
         # end
         #
-        # Plot.subset!(ax, 1:2, Xsimple)
-        # Plot.subset!(ax, 1:2, Ysimple)
+        # Plot.domain!(ax, 1:2, Xsimple)
+        # Plot.domain!(ax, 1:2, Ysimple)
         # Plot.trajectory_open_loop!(ax, 1:2, contsys, x, u, 50)
         # Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
         # Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)

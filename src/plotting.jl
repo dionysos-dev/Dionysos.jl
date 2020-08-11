@@ -23,18 +23,18 @@ function project(x, vars)
 end
 
 # Cells
-function subset!(ax, vars, subset::AB.SubSet{N,T};
+function domain!(ax, vars, domain::AB.Domain{N,T};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
-    gridspace = subset.gridspace
+    grid = domain.grid
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
-    h = project(gridspace.h, vars)
+    h = project(grid.h, vars)
 
     vertslist = NTuple{4,SVector{2,T}}[]
 
-    for pos in unique(x -> x[vars], AB.enum_pos(subset))
-        c = project(AB.get_coord_by_pos(gridspace, pos), vars)
+    for pos in unique(x -> x[vars], AB.enum_pos(domain))
+        c = project(AB.get_coord_by_pos(grid, pos), vars)
         push!(vertslist, verts_rect(c, h/2.0))
     end
 
@@ -85,7 +85,7 @@ function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, 
 end
 
 # Images
-function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
+function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
         nsub = fill(5, N),
         fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
@@ -94,12 +94,12 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
     vertslist = Vector{SVector{2,T}}[]
     ns = nsub .- 1
 
-    for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
-        x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
-        u = AB.get_coord_by_pos(Usub.gridspace, upos)
+    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
+        x = AB.get_coord_by_pos(Xdom.grid, xpos)
+        u = AB.get_coord_by_pos(Udom.grid, upos)
         subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
         subpos_iter = Iterators.product(subpos_axes...)
-        x_iter = (x + subpos.*Xsub.gridspace.h for subpos in subpos_iter)
+        x_iter = (x + subpos.*Xdom.grid.h for subpos in subpos_iter)
         Fx_iter = (contsys.sys_map(x, u, contsys.tstep) for x in x_iter)
         push!(vertslist, convex_hull([project(Fx, vars) for Fx in Fx_iter][:]))
     end
@@ -112,17 +112,17 @@ function cell_image!(ax, vars, Xsub, Usub, contsys::AB.ControlSystem{N,T};
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemGrowth{N,T};
+function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemGrowth{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     vertslist = NTuple{4,SVector{2,T}}[]
-    r = Xsub.gridspace.h/2.0 + contsys.measnoise
+    r = Xdom.grid.h/2.0 + contsys.measnoise
 
-    for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
-        x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
-        u = AB.get_coord_by_pos(Usub.gridspace, upos)
+    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
+        x = AB.get_coord_by_pos(Xdom.grid, xpos)
+        u = AB.get_coord_by_pos(Udom.grid, upos)
         Fx = contsys.sys_map(x, u, contsys.tstep)
         Fr = contsys.growthbound_map(r, u, contsys.tstep)
         Fr = Fr + contsys.measnoise
@@ -136,18 +136,18 @@ function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemGrowth{N,T}
     ax.add_collection(polylist)
 end
 
-function cell_approx!(ax, vars, Xsub, Usub, contsys::AB.ControlSystemLinearized{N,T};
+function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemLinearized{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     vertslist = Vector{SVector{2,T}}[]
-    _H_ = SMatrix{N,N}(I).*(Xsub.gridspace.h/2.0)
-    e = norm(Xsub.gridspace.h/2.0 + contsys.measnoise, Inf)
+    _H_ = SMatrix{N,N}(I).*(Xdom.grid.h/2.0)
+    e = norm(Xdom.grid.h/2.0 + contsys.measnoise, Inf)
 
-    for xpos in AB.enum_pos(Xsub), upos in AB.enum_pos(Usub)
-        x = AB.get_coord_by_pos(Xsub.gridspace, xpos)
-        u = AB.get_coord_by_pos(Usub.gridspace, upos)
+    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
+        x = AB.get_coord_by_pos(Xdom.grid, xpos)
+        u = AB.get_coord_by_pos(Udom.grid, upos)
         Fx, DFx = contsys.linsys_map(x, _H_, u, contsys.tstep)
         A = inv(DFx)
         Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
@@ -168,12 +168,9 @@ end
 # Trajectory closed loop
 function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5, randchoose = false)
-    Xgrid = symmodel.Xgrid
-    Usub = AB.NewSubSet(symmodel.Ugrid)
-    Ysub = AB.NewSubSet(symmodel.Xgrid)
     for i = 1:nstep
-        xpos = AB.get_pos_by_coord(Xgrid, x0)
-        if !(xpos ∈ Xgrid)
+        xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
+        if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")
             return
         end
@@ -190,10 +187,11 @@ function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
             symbol = symbollist[1]
         end
         upos = AB.get_upos_by_symbol(symmodel, symbol)
-        u = AB.get_coord_by_pos(symmodel.Ugrid, upos)
+        u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)
         Plot.trajectory_open_loop!(ax, vars, contsys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
         x0 = contsys.sys_map(x0, u, contsys.tstep)
     end
 end
+
 end  # Plot

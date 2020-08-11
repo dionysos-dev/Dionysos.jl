@@ -15,19 +15,20 @@ lb = SVector(0.0, 0.0)
 ub = SVector(10.0, 11.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
-# h = SVector(0.2, 0.2)
-Xgrid = AB.NewGridSpaceList(x0, h)
-@test AB.get_ncells(Xgrid) == 0
-AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
-@test AB.get_ncells(Xgrid) == 77
+Xgrid = AB.NewGrid(x0, h)
+Xfull = AB.NewDomainList(Xgrid)
+@test AB.get_ncells(Xfull) == 0
+AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_ncells(Xfull) == 77
 
 lb = SVector(-1.0)
 ub = SVector(1.0)
 u0 = SVector(0.0)
 h = SVector(0.5)
-Ugrid = AB.NewGridSpaceList(u0, h)
-AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
-@test AB.get_ncells(Ugrid) == 5
+Ugrid = AB.NewGrid(u0, h)
+Ufull = AB.NewDomainList(Ugrid)
+AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
+@test AB.get_ncells(Ufull) == 5
 
 tstep = 1.0
 nsys = 3
@@ -46,10 +47,10 @@ xpos = (1, 1)
 upos = (1,)
 x = AB.get_coord_by_pos(Xgrid, xpos)
 u = AB.get_coord_by_pos(Ugrid, upos)
-Xsimple = AB.NewSubSet(Xgrid)
+Xsimple = AB.NewDomainList(Xgrid)
 AB.add_pos!(Xsimple, xpos)
 @test AB.get_ncells(Xsimple) == 1
-Usimple = AB.NewSubSet(Ugrid)
+Usimple = AB.NewDomainList(Ugrid)
 AB.add_pos!(Usimple, upos)
 @test AB.get_ncells(Usimple) == 1
 
@@ -60,7 +61,7 @@ AB.add_pos!(Usimple, upos)
     ax = fig.gca()
     ax.set_xlim((-10.0, 10.0))
     ax.set_ylim((-10.0, 10.0))
-    Plot.subset!(ax, 1:2, Xsimple)
+    Plot.domain!(ax, 1:2, Xsimple)
     Plot.trajectory_open_loop!(ax, 1:2, contsys, x, u, 50)
     Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
     Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)
