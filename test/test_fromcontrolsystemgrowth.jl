@@ -66,8 +66,8 @@ end
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()
-    ax.set_xlim([-1.0, 11.0])
-    ax.set_ylim([-2.0, 14.0])
+    ax.set_xlim((-1.0, 11.0))
+    ax.set_ylim((-2.0, 14.0))
     Plot.subset!(ax, 1:2, Xfull, fa = 0.1)
     Plot.subset!(ax, 1:2, Xsimple)
     Plot.subset!(ax, 1:2, Ysimple)

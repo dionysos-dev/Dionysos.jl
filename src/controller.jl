@@ -52,7 +52,7 @@ function _compute_npoststable(npoststable, autom)
 end
 
 # Assumes contr is "empty"
-function compute_controller_reach!(contr, autom, initlist, targetlist; verbose = false)
+function compute_controller_reach!(contr, autom, initlist, targetlist)
     println("compute_controller_reach! started")
     nstates = autom.nstates
     nsymbols = autom.nsymbols
@@ -73,13 +73,9 @@ function compute_controller_reach!(contr, autom, initlist, targetlist; verbose =
     soursymblist = Tuple{Int,Int}[]
 
     # Commented because it changes the number of allocations
-    if verbose
-        prog = ProgressUnknown("# iterations computing controller:")
-    end
+    # prog = ProgressUnknown("# iterations computing controller:")
     while !isempty(initset)
-        if verbose
-            ProgressMeter.next!(prog)
-        end
+        # ProgressMeter.next!(prog)
         for source in targetset
             for symbol = 1:nsymbols
                 npoststable[source, symbol] = 0
@@ -107,9 +103,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist; verbose =
         end
         if isempty(nexttargetset)
             println("\ncompute_controller_reach! terminated without covering init set")
-            if verbose
-                ProgressMeter.finish!(prog)
-            end
+            # ProgressMeter.finish!(prog)
             return
         end
         setdiff!(initset, nexttargetset)
@@ -117,9 +111,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist; verbose =
         empty!(nexttargetset)
         # unique!(targetlist)
     end
-    if verbose
-        ProgressMeter.finish!(prog)
-    end
+    # ProgressMeter.finish!(prog)
     println("\ncompute_controller_reach! terminated with success")
 end
 
@@ -157,9 +149,9 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     nextunsafeset = Set{Int}()
     soursymblist = Tuple{Int, Int}[]
 
-    prog = ProgressUnknown("# iterations computing controller:")
+    # prog = ProgressUnknown("# iterations computing controller:")
     while true
-        ProgressMeter.next!(prog)
+        # ProgressMeter.next!(prog)
         for target in unsafeset
             empty!(soursymblist)
             compute_pre!(soursymblist, autom, target)
@@ -180,7 +172,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         unsafeset, nextunsafeset = nextunsafeset, unsafeset
         empty!(nextunsafeset)
     end
-    ProgressMeter.finish!(prog)
+    # ProgressMeter.finish!(prog)
 
     for source in safeset
         for symbol = 1:nsymbols
