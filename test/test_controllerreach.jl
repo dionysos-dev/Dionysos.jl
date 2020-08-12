@@ -15,18 +15,18 @@ lb = SVector(-5.0, -5.0)
 ub = SVector(5.0, 5.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(0.47, 0.23)
-Xgrid = AB.NewGridSpaceList(x0, h)
-AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
-AB.remove_set!(Xgrid, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
-Xfull = AB.NewSubSet(Xgrid)
-AB.add_all!(Xfull)
+Xgrid = AB.NewGrid(x0, h)
+Xfull = AB.NewDomainList(Xgrid)
+AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
+AB.remove_set!(Xfull, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
 
 lb = SVector(-2.0)
 ub = SVector(2.0)
 u0 = SVector(0.0)
 h = SVector(1.0)
-Ugrid = AB.NewGridSpaceList(u0, h)
-AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
+Ugrid = AB.NewGrid(u0, h)
+Ufull = AB.NewDomainList(Ugrid)
+AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 1.0
 nsys = 3
@@ -38,16 +38,16 @@ L_growthbound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, 0.0)
 
 contsys = AB.NewControlSystemGrowthRK4(
     tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
-symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
+symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
-Xinit = AB.NewSubSet(Xgrid)
+Xinit = AB.NewDomainList(Xgrid)
 AB.add_set!(Xinit, AB.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), AB.OUTER)
 initlist = Int[]
 for pos in AB.enum_pos(Xinit)
     push!(initlist, AB.get_state_by_xpos(symmodel, pos))
 end
-Xtarget = AB.NewSubSet(Xgrid)
+Xtarget = AB.NewDomainList(Xgrid)
 AB.add_set!(Xtarget, AB.HyperRectangle(SVector(0.0, 0.0), SVector(4.0, 4.0)), AB.OUTER)
 targetlist = Int[]
 for pos in AB.enum_pos(Xtarget)
@@ -60,14 +60,14 @@ AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 
 xpos = AB.get_somepos(Xinit)
 x0 = AB.get_coord_by_pos(Xgrid, xpos)
-Xsimple = AB.NewSubSet(Xgrid)
+Xsimple = AB.NewDomainList(Xgrid)
 XUYsimple_ = Any[]
 
 for i = 1:6
     source = AB.get_state_by_xpos(symmodel, xpos)
-    Xs = AB.NewSubSet(Xgrid)
-    Ys = AB.NewSubSet(Xgrid)
-    Us = AB.NewSubSet(Ugrid)
+    Xs = AB.NewDomainList(Xgrid)
+    Ys = AB.NewDomainList(Xgrid)
+    Us = AB.NewDomainList(Ugrid)
     AB.add_pos!(Xs, xpos)
     symbollist = Int[]
     targetlist = Int[]
@@ -92,12 +92,12 @@ end
     ax = fig.gca()
     ax.set_xlim((-5.5, 5.5))
     ax.set_ylim((-5.3, 5.3))
-    Plot.subset!(ax, 1:2, Xfull, fa = 0.1)
-    Plot.subset!(ax, 1:2, Xinit)
-    Plot.subset!(ax, 1:2, Xtarget)
+    Plot.domain!(ax, 1:2, Xfull, fa = 0.1)
+    Plot.domain!(ax, 1:2, Xinit)
+    Plot.domain!(ax, 1:2, Xtarget)
     for (Xs, Us, Ys) in XUYsimple_
-        Plot.subset!(ax, 1:2, Xs, fc = "green")
-        Plot.subset!(ax, 1:2, Ys, fc = "blue")
+        Plot.domain!(ax, 1:2, Xs, fc = "green")
+        Plot.domain!(ax, 1:2, Ys, fc = "blue")
         Plot.cell_image!(ax, 1:2, Xs, Us, contsys)
         Plot.cell_approx!(ax, 1:2, Xs, Us, contsys)
     end
