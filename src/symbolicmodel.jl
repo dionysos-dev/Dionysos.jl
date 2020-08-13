@@ -42,7 +42,7 @@ end
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
 # we go through the list only once; this requires to store the transitions in a
-# vector (trans_list). This approach uses a bit more allocations than the OLD one
+# vector (translist). This approach uses a bit more allocations than the OLD one
 # (29 vs 24/26) on pathplanning-simple/hard but is faster in both cases.
 function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
         contsys::ControlSystemGrowth{N}) where N
@@ -53,7 +53,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
     r = Xdom.grid.h/2.0 + contsys.measnoise
     ntrans = 0
     # Vector to store transitions
-    trans_list = Tuple{Int,Int,Int}[]
+    translist = Tuple{Int,Int,Int}[]
 
     # Updates every 1 seconds
     # Commented because it changes the number of allocations
@@ -63,7 +63,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
         u = get_coord_by_pos(Udom.grid, upos)
         Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
         for xpos in enum_pos(Xdom)
-            empty!(trans_list)
+            empty!(translist)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xdom.grid, xpos)
             Fx = contsys.sys_map(x, u, tstep)
@@ -76,13 +76,11 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
                     break
                 end
                 target = get_state_by_xpos(symmodel, ypos)
-                push!(trans_list, (source, symbol, target))
+                push!(translist, (target, source, symbol))
             end
             if allin
-                for trans in trans_list
-                    add_transition!(symmodel.autom, trans...)
-                end
-                ntrans += length(trans_list)
+                add_translist!(symmodel.autom, translist)
+                ntrans += length(translist)
             end
         end
     end
@@ -119,7 +117,7 @@ function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
             any(not_in_Xdom, ypos_iter) && continue
             for ypos in ypos_iter
                 target = get_state_by_xpos(symmodel, ypos)
-                add_transition!(symmodel.autom, source, symbol, target)
+                add_trans!(symmodel.autom, source, symbol, target)
             end
             ntrans += length(ypos_iter)
         end
@@ -142,7 +140,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
     _ONE_ = ones(SVector{N})
     e = norm(r, Inf)
     ntrans = 0
-    trans_list = Tuple{Int,Int,Int}[]
+    translist = Tuple{Int,Int,Int}[]
 
     # Updates every 1 seconds
     # Commented because it changes the number of allocations
@@ -153,7 +151,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
         Fe = contsys.error_map(e, u, contsys.tstep)
         Fr = r .+ Fe
         for xpos in enum_pos(Xdom)
-            empty!(trans_list)
+            empty!(translist)
             source = get_state_by_xpos(symmodel, xpos)
             x = get_coord_by_pos(Xdom.grid, xpos)
             Fx, DFx = contsys.linsys_map(x, _H_, u, tstep)
@@ -173,13 +171,11 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
                     break
                 end
                 target = get_state_by_xpos(symmodel, ypos)
-                push!(trans_list, (source, symbol, target))
+                push!(translist, (target, source, symbol))
             end
             if allin
-                for trans in trans_list
-                    add_transition!(symmodel.autom, trans...)
-                end
-                ntrans += length(trans_list)
+                add_translist!(symmodel.autom, translist)
+                ntrans += length(translist)
             end
         end
     end
