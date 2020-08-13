@@ -30,5 +30,8 @@ using Test
     @test isempty(set)
     @test sprint(show, MIME"text/plain"(), set) == "Main.BDD.BitSet with 5 bits"
     push!(set, 40)
-    @test sprint(show, MIME"text/plain"(), set) == "Main.BDD.BitSet with 6 bits:\n  40"
+    @test sprint(show, MIME"text/plain"(), set) in [
+        "Main.BDD.BitSet with 6 bits",       # Julia v1.0
+        "Main.BDD.BitSet with 6 bits:\n  40" # Julia v1.5
+    ]
 end
