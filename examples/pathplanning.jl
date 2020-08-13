@@ -20,8 +20,8 @@ function path_planning(x1_max; nstep = nothing,
     _I_ = AB.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
     _T_ = AB.HyperRectangle(SVector(x1_max-1.0, 0.5, -100.0), SVector(x1_max-0.4, 0.8, 100.0))
     x0 = SVector(0.0, 0.0, 0.0)
-    Xgrid = AB.NewGrid(x0, h)
-    Xfull = AB.NewDomainList(Xgrid)
+    Xgrid = AB.GridFree(x0, h)
+    Xfull = AB.DomainList(Xgrid)
     AB.add_set!(Xfull, _X_, AB.OUTER)
     for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
         box = AB.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
@@ -33,19 +33,19 @@ function path_planning(x1_max; nstep = nothing,
     _U_ = AB.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
     u0 = SVector(0.0, 0.0)
     h = SVector(0.3, 0.3)
-    Ugrid = AB.NewGrid(u0, h)
-    Ufull = AB.NewDomainList(Ugrid)
+    Ugrid = AB.GridFree(u0, h)
+    Ufull = AB.DomainList(Ugrid)
     AB.add_set!(Ufull, _U_, AB.OUTER)
 
     symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 
-    Xinit = AB.NewDomainList(Xgrid)
+    Xinit = AB.DomainList(Xgrid)
     AB.add_subset!(Xinit, Xfull, _I_, AB.OUTER)
     initlist = Int[]
     for pos in AB.enum_pos(Xinit)
         push!(initlist, AB.get_state_by_xpos(symmodel, pos))
     end
-    Xtarget = AB.NewDomainList(Xgrid)
+    Xtarget = AB.DomainList(Xgrid)
     AB.add_subset!(Xtarget, Xfull, _T_, AB.OUTER)
     targetlist = Int[]
     for pos in AB.enum_pos(Xtarget)

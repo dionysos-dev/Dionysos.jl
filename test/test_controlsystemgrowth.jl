@@ -15,8 +15,8 @@ lb = SVector(0.0, 0.0)
 ub = SVector(10.0, 11.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
-Xgrid = AB.NewGrid(x0, h)
-Xfull = AB.NewDomainList(Xgrid)
+Xgrid = AB.GridFree(x0, h)
+Xfull = AB.DomainList(Xgrid)
 @test AB.get_ncells(Xfull) == 0
 AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
 @test AB.get_ncells(Xfull) == 77
@@ -25,8 +25,8 @@ lb = SVector(-1.0)
 ub = SVector(1.0)
 u0 = SVector(0.0)
 h = SVector(0.5)
-Ugrid = AB.NewGrid(u0, h)
-Ufull = AB.NewDomainList(Ugrid)
+Ugrid = AB.GridFree(u0, h)
+Ufull = AB.DomainList(Ugrid)
 AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
 @test AB.get_ncells(Ufull) == 5
 
@@ -47,10 +47,10 @@ xpos = (1, 1)
 upos = (1,)
 x = AB.get_coord_by_pos(Xgrid, xpos)
 u = AB.get_coord_by_pos(Ugrid, upos)
-Xsimple = AB.NewDomainList(Xgrid)
+Xsimple = AB.DomainList(Xgrid)
 AB.add_pos!(Xsimple, xpos)
 @test AB.get_ncells(Xsimple) == 1
-Usimple = AB.NewDomainList(Ugrid)
+Usimple = AB.DomainList(Ugrid)
 AB.add_pos!(Usimple, upos)
 @test AB.get_ncells(Usimple) == 1
 

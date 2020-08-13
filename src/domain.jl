@@ -6,7 +6,7 @@ struct DomainList{N,T,S<:Grid{N,T}} <: Domain{N,T}
     elems::Set{NTuple{N,Int}}
 end
 
-function NewDomainList(grid::S) where {N,T,S<:Grid{N,T}}
+function DomainList(grid::S) where {N,S<:Grid{N}}
     return DomainList(grid, Set{NTuple{N,Int}}())
 end
 

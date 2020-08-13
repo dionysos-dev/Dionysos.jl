@@ -16,22 +16,22 @@ function dcdc_boost(; nstep = nothing,
     _X_ = AB.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85))
     x0 = SVector(0.0, 0.0)
     h = SVector(2.0/4.0e3, 2.0/4.0e3)
-    Xgrid = AB.NewGrid(x0, h)
-    Xfull = AB.NewDomainList(Xgrid)
+    Xgrid = AB.GridFree(x0, h)
+    Xfull = AB.DomainList(Xgrid)
     AB.add_set!(Xfull, _X_, AB.INNER)
 
     _U_ = AB.HyperRectangle(SVector(1), SVector(2))
     u0 = SVector(1)
     h = SVector(1)
-    Ugrid = AB.NewGrid(u0, h)
-    Ufull = AB.NewDomainList(Ugrid)
+    Ugrid = AB.GridFree(u0, h)
+    Ufull = AB.DomainList(Ugrid)
     AB.add_set!(Ufull, _U_, AB.OUTER)
 
     symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 
-    Xinit = AB.NewDomainList(Xgrid)
+    Xinit = AB.DomainList(Xgrid)
     union!(Xinit, Xfull)
-    Xsafe = AB.NewDomainList(Xgrid)
+    Xsafe = AB.DomainList(Xgrid)
     union!(Xsafe, Xfull)
     initlist = Int[]
     for pos in AB.enum_pos(Xinit)
@@ -103,11 +103,11 @@ function dcdc_boost(; nstep = nothing,
         # u = AB.get_coord_by_pos(Ugrid, upos)
         # source = AB.get_state_by_xpos(symmodel, xpos)
         # symbol = AB.get_symbol_by_upos(symmodel, upos)
-        # Xsimple = AB.NewDomainList(Xgrid)
+        # Xsimple = AB.DomainList(Xgrid)
         # AB.add_pos!(Xsimple, xpos)
-        # Usimple = AB.NewDomainList(Ugrid)
+        # Usimple = AB.DomainList(Ugrid)
         # AB.add_pos!(Usimple, upos)
-        # Ysimple = AB.NewDomainList(Xgrid)
+        # Ysimple = AB.DomainList(Xgrid)
         # targetlist = Int[]
         # AB.compute_post!(targetlist, symmodel.autom, source, symbol)
         # for target in targetlist

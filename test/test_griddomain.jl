@@ -13,8 +13,8 @@ println("Started test")
 @testset "GridDomain" begin
 orig = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
-grid = AB.NewGrid(orig, h)
-domain1 = AB.NewDomainList(grid)
+grid = AB.GridFree(orig, h)
+domain1 = AB.DomainList(grid)
 
 AB.add_coord!(domain1, SVector(1.2, 3.5))
 @test AB.get_ncells(domain1) == 1
@@ -32,7 +32,7 @@ AB.remove_set!(domain1, AB.HyperRectangle(SVector(5.0, 5.0), SVector(10000.0, 10
 pos_iter = AB.enum_pos(domain1)
 @test length(pos_iter) == 48
 
-domain2 = AB.NewDomainList(grid)
+domain2 = AB.DomainList(grid)
 union!(domain2, domain1)
 @test AB.get_ncells(domain2) == 48
 AB.remove_set!(domain2, AB.HyperRectangle(SVector(1.0, 1.0), SVector(2.0, 2.0)), AB.OUTER)

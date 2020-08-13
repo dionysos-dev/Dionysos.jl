@@ -14,14 +14,14 @@ nstates = 10
 nsymbols = 11
 autom = AB.NewAutomatonList(nstates, nsymbols)
 
-AB.add_trans!(autom, 5, 6, 9)
-AB.add_trans!(autom, 5, 6, 8)
-AB.add_trans!(autom, 5, 7, 3)
-AB.add_trans!(autom, 8, 6, 3)
-AB.add_trans!(autom, 5, 6, 5)
-AB.add_trans!(autom, 8, 7, 3)
+AB.add_transition!(autom, 5, 6, 9)
+AB.add_transition!(autom, 5, 6, 8)
+AB.add_transition!(autom, 5, 7, 3)
+AB.add_transition!(autom, 8, 6, 3)
+AB.add_transition!(autom, 5, 6, 5)
+AB.add_transition!(autom, 8, 7, 3)
 @test AB.get_ntrans(autom) == 6
-AB.add_translist!(autom, [(1, 2, 5), (1, 3, 4)])
+AB.add_transitions!(autom, [(1, 2, 5), (1, 3, 4)])
 @test AB.get_ntrans(autom) == 8
 
 targetlist = Int[]

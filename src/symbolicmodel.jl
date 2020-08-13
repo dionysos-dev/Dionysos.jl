@@ -79,7 +79,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
                 push!(translist, (target, source, symbol))
             end
             if allin
-                add_translist!(symmodel.autom, translist)
+                add_transitions!(symmodel.autom, translist)
                 ntrans += length(translist)
             end
         end
@@ -117,7 +117,7 @@ function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
             any(not_in_Xdom, ypos_iter) && continue
             for ypos in ypos_iter
                 target = get_state_by_xpos(symmodel, ypos)
-                add_trans!(symmodel.autom, source, symbol, target)
+                add_transition!(symmodel.autom, source, symbol, target)
             end
             ntrans += length(ypos_iter)
         end
@@ -174,7 +174,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
                 push!(translist, (target, source, symbol))
             end
             if allin
-                add_translist!(symmodel.autom, translist)
+                add_transitions!(symmodel.autom, translist)
                 ntrans += length(translist)
             end
         end

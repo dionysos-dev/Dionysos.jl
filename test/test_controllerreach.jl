@@ -15,8 +15,8 @@ lb = SVector(-5.0, -5.0)
 ub = SVector(5.0, 5.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(0.47, 0.23)
-Xgrid = AB.NewGrid(x0, h)
-Xfull = AB.NewDomainList(Xgrid)
+Xgrid = AB.GridFree(x0, h)
+Xfull = AB.DomainList(Xgrid)
 AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
 AB.remove_set!(Xfull, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
 
@@ -24,8 +24,8 @@ lb = SVector(-2.0)
 ub = SVector(2.0)
 u0 = SVector(0.0)
 h = SVector(1.0)
-Ugrid = AB.NewGrid(u0, h)
-Ufull = AB.NewDomainList(Ugrid)
+Ugrid = AB.GridFree(u0, h)
+Ufull = AB.DomainList(Ugrid)
 AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 1.0
@@ -42,13 +42,13 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 display(symmodel)
 
-Xinit = AB.NewDomainList(Xgrid)
+Xinit = AB.DomainList(Xgrid)
 AB.add_set!(Xinit, AB.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), AB.OUTER)
 initlist = Int[]
 for pos in AB.enum_pos(Xinit)
     push!(initlist, AB.get_state_by_xpos(symmodel, pos))
 end
-Xtarget = AB.NewDomainList(Xgrid)
+Xtarget = AB.DomainList(Xgrid)
 AB.add_set!(Xtarget, AB.HyperRectangle(SVector(0.0, 0.0), SVector(4.0, 4.0)), AB.OUTER)
 targetlist = Int[]
 for pos in AB.enum_pos(Xtarget)
@@ -61,14 +61,14 @@ AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 
 xpos = AB.get_somepos(Xinit)
 x0 = AB.get_coord_by_pos(Xgrid, xpos)
-Xsimple = AB.NewDomainList(Xgrid)
+Xsimple = AB.DomainList(Xgrid)
 XUYsimple_ = Any[]
 
 for i = 1:6
     source = AB.get_state_by_xpos(symmodel, xpos)
-    Xs = AB.NewDomainList(Xgrid)
-    Ys = AB.NewDomainList(Xgrid)
-    Us = AB.NewDomainList(Ugrid)
+    Xs = AB.DomainList(Xgrid)
+    Ys = AB.DomainList(Xgrid)
+    Us = AB.DomainList(Ugrid)
     AB.add_pos!(Xs, xpos)
     symbollist = Int[]
     targetlist = Int[]
