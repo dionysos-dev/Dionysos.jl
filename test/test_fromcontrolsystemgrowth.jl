@@ -15,17 +15,17 @@ lb = SVector(0.0, 0.0)
 ub = SVector(10.0, 11.0)
 x0 = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
-Xgrid = AB.NewGridSpaceList(x0, h)
-AB.add_set!(Xgrid, AB.HyperRectangle(lb, ub), AB.OUTER)
-Xfull = AB.NewSubSet(Xgrid)
-AB.add_all!(Xfull)
+Xgrid = AB.GridFree(x0, h)
+Xfull = AB.DomainList(Xgrid)
+AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 lb = SVector(-1.0)
 ub = SVector(1.0)
 u0 = SVector(0.0)
 h = SVector(0.5)
-Ugrid = AB.NewGridSpaceList(u0, h)
-AB.add_set!(Ugrid, AB.HyperRectangle(lb, ub), AB.OUTER)
+Ugrid = AB.GridFree(u0, h)
+Ufull = AB.DomainList(Ugrid)
+AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
 
 tstep = 5.0
 nsys = 3
@@ -39,7 +39,7 @@ measnoise = SVector(1.0, 1.0)*0.0
 
 contsys = AB.NewControlSystemGrowthRK4(
     tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
-symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
+symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 @test AB.get_ntrans(symmodel.autom) == 1145
 
@@ -50,11 +50,11 @@ u = AB.get_coord_by_pos(Ugrid, upos)
 source = AB.get_state_by_xpos(symmodel, xpos)
 symbol = AB.get_symbol_by_upos(symmodel, upos)
 
-Xsimple = AB.NewSubSet(Xgrid)
+Xsimple = AB.DomainList(Xgrid)
 AB.add_pos!(Xsimple, xpos)
-Usimple = AB.NewSubSet(Ugrid)
+Usimple = AB.DomainList(Ugrid)
 AB.add_pos!(Usimple, upos)
-Ysimple = AB.NewSubSet(Xgrid)
+Ysimple = AB.DomainList(Xgrid)
 targetlist = Int[]
 AB.compute_post!(targetlist, symmodel.autom, source, symbol)
 for target in targetlist
@@ -68,9 +68,9 @@ end
     ax = fig.gca()
     ax.set_xlim((-1.0, 11.0))
     ax.set_ylim((-2.0, 14.0))
-    Plot.subset!(ax, 1:2, Xfull, fa = 0.1)
-    Plot.subset!(ax, 1:2, Xsimple)
-    Plot.subset!(ax, 1:2, Ysimple)
+    Plot.domain!(ax, 1:2, Xfull, fa = 0.1)
+    Plot.domain!(ax, 1:2, Xsimple)
+    Plot.domain!(ax, 1:2, Ysimple)
     Plot.trajectory_open_loop!(ax, 1:2, contsys, x, u, 50)
     Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
     Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)

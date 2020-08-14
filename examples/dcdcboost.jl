@@ -13,26 +13,26 @@ function dcdc_boost(; nstep = nothing,
     vs = 1.0, rL = 0.05, xL = 3.0, rC = 0.005, xC = 70.0, r0 = 1.0,
     approx_mode = "nothing")
     #---------------------------------------------------------------------------
-    frameX = AB.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85))
+    _X_ = AB.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85))
     x0 = SVector(0.0, 0.0)
     h = SVector(2.0/4.0e3, 2.0/4.0e3)
-    Xgrid = AB.NewGridSpaceList(x0, h)
-    AB.add_set!(Xgrid, frameX, AB.INNER)
-    Xfull = AB.NewSubSet(Xgrid)
-    AB.add_all!(Xfull)
+    Xgrid = AB.GridFree(x0, h)
+    Xfull = AB.DomainList(Xgrid)
+    AB.add_set!(Xfull, _X_, AB.INNER)
 
-    frameU = AB.HyperRectangle(SVector(1), SVector(2))
+    _U_ = AB.HyperRectangle(SVector(1), SVector(2))
     u0 = SVector(1)
     h = SVector(1)
-    Ugrid = AB.NewGridSpaceList(u0, h)
-    AB.add_set!(Ugrid, frameU, AB.OUTER)
+    Ugrid = AB.GridFree(u0, h)
+    Ufull = AB.DomainList(Ugrid)
+    AB.add_set!(Ufull, _U_, AB.OUTER)
 
-    symmodel = AB.NewSymbolicModelListList(Xgrid, Ugrid)
+    symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 
-    Xinit = AB.NewSubSet(Xgrid)
-    AB.add_all!(Xinit)
-    Xsafe = AB.NewSubSet(Xgrid)
-    AB.add_all!(Xsafe)
+    Xinit = AB.DomainList(Xgrid)
+    union!(Xinit, Xfull)
+    Xsafe = AB.DomainList(Xgrid)
+    union!(Xsafe, Xfull)
     initlist = Int[]
     for pos in AB.enum_pos(Xinit)
         push!(initlist, AB.get_state_by_xpos(symmodel, pos))
@@ -93,9 +93,9 @@ function dcdc_boost(; nstep = nothing,
         ax.set_xlim((1.15, 1.55))
         ax.set_ylim((5.45, 5.85))
 
-        # Plot.subset!(ax, 1:2, Xfull, fa = 0.0, ew = 0.5)
-        # Plot.subset!(ax, 1:2, Xinit, fc = "green")
-        # Plot.subset!(ax, 1:2, Xsafe, fc = "yellow")
+        # Plot.domain!(ax, 1:2, Xfull, fa = 0.0, ew = 0.5)
+        # Plot.domain!(ax, 1:2, Xinit, fc = "green")
+        # Plot.domain!(ax, 1:2, Xsafe, fc = "yellow")
 
         # xpos = AB.get_pos_by_coord(Xgrid, SVector(1.2, 5.6))
         # upos = AB.get_pos_by_coord(Ugrid, SVector(2))
@@ -103,19 +103,19 @@ function dcdc_boost(; nstep = nothing,
         # u = AB.get_coord_by_pos(Ugrid, upos)
         # source = AB.get_state_by_xpos(symmodel, xpos)
         # symbol = AB.get_symbol_by_upos(symmodel, upos)
-        # Xsimple = AB.NewSubSet(Xgrid)
+        # Xsimple = AB.DomainList(Xgrid)
         # AB.add_pos!(Xsimple, xpos)
-        # Usimple = AB.NewSubSet(Ugrid)
+        # Usimple = AB.DomainList(Ugrid)
         # AB.add_pos!(Usimple, upos)
-        # Ysimple = AB.NewSubSet(Xgrid)
+        # Ysimple = AB.DomainList(Xgrid)
         # targetlist = Int[]
         # AB.compute_post!(targetlist, symmodel.autom, source, symbol)
         # for target in targetlist
         #     AB.add_pos!(Ysimple, AB.get_xpos_by_state(symmodel, target))
         # end
         #
-        # Plot.subset!(ax, 1:2, Xsimple)
-        # Plot.subset!(ax, 1:2, Ysimple)
+        # Plot.domain!(ax, 1:2, Xsimple)
+        # Plot.domain!(ax, 1:2, Ysimple)
         # Plot.trajectory_open_loop!(ax, 1:2, contsys, x, u, 50)
         # Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
         # Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)

@@ -24,10 +24,17 @@ function get_ntrans(autom::AutomatonList)
     return length(autom.transitions)
 end
 
+# In add_trans and add_translist:
 # Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
 function add_transition!(autom::AutomatonList, source, symbol, target)
     push!(autom.transitions, (target, source, symbol))
+    autom.issorted = false
+end
+
+# translist is an iterable of Tuple{Int,Int,Int}
+function add_transitions!(autom::AutomatonList, translist)
+    append!(autom.transitions, translist)
     autom.issorted = false
 end
 
