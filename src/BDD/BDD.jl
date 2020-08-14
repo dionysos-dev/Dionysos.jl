@@ -9,9 +9,9 @@ function cube(manager::Ptr{CUDD.DdManager}, vars::Vector{Ptr{CUDD.DdNode}}, valu
     return CUDD.Cudd_bddComputeCube(manager, vars, values, length(vars))
 end
 
-function phase_rem(variables::Vector{Ptr{CUDD.DdNode}}, x::Int)
-    phase = zeros(Cint, length(variables))
-    for i in eachindex(phase)
+function phase_rem(x::Int, n::Int)
+    phase = zeros(Cint, n)
+    for i in 1:n
         if !iszero(x & 1)
             phase[i] = one(Cint)
         end

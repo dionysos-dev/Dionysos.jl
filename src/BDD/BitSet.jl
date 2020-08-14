@@ -33,8 +33,10 @@ function Base.empty!(set::BitSet)
 end
 Base.IteratorSize(::BitSet) = Base.SizeUnknown()
 
+phase_rem(x, set::BitSet) = phase_rem(x, length(set.variables))
+
 function Base.iterate(set::BitSet, state::Int=0)
-    phase, x = phase_rem(set.variables, state)
+    phase, x = phase_rem(state, set)
     if iszero(x)
         if _in(phase, set)
             return (state, state + 1)
@@ -49,7 +51,7 @@ function Base.iterate(set::BitSet, state::Int=0)
 end
 
 function phase!(set::BitSet, x::Int)
-    phase, x = phase_rem(set.variables, x)
+    phase, x = phase_rem(x, set)
     while x > 0
         push!(phase, iszero(x & 1) ? zero(Cint) : one(Cint))
         # As the `manager` is only used by this struct, `bddIthVar` should be
@@ -72,6 +74,6 @@ function _in(phase::Vector{Cint}, set::BitSet)
     return CUDD.Cudd_Eval(set.manager, set.root, phase) === CUDD.Cudd_ReadOne(set.manager)
 end
 function Base.in(x::Int, set::BitSet)
-    phase, x = phase_rem(set.variables, x)
+    phase, x = phase_rem(x, set)
     return iszero(x) && _in(phase, set)
 end
