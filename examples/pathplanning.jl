@@ -103,7 +103,8 @@ function path_planning(x1_max; nstep = nothing,
     #---------------------------------------------------------------------------
 
     empty!(symmodel.autom)
-    @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    return
     # Uncomment for fair eval of perfs
     empty!(symmodel.autom)
     @time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
