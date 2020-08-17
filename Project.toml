@@ -4,12 +4,14 @@ authors = ["Raphael Jungers <raphael.jungers@uclouvain.be>", "Antoine Aspeel <an
 version = "0.0.1"
 
 [deps]
+CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+CUDD = "0.2"
 julia = "1"
 
 [extras]

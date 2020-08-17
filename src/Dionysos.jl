@@ -1,5 +1,5 @@
 module Dionysos
 
-greet() = print("Hello World!")
+include("BDD/BDD.jl")
 
 end # module
