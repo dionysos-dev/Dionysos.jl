@@ -24,7 +24,7 @@ AB.add_coord!(domain1, SVector(-0.5002, -1.0))
 AB.add_set!(domain1, AB.HyperRectangle(SVector(1.0, 0.0), SVector(11.0, 10.0)), AB.OUTER)
 @test AB.get_ncells(domain1) == 67
 
-AB.remove_coord!(domain1, (2.0, 2.0))
+AB.remove_coord!(domain1, SVector(2.0, 2.0))
 @test AB.get_ncells(domain1) == 66
 AB.remove_set!(domain1, AB.HyperRectangle(SVector(5.0, 5.0), SVector(10000.0, 10000.0)), AB.INNER)
 @test AB.get_ncells(domain1) == 48
