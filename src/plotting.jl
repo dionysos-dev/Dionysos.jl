@@ -51,7 +51,7 @@ function set!(ax, vars, rect::AB.HyperRectangle;
     @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
     c = (rect.lb + rect.ub)/2.0
     h = (rect.ub - rect.lb)/2.0
-    polylist = matplotlib.collections.PolyCollection([verts_rect(c[vars], h[vars])])
+    polylist = matplotlib.collections.PolyCollection((verts_rect(c[vars], h[vars]),))
     fca = FC(fc, fa)
     eca = FC(ec, ea)
     polylist.set_facecolor(fca)

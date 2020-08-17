@@ -11,7 +11,6 @@ end
 
 function ensure_sorted!(contr::ControllerList)
     if !contr.issorted
-        # display("contr not sorted")
         sort!(contr.pairs)
         contr.issorted = true
     end

@@ -14,7 +14,6 @@ end
 
 function ensure_sorted!(autom::AutomatonList)
     if !autom.issorted
-        # display("autom not sorted")
         sort!(autom.transitions)
         autom.issorted = true
     end
