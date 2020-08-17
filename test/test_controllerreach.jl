@@ -18,7 +18,7 @@ h = SVector(0.47, 0.23)
 Xgrid = AB.GridFree(x0, h)
 Xfull = AB.DomainList(Xgrid)
 AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
-AB.remove_set!(Xfull, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
+AB.remove_set!(Xfull, AB.HyperRectangle(SVector(-1.0, -2.0), SVector(-1.1, 4.0)), AB.OUTER)
 
 lb = SVector(-2.0)
 ub = SVector(2.0)
