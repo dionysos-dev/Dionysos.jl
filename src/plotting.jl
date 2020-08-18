@@ -72,7 +72,7 @@ function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, 
     X2list[1] = x0[vars[2]]
     x = x0
 
-    for i = 2:Nstep
+    for i in 2:Nstep
         x = contsys.sys_map(x, u, tstep)
         X1list[i] = x[vars[1]]
         X2list[i] = x[vars[2]]
@@ -97,7 +97,7 @@ function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
     for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
         x = AB.get_coord_by_pos(Xdom.grid, xpos)
         u = AB.get_coord_by_pos(Udom.grid, upos)
-        subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i = 1:length(ns))
+        subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i in 1:length(ns))
         subpos_iter = Iterators.product(subpos_axes...)
         x_iter = (x + subpos.*Xdom.grid.h for subpos in subpos_iter)
         Fx_iter = (contsys.sys_map(x, u, contsys.tstep) for x in x_iter)
@@ -168,7 +168,7 @@ end
 # Trajectory closed loop
 function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5, randchoose = false)
-    for i = 1:nstep
+    for i in 1:nstep
         xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
         if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")

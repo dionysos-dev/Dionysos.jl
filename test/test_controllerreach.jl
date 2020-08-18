@@ -64,7 +64,7 @@ x0 = AB.get_coord_by_pos(Xgrid, xpos)
 Xsimple = AB.DomainList(Xgrid)
 XUYsimple_ = Any[]
 
-for i = 1:6
+for i in 1:6
     source = AB.get_state_by_xpos(symmodel, xpos)
     Xs = AB.DomainList(Xgrid)
     Ys = AB.DomainList(Xgrid)

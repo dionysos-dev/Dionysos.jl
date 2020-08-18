@@ -41,7 +41,7 @@ end
 
 function _compute_npoststable(npoststable, autom)
     soursymblist = Tuple{Int,Int}[]
-    for target = 1:autom.nstates
+    for target in 1:autom.nstates
         empty!(soursymblist)
         compute_pre!(soursymblist, autom, target)
         for soursymb in soursymblist
@@ -57,7 +57,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     nsymbols = autom.nsymbols
     # TODO: try to infer whether npoststable is sparse or not,
     # and if sparse, use a dictionary instead
-    npoststable = [0 for i = 1:nstates, j = 1:nsymbols]
+    npoststable = [0 for i in 1:nstates, j in 1:nsymbols]
     _compute_npoststable(npoststable, autom)
     initset = Set(initlist)
     targetset = Set(targetlist)
@@ -76,7 +76,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist)
     while !isempty(initset)
         # ProgressMeter.next!(prog)
         for source in targetset
-            for symbol = 1:nsymbols
+            for symbol in 1:nsymbols
                 npoststable[source, symbol] = 0
             end
         end
@@ -116,7 +116,7 @@ end
 
 function _compute_pairstable(pairstable, autom)
     soursymblist = Tuple{Int, Int}[]
-    for target = 1:autom.nstates
+    for target in 1:autom.nstates
         empty!(soursymblist)
         compute_pre!(soursymblist, autom, target)
         for soursymb in soursymblist
@@ -129,7 +129,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     println("compute_controller_safe! started")
     nstates = autom.nstates
     nsymbols = autom.nsymbols
-    pairstable = [false for i = 1:nstates, j = 1:nsymbols]
+    pairstable = [false for i in 1:nstates, j in 1:nsymbols]
     _compute_pairstable(pairstable, autom)
     nsymbolslist = sum(pairstable, dims = 2)
     safeset = Set(safelist)
@@ -141,7 +141,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     unsafeset = Set(1:nstates)
     setdiff!(unsafeset, safeset)
     for source in unsafeset
-        for symbol = 1:nsymbols
+        for symbol in 1:nsymbols
             pairstable[source, symbol] = false
         end
     end
@@ -174,7 +174,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     # ProgressMeter.finish!(prog)
 
     for source in safeset
-        for symbol = 1:nsymbols
+        for symbol in 1:nsymbols
             if pairstable[source, symbol]
                 add_pair!(contr, source, symbol)
             end

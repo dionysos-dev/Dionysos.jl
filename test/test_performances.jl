@@ -151,8 +151,8 @@ function TestTransitionsList()
     n = Int(1e4)
     x1 = collect(1:n)
     x2 = collect(1:n)
-    @time for x = 1:n/2 get(x1, x) end
-    @time for x = 1:n/2 getAndRemove!(x2, x) end
+    @time for x in 1:n/2 get(x1, x) end
+    @time for x in 1:n/2 getAndRemove!(x2, x) end
     # Comparable but get probably more regular in terms of time
 end
 
@@ -170,10 +170,10 @@ function TestTransitionsSetVsVector()
         end
     end
     n = 200
-    x1 = [(i÷100, i÷5, i) for i = 1:n]
-    x2 = Set((i÷100, i÷5, i) for i = 1:n)
-    @time for x = 1:n/2 filterVec(x1, x) end # Much much Faster
-    @time for x = 1:n/2 filterSet(x2, x) end
+    x1 = [(i÷100, i÷5, i) for i in 1:n]
+    x2 = Set((i÷100, i÷5, i) for i in 1:n)
+    @time for x in 1:n/2 filterVec(x1, x) end # Much much Faster
+    @time for x in 1:n/2 filterSet(x2, x) end
 end
 
 # Set vs Vector for setdiff
@@ -203,8 +203,8 @@ function TestTuplePlusSVector()
     end # return SVector
     X = @SVector [1,2,3,4,5]
     Y = (5,6,7,8,9)
-    @time for i = 1:1000 x = mySumTS1(X, Y) end
-    @time for i = 1:1000 x = mySumTS2(X, Y) end # Superfast both
+    @time for i in 1:1000 x = mySumTS1(X, Y) end
+    @time for i in 1:1000 x = mySumTS2(X, Y) end # Superfast both
     # @code_warntype mySumTS3(X, Y)
     # @code_warntype mySumTS4(X, Y)
 end
@@ -214,8 +214,8 @@ function TestOperationFloatInt()
     N = 50000
     x = 1.0
     y = 2.0
-    @time for i = 1:N x*2 + 5 + y/3 end
-    @time for i = 1:N x*2 + 5.0 + y/3.0 end
+    @time for i in 1:N x*2 + 5 + y/3 end
+    @time for i in 1:N x*2 + 5.0 + y/3.0 end
     # Similar
 end
 
@@ -254,10 +254,10 @@ function _hash(x, ::Val{N}, h) where N
 end
 
 function TestHashTuple(n)
-    D1 = [(1,2,i) for i = 1:n]
-    D2 = [MyTuple((1,2,i)) for i = 1:n]
-    D3 = [YourTuple((1,2,i)) for i = 1:n]
-    D4 = [HisTuple((1,2,i)) for i = 1:n]
+    D1 = [(1,2,i) for i in 1:n]
+    D2 = [MyTuple((1,2,i)) for i in 1:n]
+    D3 = [YourTuple((1,2,i)) for i in 1:n]
+    D4 = [HisTuple((1,2,i)) for i in 1:n]
     for (d1, d3, d4) in zip(D1, D3, D4)
         @assert hash(d1) == hash(d3) == hash(d4)
     end
@@ -276,10 +276,10 @@ function TestHashTuple(n)
 end
 
 function TestInTuple(n)
-    D1 = Set((1,2,i) for i = 1:n)
-    D2 = Set(MyTuple((1,2,i)) for i = 1:n)
-    D3 = Set(YourTuple((1,2,i)) for i = 1:n)
-    D4 = Set(HisTuple((1,2,i)) for i = 1:n)
+    D1 = Set((1,2,i) for i in 1:n)
+    D2 = Set(MyTuple((1,2,i)) for i in 1:n)
+    D3 = Set(YourTuple((1,2,i)) for i in 1:n)
+    D4 = Set(HisTuple((1,2,i)) for i in 1:n)
     F1 = [(1,2,round(Int,i)) for i = 0.8*n:1.2*n]
     F2 = [MyTuple((1,2,round(Int,i))) for i = 0.8*n:1.2*n]
     F3 = [YourTuple((1,2,round(Int,i))) for i = 0.8*n:1.2*n]
