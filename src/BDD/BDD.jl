@@ -24,6 +24,6 @@ function phase_rem(x::Int, n::Int)
 end
 
 include("BitSet.jl")
-include("integersset.jl")
+include("inttupleset.jl")
 
 end # module
