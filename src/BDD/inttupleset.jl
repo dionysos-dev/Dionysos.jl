@@ -120,7 +120,6 @@ function _increment(x::NTuple{N}, j) where N
 end
 
 Base.iterate(set::IntTupleSet{N,T}) where {N,T} = iterate(set, ntuple(i -> zero(T), Val(N)))
-
 function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where N
     I = _phase_truncated!(set, state)
     I == N && return nothing
