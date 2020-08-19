@@ -120,12 +120,3 @@ function Base.iterate(set::IntegersSet{N}, state::NTuple{N}) where N
     iszero(I) && _in(set.phase_, set) && return (state, _increment(state, 0))
     return iterate(set, _increment(state, I))
 end
-
-
-#=
-function Base.empty!(set::TupleUIntSet)
-    set.root = CUDD.Cudd_ReadLogicZero(set.manager)
-end
-
-
-=#
