@@ -1,4 +1,5 @@
 include("BDD/BDD.jl")
+include("BDD/test_inttupleset.jl")
 include("test_griddomain.jl")
 include("test_controlsystemgrowth.jl")
 include("test_controlsystemlinearized.jl")

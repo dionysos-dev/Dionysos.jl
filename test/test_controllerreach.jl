@@ -18,7 +18,7 @@ h = SVector(0.47, 0.23)
 Xgrid = AB.GridFree(x0, h)
 Xfull = AB.DomainList(Xgrid)
 AB.add_set!(Xfull, AB.HyperRectangle(lb, ub), AB.OUTER)
-AB.remove_set!(Xfull, AB.HyperRectangle((-1.0, -2.0), (-1.1, 4.0)), AB.OUTER)
+AB.remove_set!(Xfull, AB.HyperRectangle(SVector(-1.0, -2.0), SVector(-1.1, 4.0)), AB.OUTER)
 
 lb = SVector(-2.0)
 ub = SVector(2.0)
@@ -64,7 +64,7 @@ x0 = AB.get_coord_by_pos(Xgrid, xpos)
 Xsimple = AB.DomainList(Xgrid)
 XUYsimple_ = Any[]
 
-for i = 1:6
+for i in 1:6
     source = AB.get_state_by_xpos(symmodel, xpos)
     Xs = AB.DomainList(Xgrid)
     Ys = AB.DomainList(Xgrid)
