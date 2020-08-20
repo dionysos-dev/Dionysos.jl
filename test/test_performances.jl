@@ -219,7 +219,6 @@ function TestOperationFloatInt()
     # Similar
 end
 
-#-------------------------------------------------------------------------------
 # Tail-recursive hashing for tuples?
 using Base.Cartesian
 
@@ -308,5 +307,28 @@ function TestInTuple(n)
     end
     @time for f in F4
         f ∈ D4
+    end
+end
+
+# Are function with condition with static values inlined smartly?
+@inline foo(x, b) = b ? x - 4 : x + 7
+testTrue(x) = foo(x, true)
+testFalse(x) = foo(x, false)
+
+function TestStaticCondition(n)
+    @time for i in 1:n
+        b = i != 0
+        x = testTrue(i) end
+    @time for i in 1:n
+        b = i == 0
+        x = testFalse(i)
+    end
+    @time for i in 1:n
+        b = i != 0
+        x = foo(i, b)
+    end
+    @time for i in 1:n
+        b = i == 0
+        x = foo(i, b)
     end
 end
