@@ -175,16 +175,15 @@ function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
             return
         end
         source = AB.get_state_by_xpos(symmodel, xpos)
-        symbollist = Int[]
-        AB.compute_enabled_symbols!(symbollist, contr, source)
+        symbollist = AB.fix_and_eliminate_first(contr, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return
         end
         if randchoose
-            symbol = rand(symbollist)
+            symbol = rand(collect(symbollist))[1]
         else
-            symbol = symbollist[1]
+            symbol = first(symbollist)[1]
         end
         upos = AB.get_upos_by_symbol(symmodel, symbol)
         u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)

@@ -58,13 +58,13 @@ end
 
 contr = AB.NewControllerList()
 AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
-@test AB.get_npairs(contr) == 412
+@test length(contr) == 412
 if VERSION >= v"1.5"
     function f(autom, initlist, targetlist)
         contr = AB.NewControllerList()
         initset, targetset, num_targets_unreachable, current_targets, next_targets = AB._data(contr, autom, initlist, targetlist)
         # Preallocates to make sure `_compute_controller_reach` does not need to allocate
-        sizehint!(contr.pairs, 500)
+        sizehint!(contr.data, 500)
         sizehint!(current_targets, 50)
         sizehint!(next_targets, 200)
         @allocated AB._compute_controller_reach!(contr, autom, initset, targetset, num_targets_unreachable, current_targets, next_targets)
@@ -84,10 +84,8 @@ for i in 1:6
     Ys = AB.DomainList(Xgrid)
     Us = AB.DomainList(Ugrid)
     AB.add_pos!(Xs, xpos)
-    symbollist = Int[]
     targetlist = Int[]
-    AB.compute_enabled_symbols!(symbollist, contr, source)
-    for symbol in symbollist
+    for (symbol,) in AB.fix_and_eliminate_first(contr, source)
         AB.compute_post!(targetlist, symmodel.autom, source, symbol)
         AB.add_pos!(Us, AB.get_upos_by_symbol(symmodel, symbol))
     end
