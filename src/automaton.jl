@@ -51,6 +51,14 @@ function compute_post!(targetlist, autom::AutomatonList, source, symbol)
     end
 end
 
+drop_target(target_source_symbol) = (target_source_symbol[2], target_source_symbol[3])
+function pre(autom::AutomatonList, target)
+    ensure_sorted!(autom)
+    idxlist = searchsorted(autom.transitions, (target,), by = x -> x[1])
+    return Base.Generator(drop_target, view(autom.transitions, idxlist))
+end
+
+# TODO remove
 function compute_pre!(soursymblist, autom::AutomatonList, target)
     ensure_sorted!(autom)
     idxlist = searchsorted(autom.transitions, (target,), by = x -> x[1])
