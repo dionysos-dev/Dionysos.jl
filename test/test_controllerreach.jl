@@ -40,6 +40,7 @@ contsys = AB.NewControlSystemGrowthRK4(
     tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 display(symmodel)
 
 Xinit = AB.DomainList(Xgrid)
@@ -57,7 +58,20 @@ end
 
 contr = AB.NewControllerList()
 AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
-@test AB.get_npairs(contr) == 836
+@test AB.get_npairs(contr) == 412
+if VERSION >= v"1.5"
+    function f(autom, initlist, targetlist)
+        contr = AB.NewControllerList()
+        initset, targetset, num_targets_unreachable, current_targets, next_targets = AB._data(contr, autom, initlist, targetlist)
+        # Preallocates to make sure `_compute_controller_reach` does not need to allocate
+        sizehint!(contr.pairs, 500)
+        sizehint!(current_targets, 50)
+        sizehint!(next_targets, 200)
+        @allocated AB._compute_controller_reach!(contr, autom, initset, targetset, num_targets_unreachable, current_targets, next_targets)
+    end
+    f(symmodel.autom, initlist, targetlist)
+    @test f(symmodel.autom, initlist, targetlist) == 0
+end
 
 xpos = AB.get_somepos(Xinit)
 x0 = AB.get_coord_by_pos(Xgrid, xpos)

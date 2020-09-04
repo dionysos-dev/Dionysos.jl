@@ -39,76 +39,55 @@ function compute_enabled_symbols!(symbollist, contr::ControllerList, source)
     end
 end
 
-function _compute_npoststable(npoststable, autom)
+function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     soursymblist = Tuple{Int,Int}[]
     for target in 1:autom.nstates
         empty!(soursymblist)
         compute_pre!(soursymblist, autom, target)
         for soursymb in soursymblist
-            npoststable[soursymb[1], soursymb[2]] += 1
+            num_targets_unreachable[soursymb[1], soursymb[2]] += 1
         end
     end
 end
 
 # Assumes contr is "empty"
-function compute_controller_reach!(contr, autom, initlist, targetlist)
-    println("compute_controller_reach! started")
-    nstates = autom.nstates
-    nsymbols = autom.nsymbols
-    # TODO: try to infer whether npoststable is sparse or not,
-    # and if sparse, use a dictionary instead
-    npoststable = [0 for i in 1:nstates, j in 1:nsymbols]
-    _compute_npoststable(npoststable, autom)
-    initset = Set(initlist)
-    targetset = Set(targetlist)
-    nexttargetset = Set{Int}()
-    # Setdiff!() seems faster on Sets (see also test_performances.jl).
-    # Also we need nexttargetlist to be unique (because push!(nexttargetlist, soursymb[1])
-    # may add the same source several times).
-    # After comparison, the implementation with Sets seems faster.
-    # initset = copy(initlist)
-    # targetlist = copy(targetlist)
-    # nexttargetlist = Int[]
-    soursymblist = Tuple{Int,Int}[]
-
-    # Commented because it changes the number of allocations
-    # prog = ProgressUnknown("# iterations computing controller:")
-    while !isempty(initset)
-        # ProgressMeter.next!(prog)
-        for source in targetset
-            for symbol in 1:nsymbols
-                npoststable[source, symbol] = 0
-            end
-        end
-        for target in targetset
-            empty!(soursymblist)
-            compute_pre!(soursymblist, autom, target)
-            for soursymb in soursymblist
-                # Second approach seems faster. Also tried with storing the value
-                # of npoststable[soursymb[1], soursymb[2]], and with @views...
-                # if npoststable[soursymb[1], soursymb[2]] > 1
-                #   npoststable[soursymb[1], soursymb[2]] -= 1
-                # elseif npoststable[soursymb[1], soursymb[2]] == 1
-                #   npoststable[soursymb[1], soursymb[2]] = 0
-                #   push!(nexttargetset, soursymb[1])
-                #   add_pair!(contr, soursymb[1], soursymb[2])
-                # end
-                npoststable[soursymb[1], soursymb[2]] -= 1
-                if npoststable[soursymb[1], soursymb[2]] == 0
-                    push!(nexttargetset, soursymb[1])
-                    add_pair!(contr, soursymb[1], soursymb[2])
+function _compute_controller_reach!(contr, autom, init_set, target_set, num_targets_unreachable, current_targets, next_targets)
+    num_init_unreachable = length(init_set)
+    while !isempty(current_targets) && !iszero(num_init_unreachable)
+        empty!(next_targets)
+        for target in current_targets
+            for (source, symbol) in pre(autom, target)
+                if !(source in target_set) && iszero(num_targets_unreachable[source, symbol] -= 1)
+                    push!(target_set, source)
+                    push!(next_targets, source)
+                    add_pair!(contr, source, symbol)
+                    if source in init_set
+                        num_init_unreachable -= 1
+                    end
                 end
             end
         end
-        if isempty(nexttargetset)
-            println("\ncompute_controller_reach! terminated without covering init set")
-            # ProgressMeter.finish!(prog)
-            return
-        end
-        setdiff!(initset, nexttargetset)
-        targetset, nexttargetset = nexttargetset, targetset
-        empty!(nexttargetset)
-        # unique!(targetlist)
+        current_targets, next_targets = next_targets, current_targets
+    end
+    return iszero(num_init_unreachable)
+end
+function _data(contr, autom, initlist, targetlist)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
+    initset = BitSet(initlist)
+    targetset = BitSet(targetlist)
+    current_targets = copy(targetlist)
+    next_targets = Int[]
+    return initset, targetset, num_targets_unreachable, current_targets, next_targets
+end
+function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
+    println("compute_controller_reach! started")
+    # TODO: try to infer whether num_targets_unreachable is sparse or not,
+    # and if sparse, use a dictionary instead
+    if !_compute_controller_reach!(contr, autom, _data(contr, autom, initlist, targetlist)...)
+        println("\ncompute_controller_reach! terminated without covering init set")
+        # ProgressMeter.finish!(prog)
+        return
     end
     # ProgressMeter.finish!(prog)
     println("\ncompute_controller_reach! terminated with success")
