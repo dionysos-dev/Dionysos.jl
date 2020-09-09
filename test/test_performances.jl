@@ -332,3 +332,80 @@ function TestStaticCondition(n)
         x = foo(i, b)
     end
 end
+
+# Splatting in function
+foo(x, y, z=1.0) = x .+ y .+ z
+bar1(args...) = foo(ones(10), args...)
+bar2(y, z=1.0) = foo(ones(10), y, z)
+
+function TestSplatting(n)
+    for i = 1:n res = bar1(8, 9.0) end
+    for i = 1:n res = bar2(8, 9.0) end
+    @time for i = 1:n res = bar1(8, 9.0) end
+    @time for i = 1:n res = bar2(8, 9.0) end
+    @time for i = 1:n res = bar1(8) end
+    @time for i = 1:n res = bar2(8) end
+end
+
+# Anonymous function and type stability
+foo(x::Int, y::Int) = 5*y
+foo(x::Int, y::Float64) = "a"
+foo(x::Float64, y) = 5.0*y
+bar(u) = let x = u[1]
+    y -> foo(x, y)
+end
+function vim(u)
+    the_bar = bar(u)
+    z = the_bar(8.0)
+    z + 2
+end
+@code_warntype vim([6])
+
+# From https://github.com/c42f/FastClosures.jl
+# code_warntype problem
+function f1()
+    if true
+    end
+    r = 1
+    cb = ()->r
+    identity(cb)
+end
+
+# code_warntype clean
+function f2()
+    if true
+    end
+    r = 1
+    cb = let r = r
+        ()->r
+    end
+    identity(cb)
+end
+
+@code_warntype f1()
+@code_warntype f2()
+
+# Closure with multiple arguments length
+foo(x, y) = x*y
+foo(x, y, z) = x + y + z
+bar(x) = let x = x
+    (args...) -> foo(x[1], args...)
+end
+vim1(x) = let x = x
+    y -> foo(x[1], y)
+end
+vim2(x) = let x = x
+    (y, z) -> foo(x[1], y, z)
+end
+
+function TestClosure(n)
+    _bar = bar([5])
+    _vim1 = vim1([5])
+    _vim2 = vim2([5])
+    @time for i = 1:n display(_bar(i)) end
+    @time for i = 1:n display(_bar(i, i + 1)) end
+    @time for i = 1:n display(_vim1(i)) end
+    @time for i = 1:n display(_vim2(i, i + 1)) end
+end
+
+@code_warntype bar([5])(6)
