@@ -1,7 +1,7 @@
 """
-    mutable struct IntTupleSet <: AbstractSet{NTuple{N,Int} where N}
+    mutable struct IntTupleSet <: AbstractSet{NTuple{N,<:Integer} where N}
 
-Same as `Base.Set{NTuple{N,Int} where N}` but with `CUDD`.
+Same as `Base.Set{NTuple{N,<:Integer} where N}` but with `CUDD`.
 """
 mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
     manager::Ptr{CUDD.DdManager}
@@ -64,7 +64,7 @@ function _phase_simple!(set, e, i)
     end
 end
 
-function _phase!(set, x)
+function _phase!(set::IntTupleSet, x)
     empty!(set.vars_)
     empty!(set.z_)
     for (i, e) in enumerate(x)
@@ -98,20 +98,19 @@ function _phase_simple_truncated!(set, e, i)
     return iszero(e)
 end
 
-function _phase_truncated!(set, x)
+# Returns the first `i` for which there is not enough bits to represent x[i];
+# Returns 0 if there is no such `i`.
+function _phase_truncated!(set::IntTupleSet, x)
     for (i, e) in enumerate(x)
         _phase_simple_truncated!(set, e, i) || return i
     end
     return 0
 end
 
-function _in(phase, set)
-    return CUDD.Cudd_Eval(set.manager, set.root, phase) === CUDD.Cudd_ReadOne(set.manager)
+function Base.in(x::NTuple{N,T}, set::IntTupleSet{N,T}) where {N,T<:Integer}
+    return _phase_truncated!(set, x) == 0 && _in(set.manager, set.root, set.phase_)
 end
-
-function Base.in(x::NTuple{N,T}, set::IntTupleSet{N,T}) where {N,T}
-    return iszero(_phase_truncated!(set, x)) && _in(set.phase_, set)
-end
+Base.in(x, ::IntTupleSet) = false
 
 # Can we improve this?
 @inline _incr_(e::T, i, j) where T = i == j ? zero(T) : (i == j + 1 ? e + one(T) : e)
@@ -123,6 +122,6 @@ Base.iterate(set::IntTupleSet{N,T}) where {N,T} = iterate(set, ntuple(i -> zero(
 function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where N
     I = _phase_truncated!(set, state)
     I == N && return nothing
-    iszero(I) && _in(set.phase_, set) && return (state, _increment(state, 0))
+    I == 0 && _in(set.manager, set.root, set.phase_) && return (state, _increment(state, 0))
     return iterate(set, _increment(state, I))
 end
