@@ -19,7 +19,12 @@ function IntSet{T}() where T
     phase_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{CUDD.DdNode}[]
-    return IntSet{T}(manager, variables, root, phase_, vars_, z_)
+    set = IntSet{T}(manager, variables, root, phase_, vars_, z_)
+    # finalizer(set) do
+    #     CUDD.quit_cudd(set.manager)
+    #     println("set desctructed")
+    # end
+    return set
 end
 IntSet() = IntSet{Int}()
 
@@ -46,7 +51,7 @@ function _phase!(set::IntSet, x)
     empty!(set.z_)
     for idx in eachindex(set.variables)
         set.phase_[idx] = _bit(x)
-        x >>= 1
+        x >>>= 1
     end
     while x > 0
         push!(set.phase_, _bit(x))
@@ -56,7 +61,7 @@ function _phase!(set::IntSet, x)
         push!(set.variables, newvar)
         push!(set.vars_, newvar)
         push!(set.z_, zero(Cint))
-        x >>= 1
+        x >>>= 1
     end
 end
 
@@ -84,7 +89,7 @@ Base.delete!(set::IntSet, x) = set
 function _phase_truncated!(set::IntSet, x)
     for idx in eachindex(set.variables)
         set.phase_[idx] = _bit(x)
-        x >>= 1
+        x >>>= 1
     end
     return iszero(x) ? 0 : 1
 end
@@ -99,50 +104,3 @@ function Base.iterate(set::IntSet{T}, state::T=zero(T)) where T
     _in(set.manager, set.root, set.phase_) && return (state, state + 1)
     return iterate(set, state + 1)
 end
-
-#=
-phase_rem(x, set::IntSet) = phase_rem(x, length(set.variables))
-
-function Base.iterate(set::IntSet, state::Int=0)
-    phase, x = phase_rem(state, set)
-    if iszero(x)
-        if _in(phase, set)
-            return (state, state + 1)
-        else
-            return iterate(set, state + 1)
-        end
-    else
-        # state would require more variables than what is in `set.variables`
-        # so it is necessarily not in `set`.
-        return nothing
-    end
-end
-
-function phase!(set::IntSet, x::Int)
-    phase, x = phase_rem(x, set)
-    while x > 0
-        push!(phase, iszero(x & 1) ? zero(Cint) : one(Cint))
-        # As the `manager` is only used by this struct, `bddIthVar` should be
-        # the same as `bddAddVar`.
-        var = CUDD.Cudd_bddIthVar(set.manager, Cint(length(set.variables)))
-        push!(set.variables, var)
-        set.root = CUDD.Cudd_bddAnd(set.manager, set.root, cube(set.manager, [var], [zero(Cint)]))
-        x >>= 1
-    end
-    return phase
-end
-minterm!(set::IntSet, x::Int) = cube(set.manager, set.variables, phase!(set, x))
-function Base.push!(set::IntSet, x::Int)
-    # `minterm!` modifies `set.root` so we need to call it before the `bddOr` line where we access `set.root`.
-    minterm = minterm!(set, x)
-    set.root = CUDD.Cudd_bddOr(set.manager, set.root, minterm)
-    return set
-end
-function _in(phase::Vector{Cint}, set::IntSet)
-    return CUDD.Cudd_Eval(set.manager, set.root, phase) === CUDD.Cudd_ReadOne(set.manager)
-end
-function Base.in(x::Int, set::IntSet)
-    phase, x = phase_rem(x, set)
-    return iszero(x) && _in(phase, set)
-end
-=#

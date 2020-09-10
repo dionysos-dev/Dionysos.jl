@@ -1,5 +1,6 @@
 include(joinpath(@__DIR__, "../../src/BDD/BDD.jl"))
 using Test
+using CUDD
 
 @testset "BDD/IntSet" begin
     set = BDD.IntSet()
@@ -35,4 +36,5 @@ using Test
         "Main.BDD.IntSet{Int64} with 6 bits",       # Julia v1.0
         "Main.BDD.IntSet{Int64} with 6 bits:\n  40" # Julia v1.5
     ]
+    CUDD.Cudd_Quit(set.manager)
 end

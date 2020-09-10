@@ -4,6 +4,8 @@ using CUDD
 
 # Helper functions
 
+CUDD.Cudd_Init() = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0)
+
 # Inline and remove assert later
 function cube(manager::Ptr{CUDD.DdManager}, vars::Vector{Ptr{CUDD.DdNode}}, values::Vector{Cint})
     @assert length(vars) == length(values)
@@ -15,17 +17,6 @@ function _in(manager, root, phase)
 end
 
 @inline _bit(x::T) where T<:Integer = iszero(x & one(T)) ? zero(Cint) : one(Cint)
-
-# function phase_rem(x::Int, n::Int)
-#     phase = zeros(Cint, n)
-#     for i in 1:n
-#         if !iszero(x & 1)
-#             phase[i] = one(Cint)
-#         end
-#         x >>= 1
-#     end
-#     return phase, x
-# end
 
 include("intset.jl")
 include("inttupleset.jl")

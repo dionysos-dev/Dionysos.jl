@@ -48,7 +48,7 @@ Base.IteratorSize(::IntTupleSet) = Base.SizeUnknown()
 function _phase_simple!(set, e, i)
     for idx in set.indexes[i]
         set.phase_[idx] = _bit(e)
-        e >>= 1
+        e >>>= 1
     end
     while e > 0
         push!(set.phase_, _bit(e))
@@ -60,7 +60,7 @@ function _phase_simple!(set, e, i)
         push!(set.indexes[i], newidx + 1)
         push!(set.vars_, newvar)
         push!(set.z_, zero(Cint))
-        e >>= 1
+        e >>>= 1
     end
 end
 
@@ -93,7 +93,7 @@ Base.delete!(set::IntTupleSet, x) = set
 function _phase_simple_truncated!(set, e, i)
     for idx in set.indexes[i]
         set.phase_[idx] = _bit(e)
-        e >>= 1
+        e >>>= 1
     end
     return iszero(e)
 end
