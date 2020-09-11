@@ -36,5 +36,13 @@ using CUDD
         "Main.BDD.IntSet{Int64} with 6 bits",       # Julia v1.0
         "Main.BDD.IntSet{Int64} with 6 bits:\n  40" # Julia v1.5
     ]
-    CUDD.Cudd_Quit(set.manager)
+    push!(set, 42)
+    @test Set(set) == Set([40, 42])
+    delete!(set, 41)
+    @test Set(set) == Set([40, 42])
+    delete!(set, 42)
+    @test Set(set) == Set([40])
+    delete!(set, 40)
+    @test isempty(set)
+    CUDD.Cudd_Quit(set.mng)
 end

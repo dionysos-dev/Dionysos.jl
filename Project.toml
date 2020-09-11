@@ -15,7 +15,6 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-CUDD = "0.2"
 julia = "1"
 
 [extras]

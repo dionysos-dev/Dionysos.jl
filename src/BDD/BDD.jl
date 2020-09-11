@@ -4,17 +4,14 @@ using CUDD
 
 # Helper functions
 
-CUDD.Cudd_Init() = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0)
-
-# Inline and remove assert later
-function cube(manager::Ptr{CUDD.DdManager}, vars::Vector{Ptr{CUDD.DdNode}}, values::Vector{Cint})
-    @assert length(vars) == length(values)
-    return CUDD.Cudd_bddComputeCube(manager, vars, values, length(vars))
-end
-
-function _in(manager, root, phase)
-    return CUDD.Cudd_Eval(manager, root, phase) === CUDD.Cudd_ReadOne(manager)
-end
+_Deref(mng::Ptr{Manager}, node::Ptr{Node}) = Cudd_RecursiveDeref(mng, node)
+_Ref(node::Ptr{Node}) = CUDD.Cudd_Ref(node)
+_Cube(mng::Ptr{Manager}, vars::Vector{Ptr{Node}}, phases::Vector{Cint}) =
+    CUDD.Cudd_bddComputeCube(mng, vars, phases, length(vars))
+_Cube(mng::Ptr{Manager}, phases::Vector{Cint}) =
+    CUDD.Cudd_IndicesToCube(mng, phases, length(values))
+_in(mng::Ptr{Manager}, f::Ptr{Node}, values::Vector{Cint}) =
+    CUDD.Cudd_Eval(mng, f, values) === CUDD.Cudd_ReadOne(mng)
 
 @inline _bit(x::T) where T<:Integer = iszero(x & one(T)) ? zero(Cint) : one(Cint)
 
