@@ -4,6 +4,7 @@ module Abstraction
 
 using StaticArrays
 using Base.Cartesian
+using CUDD
 
 const INT_MAX = typemax(Int)
 const INT_MIN = typemin(Int)
@@ -79,6 +80,36 @@ function ListGridManager(
         XMap, UMap)
 end
 
+mutable struct BDDGridManager{XD,UD,XM,UM,BM} <: GridManager
+    XDisc::XD
+    UDisc::UD
+    XMap::XM
+    UMap::UM
+    BDD::BM
+end
+
+function BDDGridManager(
+        xorig::XV, xh::XV, xmin::XV,
+        uorig::UV, uh::UV, umin::UV
+        ) where {XV<:SVector,UV<:SVector}
+    N = length(XV)
+    M = length(UV)
+    XGrid = TheGrid(xorig, xh)
+    UGrid = TheGrid(uorig, uh)
+    xposmin = _grid_coord2pos(XGrid, xmin)
+    uposmin = _grid_coord2pos(UGrid, umin)
+    XDisc = BDDGridDisc(XGrid, xposmin)
+    UDisc = BDDGridDisc(UGrid, uposmin)
+    XCT = _celltype(typeof(XDisc))
+    UCT = _celltype(typeof(UDisc))
+    XMap = 0 # ListGridMap(XCT)
+    UMap = 0 # ListGridMap(UCT)
+    return ListGridManager(
+        XDisc, UDisc,
+        XMap, UMap)
+end
+
+include("BDD.jl")
 include("rectangle.jl")
 include("indexedcollection.jl")
 include("controlsystems.jl")

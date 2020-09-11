@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/rectangle" begin
 rectI1 = ABS.HyperRectangle(SVector(0, 1), SVector(1, 2))
 rectI2 = ABS.HyperRectangle(SVector(10, 1), SVector(5, 2))

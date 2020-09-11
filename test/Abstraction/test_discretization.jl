@@ -7,10 +7,17 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+ListGridDisc = (orig, h, posmin) -> ABS.ListGridDisc(orig, h)
+BDDGridDisc = (orig, h, posmin) -> ABS.BDDGridDisc(orig, h, posmin)
+
+println("")
+
+for GridDisc in [ListGridDisc, BDDGridDisc]
 @testset "Abstraction/discretization" begin
 orig = SVector(0.0, 0.0)
 h = SVector(1.0, 2.0)
-disc = ABS.ListGridDisc(orig, h)
+posmin = SVector(-5, -5)
+disc = GridDisc(orig, h, posmin)
 x = SVector(3.14, 15.9)
 coord2cell = ABS.coord2cell(disc)
 cell2pos = ABS.cell2pos(disc)
@@ -38,6 +45,7 @@ rect = ABS.HyperRectangle(SVector(-1e100, 2.71), SVector(Inf, Inf))
     ABS.HyperRectangle(SVector(INT_MIN, 2), SVector(INT_MAX, INT_MAX))
 @test coord2pos_set(rect, ABS.OUTER) ===
     ABS.HyperRectangle(SVector(INT_MIN, 1), SVector(INT_MAX, INT_MAX))
+end
 end
 
 end  # module TestMain

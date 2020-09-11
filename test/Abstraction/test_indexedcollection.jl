@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/indexedcollection" begin
 coll = ABS.IndColl{String}()
 @test push!(coll, "a") === coll

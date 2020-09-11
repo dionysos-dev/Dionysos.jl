@@ -8,28 +8,6 @@ struct TheGrid{N,T}
     h::SVector{N,T}
 end
 
-mutable struct ListGridDisc{N,T} <: GridDisc{N,T}
-    grid::TheGrid{N,T}
-end
-
-ListGridDisc(orig::VT, h::VT) where {VT<:SVector} = ListGridDisc(TheGrid(orig, h))
-
-struct ListGridCell{N}
-    pos::SVector{N,Int}
-end
-
-const ListGridCell_seed = hash("ListGridCell")
-@generated function Base.hash(cell::ListGridCell{N}, h::UInt) where N
-    quote
-        h += ListGridCell_seed
-        @nexprs $N i -> h = hash(cell.pos[i], h)
-    end
-end
-
-ListGridCell(post::NTuple{N,Int}) where N = ListGridCell(SVector(post))
-
-_celltype(::Type{<:ListGridDisc{N}}) where N = ListGridCell{N}
-
 _round_trunc(round_mode, x::T) where T = x >= T(INT_MAX) ? INT_MAX :
     x < T(INT_MIN) ? INT_MIN : round(Int, x, round_mode)
 _ceil_trunc(x) = _round_trunc(RoundUp, x)
@@ -55,22 +33,15 @@ function _grid_coord2pos_set(grid::TheGrid,
     return HyperRectangle(lbI, ubI)
 end
 
-coord2pos(disc::ListGridDisc) = let grid = disc.grid
+coord2pos(disc::GridDisc) = let grid = disc.grid
     x -> _grid_coord2pos(grid, x)
 end
-coord2pos_set(disc::ListGridDisc) = let grid = disc.grid
+coord2pos_set(disc::GridDisc) = let grid = disc.grid
     (set, incl_mode) -> _grid_coord2pos_set(grid, set, incl_mode)
 end
-pos2coord(disc::ListGridDisc) = let grid = disc.grid
+pos2coord(disc::GridDisc) = let grid = disc.grid
     pos -> _grid_pos2coord(grid, pos)
 end
 
-pos2cell(disc::ListGridDisc) = pos -> ListGridCell(pos)
-cell2pos(disc::ListGridDisc) = cell -> cell.pos
-
-coord2cell(disc::ListGridDisc) = let grid = disc.grid
-    x -> ListGridCell(_grid_coord2pos(grid, x))
-end
-cell2coord(disc::ListGridDisc) = let grid = disc.grid
-    cell -> _grid_pos2coord(grid, cell.pos)
-end
+include("discretization-ListGrid.jl")
+include("discretization-BDDGrid.jl")
