@@ -7,7 +7,7 @@ mutable struct IntSet{T<:Integer} <: AbstractSet{T}
     mng::Ptr{Manager}
     variables::Vector{Ptr{Node}}
     root::Ptr{Node}
-    phase_::Vector{Cint}
+    phases_::Vector{Cint}
     vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
 end
@@ -17,10 +17,10 @@ function IntSet{T}() where T
     variables = Ptr{Node}[]
     root = CUDD.Cudd_ReadLogicZero(mng)
     _Ref(root)
-    phase_ = Cint[]
+    phases_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{Node}[]
-    set = IntSet{T}(mng, variables, root, phase_, vars_, z_)
+    set = IntSet{T}(mng, variables, root, phases_, vars_, z_)
     finalizer(set) do set
         CUDD.Cudd_Quit(set.mng)
     end
@@ -44,11 +44,11 @@ function _phase!(set::IntSet, x)
     empty!(set.vars_)
     empty!(set.z_)
     for idx in eachindex(set.variables)
-        set.phase_[idx] = _bit(x)
+        set.phases_[idx] = _bit(x)
         x >>>= 1
     end
     while x > 0
-        push!(set.phase_, _bit(x))
+        push!(set.phases_, _bit(x))
         # As the `mng` is only used by this struct, `bddIthVar` should be
         # the same as `bddNewVar`.
         newvar = CUDD.Cudd_bddIthVar(set.mng, length(set.variables))
@@ -64,7 +64,7 @@ end
 # with IntTupleSet.
 function _phase_truncated!(set::IntSet, x)
     for idx in eachindex(set.variables)
-        set.phase_[idx] = _bit(x)
+        set.phases_[idx] = _bit(x)
         x >>>= 1
     end
     return iszero(x) ? 0 : 1
@@ -72,6 +72,6 @@ end
 
 function Base.iterate(set::IntSet{T}, state::T=zero(T)) where T
     _phase_truncated!(set, state) > 0 && return nothing
-    _Eval(set.mng, set.root, set.phase_) && return (state, state + 1)
+    _Eval(set.mng, set.root, set.phases_) && return (state, state + 1)
     return iterate(set, state + 1)
 end

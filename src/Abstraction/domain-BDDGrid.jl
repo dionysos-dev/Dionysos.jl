@@ -1,14 +1,22 @@
 mutable struct BDDGridXDomain <: XDomain
-    root::Node
+    Rroot::Ref{Ptr{Node}}
     ncells::Int
 end
 mutable struct BDDGridUDomain <: UDomain
-    root::Node
+    Rroot::Ref{Ptr{Node}}
     ncells::Int
 end
 
-AddXDomain!(mng::BDDGridManager) = BDDGridXDomain(Set{xcelltype(mng)}())
-AddUDomain!(mng::BDDGridManager) = BDDGridUDomain(Set{ucelltype(mng)}())
+function _add_domain!(BDD::BDDManager, ::Type{DT}) where DT
+    root = Ref(CUDD.Cudd_ReadLogicZero(BDD))
+    _Ref(root)
+    Rroot = Ref(root)
+    push!(BDD.Rroots, Rroot)
+    return DT(Rroot, 0)
+end
+
+AddXDomain!(mng::BDDGridManager) = _add_domain!(mng.BDD, BDDGridXDomain)
+AddUDomain!(mng::BDDGridManager) = _add_domain!(mng.BDD, BDDGridUDomain)
 
 # ---
 Base.empty!(mng::BDDGridManager, domain::Domain) = (empty!(domain.cells); domain)

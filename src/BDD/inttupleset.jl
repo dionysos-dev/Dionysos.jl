@@ -8,7 +8,7 @@ mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
     variables::Vector{Ptr{Node}}
     indexes::NTuple{N,Vector{UInt16}}
     root::Ptr{Node}
-    phase_::Vector{Cint}
+    phases_::Vector{Cint}
     vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
 end
@@ -19,10 +19,10 @@ function IntTupleSet{N,T}() where {N,T}
     indexes = ntuple(i -> UInt16[], N)
     root = CUDD.Cudd_ReadLogicZero(mng)
     _Ref(root)
-    phase_ = Cint[]
+    phases_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{Node}[]
-    set = IntTupleSet{N,T}(mng, variables, indexes, root, phase_, vars_, z_)
+    set = IntTupleSet{N,T}(mng, variables, indexes, root, phases_, vars_, z_)
     finalizer(set) do set
         CUDD.Cudd_Quit(set.mng)
     end
@@ -46,11 +46,11 @@ Base.emptymutable(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T
 
 function _phase_simple!(set, e, i)
     for idx in set.indexes[i]
-        set.phase_[idx] = _bit(e)
+        set.phases_[idx] = _bit(e)
         e >>>= 1
     end
     while e > 0
-        push!(set.phase_, _bit(e))
+        push!(set.phases_, _bit(e))
         # As the `mng` is only used by this struct, `bddIthVar` should be
         # the same as `bddNewVar`.
         newidx = length(set.variables)
@@ -73,7 +73,7 @@ end
 
 function _phase_simple_truncated!(set, e, i)
     for idx in set.indexes[i]
-        set.phase_[idx] = _bit(e)
+        set.phases_[idx] = _bit(e)
         e >>>= 1
     end
     return iszero(e)
@@ -98,6 +98,6 @@ Base.iterate(set::IntTupleSet{N,T}) where {N,T} = iterate(set, ntuple(i -> zero(
 function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where N
     I = _phase_truncated!(set, state)
     I == N && return nothing
-    I == 0 && _Eval(set.mng, set.root, set.phase_) && return (state, _increment(state, 0))
+    I == 0 && _Eval(set.mng, set.root, set.phases_) && return (state, _increment(state, 0))
     return iterate(set, _increment(state, I))
 end

@@ -30,7 +30,7 @@ mutable struct BDDManager{N,M}
     phase_::Vector{Cint}
     vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
-    roots::Vector{Node}
+    Rroots::Vector{Ref{Ptr{Node}}}
 end
 
 function BDDManager{N,M}() where {N,M}
@@ -40,14 +40,22 @@ function BDDManager{N,M}() where {N,M}
     phase_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{Node}[]
-    roots = Ptr{Node}[]
-    BDD = BDDManager{N,M}(mng, variables, indexes, phase_, vars_, z_, roots)
+    Rroots = Ref{Ptr{Node}}[]
+    BDD = BDDManager{N,M}(mng, variables, indexes, phase_, vars_, z_, Rroots)
     finalizer(BDD) do BDD
         CUDD.Cudd_Quit(BDD.mng)
     end
     return BDD
 end
 
-function AddVariable(BDD::BDDManager)
-    # TODO
+function _add_new_variables(mng, Rroots, vars, phases)
+    c = _Cube(mng, vars, phases)
+    _Ref(c)
+    for Rroot in Rroots
+        tmp = CUDD.Cudd_bddAnd(mng, Rroot[], c)
+        _Ref(tmp)
+        _Deref(mng, Rroot[])
+        Rroot[] = tmp
+    end
+    _Deref(mng, c)
 end

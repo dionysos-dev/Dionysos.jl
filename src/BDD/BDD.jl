@@ -41,7 +41,7 @@ function _push!(set, x)
     _Ref(tmp1)
     _Deref(set.mng, set.root)
     _Deref(set.mng, c)
-    c = _Cube(set.mng, set.variables, set.phase_)
+    c = _Cube(set.mng, set.variables, set.phases_)
     _Ref(c)
     tmp2 = CUDD.Cudd_bddOr(set.mng, tmp1, c)
     _Ref(tmp2)
@@ -55,15 +55,15 @@ Base.in(x::T, set::IntSet{T}) where {N,T<:Integer} = _in(x, set)
 Base.in(x, ::IntSet) = false
 Base.in(x::NTuple{N,T}, set::IntTupleSet{N,T}) where {N,T<:Integer} = _in(x, set)
 Base.in(x, ::IntTupleSet) = false
-_in(x, set) = _phase_truncated!(set, x) == 0 && _Eval(set.mng, set.root, set.phase_)
+_in(x, set) = _phase_truncated!(set, x) == 0 && _Eval(set.mng, set.root, set.phases_)
 
 Base.delete!(set::IntSet, x) = _delete!(set, x)
 Base.delete!(set::IntTupleSet, x) = _delete!(set, x)
 function _delete!(set, x)
-    # ∈ updates `set.phase_`
+    # ∈ updates `set.phases_`
     x ∈ set || return set
     # Use Nand because `Cudd_Not()` seems not implemented in CUDD
-    c = _Cube(set.mng, set.variables, set.phase_)
+    c = _Cube(set.mng, set.variables, set.phases_)
     _Ref(c)
     notc = CUDD.Cudd_bddXor(set.mng, CUDD.Cudd_ReadOne(set.mng), c)
     _Ref(notc)
