@@ -4,24 +4,29 @@
 Same as `Base.Set{NTuple{N,<:Integer} where N}` but with `CUDD`.
 """
 mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
-    manager::Ptr{CUDD.DdManager}
-    variables::Vector{Ptr{CUDD.DdNode}}
+    mng::Ptr{Manager}
+    variables::Vector{Ptr{Node}}
     indexes::NTuple{N,Vector{UInt16}}
-    root::Ptr{CUDD.DdNode}
+    root::Ptr{Node}
     phase_::Vector{Cint}
-    vars_::Vector{Ptr{CUDD.DdNode}}
+    vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
 end
 
 function IntTupleSet{N,T}() where {N,T}
-    manager = CUDD.initialize_cudd()
-    variables = Ptr{CUDD.DdNode}[]
+    mng = CUDD.Cudd_Init()
+    variables = Ptr{Node}[]
     indexes = ntuple(i -> UInt16[], N)
-    root = CUDD.Cudd_ReadLogicZero(manager)
+    root = CUDD.Cudd_ReadLogicZero(mng)
+    _Ref(root)
     phase_ = Cint[]
     z_ = Cint[]
-    vars_ = Ptr{CUDD.DdNode}[]
-    return IntTupleSet{N,T}(manager, variables, indexes, root, phase_, vars_, z_)
+    vars_ = Ptr{Node}[]
+    set = IntTupleSet{N,T}(mng, variables, indexes, root, phase_, vars_, z_)
+    finalizer(set) do set
+        CUDD.Cudd_Quit(set.mng)
+    end
+    return set
 end
 IntTupleSet{N}() where N = IntTupleSet{N,Int}()
 
@@ -36,12 +41,6 @@ end
 Base.eltype(::Type{IntTupleSet{N,T}}) where {N,T} = NTuple{N,T}
 Base.empty(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
 Base.emptymutable(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
-Base.isempty(set::IntTupleSet) = set.root === CUDD.Cudd_ReadLogicZero(set.manager)
-function Base.empty!(set::IntTupleSet)
-    set.root = CUDD.Cudd_ReadLogicZero(set.manager)
-    return set
-end
-Base.IteratorSize(::IntTupleSet) = Base.SizeUnknown()
 
 # `x` will be used to denote a tuple of integers, and `e` to denote its elements
 
@@ -52,10 +51,10 @@ function _phase_simple!(set, e, i)
     end
     while e > 0
         push!(set.phase_, _bit(e))
-        # As the `manager` is only used by this struct, `bddIthVar` should be
+        # As the `mng` is only used by this struct, `bddIthVar` should be
         # the same as `bddNewVar`.
         newidx = length(set.variables)
-        newvar = CUDD.Cudd_bddIthVar(set.manager, Cint(newidx))
+        newvar = CUDD.Cudd_bddIthVar(set.mng, Cint(newidx))
         push!(set.variables, newvar)
         push!(set.indexes[i], newidx + 1)
         push!(set.vars_, newvar)
@@ -71,24 +70,6 @@ function _phase!(set::IntTupleSet, x)
         _phase_simple!(set, e, i)
     end
 end
-
-function Base.push!(set::IntTupleSet{N,T}, x::NTuple{N,T}) where {N,T}
-    _phase!(set, x)
-    set.root = CUDD.Cudd_bddAnd(set.manager, set.root, cube(set.manager, set.vars_, set.z_))
-    set.root = CUDD.Cudd_bddOr(set.manager, set.root, cube(set.manager, set.variables, set.phase_))
-    return set
-end
-
-function Base.delete!(set::IntTupleSet{N,T}, x::NTuple{N,T}) where {N,T<:Integer}
-    # ∈ updates `set.phase_`
-    x ∈ set || return set
-    # Use Nand because `Cudd_Not()` seems not implemented in CUDD
-    set.root = CUDD.Cudd_bddAnd(set.manager, set.root,
-        CUDD.Cudd_bddNand(set.manager, CUDD.Cudd_ReadOne(set.manager),
-            cube(set.manager, set.variables, set.phase_)))
-    return set
-end
-Base.delete!(set::IntTupleSet, x) = set
 
 function _phase_simple_truncated!(set, e, i)
     for idx in set.indexes[i]
@@ -107,11 +88,6 @@ function _phase_truncated!(set::IntTupleSet, x)
     return 0
 end
 
-function Base.in(x::NTuple{N,T}, set::IntTupleSet{N,T}) where {N,T<:Integer}
-    return _phase_truncated!(set, x) == 0 && _in(set.manager, set.root, set.phase_)
-end
-Base.in(x, ::IntTupleSet) = false
-
 # Can we improve this?
 @inline _incr_(e::T, i, j) where T = i == j ? zero(T) : (i == j + 1 ? e + one(T) : e)
 function _increment(x::NTuple{N}, j) where N
@@ -122,6 +98,6 @@ Base.iterate(set::IntTupleSet{N,T}) where {N,T} = iterate(set, ntuple(i -> zero(
 function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where N
     I = _phase_truncated!(set, state)
     I == N && return nothing
-    I == 0 && _in(set.manager, set.root, set.phase_) && return (state, _increment(state, 0))
+    I == 0 && _Eval(set.mng, set.root, set.phase_) && return (state, _increment(state, 0))
     return iterate(set, _increment(state, I))
 end

@@ -44,5 +44,5 @@ using CUDD
     @test Set(set) == Set([40])
     delete!(set, 40)
     @test isempty(set)
-    CUDD.Cudd_Quit(set.mng)
+    set = 6
 end
