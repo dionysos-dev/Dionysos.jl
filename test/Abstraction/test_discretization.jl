@@ -45,6 +45,7 @@ rect = ABS.HyperRectangle(SVector(-1e100, 2.71), SVector(Inf, Inf))
     ABS.HyperRectangle(SVector(INT_MIN, 2), SVector(INT_MAX, INT_MAX))
 @test coord2pos_set(rect, ABS.OUTER) ===
     ABS.HyperRectangle(SVector(INT_MIN, 1), SVector(INT_MAX, INT_MAX))
+print("")
 end
 end
 

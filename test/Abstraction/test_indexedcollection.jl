@@ -25,6 +25,7 @@ coll = ABS.IndColl{String}()
 @test length(coll) === 2
 @test append!(coll, ["e", "f"]) === coll
 @test length(coll) === 4
+print("")
 end
 
 end  # module TestMain

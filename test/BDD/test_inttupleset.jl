@@ -6,6 +6,8 @@ using Test
 using Main.BDD
 using CUDD
 
+println("")
+
 @testset "IntTupleSet" begin
     set = BDD.IntTupleSet{3}()
     @test isempty(set)
@@ -64,6 +66,7 @@ using CUDD
         "Main.BDD.IntTupleSet{3,Int64} with 6×4×4 bits", # Julia v1.0
         "Main.BDD.IntTupleSet{3,Int64} with 6×4×4 bits:\n  (40, 1, 1)" # Julia v1.5
     ]
+    print("")
 end
 
 end  # module TestMain

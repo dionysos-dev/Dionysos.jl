@@ -50,6 +50,7 @@ contsys = ABS.ControlSystemLinearizedRK4(
 @test all(contsys.linsys_map(SVector(1.0, 1.0), SMatrix{2,2}(1.0I), SVector(1.0), 2.0) .≈
     (SVector(3.0, -3.0), SMatrix{2,2}(1.0, -2.0, 0.0, 1.0)))
 @test contsys.error_map(1.0, SVector(1.0), 2.0) ≈ exp(2)*(exp(2)-1)/2
+print("")
 end
 
 end  # module TestMain

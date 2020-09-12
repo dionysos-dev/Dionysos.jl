@@ -10,17 +10,22 @@ mutable struct IntSet{T<:Integer} <: AbstractSet{T}
     phases_::Vector{Cint}
     vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
+    _ONE::Ptr{Node}
+    _ZERO::Ptr{Node}
 end
 
 function IntSet{T}() where T
     mng = CUDD.Cudd_Init()
     variables = Ptr{Node}[]
-    root = CUDD.Cudd_ReadLogicZero(mng)
-    _Ref(root)
     phases_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{Node}[]
-    set = IntSet{T}(mng, variables, root, phases_, vars_, z_)
+    _ONE = CUDD.Cudd_ReadOne(mng)
+    _ZERO = CUDD.Cudd_ReadLogicZero(mng)
+    _Ref(_ZERO)
+    root = _ZERO
+    _Ref(root)
+    set = IntSet{T}(mng, variables, root, phases_, vars_, z_, _ONE, _ZERO)
     finalizer(set) do set
         CUDD.Cudd_Quit(set.mng)
     end

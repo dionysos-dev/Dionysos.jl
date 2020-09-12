@@ -18,6 +18,7 @@ rectI2 = ABS.HyperRectangle(SVector(10, 1), SVector(5, 2))
 @test isempty(intersect(rectI1, rectI2))
 @test rectI1 ⊆ rectI1
 @test rectI2 ⊆ rectI1
+print("")
 end
 
 end  # module TestMain

@@ -4,7 +4,7 @@ using CUDD
 
 # Helper functions
 
-_One(mng::Ptr{Manager}) = CUDD.Cudd_ReadOne(mng)
+# _One(mng::Ptr{Manager}) = CUDD.Cudd_ReadOne(mng)
 _Deref(mng::Ptr{Manager}, node::Ptr{Node}) = Cudd_RecursiveDeref(mng, node)
 _Ref(node::Ptr{Node}) = CUDD.Cudd_Ref(node)
 _Cube(mng::Ptr{Manager}, vars::Vector{Ptr{Node}}, phases::Vector{Cint}) =
@@ -12,7 +12,7 @@ _Cube(mng::Ptr{Manager}, vars::Vector{Ptr{Node}}, phases::Vector{Cint}) =
 _Cube(mng::Ptr{Manager}, phases::Vector{Cint}) =
     CUDD.Cudd_IndicesToCube(mng, phases, length(values))
 _Eval(mng::Ptr{Manager}, f::Ptr{Node}, values::Vector{Cint}) =
-    CUDD.Cudd_Eval(mng, f, values) === _One(mng)
+    CUDD.Cudd_Eval(mng, f, values) === CUDD.Cudd_ReadOne(mng)
 
 @inline _bit(x::T) where T<:Integer = iszero(x & one(T)) ? zero(Cint) : one(Cint)
 
@@ -20,13 +20,12 @@ include("intset.jl")
 include("inttupleset.jl")
 
 Base.IteratorSize(::S) where {S<:Union{IntSet,IntTupleSet}} = Base.SizeUnknown()
-Base.isempty(set::S) where {S<:Union{IntSet,IntTupleSet}} =
-    CUDD.Cudd_bddXor(set.mng, set.root, _One(set.mng)) === _One(set.mng)
+Base.isempty(set::S) where {S<:Union{IntSet,IntTupleSet}} = set.root === set._ZERO
 Base.empty!(set::IntSet) = _empty!(set)
 Base.empty!(set::IntTupleSet) = _empty!(set)
 function _empty!(set)
     _Deref(set.mng, set.root)
-    set.root = CUDD.Cudd_ReadLogicZero(set.mng)
+    set.root = set._ZERO
     _Ref(set.root)
     return set
 end
@@ -65,7 +64,7 @@ function _delete!(set, x)
     # Use Nand because `Cudd_Not()` seems not implemented in CUDD
     c = _Cube(set.mng, set.variables, set.phases_)
     _Ref(c)
-    notc = CUDD.Cudd_bddXor(set.mng, CUDD.Cudd_ReadOne(set.mng), c)
+    notc = CUDD.Cudd_bddXor(set.mng, c, set._ONE)
     _Ref(notc)
     _Deref(set.mng, c)
     tmp = CUDD.Cudd_bddAnd(set.mng, set.root, notc)

@@ -11,18 +11,23 @@ mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
     phases_::Vector{Cint}
     vars_::Vector{Ptr{Node}}
     z_::Vector{Cint}
+    _ONE::Ptr{Node}
+    _ZERO::Ptr{Node}
 end
 
 function IntTupleSet{N,T}() where {N,T}
     mng = CUDD.Cudd_Init()
     variables = Ptr{Node}[]
     indexes = ntuple(i -> UInt16[], N)
-    root = CUDD.Cudd_ReadLogicZero(mng)
-    _Ref(root)
     phases_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{Node}[]
-    set = IntTupleSet{N,T}(mng, variables, indexes, root, phases_, vars_, z_)
+    _ONE = CUDD.Cudd_ReadOne(mng)
+    _ZERO = CUDD.Cudd_ReadLogicZero(mng)
+    _Ref(_ZERO)
+    root = _ZERO
+    _Ref(root)
+    set = IntTupleSet{N,T}(mng, variables, indexes, root, phases_, vars_, z_, _ONE, _ZERO)
     finalizer(set) do set
         CUDD.Cudd_Quit(set.mng)
     end

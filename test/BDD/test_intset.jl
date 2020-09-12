@@ -2,6 +2,8 @@ include(joinpath(@__DIR__, "../../src/BDD/BDD.jl"))
 using Test
 using CUDD
 
+println("")
+
 @testset "BDD/IntSet" begin
     set = BDD.IntSet()
     @test isempty(set)
@@ -45,4 +47,5 @@ using CUDD
     delete!(set, 40)
     @test isempty(set)
     set = 6
+    print("")
 end
