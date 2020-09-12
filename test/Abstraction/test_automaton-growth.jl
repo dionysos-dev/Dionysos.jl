@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/automaton-growth" begin
 xorig = SVector(0.0, 0.0)
 xh = SVector(1.0, 2.0)
@@ -68,6 +70,7 @@ coordlist = (SVector(Float64.(xi)) for xi in Iterators.product(3:5, 2:12))
 celllist = Set(get_xcell(x) for x in coordlist)
 symbollist = Set(get_state(cell) for cell in celllist)
 @test Set(ABS.enum_symbols(mng, targetset)) == symbollist
+print("")
 end
 
 end  # module TestMain

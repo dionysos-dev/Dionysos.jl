@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/domain" begin
 xorig = SVector(0.0, 0.0)
 xh = SVector(1.0, 2.0)
@@ -53,6 +55,7 @@ rect = ABS.HyperRectangle(SVector(-5), SVector(2))
 ABS.add_cells!(mng, UDom1, rect, ABS.INNER)
 celllist = Set(UCT((a,)) for a = -4:1)
 @test Set(ABS.enum_cells(mng, UDom1)) == celllist
+print("")
 end
 
 end  # module TestMain

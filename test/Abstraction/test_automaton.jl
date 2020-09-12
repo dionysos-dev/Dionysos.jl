@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/automaton" begin
 xorig = SVector(0.0, 0.0)
 xh = SVector(1.0, 2.0)
@@ -49,6 +51,7 @@ translist = Set(TT(source, label, target)
 targetset = ABS.AddStateSet!(mng)
 ABS.add_symbols!(mng, targetset, autom, stateset, labelset)
 @test Set(ABS.enum_symbols(mng, stateset)) == Set(ABS.enum_symbols(mng, targetset))
+print("")
 end
 
 end  # module TestMain

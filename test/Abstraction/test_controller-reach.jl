@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/controller-reach" begin
 xorig = SVector(0)
 xh = SVector(1)
@@ -83,6 +85,7 @@ if VERSION >= v"1.5"
     contr = ABS.AddController!(mng)
     @test ftestallocate(mng, contr, autom, stateset, targetset) === 0
 end
+print("")
 end
 
 end  # module TestMain

@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/mapping" begin
 map = ABS.ListGridMap(String)
 append!(map.coll, ["a", "b", "c", "d"])
@@ -21,6 +23,7 @@ symb = get_symbol("a")
 @test !get_symbol_try("e")[2]
 @test get_cell(ST(2)) === "b"
 @test ABS._nsymbols(map) === 4
+print("")
 end
 
 end  # module TestMain

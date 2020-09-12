@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/symbolic" begin
 xorig = SVector(0.0, 0.0)
 xh = SVector(1.0, 2.0)
@@ -55,6 +57,7 @@ ABS.add_symbols!(mng, labelset, UDom2)
 UDom3 = ABS.AddUDomain!(mng)
 ABS.add_cells!(mng, UDom3, labelset)
 @test Set(ABS.enum_cells(mng, UDom3)) == Set([UCT((0,))])
+print("")
 end
 
 end  # module TestMain

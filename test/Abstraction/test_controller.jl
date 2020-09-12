@@ -7,6 +7,8 @@ using Main.Abstraction
 ABS = Main.Abstraction
 using StaticArrays
 
+println("")
+
 @testset "Abstraction/controller" begin
 xorig = SVector(0.0, 0.0)
 xh = SVector(1.0, 2.0)
@@ -48,6 +50,7 @@ state = ABS.get_some_symbol(mng, stateset)
 # Main.@code_warntype hash(pair, UInt(0))
 @test empty!(mng, contr) === contr
 @test ABS.get_npairs(mng, contr) === 0
+print("")
 end
 
 end  # module TestMain
