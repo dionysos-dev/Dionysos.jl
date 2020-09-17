@@ -18,7 +18,7 @@ _NOT(dd::Ptr{Manager}, f::Ptr{Node}) = _XOR(dd, f, _One(dd))
 _Eval(dd::Ptr{Manager}, f::Ptr{Node}, values::Vector{Cint}) =
     CUDD.Cudd_Eval(dd, f, values) === _One(dd)
 
-# Compute cube by providing indices of the variables instead of the variables
+# Computes cube by providing indices of the variables instead of the variables
 # themselves. The implementation is exactly the same as CUDD.Cudd_IndicesToCube
 # except that we can also specify the phases.
 function _Cube(dd::Ptr{Manager}, indices::Vector{Cint}, phases::Vector{Cint})

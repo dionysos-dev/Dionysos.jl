@@ -35,7 +35,7 @@ Base.emptymutable(::IntSet, ::Type{T}=Int) where T = IntSet{T}()
 
 _phases!(set::IntSet, x) = _phases_simple!(set.vcs[1], x)
 
-# Return 0 if there are enough bits to represent x.
+# Returns 0 if there are enough bits to represent x.
 # Returning a bool would have been more straighforward but this is to be consistent
 # with IntTupleSet.
 function _phases_trunc!(set::IntSet, x)
