@@ -4,43 +4,39 @@
 Same as `Base.Set{NTuple{N,<:Integer} where N}` but with `CUDD`.
 """
 mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
-    cp::CartesianProduct
-    slices::Vector{Int}
+    mng::Ptr{Manager}
+    root::Ptr{Node}
+    indices_::NTuple{N,Vector{Cint}}
+    auxindices_::NTuple{N,Vector{Cint}}
+    phases1_::NTuple{N,Vector{Cint}}
+    phases2_::NTuple{N,Vector{Cint}}
+    auxphases_::NTuple{N,Vector{Cint}}
+    values::Vector{Cint}
 end
 
 function IntTupleSet{N,T}() where {N,T}
-    @assert N > 0
-    cp = CartesianProduct(N)
-    slices_ = [1:N]
+    mng = CUDD.Cudd_Init()
+    ARGS = ntuple(k -> ntuple(i -> Cint[], N), 5)
     root = _Zero(mng); _Ref(root)
-    add_root(cp, root, slices)
-    set = IntTupleSet{N,T}(cp, slices)
-    finalizer(set -> finalize(set.cp), set)
+    set = IntTupleSet{N,T}(mng, root, ARGS..., Cint[])
+    finalizer(set) do set
+        CUDD.Cudd_Quit(set.mng)
+    end
     return set
 end
 IntTupleSet{N}() where N = IntTupleSet{N,Int}()
-
-function IntTupleSet{T}(cp::CartesianProduct, slices::AbstractArray{Int}) where T
-    N = length(slices)
-    @assert allunique(slices)
-    root = _Zero(mng); _Ref(root)
-    add_root(cp, root, slices)
-    return IntTupleSet{N,T}(cp, slices)
-end
-IntTupleSet(cp::CartesianProduct, slices::AbstractArray{Int}) = IntTupleSet{Int}()
 
 Base.eltype(::Type{IntTupleSet{N,T}}) where {N,T} = NTuple{N,T}
 Base.empty(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
 Base.emptymutable(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
 
 function _phases1!(set::IntTupleSet, x)
-    cp = set.cp
-    for (i, e) in zip(set.slices, x)
-        indices = cp.indices_[i]
-        auxindices = empty!(cp.auxindices_[i])
-        phases = cp.phases1_[i]
-        auxphases = empty!(cp.auxphases_[i])
-        _compute_phases!(cp.mng, phases, indices, auxphases, auxindices, e)
+    for i in eachindex(set.indices_)
+        indices = set.indices_[i]
+        auxindices = empty!(set.auxindices_[i])
+        phases = set.phases1_[i]
+        auxphases = empty!(set.auxphases_[i])
+        _compute_phases!(set.mng, phases, indices, auxphases, auxindices, x[i])
     end
 end
 

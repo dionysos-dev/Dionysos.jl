@@ -4,47 +4,63 @@ using CUDD
 
 # Helper functions
 
-_One(mng::Ptr{Manager}) = CUDD.Cudd_ReadOne(mng)
-_Zero(mng::Ptr{Manager}) = CUDD.Cudd_ReadLogicZero(mng)
-_Deref(mng::Ptr{Manager}, node::Ptr{Node}) = Cudd_RecursiveDeref(mng, node)
+_One(dd::Ptr{Manager}) = CUDD.Cudd_ReadOne(dd)
+_Zero(dd::Ptr{Manager}) = CUDD.Cudd_ReadLogicZero(dd)
+_Deref(dd::Ptr{Manager}, node::Ptr{Node}) = Cudd_RecursiveDeref(dd, node)
 _Ref(node::Ptr{Node}) = CUDD.Cudd_Ref(node)
-_IthVar(mng::Ptr{Manager}, idx::Cint) = CUDD.Cudd_bddIthVar(mng, idx)
+_IthVar(dd::Ptr{Manager}, idx::Cint) = CUDD.Cudd_bddIthVar(dd, idx)
 # Remember that indexing starts at zero in C
-_Size(mng::Ptr{Manager}) = Cint(CUDD.Cudd_ReadSize(mng))
-_AND(mng::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddAnd(mng, f, g)
-_OR(mng::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddOr(mng, f, g)
-_XOR(mng::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddXor(mng, f, g)
-_NOT(mng::Ptr{Manager}, f::Ptr{Node}) = _XOR(mng, f, _One(mng))
-_Eval(mng::Ptr{Manager}, f::Ptr{Node}, values::Vector{Cint}) =
-    CUDD.Cudd_Eval(mng, f, values) === _One(mng)
+_Size(dd::Ptr{Manager}) = Cint(CUDD.Cudd_ReadSize(dd))
+_AND(dd::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddAnd(dd, f, g)
+_OR(dd::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddOr(dd, f, g)
+_XOR(dd::Ptr{Manager}, f::Ptr{Node}, g::Ptr{Node}) = CUDD.Cudd_bddXor(dd, f, g)
+_NOT(dd::Ptr{Manager}, f::Ptr{Node}) = _XOR(dd, f, _One(dd))
+_Eval(dd::Ptr{Manager}, f::Ptr{Node}, values::Vector{Cint}) =
+    CUDD.Cudd_Eval(dd, f, values) === _One(dd)
 
 # Compute cube by providing indices of the variables instead of the variables
 # themselves. The implementation is exactly the same as CUDD.Cudd_IndicesToCube
 # except that we can also specify the phases.
-function _Cube(mng::Ptr{Manager}, indices::Vector{Cint}, phases::Vector{Cint})
+function _Cube(dd::Ptr{Manager}, indices::Vector{Cint}, phases::Vector{Cint})
     @assert length(indices) === length(phases)
     n = length(indices)
-    cube = _One(mng); _Ref(cube)
+    cube = _One(dd); _Ref(cube)
     for r in n:-1:1 # In CUDD it is implemented in backward order, so it mimiched...
-        var = _IthVar(mng, indices[r])
+        var = _IthVar(dd, indices[r])
         if phases[r] === Cint(1)
-            tmp = _AND(mng, var, cube); _Ref(tmp)
+            tmp = _AND(dd, var, cube); _Ref(tmp)
         elseif phases[r] === Cint(0)
-            not_var = _NOT(mng, var); _Ref(not_var)
-            tmp = _AND(mng, not_var, cube); _Ref(tmp)
-            _Deref(mng, not_var)
+            not_var = _NOT(dd, var); _Ref(not_var)
+            tmp = _AND(dd, not_var, cube); _Ref(tmp)
+            _Deref(dd, not_var)
         else
             throw("Phases must be a Cint equal to 0 or 1")
         end
-        _Deref(mng, cube)
+        _Deref(dd, cube)
         cube = tmp
     end
-    _Deref(mng, cube)
+    _Deref(dd, cube)
     return cube
 end
 
+struct BDDManager
+    dd::Ptr{Manager}
+    values::Vector{Cint}
+end
+
+function BDDManager()
+    dd = CUDD.Cudd_Init()
+    values = Cint[]
+    mng = BDDManager(dd, values)
+    finalizer(mng -> CUDD.Cudd_Quit(mng.dd), mng)
+    return mng
+end
+
+#---
+
 @inline _bit(x::T) where T<:Integer = iszero(x & T(1)) ? Cint(0) : Cint(1)
 
+include("cartesianproduct")
 include("intset.jl")
 include("inttupleset.jl")
 
@@ -58,7 +74,7 @@ function _empty!(set)
     return set
 end
 
-_dims2string(nbits) = length(nbits) == 1 ? nbits[1] : Base.dims2string(nbits)
+_dims2string(nbits) = length(nbits) === 1 ? nbits[1] : Base.dims2string(nbits)
 Base.show(io::IO, set::S) where {S<:Union{IntSet,IntTupleSet}} = Base.summary(io, set)
 function Base.summary(io::IO, set::S) where {S<:Union{IntSet,IntTupleSet}}
     nbits = length.(set.indices_)
