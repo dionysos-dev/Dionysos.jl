@@ -1,4 +1,5 @@
-#
+# Manipulation of sets of integers
+
 ## IntSet
 """
     mutable struct IntSet <: AbstractSet{<:Integer}
@@ -42,6 +43,8 @@ function _phases_trunc!(set::IntSet, x)
     not_trunc = _phases_trunc_simple!(set.vcs[1], x)
     return not_trunc ? 0 : 1
 end
+
+
 
 function Base.iterate(set::IntSet{T}, state::T=zero(T)) where T
     _phases_trunc!(set, state) > 0 && return nothing
