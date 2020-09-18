@@ -57,13 +57,11 @@ end
 
 contr = AB.NewControllerList()
 AB.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
-@test AB.get_npairs(contr) == 15043
+@test length(contr) == 15043
 
 invlist = Int[]
 for source in 1:symmodel.autom.nstates
-    symbollist = Int[]
-    AB.compute_enabled_symbols!(symbollist, contr, source)
-    if !isempty(symbollist)
+    if !isempty(AB.fix_and_eliminate_first(contr, source))
         push!(invlist, source)
     end
 end
@@ -75,10 +73,8 @@ for source in invlist
     if !correct
         break
     end
-    symbollist = Int[]
     targetlist = Int[]
-    AB.compute_enabled_symbols!(symbollist, contr, source)
-    for symbol in symbollist
+    for symbol in AB.fix_and_eliminate_first(contr, source)
         AB.compute_post!(targetlist, symmodel.autom, source, symbol)
     end
     for target in targetlist

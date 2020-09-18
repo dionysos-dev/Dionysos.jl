@@ -32,15 +32,15 @@ AB.compute_post!(targetlist, autom, 8, 6)
 AB.compute_post!(targetlist, autom, 8, 5)
 @test length(targetlist) == 4
 
-soursymblist = Tuple{Int, Int}[]
 
-AB.compute_pre!(soursymblist, autom, 3)
+soursymblist = AB.pre(autom, 3)
 @test length(soursymblist) == 3
-AB.compute_pre!(soursymblist, autom, 4)
-@test length(soursymblist) == 3
-AB.compute_pre!(soursymblist, autom, 8)
-@test length(soursymblist) == 4
-@test all(x -> x in soursymblist, [(5, 6), (5, 7), (8, 6), (8, 7)])
+@test collect(soursymblist) == [(5, 7), (8, 6), (8, 7)]
+soursymblist = AB.pre(autom, 4)
+@test length(soursymblist) == 0
+soursymblist = AB.pre(autom, 8)
+@test length(soursymblist) == 1
+@test collect(soursymblist)[1] == (5, 6)
 end
 
 sleep(0.1) # used for good printing

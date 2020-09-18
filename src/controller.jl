@@ -1,50 +1,10 @@
 abstract type Controller end
 
-mutable struct ControllerList
-    pairs::Vector{Tuple{Int,Int}}
-    issorted::Bool
-end
-
-function NewControllerList()
-    return ControllerList(Tuple{Int, Int}[], true)
-end
-
-function ensure_sorted!(contr::ControllerList)
-    if !contr.issorted
-        sort!(contr.pairs)
-        contr.issorted = true
-    end
-end
-
-# Assumes not add twice same pair...
-function add_pair!(contr::ControllerList, source, symbol)
-    push!(contr.pairs, (source, symbol))
-    contr.issorted = false
-end
-
-function Base.empty!(contr::ControllerList)
-    empty!(contr.pairs)
-    contr.issorted = true
-end
-
-function get_npairs(contr::ControllerList)
-    return length(contr.pairs)
-end
-
-function compute_enabled_symbols!(symbollist, contr::ControllerList, source)
-    ensure_sorted!(contr)
-    idxlist = searchsorted(contr.pairs, source, by = x -> x[1])
-    for idx in idxlist
-        push!(symbollist, contr.pairs[idx][2])
-    end
-end
+NewControllerList() = SortedTupleSet{2,Int}()
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
-    soursymblist = Tuple{Int,Int}[]
     for target in 1:autom.nstates
-        empty!(soursymblist)
-        compute_pre!(soursymblist, autom, target)
-        for soursymb in soursymblist
+        for soursymb in pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
         end
     end
@@ -60,7 +20,7 @@ function _compute_controller_reach!(contr, autom, init_set, target_set, num_targ
                 if !(source in target_set) && iszero(num_targets_unreachable[source, symbol] -= 1)
                     push!(target_set, source)
                     push!(next_targets, source)
-                    add_pair!(contr, source, symbol)
+                    push_new!(contr, (source, symbol))
                     if source in init_set
                         num_init_unreachable -= 1
                     end
@@ -94,11 +54,8 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
 end
 
 function _compute_pairstable(pairstable, autom)
-    soursymblist = Tuple{Int, Int}[]
     for target in 1:autom.nstates
-        empty!(soursymblist)
-        compute_pre!(soursymblist, autom, target)
-        for soursymb in soursymblist
+        for soursymb in pre(autom, target)
             pairstable[soursymb[1], soursymb[2]] = true
         end
     end
@@ -125,15 +82,12 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         end
     end
     nextunsafeset = Set{Int}()
-    soursymblist = Tuple{Int, Int}[]
 
     # prog = ProgressUnknown("# iterations computing controller:")
     while true
         # ProgressMeter.next!(prog)
         for target in unsafeset
-            empty!(soursymblist)
-            compute_pre!(soursymblist, autom, target)
-            for soursymb in soursymblist
+            for soursymb in pre(autom, target)
                 if pairstable[soursymb[1], soursymb[2]]
                     pairstable[soursymb[1], soursymb[2]] = false
                     nsymbolslist[soursymb[1]] -= 1
@@ -155,7 +109,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                add_pair!(contr, source, symbol)
+                push_new!(contr, (source, symbol))
             end
         end
     end

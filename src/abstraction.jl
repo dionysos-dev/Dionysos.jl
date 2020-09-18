@@ -16,6 +16,7 @@ Base.hash(x::Tuple{}, h::UInt) = h + Base.tuplehash_seed
     end
 end
 
+include("sorted_vector_set.jl")
 include("rectangle.jl")
 include("polyhedron.jl")
 include("grid.jl")

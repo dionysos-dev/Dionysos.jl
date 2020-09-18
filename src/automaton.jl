@@ -3,20 +3,12 @@ abstract type Automaton end
 mutable struct AutomatonList <: Automaton
     nstates::Int
     nsymbols::Int
-    transitions::Vector{Tuple{Int,Int,Int}}
-    issorted::Bool
+    transitions::SortedTupleSet{3,Int}
 end
 
 function NewAutomatonList(nstates, nsymbols)
-    transitions = Tuple{Int,Int,Int}[]
-    return AutomatonList(nstates, nsymbols, transitions, true)
-end
-
-function ensure_sorted!(autom::AutomatonList)
-    if !autom.issorted
-        sort!(autom.transitions)
-        autom.issorted = true
-    end
+    transitions = SortedTupleSet{3,Int}()
+    return AutomatonList(nstates, nsymbols, transitions)
 end
 
 function get_ntrans(autom::AutomatonList)
@@ -27,44 +19,21 @@ end
 # Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
 function add_transition!(autom::AutomatonList, source, symbol, target)
-    push!(autom.transitions, (target, source, symbol))
-    autom.issorted = false
+    push_new!(autom.transitions, (target, source, symbol))
 end
 
 # translist is an iterable of Tuple{Int,Int,Int}
 function add_transitions!(autom::AutomatonList, translist)
-    append!(autom.transitions, translist)
-    autom.issorted = false
+    append_new!(autom.transitions, translist)
 end
-
-function Base.empty!(autom::AutomatonList)
-    empty!(autom.transitions)
-    autom.issorted = true
-end
+Base.empty!(autom::AutomatonList) = empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::AutomatonList, source, symbol)
-    ensure_sorted!(autom)
-    for trans in autom.transitions
-        if trans[2] == source && trans[3] == symbol
-            push!(targetlist, trans[1])
-        end
-    end
+    fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 end
 
-drop_target(target_source_symbol) = (target_source_symbol[2], target_source_symbol[3])
 function pre(autom::AutomatonList, target)
-    ensure_sorted!(autom)
-    idxlist = searchsorted(autom.transitions, (target,), by = x -> x[1])
-    return Base.Generator(drop_target, view(autom.transitions, idxlist))
-end
-
-# TODO remove
-function compute_pre!(soursymblist, autom::AutomatonList, target)
-    ensure_sorted!(autom)
-    idxlist = searchsorted(autom.transitions, (target,), by = x -> x[1])
-    for idx in idxlist
-        push!(soursymblist, (autom.transitions[idx][2], autom.transitions[idx][3]))
-    end
+    return fix_and_eliminate_first(autom.transitions, target)
 end
 
 # function add_inputs_images_by_xref!(uref_coll, yref_coll, autom::AutomatonList, x_ref)
