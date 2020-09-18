@@ -55,6 +55,14 @@ function BDDManager()
     return mng
 end
 
+function add_var!(mng::BDDManager)
+    dd = mng.dd
+    nvars = _Size(dd)
+    newvar = _IthVar(dd, nvars)
+    resize!(mng.values, nvars + 1)
+    return (newvar, nvars)
+end
+
 ## A set a BDD variables depending on a manager.
 # The goal is that BDD functions defined with a given Cluster as support are
 # automatically updated when a variable is added to the support.
@@ -77,8 +85,7 @@ end
 
 function add_var!(vc::VariablesCluster)
     dd = vc.mng.dd
-    nvars = _Size(dd)
-    newvar = _IthVar(dd, nvars)
+    newvar, nvars = add_var!(vc.mng)
     resize!(vc.mng.values, nvars + 1)
     push!(vc.indices, nvars)
     vc.nvars += 1
