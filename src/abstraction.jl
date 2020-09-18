@@ -18,7 +18,6 @@ end
 
 include("sorted_vector_set.jl")
 include("rectangle.jl")
-include("polyhedron.jl")
 include("grid.jl")
 include("domain.jl")
 include("controlsystem.jl")

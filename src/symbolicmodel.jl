@@ -1,3 +1,4 @@
+import Polyhedra
 abstract type SymbolicModel{N,M} end
 
 struct SymbolicModelList{N,M,S1<:Domain{N},S2<:Domain{M},A<:Automaton} <: SymbolicModel{N,M}
@@ -157,7 +158,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
             Fx, DFx = contsys.linsys_map(x, _H_, u, tstep)
             A = inv(DFx)
             b = abs.(A)*Fr .+ 1.0
-            HP = CenteredPolyhedron(A, b)
+            HP = Polyhedra.hrep(A, b)
             # TODO: can we improve abs.(DFx)*_ONE_?
             rad = contsys.measnoise + abs.(DFx)*_ONE_ .+ Fe
             rectI = get_pos_lims_outer(Xdom.grid, HyperRectangle(Fx - rad, Fx + rad))
