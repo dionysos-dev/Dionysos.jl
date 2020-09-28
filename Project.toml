@@ -6,6 +6,7 @@ version = "0.0.1"
 [deps]
 CDDLib = "3391f64e-dcde-5f30-b752-e11513730f60"
 CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
+HybridSystems = "2207ec0c-686c-5054-b4d2-543502888820"
 LazySets = "b4f0291d-fe17-52bc-9479-3d1a343d9043"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
@@ -15,6 +16,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 CUDD = "0.2"
+HybridSystems = "0.3"
 julia = "1"
 
 [extras]

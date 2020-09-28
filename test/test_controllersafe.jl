@@ -39,7 +39,7 @@ contsys = AB.NewControlSystemGrowthRK4(
     tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
-@test AB.get_ntrans(symmodel.autom) == 62077
+@test AB.ntransitions(symmodel.autom) == 62077
 
 Xinit = AB.DomainList(Xgrid)
 AB.add_set!(Xinit, AB.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), AB.OUTER)

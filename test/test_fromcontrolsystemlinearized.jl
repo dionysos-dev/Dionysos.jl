@@ -43,7 +43,7 @@ contsys = AB.NewControlSystemLinearizedRK4(
     tstep, F_sys, DF_sys, bound_DF, bound_DDF, measnoise, nsys)
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
-@test AB.get_ntrans(symmodel.autom) == 2155
+@test AB.ntransitions(symmodel.autom) == 2155
 
 xpos = (1, 2)
 upos = (1,)

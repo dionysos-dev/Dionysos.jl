@@ -1,6 +1,4 @@
-abstract type Automaton end
-
-mutable struct AutomatonList <: Automaton
+mutable struct AutomatonList <: HybridSystems.AbstractAutomaton
     nstates::Int
     nsymbols::Int
     transitions::SortedTupleSet{3,Int}
@@ -11,14 +9,14 @@ function NewAutomatonList(nstates, nsymbols)
     return AutomatonList(nstates, nsymbols, transitions)
 end
 
-function get_ntrans(autom::AutomatonList)
+function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
 end
 
 # In add_trans and add_translist:
 # Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
-function add_transition!(autom::AutomatonList, source, symbol, target)
+function HybridSystems.add_transition!(autom::AutomatonList, source, target, symbol)
     push_new!(autom.transitions, (target, source, symbol))
 end
 
