@@ -1,6 +1,6 @@
 abstract type SymbolicModel{N,M} end
 
-struct SymbolicModelList{N,M,S1<:Domain{N},S2<:Domain{M},A<:Automaton} <: SymbolicModel{N,M}
+struct SymbolicModelList{N,M,S1<:Domain{N},S2<:Domain{M},A<:HybridSystems.AbstractAutomaton} <: SymbolicModel{N,M}
     Xdom::S1
     Udom::S2
     autom::A
@@ -117,7 +117,7 @@ function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
             any(not_in_Xdom, ypos_iter) && continue
             for ypos in ypos_iter
                 target = get_state_by_xpos(symmodel, ypos)
-                add_transition!(symmodel.autom, source, symbol, target)
+                add_transition!(symmodel.autom, source, target, symbol)
             end
             ntrans += length(ypos_iter)
         end

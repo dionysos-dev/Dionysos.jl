@@ -4,6 +4,7 @@ using LinearAlgebra
 using ProgressMeter
 using StaticArrays
 using Base.Cartesian
+using HybridSystems
 
 @enum INCL_MODE INNER OUTER
 

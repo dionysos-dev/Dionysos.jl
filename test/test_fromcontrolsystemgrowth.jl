@@ -41,7 +41,7 @@ contsys = AB.NewControlSystemGrowthRK4(
     tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
-@test AB.get_ntrans(symmodel.autom) == 1145
+@test AB.ntransitions(symmodel.autom) == 1145
 
 xpos = (1, 2)
 upos = (1,)
