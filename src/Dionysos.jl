@@ -6,4 +6,7 @@ module Dionysos
 include("optimal_control.jl")
 include("bemporad_morari.jl")
 
+include("optimal_control.jl")
+include("bemporad_morari.jl")
+
 end # module
