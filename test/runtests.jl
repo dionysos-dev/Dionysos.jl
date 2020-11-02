@@ -1,5 +1,7 @@
-include("BDD/BDD.jl")
-include("BDD/test_inttupleset.jl")
+# TODO Reenable once https://github.com/sisl/CUDD.jl/issues/15#issuecomment-719958808 is resolved
+#include("BDD/BDD.jl")
+#include("BDD/test_inttupleset.jl")
+include("gol_lazar_belta.jl")
 include("test_griddomain.jl")
 include("test_controlsystemgrowth.jl")
 include("test_controlsystemlinearized.jl")
