@@ -5,5 +5,6 @@ module Dionysos
 
 include("optimal_control.jl")
 include("bemporad_morari.jl")
+include("branch_and_bound.jl")
 
 end # module
