@@ -5,15 +5,16 @@ const MA = MutableArithmetics
 
 using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra
 
-struct BemporadMorari{S}
-    solver::S
+struct BemporadMorari{C, M}
+    continuous_solver::C
+    mixed_integer_solver::M
     indicator::Bool
-    verbose::Int
+    log_level::Int
 end
 
-function default_modes(system, qT, N)
+function default_modes(system, q_T, N)
     return [
-        t == N ? [qT] : HybridSystems.modes(system)
+        t == N ? [q_T] : HybridSystems.modes(system)
         for t in 1:N
     ]
 end
@@ -152,10 +153,11 @@ function _sparse_set(δs, δ, t)
 end
 
 function optimal_control(
-    prob::OptimalControlProblem, qT,
+    prob::OptimalControlProblem,
     algo::BemporadMorari,
-    _modes = default_modes(prob.system, qT, prob.number_of_time_steps)
+    _modes = default_modes(prob.system, prob.q_T, prob.number_of_time_steps)
 )
+    iszero(prob.number_of_time_steps) && return _zero_steps(prob)
     modes = Vector{Vector{Int}}(undef, prob.number_of_time_steps)
     for t in 1:prob.number_of_time_steps
         modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
@@ -174,16 +176,16 @@ function optimal_control(
     end
     # TODO remove modes that are impossible
     if any(isempty, modes)
-        algo.verbose >= 1 && @warn("`modes` is empty for some time step.")
+        algo.log_level >= 1 && @warn("`modes` is empty for some time step.")
         return
     end
-    model = Model(algo.solver)
+    model = Model()
     @variable(model, x[1:prob.number_of_time_steps, 1:statedim(prob.system, first(first(modes)))])
     @variable(model, u[1:prob.number_of_time_steps, 1:inputdim(resetmap(prob.system, first(transitions(prob.system))))])
     transs = [possible_transitions(prob.system, t == 1 ? [prob.q_0] : modes[t-1], modes[t])
               for t in 1:prob.number_of_time_steps]
     if any(isempty, transs)
-        algo.verbose >= 1 && @warn("`transs` is empty for some time step.")
+        algo.log_level >= 1 && @warn("`transs` is empty for some time step.")
         return
     end
 
@@ -197,10 +199,12 @@ function optimal_control(
         x_prev = t == 1 ? prob.x_0 : x[t - 1, :]
         xi = x[t, :]
         ui = u[t, :]
-        δ_mode = hybrid_constraints(model, fillify(prob.system.modes[modes[t]]), x_prev, xi, ui, algo, IndicatorVariables(modes[t], t))
+        δ_mode = IndicatorVariables(modes[t], t)
+        δ_mode = hybrid_constraints(model, fillify(prob.system.modes[modes[t]]), x_prev, xi, ui, algo, δ_mode)
         symbols = symbol.(prob.system, transs[t])
         #@show @which hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, algo, IndicatorVariables(transs[t], t))
-        δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, algo, IndicatorVariables(transs[t], t))
+        δ_trans = IndicatorVariables(transs[t], t)
+        δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, algo, δ_trans)
         state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode)
         total_cost = MA.operate!(+, total_cost, state_cost)
         trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans)
@@ -214,19 +218,27 @@ function optimal_control(
 
     @objective(model, Min, total_cost)
 
-    if algo.verbose >= 2
+    if δ_modes === nothing && δ_transs === nothing
+        set_optimizer(model, algo.continuous_solver)
+    else
+        set_optimizer(model, algo.mixed_integer_solver)
+    end
+
+    if algo.log_level >= 2
         print(model)
     end
     optimize!(model)
 
+    termination_status(model) == MOI.INFEASIBLE && return
+
     if termination_status(model) != MOI.OPTIMAL
-        if algo.verbose >= 1
+        if algo.log_level >= 1
             @warn("Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
         end
     end
 
     if primal_status(model) == MOI.FEASIBLE_POINT
-        if algo.verbose >= 1
+        if algo.log_level >= 1
             if δ_modes !== nothing
                 @show (x -> value.(x)).(δ_modes)
             end
@@ -234,8 +246,10 @@ function optimal_control(
                 @show (x -> value.(x)).(δ_transs)
             end
         end
-        return value.(x), value.(u), objective_value(model)
+        return ContinuousTrajectory(_rows(value.(x)), _rows(value.(u))), objective_value(model)
     else
         return
     end
 end
+
+_rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
