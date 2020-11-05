@@ -45,7 +45,7 @@ using Dionysos
         # Pavito does not support indicator constraints yet so we use `false` here
         @testset "$(typeof(algo))" for algo in [
             BemporadMorari(qp_solver, miqp_solver, false, 0),
-            BranchAndBound(0, qp_solver, miqp_solver, false, 1, 5000, 60.0, 1e-3)
+            BranchAndBound(qp_solver, miqp_solver, max_iter = 4000)
         ]
             @testset "Depth: 0" begin
             _test(algo, 0, 18, [0.0, 1.0], nothing, nothing, nothing, true, false)

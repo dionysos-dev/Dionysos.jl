@@ -2,15 +2,21 @@ export BranchAndBound
 
 using DataStructures # for BinaryMinHeap
 
-struct BranchAndBound{C, M}
-    horizon::Int
+struct BranchAndBound{C, M, V<:AbstractVector{Int}}
     continuous_solver::C
     mixed_integer_solver::M
+    horizon::Int
     indicator::Bool
     log_level::Int
+    log_iter::V
     max_iter::Int
     max_time::Float64
     rel_gap::Float64
+    feasible_solution_callback::Union{Nothing, Function}
+end
+function BranchAndBound(continuous_solver, mixed_integer_solver; horizon=0, max_iter=1000, max_time=60.0, rel_gap=1e-3, indicator::Bool = false, log_level = 1, log_iter = 0:100:max_iter,
+                        feasible_solution_callback = nothing)
+    return BranchAndBound(continuous_solver, mixed_integer_solver, horizon, indicator, log_level, log_iter, max_iter, max_time, rel_gap, feasible_solution_callback)
 end
 
 struct Candidate{T, TT}
@@ -109,13 +115,13 @@ end
 using Printf
 
 # Inspired from Pavito's `printgap`
-function print_info(log_level, num_iter, ub, start_time)
+function print_info(log_level, log_iter, num_iter, ub, start_time)
     if log_level >= 1
         if num_iter == 1 || log_level >= 2
-            @printf "\n%-5s | %-14s | | %-11s\n" "Iter." "Best feasible" "Time (s)"
+            @printf "\n%-5s | %-14s | %-11s\n" "Iter." "Best feasible" "Time (s)"
         end
-        if iszero(num_iter % 100)
-            @printf "%5d | %+14.6e | | %11.3e\n" num_iter ub (time() - start_time)
+        if num_iter in log_iter
+            @printf "%5d | %+14.6e | %11.3e\n" num_iter ub (time() - start_time)
         end
         flush(stdout)
         flush(stderr)
@@ -144,6 +150,9 @@ function optimal_control(
                 if new_candidate_traj !== nothing
                     new_candidate, sol_traj = new_candidate_traj
                     if new_candidate.upper_bound < ub
+                        if algo.feasible_solution_callback !== nothing
+                            algo.feasible_solution_callback(new_candidate, sol_traj)
+                        end
                         best_traj = sol_traj
                         ub = new_candidate.upper_bound
                     end
@@ -153,7 +162,7 @@ function optimal_control(
                 end
             end
         end
-        print_info(algo.log_level, num_iter, ub, start_time)
+        print_info(algo.log_level, algo.log_iter, num_iter, ub, start_time)
     end
     best_traj === nothing && return
     return best_traj, ub
