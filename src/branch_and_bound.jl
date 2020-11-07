@@ -63,6 +63,23 @@ function minimum_transition_cost(prob, transition, solver, log_level = 0)
     end
 end
 
+function number_of_nodes(prob)
+    num = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(prob.system)], 0)
+    num[0, prob.q_T] = 1
+    for i in 1:prob.number_of_time_steps
+        for mode in modes(prob.system)
+            for t in out_transitions(prob.system, mode)
+                num[i, mode] += num[i - 1, target(prob.system, t)]
+            end
+            if num[i, mode] > 0
+                # This is feasible so we count this mode as a node at time `i`.
+                num[i, mode] += 1
+            end
+        end
+    end
+    return num
+end
+
 function distances(prob, solver)
     syst = prob.system
     dists = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(syst)], Inf)
@@ -93,12 +110,16 @@ function candidate(prob, algo, discrete_lb, traj)
     sol === nothing && return
     left = prob.number_of_time_steps - length(traj)
     lb = sol[2] + discrete_lb[left, last_mode(prob.system, traj)]
-    horizon_prob = OptimalControlProblem(
-        prob.system, last_mode(prob.system, traj), length(traj) == 0 ? prob.x_0 : sol[1].x[end],
-        prob.state_cost[(length(traj) + 1):end], prob.transition_cost[(length(traj) + 1):end],
-        prob.q_T, min(left, algo.horizon)
-    )
-    sol_horizon = optimal_control(horizon_prob, sub_algo)
+    if left <= algo.horizon || false # prob.allow_less_iterations
+        horizon_prob = OptimalControlProblem(
+            prob.system, last_mode(prob.system, traj), length(traj) == 0 ? prob.x_0 : sol[1].x[end],
+            prob.state_cost[(length(traj) + 1):end], prob.transition_cost[(length(traj) + 1):end],
+            prob.q_T, min(left, algo.horizon)
+        )
+        sol_horizon = optimal_control(horizon_prob, sub_algo)
+    else
+        sol_horizon = nothing
+    end
     if sol_horizon === nothing
         ub = Inf
         sol_traj = nothing
@@ -114,14 +135,30 @@ end
 
 using Printf
 
+const NUM_NODES = [
+   "#nodes", "#queued", "#done", "#pruned", "#infeas", "#left"
+]
+
 # Inspired from Pavito's `printgap`
-function print_info(log_level, log_iter, num_iter, ub, start_time)
+function print_info(last_iter::Bool, log_level, log_iter, num_iter, ub, start_time,
+                    num_nodes...)
+    num_nodes = (num_nodes..., 2num_nodes[1] - sum(num_nodes))
+    @assert num_nodes[end] >= 0
     if log_level >= 1
-        if num_iter == 1 || log_level >= 2
-            @printf "\n%-5s | %-14s | %-11s\n" "Iter." "Best feasible" "Time (s)"
+        len = max(maximum(length, NUM_NODES), length(string(num_nodes[1])))
+        if num_iter == 0 || log_level >= 2
+            @printf "\n%-5s | %-14s | %-11s" "Iter." "Best feasible" "Time (s)"
+            for s in NUM_NODES
+                print(" | ", lpad(s, len))
+            end
+            println()
         end
-        if num_iter in log_iter
-            @printf "%5d | %+14.6e | %11.3e\n" num_iter ub (time() - start_time)
+        if last_iter || (num_iter in log_iter)
+            @printf "%5d | %+14.6e | %11.3e" num_iter ub (time() - start_time)
+            for num in num_nodes
+                print(" | ", lpad(string(num), len))
+            end
+            println()
         end
         flush(stdout)
         flush(stderr)
@@ -135,19 +172,36 @@ function optimal_control(
 )
     start_time = time()
     iszero(prob.number_of_time_steps) && return _zero_steps(prob)
+    num_nodes = number_of_nodes(prob)
+    num_total = num_nodes[prob.number_of_time_steps, prob.q_0]
+    iszero(num_total) && return
     discrete_lb = distances(prob, algo.continuous_solver)
     candidate_0, best_traj = candidate(prob, algo, discrete_lb, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
     candidate_0 === nothing && return
     ub = candidate_0.upper_bound
     num_iter = 0
     candidates = BinaryMinHeap([candidate_0])
-    while !isempty(candidates) && num_iter < algo.max_iter && time() - start_time < algo.max_time
+    num_done = 0
+    num_pruned_bound = 0
+    num_pruned_inf = 0
+    while true
+        stop = isempty(candidates) || num_iter >= algo.max_iter || time() - start_time >= algo.max_time
+        print_info(stop, algo.log_level, algo.log_iter, num_iter, ub, start_time,
+                   num_total, length(candidates), num_done, num_pruned_bound, num_pruned_inf)
+        stop && break
         num_iter += 1
         cur_candidate = pop!(candidates)
         if cur_candidate.lower_bound < ub
             for t in out_transitions(prob.system, last_mode(prob.system, cur_candidate.traj))
-                new_candidate_traj = candidate(prob, algo, discrete_lb, append(cur_candidate.traj, t))
-                if new_candidate_traj !== nothing
+                new_traj = append(cur_candidate.traj, t)
+                # Shortcuts avoiding to solve the QP in case, it's infeasible.
+                nnodes = num_nodes[prob.number_of_time_steps - length(new_traj), last_mode(prob.system, new_traj)]
+                iszero(nnodes) && continue
+                new_candidate_traj = candidate(prob, algo, discrete_lb, new_traj)
+                if new_candidate_traj === nothing
+                    num_pruned_inf += nnodes - 1
+                    num_done += 1
+                else
                     new_candidate, sol_traj = new_candidate_traj
                     if new_candidate.upper_bound < ub
                         if algo.feasible_solution_callback !== nothing
@@ -157,12 +211,21 @@ function optimal_control(
                         ub = new_candidate.upper_bound
                     end
                     if length(new_candidate.traj) < prob.number_of_time_steps
-                        push!(candidates, new_candidate)
+                        if new_candidate.lower_bound < ub
+                            push!(candidates, new_candidate)
+                        else
+                            num_pruned_bound += nnodes - 1
+                            num_done += 1
+                        end
                     end
                 end
             end
+        else
+            left = prob.number_of_time_steps - length(cur_candidate.traj)
+            nnodes = num_nodes[left, last_mode(prob.system, cur_candidate.traj)]
+            num_pruned_bound += nnodes - 1
         end
-        print_info(algo.log_level, algo.log_iter, num_iter, ub, start_time)
+        num_done += 1
     end
     best_traj === nothing && return
     return best_traj, ub
