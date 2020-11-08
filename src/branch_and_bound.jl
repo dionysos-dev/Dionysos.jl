@@ -2,9 +2,10 @@ export BranchAndBound
 
 using DataStructures # for BinaryMinHeap
 
-struct BranchAndBound{C, M, V<:AbstractVector{Int}}
+struct BranchAndBound{C, M, LB, V<:AbstractVector{Int}}
     continuous_solver::C
     mixed_integer_solver::M
+    lower_bound::LB
     horizon::Int
     indicator::Bool
     log_level::Int
@@ -14,9 +15,9 @@ struct BranchAndBound{C, M, V<:AbstractVector{Int}}
     rel_gap::Float64
     feasible_solution_callback::Union{Nothing, Function}
 end
-function BranchAndBound(continuous_solver, mixed_integer_solver; horizon=0, max_iter=1000, max_time=60.0, rel_gap=1e-3, indicator::Bool = false, log_level = 1, log_iter = 0:100:max_iter,
+function BranchAndBound(continuous_solver, mixed_integer_solver, lower_bound; horizon=0, max_iter=1000, max_time=60.0, rel_gap=1e-3, indicator::Bool = false, log_level = 1, log_iter = 0:100:max_iter,
                         feasible_solution_callback = nothing)
-    return BranchAndBound(continuous_solver, mixed_integer_solver, horizon, indicator, log_level, log_iter, max_iter, max_time, rel_gap, feasible_solution_callback)
+    return BranchAndBound(continuous_solver, mixed_integer_solver, lower_bound, horizon, indicator, log_level, log_iter, max_iter, max_time, rel_gap, feasible_solution_callback)
 end
 
 struct Candidate{T, TT}
@@ -80,36 +81,32 @@ function number_of_nodes(prob)
     return num
 end
 
-function distances(prob, solver)
-    syst = prob.system
-    dists = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(syst)], Inf)
-    dists[0, prob.q_T] = 0.0
-    transition_cost = HybridSystems.transition_property(syst, Float64)
-    for t in transitions(syst)
-        transition_cost[t] = minimum_transition_cost(prob, t, solver)
-    end
-    for i in 1:prob.number_of_time_steps
-        for mode in modes(syst)
-            for t in out_transitions(syst, mode)
-                dists[i, mode] = min(dists[i, mode], transition_cost[t] + dists[i - 1, target(syst, t)])
-            end
-        end
-    end
-    return dists
-end
-
-function candidate(prob, algo, discrete_lb, traj)
+function candidate(prob, algo, Q_function, traj)
     sub_algo = BemporadMorari(algo.continuous_solver, algo.mixed_integer_solver, algo.indicator, algo.log_level)
     modes = [[target(prob.system, t)] for t in traj.transitions]
+    state_cost = collect(prob.state_cost[1:length(traj)])
+    left = prob.number_of_time_steps - length(traj)
+    terminal_cost = value_function(Q_function, left, last_mode(prob.system, traj))
+    @assert isempty(state_cost) == iszero(length(traj))
+    if !isempty(state_cost)
+        # We use `Ref` as `Base.broadcastable` is not defined for functions that
+        # are in `terminal_cost`.
+        state_cost = [state_cost[1:(end - 1)]; [state_cost[end] .+ Ref(terminal_cost)]]
+    end
     cont_traj_prob = OptimalControlProblem(
         prob.system, prob.q_0, prob.x_0,
-        prob.state_cost[1:length(traj)], prob.transition_cost[1:length(traj)],
+        state_cost, prob.transition_cost[1:length(traj)],
         last_mode(prob.system, traj), length(traj)
     )
     sol = optimal_control(cont_traj_prob, sub_algo, modes)
     sol === nothing && return
-    left = prob.number_of_time_steps - length(traj)
-    lb = sol[2] + discrete_lb[left, last_mode(prob.system, traj)]
+    if isempty(state_cost)
+        start_cost = sol[2]
+        lb = start_cost + function_value(terminal_cost, prob.x_0)
+    else
+        lb = sol[2]
+        start_cost = lb - function_value(terminal_cost, sol[1].x[end])
+    end
     if left <= algo.horizon || false # prob.allow_less_iterations
         horizon_prob = OptimalControlProblem(
             prob.system, last_mode(prob.system, traj), length(traj) == 0 ? prob.x_0 : sol[1].x[end],
@@ -124,13 +121,13 @@ function candidate(prob, algo, discrete_lb, traj)
         ub = Inf
         sol_traj = nothing
     else
-        ub = sol[2] + sol_horizon[2]
+        ub = start_cost + sol_horizon[2]
         sol_traj = ContinuousTrajectory(
             [sol[1].x; sol_horizon[1].x],
             [sol[1].u; sol_horizon[1].u]
         )
     end
-    return Candidate(lb, ub, traj), sol_traj
+    return Candidate(sol[2], ub, traj), sol_traj
 end
 
 using Printf
@@ -175,8 +172,8 @@ function optimal_control(
     num_nodes = number_of_nodes(prob)
     num_total = num_nodes[prob.number_of_time_steps, prob.q_0]
     iszero(num_total) && return
-    discrete_lb = distances(prob, algo.continuous_solver)
-    candidate_0, best_traj = candidate(prob, algo, discrete_lb, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
+    Q_function = instantiate(prob, algo.lower_bound)
+    candidate_0, best_traj = candidate(prob, algo, Q_function, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
     candidate_0 === nothing && return
     ub = candidate_0.upper_bound
     num_iter = 0
@@ -197,7 +194,7 @@ function optimal_control(
                 # Shortcuts avoiding to solve the QP in case, it's infeasible.
                 nnodes = num_nodes[prob.number_of_time_steps - length(new_traj), last_mode(prob.system, new_traj)]
                 iszero(nnodes) && continue
-                new_candidate_traj = candidate(prob, algo, discrete_lb, new_traj)
+                new_candidate_traj = candidate(prob, algo, Q_function, new_traj)
                 if new_candidate_traj === nothing
                     num_pruned_inf += nnodes - 1
                     num_done += 1

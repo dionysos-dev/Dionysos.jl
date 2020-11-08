@@ -8,16 +8,16 @@ using Dionysos
     function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost::Bool, mi::Bool)
         system = gol_lazar_belta(CDDLib.Library())
         if zero_cost
-            state_cost = Fill(ZeroCost(), nmodes(system))
+            state_cost = Fill(ZeroFunction(), nmodes(system))
         else
-            state_cost = [mode == system.ext[:q_T] ? ConstantCost(0.0) : ConstantCost(1.0)
+            state_cost = [mode == system.ext[:q_T] ? ConstantFunction(0.0) : ConstantFunction(1.0)
                           for mode in modes(system)]
         end
         problem = OptimalControlProblem(
             system,
             q0, x0,
             Fill(state_cost, N),
-            Fill(Fill(QuadraticControlCost(ones(1, 1)), ntransitions(system)), N),
+            Fill(Fill(QuadraticControlFunction(ones(1, 1)), ntransitions(system)), N),
             system.ext[:q_T],
             N
         )
@@ -45,7 +45,8 @@ using Dionysos
         # Pavito does not support indicator constraints yet so we use `false` here
         @testset "$(typeof(algo))" for algo in [
             BemporadMorari(qp_solver, miqp_solver, false, 0),
-            BranchAndBound(qp_solver, miqp_solver, max_iter = 1111)
+            BranchAndBound(qp_solver, miqp_solver, DiscreteLowerBoundAlgo(qp_solver), max_iter = 1111)
+            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 1111)
         ]
             @testset "Depth: 0" begin
             _test(algo, 0, 18, [0.0, 1.0], nothing, nothing, nothing, true, false)
