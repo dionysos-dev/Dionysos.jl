@@ -237,11 +237,13 @@ function optimal_control(
     end
     optimize!(model)
 
-    termination_status(model) == MOI.INFEASIBLE && return
+    if termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED) && return
+        return
+    end
 
     if termination_status(model) != MOI.OPTIMAL
         if algo.log_level >= 1
-            @warn("Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
+            @warn("BemporadMorari: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
         end
     end
 

@@ -9,6 +9,14 @@ qp_solver = optimizer_with_attributes(
     OSQP.Optimizer,
     MOI.Silent() => true
 )
+import Gurobi
+env = Gurobi.Env()
+qp_solver = optimizer_with_attributes(
+    () -> Gurobi.Optimizer(env),
+    MOI.Silent() => true,
+    # Without this, I get NumericalError in BemporadMorari called by BranchAndBound
+    "DualReductions" => 0
+)
 import Ipopt
 cont_solver = optimizer_with_attributes(
     Ipopt.Optimizer,

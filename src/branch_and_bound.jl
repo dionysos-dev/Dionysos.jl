@@ -57,10 +57,10 @@ function minimum_transition_cost(prob, transition, solver, log_level = 0)
     optimize!(model)
     if termination_status(model) == MOI.OPTIMAL
         return objective_value(model)
-    elseif termination_status(model) == MOI.INFEASIBLE
+    elseif termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED)
         return Inf
     else
-        @error("Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
+        @error("Candidate: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
     end
 end
 
@@ -165,7 +165,8 @@ end
 
 function optimal_control(
     prob::OptimalControlProblem,
-    algo::BranchAndBound
+    algo::BranchAndBound;
+    Q_function_init = nothing
 )
     start_time = time()
     iszero(prob.number_of_time_steps) && return _zero_steps(prob)
@@ -173,6 +174,9 @@ function optimal_control(
     num_total = num_nodes[prob.number_of_time_steps, prob.q_0]
     iszero(num_total) && return
     Q_function = instantiate(prob, algo.lower_bound)
+    if Q_function_init !== nothing
+        Q_function = q_merge(Q_function, Q_function_init)
+    end
     candidate_0, best_traj = candidate(prob, algo, Q_function, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
     candidate_0 === nothing && return
     ub = candidate_0.upper_bound
@@ -200,6 +204,13 @@ function optimal_control(
                     num_done += 1
                 else
                     new_candidate, sol_traj = new_candidate_traj
+                    if sol_traj !== nothing
+                        # TODO Instead of `new_traj`, we should complete it
+                        # with the discrete solution of the last part.
+                        # If `horizon == 0`, there is no difference but otherwise,
+                        # it does matter
+                        learn(Q_function, prob, new_traj, sol_traj, algo.lower_bound)
+                    end
                     if new_candidate.upper_bound < ub
                         if algo.feasible_solution_callback !== nothing
                             algo.feasible_solution_callback(new_candidate, sol_traj)
@@ -225,5 +236,5 @@ function optimal_control(
         num_done += 1
     end
     best_traj === nothing && return
-    return best_traj, ub
+    return best_traj, ub, Q_function
 end
