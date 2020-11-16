@@ -23,6 +23,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 CUDD = "0.2"
+DataStructures = "0.18"
 HybridSystems = "0.3"
 julia = "1"
 
