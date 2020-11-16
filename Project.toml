@@ -22,6 +22,7 @@ SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+CDDLib = "0.6"
 CUDD = "0.2"
 DataStructures = "0.18"
 HybridSystems = "0.3"
