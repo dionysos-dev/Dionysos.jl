@@ -26,6 +26,7 @@ CDDLib = "0.6"
 CUDD = "0.2"
 DataStructures = "0.18"
 HybridSystems = "0.3"
+MutableArithmetics = "0.2"
 Polyhedra = "0.6"
 julia = "1"
 
