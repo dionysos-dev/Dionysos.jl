@@ -4,6 +4,8 @@ using Test
 import CDDLib
 using Dionysos
 
+_name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[1]
+
 @testset "Gol-Lazar-Belta" begin
     function _prob( N, q0, x0, zero_cost::Bool)
         system = gol_lazar_belta(CDDLib.Library())
@@ -25,25 +27,29 @@ using Dionysos
     function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost::Bool, mi::Bool; kws...)
         problem = _prob(N, q0, x0, zero_cost)
         @info("Solving... depth: $N")
-        @time xu = optimal_control(problem, algo; kws...)
+        optimizer = MOI.instantiate(algo)
+        MOI.set(optimizer, MOI.RawParameter("problem"), problem)
+        @info("Solving... depth: $N")
+        @time MOI.optimize!(optimizer)
         @info("Solved.")
         if x_expected === nothing
-            @test xu === nothing
+            @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.INFEASIBLE
         else
-            @test xu !== nothing
-            @test typeof(x_expected) == typeof(xu[1].x)
-            @test typeof(u_expected) == typeof(xu[1].u)
+            @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.OPTIMAL
+            xu = MOI.get(optimizer, ContinuousTrajectoryAttribute())
+            @test typeof(x_expected) == typeof(xu.x)
+            @test typeof(u_expected) == typeof(xu.u)
             if isempty(x_expected)
                 @test isempty(u_expected)
-                @test isempty(xu[1].x)
-                @test isempty(xu[1].u)
+                @test isempty(xu.x)
+                @test isempty(xu.u)
             else
-                @test xu[1].x ≈ x_expected atol=1e-2
-                @test xu[1].u ≈ u_expected atol=1e-2
+                @test xu.x ≈ x_expected atol=1e-2
+                @test xu.u ≈ u_expected atol=1e-2
             end
-            @test xu[2] ≈ obj_expected atol=1e-2
+            @test MOI.get(optimizer, MOI.ObjectiveValue()) ≈ obj_expected atol=1e-2
         end
-        xu !== nothing && length(xu) >= 3 && return xu[3]
+        x_expected !== nothing && optimizer isa BranchAndBound.Optimizer && return optimizer.Q_function
         return
     end
 #    function learn_test(qp_solver)
@@ -127,9 +133,11 @@ using Dionysos
         [-0.6200711938663745]]
     function tests(qp_solver, miqp_solver)
         # Pavito does not support indicator constraints yet so we use `false` here
-        @testset "$(split(string(typeof(algo)), "{")[1])" for algo in [
-            BemporadMorari(qp_solver, miqp_solver, false, 0),
-            BranchAndBound(qp_solver, miqp_solver, DiscreteLowerBoundAlgo(qp_solver), max_iter = 1111),
+        @testset "$(_name(algo))" for algo in [
+            optimizer_with_attributes(BemporadMorari.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+                                     "indicator" => false, "log_level" => 0),
+            optimizer_with_attributes(BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+                                     "max_iter" => 1111)
 #            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
         ]
             @testset "Depth: 0" begin
@@ -148,27 +156,32 @@ using Dionysos
                 _test9(algo)
             end
             @testset "Depth: 11" begin
-                Q = _test11(algo)
+                _test11(algo)
             end
         end
     end
     function test_Q_reuse(qp_solver, miqp_solver)
         # Pavito does not support indicator constraints yet so we use `false` here
-        algo(max_iter) = BranchAndBound(qp_solver, miqp_solver, DiscreteLowerBoundAlgo(qp_solver), max_iter = max_iter)
-        qalgo(max_iter) = BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = max_iter)
+
+        algo(max_iter, Q_function_init) = optimizer_with_attributes(
+            BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+            "max_iter" => max_iter, "Q_function_init" => Q_function_init)
+        qalgo(max_iter) = optimizer_with_attributes(
+            BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+            "max_iter" => max_iter, "lower_bound" => HybridDualDynamicProgrammingAlgo(qp_solver))
         Q9 = _test9(qalgo(871))
         @show sum(length.(Q9.cuts))
-        _test9(algo(761), Q_function_init = Q9)
-        _test11(algo(85), Q_function_init = Q9)
+        _test9(algo(761, Q9))
+        _test11(algo(85, Q9))
         Q11 = _test11(qalgo(85))
         @show sum(length.(Q11.cuts))
-        _test9(algo(880), Q_function_init = Q11)
-        _test11(algo(85), Q_function_init = Q11)
+        _test9(algo(880, Q11))
+        _test11(algo(85, Q11))
         Q = Dionysos.q_merge(Q9, Q11)
-        _test9(algo(747), Q_function_init = Q)
-        _test11(algo(85), Q_function_init = Q)
+        _test9(algo(747, Q))
+        _test11(algo(85, Q))
     end
     tests(qp_solver, miqp_solver)
-    #test_Q_reuse(qp_solver, miqp_solver)
+    test_Q_reuse(qp_solver, miqp_solver)
     #learn_test(qp_solver)
 end

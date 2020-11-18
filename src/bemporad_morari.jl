@@ -1,15 +1,42 @@
 export BemporadMorari
 
+module BemporadMorari
+
+using Dionysos
+
 import MutableArithmetics
 const MA = MutableArithmetics
 
 using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra
 
-struct BemporadMorari{C, M}
-    continuous_solver::C
-    mixed_integer_solver::M
+@enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
+
+mutable struct Optimizer <: MOI.AbstractOptimizer
+    continuous_solver
+    mixed_integer_solver
     indicator::Bool
     log_level::Int
+    modes::Union{Nothing, Vector{Vector{Int}}}
+    problem::Union{Nothing, OptimalControlProblem}
+    discrete_presolve_status::DiscretePresolveStatus
+    inner
+    x
+    u
+    δ_modes
+    δ_transs
+    function Optimizer()
+        return new(nothing, nothing, true, 1, nothing, nothing, OPTIMIZE_NOT_CALLED,
+                  nothing, nothing, nothing, nothing, nothing)
+    end
+end
+
+MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
+
+function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+    setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::Optimizer, param::MOI.RawParameter)
+    getproperty(model, Symbol(param.name))
 end
 
 function default_modes(system, q_T, N)
@@ -160,16 +187,25 @@ function _sparse_set(δs, δ, t)
     return δs
 end
 
-function optimal_control(
-    prob::OptimalControlProblem,
-    algo::BemporadMorari,
-    _modes = default_modes(prob.system, prob.q_T, prob.number_of_time_steps)
-)
-    iszero(prob.number_of_time_steps) && return _zero_steps(prob)
+function _zero_steps(optimizer)
+    if optimizer.problem.q_T == optimizer.problem.q_0
+        optimizer.discrete_presolve_status = TRIVIAL
+    else
+        optimizer.discrete_presolve_status = NO_MODE
+    end
+    return
+end
+
+function MOI.optimize!(optimizer::Optimizer)
+    prob = optimizer.problem
+    if optimizer.modes === nothing
+        optimizer.modes = default_modes(prob.system, prob.q_T, prob.number_of_time_steps)
+    end
+    iszero(prob.number_of_time_steps) && return _zero_steps(optimizer)
     modes = Vector{Vector{Int}}(undef, prob.number_of_time_steps)
     for t in 1:prob.number_of_time_steps
         modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
-        modes[t] = filter(_modes[t]) do mode
+        modes[t] = filter(optimizer.modes[t]) do mode
             any(modes_prev) do mode_prev
                 has_transition(prob.system, mode_prev, mode)
             end
@@ -184,18 +220,29 @@ function optimal_control(
     end
     # TODO remove modes that are impossible
     if any(isempty, modes)
-        algo.log_level >= 1 && @warn("`modes` is empty for some time step.")
+        optimizer.log_level >= 1 && @warn("`modes` is empty for some time step.")
+        optimizer.discrete_presolve_status = NO_MODE
         return
     end
+
     model = Model()
+    # Use `model` instead of `optimizer.inner`
+    # as it is type stable.
+    optimizer.inner = model
     @variable(model, x[1:prob.number_of_time_steps, 1:statedim(prob.system, first(first(modes)))])
+    optimizer.x = x
     @variable(model, u[1:prob.number_of_time_steps, 1:inputdim(resetmap(prob.system, first(transitions(prob.system))))])
+    optimizer.u = u
+
     transs = [possible_transitions(prob.system, t == 1 ? [prob.q_0] : modes[t-1], modes[t])
               for t in 1:prob.number_of_time_steps]
     if any(isempty, transs)
-        algo.log_level >= 1 && @warn("`transs` is empty for some time step.")
+        optimizer.log_level >= 1 && @warn("`transs` is empty for some time step.")
+        optimizer.discrete_presolve_status = NO_TRANSITION
         return
     end
+
+    optimizer.discrete_presolve_status = FEASIBLE
 
     total_cost = MA.Zero()
 
@@ -208,11 +255,11 @@ function optimal_control(
         xi = x[t, :]
         ui = u[t, :]
         δ_mode = IndicatorVariables(modes[t], t)
-        δ_mode = hybrid_constraints(model, fillify(prob.system.modes[modes[t]]), x_prev, xi, ui, algo, δ_mode)
+        δ_mode = hybrid_constraints(model, fillify(prob.system.modes[modes[t]]), x_prev, xi, ui, optimizer, δ_mode)
         symbols = symbol.(prob.system, transs[t])
-        #@show @which hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, algo, IndicatorVariables(transs[t], t))
+        #@show @which hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, optimizer, IndicatorVariables(transs[t], t))
         δ_trans = IndicatorVariables(transs[t], t)
-        δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, algo, δ_trans)
+        δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, optimizer, δ_trans)
         state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode)
         total_cost = MA.operate!(+, total_cost, state_cost)
         trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans)
@@ -223,43 +270,64 @@ function optimal_control(
         δ_modes = _sparse_set(δ_modes, δ_mode, t)
         δ_transs = _sparse_set(δ_transs, δ_trans, t)
     end
+    optimizer.δ_modes = δ_modes
+    optimizer.δ_transs = δ_transs
 
     @objective(model, Min, total_cost)
 
     if δ_modes === nothing && δ_transs === nothing
-        set_optimizer(model, algo.continuous_solver)
+        set_optimizer(model, optimizer.continuous_solver)
     else
-        set_optimizer(model, algo.mixed_integer_solver)
+        set_optimizer(model, optimizer.mixed_integer_solver)
     end
 
-    if algo.log_level >= 2
+    if optimizer.log_level >= 2
         print(model)
     end
     optimize!(model)
 
-    if termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED) && return
-        return
-    end
-
-    if termination_status(model) != MOI.OPTIMAL
-        if algo.log_level >= 1
+    if !(termination_status(model) in [MOI.OPTIMAL, MOI.INFEASIBLE])
+        if optimizer.log_level >= 1
             @warn("BemporadMorari: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
         end
-    end
-
-    if primal_status(model) == MOI.FEASIBLE_POINT
-        if algo.log_level >= 1
-            if δ_modes !== nothing
-                @show (x -> value.(x)).(δ_modes)
-            end
-            if δ_transs !== nothing
-                @show (x -> value.(x)).(δ_transs)
-            end
-        end
-        return ContinuousTrajectory(_rows(value.(x)), _rows(value.(u))), objective_value(model)
-    else
-        return
     end
 end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
+function MOI.get(optimizer::Optimizer, ::ContinuousTrajectoryAttribute)
+    #if optimizer.log_level >= 1
+    #    if δ_modes !== nothing
+    #        @show (x -> value.(x)).(δ_modes)
+    #    end
+    #    if δ_transs !== nothing
+    #        @show (x -> value.(x)).(δ_transs)
+    #    end
+    #end
+    if optimizer.discrete_presolve_status == TRIVIAL
+        return ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
+    else
+        return ContinuousTrajectory(_rows(value.(optimizer.x)), _rows(value.(optimizer.u)))
+    end
+end
+
+function MOI.get(optimizer::Optimizer, ::MOI.ObjectiveValue)
+    if optimizer.discrete_presolve_status == TRIVIAL
+        return 0.0
+    else
+        return objective_value(optimizer.inner)
+    end
+end
+
+function MOI.get(optimizer::Optimizer, attr::Union{MOI.TerminationStatus, MOI.PrimalStatus})
+    if optimizer.discrete_presolve_status == OPTIMIZE_NOT_CALLED
+        return attr isa MOI.TerminationStatus ? MOI.OPTIMIZE_NOT_CALLED : MOI.NO_SOLUTION
+    elseif optimizer.discrete_presolve_status == FEASIBLE
+        return MOI.get(optimizer.inner, attr)
+    elseif optimizer.discrete_presolve_status == TRIVIAL
+        return MOI.OPTIMAL
+    else
+        return attr isa MOI.TerminationStatus ? MOI.INFEASIBLE : MOI.NO_SOLUTION
+    end
+end
+
+end

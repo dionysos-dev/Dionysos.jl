@@ -1,5 +1,11 @@
-export ZeroFunction, ConstantFunction, QuadraticControlFunction
+export ZeroFunction, ConstantFunction, QuadraticControlFunction, PolyhedralFunction
+export ContinuousTrajectory, ContinuousTrajectoryAttribute
+export DiscreteTrajectory
 export OptimalControlProblem
+export last_mode, function_value
+
+using JuMP
+using HybridSystems
 
 struct DiscreteTrajectory{TT}
     q_0::Int
@@ -24,6 +30,9 @@ end
 struct ContinuousTrajectory{T, VT<:AbstractVector{T}}
     x::Vector{VT}
     u::Vector{VT}
+end
+
+struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute
 end
 
 struct HybridTrajectory{T, TT, VT<:AbstractVector{T}}
@@ -80,11 +89,3 @@ end
 
 export optimal_control
 function optimal_control end
-
-function _zero_steps(prob)
-    if prob.q_T == prob.q_0
-        return ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[]), 0.0
-    else
-        return
-    end
-end

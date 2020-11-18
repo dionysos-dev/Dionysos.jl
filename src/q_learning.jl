@@ -1,6 +1,41 @@
-using CDDLib, ParameterJuMP
+using LinearAlgebra
+using Polyhedra, CDDLib, ParameterJuMP
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
+
+# TODO It assumes that the cost is `Fill{...}`, otherwise, we should compute a different
+#      cost for each time
+function minimum_transition_cost(prob, transition, solver, log_level = 0)
+    model = Model(solver)
+    from = source(prob.system, transition)
+    to = target(prob.system, transition)
+    @variable(model, x0[1:statedim(prob.system, from)] in hrep(stateset(prob.system, from)))
+    @variable(model, x1[1:statedim(prob.system, to)] in hrep(stateset(prob.system, to)))
+    @variable(model, u[1:inputdim(resetmap(prob.system, transition))])
+    algo = optimizer_with_attributes(
+        BemporadMorari.Optimizer,
+        "continuous_solver" => solver,
+        "log_level" => 0)
+    # We use `1` as we asssume the cost is the same along time
+    t = 1
+    δ_mode = BemporadMorari.IndicatorVariables([to], t)
+    state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[t][[to]]), x1, u, δ_mode)
+    symbols = [symbol(prob.system, transition)]
+    δ_trans = BemporadMorari.IndicatorVariables(symbols, t)
+    δ_trans = BemporadMorari.hybrid_constraints(model, BemporadMorari.fillify(prob.system.resetmaps[symbols]), x0, x1, u, algo, δ_trans)
+    trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[t][symbols]), x0, u, δ_trans)
+    @objective(model, Min, state_cost + trans_cost)
+    optimize!(model)
+    if termination_status(model) == MOI.OPTIMAL
+        return objective_value(model)
+    elseif termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED)
+        return Inf
+    else
+        @error("Candidate: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
+    end
+end
+
+
 
 function _merge_with(combine, a, b)
     n = (axes(a, 1).stop, axes(b, 1).stop)
@@ -123,11 +158,11 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
         @constraint(model, θ >= epi(length(x_next) + 1))
         tos = [target(prob.system, t) for t in trans]
-        δ_mode = IndicatorVariables(tos, i)
-        state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[i][tos]), x_next, u, δ_mode)
+        δ_mode = BemporadMorari.IndicatorVariables(tos, i)
+        state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, u, δ_mode)
         symbols = symbol.(prob.system, trans)
-        δ_trans = IndicatorVariables(symbols, i)
-        trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[i][symbols]), x, u, δ_trans)
+        δ_trans = BemporadMorari.IndicatorVariables(symbols, i)
+        trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, u, δ_trans)
         @objective(model, Min, trans_cost + state_cost + θ)
         optimize!(model)
         if termination_status(model) == MOI.OPTIMAL && dual_status(model) == MOI.FEASIBLE_POINT
