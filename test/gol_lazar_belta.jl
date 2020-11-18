@@ -128,9 +128,9 @@ using Dionysos
     function tests(qp_solver, miqp_solver)
         # Pavito does not support indicator constraints yet so we use `false` here
         @testset "$(split(string(typeof(algo)), "{")[1])" for algo in [
-#            BemporadMorari(qp_solver, miqp_solver, false, 0),
-#            BranchAndBound(qp_solver, miqp_solver, DiscreteLowerBoundAlgo(qp_solver), max_iter = 1111),
-            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
+            BemporadMorari(qp_solver, miqp_solver, false, 0),
+            BranchAndBound(qp_solver, miqp_solver, DiscreteLowerBoundAlgo(qp_solver), max_iter = 1111),
+#            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
         ]
             @testset "Depth: 0" begin
             _test(algo, 0, 18, [0.0, 1.0], nothing, nothing, nothing, true, false)
@@ -169,6 +169,6 @@ using Dionysos
         _test11(algo(85), Q_function_init = Q)
     end
     tests(qp_solver, miqp_solver)
-    test_Q_reuse(qp_solver, miqp_solver)
+    #test_Q_reuse(qp_solver, miqp_solver)
     #learn_test(qp_solver)
 end
