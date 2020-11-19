@@ -1,4 +1,4 @@
-export ZeroCost, ConstantCost, QuadraticControlCost
+export ZeroFunction, ConstantFunction, QuadraticControlFunction
 export OptimalControlProblem
 
 struct DiscreteTrajectory{TT}
@@ -31,15 +31,42 @@ struct HybridTrajectory{T, TT, VT<:AbstractVector{T}}
     continuous::ContinuousTrajectory{T, VT}
 end
 
-struct ZeroCost end
+struct ZeroFunction end
 
-struct ConstantCost{T}
-    cost::T
+struct ConstantFunction{T}
+    value::T
+end
+function_value(f::ConstantFunction, x) = f.value
+function Base.:+(f::ConstantFunction, g::ConstantFunction)
+    return ConstantFunction(f.value + g.value)
 end
 
-struct QuadraticControlCost{T, MT <: AbstractMatrix{T}}
+struct QuadraticControlFunction{T, MT <: AbstractMatrix{T}}
     Q::MT
 end
+
+struct AffineFunction{T}
+    a::Vector{T}
+    β::T
+end
+function function_value(f::AffineFunction, x)
+    return f.a ⋅ x + f.β
+end
+
+struct PolyhedralFunction{T}
+    lower_bound::T
+    pieces::Vector{AffineFunction{T}}
+end
+function function_value(f::PolyhedralFunction, x)
+    return mapreduce(piece -> function_value(piece, x), max, f.pieces,
+                     init = f.lower_bound)
+end
+
+function Base.:+(c::ConstantFunction, p::PolyhedralFunction)
+    return PolyhedralFunction(c.value + p.lower_bound, p.pieces)
+end
+
+Base.:+(::ZeroFunction, f::Union{ConstantFunction, PolyhedralFunction}) = f
 
 struct OptimalControlProblem{S, Q, X0, XC, TC}
     system::S

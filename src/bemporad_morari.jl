@@ -105,20 +105,28 @@ end
 # TODO move to MA
 #Base.zero(::Type{MA.Zero}) = MA.Zero()
 
-function hybrid_cost(model, costs::AbstractArray{ZeroCost}, x, u, δ)
+function hybrid_cost(model, costs::AbstractArray{ZeroFunction}, x, u, δ)
     return 0.0, δ
 end
-function hybrid_cost(model, costs::AbstractArray{<:ConstantCost}, x, u, δ)
+function hybrid_cost(model, costs::AbstractArray{<:ConstantFunction}, x, u, δ)
     δ = indicator_variables(model, δ)
-    cost = [cost.cost for cost in costs]
+    cost = [cost.value for cost in costs]
     return cost ⋅ δ, δ
 end
-function hybrid_cost(model, costs::Fill{<:ConstantCost}, x, u, δ)
-    return first(costs).cost, δ
+function hybrid_cost(model, costs::Fill{<:ConstantFunction}, x, u, δ)
+    return first(costs).value, δ
 end
-function hybrid_cost(model, costs::Fill{<:QuadraticControlCost}, x, u, δ)
+function hybrid_cost(model, costs::Fill{<:QuadraticControlFunction}, x, u, δ)
     cost = first(costs)
     return u' * cost.Q * u, δ
+end
+function hybrid_cost(model, costs::Fill{<:PolyhedralFunction}, x, u, δ)
+    cost = first(costs)
+    θ = @variable(model, lower_bound = cost.lower_bound)
+    for piece in cost.pieces
+        @constraint(model, θ >= function_value(piece, x))
+    end
+    return θ, δ
 end
 
 function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables)
@@ -229,11 +237,13 @@ function optimal_control(
     end
     optimize!(model)
 
-    termination_status(model) == MOI.INFEASIBLE && return
+    if termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED) && return
+        return
+    end
 
     if termination_status(model) != MOI.OPTIMAL
         if algo.log_level >= 1
-            @warn("Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
+            @warn("BemporadMorari: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
         end
     end
 
