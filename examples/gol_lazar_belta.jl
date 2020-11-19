@@ -2,6 +2,7 @@ using FillArrays
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
+using Dionysos
 
 function gol_lazar_belta(lib)
     function rect(x_l, x_u)
@@ -44,8 +45,7 @@ function gol_lazar_belta(lib)
          0.0 1.0]
     B = reshape([0.5, 1.0], 2, 1)
 
-    #ResetMaps = Vector{ConstrainedLinearControlDiscreteSystem}(undef, length(domains)^2)
-    cU = polyhedron(HalfSpace([0, 0, -1], 2) ∩ HalfSpace([0, 0, 1], 2), lib)
+    reset_map = ConstrainedLinearControlMap(A, B, FullSpace(), pU)
 
     function back(from, to)
         # The `hrep` and `polyhedron` are workaround for an issue similar to
@@ -60,11 +60,12 @@ function gol_lazar_belta(lib)
         end
     end
 
+    cU = polyhedron(HalfSpace([0, 0, -1], 2) ∩ HalfSpace([0, 0, 1], 2), lib)
+
     k = 0
     function maybe_add_transition(from, to)
         if is_enabled(from, to)
-            guard = back(from, to)
-            if !isempty(guard)
+            if reachable_any_to_any(domains[from], domains[to], reset_map)
                 k += 1
                 add_transition!(automaton, from, to, k)
             end
@@ -82,7 +83,7 @@ function gol_lazar_belta(lib)
         # Modes
         [ConstrainedContinuousIdentitySystem(2, i) for i in domains],
         # Reset maps
-        Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), k),
+        Fill(reset_map, k),
         Fill(ControlledSwitching(), k)
     )
 
