@@ -4,7 +4,7 @@ using Test
 import CDDLib
 using Dionysos
 
-_name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[1]
+_name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 
 @testset "Gol-Lazar-Belta" begin
     function _prob( N, q0, x0, zero_cost::Bool)

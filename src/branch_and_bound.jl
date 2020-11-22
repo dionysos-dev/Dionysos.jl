@@ -90,7 +90,7 @@ function candidate(prob, algo, Q_function, traj)
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
     left = prob.number_of_time_steps - length(traj)
-    terminal_cost = value_function(Q_function, left, last_mode(prob.system, traj))
+    terminal_cost = Dionysos.value_function(Q_function, left, last_mode(prob.system, traj))
     @assert isempty(state_cost) == iszero(length(traj))
     if !isempty(state_cost)
         # We use `Ref` as `Base.broadcastable` is not defined for functions that

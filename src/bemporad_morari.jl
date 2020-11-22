@@ -56,7 +56,7 @@ _name(::AbstractVector{<:Integer}) = "mode"
 _name(::AbstractVector{<:HybridSystems.AbstractTransition}) = "trans"
 _base_name(iv::IndicatorVariables) = "δ_$(_name(iv.choices))_$(iv.time)"
 
-indicator_variables(model, δ::AbstractVector{JuMP.VariableRef}) = δ
+indicator_variables(model, δ::AbstractVector{<:JuMP.AbstractJuMPScalar}) = δ
 function indicator_variables(model, iv::IndicatorVariables)
     δ = @variable(model, [iv.choices], Bin, base_name = _base_name(iv))
     @constraint(model, sum(δ) == 1)
@@ -159,13 +159,13 @@ end
 function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::AbstractVector{JuMP.VariableRef}, trans, δ_trans::IndicatorVariables)
+function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::AbstractVector{<:JuMP.AbstractJuMPScalar}, trans, δ_trans::IndicatorVariables)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{JuMP.VariableRef}, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables)
+function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{<:JuMP.AbstractJuMPScalar}, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{JuMP.VariableRef}, modes_to, δ_to::AbstractVector{JuMP.VariableRef}, trans, δ_trans::IndicatorVariables)
+function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{<:JuMP.AbstractJuMPScalar}, modes_to, δ_to::AbstractVector{<:JuMP.AbstractJuMPScalar}, trans, δ_trans::IndicatorVariables)
     for (mode_from, from) in zip(modes_from, δ_from)
         for (mode_to, to) in zip(modes_to, δ_to)
             if !has_transition(system, mode_from, mode_to)

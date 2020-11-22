@@ -84,8 +84,9 @@ function value_function(Q::DiscreteLowerBound, left::Int, mode)
 end
 function learn(::DiscreteLowerBound, prob, ::DiscreteTrajectory, ::ContinuousTrajectory, ::DiscreteLowerBoundAlgo) end
 
-struct HybridDualDynamicProgrammingAlgo{S}
+struct HybridDualDynamicProgrammingAlgo{S, T}
     solver::S
+    new_cut_tol::T
 end
 struct HybridDualDynamicProgramming{C, D}
     cuts::C
@@ -158,10 +159,14 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
         @constraint(model, θ >= epi(length(x_next) + 1))
         tos = [target(prob.system, t) for t in trans]
-        δ_mode = BemporadMorari.IndicatorVariables(tos, i)
+        δ_mode = JuMP.Containers.@container([mode in tos],
+            sum(λ[t, v] for t in trans for v in eachindex(verts[t]) if target(prob.system, t) == mode)
+        )
         state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, u, δ_mode)
         symbols = symbol.(prob.system, trans)
-        δ_trans = BemporadMorari.IndicatorVariables(symbols, i)
+        δ_trans = JuMP.Containers.@container([s in symbols],
+            sum(λ[t, v] for t in trans for v in eachindex(verts[t]) if symbol(prob.system, t) == s)
+        )
         trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, u, δ_trans)
         @objective(model, Min, trans_cost + state_cost + θ)
         optimize!(model)
@@ -177,7 +182,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             before = function_value(V, x)
             after = function_value(cut, x)
             # without the tolerance `1e-5`, CDDLib often throws `Numerically inconsistent`.
-            if after < before + 1e-5
+            if after < before + algo.new_cut_tol
                 @info("Cut ignored: $cut, $after ≤ $before.")
             else
                 @info("Cut added: $cut, $after > $before.")
