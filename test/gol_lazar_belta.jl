@@ -60,7 +60,7 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
             [[-0.5, 0.5]],
             [[-1.2916666674915085]]
         )
-        algo = HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5)
+        algo = HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4)
         Q_function = Dionysos.instantiate(prob, algo)
         Dionysos.learn(Q_function, prob, dtraj, ctraj, algo)
         @test isempty(Q_function.cuts[0, 15])
@@ -69,8 +69,8 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
         @test first(Q_function.cuts[1, 15]) ≈ Dionysos.AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol=1e-6
         @test !hashyperplanes(Q_function.domains[1, 15]) == 1
         @test nhalfspaces(Q_function.domains[1, 15]) == 1
-        a = normalize([2, 1])
-        @test first(halfspaces(Q_function.domains[1, 15])) ≈ HalfSpace(a, -a ⋅ x0)
+        a = normalize(-[2, 1])
+        @test first(halfspaces(Q_function.domains[1, 15])) ≈ HalfSpace(a, a ⋅ x0)
         @test isempty(Q_function.cuts[0, 20])
         @test !hasallhalfspaces(Q_function.domains[0, 20])
         @test isempty(Q_function.cuts[1, 20])
@@ -160,18 +160,19 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
             "max_iter" => max_iter, "Q_function_init" => Q_function_init)
         qalgo(max_iter) = optimizer_with_attributes(
             BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
-            "max_iter" => max_iter, "lower_bound" => HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5))
-        Q9 = _test9(qalgo(990))    # 871 | 976--987
+            "max_iter" => max_iter, "lower_bound" => HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4))
+                                   # Gurobi | SQP
+        Q9 = _test9(qalgo(792))    #    746 | 792
         @show sum(length.(Q9.cuts))
-        _test9(algo(960, Q9))      # 761 | 940--954
-        _test11(algo(96, Q9))      #  85 | 95,96
-        Q11 = _test11(qalgo(96))   #  85 | 96
+        _test9(algo(821, Q9))      #    821 | 785
+        _test11(algo(74, Q9))      #     74 | 74
+        Q11 = _test11(qalgo(75))   #     75 | 75
         @show sum(length.(Q11.cuts))
-        _test9(algo(1011, Q11))    # 880 | 1011
-        _test11(algo(96, Q11))     #  85 | 96
+        _test9(algo(800, Q11))     #    785 | 800
+        _test11(algo(74, Q11))     #     74 | 74
         Q = Dionysos.q_merge(Q9, Q11)
-        _test9(algo(950, Q))       # 747 | 928,944
-        _test11(algo(96, Q))       #  85 | 95,96
+        _test9(algo(818, Q))       #    818 | 785
+        _test11(algo(74, Q))       #     74 | 74
     end
     tests(qp_solver, miqp_solver)
     @testset "Q_reuse" begin

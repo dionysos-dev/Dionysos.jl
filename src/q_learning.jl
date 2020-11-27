@@ -91,6 +91,7 @@ function learn(::DiscreteLowerBound, prob, ::DiscreteTrajectory, ::ContinuousTra
 struct HybridDualDynamicProgrammingAlgo{S, T}
     solver::S
     new_cut_tol::T
+    tight_tol::T
 end
 struct HybridDualDynamicProgramming{C,H<:JuMP.Containers.DenseAxisArray{Polyhedra.Intersection{Float64,Vector{Float64},Int}}, D}
     cuts::C
@@ -211,8 +212,6 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             return
         end
 
-        tight_tol = 1e-4
-
         dual_model = Model()
         @variable(dual_model, y_sum)
         @variable(dual_model, y[1:length(epi_con)])
@@ -257,19 +256,20 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
 
         for t in trans, v in eachindex(verts[t])
-            if value(λ[t, v]) <= tight_tol
+            if value(λ[t, v]) <= algo.tight_tol
                 @constraint(dual_model, λ_cons[t, v] <= 0)
             else
                 @constraint(dual_model, λ_cons[t, v] == 0)
             end
         end
         U_v = vrep(
-            [zeros(length(x))],
+            [zeros(length(u))],
             Line{Float64, Vector{Float64}}[],
             Ray{Float64, Vector{Float64}}[]
         )
         for i in eachindex(U_h)
-            if u_value ⋅ U_h[i].a >= U_h[i].β - tight_tol
+            α = u_value ⋅ U_h[i].a
+            if α >= U_h[i].β - (max(abs(α), abs(U_h[i].β)) + 1) * algo.tight_tol
                 # TODO Use `convexhull!` once it is implemented in Polyhedra
                 convexhull!(U_v, Ray(U_h.a))
             end
@@ -279,7 +279,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         U_h = hrep(U_p)
         @constraint(dual_model, u_cons in U_h)
 
-        h = Polyhedra.LPHRep(dual_model)
+        h = _LPHRep(backend(dual_model))
         names = dimension_names(h)
         p = polyhedron(h, CDDLib.Library())
         removevredundancy!(p)
@@ -298,8 +298,8 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             push!(Q.cuts[left + 1, mode], cut)
         end
         for r in rays(cuts)
-            a = -normalize(coord(r))
-            cut = HalfSpace(a, -a ⋅ x)
+            a = normalize(coord(r))
+            cut = HalfSpace(a, a ⋅ x)
             @info("Cut added: $cut, $after > $before.")
             intersect!(Q.domains[left + 1, mode], cut)
         end

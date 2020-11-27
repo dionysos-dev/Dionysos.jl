@@ -2,7 +2,7 @@
 using JuMP, Polyhedra
 Polyhedra.convexhull!(v::Polyhedra.Hull, r::Polyhedra.VStruct) = Polyhedra.convexhull!(v.rays, r)
 Polyhedra.convexhull!(v::Polyhedra.RaysHull, r::Ray) = push!(v.rays, r)
-function Polyhedra.LPHRep(model::MOI.ModelLike, T::Type = Float64)
+function _LPHRep(model::MOI.ModelLike, T::Type = Float64)
     _model = Polyhedra._MOIModel{T}()
     bridged = MOI.Bridges.LazyBridgeOptimizer(_model)
     # Only enable constraint bridges that don't create variables and don't add
