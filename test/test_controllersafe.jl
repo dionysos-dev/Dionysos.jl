@@ -87,7 +87,7 @@ end
 xpos = AB.get_somepos(Xinit)
 x0 = AB.get_coord_by_pos(Xgrid, xpos)
 
-@static if get(ENV, "TRAVIS", "false") == "false"
+@static if get(ENV, "CI", "false") == "false"
     include("../src/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()
