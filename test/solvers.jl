@@ -4,9 +4,21 @@ mip_solver = optimizer_with_attributes(
     Cbc.Optimizer,
     MOI.Silent() => true
 )
+@static if false
+    # Does not pass test_Q_reuse
+    import COSMO
+    qp_solver = optimizer_with_attributes(
+        COSMO.Optimizer,
+        "max_iter" => 30000,
+        MOI.Silent() => true
+    )
+end
 import OSQP
 qp_solver = optimizer_with_attributes(
     OSQP.Optimizer,
+    "eps_abs" => 1e-8,
+    "eps_rel" => 1e-8,
+    "max_iter" => 100000,
     MOI.Silent() => true
 )
 @static if false

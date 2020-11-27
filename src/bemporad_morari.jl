@@ -153,6 +153,7 @@ function hybrid_cost(model, costs::Fill{<:PolyhedralFunction}, x, u, δ)
     for piece in cost.pieces
         @constraint(model, θ >= function_value(piece, x))
     end
+    @constraint(model, x in cost.domain)
     return θ, δ
 end
 
