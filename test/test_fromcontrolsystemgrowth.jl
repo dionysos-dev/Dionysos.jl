@@ -61,7 +61,7 @@ for target in targetlist
     AB.add_pos!(Ysimple, AB.get_xpos_by_state(symmodel, target))
 end
 
-@static if get(ENV, "TRAVIS", "false") == "false"
+@static if get(ENV, "CI", "false") == "false"
     include("../src/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()

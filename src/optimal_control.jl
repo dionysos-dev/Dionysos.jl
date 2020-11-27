@@ -1,5 +1,12 @@
-export ZeroFunction, ConstantFunction, QuadraticControlFunction
+export ZeroFunction, ConstantFunction, QuadraticControlFunction, PolyhedralFunction
+export ContinuousTrajectory, ContinuousTrajectoryAttribute
+export DiscreteTrajectory
 export OptimalControlProblem
+export last_mode, function_value
+
+using JuMP
+using HybridSystems
+using Polyhedra
 
 struct DiscreteTrajectory{TT}
     q_0::Int
@@ -24,6 +31,9 @@ end
 struct ContinuousTrajectory{T, VT<:AbstractVector{T}}
     x::Vector{VT}
     u::Vector{VT}
+end
+
+struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute
 end
 
 struct HybridTrajectory{T, TT, VT<:AbstractVector{T}}
@@ -52,18 +62,27 @@ end
 function function_value(f::AffineFunction, x)
     return f.a ⋅ x + f.β
 end
+function Base.isapprox(f::AffineFunction, g::AffineFunction; kws...)
+    return isapprox(f.a, g.a; kws...) && isapprox(f.β, g.β; kws...)
+end
 
 struct PolyhedralFunction{T}
     lower_bound::T
     pieces::Vector{AffineFunction{T}}
+    domain::Polyhedra.Intersection{T,Vector{T},Int}
 end
-function function_value(f::PolyhedralFunction, x)
+_inf(T::Type{<:AbstractFloat}) = typemax(T)
+_inf(T::Type) = error("No infinite value for type $T")
+function function_value(f::PolyhedralFunction{T}, x) where T
+    if !(x in f.domain)
+        return _inf(T)
+    end
     return mapreduce(piece -> function_value(piece, x), max, f.pieces,
                      init = f.lower_bound)
 end
 
 function Base.:+(c::ConstantFunction, p::PolyhedralFunction)
-    return PolyhedralFunction(c.value + p.lower_bound, p.pieces)
+    return PolyhedralFunction(c.value + p.lower_bound, p.pieces, p.domain)
 end
 
 Base.:+(::ZeroFunction, f::Union{ConstantFunction, PolyhedralFunction}) = f
@@ -80,11 +99,3 @@ end
 
 export optimal_control
 function optimal_control end
-
-function _zero_steps(prob)
-    if prob.q_T == prob.q_0
-        return ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[]), 0.0
-    else
-        return
-    end
-end

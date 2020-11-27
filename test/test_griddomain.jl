@@ -40,7 +40,7 @@ AB.remove_set!(domain2, AB.HyperRectangle(SVector(1.0, 1.0), SVector(2.0, 2.0)),
 AB.add_subset!(domain2, domain1, AB.HyperRectangle(SVector(0.0, 0.0), SVector(5.0, 5.0)), AB.INNER)
 @test AB.get_ncells(domain2) == 46
 
-@static if get(ENV, "TRAVIS", "false") == "false"
+@static if get(ENV, "CI", "false") == "false"
     include("../src/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()

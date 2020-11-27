@@ -98,7 +98,7 @@ for i in 1:6
     end
 end
 
-@static if get(ENV, "TRAVIS", "false") == "false"
+@static if get(ENV, "CI", "false") == "false"
     include("../src/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()

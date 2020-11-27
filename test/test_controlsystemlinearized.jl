@@ -56,7 +56,7 @@ Usimple = AB.DomainList(Ugrid)
 AB.add_pos!(Usimple, upos)
 @test AB.get_ncells(Usimple) == 1
 
-@static if get(ENV, "TRAVIS", "false") == "false"
+@static if get(ENV, "CI", "false") == "false"
     include("../src/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()
