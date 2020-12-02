@@ -49,7 +49,12 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
             end
             @test MOI.get(optimizer, MOI.ObjectiveValue()) ≈ obj_expected atol=1e-2
         end
-        x_expected !== nothing && optimizer isa BranchAndBound.Optimizer && return optimizer.Q_function
+        if optimizer isa BranchAndBound.Optimizer
+            @test optimizer.num_done + optimizer.num_pruned_bound + optimizer.num_pruned_inf == optimizer.num_total
+            if x_expected !== nothing
+                return optimizer.Q_function
+            end
+        end
         return
     end
     function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
@@ -128,7 +133,7 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
         @testset "$(_name(algo))" for algo in [
             optimizer_with_attributes(BemporadMorari.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
                                      "indicator" => false, "log_level" => 0),
-            optimizer_with_attributes(BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+            optimizer_with_attributes(BranchAndBound.Optimizer, "continuous_solver" => qp_solver,
                                      "max_iter" => 1111)
 #            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
         ]
