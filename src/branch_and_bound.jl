@@ -259,6 +259,8 @@ function MOI.optimize!(optimizer::Optimizer)
                             optimizer.num_pruned_bound += nnodes - 1
                             optimizer.num_done += 1
                         end
+                    else
+                        optimizer.num_done += 1
                     end
                 end
             end
