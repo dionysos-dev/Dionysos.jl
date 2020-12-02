@@ -92,6 +92,7 @@ struct HybridDualDynamicProgrammingAlgo{S, T}
     solver::S
     new_cut_tol::T
     tight_tol::T
+    log_level::Int
 end
 struct HybridDualDynamicProgramming{C,H<:JuMP.Containers.DenseAxisArray{Polyhedra.Intersection{Float64,Vector{Float64},Int}}, D}
     cuts::C
@@ -199,7 +200,9 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         @objective(model, Min, obj)
         optimize!(model)
         if termination_status(model) != MOI.OPTIMAL || primal_status(model) != MOI.FEASIBLE_POINT
-            @warn("No new cut generated as termination status is $(termination_status(model)), primal status is $(primal_status(model)), dual status is $(dual_status(model)): $(raw_status(model))")
+            if algo.log_level >= 1
+                @warn("No new cut generated as termination status is $(termination_status(model)), primal status is $(primal_status(model)), dual status is $(dual_status(model)): $(raw_status(model))")
+            end
             return
         end
         V = value_function(Q, left + 1, mode)
@@ -208,7 +211,9 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         #after = dual_objective_value(model)
         after = objective_value(model)
         if after < before + algo.new_cut_tol
-            @info("Cuts ignored: $after ≤ $before.")
+            if algo.log_level >= 3
+                @info("Cuts ignored: $after ≤ $before.")
+            end
             return
         end
 
@@ -294,13 +299,17 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             β = after - a ⋅ x
             cut = AffineFunction(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
-            @info("Cut added: $cut, $after > $before.")
+            if algo.log_level >= 2
+                @info("Cut added: $cut, $after > $before.")
+            end
             push!(Q.cuts[left + 1, mode], cut)
         end
         for r in rays(cuts)
             a = normalize(coord(r))
             cut = HalfSpace(a, a ⋅ x)
-            @info("Cut added: $cut, $after > $before.")
+            if algo.log_level >= 2
+                @info("Cut added: $cut, $after > $before.")
+            end
             intersect!(Q.domains[left + 1, mode], cut)
         end
     end
