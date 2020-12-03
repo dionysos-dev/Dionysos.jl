@@ -65,7 +65,7 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
             [[-0.5, 0.5]],
             [[-1.2916666674915085]]
         )
-        algo = HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4)
+        algo = HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4, 1)
         Q_function = Dionysos.instantiate(prob, algo)
         Dionysos.learn(Q_function, prob, dtraj, ctraj, algo)
         @test isempty(Q_function.cuts[0, 15])
@@ -165,7 +165,7 @@ _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), "
             "max_iter" => max_iter, "Q_function_init" => Q_function_init)
         qalgo(max_iter) = optimizer_with_attributes(
             BranchAndBound.Optimizer, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
-            "max_iter" => max_iter, "lower_bound" => HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4))
+            "max_iter" => max_iter, "lower_bound" => HybridDualDynamicProgrammingAlgo(qp_solver, 1e-5, 1e-4, 1))
                                    # Gurobi | SQP
         Q9 = _test9(qalgo(792))    #    746 | 792
         @show sum(length.(Q9.cuts))
