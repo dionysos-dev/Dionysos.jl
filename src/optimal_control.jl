@@ -8,11 +8,13 @@ using JuMP
 using HybridSystems
 using Polyhedra
 
-struct DiscreteTrajectory{TT}
-    q_0::Int
+# `q_0` is the starting mode and `transitions` is a sequence of discrete
+# transitions in the system
+struct DiscreteTrajectory{Q, TT}
+    q_0::Q
     transitions::Vector{TT}
 end
-function DiscreteTrajectory{TT}(q_0::Int) where TT
+function DiscreteTrajectory{TT}(q_0::Q) where TT, Q
     return DiscreteTrajectory(q_0, TT[])
 end
 
@@ -28,17 +30,19 @@ function append(traj::DiscreteTrajectory, t)
     DiscreteTrajectory(traj.q_0, [traj.transitions; t])
 end
 
-struct ContinuousTrajectory{T, VT<:AbstractVector{T}}
-    x::Vector{VT}
-    u::Vector{VT}
+# `x` is a sequence of points in the state space and `u` is a sequence of points
+# in the input space
+struct ContinuousTrajectory{T, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
+    x::Vector{XVT}
+    u::Vector{UVT}
 end
 
 struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute
 end
 
-struct HybridTrajectory{T, TT, VT<:AbstractVector{T}}
+struct HybridTrajectory{T, TT, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
     discrete::DiscreteTrajectory{TT}
-    continuous::ContinuousTrajectory{T, VT}
+    continuous::ContinuousTrajectory{T,XVT,UVT}
 end
 
 struct ZeroFunction end
@@ -51,7 +55,7 @@ function Base.:+(f::ConstantFunction, g::ConstantFunction)
     return ConstantFunction(f.value + g.value)
 end
 
-struct QuadraticControlFunction{T, MT <: AbstractMatrix{T}}
+struct QuadraticControlFunction{T, MT<:AbstractMatrix{T}}
     Q::MT
 end
 
@@ -77,15 +81,15 @@ function function_value(f::PolyhedralFunction{T}, x) where T
     if !(x in f.domain)
         return _inf(T)
     end
-    return mapreduce(piece -> function_value(piece, x), max, f.pieces,
-                     init = f.lower_bound)
+    return mapreduce(piece -> function_value(piece, x), max,
+        f.pieces, init = f.lower_bound)
 end
 
 function Base.:+(c::ConstantFunction, p::PolyhedralFunction)
     return PolyhedralFunction(c.value + p.lower_bound, p.pieces, p.domain)
 end
 
-Base.:+(::ZeroFunction, f::Union{ConstantFunction, PolyhedralFunction}) = f
+Base.:+(::ZeroFunction, f::Union{ConstantFunction,PolyhedralFunction}) = f
 
 struct OptimalControlProblem{S, Q, X0, XC, TC}
     system::S
