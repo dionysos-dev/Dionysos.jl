@@ -1,4 +1,5 @@
 # Temporary fix to push upstream
+# TODO (GB): Provide more explanations
 using JuMP, Polyhedra
 Polyhedra.convexhull!(v::Polyhedra.Hull, r::Polyhedra.VStruct) = Polyhedra.convexhull!(v.rays, r)
 Polyhedra.convexhull!(v::Polyhedra.RaysHull, r::Ray) = push!(v.rays, r)
