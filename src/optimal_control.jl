@@ -14,7 +14,7 @@ struct DiscreteTrajectory{Q, TT}
     q_0::Q
     transitions::Vector{TT}
 end
-function DiscreteTrajectory{TT}(q_0::Q) where TT, Q
+function DiscreteTrajectory{TT}(q_0::Q) where {TT, Q}
     return DiscreteTrajectory(q_0, TT[])
 end
 
