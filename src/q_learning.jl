@@ -39,8 +39,6 @@ function minimum_transition_cost(prob, transition, solver, log_level = 0)
     end
 end
 
-
-
 function _merge_with(combine, a, b)
     n = (axes(a, 1).stop, axes(b, 1).stop)
     number_of_time_steps = maximum(n)
@@ -284,7 +282,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         U_h = hrep(U_p)
         @constraint(dual_model, u_cons in U_h)
 
-        h = _LPHRep(backend(dual_model))
+        h = LPHRep(backend(dual_model))
         names = dimension_names(h)
         p = polyhedron(h, CDDLib.Library())
         removevredundancy!(p)
