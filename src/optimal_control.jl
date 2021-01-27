@@ -8,13 +8,15 @@ using JuMP
 using HybridSystems
 using Polyhedra
 
-# `q_0` is the starting mode and `transitions` is a sequence of discrete
-# transitions in the system
+"""
+`q_0` is the starting mode and `transitions` is a sequence of discrete
+transitions in the system
+"""
 struct DiscreteTrajectory{Q, TT}
     q_0::Q
     transitions::Vector{TT}
 end
-function DiscreteTrajectory{TT}(q_0::Q) where {TT, Q}
+function DiscreteTrajectory{TT}(q_0) where TT
     return DiscreteTrajectory(q_0, TT[])
 end
 
@@ -30,8 +32,10 @@ function append(traj::DiscreteTrajectory, t)
     DiscreteTrajectory(traj.q_0, [traj.transitions; t])
 end
 
-# `x` is a sequence of points in the state space and `u` is a sequence of points
-# in the input space
+"""
+`x` is a sequence of points in the state space and `u` is a sequence of points
+in the input space
+"""
 struct ContinuousTrajectory{T, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
     x::Vector{XVT}
     u::Vector{UVT}
