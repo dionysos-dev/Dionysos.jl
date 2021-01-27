@@ -9,6 +9,8 @@ using HybridSystems
 using Polyhedra
 
 """
+    DiscreteTrajectory{Q, TT}
+
 `q_0` is the starting mode and `transitions` is a sequence of discrete
 transitions in the system
 """
@@ -33,6 +35,8 @@ function append(traj::DiscreteTrajectory, t)
 end
 
 """
+    ContinuousTrajectory{T, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
+
 `x` is a sequence of points in the state space and `u` is a sequence of points
 in the input space
 """
