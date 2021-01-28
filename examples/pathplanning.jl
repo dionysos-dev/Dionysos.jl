@@ -1,5 +1,5 @@
-include("../src/abstraction.jl")
-include("../src/plotting.jl")
+include("../src/Abstraction/abstraction.jl")
+include("../src/Abstraction/plotting.jl")
 
 module PathPlanning
 
