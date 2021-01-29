@@ -1,4 +1,4 @@
-include("../src/abstraction.jl")
+include("../../src/Abstraction/abstraction.jl")
 
 module TestMain
 
@@ -99,7 +99,7 @@ for i in 1:6
 end
 
 @static if get(ENV, "CI", "false") == "false"
-    include("../src/plotting.jl")
+    include("../../src/Abstraction/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()

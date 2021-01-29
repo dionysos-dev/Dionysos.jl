@@ -1,4 +1,4 @@
-include("../src/abstraction.jl")
+include("../../src/Abstraction/abstraction.jl")
 
 module TestMain
 
@@ -27,23 +27,21 @@ Ugrid = AB.GridFree(u0, h)
 Ufull = AB.DomainList(Ugrid)
 AB.add_set!(Ufull, AB.HyperRectangle(lb, ub), AB.OUTER)
 
-tstep = 0.5
+tstep = 5.0
 nsys = 3
-# F_sys(x, u) = (1.0-cos(x(2)), -x(1) + u(1)
-# L_growthbound(u) = (0.0 1.0; 1.0 0.0)
+ngrowthbound = 3
+# F_sys(x, u) = [1.0-cos(x[2]), -x[1] + u[1]]
+# L_growthbound(u) = [0.0 1.0; 1.0 0.0]
 F_sys(x, u) = SVector(u[1], -cos(x[1]))
-DF_sys(x, u) = SMatrix{2,2}(0.0, sin(x[1]), 0.0, 0.0)
-bound_DF(u) = 1.0
-# DDF_1 = [0.0 0.0; 0.0 0.0]
-# DDF_2 = [cos(x[1]) 0.0; 0.0 0.0]
-bound_DDF(u) = 1.0
+L_growthbound(u) = SMatrix{2,2}(0.0, 1.0, 0.0, 0.0)
+sysnoise = SVector(1.0, 1.0)*0.1
 measnoise = SVector(1.0, 1.0)*0.0
 
-contsys = AB.NewControlSystemLinearizedRK4(
-    tstep, F_sys, DF_sys, bound_DF, bound_DDF, measnoise, nsys)
+contsys = AB.NewControlSystemGrowthRK4(
+    tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound)
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull)
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
-@test AB.ntransitions(symmodel.autom) == 2155
+@test AB.ntransitions(symmodel.autom) == 1145
 
 xpos = (1, 2)
 upos = (1,)
@@ -64,7 +62,7 @@ for target in targetlist
 end
 
 @static if get(ENV, "CI", "false") == "false"
-    include("../src/plotting.jl")
+    include("../../src/Abstraction/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()

@@ -1,4 +1,4 @@
-include("../src/abstraction.jl")
+include("../../src/Abstraction/abstraction.jl")
 
 module TestMain
 
@@ -88,7 +88,7 @@ xpos = AB.get_somepos(Xinit)
 x0 = AB.get_coord_by_pos(Xgrid, xpos)
 
 @static if get(ENV, "CI", "false") == "false"
-    include("../src/plotting.jl")
+    include("../../src/Abstraction/plotting.jl")
     using PyPlot
     fig = PyPlot.figure()
     ax = fig.gca()
