@@ -284,7 +284,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         U_h = hrep(U_p)
         @constraint(dual_model, u_cons in U_h)
 
-        h = _LPHRep(backend(dual_model))
+        h = hrep(dual_model)
         names = dimension_names(h)
         p = polyhedron(h, CDDLib.Library())
         removevredundancy!(p)
