@@ -1,7 +1,7 @@
 # # Example: Gol, Lazar and Belta (2013)
 #
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/egidioln/Dionysos.jl/master?filepath=examples%2Fliterate%2Fgenerated%2Fliterate_gol_lazar_belta.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](https://nbviewer.jupyter.org/github/egidioln/Dionysos.jl/blob/master/examples/literate/generated/literate_gol_lazar_belta.ipynb)
+#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/literate/literate_gol_lazar_belta.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/literate/literate_gol_lazar_belta.ipynb)
 #
 # This example was borrowed from [[1, Example VIII.A]](#1) and tackles 
 # an optimal control for the hybrid system with state evolution governed by 
@@ -17,8 +17,8 @@
 include("../gol_lazar_belta.jl");
 include("../../test/solvers.jl");
 
-# Let us also import [[CDDLib]](https://github.com/JuliaPolyhedra/CDDLib.jl/tree/v0.6.3) 
-# and [[GLPK]](https://github.com/jump-dev/GLPK.jl)
+# Let us also import [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl/tree/v0.6.3) 
+# and [GLPK](https://github.com/jump-dev/GLPK.jl)
 import CDDLib
 import GLPK
 
@@ -26,7 +26,7 @@ import GLPK
 using Dionysos
 
 
-# Now we instatiate our system using the function provided by [[gol_lazar_belta.jl]](../gol_lazar_belta.jl)
+# Now we instatiate our system using the function provided by [gol_lazar_belta.jl](../gol_lazar_belta.jl)
 
 system = gol_lazar_belta(CDDLib.Library());
 
