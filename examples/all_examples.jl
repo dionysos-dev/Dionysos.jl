@@ -1,1 +1,1 @@
-const EXAMPLES = String["literate/literate_gol_lazar_belta.jl"]
+const EXAMPLES = String["../docs/src/examples/gol_lazar_belta.jl"]
