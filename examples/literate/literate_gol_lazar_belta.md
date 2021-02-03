@@ -5,9 +5,9 @@
 
 This example was borrowed from [[1, Example VIII.A]](#1) and tackles
 an optimal control for the hybrid system with state evolution governed by
-```math
-x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k)
-```
+
+<img src="https://latex.codecogs.com/svg.latex?x(k&plus;1)&space;=&space;\begin{bmatrix}&space;1&space;&&space;1&space;\\&space;0&space;&&space;1&space;\end{bmatrix}x(k)&space;&plus;&space;\begin{bmatrix}&space;0.5&space;\\&space;1.0&space;\end{bmatrix}&space;u(k)" title="x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k)" />
+
 The goal is to take the state vector toward a target set **XT** by visiting one of the squares
 **A** or **B** and avoiding the obstacles **O1** and **O2**
 First let us include the files defining the hybrid system and suitable solvers for this problem
@@ -83,14 +83,7 @@ MOI.set(optimizer, MOI.RawParameter("problem"), problem)
 ```
 
 ```
-
-******************************************************************************
-This program contains Ipopt, a library for large-scale nonlinear optimization.
- Ipopt is released as open source code under the Eclipse Public License (EPL).
-         For more information visit http://projects.coin-or.org/Ipopt
-******************************************************************************
-
-450.450839 seconds (725.94 M allocations: 68.159 GiB, 4.85% gc time)
+ 36.174555 seconds (68.92 M allocations: 4.055 GiB, 3.86% gc time)
 
 ```
 

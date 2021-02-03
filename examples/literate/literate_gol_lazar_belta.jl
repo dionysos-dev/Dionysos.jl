@@ -2,11 +2,15 @@
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/egidioln/Dionysos.jl/master?filepath=examples%2Fliterate%2Fgenerated%2Fliterate_gol_lazar_belta.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](https://nbviewer.jupyter.org/github/egidioln/Dionysos.jl/blob/master/examples/literate/generated/literate_gol_lazar_belta.ipynb)
+#
 # This example was borrowed from [[1, Example VIII.A]](#1) and tackles 
 # an optimal control for the hybrid system with state evolution governed by 
-# ```math
-# x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k) 
-# ```
+#nb # ```math
+#nb # x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k) 
+#nb # ```
+#md # 
+#md # <img src="https://latex.codecogs.com/svg.latex?x(k&plus;1)&space;=&space;\begin{bmatrix}&space;1&space;&&space;1&space;\\&space;0&space;&&space;1&space;\end{bmatrix}x(k)&space;&plus;&space;\begin{bmatrix}&space;0.5&space;\\&space;1.0&space;\end{bmatrix}&space;u(k)" title="x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k)" />
+#md #
 # The goal is to take the state vector toward a target set **XT** by visiting one of the squares
 # **A** or **B** and avoiding the obstacles **O1** and **O2**
 # First let us include the files defining the hybrid system and suitable solvers for this problem
@@ -121,5 +125,6 @@ scatter!(p, x1, x2)
 # ### References
 # <a id="1">[1]</a> 
 # Gol, E. A., Lazar, M., & Belta, C. (2013). Language-guided controller synthesis for linear systems. IEEE Transactions on Automatic Control, 59(5), 1163-1176.
+#
 # <a id="2">[2]</a>
 # Bemporad, A., & Morari, M. (1999). Control of systems integrating logic, dynamics, and constraints. Automatica, 35(3), 407-427.
