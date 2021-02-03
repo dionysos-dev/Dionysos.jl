@@ -1,8 +1,7 @@
 # # Example: Gol, Lazar and Belta (2013)
 #
-#md # [![](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/literate_gol_lazar_belta.ipynb)
-#md # [![](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/literate_gol_lazar_belta.ipynb)
-
+#md # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/egidioln/Dionysos.jl/master?filepath=examples%2Fliterate%2Fgenerated%2Fliterate_gol_lazar_belta.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](https://nbviewer.jupyter.org/github/egidioln/Dionysos.jl/blob/master/examples/literate/generated/literate_gol_lazar_belta.ipynb)
 # This example was borrowed from [[1, Example VIII.A]](#1) and tackles 
 # an optimal control for the hybrid system with state evolution governed by 
 # ```math
