@@ -39,14 +39,17 @@ system = gol_lazar_belta(CDDLib.Library());
 
 
 # Then, we define initial conditions (continuous and discrete states) to this system
-# and set **N** as the search depth, i.e., the number of allowed time steps.
+# and set `N` as the search depth, i.e., the number of allowed time steps.
 
 x0 = [1.0, -6.0];
 q0 = 3;
 
 N = 11;
 
-# We instantiate our Optimal Control Problem by defining the state and transition costs
+# We instantiate our Optimal Control Problem by defining the state and transition costs.
+# Notice that Comment that `state_cost` is defined to be zero for each mode/discrete state 
+# of the system and the `transition_cost` is defined to be `u_1^2` which is defined by the 
+# quadratic form `u' * Q * u` with `Q = ones(1, 1)`.
 state_cost = Fill(ZeroFunction(), nmodes(system))
 transition_cost = QuadraticControlFunction(ones(1, 1))
 
