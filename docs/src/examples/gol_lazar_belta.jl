@@ -16,7 +16,7 @@ using Test     #src
 # **A** or **B** and avoiding the obstacles **O1** and **O2**
 
 
-# First, let us import [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl/tree/v0.6.3), 
+# First, let us import [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
 # [GLPK](https://github.com/jump-dev/GLPK.jl), [OSQP](https://github.com/oxfordcontrol/OSQP.jl),
 # [JuMP](https://github.com/jump-dev/JuMP.jl), [Pavito](https://github.com/jump-dev/Pavito.jl)
 # and [Ipopt](https://github.com/jump-dev/Ipopt.jl)
