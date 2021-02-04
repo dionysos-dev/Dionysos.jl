@@ -1,10 +1,10 @@
 using Dionysos
 using Documenter, Literate
 
-const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
+const EXAMPLES_DIR = joinpath(@__DIR__, "src", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
-include(joinpath(EXAMPLES_DIR, "all_examples.jl"))
+const EXAMPLES = readdir(EXAMPLES_DIR)
 
 for example in EXAMPLES
     example_filepath = joinpath(EXAMPLES_DIR, example)

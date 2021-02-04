@@ -1,1 +1,0 @@
-const EXAMPLES = String[]
