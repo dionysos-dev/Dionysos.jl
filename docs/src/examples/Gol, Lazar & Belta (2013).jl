@@ -54,8 +54,8 @@ transition_cost = QuadraticControlFunction(ones(1, 1))
 problem = OptimalControlProblem(
     system,
     q0, x0,
-    Fill(state_cost, N), 
-    Fill(Fill(transition_cost, ntransitions(system)), N), 
+    Fill(state_cost, N),
+    Fill(Fill(transition_cost, ntransitions(system)), N),
     system.ext[:q_T],
     N
 );
@@ -90,10 +90,10 @@ miqp_solver = optimizer_with_attributes(
 );
 
 
-algo = optimizer_with_attributes(BemporadMorari.Optimizer, 
-    "continuous_solver" => qp_solver, 
+algo = optimizer_with_attributes(BemporadMorari.Optimizer,
+    "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
-    "indicator" => false, 
+    "indicator" => false,
     "log_level" => 0
 );
 
@@ -107,11 +107,11 @@ MOI.optimize!(optimizer)
 MOI.get(optimizer, MOI.SolveTime())
 
 # the termination status 
-termination = MOI.get(optimizer, MOI.TerminationStatus()) 
+termination = MOI.get(optimizer, MOI.TerminationStatus())
 
 # the objective value
-objective_value = MOI.get(optimizer, MOI.ObjectiveValue()) 
-                                
+objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
+
 @test objective_value ≈ 11.38 atol=1e-2     #src
 
 # and recover the corresponding continuous trajectory
@@ -130,8 +130,8 @@ function text_in_set_plot!(pl, po, t; kws...)
     if t !== nothing
         c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
         annotate!(pl, [(c..., text(t, 12))])
-    end 
-end    
+    end
+end
 
 ##Initialize our canvas
 p = Plots.plot(fmt = :png, fillcolor = :white)
