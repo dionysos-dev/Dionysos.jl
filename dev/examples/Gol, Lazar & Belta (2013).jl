@@ -1,17 +1,15 @@
 using Test     #src
 # # Example: Gol, Lazar and Belta (2013)
 #
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/literate/literate_gol_lazar_belta.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/literate/literate_gol_lazar_belta.ipynb)
+#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
 #
-# This example was borrowed from [[1, Example VIII.A]](#1) and tackles 
+# This example was borrowed from [1, Example VIII.A] and tackles 
 # an optimal control for the hybrid system with state evolution governed by 
-#nb # ```math
-#nb # x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k) 
-#nb # ```
-#md # 
-#md # <img src="https://latex.codecogs.com/svg.latex?x(k&plus;1)&space;=&space;\begin{bmatrix}&space;1&space;&&space;1&space;\\&space;0&space;&&space;1&space;\end{bmatrix}x(k)&space;&plus;&space;\begin{bmatrix}&space;0.5&space;\\&space;1.0&space;\end{bmatrix}&space;u(k)" title="x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k)" />
-#md #
+# ```math
+# x(k+1) = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}x(k) + \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix} u(k) 
+# ```
+
 # The goal is to take the state vector toward a target set **XT** by visiting one of the squares
 # **A** or **B** and avoiding the obstacles **O1** and **O2**
 
@@ -34,7 +32,7 @@ using Dionysos
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "gol_lazar_belta.jl"))
 
-# Now we instantiate our system using the function provided by [gol_lazar_belta.jl](@__REPO_ROOT_URL__/examples/gol_lazar_belta.jl)
+# Now we instantiate our system using the function provided by [gol\_lazar\_belta.jl](@__REPO_ROOT_URL__/examples/gol_lazar_belta.jl)
 system = gol_lazar_belta(CDDLib.Library());
 
 
@@ -63,8 +61,8 @@ problem = OptimalControlProblem(
 );
 
 
-
-# Finally, we select the method presented in [[2]](#2) as our optimizer
+# Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs. 
+# Finally, we select the method presented in [2] as our optimizer
 
 qp_solver = optimizer_with_attributes(
     OSQP.Optimizer,
@@ -92,10 +90,10 @@ miqp_solver = optimizer_with_attributes(
 );
 
 
-algo = optimizer_with_attributes(BemporadMorari.Optimizer, 
-    "continuous_solver" => qp_solver, 
+algo = optimizer_with_attributes(BemporadMorari.Optimizer,
+    "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
-    "indicator" => false, 
+    "indicator" => false,
     "log_level" => 0
 );
 
@@ -103,14 +101,17 @@ algo = optimizer_with_attributes(BemporadMorari.Optimizer,
 # MathOptInterface provided by [JuMP](https://github.com/jump-dev/JuMP.jl)  
 optimizer = MOI.instantiate(algo)
 MOI.set(optimizer, MOI.RawParameter("problem"), problem)
-@time MOI.optimize!(optimizer)
+MOI.optimize!(optimizer)
 
-# We check the termination status 
-termination = MOI.get(optimizer, MOI.TerminationStatus()) 
+# We check the solver time
+MOI.get(optimizer, MOI.SolveTime())
+
+# the termination status 
+termination = MOI.get(optimizer, MOI.TerminationStatus())
 
 # the objective value
-objective_value = MOI.get(optimizer, MOI.ObjectiveValue()) 
-                                
+objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
+
 @test objective_value ≈ 11.38 atol=1e-2     #src
 
 # and recover the corresponding continuous trajectory
@@ -129,8 +130,8 @@ function text_in_set_plot!(pl, po, t; kws...)
     if t !== nothing
         c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
         annotate!(pl, [(c..., text(t, 12))])
-    end 
-end    
+    end
+end
 
 ##Initialize our canvas
 p = Plots.plot(fmt = :png, fillcolor = :white)
@@ -160,8 +161,6 @@ x2 = [xu.x[j][2] for j in eachindex(xu.x)]
 scatter!(p, x1, x2)
 
 # ### References
-# <a id="1">[1]</a> 
-# Gol, E. A., Lazar, M., & Belta, C. (2013). Language-guided controller synthesis for linear systems. IEEE Transactions on Automatic Control, 59(5), 1163-1176.
-#
-# <a id="2">[2]</a>
-# Bemporad, A., & Morari, M. (1999). Control of systems integrating logic, dynamics, and constraints. Automatica, 35(3), 407-427.
+# 
+# 1. Gol, E. A., Lazar, M., & Belta, C. (2013). Language-guided controller synthesis for linear systems. IEEE Transactions on Automatic Control, 59(5), 1163-1176.
+# 1. Bemporad, A., & Morari, M. (1999). Control of systems integrating logic, dynamics, and constraints. Automatica, 35(3), 407-427.

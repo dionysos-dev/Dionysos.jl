@@ -64,7 +64,9 @@ algo = optimizer_with_attributes(BemporadMorari.Optimizer,
 
 optimizer = MOI.instantiate(algo)
 MOI.set(optimizer, MOI.RawParameter("problem"), problem)
-@time MOI.optimize!(optimizer)
+MOI.optimize!(optimizer)
+
+MOI.get(optimizer, MOI.SolveTime())
 
 termination = MOI.get(optimizer, MOI.TerminationStatus())
 
