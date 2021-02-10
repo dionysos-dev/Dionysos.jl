@@ -5,7 +5,7 @@ using Test     #src
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
 #
 # This example was borrowed from [1, IX. Examples, A] whose dynamics comes from the model given in [2, Ch. 2.4].
-# This is a **safety problem** for a **continuous system*.
+#       This is a **reachability problem** for a **continuous system**.
 #
 # Let us consider the 3-dimensional state space control system of the form
 # ```math
@@ -46,30 +46,8 @@ using Dionysos
 using Dionysos.Abstraction
 AB = Dionysos.Abstraction;
 
-# ### Definition of the control problem
-# Definition of the state-space (limited to be rectangle):
-_X_ = AB.HyperRectangle(SVector(0.0, 0.0, -pi-0.4), SVector(4.0, 10.0, pi+0.4));
-
-# Definition of the obstacles (limited to be rectangle):
-X1_lb = [1.0, 2.2,  2.2, 3.4,  4.6, 5.8,  5.8,  7.0, 8.2, 8.4,  9.3, 8.4,  9.3, 8.4,  9.3];
-X1_ub = [1.2, 2.4,  2.4, 3.6,  4.8, 6.0,  6.0,  7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0];
-X2_lb = [0.0, 0.0,  6.0, 0.0,  1.0, 0.0,  7.0,  1.0, 0.0, 8.2,  7.0, 5.8,  4.6, 3.4,  2.2];
-X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6,  7.4, 6.2,  5.0, 3.8,  2.6];
-
-# Definition of the input-space (limited to be rectangle):
-_U_ = AB.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0));
-
-# Definition of the initial state-space (here it consists in a single point):
-_I_ = AB.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0));
-
-# Definition of the target state-space (limited to be hyper-rectangle):
-_T_ = AB.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
-
 # ### Definition of the system
-# We define the discretization time step `tstep` and the dynamics function $f$ of the system:
-tstep = 0.3;
-nsys = 5;
-ngrowthbound = 5;
+# Definition of the dynamics function $f$ of the system:
 function F_sys(x, u)
     α = atan(tan(u[2])/2)
     return SVector{3}(
@@ -78,6 +56,7 @@ function F_sys(x, u)
         u[1]*tan(u[2]))
 end;
 # Definition of the growth bound function of $f$:
+ngrowthbound = 5;
 function L_growthbound(u)
     β = abs(u[1]/cos(atan(tan(u[2])/2)))
     return SMatrix{3,3}(
@@ -88,10 +67,33 @@ end;
 # Here it is considered that there is no system and measurement noise:
 sysnoise = SVector(0.0, 0.0, 0.0);
 measnoise = SVector(0.0, 0.0, 0.0);
+# Definition of the discretization time step parameters: `tstep` and `nsys`:
+tstep = 0.3;
+nsys = 5;
 
 # Finally, we build the control system:
 contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
+
+# ### Definition of the control problem
+# Definition of the state-space (limited to be rectangle):
+_X_ = AB.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4));
+
+# Definition of the obstacles (limited to be rectangle):
+X1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3];
+X1_ub = [1.2, 2.4, 2.4, 3.6, 4.8, 6.0, 6.0, 7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0];
+X2_lb = [0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 1.0, 0.0, 8.2, 7.0, 5.8, 4.6, 3.4, 2.2];
+X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6];
+
+# Definition of the input-space (limited to be rectangle):
+_U_ = AB.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0));
+
+# Definition of the initial state-space (here it consists in a single point):
+_I_ = AB.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0));
+
+# Definition of the target state-space (limited to be hyper-rectangle):
+_T_ = AB.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
+
 
 # ### Definition of the abstraction
 
@@ -147,7 +149,7 @@ nstep = 100;
 x0 = SVector(0.4, 0.4, 0.0);
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 #
-# to complete
+# To complete
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
