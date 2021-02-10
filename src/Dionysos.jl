@@ -8,6 +8,4 @@ include("optimal_control.jl")
 include("bemporad_morari.jl")
 include("q_learning.jl")
 include("branch_and_bound.jl")
-include("plotting.jl")
-
 end # module

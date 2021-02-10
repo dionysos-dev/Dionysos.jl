@@ -5,6 +5,7 @@ using Test     #src
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
 #
 # This example was borrowed from [1, IX. Examples, A] whose dynamics comes from the model given in [2, Ch. 2.4].
+# This is a **safety problem** for a **continuous system*.
 #
 # Let us consider the 3-dimensional state space control system of the form
 # ```math
@@ -36,18 +37,14 @@ using Test     #src
 # For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the the pre-image
 # of the target set.
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl),
-# [PyPlot](https://github.com/JuliaPy/PyPlot.jl).
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl).
 
 using StaticArrays
-using PyPlot
 
 # At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
 using Dionysos
 using Dionysos.Abstraction
 AB = Dionysos.Abstraction;
-using Dionysos.Plot
-Plot = Dionysos.Plot;
 
 # ### Definition of the control problem
 # Definition of the state-space (limited to be rectangle):
@@ -149,16 +146,8 @@ contr = AB.NewControllerList();
 nstep = 100;
 x0 = SVector(0.4, 0.4, 0.0);
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
-fig = PyPlot.figure()
-ax = fig.gca(aspect = "equal")
-ax.set_xlim((-0.2, 4.2))
-ax.set_ylim((-0.2, 10.2))
-
-Plot.domain!(ax, 1:2, Xfull, fa = 0.0)
-Plot.domain!(ax, 1:2, Xinit, fc = "green")
-Plot.domain!(ax, 1:2, Xtarget, fc = "yellow")
-
-Plot.trajectory_closed_loop!(ax, 1:2, contsys, symmodel, contr, x0, nstep)
+#
+# to complete
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
