@@ -99,7 +99,8 @@ $ git push jdupont mybranch
 Now go on your fork on the Github website and open a pull request.
 You should receive reviews asking you to do changes.
 Do these changes on your computer and push them as explained [above](pushing-changes).
-Once your changes are accepted and merged, start by [Updating the master branch](#updating-the-master-branch),
+Once your changes are accepted and merged, delete your branch with `git branch -d` as follows.
+Start by [Updating the master branch](#updating-the-master-branch),
 otherwise, `git branch -d` won't see that the branch is merged and will disallow to delete it to avoid losing your work.
 ```sh
 $ git checkout master
