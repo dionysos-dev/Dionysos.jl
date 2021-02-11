@@ -8,6 +8,7 @@ using Test     #src
 # This is a **safety problem** for a **switching system**.
 #
 # ![Boost DC-DC converter.](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/assets/dcdcboost.jpg?raw=true)
+#
 # The state of the system is given by $x(t) = \begin{bmatrix} i_l(t) & v_c(t) \end{bmatrix}^\top$.
 # The switching system has two modes consisting in two-dimensional affine dynamics:
 # ```math
@@ -112,11 +113,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 # Computation of the initial symbolic states:
 Xinit = AB.DomainList(Xgrid);
 union!(Xinit, Xfull)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
 # Computation of the safety symbolic states:
 Xsafe = AB.DomainList(Xgrid)
 union!(Xsafe, Xfull)
-safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)]
+safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)];
 # Construction of the controller:
 contr = AB.NewControllerList();
 @time AB.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
