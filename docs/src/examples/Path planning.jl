@@ -5,7 +5,7 @@ using Test     #src
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
 #
 # This example was borrowed from [1, IX. Examples, A] whose dynamics comes from the model given in [2, Ch. 2.4].
-#       This is a **reachability problem** for a **continuous system**.
+# This is a **reachability problem** for a **continuous system**.
 #
 # Let us consider the 3-dimensional state space control system of the form
 # ```math
@@ -127,17 +127,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 # Computation of the initial symbolic states:
 Xinit = AB.DomainList(Xgrid);
 AB.add_subset!(Xinit, Xfull, _I_, AB.OUTER)
-initlist = Int[]
-for pos in AB.enum_pos(Xinit)
-    push!(initlist, AB.get_state_by_xpos(symmodel, pos))
-end
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
 # Computation of the target symbolic states:
 Xtarget = AB.DomainList(Xgrid)
 AB.add_subset!(Xtarget, Xfull, _T_, AB.OUTER)
-targetlist = Int[]
-for pos in AB.enum_pos(Xtarget)
-    push!(targetlist, AB.get_state_by_xpos(symmodel, pos))
-end
+targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)]
 # Construction of the controller:
 contr = AB.NewControllerList();
 @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)

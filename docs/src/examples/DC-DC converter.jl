@@ -7,7 +7,7 @@ using Test     #src
 # We consider a boost DC-DC converter which has been widely studied from the point of view of hybrid control, see for example in  [1, V.A],[2],[3].
 # This is a **safety problem** for a **switching system**.
 #
-# ![Boost DC-DC converter.](https://github.com/JulienCalbert/Dionysos.jl/blob/master/docs/assets/dcdcboost.jpg?raw=true)
+# ![Boost DC-DC converter.](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/assets/dcdcboost.jpg?raw=true)
 # The state of the system is given by $x(t) = \begin{bmatrix} i_l(t) & v_c(t) \end{bmatrix}^\top$.
 # The switching system has two modes consisting in two-dimensional affine dynamics:
 # ```math
@@ -112,17 +112,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 # Computation of the initial symbolic states:
 Xinit = AB.DomainList(Xgrid);
 union!(Xinit, Xfull)
-initlist = Int[]
-for pos in AB.enum_pos(Xinit)
-    push!(initlist, AB.get_state_by_xpos(symmodel, pos))
-end
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
 # Computation of the safety symbolic states:
 Xsafe = AB.DomainList(Xgrid)
 union!(Xsafe, Xfull)
-safelist = Int[]
-for pos in AB.enum_pos(Xsafe)
-    push!(safelist, AB.get_state_by_xpos(symmodel, pos))
-end
+safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)]
 # Construction of the controller:
 contr = AB.NewControllerList();
 @time AB.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
