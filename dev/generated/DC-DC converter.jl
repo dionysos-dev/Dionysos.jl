@@ -53,11 +53,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 
 Xinit = AB.DomainList(Xgrid);
 union!(Xinit, Xfull)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
 
 Xsafe = AB.DomainList(Xgrid)
 union!(Xsafe, Xfull)
-safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)]
+safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)];
 
 contr = AB.NewControllerList();
 @time AB.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)

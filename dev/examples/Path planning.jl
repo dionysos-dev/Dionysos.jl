@@ -127,11 +127,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 # Computation of the initial symbolic states:
 Xinit = AB.DomainList(Xgrid);
 AB.add_subset!(Xinit, Xfull, _I_, AB.OUTER)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
 # Computation of the target symbolic states:
 Xtarget = AB.DomainList(Xgrid)
 AB.add_subset!(Xtarget, Xfull, _T_, AB.OUTER)
-targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)]
+targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)];
 # Construction of the controller:
 contr = AB.NewControllerList();
 @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)

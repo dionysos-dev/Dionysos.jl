@@ -68,11 +68,11 @@ symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
 
 Xinit = AB.DomainList(Xgrid);
 AB.add_subset!(Xinit, Xfull, _I_, AB.OUTER)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]
+initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
 
 Xtarget = AB.DomainList(Xgrid)
 AB.add_subset!(Xtarget, Xfull, _T_, AB.OUTER)
-targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)]
+targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)];
 
 contr = AB.NewControllerList();
 @time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
