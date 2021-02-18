@@ -2,14 +2,14 @@ module PartitionAbstraction
 using LinearAlgebra,StaticArrays,Plots,Polyhedra,LazySets
 import LazySets.AbstractPolytope
 
-include("..//Abstraction//abstraction.jl")
+include(joinpath("..", "Abstraction", "abstraction.jl"))
 using .Abstraction
 AB = Abstraction
 include("constrainedZonotope.jl")
 
 mutable struct Partition{T}
     X::T
-    L::Vector{<:T}
+    L::Vector{T}
 end
 
 function get_vertices(X::T,L::Vector{<:T}) where T

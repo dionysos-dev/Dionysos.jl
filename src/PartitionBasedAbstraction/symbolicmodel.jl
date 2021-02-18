@@ -3,12 +3,9 @@ import .Abstraction.compute_symmodel_from_controlsystem!
 
 #true si P intersect un des sets de L
 function intersect_union(P,L)
-    for l in L
-        if !is_intersection_empty(P,l)
-            return true
-        end
+    return any(L) do l
+        !is_intersection_empty(P,l)
     end
-    return false
 end
 
 # return symbols of cells of the abstraction fully contained in P or intersecting P
@@ -51,7 +48,7 @@ function mesh(P::AbstractPolytope{T}, Δ::SVector{N,T},obstacles::Vector) where 
     for pos in Iterators.product(AB._ranges(rectI)...)
         center = Array(AB.get_coord_by_pos(grid, pos))
         cell = Hyperrectangle(center,grid.h./2)
-        if center ∈ P && !intersect_union(cell,obstacles)
+        if center ∈ P && !intersect_union(cell, obstacles)
             AB.add_pos!(domain, pos)
         end
     end

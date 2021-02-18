@@ -12,7 +12,10 @@ function localise(partition::Partition,Q::AbstractPolytope)
     @warn("Out of domain")
 end
 
-function control(X0::AbstractPolytope,Xf::AbstractPolytope,partition::Partition,topological_graph::LightTopologicalGraph,contsys::ControlSystem{N,T},obstacles,_U_,hu,hx_l) where{N,T}
+function control(X0::AbstractPolytope,Xf::AbstractPolytope,partition::Partition,topological_graph::LightTopologicalGraph,contsys::ControlSystem{N},obstacles,_U_,hu,hx_l) where N
+    # We need the H-representation for `is_intersection_empty` so we compute it here
+    # to avoid having to compute it many times
+    h_obstacles = LazySets.tohrep.(obstacles)
     p0 = localise(partition,X0)
     pf = localise(partition,Xf)
     path = get_path(topological_graph,p0,pf)
@@ -24,7 +27,7 @@ function control(X0::AbstractPolytope,Xf::AbstractPolytope,partition::Partition,
         #temporary
         #parameters of the abstraction, could decide here a different state-input space discretization
         hx = SVector{N}(hx_l[i])
-        push!(time_abstraction,@elapsed symmodel = build_abstraction(partition.L[path[i]],hx,_U_,hu,contsys,obstacles))
+        push!(time_abstraction,@elapsed symmodel = build_abstraction(partition.L[path[i]],hx,_U_,hu,contsys,h_obstacles))
         #local inputs
         initlist = get_symbols(_I_,symmodel,AB.OUTER)
         #local targets
