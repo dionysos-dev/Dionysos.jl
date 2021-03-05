@@ -1,0 +1,4 @@
+- add the idea of overlepping cells
+- for the moment the discretization step size is hard coded in the algotihtm 
+- improve the computation of the lower-bound
+- several heuristics for the branch-and-bound

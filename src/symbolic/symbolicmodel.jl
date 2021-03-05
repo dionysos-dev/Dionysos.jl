@@ -3,7 +3,7 @@ abstract type SymbolicModel{N,M} end
 struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A<:HybridSystems.AbstractAutomaton} <: SymbolicModel{N,M}
     Xdom::S1
     Udom::S2
-    autom::A
+    autom
     xpos2int::Dict{NTuple{N,Int},Int}
     xint2pos::Vector{NTuple{N,Int}}
     upos2int::Dict{NTuple{M,Int},Int}
