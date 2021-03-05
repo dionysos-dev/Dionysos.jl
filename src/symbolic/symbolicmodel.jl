@@ -5,7 +5,7 @@ abstract type SymbolicModel{N,M} end
 mutable struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A} <: SymbolicModel{N,M}
     Xdom::S1
     Udom::S2
-    autom::A
+    autom
     xpos2int::Dict{NTuple{N,Int},Int}
     xint2pos::Vector{NTuple{N,Int}}
     upos2int::Dict{NTuple{M,Int},Int}

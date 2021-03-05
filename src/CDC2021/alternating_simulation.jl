@@ -37,12 +37,8 @@ function enum_cells(problem::symmodelProblem)
     return [i for i=1:AB.get_ncells(problem.symmodel.Xdom)]
 end
 
-
-
 function build_alternating_simulation(problem::symmodelProblem)
     digraph = SimpleWeightedDiGraph(get_ncells(problem))
-    i=1
-    L = length(enum_cells(problem))
     for source in enum_cells(problem)
         for neighbor in problem.get_possible_transitions(problem,source)
             cost = problem.minimum_transition_cost(problem.symmodel,problem.contsys,source,neighbor)
@@ -50,7 +46,6 @@ function build_alternating_simulation(problem::symmodelProblem)
                 add_edge!(digraph, source, neighbor, cost)
             end
         end
-        i += 1
     end
     return digraph
 end
@@ -67,7 +62,6 @@ function get_possible_transitions_1(problem::symmodelProblem,source::Int)
     end
     return neighbors
 end
-#=
 # return the list of possible neighboring cells (in one time step) for the coarse abstraction
 function get_possible_transitions_2(problem::symmodelProblem,source::Int)
     symmodel = problem.symmodel
@@ -127,19 +121,20 @@ function build_heuristic(symmodel,initlist)
     return heuristic
 end
 
-function get_min_value_heurisitic(heuristic,subsetList)
+function get_min_value_heurisitic(heuristic,subset)
     symmodel = heuristic.symmodel
+    Xdom = symmodel.Xdom
+    grid = Xdom.grid
+    subdomain = AB.DomainList(grid)
+    AB.add_subset!(subdomain, Xdom, subset, AB.OUTER)
     val = Inf
-    for subset in subsetList
-        posL = AB.get_subset_pos(symmodel.Xdom,subset,AB.OUTER)
-        for pos in posL
-            val = min(val,heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
-        end
+    for pos in AB.enum_pos(subdomain)
+        val = min(val,heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
     end
     return val
 end
 
-function get_coord(Xdom, pos)
+function get_coord(Xdom::AB.DomainList, pos)
     return AB.get_coord_by_pos(Xdom.grid,pos)
 end
 function get_coord(Xdom::U.CustomList, rec)

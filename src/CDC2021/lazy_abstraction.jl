@@ -1,21 +1,19 @@
 module Lazy_abstraction
 """
 Module that aims to solve a reachability problem.
-For this, it builds an abstraction that is alternatingly simulated by our original system.
+For this, he builds an abstraction that is alternatingly simulated by our original system.
 This abstraction and the controller are built lazily based on a heuristic.
+(Similar to the module Abstraction except that the computation are done lazily).
 """
 #TO DO: -array vs dictionnary
 #       -eventually delete State struct
 
 include("search.jl")
 using .Search
-const S = Search
+S = Search
 
 using ..Abstraction
-const AB = Abstraction
-
-using ..DomainList
-const D = DomainList
+AB = Abstraction
 
 using Plots,StaticArrays
 
@@ -113,7 +111,7 @@ end
 function transitions!(source,symbol,u,symmodel,contsys,post_image)
     xpos = AB.get_xpos_by_state(symmodel, source)
     over_approx = post_image(symmodel,contsys,xpos,u)
-    translist = ((cell, source, symbol) for cell in over_approx)
+    translist = [(cell, source, symbol)  for cell in over_approx]
     AB.add_transitions!(symmodel.autom, translist)
     return length(over_approx)
 end
@@ -166,7 +164,7 @@ function update_abstraction!(successors,problem,source)
                     problem.transitions_added[cell,symbol] = true
                 end
                 # check if the cell is really in the pre-image
-                if (source,cell,symbol) in symmodel.autom.transitions
+                if (source,cell,symbol) in symmodel.autom.transitions.data
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
@@ -182,6 +180,8 @@ end
 
 function S.successor(problem::LazyAbstraction, state::State)
     successors = []
+    #readline()
+    #plot_result(problem)
     update_abstraction!(successors,problem,state.source)
     return successors
 end
