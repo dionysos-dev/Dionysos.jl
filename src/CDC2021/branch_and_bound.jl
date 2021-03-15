@@ -7,7 +7,7 @@ mutable struct Node
     elem
     depth
     lower_bound
-    upper_bound  # (not usefull)
+    upper_bound 
     sol
     parent::Union{Nothing,Node}
     ext
@@ -98,24 +98,28 @@ function MOI.optimize!(optimizer::Optimizer)
         if cur_node.lower_bound < optimizer.upper_bound
 
             compute_upper_bound!(prob,cur_node)
-            if cur_node.upper_bound < optimizer.upper_bound
-                optimizer.upper_bound = cur_node.upper_bound
-                optimizer.best_sol = cur_node.sol
-            end
-            children = expand(prob, cur_node)
-            optimizer.num_total += length(children)
-            for child in children # necessary for the PQ
-                compute_lower_bound!(prob,child)
-                if child.lower_bound == Inf
-                    optimizer.pruned_inf += 1
+            if cur_node.upper_bound == -Inf
+                optimizer.num_pruned_inf += 1
+            else
+                if cur_node.upper_bound < optimizer.upper_bound
+                    optimizer.upper_bound = cur_node.upper_bound
+                    optimizer.best_sol = cur_node.sol
                 end
-            end
+                children = expand(prob, cur_node)
+                optimizer.num_total += length(children)
+                for child in children # necessary for the PQ
+                    compute_lower_bound!(prob,child)
+                    if child.lower_bound == Inf
+                        optimizer.num_pruned_inf += 1
+                    end
+                end
 
-            for child in children # (not really necessary)
-                if child.lower_bound < optimizer.upper_bound
-                    push!(candidates, child)
-                else
-                    optimizer.num_pruned_bound += 1
+                for child in children # (not really necessary)
+                    if child.lower_bound < optimizer.upper_bound
+                        push!(candidates, child)
+                    else
+                        optimizer.num_pruned_bound += 1
+                    end
                 end
             end
         else
