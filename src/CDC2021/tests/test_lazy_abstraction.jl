@@ -10,19 +10,19 @@ module TestMain
 using Test, StaticArrays,Plots
 
 using ..Abstraction
-const AB = Abstraction
+AB = Abstraction
 
 using ..DomainList
-const D = DomainList
+D = DomainList
 
 using ..Utils
-const UT = Utils
+UT = Utils
 
 using ..Lazy_abstraction
-const LA = Lazy_abstraction
+LA = Lazy_abstraction
 
 using ..AlternatingSimulation
-const AS = AlternatingSimulation
+AS = AlternatingSimulation
 
 
 # existing Abstraction implementation
@@ -261,10 +261,6 @@ function test()
     display(fig)
 
 
-    X,Xdom = build_dom()
-    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
-    initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
-    targetlist = UT.get_symbol(symmodel,_T_,AB.INNER)
     # Existing Abstraction implementation
     time_abstraction = @elapsed compute_symmodel_from_controlsystem!(symmodel, contsys)
     contr = AB.NewControllerList()

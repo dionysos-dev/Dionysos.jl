@@ -90,7 +90,7 @@ end
 function expand(node::Node, problem::SearchProblem)
     L = []
     for (act,next) in successor(problem,node.state)
-        #yield
+        #yield() #not sure if usefull
         push!(L,Node(next,parent=node, action=act, path_cost=path_cost(problem,node.path_cost, node.state, act, next)))
     end
     return L

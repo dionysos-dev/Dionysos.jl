@@ -25,7 +25,19 @@ function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     end
 end
 
-function add_subset!(domain1, domain2, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
+function get_subset_pos(domain::DomainList,rect::HyperRectangle,incl_mode::INCL_MODE)
+    rectI = get_pos_lims(domain.grid, rect, incl_mode)
+    pos_iter = Iterators.product(_ranges(rectI)...)
+    posL = []
+    for pos in pos_iter
+        if pos ∈ domain
+            push!(posL, pos)
+        end
+    end
+    return posL
+end
+
+function add_subset!(domain1, domain2, rect::HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain1.grid, rect, incl_mode)
     pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_ncells(domain2)

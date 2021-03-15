@@ -142,14 +142,6 @@ function test_thread()
     end
 end
 #test_4()
-function f(x)
-    P = 4*x+2.0
-    L = IntervalBox(P[1]+1.0, P[2])
-    println()
-    println(x)
-    println(L)
-    return L
-end
 
 function test_box()
     B = IntervalBox(1.0..3.0, 2.0..4.0)

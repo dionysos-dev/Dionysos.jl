@@ -6,23 +6,10 @@ module Utils
 using ..Abstraction
 AB = Abstraction
 
+using ..DomainList
+D = DomainList
 using Plots
 
-## new type of domain struct add to domain.jl
-struct CustomList{N,T} <: AB.Domain{N,T}
-    elems::Vector{T}
-end
-
-function CustomList(elems::Vector{T}) where T
-    return CustomList{length(elems),T}(elems)
-end
-
-function AB.enum_pos(Xdom::CustomList)
-    return Xdom.elems
-end
-function AB.get_ncells(domain::CustomList)
-    return length(domain.elems)
-end
 
 ## add to rectangle.jl file
 function center(rect::AB.HyperRectangle)
@@ -46,17 +33,16 @@ function rectangle2(c,r)
     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
 end
 
-function plot_domain!(Xdom::AB.DomainList)
+function plot_domain!(Xdom;dims=[1,2],opacity=0.2,color=:red)
     grid = Xdom.grid
     r = grid.h/2
+    dict = Dict{NTuple{2,Int}, Any}()
     for pos in AB.enum_pos(Xdom)
         center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle2(center,r), opacity=.2,color=:red)
-    end
-end
-function plot_domain!(Xdom::CustomList)
-    for rec in Xdom.elems
-        plot!(rectangle(rec.lb,rec.ub), opacity=.2,color=:red)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            plot!(rectangle2(center[dims],r[dims]), opacity=opacity,color=color)
+        end
     end
 end
 
@@ -64,14 +50,21 @@ end
 function get_symbol(symmodel,subset,incl_mode::AB.INCL_MODE)
     Xdom = symmodel.Xdom
     grid = Xdom.grid
-    subdomain = AB.DomainList(grid)
-    AB.add_subset!(subdomain, Xdom, subset, incl_mode)
-    symbolsList = Int[]
-    for pos in AB.enum_pos(subdomain)
-        push!(symbolsList, AB.get_state_by_xpos(symmodel, pos))
-    end
+
+    posL = AB.get_subset_pos(Xdom,subset,incl_mode)
+    symbolsList = [AB.get_state_by_xpos(symmodel, pos) for pos in posL]
     return symbolsList
 end
+
+function get_symbols(symmodel,subsetList,incl_mode::AB.INCL_MODE)
+    symbols = Int[]
+    for subset in subsetList
+        append!(symbols,get_symbol(symmodel,subset,incl_mode))
+    end
+    return symbols
+end
+
+## add to symbolicmodel.jl
 
 mutable struct SymbolicModelList2# <: AB.SymbolicModel{N,M}
     Xdom
@@ -86,5 +79,25 @@ function SymbolicModelList2(Xdom,Udom)
     elem2int = Dict((elem, i) for (i, elem) in enumerate(AB.enum_pos(Xdom)))
     uint2elem = [elem for elem in AB.enum_pos(Udom)]
     return SymbolicModelList2(Xdom, Udom, nothing, xint2elem, elem2int, uint2elem)
+end
+## new type of domain struct add to domain.jl
+struct CustomList{N,T} <: AB.Domain{N,T}
+    elems::Vector{T}
+end
+
+function CustomList(elems::Vector{T}) where T
+    return CustomList{length(elems),T}(elems)
+end
+
+function AB.enum_pos(Xdom::CustomList)
+    return Xdom.elems
+end
+function AB.get_ncells(domain::CustomList)
+    return length(domain.elems)
+end
+function plot_domain!(Xdom::CustomList)
+    for rec in Xdom.elems
+        plot!(rectangle(rec.lb,rec.ub), opacity=.2,color=:red)
+    end
 end
 end # end module

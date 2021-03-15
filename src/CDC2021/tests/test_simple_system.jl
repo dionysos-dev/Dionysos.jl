@@ -9,40 +9,40 @@ include("../optimal_control.jl")
 
 module Test
 """
-    Simple two-dimensional reachability problem
+    Simple 2-dimensional reachability problem
 """
 
 using Plots, StaticArrays, JuMP
 
 using ..Abstraction
-const AB = Abstraction
+AB = Abstraction
 
 using ..DomainList
-const D = DomainList
+D = DomainList
 
 using ..Utils
-const U = Utils
+U = Utils
 
 using ..BranchAndBound
-const BB = BranchAndBound
+BB = BranchAndBound
 
 using ..OptimalControl
-const OC = OptimalControl
+OC = OptimalControl
 
 ## problem specific-functions required by the algo
-function compute_reachable_set(rect::AB.HyperRectangle{SVector{N,T}},contsys,Udom) where {N,T}
+function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
     tstep = contsys.tstep
     r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
     Fr = r
     x = U.center(rect)
     n =  U.dims(rect)
-    lb = SVector(ntuple(i -> Inf, Val(N)))
-    ub = SVector(ntuple(i -> -Inf, Val(N)))
+    lb = fill(Inf,n)
+    ub = fill(-Inf,n)
     for upos in AB.enum_pos(Udom)
         u = AB.get_coord_by_pos(Udom.grid,upos)
         Fx = contsys.sys_map(x, u, tstep)
-        lb = min.(lb,Fx .- Fr)::SVector{N,T}
-        ub = max.(ub,Fx .+ Fr)::SVector{N,T}
+        lb = min.(lb,Fx .- Fr)
+        ub = max.(ub,Fx .+ Fr)
     end
     return AB.HyperRectangle(lb,ub)
 end
@@ -59,17 +59,18 @@ function post_image(symmodel,contsys,xpos,u)
 
     rectI = AB.get_pos_lims_outer(Xdom.grid, AB.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(AB._ranges(rectI)...)
-    over_approx = Int[]
+    over_approx = []
+    allin = true
     for ypos in ypos_iter
         ypos = D.set_in_period_pos(Xdom,ypos)
         if !(ypos in Xdom)
-            empty!(over_approx)
+            allin = false
             break
         end
         target = AB.get_state_by_xpos(symmodel, ypos)
         push!(over_approx, target)
     end
-    return over_approx
+    return allin ? over_approx : []
 end
 
 function pre_image(symmodel,contsys,xpos,u)
@@ -139,32 +140,30 @@ function test()
 
     # control problem
     _T_ = AB.HyperRectangle(SVector(44.0, 38.0), SVector(49.0, 41.0))
-    #_T_ = AB.HyperRectangle(SVector(5.0, 10.0), SVector(8.0, 12.0))
     x0 = SVector(7.0,7.0)
     _I_ = AB.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5))
     # problem-specific functions
 
-    hx_coarse = SVector(10.0, 10.0)*1.0
-    hx_medium = SVector(1.0, 1.0)*0.5*2.0
-    hx_fine = SVector(0.5, 0.5)*1.0
-    periodic = [1,2]
-    periods = Float64[60.0,60.0]
-    T0 = Float64[0.0,0.0]
+    hx_coarse = [10.0, 10.0]*1.0
+    hx_medium = [1.0, 1.0]*0.5*2.0
+    hx_fine = [0.5, 0.5]*1.0
+    periodic = [1]
+    periods = [60.0]
     fig = plot(aspect_ratio = 1,legend = false)
     plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
     plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
-    functions = (compute_reachable_set,minimum_transition_cost,post_image,pre_image)
+    functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
 
-    optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,(X,hx_coarse,[]),hx_medium,hx_fine,functions)
-    max_iter = 5
+    optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,Udom,transition_cost,(X,hx_coarse),hx_medium,hx_fine,functions)
+    max_iter = 4
     max_time = 1000
     optimizer = BB.Optimizer(optimal_control_prob,max_iter,max_time,log_level=2)
     @time MOI.optimize!(optimizer)
     println(optimizer.status)
     println(optimizer.best_sol)
+
     display(fig)
-    (traj,cost,sucess) = OC.simulate_trajectory(optimal_control_prob, optimizer.best_sol)
-    #println(traj)
+
 end
 
 
@@ -175,6 +174,23 @@ end # module
 
 
 #=
+
+function mesh(X,nx)
+    N = prod(nx)     # number of Hyperrectangles
+    n = length(X.lb) # dimension of the problem
+    hx = [(X.ub[i]-X.lb[i])/nx[i] for i=1:n]
+
+    _ranges = ntuple(i -> UnitRange(1, nx[i]), n)
+    iter = Iterators.product(_ranges...)
+    H = AB.HyperRectangle[]
+    for coord in iter
+        lb = X.lb .+ (coord.-1.0).*hx
+        ub = X.lb + coord.*hx
+        push!(H,AB.HyperRectangle(SVector{n}(lb),SVector{n}(ub)))
+    end
+    return H
+end
+
 function build_partition(α)
     H1 = AB.HyperRectangle(SVector(0.0,0.0),SVector(8.0,4.0))
     H2 = AB.HyperRectangle(SVector(8.0,0.0),SVector(12.0,4.0))

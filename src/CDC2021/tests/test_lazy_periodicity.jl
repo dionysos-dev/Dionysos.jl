@@ -8,19 +8,19 @@ module TestMain
 using Test, StaticArrays,Plots
 
 using ..Abstraction
-const AB = Abstraction
+AB = Abstraction
 
 using ..DomainList
-const D = DomainList
+D = DomainList
 
 using ..Utils
-const UT = Utils
+UT = Utils
 
 using ..Lazy_abstraction
-const LA = Lazy_abstraction
+LA = Lazy_abstraction
 
 using ..AlternatingSimulation
-const AS = AlternatingSimulation
+AS = AlternatingSimulation
 
 
 

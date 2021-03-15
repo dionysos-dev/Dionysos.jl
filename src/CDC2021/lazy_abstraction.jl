@@ -15,6 +15,9 @@ S = Search
 using ..Abstraction
 AB = Abstraction
 
+using ..DomainList
+D = DomainList
+
 using Plots,StaticArrays
 
 struct State
