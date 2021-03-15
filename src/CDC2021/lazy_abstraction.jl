@@ -15,6 +15,9 @@ S = Search
 using ..Abstraction
 AB = Abstraction
 
+using ..DomainList
+D = DomainList
+
 using Plots,StaticArrays
 
 struct State
@@ -148,10 +151,10 @@ function compute_controller(symmodel, contsys, initlist::Vector{Int}, targetlist
     println("\nnumber of transitions created: ", length(problem.symmodel.autom.transitions))
     if node == nothing
         println("compute_controller_reach! terminated without covering init set")
-        return
+        return problem,false
     end
     println("compute_controller_reach! terminated with success")
-    return problem
+    return problem,true
 end
 
 
@@ -161,7 +164,7 @@ function rectangle(c,r)
     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
 end
 
-function plot_result!(problem;x0=nothing)
+function plot_result!(problem;dims=[1,2],x0=nothing)
     println()
     println("Plotting")
     targetlist = [init.source for init in problem.initial]
@@ -171,14 +174,14 @@ function plot_result!(problem;x0=nothing)
     symmodel = problem.symmodel
     domain = symmodel.Xdom
     grid = domain.grid
-    h = grid.h
+    h = grid.h[dims]
 
     # states for which transisitons have been computed for at least one input
     for k = 1:symmodel.autom.nstates
         if any(problem.transitions_added[k,:])
             pos = AB.get_xpos_by_state(symmodel, k)
             center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center,h./2), opacity=.2,color=:yellow)
+            plot!(rectangle(center[dims],h./2), opacity=.2,color=:yellow)
         end
     end
 
@@ -186,34 +189,34 @@ function plot_result!(problem;x0=nothing)
     for (cell, symbol) in contr.data
         pos = AB.get_xpos_by_state(symmodel,cell)
         center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center,h./2), opacity=.3,color=:blue)
+        plot!(rectangle(center[dims],h./2), opacity=.3,color=:blue)
     end
 
     # states selected by A* to compute their pre-image
     for state in Base.keys(problem.closed)
         pos = AB.get_xpos_by_state(symmodel,state.source)
         center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center,h./2), opacity=.5,color=:blue)
+        plot!(rectangle(center[dims],h./2), opacity=.5,color=:blue)
     end
 
     # initial set
     for s in initlist
         pos = AB.get_xpos_by_state(symmodel,s)
         center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center,h./2), opacity=.4,color=:green)
+        plot!(rectangle(center[dims],h./2), opacity=.4,color=:green)
     end
 
     # target set
     for s in targetlist
         pos = AB.get_xpos_by_state(symmodel,s)
         center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center,h./2), opacity=.5,color=:red)
+        plot!(rectangle(center[dims],h./2), opacity=.5,color=:red)
     end
 
     # plot a trajectory
     if x0 != nothing
         (traj,success) = trajectory_reach(contsys, symmodel, contr, x0, targetlist)
-        print_trajectory!(symmodel,traj)
+        print_trajectory!(symmodel,traj,dims=dims)
     end
 end
 
@@ -221,6 +224,7 @@ end
 function trajectory_reach(contsys, symmodel, contr, x0, targetlist; randchoose = false)
     traj = []
     while true
+        x0 = D.set_in_period_coord(symmodel.Xdom,x0)
         push!(traj,x0)
         xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
         if !(xpos ∈ symmodel.Xdom)
@@ -250,17 +254,17 @@ function trajectory_reach(contsys, symmodel, contr, x0, targetlist; randchoose =
 end
 
 
-function print_trajectory!(symmodel,traj)
+function print_trajectory!(symmodel,traj;dims=[1,2])
     domain = symmodel.Xdom
     grid = domain.grid
-    h = grid.h
+    k = dims[1]; l = dims[2]
     for i=1:length(traj)-1
-        plot!([traj[i][1],traj[i+1][1]], [traj[i][2],traj[i+1][2]],color =:red,linewidth = 2)
+        plot!([traj[i][k],traj[i+1][k]], [traj[i][l],traj[i+1][l]],color =:red,linewidth = 2)
         if i>1
-            scatter!([traj[i][1]],[traj[i][2]],color =:red,markersize=2)
+            scatter!([traj[i][k]],[traj[i][l]],color =:red,markersize=2)
         end
     end
-    scatter!([traj[1][1]],[traj[1][2]],color =:green,markersize=3)
-    scatter!([traj[end][1]],[traj[end][2]],color =:yellow,markersize=3)
+    scatter!([traj[1][k]],[traj[1][l]],color =:green,markersize=3)
+    scatter!([traj[end][k]],[traj[end][l]],color =:yellow,markersize=3)
 end
 end # end module

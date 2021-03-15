@@ -29,6 +29,8 @@ function enum_cells(problem::symmodelProblem)
     return [i for i=1:AB.get_ncells(problem.symmodel.Xdom)]
 end
 
+
+
 function build_alternating_simulation(problem::symmodelProblem)
     digraph = SimpleWeightedDiGraph(get_ncells(problem))
     for source in enum_cells(problem)
@@ -81,33 +83,32 @@ function build_heuristic(symmodel,initlist)
     return heuristic
 end
 
-function get_min_value_heurisitic(heuristic,subset)
+function get_min_value_heurisitic(heuristic,subsetList)
     symmodel = heuristic.symmodel
-    Xdom = symmodel.Xdom
-    grid = Xdom.grid
-    subdomain = AB.DomainList(grid)
-    AB.add_subset!(subdomain, Xdom, subset, AB.OUTER)
     val = Inf
-    for pos in AB.enum_pos(subdomain)
-        val = min(val,heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
+    for subset in subsetList
+        posL = AB.get_subset_pos(symmodel.Xdom,subset,AB.OUTER)
+        for pos in posL
+            val = min(val,heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
+        end
     end
     return val
 end
 
-function get_coord(Xdom::AB.DomainList, pos)
+function get_coord(Xdom, pos)
     return AB.get_coord_by_pos(Xdom.grid,pos)
 end
 function get_coord(Xdom::U.CustomList, rec)
     return U.center(rec)
 end
 
-function plot_heuristic!(heuristic::symmodelHeuristic)
+function plot_heuristic!(heuristic::symmodelHeuristic;dims=[1,2],opacity=0.2,color=:red)
     symmodel = heuristic.symmodel
     dists = heuristic.dists
-    U.plot_domain!(symmodel.Xdom)
+    U.plot_domain!(symmodel.Xdom,dims=dims,opacity=opacity,color=color)
     i = 1
     for elem in AB.enum_pos(symmodel.Xdom)
-        x = get_coord(symmodel.Xdom,elem)
+        x = get_coord(symmodel.Xdom,elem)[dims]
         if dists[i] != Inf
             annotate!(x[1], x[2], text(Int(dists[i]),4), :color)
         else

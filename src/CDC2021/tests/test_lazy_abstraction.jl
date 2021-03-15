@@ -1,13 +1,19 @@
-include(joinpath("..", "Abstraction", "abstraction.jl"))
-include("utils.jl")
-include("lazy_abstraction.jl")
-include("alternating_simulation.jl")
+include(joinpath("..", "..", "Abstraction", "abstraction.jl"))
+include("../general_domain.jl")
+include("../utils.jl")
+include("../lazy_abstraction.jl")
+include("../alternating_simulation.jl")
 
+
+# test lazy abstraction with the simple 2D example (should be deleted as particular case of periodic (general) domain)
 module TestMain
 using Test, StaticArrays,Plots
 
 using ..Abstraction
 AB = Abstraction
+
+using ..DomainList
+D = DomainList
 
 using ..Utils
 UT = Utils
@@ -57,8 +63,7 @@ function compute_symmodel_from_controlsystem!(symmodel,contsys) where N
     println("compute_symmodel_from_controlsystem! terminated with success: ",
         "$(ntrans) transitions created")
 end
-##
-
+## problem data
 struct SimpleSystem{N,T,F<:Function} <: AB.ControlSystem{N,T}
     tstep::Float64
     measnoise::SVector{N,T}
@@ -73,9 +78,37 @@ function NewSimpleControlSystem(tstep,measnoise::SVector{N,T}) where {N,T}
 end
 
 function build_system()
-    tstep = 0.8#0.8
+    tstep = 0.8
     measnoise = SVector(0.0, 0.0)
     return NewSimpleControlSystem(tstep,measnoise)
+end
+
+function build_dom()
+    X = AB.HyperRectangle(SVector(-30.0, -30.0), SVector(30.0, 30.0))
+    hx = SVector(0.5, 0.5)
+    x0 = SVector(0.0, 0.0)
+    Xgrid = AB.GridFree(x0,hx)
+    Xdom = AB.DomainList(Xgrid)
+    AB.add_set!(Xdom, X, AB.INNER)
+    obstacle = AB.HyperRectangle(SVector(-2.0, -5.0), SVector(2.0, 2.0))
+    AB.remove_set!(Xdom, obstacle, AB.OUTER)
+    return X,Xdom
+end
+
+function build_Udom()
+    U = AB.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+    x0 = SVector(0.0, 0.0)
+    hu = SVector(0.5,0.5) #0.5
+    Ugrid = AB.GridFree(x0,hu)
+    Udom = AB.DomainList(Ugrid)
+    AB.add_set!(Udom, U, AB.OUTER)
+    box = AB.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+    AB.remove_set!(Udom, box, AB.OUTER)
+    return Udom
+end
+
+function transition_cost(x,u)
+    return 0.5#1.0
 end
 
 ## specific function
@@ -186,50 +219,26 @@ function build_heuristic_data(X,contsys,Udom,_I_)
     #display(fig)
     return heuristic_data
 end
-function transition_cost(x,u)
-    return 0.5#1.0
-end
+##
 function test()
-    a = 1.0
-    # build the domain
-    X = AB.HyperRectangle(SVector(-30.0, -30.0)*a, SVector(30.0, 30.0)*a)
-
-    # abstraction parameters
-    U = AB.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-
-    hx = SVector(0.5, 0.5)#0.5
-    x0 = SVector(0.0, 0.0)
-    Xgrid = AB.GridFree(x0,hx)
-    Xdom = AB.DomainList(Xgrid)
-    AB.add_set!(Xdom, X, AB.INNER)
-    obstacle = AB.HyperRectangle(SVector(-2.0, -5.0), SVector(2.0, 2.0))
-    AB.remove_set!(Xdom, obstacle, AB.OUTER)
-
-    hu = SVector(0.5,0.5) #0.5
-    Ugrid = AB.GridFree(x0,hu)
-    Udom = AB.DomainList(Ugrid)
-    AB.add_set!(Udom, U, AB.OUTER)
-    box = AB.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
-    AB.remove_set!(Udom, box, AB.OUTER)
+    X,Xdom = build_dom()
+    Udom = build_Udom()
     # build system
     contsys = build_system()
     symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
-
     # control problem
     _I_ = AB.HyperRectangle(SVector(-8.0, -8.0), SVector(-7.0, -7.0))
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
     _T_ = AB.HyperRectangle(SVector(5.0, 5.0), SVector(8.0, 8.0))
     targetlist = UT.get_symbol(symmodel,_T_,AB.INNER)
-
     # Heuristic data
     fig = plot(aspect_ratio = 1,legend = false)
     heuristic_data = build_heuristic_data(X,contsys,Udom,_I_)
 
-
     # Lazy Abstraction implementation
     time = @elapsed begin
     #problem = LA.compute_controller(symmodel, contsys, initlist, targetlist, pre_image, post_image, h1)
-    problem = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h2, heuristic_data=heuristic_data)
+    problem,sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h2, heuristic_data=heuristic_data)
     contr = problem.contr
     end
     println("total time: lazy abstraction + controller: ", time)

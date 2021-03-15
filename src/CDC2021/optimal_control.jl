@@ -5,6 +5,9 @@ using StaticArrays, Plots
 using ..Abstraction
 AB = Abstraction
 
+using ..DomainList
+D = DomainList
+
 using ..Utils
 U = Utils
 
@@ -24,33 +27,38 @@ LA = Lazy_abstraction
 -Udom::DomainList : the input domain
 -_I_ : AB.HyperRectangle : necessary for the algo (must be as small as possible and contain x0)
 -transition_cost(x,u) : function that calculates the transition cost from state x with input u
--functions : vector of problem-specific functions needed
+-functions : vector of problem-specific functions required
     compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom::AB.DomainList)
     minimum_transition_cost(symmodel,contsys,source::Int,target::Int)
     post_image(symmodel,contsys,xpos,u)  : used in the A*
     pre_image(symmodel,contsys,xpos,u)   : used in the A*
--option : Bool to indicate if you forbid the path to return to the previous big cell
+-option : Vector of Bool to decide the branch and bound strategy (ex: indicate if you forbid the path to return to the previous big cell)
 -ext : not used by default (could be used by the user)
 """
 struct OptimalControlProblem <: BB.Abstract_BB_Problem
-    q0::Int
+    # data of the problem
     x0
-    qT::Int
-    _T_
     contsys
+    periodic::Vector{Int}    # periodics dimensions
+    periods::Vector{Float64} # periods
     Udom
     transition_cost
+    # data of the algo
+    q0::Int
+    qT::Int
+    coarse_abstraction
     cells
-    option::Bool
-    functions::Vector{Any}
-    dim
+    hx_medium
+    hx_fine
+    functions::Vector{Function}
+    option::Vector{Bool}
     ext
 end
 
-function OptimalControlProblem(rectangles,x0,_I_,_T_,contsys,Udom,transition_cost,functions;option=true, ext=nothing)
-    q0,qT,cells = P.Initialise(rectangles,contsys,Udom,_I_,_T_,functions[1],functions[2])
-    dim = U.dims(rectangles[1])
-    return OptimalControlProblem(q0,x0,qT,_T_,contsys,Udom,transition_cost,cells,option,functions,dim,ext)
+
+function OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,Udom,transition_cost,partition,hx_medium,hx_fine,functions;option=[true], ext=nothing)
+    q0,qT,coarse_abstraction,cells = P.Initialise(partition,contsys,Udom,_I_,_T_,functions[1],functions[2],periodic,periods)
+    return OptimalControlProblem(x0,contsys,periodic,periods,Udom,transition_cost,q0,qT,coarse_abstraction,cells,hx_medium,hx_fine,functions,option,ext)
 end
 
 function BB.check_trivial_infeasibility(prob::OptimalControlProblem)
@@ -61,28 +69,29 @@ function BB.get_first_instance(prob::OptimalControlProblem)
     return [prob.q0]
 end
 
-function build_coarse_abstraction!(prob,cell)
-    hx = SVector(1.0, 1.0)*0.5; x0 = @SVector zeros(prob.dim)
-    Xgrid = AB.GridFree(x0,hx)
-    Xdom = AB.DomainList(Xgrid)
+function build_medium_abstraction!(prob,cell)
+    hx = prob.hx_medium
+    Xdom = D.GeneralDomainList(hx;periodic=prob.periodic,periods=prob.periods)
     AB.add_set!(Xdom, cell.hyperrectangle , AB.OUTER)
     for i in cell.outneighbors
-        AB.add_set!(Xdom,cell.local_target_set[i], AB.OUTER)
+        for rec in cell.local_target_set[i]
+            AB.add_set!(Xdom,rec, AB.OUTER)
+        end
     end
     symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom)
     problem = AS.symmodelProblem(symmodel,prob.contsys,prob.functions[1],prob.functions[2],AS.get_possible_transitions_2)
     symmodel.autom = AS.build_alternating_simulation(problem)
-    cell.coarse_abstraction = symmodel
+    cell.medium_abstraction = symmodel
 end
 function build_heuristic!(cell,from)
     heuristics = cell.heuristics
-    symmodel = cell.coarse_abstraction
-    _I_ = cell.local_init_set[from]
-    initlist = U.get_symbol(symmodel,_I_,AB.OUTER)
+    symmodel = cell.medium_abstraction
+    _I_L = cell.local_init_set[from]
+    initlist = U.get_symbols(symmodel,_I_L,AB.OUTER)
     heuristic = AS.build_heuristic(symmodel,initlist)
     heuristics[from] = heuristic
     #fig = plot(aspect_ratio = 1,legend = false)
-    #AS.plot_heuristic!(heuristic)
+    #AS.plot_heuristic!(heuristic,opacity=0.2,color=:red)
     #display(fig)
 end
 
@@ -97,16 +106,16 @@ function BB.compute_lower_bound!(prob::OptimalControlProblem, node::BB.Node)
     prev_cell = cells[path[end-1]]
     from = length(path) == 2 ? -1 : path[end-2]
     #if the alternating simulation is not yet computed
-    if prev_cell.coarse_abstraction==nothing
-        build_coarse_abstraction!(prob,prev_cell)
+    if prev_cell.medium_abstraction==nothing
+        build_medium_abstraction!(prob,prev_cell)
     end
     # build the heuristic if necessary
     if !haskey(prev_cell.heuristics,from)
         build_heuristic!(prev_cell,from)
     end
     if curr_cell.index == prob.qT
-        if curr_cell.coarse_abstraction==nothing
-            build_coarse_abstraction!(prob,curr_cell)
+        if curr_cell.medium_abstraction==nothing
+            build_medium_abstraction!(prob,curr_cell)
         end
         if !haskey(curr_cell.heuristics,path[end-1])
             build_heuristic!(curr_cell,path[end-1])
@@ -114,28 +123,58 @@ function BB.compute_lower_bound!(prob::OptimalControlProblem, node::BB.Node)
     end
     # compute the lower bound
     heuristic = prev_cell.heuristics[from]
-    _T_ = prev_cell.local_target_set[path[end]]
-    a = AS.get_min_value_heurisitic(heuristic,_T_)
+    _T_L = prev_cell.local_target_set[path[end]]
+    a = AS.get_min_value_heurisitic(heuristic,_T_L)
     cost = node.parent.lower_bound + a
     if prev_cell.index != prob.qT
         cost -= prev_cell.lower_bound
     else
         heuristic = prev_cell.heuristics[path[end-2]]
-        _T_ = prev_cell.local_target_set[-1]
-        b = AS.get_min_value_heurisitic(heuristic,_T_)
+        _T_L = prev_cell.local_target_set[-1]
+        b = AS.get_min_value_heurisitic(heuristic,_T_L)
         cost -= b
     end
     if curr_cell.index != prob.qT
         cost += curr_cell.lower_bound
     else
         heuristic = curr_cell.heuristics[path[end-1]]
-        _T_ = curr_cell.local_target_set[-1]
-        b = AS.get_min_value_heurisitic(heuristic,_T_)
+        _T_L = curr_cell.local_target_set[-1]
+        b = AS.get_min_value_heurisitic(heuristic,_T_L)
         cost += b
     end
     #println(a)
     #println("cost:  ",path," -> ",cost)
     node.lower_bound = cost + 2.0#+ 5 # where 1 is the cost of the transition
+    #println("end a lower bound")
+end
+
+function build_fine_abstraction!(prob,cell)
+    hx = prob.hx_fine
+    Xdom = D.GeneralDomainList(D.build_grid_in_rec(cell.hyperrectangle,hx),periodic=prob.periodic,periods=prob.periods)
+    #Xdom = D.GeneralDomainList(hx;periodic=prob.periodic,periods=prob.periods)
+    AB.add_set!(Xdom, cell.hyperrectangle , AB.INNER)
+    for i in cell.outneighbors
+        for rec in cell.local_target_set[i]
+            AB.add_set!(Xdom,rec, AB.OUTER) #INNER
+        end
+    end
+    #U.plot_domain!(Xdom,opacity=0.4,color=:red)
+    symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom)
+    cell.fine_abstraction = (symmodel,nothing)
+end
+function build_controller!(prob,cell,prev,next)
+    (symmodel, transitions_previously_added) = cell.fine_abstraction
+    _I_L = cell.local_init_set[prev]
+    initlist = U.get_symbols(symmodel,_I_L,AB.OUTER)
+    _T_L = cell.local_target_set[next]
+    targetlist = U.get_symbols(symmodel,_T_L,AB.INNER)
+    #println(length(initlist))
+    #println(length(targetlist))
+    heuristic = cell.heuristics[prev]
+
+    problem,success = LA.compute_controller(symmodel, prob.contsys, initlist, targetlist,prob.transition_cost, prob.functions[4], prob.functions[3], h2, heuristic_data=heuristic,transitions_previously_added=transitions_previously_added)
+    cell.fine_abstraction = (symmodel,problem.transitions_previously_added)
+    cell.controllers[(prev,next)] = problem.contr
 end
 
 function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
@@ -144,19 +183,13 @@ function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
     if path[end]!=prob.qT
         return
     end
+    #Threads.@threads for i=1:length(path)  # can be improve with a better repartition of the load on the threads...
+    #    index = path[i]
     for (i,index) in enumerate(path)
         cell = cells[index]
         # if the abstraction (or any part of it) is not yet build
         if cell.fine_abstraction == nothing
-            hx = SVector(0.5, 0.5)*1.0; x0 = @SVector zeros(prob.dim)
-            Xgrid = AB.GridFree(x0,hx)
-            Xdom = AB.DomainList(Xgrid)
-            AB.add_set!(Xdom, cells[index].hyperrectangle , AB.INNER)
-            for i in cell.outneighbors
-                AB.add_set!(Xdom,cell.local_target_set[i], AB.INNER)
-            end
-            symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom)
-            cell.fine_abstraction = (symmodel,nothing)
+            build_fine_abstraction!(prob,cell)
         end
 
         prev = i==1 ? -1 : path[i-1]
@@ -164,33 +197,17 @@ function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
         controllers = cells[index].controllers
         # build the controller if not already computed
         if !haskey(controllers,(prev,next))
-            (symmodel, transitions_previously_added) = cell.fine_abstraction
-            _I_ = cell.local_init_set[prev]
-            initlist = U.get_symbol(symmodel,_I_,AB.OUTER)
-            _T_ = cell.local_target_set[next]
-            targetlist = U.get_symbol(symmodel,_T_,AB.INNER)
-            heuristic = cell.heuristics[prev]
-
-            problem = LA.compute_controller(symmodel, prob.contsys, initlist, targetlist,prob.transition_cost, prob.functions[4], prob.functions[3], h2, heuristic_data=heuristic,transitions_previously_added=transitions_previously_added)
-            cell.fine_abstraction = (symmodel,problem.transitions_previously_added)
-            contr = problem.contr
-            controllers[(prev,next)] = contr
-            #LA.plot_result!(problem)
+            build_controller!(prob,cell,prev,next)
         end
     end
     # compute the upper bound
     (traj, cost, succeed) = simulate_trajectory(prob, path)
-    node.upper_bound = cost
+    node.upper_bound = succeed ? cost : -Inf
     node.sol = path
-    println()
-    println(cost)
-    fig = plot(aspect_ratio = 1,legend = false)
-    for cell in prob.cells
-        h = cell.hyperrectangle
-        plot!(U.rectangle(h.lb,h.ub), opacity=.4,color=:blue)
-    end
+    #fig = plot(aspect_ratio = 1,legend = false)
+    #U.plot_domain!(prob.coarse_abstraction.Xdom,opacity=0.15,color=:blue)
     print_trajectory!(traj)
-    display(fig)
+    #display(fig)
 end
 
 function BB.expand(prob::OptimalControlProblem, node::BB.Node)
@@ -201,7 +218,7 @@ function BB.expand(prob::OptimalControlProblem, node::BB.Node)
     children = []
     for neighbor_cell in current_cell.outneighbors
         new_path = [path...,neighbor_cell]
-        if prob.option && (f1(reverse(new_path)) || (length(path) >= 2 && neighbor_cell == path[end-1]) || f2(new_path))
+        if prob.option[1] && (f1(reverse(new_path)) || (length(path) >= 2 && neighbor_cell == path[end-1]) || f2(new_path))
             continue
         end
         push!(children,BB.Node(new_path,node.depth+1,parent=node,lower_bound=-Inf, upper_bound=Inf,ext=prob)) #prob : temporary (to change)
@@ -212,8 +229,8 @@ end
 function simulate_trajectory(prob::OptimalControlProblem, path)
     x0 = prob.x0
     traj = []
+    push!(traj,x0)
     cost = 0.0
-
     for (i,index) in enumerate(path)
         cell = prob.cells[index]
         (symmodel,tab) = cell.fine_abstraction
@@ -221,14 +238,14 @@ function simulate_trajectory(prob::OptimalControlProblem, path)
         next = i==length(path) ? -1 : path[i+1]
         contr = cell.controllers[(prev,next)]
 
-        _T_ = cell.local_target_set[next]
-        targetlist = U.get_symbol(symmodel,_T_,AB.INNER)
+        _T_L = cell.local_target_set[next]
+        targetlist = U.get_symbols(symmodel,_T_L,AB.INNER)
         (local_traj,local_cost,succeed) = simulate_local_trajectory(prob.contsys, symmodel, contr, x0, targetlist; transition_cost=prob.transition_cost)
+        traj = [traj..., local_traj[2:end]...]
+        cost += local_cost
         if !succeed
             return (traj,cost,false)
         end
-        traj = [traj..., local_traj[2:end]...]
-        cost += local_cost
         x0 = local_traj[end]
     end
     return (traj,cost,true)
@@ -239,7 +256,7 @@ function simulate_local_trajectory(contsys, symmodel, contr, x0, targetlist; tra
     while true
         push!(traj,x0)
         xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
-        if !(xpos ∈ symmodel.Xdom) # note, this should normally never happen
+        if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")
             return (traj,cost,false)
         end
@@ -258,6 +275,7 @@ function simulate_local_trajectory(contsys, symmodel, contr, x0, targetlist; tra
         u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)
         cost += transition_cost(x0,u)
         x0 = contsys.sys_map(x0, u, contsys.tstep)
+        x0 = D.set_in_period_coord(symmodel.Xdom,x0)
     end
     return (traj,cost,true)
 end

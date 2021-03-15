@@ -1,4 +1,4 @@
-include("search.jl")
+include("../search.jl")
 
 module TestMain
 using Test, StaticArrays
@@ -82,7 +82,6 @@ init = State(5,7)
 target = State(4,4)
 problem = PathProblem(init, Map; goal=target)
 @testset "depth_first_graph_search" begin
-    println("JULIEN")
     node, nb = S.depth_first_graph_search(problem)
     @test node != nothing
     @test node.state == target

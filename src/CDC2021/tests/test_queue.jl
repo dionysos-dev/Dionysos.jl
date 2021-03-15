@@ -1,4 +1,4 @@
-include("queue.jl")
+include("../queue.jl")
 
 module TestMain
 using Test

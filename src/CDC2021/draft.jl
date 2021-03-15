@@ -131,5 +131,16 @@ end
 #A = [1,2,1,3,5,1,2,1,3,5,8]
 
 #println(f1(A))
+using Base.Threads
+
+function test_thread()
+    max_threads = nthreads()
+    println(max_threads)
+    L = [1,2,3,4]
+    Threads.@threads for (i,a) in enumerate(L)
+           println(Threads.threadid())
+    end
+end
+#test_4()
 
 end # module
