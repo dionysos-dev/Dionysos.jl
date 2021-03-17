@@ -74,7 +74,7 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
     end
     compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods)
 
-    #plot_local_set(cells[1],Xdom)#587
+    plot_local_set(cells[1],Xdom)#587
 
     return (q0,qT,symmodel,cells)
 end
@@ -142,7 +142,7 @@ function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_
         end
     end
     push!(cells[q0].local_init_set[-1],set_rec_in_period(periodic,periods,_I_)...)
-    push!(cells[qT].local_target_set[-1],set_rec_in_period(periodic,periods,_T_)...) 
+    push!(cells[qT].local_target_set[-1],set_rec_in_period(periodic,periods,_T_)...)
     for cell in cells
         R = compute_reachable_set(cell.hyperrectangle,contsys,Udom)
         RL = set_rec_in_period(periodic,periods,R)
