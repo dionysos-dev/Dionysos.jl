@@ -111,7 +111,7 @@ function L_growthbound(u,K)
 end
 function build_system()
     urdf = "Acrobot.urdf"
-    tstep = 0.04#0.004
+    tstep = 0.004#0.004
     sysnoise = SVector(0.0, 0.0, 0.0, 0.0)
     measnoise = SVector(0.0, 0.0, 0.0, 0.0)
     ngrowthbound = 4
@@ -119,13 +119,11 @@ function build_system()
     return NewControlSystemGrowthUrdf(urdf,tstep,sysnoise,measnoise,L_growthbound,ngrowthbound)
 end
 function build_input()
-    U = AB.HyperRectangle(SVector(-2.0), SVector(2.0))
+    U = AB.HyperRectangle(SVector(-5.0), SVector(5.0))
     x0 = SVector(0.0); hu = SVector(0.5)
     Ugrid = AB.GridFree(x0,hu)
     Udom = AB.DomainList(Ugrid)
     AB.add_set!(Udom, U, AB.OUTER)
-    box = AB.HyperRectangle(SVector(-0.1), SVector(0.1))
-    AB.remove_set!(Udom, box, AB.OUTER)
     return Udom
 end
 function transition_cost(x,u)
@@ -148,6 +146,8 @@ function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
     for upos in AB.enum_pos(Udom)
         u = AB.get_coord_by_pos(Udom.grid,upos)
         Fx = contsys.sys_map(x, u, tstep)
+        println(x)
+        println(Fx)
         Fr = contsys.growthbound_map(r, u, tstep, x)
         lb = min.(lb,Fx .- Fr)
         ub = max.(ub,Fx .+ Fr)
@@ -232,7 +232,7 @@ function test()
     functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
     optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,Udom,transition_cost,(X,hx_coarse),hx_medium,hx_fine,functions)
 
-    max_iter = 5
+    max_iter = 1
     max_time = 1000
     optimizer = BB.Optimizer(optimal_control_prob,max_iter,max_time,log_level=2)
     println("optimize")
