@@ -9,7 +9,7 @@ include("../optimal_control.jl")
 
 module Test
 """
-    Simple 2-dimensional reachability problem
+    Simple two-dimensional reachability problem
 """
 
 using Plots, StaticArrays, JuMP
@@ -139,7 +139,8 @@ function test()
     Udom = build_input()
 
     # control problem
-    _T_ = AB.HyperRectangle(SVector(44.0, 38.0), SVector(49.0, 41.0))
+    #_T_ = AB.HyperRectangle(SVector(44.0, 38.0), SVector(49.0, 41.0))
+    _T_ = AB.HyperRectangle(SVector(5.0, 10.0), SVector(8.0, 12.0))
     x0 = SVector(7.0,7.0)
     _I_ = AB.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5))
     # problem-specific functions
