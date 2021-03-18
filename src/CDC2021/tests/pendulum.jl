@@ -168,7 +168,7 @@ function acrobot_urdf()
     urdf = "Acrobot.urdf"
     mechanism = parse_urdf(urdf)
 
-    q = [π,Float64(0.1)]
+    q = [0.1,0.1]#[π,Float64(0.1)]
     v = [0.0,0.0]
     state = MechanismState(mechanism, q, v)
     t, q, v = simulate(state, 5.0,control!; Δt = 1e-3)

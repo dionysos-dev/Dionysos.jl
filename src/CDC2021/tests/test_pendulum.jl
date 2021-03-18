@@ -147,8 +147,8 @@ function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
     for upos in AB.enum_pos(Udom)
         u = AB.get_coord_by_pos(Udom.grid,upos)
         Fx = contsys.sys_map(x, u, tstep)
-        println(x)
-        println(Fx)
+        #println(x)
+        #println(Fx)
         Fr = contsys.growthbound_map(r, u, tstep, x)
         lb = min.(lb,Fx .- Fr)
         ub = max.(ub,Fx .+ Fr)
@@ -214,17 +214,18 @@ function test()
     Udom = build_input()
 
     # control problem
-    _T_ = AB.HyperRectangle(SVector(π, 0.1,0.0,0.0)-SVector(0.1,0.0,0.1,0.1), SVector(π, 0.1,0.0,0.0)+SVector(0.1,0.1,0.1,0.1))
-    x0 = SVector(π,π,0.0,0.0)
-    RI = SVector(0.01, 0.01, 0.01, 0.01)
+    #_T_ = AB.HyperRectangle(SVector(π, 0.1,0.0,0.0)-SVector(0.1,0.0,0.1,0.1), SVector(π, 0.1,0.0,0.0)+SVector(0.1,0.1,0.1,0.1))
+    _T_ = AB.HyperRectangle(SVector(0.1, 0.1,-0.8,-0.8), SVector(0.15, 0.15,0.8,0.8))
+    x0 = SVector(0.2,0.2,0.0,0.0)#SVector(π,π,0.0,0.0)
+    RI = SVector(0.01, 0.01, 0.2, 0.2)
     _I_ = AB.HyperRectangle(x0-RI, x0+RI)
 
     # problem-specific functions
     functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
 
     hx_coarse = [1.0, 1.0, 2.0, 2.0]
-    hx_medium = [0.3, 0.3, 2.0, 2.0]
-    hx_fine = [0.1, 0.1, 1.0, 1.0]
+    hx_medium = [0.2, 0.2, 0.4, 0.4]
+    hx_fine = [0.01, 0.01, 0.1, 0.1]
     periodic = [1,2]
     periods = [2*π,2*π]
     fig = plot(aspect_ratio = 1,legend = false)
