@@ -45,7 +45,8 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
 
     q0 = localise(symmodel,_I_)
     qT = localise(symmodel,_T_)
-
+    println(q0)
+    println(qT)
     heuristic = AS.build_heuristic(symmodel,[qT]) #remark later, we could put the several which contains the targetset
     #AS.plot_heuristic!(heuristic,opacity=0.15,color=:blue)
 
@@ -74,8 +75,10 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
     end
     compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods)
 
-    plot_local_set(cells[1],Xdom)#587
-
+    for i = 1:15
+        plot_local_set(cells[i],Xdom)#587
+        plot_local_set(cells[i],Xdom;dims=[3,4])
+    end
     return (q0,qT,symmodel,cells)
 end
 
@@ -131,7 +134,7 @@ function set_rec_in_period(periodic,periods,rec)
 end
 
 function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods)
-    cells[q0].local_init_set[-1] = []
+    cells[q0].local_init_set[-2] = []
     cells[qT].local_target_set[-1] = []
     for cell in cells
         for i in cell.inneighbors
@@ -141,7 +144,7 @@ function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_
             cell.local_target_set[i] = []
         end
     end
-    push!(cells[q0].local_init_set[-1],set_rec_in_period(periodic,periods,_I_)...)
+    push!(cells[q0].local_init_set[-2],set_rec_in_period(periodic,periods,_I_)...)
     push!(cells[qT].local_target_set[-1],set_rec_in_period(periodic,periods,_T_)...)
     for cell in cells
         R = compute_reachable_set(cell.hyperrectangle,contsys,Udom)
@@ -163,15 +166,6 @@ function plot_local_set(cell,Xdom;dims=[1,2])
     reachable_set = set_rec_in_period(Xdom.periodic,Xdom.periods,reachable_set)
 
     fig = plot(aspect_ratio = 1,legend = false)
-    dims=[1,2]
-    U.plot_domain!(Xdom,dims=dims)
-    plot!(U.rectangle(rec.lb[dims],rec.ub[dims]), opacity=0.2,color=:red)
-    for rect in reachable_set
-        plot!(U.rectangle(rect.lb[dims],rect.ub[dims]), opacity=0.4,color=:red)
-    end
-    display(fig)
-    fig = plot(aspect_ratio = 1,legend = false)
-    dims=[3,4]
     U.plot_domain!(Xdom,dims=dims)
     plot!(U.rectangle(rec.lb[dims],rec.ub[dims]), opacity=0.2,color=:red)
     for rect in reachable_set

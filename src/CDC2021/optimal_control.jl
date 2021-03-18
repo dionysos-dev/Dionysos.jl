@@ -95,56 +95,55 @@ function build_heuristic!(cell,from)
     #display(fig)
 end
 
+
 function BB.compute_lower_bound!(prob::OptimalControlProblem, node::BB.Node)
     path = node.elem
     cells = prob.cells
     curr_cell = cells[path[end]]
-    if length(path) == 1
-        node.lower_bound = curr_cell.lower_bound
-        return
-    end
-    prev_cell = cells[path[end-1]]
-    from = length(path) == 2 ? -1 : path[end-2]
-    #if the alternating simulation is not yet computed
-    if prev_cell.medium_abstraction==nothing
-        build_medium_abstraction!(prob,prev_cell)
-    end
-    # build the heuristic if necessary
-    if !haskey(prev_cell.heuristics,from)
-        build_heuristic!(prev_cell,from)
-    end
+    from = length(path) == 1 ? -2 : path[end-1]
+    cost = 0.0
     if curr_cell.index == prob.qT
         if curr_cell.medium_abstraction==nothing
             build_medium_abstraction!(prob,curr_cell)
         end
-        if !haskey(curr_cell.heuristics,path[end-1])
-            build_heuristic!(curr_cell,path[end-1])
+        if !haskey(curr_cell.heuristics,from)
+            build_heuristic!(curr_cell,from)
         end
     end
-    # compute the lower bound
-    heuristic = prev_cell.heuristics[from]
-    _T_L = prev_cell.local_target_set[path[end]]
-    a = AS.get_min_value_heurisitic(heuristic,_T_L)
-    cost = node.parent.lower_bound + a
-    if prev_cell.index != prob.qT
-        cost -= prev_cell.lower_bound
-    else
-        heuristic = prev_cell.heuristics[path[end-2]]
-        _T_L = prev_cell.local_target_set[-1]
-        b = AS.get_min_value_heurisitic(heuristic,_T_L)
-        cost -= b
+    if length(path) > 1
+        prev_cell = cells[path[end-1]]
+        from_from = length(path) == 2 ? -2 : path[end-2]
+        #if the alternating simulation is not yet computed
+        if prev_cell.medium_abstraction==nothing
+            build_medium_abstraction!(prob,prev_cell)
+        end
+        # build the heuristic if necessary
+        if !haskey(prev_cell.heuristics,from_from)
+            build_heuristic!(prev_cell,from_from)
+        end
+
+        heuristic = prev_cell.heuristics[from_from]
+        _T_L = prev_cell.local_target_set[path[end]]
+        cost = node.parent.lower_bound + AS.get_min_value_heurisitic(heuristic,_T_L)
+        if prev_cell.index != prob.qT
+            cost -= prev_cell.lower_bound
+        else
+            heuristic = prev_cell.heuristics[from_from]
+            _T_L = prev_cell.local_target_set[-1]
+            cost -= AS.get_min_value_heurisitic(heuristic,_T_L)
+        end
     end
+
     if curr_cell.index != prob.qT
         cost += curr_cell.lower_bound
     else
-        heuristic = curr_cell.heuristics[path[end-1]]
+        heuristic = curr_cell.heuristics[from]
         _T_L = curr_cell.local_target_set[-1]
-        b = AS.get_min_value_heurisitic(heuristic,_T_L)
-        cost += b
+        cost += AS.get_min_value_heurisitic(heuristic,_T_L)
     end
     #println(a)
-    #println("cost:  ",path," -> ",cost)
-    node.lower_bound = cost + 2.0#+ 5 # where 1 is the cost of the transition
+    println("cost:  ",path," -> ",cost)
+    node.lower_bound = cost#+ 5 # where 1 is the cost of the transition
     #println("end a lower bound")
 end
 
@@ -168,8 +167,11 @@ function build_controller!(prob,cell,prev,next)
     initlist = U.get_symbols(symmodel,_I_L,AB.OUTER)
     _T_L = cell.local_target_set[next]
     targetlist = U.get_symbols(symmodel,_T_L,AB.INNER)
-    #println(length(initlist))
-    #println(length(targetlist))
+    println(prev)
+    println(next)
+    println("length:")
+    println(length(initlist))
+    println(length(targetlist))
     heuristic = cell.heuristics[prev]
 
     problem,success = LA.compute_controller(symmodel, prob.contsys, initlist, targetlist,prob.transition_cost, prob.functions[4], prob.functions[3], h2, heuristic_data=heuristic,transitions_previously_added=transitions_previously_added)
@@ -192,7 +194,7 @@ function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
             build_fine_abstraction!(prob,cell)
         end
 
-        prev = i==1 ? -1 : path[i-1]
+        prev = i==1 ? -2 : path[i-1]
         next = i==length(path) ? -1 : path[i+1]
         controllers = cells[index].controllers
         # build the controller if not already computed
@@ -204,10 +206,10 @@ function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
     (traj, cost, succeed) = simulate_trajectory(prob, path)
     node.upper_bound = succeed ? cost : -Inf
     node.sol = path
-    #fig = plot(aspect_ratio = 1,legend = false)
-    #U.plot_domain!(prob.coarse_abstraction.Xdom,opacity=0.15,color=:blue)
+    fig = plot(aspect_ratio = 1,legend = false)
+    U.plot_domain!(prob.coarse_abstraction.Xdom,opacity=0.15,color=:blue)
     print_trajectory!(traj)
-    #display(fig)
+    display(fig)
 end
 
 function BB.expand(prob::OptimalControlProblem, node::BB.Node)
@@ -234,7 +236,7 @@ function simulate_trajectory(prob::OptimalControlProblem, path)
     for (i,index) in enumerate(path)
         cell = prob.cells[index]
         (symmodel,tab) = cell.fine_abstraction
-        prev = i==1 ? -1 : path[i-1]
+        prev = i==1 ? -2 : path[i-1]
         next = i==length(path) ? -1 : path[i+1]
         contr = cell.controllers[(prev,next)]
 
