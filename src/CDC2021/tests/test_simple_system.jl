@@ -139,8 +139,8 @@ function test()
     Udom = build_input()
 
     # control problem
-    #_T_ = AB.HyperRectangle(SVector(44.0, 38.0), SVector(49.0, 41.0))
-    _T_ = AB.HyperRectangle(SVector(5.0, 10.0), SVector(8.0, 12.0))
+    _T_ = AB.HyperRectangle(SVector(44.0, 38.0), SVector(49.0, 41.0))
+    #_T_ = AB.HyperRectangle(SVector(5.0, 10.0), SVector(8.0, 12.0))
     x0 = SVector(7.0,7.0)
     _I_ = AB.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5))
     # problem-specific functions
@@ -148,8 +148,8 @@ function test()
     hx_coarse = [10.0, 10.0]*1.0
     hx_medium = [1.0, 1.0]*0.5*2.0
     hx_fine = [0.5, 0.5]*1.0
-    periodic = [1]
-    periods = [60.0]
+    periodic = Int[1]
+    periods = Float64[60.0]
     fig = plot(aspect_ratio = 1,legend = false)
     plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
     plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
@@ -175,23 +175,6 @@ end # module
 
 
 #=
-
-function mesh(X,nx)
-    N = prod(nx)     # number of Hyperrectangles
-    n = length(X.lb) # dimension of the problem
-    hx = [(X.ub[i]-X.lb[i])/nx[i] for i=1:n]
-
-    _ranges = ntuple(i -> UnitRange(1, nx[i]), n)
-    iter = Iterators.product(_ranges...)
-    H = AB.HyperRectangle[]
-    for coord in iter
-        lb = X.lb .+ (coord.-1.0).*hx
-        ub = X.lb + coord.*hx
-        push!(H,AB.HyperRectangle(SVector{n}(lb),SVector{n}(ub)))
-    end
-    return H
-end
-
 function build_partition(α)
     H1 = AB.HyperRectangle(SVector(0.0,0.0),SVector(8.0,4.0))
     H2 = AB.HyperRectangle(SVector(8.0,0.0),SVector(12.0,4.0))
