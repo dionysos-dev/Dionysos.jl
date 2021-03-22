@@ -1,6 +1,112 @@
 module DoublePendulum
 using RigidBodyDynamics, MeshCat, MeshCatMechanisms, SymPy
 using LinearAlgebra,StaticArrays,Random
+
+##
+# mon implementation de la dynamique (voir bac 3): les angles sont pris par rapport
+# à la diagonale.
+function f(x;u=[0.0])
+    # the nonlinear differential equations defining the model
+    # torque : [-4,4]
+    #=g = 9.81  #  [m/(s^2)]
+    p1 = 0.0148 # m1*lc1^2+m2*l1^2+I1   [kg.m^2]
+    p2 = 0.0051 # m2*lc2^2+I2           [kg.m^2]
+    p3 = 0.0046 # m2*l1*lc2             [kg.m^2]
+    p4 = 0.1003 # m1*lc1+m2*l1          [kg.m]
+    p5 = 0.0303 # m2*lc2                [kg.m]=#
+    lc1 = 0.5
+    l1 = 1.
+    m1 = 1.
+    I1 = 0.083#0.083#0.333#0.083 # about joint instead of CoM in URDF
+    lc2 = 1.
+    l2 = 2.
+    m2 = 1.
+    I2 = 0.33#0.33#1.33#0.33 # about joint instead of CoM in URDF
+    g = 9.81  # [m/(s^2)]
+
+    p1 =  m1*lc1^2+m2*l1^2+I1 # [kg.m^2]
+    p2 = m2*lc2^2+I2          # [kg.m^2]
+    p3 =  m2*l1*lc2           # [kg.m^2]
+    p4 = m1*lc1+m2*l1         # [kg.m]
+    p5 =  m2*lc2              # [kg.m]
+
+    q1 = x[1]; q2 = x[2]; v1 = x[3]; v2 = x[4]
+    F1 = x[3]
+    F2 = x[4]
+
+    s1 = sin(q1); s2 = sin(q2); s12 = sin(q1-q2); c12 = cos(q1-q2)
+    coef1 = 1/((p3^2)*c12^2-p1*p2)
+    coef2 = (p3^2/2)*sin(2*(q1-q2))
+    coef3 = p2*p3*s12
+    coef4 = -p3*p5*g*s2*c12+p2*p4*g*s1-p2*u[1]
+    F3 = coef1*(coef2*v1^2+coef3*v2^2 + coef4)
+
+    coef1 = 1/((p3^2)*c12^2-p1*p2)
+    coef2 = -p1*p3*s12
+    coef3 = -(p3^2/2)*sin(2*(q1-q2))
+    coef4 = -p3*p4*g*s1*c12+p1*p5*g*s2+p3*c12*u[1]
+    F4 = coef1*(coef2*v1^2+coef3*v2^2 + coef4)
+
+    F = [F1,F2,F3,F4]#IntervalBox(F1,F2,F3,F4)
+    return F
+end
+# leur implementation de la dynamique: q2(eux) = q2(moi)-q1
+# http://underactuated.csail.mit.edu/acrobot.html#section1
+# les moments d'inerties ne semblent pas etre les memes ?
+function f2(x;u=[0.0])
+    # the nonlinear differential equations defining the model
+    lc1 = 0.5
+    l1 = 1.
+    m1 = 1.
+    I1 = 0.333 # about joint instead of CoM in URDF
+    lc2 = 1.
+    l2 = 2.
+    m2 = 1.
+    I2 = 1.33 # about joint instead of CoM in URDF
+    g = 9.81
+
+    q1 = x[1]; q2 = x[2]; v1 = x[3]; v2 = x[4]
+    c1 = cos(q1); c2 = cos(q2); s1 = sin(q1); s2 = sin(q2); s12 = sin(q1 + q2)
+
+    M11 = I1 + I2 + m2 * l1^2 + 2 * m2 * l1 * lc2 * c2
+    M12 = I2 + m2 * l1 * lc2 * c2
+    M22 = I2
+    M = @SMatrix [M11 M12; M12 M22]
+
+    C11 = -2 * m2 * l1 * lc2 * s2 * v2
+    C12 = -m2 * l1 * lc2 * s2 * v2
+    C21 = m2 * l1 * lc2 * s2 * v1
+    C22 = 0
+    C = @SMatrix [C11 C12; C21 C22]
+
+    G = @SMatrix [m1 * g * lc1 * s1 + m2 * g * (l1 * s1 + lc2 * s12); m2 * g * lc2 * s12]
+    v = @SMatrix [v1;v2]
+    τ = @SMatrix [u[1];0.0]
+    r = inv(M)*(-C*v-G+τ)
+    F = [x[3],x[4],r[1],r[2]]# IntervalBox(x[3],x[4],r[1],r[2])
+    return F
+end
+function test1()
+    q1 = -0.8; q2 = 3.14; v1 = -1.0; v2 = -5.04
+    u = [-0.5]
+    x1 = SVector(q1,q2,v1,v2)
+    T1 = f(x1,u=u)
+    x2 = SVector(q1,q2-q1,v1,v2-v1)
+    T2 = f2(x2,u=u)
+    if T1[1] == T2[1] && T2[2] == T1[2]-T1[1] && abs(T1[3] - T2[3])<=10^(-4) && abs(T2[4] - (T1[4]-T1[3]))<= 10^(-4)
+        println("equal")
+    end
+    println(T1)
+    println(T2)
+end
+
+##
+
+
+
+
+
+
 function test()
     lc1 = -0.5  #center of mass
     l1 = -1.    #length of body 1
@@ -146,12 +252,58 @@ function symbolic_model()
     U = simplify(gravitational_potential_energy(x))
     println("Energie pot: ",U)
 
+
+    #=
+    q = configuration(x)
+    for i in eachindex(q)
+        q[i] = symbols("q_$i", real = true)
+    end
+    v = configuration(x)
+    for i in eachindex(q)
+        v[i] = symbols("v_$i", real = true)
+    end
+    result = DynamicsResult(double_pendulum)
+    ẋ = v
+    dynamics!(ẋ, result, x, x)
+
+
     #dynamics!(v,result,state,x)
     #println(result)
-
+    =#
 
 end
+function get_symbolic2()
+    urdf = "Acrobot.urdf"
+    mechanism = parse_urdf(urdf)
+    x = MechanismState(mechanism)
 
+    # Set the joint configuration vector of the MechanismState to a new vector of symbolic variables
+    q = configuration(x)
+    for i in eachindex(q)
+        q[i] = symbols("q_$i", real = true)
+    end
+
+    # Set the joint velocity vector of the MechanismState to a new vector of symbolic variables
+    v = velocity(x)
+    for i in eachindex(v)
+        v[i] = symbols("v_$i", real = true)
+    end
+
+
+    # ## Compute dynamical quantities in symbolic form
+
+    # Mass matrix
+    M = simplify.(mass_matrix(x))
+    println(M)
+
+    # Kinetic energy
+    K = simplify(kinetic_energy(x))
+    println("Energie cin: ",K)
+
+    # Potential energy
+    U = simplify(gravitational_potential_energy(x))
+    println("Energie pot: ",U)
+end
 
 #control! will be called at each time step of the simulation and allows you to specify joint torques
 #given the time and the state of the Mechanism.
@@ -168,10 +320,34 @@ function acrobot_urdf()
     urdf = "Acrobot.urdf"
     mechanism = parse_urdf(urdf)
 
-    q = [π,Float64(0.1)]
+    q = [π,π/2.0]#[π,Float64(0.1)]
     v = [0.0,0.0]
     state = MechanismState(mechanism, q, v)
     t, q, v = simulate(state, 5.0,control!; Δt = 1e-3)
+    #Simulation
+    vis = Visualizer()
+    open(vis)  # open the visualizer in a separate tab/window
+    mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf),vis)
+    animation = Animation(mvis, t, q)
+    setanimation!(mvis, animation)
+
+    # example of possibilities for printing
+    lower_arm = findbody(mechanism, "lower_link")
+    setelement!(mvis, default_frame(lower_arm))
+    upper_arm = findbody(mechanism, "upper_link")
+    setelement!(mvis, default_frame(upper_arm))
+
+end
+
+println()
+#test()
+test1()
+#symbolic_model()
+#get_symbolic2()
+#acrobot_urdf()
+end
+
+#=
 
     q1_min = q[1][1]; q1_max = q[1][1]
     q2_min = q[1][2]; q2_max = q[1][2]
@@ -202,33 +378,17 @@ function acrobot_urdf()
     t, q, v = simulate(state, 10.0,simple_control!; Δt = 1e-3)
     =#
 
-    #Simulation
-    vis = Visualizer()
-    open(vis)  # open the visualizer in a separate tab/window
-    mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf),vis)
-    animation = Animation(mvis, t, q)
-    setanimation!(mvis, animation)
-
-    # example of possibilities for printing
-    lower_arm = findbody(mechanism, "lower_link")
-    setelement!(mvis, default_frame(lower_arm))
-    upper_arm = findbody(mechanism, "upper_link")
-    setelement!(mvis, default_frame(upper_arm))
-    #radius = 0.05
-    #name = "my_point"
-    #setelement!(mvis, Point3D(default_frame(lower_arm), 0.2, 0.2, 0.2), radius, name)
-    #setelement!(mvis, c, radius, name)
-    # upper_arm = findbody(mechanism, "upper_link")
-    # point = Point3D(default_frame(upper_arm), 0., 0, -2)
-end
-
-println()
-#test()
-#symbolic_model()
-acrobot_urdf()
-end
+#=
+#radius = 0.05
+#name = "my_point"
+#setelement!(mvis, Point3D(default_frame(lower_arm), 0.2, 0.2, 0.2), radius, name)
+#setelement!(mvis, c, radius, name)
+# upper_arm = findbody(mechanism, "upper_link")
+# point = Point3D(default_frame(upper_arm), 0., 0, -2)
+=#
 
 
+=#
 
 
 
