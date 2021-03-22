@@ -1,222 +1,30 @@
-include(joinpath("..", "..", "Abstraction", "abstraction.jl"))
-include("../general_domain.jl")
-include("../utils.jl")
-include("../alternating_simulation.jl")
-include("../partition.jl")
-include("../lazy_abstraction.jl")
-include("../branch_and_bound.jl")
-include("../optimal_control.jl")
+# A comparative study of different solutions to the path-tracking problem for an articulated vehicle
+# Paolo Bolzern, Arturo Locatelli
 
-module TestArticuledVehicle
-using RigidBodyDynamics, MeshCat, MeshCatMechanisms, SymPy, ForwardDiff, IntervalArithmetic
-using LinearAlgebra,StaticArrays,Random
-using Plots, StaticArrays, JuMP
-using ReachabilityAnalysis
-
-using ..Abstraction
-const AB = Abstraction
-
-using ..DomainList
-const D = DomainList
-
-using ..Utils
-const U = Utils
-
-using ..BranchAndBound
-const BB = BranchAndBound
-
-using ..OptimalControl
-const OC = OptimalControl
-const α = 8.0
-
-function plot_vehicle!(x,u)
-    function plot_wheel!(p,θ,l,r)
-        y1 = [p[1] + l*cos(θ-π/2.0), p[2] + l*sin(θ-π/2.0)]
-        y2 = [p[1] - l*cos(θ-π/2.0), p[2] - l*sin(θ-π/2.0)]
-        plot!([y1[1],y2[1]], [y1[2],y2[2]],color =:black,linewidth = 4)
-        y3 = [y1[1] + r*cos(θ), y1[2] + r*sin(θ)]
-        y4 = [y1[1] - r*cos(θ), y1[2] - r*sin(θ)]
-        plot!([y3[1],y4[1]], [y3[2],y4[2]],color =:black,linewidth = 4)
-        y5 = [y2[1] + r*cos(θ), y2[2] + r*sin(θ)]
-        y6 = [y2[1] - r*cos(θ), y2[2] - r*sin(θ)]
-        plot!([y5[1],y6[1]], [y5[2],y6[2]],color =:black,linewidth = 4)
-    end
-    L1 = 1.0*α
-    L2 = 0.5*α #1.5 ??
-    c = 0.3*α
-    l = 0.25*α
-    r = 0.15*α
-    x1 = [x[1] + L1*cos(x[3]), x[2] + L1*sin(x[3])]
-    x2 = [x[1] - c*cos(x[3]),  x[2] - c*sin(x[3])]
-    x3 = [x2[1] - L2*cos(x[3]+x[4]),  x2[2] - L2*sin(x[3]+x[4])]
-    plot!([x1[1],x2[1]], [x1[2],x2[2]],color =:black,linewidth = 4)
-    plot!([x3[1],x2[1]], [x3[2],x2[2]],color =:black,linewidth = 4)
-    scatter!([x2[1]],[x2[2]],color =:red,markersize=4)
-    v,δ = u
-    x4 = [x1[1] + r*cos(x[3]+δ), x1[2] + r*sin(x[3]+δ)]
-    x5 = [x1[1] - r*cos(x[3]+δ), x1[2] - r*sin(x[3]+δ)]
-    plot!([x4[1],x5[1]], [x4[2],x5[2]],color =:black,linewidth = 4)
-    plot_wheel!([x[1],x[2]],x[3],l,r)
-    plot_wheel!(x3,x[3]+x[4],l,r)
-end
-
-function plot_articulted_vehicle_traj(traj;Xdom=nothing)
-    for e in traj
-        x,u = e
-        fig = plot(aspect_ratio = 1,legend = false,xlims = (-4,4).*α,ylims = (-4,4).*α)
-        if Xdom != nothing
-            U.plot_domain!(Xdom,dims=[1,2])
-        end
-        plot_vehicle!(x,u)
-        sleep(0.02)
-        display(fig)
-    end
-end
-function test3()
-    tstep = 0.1
-    X,O = build_domain()
-    contsys = build_system(X)
-    x = SVector(0.0,0.0,π/2.0,0.0)
-    u = [1.0,π/3.0]
-
-    fig = plot(aspect_ratio = 1,legend = false,xlims = (0,10))
-    traj = []
-    for i=1:60
-        push!(traj,(x,u))
-        fig = plot(aspect_ratio = 1,legend = false,xlims = (-3,2).*α,ylims = (-2,2).*α)
-        plot_vehicle!(x,u)
-        x = contsys.sys_map(x, u, tstep)
-        sleep(0.02)
-        display(fig)
-    end
-    plot_articulted_vehicle_traj(traj)
-end
-
-## define the system
-
-function NewControlSystemGrowthLx(tstep, f, sysnoise::SVector{N,T}, measnoise::SVector{N,T}, nsys, ngrowthbound,X) where {N,T}
-    # Use `let` following the advice of
-    # https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured
-
-    function L_growthbound(u,K)
-        #L = ForwardDiff.jacobian(x->f(x,u),K)
-        L = jacobian(u,K)
-        M = @SMatrix [i == j ? max(L[i,j].lo,L[i,j].hi) : max(abs(L[i,j].lo), abs(L[i,j].hi)) for i in 1:4, j in 1:4]
-        return M
-    end
-    sys_map = let nsys = nsys
-        (x, u, tstep) ->
-            AB.RungeKutta4(f, x, u, tstep, nsys)
-    end
-    function growthbound_map(r::SVector{N,T}, u, tstep, x; nstep=1)
-        K = compute_K(X,r,u,tstep,x, nstep=nstep)
-        L = L_growthbound(u, K)
-        function F_growthbound(r, u)
-            return L*r + sysnoise
-        end
-        return AB.RungeKutta4(F_growthbound, r, u, tstep, ngrowthbound)
-    end
-    return AB.ControlSystemGrowth(tstep, sysnoise, measnoise, sys_map, growthbound_map)
-end
-
-function jacobian(u,x)
-    L1 = 1.0*α
-    L2 = 0.5*α
-    c = 0.25*α
-    v, δ = u
-    tanδ = tan(δ)
-    a = -(v/(L1*L2))*(L1*cos(x[4])-c*sin(x[4])*tanδ)
-    return SMatrix{4,4}(0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0, -v*sin(x[3]),v*cos(x[3]),0.0,0.0, 0.0,0.0,0.0,a)
-end
-
-function compute_K(X,r,u,tstep,x;nstep=1)
-    K = IntervalBox(X.lb, X.ub)
-    R = IntervalBox(-r,r)
-    for k=1:nstep
-        B = f(K,u)
-        K = x + R + B*tstep
-        K = K ∪ (x+R)
-    end
-    return K
-end
+include("control_system.jl")
 
 function f(x, u)
-    v, δ = u
-    tanδ = tan(δ)
-    L1 = 1.0*α
-    L2 = 0.5*α
-    c = 0.3*α
+    v, tanδ = u
+    L1 = 1.0
+    L2 = 0.5
+    c = 0.5
+    # dx = v1 * cos(θ)    (1a)
+    # dy = v1 * sin(θ)    (1b)
+    # dθ = v1/L1 * tan(δ) (1c)
+    # dφ = -v1/(L1*L2) * (L1 * sin(φ) + (c * cos(φ) + L2) * tan(φ))
     sθ, cθ = sincos(x[3])
-    dx = v * cθ
-    dy = v * sθ
+    dx = v * sθ
+    dy = v * cθ
     dθ = v * tanδ / L1
     sφ, cφ = sincos(x[4])
-    dφ = -v * (L1*sφ + (c * cφ + L2) * tanδ) / (L1 * L2)
-    return SVector(dx, dy, dθ, dφ)
+    dφ = -v * (sφ + (c * cφ + L2) * tanδ) / (L1 * L2)
+    return IntervalBox(dx, dy, dθ, dφ)
 end
 
-## problem specific-functions required
-function minimum_transition_cost(symmodel,contsys,source,target)
-    return 1.0
-end
-
-function compute_reachable_set(rect::AB.HyperRectangle{SVector{N,T}},contsys,Udom) where {N,T}
-    tstep = contsys.tstep
-    r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
-    x = U.center(rect)
-    n =  U.dims(rect)
-    lb = SVector(ntuple(i -> Inf, Val(N)))
-    ub = SVector(ntuple(i -> -Inf, Val(N)))
-    for upos in AB.enum_pos(Udom)
-        u = AB.get_coord_by_pos(Udom.grid,upos)
-        Fx = contsys.sys_map(x, u, tstep)
-        Fr = contsys.growthbound_map(r, u, tstep, x, nstep=5)
-        lb = min.(lb,Fx .- Fr)::SVector{N,T}
-        ub = max.(ub,Fx .+ Fr)::SVector{N,T}
-    end
-    return AB.HyperRectangle(lb,ub)
-end
-
-
-function post_image(symmodel,contsys,xpos,u)
-    Xdom = symmodel.Xdom
-    x = AB.get_coord_by_pos(Xdom.grid, xpos)
-    tstep = contsys.tstep
-    Fx = contsys.sys_map(x, u, tstep)
-    r = Xdom.grid.h/2.0 + contsys.measnoise
-    Fr = contsys.growthbound_map(r, u, tstep, x, nstep=5)
-    post_rec = AB.HyperRectangle(Fx .- Fr, Fx .+ Fr)
-    rectI = AB.get_pos_lims_outer(Xdom.grid, AB.HyperRectangle(Fx .- Fr, Fx .+ Fr))
-    ypos_iter = Iterators.product(AB._ranges(rectI)...)
-    over_approx = Int[]
-    for ypos in ypos_iter
-        ypos = D.set_in_period_pos(Xdom,ypos)
-        if !(ypos in Xdom)
-            empty!(over_approx)
-            break
-        end
-        target = AB.get_state_by_xpos(symmodel, ypos)
-        push!(over_approx, target)
-    end
-    return over_approx
-end
-
-
-function pre_image(symmodel,contsys,xpos,u)
-    return post_image(symmodel,contsys,xpos,SVector(-u[1],u[2]))
-end
-
-##
-function build_domain()
-    X = AB.HyperRectangle(SVector(0.0,0.0,-π,-π/3.0),SVector(60.0,60.0,π,π/3.0))
-    O1 = AB.HyperRectangle(SVector(40.1,0.0,-π,-π),SVector(60.0,19.9,π,π))
-    O2 = AB.HyperRectangle(SVector(40.1,40.1,-π,-π),SVector(60.0,60.0,π,π))
-    O = [O1,O2]
-    return X,O
-end
-
-function build_system(X)
-    tstep = 1.8
+function test()
+    println("start")
+    X = AB.HyperRectangle(SVector(0.0,0.0,-π,-π),SVector(5.0,5.0,-π,π))
+    tstep = 0.1
     sysnoise = SVector(0.0, 0.0, 0.0, 0.0)
     measnoise = SVector(0.0, 0.0, 0.0, 0.0)
     nsys = 5
