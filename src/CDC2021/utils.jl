@@ -50,7 +50,6 @@ end
 function get_symbol(symmodel,subset,incl_mode::AB.INCL_MODE)
     Xdom = symmodel.Xdom
     grid = Xdom.grid
-
     posL = AB.get_subset_pos(Xdom,subset,incl_mode)
     symbolsList = [AB.get_state_by_xpos(symmodel, pos) for pos in posL]
     return symbolsList

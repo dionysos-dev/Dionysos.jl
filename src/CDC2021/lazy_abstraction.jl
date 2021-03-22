@@ -168,9 +168,10 @@ function update_abstraction!(successors,problem,source)
                 end
                 # check if the cell is really in the pre-image
                 if (source,cell,symbol) in symmodel.autom.transitions.data
-                    println("in the pre-image")
+                    #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
+                        println("cell added (controlled)")
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
@@ -184,10 +185,10 @@ end
 
 function S.successor(problem::LazyAbstraction, state::State)
     successors = []
-    readline()
-    fig = plot(aspect_ratio = 1,legend = false)
-    plot_result!(problem)
-    display(fig)
+    #readline()
+    #fig = plot(aspect_ratio = 1,legend = false)
+    #plot_result!(problem,dims=[1,2])
+    #display(fig)
     update_abstraction!(successors,problem,state.source)
     return successors
 end
