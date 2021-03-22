@@ -15,14 +15,16 @@ struct GeneralDomainList{N,T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
     periods::Vector{Float64}  # periods
     T0::Vector{Float64}
     nx # number of cell in the periodic directions
+    lims::Union{Nothing,AB.HyperRectangle} # lower and upper bound on the non periodic dimensions
+                            # can be used to be more efficient to compute the cells which belong to a
+                            # given hypperrectangle and the domain if the rectangle is outside the domain
 end
 
 # hx is the desired step size, but for periodic direction, it can be changed to fit exactly to the period
 # (for periodic dims, hx has to fit exactly in the period)
 # The periods are [T0[i], T0[i] + periods[i]]
 # for periodic dimensions, I set the origin in T0[dim],it makes it easy to manage for pos thanks to nx
-function GeneralDomainList(hx;periodic=[],periods=[],T0=zeros(length(periodic)))
-    println(T0)
+function GeneralDomainList(hx;periodic=[],periods=[],T0=zeros(length(periodic)),lims=nothing)
     N = length(hx)
     x0 = zeros(N)
     nx = zeros(Int, length(periodic))
@@ -34,11 +36,10 @@ function GeneralDomainList(hx;periodic=[],periods=[],T0=zeros(length(periodic)))
     end
 
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx)
+    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
 end
-
 # it corrects the grid to be valid (with respect periodicity)
-function GeneralDomainList(grid::AB.GridFree;periodic=[],periods=[],T0=zeros(length(periodic)))
+function GeneralDomainList(grid::AB.GridFree;periodic=[],periods=[],T0=zeros(length(periodic)),lims=nothing)
     nx = zeros(Int, length(periodic))
     x0 = collect(grid.orig)
     hx = collect(grid.h)
@@ -50,7 +51,7 @@ function GeneralDomainList(grid::AB.GridFree;periodic=[],periods=[],T0=zeros(len
     end
 
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx)
+    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
 end
 
 
@@ -116,7 +117,21 @@ function AB.add_set!(domain::GeneralDomainList, rect::AB.HyperRectangle, incl_mo
     end
 end
 
+#assuming that the rectangle is already in the domain for periodic dimensions
 function AB.get_subset_pos(domain::GeneralDomainList,rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE)
+    lims = domain.lims
+    if lims != nothing
+        if any(rect.lb .> lims.ub) ||  any(rect.ub .< lims.lb)
+            return []
+        else
+            rect = AB.HyperRectangle(max.(rect.lb,lims.lb),min.(rect.ub,lims.ub))
+        end
+    end
+    posL = get_subset_pos2(domain,rect,incl_mode)
+    return posL
+end
+
+function get_subset_pos2(domain::GeneralDomainList,rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE)
     rectI = AB.get_pos_lims(domain.grid, rect, incl_mode)
     pos_iter = Iterators.product(AB._ranges(rectI)...)
     posL = []
@@ -128,6 +143,7 @@ function AB.get_subset_pos(domain::GeneralDomainList,rect::AB.HyperRectangle,inc
     end
     return posL
 end
+
 
 function AB.add_subset!(domain1::GeneralDomainList, domain2::GeneralDomainList, rect::AB.HyperRectangle, incl_mode::AB.INCL_MODE)
     rectI = AB.get_pos_lims(domain1.grid, rect, incl_mode)
@@ -218,8 +234,7 @@ end
 function build_grid_in_rec(X,hx)
     N = length(hx)
     x0 = zeros(N)
-    #hx = collect(hx)
-    bound = []
+    hx = collect(hx)
     for i=1:N
         L = X.ub[i]-X.lb[i]
         n = round(L/hx[i])
@@ -228,4 +243,43 @@ function build_grid_in_rec(X,hx)
     end
     return AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
 end
+
+
+function one_direction(lb,ub,T)
+    if ub-lb>=T
+        return [[0,T]]
+    else
+        lb = mod(lb,T)
+        ub = mod(ub,T)
+        if lb<=ub
+            return [[lb,ub]]
+        else
+            return [[0,ub],[lb,T]]
+        end
+    end
+end
+function recursive(L,rec,lb,ub,periodic,periods,i)
+    if i>length(periodic)
+        N = length(lb)
+        push!(L,AB.HyperRectangle(SVector{N}(lb), SVector{N}(ub)))
+        return
+    end
+    dim = periodic[i]
+    intervals = one_direction(rec.lb[dim],rec.ub[dim],periods[i])
+    for interval in intervals
+        l = copy(lb)
+        u = copy(ub)
+        l[dim] = interval[1]
+        u[dim] = interval[2]
+        recursive(L,rec,l,u,periodic,periods,i+1)
+    end
+end
+function set_rec_in_period(periodic,periods,rec)
+    L = []
+    lb = collect(rec.lb)
+    ub = collect(rec.ub)
+    recursive(L,rec,lb,ub,periodic,periods,1)
+    return L
+end
+
 end

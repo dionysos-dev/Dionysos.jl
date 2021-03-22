@@ -122,9 +122,10 @@ function update_abstraction!(successors,problem,source)
                 end
                 # check if the cell is really in the pre-image
                 if (source,cell,symbol) in symmodel.autom.transitions.data
-                    println("in the pre-image")
+                    #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
+                        println("cell added (controlled)")
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
@@ -138,10 +139,10 @@ end
 
 function S.successor(problem::LazyAbstraction, state::State)
     successors = []
-    readline()
-    fig = plot(aspect_ratio = 1,legend = false)
-    plot_result!(problem)
-    display(fig)
+    #readline()
+    #fig = plot(aspect_ratio = 1,legend = false)
+    #plot_result!(problem,dims=[1,2])
+    #display(fig)
     update_abstraction!(successors,problem,state.source)
     return successors
 end
@@ -180,40 +181,60 @@ function plot_result!(problem;dims=[1,2],x0=nothing)
     h = grid.h[dims]
 
     # states for which transisitons have been computed for at least one input
+    dict = Dict{NTuple{2,Int}, Any}()
     for k = 1:symmodel.autom.nstates
         if any(problem.transitions_added[k,:])
             pos = AB.get_xpos_by_state(symmodel, k)
-            center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center[dims],h./2), opacity=.2,color=:yellow)
+            if !haskey(dict,pos[dims])
+                dict[pos[dims]] = true
+                center = AB.get_coord_by_pos(grid, pos)
+                plot!(rectangle(center[dims],h./2), opacity=.2,color=:yellow)
+            end
         end
     end
 
     # controllable state
+    dict = Dict{NTuple{2,Int}, Any}()
     for (cell, symbol) in contr.data
         pos = AB.get_xpos_by_state(symmodel,cell)
-        center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center[dims],h./2), opacity=.3,color=:blue)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            center = AB.get_coord_by_pos(grid, pos)
+            plot!(rectangle(center[dims],h./2), opacity=.3,color=:blue)
+        end
     end
 
     # states selected by A* to compute their pre-image
+    dict = Dict{NTuple{2,Int}, Any}()
     for state in Base.keys(problem.closed)
         pos = AB.get_xpos_by_state(symmodel,state.source)
-        center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center[dims],h./2), opacity=.5,color=:blue)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            center = AB.get_coord_by_pos(grid, pos)
+            plot!(rectangle(center[dims],h./2), opacity=.5,color=:blue)
+        end
     end
 
     # initial set
+    dict = Dict{NTuple{2,Int}, Any}()
     for s in initlist
         pos = AB.get_xpos_by_state(symmodel,s)
-        center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center[dims],h./2), opacity=.4,color=:green)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            center = AB.get_coord_by_pos(grid, pos)
+            plot!(rectangle(center[dims],h./2), opacity=.4,color=:green)
+        end
     end
 
     # target set
+    dict = Dict{NTuple{2,Int}, Any}()
     for s in targetlist
         pos = AB.get_xpos_by_state(symmodel,s)
-        center = AB.get_coord_by_pos(grid, pos)
-        plot!(rectangle(center[dims],h./2), opacity=.5,color=:red)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            center = AB.get_coord_by_pos(grid, pos)
+            plot!(rectangle(center[dims],h./2), opacity=.5,color=:red)
+        end
     end
 
     # plot a trajectory
