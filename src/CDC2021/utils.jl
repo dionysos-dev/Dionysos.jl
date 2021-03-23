@@ -4,10 +4,10 @@ module Utils
 """
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 using Plots
 
 

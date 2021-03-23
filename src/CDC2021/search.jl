@@ -88,12 +88,11 @@ end
 
 "Yield the nodes reachable from this node."
 function expand(node::Node, problem::SearchProblem)
-    L = []
-    for (act,next) in successor(problem,node.state)
+    return [
         #yield() #not sure if usefull
-        push!(L,Node(next,parent=node, action=act, path_cost=path_cost(problem,node.path_cost, node.state, act, next)))
-    end
-    return L
+        Node(next,parent=node, action=act, path_cost=path_cost(problem,node.path_cost, node.state, act, next))
+        for (act,next) in successor(problem,node.state)
+    ]
 end
 
 

@@ -4,13 +4,13 @@ module AlternatingSimulation
 """
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..Utils
-U = Utils
+const U = Utils
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using StaticArrays, LightGraphs, SimpleWeightedGraphs, Plots
 

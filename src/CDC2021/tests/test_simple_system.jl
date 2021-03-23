@@ -15,19 +15,19 @@ module Test
 using Plots, StaticArrays, JuMP
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using ..Utils
-U = Utils
+const U = Utils
 
 using ..BranchAndBound
-BB = BranchAndBound
+const BB = BranchAndBound
 
 using ..OptimalControl
-OC = OptimalControl
+const OC = OptimalControl
 
 ## problem specific-functions required by the algo
 function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
