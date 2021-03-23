@@ -1,13 +1,14 @@
-mutable struct AutomatonList <: HybridSystems.AbstractAutomaton
+mutable struct AutomatonList{S<:AbstractSet{NTuple{3,Int}}} <: HybridSystems.AbstractAutomaton
     nstates::Int
     nsymbols::Int
-    transitions::SortedTupleSet{3,Int}
+    transitions::S
 end
 
-function NewAutomatonList(nstates, nsymbols)
-    transitions = SortedTupleSet{3,Int}()
+function AutomatonList{S}(nstates, nsymbols) where {S}
+    transitions = S()
     return AutomatonList(nstates, nsymbols, transitions)
 end
+NewAutomatonList(nstates, nsymbols) = AutomatonList{SortedTupleSet{3,Int}}(nstates, nsymbols)
 
 function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
@@ -21,6 +22,7 @@ function HybridSystems.add_transition!(autom::AutomatonList, source, target, sym
 end
 
 # translist is an iterable of Tuple{Int,Int,Int}
+append_new!(s::Set, translist) = union!(s, translist)
 function add_transitions!(autom::AutomatonList, translist)
     append_new!(autom.transitions, translist)
 end

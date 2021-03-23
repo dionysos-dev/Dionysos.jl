@@ -3,7 +3,7 @@ include("../queue.jl")
 module TestMain
 using Test
 using Main.MyQueue
-MQ = Main.MyQueue
+const MQ = Main.MyQueue
 
 sleep(0.1) # used for good printing
 println("Started test")
