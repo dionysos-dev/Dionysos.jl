@@ -6,13 +6,13 @@ module TestMain
 using StaticArrays,Plots
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using ..Utils
-U = Utils
+const U = Utils
 
 function test_periodicity()
     fig = plot(aspect_ratio = 1,legend = false)

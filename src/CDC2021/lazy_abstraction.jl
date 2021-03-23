@@ -10,13 +10,13 @@ This abstraction and the controller are built lazily based on a heuristic.
 
 include("search.jl")
 using .Search
-S = Search
+const S = Search
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using Plots,StaticArrays
 
@@ -33,16 +33,16 @@ mutable struct LazyAbstraction{T} <: S.SearchProblem{T}
     transition_cost #transition_cost(x,u) function
     pre_image  # function to compute the list of potential pre-image of a cell for a given input
     post_image # function to compute the list of potential post-image of a cell for a given input
-    transitions_added::Union{Array{Bool,2}, DataType}          # could be an array or a dictionnary (to be added)
-    num_targets_unreachable::Union{Array{Int,2}, DataType}     # could be an array or a dictionnary (to be added)
-    controllable::Union{Vector{Bool},DataType}                 # could be an array or a dictionnary (to be added)
+    transitions_added::Array{Bool,2}          # could be an array or a dictionnary (to be added)
+    num_targets_unreachable::Array{Int,2}     # could be an array or a dictionnary (to be added)
+    controllable::Vector{Bool}                 # could be an array or a dictionnary (to be added)
     num_init_unreachable::Int   # counter of the remaining non controllable init cells
     heuristic_data # extension for potential additionnal data for the heuristic function
     contr  # controller
     closed # only usefull for the printing (could be discard later)
-    costs_temp::Union{Array{Float64,2}, DataType} # array containing the current worse cost to reach the target, if the next input applied is symbol
-    costs::Union{Vector{Float64}, DataType} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function
-    transitions_previously_added::Union{Array{Int,2}, DataType} # only necessary, if we need to reuse a partially computed symmodel
+    costs_temp::Array{Float64,2} # array containing the current worse cost to reach the target, if the next input applied is symbol
+    costs::Vector{Float64} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function
+    transitions_previously_added::Matrix{Int} # only necessary, if we need to reuse a partially computed symmodel
                                                                 # this array should contain the number of outgoing neighbors for
                                                                 # previously computed couple (cell,input) and -1 for the others.
 end
@@ -121,7 +121,7 @@ function update_abstraction!(successors,problem,source)
                     problem.transitions_added[cell,symbol] = true
                 end
                 # check if the cell is really in the pre-image
-                if (source,cell,symbol) in symmodel.autom.transitions.data
+                if (source,cell,symbol) in symmodel.autom.transitions
                     #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)

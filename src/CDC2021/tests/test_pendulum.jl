@@ -14,25 +14,25 @@ using Plots, StaticArrays, JuMP
 using ReachabilityAnalysis
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using ..Utils
-U = Utils
+const U = Utils
 
 using ..BranchAndBound
-BB = BranchAndBound
+const BB = BranchAndBound
 
 using ..OptimalControl
-OC = OptimalControl
+const OC = OptimalControl
 
 using ..Lazy_abstraction ##
-LA = Lazy_abstraction
+const LA = Lazy_abstraction
 
 using ..AlternatingSimulation ##
-AS = AlternatingSimulation
+const AS = AlternatingSimulation
 
 ## data of the problem
 

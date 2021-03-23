@@ -1,16 +1,16 @@
 module Partition
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using ..Utils
-U = Utils
+const U = Utils
 
 using ..AlternatingSimulation
-AS = AlternatingSimulation
+const AS = AlternatingSimulation
 
 using StaticArrays, LightGraphs, Plots
 

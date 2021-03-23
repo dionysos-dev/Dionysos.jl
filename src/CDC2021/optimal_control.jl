@@ -3,25 +3,25 @@ module OptimalControl
 using StaticArrays, Plots
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using ..Utils
-U = Utils
+const U = Utils
 
 using ..BranchAndBound
-BB = BranchAndBound
+const BB = BranchAndBound
 
 using ..Partition
-P = Partition
+const P = Partition
 
 using ..AlternatingSimulation
-AS = AlternatingSimulation
+const AS = AlternatingSimulation
 
 using ..Lazy_abstraction
-LA = Lazy_abstraction
+const LA = Lazy_abstraction
 
 """
 -Udom::DomainList : the input domain
