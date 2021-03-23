@@ -24,7 +24,7 @@ end
 # (for periodic dims, hx has to fit exactly in the period)
 # The periods are [T0[i], T0[i] + periods[i]]
 # for periodic dimensions, I set the origin in T0[dim],it makes it easy to manage for pos thanks to nx
-function GeneralDomainList(hx;periodic=[],periods=[],T0=zeros(length(periodic)),lims=nothing)
+function GeneralDomainList(hx;periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
     N = length(hx)
     x0 = zeros(N)
     nx = zeros(Int, length(periodic))
@@ -39,7 +39,7 @@ function GeneralDomainList(hx;periodic=[],periods=[],T0=zeros(length(periodic)),
     return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
 end
 # it corrects the grid to be valid (with respect periodicity)
-function GeneralDomainList(grid::AB.GridFree;periodic=[],periods=[],T0=zeros(length(periodic)),lims=nothing)
+function GeneralDomainList(grid::AB.GridFree;periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
     nx = zeros(Int, length(periodic))
     x0 = collect(grid.orig)
     hx = collect(grid.h)
@@ -257,40 +257,40 @@ function build_grid_in_rec(X,hx)
 end
 
 
-function one_direction(lb,ub,T)
+function one_direction(lb,ub,T,T0)
     if ub-lb>=T
-        return [[0,T]]
+        return [[T0,T0+T]]
     else
-        lb = mod(lb,T)
-        ub = mod(ub,T)
+        lb = T0 + mod(lb-T0,T)
+        ub = T0 + mod(ub-T0,T)
         if lb<=ub
             return [[lb,ub]]
         else
-            return [[0,ub],[lb,T]]
+            return [[T0,ub],[lb,T0+T]]
         end
     end
 end
-function recursive(L,rec,lb,ub,periodic,periods,i)
+function recursive(L,rec,lb,ub,periodic,periods,T0,i)
     if i>length(periodic)
         N = length(lb)
         push!(L,AB.HyperRectangle(SVector{N}(lb), SVector{N}(ub)))
         return
     end
     dim = periodic[i]
-    intervals = one_direction(rec.lb[dim],rec.ub[dim],periods[i])
+    intervals = one_direction(rec.lb[dim],rec.ub[dim],periods[i],T0[i])
     for interval in intervals
         l = copy(lb)
         u = copy(ub)
         l[dim] = interval[1]
         u[dim] = interval[2]
-        recursive(L,rec,l,u,periodic,periods,i+1)
+        recursive(L,rec,l,u,periodic,periods,T0,i+1)
     end
 end
-function set_rec_in_period(periodic,periods,rec)
+function set_rec_in_period(periodic,periods,T0,rec)
     L = []
     lb = collect(rec.lb)
     ub = collect(rec.ub)
-    recursive(L,rec,lb,ub,periodic,periods,1)
+    recursive(L,rec,lb,ub,periodic,periods,T0,1)
     return L
 end
 

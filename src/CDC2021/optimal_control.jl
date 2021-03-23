@@ -41,6 +41,7 @@ struct OptimalControlProblem <: BB.Abstract_BB_Problem
     contsys
     periodic::Vector{Int}    # periodics dimensions
     periods::Vector{Float64} # periods
+    T0::Vector{Float64}      # starting point of the period
     Udom
     transition_cost
     # data of the algo
@@ -56,9 +57,9 @@ struct OptimalControlProblem <: BB.Abstract_BB_Problem
 end
 
 
-function OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,Udom,transition_cost,partition,hx_medium,hx_fine,functions;option=[true], ext=nothing)
-    q0,qT,coarse_abstraction,cells = P.Initialise(partition,contsys,Udom,_I_,_T_,functions[1],functions[2],periodic,periods)
-    return OptimalControlProblem(x0,contsys,periodic,periods,Udom,transition_cost,q0,qT,coarse_abstraction,cells,hx_medium,hx_fine,functions,option,ext)
+function OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,partition,hx_medium,hx_fine,functions;option=[true], ext=nothing)
+    q0,qT,coarse_abstraction,cells = P.Initialise(partition,contsys,Udom,_I_,_T_,functions[1],functions[2],periodic,periods,T0)
+    return OptimalControlProblem(x0,contsys,periodic,periods,T0,Udom,transition_cost,q0,qT,coarse_abstraction,cells,hx_medium,hx_fine,functions,option,ext)
 end
 
 function BB.check_trivial_infeasibility(prob::OptimalControlProblem)
@@ -71,7 +72,7 @@ end
 
 function build_medium_abstraction!(prob,cell)
     hx = prob.hx_medium
-    Xdom = D.GeneralDomainList(hx;periodic=prob.periodic,periods=prob.periods)
+    Xdom = D.GeneralDomainList(hx;periodic=prob.periodic,periods=prob.periods,T0=prob.T0)
     AB.add_set!(Xdom, cell.hyperrectangle , AB.OUTER)
     for i in cell.outneighbors
         for rec in cell.local_target_set[i]
@@ -80,7 +81,8 @@ function build_medium_abstraction!(prob,cell)
     end
     symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom)
     problem = AS.symmodelProblem(symmodel,prob.contsys,prob.functions[1],prob.functions[2],AS.get_possible_transitions_2)
-    symmodel.autom = AS.build_alternating_simulation(problem)
+    autom = AS.build_alternating_simulation(problem)
+    symmodel = AB.with_automaton(symmodel, autom)
     cell.medium_abstraction = symmodel
 end
 function build_heuristic!(cell,from)
@@ -149,7 +151,7 @@ end
 
 function build_fine_abstraction!(prob,cell)
     hx = prob.hx_fine
-    Xdom = D.GeneralDomainList(D.build_grid_in_rec(cell.hyperrectangle,hx),periodic=prob.periodic,periods=prob.periods)
+    Xdom = D.GeneralDomainList(D.build_grid_in_rec(cell.hyperrectangle,hx),periodic=prob.periodic,periods=prob.periods,T0=prob.T0)
     #Xdom = D.GeneralDomainList(hx;periodic=prob.periodic,periods=prob.periods)
     AB.add_set!(Xdom, cell.hyperrectangle , AB.INNER)
     for i in cell.outneighbors
@@ -158,7 +160,7 @@ function build_fine_abstraction!(prob,cell)
         end
     end
     #U.plot_domain!(Xdom,opacity=0.4,color=:red)
-    symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom)
+    symmodel = AB.NewSymbolicModelListList(Xdom, prob.Udom, Set{NTuple{3,Int}})
     cell.fine_abstraction = (symmodel,nothing)
 end
 function build_controller!(prob,cell,prev,next)
