@@ -44,7 +44,7 @@ function build_alternating_simulation(problem::symmodelProblem)
     i=1
     L = length(enum_cells(problem))
     for source in enum_cells(problem)
-        println(i, " / ", L)
+        #println(i, " / ", L)
         for neighbor in problem.get_possible_transitions(problem,source)
             cost = problem.minimum_transition_cost(problem.symmodel,problem.contsys,source,neighbor)
             if cost < Inf
@@ -97,7 +97,7 @@ function get_possible_transitions_2(problem::symmodelProblem,source::Int)
     # il se peut que pour les dimensions non periodiques, que les rectangles soient en dehors du domaine si
     # l'overapprox du reachable set est tres grande. (si c'est le cas, le nombre de cell à enumemer peut etre immense,
     # alors que la plupard sont hors du domaine) d'où lims dans general_domain
-    reachable_sets = D.set_rec_in_period(Xdom.periodic,Xdom.periods,reachable_set)
+    reachable_sets = D.set_rec_in_period(Xdom.periodic,Xdom.periods,Xdom.T0,reachable_set)
     symbols = U.get_symbols(symmodel,reachable_sets,AB.OUTER)
     return symbols
 end

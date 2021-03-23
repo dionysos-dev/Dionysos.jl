@@ -261,6 +261,10 @@ function test()
     display(fig)
 
 
+    X,Xdom = build_dom()
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
+    initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
+    targetlist = UT.get_symbol(symmodel,_T_,AB.INNER)
     # Existing Abstraction implementation
     time_abstraction = @elapsed compute_symmodel_from_controlsystem!(symmodel, contsys)
     contr = AB.NewControllerList()

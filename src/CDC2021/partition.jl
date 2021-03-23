@@ -52,18 +52,20 @@ function compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
     return L
 end
 
-function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum_transition_cost,periodic,periods)
+function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum_transition_cost,periodic,periods,T0)
     X,hx = partition
 
     grid = D.build_grid_in_rec(X,hx)
-    Xdom = D.GeneralDomainList(grid;periodic=periodic,periods=periods,lims=X)
+    Xdom = D.GeneralDomainList(grid;periodic=periodic,periods=periods,T0=T0,lims=X)
     #Xdom = D.GeneralDomainList(hx;periodic=periodic,periods=periods)
     AB.add_set!(Xdom, X , AB.INNER)
     U.plot_domain!(Xdom,dims=[1,2],opacity=0.15,color=:blue)
     L = compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
-    symmodel = AB.NewSymbolicModelListList(Xdom,Udom)
+
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
     problem = AS.symmodelProblem(symmodel,contsys,compute_reachable_set,minimum_transition_cost,AS.get_possible_transitions_3,ext=L)
-    symmodel.autom = AS.build_alternating_simulation(problem)
+    autom = AS.build_alternating_simulation(problem)
+    symmodel = AB.with_automaton(symmodel, autom)
 
     q0 = localise(symmodel,_I_)
     qT = localise(symmodel,_T_)
@@ -95,11 +97,11 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
                     lower_bound,upper_bound,reachable_set,local_target_set,local_init_set)
         push!(cells,cell)
     end
-    compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods)
+    compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods,T0)
 
     for i = 1:15
         plot_local_set(cells[i],Xdom)#587
-        plot_local_set(cells[i],Xdom;dims=[3,4])
+        #plot_local_set(cells[i],Xdom;dims=[3,4])
     end
     return (q0,qT,symmodel,cells)
     #return 1,1,1,1
@@ -119,7 +121,7 @@ function localise(symmodel,_I_)
     return q[1]
 end
 
-function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods)
+function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods,T0)
     cells[q0].local_init_set[-2] = []
     cells[qT].local_target_set[-1] = []
     for cell in cells
@@ -130,10 +132,10 @@ function compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_
             cell.local_target_set[i] = []
         end
     end
-    push!(cells[q0].local_init_set[-2],D.set_rec_in_period(periodic,periods,_I_)...)
-    push!(cells[qT].local_target_set[-1],D.set_rec_in_period(periodic,periods,_T_)...)
+    push!(cells[q0].local_init_set[-2],D.set_rec_in_period(periodic,periods,T0,_I_)...)
+    push!(cells[qT].local_target_set[-1],D.set_rec_in_period(periodic,periods,T0,_T_)...)
     for cell in cells
-        RL = D.set_rec_in_period(periodic,periods,cell.reachable_set)
+        RL = D.set_rec_in_period(periodic,periods,T0,cell.reachable_set)
         for rec in RL
             for i in cell.outneighbors
                 neigh = cells[i]
@@ -148,7 +150,7 @@ end
 function plot_local_set(cell,Xdom;dims=[1,2])
     rec = cell.hyperrectangle
     reachable_set = cell.reachable_set
-    reachable_set = D.set_rec_in_period(Xdom.periodic,Xdom.periods,reachable_set)
+    reachable_set = D.set_rec_in_period(Xdom.periodic,Xdom.periods,Xdom.T0,reachable_set)
 
     fig = plot(aspect_ratio = 1,legend = false)
     U.plot_domain!(Xdom,dims=dims)
