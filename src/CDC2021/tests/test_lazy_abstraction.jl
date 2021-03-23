@@ -86,6 +86,16 @@ end
 function build_dom()
     X = AB.HyperRectangle(SVector(-30.0, -30.0), SVector(30.0, 30.0))
     hx = SVector(0.5, 0.5)
+    Xdom = D.GeneralDomainList(hx)
+    AB.add_set!(Xdom, X, AB.INNER)
+    obstacle = AB.HyperRectangle(SVector(-2.0, -5.0), SVector(2.0, 2.0))
+    AB.remove_set!(Xdom, obstacle, AB.OUTER)
+    return X,Xdom
+end
+
+function build_dom2()
+    X = AB.HyperRectangle(SVector(-30.0, -30.0), SVector(30.0, 30.0))
+    hx = SVector(0.5, 0.5)
     x0 = SVector(0.0, 0.0)
     Xgrid = AB.GridFree(x0,hx)
     Xdom = AB.DomainList(Xgrid)
@@ -204,11 +214,12 @@ function build_heuristic_data(X,contsys,Udom,_I_)
     # build the alternating simulation
     hx = SVector(1.0, 1.0)*1.5; x0 = SVector(0.0, 0.0)
     Xgrid = AB.GridFree(x0,hx)
-    Xdom = AB.DomainList(Xgrid)
+    Xdom = D.GeneralDomainList(hx) #AB.DomainList(Xgrid)
     AB.add_set!(Xdom, X , AB.OUTER)
     symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
     problem = AS.symmodelProblem(symmodel,contsys,compute_reachable_set,minimum_transition_cost,AS.get_possible_transitions_2)
-    symmodel.autom = AS.build_alternating_simulation(problem)
+    autom = AS.build_alternating_simulation(problem)
+    symmodel = AB.with_automaton(symmodel, autom)
     # build the heurisitic
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
     heuristic_data = AS.build_heuristic(symmodel,initlist)
@@ -225,7 +236,7 @@ function test()
     Udom = build_Udom()
     # build system
     contsys = build_system()
-    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom, Set{NTuple{3,Int}})
     # control problem
     _I_ = AB.HyperRectangle(SVector(-8.0, -8.0), SVector(-7.0, -7.0))
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
@@ -248,7 +259,10 @@ function test()
     display(fig)
 
 
-
+    X,Xdom = build_dom()
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
+    initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
+    targetlist = UT.get_symbol(symmodel,_T_,AB.INNER)
     # Existing Abstraction implementation
     time_abstraction = @elapsed compute_symmodel_from_controlsystem!(symmodel, contsys)
     contr = AB.NewControllerList()

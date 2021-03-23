@@ -125,7 +125,7 @@ function update_abstraction!(successors,problem,source)
                     #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
-                        println("cell added (controlled)")
+                        #println("cell added (controlled)")
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
