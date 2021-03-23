@@ -10,13 +10,13 @@ This abstraction and the controller are built lazily based on a heuristic.
 
 include("search.jl")
 using .Search
-S = Search
+const S = Search
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using ..DomainList
-D = DomainList
+const D = DomainList
 
 using Plots,StaticArrays
 
@@ -167,7 +167,7 @@ function update_abstraction!(successors,problem,source)
                     problem.transitions_added[cell,symbol] = true
                 end
                 # check if the cell is really in the pre-image
-                if (source,cell,symbol) in symmodel.autom.transitions.data
+                if (source,cell,symbol) in symmodel.autom.transitions
                     #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)

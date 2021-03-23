@@ -2,7 +2,7 @@
 module DomainList
 
 using ..Abstraction
-AB = Abstraction
+const AB = Abstraction
 
 using StaticArrays
 
@@ -14,7 +14,7 @@ struct GeneralDomainList{N,T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
     periodic::Vector{Int} # components which are periodic
     periods::Vector{Float64}  # periods
     T0::Vector{Float64}
-    nx # number of cell in the periodic directions
+    nx::Vector{Int} # number of cell in the periodic directions
     lims::Union{Nothing,AB.HyperRectangle} # lower and upper bound on the non periodic dimensions
                             # can be used to be more efficient to compute the cells which belong to a
                             # given hypperrectangle and the domain if the rectangle is outside the domain
@@ -68,7 +68,17 @@ function set_in_period_pos(domain::AB.DomainList,pos)
 end
 ##
 
-function set_in_period_coord(domain::GeneralDomainList,x)
+_coord_tuple(domain, i, j, t::Tuple{}) = tuple()
+function _coord_tuple(domain, i, j, t::Tuple)
+    el, rest = first(t), Base.tail(t)
+    if i <= length(domain.periodic) && domain.periodic[i] == j
+        el = domain.T0[i] + mod(el - domain.T0[i], domain.periods[i])
+        i += 1
+    end
+    return tuple(el, _coord_tuple(domain, i, j + 1, rest)...)
+end
+
+function set_in_period_coord(domain::GeneralDomainList,x::SVector)
     #=
     for (i,dim) in enumerate(domain.periodic)  #doesnt work because of SVector
         x[dim] = mod(x[dim],domain.periods[i])
@@ -77,12 +87,18 @@ function set_in_period_coord(domain::GeneralDomainList,x)
     if isempty(domain.periodic)
         return x
     else
-        x = Vector(x)
-        for (i,dim) in enumerate(domain.periodic)
-            x[dim] = domain.T0[i]+mod(x[dim]-domain.T0[i],domain.periods[i])
-        end
-        return SVector{length(x),Float64}(x)
+        return SVector(_coord_tuple(domain, 1, 1, x.data))
     end
+end
+
+_pos_tuple(domain, i, j, t::Tuple{}) = tuple()
+function _pos_tuple(domain, i, j, t::Tuple)
+    el, rest = first(t), Base.tail(t)
+    if i <= length(domain.periodic) && domain.periodic[i] == j
+        el = mod(el, domain.nx[i])
+        i += 1
+    end
+    return tuple(el, _pos_tuple(domain, i, j + 1, rest)...)
 end
 
 function set_in_period_pos(domain::GeneralDomainList,pos)
@@ -92,11 +108,7 @@ function set_in_period_pos(domain::GeneralDomainList,pos)
     if isempty(domain.periodic)
         return pos
     else
-        pos = collect(pos)
-        for (i,dim) in enumerate(domain.periodic)
-            pos[dim] = mod(pos[dim],domain.nx[i])
-        end
-        return Tuple(pos)
+        return _pos_tuple(domain, 1, 1, pos)
     end
 end
 

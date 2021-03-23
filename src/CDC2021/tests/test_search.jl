@@ -3,7 +3,7 @@ include("../search.jl")
 module TestMain
 using Test, StaticArrays
 using Main.Search
-S = Main.Search
+const S = Main.Search
 
 sleep(0.1) # used for good printing
 println("Started test")

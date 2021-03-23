@@ -12,9 +12,6 @@ const U = Utils
 using ..DomainList
 const D = DomainList
 
-using ..DomainList
-D = DomainList
-
 using StaticArrays, LightGraphs, SimpleWeightedGraphs, Plots
 
 abstract type AbstractionProblem end
