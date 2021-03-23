@@ -184,7 +184,7 @@ function test()
     Udom = build_Udom()
     # build system
     contsys = build_system()
-    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom, Set{NTuple{3,Int}})
     # control problem
     _I_ = AB.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0))
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
