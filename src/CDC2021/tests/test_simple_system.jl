@@ -148,24 +148,24 @@ function test()
     hx_coarse = [10.0, 10.0]*1.0
     hx_medium = [1.0, 1.0]*0.5*2.0
     hx_fine = [0.5, 0.5]*1.0
-    periodic = Int[1]
-    periods = Float64[60.0]
-    T0 = Float64[5.0]
+    periodic = Int[1,2]
+    periods = Float64[60.0,60.0]
+    T0 = Float64[0.0,0.0]
     fig = plot(aspect_ratio = 1,legend = false)
     plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
     plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
     functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
 
-    optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,(X,hx_coarse),hx_medium,hx_fine,functions)
-    max_iter = 6
+    optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,(X,hx_coarse,[]),hx_medium,hx_fine,functions)
+    max_iter = 5
     max_time = 1000
     optimizer = BB.Optimizer(optimal_control_prob,max_iter,max_time,log_level=2)
     @time MOI.optimize!(optimizer)
     println(optimizer.status)
     println(optimizer.best_sol)
-
     display(fig)
-
+    (traj,cost,sucess) = OC.simulate_trajectory(optimal_control_prob, optimizer.best_sol)
+    #println(traj)
 end
 
 

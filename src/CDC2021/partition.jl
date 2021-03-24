@@ -53,13 +53,21 @@ function compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
 end
 
 function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum_transition_cost,periodic,periods,T0)
-    X,hx = partition
+    X,hx,O = partition
 
     grid = D.build_grid_in_rec(X,hx)
     Xdom = D.GeneralDomainList(grid;periodic=periodic,periods=periods,T0=T0,lims=X)
     #Xdom = D.GeneralDomainList(hx;periodic=periodic,periods=periods)
     AB.add_set!(Xdom, X , AB.INNER)
+    for obstacle in O
+        AB.remove_set!(Xdom, obstacle, AB.OUTER)
+    end
+    fig = plot(aspect_ratio = 1,legend = false)
     U.plot_domain!(Xdom,dims=[1,2],opacity=0.15,color=:blue)
+    display(fig)
+    fig = plot(aspect_ratio = 1,legend = false)
+    U.plot_domain!(Xdom,dims=[3,4],opacity=0.15,color=:blue)
+    display(fig)
     L = compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
 
     symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
@@ -73,7 +81,6 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
     println(qT)
     heuristic = AS.build_heuristic(symmodel,[qT]) #remark later, we could put the several which contains the targetset
     #AS.plot_heuristic!(heuristic,opacity=0.15,color=:blue)
-
     grid = Xdom.grid
     r = grid.h/2
     cells = Cell[]
@@ -90,7 +97,7 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
         upper_bound = Inf
         c = AB.get_coord_by_pos(grid, pos)
         rec = AB.HyperRectangle(c-r,c+r)
-        reachable_set = L[i]#compute_reachable_set(rec,contsys,Udom)
+        reachable_set = L[i]
         local_target_set = Dict{Int, Any}()
         local_init_set = Dict{Int, Any}()
         cell = Cell(i,rec,outneighbors,inneighbors,medium_abstraction,fine_abstraction,heuristics,controllers,
@@ -101,7 +108,7 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
 
     for i = 1:15
         plot_local_set(cells[i],Xdom)#587
-        #plot_local_set(cells[i],Xdom;dims=[3,4])
+        plot_local_set(cells[i],Xdom;dims=[3,4])
     end
     return (q0,qT,symmodel,cells)
     #return 1,1,1,1
