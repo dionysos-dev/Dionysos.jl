@@ -7,7 +7,7 @@ mutable struct Node
     elem
     depth
     lower_bound
-    upper_bound 
+    upper_bound
     sol
     parent::Union{Nothing,Node}
     ext
