@@ -164,6 +164,7 @@ function build_fine_abstraction!(prob,cell)
     cell.fine_abstraction = (symmodel,nothing)
 end
 function build_controller!(prob,cell,prev,next)
+    println("controller")
     (symmodel, transitions_previously_added) = cell.fine_abstraction
     _I_L = cell.local_init_set[prev]
     initlist = U.get_symbols(symmodel,_I_L,AB.OUTER)
@@ -179,6 +180,10 @@ function build_controller!(prob,cell,prev,next)
     problem,success = LA.compute_controller(symmodel, prob.contsys, initlist, targetlist,prob.transition_cost, prob.functions[4], prob.functions[3], h2, heuristic_data=heuristic,transitions_previously_added=transitions_previously_added)
     cell.fine_abstraction = (symmodel,problem.transitions_previously_added)
     cell.controllers[(prev,next)] = problem.contr
+    println("plot")
+    fig = plot(aspect_ratio = 1,legend = false)
+    LA.plot_result!(problem)
+    display(fig)
 end
 
 function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
@@ -233,7 +238,7 @@ end
 function simulate_trajectory(prob::OptimalControlProblem, path)
     x0 = prob.x0
     traj = []
-    push!(traj,x0)
+    #push!(traj,x0)
     cost = 0.0
     for (i,index) in enumerate(path)
         cell = prob.cells[index]
@@ -245,12 +250,13 @@ function simulate_trajectory(prob::OptimalControlProblem, path)
         _T_L = cell.local_target_set[next]
         targetlist = U.get_symbols(symmodel,_T_L,AB.INNER)
         (local_traj,local_cost,succeed) = simulate_local_trajectory(prob.contsys, symmodel, contr, x0, targetlist; transition_cost=prob.transition_cost)
-        traj = [traj..., local_traj[2:end]...]
+        #traj = [traj..., local_traj[2:end]...]
+        traj = [traj..., local_traj[1:end-1]...]
         cost += local_cost
         if !succeed
             return (traj,cost,false)
         end
-        x0 = local_traj[end]
+        x0,u = local_traj[end]
     end
     return (traj,cost,true)
 end
@@ -258,7 +264,7 @@ function simulate_local_trajectory(contsys, symmodel, contr, x0, targetlist; tra
     traj = []
     cost = 0.0
     while true
-        push!(traj,x0)
+        #push!(traj,x0)
         xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
         if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")
@@ -266,6 +272,7 @@ function simulate_local_trajectory(contsys, symmodel, contr, x0, targetlist; tra
         end
         source = AB.get_state_by_xpos(symmodel, xpos)
         if source ∈ targetlist
+            push!(traj,(x0,nothing))
             break
         end
         symbollist = AB.fix_and_eliminate_first(contr, source)
@@ -278,6 +285,8 @@ function simulate_local_trajectory(contsys, symmodel, contr, x0, targetlist; tra
         upos = AB.get_upos_by_symbol(symmodel, symbol)
         u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)
         cost += transition_cost(x0,u)
+
+        push!(traj,(x0,u))
         x0 = contsys.sys_map(x0, u, contsys.tstep)
         x0 = D.set_in_period_coord(symmodel.Xdom,x0)
     end
@@ -286,13 +295,17 @@ end
 
 function print_trajectory!(traj)
     for i=1:length(traj)-1
-        plot!([traj[i][1],traj[i+1][1]], [traj[i][2],traj[i+1][2]],color =:red,linewidth = 2)
+        x1,u1 = traj[i]
+        x2,u2 = traj[i+1]
+        plot!([x1[1],x2[1]], [x1[2],x2[2]],color =:red,linewidth = 2)
         if i>1
-            scatter!([traj[i][1]],[traj[i][2]],color =:red,markersize=2)
+            scatter!([x1[1]],[x1[2]],color =:red,markersize=2)
         end
     end
-    scatter!([traj[1][1]],[traj[1][2]],color =:green,markersize=3)
-    scatter!([traj[end][1]],[traj[end][2]],color =:yellow,markersize=3)
+    x1,u1 = traj[1]
+    x2,u2 = traj[end]
+    scatter!([x1[1]],[x1[2]],color =:green,markersize=3)
+    scatter!([x2[1]],[x2[2]],color =:yellow,markersize=3)
 end
 
 # heurisic: Manhattan distance (could be discarded later)

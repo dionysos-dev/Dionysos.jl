@@ -23,7 +23,7 @@ end
 
 function test()
     println("start")
-    X = AB.HyperRectangle(SVector(0.0,0.0,-π,-π),SVector(5.0,5.0,-π,π))
+    X = AB.HyperRectangle(SVector(0.0,0.0,-π,-π),SVector(5.0,5.0,π,π))
     tstep = 0.1
     sysnoise = SVector(0.0, 0.0, 0.0, 0.0)
     measnoise = SVector(0.0, 0.0, 0.0, 0.0)
@@ -31,3 +31,5 @@ function test()
     ngrowthbound = 5
     contsys = NewControlSystemGrowthLx(tstep, f, sysnoise, measnoise, nsys, ngrowthbound)
 end
+
+test()
