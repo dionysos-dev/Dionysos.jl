@@ -130,11 +130,11 @@ function AB.add_set!(domain::GeneralDomainList, rect::AB.HyperRectangle, incl_mo
 end
 
 #assuming that the rectangle is already in the domain for periodic dimensions
-function AB.get_subset_pos(domain::GeneralDomainList,rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE)
+function AB.get_subset_pos(domain::GeneralDomainList{N},rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE) where {N}
     lims = domain.lims
     if lims != nothing
         if any(rect.lb .> lims.ub) ||  any(rect.ub .< lims.lb)
-            return []
+            return NTuple{N,Int}[]
         else
             rect = AB.HyperRectangle(max.(rect.lb,lims.lb),min.(rect.ub,lims.ub))
         end
@@ -143,16 +143,13 @@ function AB.get_subset_pos(domain::GeneralDomainList,rect::AB.HyperRectangle,inc
     return posL
 end
 
-function get_subset_pos2(domain::GeneralDomainList,rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE)
+function get_subset_pos2(domain::GeneralDomainList{N},rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE) where {N}
     rectI = AB.get_pos_lims(domain.grid, rect, incl_mode)
     pos_iter = Iterators.product(AB._ranges(rectI)...)
-    posL = []
-    for pos in pos_iter
-        pos = set_in_period_pos(domain,pos)
-        if pos ∈ domain
-            push!(posL, pos)
-        end
-    end
+    return NTuple{N,Int}[
+        set_in_period_pos(domain,pos)
+        for pos in pos_iter if pos ∈ domain
+    ]
     return posL
 end
 
