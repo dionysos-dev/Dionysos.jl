@@ -320,7 +320,7 @@ function test()
     _I_ = AB.HyperRectangle(SVector(30.0, 5.0,π/2.0,0.0)-RI, SVector(30.0, 5.0,π/2.0,0.0)+RI)
     _T_ = AB.HyperRectangle(SVector(25.0, 12.0,π/2.0-0.1,-0.1), SVector(35.0, 19.0,π/2.0+0.1,0.1))
     # problem-specific functions
-    functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
+    functions = (compute_reachable_set,minimum_transition_cost,post_image,pre_image)
 
     hx_coarse = [20.0, 20.0, 1.2, 2*π]
     hx_medium = [5.0, 5.0, 0.4, 0.4]
