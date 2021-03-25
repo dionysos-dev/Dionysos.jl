@@ -160,19 +160,19 @@ function minimum_transition_cost(symmodel,contsys,source,target)
     return 1.0
 end
 
-function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
+function compute_reachable_set(rect::AB.HyperRectangle{SVector{N,T}},contsys,Udom) where {N,T}
     tstep = contsys.tstep
     r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
     x = U.center(rect)
     n =  U.dims(rect)
-    lb = fill(Inf,n)
-    ub = fill(-Inf,n)
+    lb = SVector(ntuple(i -> Inf, Val(N)))
+    ub = SVector(ntuple(i -> -Inf, Val(N)))
     for upos in AB.enum_pos(Udom)
         u = AB.get_coord_by_pos(Udom.grid,upos)
         Fx = contsys.sys_map(x, u, tstep)
         Fr = contsys.growthbound_map(r, u, tstep, x, nstep=5)
-        lb = min.(lb,Fx .- Fr)
-        ub = max.(ub,Fx .+ Fr)
+        lb = min.(lb,Fx .- Fr)::SVector{N,T}
+        ub = max.(ub,Fx .+ Fr)::SVector{N,T}
     end
     return AB.HyperRectangle(lb,ub)
 end

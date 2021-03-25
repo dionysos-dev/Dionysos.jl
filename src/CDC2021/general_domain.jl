@@ -269,38 +269,34 @@ end
 
 function one_direction(lb,ub,T,T0)
     if ub-lb>=T
-        return [[T0,T0+T]]
+        return [(T0,T0+T)]
     else
         lb = T0 + mod(lb-T0,T)
         ub = T0 + mod(ub-T0,T)
         if lb<=ub
-            return [[lb,ub]]
+            return [(lb,ub)]
         else
-            return [[T0,ub],[lb,T0+T]]
+            return [(T0,ub),(lb,T0+T)]
         end
     end
 end
-function recursive(L,rec,lb,ub,periodic,periods,T0,i)
-    if i>length(periodic)
-        N = length(lb)
-        push!(L,AB.HyperRectangle(SVector{N}(lb), SVector{N}(ub)))
+function recursive(L,rec,lb::SVector{N},ub::SVector{N},periodic,periods,T0,i) where {N}
+    if i > length(periodic)
+        push!(L, AB.HyperRectangle(lb, ub))
         return
     end
     dim = periodic[i]
     intervals = one_direction(rec.lb[dim],rec.ub[dim],periods[i],T0[i])
     for interval in intervals
-        l = copy(lb)
-        u = copy(ub)
-        l[dim] = interval[1]
-        u[dim] = interval[2]
+        l = SVector(ntuple(i -> i == dim ? interval[1] : lb[i], Val(N)))
+        u = SVector(ntuple(i -> i == dim ? interval[1] : ub[i], Val(N)))
         recursive(L,rec,l,u,periodic,periods,T0,i+1)
     end
 end
-function set_rec_in_period(periodic,periods,T0,rec)
-    L = []
-    lb = collect(rec.lb)
-    ub = collect(rec.ub)
-    recursive(L,rec,lb,ub,periodic,periods,T0,1)
+using InteractiveUtils
+function set_rec_in_period(periodic,periods,T0,rec::AB.HyperRectangle{<:SVector})
+    L = typeof(rec)[]
+    recursive(L,rec,rec.lb,rec.ub,periodic,periods,T0,1)
     return L
 end
 
