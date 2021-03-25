@@ -16,13 +16,13 @@ using StaticArrays, LightGraphs, SimpleWeightedGraphs, Plots
 
 abstract type AbstractionProblem end
 
-struct symmodelProblem <: AbstractionProblem
-    symmodel
-    contsys
-    compute_reachable_set     # function to compute an hyperrectangle overpproximation of the reachable set in 1 time step
-    minimum_transition_cost   # function to compute the minimum transition cost between two cells in 1 time step
-    get_possible_transitions  # function to compute a list of potential neighbour cells.
-    ext
+struct symmodelProblem{M,S,R,T,G,E} <: AbstractionProblem
+    symmodel::M
+    contsys::S
+    compute_reachable_set::R     # function to compute an hyperrectangle overpproximation of the reachable set in 1 time step
+    minimum_transition_cost::T   # function to compute the minimum transition cost between two cells in 1 time step
+    get_possible_transitions::G  # function to compute a list of potential neighbour cells.
+    ext::E
 end
 
 function symmodelProblem(symmodel,contsys,compute_reachable_set,minimum_transition_cost,get_possible_transitions;ext=nothing)
