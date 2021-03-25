@@ -188,18 +188,17 @@ function post_image(symmodel,contsys,xpos,u)
     post_rec = AB.HyperRectangle(Fx .- Fr, Fx .+ Fr)
     rectI = AB.get_pos_lims_outer(Xdom.grid, AB.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(AB._ranges(rectI)...)
-    over_approx = []
-    allin = true
+    over_approx = Int[]
     for ypos in ypos_iter
         ypos = D.set_in_period_pos(Xdom,ypos)
         if !(ypos in Xdom)
-            allin = false
+            empty!(over_approx)
             break
         end
         target = AB.get_state_by_xpos(symmodel, ypos)
         push!(over_approx, target)
     end
-    return allin ? over_approx : []
+    return over_approx
 end
 
 
