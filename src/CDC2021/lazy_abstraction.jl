@@ -115,7 +115,7 @@ end
 function transitions!(source,symbol,u,symmodel,contsys,post_image)
     xpos = AB.get_xpos_by_state(symmodel, source)
     over_approx = post_image(symmodel,contsys,xpos,u)
-    translist = [(cell, source, symbol)  for cell in over_approx]
+    translist = ((cell, source, symbol) for cell in over_approx)
     AB.add_transitions!(symmodel.autom, translist)
     return length(over_approx)
 end
