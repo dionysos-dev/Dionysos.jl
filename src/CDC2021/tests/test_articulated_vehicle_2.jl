@@ -8,10 +8,9 @@ include("../branch_and_bound.jl")
 include("../optimal_control.jl")
 
 module TestArticuledVehicle
-using RigidBodyDynamics, MeshCat, MeshCatMechanisms, SymPy, ForwardDiff, IntervalArithmetic
+using ForwardDiff, IntervalArithmetic
 using LinearAlgebra,StaticArrays,Random
 using Plots, StaticArrays, JuMP
-using ReachabilityAnalysis
 
 using ..Abstraction
 const AB = Abstraction
@@ -27,6 +26,13 @@ const BB = BranchAndBound
 
 using ..OptimalControl
 const OC = OptimalControl
+
+using ..Lazy_abstraction
+const LA = Lazy_abstraction
+
+using ..AlternatingSimulation
+const AS = AlternatingSimulation
+
 const α = 8.0
 
 function plot_vehicle!(x,u)
@@ -225,9 +231,22 @@ function build_system(X)
     return contsys
 end
 
-function build_input()
-    U = AB.HyperRectangle(SVector(-1.0,-80/180*π), SVector(1.0,80/180*π))
-    x0 = SVector(-1.0,0.0); hu = SVector(2.0,0.2)
+
+function build_dom()
+    X,obstacle = build_domain()
+    hx = [1.0, 1.0, 0.1, 0.1]
+    periodic = [3,4]
+    periods = [2*π,2*π]
+    T0 = [-π,-π]
+    grid = D.build_grid_in_rec(X, hx)
+    d = D.RectanglularObstacles(X, obstacle)
+    Xdom = D.GeneralDomainList(hx,d;periodic=periodic,periods=periods,T0=T0)
+    return X,Xdom
+end
+
+function build_Udom()
+    U = AB.HyperRectangle(SVector(-1.0,-40/180*π), SVector(1.0,40/180*π))
+    x0 = SVector(-1.0,0.0); hu = SVector(2.0,(10.0/180.0)*π)
     Ugrid = AB.GridFree(x0,hu)
     Udom = AB.DomainList(Ugrid)
     AB.add_set!(Udom, U, AB.OUTER)
@@ -244,11 +263,50 @@ function transition_cost(x,u)
     return 1.0
 end
 
+
+## Heursitic
+function h(node::LA.S.Node,problem::LA.LazyAbstraction)
+    source = node.state.source
+    symmodel = problem.symmodel
+    xpos = AB.get_xpos_by_state(symmodel, source)
+    x = AB.get_coord_by_pos(symmodel.Xdom.grid, xpos)
+
+    heuristic = problem.heuristic_data
+    symmodel2 = heuristic.symmodel
+    xpos2 = AB.get_pos_by_coord(symmodel2.Xdom.grid, x)
+    source2 = AB.get_state_by_xpos(symmodel2, xpos2)
+    return heuristic.dists[source2]
+end
+
+function build_heuristic_data(X,contsys,Udom,_I_)
+    # build the alternating simulation
+    hx = [5.0, 5.0, 0.4, 0.4]
+    periodic = [3,4]
+    periods = [2*π,2*π]
+    T0 = [-π,-π]
+    Xdom = D.GeneralDomainList(hx;periodic=periodic,periods=periods,T0=T0)
+    AB.add_set!(Xdom, X , AB.OUTER)
+    symmodel = AB.NewSymbolicModelListList(Xdom, Udom)
+    problem = AS.symmodelProblem(symmodel,contsys,compute_reachable_set,minimum_transition_cost,AS.get_possible_transitions_2)
+    autom = AS.build_alternating_simulation(problem)
+    symmodel = AB.with_automaton(symmodel, autom)
+    # build the heurisitic
+    initlist = U.get_symbol(symmodel,_I_,AB.OUTER)
+    heuristic_data = AS.build_heuristic(symmodel,initlist)
+    println("Heuristic ended")
+    println("kkk")
+    #fig = plot(aspect_ratio = 1,legend = false)
+    #U.plot_domain!(heuristic_data.symmodel.Xdom)
+    #AS.plot_heuristic!(heuristic_data)
+    #display(fig)
+    return heuristic_data
+end
+
 function test2()
     println()
-    X,O = build_domain()
+
     contsys = build_system(X)
-    Udom = build_input()
+    Udom = build_Udom()
     periodic = [3,4]
     periods = [2*π,2*π]
     T0 = [-π,-π]
@@ -306,90 +364,57 @@ function test2()
     display(fig)
 end
 
+
+
 function test()
 
     println("start")
     X,O = build_domain()
     contsys = build_system(X)
 
-    Udom = build_input()
+    Udom = build_Udom()
+
+
+    X,Xdom = build_dom()
+    Udom = build_Udom()
+    # build system
+    symmodel = D._SymbolicModel(Xdom, Udom)
 
     # control problem
-    x0 = SVector(30.0, 10.0,π/2.0,0.0)
-    RI = SVector(1.0, 1.0, 0.05, 0.05)
+    x0 = SVector(30.0, 5.0,π/2.0,0.0)
+    RI = SVector(0.5, 0.5, 0.005, 0.005)
     _I_ = AB.HyperRectangle(SVector(30.0, 5.0,π/2.0,0.0)-RI, SVector(30.0, 5.0,π/2.0,0.0)+RI)
-    _T_ = AB.HyperRectangle(SVector(25.0, 12.0,π/2.0-0.1,-0.1), SVector(35.0, 19.0,π/2.0+0.1,0.1))
-    # problem-specific functions
-    functions = (compute_reachable_set,minimum_transition_cost,post_image,pre_image)
-
-    hx_coarse = [20.0, 20.0, 1.2, 2*π]
-    hx_medium = [5.0, 5.0, 0.4, 0.4]
-    hx_fine = [1.0, 1.0, 0.05, 0.05]
-    periodic = [3,4]
-    periods = [2*π,2*π]
-    T0 = [-π,-π]
-
-    fig = plot(aspect_ratio = 1,legend = false)
-    plot!(U.rectangle(X.lb,X.ub), opacity=.8,color=:blue)
-    plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
-    plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
-    for o in O
-        plot!(U.rectangle(o.lb,o.ub), opacity=.8,color=:black)
+    #_T_ = AB.HyperRectangle(SVector(25.0, 12.0,π/2.0-0.1,-0.1), SVector(35.0, 19.0,π/2.0+0.1,0.1))
+    _T_ = AB.HyperRectangle(SVector(25.0, 12.0,π/2.0-0.3,-0.3), SVector(35.0, 19.0,π/2.0+0.3,0.3))
+    initlist = U.get_symbol(symmodel,_I_,AB.OUTER)
+    targetlist = U.get_symbol(symmodel,_T_,AB.INNER)
+    # Heuristic data
+    println(initlist)
+    println(targetlist)
+    heuristic_data = build_heuristic_data(X,contsys,Udom,_I_)
+    println()
+    println()
+    println("lll")
+    println()
+    println()
+    println(initlist)
+    println("LLLLM%%%%%%%%%%%")
+    println(targetlist)
+    # Lazy Abstraction implementation
+    time = @elapsed begin
+    problem,sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h, heuristic_data=heuristic_data)
+    contr = problem.contr
     end
-    display(fig)
-
+    println("total time: lazy abstraction + controller: ", time)
     fig = plot(aspect_ratio = 1,legend = false)
-    plot!(U.rectangle(X.lb[3:4],X.ub[3:4]), opacity=.8,color=:blue)
-    plot!(U.rectangle(_I_.lb[3:4],_I_.ub[3:4]), opacity=.8,color=:green)
-    plot!(U.rectangle(_T_.lb[3:4],_T_.ub[3:4]), opacity=.8,color=:red)
+    LA.plot_result!(problem,x0=x0)
     display(fig)
-    optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,(X,hx_coarse,O),hx_medium,hx_fine,functions)
     fig = plot(aspect_ratio = 1,legend = false)
-    max_iter = 1
-    max_time = 10000
-    optimizer = BB.Optimizer(optimal_control_prob,max_iter,max_time,log_level=2)
-    println("optimize")
-    MOI.optimize!(optimizer)
-    println(optimizer.status)
-    println(optimizer.best_sol)
-    #display(fig)
-    (traj,cost,sucess) = OC.simulate_trajectory(optimal_control_prob, optimizer.best_sol)
-    println(sucess)
-    #Xdom = optimal_control_prob.coarse_abstraction.Xdom
-    #plot_articulted_vehicle_traj(traj;Xdom=Xdom)
+    LA.plot_result!(problem,dims=[3,4],x0=x0)
+    display(fig)
 end
 
 
-test2()
+test()
 
 end # end module
-
-
-
-#=
-function pre_image(symmodel,contsys,xpos,u)
-    Xdom = symmodel.Xdom
-    x = AB.get_coord_by_pos(Xdom.grid, xpos)
-    tstep = contsys.tstep
-    X = AB.HyperRectangle(SVector(0.0,0.0,-π,-π/3.0),SVector(6.0,6.0,π,π/3.0))
-    r = Xdom.grid.h/2.0 + contsys.measnoise
-    K = compute_K(X,r,u,-tstep,x,nstep=5)
-    n = length(xpos); lb = zeros(n); ub = zeros(n)
-    for i=1:n
-        lb[i] = K[i].lo
-        ub[i] = K[i].hi
-    end
-    R = AB.HyperRectangle(lb,ub)
-    rectI = AB.get_pos_lims_outer(Xdom.grid, R)
-    ypos_iter = Iterators.product(AB._ranges(rectI)...)
-    over_approx = []
-    allin = true
-    for ypos in ypos_iter
-        ypos = D.set_in_period_pos(Xdom,ypos)
-        if ypos in Xdom
-            target = AB.get_state_by_xpos(symmodel, ypos)
-            push!(over_approx, target)
-        end
-    end
-    return over_approx
-end=#
