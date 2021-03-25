@@ -360,7 +360,7 @@ function test()
 end
 
 
-test()
+test2()
 
 end # end module
 
