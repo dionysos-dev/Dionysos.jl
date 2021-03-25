@@ -115,14 +115,14 @@ end
 
 function build_dom()
     X = AB.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
+    obstacle = AB.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
     hx = [0.5, 0.5]
     periodic = [1,2]
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
-    Xdom = D.GeneralDomainList(hx;periodic=periodic,periods=periods,T0=T0)
-    AB.add_set!(Xdom, X, AB.INNER)
-    obstacle = AB.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
-    AB.remove_set!(Xdom, obstacle, AB.OUTER)
+    grid = D.build_grid_in_rec(X, hx)
+    d = D.RectanglularObstacles(X, [obstacle])
+    Xdom = D.GeneralDomainList(hx,d;periodic=periodic,periods=periods,T0=T0)
     fig = plot(aspect_ratio = 1,legend = false)
     return X,Xdom
 end
@@ -185,7 +185,7 @@ function test()
     Udom = build_Udom()
     # build system
     contsys = build_system()
-    symmodel = AB.NewSymbolicModelListList(Xdom, Udom, Set{NTuple{3,Int}})
+    symmodel = D._SymbolicModel(Xdom, Udom)
     # control problem
     _I_ = AB.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0))
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)

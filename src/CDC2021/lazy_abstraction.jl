@@ -33,33 +33,33 @@ mutable struct LazyAbstraction{T} <: S.SearchProblem{T}
     transition_cost #transition_cost(x,u) function
     pre_image  # function to compute the list of potential pre-image of a cell for a given input
     post_image # function to compute the list of potential post-image of a cell for a given input
-    transitions_added::Array{Bool,2}          # could be an array or a dictionnary (to be added)
-    num_targets_unreachable::Array{Int,2}     # could be an array or a dictionnary (to be added)
-    controllable::Vector{Bool}                 # could be an array or a dictionnary (to be added)
+    transitions_added::BitVector          # could be an array or a dictionnary (to be added)
+    num_targets_unreachable::Vector{Int}     # could be an array or a dictionnary (to be added)
+    controllable::BitVector                # could be an array or a dictionnary (to be added)
     num_init_unreachable::Int   # counter of the remaining non controllable init cells
     heuristic_data # extension for potential additionnal data for the heuristic function
     contr  # controller
     closed # only usefull for the printing (could be discard later)
-    costs_temp::Array{Float64,2} # array containing the current worse cost to reach the target, if the next input applied is symbol
+    costs_temp::Vector{Float64} # array containing the current worse cost to reach the target, if the next input applied is symbol
     costs::Vector{Float64} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function
-    transitions_previously_added::Matrix{Int} # only necessary, if we need to reuse a partially computed symmodel
+    transitions_previously_added::Vector{Int} # only necessary, if we need to reuse a partially computed symmodel
                                                                 # this array should contain the number of outgoing neighbors for
                                                                 # previously computed couple (cell,input) and -1 for the others.
 end
 
 function LazyAbstraction(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image;heuristic_data=nothing,transitions_previously_added=nothing)
-    transitions_added = fill(false, (symmodel.autom.nstates,symmodel.autom.nsymbols))
-    num_targets_unreachable = zeros(Int, symmodel.autom.nstates, symmodel.autom.nsymbols)
-    controllable = fill(false, (symmodel.autom.nstates))
+    transitions_added = falses(symmodel.autom.nstates * symmodel.autom.nsymbols)
+    num_targets_unreachable = zeros(Int, symmodel.autom.nstates * symmodel.autom.nsymbols)
+    controllable = falses(symmodel.autom.nstates)
     for init in initial
         controllable[init.source] = true
     end
     num_init_unreachable = length(goal)
-    costs_temp = zeros(Float64, symmodel.autom.nstates, symmodel.autom.nsymbols)
+    costs_temp = zeros(Float64, symmodel.autom.nstates * symmodel.autom.nsymbols)
     costs = zeros(Float64, symmodel.autom.nstates)
     contr =  AB.NewControllerList()
     if transitions_previously_added == nothing
-        transitions_previously_added = fill(-1, (symmodel.autom.nstates,symmodel.autom.nsymbols))
+        transitions_previously_added = fill(-1, symmodel.autom.nstates * symmodel.autom.nsymbols)
     end
     return LazyAbstraction{State}(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image,transitions_added,num_targets_unreachable,controllable,num_init_unreachable,heuristic_data,contr,nothing,costs_temp,costs,transitions_previously_added)
 end
@@ -94,11 +94,35 @@ function transitions!(source,symbol,u,symmodel,contsys,post_image)
     return length(over_approx)
 end
 
+_l(i, j, nsym) = (i - 1) * nsym + j
+
+function _update_cache!(problem, ns1, ns2, nsym)
+    ns2 == ns1 && return
+    resize!(problem.transitions_added, ns2 * nsym)
+    resize!(problem.num_targets_unreachable, ns2 * nsym)
+    resize!(problem.transitions_previously_added, ns2 * nsym)
+    resize!(problem.controllable, ns2)
+    resize!(problem.costs_temp, ns2 * nsym)
+    resize!(problem.costs, ns2)
+    for i in (ns1 + 1):ns2
+        for j in 1:nsym
+            k = _l(i, j, nsym)
+            problem.transitions_added[k] = false
+            problem.costs_temp[k] = 0.0
+            problem.num_targets_unreachable[k] = 0
+            problem.transitions_previously_added[k] = -1
+        end
+        problem.costs[i] = 0.0
+        problem.controllable[i] = false
+    end
+end
+
 function update_abstraction!(successors,problem,source)
     symmodel = problem.symmodel
     contsys = problem.contsys
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
+    nsym = symmodel.autom.nsymbols
 
     xpos = AB.get_xpos_by_state(symmodel, source)
     x = AB.get_coord_by_pos(Xdom.grid, xpos)
@@ -106,28 +130,32 @@ function update_abstraction!(successors,problem,source)
         symbol = AB.get_symbol_by_upos(symmodel, upos)
         u = AB.get_coord_by_pos(Udom.grid, upos)
 
+        ns1 = symmodel.autom.nstates
         cells = problem.pre_image(symmodel,contsys,xpos,u)
+        _update_cache!(problem, ns1, symmodel.autom.nstates, nsym)
         for cell in cells
             if !problem.controllable[cell]
-                if !problem.transitions_added[cell,symbol]
+                if !problem.transitions_added[_l(cell,symbol,nsym)]
                     # add transitions for input u starting from cell if it has not be done yet
                     n_trans = 0
-                    if problem.transitions_previously_added[cell,symbol] != -1
-                        n_trans = problem.transitions_previously_added[cell,symbol]
+                    if problem.transitions_previously_added[_l(cell,symbol,nsym)] != -1
+                        n_trans = problem.transitions_previously_added[_l(cell,symbol,nsym)]
                     else
+                        ns1 = symmodel.autom.nstates
                         n_trans = transitions!(cell,symbol,u,symmodel,contsys,problem.post_image)
-                        problem.transitions_previously_added[cell,symbol] = n_trans
+                        _update_cache!(problem, ns1, symmodel.autom.nstates, nsym)
+                        problem.transitions_previously_added[_l(cell,symbol,nsym)] = n_trans
                     end
-                    problem.num_targets_unreachable[cell,symbol] = n_trans
-                    problem.transitions_added[cell,symbol] = true
+                    problem.num_targets_unreachable[_l(cell,symbol,nsym)] = n_trans
+                    problem.transitions_added[_l(cell,symbol,nsym)] = true
                 end
                 # check if the cell is really in the pre-image
                 if (source,cell,symbol) in symmodel.autom.transitions
                     #println("in the pre-image")
-                    problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
-                    if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
+                    problem.costs_temp[_l(cell,symbol,nsym)] = max(problem.costs_temp[_l(cell,symbol,nsym)],problem.costs[source])
+                    if iszero(problem.num_targets_unreachable[_l(cell,symbol,nsym)] -= 1)
                         println("cell added (controlled)")
-                        problem.costs[cell] = problem.costs_temp[cell,symbol]
+                        problem.costs[cell] = problem.costs_temp[_l(cell,symbol,nsym)]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
                         AB.push_new!(problem.contr, (cell, symbol))
