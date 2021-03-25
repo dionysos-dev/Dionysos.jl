@@ -48,7 +48,7 @@ struct OptimalControlProblem{N,T,C,U,TC,CA,F<:Tuple{Vararg{Function}},E} <: BB.A
     q0::Int
     qT::Int
     coarse_abstraction::CA
-    cells::Vector{P.Cell}
+    cells::Vector{P.Cell{N,T}}
     hx_medium::SVector{N,T}
     hx_fine::SVector{N,T}
     functions::F
