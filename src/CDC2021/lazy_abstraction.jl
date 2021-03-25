@@ -153,27 +153,27 @@ function update_abstraction!(successors,problem,source)
         _update_cache!(problem, ns1, symmodel.autom.nstates, nsym)
         for cell in cells
             if !problem.controllable[cell]
-                if !problem.transitions_added[cell,symbol]
+                if !problem.transitions_added[_l(cell,symbol,nsym)]
                     # add transitions for input u starting from cell if it has not be done yet
                     n_trans = 0
-                    if problem.transitions_previously_added[cell,symbol] != -1
-                        n_trans = problem.transitions_previously_added[cell,symbol]
+                    if problem.transitions_previously_added[_l(cell,symbol,nsym)] != -1
+                        n_trans = problem.transitions_previously_added[_l(cell,symbol,nsym)]
                     else
                         ns1 = symmodel.autom.nstates
                         n_trans = transitions!(cell,symbol,u,symmodel,contsys,problem.post_image)
                         _update_cache!(problem, ns1, symmodel.autom.nstates, nsym)
-                        problem.transitions_previously_added[cell,symbol] = n_trans
+                        problem.transitions_previously_added[_l(cell,symbol,nsym)] = n_trans
                     end
-                    problem.num_targets_unreachable[cell,symbol] = n_trans
-                    problem.transitions_added[cell,symbol] = true
+                    problem.num_targets_unreachable[_l(cell,symbol,nsym)] = n_trans
+                    problem.transitions_added[_l(cell,symbol,nsym)] = true
                 end
                 # check if the cell is really in the pre-image
                 if (source,cell,symbol) in symmodel.autom.transitions
                     #println("in the pre-image")
-                    problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
-                    if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
+                    problem.costs_temp[_l(cell,symbol,nsym)] = max(problem.costs_temp[_l(cell,symbol,nsym)],problem.costs[source])
+                    if iszero(problem.num_targets_unreachable[_l(cell,symbol,nsym)] -= 1)
                         println("cell added (controlled)")
-                        problem.costs[cell] = problem.costs_temp[cell,symbol]
+                        problem.costs[cell] = problem.costs_temp[_l(cell,symbol,nsym)]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
                         AB.push_new!(problem.contr, (cell, symbol))
