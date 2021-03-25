@@ -14,7 +14,7 @@ function get_coord_by_pos(grid, pos)
     return grid.orig + pos.*grid.h
 end
 
-function get_pos_lims_inner(grid::Grid{N}, rect; tol=10^(-6)) where N
+function get_pos_lims_inner(grid::Grid{N}, rect; tol=1e-6) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i])/grid.h[i] + 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i])/grid.h[i] - 0.5), Val(N))
     return HyperRectangle(lbI, ubI)

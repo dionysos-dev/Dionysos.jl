@@ -6,6 +6,20 @@ const AB = Abstraction
 
 using StaticArrays
 
+struct RectanglularObstacles{VT} <: AbstractSet{VT}
+    X::AB.HyperRectangle{VT}
+    O::Vector{AB.HyperRectangle{VT}}
+end
+function Base.in(pos, dom::RectanglularObstacles)
+    return !mapreduce(Base.Fix1(in, pos), |, dom.O, init=!in(pos, dom.X))
+end
+function _fit_grid(elems::RectanglularObstacles,grid)
+    return RectanglularObstacles(
+        AB.get_pos_lims_outer(grid, elems.X),
+        [AB.get_pos_lims_outer(grid, Oi) for Oi in elems.O],
+    )
+end
+_fit_grid(elems::Set,grid) = elems
 
 ## add the periodicity in the domain (add into Domain.jl)
 struct GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
@@ -24,7 +38,7 @@ end
 # (for periodic dims, hx has to fit exactly in the period)
 # The periods are [T0[i], T0[i] + periods[i]]
 # for periodic dimensions, I set the origin in T0[dim],it makes it easy to manage for pos thanks to nx
-function GeneralDomainList(hx;periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
+function GeneralDomainList(hx,elems=Set{NTuple{length(hx),Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
     N = length(hx)
     x0 = zeros(N)
     nx = zeros(Int, length(periodic))
@@ -36,7 +50,7 @@ function GeneralDomainList(hx;periodic=Int[],periods=Float64[],T0=zeros(length(p
     end
 
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
+    return GeneralDomainList(grid,_fit_grid(elems,grid),periodic,periods,T0,nx,lims)
 end
 # it corrects the grid to be valid (with respect periodicity)
 function GeneralDomainList(grid::AB.GridFree{N},elems=Set{NTuple{N,Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing) where {N}
@@ -50,7 +64,7 @@ function GeneralDomainList(grid::AB.GridFree{N},elems=Set{NTuple{N,Int}}();perio
     end
 
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid,elems,periodic,periods,T0,nx,lims)
+    return GeneralDomainList(grid,_fit_grid(elems,grid),periodic,periods,T0,nx,lims)
 end
 
 
@@ -245,7 +259,7 @@ function build_grid_in_rec(X,hx)
     hx = collect(hx)
     for i=1:N
         L = X.ub[i]-X.lb[i]
-        n = round(L/hx[i])
+        n = ceil(L/hx[i])
         hx[i] = L/n
         x0[i] = X.lb[i] + hx[i]/2.0
     end
@@ -289,5 +303,40 @@ function set_rec_in_period(periodic,periods,T0,rec)
     recursive(L,rec,lb,ub,periodic,periods,T0,1)
     return L
 end
+
+function _SymbolicModel(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}, Udom::AB.Domain{M}) where {N,M,T}
+    nu = AB.get_ncells(Udom)
+    uint2pos = [pos for pos in AB.enum_pos(Udom)]
+    upos2int = Dict((pos, i) for (i, pos) in enumerate(AB.enum_pos(Udom)))
+    symmodel = AB.SymbolicModelList(
+        Xdom,
+        Udom,
+        AB.AutomatonList{Set{NTuple{3,T}}}(0, nu),
+        Dict{NTuple{N,T},Int}(),
+        NTuple{N,T}[],
+        upos2int,
+        uint2pos,
+    )
+end
+function AB.get_state_by_xpos(
+    symmodel::AB.SymbolicModelList{N,M,<:GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}},
+    pos,
+) where {N,M,T}
+    id = get(symmodel.xpos2int, pos, nothing)
+    if id === nothing
+        if pos in symmodel.Xdom
+            push!(symmodel.xint2pos, pos)
+            id = length(symmodel.xint2pos)
+            symmodel.xpos2int[pos] = id
+            i = AB.HybridSystems.add_state!(symmodel.autom)
+            @assert i == id
+        else
+            error("$pos is not in state domain $(symmodel.Xdom)")
+        end
+    end
+    return id::Int
+end
+
+
 
 end
