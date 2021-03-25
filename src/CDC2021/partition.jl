@@ -14,11 +14,11 @@ const AS = AlternatingSimulation
 
 using StaticArrays, LightGraphs, Plots
 
-mutable struct Cell
+mutable struct Cell{N,T}
     index::Int
     hyperrectangle::AB.HyperRectangle
-    outneighbors # list of out neighbors
-    inneighbors
+    outneighbors::SubArray{Int,1,Array{Int,1},Tuple{UnitRange{Int}},true} # list of out neighbors
+    inneighbors::Vector{Int}
 
     medium_abstraction # symmmodel of the alternating system
     fine_abstraction   # symmmodel of the alternatingly simulated system
@@ -29,20 +29,20 @@ mutable struct Cell
     lower_bound::Float64 # cost of the big cell abstraction
     upper_bound::Float64 # (probably not necessary, not used)
 
-    reachable_set
-    local_target_set
-    local_init_set
+    reachable_set::AB.HyperRectangle{SVector{N,T}}
+    local_target_set::Dict{Int,Vector{AB.HyperRectangle{SVector{N,T}}}}
+    local_init_set::Dict{Int,Vector{AB.HyperRectangle{SVector{N,T}}}}
 end
 
 
-function compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
+function compute_reachable_sets(Xdom::AB.Domain{N,T},contsys,Udom,compute_reachable_set) where {N,T}
     grid = Xdom.grid
-    L = []
+    L = AB.HyperRectangle{SVector{N,T}}[]
     i = 1
-    N = AB.get_ncells(Xdom)
+    nc = AB.get_ncells(Xdom)
     h = grid.h
     for pos in AB.enum_pos(Xdom)
-        println(i," / ",N)
+        println(i," / ",nc)
         c = AB.get_coord_by_pos(grid,pos)
         hyperrectangle = AB.HyperRectangle(c-h/2,c+h/2)
         reachable_set = compute_reachable_set(hyperrectangle,contsys,Udom)
@@ -89,7 +89,7 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
         outneighbors = LightGraphs.outneighbors(symmodel.autom,i)
         inneighbors = LightGraphs.inneighbors(symmodel.autom,i)
         n = length(outneighbors)
-        medium_abstraction =  nothing
+        medium_abstraction = nothing
         fine_abstraction = nothing
         heuristics = Dict{Int, Any}()
         controllers = Dict{NTuple{2,Int}, Any}()
@@ -98,8 +98,8 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
         c = AB.get_coord_by_pos(grid, pos)
         rec = AB.HyperRectangle(c-r,c+r)
         reachable_set = L[i]
-        local_target_set = Dict{Int, Any}()
-        local_init_set = Dict{Int, Any}()
+        local_target_set = Dict{Int, Vector{typeof(_I_)}}()
+        local_init_set = Dict{Int, Vector{typeof(_I_)}}()
         cell = Cell(i,rec,outneighbors,inneighbors,medium_abstraction,fine_abstraction,heuristics,controllers,
                     lower_bound,upper_bound,reachable_set,local_target_set,local_init_set)
         push!(cells,cell)

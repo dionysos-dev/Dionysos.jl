@@ -30,19 +30,19 @@ using ..OptimalControl
 const OC = OptimalControl
 
 ## problem specific-functions required by the algo
-function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
+function compute_reachable_set(rect::AB.HyperRectangle{SVector{N,T}},contsys,Udom) where {N,T}
     tstep = contsys.tstep
     r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
     Fr = r
     x = U.center(rect)
     n =  U.dims(rect)
-    lb = fill(Inf,n)
-    ub = fill(-Inf,n)
+    lb = SVector(ntuple(i -> Inf, Val(N)))
+    ub = SVector(ntuple(i -> -Inf, Val(N)))
     for upos in AB.enum_pos(Udom)
         u = AB.get_coord_by_pos(Udom.grid,upos)
         Fx = contsys.sys_map(x, u, tstep)
-        lb = min.(lb,Fx .- Fr)
-        ub = max.(ub,Fx .+ Fr)
+        lb = min.(lb,Fx .- Fr)::SVector{N,T}
+        ub = max.(ub,Fx .+ Fr)::SVector{N,T}
     end
     return AB.HyperRectangle(lb,ub)
 end
@@ -59,18 +59,17 @@ function post_image(symmodel,contsys,xpos,u)
 
     rectI = AB.get_pos_lims_outer(Xdom.grid, AB.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(AB._ranges(rectI)...)
-    over_approx = []
-    allin = true
+    over_approx = Int[]
     for ypos in ypos_iter
         ypos = D.set_in_period_pos(Xdom,ypos)
         if !(ypos in Xdom)
-            allin = false
+            empty!(over_approx)
             break
         end
         target = AB.get_state_by_xpos(symmodel, ypos)
         push!(over_approx, target)
     end
-    return allin ? over_approx : []
+    return over_approx
 end
 
 function pre_image(symmodel,contsys,xpos,u)
@@ -145,16 +144,16 @@ function test()
     _I_ = AB.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5))
     # problem-specific functions
 
-    hx_coarse = [10.0, 10.0]*1.0
-    hx_medium = [1.0, 1.0]*0.5*2.0
-    hx_fine = [0.5, 0.5]*1.0
-    periodic = Int[1,2]
+    hx_coarse = SVector(10.0, 10.0)*1.0
+    hx_medium = SVector(1.0, 1.0)*0.5*2.0
+    hx_fine = SVector(0.5, 0.5)*1.0
+    periodic = [1,2]
     periods = Float64[60.0,60.0]
     T0 = Float64[0.0,0.0]
     fig = plot(aspect_ratio = 1,legend = false)
     plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
     plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
-    functions = [compute_reachable_set,minimum_transition_cost,post_image,pre_image]
+    functions = (compute_reachable_set,minimum_transition_cost,post_image,pre_image)
 
     optimal_control_prob = OC.OptimalControlProblem(x0,_I_,_T_,contsys,periodic,periods,T0,Udom,transition_cost,(X,hx_coarse,[]),hx_medium,hx_fine,functions)
     max_iter = 5
