@@ -8,9 +8,9 @@ using StaticArrays
 
 
 ## add the periodicity in the domain (add into Domain.jl)
-struct GeneralDomainList{N,T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
+struct GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
     grid::S
-    elems::Set{NTuple{N,Int}}
+    elems::E
     periodic::Vector{Int} # components which are periodic
     periods::Vector{Float64}  # periods
     T0::Vector{Float64}
@@ -39,11 +39,10 @@ function GeneralDomainList(hx;periodic=Int[],periods=Float64[],T0=zeros(length(p
     return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
 end
 # it corrects the grid to be valid (with respect periodicity)
-function GeneralDomainList(grid::AB.GridFree;periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
+function GeneralDomainList(grid::AB.GridFree{N},elems=Set{NTuple{N,Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing) where {N}
     nx = zeros(Int, length(periodic))
     x0 = collect(grid.orig)
     hx = collect(grid.h)
-    N = length(hx)
     for (i,dim) in enumerate(periodic)
         nx[i] = round(periods[i]/hx[dim])
         hx[dim] = periods[i]./nx[i]
@@ -51,7 +50,7 @@ function GeneralDomainList(grid::AB.GridFree;periodic=Int[],periods=Float64[],T0
     end
 
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid, Set{NTuple{N,Int}}(),periodic,periods,T0,nx,lims)
+    return GeneralDomainList(grid,elems,periodic,periods,T0,nx,lims)
 end
 
 
