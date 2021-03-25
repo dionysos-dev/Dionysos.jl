@@ -35,25 +35,25 @@ const LA = Lazy_abstraction
 -option : Vector of Bool to decide the branch and bound strategy (ex: indicate if you forbid the path to return to the previous big cell)
 -ext : not used by default (could be used by the user)
 """
-struct OptimalControlProblem <: BB.Abstract_BB_Problem
+struct OptimalControlProblem{N,T,C,U,TC,CA,F<:Tuple{Vararg{Function}},E} <: BB.Abstract_BB_Problem
     # data of the problem
-    x0
-    contsys
+    x0::SVector{N,T}
+    contsys::C
     periodic::Vector{Int}    # periodics dimensions
     periods::Vector{Float64} # periods
     T0::Vector{Float64}      # starting point of the period
-    Udom
-    transition_cost
+    Udom::U
+    transition_cost::TC
     # data of the algo
     q0::Int
     qT::Int
-    coarse_abstraction
-    cells
-    hx_medium
-    hx_fine
-    functions::Vector{Function}
+    coarse_abstraction::CA
+    cells::Vector{P.Cell}
+    hx_medium::SVector{N,T}
+    hx_fine::SVector{N,T}
+    functions::F
     option::Vector{Bool}
-    ext
+    ext::E
 end
 
 

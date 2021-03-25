@@ -21,7 +21,7 @@ const D = DomainList
 using Plots,StaticArrays
 
 struct State
-    source
+    source::Int
 end
 Base.:(==)(s1::State, s2::State)= s1.source == s2.source
 
@@ -51,21 +51,21 @@ function Base.setindex!(m::MutableMatrix{T}, val::T, col::Int, row::Int) where T
     m.data[(col - 1) * m.num_rows + row] = val
 end
 
-mutable struct LazyAbstraction{T} <: S.SearchProblem{T}
-    initial # list of initial states of A* (target set)
-    goal    # list of goal states of A* (init set)
-    symmodel
-    contsys
-    transition_cost #transition_cost(x,u) function
-    pre_image  # function to compute the list of potential pre-image of a cell for a given input
-    post_image # function to compute the list of potential post-image of a cell for a given input
+mutable struct LazyAbstraction{T,SM,C,TC<:Function,PrI<:Function,PoI<:Function,HD} <: S.SearchProblem{T}
+    initial::Vector{T} # list of initial states of A* (target set)
+    goal::Vector{T}    # list of goal states of A* (init set)
+    symmodel::SM
+    contsys::C
+    transition_cost::TC #transition_cost(x,u) function
+    pre_image::PrI  # function to compute the list of potential pre-image of a cell for a given input
+    post_image::PoI # function to compute the list of potential post-image of a cell for a given input
     transitions_added::MutableMatrix{Bool,BitVector}          # could be an array or a dictionnary (to be added)
     num_targets_unreachable::MutableMatrix{Int,Vector{Int}}     # could be an array or a dictionnary (to be added)
     controllable::BitVector                # could be an array or a dictionnary (to be added)
     num_init_unreachable::Int   # counter of the remaining non controllable init cells
-    heuristic_data # extension for potential additionnal data for the heuristic function
-    contr  # controller
-    closed # only usefull for the printing (could be discard later)
+    heuristic_data::HD # extension for potential additionnal data for the heuristic function
+    contr::AB.SortedTupleSet{2,Int}  # controller
+    closed::Union{Nothing,Dict{T,Bool}} # only usefull for the printing (could be discard later)
     costs_temp::MutableMatrix{Float64,Vector{Float64}} # array containing the current worse cost to reach the target, if the next input applied is symbol
     costs::Vector{Float64} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function
     transitions_previously_added::MutableMatrix{Int,Vector{Int}} # only necessary, if we need to reuse a partially computed symmodel
@@ -87,7 +87,7 @@ function LazyAbstraction(initial,goal,symmodel,contsys,transition_cost,pre_image
     if transitions_previously_added === nothing
         transitions_previously_added = MutableMatrix(-1, symmodel.autom.nsymbols, symmodel.autom.nstates)
     end
-    return LazyAbstraction{State}(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image,transitions_added,num_targets_unreachable,controllable,num_init_unreachable,heuristic_data,contr,nothing,costs_temp,costs,transitions_previously_added)
+    return LazyAbstraction{State,typeof(symmodel),typeof(contsys),typeof(transition_cost),typeof(pre_image),typeof(post_image),typeof(heuristic_data)}(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image,transitions_added,num_targets_unreachable,controllable,num_init_unreachable,heuristic_data,contr,nothing,costs_temp,costs,transitions_previously_added)
 end
 
 function S.goal_test(problem::LazyAbstraction, state::State)
