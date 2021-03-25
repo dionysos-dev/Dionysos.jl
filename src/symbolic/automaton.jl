@@ -40,6 +40,10 @@ function pre(autom::AutomatonList, target)
     return UT.fix_and_eliminate_first(autom.transitions, target)
 end
 
+function HybridSystems.add_state!(autom::AutomatonList)
+    autom.nstates += 1
+end
+
 # function add_inputs_images_by_xref!(uref_coll, yref_coll, autom::AutomatonList, x_ref)
 #     ensure_sorted!(autom)
 #     ensure_unique!(autom)
