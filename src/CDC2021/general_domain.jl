@@ -30,7 +30,7 @@ function GeneralDomainList(hx;periodic=Int[],periods=Float64[],T0=zeros(length(p
     nx = zeros(Int, length(periodic))
     hx = collect(hx)
     for (i,dim) in enumerate(periodic)
-        nx[i] = round(periods[i]/hx[dim])
+        nx[i] = ceil(periods[i]/hx[dim])
         hx[dim] = periods[i]./nx[i]
         x0[dim] = T0[i] + hx[dim]/2.0
     end
@@ -45,7 +45,7 @@ function GeneralDomainList(grid::AB.GridFree;periodic=Int[],periods=Float64[],T0
     hx = collect(grid.h)
     N = length(hx)
     for (i,dim) in enumerate(periodic)
-        nx[i] = round(periods[i]/hx[dim])
+        nx[i] = ceil(periods[i]/hx[dim])
         hx[dim] = periods[i]./nx[i]
         x0[dim] = T0[i] + hx[dim]/2.0
     end
@@ -249,10 +249,11 @@ function build_grid_in_rec(X,hx)
     hx = collect(hx)
     for i=1:N
         L = X.ub[i]-X.lb[i]
-        n = round(L/hx[i])
+        n = ceil(L/hx[i])
         hx[i] = L/n
         x0[i] = X.lb[i] + hx[i]/2.0
     end
+    println(hx)
     return AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
 end
 

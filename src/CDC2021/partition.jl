@@ -64,9 +64,13 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
     end
     fig = plot(aspect_ratio = 1,legend = false)
     U.plot_domain!(Xdom,dims=[1,2],opacity=0.15,color=:blue)
+    plot!(U.rectangle(_I_.lb,_I_.ub), opacity=.8,color=:green)
+    plot!(U.rectangle(_T_.lb,_T_.ub), opacity=.8,color=:red)
     display(fig)
     fig = plot(aspect_ratio = 1,legend = false)
     U.plot_domain!(Xdom,dims=[3,4],opacity=0.15,color=:blue)
+    plot!(U.rectangle(_I_.lb[3:4],_I_.ub[3:4]), opacity=.8,color=:green)
+    plot!(U.rectangle(_T_.lb[3:4],_T_.ub[3:4]), opacity=.8,color=:red)
     display(fig)
     L = compute_reachable_sets(Xdom,contsys,Udom,compute_reachable_set)
 
@@ -106,12 +110,11 @@ function Initialise(partition,contsys,Udom,_I_,_T_,compute_reachable_set,minimum
     end
     compute_local_sets!(cells,contsys,Udom,q0,_I_,qT,_T_,compute_reachable_set,periodic,periods,T0)
 
-    for i = 1:15
+    for i = 1:5
         plot_local_set(cells[i],Xdom)#587
         plot_local_set(cells[i],Xdom;dims=[3,4])
     end
     return (q0,qT,symmodel,cells)
-    #return 1,1,1,1
 end
 
 function localise(symmodel,_I_)

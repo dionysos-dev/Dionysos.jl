@@ -184,6 +184,9 @@ function build_controller!(prob,cell,prev,next)
     fig = plot(aspect_ratio = 1,legend = false)
     LA.plot_result!(problem)
     display(fig)
+    fig = plot(aspect_ratio = 1,legend = false)
+    LA.plot_result!(problem;dims=[3,4])
+    display(fig)
 end
 
 function BB.compute_upper_bound!(prob::OptimalControlProblem, node::BB.Node)
