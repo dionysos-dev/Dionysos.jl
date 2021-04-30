@@ -16,6 +16,7 @@ end
 import OSQP
 qp_solver = optimizer_with_attributes(
     OSQP.Optimizer,
+    "polish" => 1,
     "eps_abs" => 1e-8,
     "eps_rel" => 1e-8,
     "max_iter" => 100000,

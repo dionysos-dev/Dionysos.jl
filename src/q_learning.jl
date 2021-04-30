@@ -3,39 +3,47 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using Polyhedra, CDDLib, ParameterJuMP
+using Polyhedra, ParameterJuMP
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
 
 # TODO It assumes that the cost is `Fill{...}`, otherwise, we should compute a different
 #      cost for each time
-function minimum_transition_cost(prob, transition, solver, log_level = 0)
-    model = Model(solver)
+function minimum_transition_cost(prob, transition, solver, ::Type{T}, log_level = 0) where {T}
+    model = MOI.instantiate(solver, with_bridge_type=T)
     from = source(prob.system, transition)
     to = target(prob.system, transition)
-    @variable(model, x0[1:statedim(prob.system, from)] in hrep(stateset(prob.system, from)))
-    @variable(model, x1[1:statedim(prob.system, to)] in hrep(stateset(prob.system, to)))
-    @variable(model, u[1:inputdim(resetmap(prob.system, transition))])
-    algo = optimizer_with_attributes(
-        BemporadMorari.Optimizer,
+    MOI.Bridges.add_bridge(model, Polyhedra.PolyhedraToLPBridge{T})
+    x0, c0 = MOI.add_constrained_variables(model, Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, from))))
+    fx0 = MOI.SingleVariable.(x0)
+    x1, c1 = MOI.add_constrained_variables(model, Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, to))))
+    fx1 = MOI.SingleVariable.(x1)
+    u = MOI.add_variables(model, inputdim(resetmap(prob.system, transition)))
+    fu = MOI.SingleVariable.(u)
+    algo = MOI.instantiate(optimizer_with_attributes(
+        BemporadMorari.Optimizer{T},
         "continuous_solver" => solver,
-        "log_level" => 0)
+        "log_level" => 0))
+
     # We use `1` as we asssume the cost is the same along time
     t = 1
     δ_mode = BemporadMorari.IndicatorVariables([to], t)
-    state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[t][[to]]), x1, u, δ_mode)
+    state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[t][[to]]), fx1, fu, δ_mode, T)
     symbols = [symbol(prob.system, transition)]
     δ_trans = BemporadMorari.IndicatorVariables(symbols, t)
-    δ_trans = BemporadMorari.hybrid_constraints(model, BemporadMorari.fillify(prob.system.resetmaps[symbols]), x0, x1, u, algo, δ_trans)
-    trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[t][symbols]), x0, u, δ_trans)
-    @objective(model, Min, state_cost + trans_cost)
-    optimize!(model)
-    if termination_status(model) == MOI.OPTIMAL
-        return objective_value(model)
-    elseif termination_status(model) in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED)
-        return Inf
+    δ_trans = BemporadMorari.hybrid_constraints(model, BemporadMorari.fillify(prob.system.resetmaps[symbols]), fx0, fx1, fu, algo, δ_trans)
+    trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[t][symbols]), fx0, fu, δ_trans, T)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    obj = state_cost + trans_cost
+    MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+    MOI.optimize!(model)
+    status = MOI.get(model, MOI.TerminationStatus())
+    if status == MOI.OPTIMAL
+        return MOI.get(model, MOI.ObjectiveValue())
+    elseif status in (MOI.INFEASIBLE,)#, MOI.INFEASIBLE_OR_UNBOUNDED)
+        return typemax(T) # ∞
     else
-        @error("Candidate: Termination status: $(termination_status(model)), raw status: $(raw_status(model))")
+        @error("Candidate: Termination status: $status, raw status: $(MOI.get(model, MOI.RawStatusString()))")
     end
 end
 
@@ -57,19 +65,20 @@ function _merge_with(combine, a, b)
     )
 end
 
-struct DiscreteLowerBoundAlgo{S}
+struct DiscreteLowerBoundAlgo{T, S}
     solver::S
 end
+DiscreteLowerBoundAlgo{T}(solver) where {T} = DiscreteLowerBoundAlgo{T, typeof(solver)}(solver)
 struct DiscreteLowerBound{D}
     discrete_lb::D
 end
-function instantiate(prob::OptimalControlProblem, algo::DiscreteLowerBoundAlgo)
+function instantiate(prob::OptimalControlProblem, algo::DiscreteLowerBoundAlgo{T}) where {T}
     syst = prob.system
-    dists = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(syst)], Inf)
+    dists = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(syst)], typemax(T))
     dists[0, prob.q_T] = 0.0
-    transition_cost = HybridSystems.transition_property(syst, Float64)
+    transition_cost = HybridSystems.transition_property(syst, T)
     for t in transitions(syst)
-        transition_cost[t] = minimum_transition_cost(prob, t, algo.solver)
+        transition_cost[t] = minimum_transition_cost(prob, t, algo.solver, T)
     end
     for i in 1:prob.number_of_time_steps
         for mode in modes(syst)
@@ -88,39 +97,40 @@ function value_function(Q::DiscreteLowerBound, left::Int, mode)
 end
 function learn(::DiscreteLowerBound, prob, ::DiscreteTrajectory, ::ContinuousTrajectory, ::DiscreteLowerBoundAlgo) end
 
-struct HybridDualDynamicProgrammingAlgo{S, T}
+struct HybridDualDynamicProgrammingAlgo{T, S, P}
     solver::S
+    polyhedra_library::P
     new_cut_tol::T
     tight_tol::T
     log_level::Int
 end
-struct HybridDualDynamicProgramming{C,H<:JuMP.Containers.DenseAxisArray{Polyhedra.Intersection{Float64,Vector{Float64},Int}}, D}
+struct HybridDualDynamicProgramming{T,C,H<:JuMP.Containers.DenseAxisArray{Polyhedra.Intersection{T,Vector{T},Int}}, D}
     cuts::C
     domains::H
     discrete::DiscreteLowerBound{D}
 end
-function _no_cuts(number_of_time_steps, modes)
+function _no_cuts(number_of_time_steps, modes, ::Type{T}) where {T}
     return JuMP.Containers.@container(
         [0:number_of_time_steps, modes],
-        AffineFunction{Float64}[]
+        AffineFunction{T}[]
     )
 end
-function _full_domains(number_of_time_steps, modes, d)
+function _full_domains(number_of_time_steps, modes, d, ::Type{T}) where {T}
     return JuMP.Containers.@container(
         [0:number_of_time_steps, modes],
-        hrep(HalfSpace{Float64, Vector{Float64}}[], d = d)
+        hrep(HalfSpace{T, Vector{T}}[], d = d)
     )
 end
-function instantiate(prob::OptimalControlProblem, algo::HybridDualDynamicProgrammingAlgo)
-    cuts = _no_cuts(prob.number_of_time_steps, modes(prob.system))
-    domains = _full_domains(prob.number_of_time_steps, modes(prob.system), length(prob.x_0))
-    discrete = instantiate(prob, DiscreteLowerBoundAlgo(algo.solver))
+function instantiate(prob::OptimalControlProblem, algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
+    cuts = _no_cuts(prob.number_of_time_steps, modes(prob.system), T)
+    domains = _full_domains(prob.number_of_time_steps, modes(prob.system), length(prob.x_0), T)
+    discrete = instantiate(prob, DiscreteLowerBoundAlgo{T}(algo.solver))
     return HybridDualDynamicProgramming(cuts, domains, discrete)
 end
-function q_merge(a::DiscreteLowerBound, b::HybridDualDynamicProgramming)
+function q_merge(a::DiscreteLowerBound, b::HybridDualDynamicProgramming{T}) where {T}
     d = a.discrete_lb
-    cuts = _no_cuts(axes(d, 1).stop, axes(d, 2))
-    domains = _full_domains(axes(d, 1).stop, axes(d, 2), fulldim(first(b.domains)))
+    cuts = _no_cuts(axes(d, 1).stop, axes(d, 2), T)
+    domains = _full_domains(axes(d, 1).stop, axes(d, 2), fulldim(first(b.domains)), T)
     return q_merge(HybridDualDynamicProgramming(cuts, domains, a), b)
 end
 function q_merge(a::HybridDualDynamicProgramming, b::HybridDualDynamicProgramming)
@@ -130,89 +140,95 @@ function q_merge(a::HybridDualDynamicProgramming, b::HybridDualDynamicProgrammin
         q_merge(a.discrete, b.discrete)
     )
 end
-function value_function(Q::HybridDualDynamicProgramming, left::Int, mode)
+function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) where {T}
     d = fulldim(Q.domains[left, mode])
     number_of_time_steps = axes(Q.cuts, 1).stop
     return PolyhedralFunction(
         Q.discrete.discrete_lb[left, mode],
         reduce(append!, (Q.cuts[i, mode] for i in left:number_of_time_steps),
-               init = AffineFunction{Float64}[]),
+               init = AffineFunction{T}[]),
         # TODO use intersect! once it is implemented in Polyhedra
         reduce(intersect, (Q.domains[i, mode] for i in left:number_of_time_steps),
-               init = hrep(HalfSpace{Float64, Vector{Float64}}[], d = d))
+               init = hrep(HalfSpace{T, Vector{T}}[], d = d))
     )
 end
-function vertices(f::PolyhedralFunction{T}, X) where T
+function vertices(f::PolyhedralFunction{T}, X, lib) where T
     h = (hrep(X) ∩ f.domain) * intersect(HalfSpace([-one(T)], -f.lower_bound))
     cuts = [HalfSpace([p.a; -one(T)], -p.β) for p in f.pieces]
     h_cut = h ∩ hrep(cuts, d = fulldim(h))
-    p = polyhedron(h_cut, CDDLib.Library())
+    p = polyhedron(h_cut, lib)
     removehredundancy!(p)
     return collect(points(vrep(p)))
 end
-function vertices(Q::HybridDualDynamicProgramming, prob, left, mode)
-    return vertices(value_function(Q, left, mode), stateset(prob.system, mode))
+function vertices(Q::HybridDualDynamicProgramming, prob, left, mode, lib)
+    return vertices(value_function(Q, left, mode), stateset(prob.system, mode), lib)
 end
 function learn(::HybridDualDynamicProgramming, prob, ::DiscreteTrajectory, ::ContinuousTrajectory,
                ::DiscreteLowerBoundAlgo)
 end
 function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory, ctraj::ContinuousTrajectory,
-               algo::HybridDualDynamicProgrammingAlgo)
+               algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
     for i in length(dtraj):-1:1
         x = i == 1 ? prob.x_0 : ctraj.x[i - 1]
         mode = source(prob.system, dtraj.transitions[i])
         left = prob.number_of_time_steps - i
         trans = filter(collect(out_transitions(prob.system, mode))) do t
-            Q.discrete.discrete_lb[left, target(prob.system, t)] != Inf
+            Q.discrete.discrete_lb[left, target(prob.system, t)] != typemax(T) # ∞
         end
         verts = JuMP.Containers.@container(
             [t in trans],
-            vertices(Q, prob, left, target(prob.system, t))
+            vertices(Q, prob, left, target(prob.system, t), algo.polyhedra_library)
         )
-        model = ModelWithParams(algo.solver)
-        params = add_parameters(model, x)
+        model = MOI.instantiate(algo.solver, with_bridge_type=T)
+        params = x
         # FIXME assume they are all the same
         r = resetmap(prob.system, first(trans))
         U = inputset(r)
         hashyperplanes(U) && error("TODO: Q-learning with input set with hyperplanes")
-        @variable(model, u[1:fulldim(U)])
+        u = MOI.add_variables(model, fulldim(U))
+        fu = MOI.SingleVariable.(u)
         U_h = collect(halfspaces(U))
-        @constraint(model, u_con[i in eachindex(U_h)], u ⋅ U_h[i].a <= U_h[i].β)
-        @variable(model, λ[t in trans, eachindex(verts[t])] ≥ 0)
-        @constraint(model, sum(λ) == 1)
-        @variable(model, θ)
-        epi(i) = sum(λ[t, v] * verts[t][v][i] for t in trans for v in eachindex(verts[t]))
-        x_next = r.A * params + r.B * u
-        @constraint(model, epi_con[j in eachindex(x_next)], x_next[j] == epi(j))
-        @constraint(model, θ >= epi(length(x_next) + 1))
-        tos = [target(prob.system, t) for t in trans]
-        _sum(g) = reduce(+, g, init = zero(JuMP.VariableRef))
-        δ_mode = JuMP.Containers.@container([mode in tos],
-            _sum(λ[t, v] for t in trans for v in eachindex(verts[t]) if target(prob.system, t) == mode)
+        u_con = [MOI.add_constraint(model, fu ⋅ hs.a, MOI.LessThan(hs.β)) for hs in U_h]
+        λ = Dict((t, v) => MOI.SingleVariable(MOI.add_constrained_variable(model, MOI.GreaterThan(zero(T)))[1])
+            for t in trans for v in eachindex(verts[t])
         )
-        state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, u, δ_mode)
+        #@variable(model, λ[t in trans, eachindex(verts[t])] ≥ 0)
+        λs = collect(values(λ))
+        MOI.add_constraint(model, BemporadMorari._sum(λs, T), MOI.EqualTo(one(T)))
+        epi(i) = sum(λ[(t, v)] * convert(T, verts[t][v][i]) for t in trans for v in eachindex(verts[t]))
+        x_next = r.A * params + r.B * fu
+        epi_con = [MOI.Utilities.normalize_and_add_constraint(model, x_next[j] - epi(j), MOI.EqualTo(zero(T))) for j in eachindex(x_next)]
+        θ = MOI.add_variable(model)
+        fθ = MOI.SingleVariable(θ)
+        MOI.add_constraint(model, fθ - epi(length(x_next) + 1), MOI.GreaterThan(zero(T)))
+        tos = [target(prob.system, t) for t in trans]
+        δ_mode = JuMP.Containers.@container([mode in tos],
+            BemporadMorari._sum((λ[t, v] for t in trans for v in eachindex(verts[t]) if target(prob.system, t) == mode), T)
+        )
+        state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, fu, δ_mode, T)
         symbols = symbol.(prob.system, trans)
         δ_trans = JuMP.Containers.@container([s in symbols],
-            _sum(λ[t, v] for t in trans for v in eachindex(verts[t]) if symbol(prob.system, t) == s)
+            BemporadMorari._sum((λ[t, v] for t in trans for v in eachindex(verts[t]) if symbol(prob.system, t) == s), T)
         )
-        trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, u, δ_trans)
-        obj = trans_cost + state_cost + θ
-        @objective(model, Min, obj)
-        optimize!(model)
-        if termination_status(model) != MOI.OPTIMAL || primal_status(model) != MOI.FEASIBLE_POINT
-            if algo.log_level >= 1
-                @warn("No new cut generated as termination status is $(termination_status(model)), primal status is $(primal_status(model)), dual status is $(dual_status(model)): $(raw_status(model))")
-            end
+        trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, fu, δ_trans, T)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        obj = trans_cost + state_cost + fθ
+        MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+        MOI.optimize!(model)
+        if MOI.get(model, MOI.TerminationStatus()) != MOI.OPTIMAL || MOI.get(model, MOI.PrimalStatus()) != MOI.FEASIBLE_POINT
+            #if algo.log_level >= 1
+                @warn("No new cut generated as termination status is $(MOI.get(model, MOI.TerminationStatus())), primal status is $(MOI.get(model, MOI.PrimalStatus())), dual status is $(MOI.get(model, MOI.DualStatus())): $(MOI.get(model, MOI.RawStatusString()))")
+            #end
             return
         end
         V = value_function(Q, left + 1, mode)
         before = function_value(V, x)
         # FIXME OSQP does not support accessing `DualObjectiveValue`
         #after = dual_objective_value(model)
-        after = objective_value(model)
+        after = MOI.get(model, MOI.ObjectiveValue())
         if after < before + algo.new_cut_tol
             if algo.log_level >= 3
-                @info("Cuts ignored: $after ≤ $before.")
+                @info("Cuts ignored: $after ≤ $before (difference is $(before - after)).")
             end
             return
         end
@@ -224,36 +240,38 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             [t in trans, v in eachindex(verts[t])],
             y_sum - sum(verts[t][v][i] * y[i] for i in eachindex(y)) - verts[t][v][length(x_next) + 1]
         )
-        u_value = value.(u)
+        u_value = MOI.get.(model, MOI.VariablePrimal(), u)
         u_cons = r.B' * y
-        for (xy, coef) in obj.terms
-            if xy.a == xy.b
-                u_idx = findfirst(isequal(xy.a), u)
+        for term in obj.quadratic_terms
+            if term.variable_index_1 == term.variable_index_2
+                u_idx = findfirst(isequal(term.variable_index_1), u)
                 @assert u_idx !== nothing
-                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -2coef * u_value[u_idx])
+                # d(coef * u^2)/du = 2coef * u. In MOI, the quadratic term is stored as
+                # `MOI.ScalarQuadraticTerm(2coef, u, u)` so we don't have to multiply by 2.
+                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -term.coefficient * u_value[u_idx])
             else
-                ua_idx = findfirst(isequal(xy.a), u)
-                ub_idx = findfirst(isequal(xy.b), u)
+                ua_idx = findfirst(isequal(term.variable_index_1), u)
+                ub_idx = findfirst(isequal(term.variable_index_2), u)
                 if ua_idx !== nothing && ub_idx !== nothing
-                    MA.mutable_operate!(MA.add_mul, u_cons[ua_idx], -coef * u_value[ub_idx])
-                    MA.mutable_operate!(MA.add_mul, u_cons[ub_idx], -coef * u_value[ua_idx])
+                    MA.mutable_operate!(MA.add_mul, u_cons[ua_idx], -term.coefficient * u_value[ub_idx])
+                    MA.mutable_operate!(MA.add_mul, u_cons[ub_idx], -term.coefficient * u_value[ua_idx])
                 else
                     error("TODO")
                 end
             end
         end
-        for (x, coef) in obj.aff.terms
-            x == θ && continue
-            u_idx = findfirst(isequal(x), u)
+        for term in obj.affine_terms
+            term.variable_index == θ && continue
+            u_idx = findfirst(isequal(term.variable_index), u)
             if u_idx !== nothing
-                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -coef)
+                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -term.coefficient)
             else
                 found = false
                 for t in trans, v in eachindex(verts[t])
-                    if x == λ[t, v]
+                    if term.variable_index == λ[t, v].variable
                         @assert !found
                         found = true
-                        MA.mutable_operate!(MA.add_mul, λ_cons[t, v], -coef)
+                        MA.mutable_operate!(MA.add_mul, λ_cons[t, v], -term.coefficient)
                     end
                 end
                 @assert found
@@ -261,7 +279,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
 
         for t in trans, v in eachindex(verts[t])
-            if value(λ[t, v]) <= algo.tight_tol
+            if MOI.get(model, MOI.VariablePrimal(), λ[t, v].variable) <= algo.tight_tol
                 @constraint(dual_model, λ_cons[t, v] <= 0)
             else
                 @constraint(dual_model, λ_cons[t, v] == 0)
@@ -269,8 +287,8 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
         U_v = vrep(
             [zeros(length(u))],
-            Line{Float64, Vector{Float64}}[],
-            Ray{Float64, Vector{Float64}}[]
+            Line{T, Vector{T}}[],
+            Ray{T, Vector{T}}[]
         )
         for i in eachindex(U_h)
             α = u_value ⋅ U_h[i].a
@@ -279,25 +297,26 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
                 convexhull!(U_v, Ray(U_h.a))
             end
         end
-        U_p = polyhedron(U_v, CDDLib.Library())
+        U_p = polyhedron(U_v, algo.polyhedra_library)
         removehredundancy!(U_p)
         U_h = hrep(U_p)
         @constraint(dual_model, u_cons in U_h)
 
         h = hrep(dual_model)
         names = dimension_names(h)
-        p = polyhedron(h, CDDLib.Library())
+        p = polyhedron(h, algo.polyhedra_library)
         removevredundancy!(p)
         P = zeros(size(r.A, 2), size(r.A, 1) + 1)
         for i in eachindex(y)
             j = findfirst(isequal("y[$i]"), names)
             P[:, j] = r.A[i, :]
         end
+        #cuts = -P * removevredundancy(vrep(p), Polyhedra.default_solver(p))
         cuts = -P * vrep(p)
 
         for a in points(cuts)
             β = after - a ⋅ x
-            cut = AffineFunction(a, β)
+            cut = AffineFunction{T}(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
             if algo.log_level >= 2
                 @info("Cut added: $cut, $after > $before.")

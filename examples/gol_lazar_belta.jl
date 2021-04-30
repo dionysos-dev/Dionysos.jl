@@ -3,13 +3,13 @@ using Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
 
-function gol_lazar_belta(lib)
+function gol_lazar_belta(lib, T::Type)
     function rect(x_l, x_u)
-        r = HalfSpace([-1], -x_l) ∩ HalfSpace([1], x_u)
+        r = HalfSpace([-1], -T(x_l)) ∩ HalfSpace([1], T(x_u))
         return polyhedron(r, lib)
     end
     function rect(x_l, x_u, y_l, y_u)
-        r = HalfSpace([-1, 0], -x_l) ∩ HalfSpace([1, 0], x_u) ∩ HalfSpace([0, -1], -y_l) ∩ HalfSpace([0, 1], y_u)
+        r = HalfSpace([-1, 0], -T(x_l)) ∩ HalfSpace([1, 0], T(x_u)) ∩ HalfSpace([0, -1], -T(y_l)) ∩ HalfSpace([0, 1], T(y_u))
         return polyhedron(r, lib)
     end
 
@@ -40,12 +40,12 @@ function gol_lazar_belta(lib)
     automaton = LightAutomaton(length(domains))
 
     #Resetmaps: (guards + reset)
-    A = [1.0 1.0
-         0.0 1.0]
-    B = reshape([0.5, 1.0], 2, 1)
+    A = T[1 1
+          0 1]
+    B = reshape(T[0.5, 1], 2, 1)
 
     #ResetMaps = Vector{ConstrainedLinearControlDiscreteSystem}(undef, length(domains)^2)
-    cU = polyhedron(HalfSpace([0, 0, -1], 2) ∩ HalfSpace([0, 0, 1], 2), lib)
+    cU = polyhedron(HalfSpace(T[0, 0, -1], 2) ∩ HalfSpace(T[0, 0, 1], 2), lib)
 
     function back(from, to)
         # The `hrep` and `polyhedron` are workaround for an issue similar to
