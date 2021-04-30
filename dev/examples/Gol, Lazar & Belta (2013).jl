@@ -33,7 +33,7 @@ using Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "gol_lazar_belta.jl"))
 
 # Now we instantiate our system using the function provided by [gol\_lazar\_belta.jl](@__REPO_ROOT_URL__/examples/gol_lazar_belta.jl)
-system = gol_lazar_belta(CDDLib.Library());
+system = gol_lazar_belta(CDDLib.Library(), Float64);
 
 
 # Then, we define initial conditions (continuous and discrete states) to this system
@@ -90,7 +90,7 @@ miqp_solver = optimizer_with_attributes(
 );
 
 
-algo = optimizer_with_attributes(BemporadMorari.Optimizer,
+algo = optimizer_with_attributes(BemporadMorari.Optimizer{Float64},
     "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
     "indicator" => false,
