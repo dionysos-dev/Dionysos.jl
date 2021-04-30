@@ -3,7 +3,7 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using Polyhedra, ParameterJuMP
+using Polyhedra
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
 
