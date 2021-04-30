@@ -7,7 +7,7 @@ using JuMP, Polyhedra
 using HybridSystems
 using Dionysos
 
-mutable struct Optimizer <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver
     mixed_integer_solver
     Q_function_init
@@ -22,7 +22,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     feasible_solution_callback::Union{Nothing, Function}
     problem::Union{Nothing, OptimalControlProblem}
     status::MOI.TerminationStatusCode
-    upper_bound::Float64
+    upper_bound::T
     solve_time::Float64
     num_total::Int
     num_iter::Int
@@ -30,8 +30,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     num_pruned_bound::Int
     num_pruned_inf::Int
     best_traj::Union{Nothing, ContinuousTrajectory}
-    function Optimizer()
-        return new(
+    function Optimizer{T}() where {T}
+        return new{T}(
             nothing, nothing, nothing, nothing, nothing,
             0, false, 1, 0:100:typemax(Int),
             1000, 60.0, nothing, nothing,
@@ -79,9 +79,9 @@ function number_of_nodes(prob)
     return num
 end
 
-function candidate(prob, algo, Q_function, traj)
+function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     sub_algo = optimizer_with_attributes(
-        BemporadMorari.Optimizer,
+        BemporadMorari.Optimizer{T},
         "continuous_solver" => algo.continuous_solver,
         "mixed_integer_solver" => algo.mixed_integer_solver,
         "indicator" => algo.indicator,
@@ -132,7 +132,7 @@ function candidate(prob, algo, Q_function, traj)
         status_horizon = MOI.NO_SOLUTION
     end
     if status_horizon == MOI.NO_SOLUTION
-        ub = Inf
+        ub = typemax(T) # ∞
         sol_traj = nothing
     else
         ub = start_cost + MOI.get(horizon_optimizer, MOI.ObjectiveValue())
@@ -179,14 +179,14 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
     return
 end
 
-function MOI.optimize!(optimizer::Optimizer)
+function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     start_time = time()
     prob = optimizer.problem
     if iszero(prob.number_of_time_steps)
         if optimizer.problem.q_T == optimizer.problem.q_0
             optimizer.status = MOI.OPTIMAL
-            optimizer.best_traj = ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
-            optimizer.upper_bound = 0.0
+            optimizer.best_traj = ContinuousTrajectory(Vector{T}[], Vector{T}[])
+            optimizer.upper_bound = zero(T)
         else
             optimizer.status = MOI.INFEASIBLE
         end
@@ -199,7 +199,7 @@ function MOI.optimize!(optimizer::Optimizer)
         return
     end
     if optimizer.lower_bound === nothing
-        optimizer.lower_bound = DiscreteLowerBoundAlgo(optimizer.continuous_solver)
+        optimizer.lower_bound = DiscreteLowerBoundAlgo{T}(optimizer.continuous_solver)
     end
     optimizer.Q_function = Dionysos.instantiate(prob, optimizer.lower_bound)
     if optimizer.Q_function_init !== nothing
