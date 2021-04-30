@@ -7,7 +7,7 @@ using Dionysos
 _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 
 function _prob( N, q0, x0::Vector{T}, zero_cost::Bool) where {T}
-    system = gol_lazar_belta(Polyhedra.DefaultLibrary{T}(GLPK.Optimizer), T)
+    system = gol_lazar_belta(CDDLib.Library(), T)
     if zero_cost
         state_cost = Fill(ZeroFunction(), nmodes(system))
     else
