@@ -173,16 +173,16 @@ end
                 CDDLib.Library(),
                 1e-5, 1e-4, 1))
                                            # Gurobi | OSQP
-        Q9 = _test9(qalgo(782), Float64)   #    746 | 782
+        Q9 = _test9(qalgo(789), Float64)   #    746 | 789
         @show sum(length.(Q9.cuts))
-        _test9(algo(775, Q9), Float64)     #    821 | 775
+        _test9(algo(821, Q9), Float64)     #    821 | 782
         _test11(algo(74, Q9), Float64)     #     74 | 74
         Q11 = _test11(qalgo(75), Float64)  #     75 | 75
         @show sum(length.(Q11.cuts))
-        _test9(algo(800, Q11), Float64)    #    785 | 800
+        _test9(algo(800, Q11), Float64)    #    785 | 782
         _test11(algo(74, Q11), Float64)    #     74 | 74
         Q = Dionysos.q_merge(Q9, Q11)
-        _test9(algo(775, Q), Float64)      #    818 | 775
+        _test9(algo(818, Q), Float64)      #    818 | 775
         _test11(algo(74, Q), Float64)      #     74 | 74
     end
     tests(qp_solver, miqp_solver)
