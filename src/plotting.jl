@@ -1,8 +1,8 @@
 # All plotting functions
 module Plot
-
-import ..Abstraction
-AB = Abstraction
+import Dionysos
+import Dionysos.Abstraction
+AB = Dionysos.Abstraction
 
 using LinearAlgebra
 using StaticArrays
