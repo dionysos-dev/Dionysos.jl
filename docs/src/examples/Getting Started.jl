@@ -1,15 +1,31 @@
-using StaticArrays
+# # Getting Started
+#
+#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Getting Started.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Getting Started.ipynb)
+#
+# In this file we will visit the basic functionalities provided by Dionysos for the optimal control of complex systems.
+# 
+# First, let us import a few packages that are necessary to run this example.
 using Dionysos
+using StaticArrays
+using LinearAlgebra
 using PyPlot
 
+# The main package [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) provides most important data structures that we will need.
+# Additionally  [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) provides faster implementation of Arrays (which have static memory allocation),
+# [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/) allows us to perform some additional operations and [PyPlot](https://github.com/JuliaPy/PyPlot.jl) is
+# important for data visualization.
+
 include("../../../src/plotting.jl")
+
+# The submodule [plotting.jl](@__REPO_ROOT_URL__/src/plotting.jl) has functions that will be useful for 2D-visualization of the functions that we are implementing.
+
 AB = Dionysos.Abstraction;
 
-
-
-# State-space defined 
+# Additionally, we will short the [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl) submodule as `AB` 
+#
+# We use Hyper
 _X_ = AB.HyperRectangle(SVector(-2, -2), SVector(2, 2));
-
 _U_ = AB.HyperRectangle(SVector(-5), SVector(5));
 
 x0 = SVector(0.0, 0.0);
