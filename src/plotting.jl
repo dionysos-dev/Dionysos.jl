@@ -111,6 +111,32 @@ function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
     ax.add_collection(polylist)
 end
 
+function cell_pre_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
+        nsub = fill(5, N),
+        fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
+    @assert length(vars) == 2 && N >= 2
+    fca = FC(fc, fa)
+    eca = FC(ec, ea)
+    vertslist = Vector{SVector{2,T}}[]
+    ns = nsub .- 1
+
+    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
+        x = AB.get_coord_by_pos(Xdom.grid, xpos)
+        u = AB.get_coord_by_pos(Udom.grid, upos)
+        subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i in 1:length(ns))
+        subpos_iter = Iterators.product(subpos_axes...)
+        x_iter = (x + subpos.*Xdom.grid.h for subpos in subpos_iter)
+        Fx_iter = (contsys.sys_inv_map(x, u, contsys.tstep) for x in x_iter)
+        push!(vertslist, convex_hull([project(Fx, vars) for Fx in Fx_iter][:]))
+    end
+
+    polylist = matplotlib.collections.PolyCollection(vertslist)
+    polylist.set_facecolor(fca)
+    polylist.set_edgecolor(eca)
+    polylist.set_linewidth(ew)
+    ax.add_collection(polylist)
+end
+
 # Outer-approximation
 function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemGrowth{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}

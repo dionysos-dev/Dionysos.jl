@@ -18,6 +18,7 @@ Xgrid = AB.GridFree(x0, h);
 # Construction of the struct `DomainList` containing the feasible cells of the state-space.
 # Note, we used `AB.INNER` to make sure to add cells entirely contained in the domain because we are working with a safety problem.
 Xfull = AB.DomainList(Xgrid);
+
 AB.add_set!(Xfull, _X_, AB.INNER)
 
 
@@ -29,8 +30,9 @@ Ugrid = AB.GridFree(u0, h);
 Ufull = AB.DomainList(Ugrid);
 AB.add_set!(Ufull, _U_, AB.INNER);
 
-tstep = 0.1
-nsys=1;
+tstep = 0.1;
+nsys=10;
+ngrowthbound=10;
 A = SMatrix{2,2}(0.0, 1.0,
                     -3.0, 1.0);
 B = SMatrix{2,1}(0.0, 1.0);
@@ -38,14 +40,16 @@ B = SMatrix{2,1}(0.0, 1.0);
 F_sys = let A = A
     (x,u) -> A*x + B*u
 end;
+L_growthbound = x -> abs.(A)
+
 DF_sys =  (x,u) -> A;
 bound_DF = x -> 0;
 bound_DDF = x -> 0;
 
 measnoise = SVector(0.0, 0.0);
-
-contsys = AB.NewControlSystemLinearizedRK4(tstep, F_sys, DF_sys, bound_DF, bound_DDF,
-                    measnoise, nsys)
+sysnoise = SVector(0.0, 0.0);
+contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
+                                       measnoise, nsys, ngrowthbound);
 
 # Construction of the abstraction:
 symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
@@ -58,13 +62,17 @@ initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
 
 
 xpos = AB.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
-upos = AB.get_pos_by_coord(Ugrid, SVector(1))
+upos = AB.get_pos_by_coord(Ugrid, SVector(-1))
+
 x = AB.get_coord_by_pos(Xgrid, xpos)
 u = AB.get_coord_by_pos(Ugrid, upos)
-Xsimple = AB.DomainList(Xgrid)
-AB.add_pos!(Xsimple, xpos)
-Usimple = AB.DomainList(Ugrid)
-AB.add_pos!(Usimple, upos)
+
+
+Xspecific = AB.DomainList(Xgrid)
+AB.add_pos!(Xspecific, xpos)
+
+Uspecific = AB.DomainList(Ugrid)
+AB.add_pos!(Uspecific, upos)
 
 PyPlot.pygui(true)
 fig = PyPlot.figure()
@@ -75,8 +83,26 @@ Plot.domain!(ax, 1:2, Xinit, fc = "green")
 ax.set_xlim(-2, 2)
 ax.set_ylim(-2, 2)
 
-Plot.domain!(ax, 1:2, Xsimple, fc = "red")
-Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
+Plot.domain!(ax, 1:2, Xspecific, fc = "blue")
+
+
+r = Xgrid.h/2.0
+Fr = contsys.growthbound_map(r, u, -contsys.tstep) + contsys.measnoise
+Fx = contsys.sys_inv_map(x, u, contsys.tstep)
+rectI = AB.get_pos_lims_outer(Xgrid, AB.HyperRectangle(Fx - Fr, Fx + Fr))
+
+
+Xtarget = AB.DomainList(Xgrid)
+for y in Iterators.product(AB._ranges(rectI)...)
+    target = AB.get_state_by_xpos(symmodel, y)
+    AB.add_pos!(Xtarget, y)
+end
+
+Plot.domain!(ax, 1:2, Xtarget, fc = "red")
+Plot.cell_pre_image!(ax, 1:2, Xspecific, Uspecific, contsys)
+
+Plot.cell_image!(ax, 1:2, Xspecific, Uspecific, contsys)
+
 #Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)
 
 #Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)
