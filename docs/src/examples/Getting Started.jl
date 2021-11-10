@@ -117,7 +117,7 @@ for pos in symmodel.xint2pos[post]
 end
 
 # Let us visualize this
-PyPlot.pygui(true)
+PyPlot.pygui(true) #jl
 fig = PyPlot.figure()
 
 ax = PyPlot.axes(aspect = "equal")
