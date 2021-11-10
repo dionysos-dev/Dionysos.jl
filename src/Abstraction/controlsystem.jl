@@ -97,6 +97,10 @@ function NewControlSystemLinearizedRK4(tstep, F_sys, DF_sys, bound_DF, bound_DDF
             RungeKutta4Linearized(
                 F_sys, DF_sys, x, dx, u, tstep, nsys)::Tuple{SVector{N,T},SMatrix{N,N,T}}
     end
+    sys_inv_map = let nsys = nsys
+        (x::SVector{N,T}, u, tstep) ->
+            RungeKutta4(F_sys, x, u, -tstep, nsys)::SVector{N,T}
+    end
     error_map = (r::T, u, tstep) ->
         BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep)*(r^2)::T
     return ControlSystemLinearized(tstep, measnoise, sys_map, linsys_map, error_map,sys_inv_map)
