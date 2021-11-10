@@ -120,39 +120,42 @@ xu = MOI.get(optimizer, ContinuousTrajectoryAttribute());
 
 # A little bit of data visualization now:
 
-using Plots
+using PyPlot
 using Colors
 
 ##Auxiliary function for annotating
-function text_in_set_plot!(pl, po, t; kws...)
+function text_in_set_plot!(ax, po, t; kws...)
     ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
     solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.ON)
-    plot!(pl, po; kws...)
+    plot!(ax, po; kws...)
     if t !== nothing
         c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
-        annotate!(pl, [(c..., text(t, 12))])
+        annotate!(ax, [(c..., text(t, 12))])
     end
 end
 
 ##Initialize our canvas
-p = Plots.plot(fmt = :png, fillcolor = :white)
+PyPlot.pygui(true) #jl
+fig = PyPlot.figure()
+
+ax = PyPlot.axes(aspect = "equal")
 
 ##Show the discrete modes
 for mode in states(system)
     t = (system.ext[:q_T] in [mode, mode + 11]) ? "XT" : (mode == system.ext[:q_A] ? "A" : (mode == system.ext[:q_B] ? "B" :
             mode <= 11 ? string(mode) : string(mode - 11)))
-    text_in_set_plot!(p, stateset(system, mode), t, fillcolor = :white, linecolor = :black)
+    text_in_set_plot!(ax, stateset(system, mode), t, fillcolor = :white, linecolor = :black)
 end
 
 ##Plot obstacles
 for i in eachindex(system.ext[:obstacles])
-    text_in_set_plot!(p, system.ext[:obstacles][i], "O$i", fillcolor = :black, fillalpha = 0.1)
+    text_in_set_plot!(ax, system.ext[:obstacles][i], "O$i", fillcolor = :black, fillalpha = 0.1)
 end
 
 
 ##Initial state
-scatter!(p, [x0[1]], [x0[2]])
-annotate!(p, [(x0[1], x0[2] - 0.5, text("x0", 10))])
+scatter!(ax, [x0[1]], [x0[2]])
+annotate!(ax, [(x0[1], x0[2] - 0.5, text("x0", 10))])
 
 ##Split the vector into x1 and x2
 x1 = [xu.x[j][1] for j in eachindex(xu.x)]
