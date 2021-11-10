@@ -19,5 +19,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 
+LazySets = "b4f0291d-fe17-52bc-9479-3d1a343d9043"
+
 [compat]
 Documenter = "0.26"
