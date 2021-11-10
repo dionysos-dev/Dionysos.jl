@@ -22,7 +22,26 @@ function project(x, vars)
     return SVector(x[vars[1]], x[vars[2]])
 end
 
-# Cells
+# Cell - single
+function cell!(ax, vars, grid::AB.GridFree{N, Float64}, cell;
+        fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
+
+    @assert length(vars) == 2 && N >= 2
+    fca = FC(fc, fa)
+    eca = FC(ec, ea)
+    h = project(grid.h, vars)
+    
+ 
+    c = project(AB.get_coord_by_pos(grid, cell), vars)
+    
+    poly = matplotlib.patches.Polygon(verts_rect(c, h/2.0))
+    poly.set_facecolor(fca)
+    poly.set_edgecolor(eca)
+    poly.set_linewidth(ew)
+    ax.add_patch(poly)
+end
+
+# Cells - Domains
 function domain!(ax, vars, domain::AB.Domain{N,T};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
     grid = domain.grid
