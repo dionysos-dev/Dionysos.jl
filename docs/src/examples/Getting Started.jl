@@ -3,7 +3,11 @@
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Getting Started.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Getting Started.ipynb)
 #
-# In this file we will visit the basic functionalities provided by Dionysos for the optimal control of complex systems.
+# In this file we will visit the basic functionalities provided by Dionysos for the optimal control of complex systems. In summary, the topics covered are
+# - Grids and discretizations
+# - Dynamical system declaration
+# - Continuous and discrete state image mapping
+# - Plotting
 # 
 # First, let us import a few packages that are necessary to run this example.
 using Dionysos
@@ -20,7 +24,7 @@ include("../../../src/plotting.jl")
 
 # The submodule [plotting.jl](@__REPO_ROOT_URL__/src/plotting.jl) has functions that will be useful for 2D-visualization of the functions that we are implementing.
 
-AB = Dionysos.Abstraction;
+const AB = Dionysos.Abstraction;
 
 # Additionally, we will short the [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl) submodule as `AB` 
 #
@@ -28,13 +32,13 @@ AB = Dionysos.Abstraction;
 rectX = AB.HyperRectangle(SVector(-2, -2), SVector(2, 2));
 rectU = AB.HyperRectangle(SVector(-5), SVector(5));
 
-# A discretization of the state space if declared using the `GridFree` structure, which requires the definition of a center `x0` and 
+# A discretization of the state space is declared using the `GridFree` structure, which requires the definition of a center `x0` and 
 # a vector `h` of discretization steps in each direction.
 x0 = SVector(0.0, 0.0);
 h = SVector(1.0/5, 1.0/5);
 Xgrid = AB.GridFree(x0, h);
 
-# `Xgrid` represents the state space grid and holds information on `x0` and `h` but is not a collection of cells. In Dionysos, a set of cells is called a `Domain`
+# `Xgrid` represents the state space grid and holds information of `x0` and `h`, but is not a collection of cells. Indeed, a cell can be efficiently represented by a tuple of `Int`, for instance 'pos', with which the corresponding cartesian position can be computed by `x0 + h .* pos` or using functions to be shown. In Dionysos, a set of cells is called a `Domain`
 # and the `DomainList` structure is used to represent this set. In the following, `domainX` is defined as an empty `DomainList` over the grid `Xgrid` and the `add_set!`
 # method is responsible for adding a set of cells to the `DomainList` 
 
@@ -47,14 +51,14 @@ AB.add_set!(domainX, rectX, AB.INNER)
 # HyperRectangle, `AB.OUTER` should be used instead.
 
 
-# Similarly we define a discretization of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
+# Similarly, we define a discretization of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0);
 h = SVector(1.0/5);
 Ugrid = AB.GridFree(u0, h);
 domainU = AB.DomainList(Ugrid);
 AB.add_set!(domainU, rectU, AB.INNER);
 
-# Now we have to define our dynamical system. For the sake os simplicity, note that we consider a linear time-invariant dynamical system but the functions 
+# Now we have to define our dynamical system. For the sake of simplicity, note that we consider a linear time-invariant dynamical system but the functions 
 # defining it allow the definition of a generic nonlinear and time-dependent system. We also define a step time `tstep` for discretizing the continuous-time dynamic.
 # The parameters
 tstep = 0.1; 
@@ -69,28 +73,28 @@ F_sys = let A = A
     (x,u) -> A*x + B*u
 end;
 
-# We also need to define a growth-bound function, which allows for the state-space discretization errors. For more details on growth bounds, please refer to [this paper](https://arxiv.org/pdf/1503.03715v1.pdf).
+# We also need to define a growth-bound function, which allows for the state-space discretization errors. For more details on growth bounds, please refer to [(Reissig, Weber, and Rungger, 2016)](https://arxiv.org/pdf/1503.03715v1.pdf).
 ngrowthbound=10; # Runge-Kutta pre-scaling
 A_diag = diagm(diag(A));
 A_abs = abs.(A) - abs.(A_diag) + A_diag
 L_growthbound = x -> abs.(A)
 
-# Finally we define the boudaries for the input system noise `sysnoise` and for the measurement noise `measnoise`
+# Finally we define the bounds on the input noise `sysnoise` and for the measurement noise `measnoise` of the system
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
 
-# And now the instatiation of the ControlSystem
+# And now the instantiation of the ControlSystem
 contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
 
-# With that in hand, we can now proceed to the contruction of a symbolic model of our system. Construction of the abstraction:
+# With that in hand, we can now proceed to the construction of a symbolic model of our system
 symmodel = AB.NewSymbolicModelListList(domainX, domainU);
 
-# Now we use the method `compute_symmodel_from_controlsystem!` to build the transitions of the symbolic control system based on the provided domains and the dynamics
+# The method `compute_symmodel_from_controlsystem!` builds the transitions of the symbolic control system based on the provided domains and the dynamics
 # defined in `contsys`
 AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
-# Let us now explore what transitions have been created considering, for instance, the state `x`=[1.1  1.3] and the input `u`=-1. First let us recover the cell in the grid
+# Let us now explore what transitions have been created considering, for instance, the state `x`=[1.1  1.3] and the input `u`=-1. First, let us pin point the cell in the grid
 # associated with this state and this input. The method `get_pos_by_coord` returns a tuple of integers defining the indices of a cell coontaining a given coordinate.
 xpos = AB.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
 upos = AB.get_pos_by_coord(Ugrid, SVector(-1))
@@ -132,6 +136,6 @@ Plot.domain!(ax, vars, domainPostx, fc = "green")
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
 # the corresponding Post domain in green. The argument `vars` given to the Plot functions refer to the projection
 # of the state space onto the subspace of variables 1 and 2. In this case this is an identity mapping but for
-# higher-order systems, this projection is useful to visualize the behavior of the system on a 2-dimensional
+# higher-order systems, this projection is useful to visualize the behavior of the system on a 2-dimensional space.
 # 
 
