@@ -3,6 +3,19 @@ using Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
 
+# function to get vertices of polygon in the good cw order (for plotting)
+function get_ordered_vertices(po)
+    center = center_of_mass(po)
+    p = [points(po)...]
+    sort!(p, lt=(a,b) -> begin
+        a_ang = atan((a-center)...) % 2pi
+        b_ang = atan((b-center)...) % 2pi
+        return a_ang<b_ang
+    end)
+    return p
+end
+
+
 function gol_lazar_belta(lib, T::Type)
     function rect(x_l, x_u)
         r = HalfSpace([-1], -T(x_l)) ∩ HalfSpace([1], T(x_u))

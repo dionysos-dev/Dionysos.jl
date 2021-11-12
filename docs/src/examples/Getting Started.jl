@@ -128,6 +128,8 @@ vars = [1, 2];
 Plot.domain!(ax, vars, domainX, fc = "white")
 Plot.cell!(ax, vars, Xgrid, xpos, fc = "blue")
 Plot.domain!(ax, vars, domainPostx, fc = "green")
+gcf() #md
+gcf() #nb
 
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
 # the corresponding Post domain in green. The argument `vars` given to the Plot functions refer to the projection
