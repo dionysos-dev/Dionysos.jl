@@ -135,7 +135,7 @@ function text_in_set_plot!(ax, po, t;  fillcolor = :white, linecolor = :black, f
     
     if t !== nothing
         c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
-        ax.annotate(t, c, ha="center")
+        ax.annotate(t, c, ha="center", va="center")
     end
 end
 
@@ -162,7 +162,7 @@ end
 
 ##Initial state
 ax.scatter([x0[1]], [x0[2]])
-ax.annotate("x0", [x0[1], x0[2]-0.5], ha="center")
+ax.annotate("x0", [x0[1], x0[2]-0.5], ha="center", va="center")
 
 ##Split the vector into x1 and x2
 x1 = [xu.x[j][1] for j in eachindex(xu.x)]
