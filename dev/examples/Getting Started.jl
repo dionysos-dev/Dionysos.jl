@@ -79,6 +79,7 @@ A_diag = diagm(diag(A));
 A_abs = abs.(A) - abs.(A_diag) + A_diag
 L_growthbound = x -> abs.(A)
 
+
 # Finally we define the bounds on the input noise `sysnoise` and for the measurement noise `measnoise` of the system
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
@@ -132,6 +133,8 @@ vars = [1, 2];
 Plot.domain!(ax, vars, domainX, fc = "white")
 Plot.cell!(ax, vars, Xgrid, xpos, fc = "blue")
 Plot.domain!(ax, vars, domainPostx, fc = "green")
+gcf() #md
+gcf() #nb
 
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
 # the corresponding Post domain in green. The argument `vars` given to the Plot functions refer to the projection
