@@ -9,18 +9,18 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     
     eye(n) = diagm(ones(n))
     A = subsys.A
-    Bc = subsys.B
-    g= subsys.c
+    B = subsys.B
+    g = subsys.c
     n = length(c);
     m = size(U[1],2);
     N = size(W,2);
     p = size(W,1);
     Nu = length(U);
-    B = Bc[:,1:m]
-    H = Bc[:,(m+1):(m+p)]
+    optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
-    model = Model(Mosek.Optimizer)
-    @variable(model, K[i=1:m,j=1:n])
+
+    model = Model(optimizer)
+    @variable(model, K[i=1:m,j=1:n]) 
     @variable(model, ell[i=1:m,j=1])
     @variable(model, bta[i=1:N] >= 0)
     @variable(model, tau[i=1:Nu] >= 0)
@@ -38,11 +38,12 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     z = zeros(n,1);
     
     for i in 1:N
-        w = H*W[:,i];
+        w = W[:,i];
+        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
         @SDconstraint(model,
             [bta[i]*P        z         t(At)
-            t(z)        1-bta[i]    t(A*c+gt-cp+w)
-             At       A*c+gt-cp+w      inv(Pp)           ] ⪰ eye(2*n+1)*1e-4)
+            t(z)        1-bta[i]        t(aux)
+             At       aux      inv(Pp)           ] ⪰ eye(2*n+1)*1e-4)
 
     end
     
@@ -81,7 +82,7 @@ function _compute_base_cell(r::SVector{S}) where S
     return polyhedron(intersect(baseCellList...))
 end
 
-function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N},
+function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
     hybridsys::AbstractHybridSystem, W, L, Uc) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
@@ -96,14 +97,15 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N},
     Pm = 1/(r'P*r) * P
 
     function get_mode(x)
-        return sum(map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes)))
+        o = map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes))
+        return o[o.>0][1]
     end
 
 
 
-    
+    trans_count = 0
     for xpos in Xdom.elems
-
+        
         source = get_state_by_xpos(symmodel, xpos)
         x = get_coord_by_pos(Xdom.grid, xpos)
         m = get_mode(x)
@@ -114,9 +116,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N},
         c = vrep([Vector(hybridsys.modes[m].c)])
         U = hybridsys.modes[m].U
         
-        transitionCost = Dict()
-        transitionKappa = Dict()
-        xpost = A*xcell + Matrix(B)*Diagonal([1.0; 0; 0])*U + c
+        xpost = A*xcell + (B)*U + c
 
         v_xpost = hcat(points(xpost)...)
            
@@ -126,18 +126,23 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N},
         xmpos_iter = Iterators.product(_ranges(rectI)...)
         for xmpos in xmpos_iter
             xm = get_coord_by_pos(Xdom.grid, xmpos) 
+         #   println("from\t $(x)\n","to\t $(xm)")
             ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,Uc)
+          #  println("created? \t$(ans)\n\n")
             if(ans)
+                trans_count += 1
                 target = get_state_by_xpos(symmodel, xmpos)
-                add_transition!(symmodel.autom, source, target, target)
-                transitionCost[(source,c)] = cost
-                transitionKappa[(source,c)] = kappa
+                simbol = get_symbol_by_upos(symmodel, xmpos);
+                #println("->Added $(trans_count+1)\nfrom\t $(source)\n","to\t $(target)\n\n")
+                add_transition!(symmodel.autom, source, target, simbol)
+                transitionCost[(source,target)] = cost
+                transitionKappa[(source,target)] = kappa
             end
         end
-
-        # get over approximation of Axcell?
-        # get points in this over approximation (create domain)
-        # for each target in the domain, solve LMI, add transition if feasible
         
-    end    
+        
+    end
+    
+    println("compute_symmodel_from_controlsystem! terminated with success: ",
+    "$(trans_count) transitions created")    
 end

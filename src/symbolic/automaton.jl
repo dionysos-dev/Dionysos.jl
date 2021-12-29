@@ -30,6 +30,10 @@ function compute_post!(targetlist, autom::AutomatonList, source, symbol)
     UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 end
 
+function compute_available!(targetlist, autom::AutomatonList, source)
+    fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
+end
+
 function pre(autom::AutomatonList, target)
     return UT.fix_and_eliminate_first(autom.transitions, target)
 end

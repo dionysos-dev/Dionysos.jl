@@ -9,6 +9,11 @@ const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
 
+<<<<<<< HEAD:src/utils/plotting/plotting.jl
+=======
+import ..Abstraction
+const AB = Abstraction
+>>>>>>> compute transitions working:src/Abstraction/plotting.jl
 
 using LinearAlgebra
 using StaticArrays
