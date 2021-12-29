@@ -7,6 +7,13 @@ struct GridFree{N,T} <: Grid{N,T}
     h::SVector{N,T}
 end
 
+struct GridRectangular{N,T} <: Grid{N,T}
+    orig::SVector{N,T}
+    h::SVector{N,T}
+    rect::Any
+end
+
+
 function get_pos_by_coord(grid::Grid{N}, x) where N
     return ntuple(i -> round(Int, (x[i] - grid.orig[i])/grid.h[i]), Val(N))
 end
