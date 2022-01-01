@@ -89,46 +89,51 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     Udom = symmodel.Udom
 
     r = Xdom.grid.h/2.0
+    n_sys = length(r)
 
-    baseCell = _compute_base_cell(r)
 
-
-    P = Diagonal(inv.(r.^2))
-    Pm = 1/(r'P*r) * P
+    Pm = Diagonal(inv.(r.^2))
+    P = 1/(r'Pm*r) * Pm
 
     function get_mode(x)
         o = map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes))
         return o[o.>0][1]
     end
 
+    vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1,1]),1,n_sys))...))[:]
 
+    bds2rectverts(lb,ub) = hcat([v.*((ub-lb)/2)+(ub+lb)/2  for v in vec_list ]...)
+    function _compute_xpost(A,x,B,U,c,r)
+        Axcell = abs.(A)*bds2rectverts(x-r,x+r)
+        
+        Bu = B*hcat(points(U)...)
+        
+
+        return [min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c, max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c]
+    end
 
     trans_count = 0
+    @showprogress 1 "Computing symbolic control system: " (
     for xpos in Xdom.elems
         
         source = get_state_by_xpos(symmodel, xpos)
         x = get_coord_by_pos(Xdom.grid, xpos)
         m = get_mode(x)
-        xcell = vrep([x]) + baseCell
 
         A = hybridsys.modes[m].A
         B = hybridsys.modes[m].B
-        c = vrep([Vector(hybridsys.modes[m].c)])
+        c = hybridsys.modes[m].c
         U = hybridsys.modes[m].U
         
-        xpost = A*xcell + (B)*U + c
-
-        v_xpost = hcat(points(xpost)...)
-           
-        
-        rectI = get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ HyperRectangle(min(eachcol(v_xpost)...), max(eachcol(v_xpost)...)))
+        xpost = _compute_xpost(A,x,B,U,c,r)
+                
+        rectI = get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ HyperRectangle(xpost[1],xpost[2]))
 
         xmpos_iter = Iterators.product(_ranges(rectI)...)
         for xmpos in xmpos_iter
             xm = get_coord_by_pos(Xdom.grid, xmpos) 
-         #   println("from\t $(x)\n","to\t $(xm)")
             ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,Uc)
-          #  println("created? \t$(ans)\n\n")
+        
             if(ans)
                 trans_count += 1
                 target = get_state_by_xpos(symmodel, xmpos)
@@ -142,7 +147,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         
         
     end
-    
+    )
     println("compute_symmodel_from_controlsystem! terminated with success: ",
     "$(trans_count) transitions created")    
 end
