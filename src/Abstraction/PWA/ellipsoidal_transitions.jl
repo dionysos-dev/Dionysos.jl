@@ -2,6 +2,7 @@ using JuMP, GLPK, SCS, Gurobi, Mosek, MosekTools
 using LinearAlgebra
 using Polyhedra
 using HybridSystems
+using SpecialFunctions
 using ..Abstraction
 
 
@@ -92,8 +93,8 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     n_sys = length(r)
 
 
-    Pm = Diagonal(inv.(r.^2))
-    P = 1/(r'Pm*r) * Pm
+    Pm = (1/n_sys) * diagm(inv.(r.^2))
+    P =  Pm
 
     function get_mode(x)
         o = map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes))
@@ -104,12 +105,13 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
 
     bds2rectverts(lb,ub) = hcat([v.*((ub-lb)/2)+(ub+lb)/2  for v in vec_list ]...)
     function _compute_xpost(A,x,B,U,c,r)
-        Axcell = abs.(A)*bds2rectverts(x-r,x+r)
+        Axcell = A*bds2rectverts(x-r,x+r)
         
         Bu = B*hcat(points(U)...)
         
 
-        return [min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c, max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c]
+        return [min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c, #
+                max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c]
     end
 
     trans_count = 0
@@ -123,9 +125,9 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         A = hybridsys.modes[m].A
         B = hybridsys.modes[m].B
         c = hybridsys.modes[m].c
-        U = hybridsys.modes[m].U
+        Upoly = hybridsys.modes[m].U
         
-        xpost = _compute_xpost(A,x,B,U,c,r)
+        xpost = _compute_xpost(A,x,B,Upoly,c,r)
                 
         rectI = get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ HyperRectangle(xpost[1],xpost[2]))
 
@@ -137,9 +139,9 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
             if(ans)
                 trans_count += 1
                 target = get_state_by_xpos(symmodel, xmpos)
-                simbol = get_symbol_by_upos(symmodel, xmpos);
+                symbol = get_symbol_by_upos(symmodel, xmpos);
                 #println("->Added $(trans_count+1)\nfrom\t $(source)\n","to\t $(target)\n\n")
-                add_transition!(symmodel.autom, source, target, simbol)
+                add_transition!(symmodel.autom, source, target, symbol)
                 transitionCost[(source,target)] = cost
                 transitionKappa[(source,target)] = kappa
             end
@@ -150,4 +152,50 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     )
     println("compute_symmodel_from_controlsystem! terminated with success: ",
     "$(trans_count) transitions created")    
+end
+
+
+
+function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem)
+    
+    eye(n) = diagm(ones(n))
+    A = subsys.A
+    B = subsys.B
+    n = size(A,1);
+    m = size(B,2);
+    optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+
+
+    model = Model(optimizer)
+    @variable(model, L[i=1:m,j=1:n]) 
+    @variable(model, S[i=1:n,j=1:n], PSD) 
+    @variable(model, gamma >= 0)
+
+
+
+    t(x) = transpose(x);
+
+    
+    @SDconstraint(model, [S      t(A*S+B*L);
+                        A*S+B*L    S]        ⪰ 0)
+    @SDconstraint(model, eye(n) ⪰ S)
+    @SDconstraint(model, S ⪰ -gamma*eye(n))
+
+    
+    @objective(model, Min, gamma)
+
+    #print(model)
+    optimize!(model)
+
+    P = inv(value.(S));
+    K = value.(L)*P;
+    gamma = value(gamma);
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    return ans, K, P, gamma
+end
+
+
+function ellipsoid_vol(P,r) 
+    N = size(P,1)
+    return pi^(N/2)/(gamma(N/2+1))*det(P/r)^(-1/2)
 end

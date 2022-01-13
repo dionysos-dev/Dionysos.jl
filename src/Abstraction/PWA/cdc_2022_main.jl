@@ -39,7 +39,7 @@ pX = [pX1 pX2 pX3];
 
 dt = 0.01 
 
-W = [-1 -1  1 1;
+W = 5*[-1 -1  1 1;
      -1  1 -1 1]*dt; # polytope of disturbances
 
 PWAdomains = [pX1, pX2, pX3];
@@ -83,17 +83,18 @@ rectX = AB.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
 rectU = rectX
 
 
-step = 4 # discretization of one unit of space
+n_step = 4 # discretization of one unit of space
 X_origin = SVector(0.0, 0.0);
-X_step = SVector(1.0/step, 1.0/step);
-Xgrid = AB.GridRectangular(X_origin, X_step, rectX);
+X_step = SVector(1.0/n_step, 1.0/n_step);
+P = (1/n_sys)*diagm((X_step./2).^(-2))
+Xgrid = AB.GridEllipsoidalRectangular(X_origin, X_step, P, rectX);
 
 domainX = AB.DomainList(Xgrid); # state space
 AB.add_set!(domainX, rectX, AB.OUTER)
 
 
 domainU = domainX; # input space
-AB.add_set!(domainU, rectU, AB.INNER)
+AB.add_set!(domainU, rectU, AB.OUTER)
 
 #symbolic model for tilde S
 symmodel = AB.NewSymbolicModelListList(domainX, domainU);
@@ -101,7 +102,7 @@ symmodel = AB.NewSymbolicModelListList(domainX, domainU);
 
 # stage cost matrix (J = ||L*[x; u ; 1]||)
 
-L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)];
+L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
 
 transitionCost = Dict()  #dictionary with cost of each transition
 transitionKappa = Dict() #dictionary with controller associated each transition
@@ -144,13 +145,13 @@ x_traj[:,1] = x0;
 k = 1; #iterator
 costBound = 0;
 costTrue = 0;
-currState = AB.get_state_by_xpos(symmodel,AB.get_pos_by_coord(Xgrid,x_traj[:,k]));
+currState = AB.get_all_states_by_xpos(symmodel,AB.crop_to_domain(domainX,AB.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
 println("started at: $(currState)")
-while currState ∉ finallist && k ≤ K # While not at goal or not reached max iter 
+while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reached max iter 
       println("k: $(k)")
       next_action = nothing
       for action in contr.data
-            if(action[1]==currState)
+            if (action[1] ∩ currState) ≠ []
                   next_action = action
                   println("next action: $(next_action)")
                   break
@@ -158,7 +159,7 @@ while currState ∉ finallist && k ≤ K # While not at goal or not reached max 
       end
       println("cm: $(AB.get_coord_by_pos(Xgrid, AB.get_xpos_by_state(symmodel, next_action[2])))")
       
-      c = AB.get_coord_by_pos(Xgrid, AB.get_xpos_by_state(symmodel, currState))
+      c = AB.get_coord_by_pos(Xgrid, AB.get_xpos_by_state(symmodel, next_action[1]))
       println("c: $(c)")
 
 
@@ -171,16 +172,18 @@ while currState ∉ finallist && k ≤ K # While not at goal or not reached max 
 
       m = get_mode(c)
       
-      w = (2*rand(2).-1).*W[:,1]
+      w = (2*(rand(2).^(1/4)).-1).*W[:,1]
 
       x_traj[:,k+1] = A[m]*x_traj[:,k]+B[m]*u_traj[:,k] + g[m] + w
 
       global k += 1;
-      global currState = AB.get_state_by_xpos(symmodel, AB.get_pos_by_coord(Xgrid, x_traj[:,k]));
+      global currState =  AB.get_all_states_by_xpos(symmodel,AB.crop_to_domain(domainX,AB.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
       println("Arrived in: $(currState): $(x_traj[:,k])")
 end
 
-
+println("Goal set reached")
+println("Guaranteed cost:\t $(costBound)")
+println("True cost:\t\t $(costTrue)")
 
 
 #Plotting 

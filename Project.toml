@@ -19,6 +19,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
