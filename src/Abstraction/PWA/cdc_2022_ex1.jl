@@ -71,7 +71,7 @@ function trial(dt,Usz,Wmax,contraction,initial_vol)
             println("cp in B_s")
       end
 
-      @time has_transition, cost, kappa = AB._has_transition(system,P,c,Pp,cp,W,L,U)
+      has_transition, cost, kappa = AB._has_transition(system,P,c,Pp,cp,W,L,U)
       K = kappa[:,1:n_sys];
       ell = kappa[:,n_sys+1];
       sr = max(abs.(eigen(A+B*K).values)...);
@@ -149,7 +149,7 @@ CS = PyPlot.contour(initial_vol_span,contraction_span,cost_vector')
 PyPlot.clabel(CS, inline=1, fontsize=10)
 PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
 PyPlot.ylabel("\$\\eta\$", fontsize=14)
-PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
+PyPlot.title("\$\\widetilde{\\mathcal{J}}\$", fontsize=14)
 plt.savefig("ex1_cost.eps", format="eps")
 
 

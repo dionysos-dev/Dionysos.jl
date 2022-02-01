@@ -70,6 +70,7 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     kappa = [value.(K) value.(ell)];
     cost = value(J);
     ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    #println("$(solution_summary(model).solve_time) s")
     return ans, cost, kappa
 end
 

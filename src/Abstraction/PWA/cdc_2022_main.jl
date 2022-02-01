@@ -118,7 +118,7 @@ Xinit = AB.DomainList(Xgrid)
 AB.add_coord!(Xinit, x0)
 Xfinal = AB.DomainList(Xgrid) # goal set
 #AB.add_coord!(Xfinal, SVector(0.0, 0.0))
-AB.add_set!(Xfinal,AB.HyperRectangle(SVector(-1.1, 1.4), SVector(-1.1, 1.8)), AB.OUTER) 
+AB.add_set!(Xfinal,AB.HyperRectangle(SVector(-1.2, 1.0), SVector(-1.0, 1.0)), AB.OUTER) 
 
 
 initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)]; 
@@ -223,6 +223,7 @@ for t in symmodel.autom.transitions.data
 end
 gcf() 
 
+plt.savefig("trans_placeholder.eps", format="eps")
 
 
 fig = PyPlot.figure()
@@ -240,4 +241,7 @@ Plot.domain!(ax, vars, Xinit, fc = "gray")
 Plot.domain!(ax, vars, Xfinal, fc = "green")
 
 PyPlot.plot(x_traj[1,1:k],x_traj[2,1:k],"bo-")
+plt.savefig("ex1_cost.eps", format="eps")
 gcf() 
+
+plt.savefig("traj_placeholder.eps", format="eps")
