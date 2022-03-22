@@ -334,7 +334,7 @@ function MOI.get(optimizer::Optimizer, ::ContinuousTrajectoryAttribute)
     end
 end
 
-function MOI.get(optimizer::Optimizer, attr::Union{MOI.SolveTime, MOI.ObjectiveValue})
+function MOI.get(optimizer::Optimizer, attr::Union{MOI.SolveTimeSec, MOI.ObjectiveValue})
     if optimizer.discrete_presolve_status == TRIVIAL
         return 0.0
     else

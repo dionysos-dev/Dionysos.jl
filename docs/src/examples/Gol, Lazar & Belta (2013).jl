@@ -105,7 +105,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.optimize!(optimizer)
 
 # We check the solver time
-MOI.get(optimizer, MOI.SolveTime())
+MOI.get(optimizer, MOI.SolveTimeSec())
 
 # the termination status 
 termination = MOI.get(optimizer, MOI.TerminationStatus())
