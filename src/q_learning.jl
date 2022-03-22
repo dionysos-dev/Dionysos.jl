@@ -263,7 +263,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             else
                 found = false
                 for t in trans, v in eachindex(verts[t])
-                    if term.variable == λ[t, v].variable
+                    if term.variable == λ[t, v]
                         @assert !found
                         found = true
                         MA.operate!(MA.add_mul, λ_cons[t, v], -term.coefficient)
@@ -274,7 +274,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         end
 
         for t in trans, v in eachindex(verts[t])
-            if MOI.get(model, MOI.VariablePrimal(), λ[t, v].variable) <= algo.tight_tol
+            if MOI.get(model, MOI.VariablePrimal(), λ[t, v]) <= algo.tight_tol
                 @constraint(dual_model, λ_cons[t, v] <= 0)
             else
                 @constraint(dual_model, λ_cons[t, v] == 0)
