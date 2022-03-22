@@ -280,9 +280,9 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         δ_trans = IndicatorVariables(transs[t], t)
         δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, optimizer, δ_trans)
         state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode, T)
-        total_cost = MA.operate!(+, total_cost, state_cost)
+        total_cost = MA.operate!!(+, total_cost, state_cost)
         trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans, T)
-        total_cost = MA.operate!(+, total_cost, trans_cost)
+        total_cost = MA.operate!!(+, total_cost, trans_cost)
         modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
         transitions_constraints(model, prob.system, modes_prev, δ_mode_prev, modes[t], δ_mode, transs[t], δ_trans, T)
         δ_mode_prev = δ_mode

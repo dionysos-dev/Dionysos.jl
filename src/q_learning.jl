@@ -243,13 +243,13 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
                 @assert u_idx !== nothing
                 # d(coef * u^2)/du = 2coef * u. In MOI, the quadratic term is stored as
                 # `MOI.ScalarQuadraticTerm(2coef, u, u)` so we don't have to multiply by 2.
-                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -term.coefficient * u_value[u_idx])
+                MA.operate!(MA.add_mul, u_cons[u_idx], -term.coefficient * u_value[u_idx])
             else
                 ua_idx = findfirst(isequal(term.variable_index_1), u)
                 ub_idx = findfirst(isequal(term.variable_index_2), u)
                 if ua_idx !== nothing && ub_idx !== nothing
-                    MA.mutable_operate!(MA.add_mul, u_cons[ua_idx], -term.coefficient * u_value[ub_idx])
-                    MA.mutable_operate!(MA.add_mul, u_cons[ub_idx], -term.coefficient * u_value[ua_idx])
+                    MA.operate!(MA.add_mul, u_cons[ua_idx], -term.coefficient * u_value[ub_idx])
+                    MA.operate!(MA.add_mul, u_cons[ub_idx], -term.coefficient * u_value[ua_idx])
                 else
                     error("TODO")
                 end
@@ -259,14 +259,14 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             term.variable_index == θ && continue
             u_idx = findfirst(isequal(term.variable_index), u)
             if u_idx !== nothing
-                MA.mutable_operate!(MA.add_mul, u_cons[u_idx], -term.coefficient)
+                MA.operate!(MA.add_mul, u_cons[u_idx], -term.coefficient)
             else
                 found = false
                 for t in trans, v in eachindex(verts[t])
                     if term.variable_index == λ[t, v].variable
                         @assert !found
                         found = true
-                        MA.mutable_operate!(MA.add_mul, λ_cons[t, v], -term.coefficient)
+                        MA.operate!(MA.add_mul, λ_cons[t, v], -term.coefficient)
                     end
                 end
                 @assert found
