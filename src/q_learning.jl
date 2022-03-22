@@ -15,11 +15,8 @@ function minimum_transition_cost(prob, transition, solver, ::Type{T}, log_level 
     to = target(prob.system, transition)
     MOI.Bridges.add_bridge(model, Polyhedra.PolyhedraToLPBridge{T})
     x0, c0 = MOI.add_constrained_variables(model, Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, from))))
-    fx0 = MOI.SingleVariable.(x0)
     x1, c1 = MOI.add_constrained_variables(model, Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, to))))
-    fx1 = MOI.SingleVariable.(x1)
     u = MOI.add_variables(model, inputdim(resetmap(prob.system, transition)))
-    fu = MOI.SingleVariable.(u)
     algo = MOI.instantiate(optimizer_with_attributes(
         BemporadMorari.Optimizer{T},
         "continuous_solver" => solver,
@@ -28,11 +25,11 @@ function minimum_transition_cost(prob, transition, solver, ::Type{T}, log_level 
     # We use `1` as we asssume the cost is the same along time
     t = 1
     δ_mode = BemporadMorari.IndicatorVariables([to], t)
-    state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[t][[to]]), fx1, fu, δ_mode, T)
+    state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[t][[to]]), x1, u, δ_mode, T)
     symbols = [symbol(prob.system, transition)]
     δ_trans = BemporadMorari.IndicatorVariables(symbols, t)
-    δ_trans = BemporadMorari.hybrid_constraints(model, BemporadMorari.fillify(prob.system.resetmaps[symbols]), fx0, fx1, fu, algo, δ_trans)
-    trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[t][symbols]), fx0, fu, δ_trans, T)
+    δ_trans = BemporadMorari.hybrid_constraints(model, BemporadMorari.fillify(prob.system.resetmaps[symbols]), x0, x1, u, algo, δ_trans)
+    trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[t][symbols]), x0, u, δ_trans, T)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     obj = state_cost + trans_cost
     MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
@@ -186,33 +183,31 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         U = inputset(r)
         hashyperplanes(U) && error("TODO: Q-learning with input set with hyperplanes")
         u = MOI.add_variables(model, fulldim(U))
-        fu = MOI.SingleVariable.(u)
         U_h = collect(halfspaces(U))
-        u_con = [MOI.add_constraint(model, fu ⋅ hs.a, MOI.LessThan(hs.β)) for hs in U_h]
-        λ = Dict((t, v) => MOI.SingleVariable(MOI.add_constrained_variable(model, MOI.GreaterThan(zero(T)))[1])
+        u_con = [MOI.add_constraint(model, u ⋅ hs.a, MOI.LessThan(hs.β)) for hs in U_h]
+        λ = Dict((t, v) => MOI.add_constrained_variable(model, MOI.GreaterThan(zero(T)))[1]
             for t in trans for v in eachindex(verts[t])
         )
         #@variable(model, λ[t in trans, eachindex(verts[t])] ≥ 0)
         λs = collect(values(λ))
         MOI.add_constraint(model, BemporadMorari._sum(λs, T), MOI.EqualTo(one(T)))
         epi(i) = sum(λ[(t, v)] * convert(T, verts[t][v][i]) for t in trans for v in eachindex(verts[t]))
-        x_next = r.A * params + r.B * fu
+        x_next = r.A * params + r.B * u
         epi_con = [MOI.Utilities.normalize_and_add_constraint(model, x_next[j] - epi(j), MOI.EqualTo(zero(T))) for j in eachindex(x_next)]
         θ = MOI.add_variable(model)
-        fθ = MOI.SingleVariable(θ)
-        MOI.add_constraint(model, fθ - epi(length(x_next) + 1), MOI.GreaterThan(zero(T)))
+        MOI.add_constraint(model, θ - epi(length(x_next) + 1), MOI.GreaterThan(zero(T)))
         tos = [target(prob.system, t) for t in trans]
         δ_mode = JuMP.Containers.@container([mode in tos],
             BemporadMorari._sum((λ[t, v] for t in trans for v in eachindex(verts[t]) if target(prob.system, t) == mode), T)
         )
-        state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, fu, δ_mode, T)
+        state_cost, δ_mode = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.state_cost[i][tos]), x_next, u, δ_mode, T)
         symbols = symbol.(prob.system, trans)
         δ_trans = JuMP.Containers.@container([s in symbols],
             BemporadMorari._sum((λ[t, v] for t in trans for v in eachindex(verts[t]) if symbol(prob.system, t) == s), T)
         )
-        trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, fu, δ_trans, T)
+        trans_cost, δ_trans = BemporadMorari.hybrid_cost(model, BemporadMorari.fillify(prob.transition_cost[i][symbols]), x, u, δ_trans, T)
         MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-        obj = trans_cost + state_cost + fθ
+        obj = trans_cost + state_cost + θ
         MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
         MOI.optimize!(model)
         if MOI.get(model, MOI.TerminationStatus()) != MOI.OPTIMAL || MOI.get(model, MOI.PrimalStatus()) != MOI.FEASIBLE_POINT

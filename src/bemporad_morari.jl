@@ -91,9 +91,9 @@ function fillify(vector::AbstractVector)
 end
 inner_vector(f, vector) = fillify(map(f, vector))
 
-_value(model::MOI.ModelLike, v::MOI.SingleVariable) = MOI.get(model, MOI.VariablePrimal(), v.variable)
+_value(model::MOI.ModelLike, v::MOI.VariableIndex) = MOI.get(model, MOI.VariablePrimal(), v.variable)
 _value(::JuMP.Model, v::JuMP.VariableRef) = value(v)
-add_variable(model::MOI.ModelLike) = MOI.SingleVariable(MOI.add_variable(model))
+add_variable(model::MOI.ModelLike) = MOI.add_variable(model)
 add_variable(model::JuMP.Model) = @variable(model)
 add_constraint(model::MOI.ModelLike, func::AbstractVector, set) = MOI.add_constraint(model, MOI.Utilities.vectorize(func), set)
 add_constraint(model::MOI.ModelLike, func, set) = MOI.add_constraint(model, func, set)
