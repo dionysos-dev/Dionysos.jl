@@ -238,15 +238,15 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
         u_value = MOI.get.(model, MOI.VariablePrimal(), u)
         u_cons = r.B' * y
         for term in obj.quadratic_terms
-            if term.variable_index_1 == term.variable_index_2
-                u_idx = findfirst(isequal(term.variable_index_1), u)
+            if term.variable_1 == term.variable_2
+                u_idx = findfirst(isequal(term.variable_1), u)
                 @assert u_idx !== nothing
                 # d(coef * u^2)/du = 2coef * u. In MOI, the quadratic term is stored as
                 # `MOI.ScalarQuadraticTerm(2coef, u, u)` so we don't have to multiply by 2.
                 MA.operate!(MA.add_mul, u_cons[u_idx], -term.coefficient * u_value[u_idx])
             else
-                ua_idx = findfirst(isequal(term.variable_index_1), u)
-                ub_idx = findfirst(isequal(term.variable_index_2), u)
+                ua_idx = findfirst(isequal(term.variable_1), u)
+                ub_idx = findfirst(isequal(term.variable_2), u)
                 if ua_idx !== nothing && ub_idx !== nothing
                     MA.operate!(MA.add_mul, u_cons[ua_idx], -term.coefficient * u_value[ub_idx])
                     MA.operate!(MA.add_mul, u_cons[ub_idx], -term.coefficient * u_value[ua_idx])
@@ -256,14 +256,14 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             end
         end
         for term in obj.affine_terms
-            term.variable_index == θ && continue
-            u_idx = findfirst(isequal(term.variable_index), u)
+            term.variable == θ && continue
+            u_idx = findfirst(isequal(term.variable), u)
             if u_idx !== nothing
                 MA.operate!(MA.add_mul, u_cons[u_idx], -term.coefficient)
             else
                 found = false
                 for t in trans, v in eachindex(verts[t])
-                    if term.variable_index == λ[t, v].variable
+                    if term.variable == λ[t, v].variable
                         @assert !found
                         found = true
                         MA.operate!(MA.add_mul, λ_cons[t, v], -term.coefficient)
