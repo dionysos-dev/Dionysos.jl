@@ -34,7 +34,7 @@ function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost:
     if x_expected === nothing
         @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.INFEASIBLE
     else
-        @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.OPTIMAL
+        @test MOI.get(optimizer, MOI.TerminationStatus()) in [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
         xu = MOI.get(optimizer, ContinuousTrajectoryAttribute())
         @test typeof(x_expected) == typeof(xu.x)
         @test typeof(u_expected) == typeof(xu.u)
