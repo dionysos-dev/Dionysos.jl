@@ -41,10 +41,10 @@ end
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 
-function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     setproperty!(model, Symbol(param.name), value)
 end
-function MOI.get(model::Optimizer, param::MOI.RawParameter)
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 
@@ -103,8 +103,8 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         last_mode(prob.system, traj), length(traj)
     )
     start_optimizer = MOI.instantiate(sub_algo)
-    MOI.set(start_optimizer, MOI.RawParameter("modes"), modes)
-    MOI.set(start_optimizer, MOI.RawParameter("problem"), cont_traj_prob)
+    MOI.set(start_optimizer, MOI.RawOptimizerAttribute("modes"), modes)
+    MOI.set(start_optimizer, MOI.RawOptimizerAttribute("problem"), cont_traj_prob)
     MOI.optimize!(start_optimizer)
     if MOI.get(start_optimizer, MOI.TerminationStatus()) != MOI.OPTIMAL
         return
@@ -125,7 +125,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
             prob.q_T, min(left, algo.horizon)
         )
         horizon_optimizer = MOI.instantiate(sub_algo)
-        MOI.set(horizon_optimizer, MOI.RawParameter("problem"), horizon_prob)
+        MOI.set(horizon_optimizer, MOI.RawOptimizerAttribute("problem"), horizon_prob)
         MOI.optimize!(horizon_optimizer)
         status_horizon = MOI.get(horizon_optimizer, MOI.PrimalStatus())
     else

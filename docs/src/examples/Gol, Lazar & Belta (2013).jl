@@ -101,7 +101,7 @@ algo = optimizer_with_attributes(BemporadMorari.Optimizer{Float64},
 # and use it to solve the given problem, with the help of the abstraction layer 
 # MathOptInterface provided by [JuMP](https://github.com/jump-dev/JuMP.jl)  
 optimizer = MOI.instantiate(algo)
-MOI.set(optimizer, MOI.RawParameter("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.optimize!(optimizer)
 
 # We check the solver time

@@ -34,10 +34,10 @@ end
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 
-function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     setproperty!(model, Symbol(param.name), value)
 end
-function MOI.get(model::Optimizer, param::MOI.RawParameter)
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 

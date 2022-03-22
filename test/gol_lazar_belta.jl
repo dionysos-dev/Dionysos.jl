@@ -27,7 +27,7 @@ function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost:
     problem = _prob(N, q0, x0, zero_cost)
     @info("Solving... depth: $N")
     optimizer = MOI.instantiate(algo)
-    MOI.set(optimizer, MOI.RawParameter("problem"), problem)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
     @info("Solving... depth: $N")
     @time MOI.optimize!(optimizer)
     @info("Solved.")
