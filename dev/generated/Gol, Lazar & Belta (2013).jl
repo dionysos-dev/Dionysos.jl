@@ -63,10 +63,10 @@ algo = optimizer_with_attributes(BemporadMorari.Optimizer{Float64},
 );
 
 optimizer = MOI.instantiate(algo)
-MOI.set(optimizer, MOI.RawParameter("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.optimize!(optimizer)
 
-MOI.get(optimizer, MOI.SolveTime())
+MOI.get(optimizer, MOI.SolveTimeSec())
 
 termination = MOI.get(optimizer, MOI.TerminationStatus())
 
@@ -80,7 +80,7 @@ using Colors
 ##Auxiliary function for annotating
 function text_in_set_plot!(ax, po, t;  fillcolor = :white, linecolor = :black, fillalpha = 1)
     ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
-    solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.ON)
+    solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.GLP_ON)
     poly = matplotlib.patches.Polygon(get_ordered_vertices(po))
     poly.set_facecolor(fillcolor)
     poly.set_edgecolor(linecolor)
