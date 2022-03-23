@@ -34,10 +34,10 @@ end
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 
-function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     setproperty!(model, Symbol(param.name), value)
 end
-function MOI.get(model::Optimizer, param::MOI.RawParameter)
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 
@@ -91,9 +91,9 @@ function fillify(vector::AbstractVector)
 end
 inner_vector(f, vector) = fillify(map(f, vector))
 
-_value(model::MOI.ModelLike, v::MOI.SingleVariable) = MOI.get(model, MOI.VariablePrimal(), v.variable)
+_value(model::MOI.ModelLike, v::MOI.VariableIndex) = MOI.get(model, MOI.VariablePrimal(), v)
 _value(::JuMP.Model, v::JuMP.VariableRef) = value(v)
-add_variable(model::MOI.ModelLike) = MOI.SingleVariable(MOI.add_variable(model))
+add_variable(model::MOI.ModelLike) = MOI.add_variable(model)
 add_variable(model::JuMP.Model) = @variable(model)
 add_constraint(model::MOI.ModelLike, func::AbstractVector, set) = MOI.add_constraint(model, MOI.Utilities.vectorize(func), set)
 add_constraint(model::MOI.ModelLike, func, set) = MOI.add_constraint(model, func, set)
@@ -280,9 +280,9 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         δ_trans = IndicatorVariables(transs[t], t)
         δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, optimizer, δ_trans)
         state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode, T)
-        total_cost = MA.operate!(+, total_cost, state_cost)
+        total_cost = MA.operate!!(+, total_cost, state_cost)
         trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans, T)
-        total_cost = MA.operate!(+, total_cost, trans_cost)
+        total_cost = MA.operate!!(+, total_cost, trans_cost)
         modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
         transitions_constraints(model, prob.system, modes_prev, δ_mode_prev, modes[t], δ_mode, transs[t], δ_trans, T)
         δ_mode_prev = δ_mode
@@ -334,7 +334,7 @@ function MOI.get(optimizer::Optimizer, ::ContinuousTrajectoryAttribute)
     end
 end
 
-function MOI.get(optimizer::Optimizer, attr::Union{MOI.SolveTime, MOI.ObjectiveValue})
+function MOI.get(optimizer::Optimizer, attr::Union{MOI.SolveTimeSec, MOI.ObjectiveValue})
     if optimizer.discrete_presolve_status == TRIVIAL
         return 0.0
     else
