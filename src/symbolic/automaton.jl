@@ -1,11 +1,11 @@
 mutable struct AutomatonList <: HybridSystems.AbstractAutomaton
     nstates::Int
     nsymbols::Int
-    transitions::SortedTupleSet{3,Int}
+    transitions::UT.SortedTupleSet{3,Int}
 end
 
 function NewAutomatonList(nstates, nsymbols)
-    transitions = SortedTupleSet{3,Int}()
+    transitions = UT.SortedTupleSet{3,Int}()
     return AutomatonList(nstates, nsymbols, transitions)
 end
 
@@ -17,21 +17,21 @@ end
 # Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
 function HybridSystems.add_transition!(autom::AutomatonList, source, target, symbol)
-    push_new!(autom.transitions, (target, source, symbol))
+    UT.push_new!(autom.transitions, (target, source, symbol))
 end
 
 # translist is an iterable of Tuple{Int,Int,Int}
 function add_transitions!(autom::AutomatonList, translist)
-    append_new!(autom.transitions, translist)
+    UT.append_new!(autom.transitions, translist)
 end
 Base.empty!(autom::AutomatonList) = empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::AutomatonList, source, symbol)
-    fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
+    UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 end
 
 function pre(autom::AutomatonList, target)
-    return fix_and_eliminate_first(autom.transitions, target)
+    return UT.fix_and_eliminate_first(autom.transitions, target)
 end
 
 # function add_inputs_images_by_xref!(uref_coll, yref_coll, autom::AutomatonList, x_ref)

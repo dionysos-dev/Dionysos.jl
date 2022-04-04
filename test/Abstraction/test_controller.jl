@@ -1,25 +1,27 @@
-include("../../src/Abstraction/abstraction.jl")
+include("../../src/Dionysos.jl")
 
 module TestMain
 
 using Test
-using Main.Abstraction
-AB = Main.Abstraction
+using ..Dionysos
+DI = Dionysos
+UT = DI.Utils
+CO = DI.Control
 
 sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "Controller" begin
-contr = AB.NewControllerList()
+contr = CO.NewControllerList()
 
-AB.push_new!(contr, (5, 6))
-AB.push_new!(contr, (5, 6))
-AB.push_new!(contr, (5, 7))
-AB.push_new!(contr, (8, 6))
-AB.push_new!(contr, (5, 6))
-AB.push_new!(contr, (8, 7))
+UT.push_new!(contr, (5, 6))
+UT.push_new!(contr, (5, 6))
+UT.push_new!(contr, (5, 7))
+UT.push_new!(contr, (8, 6))
+UT.push_new!(contr, (5, 6))
+UT.push_new!(contr, (8, 7))
 
-symbollist = [x[1] for x in AB.fix_and_eliminate_first(contr, 5)]
+symbollist = [x[1] for x in UT.fix_and_eliminate_first(contr, 5)]
 sort!(unique!(symbollist))
 @test all(symbollist .== [6, 7])
 end

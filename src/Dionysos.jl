@@ -1,10 +1,9 @@
 module Dionysos
 
-include("BDD/BDD.jl")
-
-include("Abstraction/abstraction.jl")
-include("optimal_control.jl")
-include("bemporad_morari.jl")
-include("q_learning.jl")
-include("branch_and_bound.jl")
+include("utils/utils.jl")
+include("domain/domain.jl")
+include("system/system.jl")
+include("symbolic/symbolic.jl")
+include("control/control.jl")
+include("problem/problem.jl")
 end # module
