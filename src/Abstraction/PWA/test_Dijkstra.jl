@@ -31,7 +31,8 @@ function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
     while !isempty(Q)
         u = reduce((x, y) -> dist[x] < dist[y] ? x : y, Q)
         pop!(Q, u)
-        if dist[u] == inf || u == dest break end
+        #if dist[u] == inf || u == dest break end
+        if dist[u] == inf  break end
         for (v, cost) in neigh[u]
             alt = dist[u] + cost
             if alt < dist[v]
@@ -42,7 +43,7 @@ function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
     end
  
     # Return path
-    rst, cost = U[], dist[dest]
+    rst, cost = U[], dist
     if prev[dest] == dest
         return rst, cost
     else
@@ -53,6 +54,10 @@ function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
         pushfirst!(rst, dest)
         return rst, cost
     end
+end
+
+function reverse_graph(gc)
+    return gc
 end
  
 # testgraph = [("a", "b", 1), ("b", "e", 2), ("a", "e", 4)]

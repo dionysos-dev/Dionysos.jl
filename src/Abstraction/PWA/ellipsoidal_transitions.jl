@@ -1,4 +1,4 @@
-using JuMP, GLPK, SCS, Gurobi, Mosek, MosekTools
+using JuMP, GLPK, SCS, Gurobi, Mosek, MosekTools, OSQP
 using LinearAlgebra
 using Polyhedra
 using HybridSystems
@@ -89,30 +89,38 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
+    
 
     r = Xdom.grid.h/2.0
+
     n_sys = length(r)
-
-
-    Pm = (1/n_sys) * diagm(inv.(r.^2))
-    P =  Pm
-
-    function get_mode(x)
+    if Xdom.grid isa GridEllipsoidalRectangular
+        Pm = Xdom.grid.P
+        P = Pm
+        R = _get_min_bounding_box(P)
+        println(R)
+    else
+        Pm = (1/n_sys) * diagm(inv.(r.^2))
+        P =  Pm
+        R = r
+    end
+ 
+    function get_mode(x) # get affine mode number for a point x
         o = map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes))
         return o[o.>0][1]
     end
 
-    vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1,1]),1,n_sys))...))[:]
+    vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1,1]),1,n_sys))...))[:] # list of vertices of a hypersquare centered at the origin and length 2
 
-    bds2rectverts(lb,ub) = hcat([v.*((ub-lb)/2)+(ub+lb)/2  for v in vec_list ]...)
-    function _compute_xpost(A,x,B,U,c,r)
-        Axcell = A*bds2rectverts(x-r,x+r)
+    bds2rectverts(lb,ub) = hcat([v.*((ub-lb)/2)+(ub+lb)/2  for v in vec_list ]...) #generate a matrix containing vertices of a hyperrectangle with lower vertice lb and upper one ub
+    function _compute_xpost(A,x,B,U,c,R)
+        Axcell = A*bds2rectverts(x-R,x+R)
         
         Bu = B*hcat(points(U)...)
         
 
-        return [min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c, #
-                max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c]
+        return [min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c-R, #
+                max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c+R]
     end
 
     trans_count = 0
@@ -128,7 +136,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         c = hybridsys.modes[m].c
         Upoly = hybridsys.modes[m].U
         
-        xpost = _compute_xpost(A,x,B,Upoly,c,r)
+        xpost = _compute_xpost(A,x,B,Upoly,c,R)
                 
         rectI = get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ HyperRectangle(xpost[1],xpost[2]))
 
@@ -196,7 +204,28 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
 end
 
 
+
 function ellipsoid_vol(P,r) 
     N = size(P,1)
     return pi^(N/2)/(gamma(N/2+1))*det(P/r)^(-1/2)
+end
+
+function _get_min_bounding_box(P) # minimum bounding box for ellipsoid {x'Px<=1}
+    n = size(P,1)
+    R = zeros(n)
+    optimizer = optimizer_with_attributes(Gurobi.Optimizer, MOI.Silent() => true)
+    
+    model = Model(optimizer)
+    @variable(model, x[i=1:n])
+
+    @constraint(model, x'P*x  <= 1) 
+    
+    for i in 1:n
+        new_model, reference_map = copy_model(model)
+        set_optimizer(new_model,optimizer)
+        @objective(new_model, Max, reference_map[x[i]]*reference_map[x[i]])
+        optimize!(new_model)
+        R[i] = abs(value(reference_map[x[i]]))
+    end
+    return R
 end
