@@ -1,7 +1,7 @@
-abstract type Domain{N,T} end
+abstract type DomainType{N,T} end
 
 # Without S, add_set! and remove_set! where not type-stable...
-struct DomainList{N,T,S<:Grid{N,T}} <: Domain{N,T}
+struct DomainList{N,T,S<:Grid{N,T}} <: DomainType{N,T}
     grid::S
     elems::Set{NTuple{N,Int}}
 end
@@ -18,14 +18,14 @@ function add_coord!(domain, x)
     add_pos!(domain, get_pos_by_coord(domain.grid, x))
 end
 
-function add_set!(domain, rect::HyperRectangle, incl_mode::INCL_MODE)
+function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain.grid, rect, incl_mode)
     for pos in Iterators.product(_ranges(rectI)...)
         add_pos!(domain, pos)
     end
 end
 
-function add_subset!(domain1, domain2, rect::HyperRectangle, incl_mode::INCL_MODE)
+function add_subset!(domain1, domain2, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain1.grid, rect, incl_mode)
     pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_ncells(domain2)
@@ -51,7 +51,7 @@ function remove_coord!(domain, x)
     remove_pos!(domain, get_pos_by_coord(domain.grid, x))
 end
 
-function remove_set!(domain, rect::HyperRectangle, incl_mode::INCL_MODE)
+function remove_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain.grid, rect, incl_mode)
     pos_iter = Iterators.product(_ranges(rectI)...)
     if length(pos_iter) < get_ncells(domain)

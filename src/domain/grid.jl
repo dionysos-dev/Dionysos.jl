@@ -1,5 +1,6 @@
 abstract type Grid{N,T} end
 
+
 # Free because later: maybe put bounds lb and ub (e.g., for BDDs)
 struct GridFree{N,T} <: Grid{N,T}
     orig::SVector{N,T}
@@ -17,13 +18,13 @@ end
 function get_pos_lims_inner(grid::Grid{N}, rect) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] - grid.orig[i])/grid.h[i] + 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] - grid.orig[i])/grid.h[i] - 0.5), Val(N))
-    return HyperRectangle(lbI, ubI)
+    return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_lims_outer(grid::Grid{N}, rect) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] - grid.orig[i])/grid.h[i] - 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] - grid.orig[i])/grid.h[i] + 0.5), Val(N))
-    return HyperRectangle(lbI, ubI)
+    return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
@@ -34,6 +35,6 @@ function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
     end
 end
 
-function _ranges(rect::HyperRectangle{NTuple{N,T}}) where {N,T}
+function _ranges(rect::UT.HyperRectangle{NTuple{N,T}}) where {N,T}
     return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
 end
