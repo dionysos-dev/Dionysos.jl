@@ -4,7 +4,7 @@ module DomainList
 using ..Abstraction
 const AB = Abstraction
 
-using StaticArrays
+using StaticArrays,Plots
 
 struct RectanglularObstacles{VT} <: AbstractSet{VT}
     X::AB.HyperRectangle{VT}
@@ -13,58 +13,85 @@ end
 function Base.in(pos, dom::RectanglularObstacles)
     return !mapreduce(Base.Fix1(in, pos), |, dom.O, init=!in(pos, dom.X))
 end
-function _fit_grid(elems::RectanglularObstacles,grid)
-    return RectanglularObstacles(
-        AB.get_pos_lims_outer(grid, elems.X),
-        [AB.get_pos_lims_outer(grid, Oi) for Oi in elems.O],
-    )
+function _fit_grid(elems::RectanglularObstacles,grid,nx=nothing,fit=false)
+    if fit == true
+        N = length(nx)
+        lbI = ntuple(i -> 0, Val(N))
+        ubI = ntuple(i -> nx[i]-1, Val(N))
+        return RectanglularObstacles(
+            AB.HyperRectangle(lbI,ubI),
+            [AB.get_pos_lims_outer(grid, Oi) for Oi in elems.O],
+        )
+    else
+        return RectanglularObstacles(
+            AB.get_pos_lims_outer(grid, elems.X),
+            [AB.get_pos_lims_outer(grid, Oi) for Oi in elems.O],
+        )
+    end
 end
-_fit_grid(elems::Set,grid) = elems
+_fit_grid(elems::Set,grid,nx,fit) = elems
 
 ## add the periodicity in the domain (add into Domain.jl)
-struct GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:AB.Grid{N,T}} <: AB.Domain{N,T}
+struct GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:AB.Grid{N,T},F} <: AB.Domain{N,T}
     grid::S
     elems::E
     periodic::Vector{Int} # components which are periodic
     periods::Vector{Float64}  # periods
     T0::Vector{Float64}
-    nx::Vector{Int} # number of cell in the periodic directions
+    nx::Vector{Int} # number of cell in all direction (if fit) //the periodic directions
     lims::Union{Nothing,AB.HyperRectangle} # lower and upper bound on the non periodic dimensions
                             # can be used to be more efficient to compute the cells which belong to a
                             # given hypperrectangle and the domain if the rectangle is outside the domain
+    elemsCoord::F
+    fit::Bool
 end
 
 # hx is the desired step size, but for periodic direction, it can be changed to fit exactly to the period
 # (for periodic dims, hx has to fit exactly in the period)
 # The periods are [T0[i], T0[i] + periods[i]]
 # for periodic dimensions, I set the origin in T0[dim],it makes it easy to manage for pos thanks to nx
-function GeneralDomainList(hx,elems=Set{NTuple{length(hx),Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing)
+function GeneralDomainList(hx,elems=Set{NTuple{length(hx),Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing,fit=false,f=nothing,fi=nothing, A=nothing)
     N = length(hx)
     x0 = zeros(N)
-    nx = zeros(Int, length(periodic))
+    nx = zeros(Int, N) #zeros(Int, length(periodic))
+
     hx = collect(hx)
-    for (i,dim) in enumerate(periodic)
-        nx[i] = round(periods[i]/hx[dim])
-        hx[dim] = periods[i]./nx[i]
-        x0[dim] = T0[i] + hx[dim]/2.0
+    if fit==true
+        X = elems.X
+        for i=1:N
+            if !(i in periodic)
+                l = X.ub[i] - X.lb[i]
+                nx[i] = round(l/hx[i])
+                hx[i] = l./nx[i]
+                x0[i] = X.lb[i] + hx[i]/2.0
+            end
+        end
     end
 
+    for (i,dim) in enumerate(periodic)
+        nx[dim] = round(periods[i]/hx[dim])
+        hx[dim] = periods[i]./nx[dim]
+        x0[dim] = T0[i] + hx[dim]/2.0
+    end
     grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid,_fit_grid(elems,grid),periodic,periods,T0,nx,lims)
+    if f!=nothing
+        grid = AB.DeformedGrid(grid, f, fi, A)
+    end
+    return GeneralDomainList(grid,_fit_grid(elems,grid,nx,fit),periodic,periods,T0,nx,lims,elems,fit)
 end
 # it corrects the grid to be valid (with respect periodicity)
-function GeneralDomainList(grid::AB.GridFree{N},elems=Set{NTuple{N,Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing) where {N}
+function GeneralDomainList(grid::AB.Grid{N},elems=Set{NTuple{N,Int}}();periodic=Int[],periods=Float64[],T0=zeros(length(periodic)),lims=nothing) where {N}
     nx = zeros(Int, length(periodic))
-    x0 = collect(grid.orig)
-    hx = collect(grid.h)
     for (i,dim) in enumerate(periodic)
+        nx = zeros(Int, length(periodic))
+        x0 = collect(AB.get_origin(grid))
+        hx = collect(AB.get_h(grid))
         nx[i] = round(periods[i]/hx[dim])
         hx[dim] = periods[i]./nx[i]
         x0[dim] = T0[i] + hx[dim]/2.0
+        grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
     end
-
-    grid = AB.GridFree(SVector{N,Float64}(x0), SVector{N,Float64}(hx))
-    return GeneralDomainList(grid,_fit_grid(elems,grid),periodic,periods,T0,nx,lims)
+    return GeneralDomainList(grid,_fit_grid(elems,grid),periodic,periods,T0,nx,lims,elems,false)
 end
 
 
@@ -72,6 +99,11 @@ function GeneralDomainList(domain::GeneralDomainList)
     domain2 = GeneralDomainList(domain.hx;periodic=domain.periodic,periods=domain.periods)
     return domain2
 end
+
+function get_dim(domain::GeneralDomainList)
+    return  AB.get_dim(domain.grid)
+end
+
 ##
 function set_in_period_coord(domain::AB.DomainList,x)
     return x
@@ -92,11 +124,6 @@ function _coord_tuple(domain, i, j, t::Tuple)
 end
 
 function set_in_period_coord(domain::GeneralDomainList,x::SVector)
-    #=
-    for (i,dim) in enumerate(domain.periodic)  #doesnt work because of SVector
-        x[dim] = mod(x[dim],domain.periods[i])
-    end
-    =#
     if isempty(domain.periodic)
         return x
     else
@@ -104,43 +131,21 @@ function set_in_period_coord(domain::GeneralDomainList,x::SVector)
     end
 end
 
-_pos_tuple(domain, i, j, t::Tuple{}) = tuple()
-function _pos_tuple(domain, i, j, t::Tuple)
-    el, rest = first(t), Base.tail(t)
-    if i <= length(domain.periodic) && domain.periodic[i] == j
-        el = mod(el, domain.nx[i])
-        i += 1
+function  _pos_tuple(domain, pos)
+    pos = collect(pos)
+    for i in domain.periodic
+        pos[i] = mod(pos[i], domain.nx[i])
     end
-    return tuple(el, _pos_tuple(domain, i, j + 1, rest)...)
+    return Tuple(pos)
 end
-
 function set_in_period_pos(domain::GeneralDomainList,pos)
-    #=for (i,dim) in enumerate(domain.periodic)
-        pos[dim] = mod(pos[dim],domain.nx[i])
-    end=#
     if isempty(domain.periodic)
         return pos
     else
-        return _pos_tuple(domain, 1, 1, pos)
+        return _pos_tuple(domain, pos)#_pos_tuple(domain, 1, 1, pos)
     end
 end
 
-function AB.add_pos!(domain::GeneralDomainList, pos)
-    pos = set_in_period_pos(domain,pos)
-    push!(domain.elems, pos)
-end
-
-function AB.add_coord!(domain::GeneralDomainList, x)
-    AB.add_pos!(domain, AB.get_pos_by_coord(domain.grid, x))
-end
-
-function AB.add_set!(domain::GeneralDomainList, rect::AB.HyperRectangle, incl_mode::AB.INCL_MODE)
-    rectI = AB.get_pos_lims(domain.grid, rect, incl_mode)
-    for pos in Iterators.product(AB._ranges(rectI)...)
-        pos = set_in_period_pos(domain,pos)
-        AB.add_pos!(domain, pos)
-    end
-end
 
 #assuming that the rectangle is already in the domain for periodic dimensions
 function AB.get_subset_pos(domain::GeneralDomainList{N},rect::AB.HyperRectangle,incl_mode::AB.INCL_MODE) where {N}
@@ -166,6 +171,65 @@ function get_subset_pos2(domain::GeneralDomainList{N},rect::AB.HyperRectangle,in
     return posL
 end
 
+function Base.in(pos, domain::GeneralDomainList)
+    pos = set_in_period_pos(domain,pos)
+    return in(pos, domain.elems)
+end
+
+
+function Base.issubset(domain1::GeneralDomainList, domain2::GeneralDomainList)
+    return issubset(domain1.elems, domain2.elems)
+end
+
+
+function get_pos(domain::GeneralDomainList,elems::Set)
+    return elems
+end
+
+function get_pos(domain::GeneralDomainList,elems::RectanglularObstacles)
+    posL = AB.get_subset_pos(domain,domain.elemsCoord.X,AB.INNER)
+    L = []
+    for pos in posL
+        if pos in domain.elems
+            push!(L,pos)
+        end
+    end
+    return L
+end
+
+function  AB.enum_pos(domain::GeneralDomainList)
+    posL = get_pos(domain,domain.elems)
+    return posL
+end
+
+function  AB.get_ncells(domain::GeneralDomainList)
+    return length(AB.enum_pos(domain))
+end
+
+###############################################################################
+#fonctionne seulement si elems quand on crée GeneralDomainList est un set classique
+
+function AB.add_pos!(domain::GeneralDomainList, pos)
+    pos = set_in_period_pos(domain,pos)
+    push!(domain.elems, pos)
+end
+
+function AB.add_coord!(domain::GeneralDomainList, x)
+    AB.add_pos!(domain, AB.get_pos_by_coord(domain.grid, x))
+end
+
+function AB.get_pos_by_coord(domain::GeneralDomainList, x)
+    pos = AB.get_pos_by_coord(domain.grid, x)
+    return set_in_period_pos(domain,pos)
+end
+
+function AB.add_set!(domain::GeneralDomainList, rect::AB.HyperRectangle, incl_mode::AB.INCL_MODE)
+    rectI = AB.get_pos_lims(domain.grid, rect, incl_mode)
+    for pos in Iterators.product(AB._ranges(rectI)...)
+        pos = set_in_period_pos(domain,pos)
+        AB.add_pos!(domain, pos)
+    end
+end
 
 function AB.add_subset!(domain1::GeneralDomainList, domain2::GeneralDomainList, rect::AB.HyperRectangle, incl_mode::AB.INCL_MODE)
     rectI = AB.get_pos_lims(domain1.grid, rect, incl_mode)
@@ -227,30 +291,11 @@ function Base.empty!(domain::GeneralDomainList)
     empty!(domain.elems)
 end
 
-function Base.in(pos, domain::GeneralDomainList)
-    pos = set_in_period_pos(domain,pos)
-    return in(pos, domain.elems)
-end
-
 function Base.isempty(domain::GeneralDomainList)
     return isempty(domain.elems)
 end
 
-function Base.issubset(domain1::GeneralDomainList, domain2::GeneralDomainList)
-    return issubset(domain1.elems, domain2.elems)
-end
-
-function  AB.get_ncells(domain::GeneralDomainList)
-    return length(domain.elems)
-end
-
-function  AB.get_somepos(domain::GeneralDomainList)
-    return first(domain.elems)
-end
-
-function  AB.enum_pos(domain::GeneralDomainList)
-    return domain.elems
-end
+###############################################################################
 
 # make fit the grid exactly to the rectangle
 function build_grid_in_rec(X,hx)
@@ -280,26 +325,46 @@ function one_direction(lb,ub,T,T0)
         end
     end
 end
-function recursive(L,rec,lb::SVector{N},ub::SVector{N},periodic,periods,T0,i) where {N}
+function recursive(L,rec,lb,ub,periodic,periods,T0,i)
+    N = length(lb)
     if i > length(periodic)
-        push!(L, AB.HyperRectangle(lb, ub))
+        push!(L, AB.HyperRectangle(SVector(lb), SVector(ub)))
         return
     end
     dim = periodic[i]
     intervals = one_direction(rec.lb[dim],rec.ub[dim],periods[i],T0[i])
     for interval in intervals
-        l = SVector(ntuple(i -> i == dim ? interval[1] : lb[i], Val(N)))
-        u = SVector(ntuple(i -> i == dim ? interval[1] : ub[i], Val(N)))
+        l = ntuple(i -> i == dim ? interval[1] : lb[i], Val(N))#SVector(ntuple(i -> i == dim ? interval[1] : lb[i], Val(N)))
+        u = ntuple(i -> i == dim ? interval[2] : ub[i], Val(N))
         recursive(L,rec,l,u,periodic,periods,T0,i+1)
     end
 end
 using InteractiveUtils
-function set_rec_in_period(periodic,periods,T0,rec::AB.HyperRectangle{<:SVector})
+function set_rec_in_period(periodic,periods,T0,rec::AB.HyperRectangle)
     L = typeof(rec)[]
     recursive(L,rec,rec.lb,rec.ub,periodic,periods,T0,1)
     return L
 end
 
+
+function rectangle(c,r)
+    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+end
+
+
+function Plots.plot!(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}};dims=[1,2]) where {N,T}
+    grid = Xdom.grid
+    dict = Dict{NTuple{2,Int}, Any}()
+    for pos in AB.enum_pos(Xdom)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            AB.plot_elem!(grid, pos; dims=dims, opacity=.2, color=:yellow)
+        end
+    end
+end
+
+
+################### symbolic model
 function _SymbolicModel(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}, Udom::AB.Domain{M}) where {N,M,T}
     nu = AB.get_ncells(Udom)
     uint2pos = [pos for pos in AB.enum_pos(Udom)]
@@ -318,9 +383,12 @@ function AB.get_state_by_xpos(
     symmodel::AB.SymbolicModelList{N,M,<:GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}},
     pos,
 ) where {N,M,T}
+    #pos = set_in_period_pos(domain,pos)
     id = get(symmodel.xpos2int, pos, nothing)
+    created = false
     if id === nothing
         if pos in symmodel.Xdom
+            created = true
             push!(symmodel.xint2pos, pos)
             id = length(symmodel.xint2pos)
             symmodel.xpos2int[pos] = id
@@ -330,9 +398,7 @@ function AB.get_state_by_xpos(
             error("$pos is not in state domain $(symmodel.Xdom)")
         end
     end
-    return id::Int
+    return id::Int,created
 end
-
-
 
 end
