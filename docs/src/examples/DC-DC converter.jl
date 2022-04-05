@@ -97,7 +97,7 @@ Xgrid = DO.GridFree(x0, h);
 # Construction of the struct `DomainList` containing the feasible cells of the state-space.
 # Note, we used `AB.INNER` to make sure to add cells entirely contained in the domain because we are working with a safety problem.
 Xfull = DO.DomainList(Xgrid);
-DO.add_set!(Xfull, _X_, AB.INNER)
+DO.add_set!(Xfull, _X_, DO.INNER)
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(1);
@@ -105,7 +105,7 @@ h = SVector(1);
 Ugrid = DO.GridFree(u0, h);
 # Construction of the struct `DomainList` containing the quantized inputs:
 Ufull = DO.DomainList(Ugrid);
-DO.add_set!(Ufull, _U_, AB.OUTER);
+DO.add_set!(Ufull, _U_, DO.OUTER);
 
 # Construction of the abstraction:
 symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);

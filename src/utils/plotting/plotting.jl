@@ -48,7 +48,7 @@ function cell!(ax, vars, grid::DO.GridFree{N, Float64}, cell;
 end
 
 # Cells - Domains
-function domain!(ax, vars, domain::DO.Domain{N,T};
+function domain!(ax, vars, domain::DO.DomainList{N,T};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
     grid = domain.grid
     @assert length(vars) == 2 && N >= 2
