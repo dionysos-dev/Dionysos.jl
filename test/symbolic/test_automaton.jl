@@ -1,11 +1,9 @@
-include("../../src/Dionysos.jl")
-
 module TestMain
 
 using Test
 using ..Dionysos
-DI = Dionysos
-SY = DI.Symbolic
+const DI = Dionysos
+const SY = DI.Symbolic
 
 sleep(0.1) # used for good printing
 println("Started test")

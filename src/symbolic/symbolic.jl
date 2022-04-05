@@ -1,6 +1,8 @@
 module Symbolic
 
 using HybridSystems
+using StaticArrays
+using LinearAlgebra
 
 using ..Utils
 UT = Utils

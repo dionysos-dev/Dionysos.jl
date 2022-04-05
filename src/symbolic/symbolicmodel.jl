@@ -157,7 +157,7 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
             Fx, DFx = contsys.linsys_map(x, _H_, u, tstep)
             A = inv(DFx)
             b = abs.(A)*Fr .+ 1.0
-            HP = CenteredPolyhedron(A, b)
+            HP = UT.CenteredPolyhedron(A, b)
             # TODO: can we improve abs.(DFx)*_ONE_?
             rad = contsys.measnoise + abs.(DFx)*_ONE_ .+ Fe
             rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - rad, Fx + rad))

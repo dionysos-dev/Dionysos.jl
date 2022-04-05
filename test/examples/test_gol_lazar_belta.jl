@@ -1,4 +1,3 @@
-include("../examples/gol_lazar_belta.jl")
 include("solvers.jl")
 using LinearAlgebra, Test
 import CDDLib

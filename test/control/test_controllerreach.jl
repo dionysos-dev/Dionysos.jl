@@ -1,5 +1,3 @@
-include("../../src/Dionysos.jl")
-
 module Test
 
 
@@ -12,7 +10,7 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const CO = DI.Control
-const SY = DI.Symbolic
+const SY = DI.Symbolic    
 
 
 sleep(0.1) # used for good printing
