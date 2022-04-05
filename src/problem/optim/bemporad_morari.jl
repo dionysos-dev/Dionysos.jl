@@ -5,7 +5,8 @@ module BemporadMorari
 using ..Problem
 using ...Dionysos.Control
 using MathOptInterface
-const MOI = MathOptInterface
+#const MOI = MathOptInterface
+
 
 
 import MutableArithmetics
