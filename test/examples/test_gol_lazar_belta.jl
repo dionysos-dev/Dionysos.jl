@@ -1,7 +1,11 @@
 include("solvers.jl")
+include("../../examples/gol_lazar_belta.jl")
+
 using LinearAlgebra, Test
 import CDDLib
-using Dionysos
+using .Dionysos
+using .Dionysos.Problem
+using .Dionysos.Control
 
 _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 
@@ -58,18 +62,18 @@ end
 function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
     prob = _prob(1, 15, x0, false)
     t(i, j) = first(transitions(prob.system, i, j))
-    dtraj = Dionysos.DiscreteTrajectory(15, [t(15, 20)])
-    ctraj = Dionysos.ContinuousTrajectory(
+    dtraj = DiscreteTrajectory(15, [t(15, 20)])
+    ctraj = ContinuousTrajectory(
         [[-0.5, 0.5]],
         [[-1.2916666674915085]]
     )
-    algo = HybridDualDynamicProgrammingAlgo(qp_solver, CDDLib.Library(), 1e-5, 1e-4, 1)
-    Q_function = Dionysos.instantiate(prob, algo)
-    Dionysos.learn(Q_function, prob, dtraj, ctraj, algo)
+    algo = Dionysos.Problem.HybridDualDynamicProgrammingAlgo(qp_solver, CDDLib.Library(), 1e-5, 1e-4, 1)
+    Q_function = Dionysos.Problem.instantiate(prob, algo)
+    Dionysos.Problem.learn(Q_function, prob, dtraj, ctraj, algo)
     @test isempty(Q_function.cuts[0, 15])
     @test !hasallhalfspaces(Q_function.domains[0, 15])
     @test length(Q_function.cuts[1, 15]) == 1
-    @test first(Q_function.cuts[1, 15]) ≈ Dionysos.AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol=1e-6
+    @test first(Q_function.cuts[1, 15]) ≈ AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol=1e-6
     @test !hashyperplanes(Q_function.domains[1, 15]) == 1
     @test nhalfspaces(Q_function.domains[1, 15]) == 1
     a = normalize(-[2, 1])
@@ -130,9 +134,9 @@ end
     function tests(qp_solver, miqp_solver)
         # Pavito does not support indicator constraints yet so we use `false` here
         @testset "$(_name(algo))" for algo in [
-            optimizer_with_attributes(BemporadMorari.Optimizer{Float64}, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+            optimizer_with_attributes(Dionysos.Problem.BemporadMorari.Optimizer{Float64}, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
                                      "indicator" => false, "log_level" => 0),
-            optimizer_with_attributes(BranchAndBound.Optimizer{Float64}, "continuous_solver" => qp_solver,
+            optimizer_with_attributes(Dionysos.Problem.BranchAndBound.Optimizer{Float64}, "continuous_solver" => qp_solver,
                                      "max_iter" => 1111)
 #            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
         ]
@@ -160,10 +164,10 @@ end
         # Pavito does not support indicator constraints yet so we use `false` here
 
         algo(max_iter, Q_function_init) = optimizer_with_attributes(
-            BranchAndBound.Optimizer{Float64}, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
+            Dionysos.Problem.BranchAndBound.Optimizer{Float64}, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
             "max_iter" => max_iter, "Q_function_init" => Q_function_init)
         qalgo(max_iter) = optimizer_with_attributes(
-            BranchAndBound.Optimizer{Float64},
+            Dionysos.Problem.BranchAndBound.Optimizer{Float64},
             "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
             "max_iter" => max_iter,
             "lower_bound" => HybridDualDynamicProgrammingAlgo(
@@ -180,7 +184,7 @@ end
         @show sum(length.(Q11.cuts))
         _test9(algo(800, Q11), Float64)    #    785 | 782
         _test11(algo(74, Q11), Float64)    #     74 | 74
-        Q = Dionysos.q_merge(Q9, Q11)
+        Q = Dionysos.Problem.q_merge(Q9, Q11)
         _test9(algo(818, Q), Float64)      #    818 | 775
         _test11(algo(74, Q), Float64)      #     74 | 74
     end

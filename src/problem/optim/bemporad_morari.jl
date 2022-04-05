@@ -2,7 +2,9 @@ export BemporadMorari
 
 module BemporadMorari
 
-using Dionysos
+using ..Problem
+using ...Dionysos.Control
+
 
 import MutableArithmetics
 const MA = MutableArithmetics

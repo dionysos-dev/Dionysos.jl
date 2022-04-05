@@ -1,8 +1,14 @@
 # All plotting functions
 module Plot
-import Dionysos
-import Dionysos.Abstraction
-AB = Dionysos.Abstraction
+using Dionysos
+
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
+
 
 using LinearAlgebra
 using StaticArrays
@@ -23,7 +29,7 @@ function project(x, vars)
 end
 
 # Cell - single
-function cell!(ax, vars, grid::AB.GridFree{N, Float64}, cell;
+function cell!(ax, vars, grid::DO.GridFree{N, Float64}, cell;
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
 
     @assert length(vars) == 2 && N >= 2
@@ -32,7 +38,7 @@ function cell!(ax, vars, grid::AB.GridFree{N, Float64}, cell;
     h = project(grid.h, vars)
     
  
-    c = project(AB.get_coord_by_pos(grid, cell), vars)
+    c = project(DO.get_coord_by_pos(grid, cell), vars)
     
     poly = matplotlib.patches.Polygon(verts_rect(c, h/2.0))
     poly.set_facecolor(fca)
@@ -42,7 +48,7 @@ function cell!(ax, vars, grid::AB.GridFree{N, Float64}, cell;
 end
 
 # Cells - Domains
-function domain!(ax, vars, domain::AB.Domain{N,T};
+function domain!(ax, vars, domain::DO.Domain{N,T};
         fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5) where {N,T}
     grid = domain.grid
     @assert length(vars) == 2 && N >= 2
@@ -52,8 +58,8 @@ function domain!(ax, vars, domain::AB.Domain{N,T};
 
     vertslist = NTuple{4,SVector{2,T}}[]
 
-    for pos in unique(x -> x[vars], AB.enum_pos(domain))
-        c = project(AB.get_coord_by_pos(grid, pos), vars)
+    for pos in unique(x -> x[vars], DO.enum_pos(domain))
+        c = project(DO.get_coord_by_pos(grid, pos), vars)
         push!(vertslist, verts_rect(c, h/2.0))
     end
 
@@ -65,7 +71,7 @@ function domain!(ax, vars, domain::AB.Domain{N,T};
 end
 
 # Sets
-function set!(ax, vars, rect::AB.HyperRectangle;
+function set!(ax, vars, rect::UT.HyperRectangle;
         fc = "green", fa = 0.5, ec = "black", ea = 1.0, ew = 1.5)
     @assert length(vars) == 2 && length(rect.lb) == length(rect.ub) >= 2
     c = (rect.lb + rect.ub)/2.0
@@ -80,7 +86,7 @@ function set!(ax, vars, rect::AB.HyperRectangle;
 end
 
 # Trajectory open loop
-function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, nstep;
+function trajectory_open_loop!(ax, vars, contsys::ST.ControlSystem{N,T}, x0, u, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     tstep = contsys.tstep/nsub
@@ -104,7 +110,7 @@ function trajectory_open_loop!(ax, vars, contsys::AB.ControlSystem{N,T}, x0, u, 
 end
 
 # Images
-function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
+function cell_image!(ax, vars, Xdom, Udom, contsys::ST.ControlSystem{N,T};
         nsub = fill(5, N),
         fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
@@ -113,9 +119,9 @@ function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
     vertslist = Vector{SVector{2,T}}[]
     ns = nsub .- 1
 
-    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
-        x = AB.get_coord_by_pos(Xdom.grid, xpos)
-        u = AB.get_coord_by_pos(Udom.grid, upos)
+    for xpos in DO.enum_pos(Xdom), upos in DO.enum_pos(Udom)
+        x = DO.get_coord_by_pos(Xdom.grid, xpos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
         subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i in 1:length(ns))
         subpos_iter = Iterators.product(subpos_axes...)
         x_iter = (x + subpos.*Xdom.grid.h for subpos in subpos_iter)
@@ -130,7 +136,7 @@ function cell_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
     ax.add_collection(polylist)
 end
 
-function cell_pre_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
+function cell_pre_image!(ax, vars, Xdom, Udom, contsys::ST.ControlSystem{N,T};
         nsub = fill(5, N),
         fc = "blue", fa = 0.5, ec = "darkblue", ea = 1.0, ew = 1.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
@@ -139,9 +145,9 @@ function cell_pre_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
     vertslist = Vector{SVector{2,T}}[]
     ns = nsub .- 1
 
-    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
-        x = AB.get_coord_by_pos(Xdom.grid, xpos)
-        u = AB.get_coord_by_pos(Udom.grid, upos)
+    for xpos in DO.enum_pos(Xdom), upos in DO.enum_pos(Udom)
+        x = DO.get_coord_by_pos(Xdom.grid, xpos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
         subpos_axes = ((0:ns[i])./ns[i] .- 0.5 for i in 1:length(ns))
         subpos_iter = Iterators.product(subpos_axes...)
         x_iter = (x + subpos.*Xdom.grid.h for subpos in subpos_iter)
@@ -157,7 +163,7 @@ function cell_pre_image!(ax, vars, Xdom, Udom, contsys::AB.ControlSystem{N,T};
 end
 
 # Outer-approximation
-function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemGrowth{N,T};
+function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemGrowth{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
@@ -165,9 +171,9 @@ function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemGrowth{N,T}
     vertslist = NTuple{4,SVector{2,T}}[]
     r = Xdom.grid.h/2.0 + contsys.measnoise
 
-    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
-        x = AB.get_coord_by_pos(Xdom.grid, xpos)
-        u = AB.get_coord_by_pos(Udom.grid, upos)
+    for xpos in DO.enum_pos(Xdom), upos in DO.enum_pos(Udom)
+        x = DO.get_coord_by_pos(Xdom.grid, xpos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
         Fx = contsys.sys_map(x, u, contsys.tstep)
         Fr = contsys.growthbound_map(r, u, contsys.tstep)
         Fr = Fr + contsys.measnoise
@@ -181,7 +187,7 @@ function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemGrowth{N,T}
     ax.add_collection(polylist)
 end
 
-function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemLinearized{N,T};
+function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemLinearized{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)
@@ -190,9 +196,9 @@ function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemLinearized{
     _H_ = SMatrix{N,N}(I).*(Xdom.grid.h/2.0)
     e = norm(Xdom.grid.h/2.0 + contsys.measnoise, Inf)
 
-    for xpos in AB.enum_pos(Xdom), upos in AB.enum_pos(Udom)
-        x = AB.get_coord_by_pos(Xdom.grid, xpos)
-        u = AB.get_coord_by_pos(Udom.grid, upos)
+    for xpos in DO.enum_pos(Xdom), upos in DO.enum_pos(Udom)
+        x = DO.get_coord_by_pos(Xdom.grid, xpos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
         Fx, DFx = contsys.linsys_map(x, _H_, u, contsys.tstep)
         A = inv(DFx)
         Fr = contsys.measnoise .+ contsys.error_map(e, u, contsys.tstep)
@@ -214,13 +220,13 @@ end
 function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
         lc = "red", lw = 1.5, mc = "black", ms = 5.0, nsub = 5, randchoose = false)
     for i in 1:nstep
-        xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
+        xpos = SY.get_pos_by_coord(symmodel.Xdom.grid, x0)
         if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")
             return
         end
-        source = AB.get_state_by_xpos(symmodel, xpos)
-        symbollist = AB.fix_and_eliminate_first(contr, source)
+        source = SY.get_state_by_xpos(symmodel, xpos)
+        symbollist = SY.fix_and_eliminate_first(contr, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return
@@ -230,8 +236,8 @@ function trajectory_closed_loop!(ax, vars, contsys, symmodel, contr, x0, nstep;
         else
             symbol = first(symbollist)[1]
         end
-        upos = AB.get_upos_by_symbol(symmodel, symbol)
-        u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)
+        upos = SY.get_upos_by_symbol(symmodel, symbol)
+        u = DO.get_coord_by_pos(symmodel.Udom.grid, upos)
         Plot.trajectory_open_loop!(ax, vars, contsys, x0, u, 1,
             lc = lc, lw = lw, mc = mc, ms = ms, nsub = nsub)
         x0 = contsys.sys_map(x0, u, contsys.tstep)

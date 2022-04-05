@@ -3,7 +3,12 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
+using HybridSystems
 using Polyhedra
+using JuMP
+
+using ..Dionysos.Control
+using ..Dionysos.Problem
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
 

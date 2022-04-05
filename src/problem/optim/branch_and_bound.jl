@@ -5,7 +5,9 @@ module BranchAndBound
 using DataStructures # for BinaryMinHeap
 using JuMP, Polyhedra
 using HybridSystems
-using Dionysos
+using ..Problem
+using ...Dionysos
+using ...Dionysos.Control
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver
@@ -90,7 +92,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
     left = prob.number_of_time_steps - length(traj)
-    terminal_cost = Dionysos.value_function(Q_function, left, last_mode(prob.system, traj))
+    terminal_cost = Problem.value_function(Q_function, left, last_mode(prob.system, traj))
     @assert isempty(state_cost) == iszero(length(traj))
     if !isempty(state_cost)
         # We use `Ref` as `Base.broadcastable` is not defined for functions that
@@ -201,9 +203,9 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     if optimizer.lower_bound === nothing
         optimizer.lower_bound = DiscreteLowerBoundAlgo{T}(optimizer.continuous_solver)
     end
-    optimizer.Q_function = Dionysos.instantiate(prob, optimizer.lower_bound)
+    optimizer.Q_function = Problem.instantiate(prob, optimizer.lower_bound)
     if optimizer.Q_function_init !== nothing
-        optimizer.Q_function = Dionysos.q_merge(optimizer.Q_function, optimizer.Q_function_init)
+        optimizer.Q_function = Problem.q_merge(optimizer.Q_function, optimizer.Q_function_init)
     end
     candidate_0, optimizer.best_traj = candidate(prob, optimizer, optimizer.Q_function, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
     candidate_0 === nothing && return
@@ -228,7 +230,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         cur_candidate = pop!(candidates)
         if cur_candidate.lower_bound < optimizer.upper_bound
             for t in out_transitions(prob.system, last_mode(prob.system, cur_candidate.traj))
-                new_traj = Dionysos.append(cur_candidate.traj, t)
+                new_traj = Dionysos.Control.append(cur_candidate.traj, t)
                 # Shortcuts avoiding to solve the QP in case, it's infeasible.
                 nnodes = num_nodes[prob.number_of_time_steps - length(new_traj), last_mode(prob.system, new_traj)]
                 iszero(nnodes) && continue
@@ -243,7 +245,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
                         # with the discrete solution of the last part.
                         # If `horizon == 0`, there is no difference but otherwise,
                         # it does matter
-                        Dionysos.learn(optimizer.Q_function, prob, new_traj, sol_traj, optimizer.lower_bound)
+                        Problem.learn(optimizer.Q_function, prob, new_traj, sol_traj, optimizer.lower_bound)
                     end
                     if new_candidate.upper_bound < optimizer.upper_bound
                         if optimizer.feasible_solution_callback !== nothing

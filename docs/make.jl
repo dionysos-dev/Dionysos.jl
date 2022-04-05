@@ -29,7 +29,7 @@ makedocs(
     ],
 )
 
-deploydocs(
-    repo   = "github.com/dionysos-dev/Dionysos.jl.git",
-    push_preview = true,
-)
+# deploydocs(
+#     repo   = "github.com/dionysos-dev/Dionysos.jl.git",
+#     push_preview = true,
+# )

@@ -6,7 +6,6 @@ UT = Utils
 using ..Symbolic
 SY = Symbolic
 
-# include("optimal_control.jl")
-# include("q_learning.jl")
+include("optimal_control.jl")
 include("controller.jl")
 end  # module control

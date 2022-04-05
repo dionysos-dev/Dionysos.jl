@@ -2,6 +2,7 @@ export ZeroFunction, ConstantFunction, QuadraticControlFunction, PolyhedralFunct
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
 export OptimalControlProblem
+export AffineFunction, PolyhedralFunction
 export last_mode, function_value
 
 using JuMP
@@ -71,8 +72,10 @@ struct AffineFunction{T}
     a::Vector{T}
     β::T
 end
+
+
 function function_value(f::AffineFunction, x)
-    return f.a ⋅ x + f.β
+    return sum(f.a .* x) + f.β
 end
 function Base.isapprox(f::AffineFunction, g::AffineFunction; kws...)
     return isapprox(f.a, g.a; kws...) && isapprox(f.β, g.β; kws...)
