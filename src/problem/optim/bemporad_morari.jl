@@ -9,7 +9,7 @@ using ...Dionysos.Control
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra
+using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra 
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
