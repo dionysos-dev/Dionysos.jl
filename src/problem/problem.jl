@@ -1,5 +1,5 @@
 module Problem
-    using MathOptInterface    
+    #using MathOptInterface    
 
     include("optim/bemporad_morari.jl")
     include("optim/branch_and_bound.jl")
