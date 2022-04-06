@@ -5,10 +5,10 @@ using CDDLib
 using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
-using Mosek, MosekTools, Ipopt, JuMP
+using SDPA, Ipopt, JuMP
 using Test
 
-opt_sdp = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
 lib = CDDLib.Library() #polyhedron lib

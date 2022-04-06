@@ -6,7 +6,7 @@ using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
 
-using Mosek, MosekTools, JuMP
+using SDPA, JuMP
 
 
 lib = CDDLib.Library() #polyhedron lib
@@ -15,7 +15,7 @@ eye(n) = diagm(ones(n)) # I matrix
 sm(M) = SMatrix{size(M,1),size(M,2)}(M)
 sv(M) = SVector{size(M,1)}(M)
 
-optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+optimizer = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
 function trial(dt,Usz,Wmax,contraction,initial_vol)
       # Define system
