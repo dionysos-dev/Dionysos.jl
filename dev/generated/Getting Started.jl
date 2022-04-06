@@ -3,25 +3,30 @@ using StaticArrays
 using LinearAlgebra
 using PyPlot
 
-include("../../../src/plotting.jl")
+include("../../../src/utils/plotting/plotting.jl")
 
-const AB = Dionysos.Abstraction;
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
 
-rectX = AB.HyperRectangle(SVector(-2, -2), SVector(2, 2));
-rectU = AB.HyperRectangle(SVector(-5), SVector(5));
+rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
+rectU = UT.HyperRectangle(SVector(-5), SVector(5));
 
 x0 = SVector(0.0, 0.0);
 h = SVector(1.0/5, 1.0/5);
-Xgrid = AB.GridFree(x0, h);
+Xgrid = DO.GridFree(x0, h);
 
-domainX = AB.DomainList(Xgrid);
-AB.add_set!(domainX, rectX, AB.INNER)
+domainX = DO.DomainList(Xgrid);
+DO.add_set!(domainX, rectX, DO.INNER)
 
 u0 = SVector(0.0);
 h = SVector(1.0/5);
-Ugrid = AB.GridFree(u0, h);
-domainU = AB.DomainList(Ugrid);
-AB.add_set!(domainU, rectU, AB.INNER);
+Ugrid = DO.GridFree(u0, h);
+domainU = DO.DomainList(Ugrid);
+DO.add_set!(domainU, rectU, DO.INNER);
 
 tstep = 0.1;
 nsys=10; # Runge-Kutta pre-scaling
@@ -43,25 +48,25 @@ L_growthbound = x -> abs.(A)
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
 
-contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
+contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
 
-symmodel = AB.NewSymbolicModelListList(domainX, domainU);
+symmodel = SY.NewSymbolicModelListList(domainX, domainU);
 
-AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
-xpos = AB.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
-upos = AB.get_pos_by_coord(Ugrid, SVector(-1))
+xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
+upos = DO.get_pos_by_coord(Ugrid, SVector(-1))
 
-x = AB.get_coord_by_pos(Xgrid, xpos)
-u = AB.get_coord_by_pos(Ugrid, upos)
+x = DO.get_coord_by_pos(Xgrid, xpos)
+u = DO.get_coord_by_pos(Ugrid, upos)
 
 post = Int[]
-AB.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2int[upos])
+SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2int[upos])
 
-domainPostx = AB.DomainList(Xgrid);
+domainPostx = DO.DomainList(Xgrid);
 for pos in symmodel.xint2pos[post]
-    AB.add_pos!(domainPostx,pos)
+    DO.add_pos!(domainPostx,pos)
 end
 
 PyPlot.pygui(true)

@@ -1,8 +1,12 @@
 using StaticArrays
 
 using Dionysos
-using Dionysos.Abstraction
-AB = Dionysos.Abstraction;
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
 
 vs = 1.0; rL = 0.05; xL = 3.0; rC = 0.005; xC = 70.0; r0 = 1.0;
 
@@ -27,40 +31,40 @@ measnoise = SVector(0.0, 0.0);
 tstep = 0.5;
 nsys = 5;
 
-contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
+contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
 
-_X_ = AB.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85));
+_X_ = UT.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85));
 
-_U_ = AB.HyperRectangle(SVector(1), SVector(2));
+_U_ = UT.HyperRectangle(SVector(1), SVector(2));
 
 x0 = SVector(0.0, 0.0);
 h = SVector(2.0/4.0e3, 2.0/4.0e3);
-Xgrid = AB.GridFree(x0, h);
+Xgrid = DO.GridFree(x0, h);
 
-Xfull = AB.DomainList(Xgrid);
-AB.add_set!(Xfull, _X_, AB.INNER)
+Xfull = DO.DomainList(Xgrid);
+DO.add_set!(Xfull, _X_, DO.INNER)
 
 u0 = SVector(1);
 h = SVector(1);
-Ugrid = AB.GridFree(u0, h);
+Ugrid = DO.GridFree(u0, h);
 
-Ufull = AB.DomainList(Ugrid);
-AB.add_set!(Ufull, _U_, AB.OUTER);
+Ufull = DO.DomainList(Ugrid);
+DO.add_set!(Ufull, _U_, DO.OUTER);
 
-symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
-@time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
+@time SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
-Xinit = AB.DomainList(Xgrid);
+Xinit = DO.DomainList(Xgrid);
 union!(Xinit, Xfull)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
+initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
 
-Xsafe = AB.DomainList(Xgrid)
+Xsafe = DO.DomainList(Xgrid)
 union!(Xsafe, Xfull)
-safelist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xsafe)];
+safelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xsafe)];
 
-contr = AB.NewControllerList();
-@time AB.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
+contr = CO.NewControllerList();
+@time CO.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
 
 nstep = 300;
 x0 = SVector(1.2, 5.6);

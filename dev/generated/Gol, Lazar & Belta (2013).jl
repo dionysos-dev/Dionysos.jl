@@ -7,6 +7,8 @@ import Cbc
 import Ipopt
 
 using Dionysos
+using Dionysos.Control
+using Dionysos.Problem
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "gol_lazar_belta.jl"))
 
