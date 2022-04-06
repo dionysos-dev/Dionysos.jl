@@ -29,6 +29,8 @@ import Ipopt
 
 # At this point we import Dionysos
 using Dionysos
+using Dionysos.Control
+using Dionysos.Problem
 
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "gol_lazar_belta.jl"))

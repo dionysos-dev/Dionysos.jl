@@ -43,8 +43,12 @@ using StaticArrays
 
 # At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
 using Dionysos
-using Dionysos.Abstraction
-AB = Dionysos.Abstraction;
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
 
 # ### Definition of the system
 # Definition of the dynamics function $f$ of the system:
@@ -72,12 +76,12 @@ tstep = 0.3;
 nsys = 5;
 
 # Finally, we build the control system:
-contsys = AB.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
+contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
 
 # ### Definition of the control problem
 # Definition of the state-space (limited to be rectangle):
-_X_ = AB.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4));
+_X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4));
 
 # Definition of the obstacles (limited to be rectangle):
 X1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3];
@@ -86,13 +90,13 @@ X2_lb = [0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 1.0, 0.0, 8.2, 7.0, 5.8, 4.6, 3.4, 2
 X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6];
 
 # Definition of the input-space (limited to be rectangle):
-_U_ = AB.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0));
+_U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0));
 
 # Definition of the initial state-space (here it consists in a single point):
-_I_ = AB.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0));
+_I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0));
 
 # Definition of the target state-space (limited to be hyper-rectangle):
-_T_ = AB.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
+_T_ = UT.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
 
 
 # ### Definition of the abstraction
@@ -100,41 +104,41 @@ _T_ = AB.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
-Xgrid = AB.GridFree(x0, h);
+Xgrid = DO.GridFree(x0, h);
 # Construction of the struct `DomainList` containing the feasible cells of the state-space:
-Xfull = AB.DomainList(Xgrid);
-AB.add_set!(Xfull, _X_, AB.OUTER)
+Xfull = DO.DomainList(Xgrid);
+DO.add_set!(Xfull, _X_, DO.OUTER)
 for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
-    box = AB.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
+    box = UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
     if box ⊆ _X_ && isempty(box ∩ _I_) && isempty(box ∩ _T_)
-        AB.remove_set!(Xfull, box, AB.OUTER)
+        DO.remove_set!(Xfull, box, DO.OUTER)
     end
 end
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
-Ugrid = AB.GridFree(u0, h);
+Ugrid = DO.GridFree(u0, h);
 # Construction of the struct `DomainList` containing the quantized inputs:
-Ufull = AB.DomainList(Ugrid);
-AB.add_set!(Ufull, _U_, AB.OUTER)
+Ufull = DO.DomainList(Ugrid);
+DO.add_set!(Ufull, _U_, DO.OUTER)
 
 # Construction of the abstraction:
-symmodel = AB.NewSymbolicModelListList(Xfull, Ufull);
-@time AB.compute_symmodel_from_controlsystem!(symmodel, contsys)
+symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
+@time SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
 # ### Construction of the controller
 # Computation of the initial symbolic states:
-Xinit = AB.DomainList(Xgrid);
-AB.add_subset!(Xinit, Xfull, _I_, AB.OUTER)
-initlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xinit)];
+Xinit = DO.DomainList(Xgrid);
+DO.add_subset!(Xinit, Xfull, _I_, DO.OUTER)
+initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
 # Computation of the target symbolic states:
-Xtarget = AB.DomainList(Xgrid)
-AB.add_subset!(Xtarget, Xfull, _T_, AB.OUTER)
-targetlist = [AB.get_state_by_xpos(symmodel, pos) for pos in AB.enum_pos(Xtarget)];
+Xtarget = DO.DomainList(Xgrid)
+DO.add_subset!(Xtarget, Xfull, _T_, DO.OUTER)
+targetlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xtarget)];
 # Construction of the controller:
-contr = AB.NewControllerList();
-@time AB.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+contr = CO.NewControllerList();
+@time CO.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
