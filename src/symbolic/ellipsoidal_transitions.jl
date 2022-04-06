@@ -1,12 +1,13 @@
-using JuMP, GLPK, SCS, Gurobi, Mosek, MosekTools, OSQP
+using JuMP
 using LinearAlgebra
 using Polyhedra
 using HybridSystems
 using SpecialFunctions
-using ..Abstraction
+using ProgressMeter
+using ..Domain
+using ..Utils
 
-
-function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem,P,c,Pp,cp,W,L,U)
+function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem,P,c,Pp,cp,W,L,U, optimizer)
     
     eye(n) = diagm(ones(n))
     A = subsys.A
@@ -17,12 +18,11 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     N = size(W,2);
     p = size(W,1);
     Nu = length(U);
-    optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
 
     model = Model(optimizer)
     @variable(model, K[i=1:m,j=1:n]) 
-    @variable(model, ell[i=1:m,j=1])
+    @variable(model, ell[i=1:m,j=1:1])
     @variable(model, bta[i=1:N] >= 0)
     @variable(model, tau[i=1:Nu] >= 0)
     @variable(model, gamma >= 0)
@@ -41,26 +41,26 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     for i in 1:N
         w = W[:,i];
         aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
-        @SDconstraint(model,
+        @constraint(model,
             [bta[i]*P        z         t(At)
             t(z)        1-bta[i]        t(aux)
-             At       aux      inv(Pp)           ] ⪰ eye(2*n+1)*1e-4)
+             At       aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
 
     end
     
     for i=1:Nu
         n_ui = size(U[i],1);
-        @SDconstraint(model,
+        @constraint(model,
         [tau[i]*P        z          t(U[i]*K)
         t(z)        1-tau[i]        t(U[i]*ell)
-        U[i]*K      U[i]*ell        eye(n_ui)   ]⪰ eye(n+n_ui+1)*1e-4)
+        U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
         
     end
     n_L = size(L,1);
-    @SDconstraint(model,
+    @constraint(model,
     [gamma*P                     z           [I t(K) z]*t(L)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
-     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_L)       ]>=eye(n+n_L+1)*1e-4)
+     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_L)       ] >= eye(n+n_L+1)*1e-4, PSDCone())
     
     @objective(model, Min, J)
 
@@ -85,7 +85,7 @@ function _compute_base_cell(r::SVector{S}) where S
 end
 
 function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
-    hybridsys::AbstractHybridSystem, W, L, Uc) where N
+    hybridsys::AbstractHybridSystem, W, L, Uc, opt_sdp, opt_lp) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
@@ -94,11 +94,11 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     r = Xdom.grid.h/2.0
 
     n_sys = length(r)
-    if Xdom.grid isa GridEllipsoidalRectangular
+    if Xdom.grid isa Domain.GridEllipsoidalRectangular
         Pm = Xdom.grid.P
         P = Pm
-        R = _get_min_bounding_box(P)
-        println(R)
+        R = _get_min_bounding_box(P, opt_lp)
+        #println(R)
     else
         Pm = (1/n_sys) * diagm(inv.(r.^2))
         P =  Pm
@@ -128,7 +128,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     for xpos in Xdom.elems
         
         source = get_state_by_xpos(symmodel, xpos)
-        x = get_coord_by_pos(Xdom.grid, xpos)
+        x = Domain.get_coord_by_pos(Xdom.grid, xpos)
         m = get_mode(x)
 
         A = hybridsys.modes[m].A
@@ -138,12 +138,12 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         
         xpost = _compute_xpost(A,x,B,Upoly,c,R)
                 
-        rectI = get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ HyperRectangle(xpost[1],xpost[2]))
+        rectI = Domain.get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ Utils.HyperRectangle(xpost[1],xpost[2]))
 
-        xmpos_iter = Iterators.product(_ranges(rectI)...)
+        xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
         for xmpos in xmpos_iter
-            xm = get_coord_by_pos(Xdom.grid, xmpos) 
-            ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,Uc)
+            xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
+            ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,Uc,opt_sdp)
         
             if(ans)
                 trans_count += 1
@@ -165,14 +165,13 @@ end
 
 
 
-function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem)
+function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
     
     eye(n) = diagm(ones(n))
     A = subsys.A
     B = subsys.B
     n = size(A,1);
     m = size(B,2);
-    optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
 
     model = Model(optimizer)
@@ -185,10 +184,10 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     t(x) = transpose(x);
 
     
-    @SDconstraint(model, [S      t(A*S+B*L);
-                        A*S+B*L    S]        ⪰ 0)
-    @SDconstraint(model, eye(n) ⪰ S)
-    @SDconstraint(model, S ⪰ -gamma*eye(n))
+    @constraint(model, [S      t(A*S+B*L);
+                        A*S+B*L    S]        >= 0, PSDCone())
+    @constraint(model, eye(n) >= S, PSDCone())
+    @constraint(model, S >= -gamma*eye(n), PSDCone())
 
     
     @objective(model, Min, gamma)
@@ -210,10 +209,9 @@ function ellipsoid_vol(P,r)
     return pi^(N/2)/(gamma(N/2+1))*det(P/r)^(-1/2)
 end
 
-function _get_min_bounding_box(P) # minimum bounding box for ellipsoid {x'Px<=1}
+function _get_min_bounding_box(P, optimizer) # minimum bounding box for ellipsoid {x'Px<=1}
     n = size(P,1)
     R = zeros(n)
-    optimizer = optimizer_with_attributes(Gurobi.Optimizer, MOI.Silent() => true)
     
     model = Model(optimizer)
     @variable(model, x[i=1:n])

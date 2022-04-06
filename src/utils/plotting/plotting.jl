@@ -9,11 +9,6 @@ const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
 
-<<<<<<< HEAD:src/utils/plotting/plotting.jl
-=======
-import ..Abstraction
-const AB = Abstraction
->>>>>>> compute transitions working:src/Abstraction/plotting.jl
 
 using LinearAlgebra
 using StaticArrays
@@ -192,10 +187,7 @@ function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemGrowth{N,T}
     ax.add_collection(polylist)
 end
 
-<<<<<<< HEAD:src/utils/plotting/plotting.jl
-function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemLinearized{N,T};
-=======
-function domain_ellips!(ax, vars, P, domain::AB.Domain{N,T};
+function domain_ellips!(ax, vars, P, domain::DO.DomainList{N,T};
     fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 0.5) where {N,T}
     grid = domain.grid
     @assert length(vars) == 2 && N >= 2
@@ -210,8 +202,8 @@ function domain_ellips!(ax, vars, P, domain::AB.Domain{N,T};
 
     vertslist = NTuple{20,SVector{2,T}}[]
 
-    for pos in unique(x -> x[vars], AB.enum_pos(domain))
-        c = project(AB.get_coord_by_pos(grid, pos), vars)
+    for pos in unique(x -> x[vars], DO.enum_pos(domain))
+        c = project(DO.get_coord_by_pos(grid, pos), vars)
         push!(vertslist, tuple(SVector{2}.(eachcol(x.+c))...))
     end
 
@@ -223,8 +215,7 @@ function domain_ellips!(ax, vars, P, domain::AB.Domain{N,T};
 end
 
 
-function cell_approx!(ax, vars, Xdom, Udom, contsys::AB.ControlSystemLinearized{N,T};
->>>>>>> final version cdc22:src/plotting.jl
+function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemLinearized{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2
     fca = FC(fc, fa)

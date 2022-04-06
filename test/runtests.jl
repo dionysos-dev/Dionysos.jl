@@ -1,8 +1,8 @@
-# TODO Reenable once https://github.com/sisl/CUDD.jl/issues/15#issuecomment-719958808 is resolved
 include("../src/Dionysos.jl")
 
 include("./utils/data_structures/BDD/test_BDD.jl")
 include("./utils/data_structures/BDD/test_inttupleset.jl")
+include("./examples/test_cdc2022_state_trans.jl")
 include("./examples/test_gol_lazar_belta.jl")
 include("./domain/test_griddomain.jl")
 include("./control/test_controlsystemgrowth.jl")

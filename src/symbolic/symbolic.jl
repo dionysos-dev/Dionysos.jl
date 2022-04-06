@@ -17,4 +17,6 @@ SY = System
 
 include("automaton.jl")
 include("symbolicmodel.jl")
+include("ellipsoidal_transitions.jl")
+
 end  # module Symbolic

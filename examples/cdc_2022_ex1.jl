@@ -1,4 +1,4 @@
-using Dionysos
+using .Dionysos
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
@@ -6,13 +6,16 @@ using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
 
-const AB = Dionysos.Abstraction
+using Mosek, MosekTools, JuMP
+
 
 lib = CDDLib.Library() #polyhedron lib
 # aux functions
 eye(n) = diagm(ones(n)) # I matrix
 sm(M) = SMatrix{size(M,1),size(M,2)}(M)
 sv(M) = SVector{size(M,1)}(M)
+
+optimizer = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
 function trial(dt,Usz,Wmax,contraction,initial_vol)
       # Define system
@@ -58,9 +61,9 @@ function trial(dt,Usz,Wmax,contraction,initial_vol)
 
       system = ConstrainedAffineControlDiscreteSystem(A, B, g, pX, pU) 
 
-      is_controllable, K0, P0, gamma = AB._provide_P(system);
+      is_controllable, K0, P0, gamma = Dionysos.Symbolic._provide_P(system, optimizer);
 
-      vol_P0 = AB.ellipsoid_vol(P0,1)
+      vol_P0 = Dionysos.Symbolic.ellipsoid_vol(P0,1)
       P = P0*(vol_P0/initial_vol)^(2/n_sys)
       #println(round.(P,digits=4))
       Pp = P*contraction
@@ -71,7 +74,7 @@ function trial(dt,Usz,Wmax,contraction,initial_vol)
             println("cp in B_s")
       end
 
-      has_transition, cost, kappa = AB._has_transition(system,P,c,Pp,cp,W,L,U)
+      has_transition, cost, kappa = Dionysos.Symbolic._has_transition(system,P,c,Pp,cp,W,L,U,optimizer)
       K = kappa[:,1:n_sys];
       ell = kappa[:,n_sys+1];
       sr = max(abs.(eigen(A+B*K).values)...);
@@ -150,34 +153,7 @@ PyPlot.clabel(CS, inline=1, fontsize=10)
 PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
 PyPlot.ylabel("\$\\eta\$", fontsize=14)
 PyPlot.title("\$\\widetilde{\\mathcal{J}}\$", fontsize=14)
-plt.savefig("ex1_cost.eps", format="eps")
-
-
-
-
-fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-ax = PyPlot.axes()
-#ax.set_xscale("log")
-CS = PyPlot.contour(initial_vol_span,contraction_span,sr_vector')
-PyPlot.clabel(CS, inline=1, fontsize=10)
-PyPlot.xlabel("vol")
-PyPlot.ylabel("contraction")
-PyPlot.title("specrad")
-
-plt.savefig("ex1_sr.eps", format="eps")
-
-
-
-fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-ax = PyPlot.axes()
-#ax.set_xscale("log")
-CS = PyPlot.contour(initial_vol_span,Wmax_span,cost_dist_vector')
-PyPlot.clabel(CS, inline=1, fontsize=10)
-PyPlot.xlabel("vol")
-PyPlot.ylabel("ommax")
-PyPlot.title("cost")
-plt.savefig("ex1_cost_omega.eps", format="eps")
-
+#plt.savefig("ex1_cost.eps", format="eps")
 
 
 
@@ -190,13 +166,32 @@ PyPlot.clabel(CS, inline=1, fontsize=10)
 PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
 PyPlot.ylabel("\$\\omega_{\\max}\$", fontsize=14)
 PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
-plt.savefig("ex1_sr_omega.eps", format="eps")
+#plt.savefig("ex1_sr_omega.eps", format="eps")
 
 
 
+# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
+# ax = PyPlot.axes()
+# #ax.set_xscale("log")
+# CS = PyPlot.contour(initial_vol_span,contraction_span,sr_vector')
+# PyPlot.clabel(CS, inline=1, fontsize=10)
+# PyPlot.xlabel("vol")
+# PyPlot.ylabel("contraction")
+# PyPlot.title("specrad")
+
+# #plt.savefig("ex1_sr.eps", format="eps")
 
 
-# ax = PyPlot.subplot(2,1,1)
-# ax.semilogx(initial_vol_span,cost_vector)
-# ax = PyPlot.subplot(2,1,2)
-# ax.semilogx(initial_vol_span,sr_vector)
+
+# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
+# ax = PyPlot.axes()
+# #ax.set_xscale("log")
+# CS = PyPlot.contour(initial_vol_span,Wmax_span,cost_dist_vector')
+# PyPlot.clabel(CS, inline=1, fontsize=10)
+# PyPlot.xlabel("vol")
+# PyPlot.ylabel("ommax")
+# PyPlot.title("cost")
+# #plt.savefig("ex1_cost_omega.eps", format="eps")
+
+
+
