@@ -1,4 +1,4 @@
-include("../src/Dionysos.jl")
+using Dionysos
 
 include("./utils/data_structures/BDD/test_BDD.jl")
 include("./utils/data_structures/BDD/test_inttupleset.jl")

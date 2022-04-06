@@ -1,15 +1,15 @@
-using .Dionysos
+using Dionysos
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
 using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
-using Mosek, MosekTools, Gurobi, JuMP
+using Mosek, MosekTools, Ipopt, JuMP
 using Test
 
 opt_sdp = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-opt_lp = optimizer_with_attributes(Gurobi.Optimizer, MOI.Silent() => true)
+opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
 lib = CDDLib.Library() #polyhedron lib
 eye(n) = diagm(ones(n)) # I matrix
@@ -109,7 +109,7 @@ transitionKappa = Dict() #dictionary with controller associated each transition
 empty!(symmodel.autom)
 
 #building abstraction
-@time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_lp)
+@time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
 x0 = SVector(2.0,-2.0); # initial condition
@@ -220,8 +220,7 @@ println("True cost:\t\t $(costTrue)")
 
 @static if get(ENV, "CI", "false") == "false"
       using PyPlot
-
-      include(dirname(pathof(Dionysos)) * "/utils/plotting/plotting.jl")
+      include("../src/utils/plotting/plotting.jl")
       PyPlot.pygui(true) 
 
 
