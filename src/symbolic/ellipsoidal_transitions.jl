@@ -85,7 +85,7 @@ function _compute_base_cell(r::SVector{S}) where S
 end
 
 function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
-    hybridsys::AbstractHybridSystem, W, L, Uc, opt_sdp, opt_lp) where N
+    hybridsys::AbstractHybridSystem, W, L, Uc, opt_sdp, opt_qp) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
@@ -97,7 +97,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     if Xdom.grid isa Domain.GridEllipsoidalRectangular
         Pm = Xdom.grid.P
         P = Pm
-        R = _get_min_bounding_box(P, opt_lp)
+        R = _get_min_bounding_box(P, opt_qp)
         #println(R)
     else
         Pm = (1/n_sys) * diagm(inv.(r.^2))
