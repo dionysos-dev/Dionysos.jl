@@ -2,7 +2,11 @@ using Dionysos
 
 include("./utils/data_structures/BDD/test_BDD.jl")
 include("./utils/data_structures/BDD/test_inttupleset.jl")
-include("./examples/test_cdc2022_state_trans.jl")
+# See https://github.com/jump-dev/SDPA.jl/issues/34
+# Once this issue is resolved, this if must be removed
+if VERSION == v"1.6.3"
+    include("./examples/test_cdc2022_state_trans.jl")
+end
 include("./examples/test_gol_lazar_belta.jl")
 include("./domain/test_griddomain.jl")
 include("./control/test_controlsystemgrowth.jl")
