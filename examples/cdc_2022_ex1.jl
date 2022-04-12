@@ -192,6 +192,3 @@ PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
 # PyPlot.ylabel("ommax")
 # PyPlot.title("cost")
 # #plt.savefig("ex1_cost_omega.eps", format="eps")
-
-
-
