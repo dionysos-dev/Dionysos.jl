@@ -1,4 +1,3 @@
-module MyQueue
 using DataStructures
 
 ## Queues: Stack, FIFOQueue, PriorityQueue
@@ -91,5 +90,3 @@ function extend!(pq::MyPriorityQueue, items)
          append!(pq,item)
     end
 end
-
-end # module

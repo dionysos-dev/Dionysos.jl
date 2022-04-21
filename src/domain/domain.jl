@@ -1,10 +1,6 @@
 module Domain
 
-# using LinearAlgebra
-# using ProgressMeter
-using StaticArrays
-# using Base.Cartesian
-# using HybridSystems
+using StaticArrays, Plots
 using ..Utils
 UT = Utils
 
@@ -12,4 +8,6 @@ UT = Utils
 
 include("grid.jl")
 include("domain_list.jl")
+include("custom_domain.jl")
+include("general_domain.jl")
 end  # module Domain

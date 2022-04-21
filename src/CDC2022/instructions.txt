@@ -1,0 +1,4 @@
+To obtain the figures of the paper, it is necessary to execute the 3 following files:
+- test_rotated_grid.jl
+- test_2D_VanDerPolOscillator.jl
+- test_5D_system.jl

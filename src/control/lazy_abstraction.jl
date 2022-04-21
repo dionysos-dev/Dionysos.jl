@@ -1,23 +1,24 @@
-module Lazy_abstraction
+module LazyAbstractionReach
 """
-Module that aims to solve a reachability problem.
+Module to solve a reachability problem.
 For this, it builds an abstraction that is alternatingly simulated by our original system.
 This abstraction and the controller are built lazily based on a heuristic.
 """
-#TO DO: -array vs dictionnary
-#       -eventually delete State struct
 
-include("search.jl")
-using .Search
-const S = Search
 
-using ..Abstraction
-const AB = Abstraction
+using ..Utils
+UT = Utils
 
-using ..DomainList
-const D = DomainList
+using ..Domain
+DO = Domain
 
-using Plots,StaticArrays
+using ..Symbolic
+SY = Symbolic
+
+using ..Control
+CO = Control
+
+using StaticArrays, Plots
 
 struct State
     source::Int
@@ -50,7 +51,7 @@ function Base.setindex!(m::MutableMatrix{T}, val::T, col::Int, row::Int) where T
     m.data[(col - 1) * m.num_rows + row] = val
 end
 
-mutable struct LazyAbstraction{T,SM,C,TC<:Function,PrI<:Function,PoI<:Function,HD} <: S.SearchProblem{T}
+mutable struct LazyAbstraction{T,SM,C,TC<:Function,PrI<:Function,PoI<:Function,HD} <: UT.SearchProblem{T}
     initial::Vector{T} # list of initial states of A* (target set)
     goal::Vector{T}    # list of goal states of A* (init set)
     symmodel::SM
@@ -63,7 +64,7 @@ mutable struct LazyAbstraction{T,SM,C,TC<:Function,PrI<:Function,PoI<:Function,H
     controllable::BitVector                # could be an array or a dictionnary (to be added)
     num_init_unreachable::Int   # counter of the remaining non controllable init cells
     heuristic_data::HD # extension for potential additionnal data for the heuristic function
-    contr::AB.SortedTupleSet{2,Int}  # controller
+    contr::UT.SortedTupleSet{2,Int}  # controller
     closed::Union{Nothing,Dict{T,Bool}} # only usefull for the printing (could be discard later)
     costs_temp::MutableMatrix{Float64,Vector{Float64}} # array containing the current worse cost to reach the target, if the next input applied is symbol
     costs::Vector{Float64} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function
@@ -82,14 +83,14 @@ function LazyAbstraction(initial,goal,symmodel,contsys,transition_cost,pre_image
     num_init_unreachable = length(goal)
     costs_temp = MutableMatrix(0.0, symmodel.autom.nsymbols, symmodel.autom.nstates)
     costs = zeros(Float64, symmodel.autom.nstates)
-    contr =  AB.NewControllerList()
+    contr =  CO.NewControllerList()
     if transitions_previously_added === nothing
         transitions_previously_added = MutableMatrix(-1, symmodel.autom.nsymbols, symmodel.autom.nstates)
     end
     return LazyAbstraction{State,typeof(symmodel),typeof(contsys),typeof(transition_cost),typeof(pre_image),typeof(post_image),typeof(heuristic_data)}(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image,transitions_added,num_targets_unreachable,controllable,num_init_unreachable,heuristic_data,contr,nothing,costs_temp,costs,transitions_previously_added)
 end
 
-function S.goal_test(problem::LazyAbstraction, state::State)
+function UT.goal_test(problem::LazyAbstraction, state::State)
     if state.source in [s.source for s in problem.goal]
         if iszero(problem.num_init_unreachable-=1)
             return true
@@ -99,22 +100,22 @@ function S.goal_test(problem::LazyAbstraction, state::State)
 end
 
 # for the moment, one action costs 1
-function S.path_cost(problem::LazyAbstraction,c, state1::State, action, state2::State)
+function UT.path_cost(problem::LazyAbstraction,c, state1::State, action, state2::State)
     source = state2.source
-    pos = AB.get_xpos_by_state(problem.symmodel,source)
-    x = AB.get_coord_by_pos(problem.symmodel.Xdom.grid,pos)
-    upos = AB.get_upos_by_symbol(problem.symmodel,action)
-    u = AB.get_coord_by_pos(problem.symmodel.Udom.grid,upos)
+    pos = SY.get_xpos_by_state(problem.symmodel,source)
+    x = DO.get_coord_by_pos(problem.symmodel.Xdom.grid,pos)
+    upos = SY.get_upos_by_symbol(problem.symmodel,action)
+    u = DO.get_coord_by_pos(problem.symmodel.Udom.grid,upos)
 
     problem.costs[source] += problem.transition_cost(x,u) #add the cost of the transition (should be the worst for the cell)
     return problem.costs[source] #c + 0.5
 end
 
 function transitions!(source,symbol,u,symmodel,contsys,post_image)
-    xpos = AB.get_xpos_by_state(symmodel, source)
+    xpos = SY.get_xpos_by_state(symmodel, source)
     over_approx = post_image(symmodel,contsys,xpos,u)
-    translist = ((cell, source, symbol) for cell in over_approx)
-    AB.add_transitions!(symmodel.autom, translist)
+    translist = [(cell, source, symbol) for cell in over_approx]
+    SY.add_transitions!(symmodel.autom, translist)
     return length(over_approx)
 end
 
@@ -140,11 +141,11 @@ function update_abstraction!(successors,problem,source)
     Udom = symmodel.Udom
     nsym = symmodel.autom.nsymbols
 
-    xpos = AB.get_xpos_by_state(symmodel, source)
-    x = AB.get_coord_by_pos(Xdom.grid, xpos)
-    for upos in AB.enum_pos(Udom)
-        symbol = AB.get_symbol_by_upos(symmodel, upos)
-        u = AB.get_coord_by_pos(Udom.grid, upos)
+    xpos = SY.get_xpos_by_state(symmodel, source)
+    x = DO.get_coord_by_pos(Xdom.grid, xpos)
+    for upos in DO.enum_pos(Udom)
+        symbol = SY.get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
 
         ns1 = symmodel.autom.nstates
         cells = problem.pre_image(symmodel,contsys,xpos,u)
@@ -172,7 +173,7 @@ function update_abstraction!(successors,problem,source)
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
-                        AB.push_new!(problem.contr, (cell, symbol))
+                        UT.push_new!(problem.contr, (cell, symbol))
                     end
                 end
             end
@@ -180,7 +181,7 @@ function update_abstraction!(successors,problem,source)
     end
 end
 
-function S.successor(problem::LazyAbstraction, state::State)
+function UT.successor(problem::LazyAbstraction, state::State)
     successors = []
     update_abstraction!(successors,problem,state.source)
     return successors
@@ -190,7 +191,7 @@ function compute_controller(symmodel, contsys, initlist::Vector{Int}, targetlist
     initial = [State(tar) for tar in targetlist]
     goal = [State(init) for init in initlist]
     problem = LazyAbstraction(initial,goal,symmodel,contsys,transition_cost,pre_image,post_image,heuristic_data=heuristic_data,transitions_previously_added=transitions_previously_added)
-    node, nb = S.astar_graph_search(problem,h)
+    node, nb = UT.astar_graph_search(problem,h)
     println("\nnumber of transitions created: ", length(problem.symmodel.autom.transitions))
     if node == nothing
         println("compute_controller_reach! terminated without covering init set")
@@ -223,11 +224,11 @@ function plot_result!(problem;dims=[1,2],x0=nothing)
     dict = Dict{NTuple{2,Int}, Any}()
     for k = 1:symmodel.autom.nstates
         if any(u -> problem.transitions_added[k,u], 1:problem.transitions_added.num_rows)
-            pos = AB.get_xpos_by_state(symmodel, k)
+            pos = SY.get_xpos_by_state(symmodel, k)
             if !haskey(dict,pos[dims])
                 dict[pos[dims]] = true
-                center = AB.get_coord_by_pos(grid, pos)
-                plot!(rectangle(center[dims],h./2), opacity=.2,color=:yellow)
+                center = DO.get_coord_by_pos(grid, pos)
+                Plots.plot!(rectangle(center[dims],h./2), opacity=.2,color=:yellow)
             end
         end
     end
@@ -235,51 +236,51 @@ function plot_result!(problem;dims=[1,2],x0=nothing)
     # controllable state
     dict = Dict{NTuple{2,Int}, Any}()
     for (cell, symbol) in contr.data
-        pos = AB.get_xpos_by_state(symmodel,cell)
+        pos = SY.get_xpos_by_state(symmodel,cell)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center[dims],h./2), opacity=.3,color=:blue)
+            center = DO.get_coord_by_pos(grid, pos)
+            Plots.plot!(rectangle(center[dims],h./2), opacity=.3,color=:blue)
         end
     end
 
     # states selected by A* to compute their pre-image
     dict = Dict{NTuple{2,Int}, Any}()
     for state in Base.keys(problem.closed)
-        pos = AB.get_xpos_by_state(symmodel,state.source)
+        pos = SY.get_xpos_by_state(symmodel,state.source)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center[dims],h./2), opacity=.5,color=:blue)
+            center = DO.get_coord_by_pos(grid, pos)
+            Plots.plot!(rectangle(center[dims],h./2), opacity=.5,color=:blue)
         end
     end
 
     # initial set
     dict = Dict{NTuple{2,Int}, Any}()
     for s in initlist
-        pos = AB.get_xpos_by_state(symmodel,s)
+        pos = SY.get_xpos_by_state(symmodel,s)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center[dims],h./2), opacity=.4,color=:green)
+            center = DO.get_coord_by_pos(grid, pos)
+            Plots.plot!(rectangle(center[dims],h./2), opacity=.4,color=:green)
         end
     end
 
     # target set
     dict = Dict{NTuple{2,Int}, Any}()
     for s in targetlist
-        pos = AB.get_xpos_by_state(symmodel,s)
+        pos = SY.get_xpos_by_state(symmodel,s)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            center = AB.get_coord_by_pos(grid, pos)
-            plot!(rectangle(center[dims],h./2), opacity=.5,color=:red)
+            center = DO.get_coord_by_pos(grid, pos)
+            Plots.plot!(rectangle(center[dims],h./2), opacity=.5,color=:red)
         end
     end
 
     # plot a trajectory
     if x0 != nothing
         (traj,success) = trajectory_reach(contsys, symmodel, contr, x0, targetlist)
-        print_trajectory!(symmodel,traj,dims=dims)
+        plot_trajectory!(symmodel,traj,dims=dims)
     end
 end
 
@@ -287,18 +288,18 @@ end
 function trajectory_reach(contsys, symmodel, contr, x0, targetlist; randchoose = false)
     traj = []
     while true
-        x0 = D.set_in_period_coord(symmodel.Xdom,x0)
+        x0 = DO.set_in_period_coord(symmodel.Xdom,x0)
         push!(traj,x0)
-        xpos = AB.get_pos_by_coord(symmodel.Xdom.grid, x0)
+        xpos = DO.get_pos_by_coord(symmodel.Xdom.grid, x0)
         if !(xpos ∈ symmodel.Xdom)
             @warn("Trajectory out of domain")
             return (traj,false)
         end
-        source = AB.get_state_by_xpos(symmodel, xpos)
+        source = SY.get_state_by_xpos(symmodel, xpos)[1]
         if source ∈ targetlist
             break
         end
-        symbollist = AB.fix_and_eliminate_first(contr, source)
+        symbollist = UT.fix_and_eliminate_first(contr, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return (traj,false)
@@ -309,8 +310,8 @@ function trajectory_reach(contsys, symmodel, contr, x0, targetlist; randchoose =
             symbol = first(symbollist)[1]
         end
 
-        upos = AB.get_upos_by_symbol(symmodel, symbol)
-        u = AB.get_coord_by_pos(symmodel.Udom.grid, upos)
+        upos = SY.get_upos_by_symbol(symmodel, symbol)
+        u = DO.get_coord_by_pos(symmodel.Udom.grid, upos)
         x0 = contsys.sys_map(x0, u, contsys.tstep)
     end
     return (traj,true)
@@ -322,12 +323,13 @@ function plot_trajectory!(symmodel,traj;dims=[1,2])
     grid = domain.grid
     k = dims[1]; l = dims[2]
     for i=1:length(traj)-1
-        plot!([traj[i][k],traj[i+1][k]], [traj[i][l],traj[i+1][l]],color =:red,linewidth = 2)
+        Plots.plot!([traj[i][k],traj[i+1][k]], [traj[i][l],traj[i+1][l]],color =:red,linewidth = 2)
         if i>1
-            scatter!([traj[i][k]],[traj[i][l]],color =:red,markersize=2)
+            Plots.scatter!([traj[i][k]],[traj[i][l]],color =:red,markersize=2)
         end
     end
-    scatter!([traj[1][k]],[traj[1][l]],color =:green,markersize=3)
-    scatter!([traj[end][k]],[traj[end][l]],color =:yellow,markersize=3)
+    Plots.scatter!([traj[1][k]],[traj[1][l]],color =:green,markersize=3)
+    Plots.scatter!([traj[end][k]],[traj[end][l]],color =:yellow,markersize=3)
 end
-end # end module
+
+end #end module

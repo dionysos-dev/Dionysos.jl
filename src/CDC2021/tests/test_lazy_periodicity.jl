@@ -86,6 +86,8 @@ function compute_reachable_set(rect::AB.HyperRectangle,contsys,Udom)
         lb = min.(lb,Fx .- Fr)
         ub = max.(ub,Fx .+ Fr)
     end
+    lb = SVector{n}(lb)
+    ub = SVector{n}(ub)
     return AB.HyperRectangle(lb,ub)
 end
 
@@ -117,7 +119,7 @@ function build_dom()
     X = AB.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
     obstacle = AB.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
     hx = [0.5, 0.5]
-    periodic = [1,2]
+    periodic = Int[]
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
     grid = D.build_grid_in_rec(X, hx)
@@ -160,7 +162,7 @@ end
 function build_heuristic_data(X,contsys,Udom,_I_)
     # build the alternating simulation
     hx = [1.0, 1.0]*1.5
-    periodic = [1,2]
+    periodic = Int[]
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
     Xdom = D.GeneralDomainList(hx;periodic=periodic,periods=periods,T0=T0)
@@ -191,7 +193,7 @@ function test()
     initlist = UT.get_symbol(symmodel,_I_,AB.OUTER)
     _T_ = AB.HyperRectangle(SVector(25.0, 25.0), SVector(28.0, 28.0))
     targetlist = UT.get_symbol(symmodel,_T_,AB.INNER)
-    # Heuristic data
+    # # Heuristic data
     fig = plot(aspect_ratio = 1,legend = false)
     heuristic_data = build_heuristic_data(X,contsys,Udom,_I_)
 

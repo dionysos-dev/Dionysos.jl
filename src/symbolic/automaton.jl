@@ -26,6 +26,7 @@ append_new!(s::Set, translist) = union!(s, translist)
 function add_transitions!(autom::AutomatonList, translist)
     UT.append_new!(autom.transitions, translist)
 end
+
 Base.empty!(autom::AutomatonList) = empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::AutomatonList, source, symbol)

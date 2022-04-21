@@ -1,18 +1,6 @@
-include(joinpath("..", "..", "Abstraction", "abstraction.jl"))
-include("../general_domain.jl")
-include("../utils.jl")
-
 module TestMain
 using StaticArrays,Plots
 
-using ..Abstraction
-const AB = Abstraction
-
-using ..DomainList
-const D = DomainList
-
-using ..Utils
-const U = Utils
 
 function test_periodicity()
     fig = plot(aspect_ratio = 1,legend = false)

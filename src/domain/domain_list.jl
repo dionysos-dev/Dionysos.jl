@@ -106,3 +106,23 @@ end
 function crop_to_domain(domain::DomainList, list)
     return list ∩ enum_pos(domain)
 end
+
+function get_coord(domain::DomainType, pos)
+    return get_coord_by_pos(domain.grid,pos)
+end
+
+function rectangle(c,r)
+    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+end
+
+
+function Plots.plot!(Xdom::DomainType{N,T};opacity=0.2,dims=[1,2], color=:yellow) where {N,T}
+    grid = Xdom.grid
+    dict = Dict{NTuple{2,Int}, Any}()
+    for pos in enum_pos(Xdom)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            plot_elem!(grid, pos; dims=dims, opacity=opacity, color=color)
+        end
+    end
+end

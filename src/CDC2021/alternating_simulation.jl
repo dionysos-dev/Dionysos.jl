@@ -44,7 +44,6 @@ function build_alternating_simulation(problem::symmodelProblem)
     i=1
     L = length(enum_cells(problem))
     for source in enum_cells(problem)
-        println(i, " / ", L)
         for neighbor in problem.get_possible_transitions(problem,source)
             cost = problem.minimum_transition_cost(problem.symmodel,problem.contsys,source,neighbor)
             if cost < Inf

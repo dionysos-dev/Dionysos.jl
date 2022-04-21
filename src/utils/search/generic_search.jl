@@ -1,10 +1,3 @@
-module Search
-include("queue.jl")
-using .MyQueue
-MQ = MyQueue
-
-export SearchProblem
-
 """
     SearchProblem
 ### Fields
@@ -104,7 +97,7 @@ The argument fringe should be an empty queue.
 Don't worry about repeated paths to a state.
 """
 function tree_search(problem::SearchProblem, fringe)
-    MQ.append!(fringe,Node(problem.initial))
+    append!(fringe,Node(problem.initial))
     n = 0
     while !isempty(fringe)
         node = pop!(fringe)
@@ -112,7 +105,7 @@ function tree_search(problem::SearchProblem, fringe)
         if goal_test(problem,node.state)
             return node,n
         end
-        MQ.extend!(fringe,expand(node,problem))
+        extend!(fringe,expand(node,problem))
     end
     return nothing,n
 end
@@ -121,14 +114,14 @@ end
 Search the shallowest nodes in the search tree first.
 """
 function breadth_first_tree_search(problem::SearchProblem)
-    return tree_search(problem, MQ.FIFOQueue{Node}())
+    return tree_search(problem, FIFOQueue{Node}())
 end
 
 """
 Search the deepest nodes in the search tree first.
 """
 function depth_first_tree_search(problem::SearchProblem)
-    return tree_search(problem, MQ.MyStack{Node}())
+    return tree_search(problem, MyStack{Node}())
 end
 
 """
@@ -137,14 +130,14 @@ The argument fringe should be an empty queue.
 If two paths reach a state, only use the best one.
 """
 function graph_search(problem::SearchProblem{S}, fringe) where S
-    problem.closed = Dict{S, Bool}() #####################################
+    problem.closed = Dict{S, Bool}()
     n = 0
     if typeof(problem.initial) == Vector{S}
         for init in problem.initial
-            MQ.append!(fringe,Node(init))
+            append!(fringe,Node(init))
         end
     else
-        MQ.append!(fringe,Node(problem.initial))
+        append!(fringe,Node(problem.initial))
     end
     while !isempty(fringe)
         node = pop!(fringe)
@@ -152,9 +145,9 @@ function graph_search(problem::SearchProblem{S}, fringe) where S
         if goal_test(problem,node.state)
             return node,n
         end
-        if !haskey(problem.closed,node.state) # (to do: check if cst time O(1))
+        if !haskey(problem.closed,node.state)
             problem.closed[node.state] = true
-            MQ.extend!(fringe,expand(node,problem))
+            extend!(fringe,expand(node,problem))
         end
     end
     return nothing,n
@@ -164,14 +157,14 @@ end
 Search the shallowest nodes in the search tree first.
 """
 function breadth_first_graph_search(problem)
-    return graph_search(problem, MQ.FIFOQueue{Node}())
+    return graph_search(problem, FIFOQueue{Node}())
 end
 
 """
 Search the deepest nodes in the search tree first.
 """
 function depth_first_graph_search(problem::SearchProblem)
-    return graph_search(problem, MQ.MyStack{Node}())
+    return graph_search(problem, MyStack{Node}())
 end
 
 function depth_limited_search(problem; limit=50)
@@ -218,7 +211,7 @@ if f is a heuristic estimate to the goal, then we have greedy best
 first search; if f is node.depth then we have depth-first search.
 """
 function best_first_graph_search(problem::SearchProblem, f)
-    return graph_search(problem, MQ.MyPriorityQueue{Node,Float64}(f,problem)) ###########
+    return graph_search(problem, MyPriorityQueue{Node,Float64}(f,problem))
 end
 
 """
@@ -237,7 +230,7 @@ if f is a heuristic estimate to the goal, then we have greedy best
 first search; if f is node.depth then we have depth-first search.
 """
 function best_first_tree_search(problem::SearchProblem, f)
-    return tree_search(problem,  MQ.MyPriorityQueue{Node,Float64}(f,problem))
+    return tree_search(problem,  MyPriorityQueue{Node,Float64}(f,problem))
 end
 
 """
@@ -248,5 +241,3 @@ function astar_tree_search(problem::SearchProblem, h)
     f(n,problem) = n.path_cost + h(n,problem)
     return best_first_tree_search(problem, f)
 end
-
-end # module

@@ -1,9 +1,9 @@
-include("../search.jl")
-
 module TestMain
+
 using Test, StaticArrays
-using Main.Search
-const S = Main.Search
+using ..Dionysos
+const DI = Dionysos
+const UT = DI.Utils
 
 sleep(0.1) # used for good printing
 println("Started test")
@@ -13,7 +13,7 @@ struct State
     y::Int
 end
 
-mutable struct PathProblem{T} <: S.SearchProblem{T}
+mutable struct PathProblem{T} <: UT.SearchProblem{T}
     initial
     goal::Union{Nothing,T}
     map
@@ -26,7 +26,7 @@ end
 
 Base.:(==)(s1::State, s2::State)= s1.x == s2.x && s1.y == s2.y
 
-function S.successor(problem::PathProblem, s::State)
+function UT.successor(problem::PathProblem, s::State)
     function is_admissible(map,x,y)
         dim = size(map)
         return x>=1 && x<=dim[1] && y>=1 && y<=dim[2] && map[x,y] == 1 ? true : false
@@ -49,7 +49,7 @@ end
 function print_result(node;all=false)
     println("Number of moves: ", node.depth)
     println("Path cost: ", node.path_cost)
-    path = S.path(node)
+    path = UT.path(node)
     if all
         for n in path
             println(n.state)
@@ -58,14 +58,14 @@ function print_result(node;all=false)
 end
 
 # heurisic: Manhattan distance
-function h1(node::S.Node,problem::PathProblem)
+function h1(node::UT.Node,problem::PathProblem)
     state = node.state
     tar = problem.goal
     return abs(state.x-tar.x) + abs(state.y-tar.y)
 end
 
 # no heurisic
-function h2(node::S.Node,problem::PathProblem)
+function h2(node::UT.Node,problem::PathProblem)
     return 0.0
 end
 
@@ -82,10 +82,10 @@ init = State(5,7)
 target = State(4,4)
 problem = PathProblem(init, Map; goal=target)
 @testset "depth_first_graph_search" begin
-    node, nb = S.depth_first_graph_search(problem)
+    node, nb = UT.depth_first_graph_search(problem)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.depth >= 16
@@ -93,51 +93,51 @@ problem = PathProblem(init, Map; goal=target)
 end
 
 @testset "breadth_first_graph_search" begin
-    node, nb = S.breadth_first_graph_search(problem)
+    node, nb = UT.breadth_first_graph_search(problem)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.path_cost == 16
     @test node.depth == 16
 end
 @testset "depth_limited_search" begin
-    node = S.depth_limited_search(problem; limit=10)
+    node = UT.depth_limited_search(problem; limit=10)
     @test node == "cutoff"
-    node = S.depth_limited_search(problem; limit=20)
+    node = UT.depth_limited_search(problem; limit=20)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.path_cost >= 16
     @test node.depth >= 16
 end
 @testset "iterative_deepening_search" begin
-    node = S.iterative_deepening_search(problem)
+    node = UT.iterative_deepening_search(problem)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.path_cost == 16
     @test node.depth == 16
 end
 @testset "astar_graph_search" begin
-    node, nb1 = S.astar_graph_search(problem,h1)
+    node, nb1 = UT.astar_graph_search(problem,h1)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.path_cost == 16
     @test node.depth == 16
 
-    node, nb2 = S.astar_graph_search(problem,h2)
+    node, nb2 = UT.astar_graph_search(problem,h2)
     @test node != nothing
     @test node.state == target
-    path = S.path(node)
+    path = UT.path(node)
     @test path[1].state == init
     @test path[end].state == target
     @test node.path_cost == 16

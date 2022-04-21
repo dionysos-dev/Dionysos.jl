@@ -1,0 +1,384 @@
+module Test
+include("../Dionysos.jl")
+using Test, StaticArrays, Plots, LinearAlgebra, Statistics, Distributions
+using ..Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
+const LA = DI.Control.LazyAbstractionReach
+
+using Test, StaticArrays,Plots, LinearAlgebra
+using Distributions
+
+include("nested_domain.jl")
+include("proba_automaton.jl")
+include("monteCarlo.jl")
+include("markov_chain.jl")
+include("nested_symbolic.jl")
+include("system.jl")
+
+function build_system(X,μ)
+    tstep = 0.08
+    measnoise = SVector(0.0,0.0)
+    sysnoise = SVector(0.0,0.0)
+    nsys = 5
+    ngrowthbound = 5
+
+    k = 1.0
+    f = system_with_boundary(Van_der_pol_oscillator(μ;k=k),10.0,-1.0)
+    f_reverse = reverse_Van_der_pol_oscillator(μ;k=k)
+    jacobian = Jacobian_with_boundary(Van_der_pol_oscillator_Jacobian(2.0),12.0,-0.8)
+    contsys = NewControlSystemGrowthLx(tstep, f, jacobian, f_reverse, measnoise, sysnoise, nsys, ngrowthbound, X)
+    return contsys
+end
+
+function build_dom(f,fi,hx,r)
+    X = UT.HyperRectangle(SVector(-r, -r), SVector(r, r))
+    obstacle = UT.HyperRectangle(SVector(-100.0, -100.0), SVector(-99.0, -99.0))
+    d = DO.RectanglularObstacles(X, [obstacle])
+    Xdom = DO.GeneralDomainList(hx;elems=d,fit=true,f=f,fi=fi)
+    return X,Xdom
+end
+
+
+function test_compare()
+    X = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0))
+    obstacle = UT.HyperRectangle(SVector(-100.0, -100.0), SVector(-99.0, -99.0))
+    hx = [1.0, 1.0]*0.5
+    d = DO.RectanglularObstacles(X, [obstacle])
+
+    Udom = DO.CustomList([SVector(0.0,1.0)])
+    sys = build_system_Van_der_pol_oscillator()
+    angles = [θ for θ in 0:((15/180)*π):π/2.0]
+    entropy = Float64[]
+    for θ in angles
+        f,fi = build_f_rotation(θ)
+        Xdom = DO.GeneralDomainList(hx;elems=d,fit=false,f=f,fi=fi)
+        param = Param(1500)
+        symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
+        compute_symbolic_full_domain!(symmodel,sys)
+        update_MC!(symmodel)
+        h = get_entropy_chain(symmodel.mc)
+        println()
+        println(θ)
+        println(h)
+        push!(entropy,h)
+    end
+    fig = plot(aspect_ratio = 1,legend = false)
+    println(angles)
+    println(entropy)
+    plot!(angles,entropy)
+    display(fig)
+end
+
+function test_rotated()
+    μ = 2.0
+    hx = [1.0, 1.0]*0.3
+    θ = 0.7853981633974483
+    f,fi = build_f_rotation(θ)
+    X,Xdom = build_dom(f,fi,hx,12.0) #10.0
+    Udom = DO.CustomList([SVector(0.0,1.0)])
+    sys =  build_system(X,μ)
+    param = Param(500)
+    symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
+    compute_symbolic_full_domain!(symmodel,sys)
+    update_MC!(symmodel)
+    a = 5.0
+    b = 5.0
+    h = get_entropy_chain(symmodel.mc)
+    println(h)
+    x0 = SVector(2.0,2.0)
+    plot_steady_state(sys,symmodel,xlims=[-b,b],ylims=[-a,a],x0=x0)
+    plot_steady_state(sys,symmodel,x0=x0)
+    plot_steady_state(sys,symmodel,fact=0.0015,x0=x0)
+    plot_steady_state(sys,symmodel,fact=0.001,x0=x0)
+    plot_steady_state(sys,symmodel,fact=0.0005,x0=x0)
+    plot_steady_state(sys,symmodel,fact=0.0001,x0=x0)
+    plot_steady_state(sys,symmodel,fact=0.0,x0=x0)
+    println("entropy SS: ", get_entropy_SS(symmodel.mc))
+end
+
+# test_compare()
+test_rotated()
+ # 0.2617993877991494
+ # 0.7853981633974483
+
+
+#
+# function test()
+#     f = nothing
+#     fi = nothing
+#     hx = [1.0, 1.0]*0.5
+#     X,Xdom = build_dom(f,fi,hx,10.0) #10.0
+#     Udom = UT.CustomList([SVector(0.0,1.0)])
+#     F_sys = system_with_boundary(Van_der_pol_oscillator(2.0),8.0,-0.8)
+#     sys = NewControlSystemGrowthRK4(0.08,F_sys,SVector(0.0, 0.0),4)
+#
+#     param = Param(500)
+#     symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
+#     prob = NewAnalysisProblem(symmodel,sys,nothing,false)
+#     time = @elapsed begin
+#     solve!(prob)
+#     end
+#     println("total time: lazy abstraction + controller: ", time)
+#     plot_steady_state(sys,symmodel)
+#     # plot_steady_state(sys,symmodel,fact=0.004)
+#     # plot_steady_state(sys,symmodel,fact=0.003)
+#     # plot_steady_state(sys,symmodel,fact=0.002)
+#     # plot_steady_state(sys,symmodel,fact=0.0015)
+#     # plot_steady_state(sys,symmodel,fact=0.001)
+#     # plot_steady_state(sys,symmodel,fact=0.0005)
+#     # plot_steady_state(sys,symmodel,fact=0.00001)
+#     # plot_steady_state(sys,symmodel,fact=0.000005)
+#     plot_steady_state(sys,symmodel,fact=0.0)
+#     h = get_entropy_chain(symmodel.mc)
+#     V = AB.get_volume(Xdom.grid)
+#     ϵ = 0.001
+#     l = log2(V/(4*ϵ*ϵ))
+#     println("h: ",h)
+#     println(V)
+#     println(log2(V/(4*ϵ*ϵ)))
+#     println("hV: ",h+l)
+#     #detect(symmodel.mc.steady_state)
+#     #plot_automaton(prob)
+# end
+#
+# # test()
+#
+#
+# ###############################################################################
+#
+# function test_size()
+#     f = nothing
+#     fi = nothing
+#     #f,fi = build_f_rotation((15/180)*π)
+#     sizes = reverse([h for h in 0.2:0.05:5.0])
+#
+#     F_sys = system_with_boundary(Van_der_pol_oscillator(2.0),8.0,-0.8)
+#     sys = NewControlSystemGrowthRK4(0.08,F_sys,SVector(0.0, 0.0),4)
+#     #sys = build_system_Van_der_pol_oscillator()
+#     entropy_SS = []
+#     entropy_V = []
+#     hx_vec = []
+#     for (i,c) in enumerate(sizes)
+#         hx = [1.0, 1.0]*c
+#         push!(hx_vec,hx[1])
+#         X,Xdom = build_dom(f,fi,hx,10.0)
+#         Udom = UT.CustomList([SVector(0.0,1.0)])
+#
+#         symmodel = NewMultiSymbolicModel(Xdom, Udom)
+#         compute_symbolic_full_domain!(symmodel,sys)
+#         update_MC!(symmodel)
+#
+#         # plot_steady_state(sys,symmodel)
+#         # plot_steady_state(sys,symmodel,bool=true)
+#         # plot_shannon_entropy(sys,symmodel)
+#         h = get_entropy_chain(symmodel.mc)
+#         V = AB.get_volume(Xdom.grid)
+#         ϵ = 0.001
+#         l = log2(V/(4*ϵ*ϵ))
+#         hV = h+l
+#         push!(entropy_SS,h)
+#         push!(entropy_V,hV)
+#         println(hx, " , entropy steady-state , ",h)
+#         println(hx, " , with volume entropy , ",hV)
+#     end
+#     fig = plot(legend = false)
+#     plot!(hx_vec,entropy_SS)
+#     display(fig)
+#     fig = plot(legend = false)
+#     plot!(hx_vec,entropy_V)
+#     display(fig)
+#     #plot_automaton(prob)
+# end
+#
+# # test_size()
+#
+# function detect(ps)
+#     threshold = [t for t in 0.0:0.001:0.1]
+#     countSet = []
+#     for t in threshold
+#         count = 0
+#         for p in ps
+#             if p>t
+#                 count+=1
+#             end
+#         end
+#         push!(countSet,count)
+#     end
+#     fig = plot(legend = false)
+#     plot!(threshold,countSet)
+#     display(fig)
+# end
+#
+# function test_volume_entropy_ϵ()
+#     V = 1.0
+#     ϵSet = [ϵ for ϵ in 0.00001:0.0001:0.1]
+#     entropy = []
+#     for ϵ in ϵSet
+#         h = log2(V/(4*ϵ*ϵ))
+#         push!(entropy,h)
+#     end
+#     fig = plot(legend = false)
+#     plot!(ϵSet,entropy)
+#     display(fig)
+# end
+# function test_volume_entropy_V()
+#     Vset = [v for v in 0.1:0.1:10.0]
+#     ϵ = 0.0001
+#     entropy = []
+#     for V in Vset
+#         h = log2(V/(4*ϵ*ϵ))
+#         push!(entropy,h)
+#     end
+#     fig = plot(legend = false)
+#     plot!(Vset,entropy)
+#     display(fig)
+# end
+# # test_volume_entropy_ϵ()
+# # test_volume_entropy_V()
+#
+#
+#
+# function compare_angles()
+#     μ = 2.0
+#     hx = [1.0, 1.0]*0.5  #0.3
+#
+#     angles = [θ for θ in 0:((15/180)*π):π/2.0]
+#     entropy_SS = Float64[]
+#     for θ in angles
+#         f,fi = build_f_rotation(θ)
+#         X,Xdom = build_dom(f,fi,hx,12.0) #10.0
+#         Udom = UT.CustomList([SVector(0.0,1.0)])
+#         sys =  build_system(X,μ)
+#
+#         # Xdom = D.GeneralDomainList(hx,d;fit=false,f=f,fi=fi)
+#         symmodel = NewMultiSymbolicModel(Xdom, Udom)
+#         compute_symbolic_full_domain!(symmodel,sys)
+#         update_MC!(symmodel)
+#
+#         # plot_steady_state(sys,symmodel)
+#         # plot_steady_state(sys,symmodel,fact=0.0015)
+#         # plot_steady_state(sys,symmodel,fact=0.001)
+#         # plot_steady_state(sys,symmodel,fact=0.0005)
+#         # plot_steady_state(sys,symmodel,fact=0.0001)
+#         # plot_steady_state(sys,symmodel,fact=0.0)
+#         push!(entropy_SS,get_entropy_SS(symmodel.mc))
+#         println("entropy SS: ",θ," is ", get_entropy_SS(symmodel.mc))
+#     end
+#     fig = plot(aspect_ratio = 1,legend = false)
+#     println(angles)
+#     println(entropy_SS)
+#     plot!(angles,entropy_SS)
+#     display(fig)
+# end
+# # compare_angles()
+#
+
+#
+# ###############################################################################
+# function plot_cell_sample!(symmodel, sys, coord)
+#     grid = symmodel.Xdom.domains[1].grid
+#     N = 1000
+#     xpos = AB.get_pos_by_coord(grid, coord)
+#     points = sample_elem(grid, xpos, N)
+#     targetlist = Int[]
+#     u = SVector(0.0,0.0)
+#     symbol = 1
+#     Fpoints = []
+#     source = get_state_by_coord(symmodel,coord)
+#     for x in points
+#         Fx = sys.sys_map(x, u, sys.tstep)
+#         push!(Fpoints,Fx)
+#         target = get_state_by_coord(symmodel,Fx)
+#         push!(targetlist,target)
+#     end
+#     occurences = count_occurences(targetlist)
+#     probaList = [(target,occ/N) for (target,occ) in occurences]
+#     transitions = []
+#     for (target,proba) in probaList
+#         push!(transitions, (target, source, symbol, proba))
+#     end
+#     plot!(symmodel,annotate=true)
+#     for x in points
+#         scatter!([x[1]],[x[2]],color =:green,markersize=1)
+#     end
+#     for x in Fpoints
+#         scatter!([x[1]],[x[2]],color =:red,markersize=1)
+#     end
+#     println()
+#     println("Transitions:  ", transitions)
+#     add_transitions!(symmodel.autom, transitions)
+#     h = get_entropy(transitions)
+#     println("Shannon entropy:  ", h)
+# end
+#
+# function test_plot(coord)
+#     fig = plot(aspect_ratio = 1,legend = false)
+#     f = nothing
+#     fi = nothing
+#     hx = [1.0, 1.0]*0.5
+#     X,Xdom = build_dom(f,fi,hx,14.0)
+#     Udom = UT.CustomList([SVector(0.2,1.0)])
+#     F_sys = system_with_boundary(Van_der_pol_oscillator(2.0),12.0,-0.8)
+#     sys = NewControlSystemGrowthRK4(0.08,F_sys,SVector(0.0, 0.0),4)
+#     symmodel = NewMultiSymbolicModel(Xdom, Udom)
+#     plot_cell_sample!(symmodel, sys, coord)
+#     display(fig)
+# end
+# # test_plot(SVector(0.0,-5.0))
+# # test_plot(SVector(5.0,0.01))
+# # test_plot(SVector(0.0,-0.1))
+# # test_plot(SVector(8.0,8.0))
+#
+# #############################################################################
+# function plot_circular_grid()
+#     h = SVector(1.0,π/6.0)
+#     grid = build_circular_grid(SVector(0.0,0.0), h)
+#     fig = plot(aspect_ratio = 1,legend = false)
+#     for i=0:10
+#         for j=0:12
+#             pos = (i,j)
+#             AB.plot_elem!(grid, pos, opacity=1.0,color=:yellow,N=12)
+#         end
+#     end
+#     display(fig)
+# end
+#
+# # plot_circular_grid()
+#
+# function build_dom2()
+#     X = AB.HyperRectangle(SVector(-10.0, -10.0)*2.0, SVector(10.0, 10.0)*2.0)
+#     obstacle = AB.HyperRectangle(SVector(-100.0, -100.0), SVector(-99.0, -99.0))
+#     h = SVector(1.0,π/6.0)
+#     origin = SVector(0.0,0.0)
+#     grid = build_circular_grid(origin, h)
+#     d = D.RectanglularObstacles(X, [obstacle])
+#     Xdom = D.GeneralDomainList(grid,d)
+#     return X,Xdom
+# end
+#
+# function test_2()
+#     X,Xdom = build_dom2()
+#     Udom = UT.CustomList([SVector(0.0,1.0)])
+#     F_sys = system_with_boundary(Van_der_pol_oscillator(2.0),8.0,-0.8)
+#     #sys = NewControlSystemGrowthRK4(0.08,F_sys,SVector(0.0, 0.0),4)
+#     μ = 2.0
+#     sys =  build_system(X,μ)
+#
+#     symmodel = NewMultiSymbolicModel(Xdom, Udom)
+#     compute_symbolic_full_domain!(symmodel,sys)
+#     update_MC!(symmodel)
+#     a = 5.0
+#     b = 5.0
+#     plot_steady_state(sys,symmodel,xlims=[-b,b],ylims=[-a,a])
+#     plot_steady_state(sys,symmodel,fact=0.001,xlims=[-b,b],ylims=[-a,a])
+#     plot_steady_state(sys,symmodel,fact=0.0001,xlims=[-b,b],ylims=[-a,a])
+#     plot_steady_state(sys,symmodel,fact=0.0,xlims=[-b,b],ylims=[-a,a])
+# end
+# test_2()
+
+end # end module

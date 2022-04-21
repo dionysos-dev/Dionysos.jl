@@ -4,11 +4,16 @@ authors = ["Raphael Jungers <raphael.jungers@uclouvain.be>", "Antoine Aspeel <an
 version = "0.0.1"
 
 [deps]
+ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 CDDLib = "3391f64e-dcde-5f30-b752-e11513730f60"
 CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+DiscreteMarkovChains = "8abcb7ef-b365-4f7b-ac38-56893fb62f9f"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GLPK = "60bf3e95-4087-53dc-ae20-288a0d20c6a6"
 HybridSystems = "2207ec0c-686c-5054-b4d2-543502888820"
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"

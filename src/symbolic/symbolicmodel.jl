@@ -1,6 +1,8 @@
+using Plots
+
 abstract type SymbolicModel{N,M} end
 
-struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A<:HybridSystems.AbstractAutomaton} <: SymbolicModel{N,M}
+mutable struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A} <: SymbolicModel{N,M}
     Xdom::S1
     Udom::S2
     autom::A
@@ -10,14 +12,16 @@ struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A<:Hybrid
     uint2pos::Vector{NTuple{M,Int}}
 end
 
+
+
 # ListList refers to List for SymbolicModel, and List for automaton
-function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = SortedTupleSet{3,Int}) where {S}
-    nx = get_ncells(Xdom)
-    nu = get_ncells(Udom)
-    xint2pos = [pos for pos in enum_pos(Xdom)]
-    xpos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Xdom)))
-    uint2pos = [pos for pos in enum_pos(Udom)]
-    upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Udom)))
+function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,Int}) where {S}
+    nx = DO.get_ncells(Xdom)
+    nu = DO.get_ncells(Udom)
+    xint2pos = [pos for pos in DO.enum_pos(Xdom)]
+    xpos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Xdom)))
+    uint2pos = [pos for pos in DO.enum_pos(Udom)]
+    upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
     autom = AutomatonList{S}(nx, nu)
     return SymbolicModelList(
         Xdom, Udom, autom, xpos2int, xint2pos, upos2int, uint2pos)
@@ -53,6 +57,10 @@ end
 
 function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
     return symmodel.upos2int[upos]
+end
+
+function enum_cells(symmodel::SymbolicModelList)
+    return 1:length(symmodel.xint2pos)
 end
 
 # Assumes that automaton is "empty"
