@@ -50,13 +50,13 @@ end
 function get_pos_lims_inner(grid::Grid{N}, rect; tol=1e-6) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i])/grid.h[i] + 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i])/grid.h[i] - 0.5), Val(N))
-    return HyperRectangle(lbI, ubI)
+    return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_lims_outer(grid::Grid{N}, rect; tol=0.0) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] + tol - grid.orig[i])/grid.h[i] - 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] - tol - grid.orig[i])/grid.h[i] + 0.5), Val(N))
-    return HyperRectangle(lbI, ubI)
+    return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
@@ -84,7 +84,7 @@ end
 function get_rec(grid::GridFree, pos)
     x = get_coord_by_pos(grid, pos)
     r = grid.h/2.0
-    return HyperRectangle(x-r, x+r)
+    return UT.HyperRectangle(x-r, x+r)
 end
 
 function get_dim(grid::GridFree)
@@ -101,11 +101,11 @@ end
 
 function get_volume(grid::GridFree)
     r = get_h(grid)/2.0
-    return volume(HyperRectangle(-r,r))
+    return UT.volume(UT.HyperRectangle(-r,r))
 end
 ######################################################### deformed grid in 2D
 
-# f is a non linear inversibl function
+# f is an inversible function
 struct DeformedGrid{N,T} <: Grid{N,T}
     grid::GridFree{N,T}
     f::Function
@@ -113,7 +113,7 @@ struct DeformedGrid{N,T} <: Grid{N,T}
     A
 end
 
-function  DeformedGrid(grid::GridFree{N,T},f::Function,fi::Function;A=nothing) where {N,T}
+function DeformedGrid(grid::GridFree{N,T},f::Function,fi::Function;A=nothing) where {N,T}
     return DeformedGrid(grid,f,fi,A)
 end
 
@@ -123,34 +123,6 @@ end
 
 function get_coord_by_pos(Dgrid::DeformedGrid{N}, pos) where N
     return Dgrid.f(get_coord_by_pos(Dgrid.grid, pos))
-end
-
-function plot_deformed_rectangle!(rec,f;dims=[1,2],opacity=0.9,color=:yellow,N=2)
-     lb = rec.lb[dims]
-     ub = rec.ub[dims]
-     vertices = [SVector(lb[1],lb[2]), SVector(lb[1],ub[2]), SVector(ub[1],lb[2]), SVector(ub[1],ub[2])]
-     points = SVector[]
-     for x in LinRange(lb[1],ub[1],N)
-         push!(points,f(SVector(x,lb[2])))
-     end
-     for x in LinRange(lb[2],ub[2],N)
-         push!(points,f(SVector(ub[1],x)))
-     end
-     for x in LinRange(ub[1],lb[1],N)
-         push!(points,f(SVector(x,ub[2])))
-     end
-     for x in LinRange(ub[2],lb[2],N)
-         push!(points,f(SVector(lb[1],x)))
-     end
-     unique!(points)
-     x = [point[1] for point in points]
-     y = [point[2] for point in points]
-     plot!(Shape(x,y),opacity=opacity,color=color)
-end
-
-function plot_elem!(Dgrid::DeformedGrid, pos; dims=[1,2], opacity=1.0, color=:yellow, N=8)
-    rec = get_rec(Dgrid.grid,pos)
-    plot_deformed_rectangle!(rec,Dgrid.f;dims=dims,opacity=opacity,color=color, N=N)
 end
 
 function get_pos_lims_inner(Dgrid::DeformedGrid{N}, rect; tol=1e-6) where N
@@ -181,4 +153,32 @@ function get_volume(Dgrid::DeformedGrid)
         return get_volume(Dgrid.grid)
     #error("volume is state-dependant for nonlinear transformation")
     end
+end
+
+function plot_deformed_rectangle!(rec,f;dims=[1,2],opacity=0.9,color=:yellow,N=2)
+     lb = rec.lb[dims]
+     ub = rec.ub[dims]
+     vertices = [SVector(lb[1],lb[2]), SVector(lb[1],ub[2]), SVector(ub[1],lb[2]), SVector(ub[1],ub[2])]
+     points = SVector[]
+     for x in LinRange(lb[1],ub[1],N)
+         push!(points,f(SVector(x,lb[2])))
+     end
+     for x in LinRange(lb[2],ub[2],N)
+         push!(points,f(SVector(ub[1],x)))
+     end
+     for x in LinRange(ub[1],lb[1],N)
+         push!(points,f(SVector(x,ub[2])))
+     end
+     for x in LinRange(ub[2],lb[2],N)
+         push!(points,f(SVector(lb[1],x)))
+     end
+     unique!(points)
+     x = [point[1] for point in points]
+     y = [point[2] for point in points]
+     plot!(Shape(x,y),opacity=opacity,color=color)
+end
+
+function plot_elem!(Dgrid::DeformedGrid, pos; dims=[1,2], opacity=1.0, color=:yellow, N=8)
+    rec = get_rec(Dgrid.grid,pos)
+    plot_deformed_rectangle!(rec,Dgrid.f;dims=dims,opacity=opacity,color=color, N=N)
 end

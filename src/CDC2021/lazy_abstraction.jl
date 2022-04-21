@@ -1,9 +1,8 @@
 module Lazy_abstraction
 """
 Module that aims to solve a reachability problem.
-For this, he builds an abstraction that is alternatingly simulated by our original system.
+For this, it builds an abstraction that is alternatingly simulated by our original system.
 This abstraction and the controller are built lazily based on a heuristic.
-(Similar to the module Abstraction except that the computation are done lazily).
 """
 #TO DO: -array vs dictionnary
 #       -eventually delete State struct
@@ -92,7 +91,6 @@ end
 
 function S.goal_test(problem::LazyAbstraction, state::State)
     if state.source in [s.source for s in problem.goal]
-        println("iiiiiiiiiiiiiiiiiiiiiii")
         if iszero(problem.num_init_unreachable-=1)
             return true
         end
@@ -169,10 +167,8 @@ function update_abstraction!(successors,problem,source)
                 end
                 # check if the cell is really in the pre-image
                 if (source,cell,symbol) in symmodel.autom.transitions
-                    #println("in the pre-image")
                     problem.costs_temp[cell,symbol] = max(problem.costs_temp[cell,symbol],problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell,symbol] -= 1)
-                        println("cell added (controlled)")
                         problem.costs[cell] = problem.costs_temp[cell,symbol]
                         problem.controllable[cell] = true
                         push!(successors,(symbol,State(cell)))
@@ -186,10 +182,6 @@ end
 
 function S.successor(problem::LazyAbstraction, state::State)
     successors = []
-    #=readline()
-    fig = plot(aspect_ratio = 1,legend = false)
-    plot_result!(problem,dims=[1,2])
-    display(fig)=#
     update_abstraction!(successors,problem,state.source)
     return successors
 end

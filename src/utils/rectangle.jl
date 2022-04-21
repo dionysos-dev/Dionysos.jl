@@ -29,10 +29,22 @@ function volume(rect::HyperRectangle)
     end
 end
 
-function isintersect(a::HyperRectangle, b::HyperRectangle)
+function is_intersection(a::HyperRectangle, b::HyperRectangle)
     return !Base.isempty(Base.intersect(a, b))
 end
 
 function Base.issubset(a::HyperRectangle, b::HyperRectangle)
     return all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
+end
+
+function get_center(rect::HyperRectangle)
+    return (rect.lb+rect.ub)/2
+end
+
+function get_dims(rect::HyperRectangle)
+    return length(rect.lb)
+end
+
+function scale(rect::HyperRectangle, α)
+    return HyperRectangle(rect.lb*α,rect.ub*α)
 end
