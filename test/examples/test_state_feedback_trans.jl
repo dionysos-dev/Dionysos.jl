@@ -1,6 +1,6 @@
 using Test
 
-include("../../examples/cdc_2022_ex2.jl")
+include("../../examples/example_SF_abst_2.jl")
 
 @testset "state_trans" begin
     @test contr.data[1] == (18,344)
