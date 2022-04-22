@@ -1,7 +1,7 @@
 module Test
-include("../Dionysos.jl")
+
 using Test, StaticArrays, Plots
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
