@@ -1,3 +1,9 @@
+#  Copyright 2022, Lucas N. Egidio, Thiago Alves Lima, and contributors
+#############################################################################
+# Dionysos
+# See https://github.com/dionysos-dev/Dionysos.jl
+#############################################################################
+
 using JuMP
 using LinearAlgebra
 using Polyhedra
@@ -7,6 +13,26 @@ using ProgressMeter
 using ..Domain
 using ..Utils
 
+
+"""
+    _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, 
+        P, c, Pp, cp, W, L, U, optimizer)
+
+Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
+defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
+to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is 
+minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix  
+`W` defines a vertex of the polytope from which additive disturbance are drawn. 
+
+The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP 
+SDP optimizer (e.g., Mosek, SDPA, COSMO, ...).
+
+
+## Note
+This implements the optimization problem presented in Corollary 1 of the following paper 
+https://arxiv.org/pdf/2204.00315.pdf
+
+"""
 function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem,P,c,Pp,cp,W,L,U, optimizer)
     
     eye(n) = diagm(ones(n))
@@ -74,7 +100,13 @@ function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteS
     return ans, cost, kappa
 end
 
-# Computs a basic cell from 
+"""
+    _compute_base_cell(r::SVector{S})
+
+Computes a polyhedron containing the base hyperrectangular cell, centered at the origin
+and with the i-th side lenght given by `2*r[i]`. 
+
+"""
 function _compute_base_cell(r::SVector{S}) where S
     baseCellList = []
     for i in 1:S
@@ -84,11 +116,22 @@ function _compute_base_cell(r::SVector{S}) where S
     return polyhedron(intersect(baseCellList...))
 end
 
+
+
+"""
+    compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
+    hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp)
+
+Builds an abstraction `symmodel` where the transitions have costs given in `transitionCost`
+and are parameterized by affine-feedback controllers in `transitionKappa`. The concrete system 
+is `hybridsys` and `W`, `L` and `U` are defined as in `_has_transition`. An SDP optimizer `opt_sdp`
+and a QP optimizer `opt_qp` must be provided as JuMP optimizers.
+
+"""
 function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
-    hybridsys::AbstractHybridSystem, W, L, Uc, opt_sdp, opt_qp) where N
+    hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
-    Udom = symmodel.Udom
     
 
     r = Xdom.grid.h/2.0
@@ -143,7 +186,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
         for xmpos in xmpos_iter
             xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
-            ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,Uc,opt_sdp)
+            ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,U,opt_sdp)
         
             if(ans)
                 trans_count += 1
@@ -164,7 +207,13 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
 end
 
 
+"""
+    _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
 
+If `subsys` is a stabilizable system, finds the matrix `P` and the state-feedback gain `K`
+that satisfy the discrete-time Lyapunov inequality (A+BK)'P(A+BK)-P < 0. The condition number
+of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
+"""
 function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
     
     eye(n) = diagm(ones(n))
@@ -203,13 +252,22 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
 end
 
 
-
+"""
+    ellipsoid_vol(P,r)
+    
+Calculates the n-volume of the n-ellipsoid defined as {x'Px < r}.
+"""
 function ellipsoid_vol(P,r) 
     N = size(P,1)
     return pi^(N/2)/(gamma(N/2+1))*det(P/r)^(-1/2)
 end
 
-function _get_min_bounding_box(P, optimizer) # minimum bounding box for ellipsoid {x'Px<=1}
+"""
+    _get_min_bounding_box(P, optimizer) 
+
+Finds the minimum bounding box containing the ellipsoid {x'Px < 1}. 
+"""
+function _get_min_bounding_box(P, optimizer) 
     n = size(P,1)
     R = zeros(n)
     
