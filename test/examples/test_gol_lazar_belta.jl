@@ -31,6 +31,7 @@ function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost:
     @info("Solving... depth: $N")
     optimizer = MOI.instantiate(algo)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+    set_time_limit_sec(optimizer, 300.0)
     @info("Solving... depth: $N")
     @time MOI.optimize!(optimizer)
     @info("Solved.")
