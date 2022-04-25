@@ -30,8 +30,7 @@ function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost:
     problem = _prob(N, q0, x0, zero_cost)
     @info("Solving... depth: $N")
     optimizer = MOI.instantiate(algo)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
-    set_time_limit_sec(optimizer, 300.0)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)    
     @info("Solving... depth: $N")
     @time MOI.optimize!(optimizer)
     @info("Solved.")
@@ -171,6 +170,7 @@ end
             Dionysos.Problem.BranchAndBound.Optimizer{Float64},
             "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
             "max_iter" => max_iter,
+            "max_time" => 300.0,
             "lower_bound" => HybridDualDynamicProgrammingAlgo(
                 qp_solver,
                 #Polyhedra.DefaultLibrary{BigFloat}(optimizer_with_attributes(Clp.Optimizer, MOI.Silent() => true)),
