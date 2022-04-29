@@ -1,6 +1,6 @@
 abstract type Controller end
 
-NewControllerList() = UT.SortedTupleSet{2,Int}()
+NewControllerList() = UT.SortedTupleSet{2,NTuple{2,Int}}()
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:autom.nstates

@@ -1,4 +1,4 @@
-
+using StaticArrays
 function Van_der_pol_oscillator(μ;k=1)
     function f(x::SVector{N,T}, u) where {N,T}
         x = (1/k)*x
@@ -56,36 +56,6 @@ function Jacobian_with_boundary(J1,radius,a)
     return Jacobian
 end
 
-struct SimpleSystem{N,T,F<:Function,F2<:Function} <: ST.ControlSystem{N,T}
-    tstep::Float64
-    measnoise::SVector{N,T}
-    sys_map::F
-    f::F2
-end
-
-function RungeKutta4(F, x, u, tstep, nsub::Int)
-    τ = tstep/nsub
-    for i in 1:nsub
-        Fx1 = F(x, u)
-        xrk = x + Fx1*(τ/2.0)
-        Fx2 = F(xrk, u)
-        xrk = x + Fx2*(τ/2.0)
-        Fx3 = F(xrk, u)
-        xrk = x + Fx3*τ
-        Fx4 = F(xrk, u)
-        x = x + (Fx1 + Fx2*2.0 + Fx3*2.0 + Fx4)*(τ/6.0)
-    end
-    return x
-end
-
-function NewControlSystemGrowthRK4(tstep, F_sys, measnoise::SVector{N,T}, nsys) where {N,T}
-    sys_map = let nsys = nsys
-        (x::SVector{N,T}, u, tstep) ->
-            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
-    end
-    return SimpleSystem(tstep, measnoise, sys_map, F_sys)
-end
-
 function build_system_Van_der_pol_oscillator(μ = 2.0,tstep = 0.08,measnoise = SVector(0.0, 0.0),nsys = 4)
     function F_sys(x::SVector{N,T}, u) where {N,T}
         y1 = x[2]
@@ -100,7 +70,7 @@ function build_system_Van_der_pol_oscillator(μ = 2.0,tstep = 0.08,measnoise = S
         end
         return y
     end
-    return NewControlSystemGrowthRK4(tstep,F_sys,measnoise,nsys)
+    return ST.NewSimpleSystem(tstep,F_sys,measnoise,nsys)
 end
 
 struct ControlSystemGrowth{N,T,F1<:Function,F2<:Function,F3<:Function,F4<:Function} <: ST.ControlSystem{N,T}
@@ -175,63 +145,6 @@ function compute_K(X,r,u,tstep,x,f;nstep=1)
     #     K = K ∪ (x+R)
     # end
     # return K
-end
-
-
-###############################################################################
-
-function f1(x)
-    return x
-end
-function fi1(x)
-    return x
-end
-
-#counter-clockwise
-function rotate(x,θ)
-    R = @SMatrix [ cos(θ) -sin(θ) ;
-                   sin(θ)  cos(θ)]
-    return R*x
-end
-function f2(x)
-    c =  SVector(0.0,0.0) #SVector(2.0,3.0)
-    θ = π/3.0
-    return rotate(x-c,θ)+c
-end
-function fi2(x)
-    c =  SVector(0.0,0.0) #SVector(2.0,3.0)
-    θ = π/3.0
-    return rotate(x-c,-θ)+c
-end
-
-function f3(x)
-    return SVector(x[2]+sin(x[1]),x[1])
-end
-function fi3(x)
-    return SVector(x[2],x[1]-sin(x[2]))
-end
-
-function f4(x)
-    return SVector(x[1]*cos(x[2]),x[1]*sin(x[2]))
-end
-function fi4(x)
-    return SVector(sqrt(x[1]*x[1] + x[2]*x[2]),atan(x[2],x[1]))
-end
-
-function build_f_rotation(θ,c =  SVector(0.0,0.0))
-    function f(x)
-        return rotate(x-c,θ)+c
-    end
-    function fi(x)
-        return rotate(x-c,-θ)+c
-    end
-    return f,fi
-end
-
-function build_circular_grid(origin,h)
-    free_grid = DO.GridFree(origin+h/2.0,h)
-    #θ = h[2]*2.0
-    return DO.DeformedGrid(free_grid,f4,fi4)
 end
 
 

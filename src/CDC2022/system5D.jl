@@ -59,36 +59,6 @@ function HD_f_with_boundary(f1,radius,a)
     return f
 end
 
-struct SimpleSystem{N,T,F<:Function,F2<:Function}
-    tstep::Float64
-    measnoise::SVector{N,T}
-    sys_map::F
-    f::F2
-end
-
-function RungeKutta4(F, x, u, tstep, nsub::Int)
-    τ = tstep/nsub
-    for i in 1:nsub
-        Fx1 = F(x, u)
-        xrk = x + Fx1*(τ/2.0)
-        Fx2 = F(xrk, u)
-        xrk = x + Fx2*(τ/2.0)
-        Fx3 = F(xrk, u)
-        xrk = x + Fx3*τ
-        Fx4 = F(xrk, u)
-        x = x + (Fx1 + Fx2*2.0 + Fx3*2.0 + Fx4)*(τ/6.0)
-    end
-    return x
-end
-
-function NewControlSystemGrowthRK4(tstep, F_sys, measnoise::SVector{N,T}, nsys) where {N,T}
-    sys_map = let nsys = nsys
-        (x::SVector{N,T}, u, tstep) ->
-            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
-    end
-    return SimpleSystem(tstep, measnoise, sys_map, F_sys)
-end
-
 
 #######################################################
 function get_entropy(transitions)

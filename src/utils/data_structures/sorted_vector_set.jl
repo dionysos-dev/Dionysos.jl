@@ -19,6 +19,17 @@ function append_new!(set::SortedTupleSet, xs)
     return set
 end
 
+function append_new!(set, xs::Vector)
+    union!(set, xs)
+    return set
+end
+
+function append_new!(set::SortedTupleSet, xs::Vector)
+    union!(set.data, xs)
+    set.is_sorted = false
+    return set
+end
+
 function delete!(set::SortedTupleSet, x, comparison)
     filter!(e->!comparison(e,x), set.data)
     set.is_sorted = false

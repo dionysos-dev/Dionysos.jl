@@ -1,17 +1,19 @@
-using StaticArrays, Plots
-
 mutable struct NestedDomain{N}
-    domains::Vector{DO.GeneralDomainList}
+    domains::Vector{GeneralDomainList}
     active::Vector{Dict{NTuple{N,Int},Any}}
     levels::Int
 end
 
-function NestedDomain(dom::DO.GeneralDomainList{N}) where {N}
+function NestedDomain(dom::GeneralDomainList{N}) where {N}
     dict = Dict{NTuple{N,Int},Any}()
-    for pos in DO.enum_pos(dom)
+    for pos in enum_pos(dom)
         dict[pos] = true
     end
-    return NestedDomain(DO.GeneralDomainList[dom], [dict], 1)
+    return NestedDomain(GeneralDomainList[dom], [dict], 1)
+end
+
+function get_levels(Ndomain::NestedDomain)
+    return Ndomain.levels
 end
 
 function is_active(Ndomain::NestedDomain, pos, l)
@@ -21,9 +23,17 @@ function is_active(Ndomain::NestedDomain, pos, l)
     return Ndomain.active[l][pos]
 end
 
+function get_pos_by_coord(Ndomain::NestedDomain, l, x)
+    return get_pos_by_coord(Ndomain.domains[l], x)
+end
+
+function get_coord_by_pos(Ndomain::NestedDomain, l, xpos)
+    return  get_coord_by_pos(Ndomain.domains[l].grid,xpos)
+end
+
 function get_depth(Ndomain::NestedDomain, x)
     for l in 1:Ndomain.levels
-        pos = DO.get_pos_by_coord(Ndomain, l, x)
+        pos = get_pos_by_coord(Ndomain, l, x)
         if is_pos(Ndomain,pos,l)
             if is_active(Ndomain, pos, l)
                 return l
@@ -35,34 +45,25 @@ function get_depth(Ndomain::NestedDomain, x)
     return 0
 end
 
-function add_dom!(Ndomain::NestedDomain, dom::DO.GeneralDomainList) where {N,T}
+function add_dom!(Ndomain::NestedDomain, dom::GeneralDomainList) where {N,T}
     push!(Ndomain.domains,dom)
     Ndomain.levels += 1
 end
 
-
-function DO.get_pos_by_coord(Ndomain::NestedDomain, l, x)
-    return  DO.get_pos_by_coord(Ndomain.domains[l], x)
+function get_grid(Ndomain::NestedDomain, l::Int)
+    return get_grid(Ndomain.domains[l])
 end
 
-function DO.get_coord_by_pos(Ndomain::NestedDomain, l, xpos)
-    return  DO.get_coord_by_pos(Ndomain.domains[l].grid,xpos)
-end
-
-function get_grid(Ndomain::NestedDomain, l)
-    return DO.get_grid(Ndomain.domains[l])
-end
-
-function DO.get_grid(Ndomain::NestedDomain, x)
-    return DO.get_grid(Ndomain, get_depth(Ndomain, x))
+function get_grid(Ndomain::NestedDomain, x::SVector)
+    return get_grid(Ndomain, get_depth(Ndomain, x))
 end
 
 #add a domain fitting inside the previous one
 function add_sub_dom!(Ndomain::NestedDomain{N}) where {N}
     l = Ndomain.levels
     dom = Ndomain.domains[l]
-    hx = DO.get_h(dom.grid)/2.0
-    subdom = DO.GeneralDomainList(hx;elems = dom.elemsCoord,periodic=dom.periodic,periods=dom.periods,T0=dom.T0,fit=dom.fit)
+    hx = get_h(dom.grid)/2.0
+    subdom = GeneralDomainList(hx;elems = dom.elemsCoord,periodic=dom.periodic,periods=dom.periods,T0=dom.T0,fit=dom.fit)
     push!(Ndomain.domains, subdom)
     push!(Ndomain.active, Dict{NTuple{N,Int},Any}())
     Ndomain.levels += 1
@@ -81,7 +82,7 @@ function cut_pos!(Ndomain, pos, l)
     end
     dict = Ndomain.active[l+1]
     Ndomain.active[l][pos] = false
-    subpos = Iterators.product(DO._ranges(get_subpos(pos))...)
+    subpos = Iterators.product(_ranges(get_subpos(pos))...)
     for spos in subpos
         dict[spos] = true
     end
@@ -99,9 +100,9 @@ function is_pos(Ndomain::NestedDomain, pos, l)
 end
 
 
-function DO.get_pos_by_coord(Ndomain::NestedDomain, x)
+function get_pos_by_coord(Ndomain::NestedDomain, x)
     l = get_depth(Ndomain, x)
-    return  (DO.get_pos_by_coord(Ndomain, l, x), l)
+    return  (get_pos_by_coord(Ndomain, l, x), l)
 end
 
 function Base.isempty(Ndomain::NestedDomain)
@@ -113,7 +114,7 @@ function Base.isempty(Ndomain::NestedDomain)
     return false
 end
 
-function DO.get_ncells(Ndomain::NestedDomain)
+function get_ncells(Ndomain::NestedDomain)
     n = 0
     for dict in Ndomain.active
         for (pos,v) in dict
@@ -126,10 +127,10 @@ function DO.get_ncells(Ndomain::NestedDomain)
 end
 
 
-function  DO.enum_pos(Ndomain::NestedDomain)
+function enum_pos(Ndomain::NestedDomain)
     L = []
     for (l,dom) in enumerate(Ndomain.domains)
-         push!(L,(DO.enum_pos(dom)))
+         push!(L,(enum_pos(dom)))
     end
     return L
 end
@@ -139,11 +140,8 @@ function Plots.plot!(Ndomain::NestedDomain;dims=[1,2])
         for (pos, v) in Ndomain.active[l]
             grid = get_grid(Ndomain, l)
             if v == true
-                DO.plot_elem!(grid, pos)
+                plot_elem!(grid, pos)
             end
         end
     end
 end
-
-
-#end

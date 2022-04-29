@@ -1,7 +1,7 @@
 using HybridSystems
 
 mutable struct ProbaAutomaton{S<:AbstractSet{Tuple{Int,Int,Int,Float64}}} <: HybridSystems.AbstractAutomaton
-    nstates::Int #not used
+    nstates::Int
     nsymbols::Int
     transitions::S
 end

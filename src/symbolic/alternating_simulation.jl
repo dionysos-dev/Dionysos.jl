@@ -11,9 +11,9 @@ function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_trans
     digraph = SimpleWeightedDiGraph(ncells)
     for source in enum_cells(symmodel)
         for neighbor in get_possible_transitions(symmodel, sys, source)
-            cost = minimum_transition_cost(symmodel, contsys, source, neighbor)
+            cost = minimum_transition_cost(symmodel, sys, source, neighbor)
             if cost < Inf
-                add_edge!(digraph, source, neighbor, cost)
+                SimpleWeightedGraphs.add_edge!(digraph, source, neighbor, cost)
             end
         end
     end
@@ -59,7 +59,7 @@ struct symmodelHeuristic <: Heuristic
 end
 
 function build_heuristic(symmodel,initlist)
-    result = LightGraphs.dijkstra_shortest_paths(symmodel.autom,initlist)
+    result = SimpleWeightedGraphs.dijkstra_shortest_paths(symmodel.autom,initlist)
     heuristic = symmodelHeuristic(symmodel,result.dists)
     return heuristic
 end

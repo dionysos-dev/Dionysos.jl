@@ -1,23 +1,14 @@
 module Test
 include("../Dionysos.jl")
 using Test, StaticArrays, Plots, LinearAlgebra, Statistics, Distributions
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
-const LA = DI.Control.LazyAbstractionReach
 
-using Test, StaticArrays,Plots, LinearAlgebra
-using Distributions
-
-include("nested_domain.jl")
-include("proba_automaton.jl")
-include("monteCarlo.jl")
-include("markov_chain.jl")
-include("nested_symbolic.jl")
 include("system5D.jl")
 
 function build_dom()
@@ -41,7 +32,7 @@ function build_system()
     nsys = 5
 
     f = HD_f_with_boundary(HD_f(),5.5,-0.8)#-0.8
-    contsys = NewControlSystemGrowthRK4(tstep, f, measnoise, nsys)
+    contsys = ST.NewSimpleSystem(tstep, f, measnoise, nsys)
     return contsys
 end
 
@@ -51,38 +42,38 @@ function test_limit_cycle()
     Udom = DO.CustomList([SVector(0.0,0.0,0.0,0.0)])
     println("BUILD SYSTEM")
     sys = build_system()
-    param = Param(5)
-    symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
+    param = SY.Param(5)
+    symmodel = SY.NewNestedSymbolicModel(Xdom, Udom, param)
     println("COMPUTE TRANSITIONS")
-    compute_symbolic_full_domain!(symmodel,sys)
+    SY.compute_symbolic_full_domain!(symmodel,sys)
     println("MARKOV CHAIN")
-    update_MC!(symmodel)
+    SY.update_MC!(symmodel)
     println("PLOT")
     x0 = SVector(2.0,2.0,4.0,4.0,4.0)
-    plot_steady_state(sys,symmodel,xlims=[-10.0,10.0],ylims=[-10.0,10.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0015,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0005,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.00001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.00000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.00000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.00000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.000000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0000000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.00000000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.000000000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0000000000000000001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0005,dims=[1,3],x0=x0)
-    plot_steady_state(sys,symmodel,dims=[1,3],x0=x0)
-    plot_steady_state(sys,symmodel,dims=[1,3],fact=0.0,x0=x0)
+    SY.plot_steady_state(sys,symmodel,xlims=[-10.0,10.0],ylims=[-10.0,10.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0015,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0005,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.00001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.00000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.00000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.00000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.000000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0000000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.00000000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.000000000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0000000000000000001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0005,dims=[1,3],x0=x0)
+    SY.plot_steady_state(sys,symmodel,dims=[1,3],x0=x0)
+    SY.plot_steady_state(sys,symmodel,dims=[1,3],fact=0.0,x0=x0)
 end
 test_limit_cycle()
 end

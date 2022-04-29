@@ -1,23 +1,14 @@
 module Test
 include("../Dionysos.jl")
 using Test, StaticArrays, Plots, LinearAlgebra, Statistics, Distributions
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
-const LA = DI.Control.LazyAbstractionReach
 
-using Test, StaticArrays,Plots, LinearAlgebra
-using Distributions
-
-include("nested_domain.jl")
-include("proba_automaton.jl")
-include("monteCarlo.jl")
-include("markov_chain.jl")
-include("nested_symbolic.jl")
 include("system.jl")
 
 function build_system(X,μ)
@@ -43,6 +34,20 @@ function build_dom(f,fi,hx,r)
     return X,Xdom
 end
 
+function rotate(x,θ)
+    R = @SMatrix [ cos(θ) -sin(θ) ;
+                   sin(θ)  cos(θ)]
+    return R*x
+end
+function build_f_rotation(θ; c=SVector(0.0,0.0))
+    function f(x)
+        return rotate(x-c,θ)+c
+    end
+    function fi(x)
+        return rotate(x-c,-θ)+c
+    end
+    return f,fi
+ end
 
 function test_compare()
     X = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0))
@@ -57,11 +62,11 @@ function test_compare()
     for θ in angles
         f,fi = build_f_rotation(θ)
         Xdom = DO.GeneralDomainList(hx;elems=d,fit=false,f=f,fi=fi)
-        param = Param(1500)
-        symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
-        compute_symbolic_full_domain!(symmodel,sys)
-        update_MC!(symmodel)
-        h = get_entropy_chain(symmodel.mc)
+        param = SY.Param(1500)
+        symmodel = SY.NewNestedSymbolicModel(Xdom, Udom, param)
+        SY.compute_symbolic_full_domain!(symmodel,sys)
+        SY.update_MC!(symmodel)
+        h = SY.get_entropy_chain(symmodel.mc)
         println()
         println(θ)
         println(h)
@@ -82,26 +87,26 @@ function test_rotated()
     X,Xdom = build_dom(f,fi,hx,12.0) #10.0
     Udom = DO.CustomList([SVector(0.0,1.0)])
     sys =  build_system(X,μ)
-    param = Param(500)
-    symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
-    compute_symbolic_full_domain!(symmodel,sys)
-    update_MC!(symmodel)
+    param = SY.Param(500)
+    symmodel = SY.NewNestedSymbolicModel(Xdom, Udom, param)
+    SY.compute_symbolic_full_domain!(symmodel,sys)
+    SY.update_MC!(symmodel)
     a = 5.0
     b = 5.0
-    h = get_entropy_chain(symmodel.mc)
+    h = SY.get_entropy_chain(symmodel.mc)
     println(h)
     x0 = SVector(2.0,2.0)
-    plot_steady_state(sys,symmodel,xlims=[-b,b],ylims=[-a,a],x0=x0)
-    plot_steady_state(sys,symmodel,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0015,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0005,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0001,x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0,x0=x0)
-    println("entropy SS: ", get_entropy_SS(symmodel.mc))
+    SY.plot_steady_state(sys,symmodel,xlims=[-b,b],ylims=[-a,a],x0=x0)
+    SY.plot_steady_state(sys,symmodel,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0015,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0005,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0001,x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0,x0=x0)
+    println("entropy SS: ", SY.get_entropy_SS(symmodel.mc))
 end
 
-# test_compare()
+test_compare()
 test_rotated()
  # 0.2617993877991494
  # 0.7853981633974483

@@ -1,7 +1,7 @@
 module Test
 include("../Dionysos.jl")
 using Test, StaticArrays, Plots, LinearAlgebra, Statistics, Distributions
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -10,14 +10,6 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const LA = DI.Control.LazyAbstractionReach
 
-using Test, StaticArrays,Plots, LinearAlgebra
-using Distributions
-
-include("nested_domain.jl")
-include("proba_automaton.jl")
-include("monteCarlo.jl")
-include("markov_chain.jl")
-include("nested_symbolic.jl")
 include("system.jl")
 
 
@@ -49,18 +41,18 @@ function test_limit_cycle()
     X,Xdom = build_dom(nothing,nothing,hx,12.0) #10.0
     Udom = DO.CustomList([SVector(0.0,1.0)])
     sys =  build_system(X,μ)
-    param = Param(500)
-    symmodel = NewNestedSymbolicModel(Xdom, Udom, param)
-    compute_symbolic_full_domain!(symmodel,sys)
-    update_MC!(symmodel)
+    param = SY.Param(500)
+    symmodel = SY.NewNestedSymbolicModel(Xdom, Udom, param)
+    SY.compute_symbolic_full_domain!(symmodel,sys)
+    SY.update_MC!(symmodel)
     x0 = SVector(2.0,2.0)
-    plot_steady_state(sys,symmodel,xlims=[-3.0,3.0],ylims=[-4.0,4.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0015,xlims=[-5.0,5.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0015,xlims=[-5.0,5.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.001,xlims=[-5.0,5.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0005,xlims=[-5.0,5.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0001,xlims=[-5.0,5.0],x0=x0)
-    plot_steady_state(sys,symmodel,fact=0.0,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,xlims=[-3.0,3.0],ylims=[-4.0,4.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0015,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0015,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.001,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0005,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0001,xlims=[-5.0,5.0],x0=x0)
+    SY.plot_steady_state(sys,symmodel,fact=0.0,xlims=[-5.0,5.0],x0=x0)
 end
 test_limit_cycle()
 

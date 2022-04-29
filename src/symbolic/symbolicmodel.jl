@@ -15,7 +15,7 @@ end
 
 
 # ListList refers to List for SymbolicModel, and List for automaton
-function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,Int}) where {S}
+function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,NTuple{3,Int}}) where {S}
     nx = DO.get_ncells(Xdom)
     nu = DO.get_ncells(Udom)
     xint2pos = [pos for pos in DO.enum_pos(Xdom)]
@@ -51,11 +51,11 @@ function get_all_states_by_xpos(symmodel::SymbolicModelList, l_xpos)
     return [symmodel.xpos2int[xpos] for xpos in l_xpos]
 end
 
-function get_upos_by_symbol(symmodel::SymbolicModelList, symbol)
+function get_upos_by_symbol(symmodel::SymbolicModel, symbol)
     return symmodel.uint2pos[symbol]
 end
 
-function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
+function get_symbol_by_upos(symmodel::SymbolicModel, upos)
     return symmodel.upos2int[upos]
 end
 

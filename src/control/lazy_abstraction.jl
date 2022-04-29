@@ -64,7 +64,7 @@ mutable struct LazyAbstraction{T,SM,C,TC<:Function,PrI<:Function,PoI<:Function,H
     controllable::BitVector                # could be an array or a dictionnary (to be added)
     num_init_unreachable::Int   # counter of the remaining non controllable init cells
     heuristic_data::HD # extension for potential additionnal data for the heuristic function
-    contr::UT.SortedTupleSet{2,Int}  # controller
+    contr::UT.SortedTupleSet{2,Tuple{Int,Int}}  # controller
     closed::Union{Nothing,Dict{T,Bool}} # only usefull for the printing (could be discard later)
     costs_temp::MutableMatrix{Float64,Vector{Float64}} # array containing the current worse cost to reach the target, if the next input applied is symbol
     costs::Vector{Float64} # vector containing the (worst) cost to reach the target set for each cell (necessary because of the pseudo non determinism) = Lyapunov function

@@ -12,6 +12,7 @@ include("optim/branch_and_bound.jl")
 
 include("rectangle.jl")
 include("polyhedron.jl")
+include("monteCarlo.jl")
 
 
 end  # module Utils

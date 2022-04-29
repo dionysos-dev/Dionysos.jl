@@ -3,9 +3,10 @@ struct CustomList{N,T} <: DomainType{N,T}
     elems::Vector{SVector{N,T}}
 end
 
-# function CustomList(elems::Vector{SVector{N,T}}) where {N,T}
-#     return CustomList(elems)
-# end
+
+function enum_elems()
+    return domain.elems
+end
 
 function enum_pos(domain::CustomList)
     return domain.elems

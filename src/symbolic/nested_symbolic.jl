@@ -7,7 +7,7 @@ struct Param
 end
 
 mutable struct NestedSymbolicModel{B,A,N,M} #<: DO.SymbolicModel{N,M}
-    Xdom::NestedDomain
+    Xdom::DO.NestedDomain
     Udom::B
     autom::A
     xpos2int::Dict{Tuple{Int,NTuple{N,Int}},Int}
@@ -21,7 +21,7 @@ end
 
 function NewNestedSymbolicModel(dom::DO.GeneralDomainList, Udom, param)
     N = DO.get_dim(dom)
-    Xdom = NestedDomain(dom)
+    Xdom = DO.NestedDomain(dom)
     nu = DO.get_ncells(Udom)
     uint2pos = [input for input in DO.enum_pos(Udom)]
     #upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
@@ -37,20 +37,6 @@ function NewNestedSymbolicModel(dom::DO.GeneralDomainList, Udom, param)
         param
     )
 end
-
-
-function with_automaton(symmodel::NestedSymbolicModel, autom)
-    return NestedSymbolicModel(
-        symmodel.Xdom,
-        symmodel.Udom,
-        autom,
-        symmodel.xpos2int,
-        symmodel.xint2pos,
-        symmodel.upos2int,
-        symmodel.uint2pos,
-    )
-end
-
 
 function get_ncells(symmodel::NestedSymbolicModel)
     return length(findall(symmodel.active))
@@ -78,7 +64,7 @@ function get_state_by_xpos(
             push!(symmodel.xint2pos, (l,pos))
             id = length(symmodel.xint2pos)
             symmodel.xpos2int[(l,pos)] = id
-            i = HybridSystems.add_state!(symmodel.autom)#AB.HybridSystems.add_state!(symmodel.autom)
+            i = HybridSystems.add_state!(symmodel.autom)
             @assert i == id
         else
             error("$pos is not in state domain $(symmodel.Xdom)")
@@ -95,7 +81,7 @@ end
 function get_state_by_coord(symmodel, coord)
     Ndomain = symmodel.Xdom
     pos, l =  DO.get_pos_by_coord(Ndomain, coord)
-    if is_pos(Ndomain, pos, l)
+    if DO.is_pos(Ndomain, pos, l)
         s = get_state_by_xpos(symmodel, pos, l)
         if in(symmodel, s)
             return s
@@ -140,7 +126,7 @@ end
 
 function cut_cell!(symmodel, s)
     l,pos = get_xpos_by_state(symmodel, s)
-    subpos = cut_pos!(symmodel.Xdom, pos, l)
+    subpos = DO.cut_pos!(symmodel.Xdom, pos, l)
     delete_state!(symmodel, s)
     subcells = Int[]
     for spos in subpos
@@ -186,6 +172,26 @@ function update_ingoing_transitions_MC!(symmodel,sys,s,subcells)
     end
 end
 
+# Monte Carlo sampling     N = 5000
+function get_transitions_MC(symmodel, sys, source, symbol, u; N=symmodel.param.N, tstep=sys.tstep)
+    (l,xpos) = get_xpos_by_state(symmodel, source)
+    grid = DO.get_grid(symmodel.Xdom, l)
+    points = DO.sample_elem(grid, xpos, N)
+    targetlist = Int[]
+    for x in points
+        Fx = sys.sys_map(x, u, tstep)
+        target = get_state_by_coord(symmodel,Fx)
+        push!(targetlist,target)
+    end
+    occurences = UT.count_occurences(targetlist)
+    probaList = [(target,occ/N) for (target,occ) in occurences]
+    transitions = Tuple{Int64,Int64,Int64,Float64}[]
+    for (target,proba) in probaList
+        push!(transitions, (target, source, symbol, proba))
+    end
+    return transitions
+end
+
 function update_outgoing_transitions_MC!(symmodel,sys,s,subcells)
     autom = symmodel.autom
     for source in subcells
@@ -201,6 +207,25 @@ function split_node!(symmodel,sys,s)
     update_ingoing_transitions_MC!(symmodel,sys,s,subcells)
     update_outgoing_transitions_MC!(symmodel,sys,s,subcells)
 end
+
+function get_transitions(symmodel,sys,source,symbol,u)
+    return get_transitions_MC(symmodel,sys,source,symbol,u)
+end
+
+function compute_transition!(symmodel,sys,source)
+    for (symbol,u) in enumerate(DO.enum_pos(symmodel.Udom))
+        transitions = get_transitions(symmodel,sys,source,symbol,u)
+        add_transitions!(symmodel.autom, transitions)
+    end
+end
+
+function compute_symbolic_full_domain!(symmodel, sys)
+    for pos in DO.enum_pos(symmodel.Xdom.domains[1])
+        source = get_state_by_xpos(symmodel,pos,1)
+        compute_transition!(symmodel,sys,source)
+    end
+end
+
 
 function Plots.plot(symmodel::NestedSymbolicModel;dims=[1,2],annotate=false)
     fig = plot(aspect_ratio = 1,legend = false)
@@ -263,12 +288,12 @@ end
 
 function plot_trajectory!(sys,x0,l;color=:red,dims=[1,2])
     x = copy(x0)
-    u = SVector(0.0,0.0)
+    u = SVector(0.0,1.0)
     for i=1:l
         Fx = sys.sys_map(x, u, sys.tstep)
         plot!([x[dims[1]],Fx[dims[1]]], [x[dims[2]],Fx[dims[2]]],color = color,linewidth = 2)
         if i>1
-            scatter!([x[dims[1]]],[x[dims[2]]],color =:grey,markersize=1) #:yellow
+            scatter!([x[dims[1]]],[x[dims[2]]],color =:grey,markersize=1) 
         end
         x = Fx
     end
@@ -276,25 +301,6 @@ function plot_trajectory!(sys,x0,l;color=:red,dims=[1,2])
     scatter!([x[dims[1]]],[x[dims[2]]],color =:red,markersize=2)
     scatter!([0.0],[0.0],color =:red,markersize=2)
 end
-
-function get_transitions(symmodel,sys,source,symbol,u)
-    return get_transitions_MC(symmodel,sys,source,symbol,u)
-end
-
-function compute_transition!(symmodel,sys,source)
-    for (symbol,u) in enumerate(DO.enum_pos(symmodel.Udom))
-        transitions = get_transitions(symmodel,sys,source,symbol,u)
-        add_transitions!(symmodel.autom, transitions)
-    end
-end
-
-function compute_symbolic_full_domain!(symmodel, sys)
-    for pos in DO.enum_pos(symmodel.Xdom.domains[1])
-        source = get_state_by_xpos(symmodel,pos,1)
-        compute_transition!(symmodel,sys,source)
-    end
-end
-
 
 
 

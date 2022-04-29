@@ -8,7 +8,8 @@ function AutomatonList{S}(nstates, nsymbols) where {S}
     transitions = S()
     return AutomatonList(nstates, nsymbols, transitions)
 end
-NewAutomatonList(nstates, nsymbols) = AutomatonList{SortedTupleSet{3,Int}}(nstates, nsymbols)
+
+NewAutomatonList(nstates, nsymbols) = AutomatonList{UT.SortedTupleSet{3,NTuple{3,Int}}}(nstates, nsymbols)
 
 function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
@@ -21,10 +22,8 @@ function HybridSystems.add_transition!(autom::AutomatonList, source, target, sym
     UT.push_new!(autom.transitions, (target, source, symbol))
 end
 
-# translist is an iterable of Tuple{Int,Int,Int}
-append_new!(s::Set, translist) = union!(s, translist)
 function add_transitions!(autom::AutomatonList, translist)
-    append_new!(autom.transitions, translist)
+    UT.append_new!(autom.transitions, translist)
 end
 
 Base.empty!(autom::AutomatonList) = empty!(autom.transitions)

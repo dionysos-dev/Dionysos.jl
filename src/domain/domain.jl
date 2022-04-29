@@ -10,4 +10,5 @@ include("grid.jl")
 include("domain_list.jl")
 include("custom_domain.jl")
 include("general_domain.jl")
+include("nested_domain.jl")
 end  # module Domain

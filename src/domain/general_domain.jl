@@ -345,23 +345,6 @@ function set_rec_in_period(periodic,periods,T0,rec::UT.HyperRectangle)
     return L
 end
 
-
-# function rectangle(c,r)
-#     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
-# end
-#
-#
-# function Plots.plot!(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}};dims=[1,2]) where {N,T}
-#     grid = Xdom.grid
-#     dict = Dict{NTuple{2,Int}, Any}()
-#     for pos in enum_pos(Xdom)
-#         if !haskey(dict,pos[dims])
-#             dict[pos[dims]] = true
-#             plot_elem!(grid, pos; dims=dims, opacity=.2, color=:yellow)
-#         end
-#     end
-# end
-
 # ################### symbolic model
 # function _SymbolicModel(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
 #     nu = get_ncells(Udom)

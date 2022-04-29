@@ -1,14 +1,5 @@
 abstract type ControlSystem{N,T} end
 
-struct ControlSystemGrowth{N,T,F1<:Function,F2<:Function,F3<:Function} <: ControlSystem{N,T}
-    tstep::Float64
-    sysnoise::SVector{N,T}
-    measnoise::SVector{N,T}
-    sys_map::F1
-    growthbound_map::F2
-    sys_inv_map::F3
-end
-
 function RungeKutta4(F, x, u, tstep, nsub::Int)
     τ = tstep/nsub
     for i in 1:nsub
@@ -22,6 +13,15 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
         x = x + (Fx1 + Fx2*2.0 + Fx3*2.0 + Fx4)*(τ/6.0)
     end
     return x
+end
+
+struct ControlSystemGrowth{N,T,F1<:Function,F2<:Function,F3<:Function} <: ControlSystem{N,T}
+    tstep::Float64
+    sysnoise::SVector{N,T}
+    measnoise::SVector{N,T}
+    sys_map::F1
+    growthbound_map::F2
+    sys_inv_map::F3
 end
 
 function NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise::SVector{N,T},
@@ -106,3 +106,21 @@ function NewControlSystemLinearizedRK4(tstep, F_sys, DF_sys, bound_DF, bound_DDF
     return ControlSystemLinearized(tstep, measnoise, sys_map, linsys_map, error_map,sys_inv_map)
 end
 
+
+
+
+struct SimpleSystem{N,T,F<:Function,F2} <: ControlSystem{N,T}
+    tstep::Float64
+    measnoise::SVector{N,T}
+    sys_map::F
+    f::F2
+end
+
+
+function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N,T}, nsys) where {N,T}
+    sys_map = let nsys = nsys
+        (x::SVector{N,T}, u, tstep) ->
+            RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
+    end
+    return SimpleSystem(tstep, measnoise, sys_map, F_sys)
+end
