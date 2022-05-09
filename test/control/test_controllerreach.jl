@@ -6,7 +6,7 @@ module Test
 # using TestAbstraction
 using Test
 using StaticArrays
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain

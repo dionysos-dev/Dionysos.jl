@@ -3,9 +3,9 @@ include("../../examples/gol_lazar_belta.jl")
 
 using LinearAlgebra, Test
 import CDDLib
-using .Dionysos
-using .Dionysos.Problem
-using .Dionysos.Control
+using Dionysos
+using Dionysos.Problem
+using Dionysos.Control
 
 _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 

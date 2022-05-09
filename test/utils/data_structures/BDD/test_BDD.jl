@@ -1,5 +1,5 @@
 using Test
-using .Dionysos
+using Dionysos
 BDD = Dionysos.Utils.BDD
 @testset "BDD.BitSet" begin
     set = BDD.BitSet()

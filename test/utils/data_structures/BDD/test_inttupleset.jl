@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using ..Dionysos
+using Dionysos
 using CUDD
 
 BDD = Dionysos.Utils.BDD

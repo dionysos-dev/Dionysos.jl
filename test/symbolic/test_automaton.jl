@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const SY = DI.Symbolic
 
