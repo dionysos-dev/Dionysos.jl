@@ -1,4 +1,4 @@
-using .Dionysos
+using Dionysos
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
