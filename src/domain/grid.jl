@@ -28,7 +28,7 @@ end
 
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where N
     center = get_pos_by_coord(grid,x)
-    all_pos = []
+    all_pos = typeof(center)[]
     for dpos in Iterators.product(eachrow(repeat([-1 0 1],N))...)
         coord = get_coord_by_pos(grid, dpos.+center)
         if (x-coord)'grid.P*(x-coord) ≤ 1
