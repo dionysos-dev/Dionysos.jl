@@ -22,7 +22,6 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 CDDLib = "0.9"
