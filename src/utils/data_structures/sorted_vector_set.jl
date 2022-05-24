@@ -6,6 +6,7 @@ mutable struct SortedTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
     end
 end
 
+
 function push_new!(set::SortedTupleSet, x::Tuple)
     push!(set.data, x)
     set.is_sorted = false

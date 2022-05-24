@@ -31,6 +31,10 @@ function get_state_by_xpos(symmodel::SymbolicModelList, xpos)
     return symmodel.xpos2int[xpos]
 end
 
+function get_all_states_by_xpos(symmodel::SymbolicModelList, l_xpos)
+    return [symmodel.xpos2int[xpos] for xpos in l_xpos]
+end
+
 function get_upos_by_symbol(symmodel::SymbolicModelList, symbol)
     return symmodel.uint2pos[symbol]
 end

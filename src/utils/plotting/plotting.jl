@@ -187,6 +187,34 @@ function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemGrowth{N,T}
     ax.add_collection(polylist)
 end
 
+function domain_ellips!(ax, vars, P, domain::DO.DomainList{N,T};
+    fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 0.5) where {N,T}
+    grid = domain.grid
+    @assert length(vars) == 2 && N >= 2
+    fca = FC(fc, fa)
+    eca = FC(ec, ea)
+    h = project(grid.h, vars)
+    L = cholesky(P).factors;
+    theta = range(0,2π,length=20);
+    x = L\hcat(sin.(theta),cos.(theta))'
+
+
+
+    vertslist = NTuple{20,SVector{2,T}}[]
+
+    for pos in unique(x -> x[vars], DO.enum_pos(domain))
+        c = project(DO.get_coord_by_pos(grid, pos), vars)
+        push!(vertslist, tuple(SVector{2}.(eachcol(x.+c))...))
+    end
+
+    polylist = matplotlib.collections.PolyCollection(vertslist)
+    polylist.set_facecolor(fca)
+    polylist.set_edgecolor(eca)
+    polylist.set_linewidth(ew)
+    ax.add_collection(polylist)
+end
+
+
 function cell_approx!(ax, vars, Xdom, Udom, contsys::ST.ControlSystemLinearized{N,T};
         fc = "yellow", fa = 0.5, ec = "gold", ea = 1.0, ew = 0.5) where {N,T}
     @assert length(vars) == 2 && N >= 2

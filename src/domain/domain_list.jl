@@ -102,3 +102,7 @@ end
 function enum_pos(domain::DomainList)
     return domain.elems
 end
+
+function crop_to_domain(domain::DomainList, list)
+    return list ∩ enum_pos(domain)
+end

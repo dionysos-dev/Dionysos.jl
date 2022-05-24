@@ -2,7 +2,7 @@ module TestMain
 
 using Test
 using StaticArrays
-using ..Dionysos
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain

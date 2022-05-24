@@ -1,21 +1,21 @@
 module TestMain
 
 using Test
-using ..Dionysos
+using Dionysos
 using CUDD
 
 BDD = Dionysos.Utils.BDD
 @testset "IntTupleSet" begin
     set = BDD.IntTupleSet{3,Int16}()
     @test isempty(set)
-    @test sprint(show, MIME"text/plain"(), set) == "Main.Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 0×0×0 bits"
+    @test sprint(show, MIME"text/plain"(), set) == "Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 0×0×0 bits"
     _list = [(1, 2, 3), (1, 5, 6), (1, 9, 8), (1, 6, 8), (4, 5, 6), (7, 6, 4), (1, 2, 3)]
     list = [Int16.(x) for x in _list]
     m = maximum(maximum(x) for x in list)
     for x in Iterators.product((1:m for i in 1:3)...)
         @test !(x ∈ set)
     end
-    @test sprint(show, MIME"text/plain"(), set) == "Main.Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 0×0×0 bits"
+    @test sprint(show, MIME"text/plain"(), set) == "Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 0×0×0 bits"
     @test collect(set) isa Vector{NTuple{3,Int16}}
     @test isempty(collect(set))
     set1 = BDD.IntTupleSet{3,Int16}()
@@ -58,11 +58,11 @@ BDD = Dionysos.Utils.BDD
     @test !isempty(set)
     @test isempty(empty!(set))
     @test isempty(set)
-    @test sprint(show, MIME"text/plain"(), set) == "Main.Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 3×4×4 bits"
+    @test sprint(show, MIME"text/plain"(), set) == "Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 3×4×4 bits"
     @test push!(set, Int16.((40, 1, 1))) === set
     @test sprint(show, MIME"text/plain"(), set) in [
-        "Main.Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 6×4×4 bits", # Julia v1.0
-        "Main.Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 6×4×4 bits:\n  (40, 1, 1)" # Julia v1.5
+        "Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 6×4×4 bits", # Julia v1.0
+        "Dionysos.Utils.BDD.IntTupleSet{3, Int16} with 6×4×4 bits:\n  (40, 1, 1)" # Julia v1.5
     ]
 end
 
