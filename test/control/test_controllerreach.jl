@@ -1,5 +1,3 @@
-include("../../src/Dionysos.jl")
-
 module Test
 
 
@@ -49,7 +47,6 @@ contsys = ST.NewControlSystemGrowthRK4(
 symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
 SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-display(symmodel)
 
 Xinit = DO.DomainList(Xgrid)
 DO.add_set!(Xinit, UT.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), DO.OUTER)
