@@ -5,7 +5,6 @@ version = "0.0.1"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
-CDDLib = "3391f64e-dcde-5f30-b752-e11513730f60"
 CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
