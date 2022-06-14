@@ -1,6 +1,4 @@
 using LazySets, Polyhedra
-using PyPlot, CDDLib
-
 
 abstract type Grid{N,T} end
 
