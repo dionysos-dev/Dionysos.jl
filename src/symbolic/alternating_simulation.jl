@@ -2,7 +2,6 @@
     Build a particular (simple graph) alternating simulation of the original system.
 """
 # using StaticArrays, Plots
-using LightGraphs
 using SimpleWeightedGraphs
 
 function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_transitions)
@@ -188,7 +187,7 @@ end=#
 # end
 #
 # function build_heuristic(symmodel,initlist)
-#     result = LightGraphs.dijkstra_shortest_paths(symmodel.autom,initlist)
+#     result = Graphs.dijkstra_shortest_paths(symmodel.autom,initlist)
 #     heuristic = symmodelHeuristic(symmodel,result.dists)
 #     return heuristic
 # end
