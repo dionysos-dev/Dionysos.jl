@@ -127,10 +127,6 @@ function get_coord(domain::DomainType, pos)
     return get_coord_by_pos(domain.grid,pos)
 end
 
-function rectangle(c,r)
-    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
-end
-
 function Plots.plot!(Xdom::DomainType{N,T};dims=[1,2], color=:yellow, opacity=0.2) where {N,T}
     grid = get_grid(Xdom)
     dict = Dict{NTuple{2,Int}, Any}()

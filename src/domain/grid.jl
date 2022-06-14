@@ -1,4 +1,4 @@
-using LazySets, Polyhedra
+using Polyhedra
 
 abstract type Grid{N,T} end
 
