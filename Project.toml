@@ -49,4 +49,4 @@ SDPA = "b9a10b5b-afa4-512f-a053-bb3d8080febc"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["SDPA", "Cbc", "Ipopt", "OSQP", "Pavito", "Test"]
+test = ["Cbc", "CDDLib", "Ipopt", "OSQP", "Pavito", "SDPA", "Test"]
