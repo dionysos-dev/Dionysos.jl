@@ -10,6 +10,10 @@ function DomainList(grid::S) where {N,S<:Grid{N}}
     return DomainList(grid, Set{NTuple{N,Int}}())
 end
 
+function get_grid(domain::DomainList)
+    return domain.grid
+end
+
 function add_pos!(domain::DomainList, pos)
     push!(domain.elems, pos)
 end
@@ -23,6 +27,18 @@ function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     for pos in Iterators.product(_ranges(rectI)...)
         add_pos!(domain, pos)
     end
+end
+
+function get_subset_pos(domain::DomainList,rect::UT.HyperRectangle,incl_mode::INCL_MODE)
+    rectI = get_pos_lims(domain.grid, rect, incl_mode)
+    pos_iter = Iterators.product(_ranges(rectI)...)
+    posL = []
+    for pos in pos_iter
+        if pos ∈ domain
+            push!(posL, pos)
+        end
+    end
+    return posL
 end
 
 function add_subset!(domain1, domain2, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
@@ -105,4 +121,23 @@ end
 
 function crop_to_domain(domain::DomainList, list)
     return list ∩ enum_pos(domain)
+end
+
+function get_coord(domain::DomainType, pos)
+    return get_coord_by_pos(domain.grid,pos)
+end
+
+function rectangle(c,r)
+    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+end
+
+function Plots.plot!(Xdom::DomainType{N,T};dims=[1,2], color=:yellow, opacity=0.2) where {N,T}
+    grid = get_grid(Xdom)
+    dict = Dict{NTuple{2,Int}, Any}()
+    for pos in enum_pos(Xdom)
+        if !haskey(dict,pos[dims])
+            dict[pos[dims]] = true
+            plot_elem!(grid, pos; dims=dims, opacity=opacity, color=color)
+        end
+    end
 end

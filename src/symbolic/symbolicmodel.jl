@@ -1,6 +1,8 @@
+using Plots
+
 abstract type SymbolicModel{N,M} end
 
-struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A<:HybridSystems.AbstractAutomaton} <: SymbolicModel{N,M}
+mutable struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A} <: SymbolicModel{N,M}
     Xdom::S1
     Udom::S2
     autom::A
@@ -10,17 +12,31 @@ struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A<:Hybrid
     uint2pos::Vector{NTuple{M,Int}}
 end
 
+
+
 # ListList refers to List for SymbolicModel, and List for automaton
-function NewSymbolicModelListList(Xdom, Udom)
+function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,NTuple{3,Int}}) where {S}
     nx = DO.get_ncells(Xdom)
     nu = DO.get_ncells(Udom)
     xint2pos = [pos for pos in DO.enum_pos(Xdom)]
     xpos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Xdom)))
     uint2pos = [pos for pos in DO.enum_pos(Udom)]
     upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
-    autom = NewAutomatonList(nx, nu)
+    autom = AutomatonList{S}(nx, nu)
     return SymbolicModelList(
         Xdom, Udom, autom, xpos2int, xint2pos, upos2int, uint2pos)
+end
+
+function with_automaton(symmodel::SymbolicModelList, autom)
+    return SymbolicModelList(
+        symmodel.Xdom,
+        symmodel.Udom,
+        autom,
+        symmodel.xpos2int,
+        symmodel.xint2pos,
+        symmodel.upos2int,
+        symmodel.uint2pos,
+    )
 end
 
 function get_xpos_by_state(symmodel::SymbolicModelList, state)
@@ -35,12 +51,16 @@ function get_all_states_by_xpos(symmodel::SymbolicModelList, l_xpos)
     return [symmodel.xpos2int[xpos] for xpos in l_xpos]
 end
 
-function get_upos_by_symbol(symmodel::SymbolicModelList, symbol)
+function get_upos_by_symbol(symmodel::SymbolicModel, symbol)
     return symmodel.uint2pos[symbol]
 end
 
-function get_symbol_by_upos(symmodel::SymbolicModelList, upos)
+function get_symbol_by_upos(symmodel::SymbolicModel, upos)
     return symmodel.upos2int[upos]
+end
+
+function enum_cells(symmodel::SymbolicModelList)
+    return 1:length(symmodel.xint2pos)
 end
 
 # Assumes that automaton is "empty"

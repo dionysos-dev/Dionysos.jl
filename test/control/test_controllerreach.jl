@@ -1,5 +1,3 @@
-include("../../src/Dionysos.jl")
-
 module Test
 
 
@@ -49,7 +47,6 @@ contsys = ST.NewControlSystemGrowthRK4(
 symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
 SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-display(symmodel)
 
 Xinit = DO.DomainList(Xgrid)
 DO.add_set!(Xinit, UT.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9)), DO.OUTER)
@@ -78,7 +75,7 @@ if VERSION >= v"1.5"
         @allocated CO._compute_controller_reach!(contr, autom, initset, targetset, num_targets_unreachable, current_targets, next_targets)
     end
     f(symmodel.autom, initlist, targetlist)
-    @test f(symmodel.autom, initlist, targetlist) == 3224896 # check this
+    @test f(symmodel.autom, initlist, targetlist) == 1635072 # check this
 end
 
 xpos = DO.get_somepos(Xinit)
