@@ -28,6 +28,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 CUDD = "0.2.1"
 DataStructures = "0.18"
+DiscreteMarkovChains = "0.2"
 Distributions = "0.25"
 FillArrays = "0.10, 0.11, 0.12, 0.13"
 HybridSystems = "0.3"
