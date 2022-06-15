@@ -26,6 +26,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+ArnoldiMethod = "0.2"
 CUDD = "0.2.1"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
