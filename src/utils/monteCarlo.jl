@@ -1,10 +1,10 @@
-using Distributions
+import Distributions
 
 function sample_from_rec(rec,N)
     L = []
     n = length(rec.lb)
     for i in 1:n
-        unifdist = Uniform(rec.lb[i], rec.ub[i])
+        unifdist = Distributions.Uniform(rec.lb[i], rec.ub[i])
         push!(L, Distributions.rand(unifdist, N))
     end
     points = []

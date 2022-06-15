@@ -338,7 +338,6 @@ function recursive(L,rec,lb,ub,periodic,periods,T0,i)
         recursive(L,rec,l,u,periodic,periods,T0,i+1)
     end
 end
-using InteractiveUtils
 function set_rec_in_period(periodic,periods,T0,rec::UT.HyperRectangle)
     L = typeof(rec)[]
     recursive(L,rec,rec.lb,rec.ub,periodic,periods,T0,1)
