@@ -59,7 +59,7 @@ g[2] = g[1]*0;
 g[3] = -g[1];
 
 # automata for pwa switching between partitions (unecessary?)
-a = LightAutomaton(N_region)
+a = GraphAutomaton(N_region)
 add_transition!(a, 1, 2, 2); 
 add_transition!(a, 2, 1, 1);
 add_transition!(a, 1, 1, 1);
