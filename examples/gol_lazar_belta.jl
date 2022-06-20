@@ -50,7 +50,7 @@ function gol_lazar_belta(lib, T::Type)
                pC1, pC2, pC3, pC4, pC5, pC6, pC7, pC8, pT]
 
     #Automaton:
-    automaton = LightAutomaton(length(domains))
+    automaton = GraphAutomaton(length(domains))
 
     #Resetmaps: (guards + reset)
     A = T[1 1
