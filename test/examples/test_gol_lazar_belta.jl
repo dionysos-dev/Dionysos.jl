@@ -1,6 +1,6 @@
 module TestMain
     include("solvers.jl")
-    include("../../examples/gol_lazar_belta.jl")
+    include("../../problems/GolLazarBelta.jl")
 
     using LinearAlgebra, Test
     import CDDLib
@@ -10,28 +10,14 @@ module TestMain
 
     _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 
-    function _prob( N, q0, x0::Vector{T}, zero_cost::Bool) where {T}
-        system = gol_lazar_belta(CDDLib.Library(), T)
-        if zero_cost
-            state_cost = Fill(ZeroFunction(), nmodes(system))
-        else
-            state_cost = [mode == system.ext[:q_T] ? ConstantFunction(zero(T)) : ConstantFunction(one(T))
-                        for mode in modes(system)]
-        end
-        return OptimalControlProblem(
-            system,
-            q0, x0,
-            Fill(state_cost, N),
-            Fill(Fill(QuadraticControlFunction(ones(T, 1, 1)), ntransitions(system)), N),
-            system.ext[:q_T],
-            N
-        )
+    function _prob( N, q_0, x_0::Vector{T}, zero_cost::Bool) where {T}
+        return GolLazarBelta.problem(CDDLib.Library(), T; N, q_0, x_0, zero_cost)
     end
     function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost::Bool, mi::Bool; kws...)
         problem = _prob(N, q0, x0, zero_cost)
         @info("Solving... depth: $N")
         optimizer = MOI.instantiate(algo)
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)    
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
         @info("Solving... depth: $N")
         @time MOI.optimize!(optimizer)
         @info("Solved.")

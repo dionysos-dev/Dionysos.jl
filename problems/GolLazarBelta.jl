@@ -1,7 +1,11 @@
+module GolLazarBelta
+
 using FillArrays
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
+using Dionysos
+using Dionysos.Control
 
 # function to get vertices of polygon in the good cw order (for plotting)
 function get_ordered_vertices(po)
@@ -16,7 +20,7 @@ function get_ordered_vertices(po)
 end
 
 
-function gol_lazar_belta(lib, T::Type)
+function system(lib, T::Type)
     function rect(x_l, x_u)
         r = HalfSpace([-1], -T(x_l)) ∩ HalfSpace([1], T(x_u))
         return polyhedron(r, lib)
@@ -104,4 +108,43 @@ function gol_lazar_belta(lib, T::Type)
     system.ext[:q_T] = nmodes(system)
     system.ext[:obstacles] = [pO1, pO2]
     return system
+end
+
+""""
+    problem(lib, T::Type, q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
+
+This function create the system with `GolLazarBelta.system`.
+
+Then, we define initial conditions (continuous and discrete states) to this system
+and set `N` as the search depth, i.e., the number of allowed time steps.
+
+We instantiate our Optimal Control Problem by defining the state and transition costs.
+Notice that `state_cost` is defined to be zero for each mode/discrete state
+of the system and the `transition_cost` is defined to be `u_1^2` which is defined by the
+quadratic form `u' * Q * u` with `Q = ones(1, 1)`.
+
+Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
+"""
+function problem(lib, T::Type; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
+    sys = system(lib, T)
+    if zero_cost
+        state_cost = Fill(ZeroFunction(), nmodes(sys))
+    else
+        state_cost = [
+            mode == sys.ext[:q_T] ? ConstantFunction(zero(T)) : ConstantFunction(one(T))
+            for mode in modes(sys)
+        ]
+    end
+    transition_cost = QuadraticControlFunction(ones(T, 1, 1))
+    problem = OptimalControlProblem(
+        sys,
+        q_0, x_0,
+        Fill(state_cost, N),
+        Fill(Fill(transition_cost, ntransitions(sys)), N),
+        sys.ext[:q_T],
+        N,
+    )
+    return problem
+end
+
 end
