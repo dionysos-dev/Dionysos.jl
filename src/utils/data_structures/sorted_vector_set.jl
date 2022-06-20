@@ -31,8 +31,8 @@ end
 #end
 
 function delete!(set::SortedTupleSet, x, comparison)
-    filter!(e->!comparison(e,x), set.data)
-    set.is_sorted = false
+    filter!(e -> !comparison(e, x), set.data)
+    return set
 end
 
 function Base.empty!(set::SortedTupleSet)
