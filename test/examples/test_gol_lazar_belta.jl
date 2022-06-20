@@ -4,6 +4,7 @@ module TestMain
 
     using LinearAlgebra, Test
     import CDDLib
+    using HybridSystems
     using Dionysos
     using Dionysos.Problem
     using Dionysos.Control
