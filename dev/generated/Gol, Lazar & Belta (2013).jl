@@ -10,26 +10,9 @@ using Dionysos
 using Dionysos.Control
 using Dionysos.Problem
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "examples", "gol_lazar_belta.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
 
-system = gol_lazar_belta(CDDLib.Library(), Float64);
-
-x0 = [1.0, -6.0];
-q0 = 3;
-
-N = 11;
-
-state_cost = Fill(ZeroFunction(), nmodes(system))
-transition_cost = QuadraticControlFunction(ones(1, 1))
-
-problem = OptimalControlProblem(
-    system,
-    q0, x0,
-    Fill(state_cost, N),
-    Fill(Fill(transition_cost, ntransitions(system)), N),
-    system.ext[:q_T],
-    N
-);
+problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
 qp_solver = optimizer_with_attributes(
     OSQP.Optimizer,
@@ -78,12 +61,14 @@ xu = MOI.get(optimizer, ContinuousTrajectoryAttribute());
 
 using PyPlot
 using Colors
+using Polyhedra
+using HybridSystems
 
 ##Auxiliary function for annotating
 function text_in_set_plot!(ax, po, t;  fillcolor = :white, linecolor = :black, fillalpha = 1)
     ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
     solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.GLP_ON)
-    poly = matplotlib.patches.Polygon(get_ordered_vertices(po))
+    poly = matplotlib.patches.Polygon(GolLazarBelta.get_ordered_vertices(po))
     poly.set_facecolor(fillcolor)
     poly.set_edgecolor(linecolor)
     poly.set_alpha(fillalpha)
@@ -104,21 +89,21 @@ ax.set_xlim(-10.5,3)
 ax.set_ylim(-10.5,3)
 
 ##Show the discrete modes
-for mode in states(system)
-    t = (system.ext[:q_T] in [mode, mode + 11]) ? "XT" : (mode == system.ext[:q_A] ? "A" : (mode == system.ext[:q_B] ? "B" :
+for mode in states(problem.system)
+    t = (problem.system.ext[:q_T] in [mode, mode + 11]) ? "XT" : (mode == problem.system.ext[:q_A] ? "A" : (mode == problem.system.ext[:q_B] ? "B" :
             mode <= 11 ? string(mode) : string(mode - 11)))
-    text_in_set_plot!(ax, stateset(system, mode), t, fillcolor = "none", linecolor = :black)
+    text_in_set_plot!(ax, stateset(problem.system, mode), t, fillcolor = "none", linecolor = :black)
 end
 
 ##Plot obstacles
-for i in eachindex(system.ext[:obstacles])
-    text_in_set_plot!(ax, system.ext[:obstacles][i], "O$i", fillcolor = :black, fillalpha = 0.1)
+for i in eachindex(problem.system.ext[:obstacles])
+    text_in_set_plot!(ax, problem.system.ext[:obstacles][i], "O$i", fillcolor = :black, fillalpha = 0.1)
 end
 
 
 ##Initial state
-ax.scatter([x0[1]], [x0[2]])
-ax.annotate("x0", [x0[1], x0[2]-0.5], ha="center", va="center")
+ax.scatter([problem.x_0[1]], [problem.x_0[2]])
+ax.annotate("x0", [problem.x_0[1], problem.x_0[2]-0.5], ha="center", va="center")
 
 ##Split the vector into x1 and x2
 x1 = [xu.x[j][1] for j in eachindex(xu.x)]
