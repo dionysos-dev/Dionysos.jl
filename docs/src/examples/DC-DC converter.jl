@@ -53,7 +53,7 @@ const SY = DI.Symbolic
 # we can import the module contining the DCDC problem like this 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
-# and we can instanciate the DC system with the provided system
+# and we can instantiate the DC system with the provided system
 contsys=DCDC.system()
 
 #The default values are included, but can be changed. 
