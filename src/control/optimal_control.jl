@@ -2,6 +2,7 @@ export ZeroFunction, ConstantFunction, QuadraticControlFunction, PolyhedralFunct
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
 export OptimalControlProblem
+export ReachabilityProblem
 export AffineFunction, PolyhedralFunction
 export last_mode, function_value
 
@@ -110,6 +111,12 @@ struct OptimalControlProblem{S, Q, X0, XC, TC}
     transition_cost::TC
     q_T::Q
     number_of_time_steps::Int
+end
+
+struct ReachabilityProblem{S, SE}
+    system::S
+    initial_set::SE
+    target_set::SE
 end
 
 export optimal_control

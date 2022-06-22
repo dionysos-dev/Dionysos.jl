@@ -38,7 +38,6 @@ using Test     #src
 # of the target set.
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl).
-
 using StaticArrays
 
 # At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
@@ -50,16 +49,20 @@ const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
 
-# ### Definition of the system
-# Definition of the dynamics function $f$ of the system:
-function F_sys(x, u)
-    α = atan(tan(u[2])/2)
-    return SVector{3}(
-        u[1]*cos(α + x[3])/cos(α),
-        u[1]*sin(α + x[3])/cos(α),
-        u[1]*tan(u[2]))
-end;
-# Definition of the growth bound function of $f$:
+# And the file defining the hybrid system for this problem
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
+
+# ### Definition of the problem
+
+# Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
+problem = PathPlanning.problem();
+
+# `F_sys` is the function, `_X_` the state domain and `_U_` the input domain
+F_sys = problem.system.f;
+_X_ = problem.system.X;
+_U_ = problem.system.U;
+
+# We define the growth bound function of $f$:
 ngrowthbound = 5;
 function L_growthbound(u)
     β = abs(u[1]/cos(atan(tan(u[2])/2)))
@@ -71,7 +74,7 @@ end;
 # Here it is considered that there is no system and measurement noise:
 sysnoise = SVector(0.0, 0.0, 0.0);
 measnoise = SVector(0.0, 0.0, 0.0);
-# Definition of the discretization time step parameters: `tstep` and `nsys`:
+# We define the discretization time step parameters: `tstep` and `nsys`:
 tstep = 0.3;
 nsys = 5;
 
@@ -79,55 +82,36 @@ nsys = 5;
 contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                        measnoise, nsys, ngrowthbound);
 
-# ### Definition of the control problem
-# Definition of the state-space (limited to be rectangle):
-_X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4));
-
-# Definition of the obstacles (limited to be rectangle):
-X1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3];
-X1_ub = [1.2, 2.4, 2.4, 3.6, 4.8, 6.0, 6.0, 7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0];
-X2_lb = [0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 1.0, 0.0, 8.2, 7.0, 5.8, 4.6, 3.4, 2.2];
-X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6];
-
-# Definition of the input-space (limited to be rectangle):
-_U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0));
-
-# Definition of the initial state-space (here it consists in a single point):
-_I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0));
-
-# Definition of the target state-space (limited to be hyper-rectangle):
-_T_ = UT.HyperRectangle(SVector(3.0, 0.5, -100.0), SVector(3.6, 0.8, 100.0));
-
-
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
 Xgrid = DO.GridFree(x0, h);
+
 # Construction of the struct `DomainList` containing the feasible cells of the state-space:
 Xfull = DO.DomainList(Xgrid);
-DO.add_set!(Xfull, _X_, DO.OUTER)
-for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
-    box = UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
-    if box ⊆ _X_ && isempty(box ∩ _I_) && isempty(box ∩ _T_)
-        DO.remove_set!(Xfull, box, DO.OUTER)
-    end
-end
+DO.add_set!(Xfull, _X_, DO.OUTER);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 Ugrid = DO.GridFree(u0, h);
+
 # Construction of the struct `DomainList` containing the quantized inputs:
 Ufull = DO.DomainList(Ugrid);
-DO.add_set!(Ufull, _U_, DO.OUTER)
+DO.add_set!(Ufull, _U_, DO.OUTER);
 
 # Construction of the abstraction:
 symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
 @time SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
 # ### Construction of the controller
+
+# `_I_` is the initial state domain and `_T_` is the target state domain
+_I_ = problem.initial_set;
+_T_ = problem.target_set;
+
 # Computation of the initial symbolic states:
 Xinit = DO.DomainList(Xgrid);
 DO.add_subset!(Xinit, Xfull, _I_, DO.OUTER)

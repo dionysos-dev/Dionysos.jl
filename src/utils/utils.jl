@@ -14,5 +14,6 @@ include("rectangle.jl")
 include("polyhedron.jl")
 include("monteCarlo.jl")
 
+include("lazySetOperations.jl")
 
 end  # module Utils

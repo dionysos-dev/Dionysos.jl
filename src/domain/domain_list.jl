@@ -1,5 +1,9 @@
 abstract type DomainType{N,T} end
 
+function _invInclMode(incl_mode::INCL_MODE)
+    return incl_mode == OUTER ? INNER : OUTER
+end
+
 # Without S, add_set! and remove_set! where not type-stable...
 
 """
@@ -31,6 +35,17 @@ end
 
 function add_coord!(domain, x)
     add_pos!(domain, get_pos_by_coord(domain.grid, x))
+end
+
+function add_set!(domain, setMinus::UT.LazySetMinus, incl_mode::INCL_MODE)
+    add_set!(domain, setMinus.A, incl_mode)
+    remove_set!(domain, setMinus.A ∩ setMinus.B, _invInclMode(incl_mode))
+end
+
+function add_set!(domain, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
+    for set in unionSetArray.sets
+        add_set!(domain, set, incl_mode)
+    end
 end
 
 function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
@@ -76,6 +91,12 @@ end
 
 function remove_coord!(domain, x)
     remove_pos!(domain, get_pos_by_coord(domain.grid, x))
+end
+
+function remove_set!(domain, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
+    for set in unionSetArray.sets
+        remove_set!(domain, set, incl_mode)
+    end
 end
 
 function remove_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
