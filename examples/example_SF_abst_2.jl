@@ -8,6 +8,13 @@ using LinearAlgebra
 using SDPA, Ipopt, JuMP
 using Test
 
+
+if ~isdefined(@__MODULE__, :Usz)
+      Usz = 50 # upper limit on |u|
+      Wsz = 5
+      n_step = 5 # discretization of one unit of space
+end
+
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
@@ -17,25 +24,21 @@ include("../problems/PWAsys.jl")
 
 dt = 0.01;
 
+const problem = PWAsys.build_problem(lib, dt, Usz)
+const system = problem.system
 
-system = build_PWA_system(dt,lib)
 n_sys = size(system.modes[1].A,1);
 n_u = size(system.modes[1].B,2);
 
-if ~isdefined(@__MODULE__, :Usz)
-      Usz = 50 # upper limit on |u|
-      Wsz = 5
-      n_step = 5 # discretization of one unit of space
-end
 W = Wsz*[-1 -1  1 1;
--1  1 -1 1]*dt; # polytope of disturbances
+         -1  1 -1 1]*dt; # polytope of disturbances
 
 Uaux = diagm(1:n_u)
 U = [(Uaux.==i)./Usz for i in 1:n_u];
 
 # Create Abstraction
 
-max_x = 2 # bound on |x|
+max_x = 2 # bound on |x|_∞
 rectX = Dionysos.Utils.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
 rectU = rectX
 
@@ -56,8 +59,9 @@ symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
 
 
 # stage cost matrix (J = ||L*[x; u ; 1]||)
-
-L = [I(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
+Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
+eigen_Q = eigen(Q_aug);
+L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'*dt;
 
 transitionCost = Dict()  #dictionary with cost of each transition
 transitionKappa = Dict() #dictionary with controller associated each transition
@@ -67,17 +71,18 @@ empty!(symmodel.autom)
 @time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
-x0 = SVector(2.0,-2.0); # initial condition
+x0 = SVector{n_sys}(problem.x_0); # initial condition
 Xinit = Dionysos.Domain.DomainList(Xgrid)
-Dionysos.Domain.add_coord!(Xinit, x0)
+Dionysos.Domain.add_coord!(Xinit, problem.x_0)
 Xfinal = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_coord!(Xfinal, SVector(-2.0, 1.0))
+Dionysos.Domain.add_coord!(Xfinal, SVector{n_sys}(system.ext[:goal]))
 #Dionysos.Domain.add_set!(Xfinal,Dionysos.Domain.HyperRectangle(SVector(-2.0, 0.5), SVector(-2.0, 0.5)), Dionysos.Domain.OUTER) 
 
 
-Xobstacles = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_set!(Xobstacles, Dionysos.Utils.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), Dionysos.Domain.OUTER) 
-Dionysos.Domain.add_set!(Xobstacles, Dionysos.Utils.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)), Dionysos.Domain.OUTER) 
+Xobstacles = Dionysos.Domain.DomainList(Xgrid) # obstacle set
+for o in system.ext[:obstacles]
+      Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER) 
+end
 
 initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]; 
 finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
@@ -116,12 +121,12 @@ for l = 1:length(path)-1
 end
 
 # Simulation
-function get_mode(x) # return pwa mode for a given x
-      o = map(m-> (x ∈ m.X), system.modes).*(1:length(system.modes))
-      return o[o.>0][1]
-end
 
-K = 100; #max num of steps
+# return pwa mode for a given x
+get_mode(x) = findfirst(m -> (x ∈ m.X), system.modes)
+
+
+K = problem.number_of_time_steps<0 ? 100 : problem.number_of_time_steps; #max num of steps
 x_traj = zeros(n_sys,K+1);
 u_traj = zeros(n_u,K+1);
 x_traj[:,1] = x0;

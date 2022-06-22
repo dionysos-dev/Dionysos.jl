@@ -141,17 +141,15 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         Pm = Xdom.grid.P
         P = Pm
         R = _get_min_bounding_box(P, opt_qp)
-        #println(R)
+
     else
         Pm = (1/n_sys) * diagm(inv.(r.^2))
         P =  Pm
         R = r
     end
  
-    function get_mode(x) # get affine mode number for a point x
-        o = map(m-> (x ∈ m.X), hybridsys.modes).*(1:length(hybridsys.modes))
-        return o[o.>0][1]
-    end
+    # get affine mode number for a point x
+    get_mode(x) = findfirst(m -> (x ∈ m.X), hybridsys.modes)
 
     vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1,1]),1,n_sys))...))[:] # list of vertices of a hypersquare centered at the origin and length 2
 
