@@ -1,32 +1,70 @@
 using Polyhedra
 
+"""
+    abstract type Grid{N,T}
+
+General abstract type for grids that are used in some domain implementations
+"""
 abstract type Grid{N,T} end
 
-# Free because later: maybe put bounds lb and ub (e.g., for BDDs)
+"""
+    struct GridFree{N,T} <: Grid{N,T}
+        orig::SVector{N,T} #axes origin
+        h::SVector{N,T} #grid step size
+
+Basic [`Domain.Grid`](@ref) struct, with no bounds\\
+"""
 struct GridFree{N,T} <: Grid{N,T}
-    orig::SVector{N,T}
-    h::SVector{N,T}
+    # Free because later: maybe put bounds lb and ub (e.g., for BDDs)
+    orig::SVector{N,T} #axes origin
+    h::SVector{N,T} #grid step size
 end
 
+"""
+    struct GridRectangular{N,T} <: Grid{N,T}
+        orig::SVector{N,T}  #axes origin
+        h::SVector{N,T} #grid step size
+        rect::Any #bounds
+
+Basic [`Domain.Grid`](@ref) struct with rectangular bounds
+"""
 struct GridRectangular{N,T} <: Grid{N,T}
-    orig::SVector{N,T}
-    h::SVector{N,T}
-    rect::Any
+    orig::SVector{N,T} #axes origin
+    h::SVector{N,T} #grid step size
+    rect::Any #bounds
 end
 
 
+"""
+    struct GridEllipsoidalRectangular{N,T} <: Grid{N,T}
+        orig::SVector{N,T} #axes origin
+        h::SVector{N,T} #grid step size
+        P::SMatrix{N,N} #shape of the ellipsoidal cell
+        rect::Any #grid bounds
+
+Uniform [`Domain.Grid`](@ref) with ellipsoidal cells, where `h` is the distance among the cells
+"""
 struct GridEllipsoidalRectangular{N,T} <: Grid{N,T}
-    orig::SVector{N,T}
-    h::SVector{N,T}
-    P::SMatrix{N,N}
-    rect::Any
+    orig::SVector{N,T} #axes origin
+    h::SVector{N,T} #grid step size
+    P::SMatrix{N,N} #shape of the ellipsoidal cell
+    rect::Any #grid bounds
 end
 
+"""
+    function get_pos_by_coord(grid::Grid{N}, x)
 
+Returns a tuple representing the position in the grid of the given coordinate `x`
+"""
 function get_pos_by_coord(grid::Grid{N}, x) where N
     return ntuple(i -> round(Int, (x[i] - grid.orig[i])/grid.h[i]), Val(N))
 end
 
+"""
+    function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x)
+
+Returns the vector of the positions of the ellipsoids that include `x`
+"""
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where N
     center = get_pos_by_coord(grid,x)
     all_pos = typeof(center)[]
@@ -39,23 +77,42 @@ function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where N
     return all_pos
 end
 
+"""
+    function get_coord_by_pos(grid, pos)
 
-function get_coord_by_pos(grid, pos)
+Returns the coordinate of the point given its position in the grid
+"""
+function get_coord_by_pos(grid::Grid, pos)
     return grid.orig + pos.*grid.h
 end
 
-function get_pos_lims_inner(grid::Grid{N}, rect; tol=1e-6) where N
+"""
+    function get_pos_lims_inner(grid::Grid{N}, rect::UT.HyperRectangle; tol=1e-6)
+
+Returns the position in the grid of the biggest hyperrectangle contained in `rect`
+"""
+function get_pos_lims_inner(grid::Grid{N}, rect::UT.HyperRectangle; tol=1e-6) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i])/grid.h[i] + 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i])/grid.h[i] - 0.5), Val(N))
     return UT.HyperRectangle(lbI, ubI)
 end
 
+"""
+    function get_pos_lims_outer(grid::Grid{N}, rect; tol=0.0)
+
+Returns the position in the grid of the smallest hyperrectangle containing `rect`
+"""
 function get_pos_lims_outer(grid::Grid{N}, rect; tol=0.0) where N
     lbI = ntuple(i -> ceil(Int, (rect.lb[i] + tol - grid.orig[i])/grid.h[i] - 0.5), Val(N))
     ubI = ntuple(i -> floor(Int, (rect.ub[i] - tol - grid.orig[i])/grid.h[i] + 0.5), Val(N))
     return UT.HyperRectangle(lbI, ubI)
 end
 
+"""
+    function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
+
+`incl_mode` = `INNER` or `OUTER`
+"""
 function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
     if incl_mode == INNER
         return get_pos_lims_inner(grid, rect)
@@ -68,33 +125,68 @@ function _ranges(rect::UT.HyperRectangle{NTuple{N,T}}) where {N,T}
     return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
 end
 
+"""
+    function rectangle(c,r)
+
+Returns a shape given center and "radius" of the rectangle
+"""
 function rectangle(c,r)
     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
 end
 
+"""
+    function get_rec(grid::GridFree, pos)
+
+Returns the cell (as a struct `HyperRectangle`) corrisponding to the given position in the grid
+"""
 function get_rec(grid::GridFree, pos)
     x = get_coord_by_pos(grid, pos)
     r = grid.h/2.0
     return UT.HyperRectangle(x-r, x+r)
 end
 
+"""
+    function get_dim(grid::GridFree)
+
+Returns the number of dimensions of the grid
+"""
 function get_dim(grid::GridFree)
     return length(grid.orig)
 end
 
+"""
+    function get_h(grid::GridFree)
+
+Returns the grid step size
+"""
 function get_h(grid::GridFree)
     return grid.h
 end
 
+"""
+    function get_origin(grid::GridFree)
+
+Returns the grid origin
+"""
 function get_origin(grid::GridFree)
     return grid.h
 end
 
+"""
+    function get_volume(grid::GridFree)
+
+Returns the hypervolume of each cell in the grid
+"""
 function get_volume(grid::GridFree)
     r = get_h(grid)/2.0
     return UT.volume(UT.HyperRectangle(-r,r))
 end
 
+"""
+    function sample_elem(grid::GridFree, xpos, N::Int)
+
+#TODO
+"""
 function sample_elem(grid::GridFree, xpos, N::Int)
     x = get_coord_by_pos(grid, xpos)
     r = grid.h/2

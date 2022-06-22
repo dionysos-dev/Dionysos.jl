@@ -8,20 +8,20 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 const EXAMPLES = readdir(EXAMPLES_DIR)
 const REFERENCE = readdir(REFERENCE_DIR)
 
-for example in EXAMPLES
-    example_filepath = joinpath(EXAMPLES_DIR, example)
-    Literate.markdown(example_filepath, OUTPUT_DIR)
-    Literate.notebook(example_filepath, OUTPUT_DIR)
-    Literate.script(example_filepath, OUTPUT_DIR)
-end
+# for example in EXAMPLES
+#     example_filepath = joinpath(EXAMPLES_DIR, example)
+#     Literate.markdown(example_filepath, OUTPUT_DIR)
+#     Literate.notebook(example_filepath, OUTPUT_DIR)
+#     Literate.script(example_filepath, OUTPUT_DIR)
+# end
 
 const _PAGES = [
     "Index" => "index.md",
-    "Examples" => map(EXAMPLES) do jl_file
-        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
-        name = string(split(jl_file, ".")[1])
-        return name => "generated/$name.md"
-    end,
+    # "Examples" => map(EXAMPLES) do jl_file
+    #     # Need `string` as Documenter fails if `name` is a `SubString{String}`.
+    #     name = string(split(jl_file, ".")[1])
+    #     return name => "generated/$name.md"
+    # end,
     "API Reference" => map(REFERENCE) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
         name = string(split(jl_file, ".")[1])
