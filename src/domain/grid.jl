@@ -128,7 +128,7 @@ end
 """
     function rectangle(c,r)
 
-Returns a shape given center and "radius" of the rectangle
+Returns a shape given center `c` and "radius" `r` of the rectangle
 """
 function rectangle(c,r)
     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
