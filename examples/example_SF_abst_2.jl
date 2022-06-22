@@ -12,70 +12,26 @@ opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
 lib = CDDLib.Library() #polyhedron lib
-eye(n) = diagm(ones(n)) # I matrix
-# Define system
-N_region = 3
-n_sys = 2 
-n_u = 2; 
-Uaux = diagm(1:n_u)
-Usz = 50 # upper limit on |u|
-U = [(Uaux.==i)./Usz for i in 1:n_u];
+include("../problems/PWAsys.jl")
 
-#PWA partitions
-repX1 = intersect(HalfSpace(SVector{2}([1, 0]), -1))
-pX1 = polyhedron(repX1, lib);
-repX2 = HalfSpace(SVector{2}([-1, 0]), 1) ∩ HalfSpace(SVector{2}([1, 0]), 1)
-pX2 = polyhedron(repX2, lib);
-repX3 = intersect(HalfSpace(SVector{2}([-1, 0]), -1))
-pX3 = polyhedron(repX3, lib);
 
-#control input bounded region
-if n_u>1 
-      repU = intersect([HalfSpace(SVector{n_u}(-(1:n_u .==i)  ), Usz) ∩ HalfSpace(SVector{n_u}((1:n_u .==i)), Usz) for i in 1:n_u]...);
-else
-      repU = HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩ HalfSpace(SVector{n_u}([1.0]), Usz) 
+dt = 0.01;
+
+
+system = build_PWA_system(dt,lib)
+n_sys = size(system.modes[1].A,1);
+n_u = size(system.modes[1].B,2);
+
+if ~isdefined(@__MODULE__, :Usz)
+      Usz = 50 # upper limit on |u|
+      Wsz = 5
+      n_step = 5 # discretization of one unit of space
 end
-pU = polyhedron(repU, lib);
-pX = [pX1 pX2 pX3];
+W = Wsz*[-1 -1  1 1;
+-1  1 -1 1]*dt; # polytope of disturbances
 
-dt = 0.01 
-
-W = 5*[-1 -1  1 1;
-     -1  1 -1 1]*dt; # polytope of disturbances
-
-# PWAdomains = [pX1, pX2, pX3];
-
-A = Vector{SMatrix{n_sys,n_sys,Float64}}(undef, N_region)
-B = Vector{SMatrix{(n_sys,n_u),Float64}}(undef, N_region)
-H = Vector{SMatrix{(n_sys,2),Float64}}(undef, N_region)
-g = Vector{SVector{n_sys,Float64}}(undef, N_region)
-A[1] = SMatrix{2,2}(eye(n_sys)+[1 30 ;
-    -10 1]*dt);
-A[2] = transpose(A[1]);
-A[3] = A[1];
-B = fill(SMatrix{2,2}(eye(n_u)*dt), N_region)
-g[1] = -SMatrix{2,1}([10; 10])*0.01;
-g[2] = g[1]*0;
-g[3] = -g[1];
-
-# automata for pwa switching between partitions (unecessary?)
-a = GraphAutomaton(N_region)
-add_transition!(a, 1, 2, 2); 
-add_transition!(a, 2, 1, 1);
-add_transition!(a, 1, 1, 1);
-add_transition!(a, 3, 2, 2);
-add_transition!(a, 2, 2, 2);
-add_transition!(a, 2, 3, 3);
-add_transition!(a, 3, 3, 3);
-
-# subsystems
-systems = [ConstrainedAffineControlDiscreteSystem(A[i], B[i], g[i], pX[i], pU) for i in 1:N_region];
-
-switching = AutonomousSwitching()
-switchings = fill(switching, 1)
-resetmaps = []
-
-system = HybridSystem(a, systems, resetmaps, switchings) # pwa system
+Uaux = diagm(1:n_u)
+U = [(Uaux.==i)./Usz for i in 1:n_u];
 
 # Create Abstraction
 
@@ -84,7 +40,6 @@ rectX = Dionysos.Utils.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, ma
 rectU = rectX
 
 
-n_step = 5 # discretization of one unit of space
 X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0/n_step, 1.0/n_step);
 P = (1/n_sys)*diagm((X_step./2).^(-2))
@@ -102,7 +57,7 @@ symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
 
 # stage cost matrix (J = ||L*[x; u ; 1]||)
 
-L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
+L = [I(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
 
 transitionCost = Dict()  #dictionary with cost of each transition
 transitionKappa = Dict() #dictionary with controller associated each transition
@@ -204,7 +159,7 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       
       w = (2*(rand(2).^(1/4)).-1).*W[:,1]
 
-      x_traj[:,k+1] = A[m]*x_traj[:,k]+B[m]*u_traj[:,k] + g[m] + w
+      x_traj[:,k+1] = system.modes[m].A*x_traj[:,k]+system.modes[m].B*u_traj[:,k] + system.modes[m].c + w
 
       global k += 1;
       global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
@@ -218,7 +173,7 @@ println("True cost:\t\t $(costTrue)")
 
 #Plotting  #######################################################
 
-@static if get(ENV, "CI", "false") == "false"
+@static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
       using PyPlot
       include("../src/utils/plotting/plotting.jl")
       PyPlot.pygui(true) 
