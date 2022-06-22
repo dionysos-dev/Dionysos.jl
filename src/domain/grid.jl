@@ -137,7 +137,7 @@ end
 """
     function get_rec(grid::GridFree, pos)
 
-Returns the cell (as a struct `HyperRectangle`) corrisponding to the given position in the grid
+Returns the cell (as a struct `HyperRectangle`) corresponding to the given position in the grid
 """
 function get_rec(grid::GridFree, pos)
     x = get_coord_by_pos(grid, pos)
