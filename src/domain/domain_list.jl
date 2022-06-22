@@ -1,11 +1,22 @@
 abstract type DomainType{N,T} end
 
 # Without S, add_set! and remove_set! where not type-stable...
+
+"""
+    DomainList{N,T,S<:Grid{N,T}}
+
+Struct for a basic domain
+"""
 struct DomainList{N,T,S<:Grid{N,T}} <: DomainType{N,T}
     grid::S
     elems::Set{NTuple{N,Int}}
 end
 
+"""
+    DomainList(grid::S) where {N,S<:Grid{N}}
+
+Return a new DomainList
+"""
 function DomainList(grid::S) where {N,S<:Grid{N}}
     return DomainList(grid, Set{NTuple{N,Int}}())
 end
