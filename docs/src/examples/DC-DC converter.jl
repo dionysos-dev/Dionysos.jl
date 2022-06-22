@@ -50,7 +50,7 @@ const CO = DI.Control
 const SY = DI.Symbolic
 
 # ### Definition of the system
-# we can import the module contining the DCDC problem like this 
+# we can import the module containing the DCDC problem like this 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
 # and we can instantiate the DC system with the provided system

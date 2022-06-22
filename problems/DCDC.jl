@@ -85,11 +85,4 @@ function solveproblem(problem,x0 = SVector(0.0, 0.0), hx = SVector(2.0/4.0e3, 2.
 end
 
 
-# ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
-# as well as the true initial state `x0` which is contained in the initial state-space defined previously.
-#nstep = 300;
-#x0 = SVector(1.2, 5.6);
-# To complete
-
 end
