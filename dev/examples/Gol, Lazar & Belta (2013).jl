@@ -35,7 +35,7 @@ using Dionysos.Problem
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
 
-# Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/examples/GolLazarBelta.jl)
+# Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta.jl)
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
 # Finally, we select the method presented in [2] as our optimizer
