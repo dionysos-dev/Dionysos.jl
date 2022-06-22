@@ -12,9 +12,6 @@ function build_PWA_system(dt,lib)
     N_region = 3
     n_sys = 2 
     n_u = 2; 
-    Uaux = diagm(1:n_u)
-    Usz = 50 # upper limit on |u|
-    U = [(Uaux.==i)./Usz for i in 1:n_u];
     #PWA partitions
     repX1 = intersect(HalfSpace(SVector{2}([1, 0]), -1))
     pX1 = polyhedron(repX1, lib);
@@ -32,8 +29,6 @@ function build_PWA_system(dt,lib)
     pU = polyhedron(repU, lib);
     pX = [pX1 pX2 pX3];
 
-    W = 5*[-1 -1  1 1;
-        -1  1 -1 1]*dt; # polytope of disturbances
 
     # PWAdomains = [pX1, pX2, pX3];
 
