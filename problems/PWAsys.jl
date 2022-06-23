@@ -56,13 +56,13 @@ function system(lib, dt, x_f, Usz)
     add_transition!(a, 2, 2, 2);
     add_transition!(a, 2, 3, 3);
     add_transition!(a, 3, 3, 3);
-
+    
     # subsystems
-    systems = [ConstrainedAffineControlDiscreteSystem(A[i], B[i], g[i], pX[i], pU) for i in 1:N_region];
+    systems = [ConstrainedContinuousIdentitySystem(n_sys,pX[i]) for i in 1:N_region]
 
     switching = AutonomousSwitching()
     switchings = fill(switching, 1)
-    resetmaps = []
+    resetmaps = [ConstrainedAffineControlMap(A[i], B[i], g[i], pX[i], pU) for i in 1:N_region]
     
     system =  HybridSystem(a, systems, resetmaps, switchings)
 
@@ -82,11 +82,13 @@ of the system and the `transition_cost` is defined to be a quadratic function
 of the state and the input.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
+
+This problem was tackled in the paper [State-feedback Abstractions for Optimal Control of Piecewise-affine Systems](https://arxiv.org/abs/2204.00315).
 """
 function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
     sys = system(lib, dt, x_f, Usz)
-    n_sys = size(sys.modes[1].A,1);
-    n_u = size(sys.modes[1].B,2);
+    n_sys = size(sys.resetmaps[1].A,1);
+    n_u = size(sys.resetmaps[1].B,2);
     
     state_cost = ZeroFunction()
     transition_cost = Fill(QuadraticStateControlFunction(Matrix(I(n_sys)),Matrix(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))

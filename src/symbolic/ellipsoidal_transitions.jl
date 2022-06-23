@@ -15,8 +15,8 @@ using ..Utils
 
 
 """
-    _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, 
-        P, c, Pp, cp, W, L, U, optimizer)
+    _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
+    P,c,Pp,cp,W,L,U, optimizer)
 
 Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
 defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
@@ -33,7 +33,8 @@ This implements the optimization problem presented in Corollary 1 of the followi
 https://arxiv.org/pdf/2204.00315.pdf
 
 """
-function _has_transition(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem,P,c,Pp,cp,W,L,U, optimizer)
+function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
+    P,c,Pp,cp,W,L,U, optimizer)
     
     eye(n) = diagm(ones(n))
     A = subsys.A
@@ -149,7 +150,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     end
  
     # get affine mode number for a point x
-    get_mode(x) = findfirst(m -> (x ∈ m.X), hybridsys.modes)
+    get_mode(x) = findfirst(m -> (x ∈ m.X), hybridsys.resetmaps)
 
     vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1,1]),1,n_sys))...))[:] # list of vertices of a hypersquare centered at the origin and length 2
 
@@ -172,10 +173,10 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         x = Domain.get_coord_by_pos(Xdom.grid, xpos)
         m = get_mode(x)
 
-        A = hybridsys.modes[m].A
-        B = hybridsys.modes[m].B
-        c = hybridsys.modes[m].c
-        Upoly = hybridsys.modes[m].U
+        A = hybridsys.resetmaps[m].A
+        B = hybridsys.resetmaps[m].B
+        c = hybridsys.resetmaps[m].c
+        Upoly = hybridsys.resetmaps[m].U
         
         xpost = _compute_xpost(A,x,B,Upoly,c,R)
                 
@@ -184,7 +185,7 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
         for xmpos in xmpos_iter
             xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
-            ans, cost, kappa =_has_transition(hybridsys.modes[m],P,x,Pm,xm,W,L,U,opt_sdp)
+            ans, cost, kappa =_has_transition(hybridsys.resetmaps[m],P,x,Pm,xm,W,L,U,opt_sdp)
         
             if(ans)
                 trans_count += 1

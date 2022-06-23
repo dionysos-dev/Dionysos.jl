@@ -27,8 +27,8 @@ dt = 0.01;
 const problem = PWAsys.problem(lib, dt, Usz)
 const system = problem.system
 
-n_sys = size(system.modes[1].A,1);
-n_u = size(system.modes[1].B,2);
+n_sys = size(system.resetmaps[1].A,1);
+n_u = size(system.resetmaps[1].B,2);
 
 W = Wsz*[-1 -1  1 1;
          -1  1 -1 1]*dt; # polytope of disturbances
@@ -123,7 +123,7 @@ end
 # Simulation
 
 # return pwa mode for a given x
-get_mode(x) = findfirst(m -> (x ∈ m.X), system.modes)
+get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
 
 
 K = problem.number_of_time_steps<0 ? 100 : problem.number_of_time_steps; #max num of steps
@@ -164,7 +164,7 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       
       w = (2*(rand(2).^(1/4)).-1).*W[:,1]
 
-      x_traj[:,k+1] = system.modes[m].A*x_traj[:,k]+system.modes[m].B*u_traj[:,k] + system.modes[m].c + w
+      x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
 
       global k += 1;
       global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
