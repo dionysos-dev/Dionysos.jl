@@ -61,7 +61,7 @@ function get_pos_by_coord(grid::Grid{N}, x) where N
 end
 
 """
-    function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x)
+    get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x)
 
 Returns the vector of the positions of the ellipsoids that include `x`
 """
