@@ -87,7 +87,7 @@ function get_coord_by_pos(grid::Grid, pos)
 end
 
 """
-    function get_pos_lims_inner(grid::Grid{N}, rect::UT.HyperRectangle; tol=1e-6)
+    get_pos_lims_inner(grid::Grid{N}, rect::UT.HyperRectangle; tol=1e-6)
 
 Returns the position in the grid of the biggest hyperrectangle contained in `rect`
 """
