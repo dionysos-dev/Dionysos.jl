@@ -1,12 +1,11 @@
 module Dionysos
 
-# TODO Reenable once https://github.com/sisl/CUDD.jl/issues/15#issuecomment-719958808 is resolved
-#include("BDD/BDD.jl")
-
-include("upstream.jl")
-include("optimal_control.jl")
-include("bemporad_morari.jl")
-include("q_learning.jl")
-include("branch_and_bound.jl")
+include("utils/utils.jl")
+include("domain/domain.jl")
+include("system/system.jl")
+include("search/search.jl")
+include("symbolic/symbolic.jl")
+include("control/control.jl")
+include("problem/problem.jl")
 
 end # module
