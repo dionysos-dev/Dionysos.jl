@@ -24,7 +24,7 @@ include("../problems/PWAsys.jl")
 
 dt = 0.01;
 
-const problem = PWAsys.build_problem(lib, dt, Usz)
+const problem = PWAsys.problem(lib, dt, Usz)
 const system = problem.system
 
 n_sys = size(system.modes[1].A,1);

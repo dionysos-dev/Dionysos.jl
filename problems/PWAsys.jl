@@ -10,7 +10,7 @@ using Dionysos.Control
 
 
 
-function build_PWA_system(lib, dt, x_f, Usz)
+function system(lib, dt, x_f, Usz)
     eye(n) = diagm(ones(n)) # I matrix
     # Define system
     N_region = 3
@@ -73,7 +73,7 @@ function build_PWA_system(lib, dt, x_f, Usz)
 end
 
 """"
-    build_problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
+    problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
 
 This function create the system with `PWAsys` and instantiates our OptimalControlProblem 
 by defining the transition costs.
@@ -83,18 +83,18 @@ of the state and the input.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
 """
-function build_problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
-    system = build_PWA_system(lib, dt, x_f, Usz)
-    n_sys = size(system.modes[1].A,1);
-    n_u = size(system.modes[1].B,2);
+function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
+    sys = system(lib, dt, x_f, Usz)
+    n_sys = size(sys.modes[1].A,1);
+    n_u = size(sys.modes[1].B,2);
     
     state_cost = ZeroFunction()
-    transition_cost = Fill(QuadraticStateControlFunction(Matrix(I(n_sys)),Matrix(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(system))
+    transition_cost = Fill(QuadraticStateControlFunction(Matrix(I(n_sys)),Matrix(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(
-        system,
+        sys,
         Nothing, x_0,
-        Fill(state_cost,nmodes(system)),
-        Fill(transition_cost, ntransitions(system)),
+        Fill(state_cost,nmodes(sys)),
+        Fill(transition_cost, ntransitions(sys)),
         Nothing,
         N,
     )

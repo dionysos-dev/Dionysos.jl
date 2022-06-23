@@ -74,8 +74,8 @@ end
 """
     QuadraticStateControlFunction{T, MT<:AbstractMatrix{T}}
     
-    Quadratic function on state and input defined as
-    x'Qx + u'Ru + 2x'Nu + 2x'q + 2u'r + v 
+Quadratic function on state and input defined as
+`x'Qx + u'Ru + 2x'Nu + 2x'q + 2u'r + v` 
 """
 struct QuadraticStateControlFunction{T, MT<:AbstractMatrix{T}, AT<:AbstractArray{T}}
     Q::MT
