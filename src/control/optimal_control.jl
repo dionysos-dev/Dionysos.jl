@@ -1,4 +1,4 @@
-export ZeroFunction, ConstantFunction, QuadraticControlFunction, PolyhedralFunction
+export ZeroFunction, ConstantFunction, QuadraticControlFunction, QuadraticStateControlFunction, PolyhedralFunction
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
 export OptimalControlProblem
@@ -68,6 +68,33 @@ end
 struct QuadraticControlFunction{T, MT<:AbstractMatrix{T}}
     Q::MT
 end
+function function_value(f::QuadraticControlFunction, x)
+    return x'f.Q*x
+end
+"""
+    QuadraticStateControlFunction{T, MT<:AbstractMatrix{T}}
+    
+Quadratic function on state and input defined as
+`x'Qx + u'Ru + 2x'Nu + 2x'q + 2u'r + v` 
+"""
+struct QuadraticStateControlFunction{T, MT<:AbstractMatrix{T}, AT<:AbstractArray{T}}
+    Q::MT
+    R::MT
+    N::MT
+    q::AT
+    r::AT
+    v::T
+end
+function function_value(f::QuadraticStateControlFunction, x, u)
+    return x'f.Q*x + u'f.R*u + 2*(x'f.N*u + x'q + u'r) + v 
+end
+function get_full_psd_matrix(f::QuadraticStateControlFunction)
+    return [f.Q  f.N  f.q;
+            f.N' f.R  f.r;
+            f.q' f.r' f.v];
+end
+
+
 
 struct AffineFunction{T}
     a::Vector{T}

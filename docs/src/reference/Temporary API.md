@@ -36,4 +36,5 @@ Dionysos.Utils.FIFOQueue
 Dionysos.Control.ContinuousTrajectory
 Dionysos.Utils.SearchProblem
 Dionysos.Utils.BranchAndBound.Abstract_BB_Problem
+Dionysos.Control.QuadraticStateControlFunction
 ```

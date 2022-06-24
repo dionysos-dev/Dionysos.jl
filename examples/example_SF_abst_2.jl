@@ -8,83 +8,41 @@ using LinearAlgebra
 using SDPA, Ipopt, JuMP
 using Test
 
+
+if ~isdefined(@__MODULE__, :Usz)
+      Usz = 50 # upper limit on |u|
+      Wsz = 5
+      n_step = 5 # discretization of one unit of space
+end
+
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
 lib = CDDLib.Library() #polyhedron lib
-eye(n) = diagm(ones(n)) # I matrix
-# Define system
-N_region = 3
-n_sys = 2 
-n_u = 2; 
+include("../problems/PWAsys.jl")
+
+
+dt = 0.01;
+
+const problem = PWAsys.problem(lib, dt, Usz)
+const system = problem.system
+
+n_sys = size(system.resetmaps[1].A,1);
+n_u = size(system.resetmaps[1].B,2);
+
+W = Wsz*[-1 -1  1 1;
+         -1  1 -1 1]*dt; # polytope of disturbances
+
 Uaux = diagm(1:n_u)
-Usz = 50 # upper limit on |u|
 U = [(Uaux.==i)./Usz for i in 1:n_u];
-
-#PWA partitions
-repX1 = intersect(HalfSpace(SVector{2}([1, 0]), -1))
-pX1 = polyhedron(repX1, lib);
-repX2 = HalfSpace(SVector{2}([-1, 0]), 1) ∩ HalfSpace(SVector{2}([1, 0]), 1)
-pX2 = polyhedron(repX2, lib);
-repX3 = intersect(HalfSpace(SVector{2}([-1, 0]), -1))
-pX3 = polyhedron(repX3, lib);
-
-#control input bounded region
-if n_u>1 
-      repU = intersect([HalfSpace(SVector{n_u}(-(1:n_u .==i)  ), Usz) ∩ HalfSpace(SVector{n_u}((1:n_u .==i)), Usz) for i in 1:n_u]...);
-else
-      repU = HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩ HalfSpace(SVector{n_u}([1.0]), Usz) 
-end
-pU = polyhedron(repU, lib);
-pX = [pX1 pX2 pX3];
-
-dt = 0.01 
-
-W = 5*[-1 -1  1 1;
-     -1  1 -1 1]*dt; # polytope of disturbances
-
-# PWAdomains = [pX1, pX2, pX3];
-
-A = Vector{SMatrix{n_sys,n_sys,Float64}}(undef, N_region)
-B = Vector{SMatrix{(n_sys,n_u),Float64}}(undef, N_region)
-H = Vector{SMatrix{(n_sys,2),Float64}}(undef, N_region)
-g = Vector{SVector{n_sys,Float64}}(undef, N_region)
-A[1] = SMatrix{2,2}(eye(n_sys)+[1 30 ;
-    -10 1]*dt);
-A[2] = transpose(A[1]);
-A[3] = A[1];
-B = fill(SMatrix{2,2}(eye(n_u)*dt), N_region)
-g[1] = -SMatrix{2,1}([10; 10])*0.01;
-g[2] = g[1]*0;
-g[3] = -g[1];
-
-# automata for pwa switching between partitions (unecessary?)
-a = GraphAutomaton(N_region)
-add_transition!(a, 1, 2, 2); 
-add_transition!(a, 2, 1, 1);
-add_transition!(a, 1, 1, 1);
-add_transition!(a, 3, 2, 2);
-add_transition!(a, 2, 2, 2);
-add_transition!(a, 2, 3, 3);
-add_transition!(a, 3, 3, 3);
-
-# subsystems
-systems = [ConstrainedAffineControlDiscreteSystem(A[i], B[i], g[i], pX[i], pU) for i in 1:N_region];
-
-switching = AutonomousSwitching()
-switchings = fill(switching, 1)
-resetmaps = []
-
-system = HybridSystem(a, systems, resetmaps, switchings) # pwa system
 
 # Create Abstraction
 
-max_x = 2 # bound on |x|
+max_x = 2 # bound on |x|_∞
 rectX = Dionysos.Utils.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
 rectU = rectX
 
 
-n_step = 5 # discretization of one unit of space
 X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0/n_step, 1.0/n_step);
 P = (1/n_sys)*diagm((X_step./2).^(-2))
@@ -101,8 +59,9 @@ symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
 
 
 # stage cost matrix (J = ||L*[x; u ; 1]||)
-
-L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
+Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
+eigen_Q = eigen(Q_aug);
+L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'*dt;
 
 transitionCost = Dict()  #dictionary with cost of each transition
 transitionKappa = Dict() #dictionary with controller associated each transition
@@ -112,17 +71,18 @@ empty!(symmodel.autom)
 @time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
-x0 = SVector(2.0,-2.0); # initial condition
+x0 = SVector{n_sys}(problem.x_0); # initial condition
 Xinit = Dionysos.Domain.DomainList(Xgrid)
-Dionysos.Domain.add_coord!(Xinit, x0)
+Dionysos.Domain.add_coord!(Xinit, problem.x_0)
 Xfinal = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_coord!(Xfinal, SVector(-2.0, 1.0))
+Dionysos.Domain.add_coord!(Xfinal, SVector{n_sys}(system.ext[:goal]))
 #Dionysos.Domain.add_set!(Xfinal,Dionysos.Domain.HyperRectangle(SVector(-2.0, 0.5), SVector(-2.0, 0.5)), Dionysos.Domain.OUTER) 
 
 
-Xobstacles = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_set!(Xobstacles, Dionysos.Utils.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), Dionysos.Domain.OUTER) 
-Dionysos.Domain.add_set!(Xobstacles, Dionysos.Utils.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)), Dionysos.Domain.OUTER) 
+Xobstacles = Dionysos.Domain.DomainList(Xgrid) # obstacle set
+for o in system.ext[:obstacles]
+      Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER) 
+end
 
 initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]; 
 finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
@@ -161,12 +121,12 @@ for l = 1:length(path)-1
 end
 
 # Simulation
-function get_mode(x) # return pwa mode for a given x
-      o = map(m-> (x ∈ m.X), system.modes).*(1:length(system.modes))
-      return o[o.>0][1]
-end
 
-K = 100; #max num of steps
+# return pwa mode for a given x
+get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
+
+
+K = problem.number_of_time_steps<0 ? 100 : problem.number_of_time_steps; #max num of steps
 x_traj = zeros(n_sys,K+1);
 u_traj = zeros(n_u,K+1);
 x_traj[:,1] = x0;
@@ -204,7 +164,7 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       
       w = (2*(rand(2).^(1/4)).-1).*W[:,1]
 
-      x_traj[:,k+1] = A[m]*x_traj[:,k]+B[m]*u_traj[:,k] + g[m] + w
+      x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
 
       global k += 1;
       global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
@@ -218,7 +178,7 @@ println("True cost:\t\t $(costTrue)")
 
 #Plotting  #######################################################
 
-@static if get(ENV, "CI", "false") == "false"
+@static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
       using PyPlot
       include("../src/utils/plotting/plotting.jl")
       PyPlot.pygui(true) 
