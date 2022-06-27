@@ -1,0 +1,12 @@
+name = "BipedRobot"
+uuid = "58bd04f1-1d40-47f2-841c-1af4dba12fa7"
+authors = ["vdebauche <vividebauche@hotmail.com>"]
+version = "0.1.0"
+
+[deps]
+LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
+MechanismGeometries = "931e9471-e8fb-5385-a477-07ad12718aca"
+RigidBodyDynamics = "366cf18f-59d5-5db9-a4de-86a9f6786172"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
