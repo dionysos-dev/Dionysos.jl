@@ -120,7 +120,7 @@
 	       <color rgba="0 0 1 1" />
       </material>
     </visual>
-  </link>  
+  </link> -->
 
 <joint name="l_knee_joint" type="continuous">
     <parent link="l_thigh_link" />
@@ -146,7 +146,7 @@
 	       <color rgba="0 0 1 1" />
       </material>
     </visual>
-  </link> 
+  </link> -->
 
   <joint name="r_foot_joint" type="fixed">
     <parent link="r_leg_link" />
@@ -169,7 +169,7 @@
 	       <color rgba="1 1 1 1" />
       </material>
     </visual>
-  </link> 
+  </link> -->
 
   <joint name="l_foot_joint" type="fixed">
     <parent link="l_leg_link" />
@@ -192,6 +192,6 @@
 	       <color rgba="1 1 1 1" />
       </material>
     </visual>
-  </link> 
+  </link> -->
 
 </robot>

@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version="1.0"?>
 
 <robot name="DoublePendulum">
   <link name="base_link">
@@ -11,6 +11,14 @@
       </material>
     </visual>
   </link>
+
+  <joint name="shoulder" type="continuous">
+    <parent link="base_link" />
+    <child link="upper_link" />
+    <origin xyz="0 .15 0" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="1" />
+  </joint>
 
   <link name="upper_link">
     <inertial>
@@ -29,6 +37,14 @@
     </visual>
   </link>
 
+  <joint name="elbow" type="continuous">
+    <parent link="upper_link" />
+    <child link="lower_link" />
+    <origin xyz="0 .1 -1" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="1" />
+  </joint>
+
   <link name="lower_link">
     <inertial>
       <origin xyz="0 0 -1" rpy="0 0 0" />
@@ -46,19 +62,4 @@
     </visual>
   </link>
 
-  <joint name="shoulder" type="continuous">
-    <parent link="base_link" />
-    <child link="upper_link" />
-    <origin xyz="0 .15 0" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="1" />
-  </joint>
-
-  <joint name="elbow" type="continuous">
-    <parent link="upper_link" />
-    <child link="lower_link" />
-    <origin xyz="0 .1 -1" />
-    <axis xyz="0 1 0" />
-    <dynamics damping="1" />
-  </joint>
 </robot>

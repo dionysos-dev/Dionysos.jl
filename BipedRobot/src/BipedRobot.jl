@@ -11,7 +11,7 @@ using LightXML
 
 
 packagepath() = joinpath(@__DIR__, "..", "deps")
-urdfpath() = joinpath(packagepath(), "Biped_robot.urdf")
+urdfpath() = joinpath(packagepath(), "biped_robot.urdf")
 
 
 function __init__()
