@@ -50,87 +50,20 @@ const CO = DI.Control
 const SY = DI.Symbolic
 
 # ### Definition of the system
+# we can import the module containing the DCDC problem like this 
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
-# Definition of the parameters of the system:
-vs = 1.0; rL = 0.05; xL = 3.0; rC = 0.005; xC = 70.0; r0 = 1.0;
+# and we can instantiate the DC system with the provided system
+contsys=DCDC.system()
 
-# Definition of the dynamics functions $f_p$ of the system:
-b = SVector(vs/xL, 0.0);
-A1 = SMatrix{2,2}(-rL/xL, 0.0, 0.0, -1.0/xC/(r0+rC));
-A2 = SMatrix{2,2}(-(rL+r0*rC/(r0+rC))/xL, 5.0*r0/(r0+rC)/xC,
-    -r0/(r0+rC)/xL/5.0, -1.0/xC/(r0+rC));
-F_sys = let b = b, A1 = A1, A2 = A2
-    (x, u) -> u[1] == 1 ? A1*x + b : A2*x + b
-end;
-# Definition of the growth bound functions of $f_p$:
-ngrowthbound = 5;
-A2_abs = SMatrix{2,2}(-(rL+r0*rC/(r0+rC))/xL, 5.0*r0/(r0+rC)/xC,
-                      r0/(r0+rC)/xL/5.0, -1.0/xC/(r0+rC));
-L_growthbound = let A1 = A1, A2_abs = A2_abs
-    u -> u[1] == 1 ? A1 : A2_abs
-end;
-# Here it is considered that there is no system and measurement noise:
-sysnoise = SVector(0.0, 0.0);
-measnoise = SVector(0.0, 0.0);
-
-# Definition of the discretization time step parameters: `tstep` and `nsys`:
-tstep = 0.5;
-nsys = 5;
-
-# Finally, we build the control system:
-contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                       measnoise, nsys, ngrowthbound);
-
-# ### Definition of the control problem
-# Definition of the state-space (limited to be rectangle):
-_X_ = UT.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85));
-
-# Definition of the input-space, the later discretization of the input ensures that it can only take the values $1$ or $2$:
-_U_ = UT.HyperRectangle(SVector(1), SVector(2));
-
-# ### Definition of the abstraction
-
-# Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
-x0 = SVector(0.0, 0.0);
-h = SVector(2.0/4.0e3, 2.0/4.0e3);
-Xgrid = DO.GridFree(x0, h);
-# Construction of the struct `DomainList` containing the feasible cells of the state-space.
-# Note, we used `AB.INNER` to make sure to add cells entirely contained in the domain because we are working with a safety problem.
-Xfull = DO.DomainList(Xgrid);
-DO.add_set!(Xfull, _X_, DO.INNER)
-
-# Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
-u0 = SVector(1);
-h = SVector(1);
-Ugrid = DO.GridFree(u0, h);
-# Construction of the struct `DomainList` containing the quantized inputs:
-Ufull = DO.DomainList(Ugrid);
-DO.add_set!(Ufull, _U_, DO.OUTER);
-
-# Construction of the abstraction:
-symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
-@time SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-
-# ### Construction of the controller
-# In this problem, we consider both: the initial state-space and the safety state-space are equal to the entire state-space.
-#
-# Computation of the initial symbolic states:
-Xinit = DO.DomainList(Xgrid);
-union!(Xinit, Xfull)
-initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
-# Computation of the safety symbolic states:
-Xsafe = DO.DomainList(Xgrid)
-union!(Xsafe, Xfull)
-safelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xsafe)];
-# Construction of the controller:
-contr = CO.NewControllerList();
-@time CO.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
+#The default values are included, but can be changed. 
+DCDC.solveproblem(contsys) 
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
-nstep = 300;
-x0 = SVector(1.2, 5.6);
+#nstep = 300;
+#x0 = SVector(1.2, 5.6);
 # To complete
 
 # ### References
