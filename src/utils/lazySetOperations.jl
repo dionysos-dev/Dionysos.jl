@@ -20,9 +20,5 @@ end
 
 # Computes A ∩ (B1 ∪ B2 ∪ ... ∪ Bn) = (A ∩ B1) ∪ (A ∩ B2) ∪ ... ∪ (A ∩ Bn)
 function Base.intersect(A, B::LazyUnionSetArray)    
-    sets = typeof(B.sets[1])[]
-    for set in B.sets
-        push!(sets, A ∩ set)
-    end
-    return LazyUnionSetArray(sets)
+    return B ∩ A
 end
