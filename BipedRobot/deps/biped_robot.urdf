@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+
+<robot name="biped_robot">
+  <link name="base_link">
+    <visual>
+      <geometry>
+         <box size=".2 .2 .2" />
+      </geometry>
+      <material name="green">
+	       <color rgba="0 1 0 1" />
+      </material>
+    </visual>
+  </link>
+
+   <joint name="base_to_hips_joint" type="floating">
+    <parent link="base_link" />
+    <child link="hips_link" />
+    <origin xyz="0 1 2.05" rpy="0 0 0"/>
+    <dynamics damping="0" />
+  </joint>
+
+     <!-- <joint name="base_to_hips_joint" type="continuous">
+    <parent link="base_link" />
+    <child link="hips_link" />
+    <origin xyz="0 1 2.05" rpy="0 0 0"/>
+    <axis xyz="0 1 0" />
+    <dynamics damping="0" />
+  </joint> -->
+
+  <link name="hips_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="1" />
+    </inertial>
+     <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+         <box size=".2 .2 .2" />
+      </geometry>
+      <material name="green">
+	       <color rgba="0 1 0 1" />
+      </material>
+    </visual>
+  </link>
+
+<joint name="r_hips_joint" type="continuous">
+    <parent link="hips_link" />
+    <child link="r_thigh_link" />
+    <origin xyz="0 -.15 0" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="1" />
+    <safety_controller k_velocity="10" k_position="15" soft_lower_limit="-2.0" soft_upper_limit="0.5" />
+  </joint>
+
+   <link name="r_thigh_link">
+    <inertial>
+      <origin xyz="0 0 -.5" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -.5" rpy="0 0 0" />
+      <geometry>
+         <cylinder length="1.1" radius=".03" />
+      </geometry>
+      <material name="red">
+	       <color rgba="1 0 0 1" />
+      </material>
+    </visual>
+  </link>
+
+  <joint name="l_hips_joint" type="continuous">
+    <parent link="hips_link" />
+    <child link="l_thigh_link" />
+    <origin xyz="0 .15 0" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="0.1" />
+    <safety_controller k_velocity="10" k_position="15" soft_lower_limit="-2.0" soft_upper_limit="0.5" />
+  </joint>
+
+   <link name="l_thigh_link">
+    <inertial>
+      <origin xyz="0 0 -.5" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.083" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -.5" rpy="0 0 0" />
+      <geometry>
+         <cylinder length="1.1" radius=".03" />
+      </geometry>
+      <material name="red">
+	       <color rgba="1 0 0 1" />
+      </material>
+    </visual>
+  </link>
+
+<joint name="r_knee_joint" type="continuous">
+    <parent link="r_thigh_link" />
+    <child link="r_leg_link" />
+    <origin xyz="0 0 -1" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="1" />
+    <safety_controller k_velocity="10" k_position="15" soft_lower_limit="-2.0" soft_upper_limit="0.5" />
+  </joint>
+
+  <link name="r_leg_link">
+    <inertial>
+      <origin xyz="0 0 -0.5" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.33" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 -0.06 -0.5" rpy="0 0 0" />
+      <geometry>
+         <cylinder length="1.1" radius=".03" />
+      </geometry>
+      <material name="blue">
+	       <color rgba="0 0 1 1" />
+      </material>
+    </visual>
+  </link> -->
+
+<joint name="l_knee_joint" type="continuous">
+    <parent link="l_thigh_link" />
+    <child link="l_leg_link" />
+    <origin xyz="0 0 -1" />
+    <axis xyz="0 1 0" />
+    <dynamics damping="1" />
+    <safety_controller k_velocity="10" k_position="15" soft_lower_limit="-2.0" soft_upper_limit="0.5" />
+  </joint>
+
+  <link name="l_leg_link">
+    <inertial>
+      <origin xyz="0 0 -0.5" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.33" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0.06 -0.5" rpy="0 0 0" />
+      <geometry>
+         <cylinder length="1.1" radius=".03" />
+      </geometry>
+      <material name="blue">
+	       <color rgba="0 0 1 1" />
+      </material>
+    </visual>
+  </link> -->
+
+  <joint name="r_foot_joint" type="fixed">
+    <parent link="r_leg_link" />
+    <child link="r_foot_link" />
+    <origin xyz="0 0 -1" />
+  </joint>
+
+  <link name="r_foot_link">
+    <inertial>
+      <origin xyz="0 0 -0.06" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.33" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 -0.06 -0.06" rpy="0 0 0" />
+      <geometry>
+         <sphere  radius=".03" />
+      </geometry>
+      <material name="white">
+	       <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+  </link> -->
+
+  <joint name="l_foot_joint" type="fixed">
+    <parent link="l_leg_link" />
+    <child link="l_foot_link" />
+    <origin xyz="0 0 -1" />
+  </joint>
+
+  <link name="l_foot_link">
+    <inertial>
+      <origin xyz="0 0 -0.06" rpy="0 0 0" />
+      <mass value="1" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="0.33" iyz="0" izz="1" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0.06 -0.06" rpy="0 0 0" />
+      <geometry>
+         <sphere  radius=".03" />
+      </geometry>
+      <material name="white">
+	       <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+  </link> -->
+
+</robot>
