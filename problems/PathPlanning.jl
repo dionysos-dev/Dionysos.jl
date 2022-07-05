@@ -6,6 +6,8 @@ using Dionysos
 const UT = Dionysos.Utils
 const DO = Dionysos.Domain
 const CO = Dionysos.Control
+const PB = Dionysos.Problem
+
 
 function _initTargetSets()
     _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
@@ -54,13 +56,13 @@ This function create the system with `PathPlanning.system`.
 
 Then, we define initial and target domains for the state of the system.
 
-Finally, we instantiate our Reachability Problem with the system, the 
-initial and target domains.
+Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
+with the system, the initial and target domains, and null cost functions.
 """
 function problem()
     sys = system()
     _I_, _T_ = _initTargetSets()
-    problem = CO.ReachabilityProblem(sys, _I_, _T_)
+    problem = PB.OptimalControlProblem(sys, _I_, _T_, Nothing, Nothing, PB.Infinity)
     return problem
 end
 

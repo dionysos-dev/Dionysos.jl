@@ -21,7 +21,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     indicator::Bool
     log_level::Int
     modes::Union{Nothing, Vector{Vector{Int}}}
-    problem::Union{Nothing, OptimalControlProblem}
+    problem::Union{Nothing, Problem.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
     inner
     x
@@ -212,7 +212,7 @@ function _sparse_set(δs, δ, t)
 end
 
 function _zero_steps(optimizer)
-    if optimizer.problem.q_T == optimizer.problem.q_0
+    if optimizer.problem.target_set == optimizer.problem.initial_set[1]
         optimizer.discrete_presolve_status = TRIVIAL
     else
         optimizer.discrete_presolve_status = NO_MODE
@@ -223,19 +223,19 @@ end
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     prob = optimizer.problem
     if optimizer.modes === nothing
-        optimizer.modes = default_modes(prob.system, prob.q_T, prob.number_of_time_steps)
+        optimizer.modes = default_modes(prob.system, prob.target_set, prob.time)
     end
-    iszero(prob.number_of_time_steps) && return _zero_steps(optimizer)
-    modes = Vector{Vector{Int}}(undef, prob.number_of_time_steps)
-    for t in 1:prob.number_of_time_steps
-        modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
+    iszero(prob.time) && return _zero_steps(optimizer)
+    modes = Vector{Vector{Int}}(undef, prob.time)
+    for t in 1:prob.time
+        modes_prev = t == 1 ? [prob.initial_set[1]] : modes[t - 1]
         modes[t] = filter(optimizer.modes[t]) do mode
             any(modes_prev) do mode_prev
                 has_transition(prob.system, mode_prev, mode)
             end
         end
     end
-    for t in (prob.number_of_time_steps - 1):-1:1
+    for t in (prob.time - 1):-1:1
         modes[t] = filter(modes[t]) do mode
             any(modes[t + 1]) do mode_next
                 has_transition(prob.system, mode, mode_next)
@@ -253,13 +253,13 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     # Use `model` instead of `optimizer.inner`
     # as it is type stable.
     optimizer.inner = model
-    JuMP.Containers.@container(x[1:prob.number_of_time_steps, 1:statedim(prob.system, first(first(modes)))], add_variable(model))
+    JuMP.Containers.@container(x[1:prob.time, 1:statedim(prob.system, first(first(modes)))], add_variable(model))
     optimizer.x = x
-    JuMP.Containers.@container(u[1:prob.number_of_time_steps, 1:inputdim(resetmap(prob.system, first(transitions(prob.system))))], add_variable(model))
+    JuMP.Containers.@container(u[1:prob.time, 1:inputdim(resetmap(prob.system, first(transitions(prob.system))))], add_variable(model))
     optimizer.u = u
 
-    transs = [possible_transitions(prob.system, t == 1 ? [prob.q_0] : modes[t-1], modes[t])
-              for t in 1:prob.number_of_time_steps]
+    transs = [possible_transitions(prob.system, t == 1 ? [prob.initial_set[1]] : modes[t-1], modes[t])
+              for t in 1:prob.time]
     if any(isempty, transs)
         optimizer.log_level >= 1 && @warn("`transs` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_TRANSITION
@@ -270,12 +270,12 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
 
     total_cost = MA.Zero()
 
-    δ_mode_prev = IndicatorVariables([prob.q_0], 0)
+    δ_mode_prev = IndicatorVariables([prob.initial_set[1]], 0)
     δ_modes = nothing
     δ_transs = nothing
 
-    for t in 1:prob.number_of_time_steps
-        x_prev = t == 1 ? prob.x_0 : x[t - 1, :]
+    for t in 1:prob.time
+        x_prev = t == 1 ? prob.initial_set[2] : x[t - 1, :]
         xi = x[t, :]
         ui = u[t, :]
         δ_mode = IndicatorVariables(modes[t], t)
@@ -287,7 +287,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         total_cost = MA.operate!!(+, total_cost, state_cost)
         trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans, T)
         total_cost = MA.operate!!(+, total_cost, trans_cost)
-        modes_prev = t == 1 ? [prob.q_0] : modes[t - 1]
+        modes_prev = t == 1 ? [prob.initial_set[1]] : modes[t - 1]
         transitions_constraints(model, prob.system, modes_prev, δ_mode_prev, modes[t], δ_mode, transs[t], δ_trans, T)
         δ_mode_prev = δ_mode
         δ_modes = _sparse_set(δ_modes, δ_mode, t)

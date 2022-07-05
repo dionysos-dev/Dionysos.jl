@@ -53,10 +53,10 @@ end
 
 function _merge_with(combine, a, b)
     n = (axes(a, 1).stop, axes(b, 1).stop)
-    number_of_time_steps = maximum(n)
+    time = maximum(n)
     modes = axes(a, 2)
     return JuMP.Containers.@container(
-        [i in 0:number_of_time_steps, mode in modes],
+        [i in 0:time, mode in modes],
         if i > n[1]
             b[i, mode]
         elseif i > n[2]
@@ -76,13 +76,13 @@ struct DiscreteLowerBound{D}
 end
 function instantiate(prob::OptimalControlProblem, algo::DiscreteLowerBoundAlgo{T}) where {T}
     syst = prob.system
-    dists = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(syst)], typemax(T))
-    dists[0, prob.q_T] = 0.0
+    dists = JuMP.Containers.@container([0:prob.time, modes(syst)], typemax(T))
+    dists[0, prob.target_set] = 0.0
     transition_cost = HybridSystems.transition_property(syst, T)
     for t in transitions(syst)
         transition_cost[t] = minimum_transition_cost(prob, t, algo.solver, T)
     end
-    for i in 1:prob.number_of_time_steps
+    for i in 1:prob.time
         for mode in modes(syst)
             for t in out_transitions(syst, mode)
                 dists[i, mode] = min(dists[i, mode], transition_cost[t] + dists[i - 1, target(syst, t)])
@@ -111,21 +111,21 @@ struct HybridDualDynamicProgramming{T,C,H<:JuMP.Containers.DenseAxisArray{Polyhe
     domains::H
     discrete::DiscreteLowerBound{D}
 end
-function _no_cuts(number_of_time_steps, modes, ::Type{T}) where {T}
+function _no_cuts(time, modes, ::Type{T}) where {T}
     return JuMP.Containers.@container(
-        [0:number_of_time_steps, modes],
+        [0:time, modes],
         AffineFunction{T}[]
     )
 end
-function _full_domains(number_of_time_steps, modes, d, ::Type{T}) where {T}
+function _full_domains(time, modes, d, ::Type{T}) where {T}
     return JuMP.Containers.@container(
-        [0:number_of_time_steps, modes],
+        [0:time, modes],
         hrep(HalfSpace{T, Vector{T}}[], d = d)
     )
 end
 function instantiate(prob::OptimalControlProblem, algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
-    cuts = _no_cuts(prob.number_of_time_steps, modes(prob.system), T)
-    domains = _full_domains(prob.number_of_time_steps, modes(prob.system), length(prob.x_0), T)
+    cuts = _no_cuts(prob.time, modes(prob.system), T)
+    domains = _full_domains(prob.time, modes(prob.system), length(prob.initial_set[2]), T)
     discrete = instantiate(prob, DiscreteLowerBoundAlgo{T}(algo.solver))
     return HybridDualDynamicProgramming(cuts, domains, discrete)
 end
@@ -144,13 +144,13 @@ function q_merge(a::HybridDualDynamicProgramming, b::HybridDualDynamicProgrammin
 end
 function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) where {T}
     d = fulldim(Q.domains[left, mode])
-    number_of_time_steps = axes(Q.cuts, 1).stop
+    time = axes(Q.cuts, 1).stop
     return PolyhedralFunction(
         Q.discrete.discrete_lb[left, mode],
-        reduce(append!, (Q.cuts[i, mode] for i in left:number_of_time_steps),
+        reduce(append!, (Q.cuts[i, mode] for i in left:time),
                init = AffineFunction{T}[]),
         # TODO use intersect! once it is implemented in Polyhedra
-        reduce(intersect, (Q.domains[i, mode] for i in left:number_of_time_steps),
+        reduce(intersect, (Q.domains[i, mode] for i in left:time),
                init = hrep(HalfSpace{T, Vector{T}}[], d = d))
     )
 end
@@ -171,9 +171,9 @@ end
 function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory, ctraj::ContinuousTrajectory,
                algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
     for i in length(dtraj):-1:1
-        x = i == 1 ? prob.x_0 : ctraj.x[i - 1]
+        x = i == 1 ? prob.initial_set[2] : ctraj.x[i - 1]
         mode = source(prob.system, dtraj.transitions[i])
-        left = prob.number_of_time_steps - i
+        left = prob.time - i
         trans = filter(collect(out_transitions(prob.system, mode))) do t
             Q.discrete.discrete_lb[left, target(prob.system, t)] != typemax(T) # ∞
         end

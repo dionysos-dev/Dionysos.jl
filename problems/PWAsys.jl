@@ -7,10 +7,10 @@ using StaticArrays
 using LinearAlgebra
 using Dionysos
 using Dionysos.Control
+using Dionysos.Problem
 
 
-
-function system(lib, dt, x_f, Usz)
+function system(lib, dt, Usz)
     eye(n) = diagm(ones(n)) # I matrix
     # Define system
     N_region = 3
@@ -68,7 +68,7 @@ function system(lib, dt, x_f, Usz)
 
     system.ext[:obstacles] = [Dionysos.Utils.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), 
                               Dionysos.Utils.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5))] 
-    system.ext[:goal] = x_f; 
+ 
     return system # pwa system
 end
 
@@ -85,8 +85,8 @@ Notice that we used `Fill` for all `N` time steps as we consider time-invariant 
 
 This problem was tackled in the paper [State-feedback Abstractions for Optimal Control of Piecewise-affine Systems](https://arxiv.org/abs/2204.00315).
 """
-function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
-    sys = system(lib, dt, x_f, Usz)
+function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = Infinity())
+    sys = system(lib, dt, Usz)
     n_sys = size(sys.resetmaps[1].A,1);
     n_u = size(sys.resetmaps[1].B,2);
     
@@ -94,10 +94,10 @@ function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = 
     transition_cost = Fill(QuadraticStateControlFunction(Matrix(I(n_sys)),Matrix(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(
         sys,
-        Nothing, x_0,
+        x_0,
+        x_f,
         Fill(state_cost,nmodes(sys)),
         Fill(transition_cost, ntransitions(sys)),
-        Nothing,
         N,
     )
     return problem
