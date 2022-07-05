@@ -17,11 +17,12 @@ end
 
 const _PAGES = [
     "Index" => "index.md",
-    "Examples" => map(EXAMPLES) do jl_file
-        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
-        name = string(split(jl_file, ".")[1])
-        return name => "generated/$name.md"
-    end,
+	"Examples" => [
+		"DC-DC converter" => "generated/DC-DC converter.md",
+		"Getting Started" => "generated/Getting Started.md", 
+		"Gol, Lazar & Belta (2013)" => "generated/Gol, Lazar & Belta (2013).md", 
+		"Path planning" => "generated/Path planning.md"]
+		
     "API Reference" => map(REFERENCE) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
         name = string(split(jl_file, ".")[1])
