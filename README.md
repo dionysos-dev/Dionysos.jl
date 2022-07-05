@@ -43,7 +43,7 @@ This guide provides a workflow that should allow you to get things done and not 
 First, clone Dionysos:
 Either do
 ```sh
-$ julia -e 'using Pkg; Pkg.develop("https://github.com/dionysos-dev/Dionysos.jl.git")'
+$ julia -e 'using Pkg; Pkg.develop(url="https://github.com/dionysos-dev/Dionysos.jl.git")'
 ```
 or
 ```sh
