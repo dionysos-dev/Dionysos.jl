@@ -41,6 +41,11 @@ This guide provides a workflow that should allow you to get things done and not 
 ### Set up
 
 First, clone Dionysos:
+Either do
+```sh
+$ julia -e 'using Pkg; Pkg.develop("https://github.com/dionysos-dev/Dionysos.jl.git")'
+```
+or
 ```sh
 $ git clone https://github.com/dionysos-dev/Dionysos.jl.git
 $ cd Dionysos.jl
