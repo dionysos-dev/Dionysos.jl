@@ -62,7 +62,7 @@ with the system, the initial and target domains, and null cost functions.
 function problem()
     sys = system()
     _I_, _T_ = _initTargetSets()
-    problem = PB.OptimalControlProblem(sys, _I_, _T_, Nothing, Nothing, PB.Infinity)
+    problem = PB.OptimalControlProblem(sys, _I_, _T_, Nothing, Nothing, PB.Infinity())
     return problem
 end
 
