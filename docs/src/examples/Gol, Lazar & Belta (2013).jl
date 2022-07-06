@@ -138,8 +138,8 @@ end
 
 
 ##Initial state
-ax.scatter([problem.x_0[1]], [problem.x_0[2]])
-ax.annotate("x0", [problem.x_0[1], problem.x_0[2]-0.5], ha="center", va="center")
+ax.scatter([problem.initial_set[2][1]], [problem.initial_set[2][2]])
+ax.annotate("x0", [problem.initial_set[2][1], problem.initial_set[2][2]-0.5], ha="center", va="center")
 
 ##Split the vector into x1 and x2
 x1 = [xu.x[j][1] for j in eachindex(xu.x)]

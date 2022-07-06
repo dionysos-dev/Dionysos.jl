@@ -38,7 +38,7 @@ function system()
 
 end
 
-# TODO: create the Dionysos.Control.OptimalControlProblem
+# TODO: create the Dionysos.Problem.OptimalControlProblem
 
 
 end

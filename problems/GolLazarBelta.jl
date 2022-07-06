@@ -6,6 +6,7 @@ using MathematicalSystems, HybridSystems
 using SemialgebraicSets
 using Dionysos
 using Dionysos.Control
+using Dionysos.Problem
 
 # function to get vertices of polygon in the good cw order (for plotting)
 function get_ordered_vertices(po)
@@ -138,10 +139,10 @@ function problem(lib, T::Type; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bo
     transition_cost = QuadraticControlFunction(ones(T, 1, 1))
     problem = OptimalControlProblem(
         sys,
-        q_0, x_0,
+        (q_0, x_0),
+        sys.ext[:q_T],
         Fill(state_cost, N),
         Fill(Fill(transition_cost, ntransitions(sys)), N),
-        sys.ext[:q_T],
         N,
     )
     return problem
