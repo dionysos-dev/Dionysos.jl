@@ -28,8 +28,8 @@ const _PAGES = [
         return name => "reference/$name.md"
     end,
     "Developer Docs" => [
+        "Set up" => "developers/setup.md",
         "Git" => "developers/git.md",
-        "Run" => "developers/run.md",
     ],
 ]
 
