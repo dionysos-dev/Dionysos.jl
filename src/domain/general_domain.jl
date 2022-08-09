@@ -35,7 +35,7 @@ _fit_grid(elems::Set,grid,nx,fit) = elems
 
 ## add the periodicity in the domain (add into Domain.jl)
 """
-    RectangularObstacles{VT} <: AbstractSet{VT}
+    GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:Grid{N,T},F} <: DomainType{N,T}
 
 Struct for a rectangular domain with rectangular obstacles
 """
