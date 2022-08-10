@@ -1,3 +1,4 @@
+
 abstract type ControlSystem{N,T} end
 
 function RungeKutta4(F, x, u, tstep, nsub::Int)
@@ -124,3 +125,37 @@ function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N,T}, nsys) where {N,T
     end
     return SimpleSystem(tstep, measnoise, sys_map, F_sys)
 end
+
+
+struct EllipsoidalAffineApproximation(){
+    dynamics::Dict{UT.Ellispoid,AffineControlDiscreteSystem}
+    disturbancePoly::Dict{UT.Ellipsoid,Any}
+}
+
+
+function _getLipschitzConstants(J, xi, rules)
+    L = zeros(length(xi))
+    for (i, g) in enumerate(eachrow(J))
+        Jg = Symbolics.jacobian(g,xi)
+        Hg = Symbolics.substitute(Jg,rules)
+
+        f_aux = eval(build_function(Hg)[1]);
+        mat = Base.invokelatest(f_aux)
+        if isa(mat[1,1],Interval)
+            eigenbox = IntervalLinearAlgebra.eigenbox(mat)
+            L[i] = abs(eigenbox).hi;
+        else
+            L[i] = max(abs.(eigen(mat).values)...)
+        end
+    end
+    L
+end
+
+function buildAffineApproximation(f,x,u,w){
+    n = length(x)
+    m = length(u)
+    p = length(w)
+    xi = [x;u;w]
+
+
+}
