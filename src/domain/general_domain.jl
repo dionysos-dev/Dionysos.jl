@@ -358,7 +358,7 @@ function set_rec_in_period(periodic,periods,T0,rec::UT.HyperRectangle)
 end
 
 # ################### symbolic model
-# function _SymbolicModel(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
+# function _SymbolicModel(Xdom::GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
 #     nu = get_ncells(Udom)
 #     uint2pos = [pos for pos in enum_pos(Udom)]
 #     upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Udom)))
@@ -375,7 +375,7 @@ end
 #
 #
 # function get_state_by_xpos(
-#     symmodel::SymbolicModelList{N,M,<:GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}},
+#     symmodel::SymbolicModelList{N,M,<:GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}},
 #     pos,
 # ) where {N,M,T}
 #     #pos = set_in_period_pos(domain,pos)

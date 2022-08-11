@@ -113,7 +113,7 @@ function build_dom()
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
     grid = DO.build_grid_in_rec(X, hx)
-    d = DO.RectanglularObstacles(X, [obstacle])
+    d = DO.RectangularObstacles(X, [obstacle])
     Xdom = DO.GeneralDomainList(hx;elems=d,periodic=periodic,periods=periods,T0=T0)
     fig = plot(aspect_ratio = 1,legend = false)
     return X,Xdom

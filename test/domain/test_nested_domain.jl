@@ -16,7 +16,7 @@ println("Started test")
     periodic = Int[1]
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
-    d = DO.RectanglularObstacles(X, [obstacle])
+    d = DO.RectangularObstacles(X, [obstacle])
     dom = DO.GeneralDomainList(hx;elems=d,periodic=periodic,periods=periods,T0=T0,fit=true)
 
     Ndomain = DO.NestedDomain(dom)

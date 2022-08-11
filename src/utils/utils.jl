@@ -11,6 +11,7 @@ include("search/generic_search.jl")
 include("optim/branch_and_bound.jl")
 
 include("rectangle.jl")
+include("ellipsoid.jl")
 include("polyhedron.jl")
 include("monteCarlo.jl")
 

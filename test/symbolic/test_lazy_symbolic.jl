@@ -55,7 +55,7 @@ end
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
     obstacle = UT.HyperRectangle(SVector(10.0, 10.0), SVector(15.0, 15.0))
     hx = [3.0, 0.3]
-    d = DO.RectanglularObstacles(X, [obstacle])
+    d = DO.RectangularObstacles(X, [obstacle])
 
     x0 = SVector(0.0,0.0)
     nstep = 10
