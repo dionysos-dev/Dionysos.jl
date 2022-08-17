@@ -14,7 +14,7 @@ function bisection(f::Function; interval=[0, 1],  δ=1e-8, verbose=false, stopIf
     fval[2] = f(x[2]);
     fval[3] = f(x[3]);
     k=0;
-    while abs(x[1]-x[4])>δ && (~stopIfNegative || all(i -> i >= 0, fval))
+    while abs(x[1]-x[4])>δ && (!stopIfNegative || all(i -> i >= 0, fval))
         k=k+1;
         
         if(fval[2] <fval[3])
@@ -36,7 +36,10 @@ function bisection(f::Function; interval=[0, 1],  δ=1e-8, verbose=false, stopIf
             x[3] = x[1] + (x[4]-x[1])/phi;
             fval[3] = f(x[3]);
         end
+        if (verbose)
+            println(min(fval...))
+        end
     end
-    (fval,im) = findmin(fval);
+    (_,im) = findmin(fval);
     (fval[im], x[im])
 end

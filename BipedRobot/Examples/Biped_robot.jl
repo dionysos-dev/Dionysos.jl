@@ -283,7 +283,7 @@ function control!(torques::AbstractVector, t, state::MechanismState)
         # if configuration_range(state, joint) < 11:11  # feedbacking the angle in each joint. using the if because there is one more angle than torques in this atls robot, which I don't know why
         # torques[configuration_range(state, joint)] .= -1*configuration(state,joint)
         # end
-        if ~isempty(v_range) && v_range ⊆ controllable_joints
+        if !isempty(v_range) && v_range ⊆ controllable_joints
             print(state.q[v_range])
             print("\t")
             torques[v_range] .= -50*state.q[v_range] -1*state.v[v_range] +10*integrator[v_range]

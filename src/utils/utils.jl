@@ -1,6 +1,7 @@
 module Utils
 
 using StaticArrays
+using LinearAlgebra
 
 include("data_structures/BDD/BDD.jl")
 include("data_structures/sorted_vector_set.jl")

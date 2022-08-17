@@ -14,6 +14,78 @@ using ..Domain
 using ..Utils
 
 
+
+function has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
+    c,Pp,cp,S,U, optimizer)
+    
+    eye(n) = diagm(ones(n))
+    A = subsys.A
+    B = subsys.B
+    g = subsys.c
+    n = length(c);
+    m = size(U[1],2);
+    #N = size(W,2);
+    #p = size(W,1);
+    #Nu = length(U);
+
+
+    model = Model(optimizer)
+    @variable(model, C[i=1:n,j=1:n])
+    @variable(model, K[i=1:m,j=1:n]) 
+    @variable(model, ell[i=1:m,j=1:1])
+    @variable(model, bta[i=1:N] >= 0)
+    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, gamma >= 0)
+    @variable(model, J >= 0)
+ ``
+    @expressions(model, begin
+        At, A*C+B*F
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+
+    z = zeros(n,1);
+    
+    for i in 1:N
+        w = W[:,i];
+        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
+        @constraint(model,
+            [bta[i]*eye(n)        z         t(At)
+            t(z)                1-bta[i]        t(aux)
+             At                  aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
+
+    end
+    
+    for i=1:Nu
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*eye(n)        z          t(U[i]*F)
+        t(z)                1-tau[i]        t(U[i]*ell)
+        U[i]*F              U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
+        
+    end
+    n_S = size(S,1);
+    @constraint(model,
+    [gamma*P                     z           [t(C) t(F) z]*t(S)
+     t(z)                   J-gamma          [t(c) t(ell) 1]*t(S)
+     S*t([t(C) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
+    
+    @objective(model, Min, J)
+
+    #print(model)
+    optimize!(model)
+
+    kappa = [value.(K) value.(ell)];
+    cost = value(J);
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    #println("$(solution_summary(model).solve_time) s")
+    return ans, cost, kappa
+end
+
+
+
 """
     _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
     P,c,Pp,cp,W,L,U, optimizer)
@@ -83,11 +155,11 @@ function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDis
         U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
         
     end
-    n_L = size(L,1);
+    n_S = size(L,1);
     @constraint(model,
     [gamma*P                     z           [I t(K) z]*t(L)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
-     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_L)       ] >= eye(n+n_L+1)*1e-4, PSDCone())
+     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
     
     @objective(model, Min, J)
 
