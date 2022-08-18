@@ -91,7 +91,7 @@ function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = 
     n_u = size(sys.resetmaps[1].B,2);
     
     state_cost = ZeroFunction()
-    transition_cost = Fill(QuadraticStateControlFunction(Matrix(I(n_sys)),Matrix(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
+    transition_cost = Fill(QuadraticStateControlFunction(Matrix{Float64}(I(n_sys)),Matrix{Float64}(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(
         sys,
         x_0,
