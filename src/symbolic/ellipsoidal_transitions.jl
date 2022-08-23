@@ -10,34 +10,47 @@ using Polyhedra
 using HybridSystems
 using SpecialFunctions
 using ProgressMeter
+using IntervalArithmetic
+using LazySets
 using ..Domain
 using ..Utils
 
 
+AffineSys = Union{HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap}
 
-function has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
-    c,Pp,cp,S,U, optimizer)
-    
+function _getμν(L,subsys)
+    n_x = length(subsys.c)
+    (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
+end
+
+function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, optimizer; λ=0.01)
+    Pp = Ep.P
+    cp = Ep.c
+
     eye(n) = diagm(ones(n))
     A = subsys.A
     B = subsys.B
     g = subsys.c
-    n = length(c);
+    n = length(g);
     m = size(U[1],2);
-    #N = size(W,2);
-    #p = size(W,1);
-    #Nu = length(U);
 
+    μ, ν = _getμν(L,subsys)
+    N_μ = length(μ);
+    N_ν = length(ν) 
+    N_u = length(U);
 
     model = Model(optimizer)
     @variable(model, C[i=1:n,j=1:n])
-    @variable(model, K[i=1:m,j=1:n]) 
+    @variable(model, X[i=1:n,j=1:n],PSD)
+    @variable(model, F[i=1:m,j=1:n]) 
     @variable(model, ell[i=1:m,j=1:1])
-    @variable(model, bta[i=1:N] >= 0)
-    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, bta[i=1:N_μ, j=1:N_ν] >= 0)
+    @variable(model, tau[i=1:N_u] >= 0)
     @variable(model, gamma >= 0)
+    @variable(model, r >= 0)
+    @variable(model, ϵ >= 0)
     @variable(model, J >= 0)
- ``
+
     @expressions(model, begin
         At, A*C+B*F
         gt, g+B*ell
@@ -48,40 +61,54 @@ function has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDisc
 
     z = zeros(n,1);
     
-    for i in 1:N
-        w = W[:,i];
-        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
-        @constraint(model,
-            [bta[i]*eye(n)        z         t(At)
-            t(z)                1-bta[i]        t(aux)
-             At                  aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
-
+    for i in 1:N_μ
+        for j in 1:N_ν
+            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(cp)+hcat(Vector(μ[i]))*r +hcat(Vector(ν[j])))#
+            @constraint(model,
+                [bta[i,j]*eye(n)        z         t(At)
+                t(z)                1-bta[i,j]    t(aux)
+                At                  aux           inv(Pp) ] >= eye(2*n+1)*1e-4, PSDCone())
+        end
     end
     
-    for i=1:Nu
+    for i=1:N_u
         n_ui = size(U[i],1);
         @constraint(model,
-        [tau[i]*eye(n)        z          t(U[i]*F)
+        [tau[i]*eye(n)        z             t(U[i]*F)
         t(z)                1-tau[i]        t(U[i]*ell)
         U[i]*F              U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
-        
     end
     n_S = size(S,1);
     @constraint(model,
-    [gamma*P                     z           [t(C) t(F) z]*t(S)
+    [gamma*eye(n)                z           [t(C) t(F) z]*t(S)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(S)
      S*t([t(C) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
     
-    @objective(model, Min, J)
 
-    #print(model)
+     @constraint(model,
+    [eye(n)   t(C)
+     C       r*eye(n) ] >= eye(n*2)*1e-4, PSDCone())
+    
+#     @constraint(model,diag(C).>=ones(n,1)*0.01)
+     @constraint(model,r<=maxRadius^2)
+     @constraint(model,diag(C).>=ones(n,1)*ϵ)
+     @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
+
     optimize!(model)
-
-    kappa = [value.(K) value.(ell)];
-    cost = value(J);
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    #println(solution_summary(model))
+    if solution_summary(model).termination_status == MOI.OPTIMAL
+        C = value.(C)
+        #print(C)
+        El = UT.Ellipsoid(t(C)\eye(n)/C, c)
+        kappa = [value.(F)/(C) value.(ell)];
+        cost = value(J);
+    else
+        El = nothing
+        kappa = nothing
+        cost = nothing
+    end
     #println("$(solution_summary(model).solve_time) s")
-    return ans, cost, kappa
+    return El, kappa, cost 
 end
 
 

@@ -1,3 +1,4 @@
+using SpecialFunctions
 struct Ellipsoid{T<:Real,MT<:AbstractMatrix{T},VT<:AbstractVector{T}}
     P::MT
     c::VT
@@ -23,7 +24,7 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
     elseif !(elli1.c ∈ elli2)
         return false
     else 
-        L = cholesky(elli2.P).U
+        L = cholesky((elli2.P+elli2.P')/2).U #TODO remove ' when Ellipsoid constructor fixed
         P = L'\elli1.P/L;
         specDecomp = eigen(P)
         lb = specDecomp.values
@@ -51,7 +52,7 @@ end
 
 function volume(elli::Ellipsoid)
     N = size(elli.P,1)
-    return pi^(N/2)/(gamma(N/2+1))*det(P)^(-1/2)
+    return pi^(N/2)/(gamma(N/2+1))*det(elli.P)^(-1/2)
 end
 
 function get_center(elli::Ellipsoid)
