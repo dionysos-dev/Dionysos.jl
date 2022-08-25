@@ -138,9 +138,12 @@ function _getLipschitzConstants(J, xi, rules)
         Hg_s = Symbolics.jacobian(g,xi) #gets symbolic hessian of the i-th component of f(x,u,w)
         Hg = Symbolics.substitute(Hg_s,rules)
 
-        f_aux = eval(build_function(Hg)[1]);
-        mat = Base.invokelatest(f_aux)
-        if isa(mat[1,1],Interval)
+        # f_aux = eval(build_function(Hg)[1]);
+        # mat = Base.invokelatest(f_aux)
+        mat = Symbolics.value.(Hg)
+        #println(mat)
+        if any(x->isa(x,Interval),mat)
+            mat = Interval.(mat)
             eigenbox = IntervalLinearAlgebra.eigenbox(mat)
             L[i] = abs(eigenbox).hi;
         else
@@ -169,7 +172,7 @@ function buildAffineApproximation(f,x,u,w,x̄,ū,w̄,X,U,W)
 
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i =1:(n+m+p))
-    evalSym(x) = Float64.(Base.invokelatest(eval(build_function(Symbolics.substitute(x,sub_rules_x̄i))[1])))
+    evalSym(x) = Float64.(Symbolics.value.(Symbolics.substitute(x,sub_rules_x̄i)))
     A = evalSym(Jx)
     B = evalSym(Ju)
     E = evalSym(Jw)

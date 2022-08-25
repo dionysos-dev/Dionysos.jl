@@ -23,7 +23,7 @@ function _getμν(L,subsys)
     (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
 end
 
-function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, optimizer; λ=0.01)
+function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
     Pp = Ep.P
     cp = Ep.c
 
@@ -47,6 +47,7 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
     @variable(model, bta[i=1:N_μ, j=1:N_ν] >= 0)
     @variable(model, tau[i=1:N_u] >= 0)
     @variable(model, gamma >= 0)
+    @variable(model, ϕ >= 0)
     @variable(model, r >= 0)
     @variable(model, ϵ >= 0)
     @variable(model, J >= 0)
@@ -84,6 +85,11 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(S)
      S*t([t(C) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
     
+     @constraint(model,
+     [ϕ*eye(n)     z            t(F)
+      t(z)      maxΔu^2-ϕ    zeros(1,m)
+      (F)       zeros(m,1)     eye(m)    ] >= eye(n+m+1)*1e-4, PSDCone())
+     
 
      @constraint(model,
     [eye(n)   t(C)
