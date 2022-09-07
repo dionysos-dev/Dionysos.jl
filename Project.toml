@@ -26,7 +26,6 @@ SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 ArnoldiMethod = "0.2"
@@ -48,7 +47,6 @@ SemialgebraicSets = "0.2"
 SimpleWeightedGraphs = "1.2"
 SpecialFunctions = "2"
 StaticArrays = "1"
-Symbolics = "4"
 julia = "1.6"
 
 [extras]
