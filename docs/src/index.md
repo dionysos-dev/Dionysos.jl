@@ -1,6 +1,6 @@
-
+```@raw html
 <img src="assets/logo.png" height="240">
-
+```
 # Introduction
 
 Welcome to the documentation for Dionysos!
