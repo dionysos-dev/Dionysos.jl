@@ -1,4 +1,5 @@
 using Dionysos
+using Dionysos.Problem
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
@@ -71,11 +72,11 @@ empty!(symmodel.autom)
 @time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
-x0 = SVector{n_sys}(problem.x_0); # initial condition
+x0 = SVector{n_sys}(problem.initial_set); # initial condition
 Xinit = Dionysos.Domain.DomainList(Xgrid)
-Dionysos.Domain.add_coord!(Xinit, problem.x_0)
+Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
 Xfinal = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_coord!(Xfinal, SVector{n_sys}(system.ext[:goal]))
+Dionysos.Domain.add_coord!(Xfinal, SVector{n_sys}(problem.target_set))
 #Dionysos.Domain.add_set!(Xfinal,Dionysos.Domain.HyperRectangle(SVector(-2.0, 0.5), SVector(-2.0, 0.5)), Dionysos.Domain.OUTER) 
 
 
@@ -126,7 +127,7 @@ end
 get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
 
 
-K = problem.number_of_time_steps<0 ? 100 : problem.number_of_time_steps; #max num of steps
+K = typeof(problem.time) == Infinity ? 100 : problem.time; #max num of steps
 x_traj = zeros(n_sys,K+1);
 u_traj = zeros(n_u,K+1);
 x_traj[:,1] = x0;

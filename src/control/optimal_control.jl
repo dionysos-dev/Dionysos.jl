@@ -1,8 +1,6 @@
 export ZeroFunction, ConstantFunction, QuadraticControlFunction, QuadraticStateControlFunction, PolyhedralFunction
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
-export OptimalControlProblem
-export ReachabilityProblem
 export AffineFunction, PolyhedralFunction
 export last_mode, function_value
 
@@ -130,21 +128,6 @@ end
 
 Base.:+(::ZeroFunction, f::Union{ConstantFunction,PolyhedralFunction}) = f
 
-struct OptimalControlProblem{S, Q, X0, XC, TC}
-    system::S
-    q_0::Q
-    x_0::X0
-    state_cost::XC
-    transition_cost::TC
-    q_T::Q
-    number_of_time_steps::Int
-end
-
-struct ReachabilityProblem{S, SE}
-    system::S
-    initial_set::SE
-    target_set::SE
-end
 
 export optimal_control
 function optimal_control end

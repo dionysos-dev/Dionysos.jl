@@ -22,7 +22,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     max_iter::Int
     max_time::Float64
     feasible_solution_callback::Union{Nothing, Function}
-    problem::Union{Nothing, OptimalControlProblem}
+    problem::Union{Nothing, Problem.OptimalControlProblem}
     status::MOI.TerminationStatusCode
     upper_bound::T
     solve_time::Float64
@@ -65,9 +65,9 @@ function Base.isless(a::Candidate, b::Candidate)
 end
 
 function number_of_nodes(prob)
-    num = JuMP.Containers.@container([0:prob.number_of_time_steps, modes(prob.system)], 0)
-    num[0, prob.q_T] = 1
-    for i in 1:prob.number_of_time_steps
+    num = JuMP.Containers.@container([0:prob.time, modes(prob.system)], 0)
+    num[0, prob.target_set] = 1
+    for i in 1:prob.time
         for mode in modes(prob.system)
             for t in out_transitions(prob.system, mode)
                 num[i, mode] += num[i - 1, target(prob.system, t)]
@@ -91,7 +91,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     )
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
-    left = prob.number_of_time_steps - length(traj)
+    left = prob.time - length(traj)
     terminal_cost = Problem.value_function(Q_function, left, last_mode(prob.system, traj))
     @assert isempty(state_cost) == iszero(length(traj))
     if !isempty(state_cost)
@@ -100,9 +100,10 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         state_cost = [state_cost[1:(end - 1)]; [state_cost[end] .+ Ref(terminal_cost)]]
     end
     cont_traj_prob = OptimalControlProblem(
-        prob.system, prob.q_0, prob.x_0,
+        prob.system, prob.initial_set,
+        last_mode(prob.system, traj),
         state_cost, prob.transition_cost[1:length(traj)],
-        last_mode(prob.system, traj), length(traj)
+        length(traj)
     )
     start_optimizer = MOI.instantiate(sub_algo)
     MOI.set(start_optimizer, MOI.RawOptimizerAttribute("modes"), modes)
@@ -111,20 +112,20 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     if MOI.get(start_optimizer, MOI.TerminationStatus()) != MOI.OPTIMAL
         return
     end
-    left = prob.number_of_time_steps - length(traj)
+    left = prob.time - length(traj)
     start_cost = MOI.get(start_optimizer, MOI.ObjectiveValue())
     start_sol = MOI.get(start_optimizer, ContinuousTrajectoryAttribute())
     if isempty(state_cost)
-        lb = start_cost + function_value(terminal_cost, prob.x_0)
+        lb = start_cost + function_value(terminal_cost, prob.initial_set[2])
     else
         lb = start_cost
         start_cost -= function_value(terminal_cost, start_sol.x[end])
     end
     if left <= algo.horizon || false # prob.allow_less_iterations
         horizon_prob = OptimalControlProblem(
-            prob.system, last_mode(prob.system, traj), length(traj) == 0 ? prob.x_0 : start_sol.x[end],
-            prob.state_cost[(length(traj) + 1):end], prob.transition_cost[(length(traj) + 1):end],
-            prob.q_T, min(left, algo.horizon)
+            prob.system, (last_mode(prob.system, traj), length(traj) == 0 ? prob.initial_set[2] : start_sol.x[end]),
+            prob.target_set, prob.state_cost[(length(traj) + 1):end], prob.transition_cost[(length(traj) + 1):end],
+            min(left, algo.horizon)
         )
         horizon_optimizer = MOI.instantiate(sub_algo)
         MOI.set(horizon_optimizer, MOI.RawOptimizerAttribute("problem"), horizon_prob)
@@ -184,8 +185,8 @@ end
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     start_time = time()
     prob = optimizer.problem
-    if iszero(prob.number_of_time_steps)
-        if optimizer.problem.q_T == optimizer.problem.q_0
+    if iszero(prob.time)
+        if optimizer.problem.target_set == optimizer.problem.initial_set[1]
             optimizer.status = MOI.OPTIMAL
             optimizer.best_traj = ContinuousTrajectory(Vector{T}[], Vector{T}[])
             optimizer.upper_bound = zero(T)
@@ -195,7 +196,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         return
     end
     num_nodes = number_of_nodes(prob)
-    optimizer.num_total = num_nodes[prob.number_of_time_steps, prob.q_0]
+    optimizer.num_total = num_nodes[prob.time, prob.initial_set[1]]
     if iszero(optimizer.num_total)
         optimizer.status = MOI.INFEASIBLE
         return
@@ -207,7 +208,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     if optimizer.Q_function_init !== nothing
         optimizer.Q_function = Problem.q_merge(optimizer.Q_function, optimizer.Q_function_init)
     end
-    candidate_0, optimizer.best_traj = candidate(prob, optimizer, optimizer.Q_function, DiscreteTrajectory{transitiontype(prob.system)}(prob.q_0))
+    candidate_0, optimizer.best_traj = candidate(prob, optimizer, optimizer.Q_function, DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]))
     candidate_0 === nothing && return
     optimizer.upper_bound = candidate_0.upper_bound
     optimizer.num_iter = 0
@@ -232,7 +233,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
             for t in out_transitions(prob.system, last_mode(prob.system, cur_candidate.traj))
                 new_traj = Dionysos.Control.append(cur_candidate.traj, t)
                 # Shortcuts avoiding to solve the QP in case, it's infeasible.
-                nnodes = num_nodes[prob.number_of_time_steps - length(new_traj), last_mode(prob.system, new_traj)]
+                nnodes = num_nodes[prob.time - length(new_traj), last_mode(prob.system, new_traj)]
                 iszero(nnodes) && continue
                 new_candidate_traj = candidate(prob, optimizer, optimizer.Q_function, new_traj)
                 if new_candidate_traj === nothing
@@ -254,7 +255,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
                         optimizer.best_traj = sol_traj
                         optimizer.upper_bound = new_candidate.upper_bound
                     end
-                    if length(new_candidate.traj) < prob.number_of_time_steps
+                    if length(new_candidate.traj) < prob.time
                         if new_candidate.lower_bound < optimizer.upper_bound
                             push!(candidates, new_candidate)
                         else
@@ -267,7 +268,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
                 end
             end
         else
-            left = prob.number_of_time_steps - length(cur_candidate.traj)
+            left = prob.time - length(cur_candidate.traj)
             nnodes = num_nodes[left, last_mode(prob.system, cur_candidate.traj)]
             optimizer.num_pruned_bound += nnodes - 1
         end
