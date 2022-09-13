@@ -17,11 +17,11 @@ end
 
 const _PAGES = [
     "Index" => "index.md",
-	"Examples" => [
-		"DC-DC converter" => "generated/DC-DC converter.md",
-		"Getting Started" => "generated/Getting Started.md", 
-		"Gol, Lazar & Belta (2013)" => "generated/Gol, Lazar & Belta (2013).md", 
-		"Path planning" => "generated/Path planning.md"],
+    "Examples" => map(EXAMPLES) do jl_file
+        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
+        name = string(split(jl_file, ".")[1])
+        return name => "generated/$name.md"
+    end,
     "API Reference" => map(REFERENCE) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
         name = string(split(jl_file, ".")[1])
@@ -33,9 +33,9 @@ makedocs(
     sitename = "Dionysos",
     # See https://github.com/JuliaDocs/Documenter.jl/issues/868
     format = Documenter.HTML(
-	    prettyurls = get(ENV, "CI", nothing) == "true",
-		assets = ["assets/extra_styles.css"]
-	),
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        assets = ["assets/extra_styles.css"]
+    ),
     # See https://github.com/jump-dev/JuMP.jl/issues/1576
     strict = true,
     pages = _PAGES,
