@@ -10,6 +10,8 @@ using LinearAlgebra
 using Mosek
 using MosekTools
 
+import Random
+Random.seed!(0)
 #Def sym variables
 
 
@@ -19,13 +21,12 @@ using MosekTools
 #      py+2*v/ω*sin(T*ω/2)*sin(th+T*ω/2);
 #      th+T*ω
 #     ];
-
 function unicycleRobot()
     # due to "Global Observability Analysis of a Nonholonomic Robot using Range Sensors"
     Symbolics.@variables px py th v ω w1 T
 
     # sinc not implemented in symbolic and division by `th` makes IntervalArithmetic bug
-    mysinc(th) = sin(sqrt(th^2+1e-14))/sqrt(th^2+1e-14)
+    mysinc(th) = sin(sqrt(th^2+1e-3))/sqrt(th^2+1e-3)
     f = [px+T*v*mysinc(T*ω/2)*cos(th+T*ω/2);
     py+T*v*mysinc(T*ω/2)*sin(th+T*ω/2);
     th+T*ω
@@ -34,6 +35,7 @@ function unicycleRobot()
     x = [px; py; th] # state
     u = [v; ω] # control
     w = [w1]
+    
     return f, x, u, w, T    
 end
 
@@ -53,8 +55,8 @@ end
 function unstableSimple()
     Symbolics.@variables px py vx vy wx wy T
 
-    f = [1.3*px+2*py+0.005*py^3+T*vx;
-         1.1*py-px-0.005*px^3+T*vy];
+    f = [1.1*px-0.2*py-0.00005*py^3+T*vx;
+         1.1*py+0.2*px+0.00005*px^3+T*vy];
     
     x = [px; py] # state
     u = [vx; vy] # control
@@ -64,6 +66,7 @@ end
 
 
 f, x, u, w, T = unstableSimple()
+
 # sys dimensions
 n_x = length(x)
 n_u = length(u)
@@ -71,15 +74,17 @@ n_w = length(w)
 
 Ts = 1
 # sys eval function
-function f_eval(x̄,ū,w̄,T̄)
-    rules = Dict([x[i] => x̄[i] for i=1:n_x] ∪ 
-    [u[i] => ū[i] for i=1:n_u] ∪ 
-    [w[i] => w̄[i] for i=1:n_w] ∪
-    [T => T̄])
+# function f_eval(x̄,ū,w̄,T̄)
+#     rules = Dict([x[i] => x̄[i] for i=1:n_x] ∪ 
+#     [u[i] => ū[i] for i=1:n_u] ∪ 
+#     [w[i] => w̄[i] for i=1:n_w] ∪
+#     [T => T̄])
     
-    ff = Symbolics.substitute(f,rules)
-    Base.invokelatest(eval(eval(build_function(ff)[1])))
-end
+#     ff = Symbolics.substitute(f,rules)
+#     Base.invokelatest(eval(eval(build_function(ff)[1])))
+# end
+f_eval = eval(build_function(f,x,u,w,T)[1])
+
 
 # augmented argument
 xi = [x;u;w]
@@ -91,21 +96,24 @@ fT = Symbolics.substitute(f,Dict([T => Ts]))
 
 
 
-# Box bounding x, u, w
-X = IntervalBox(-15..15,2)# × (-pi..pi);
-U = IntervalBox(-10.0..10.0,2)
-
-# Boxes on which J must be bounded
-maxRadius = 1.0
-ΔX = IntervalBox(-maxRadius..maxRadius,2) #× (-0.2..0.2);
-ΔU = IntervalBox(-0.5..0.5,2)
-
-ΔW = IntervalBox(-0.0..0.0,2)
-
 # Bounds on u
 Usz = 10
 Uaux = diagm(1:n_u)
 Ub = [(Uaux.==i)./Usz for i in 1:n_u];
+# Box bounding x, u, w
+X = IntervalBox(-15..15,2);
+U = IntervalBox(-Usz..Usz,n_u)
+
+# Boxes on which J must be bounded
+maxStep = 5
+
+maxRadius = 1
+maxΔu = Usz*2
+ΔX = IntervalBox(-maxRadius..maxRadius,2) #× (-0.01..0.01);
+ΔU = IntervalBox(-maxΔu..maxΔu,2)
+
+ΔW = IntervalBox(-0.0..0.0,1)
+
 
 # Cost
 S = Matrix{Float64}(I(n_x+n_u+1)) #TODO
@@ -116,11 +124,12 @@ sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
 
 
-x0 = [-8.0;0.0]
-X0 = UT.Ellipsoid(Matrix{Float64}(I(n_x))*100, x0)
-xf = [5.0;5.0]
-XF = UT.Ellipsoid(Matrix{Float64}(I(n_x))*10, xf)
-
+x0 = [-10.0;-10.0]
+X0 = UT.Ellipsoid(Matrix{Float64}(I(n_x))*10.0, x0)
+xf = [10.0;10.0]
+XF = UT.Ellipsoid(Matrix{Float64}(I(n_x))*1.0, xf)
+obstacles = [UT.Ellipsoid(Matrix{Float64}(I(n_x))*1/50, [0.0;0.0])]
+intialDist = norm(x0-xf) 
 treeRoot = UT.Node(XF)
 treeLeaves = [treeRoot]
 
@@ -153,8 +162,7 @@ function findCloseNodes(nodeList, x; d=1)
         return closeNodes
     end
 end
-
-function sample_x(;probSkew=0.4, probX0=0.1)
+function sample_x(;probSkew=0.0, probX0=0.05)
     guess = map(x-> x.lo + (x.hi-x.lo)*rand(), X.v)
     randVal = rand()
     if randVal>probSkew+probX0
@@ -164,24 +172,29 @@ function sample_x(;probSkew=0.4, probX0=0.1)
         # println("X0.c guess")
         return X0.c
     else 
-        closestNode = findNClosestNode(treeLeaves,X0.c)[1].state
+        closestNode, dist  = findNClosestNode(treeLeaves,X0.c)
+        
         l = randVal/probSkew
         # println("skewed guess")
-        return (X0.c*l + closestNode.c*(1-l))*0.7 +0.3*guess #heuristic bias
+        r = dist/intialDist
+        return (X0.c*l + closestNode.state.c*(1-l))*(1-0.3*r) +(0.3*r)*guess #heuristic bias
     end
 end
-sample_u() = map(x-> x.lo + (x.hi-x.lo)*rand(), U.v)
+sample_u() = map(x-> (x.lo + (x.hi-x.lo)*rand()), U.v)
 
 
 
-global maxIter = 1000
+global maxIter = 10000
 global Xnew = XF
 global bestDist = UT.centerDistance(X0,Xnew)
 while !(X0 ∈ Xnew) && maxIter>0
     xsample = Vector(sample_x())
-    Xclosest_, _ = findNClosestNode(treeLeaves,xsample)
-    closeNodes = [Xclosest_]
-    #closeNodes= first(sort(findCloseNodes(treeLeaves,xsample; d=maxRadius); lt=((e1,e2)-> UT.pointCenterDistance(e1.state, xsample)<UT.pointCenterDistance(e2.state, xsample))), 20)
+    #Xclosest_, _ = findNClosestNode(treeLeaves,xsample)
+    #closeNodes = [Xclosest_]
+    
+    closeNodes= first(sort(findCloseNodes(treeLeaves,xsample; d=Inf); lt=((e1,e2)-> UT.pointCenterDistance(e1.state, xsample)<UT.pointCenterDistance(e2.state, xsample))), 5)
+    # print(">>>>>>>>to: \t")
+    # println(xAim)
     if isempty(closeNodes)
         continue
     end
@@ -194,63 +207,101 @@ while !(X0 ∈ Xnew) && maxIter>0
     parentMin = nothing
     for Xclosest in closeNodes
         xPar = UT.get_center(Xclosest.state)
-        #unew = sample_u()
-        #wnew = zeros(n_w)
-        #xnew = f_eval(xPar, unew, wnew, -Ts)
-        unew = zeros(n_u)
+        if norm(xsample-xPar)>maxStep
+            xAim = maxStep*(xsample-xPar)./norm(xsample-xPar)+xPar
+        else
+            xAim = xsample
+        end
+        # println(xsample)
+    
         wnew = zeros(n_w)
-        xaux = xsample-xPar
-        xaux = maxRadius*xaux./norm(xaux) 
-        xnew = xPar + xaux
+        # unew = finv(xAim,xPar)
+        # xnew = f_eval(xPar, unew, wnew,-Ts)
+        
+        # print(xPar)
+        # print(xAim)
+        unew = sample_u()*1#(0.8+0.2*norm(xPar-X0.c)/intialDist)
+        xnew = f_eval(xPar, unew, wnew, -Ts)
+        
+        # println(xnew)
+        uBestDist = norm(xnew-xAim)
+        for i in 1:500
+            ucandnew = sample_u()*0.002*i
+            xcandnew = f_eval(xPar, ucandnew, wnew, -Ts)
+            if norm(xcandnew-xAim)< uBestDist
+                uBestDist = norm(xcandnew-xAim)
+                xnew = xcandnew
+                unew = ucandnew
+            end
+        end
+        # println(xnew)
+        # println(xnew)
+        # println(unew)
+        # println()
+        # print(">>>>>> from: \t")
+        # println(xPar)
+        # print(">>>>>>>> to: \t")
+        # println(xnew)
+        #xaux = f_eval(xPar, unew, wnew, -Ts)
+        #unew = zeros(n_u)
+        #wnew = zeros(n_w)
+        #xaux = xsample-xPar
+        #xaux = 2*maxRadius*xaux./norm(xaux) 
+        #xnew = xPar + xaux
         # println(xnew)
 
         X̄ = IntervalBox(xnew .+ ΔX)
         Ū = IntervalBox(unew .+ ΔU)
         W̄ = IntervalBox(wnew .+ ΔW)
         (sys, L) = Dionysos.System.buildAffineApproximation(fT,x,u,w,xnew,unew,wnew,X̄,Ū,W̄)
-        El, kappa, cost = Dionysos.Symbolic.hasTransition(xnew, Xclosest.state, sys, L, S, Ub, maxRadius, sdp_opt; λ=0.01)
+        # println(L)
+        El, kappa, cost = Dionysos.Symbolic.hasTransition(xnew, unew, Xclosest.state, sys, L, S, Ub, maxRadius, maxΔu, sdp_opt; λ=0.015)
         if El===nothing             
-            print("\tInfeasible")
+            # print("\tInfeasible")
         elseif X0 ∈ El
             ElMin = El
             kappaMin = kappa
-            minDist = (X0.c-El.c)'*El.P*(X0.c-El.c)
+            minDist = norm(X0.c-El.c)
             minPathCost = Xclosest.path_cost+cost
             parentMin = Xclosest
             break
-        elseif minDist > (X0.c-El.c)'*El.P*(X0.c-El.c) # minPathCost > cost + Xclosest.path_cost
-            print("\tFeasible")
-            if Xclosest==treeRoot || eigmin(X0.P-El.P)>0 # E ⊂ E0 => P-P0>0
+        elseif minDist > norm(X0.c-El.c) # minPathCost > cost + Xclosest.path_cost
+            # print("\tFeasible")
+            if Xclosest==treeRoot || eigmin(X0.P*0.5-El.P)>0 # E ⊂ E0 => P-P0>0
                 ElMin = El
                 kappaMin = kappa
-                minDist = (X0.c-El.c)'*El.P*(X0.c-El.c)
+                minDist = norm(X0.c-El.c)
                 minPathCost = Xclosest.path_cost+cost
                 parentMin = Xclosest
             else
-                print("\tEllipsoid too small: Rejecting...")
+                # print("\tRejecting...")
             end
         else
-            print("\tNotTheBest")
+            # print("\tNotTheBest")
         end 
-        print("\tClosest Dist: ")
-        println(bestDist)
+        # println()
     end
-    if ElMin !== nothing
-        if sqrt(eigmin(ElMin.P))<1/(maxRadius)
-            println("STOP!")
-            break
-        end
+
+    if ElMin !== nothing && all(O -> !(ElMin.c ∈ O), obstacles)
+        # if sqrt(eigmin(ElMin.P))<1/(maxRadius)
+        #     println("STOP!")
+        #     break
+        # end
         global Xnew = ElMin
         push!(treeLeaves, UT.Node(Xnew; parent=parentMin, action=kappaMin, path_cost=minPathCost) )
         setdiff!(treeLeaves, [parentMin])
         dAux = UT.centerDistance(X0,Xnew)
-        print("\t")
-        println((X0.c-ElMin.c)'*ElMin.P*(X0.c-ElMin.c))
+        print("\t ")
+        print(norm(X0.c-ElMin.c))
+        print("\t ")
+        println(UT.volume(ElMin))
         if bestDist > dAux
             global bestDist = dAux
-            print("*")
+            print("******")
         end
     end
+    print("\tClosest Dist: ")
+    println(bestDist)
     global maxIter-=1
 end
 global xSpan = [x0]
@@ -282,7 +333,7 @@ else
     return
 end
 
-
+if true
 # @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
     using PyPlot
     include("../src/utils/plotting/plotting.jl")
@@ -340,11 +391,11 @@ end
                 lyap = (nodePar.path_cost)
                 plotEllipse!(ax, nodePar.state, fc =  (0.4*lyap/LyapMax+0.5, 0.4*(LyapMax-lyap)/LyapMax+0.5, 0.75), ew = 0.5);
                 push!(plotted, nodePar)
-                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.01, head_width=.18)
+                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.005, head_width=.28)
                 aTail = nodePar.state.c
                 nodePar = nodePar.parent
             else
-                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.01, head_width=.18)
+                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.005, head_width=.28)
                 nodePar = nothing
             end
 
@@ -356,7 +407,8 @@ end
         plotEllipse!(ax,currNode.state, fc =  (0.4*lyap/LyapMax+0.5, 0.4*(LyapMax-lyap)/LyapMax+0.5, 0.75), ew = 2);
         global currNode = currNode.parent
     end
-
+    plotEllipse!(ax, X0, fa=0.1, ew = 0.5);
+        
     cmap = PyPlot.ColorMap("mycolor",hcat([0.0,0.8,0.5,0.5],[0.8,0.0,0.5,0.5])');
     
     PyPlot.colorbar(PyPlot.ScalarMappable(norm=PyPlot.cm.colors.Normalize(vmin=0, vmax=LyapMax),cmap=cmap),shrink=0.7)
@@ -370,5 +422,5 @@ end
     plt.savefig("ex2_traj.pdf", format="pdf")
     gcf() 
 
-# end #if 
+ end #if 
 

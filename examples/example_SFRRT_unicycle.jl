@@ -10,6 +10,8 @@ using LinearAlgebra
 using Mosek
 using MosekTools
 
+import Random
+Random.seed!(0)
 #Def sym variables
 
 
@@ -19,7 +21,6 @@ using MosekTools
 #      py+2*v/ω*sin(T*ω/2)*sin(th+T*ω/2);
 #      th+T*ω
 #     ];
-
 function unicycleRobot()
     # due to "Global Observability Analysis of a Nonholonomic Robot using Range Sensors"
     Symbolics.@variables px py th v ω w1 T
@@ -34,6 +35,7 @@ function unicycleRobot()
     x = [px; py; th] # state
     u = [v; ω] # control
     w = [w1]
+    
     return f, x, u, w, T    
 end
 
@@ -64,6 +66,11 @@ end
 
 
 f, x, u, w, T = unicycleRobot()
+finv(x,x₊) =begin
+    ω = (x₊[3]-x[3])/Ts
+    [0.5*(x₊[1]-x[1])/(Ts*sinc(Ts*ω/2/pi)*cos(x[3]+Ts*ω/2))+0.5*(x₊[2]-x[2])/(Ts*sinc(Ts*ω/2/pi)*sin(x[3]+Ts*ω/2))
+    ω]
+end 
 # sys dimensions
 n_x = length(x)
 n_u = length(u)
@@ -94,7 +101,7 @@ fT = Symbolics.substitute(f,Dict([T => Ts]))
 
 
 # Bounds on u
-Usz = 200
+Usz = 100
 Uaux = diagm(1:n_u)
 Ub = [(Uaux.==i)./Usz for i in 1:n_u];
 # Box bounding x, u, w
@@ -102,9 +109,11 @@ X = IntervalBox(-15..15,2) × (-pi..pi);
 U = IntervalBox(-Usz..Usz,n_u)
 
 # Boxes on which J must be bounded
-maxRadius = 1
-maxΔu = 1.0
-ΔX = IntervalBox(-maxRadius..maxRadius,2) × (-0.01..0.01);
+maxStep = 2
+
+maxRadius = 2
+maxΔu = 2
+ΔX = IntervalBox(-maxRadius..maxRadius,3) #× (-0.01..0.01);
 ΔU = IntervalBox(-maxΔu..maxΔu,2)
 
 ΔW = IntervalBox(-0.0..0.0,1)
@@ -119,9 +128,9 @@ sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 
 
 
-x0 = [-9.0;0.0;pi/2]
-X0 = UT.Ellipsoid(Matrix{Float64}(I(n_x))*1000, x0)
-xf = [0.0;0.0;0.0]
+x0 = [-7.0;0.0;pi/2]
+X0 = UT.Ellipsoid(Matrix{Float64}(I(n_x))*10000, x0)
+xf = [7.0;0.0;-pi/2]
 XF = UT.Ellipsoid(Matrix{Float64}(I(n_x))*1, xf)
 
 intialDist = norm(x0-xf) 
@@ -175,11 +184,11 @@ function sample_x(;probSkew=0.0, probX0=0.05)
         return (X0.c*l + closestNode.state.c*(1-l))*(1-0.3*r) +(0.3*r)*guess #heuristic bias
     end
 end
-sample_u() = map(x-> (x.lo + (x.hi-x.lo)*rand())*0.1, U.v)
+sample_u() = map(x-> (x.lo + (x.hi-x.lo)*rand()), U.v)
 
 
 
-global maxIter = 1000
+global maxIter = 300
 global Xnew = XF
 global bestDist = UT.centerDistance(X0,Xnew)
 while !(X0 ∈ Xnew) && maxIter>0
@@ -202,18 +211,26 @@ while !(X0 ∈ Xnew) && maxIter>0
     parentMin = nothing
     for Xclosest in closeNodes
         xPar = UT.get_center(Xclosest.state)
-        if norm(xsample-xPar)>maxRadius
-            xAim = maxRadius*(xsample-xPar)./norm(xsample-xPar)+xPar
+        if norm(xsample-xPar)>maxStep
+            xAim = maxStep*(xsample-xPar)./norm(xsample-xPar)+xPar
         else
             xAim = xsample
         end
+        # println(xsample)
     
         wnew = zeros(n_w)
+        # unew = finv(xAim,xPar)
+        # xnew = f_eval(xPar, unew, wnew,-Ts)
+        
+        # print(xPar)
+        # print(xAim)
         unew = sample_u()*1#(0.8+0.2*norm(xPar-X0.c)/intialDist)
         xnew = f_eval(xPar, unew, wnew, -Ts)
+        
+        # println(xnew)
         uBestDist = norm(xnew-xAim)
-        for i in 1:5
-            ucandnew = sample_u()
+        for i in 1:500
+            ucandnew = sample_u()*0.002*i
             xcandnew = f_eval(xPar, ucandnew, wnew, -Ts)
             if norm(xcandnew-xAim)< uBestDist
                 uBestDist = norm(xcandnew-xAim)
@@ -221,7 +238,9 @@ while !(X0 ∈ Xnew) && maxIter>0
                 unew = ucandnew
             end
         end
-
+        # println(xnew)
+        # println(xnew)
+        # println(unew)
         # println()
         # print(">>>>>> from: \t")
         # println(xPar)
@@ -239,9 +258,10 @@ while !(X0 ∈ Xnew) && maxIter>0
         Ū = IntervalBox(unew .+ ΔU)
         W̄ = IntervalBox(wnew .+ ΔW)
         (sys, L) = Dionysos.System.buildAffineApproximation(fT,x,u,w,xnew,unew,wnew,X̄,Ū,W̄)
-        El, kappa, cost = Dionysos.Symbolic.hasTransition(xnew, Xclosest.state, sys, L, S, Ub, maxRadius, maxΔu, sdp_opt; λ=0.0001)
+        # println(L)
+        El, kappa, cost = Dionysos.Symbolic.hasTransition(xnew, unew, Xclosest.state, sys, L, S, Ub, maxRadius, maxΔu, sdp_opt; λ=0.000001)
         if El===nothing             
-            print("\tInfeasible")
+            # print("\tInfeasible")
         elseif X0 ∈ El
             ElMin = El
             kappaMin = kappa
@@ -250,7 +270,7 @@ while !(X0 ∈ Xnew) && maxIter>0
             parentMin = Xclosest
             break
         elseif minDist > norm(X0.c-El.c) # minPathCost > cost + Xclosest.path_cost
-            print("\tFeasible")
+            # print("\tFeasible")
             if Xclosest==treeRoot || eigmin(X0.P*0.5-El.P)>0 # E ⊂ E0 => P-P0>0
                 ElMin = El
                 kappaMin = kappa
@@ -258,18 +278,18 @@ while !(X0 ∈ Xnew) && maxIter>0
                 minPathCost = Xclosest.path_cost+cost
                 parentMin = Xclosest
             else
-                print("\tRejecting...")
+                # print("\tRejecting...")
             end
         else
-            print("\tNotTheBest")
+            # print("\tNotTheBest")
         end 
-        println()
+        # println()
     end
     if ElMin !== nothing
-        if sqrt(eigmin(ElMin.P))<1/(maxRadius)
-            println("STOP!")
-            break
-        end
+        # if sqrt(eigmin(ElMin.P))<1/(maxRadius)
+        #     println("STOP!")
+        #     break
+        # end
         global Xnew = ElMin
         push!(treeLeaves, UT.Node(Xnew; parent=parentMin, action=kappaMin, path_cost=minPathCost) )
         setdiff!(treeLeaves, [parentMin])
@@ -316,7 +336,7 @@ else
     return
 end
 
-if false
+if true
 # @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
     using PyPlot
     include("../src/utils/plotting/plotting.jl")

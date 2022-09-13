@@ -23,7 +23,7 @@ function _getμν(L,subsys)
     (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
 end
 
-function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
+function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
     Pp = Ep.P
     cp = Ep.c
 
@@ -49,6 +49,7 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
     @variable(model, gamma >= 0)
     @variable(model, ϕ >= 0)
     @variable(model, r >= 0)
+    @variable(model, δu >= 0)
     @variable(model, ϵ >= 0)
     @variable(model, J >= 0)
 
@@ -64,7 +65,7 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
     
     for i in 1:N_μ
         for j in 1:N_ν
-            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(cp)+hcat(Vector(μ[i]))*r +hcat(Vector(ν[j])))#
+            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(cp)+hcat(Vector(μ[i]))*(r+δu) +hcat(Vector(ν[j])))#
             @constraint(model,
                 [bta[i,j]*eye(n)        z         t(At)
                 t(z)                1-bta[i,j]    t(aux)
@@ -84,11 +85,12 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
     [gamma*eye(n)                z           [t(C) t(F) z]*t(S)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(S)
      S*t([t(C) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
-    
+     
+     u=hcat(u)
      @constraint(model,
      [ϕ*eye(n)     z            t(F)
-      t(z)      maxΔu^2-ϕ    zeros(1,m)
-      (F)       zeros(m,1)     eye(m)    ] >= eye(n+m+1)*1e-4, PSDCone())
+      t(z)      δu-ϕ    t(ell-u)
+      (F)       (ell-u)     eye(m)    ] >= eye(n+m+1)*1e-4, PSDCone())
      
 
      @constraint(model,
@@ -96,7 +98,8 @@ function hasTransition(c,Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, 
      C       r*eye(n) ] >= eye(n*2)*1e-4, PSDCone())
     
 #     @constraint(model,diag(C).>=ones(n,1)*0.01)
-     @constraint(model,r<=maxRadius^2)
+     @constraint(model, r<=maxRadius^2)
+     @constraint(model, δu<=maxΔu^2)
      @constraint(model,diag(C).>=ones(n,1)*ϵ)
      @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
 

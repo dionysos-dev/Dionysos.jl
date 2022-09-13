@@ -179,3 +179,31 @@ function buildAffineApproximation(f,x,u,w,x̄,ū,w̄,X,U,W)
     c = vec(evalSym(f) - A*x̄ - B*ū -E*w̄)
     (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
 end
+
+
+function buildAffineApproximationFromContinuousTime(f,x,u,w,X,U,W)
+    n = length(x)
+    m = length(u)
+    p = length(w)
+    xi = vcat(x, u, w)
+    x̄i = vcat(x̄, ū, w̄)
+    Xi = X × U × W;
+    sub_rules_Xi = Dict(xi[i] => Xi[i] for i =1:(n+m+p))
+
+    Jx = Symbolics.jacobian(f, x)
+    Ju = Symbolics.jacobian(f, u)
+    Jw = Symbolics.jacobian(f, w)
+    Jxi = hcat(Jx, Ju, Jw)
+
+
+    L = _getLipschitzConstants(Jxi, xi, sub_rules_Xi)
+
+
+    sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i =1:(n+m+p))
+    evalSym(x) = Float64.(Symbolics.value.(Symbolics.substitute(x,sub_rules_x̄i)))
+    A = evalSym(Jx)
+    B = evalSym(Ju)
+    E = evalSym(Jw)
+    c = vec(evalSym(f) - A*x̄ - B*ū -E*w̄)
+    (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
+end

@@ -9,10 +9,6 @@ end
 
 
 
-function Base.in(x, elli::Ellipsoid)
-    return (x-elli.c)'elli.P*(x-elli.c) ≤ 1
-end
-
 
 
 function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
@@ -35,12 +31,21 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
         if(α==1)
             return polPos(1)<=0
         end
+        if(α>1)
+            return false
+        end
         (val, _) = bisection(polPos, interval=[α+1e-15, 1-norm(ct)], verbose=false, stopIfNegative=true)
 
         return val<=0
     end
 
 end
+
+
+function Base.in(x::AbstractVecOrMat, elli::Ellipsoid)
+    return (x-elli.c)'elli.P*(x-elli.c) ≤ 1
+end
+
 
 function centerDistance(elli1::Ellipsoid,elli2::Ellipsoid)
     return norm(get_center(elli1)-get_center(elli2))
