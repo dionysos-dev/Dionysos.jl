@@ -11,7 +11,7 @@ Welcome to the documentation for Dionysos!
 
 ## Current version
 
-The current version is still in the making, and allows to solve problems such as reachability problems for hybrid systems. See the [Examples](https://github.com/dionysos-dev/Dionysos.jl/tree/master/examples) for further information.
+The current version is still in the making, and allows to solve problems such as reachability problems for hybrid systems.
 
 ## Longterm objectives
 Rather than relying on closed-form analysis of a model of the dynamical system, Dionysos will learn the optimal control from data, whether harvested from the physical system or generated synthetically. It will rely on a novel methodology, combining the efficiency of several modern optimization/control-theoretic/machine-learning techniques with the theoretical power of the Abstraction approach. All the pieces of the architecture are chosen to foster black-box and data-driven analysis, thereby matching rising and unresolved challenges. Summarizing, the objectives are
