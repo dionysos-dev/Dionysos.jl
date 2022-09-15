@@ -1,3 +1,5 @@
+using Test
+using Dionysos
 #include("./utils/data_structures/BDD/test_BDD.jl")
 #include("./utils/data_structures/BDD/test_inttupleset.jl")
 include("./utils/data_structures/test_queue.jl")
