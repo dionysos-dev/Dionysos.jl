@@ -5,7 +5,6 @@ version = "0.0.1"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
-CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 DiscreteMarkovChains = "8abcb7ef-b365-4f7b-ac38-56893fb62f9f"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -29,7 +28,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 ArnoldiMethod = "0.2"
-CUDD = "0.2.1"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
 Distributions = "0.25"
