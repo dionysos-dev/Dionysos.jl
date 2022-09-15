@@ -4,7 +4,6 @@ Temporary API Reference file
 
 ```@docs
 Dionysos.Utils.expand
-Dionysos.Utils.BDD.IntTupleSet
 Dionysos.Utils.path_cost
 Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
 Dionysos.Utils.breadth_first_graph_search
@@ -20,7 +19,6 @@ Dionysos.Symbolic._get_min_bounding_box
 Dionysos.Utils.goal_test
 Dionysos.Utils.astar_graph_search
 Dionysos.Utils.astar_tree_search
-Dionysos.Utils.BDD.BitSet
 Dionysos.Symbolic._provide_P
 Dionysos.Utils.breadth_first_tree_search
 Dionysos.Utils.graph_search
