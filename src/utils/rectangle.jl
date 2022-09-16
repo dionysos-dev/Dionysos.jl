@@ -13,6 +13,13 @@ function Base.in(rect1::HyperRectangle, rect2::HyperRectangle)
     return all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
 end
 
+function Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle)
+    return all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
+end
+
+function Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle)
+    return isequal(rect1,rect2)    
+end
 function Base.isempty(rect::HyperRectangle)
     return any(rect.lb .> rect.ub)
 end
