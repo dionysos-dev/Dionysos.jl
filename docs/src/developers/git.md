@@ -39,7 +39,7 @@ It's best to also have completed step 5) so that your changes are backed up in t
 
 ## Fork and add your remote
 
-These are the steps that should be done only the first time when you setup.
+These are the steps that should be done only the first time when you set up.
 
 At first, you don't have write access, so create a fork https://github.com/jdupont/Dionysos.jl by going to https://github.com/dionysos-dev/Dionysos.jl and click on the "Fork" button on the top right.
 You should then add this as a remote as detailed below.
