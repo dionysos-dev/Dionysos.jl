@@ -144,7 +144,7 @@ Alternatively, the following adds all *modified* and *untracked* files.
 $ git add .
 ```
 
-Another option is the following which adds all *modified* files and commit.
+Another option is the following which adds all *modified* files and commits them directly.
 ```sh
 $ git commit -am "Commit message"
 ```
