@@ -172,7 +172,7 @@ If this fails, it means you don't have write access or that you chose a name of 
 ## Delete your branch
 
 First, [Switch to the master branch and update it](@ref).
-Otherwise, Git won't see that the branch is merged and will disallow to delete it to avoid losing your work.
+Otherwise, Git won't see that the branch is merged and will disallow you to delete it to avoid losing your work.
 
 ### VSCode
 
