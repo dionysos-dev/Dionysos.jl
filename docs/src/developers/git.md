@@ -20,7 +20,7 @@ There is three `master` branches:
 
 ## Workflow
 
-The workflow is at follows. Your contributions should be grouped into small chunks that brink Dionysos from a working state (which is the current version of `origin/master`) to a new working state containing your improvements.
+The workflow is as follows. Your contributions should be grouped into small chunks that bring Dionysos from a working state (which is the current version of `origin/master`) to a new working state containing your improvements.
 In order to do that, you do the following for every chunk.
 1) [Switch to the master branch and update it](@ref);
 2) then you [Create a new branch](@ref) (let's call it `mybranch` but it should be a new name for every new small chunk);
