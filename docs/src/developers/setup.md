@@ -1,18 +1,86 @@
 # Set up
 
-Start by installing Julia, Visual Studio Code (VSCode) and the Julia extension of VSCode as detailed [here](https://code.visualstudio.com/docs/languages/julia#_getting-started).
+This guides shows you what to do you start developing for Dionysos.
 
-Launch the Julia REPL from VSCode by typing `Shift+Ctrl+P` and then `Julia: Start REPL`.
-From the REPL, write `using Pkg; Pkg.develop(url="https://github.com/dionysos-dev/Dionysos.jl.git")` or `] dev https://github.com/dionysos-dev/Dionysos.jl.git`.
-This will clone Dionysos with git into the folder `.julia/dev/Dionysos`.
+## Installations
+
+Start by installing Julia, VSCode and the Julia extension of VSCode as detailed [here](https://code.visualstudio.com/docs/languages/julia#_getting-started).
+Now, install Git by following https://git-scm.com/book/en/v2/Getting-Started-Installing-Git.
+
+## Launching the prompts
+
+For every step, we show both how to do it from Visual Studio Code (**VSCode**) or from the **Julia REPL** or **Git bash**.
+
+### Start the Julia REPL
+
+To start a Julia REPL, type `Shift+Ctrl+P` and then `Julia: Start REPL`.
+You should have installed Julia and the Julia VSCode extension as detailed in [Installations](@ref) for this to work.
+You should see a prompt `julia>` appearing.
+We always show the prompt you should see for every command as well as the output, don't copy-paste the prompt nor the output.
+
+### Start Julia Pkg prompt
+
+First [Start the Julia REPL](@ref).
+Then, by pressing the `]` character you will see a `(@v1.8) pkg>` prompt appearing (if you are using the global environment). By pressing the backspace you will get back to the `julia>` prompt.
+We always show the prompt you should see for every command as well as the output, don't copy-paste the prompt nor the output.
+
+### Start Git bash
+
+To start Git bash, click on the top menu of VSCode on "View" then "Terminal". On the bottom right, click on the down arrow at the right of the "+" and then on "Git bash" on the dropdown menu that appears.
+You should have installed Julia and the Julia VSCode extension as detailed in [Installations](@ref) for this to work.
+You should see a prompt `$` appearing.
+We always show the prompt you should see for every command as well as the output, don't copy-paste the prompt nor the output.
+
+## Cloning Dionysos
+
+The purpose of this is to clone Dionysos at the location `~/.julia/dev/Dionysos` where `~` is your home folder.
+
+### VSCode
+
+Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then "clone"
+then write `https://github.com/dionysos-dev/Dionysos.jl.git` and then select the folder `.julia/dev`.
+Then rename the created folder `~/.julia/dev/Dionysos` into `~/.julia/dev/Dionysos` using your file manager.
+
+### Julia REPL
+
+See [Start the Julia REPL](@ref).
+
+```julia
+julia> using Pkg; Pkg.develop(url="https://github.com/dionysos-dev/Dionysos.jl.git")
+```
+
+### Julia Pkg prompt
+
+See [Start Julia Pkg prompt](@ref).
+
+```julia
+(@v1.8) pkg> dev https://github.com/dionysos-dev/Dionysos.jl.git
+```
+
+## Install the Revise.jl package
+
+We do it in the global environment so that it is available from all the environments.
+
+### Julia REPL
+
+See [Start the Julia REPL](@ref).
+
+```julia
+julia> using Pkg; Pkg.add("Revise")
+```
+
+### Julia Pkg prompt
+
+See [Start Julia Pkg prompt](@ref).
+
+```julia
+(@v1.8) pkg> add Revise
+```
+
+## Open Dionysos
 
 In VSCode, do `File/Open Folder.../` and select the folder `.julia/dev/Dionysos` inside your home directory.
-
-From the REPL, install Revise. Start by `]`:
-```julia
-(@v1.7) pkg> add Revise
-```
-We do it in the global environment so that it is available from all the environments.
+Before doing any changes, make sure to [Switch to the master branch and update it](ref); see [Workflow](@ref).
 
 ## Build the documentation
 
@@ -37,7 +105,7 @@ Once in a while you can also update with
   No Changes to `~/.julia/dev/Dionysos/docs/Manifest.toml`
 ```
 
-If you plan to change the documentation, it might be a good idea to use `Revise`:
+If you plan to change the documentation, it might be a good idea to use `Revise` (first [Install the Revise.jl package](@ref) if this was not already done):
 ```julia
 julia> using Revise
 ```
