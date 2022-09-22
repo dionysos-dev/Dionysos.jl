@@ -15,7 +15,7 @@ You can be in 2 situations:
 We have a `master` branch that contains the latest version of all **merged** changes.
 There is three `master` branches:
 * `origin/master`: that is the branch at https://github.com/dionysos-dev/Dionysos.jl, it is always the most up to date.
-* Your local `master` branch: that is the state of the branch on your computer. It may be a few commits behind `origin/master` as they do not synchronize automatically. You can update it by following [Switching to the master branch and updating it](@ref).
+* Your local `master` branch: that is the state of the branch on your computer. It may be a few commits behind `origin/master` as they do not synchronize automatically. You can update it by following [Switch to the master branch and update it](@ref).
 * `jdupont/master`: that is the branch of your fork https://github.com/jdupont/Dionysos.jl, it may be many commits behind your local `master` and even more commits behind `origin/master` but we don't care much because we won't use it so you don't have to update it. Once you have write access to `origin`, you care even less if that was possible.
 
 ## Workflow
