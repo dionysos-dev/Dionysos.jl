@@ -1,6 +1,6 @@
 # Set up
 
-This guides shows you what to do you start developing for Dionysos.
+This guide shows you what to do when you start developing for Dionysos.
 
 ## Installations
 
