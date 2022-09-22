@@ -90,7 +90,7 @@ $ git merge --ff-only origin/master # Merge the new commits into the master bran
 
 ## Create a new branch
 
-Start by [Switching to the master branch and updating it](@ref).
+Start by [Switch to the master branch and update it](@ref).
 Create a new branch (choose a branch name, let's suppose it is `mybranch`) and switch to it.
 
 ### VSCode
