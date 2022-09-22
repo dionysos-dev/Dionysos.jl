@@ -153,7 +153,9 @@ $ git commit -am "Commit message"
 
 ### VSCode
 
-Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then on "push" when it is asking which remote to push to, select `jdupont` if you don't have write access or `origin` if you have write access.
+Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then on "push".
+If it is the first time you push this branch, it will ask "The branch `mybranch` has no remote branch. Would you like to publish this branch ?"; answer with "Ok".
+Then it will ask which remote to push to, select `jdupont` if you don't have write access or `origin` if you have write access.
 
 ### Git bash
 
