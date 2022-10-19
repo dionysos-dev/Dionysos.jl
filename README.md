@@ -1,6 +1,8 @@
 # Dionysos
-
-<img src="logo.png" height="240">
+<picture>
+  <source srcset="logo_dm.png" media="(prefers-color-scheme: dark)">
+  <img src="logo.png"  height="240">
+</picture>
 
 | **Documentation** | **Build Status** |
 |:-----------------:|:----------------:|
