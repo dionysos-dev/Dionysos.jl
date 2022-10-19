@@ -1,5 +1,6 @@
 ```@raw html
-<img src="assets/logo.png" height="240">
+<img class="display-light-only" src="assets/logo.png" height="240" alt="Dionysos Logo">
+<img class="display-dark-only" src="assets/logo-dark.png" height="240" alt="Dionysos Logo">
 ```
 # Introduction
 
