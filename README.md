@@ -1,6 +1,6 @@
 # Dionysos
 <picture>
-  <source srcset="logo_dm.png" media="(prefers-color-scheme: dark)">
+  <source srcset="logo-dark.png" media="(prefers-color-scheme: dark)">
   <img src="logo.png"  height="240">
 </picture>
 
