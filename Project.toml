@@ -29,7 +29,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 ArnoldiMethod = "0.2"
-CUDD = "0.2.1"
+CUDD = "0.2.1, 0.3"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
 Distributions = "0.25"
