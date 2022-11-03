@@ -34,11 +34,10 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
         if(α>1)
             return false
         end
-        (val, _) = bisection(polPos, interval=[α+1e-15, 1-norm(ct)], verbose=false, stopIfNegative=true)
+        (val, _) = bisection(polPos, interval=[α+1e-15, 1-norm(ct)^2], verbose=false, stopIfNegative=true)
 
         return val<=0
     end
-
 end
 
 
