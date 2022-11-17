@@ -341,6 +341,10 @@ gcf() #nb
 
 # We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the sabe figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
 
+@test contr.data[1] == (45,21) #src
+@test costBound ≈ 2.796543525044841 rtol=1e-3 #src
+@test costTrue ≈ 2.3454364056361947 rtol=1e-3 #src 
+
 # ## References
 #
 # 1. L. N. Egidio, T. Alves Lima, R. M. Jungers, "State-feedback Abstractions for Optimal Control of Piecewise-affine Systems", IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.
