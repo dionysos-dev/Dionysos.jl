@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Install LaTeX
-        run:  apt-get -y install ghostscript texlive texlive-latex-extra texlive-fonts-recommended dvipng
+        run:  sudo apt-get -y install ghostscript texlive texlive-latex-extra texlive-fonts-recommended dvipng
+
       
       
       - name: Set up Python 3.9
