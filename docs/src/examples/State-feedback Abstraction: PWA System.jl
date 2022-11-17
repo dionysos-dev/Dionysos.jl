@@ -25,13 +25,14 @@ using Test     #src
 # ```
 # $A_2=A_1^\top,~ A_3=A_1,~B_2=B_3=B_1,~g_2=0$ and $g_3=-g_1$. These systems are three spiral sources with unstable equilibria at $x_{e1}=[-0.9635~~0.3654]^\top,~x_{e2}=0,$ and $x_{e3}=-x_{e1}$. We also define the additive-noise sets $\Omega_1=\Omega_2=\Omega_3=[-0.05,0.05]^2$, the control-input set $\mathcal{U}=[-0.5,0.5]^2$ and the state space $\mathcal{X}=[-2,2]^2$. The $N_p=3$ partitions of $\mathcal{X}$ are $\mathcal{X}_1= \{x\in\mathcal{X}~:~x_1\leq-1 \},~\mathcal{X}_3= \{x\in\mathcal{X}~:~x_1>1 \},$ and $\mathcal{X}_2=\mathcal{X}\setminus(\mathcal{X}_1\cup\mathcal{X}_3)$. The goal is to bring the state $x$ from the initial set $\mathcal{X}_0$ to a final set $\mathcal{X}_*$, while avoiding the obstacle $\mathcal{O}$, which are to be defined. 
 
-# First, let us import [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl),
-# [GLPK](https://github.com/jump-dev/GLPK.jl), [OSQP](https://github.com/oxfordcontrol/OSQP.jl),
-# [JuMP](https://github.com/jump-dev/JuMP.jl), [Pavito](https://github.com/jump-dev/Pavito.jl)
-# and [Ipopt](https://github.com/jump-dev/Ipopt.jl). We also instantiate our optimizers and CDDLib.
-# using Polyhedra
-# using MathematicalSystems, HybridSystems
-# using SemialgebraicSets
+# First, let us import 
+# [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
+# [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
+# [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
+# [SDPA](https://github.com/jump-dev/SDPA.jl),
+# [Ipopt](https://github.com/jump-dev/Ipopt.jl), and
+# [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
+
 using StaticArrays
 using LinearAlgebra
 using CDDLib
