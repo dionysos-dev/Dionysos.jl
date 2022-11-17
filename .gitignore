@@ -1,3 +1,5 @@
 Manifest.toml
 *.mem
 .vscode/settings.json
+docs/build
+docs/src/generated
