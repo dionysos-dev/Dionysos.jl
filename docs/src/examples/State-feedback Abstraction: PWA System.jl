@@ -342,9 +342,9 @@ gcf() #nb
 
 # We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the sabe figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
 
-@test contr.data[1] == (45,21) #src
-@test costBound ≈ 3.230370549 rtol=1e-3 #src
-@test costTrue ≈ 2.365335178 rtol=1e-3 #src 
+@test contr.data[1] == (45,21)                  #src
+@test costBound ≈ 3.230370549 rtol=1e-3         #src
+@test costTrue ≈ 2.365335178 rtol=1e-3          #src
 
 # ## References
 #
