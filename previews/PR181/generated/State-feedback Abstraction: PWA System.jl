@@ -104,7 +104,7 @@ t = @elapsed rev_path, cost = Dionysos.Search.dijkstrapath(gc, dst, src) # gets 
 path = reverse(rev_path)
 
 
-println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost[dst])")
+println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
 
 for l = 1:length(path)-1
     new_action = (path[l], path[l+1])
@@ -124,7 +124,7 @@ k = 1; #iterator
 costBound = 0;
 costTrue = 0;
 currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
-push!(state_traj,currState)
+push!(state_traj,currState);
 
 println("started at: $(currState)")
 while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reached max iter
@@ -143,7 +143,8 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
 
 
       u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
-
+      println("x: $(x_traj[:,k])")
+      println("u: $(u_traj[:,k])")
 
       global costBound = costBound + transitionCost[next_action]
       global costTrue += norm(L*vcat(x_traj[:,k], u_traj[:,k],1.0))^2

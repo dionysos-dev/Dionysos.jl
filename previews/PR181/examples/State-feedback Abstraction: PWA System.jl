@@ -3,6 +3,7 @@ using Test     #src
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
+# 
 # This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems.
 # Consider a system $\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$ with the transition function  
 # ```math
@@ -176,7 +177,7 @@ t = @elapsed rev_path, cost = Dionysos.Search.dijkstrapath(gc, dst, src) # gets 
 path = reverse(rev_path)
 
 
-println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost[dst])")
+println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
 
 # We create the list of control actions along the optimal path
 for l = 1:length(path)-1 
@@ -201,7 +202,7 @@ k = 1; #iterator
 costBound = 0;
 costTrue = 0;
 currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
-push!(state_traj,currState)
+push!(state_traj,currState);
 
 # and proceed with the simulation
 println("started at: $(currState)")
@@ -221,7 +222,8 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
 
 
       u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
-
+      println("x: $(x_traj[:,k])")
+      println("u: $(u_traj[:,k])")
 
       global costBound = costBound + transitionCost[next_action]
       global costTrue += norm(L*vcat(x_traj[:,k], u_traj[:,k],1.0))^2
@@ -243,7 +245,7 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(costBound)")
 println("True cost:\t\t $(costTrue)")
 
-# Finally let us visualize the results
+# Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction
 
 using PyPlot
 include("../../../src/utils/plotting/plotting.jl")
@@ -292,7 +294,7 @@ PyPlot.title("Transitions", fontsize=14)
 gcf() #md
 gcf() #nb
 
-# And
+# Then we plot a colormap with the Lyapunov-like function $v(x)$ and the simulated trajectory in blue.
 
 fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
 
@@ -340,7 +342,7 @@ PyPlot.title("Trajectory and Lyapunov-like Fun.", fontsize=14)
 gcf() #md
 gcf() #nb
 
-# We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the sabe figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
+# We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
 
 @test contr.data[1] == (45,21)                  #src
 @test costBound ≈ 3.230370549 rtol=1e-3         #src
