@@ -85,6 +85,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
 controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+@test length(controller.data) == 5577 #src
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
