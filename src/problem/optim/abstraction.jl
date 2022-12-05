@@ -57,18 +57,18 @@ function build_abstraction(
     Xinit = Dionysos.Domain.DomainList(state_grid)
     Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.OUTER)
     Xtarget = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.target_set, Dionysos.Domain.OUTER)
+    Dionysos.Domain.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, Dionysos.Domain.OUTER)
     return Dionysos.Problem.OptimalControlProblem(
         symmodel,
         Xinit,
         Xtarget,
-        problem.state_cost, # TODionysos.Problem this is the continuous cost, not the abstraction
-        problem.transition_cost, # TODionysos.Problem this is the continuous cost, not the abstraction
-        problem.time, # TODionysos.Problem this is the continuous time, not the number of transition
+        problem.state_cost, # TODO this is the continuous cost, not the abstraction
+        problem.transition_cost, # TODO this is the continuous cost, not the abstraction
+        problem.time, # TODO this is the continuous time, not the number of transition
     )
 end
 
-function MOI.optimize!(optimizer::Optimizer{T}) where {T}
+function MOI.optimize!(optimizer::Optimizer)
     discrete_problem = build_abstraction(optimizer.problem, optimizer.state_grid, optimizer.input_grid)
     optimizer.controller = Dionysos.Control.NewControllerList()
     init_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.initial_set)]
