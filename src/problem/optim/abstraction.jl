@@ -10,8 +10,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     state_grid::Union{Nothing, Dionysos.Domain.Grid}
     input_grid::Union{Nothing, Dionysos.Domain.Grid}
     problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
+    controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
     function Optimizer{T}() where {T}
         return new{T}(
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -41,7 +43,7 @@ function build_abstraction(
     symmodel = Dionysos.Symbolic.NewSymbolicModelListList(Xfull, Ufull)
     @time Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
         symmodel,
-        system,
+        system.f,
     )
     return symmodel
 end
@@ -53,9 +55,9 @@ function build_abstraction(
 )
     symmodel = build_abstraction(problem.system, state_grid, input_grid)
     Xinit = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Problem.OUTER)
+    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.OUTER)
     Xtarget = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.target_set, Dionysos.Problem.OUTER)
+    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.target_set, Dionysos.Domain.OUTER)
     return Dionysos.Problem.OptimalControlProblem(
         symmodel,
         Xinit,
@@ -69,11 +71,13 @@ end
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     discrete_problem = build_abstraction(optimizer.problem, optimizer.state_grid, optimizer.input_grid)
     optimizer.controller = Dionysos.Control.NewControllerList()
+    init_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.initial_set)]
+    target_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.target_set)]
     @time Dionysos.Control.compute_controller_reach!(
         optimizer.controller,
         discrete_problem.system.autom,
-        discrete_problem.initial_set,
-        discrete_problem.target_set,
+        init_list,
+        target_list,
     )
     return
 end

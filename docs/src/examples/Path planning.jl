@@ -63,26 +63,6 @@ F_sys = problem.system.f;
 _X_ = problem.system.X;
 _U_ = problem.system.U;
 
-# We define the growth bound function of $f$:
-ngrowthbound = 5;
-function L_growthbound(u)
-    β = abs(u[1]/cos(atan(tan(u[2])/2)))
-    return SMatrix{3,3}(
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        β, β, 0.0)
-end;
-# Here it is considered that there is no system and measurement noise:
-sysnoise = SVector(0.0, 0.0, 0.0);
-measnoise = SVector(0.0, 0.0, 0.0);
-# We define the discretization time step parameters: `tstep` and `nsys`:
-tstep = 0.3;
-nsys = 5;
-
-# Finally, we build the control system:
-contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                       measnoise, nsys, ngrowthbound);
-
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
