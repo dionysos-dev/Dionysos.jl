@@ -84,7 +84,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
 @test length(controller.data) == 5577 #src
 
 # ### Trajectory display
