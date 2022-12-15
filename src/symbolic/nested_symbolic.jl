@@ -52,7 +52,7 @@ end
 
 function get_state_by_xpos(
     symmodel::NestedSymbolicModel,pos,l
-) where {N,M,T}
+)
     dom = symmodel.Xdom.domains[l]
     pos = DO.set_in_period_pos(dom,pos)
     id = get(symmodel.xpos2int, (l,pos), nothing)

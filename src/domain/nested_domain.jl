@@ -45,7 +45,7 @@ function get_depth(Ndomain::NestedDomain, x)
     return 0
 end
 
-function add_dom!(Ndomain::NestedDomain, dom::GeneralDomainList) where {N,T}
+function add_dom!(Ndomain::NestedDomain, dom::GeneralDomainList)
     push!(Ndomain.domains,dom)
     Ndomain.levels += 1
 end

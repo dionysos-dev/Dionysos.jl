@@ -8,7 +8,7 @@ mutable struct LazySymbolicModel{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A
     uint2pos
 end
 
-function LazySymbolicModel(Xdom::DO.GeneralDomainList{N,DO.RectanglularObstacles{NTuple{N,T1}}}, Udom::DO.DomainType{N,T2}) where {N,M,T1,T2}
+function LazySymbolicModel(Xdom::DO.GeneralDomainList{N,DO.RectanglularObstacles{NTuple{N,T1}}}, Udom::DO.DomainType{N,T2}) where {N,T1,T2}
     nu = DO.get_ncells(Udom)
     uint2pos = [pos for pos in DO.enum_pos(Udom)]
     upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
