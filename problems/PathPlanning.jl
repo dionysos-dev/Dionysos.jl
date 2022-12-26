@@ -7,6 +7,7 @@ const UT = Dionysos.Utils
 const DO = Dionysos.Domain
 const CO = Dionysos.Control
 const PB = Dionysos.Problem
+const ST = Dionysos.System
 
 
 function _initTargetSets()
@@ -45,7 +46,35 @@ function system(;
             u[1]*sin(α + x[3])/cos(α),
             u[1]*tan(u[2]))
     end
-    system = ConstrainedBlackBoxControlContinuousSystem(F_sys, 3, 2, _X_, _U_)
+
+    # We define the growth bound function of $f$:
+    ngrowthbound = 5
+    function L_growthbound(u)
+        β = abs(u[1]/cos(atan(tan(u[2])/2)))
+        return SMatrix{3,3}(
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            β, β, 0.0)
+    end
+    # Here it is considered that there is no system and measurement noise:
+    sysnoise = SVector(0.0, 0.0, 0.0)
+    measnoise = SVector(0.0, 0.0, 0.0)
+    # We define the discretization time step parameters: `tstep` and `nsys`:
+    tstep = 0.3
+    nsys = 5
+
+    # Finally, we build the control system:
+    contsys = ST.NewControlSystemGrowthRK4(
+        tstep,
+        F_sys,
+        L_growthbound,
+        sysnoise,
+        measnoise,
+        nsys,
+        ngrowthbound,
+    )
+
+    system = ConstrainedBlackBoxControlContinuousSystem(contsys, 3, 2, _X_, _U_)
     return system
 end
 

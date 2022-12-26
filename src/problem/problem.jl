@@ -20,6 +20,7 @@ struct SafetyProblem{S, XI, XS, T<:Real}
     time::T
 end
 
+include("optim/abstraction.jl")
 include("optim/bemporad_morari.jl")
 include("optim/branch_and_bound.jl")
 include("optim/q_learning.jl")
