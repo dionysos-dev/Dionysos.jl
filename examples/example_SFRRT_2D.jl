@@ -311,7 +311,7 @@ global k = 1
 if X0 ∈ Xnew
     global currNode = last(treeLeaves)
     while !(xk ∈ XF)
-
+        global xk
         println(k)
         println(xk)
         while (xk ∈ currNode.parent.state)
