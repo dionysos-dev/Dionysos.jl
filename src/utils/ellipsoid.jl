@@ -1,4 +1,7 @@
 using SpecialFunctions
+using Plots
+using LazySets
+
 struct Ellipsoid{T<:Real,MT<:AbstractMatrix{T},VT<:AbstractVector{T}}
     P::MT
     c::VT
@@ -7,11 +10,7 @@ struct Ellipsoid{T<:Real,MT<:AbstractMatrix{T},VT<:AbstractVector{T}}
     # end
 end
 
-
-
-
-
-function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
+function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; bisectionB=true)
     e_max = eigmax(elli1.P-elli2.P)
     if e_max<0
         return false
@@ -20,32 +19,32 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
     elseif !(elli1.c ∈ elli2)
         return false
     else 
-        L = cholesky((elli2.P+elli2.P')/2).U #TODO remove ' when Ellipsoid constructor fixed
-        P = L'\elli1.P/L;
+        L = cholesky((elli2.P+elli2.P')/2).L
+        P = L\elli1.P/L';
+        c = L'*(elli1.c -elli2.c)
         specDecomp = eigen(P)
-        lb = specDecomp.values
-        ct = specDecomp.vectors'*L*(elli1.c -elli2.c)
-        α = 1/min(lb...)
-
-        polPos(β) = -(1-β + β*sum((lb./(1 .- β*lb)).*(ct.^2)))
-        if(α==1)
-            return polPos(1)<=0
-        end
-        if(α>1)
+        vp = specDecomp.values
+        ct = specDecomp.vectors'*c
+        lb = 1/min(vp...)
+        ub = 1-ct'*ct
+        if(lb > ub)
             return false
         end
-        (val, _) = bisection(polPos, interval=[α+1e-15, 1-norm(ct)], verbose=false, stopIfNegative=true)
-
+        f(β) = -(1-β + β*sum((vp./(1 .- β*vp)).*(ct.^2)))
+        if bisectionB
+            (val, _) = bisection(f, interval=[lb+1e-15, ub], verbose=false, stopIfNegative=true)
+        else
+            df(β) = -(1 - sum((vp./(1 .- β*vp).^2).*(ct.^2)))
+            ddf(β) = -(-2*sum(((vp.^2)./(1 .- β*vp).^3).*(ct.^2)))
+            (val, _) = newton_method(f, df, ddf; x0=4.0, interval=[lb,ub], verbose=false, stopIfNegative=true)
+        end
         return val<=0
     end
-
 end
-
 
 function Base.in(x::AbstractVecOrMat, elli::Ellipsoid)
     return (x-elli.c)'elli.P*(x-elli.c) ≤ 1
 end
-
 
 function centerDistance(elli1::Ellipsoid,elli2::Ellipsoid)
     return norm(get_center(elli1)-get_center(elli2))
@@ -64,10 +63,23 @@ function get_center(elli::Ellipsoid)
     return elli.c
 end
 
+function get_shape(elli::Ellipsoid)
+    return elli.P
+end
+
 function get_dims(elli::Ellipsoid)
     return length(elli.c)
 end
 
 function scale(elli::Ellipsoid, α)
     return Ellipsoid(elli.P*(1/α),elli.c*α)
+end
+
+function expand(elli::Ellipsoid, α)
+    return Ellipsoid(elli.P*(1/α),elli.c)
+end
+
+function plotE!(elli::Ellipsoid; color=:blue)
+    E = LazySets.Ellipsoid(get_center(elli),get_shape(elli))
+    Plots.plot!(E, color=color)
 end

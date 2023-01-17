@@ -11,6 +11,7 @@ include("search/generic_search.jl")
 
 include("optim/branch_and_bound.jl")
 include("optim/bisection.jl")
+include("optim/newton_method.jl")
 
 include("rectangle.jl")
 include("ellipsoid.jl")
