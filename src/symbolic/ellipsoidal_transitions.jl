@@ -278,7 +278,7 @@ function _get_min_bounding_box(P, optimizer)
     for i in 1:n
         new_model, reference_map = copy_model(model)
         set_optimizer(new_model,optimizer)
-        @objective(new_model, Max, reference_map[x[i]]*reference_map[x[i]])
+        @objective(new_model, Max, reference_map[x[i]])
         optimize!(new_model)
         R[i] = abs(value(reference_map[x[i]]))
     end
