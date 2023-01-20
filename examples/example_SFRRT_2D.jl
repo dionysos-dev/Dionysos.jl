@@ -12,6 +12,8 @@ using MosekTools
 
 import Random
 Random.seed!(0)
+
+using Plots
 #Def sym variables
 
 
@@ -311,7 +313,7 @@ global k = 1
 if X0 ∈ Xnew
     global currNode = last(treeLeaves)
     while !(xk ∈ XF)
-
+        global xk
         println(k)
         println(xk)
         while (xk ∈ currNode.parent.state)
@@ -332,6 +334,7 @@ else
     println("KO")
     return
 end
+
 
 if true
 # @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
