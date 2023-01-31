@@ -3,10 +3,12 @@
 # **Manual of Dionysos**
  This manual provides a brief overview of the framework, problems and solving strategies tackled by Dionysos. 
 
+!!! note 
 
+Still in the making!!
 
  # High-Level Description
-Dionysos tackles, in a composite setting, optimal control/reachability/safety problems for complex dynamical systems, possibly in a black-box and data-driven fashion.
+Dionysos tackles, in a composite setting,[ optimal control/reachability/safety](https://en.wikipedia.org/wiki/Optimal_control) problems for [complex dynamical systems](https://en.wikipedia.org/wiki/Dynamical_system), possibly in a black-box and data-driven fashion.
 In what follows, we provide a description of the main steps Dionyosos follows in order to encode and possibly solve complex control problems on hybrid systems. 
 ## Initialization
 
@@ -73,21 +75,104 @@ For example, possible local approaches could impose:
 
 The main components of Dionysos structure are highlighted in the following list, and detailed in specific subsections.
 
+The main file, `Dionysos.jl`, reads
 
 
-1. $\textit{Domain}$: Specifies the type of states/sets the systems will evolve in. Examples: Discrete sets, Hyperrectangles, Ellispioids 
-2. $\textit{System}$: Defines system dynamics (on a domain type), growth bound, etc. General enough to tackle hybrid systems (joint continuous and discrete time behaviour)
+```julia
+module Dionysos
+
+include("utils/utils.jl")
+include("domain/domain.jl")
+include("system/system.jl")
+include("search/search.jl")
+include("symbolic/symbolic.jl")
+include("control/control.jl")
+include("problem/problem.jl")
+
+end # module
+```
+
+
+1. $\textit{Domain}$: Specifies the type of states/sets the systems will evolve in.
+2. $\textit{System}$: Defines system dynamics (on a domain type), growth bound.
 3. $\textit{Problem}$: Collection of System +  Objective function/reachability/target/LTL specification + Source/initial condition + Cost of the transiction + Additional Constraints.
-4. $\textit{Solver}$: Defines  (abstraction-based) control design technique. Input: Problem. Output: Controller. 
-5. $\textit{Controller}$: Control policy solving the problem.
+4. $\textit{Symbolic and Search}$: Define  (abstraction-based) control design technique. Input: Problem. Output: Controller. 
+5. $\textit{Control}$: Control policy solving the problem.
+6. $\textit{Utils}$: Additional functions/useful structures.
 
 ##  Domain
+The main file, `domain.jl` reads
+```julia
+module Domain
+
+using StaticArrays, Plots
+using ..Utils
+UT = Utils
+
+@enum INCL_MODE INNER OUTER
+
+include("grid.jl")
+include("domain_list.jl")
+include("custom_domain.jl")
+include("general_domain.jl")
+include("nested_domain.jl")
+end  # module Domain
+``` 
+We see that we first import  [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
+ [Plots](https://docs.juliaplots.org/latest/tutorial/) and [Utils]().
+
+ In `grid.jl`, after having imported [Polyhedra](https://github.com/JuliaPolyhedra/Polyhedra.jl), we define all the necessary functions and structures in order to consider a covering of a given hyper rectangle. The composing cells can be hyper-rectangles or ellyposids.
+
+ In `domain_list.jl`  we define structures to encode and handle the aforementioned covering as a finite list, and thus a finite ordered domain.
+
+ In `custom_domain.jl` we define functions to allow the explicit definition of a finite list, without the necessity of define a grid.
+
+In `general_domain.jl` we allow an implicit definition of partitions of hyper rectangles, in order to avoid the curse of dimensionality. Moreover, we allow for ``periodic'' domains, as angles, circles, etc.
+
+
+In `nested_domain.jl`  we introduce funtions in order to refine (i.e. spit certain cells) a given partiton.
+
+
+
+
+
+
 
 ## System
+
+The main file `system.jl` reads:
+```julia 
+
+module System
+
+using StaticArrays
+using Symbolics
+using MathematicalSystems
+using IntervalArithmetic
+using IntervalLinearAlgebra
+
+using ..Utils
+UT = Utils
+include("controlsystem.jl")
+
+end
+
+```
+
+We see that we first import  [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
+ [Symbolics](https://symbolics.juliasymbolics.org/stable/) ;;;
+
+
+(to be continued....)
+
+
 
 
 ## Problem
 
-## Solver
+## Symbolic and Search
 
-## Controller
+## Control
+
+
+## [Utils](@id Utils)
