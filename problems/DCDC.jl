@@ -10,6 +10,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
+const PB = DI.Problem
 const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
@@ -46,43 +47,12 @@ function system(
     F_sys,L_growthbound,ngrowthbound=dynamicofsystem();
     contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
                                         measnoise, nsys, ngrowthbound);
-    sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(contsys, xdim, udim, _X_, _U_)
-    return sys
+    return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(contsys, xdim, udim, _X_, _U_)
 end
 
-# ### Definition of the control problem
-function solveproblem(problem,x0 = SVector(0.0, 0.0), hx = SVector(2.0/4.0e3, 2.0/4.0e3), u0 = SVector(1), hu = SVector(1);)
-    # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
-    Xgrid = DO.GridFree(x0, hx);
-    Xfull = DO.DomainList(Xgrid);
-    # Construction of the struct `DomainList` containing the feasible cells of the state-space.
-    # Note, we used `AB.INNER` to make sure to add cells entirely contained in the domain because we are working with a safety problem.
-    DO.add_set!(Xfull, problem.X, DO.INNER);
-    # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
-    Ugrid = DO.GridFree(u0, hu);
-    Ufull = DO.DomainList(Ugrid);
-    # Construction of the struct `DomainList` containing the quantized inputs:
-    DO.add_set!(Ufull, problem.U, DO.OUTER);
-    # Construction of the abstraction:
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
-    @time SY.compute_symmodel_from_controlsystem!(symmodel, problem.f)
-    # ### Construction of the controller
-    # In this problem, we consider both: the initial state-space and the safety state-space are equal to the entire state-space.
-    #
-    # Computation of the initial symbolic states:
-    Xinit = DO.DomainList(Xgrid);
-    union!(Xinit, Xfull)
-    initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
-    # Computation of the safety symbolic states:
-    Xsafe = DO.DomainList(Xgrid)
-    union!(Xsafe, Xfull)
-    safelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xsafe)];
-    # Construction of the controller:
-    contr = CO.NewControllerList();
-    @time CO.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
-    print("finished")
-   # return contr
+function problem()
+    sys = system()
+    return PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
 end
-
 
 end
