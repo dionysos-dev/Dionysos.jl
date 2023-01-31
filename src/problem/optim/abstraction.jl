@@ -39,7 +39,7 @@ function build_abstraction(
     Xfull = Dionysos.Domain.DomainList(state_grid)
     Dionysos.Domain.add_set!(Xfull, system.X, Dionysos.Domain.OUTER)
     Ufull = Dionysos.Domain.DomainList(input_grid)
-    Dionysos.Domain.add_set!(Ufull, system.U, Dionysos.Domain.OUTER)
+    Dionysos.Domain.add_set!(Ufull, system.U, Dionysos.Domain.CENTER)
     symmodel = Dionysos.Symbolic.NewSymbolicModelListList(Xfull, Ufull)
     @time Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
         symmodel,
