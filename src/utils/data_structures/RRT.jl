@@ -20,7 +20,7 @@ function collectNodes(rrt::RRT)
         append!(allNodes, parents)
         leaves = parents
     end
-    return allNodes 
+    return unique(allNodes) 
 end 
 
 function collectStates(rrt::RRT)
@@ -51,9 +51,11 @@ end
 
 
 function add_node!(rrt::RRT, state, parent, action, path_cost)
-    push!(rrt.treeLeaves, Node(state; parent=parent, action=action, path_cost=path_cost))
+    newNode = Node(state; parent=parent, action=action, path_cost=path_cost)
+    push!(rrt.treeLeaves, newNode)
     setdiff!(rrt.treeLeaves, [parent])
     rrt.nNodes = rrt.nNodes + 1
+    return newNode
 end
 
 function add_closest_node!(rrt::RRT, state, distance, get_action)

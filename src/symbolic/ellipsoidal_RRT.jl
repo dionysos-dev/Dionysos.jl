@@ -38,6 +38,7 @@ function check_controller(E1,kappa,E2,f_eval,Ts;wnew = zeros(n_w))
     return true
 end
 
+
 # return the nodes containing x in incresing order of costs
 function get_nodes_from_x(rrt, x; earlyStop=false)
     stage = rrt.treeLeaves
@@ -91,43 +92,26 @@ function simulate(rrt, f_eval, Ts, x)
     end
 end
 
-function plot_traj!(trajx, trajE)
+function plot_traj!(trajx, trajE; color=:black)
     for E in trajE
         UT.plotE!(E, color=:blue)
     end
     for i in 1:length(trajx)-1
-        UT.plot_arrow!(trajx[i], trajx[i+1])
+        UT.plot_arrow!(trajx[i], trajx[i+1], color=color)
     end
 end
-
-
-# PSEUDO_CODE
-# function buildRRT(problem, qinit, qtarget)
-#     rrt = UT.RRT(qinit)
-#     while !stop(rrt, problem, qtarget)
-#         qrand = get_random_state(rrt, problem)
-#         closestNodes, dists = findNClosestNode(rrt, qrand, distance, N=1)  
-#         for closeNode in closestNodes
-#             qnew, action, cost = get_new_state(rrt, closeNode, qrand, problem)
-#             if add_state(qnew, problem)
-#                 add_node!(rrt, qnew, closeNode, action, closeNode.path_cost+cost)
-#             end
-#         end
-#     end
-#     return rrt
-# end
 
 
 # problem : E0, EF, obstacles, S
 # system : f_eval, X, U, Ub, Ts, fT, x, u, w
 # affine approximation param : maxRadius, maxΔu, ΔX, ΔU, ΔW
 # algorithm param : sdp_opt, distance, get_random_state, get_new_state, keep
-function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep; maxIter=100)
+function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep; maxIter=100, RRTstar=false, compute_transition, continues=false)
     println("START")
     rrt = UT.RRT(EF)
     newEllipsoids = [EF]
     bestDist = UT.centerDistance(E0,EF)
-    while !any(map(E->(E0 ∈ E),newEllipsoids)) && maxIter>0
+    while (!any(map(E->(E0 ∈ E), newEllipsoids)) || continues) && maxIter>0
         print("Iterations2Go:\t")
         println(maxIter)
         Erand = get_random_state(rrt,X,E0)
@@ -140,12 +124,31 @@ function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, 
             end
         end
         newStates = keep(rrt, newStates, E0, obstacles) 
+        newNodes = []
         for data in newStates
             Enew, kappa, cost, Eclose = data
-            UT.add_node!(rrt, Enew, Eclose, kappa, Eclose.path_cost + cost)
+            push!(newNodes, UT.add_node!(rrt, Enew, Eclose, kappa, Eclose.path_cost + cost))
             bestDist = min(bestDist, UT.centerDistance(E0, Enew))
         end
         newEllipsoids = [s[1] for s in newStates]
+
+        if RRTstar 
+            for newNode in newNodes
+                close_nodes, dists = UT.findNClosestNode(rrt, newNode.state, distance, N=3)
+                println(dists)
+                for close_node in close_nodes
+                    if close_node != newNode &&  close_node != newNode.parent
+                        ans, cost, kappa = compute_transition(close_node.state, newNode.state, U, Ub, S, sdp_opt, fT, x, u, w)
+                        if ans && cost+newNode.path_cost < close_node.path_cost
+                            close_node.parent = newNode
+                            close_node.path_cost = cost + newNode.path_cost
+                            close_node.action = kappa
+                        end
+                    end
+                end
+            end
+        end
+
         print("\tClosest Dist: ")
         println(bestDist)
         maxIter-=1

@@ -55,7 +55,7 @@ the total path_cost (also known as g) to reach the node. Other functions
 may add an f and h value; see best_first_graph_search and astar_search for
 an explanation of how the f and h values are handled.
 """
-struct Node{S}
+mutable struct Node{S}
     state::S
     parent::Union{Nothing,Node{S}}
     action

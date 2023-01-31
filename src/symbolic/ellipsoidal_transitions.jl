@@ -121,6 +121,75 @@ function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadi
 end
 
 
+# added !!!!!!
+function my_has_transition(A, B, g, W, U, L, E1, E2, optimizer)
+    
+    eye(n) = diagm(ones(n))
+    n = length(g);
+    m = size(U[1],2);
+    N = size(W,2);
+    p = size(W,1);
+    Nu = length(U);
+    c = E1.c 
+    P = E1.P 
+    cp = E2.c 
+    Pp = E2.P 
+
+    model = Model(optimizer)
+    @variable(model, K[i=1:m,j=1:n]) 
+    @variable(model, ell[i=1:m,j=1:1])
+    @variable(model, bta[i=1:N] >= 0)
+    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, gamma >= 0)
+    @variable(model, J >= 0)
+
+    @expressions(model, begin
+        At, A+B*K
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+
+    z = zeros(n,1);
+    
+    for i in 1:N
+        w = W[:,i];
+        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
+        @constraint(model,
+            [bta[i]*P        z         t(At)
+            t(z)        1-bta[i]        t(aux)
+             At       aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
+
+    end
+    
+    for i=1:Nu
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*P        z          t(U[i]*K)
+        t(z)        1-tau[i]        t(U[i]*ell)
+        U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
+        
+    end
+    n_S = size(L,1);
+    @constraint(model,
+    [gamma*P                     z           [I t(K) z]*t(L)
+     t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
+     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
+    
+    @objective(model, Min, J)
+
+    #print(model)
+    optimize!(model)
+
+    kappa = [value.(K) value.(ell)];
+    cost = value(J);
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    #println("$(solution_summary(model).solve_time) s")
+    return ans, cost, kappa
+end
+
+
 
 """
     _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#

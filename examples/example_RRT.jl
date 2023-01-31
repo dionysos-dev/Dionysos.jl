@@ -127,7 +127,7 @@ function get_new_state(f_eval, Ts, Eclosest, Erand, U, S, Ub, maxRadius, maxΔu,
 end
 
 # heuristic: keep only the closest ellipsoid to the initial ellipsoid
-function keep(rrt, newStates, E0, obstacles) 
+function keep(rrt, newStates, E0, obstacles;scale_for_obstacle=true) 
     minDist = Inf
     iMin = 0
     for (i,data) in enumerate(newStates)
@@ -150,29 +150,58 @@ function keep(rrt, newStates, E0, obstacles)
         return [] 
     end
     ElMin, kappaMin, costMin, EclosestMin = newStates[iMin]
-    if ElMin !== nothing && all(O -> !(ElMin.c ∈ O), obstacles)
-        return [newStates[iMin]]
+    if ElMin !== nothing 
+        if all(O -> !(ElMin ∩ O), obstacles) #all(O -> !(ElMin.c ∈ O), obstacles)
+            return [newStates[iMin]]
+        elseif scale_for_obstacle
+            for O in obstacles
+                ElMin = UT.compress_if_intersection(ElMin, O)
+                if ElMin === nothing
+                    return []
+                end
+            end
+            return [(ElMin, kappaMin, costMin, EclosestMin)]
+        else
+            return []
+        end
     else
-        println("obstacles !!!! ")
         return []
     end
 end
 
 
-sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+function compute_transition(E1, E2, U, Ub, S, sdp_opt, fT, x, u, w)
+    xnew = E1.c
+    unew = [0.0;0.0] #SC.sample_box(U)
+    wnew = zeros(n_w)
+    X̄ = IntervalBox(xnew .+ ΔX)
+    Ū = IntervalBox(unew .+ ΔU)
+    W̄ = IntervalBox(wnew .+ ΔW)
+    (sys, L) = Dionysos.System.buildAffineApproximation(fT,x,u,w,xnew,unew,wnew,X̄,Ū,W̄)
+    W = 0.0*[-1 -1  1 1;
+         -1  1 -1 1]
+    ans, cost, kappa = Dionysos.Symbolic.my_has_transition(sys.A, sys.B, sys.c, W, Ub, S, E1, E2, sdp_opt)
+    return ans, cost, kappa
+end
 
-rrt = SC.build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep)
+
+sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+maxIter = 100
+RRTstar = false
+continues = true
+rrt = SC.build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep;maxIter=maxIter,RRTstar=RRTstar,compute_transition=compute_transition,continues=continues)
 
 p = plot(aspect_ratio=:equal)
-UT.plot_RRT!(rrt)
-UT.plotE!(E0,color=:green)
-UT.plotE!(EF,color=:red)
 for obs in obstacles
     UT.plotE!(obs,color=:black)
 end
-# x = [3.0;-8.0] #E0.c
+UT.plot_RRT!(rrt)
+UT.plotE!(E0,color=:green)
+UT.plotE!(EF,color=:red)
+
+# x = E0.c #[3.0;-8.0] #E0.c
 # trajx, trajE = SC.simulate(rrt, f_eval, Ts, x) 
-# SC.plot_traj!(trajx, trajE)
+# SC.plot_traj!(trajx, trajE, color=:green)
 display(p)
 
 # c = [-10.0;-10.0]
@@ -183,3 +212,7 @@ display(p)
 # SC.plot_box!(box)
 # UT.plotE!(E)
 # display(p)
+
+
+
+
