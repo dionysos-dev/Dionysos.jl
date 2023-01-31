@@ -8,7 +8,6 @@ using HybridSystems
 const DI = Dionysos
 const SY = DI.Symbolic
 
-sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "Get min bounding box" begin
@@ -35,7 +34,6 @@ end
     @test K ≈ [-1.97742  -1.0  -5.0] atol=1e-2
 end
 
-sleep(0.1) # used for good printing
 println("End test")
 
 end  # module TestMain
