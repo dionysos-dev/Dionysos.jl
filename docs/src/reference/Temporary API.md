@@ -36,5 +36,11 @@ Dionysos.Utils.FIFOQueue
 Dionysos.Control.ContinuousTrajectory
 Dionysos.Utils.SearchProblem
 Dionysos.Utils.BranchAndBound.Abstract_BB_Problem
-Dionysos.Control.QuadraticStateControlFunction
+Dionysos.Control.QuadraticStateControlFunction 
+Dionysos.Domain.RectangularObstacles
+Dionysos.Domain.GeneralDomainList
+Dionysos.Domain.GridRectangular
+Dionysos.Domain.GridFree
+Dionysos.Domain.GridEllipsoidalRectangular
+Dionysos.Utils.get_min_bounding_box
 ```

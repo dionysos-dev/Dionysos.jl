@@ -43,7 +43,7 @@ function build_f_rotation(θ; c=SVector(0.0,0.0))
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2*π))
     obstacle = UT.HyperRectangle(SVector(10.0, 10.0), SVector(15.0, 15.0))
     hx = [3.0, 0.3]
-    d = DO.RectanglularObstacles(X, [obstacle])
+    d = DO.RectangularObstacles(X, [obstacle])
     dom = DO.GeneralDomainList(hx;elems=d,f=f,fi=fi,fit=true)
     fig = plot(aspect_ratio = 1,legend = false)
     Plots.plot!(dom)

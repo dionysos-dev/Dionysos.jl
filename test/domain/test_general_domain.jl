@@ -42,7 +42,7 @@ end
 @testset "GeneralDomain HyperRec representation" begin
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(10.0, 10.0))
     obstacle = UT.HyperRectangle(SVector(4.1, 4.1), SVector(5.1,5.1))
-    d = DO.RectanglularObstacles(X, [obstacle])
+    d = DO.RectangularObstacles(X, [obstacle])
     hx = [2.0, 1.0]
     periodic = [1,2]
     periods = [10.0,10.0]

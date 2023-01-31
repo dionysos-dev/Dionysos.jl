@@ -1,3 +1,4 @@
+
 abstract type ControlSystem{N,T} end
 
 function RungeKutta4(F, x, u, tstep, nsub::Int)
@@ -82,7 +83,7 @@ function BoundSecondOrder(a, b, tstep)
         return b*tstep
     else
         ρ = exp(a*tstep)
-        return (b/a)*ρ*(ρ - 1.0)/2.0
+        return (b/a)*ρ*(ρ - 1.0)/2.0 
     end
 end
 
@@ -123,4 +124,86 @@ function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N,T}, nsys) where {N,T
             RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N,T}
     end
     return SimpleSystem(tstep, measnoise, sys_map, F_sys)
+end
+
+
+struct EllipsoidalAffineApproximatedSystem{}
+    dynamics::Dict{UT.Ellipsoid,NoisyConstrainedAffineControlDiscreteSystem}
+    L::Dict{UT.Ellipsoid,Float64} # smoothness constant to bound error
+end
+
+function _getLipschitzConstants(J, xi, rules)
+    L = zeros(length(xi))
+    for (i, g) in enumerate(eachrow(J))
+        Hg_s = Symbolics.jacobian(g,xi) #gets symbolic hessian of the i-th component of f(x,u,w)
+        Hg = Symbolics.substitute(Hg_s,rules)
+
+        # f_aux = eval(build_function(Hg)[1]);
+        # mat = Base.invokelatest(f_aux)
+        mat = Symbolics.value.(Hg)
+        #println(mat)
+        if any(x->isa(x,Interval),mat)
+            mat = Interval.(mat)
+            eigenbox = IntervalLinearAlgebra.eigenbox(mat)
+            L[i] = abs(eigenbox).hi;
+        else
+            L[i] = max(abs.(eigen(mat).values)...)
+        end
+    end
+    L
+end
+
+function buildAffineApproximation(f,x,u,w,x̄,ū,w̄,X,U,W)
+    n = length(x)
+    m = length(u)
+    p = length(w)
+    xi = vcat(x, u, w)
+    x̄i = vcat(x̄, ū, w̄)
+    Xi = X × U × W;
+    sub_rules_Xi = Dict(xi[i] => Xi[i] for i =1:(n+m+p))
+
+    Jx = Symbolics.jacobian(f, x)
+    Ju = Symbolics.jacobian(f, u)
+    Jw = Symbolics.jacobian(f, w)
+    Jxi = hcat(Jx, Ju, Jw)
+
+
+    L = _getLipschitzConstants(Jxi, xi, sub_rules_Xi)
+
+
+    sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i =1:(n+m+p))
+    evalSym(x) = Float64.(Symbolics.value.(Symbolics.substitute(x,sub_rules_x̄i)))
+    A = evalSym(Jx)
+    B = evalSym(Ju)
+    E = evalSym(Jw)
+    c = vec(evalSym(f) - A*x̄ - B*ū -E*w̄)
+    (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
+end
+
+
+function buildAffineApproximationFromContinuousTime(f,x,u,w,X,U,W)
+    n = length(x)
+    m = length(u)
+    p = length(w)
+    xi = vcat(x, u, w)
+    x̄i = vcat(x̄, ū, w̄)
+    Xi = X × U × W;
+    sub_rules_Xi = Dict(xi[i] => Xi[i] for i =1:(n+m+p))
+
+    Jx = Symbolics.jacobian(f, x)
+    Ju = Symbolics.jacobian(f, u)
+    Jw = Symbolics.jacobian(f, w)
+    Jxi = hcat(Jx, Ju, Jw)
+
+
+    L = _getLipschitzConstants(Jxi, xi, sub_rules_Xi)
+
+
+    sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i =1:(n+m+p))
+    evalSym(x) = Float64.(Symbolics.value.(Symbolics.substitute(x,sub_rules_x̄i)))
+    A = evalSym(Jx)
+    B = evalSym(Ju)
+    E = evalSym(Jw)
+    c = vec(evalSym(f) - A*x̄ - B*ū -E*w̄)
+    (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
 end

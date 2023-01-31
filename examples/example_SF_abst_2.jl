@@ -10,7 +10,7 @@ using SDPA, Ipopt, JuMP
 using Test
 
 
-if ~isdefined(@__MODULE__, :Usz)
+if !isdefined(@__MODULE__, :Usz)
       Usz = 50 # upper limit on |u|
       Wsz = 5
       n_step = 5 # discretization of one unit of space

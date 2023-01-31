@@ -2,12 +2,22 @@ using Polyhedra
 
 abstract type Grid{N,T} end
 
-# Free because later: maybe put bounds lb and ub (e.g., for BDDs)
+"""
+    GridFree{N,T} <: Grid{N,T}
+
+Uniform grid on unbounded space, centered at `orig` and with steps set by the vector `h`.
+"""
 struct GridFree{N,T} <: Grid{N,T}
     orig::SVector{N,T}
     h::SVector{N,T}
 end
 
+
+"""
+    GridRectangular{N,T} <: Grid{N,T}
+
+Uniform grid on rectagular space `rect`, centered at `orig` and with steps set by the vector `h`.
+"""
 struct GridRectangular{N,T} <: Grid{N,T}
     orig::SVector{N,T}
     h::SVector{N,T}
@@ -15,6 +25,12 @@ struct GridRectangular{N,T} <: Grid{N,T}
 end
 
 
+"""
+    GridEllipsoidalRectangular{N,T} <: Grid{N,T}
+
+Uniform grid on rectagular space `rect`, centered at `orig` and with steps set by the vector `h`.
+Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`
+"""
 struct GridEllipsoidalRectangular{N,T} <: Grid{N,T}
     orig::SVector{N,T}
     h::SVector{N,T}
@@ -76,6 +92,12 @@ function get_rec(grid::GridFree, pos)
     x = get_coord_by_pos(grid, pos)
     r = grid.h/2.0
     return UT.HyperRectangle(x-r, x+r)
+end
+
+
+function get_ellip(grid::GridEllipsoidalRectangular, pos)
+    xList = get_all_pos_by_coord(grid, pos)
+    return [UT.Ellipsoid(grid.P, x) for x in xList]
 end
 
 function get_dim(grid::GridFree)

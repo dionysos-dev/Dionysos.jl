@@ -9,7 +9,7 @@ using Random
 using StaticArrays
 using MathematicalSystems
 using Dionysos
-using Main.BipedRobot
+using .BipedRobot
 
 function vectorFieldBipedRobot(x,u)
     q=x[1:num_positions(state)]
@@ -29,8 +29,8 @@ end
 
 function system()
 
-    robot = Main.BipedRobot.mechanism(symbolic = false, add_contact_points = true, add_flat_ground = true)
-    state = Main.MechanismState(robot)
+    robot = BipedRobot.mechanism(symbolic = false, add_contact_points = true, add_flat_ground = true)
+    state = MechanismState(robot)
 
     sys = BlackBoxControlContinuousSystem(vectorFieldBipedRobot, num_positions(state)+num_velocities(state)+num_additional_states(state), num_velocities(state))
 

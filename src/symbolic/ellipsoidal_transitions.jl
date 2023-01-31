@@ -10,8 +10,185 @@ using Polyhedra
 using HybridSystems
 using SpecialFunctions
 using ProgressMeter
+using IntervalArithmetic
+using LazySets
 using ..Domain
 using ..Utils
+
+
+AffineSys = Union{HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap}
+
+function _getμν(L,subsys)
+    n_x = length(subsys.c)
+    (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
+end
+
+function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
+    Pp = Ep.P
+    cp = Ep.c
+
+    eye(n) = diagm(ones(n))
+    A = subsys.A
+    B = subsys.B
+    g = subsys.c
+    n = length(g);
+    m = size(U[1],2);
+
+    μ, ν = _getμν(L,subsys)
+    N_μ = length(μ);
+    N_ν = length(ν) 
+    N_u = length(U);
+
+    model = Model(optimizer)
+    @variable(model, C[i=1:n,j=1:n])
+    @variable(model, X[i=1:n,j=1:n],PSD)
+    @variable(model, F[i=1:m,j=1:n]) 
+    @variable(model, ell[i=1:m,j=1:1])
+    @variable(model, bta[i=1:N_μ, j=1:N_ν] >= 0)
+    @variable(model, tau[i=1:N_u] >= 0)
+    @variable(model, gamma >= 0)
+    @variable(model, ϕ >= 0)
+    @variable(model, r >= 0)
+    @variable(model, δu >= 0)
+    @variable(model, ϵ >= 0)
+    @variable(model, J >= 0)
+
+    @expressions(model, begin
+        At, A*C+B*F
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+
+    z = zeros(n,1);
+    
+    for i in 1:N_μ
+        for j in 1:N_ν
+            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(cp)+hcat(Vector(μ[i]))*(r+δu) +hcat(Vector(ν[j])))#
+            @constraint(model,
+                [bta[i,j]*eye(n)        z         t(At)
+                t(z)                1-bta[i,j]    t(aux)
+                At                  aux           inv(Pp) ] >= eye(2*n+1)*1e-4, PSDCone())
+        end
+    end
+    
+    for i=1:N_u
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*eye(n)        z             t(U[i]*F)
+        t(z)                1-tau[i]        t(U[i]*ell)
+        U[i]*F              U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
+    end
+    n_S = size(S,1);
+    @constraint(model,
+    [gamma*eye(n)                z           [t(C) t(F) z]*t(S)
+     t(z)                   J-gamma          [t(c) t(ell) 1]*t(S)
+     S*t([t(C) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
+     
+     u=hcat(u)
+     @constraint(model,
+     [ϕ*eye(n)     z            t(F)
+      t(z)      δu-ϕ    t(ell-u)
+      (F)       (ell-u)     eye(m)    ] >= eye(n+m+1)*1e-4, PSDCone())
+     
+
+     @constraint(model,
+    [eye(n)   t(C)
+     C       r*eye(n) ] >= eye(n*2)*1e-4, PSDCone())
+    
+#     @constraint(model,diag(C).>=ones(n,1)*0.01)
+     @constraint(model, r<=maxRadius^2)
+     @constraint(model, δu<=maxΔu^2)
+     @constraint(model,diag(C).>=ones(n,1)*ϵ)
+     @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
+
+    optimize!(model)
+    #println(solution_summary(model))
+    if solution_summary(model).termination_status == MOI.OPTIMAL
+        C = value.(C)
+        #print(C)
+        El = UT.Ellipsoid(t(C)\eye(n)/C, c)
+        kappa = [value.(F)/(C) value.(ell)];
+        cost = value(J);
+    else
+        El = nothing
+        kappa = nothing
+        cost = nothing
+    end
+    #println("$(solution_summary(model).solve_time) s")
+    return El, kappa, cost 
+end
+
+
+# added !!!!!!
+function my_has_transition(A, B, g, W, U, L, E1, E2, optimizer)
+    
+    eye(n) = diagm(ones(n))
+    n = length(g);
+    m = size(U[1],2);
+    N = size(W,2);
+    p = size(W,1);
+    Nu = length(U);
+    c = E1.c 
+    P = E1.P 
+    cp = E2.c 
+    Pp = E2.P 
+
+    model = Model(optimizer)
+    @variable(model, K[i=1:m,j=1:n]) 
+    @variable(model, ell[i=1:m,j=1:1])
+    @variable(model, bta[i=1:N] >= 0)
+    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, gamma >= 0)
+    @variable(model, J >= 0)
+
+    @expressions(model, begin
+        At, A+B*K
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+
+    z = zeros(n,1);
+    
+    for i in 1:N
+        w = W[:,i];
+        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
+        @constraint(model,
+            [bta[i]*P        z         t(At)
+            t(z)        1-bta[i]        t(aux)
+             At       aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
+
+    end
+    
+    for i=1:Nu
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*P        z          t(U[i]*K)
+        t(z)        1-tau[i]        t(U[i]*ell)
+        U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
+        
+    end
+    n_S = size(L,1);
+    @constraint(model,
+    [gamma*P                     z           [I t(K) z]*t(L)
+     t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
+     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
+    
+    @objective(model, Min, J)
+
+    #print(model)
+    optimize!(model)
+
+    kappa = [value.(K) value.(ell)];
+    cost = value(J);
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    #println("$(solution_summary(model).solve_time) s")
+    return ans, cost, kappa
+end
+
 
 
 """
@@ -83,11 +260,11 @@ function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDis
         U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
         
     end
-    n_L = size(L,1);
+    n_S = size(L,1);
     @constraint(model,
     [gamma*P                     z           [I t(K) z]*t(L)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
-     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_L)       ] >= eye(n+n_L+1)*1e-4, PSDCone())
+     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
     
     @objective(model, Min, J)
 

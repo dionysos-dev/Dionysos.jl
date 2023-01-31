@@ -259,7 +259,7 @@ open(vis)
 
 ## set the configurations and velocities of the joints (i.e., initial angles (called configuration in julia robotics) and initial velocities):
 # set_configuration!(state, [1,0,0,0,0,0,1,0,0,0,0]) # starting a pass initial configuration
-set_configuration!(state, [1,0,0,0,0,0,0,0,0,0,pi/4]) # starting a pass initial configuration
+set_configuration!(state, [1,0,0,0,0,0,0,0,0,0,0]) # starting a pass initial configuration
 
 set_configuration!(vis, configuration(state)) ## update the configuration also in the visualiser
 
@@ -270,18 +270,29 @@ set_configuration!(vis, configuration(state)) ## update the configuration also i
 
 # ## with control. This serves to illustrate how to create feedback controllers in the simulation
 
+controllable_joints = 7:10
+
+integrator = zeros(10)
+
 function control!(torques::AbstractVector, t, state::MechanismState)
     # rand!(torques) # for example
-    l = 1
     for joint in joints(robot)
-        l = l+1
+        v_range = velocity_range(state, joint);
         # print(l)
         # torques[velocity_range(state, joint)] .= -1.0*velocity(state, joint) # feedbacking the velocity in each joint
         # if configuration_range(state, joint) < 11:11  # feedbacking the angle in each joint. using the if because there is one more angle than torques in this atls robot, which I don't know why
         # torques[configuration_range(state, joint)] .= -1*configuration(state,joint)
         # end
-        torques[velocity_range(state, joint)] .= 0 # no control
+        if !isempty(v_range) && v_range ⊆ controllable_joints
+            print(state.q[v_range])
+            print("\t")
+            torques[v_range] .= -50*state.q[v_range] -1*state.v[v_range] +10*integrator[v_range]
+            integrator[v_range] .= integrator[v_range] - 0.001*state.q[v_range]
+        else
+            torques[v_range] .= 0 # no control
+        end
     end
+    println()
 end
 
 ts, qs, vs = simulate(state, 1, control!; Δt = 1e-3); 

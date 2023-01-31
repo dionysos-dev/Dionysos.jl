@@ -1,23 +1,30 @@
 using StaticArrays, Plots
 
-struct RectanglularObstacles{VT} <: AbstractSet{VT}
+"""
+    RectangularObstacles{VT} <: AbstractSet{VT}
+
+Struct for a rectangular domain with rectangular obstacles
+"""
+struct RectangularObstacles{VT} <: AbstractSet{VT}
     X::UT.HyperRectangle{VT}
     O::Vector{UT.HyperRectangle{VT}}
 end
-function Base.in(pos, dom::RectanglularObstacles)
+
+function Base.in(pos, dom::RectangularObstacles)
     return !mapreduce(Base.Fix1(in, pos), |, dom.O, init=!in(pos, dom.X))
 end
-function _fit_grid(elems::RectanglularObstacles,grid,nx=nothing,fit=false)
+
+function _fit_grid(elems::RectangularObstacles,grid,nx=nothing,fit=false)
     if fit == true
         N = length(nx)
         lbI = ntuple(i -> 0, Val(N))
         ubI = ntuple(i -> nx[i]-1, Val(N))
-        return RectanglularObstacles(
+        return RectangularObstacles(
             UT.HyperRectangle(lbI,ubI),
             [get_pos_lims_outer(grid, Oi) for Oi in elems.O],
         )
     else
-        return RectanglularObstacles(
+        return RectangularObstacles(
             get_pos_lims_outer(grid, elems.X),
             [get_pos_lims_outer(grid, Oi) for Oi in elems.O],
         )
@@ -25,7 +32,13 @@ function _fit_grid(elems::RectanglularObstacles,grid,nx=nothing,fit=false)
 end
 _fit_grid(elems::Set,grid,nx,fit) = elems
 
+
 ## add the periodicity in the domain (add into Domain.jl)
+"""
+    GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:Grid{N,T},F} <: DomainType{N,T}
+
+Struct for a rectangular domain with rectangular obstacles
+"""
 struct GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:Grid{N,T},F} <: DomainType{N,T}
     grid::S
     elems::E
@@ -185,7 +198,7 @@ function get_pos(domain::GeneralDomainList,elems::Set)
     return elems
 end
 
-function get_pos(domain::GeneralDomainList,elems::RectanglularObstacles)
+function get_pos(domain::GeneralDomainList,elems::RectangularObstacles)
     posL = get_subset_pos(domain,domain.elemsCoord.X,INNER)
     L = []
     for pos in posL
@@ -345,7 +358,7 @@ function set_rec_in_period(periodic,periods,T0,rec::UT.HyperRectangle)
 end
 
 # ################### symbolic model
-# function _SymbolicModel(Xdom::GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
+# function _SymbolicModel(Xdom::GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
 #     nu = get_ncells(Udom)
 #     uint2pos = [pos for pos in enum_pos(Udom)]
 #     upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Udom)))
@@ -362,7 +375,7 @@ end
 #
 #
 # function get_state_by_xpos(
-#     symmodel::SymbolicModelList{N,M,<:GeneralDomainList{N,RectanglularObstacles{NTuple{N,T}}}},
+#     symmodel::SymbolicModelList{N,M,<:GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}},
 #     pos,
 # ) where {N,M,T}
 #     #pos = set_in_period_pos(domain,pos)

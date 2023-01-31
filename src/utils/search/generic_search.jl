@@ -55,7 +55,7 @@ the total path_cost (also known as g) to reach the node. Other functions
 may add an f and h value; see best_first_graph_search and astar_search for
 an explanation of how the f and h values are handled.
 """
-struct Node{S}
+mutable struct Node{S}
     state::S
     parent::Union{Nothing,Node{S}}
     action
@@ -64,7 +64,7 @@ struct Node{S}
 end
 
 "Create a search tree Node, derived from a parent by an action."
-function Node(state; parent=nothing, action=nothing, path_cost=0)
+function Node(state; parent=nothing, action=nothing, path_cost=0.0)
     depth = parent!=nothing ?  parent.depth + 1 : 0
     return Node(state,parent,action,path_cost,depth)
 end

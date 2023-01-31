@@ -1,3 +1,8 @@
+"""
+    CustomList{N,T} <: DomainType{N,T}
+
+Struct for a custom generic domain
+"""
 
 struct CustomList{N,T} <: DomainType{N,T}
     elems::Vector{SVector{N,T}}
