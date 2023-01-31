@@ -4,7 +4,7 @@ using LazySets
 using LinearAlgebra
 using Polyhedra
 using IntervalArithmetic
-using JuMP, Ipopt
+using JuMP
 
 struct testJ
     v1::Int
@@ -91,7 +91,7 @@ end
 
 Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}. 
 """
-function get_min_bounding_box(elli::Ellipsoid; optim=false, optimizer=optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)) 
+function get_min_bounding_box(elli::Ellipsoid; optim=false, optimizer) 
     P = elli.P
     n = size(P,1)
     R = zeros(n)
