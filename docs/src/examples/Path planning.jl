@@ -42,6 +42,7 @@ using StaticArrays
 
 # At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
 using Dionysos
+using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -62,67 +63,29 @@ F_sys = problem.system.f;
 _X_ = problem.system.X;
 _U_ = problem.system.U;
 
-# We define the growth bound function of $f$:
-ngrowthbound = 5;
-function L_growthbound(u)
-    β = abs(u[1]/cos(atan(tan(u[2])/2)))
-    return SMatrix{3,3}(
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        β, β, 0.0)
-end;
-# Here it is considered that there is no system and measurement noise:
-sysnoise = SVector(0.0, 0.0, 0.0);
-measnoise = SVector(0.0, 0.0, 0.0);
-# We define the discretization time step parameters: `tstep` and `nsys`:
-tstep = 0.3;
-nsys = 5;
-
-# Finally, we build the control system:
-contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                       measnoise, nsys, ngrowthbound);
-
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
-Xgrid = DO.GridFree(x0, h);
-
-# Construction of the struct `DomainList` containing the feasible cells of the state-space:
-Xfull = DO.DomainList(Xgrid);
-DO.add_set!(Xfull, _X_, DO.OUTER);
+state_grid = DO.GridFree(x0, h);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
-Ugrid = DO.GridFree(u0, h);
+input_grid = DO.GridFree(u0, h);
 
-# Construction of the struct `DomainList` containing the quantized inputs:
-Ufull = DO.DomainList(Ugrid);
-DO.add_set!(Ufull, _U_, DO.OUTER);
+# We now solve the optimal control problem with the `Abstraction.Optimizer`.
 
-# Construction of the abstraction:
-symmodel = SY.NewSymbolicModelListList(Xfull, Ufull);
-@time SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
+using JuMP
+optimizer = MOI.instantiate(Abstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.optimize!(optimizer)
 
-# ### Construction of the controller
-
-# `_I_` is the initial state domain and `_T_` is the target state domain
-_I_ = problem.initial_set;
-_T_ = problem.target_set;
-
-# Computation of the initial symbolic states:
-Xinit = DO.DomainList(Xgrid);
-DO.add_subset!(Xinit, Xfull, _I_, DO.OUTER)
-initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
-# Computation of the target symbolic states:
-Xtarget = DO.DomainList(Xgrid)
-DO.add_subset!(Xtarget, Xfull, _T_, DO.OUTER)
-targetlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xtarget)];
-# Construction of the controller:
-contr = CO.NewControllerList();
-@time CO.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
+@test length(controller.data) == 5577 #src
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`

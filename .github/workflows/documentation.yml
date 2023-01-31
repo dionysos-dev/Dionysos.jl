@@ -10,6 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      
+      - name: Install LaTeX
+        run:  sudo apt-get -y install ghostscript texlive texlive-latex-extra texlive-fonts-recommended cm-super dvipng
+
+      
+      
       - name: Set up Python 3.9
         uses: actions/setup-python@v3
         with:
