@@ -8,6 +8,8 @@ using Dionysos
 using Dionysos.Control
 using Dionysos.Problem
 
+import CDDLib
+
 # function to get vertices of polygon in the good cw order (for plotting)
 function get_ordered_vertices(po)
     center = center_of_mass(po)
@@ -126,7 +128,7 @@ quadratic form `u' * Q * u` with `Q = ones(1, 1)`.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
 """
-function problem(lib, T::Type; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
+function problem(lib=CDDLib.Library(), T::Type=Float64; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
     sys = system(lib, T)
     if zero_cost
         state_cost = Fill(ZeroFunction(), nmodes(sys))

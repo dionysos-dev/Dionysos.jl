@@ -9,6 +9,7 @@ using Dionysos
 using Dionysos.Control
 using Dionysos.Problem
 
+import CDDLib
 
 function system(lib, dt, Usz)
     eye(n) = diagm(ones(n)) # I matrix
@@ -85,7 +86,7 @@ Notice that we used `Fill` for all `N` time steps as we consider time-invariant 
 
 This problem was tackled in the paper [State-feedback Abstractions for Optimal Control of Piecewise-affine Systems](https://arxiv.org/abs/2204.00315).
 """
-function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = Infinity())
+function problem(lib=CDDLib.Library(), dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = Infinity())
     sys = system(lib, dt, Usz)
     n_sys = size(sys.resetmaps[1].A,1);
     n_u = size(sys.resetmaps[1].B,2);

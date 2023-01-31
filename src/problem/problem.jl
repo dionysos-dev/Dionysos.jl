@@ -3,6 +3,7 @@ module Problem
 
 struct Infinity <: Real end
 
+Base.isfinite(::Infinity) = false
 
 struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real}
     system::S
