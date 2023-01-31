@@ -42,6 +42,7 @@ using StaticArrays
 
 # At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
 using Dionysos
+using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -54,10 +55,24 @@ const SY = DI.Symbolic
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
 # and we can instantiate the DC system with the provided system
-contsys=DCDC.system()
+problem = DCDC.problem()
 
-#The default values are included, but can be changed. 
-DCDC.solveproblem(contsys) 
+x0 = SVector(0.0, 0.0)
+hx = SVector(2.0/4.0e3, 2.0/4.0e3)
+state_grid = DO.GridFree(x0, hx)
+u0 = SVector(1)
+hu = SVector(1)
+input_grid = DO.GridFree(u0, hu)
+
+using JuMP
+optimizer = MOI.instantiate(Abstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.optimize!(optimizer)
+
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
+@test length(controller.data) == 893803 #src
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
