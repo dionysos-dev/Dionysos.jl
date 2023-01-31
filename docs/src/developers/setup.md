@@ -80,7 +80,7 @@ See [Start Julia Pkg prompt](@ref).
 ## Open Dionysos
 
 In VSCode, do `File/Open Folder.../` and select the folder `.julia/dev/Dionysos` inside your home directory.
-Before doing any changes, make sure to [Switch to the master branch and update it](ref); see [Workflow](@ref).
+Before doing any changes, make sure to [Switch to the master branch and update it](@ref); see [Workflow](@ref).
 
 ## Build the documentation
 
