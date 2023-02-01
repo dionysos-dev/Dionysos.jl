@@ -35,6 +35,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 [compat]
 ArnoldiMethod = "0.2"
 CUDD = "0.2.1, 0.3"
+Colors = "0.12"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
 Distributions = "0.25"
