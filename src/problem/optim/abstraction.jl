@@ -198,13 +198,11 @@ function build_abstraction(
 
 
     # and finally build the state-feedback abstraction 
-    # using Suppressor
-    # @suppress  begin # this is a workaround to supress the undesired output of SDPA
-        # global t 
+ 
     U = system.ext[:U]
     W = system.ext[:W]
     t = @elapsed Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
-    # end
+ 
     # println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
     symmodel, transitionCost, transitionKappa
 end
