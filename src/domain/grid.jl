@@ -72,12 +72,20 @@ function get_pos_lims_outer(grid::Grid{N}, rect; tol=0.0) where N
     return UT.HyperRectangle(lbI, ubI)
 end
 
+function get_pos_center(grid::Grid{N}, rect; tol=1e-6) where N
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i])/grid.h[i]), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i])/grid.h[i]), Val(N))
+    return UT.HyperRectangle(lbI, ubI)
+end 
+
 function get_pos_lims(grid, rect, incl_mode::INCL_MODE)
     if incl_mode == INNER
         return get_pos_lims_inner(grid, rect)
-    else
+    elseif incl_mode == OUTER
         return get_pos_lims_outer(grid, rect)
-    end
+    else
+        return get_pos_center(grid, rect)
+    end 
 end
 
 function _ranges(rect::UT.HyperRectangle{NTuple{N,T}}) where {N,T}
