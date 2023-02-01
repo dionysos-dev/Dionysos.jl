@@ -66,6 +66,7 @@ function system(lib, dt, Usz)
     
     system =  HybridSystem(a, systems, resetmaps, switchings)
 
+    system.ext[:dt] = dt
     system.ext[:obstacles] = [Dionysos.Utils.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), 
                               Dionysos.Utils.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5))] 
  
@@ -91,7 +92,7 @@ function problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = 
     n_u = size(sys.resetmaps[1].B,2);
     
     state_cost = ZeroFunction()
-    transition_cost = Fill(QuadraticStateControlFunction(Matrix{Float64}(I(n_sys)),Matrix{Float64}(I(n_u)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
+    transition_cost = Fill(QuadraticStateControlFunction(Matrix{Float64}(I(n_sys)*(dt^2)),Matrix{Float64}(I(n_u)*(dt^2)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(
         sys,
         x_0,

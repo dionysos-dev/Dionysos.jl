@@ -3,6 +3,7 @@ export Abstraction
 module Abstraction
 
 using JuMP
+using LinearAlgebra
 
 import Dionysos
 
@@ -30,6 +31,7 @@ end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
+
 
 function build_abstraction(
     system,
@@ -119,5 +121,164 @@ function MOI.optimize!(optimizer::Optimizer)
     )
     return
 end
+
+
+mutable struct OptimizerEllipsoids{T} <: MOI.AbstractOptimizer
+    state_grid::Union{Nothing, Dionysos.Domain.GridEllipsoidalRectangular}
+    input_grid::Union{Nothing, Dionysos.Domain.Grid}
+    problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
+    symmodel::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    transitionCost::Union{Nothing, Dict}
+    transitionKappa::Union{Nothing, Dict}
+    controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
+    lyap_fun::Union{Nothing, Any}
+    ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
+    sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
+    function OptimizerEllipsoids{T}() where {T}
+        return new{T}(
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+        )
+    end
+end
+OptimizerEllipsoids() = OptimizerEllipsoids{Float64}()
+
+MOI.is_empty(optimizer::OptimizerEllipsoids) = optimizer.problem === nothing
+
+function MOI.set(model::OptimizerEllipsoids, param::MOI.RawOptimizerAttribute, value)
+    setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::OptimizerEllipsoids, param::MOI.RawOptimizerAttribute)
+    getproperty(model, Symbol(param.name))
+end
+
+
+
+function build_abstraction(
+    problem,
+    state_grid::Dionysos.Domain.GridEllipsoidalRectangular,
+    opt_sdp::MOI.OptimizerWithAttributes,
+    opt_ip::MOI.OptimizerWithAttributes
+)
+    system = problem.system
+    # Instantiate $\mathcal{X}_d$ as `domainX`
+    
+    domainX = Dionysos.Domain.DomainList(state_grid); # state space
+    Dionysos.Domain.add_set!(domainX, state_grid.rect, Dionysos.Domain.OUTER)
+
+    # the input space 
+
+    domainU = domainX; # input space
+    Dionysos.Domain.add_set!(domainU, state_grid.rect, Dionysos.Domain.OUTER)
+
+    #and the symbolic model for the state-feedback abstraction $\tilde{\mathcal{S}}$
+    symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
+    empty!(symmodel.autom)
+
+    
+    # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
+    Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
+    eigen_Q = eigen(Q_aug);
+    L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'
+
+    # ## Building the abstraction
+
+    # We then initialize the dictionaries for saving the cost and the controller associated with each transition in the abstraction
+
+    transitionCost = Dict()  #dictionary with cost of each transition
+    transitionKappa = Dict() #dictionary with controller associated each transition
+
+
+    # and finally build the state-feedback abstraction 
+    # using Suppressor
+    # @suppress  begin # this is a workaround to supress the undesired output of SDPA
+        # global t 
+    U = system.ext[:U]
+    W = system.ext[:W]
+    t = @elapsed Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
+    # end
+    # println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
+    symmodel, transitionCost, transitionKappa
+end
+ 
+function MOI.optimize!(optimizer::OptimizerEllipsoids)
+    problem = optimizer.problem
+    system = problem.system
+    state_grid = optimizer.state_grid
+    symmodel, transitionCost, transitionKappa = build_abstraction(problem, state_grid, optimizer.sdp_solver, optimizer.ip_solver)
+    optimizer.symmodel = symmodel
+    optimizer.transitionCost = transitionCost
+    optimizer.transitionKappa = transitionKappa
+    
+    # Now let us prepare to synthesize our controller. Define the specifications
+    
+
+    Xinit = Dionysos.Domain.DomainList(state_grid) # set of initial cells
+    Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
+
+    Xfinal = Dionysos.Domain.DomainList(state_grid) # set of target cells
+    Dionysos.Domain.add_coord!(Xfinal, Vector(problem.target_set))
+
+    Xobstacles = Dionysos.Domain.DomainList(state_grid) # set of obstacle cells
+    for o in system.ext[:obstacles]
+        Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER) 
+    end
+
+    initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]; 
+    finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
+    obstaclelist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xobstacles)];
+
+
+    # ## Control synthesis
+
+    # Before synthesizing our controller let us define this auxiliary function to transform the transition cost from Dict to Vector{Tuple{String, String, Int64}} and use it. It also removes states associated with obstacles in $\mathcal{O}$
+
+    function transFdict(transitionCost)
+        testgraph = Vector{Tuple{Int64, Int64, Float64}}()
+        for (key, value) in transitionCost
+            
+            if key[2] ∉ obstaclelist
+                push!(testgraph,((key[1]),(key[2]),value))
+            end
+        end
+        return testgraph
+    end
+
+    testgraph = transFdict(transitionCost); # uses said function
+
+
+    # We perform the synthesis of the discrete controller through Dijkstra's algorithm to the reversed graph associated to the abstraction $\tilde{\mathcal{S}}$
+
+    controller = Dionysos.Control.NewControllerList();
+
+    src, dst = initlist[1], finallist[1] # initial and goal sets
+
+    rev_graph = [(t[2],t[1],t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
+
+    gc = Dionysos.Search.Digraph(rev_graph) 
+    t = @elapsed rev_path, lyap_fun = Dionysos.Search.dijkstrapath(gc, dst, src) # gets optimal path
+    path = reverse(rev_path)
+
+
+    # println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
+
+    # We create the list of control actions along the optimal path
+    for l = 1:length(path)-1 
+        new_action = (path[l], path[l+1])
+        Dionysos.Utils.push_new!(controller, new_action)
+    end
+    optimizer.controller = controller
+    optimizer.lyap_fun = lyap_fun
+    return 
+end
+
 
 end

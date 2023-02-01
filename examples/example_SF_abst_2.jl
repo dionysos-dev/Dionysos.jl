@@ -62,7 +62,7 @@ symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
 # stage cost matrix (J = ||L*[x; u ; 1]||)
 Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
 eigen_Q = eigen(Q_aug);
-L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'*dt;
+L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))';
 
 transitionCost = Dict()  #dictionary with cost of each transition
 transitionKappa = Dict() #dictionary with controller associated each transition
