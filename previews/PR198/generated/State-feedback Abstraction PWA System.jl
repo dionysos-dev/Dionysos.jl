@@ -50,8 +50,10 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
-MOI.optimize!(optimizer)
-
+using Suppressor
+@suppress  begin # this is a workaround to supress the undesired output of SDPA
+      MOI.optimize!(optimizer)
+end
 contr = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 symmodel = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
 transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
