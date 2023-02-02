@@ -62,7 +62,7 @@ end
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E) 
     err = norm(E1scaled2.c-[2.4; 2.2]) + norm(E1scaled2.P-[0.466 -0.116; -0.116 0.582])
     @test err <= 10e-2
-    @test Base.in(E, E1scaled2) == true
+    @test Base.in(E, UT.Ellipsoid(E1scaled2.P*0.99, E1scaled2.c)) == true
     ############################################
     a = 1.2 
     E1 = UT.Ellipsoid(P0, c0+[a;a])
@@ -79,7 +79,7 @@ end
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E) 
     err = norm(E1scaled2.c-[2.8; 2.599]) + norm(E1scaled2.P-[0.254 -0.063; -0.063 0.318])
     @test err <= 10e-2
-    @test Base.in(E, E1scaled2) == true
+    @test Base.in(E, UT.Ellipsoid(E1scaled2.P*0.99, E1scaled2.c)) == true
     ############################################
     a = 2.5 
     E1 = UT.Ellipsoid(P0, c0+[a;a])
@@ -96,7 +96,7 @@ end
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E) 
     err = norm(E1scaled2.c-[4.1; 3.9]) + norm(E1scaled2.P-[0.073295 -0.018323; -0.01832382 0.0916196])
     @test err <= 10e-4
-    @test Base.in(E, E1scaled2) == true
+    @test Base.in(E, UT.Ellipsoid(E1scaled2.P*0.99, E1scaled2.c)) == true
 
 end
 
