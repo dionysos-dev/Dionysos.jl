@@ -6,12 +6,6 @@ using Polyhedra
 using IntervalArithmetic
 using JuMP
 
-struct testJ
-    v1::Int
-    v2::Int
-    testJ(v1,v2) = new(v1+v2,v2)
-end
-
 struct Ellipsoid{T<:Real,MT<:AbstractMatrix{T},VT<:AbstractVector{T}}
     P::MT
     c::VT
@@ -91,12 +85,12 @@ end
 
 Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}. 
 """
-function get_min_bounding_box(elli::Ellipsoid; optim=false, optimizer) 
+function get_min_bounding_box(elli::Ellipsoid; optimizer=nothing) 
     P = elli.P
     n = size(P,1)
     R = zeros(n)
     
-    if optim
+    if optimizer !== nothing
         model = Model(optimizer)
         @variable(model, x[i=1:n])
         @constraint(model, x'P*x  <= 1) 
