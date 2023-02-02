@@ -44,7 +44,5 @@ end
     @test dists[2] == 10.0
 end
 
-
-sleep(0.1) # used for good printing
 println("End test")
 end

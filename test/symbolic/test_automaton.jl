@@ -42,7 +42,6 @@ soursymblist = SY.pre(autom, 8)
 @test collect(soursymblist)[1] == (5, 6)
 end
 
-sleep(0.1) # used for good printing
 println("End test")
 
 end  # module TestMain
