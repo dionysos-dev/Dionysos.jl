@@ -4,7 +4,7 @@ using CDDLib
 using SDPA, Ipopt, JuMP
 
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
+opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 lib = CDDLib.Library() #polyhedron lib
 
 Wsz = 3 # `Wsz = 5` in [1]
@@ -25,6 +25,9 @@ W = Wsz*[-1 -1  1 1;
 Uaux = diagm(1:n_u)
 U = [(Uaux.==i)./Usz for i in 1:n_u]; # matrices U_i
 
+system.ext[:W] = W
+system.ext[:U] = U
+
 using Dionysos
 using Dionysos.Problem
 
@@ -37,82 +40,33 @@ X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0/n_step, 1.0/n_step);
 P = (1/n_x)*diagm((X_step./2).^(-2))
 
-Xgrid = Dionysos.Domain.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
+state_grid = Dionysos.Domain.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
 
-domainX = Dionysos.Domain.DomainList(Xgrid); # state space
-Dionysos.Domain.add_set!(domainX, rectX, Dionysos.Domain.OUTER)
+using JuMP
+optimizer = MOI.instantiate(Abstraction.OptimizerEllipsoids) #
 
-domainU = domainX; # input space
-Dionysos.Domain.add_set!(domainU, rectU, Dionysos.Domain.OUTER)
-
-#and the symbolic model for the state-feedback abstraction $\tilde{\mathcal{S}}$
-symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
-empty!(symmodel.autom)
-
-Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
-eigen_Q = eigen(Q_aug);
-L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'*dt
-
-transitionCost = Dict()  #dictionary with cost of each transition
-transitionKappa = Dict() #dictionary with controller associated each transition
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
 using Suppressor
 @suppress  begin # this is a workaround to supress the undesired output of SDPA
-    global t
-    t = @elapsed Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp);
+      MOI.optimize!(optimizer)
 end
-println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
+contr = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+symmodel = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
+transitionKappa = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionKappa"))
+lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
 
-x0 = SVector{n_x}(problem.initial_set); # initial condition
+Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
 
-Xinit = Dionysos.Domain.DomainList(Xgrid) # set of initial cells
-Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
+x0 = Vector(problem.initial_set); # initial condition
 
-Xfinal = Dionysos.Domain.DomainList(Xgrid) # set of target cells
-Dionysos.Domain.add_coord!(Xfinal, SVector{n_x}(problem.target_set))
-
-Xobstacles = Dionysos.Domain.DomainList(Xgrid) # set of obstacle cells
-for o in system.ext[:obstacles]
-      Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER)
-end
-
-initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)];
-finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
-obstaclelist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xobstacles)];
-
-function transFdict(transitionCost)
-    testgraph = Vector{Tuple{Int64, Int64, Float64}}()
-    for (key, value) in transitionCost
-
-        if key[2] ∉ obstaclelist
-            push!(testgraph,((key[1]),(key[2]),value))
-        end
-    end
-    return testgraph
-end
-
-testgraph = transFdict(transitionCost); # uses said function
-
-contr = Dionysos.Control.NewControllerList();
-
-src, dst = initlist[1], finallist[1] # initial and goal sets
-
-rev_graph = [(t[2],t[1],t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
-
-gc = Dionysos.Search.Digraph(rev_graph)
-t = @elapsed rev_path, cost = Dionysos.Search.dijkstrapath(gc, dst, src) # gets optimal path
-path = reverse(rev_path)
-
-
-println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
-
-for l = 1:length(path)-1
-    new_action = (path[l], path[l+1])
-    Dionysos.Utils.push_new!(contr, new_action)
-end
+domainX = symmodel.Xdom
 
 ϕ(x) = findfirst(m -> (x ∈ m.X), system.resetmaps) # returns pwa mode for a given x
-
 
 K = typeof(problem.time) == Infinity ? 100 : problem.time; #max num of steps
 x_traj = zeros(n_x,K+1);
@@ -123,8 +77,23 @@ state_traj = []
 k = 1; #iterator
 costBound = 0;
 costTrue = 0;
-currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
+currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(state_grid,x_traj[:,k])))
 push!(state_traj,currState);
+
+Xinit = Dionysos.Domain.DomainList(state_grid) # set of initial cells
+Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
+
+Xfinal = Dionysos.Domain.DomainList(state_grid) # set of target cells
+Dionysos.Domain.add_coord!(Xfinal, Vector(problem.target_set))
+
+Xobstacles = Dionysos.Domain.DomainList(state_grid) # set of obstacle cells
+for o in system.ext[:obstacles]
+      Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER)
+end
+
+initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)];
+finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
+obstaclelist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xobstacles)];
 
 println("started at: $(currState)")
 while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reached max iter
@@ -136,9 +105,9 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
                   println("next action: $(next_action)")
             end
       end
-      println("cm: $(Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[2])))")
+      println("cm: $(Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[2])))")
 
-      c = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[1]))
+      c = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[1]))
       println("c: $(c)")
 
 
@@ -147,7 +116,8 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       println("u: $(u_traj[:,k])")
 
       global costBound = costBound + transitionCost[next_action]
-      global costTrue += norm(L*vcat(x_traj[:,k], u_traj[:,k],1.0))^2
+      xk_aug = vcat(x_traj[:,k], u_traj[:,k],1.0)
+      global costTrue += xk_aug'Q_aug*xk_aug
 
 
       m = ϕ(c)
@@ -157,7 +127,7 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
 
       global k += 1;
-      global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
+      global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(state_grid,x_traj[:,k])));
       push!(state_traj,currState)
       println("Arrived in: $(currState): $(x_traj[:,k])")
 end
@@ -195,8 +165,8 @@ d=0.02;
 for t in symmodel.autom.transitions.data
       if isempty(t ∩ obstaclelist)
             offset = randn(1)[1]*d
-            arrow_x, arrow_y = Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_xpos_by_state(symmodel,t[2]))
-            aux = (Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_upos_by_symbol(symmodel,t[1]))-[arrow_x, arrow_y])
+            arrow_x, arrow_y = Dionysos.Domain.get_coord_by_pos(state_grid,Dionysos.Symbolic.get_xpos_by_state(symmodel,t[2]))
+            aux = (Dionysos.Domain.get_coord_by_pos(state_grid,Dionysos.Symbolic.get_upos_by_symbol(symmodel,t[1]))-[arrow_x, arrow_y])
             arrow_dx, arrow_dy = aux*(norm(aux)-0.15)/norm(aux)
             color = (abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)));
             if t[1]==t[2]
@@ -219,12 +189,12 @@ ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
 
 vars = [1, 2];
 
-lyap_max = max(filter(isfinite,getfield.([cost...],:second))...)
+lyap_max = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
 
-cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...),dims=2))
+cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in lyap_fun]...),dims=2))
 for (lyap,state) in cost_ordered
-      aux_dom = Dionysos.Domain.DomainList(Xgrid)
-      x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
+      aux_dom = Dionysos.Domain.DomainList(state_grid)
+      x_aux = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
       Dionysos.Domain.add_coord!(aux_dom, x_aux)
       if (lyap ≠ Inf)
             Plot.domain_ellips!(ax, vars, P, aux_dom,  ew = 0, fc = (0.4*lyap/lyap_max+0.5, 0.4*(lyap_max-lyap)/lyap_max+0.5, 0.75), fa=1.0)
@@ -232,8 +202,8 @@ for (lyap,state) in cost_ordered
 
 end
 for (lyap,state) in cost_ordered
-      aux_dom = Dionysos.Domain.DomainList(Xgrid)
-      x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
+      aux_dom = Dionysos.Domain.DomainList(state_grid)
+      x_aux = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
       Dionysos.Domain.add_coord!(aux_dom, x_aux)
       if (lyap == Inf)
             Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", ew = 0.2)
