@@ -264,7 +264,7 @@ function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDis
     @constraint(model,
     [gamma*P                     z           [I t(K) z]*t(L)
      t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
-     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
+     t([I t(K) z]*t(L))    t([t(c) t(ell) 1]*t(L))        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
     
     @objective(model, Min, J)
 
