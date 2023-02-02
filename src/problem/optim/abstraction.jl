@@ -125,7 +125,6 @@ end
 
 mutable struct OptimizerEllipsoids{T} <: MOI.AbstractOptimizer
     state_grid::Union{Nothing, Dionysos.Domain.GridEllipsoidalRectangular}
-    input_grid::Union{Nothing, Dionysos.Domain.Grid}
     problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
     symmodel::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
     transitionCost::Union{Nothing, Dict}
@@ -136,7 +135,6 @@ mutable struct OptimizerEllipsoids{T} <: MOI.AbstractOptimizer
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     function OptimizerEllipsoids{T}() where {T}
         return new{T}(
-            nothing,
             nothing,
             nothing,
             nothing,
