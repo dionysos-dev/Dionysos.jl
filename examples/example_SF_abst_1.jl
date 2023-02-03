@@ -158,14 +158,17 @@ PyPlot.title("\$\\widetilde{\\mathcal{J}}\$", fontsize=14)
 
 
 
-fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-ax = PyPlot.axes()
-#ax.set_xscale("log")
-CS = PyPlot.contour(initial_vol_span,Wmax_span,sr_dist_vector')
-PyPlot.clabel(CS, inline=1, fontsize=10)
-PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
-PyPlot.ylabel("\$\\omega_{\\max}\$", fontsize=14)
-PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
+# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
+# ax = PyPlot.axes()
+# #ax.set_xscale("log")
+# CS = PyPlot.contour(initial_vol_span,Wmax_span,sr_dist_vector')
+# PyPlot.clabel(CS, inline=1, fontsize=10)
+# PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
+# PyPlot.ylabel("\$\\omega_{\\max}\$", fontsize=14)
+# PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
+
+
+
 #plt.savefig("ex1_sr_omega.eps", format="eps")
 
 

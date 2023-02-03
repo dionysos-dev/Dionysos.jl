@@ -34,6 +34,5 @@ const UT = DI.Utils
 
 end
 
-sleep(0.1) # used for good printing
 println("End test")
 end

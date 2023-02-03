@@ -7,6 +7,7 @@ function check_inclusion(El0,El)
     println(El0∈El)
 
     Elnew = UT.scale_for_inclusion_contact_point(El0, El) 
+    println(Elnew)
 
     p = plot(aspect_ratio=:equal)
     UT.plotE!(El0, color=:red, label="El0")
@@ -19,6 +20,7 @@ function check_intersection(El0,El)
     println(UT.intersect(El0, El))
 
     Elnew = UT.scale_for_noninclusion_contact_point(El0, El) 
+    println(Elnew)
 
     p = plot(aspect_ratio=:equal)
     UT.plotE!(El0, color=:red, label="El0")
@@ -28,7 +30,7 @@ function check_intersection(El0,El)
 end
 
 
-a = 0.8 #1.52 #2.5 
+a = 2.5 #0.8 #1.2 #1.52 #2.5 
 c0 = [1.6+a; 1.4+a]
 P0 = [0.4 -0.1;
      -0.1 0.5]
@@ -40,5 +42,5 @@ P = [4.0 0.5;
 El0 = UT.Ellipsoid(P0, c0)
 El = UT.Ellipsoid(P, c)
 
+# check_intersection(El0,El)
 check_inclusion(El0,El)
-#  check_intersection(El0,El)
