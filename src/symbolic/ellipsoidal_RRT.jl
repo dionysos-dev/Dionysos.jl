@@ -102,6 +102,8 @@ function plot_traj!(trajx, trajE; color=:black)
 end
 
 
+
+
 # problem : E0, EF, obstacles, S
 # system : f_eval, X, U, Ub, Ts, fT, x, u, w
 # affine approximation param : maxRadius, maxΔu, ΔX, ΔU, ΔW
@@ -155,3 +157,62 @@ function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, 
     end
     return tree
 end
+
+
+
+
+
+
+# mutable struct OptimizerLazyEllipsoids{T} <: MOI.AbstractOptimizer
+#     problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
+#     tree::Union{Nothing, Dionysos.Utils.Tree} #later we could create a symmodel with overelapping cells
+#     distance
+#     rand_state
+#     new_conf
+#     keep
+#     stop_crit
+#     RRTstar
+#     compute_transition
+#     maxIter::Int
+#     ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
+#     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
+    
+#     function OptimizerLazyEllipsoids{T}() where {T}
+#         return new{T}(
+#             nothing,
+#             nothing,
+#             nothing,
+#             nothing,
+#         )
+#     end
+# end
+# OptimizerLazyEllipsoids() = OptimizerLazyEllipsoids{Float64}()
+
+# MOI.is_empty(optimizer::OptimizerLazyEllipsoids) = optimizer.problem === nothing
+
+# function MOI.set(model::OptimizerLazyEllipsoids, param::MOI.RawOptimizerAttribute, value)
+#     setproperty!(model, Symbol(param.name), value)
+# end
+# function MOI.get(model::OptimizerLazyEllipsoids, param::MOI.RawOptimizerAttribute)
+#     getproperty(model, Symbol(param.name))
+# end
+ 
+# function MOI.optimize!(optimizer::OptimizerLazyEllipsoids)
+#     problem = optimizer.problem
+#     system = problem.system
+#     Einit = problem.initial_set
+#     Etarget = problem.target_set
+
+#     distance = optimizer.distance
+#     rand_state = optimizer.rand_state
+#     new_conf = optimizer.
+#     keep = optimizer.keep
+#     stop_crit = optimizer.stop_crit
+#     maxIter = optimizer.maxIter
+#     RRTstar = optimizer.RRTstar
+#     compute_transition = optimizer.compute_transition
+
+#     tree = RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, problem; maxIter=maxIter, RRTstar=RRTstar, compute_transition)
+#     optimizer.tree = tree 
+#     return 
+# end
