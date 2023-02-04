@@ -77,7 +77,7 @@ function distance(E1,E2)
     return UT.pointCenterDistance(E1, E2.c)
 end
 
-function get_candidate(rrt, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intialDist=1)
+function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intialDist=1)
     guess = SC.sample_box(X)
     randVal = rand()
     if randVal>probSkew+probE0
@@ -85,15 +85,15 @@ function get_candidate(rrt, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intia
     elseif randVal>probSkew
         return E0.c
     else 
-        closestNode, dist  = UT.findNClosestNode(rrt, UT.Ellipsoid(Matrix{Float64}(I(n_x)), E0))        
+        closestNode, dist  = UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(I(n_x)), E0))        
         l = randVal/probSkew
         r = dist/intialDist
         return (E0.c*l + closestNode.state.c*(1-l))*(1-0.3*r) +(0.3*r)*guess #heuristic bias
     end
 end
 
-function get_random_state(rrt,X,E0)
-    xrand = get_candidate(rrt,X,E0)
+function get_random_state(tree,X,E0)
+    xrand = get_candidate(tree,X,E0)
     return UT.Ellipsoid(Matrix{Float64}(I(length(xrand))), xrand)
 end
 
@@ -127,7 +127,7 @@ function get_new_state(f_eval, Ts, Eclosest, Erand, U, S, Ub, maxRadius, maxΔu,
 end
 
 # heuristic: keep only the closest ellipsoid to the initial ellipsoid
-function keep(rrt, newStates, E0, obstacles;scale_for_obstacle=true) 
+function keep(tree, newStates, E0, obstacles;scale_for_obstacle=true) 
     minDist = Inf
     iMin = 0
     for (i,data) in enumerate(newStates)
@@ -138,7 +138,7 @@ function keep(rrt, newStates, E0, obstacles;scale_for_obstacle=true)
             iMin = i
             break
         elseif minDist > norm(E0.c-Enew.c) # minPathCost > cost + Eclosest.path_cost
-            if Eclosest==rrt.treeRoot || eigmin(E0.P*0.5-Enew.P)>0 # E ⊂ E0 => P-P0>0
+            if Eclosest==tree.root || eigmin(E0.P*0.5-Enew.P)>0 # E ⊂ E0 => P-P0>0
                 iMin = i
                 minDist = norm(E0.c-Enew.c)
             else
@@ -188,19 +188,19 @@ end
 sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 maxIter = 100
 RRTstar = false
-continues = true
-rrt = SC.build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep;maxIter=maxIter,RRTstar=RRTstar,compute_transition=compute_transition,continues=continues)
+continues = false
+tree = SC.build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep;maxIter=maxIter,RRTstar=RRTstar,compute_transition=compute_transition,continues=continues)
 
 p = plot(aspect_ratio=:equal)
 for obs in obstacles
     UT.plotE!(obs,color=:black)
 end
-UT.plot_RRT!(rrt)
+UT.plot_Tree!(tree)
 UT.plotE!(E0,color=:green)
 UT.plotE!(EF,color=:red)
 
 # x = E0.c #[3.0;-8.0] #E0.c
-# trajx, trajE = SC.simulate(rrt, f_eval, Ts, x) 
+# trajx, trajE = SC.simulate(tree, f_eval, Ts, x) 
 # SC.plot_traj!(trajx, trajE, color=:green)
 display(p)
 

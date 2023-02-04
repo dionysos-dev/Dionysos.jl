@@ -40,8 +40,8 @@ end
 
 
 # return the nodes containing x in incresing order of costs
-function get_nodes_from_x(rrt, x; earlyStop=false)
-    stage = rrt.treeLeaves
+function get_nodes_from_x(tree, x; earlyStop=false)
+    stage = tree.leaves
     nodes = []
     while !isempty(stage)
         for node in stage
@@ -58,19 +58,19 @@ function get_nodes_from_x(rrt, x; earlyStop=false)
     return nodes
 end
 
-function check_covered(rrt, x)
-    if isempty(get_nodes_from_x(rrt, x))
+function check_covered(tree, x)
+    if isempty(get_nodes_from_x(tree, x))
         return false
     else 
         return true
     end
 end
 
-function simulate(rrt, f_eval, Ts, x)
-    EF = rrt.treeRoot.state
-    nodes = get_nodes_from_x(rrt, x)
+function simulate(tree, f_eval, Ts, x)
+    EF = tree.root.state
+    nodes = get_nodes_from_x(tree, x)
     currNode = nodes[1]
-    if currNode != nothing
+    if currNode !== nothing
         trajx = [x]
         trajE = [currNode.state]
         while !(x ∈ EF)
@@ -108,33 +108,33 @@ end
 # algorithm param : sdp_opt, distance, get_random_state, get_new_state, keep
 function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, sdp_opt, distance, get_random_state, get_new_state, keep; maxIter=100, RRTstar=false, compute_transition, continues=false)
     println("START")
-    rrt = UT.RRT(EF)
+    tree = UT.Tree(EF)
     newEllipsoids = [EF]
-    bestDist = UT.centerDistance(E0,EF)
+    bestDist = UT.centerDistance(E0, EF)
     while (!any(map(E->(E0 ∈ E), newEllipsoids)) || continues) && maxIter>0
         print("Iterations2Go:\t")
         println(maxIter)
-        Erand = get_random_state(rrt,X,E0)
-        closestNodes, dists = UT.findNClosestNode(rrt, Erand, distance, N=1)  
+        Erand = get_random_state(tree, X, E0)
+        closestNodes, dists = UT.kNearestNeighbors(tree, Erand, distance, k=1)  
         newStates = []
         for Eclose in closestNodes
-            Enew, kappa, cost = get_new_state(f_eval, Ts, Eclose, Erand, U,S, Ub, maxRadius, maxΔu, sdp_opt, fT, x, u, w)
-            if Enew != nothing
+            Enew, kappa, cost = get_new_state(f_eval, Ts, Eclose, Erand, U, S, Ub, maxRadius, maxΔu, sdp_opt, fT, x, u, w)
+            if Enew !== nothing
                 push!(newStates, (Enew, kappa, cost, Eclose))
             end
         end
-        newStates = keep(rrt, newStates, E0, obstacles) 
+        newStates = keep(tree, newStates, E0, obstacles) 
         newNodes = []
         for data in newStates
             Enew, kappa, cost, Eclose = data
-            push!(newNodes, UT.add_node!(rrt, Enew, Eclose, kappa, Eclose.path_cost + cost))
+            push!(newNodes, UT.add_node!(tree, Enew, Eclose, kappa, cost))
             bestDist = min(bestDist, UT.centerDistance(E0, Enew))
         end
         newEllipsoids = [s[1] for s in newStates]
 
         if RRTstar 
             for newNode in newNodes
-                close_nodes, dists = UT.findNClosestNode(rrt, newNode.state, distance, N=3)
+                close_nodes, dists = UT.kNearestNeighbors(tree, newNode.state, distance, k=3)
                 println(dists)
                 for close_node in close_nodes
                     if close_node != newNode &&  close_node != newNode.parent
@@ -153,5 +153,5 @@ function build_lazy_ellipsoidal_abstraction(E0, EF, obstacles, S, f_eval, X, U, 
         println(bestDist)
         maxIter-=1
     end
-    return rrt
+    return tree
 end
