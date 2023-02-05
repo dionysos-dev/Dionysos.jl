@@ -1,5 +1,6 @@
 # include("../src/Dionysos.jl")
 # using .Dionysos
+
 using Dionysos
 UT = Dionysos.Utils
 SY = Dionysos.System
@@ -85,7 +86,7 @@ function distance(E1,E2)
 end
 
 function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intialDist=1)
-    guess = SC.sample_box(X)
+    guess = UT.sample_box(X)
     randVal = rand()
     if randVal>probSkew+probE0
         return guess
@@ -110,11 +111,11 @@ end
 function get_closest_reachable_point(f_eval, Ts, xinit, xtarget, U; nSamples=500)
     wnew = zeros(n_w)
 
-    unew = SC.sample_box(U) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
+    unew = UT.sample_box(U) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
     xnew = f_eval(xinit, unew, wnew, Ts)
     uBestDist = norm(xnew-xtarget)
     for i in 1:nSamples
-        ucandnew = SC.sample_box(U)*0.002*i
+        ucandnew = UT.sample_box(U)*0.002*i
         xcandnew = f_eval(xinit, ucandnew, wnew, Ts)
         if norm(xcandnew-xtarget)< uBestDist
             uBestDist = norm(xcandnew-xtarget)
@@ -186,10 +187,9 @@ end
 
 #state1, state2, data
 function compute_transition(E1, E2, problem)
-    E1, E2, U, Ub, S, sdp_opt, fT, x, u, w
     sys = problem.system
     xnew = E1.c
-    unew = [0.0;0.0] #SC.sample_box(U)
+    unew = [0.0;0.0] #UT.sample_box(U)
     wnew = zeros(n_w)
     X̄ = IntervalBox(xnew .+ ΔX)
     Ū = IntervalBox(unew .+ ΔU)
@@ -223,22 +223,15 @@ for obs in obstacles
 end
 
 UT.plot_Tree!(tree)
-UT.plotE!(Einit, color=:green)
-UT.plotE!(Etarget, color=:red)
+# UT.plotE!(Einit, color=:green)
+# UT.plotE!(Etarget, color=:red)
 
-# x = Einit.c #[3.0;-8.0] #E0.c
-# trajx, trajE = SC.simulate(tree, f_eval, Ts, x) 
-# SC.plot_traj!(trajx, trajE, color=:green)
-display(p)
-
-# c = [-10.0;-10.0]
-# P = [2.0 6.0; 6.0 20.0]
-# E = UT.Ellipsoid(P, c)
-# box = UT.get_min_bounding_box(E)
-# p = plot(aspect_ratio=:equal)
-# SC.plot_box!(box)
-# UT.plotE!(E)
+# # x = Einit.c #[3.0;-8.0] #E0.c
+# # trajx, trajE = UT.simulate(tree, f_eval, Ts, x) 
+# # UT.plot_traj!(trajx, trajE, color=:green)
 # display(p)
+
+
 
 
 

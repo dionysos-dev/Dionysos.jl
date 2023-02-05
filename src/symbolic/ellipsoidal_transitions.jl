@@ -14,7 +14,7 @@ using IntervalArithmetic
 using LazySets
 using ..Domain
 using ..Utils
-
+UT = Utils
 
 AffineSys = Union{HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap}
 
@@ -427,6 +427,72 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     return ans, K, P, gamma
 end
 
+# data-driven check
+function check_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=500)
+    samples = UT.sample_ellipsoid(E1; N=N)
+    wnew = zeros(2)
+    for x in samples
+        unew = kappa*[x-E1.c;1]
+        xnew = f_eval(x, unew, wnew, Ts)
+        if !(xnew ∈ E2)
+            return false
+        end
+    end
+    return true
+end
+
+# data-driven check
+function plot_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=10)
+    samples = UT.sample_ellipsoid(E1; N=N)
+    wnew = zeros(2)
+    p = plot(aspect_ratio=:equal)
+    UT.plotE!(E1, color=:green)
+    UT.plotE!(E2, color=:red)
+    for x in samples
+        unew = kappa*[x-E1.c;1]
+        xnew = f_eval(x, unew, wnew, Ts)
+        UT.plot_arrow!(x, xnew, color=:black)
+    end
+    display(p)
+end
+
+# data-driven check
+function plot_controller_cost(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts, f_cost; N=10)
+    samples = UT.sample_ellipsoid(E1; N=N)
+    costs = []
+    wnew = zeros(2)
+    for x in samples
+        unew = kappa*[x-E1.c;1]
+        push!(costs, f_cost(x, unew))
+    end
+    vmin = minimum(costs)
+    vmax = maximum(costs)
+    if vmin==vmax
+        vmax += 1.0e-6
+    end
+    colorMap = UT.Colormap([vmin,vmax], Colors.colormap("Blues"))
+    p = plot(aspect_ratio=:equal)
+    UT.plotE!(E1, color=:white)
+    #UT.plotE!(E2, color=:red)
+    for (i,x) in enumerate(samples)
+        plot!([x[1]], [x[2]], seriestype=:scatter, ms=2; color=UT.get_color(colorMap, costs[i]))
+        #UT.plot!(x; color=UT.get_color(colorMap, costs[i]))
+    end
+    UT.plot_colorBar!(colorMap)
+    display(p)
+end
+
+
+
+
+
+
+
+
+
+
+
+# to delete 
 
 """
     ellipsoid_vol(P,r)

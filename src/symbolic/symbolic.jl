@@ -16,7 +16,7 @@ SY = System
 include("automaton.jl")
 include("symbolicmodel.jl")
 include("ellipsoidal_transitions.jl")
-include("ellipsoidal_RRT.jl")
+include("lazy_ellipsoidal_symbolic.jl")
 
 include("lazy_symbolic.jl")
 include("alternating_simulation.jl")

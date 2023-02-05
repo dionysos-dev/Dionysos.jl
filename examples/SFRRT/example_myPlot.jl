@@ -1,5 +1,4 @@
-include("../src/Dionysos.jl")
-using .Dionysos
+using Dionysos
 UT = Dionysos.Utils
 using Plots, Colors
 using LinearAlgebra

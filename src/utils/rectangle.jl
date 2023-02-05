@@ -55,3 +55,7 @@ end
 function scale(rect::HyperRectangle, α)
     return HyperRectangle(rect.lb*α,rect.ub*α)
 end
+
+function rectangle(c,r)
+    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+end

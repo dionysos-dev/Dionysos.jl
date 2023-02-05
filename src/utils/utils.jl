@@ -25,6 +25,7 @@ include("optim/bisection.jl")
 include("optim/newton_method.jl")
 
 include("rectangle.jl")
+include("box.jl")
 include("ellipsoid.jl")
 include("polyhedron.jl")
 include("monteCarlo.jl")

@@ -112,6 +112,13 @@ function get_min_bounding_box(elli::Ellipsoid; optimizer=nothing)
     return box
 end
 
+function sample_ellipsoid(elli::Ellipsoid; N=500)
+    box = get_min_bounding_box(elli)
+    points = [sample_box(box) for i in 1:N]
+    filter!(x->x∈elli, points)
+    return points
+end
+
 
 include("ellipsoid_inclusion.jl")
 include("ellipsoid_intersection.jl")

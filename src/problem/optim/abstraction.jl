@@ -332,7 +332,7 @@ function MOI.optimize!(optimizer::OptimizerLazyEllipsoids)
     compute_transition = optimizer.compute_transition
 
     tree = Dionysos.Utils.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, problem; maxIter=maxIter, RRTstar=RRTstar, compute_transition)
-    #tree = Dionysos.Utils.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, problem; maxIter=maxIter, RRTstar=RRTstar, compute_transition)
+    
     optimizer.tree = tree 
     return 
 end
