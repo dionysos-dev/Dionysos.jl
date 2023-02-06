@@ -50,7 +50,5 @@ Dionysos.Utils.add_node!
 Dionysos.Utils.propagate_cost_to_leaves
 Dionysos.Utils.get_path
 Dionysos.Utils.Tree
-Dionysos.Utils.collect_nodes :: Tuple{Dionysos.Utils.NodeT}
-Dionysos.Utils.collect_nodes :: Tuple{Dionysos.Utils.Tree}
 Dionysos.Symbolic.get_nodes_from_x
 ```

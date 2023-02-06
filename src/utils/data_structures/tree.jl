@@ -104,14 +104,14 @@ function collect_children(node::NodeT)
     return allNodes
 end
 
-"Return a list with node and all its children"
+# Return a list with node and all its children
 function collect_nodes(node::NodeT)
     allNodes = collect_children(node)
     push!(allNodes, node)
     return allNodes
 end
 
-"Return a list with all the children of node"
+# Return a list with all the children of node
 function collect_nodes(tree::Tree)
     return collect_nodes(tree.root)
 end
