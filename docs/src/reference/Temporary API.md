@@ -43,4 +43,12 @@ Dionysos.Domain.GridRectangular
 Dionysos.Domain.GridFree
 Dionysos.Domain.GridEllipsoidalRectangular
 Dionysos.Utils.get_min_bounding_box
+Dionysos.Utils.NodeT
+Dionysos.Utils.collect_children
+Dionysos.Utils.RRT
+Dionysos.Utils.add_node!
+Dionysos.Utils.propagate_cost_to_leaves
+Dionysos.Utils.get_path
+Dionysos.Utils.Tree
+Dionysos.Symbolic.get_nodes_from_x
 ```

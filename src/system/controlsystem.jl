@@ -207,3 +207,22 @@ function buildAffineApproximationFromContinuousTime(f,x,u,w,X,U,W)
     c = vec(evalSym(f) - A*x̄ - B*ū -E*w̄)
     (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
 end
+
+
+struct EllipsoidalLazySystem{}
+    f_eval
+    X 
+    U
+    Ub
+    Ts
+    fT
+    x
+    u
+    w
+    maxRadius
+    maxΔu
+    ΔX
+    ΔU
+    ΔW
+    obstacles
+end
