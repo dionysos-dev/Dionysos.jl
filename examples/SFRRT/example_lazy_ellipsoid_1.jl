@@ -18,7 +18,15 @@ Random.seed!(0)
 ################## Problem setting ####################
 #######################################################
 
-# System
+# convert square box into intersection of degenerated ellipsoids
+# square box [-x,x]
+function convert_H_into_E(Ub::IntervalBox)
+    nu = length(Ub)
+    Uaux = diagm(1:nu)
+    U = [(Uaux.==i)./Ub[i].hi for i in 1:nu];
+    return U
+end
+
 function unstableSimple()
     Symbolics.@variables px py vx vy wx wy T
 
@@ -30,47 +38,44 @@ function unstableSimple()
     w = [wx; wy]
     return f, x, u, w, T
 end
+
+########## Function description #########
 f, x, u, w, T = unstableSimple()
-n_x = length(x)
-n_u = length(u)
-n_w = length(w)
-
-# Bounds on u
-Usz = 10
-Uaux = diagm(1:n_u)
-Ub = [(Uaux.==i)./Usz for i in 1:n_u];
-# Box bounding x, u, w
-X = IntervalBox(-20..20,2); #-15..15
-U = IntervalBox(-Usz..Usz,n_u)
-
-##########################
+nx = length(x)
+nu = length(u)
+nw = length(w)
 Ts = 1
 f_eval = eval(build_function(f,x,u,w,T)[1])
-# augmented argument
-xi = [x;u;w]
-fT = Symbolics.substitute(f,Dict([T => Ts]))
-# Boxes on which J must be bounded
-maxStep = 5
 
-maxRadius = 1
-maxΔu = Usz*2
-ΔX = IntervalBox(-maxRadius..maxRadius,2) 
-ΔU = IntervalBox(-maxΔu..maxΔu,2)
+#### PWA approximation description #####
+fsymbolic = Symbolics.substitute(f,Dict([T => Ts]))
+ΔX = IntervalBox(-1.0..1.0,2) 
+ΔU = IntervalBox(-10*2..10*2,2)
 ΔW = IntervalBox(-0.0..0.0,1)
-##########################
 
+########## Inputs description ##########
+Usz = 10
+Ub = IntervalBox(-Usz..Usz,nu)
+U = convert_H_into_E(Ub)
 
-# Cost function
-S = Matrix{Float64}(I(n_x+n_u+1)) #TODO
+########## Noise description ##########
+W = 0.0*[-1 -1  1 1;
+         -1  1 -1 1]
 
-# Control problem
+########### Cost description ############
+S = Matrix{Float64}(I(nx+nu+1)) #TODO
+
+########## Control description ##########
 xinit = [-10.0;-10.0]
-Einit = UT.Ellipsoid(Matrix{Float64}(I(n_x))*10.0, xinit)
+Einit = UT.Ellipsoid(Matrix{Float64}(I(nx))*10.0, xinit)
 xtarget = [10.0;10.0]
-Etarget = UT.Ellipsoid(Matrix{Float64}(I(n_x))*1.0, xtarget)
-obstacles = [UT.Ellipsoid(Matrix{Float64}(I(n_x))*1/50, [0.0;0.0])]
+Etarget = UT.Ellipsoid(Matrix{Float64}(I(nx))*1.0, xtarget)
+X = IntervalBox(-20..20,2); #-15..15
+obstacles = [UT.Ellipsoid(Matrix{Float64}(I(nx))*1/50, [0.0;0.0])]
 
-system = SY.EllipsoidalLazySystem(f_eval, X, U, Ub, Ts, fT, x, u, w, maxRadius, maxΔu, ΔX, ΔU, ΔW, obstacles)
+#########################################
+system = SY.EllipsoidalLazySystem(f_eval, Ts, nx, nu, nw, U, Ub, W, X, obstacles, fsymbolic, x, u, w, ΔX, ΔU, ΔW)
+# maxRadius, maxΔu
 problem = PR.OptimalControlProblem(system, Einit, Etarget, S, nothing, 0.0)
 
 #######################################################
@@ -79,8 +84,7 @@ problem = PR.OptimalControlProblem(system, Einit, Etarget, S, nothing, 0.0)
 
 # SI, SF
 function distance(E1,E2)
-    #UT.centerDistance(E1, E2)
-    return UT.centerDistance(E1, E2) #UT.pointCenterDistance(E1, E2.c)
+    return UT.centerDistance(E1, E2)
 end
 
 function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intialDist=1)
@@ -91,7 +95,7 @@ function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, inti
     elseif randVal>probSkew
         return E0.c
     else 
-        closestNode, dist  = UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(I(n_x)), E0))        
+        closestNode, dist  = UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(I(nx)), E0))        
         l = randVal/probSkew
         r = dist/intialDist
         return (E0.c*l + closestNode.state.c*(1-l))*(1-0.3*r) +(0.3*r)*guess #heuristic bias
@@ -99,23 +103,22 @@ function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, inti
 end
 
 # tree, SI, SF, distance, data
-function rand_state(tree, EF, EI, distance, problem)
-    X = problem.system.X
-    xrand = get_candidate(tree, X, EI)
+function rand_state(tree, EF, EI, distance, optimizer)
+    problem = optimizer.problem
+    xrand = get_candidate(tree, problem.system.X, EI)
     return UT.Ellipsoid(Matrix{Float64}(I(length(xrand))), xrand)
 end
 
 # data-driven technique on nominal system (without noise)
-function get_closest_reachable_point(f_eval, Ts, xinit, xtarget, U; nSamples=500)
-    wnew = zeros(n_w)
-
-    unew = UT.sample_box(U) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
-    xnew = f_eval(xinit, unew, wnew, Ts)
+function get_closest_reachable_point(sys, xinit, xtarget, U, Ub; nSamples=500)
+    wnew = zeros(sys.nw)
+    unew = UT.sample_box(Ub) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
+    xnew = sys.f_eval(xinit, unew, wnew, -sys.Ts)
     uBestDist = norm(xnew-xtarget)
     for i in 1:nSamples
-        ucandnew = UT.sample_box(U)*0.002*i
-        xcandnew = f_eval(xinit, ucandnew, wnew, Ts)
-        if norm(xcandnew-xtarget)< uBestDist
+        ucandnew = UT.sample_box(Ub)*0.002*i
+        xcandnew = sys.f_eval(xinit, ucandnew, wnew, -sys.Ts)
+        if norm(xcandnew-xtarget) < uBestDist
             uBestDist = norm(xcandnew-xtarget)
             xnew = xcandnew
             unew = ucandnew
@@ -125,24 +128,23 @@ function get_closest_reachable_point(f_eval, Ts, xinit, xtarget, U; nSamples=500
 end
 
 # tree, Nnear, Srand, data
-function new_conf(tree, Nnear, Erand, problem)
+function new_conf(tree, Nnear, Erand, optimizer)
+    problem = optimizer.problem
     sys = problem.system
-    (unew, xnew, uBestDist) = get_closest_reachable_point(sys.f_eval, -sys.Ts, Nnear.state.c, Erand.c, sys.U)
-    n_w = 2
-    wnew = zeros(n_w)
-    X̄ = IntervalBox(xnew .+ ΔX)
-    Ū = IntervalBox(unew .+ ΔU)
-    W̄ = IntervalBox(wnew .+ ΔW)
-    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fT,sys.x,sys.u,sys.w,xnew,unew,wnew,X̄,Ū,W̄)
+    (unew, xnew, uBestDist) = get_closest_reachable_point(sys, Nnear.state.c, Erand.c, sys.U, sys.Ub)
+    wnew = zeros(sys.nw)
+    X̄ = IntervalBox(xnew .+ sys.ΔX)
+    Ū = IntervalBox(unew .+ sys.ΔU)
+    W̄ = IntervalBox(wnew .+ sys.ΔW)
+    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
     S = problem.state_cost
-    #return Dionysos.Symbolic.hasTransition(xnew, unew, Nnear.state, affineSys, L, S, sys.Ub, sys.maxRadius, sys.maxΔu, sdp_opt; λ=0.015) 
-
-    return Dionysos.Symbolic.transition_backward(affineSys, Nnear.state, xnew, unew, sys.Ub, S, L, sdp_opt; λ=0.01) #λ=0.01
+    return Dionysos.Symbolic.transition_backward(affineSys, Nnear.state, xnew, unew, sys.U, S, L, optimizer.sdp_opt ; λ=optimizer.λ, maxδx=optimizer.maxδx, maxδu=optimizer.maxδu)
 end
-#c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01
+
 # heuristic: keep only the closest ellipsoid to the initial ellipsoid
 # tree, LSACnew, SI, SF, distance, data
-function keep(tree, LSACnew, EF, EI, distance, problem; scale_for_obstacle=true)
+function keep(tree, LSACnew, EF, EI, distance, optimizer; scale_for_obstacle=true)
+    problem = optimizer.problem
     obstacles = problem.system.obstacles
     minDist = Inf
     iMin = 0
@@ -186,19 +188,18 @@ function keep(tree, LSACnew, EF, EI, distance, problem; scale_for_obstacle=true)
 end
 
 #state1, state2, data
-function compute_transition(E1, E2, problem)
+function compute_transition(E1, E2, optimizer)
+    problem = optimizer.problem
     sys = problem.system
     xnew = E1.c
-    unew = [0.0;0.0] #UT.sample_box(U)
-    wnew = zeros(n_w)
-    X̄ = IntervalBox(xnew .+ ΔX)
-    Ū = IntervalBox(unew .+ ΔU)
-    W̄ = IntervalBox(wnew .+ ΔW)
-    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fT,sys.x,sys.u,sys.w,xnew,unew,wnew,X̄,Ū,W̄)
-    W = 0.0*[-1 -1  1 1;
-         -1  1 -1 1]
+    unew = zeros(sys.nu)
+    wnew = zeros(sys.nw)
+    X̄ = IntervalBox(xnew .+ sys.ΔX)
+    Ū = IntervalBox(unew .+ sys.ΔU)
+    W̄ = IntervalBox(wnew .+ sys.ΔW)
+    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
     S = problem.state_cost
-    ans, kappa, cost = Dionysos.Symbolic.transition_fixed(affineSys, E1, E2, sys.Ub, W, S, sdp_opt)
+    ans, kappa, cost = Dionysos.Symbolic.transition_fixed(affineSys, E1, E2, sys.U, sys.W, S, optimizer.sdp_opt)
     return ans, kappa, cost
 end
 
@@ -206,12 +207,13 @@ global myBool = true
 global myBool2 = false
 global NI = nothing
 # tree, LNnew, SI, SF, distance, data
-function stop_crit(tree, LNnew, EF, EI, distance, problem; continues=true)
+function stop_crit(tree, LNnew, EF, EI, distance, optimizer; continues=false)
+    problem = optimizer.problem
     minDist = 10.0
     for Nnew in LNnew
         E = Nnew.state
         if distance(EI, E) <= minDist
-            ans, kappa, cost = compute_transition(EI, E, problem)
+            ans, kappa, cost = compute_transition(EI, E, optimizer)
             if ans
                 if myBool
                     global NI = UT.add_node!(tree, EI, Nnew, kappa, cost)
@@ -235,9 +237,14 @@ function stop_crit(tree, LNnew, EF, EI, distance, problem; continues=true)
 end
 
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-maxIter = 100 #100
-RRTstar = true
-optimizer = PR.Abstraction.build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter)
+maxδx = 100 # 100
+maxδu = Usz*2
+maxIter = 100 # 100
+RRTstar = false
+k1 = 1
+k2 = 1
+λ = 0.01 # 0.01
+optimizer = PR.Abstraction.build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, maxδx, maxδu, λ, sdp_opt, k1, k2)
 
 MOI.optimize!(optimizer)
 
