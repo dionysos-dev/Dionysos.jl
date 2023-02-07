@@ -166,6 +166,20 @@ function findkmin(tab, N)
     return tab[Nidx], Nidx
 end
 
+# when you give a node, you return the k nearest neighbors, except those on the path from the node to the root
+function kNearestNeighbors(tree::Tree, node::NodeT, distance; k=1) 
+    allNodes = collect_nodes(tree)
+    path = get_path(node)
+    
+    pertinentNodes = filter(e -> !(e∈path), allNodes) 
+    println(length(allNodes))
+    println(length(pertinentNodes))
+    dists = map(e-> e===nothing ? Inf : distance(e.state, node.state), pertinentNodes)
+
+    d, idx = findkmin(dists, k)
+    return pertinentNodes[idx], d
+end
+
 function kNearestNeighbors(tree::Tree, state, distance; k=1) 
     allNodes = collect_nodes(tree)
     dists = map(e-> e===nothing ? Inf : distance(e.state, state), allNodes)
@@ -195,7 +209,7 @@ end
 
 
 # should just replace plotE! by generic plot! of the state, to get fully generic plot tree function
-function plot_Tree!(tree::Tree)
+function plot_Tree!(tree::Tree; arrow=true)
     # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
@@ -211,15 +225,17 @@ function plot_Tree!(tree::Tree)
         plot_colorBar!(colorMap)
     end
     # plot edges of the tree
-    leaves = copy(tree.leaves)
-    while !isempty(leaves)
-        for leave in leaves
-            if leave.parent!==nothing
-                plot_arrow!(leave.state.c,leave.parent.state.c)
+    if arrow
+        leaves = copy(tree.leaves)
+        while !isempty(leaves)
+            for leave in leaves
+                if leave.parent!==nothing
+                    plot_arrow!(leave.state.c,leave.parent.state.c)
+                end
             end
+            parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
+            leaves = parents
         end
-        parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
-        leaves = parents
     end
 end
 
