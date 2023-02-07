@@ -18,10 +18,12 @@ UT = Utils
 
 AffineSys = Union{HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap}
 
-function _getμν(L,subsys)
+
+function _getμν(L,subsys::AffineSys)
     n_x = length(subsys.c)
     (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
 end
+
 
 function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
     Pp = Ep.P
@@ -101,14 +103,14 @@ function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadi
      @constraint(model, r<=maxRadius^2)
      @constraint(model, δu<=maxΔu^2)
      @constraint(model,diag(C).>=ones(n,1)*ϵ)
+
      @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
 
     optimize!(model)
     #println(solution_summary(model))
     if solution_summary(model).termination_status == MOI.OPTIMAL
         C = value.(C)
-        #print(C)
-        El = UT.Ellipsoid(t(C)\eye(n)/C, c)
+        El = UT.Ellipsoid(transpose(C)\eye(n)/C, c)
         kappa = [value.(F)/(C) value.(ell)];
         cost = value(J);
     else
@@ -119,77 +121,6 @@ function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadi
     #println("$(solution_summary(model).solve_time) s")
     return El, kappa, cost 
 end
-
-
-# added !!!!!!
-function my_has_transition(A, B, g, W, U, L, E1, E2, optimizer)
-    
-    eye(n) = diagm(ones(n))
-    n = length(g);
-    m = size(U[1],2);
-    N = size(W,2);
-    p = size(W,1);
-    Nu = length(U);
-    c = E1.c 
-    P = E1.P 
-    cp = E2.c 
-    Pp = E2.P 
-
-    model = Model(optimizer)
-    @variable(model, K[i=1:m,j=1:n]) 
-    @variable(model, ell[i=1:m,j=1:1])
-    @variable(model, bta[i=1:N] >= 0)
-    @variable(model, tau[i=1:Nu] >= 0)
-    @variable(model, gamma >= 0)
-    @variable(model, J >= 0)
-
-    @expressions(model, begin
-        At, A+B*K
-        gt, g+B*ell
-    end)
-
-
-    t(x) = transpose(x);
-
-    z = zeros(n,1);
-    
-    for i in 1:N
-        w = W[:,i];
-        aux = A*hcat(c)+hcat(gt)-hcat(cp)+hcat(w)
-        @constraint(model,
-            [bta[i]*P        z         t(At)
-            t(z)        1-bta[i]        t(aux)
-             At       aux      inv(Pp)           ] >= eye(2*n+1)*1e-4, PSDCone())
-
-    end
-    
-    for i=1:Nu
-        n_ui = size(U[i],1);
-        @constraint(model,
-        [tau[i]*P        z          t(U[i]*K)
-        t(z)        1-tau[i]        t(U[i]*ell)
-        U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(n+n_ui+1)*1e-4, PSDCone())
-        
-    end
-    n_S = size(L,1);
-    @constraint(model,
-    [gamma*P                     z           [I t(K) z]*t(L)
-     t(z)                   J-gamma          [t(c) t(ell) 1]*t(L)
-     L*t([I t(K) z])    L*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(n+n_S+1)*1e-4, PSDCone())
-    
-    @objective(model, Min, J)
-
-    #print(model)
-    optimize!(model)
-
-    kappa = [value.(K) value.(ell)];
-    cost = value(J);
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
-    #println("$(solution_summary(model).solve_time) s")
-    return ans, cost, kappa
-end
-
-
 
 """
     _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
@@ -426,6 +357,180 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     ans = solution_summary(model).termination_status == MOI.OPTIMAL
     return ans, K, P, gamma
 end
+
+###############################################################################################################################
+
+# U: each entry of U is a quadratic constraint on the input
+# W: each column is vertex of the polytopic noise 
+function transition_fixed(A, B, g, U, W, S, c1, P1, c2, P2, optimizer)
+    eye(n) = diagm(ones(n))
+    nx = length(g); # dimension of the state
+    nu = size(U[1],2); # dimension of the input
+    nw = size(W,1); # dimension of the noise (not use for now, we could add matrix of the noise)
+    Nu = length(U); # number of quadratic input constraints
+    Nw = size(W,2); # number of vertex of the polytopic noise
+
+    model = Model(optimizer)
+    @variable(model, K[i=1:nu,j=1:nx]) 
+    @variable(model, ell[i=1:nu,j=1:1])
+    @variable(model, beta[i=1:Nw] >= 0)
+    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, γ >= 0)
+    @variable(model, J >= 0)
+
+    @expressions(model, begin
+        At, A+B*K
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+    z = zeros(nx,1);
+    
+    for i in 1:Nw
+        w = W[:,i];
+        aux = A*hcat(c1)+hcat(gt)-hcat(c2)+hcat(w)
+        @constraint(model,
+            [beta[i]*P1        z         t(At)
+            t(z)        1-beta[i]        t(aux)
+             At       aux      inv(P2)           ] >= eye(2*nx+1)*1e-4, PSDCone())
+
+    end
+    
+    for i=1:Nu
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*P1        z          t(U[i]*K)
+        t(z)        1-tau[i]        t(U[i]*ell)
+        U[i]*K      U[i]*ell        eye(n_ui)   ] >= eye(nx+n_ui+1)*1e-4, PSDCone())
+        
+    end
+    n_S = size(S,1);
+    @constraint(model,
+    [γ*P1                     z           [I t(K) z]*t(S)
+     t(z)                   J-γ          [t(c1) t(ell) 1]*t(S)
+     S*t([I t(K) z])    S*t([t(c1) t(ell) 1])        eye(n_S)       ] >= eye(nx+n_S+1)*1e-4, PSDCone())
+    
+    @objective(model, Min, J)
+
+    optimize!(model)
+
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
+    kappa = [value.(K) value.(ell)];
+    cost = value(J);
+    return ans, kappa, cost
+end
+
+function transition_fixed(affsys::AffineSys, E1::UT.Ellipsoid, E2::UT.Ellipsoid, U, W, S, optimizer)
+    return transition_fixed(affsys.A, affsys.B, affsys.c, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
+end
+
+function _getμν(L, nx, D, W)
+    (vertices_list(IntervalBox((-x)..x for x in L[1:nx])), vertices_list(IntervalBox(D*W...)))
+end
+
+# the dynamic: Ax+Bu+g+Dw
+# linearization point: (̄x,̄u, w) = (c,u,0)
+# inputs constarints: u
+# polytopic noise: W
+# objective function: S
+function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=0.01)
+    eye(n) = diagm(ones(n))
+    nx = length(g); #dimension of the state
+    nu = size(U[1],2); #dimension of the input
+    μ, ν = _getμν(Lip, nx, D, W)
+    Nx = length(μ); #number of vertex of the hyperrectangle: 2^nx
+    Nw = length(ν); #number of vertex of the polytopic noise (to check, now I hink it is only for hyperrecangle polytope)
+    Nu = length(U); #number of constraints on u
+
+    model = Model(optimizer)
+    @variable(model, L[i=1:nx,j=1:nx], PSD)
+    @variable(model, F[i=1:nu,j=1:nx]) 
+    @variable(model, ell[i=1:nu,j=1:1])
+    @variable(model, beta[i=1:Nx, j=1:Nw] >= 0)
+    @variable(model, tau[i=1:Nu] >= 0)
+    @variable(model, δx >= 0)
+    @variable(model, δu >= 0)
+    @variable(model, ϕ >= 0)
+    @variable(model, γ >= 0)
+    @variable(model, J >= 0)
+
+    @expressions(model, begin
+        At, A*L+B*F
+        gt, g+B*ell
+    end)
+
+
+    t(x) = transpose(x);
+    z = zeros(nx,1);
+    
+    for i in 1:Nx
+        for j in 1:Nw
+            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(ct)+hcat(Vector(μ[i]))*(δx+δu) +hcat(Vector(ν[j])))
+            @constraint(model,
+                [beta[i,j]*eye(nx)        z         t(At)
+                t(z)                1-beta[i,j]    t(aux)
+                At                  aux           inv(Pt) ] >= eye(2*nx+1)*1e-4, PSDCone())
+        end
+    end
+    
+    for i=1:Nu
+        n_ui = size(U[i],1);
+        @constraint(model,
+        [tau[i]*eye(nx)        z             t(U[i]*F)
+        t(z)                1-tau[i]        t(U[i]*ell)
+        U[i]*F              U[i]*ell        eye(n_ui)   ] >= eye(nx+n_ui+1)*1e-4, PSDCone())
+    end
+    n_S = size(S,1);
+    @constraint(model,
+    [γ*eye(nx)                z           [t(L) t(F) z]*t(S)
+     t(z)                   J-γ          [t(c) t(ell) 1]*t(S)
+     S*t([t(L) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(nx+n_S+1)*1e-4, PSDCone())
+     
+     u=hcat(u)
+     @constraint(model,
+     [ϕ*eye(nx)     z            t(F)
+      t(z)      δu-ϕ    t(ell-u)
+      (F)       (ell-u)     eye(nu)    ] >= eye(nx+nu+1)*1e-4, PSDCone())
+     
+
+     @constraint(model,
+    [eye(nx)   t(L)
+     L       δx*eye(nx) ] >= eye(nx*2)*1e-4, PSDCone())
+    
+     @constraint(model, δx<=maxδx^2)
+     @constraint(model, δu<=maxδu^2)
+
+     @variable(model, t)
+     u_q = [L[i, j] for j in 1:nx for i in 1:j]
+     @constraint(model, vcat(t, 1, u_q) in MOI.LogDetConeTriangle(nx))
+
+     @objective(model, Min, λ*J + (1-λ)*(-t))
+    optimize!(model)
+
+    if solution_summary(model).termination_status == MOI.OPTIMAL
+        L = value.(L)
+        P = transpose(L)\eye(nx)/L
+        kappa = [value.(F)/(L) value.(ell)];
+        cost = value(J);
+    else
+        P = nothing
+        kappa = nothing
+        cost = nothing
+    end
+    return P, kappa, cost 
+end
+
+function transition_backward(affsys::AffineSys, Et::UT.Ellipsoid, c, u, U, S, Lip, optimizer; maxδx=100, maxδu=10.0*2, λ=0.01)
+    P, kappa, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, Et.c, Et.P, c, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
+    if P!==nothing
+        return UT.Ellipsoid(P, c), kappa, cost
+    else
+        return nothing, nothing, nothing 
+    end
+end
+
+
 
 # data-driven check
 function check_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=500)

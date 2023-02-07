@@ -1,6 +1,3 @@
-# include("../src/Dionysos.jl")
-# using .Dionysos
-
 using Dionysos
 UT = Dionysos.Utils
 SY = Dionysos.System
@@ -43,7 +40,7 @@ Usz = 10
 Uaux = diagm(1:n_u)
 Ub = [(Uaux.==i)./Usz for i in 1:n_u];
 # Box bounding x, u, w
-X = IntervalBox(-15..15,2);
+X = IntervalBox(-20..20,2); #-15..15
 U = IntervalBox(-Usz..Usz,n_u)
 
 ##########################
@@ -57,7 +54,7 @@ maxStep = 5
 
 maxRadius = 1
 maxΔu = Usz*2
-ΔX = IntervalBox(-maxRadius..maxRadius,2) #× (-0.01..0.01);
+ΔX = IntervalBox(-maxRadius..maxRadius,2) 
 ΔU = IntervalBox(-maxΔu..maxΔu,2)
 ΔW = IntervalBox(-0.0..0.0,1)
 ##########################
@@ -82,7 +79,8 @@ problem = PR.OptimalControlProblem(system, Einit, Etarget, S, nothing, 0.0)
 
 # SI, SF
 function distance(E1,E2)
-    return UT.pointCenterDistance(E1, E2.c)
+    #UT.centerDistance(E1, E2)
+    return UT.centerDistance(E1, E2) #UT.pointCenterDistance(E1, E2.c)
 end
 
 function get_candidate(tree, X::IntervalBox, E0; probSkew=0.0, probE0=0.05, intialDist=1)
@@ -137,7 +135,9 @@ function new_conf(tree, Nnear, Erand, problem)
     W̄ = IntervalBox(wnew .+ ΔW)
     (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fT,sys.x,sys.u,sys.w,xnew,unew,wnew,X̄,Ū,W̄)
     S = problem.state_cost
-    return Dionysos.Symbolic.hasTransition(xnew, unew, Nnear.state, affineSys, L, S, sys.Ub, sys.maxRadius, sys.maxΔu, sdp_opt; λ=0.015) 
+    #return Dionysos.Symbolic.hasTransition(xnew, unew, Nnear.state, affineSys, L, S, sys.Ub, sys.maxRadius, sys.maxΔu, sdp_opt; λ=0.015) 
+
+    return Dionysos.Symbolic.transition_backward(affineSys, Nnear.state, xnew, unew, sys.Ub, S, L, sdp_opt; λ=0.01) #λ=0.01
 end
 #c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01
 # heuristic: keep only the closest ellipsoid to the initial ellipsoid
@@ -198,38 +198,65 @@ function compute_transition(E1, E2, problem)
     W = 0.0*[-1 -1  1 1;
          -1  1 -1 1]
     S = problem.state_cost
-    ans, cost, kappa = Dionysos.Symbolic.my_has_transition(affineSys.A, affineSys.B, affineSys.c, sys.W, sys.Ub, S, E1, E2, sdp_opt)
-    return ans, cost, kappa
+    ans, kappa, cost = Dionysos.Symbolic.transition_fixed(affineSys, E1, E2, sys.Ub, W, S, sdp_opt)
+    return ans, kappa, cost
 end
 
+global myBool = true
+global myBool2 = false
+global NI = nothing
 # tree, LNnew, SI, SF, distance, data
-function stop_crit(tree, LNnew, EF, EI, distance, problem; continues=false)
+function stop_crit(tree, LNnew, EF, EI, distance, problem; continues=true)
+    minDist = 10.0
+    for Nnew in LNnew
+        E = Nnew.state
+        if distance(EI, E) <= minDist
+            ans, kappa, cost = compute_transition(EI, E, problem)
+            if ans
+                if myBool
+                    global NI = UT.add_node!(tree, EI, Nnew, kappa, cost)
+                    println("Path cost from EI : ", NI.path_cost)
+                    global myBool = false
+                end
+                if !continues
+                    return true
+                else 
+                    if myBool2 && cost + Nnew.path_cost  < NI.path_cost
+                        UT.rewire(tree, NI, Nnew, kappa, cost)
+                        println("Path cost from EI : ", NI.path_cost)
+                    end
+                end
+                global myBool2 = true
+            end
+        end
+    end
     newEllipsoids = [newNode.state for newNode in LNnew]
-    return any(map(E->(EI ∈ E), newEllipsoids)) || continues
+    return any(map(E->(EI ∈ E), newEllipsoids)) && !continues
 end
 
-sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-maxIter = 100
-RRTstar = false
+sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+maxIter = 100 #100
+RRTstar = true
 optimizer = PR.Abstraction.build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter)
 
 MOI.optimize!(optimizer)
 
 tree = optimizer.tree
-
+println("Path cost from EI : ", NI.path_cost)
 p = plot(aspect_ratio=:equal)
 for obs in obstacles
     UT.plotE!(obs,color=:black)
 end
 
 UT.plot_Tree!(tree)
-# UT.plotE!(Einit, color=:green)
-# UT.plotE!(Etarget, color=:red)
+# UT.plot_path!(NI)
+UT.plotE!(Einit, color=:green)
+UT.plotE!(Etarget, color=:red)
 
 # # x = Einit.c #[3.0;-8.0] #E0.c
 # # trajx, trajE = UT.simulate(tree, f_eval, Ts, x) 
 # # UT.plot_traj!(trajx, trajE, color=:green)
-# display(p)
+display(p)
 
 
 

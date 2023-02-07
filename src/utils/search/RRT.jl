@@ -13,7 +13,7 @@ using ..Utils
     RRTstar : boolean to use RRT* ;
     compute_transition : to compute transition between to given state (if RRTstar is true).
 "
-function RRT(SI, SF, distance, rand_state, new_conf, keep, stop_crit, data; maxIter=100, RRTstar=false, compute_transition)
+function RRT(SI, SF, distance, rand_state, new_conf, keep, stop_crit, data; maxIter=100, RRTstar=false, compute_transition, k1=1, k2=1)
     tree = Tree(SI)
     bestDist = distance(SI, SF)
     LNnew = [tree.root]
@@ -21,7 +21,7 @@ function RRT(SI, SF, distance, rand_state, new_conf, keep, stop_crit, data; maxI
         print("Iterations2Go:\t")
         println(maxIter)
         Srand = rand_state(tree, SI, SF, distance, data)
-        LNnear, ~ = kNearestNeighbors(tree, Srand, distance)
+        LNnear, ~ = kNearestNeighbors(tree, Srand, distance, k=k1)
         # generate state we want to add in one iteration
         LSACnew = [] 
         for Nnear in LNnear
@@ -38,11 +38,12 @@ function RRT(SI, SF, distance, rand_state, new_conf, keep, stop_crit, data; maxI
         # RRT*
         if RRTstar
             for Nnew in LNnew
-                LNclose, ~ = kNearestNeighbors(tree, Nnew, distance, k=1)
+                LNclose, ~ = kNearestNeighbors(tree, Nnew, distance, k=k2)
                 for Nclose in LNclose
                     ans, action, cost = compute_transition(Nclose.state, Nnew.state, data)
                     if ans
                         if cost + Nnew.path_cost  < Nclose.path_cost
+                            println("REWIRE")
                             rewire(tree, Nclose, Nnew, action, cost)
                         end
                     end
