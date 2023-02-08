@@ -172,8 +172,6 @@ function kNearestNeighbors(tree::Tree, node::NodeT, distance; k=1)
     path = get_path(node)
     
     pertinentNodes = filter(e -> !(e∈path), allNodes) 
-    println(length(allNodes))
-    println(length(pertinentNodes))
     dists = map(e-> e===nothing ? Inf : distance(e.state, node.state), pertinentNodes)
 
     d, idx = findkmin(dists, k)

@@ -297,13 +297,19 @@ mutable struct OptimizerLazyEllipsoids <: MOI.AbstractOptimizer
     RRTstar::Bool
     compute_transition
     maxIter::Int    
+    maxδx
+    maxδu
+    λ
+    sdp_opt
+    k1
+    k2
     tree::Union{Nothing, Dionysos.Utils.Tree} #later we could create a symmodel with overelapping cells
 
     # sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
 end
 
-function build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter)
-    return OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, nothing)
+function build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, maxδx, maxδu, λ, sdp_opt, k1, k2)
+    return OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, maxδx, maxδu, λ, sdp_opt, k1, k2, nothing)
 end
 
 OptimizerLazyEllipsoids() = OptimizerLazyEllipsoids{Float64}()
@@ -330,8 +336,9 @@ function MOI.optimize!(optimizer::OptimizerLazyEllipsoids)
     maxIter = optimizer.maxIter
     RRTstar = optimizer.RRTstar
     compute_transition = optimizer.compute_transition
-
-    tree = Dionysos.Utils.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, problem; maxIter=maxIter, RRTstar=RRTstar, compute_transition)
+    k1 = optimizer.k1
+    k2 = optimizer.k2
+    tree = Dionysos.Utils.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, optimizer; maxIter=maxIter, RRTstar=RRTstar, compute_transition, k1=k1, k2=k2)
     
     optimizer.tree = tree 
     return 

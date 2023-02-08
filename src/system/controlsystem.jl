@@ -208,21 +208,23 @@ function buildAffineApproximationFromContinuousTime(f,x,u,w,X,U,W)
     (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
 end
 
-
+#f_eval, Ts, U, Ub, W, X, obstacles, x, u, w, fsymbolic, ΔX, ΔU, ΔW
 struct EllipsoidalLazySystem{}
     f_eval
-    X 
+    Ts
+    nx
+    nu
+    nw
     U
     Ub
-    Ts
-    fT
+    W
+    X
+    obstacles
+    fsymbolic
     x
     u
     w
-    maxRadius
-    maxΔu
     ΔX
     ΔU
     ΔW
-    obstacles
 end
