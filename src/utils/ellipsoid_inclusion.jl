@@ -7,7 +7,7 @@ function Base.:∉(elli1::Ellipsoid, elli2::Ellipsoid)
     !(elli1 ∈ elli2)
 end
 
-function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
+function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; eps=1e-10)
     e_min = eigmin(elli1.P-elli2.P)
     if e_min<0
         return false
@@ -22,7 +22,7 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
         specDecomp = eigen(P)
         vals = specDecomp.values
         ct = specDecomp.vectors'*c
-    
+
         g(β) = -β + sum((β*vals./(1 .- β*vals)).*(ct.^2))
         dg(β) = -1 + sum((vals./(1 .- β*vals).^2).*(ct.^2))
         ddg(β) = 2*sum((vals.^2 ./(1 .- β*vals).^3).*(ct.^2))
@@ -42,7 +42,7 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid)
     end
 end
 
-function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid)
+function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid; eps=1e-10)
     L = cholesky(elli2.P).L
     P = L\elli1.P/L';
     c = L'*(elli1.c -elli2.c)
