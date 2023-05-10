@@ -5,7 +5,7 @@ using CDDLib
 using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
-
+using Plots
 using SDPA, JuMP
 
 
@@ -100,11 +100,11 @@ Usz = 20 # upper limit on |u|
 Wmax = .01
 initial_vol = 10
 
-contraction = 1.0;
+contraction = 0.8; #1.0
 
-initial_vol_span = 1:2:100 #10 .^ (0:0.1:2);
+initial_vol_span = 1:2:100#100 #10 .^ (0:0.1:2);
 Wmax_span = 0:0.01:0.05;
-contraction_span = 0.9:0.01:1.2;
+contraction_span = 0.9:0.01:1.0#1.2;
 
 cost_vector = zeros(length(initial_vol_span),length(contraction_span));
 sr_vector = zeros(length(initial_vol_span),length(contraction_span));
@@ -114,7 +114,7 @@ sr_dist_vector = zeros(length(initial_vol_span),length(Wmax_span));
 
 for i=1:length(initial_vol_span)
       for j=1:length(contraction_span)
-            has_transition, cost, sr = trial(dt,Usz,Wmax,contraction_span[j],initial_vol_span[i])
+            has_transition, cost, sr = trial(dt, Usz, Wmax, contraction_span[j], initial_vol_span[i])
             if has_transition
                   cost_vector[i,j] = cost
                   sr_vector[i,j] = sr
@@ -127,7 +127,7 @@ end
 
 for i=1:length(initial_vol_span)
       for j=1:length(Wmax_span)
-            has_transition, cost, sr = trial(dt,Usz,Wmax_span[j],contraction,initial_vol_span[i])
+            has_transition, cost, sr = trial(dt, Usz, Wmax_span[j], contraction, initial_vol_span[i])
             if has_transition
                   cost_dist_vector[i,j] = cost
                   sr_dist_vector[i,j] = sr
@@ -139,59 +139,44 @@ for i=1:length(initial_vol_span)
 end
 
 
-using PyPlot
-PyPlot.pygui(true) 
-
-PyPlot.rc("text",usetex=true)
-PyPlot.rc("text.latex",preamble="\\usepackage{amsfonts}")
-
-fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-ax = PyPlot.axes()
-#ax.set_xscale("log")
-CS = PyPlot.contour(initial_vol_span,contraction_span,cost_vector')
-PyPlot.clabel(CS, inline=1, fontsize=10)
-PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
-PyPlot.ylabel("\$\\eta\$", fontsize=14)
-PyPlot.title("\$\\widetilde{\\mathcal{J}}\$", fontsize=14)
-#plt.savefig("ex1_cost.eps", format="eps")
+levels = [10,12,14,16,18,20,22]
+c = contour(initial_vol_span, contraction_span, cost_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
+xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
+xlabel!("vol \$(\\mathbb{B}_s)\$")
+ylabel!("\$\\eta\$")
+title!("\$\\widetilde{\\mathcal{J}}\$")
+display(c)
+# savefig("ex1_cost.png")
 
 
+levels = 6
+c = contour(initial_vol_span, Wmax_span, sr_dist_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
+xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
+xlabel!("\${\\rm vol}(\\mathbb{B}_s)\$")
+ylabel!("\$\\omega_{\\max}\$")
+title!("\$\\rho(A_{\\rm cl})\$")
+display(c)
+# savefig("ex1_sr_omega.png")
 
 
-# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-# ax = PyPlot.axes()
-# #ax.set_xscale("log")
-# CS = PyPlot.contour(initial_vol_span,Wmax_span,sr_dist_vector')
-# PyPlot.clabel(CS, inline=1, fontsize=10)
-# PyPlot.xlabel("\${\\rm vol}(\\mathbb{B}_s)\$", fontsize=14)
-# PyPlot.ylabel("\$\\omega_{\\max}\$", fontsize=14)
-# PyPlot.title("\$\\rho(A_{\\rm cl})\$", fontsize=14)
+levels = 6
+c = contour(initial_vol_span, contraction_span, sr_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
+xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
+xlabel!("vol \$(\\mathbb{B}_s)\$")
+ylabel!("\$\\eta\$")
+title!("\$\\rho(A_{\\rm cl})\$")
+display(c)
+# savefig("ex1_sr.png")
 
 
-
-#plt.savefig("ex1_sr_omega.eps", format="eps")
-
-
-
-# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-# ax = PyPlot.axes()
-# #ax.set_xscale("log")
-# CS = PyPlot.contour(initial_vol_span,contraction_span,sr_vector')
-# PyPlot.clabel(CS, inline=1, fontsize=10)
-# PyPlot.xlabel("vol")
-# PyPlot.ylabel("contraction")
-# PyPlot.title("specrad")
-
-# #plt.savefig("ex1_sr.eps", format="eps")
+levels = 6
+c = contour(initial_vol_span, Wmax_span, cost_dist_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
+xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
+xlabel!("vol \$(\\mathbb{B}_s)\$")
+ylabel!("\$\\omega_{max}\$")
+title!("\$\\widetilde{\\mathcal{J}}\$")
+display(c)
+# savefig("ex1_cost_omega.png")
 
 
 
-# fig = PyPlot.figure(tight_layout=true, figsize=(3,3))
-# ax = PyPlot.axes()
-# #ax.set_xscale("log")
-# CS = PyPlot.contour(initial_vol_span,Wmax_span,cost_dist_vector')
-# PyPlot.clabel(CS, inline=1, fontsize=10)
-# PyPlot.xlabel("vol")
-# PyPlot.ylabel("ommax")
-# PyPlot.title("cost")
-# #plt.savefig("ex1_cost_omega.eps", format="eps")

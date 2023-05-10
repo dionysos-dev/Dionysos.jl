@@ -30,6 +30,10 @@ function get_dims(elli::Ellipsoid)
     return length(elli.c)
 end
 
+function get_root(elli::Ellipsoid)
+    return sqrtm(elli.P)
+end
+
 function centerDistance(elli1::Ellipsoid,elli2::Ellipsoid)
     return norm(get_center(elli1)-get_center(elli2))
 end
@@ -63,12 +67,97 @@ function expand(elli::Ellipsoid, α)
     return Ellipsoid(elli.P*(1/α),elli.c)
 end
 
-function plotE!(elli::Ellipsoid; color=:blue, opacity=1.0, label="")
+function transform(elli::Ellipsoid, A, b)
+    return Ellipsoid(A'\elli.P/A, A*elli.c+b) 
+end
+
+# return the ellidpoid f(Ε) where E = {x : (x-c)'P(x-c) <= 1} and f(x) = Ax+B
+# with A invertible
+function affine_transformation(elli::Ellipsoid, A, b)
+    return Ellipsoid(A'\elli.P/A, A*elli.c+b) 
+end
+
+# get the point along the i largest axis
+function get_axis_points(elli::Ellipsoid, i)
+    specDecomp = eigen(elli.P)
+    vals = specDecomp.values
+    vectors = specDecomp.vectors
+
+    # Trouver l'indice de la plus grande valeur propre
+    sorted_indices = sortperm(vals)
+    index = sorted_indices[i]
+    # Extraire le vecteur propre correspondant
+    vp = vectors[:,index]
+    # Calculer la longueur de l'axe
+    l = 1/sqrt(vals[index])
+    # Calculer les coordonnées des deux points
+    p1 = elli.c - l * vp
+    p2 = elli.c + l * vp
+    return p1, p2
+end
+
+# get the point aling the axis, from the largest
+function get_all_axis_points(elli::Ellipsoid)
+    specDecomp = eigen(elli.P)
+    vals = specDecomp.values
+    vectors = specDecomp.vectors
+    # Trouver l'indice de la plus grande valeur propre
+    sorted_indices = sortperm(vals)
+    L = []
+    for i in 1:length(vals)
+        index = sorted_indices[i]
+        # Extraire le vecteur propre correspondant
+        vp = vectors[:,index]
+        # Calculer la longueur de l'axe
+        l = 1/sqrt(vals[index])
+        # Calculer les coordonnées des deux points
+        p1 = elli.c - l * vp
+        p2 = elli.c + l * vp
+        push!(L, (p1,p2))
+    end
+    return L
+end
+
+# get the radius of the largest ball that is inscribed in an ellipsoid of the i largest
+# function with argument 1 returns the length of the longest semi-axis of the ellipsoid. 
+function get_length_semiaxis_sorted(elli::Ellipsoid, i)
+    specDecomp = eigen(elli.P)
+    vals = specDecomp.values
+    sorted_vals = sort(vals)
+    return 1/sqrt(sorted_vals[i])
+end
+
+function get_length_semiaxis(elli::Ellipsoid, i)
+    specDecomp = eigen(elli.P)
+    vals = specDecomp.values
+    return 1/sqrt(vals[i])
+end
+
+function get_length_semiaxis(elli::Ellipsoid)
+    specDecomp = eigen(elli.P)
+    vals = specDecomp.values
+    return 1 ./sqrt.(vals)
+end
+
+function get_inscribed_ball(elli::Ellipsoid)
+    r = get_length_semiaxis_sorted(elli, 1)
+    I_elli = Matrix{Float64}(I, size(elli.P)...)
+    return Ellipsoid((1/(r*r))*I_elli, elli.c)
+end
+
+function plotE!(elli::Ellipsoid; color=:blue, opacity=1.0, label="",lw=1,lc=:black)
     P = get_shape(elli)
     Q = inv(P)
     Q = (Q+Q')./2
-    E = LazySets.Ellipsoid(get_center(elli), Q) #not optimal, require to inverse
-    Plots.plot!(E; color=color, opacity=opacity, label=label)
+    E = LazySets.Ellipsoid(collect(get_center(elli)), Q) #not optimal, require to inverse
+    Plots.plot!(E; color=color, opacity=opacity, label=label,lw=lw,lc=lc)
+end
+
+function plotAxis!(elli::Ellipsoid; color1=:black, color2=:black)
+    p1, p2 = get_axis_points(elli, 1)
+    plot_segment!(p1, p2; color=color1)
+    p1, p2 = get_axis_points(elli, 2)
+    plot_segment!(p1, p2; color=color2)
 end
 
 

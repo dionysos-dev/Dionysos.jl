@@ -29,7 +29,6 @@ function check_intersection(El0,El)
     display(p)
 end
 
-
 a = 2.5 #0.8 #1.2 #1.52 #2.5 
 c0 = [1.6+a; 1.4+a]
 P0 = [0.4 -0.1;

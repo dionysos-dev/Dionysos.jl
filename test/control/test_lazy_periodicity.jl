@@ -160,7 +160,7 @@ function build_heuristic_data(X,contsys,Udom,_I_)
     symmodel = SY.symmodelAS(Xdom,Udom,contsys,minimum_transition_cost,get_transitions)
     # build the heurisitic
     initlist = SY.get_symbol(symmodel,_I_,DO.OUTER)
-    heuristic_data = SY.build_heuristic(symmodel,initlist)
+    heuristic_data = SY.build_heuristic(symmodel, initlist)
     return heuristic_data
 end
 

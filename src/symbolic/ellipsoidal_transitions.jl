@@ -362,9 +362,12 @@ end
 
 # U: each entry of U is a quadratic constraint on the input
 # W: each column is vertex of the polytopic noise 
-function transition_fixed(A, B, g, U, W, S, c1, P1, c2, P2, optimizer)
+# x(k+1) = Ax(k)+Bu(k)+g+Ew(k), with u(k)∈E(0,U^T U), w(k)∈W
+# W[:,i] = vertex i of the polytop
+function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
+    W = D*W
     eye(n) = diagm(ones(n))
-    nx = length(g); # dimension of the state
+    nx = length(c); # dimension of the state
     nu = size(U[1],2); # dimension of the input
     nw = size(W,1); # dimension of the noise (not use for now, we could add matrix of the noise)
     Nu = length(U); # number of quadratic input constraints
@@ -380,7 +383,7 @@ function transition_fixed(A, B, g, U, W, S, c1, P1, c2, P2, optimizer)
 
     @expressions(model, begin
         At, A+B*K
-        gt, g+B*ell
+        ct, c+B*ell
     end)
 
 
@@ -389,7 +392,7 @@ function transition_fixed(A, B, g, U, W, S, c1, P1, c2, P2, optimizer)
     
     for i in 1:Nw
         w = W[:,i];
-        aux = A*hcat(c1)+hcat(gt)-hcat(c2)+hcat(w)
+        aux = A*hcat(c1)+hcat(ct)-hcat(c2)+hcat(w)
         @constraint(model,
             [beta[i]*P1        z         t(At)
             t(z)        1-beta[i]        t(aux)
@@ -422,7 +425,7 @@ function transition_fixed(A, B, g, U, W, S, c1, P1, c2, P2, optimizer)
 end
 
 function transition_fixed(affsys::AffineSys, E1::UT.Ellipsoid, E2::UT.Ellipsoid, U, W, S, optimizer)
-    return transition_fixed(affsys.A, affsys.B, affsys.c, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
+    return transition_fixed(affsys.A, affsys.B, affsys.c, affsys.D, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
 end
 
 function _getμν(L, nx, D, W)
@@ -431,12 +434,12 @@ end
 
 # the dynamic: Ax+Bu+g+Dw
 # linearization point: (̄x,̄u, w) = (c,u,0)
-# inputs constarints: u
+# inputs constraint: u
 # polytopic noise: W
 # objective function: S
-function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=0.01)
+function transition_backward(A, B, c, D, c2, P2, c1, u, U, W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=0.01)
     eye(n) = diagm(ones(n))
-    nx = length(g); #dimension of the state
+    nx = length(c); #dimension of the state
     nu = size(U[1],2); #dimension of the input
     μ, ν = _getμν(Lip, nx, D, W)
     Nx = length(μ); #number of vertex of the hyperrectangle: 2^nx
@@ -457,7 +460,7 @@ function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; 
 
     @expressions(model, begin
         At, A*L+B*F
-        gt, g+B*ell
+        ct, c+B*ell
     end)
 
 
@@ -466,11 +469,11 @@ function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; 
     
     for i in 1:Nx
         for j in 1:Nw
-            aux = @expression(model, A*hcat(c)+hcat(gt)-hcat(ct)+hcat(Vector(μ[i]))*(δx+δu) +hcat(Vector(ν[j])))
+            aux = @expression(model, A*hcat(c1)+hcat(ct)-hcat(c2)+hcat(Vector(μ[i]))*(δx+δu) +hcat(Vector(ν[j])))
             @constraint(model,
                 [beta[i,j]*eye(nx)        z         t(At)
                 t(z)                1-beta[i,j]    t(aux)
-                At                  aux           inv(Pt) ] >= eye(2*nx+1)*1e-4, PSDCone())
+                At                  aux           inv(P2) ] >= eye(2*nx+1)*1e-4, PSDCone())
         end
     end
     
@@ -484,8 +487,8 @@ function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; 
     n_S = size(S,1);
     @constraint(model,
     [γ*eye(nx)                z           [t(L) t(F) z]*t(S)
-     t(z)                   J-γ          [t(c) t(ell) 1]*t(S)
-     S*t([t(L) t(F) z])    S*t([t(c) t(ell) 1])        eye(n_S)       ] >= eye(nx+n_S+1)*1e-4, PSDCone())
+     t(z)                   J-γ          [t(c1) t(ell) 1]*t(S)
+     S*t([t(L) t(F) z])    S*t([t(c1) t(ell) 1])        eye(n_S)       ] >= eye(nx+n_S+1)*1e-4, PSDCone())
      
      u=hcat(u)
      @constraint(model,
@@ -521,10 +524,10 @@ function transition_backward(A, B, g, D, ct, Pt, c, u, U, W, S, Lip, optimizer; 
     return P, kappa, cost 
 end
 
-function transition_backward(affsys::AffineSys, Et::UT.Ellipsoid, c, u, U, S, Lip, optimizer; maxδx=100, maxδu=10.0*2, λ=0.01)
-    P, kappa, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, Et.c, Et.P, c, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
-    if P!==nothing
-        return UT.Ellipsoid(P, c), kappa, cost
+function transition_backward(affsys::AffineSys, E2::UT.Ellipsoid, c1, u, U, S, Lip, optimizer; maxδx=100, maxδu=10.0*2, λ=0.01)
+    P1, kappa, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, E2.c, E2.P, c1, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
+    if P1!==nothing
+        return UT.Ellipsoid(P1, c1), kappa, cost
     else
         return nothing, nothing, nothing 
     end
@@ -532,34 +535,61 @@ end
 
 
 
+# # data-driven check
+# function check_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=500)
+#     samples = UT.sample_ellipsoid(E1; N=N)
+#     wnew = zeros(2)
+#     for x in samples
+#         unew = kappa*[x-E1.c;1]
+#         xnew = f_eval(x, unew, wnew, Ts)
+#         if !(xnew ∈ E2)
+#             return false
+#         end
+#     end
+#     return true
+# end
+
 # data-driven check
-function check_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=500)
+function check_controller(E1::UT.Ellipsoid, E2::UT.Ellipsoid, f_eval, c_eval, nw, Uset; N=500)
     samples = UT.sample_ellipsoid(E1; N=N)
-    wnew = zeros(2)
+    wnew = zeros(nw)
     for x in samples
-        unew = kappa*[x-E1.c;1]
-        xnew = f_eval(x, unew, wnew, Ts)
+        unew = c_eval(x)
+        if !(unew ∈ Uset)
+            println("Not feasible input")
+            return false
+        end
+        xnew = f_eval(x, unew, wnew)
         if !(xnew ∈ E2)
+            println("Not in the target ellipsoid")
             return false
         end
     end
     return true
 end
 
-# data-driven check
-function plot_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=10)
+# data-driven plot
+function plot_transitions!(E1::UT.Ellipsoid, f_eval, c_eval, nw; N=100)
     samples = UT.sample_ellipsoid(E1; N=N)
-    wnew = zeros(2)
+    wnew = zeros(nw)
+    for x in samples
+        unew = c_eval(x)
+        xnew = f_eval(x, unew, wnew)
+        UT.plot_arrow!(x, xnew, color=:black)
+    end
+end
+
+# data-driven plot
+function plot_check(E1::UT.Ellipsoid, f_eval, c_eval, nw, E2::UT.Ellipsoid; N=100)
     p = plot(aspect_ratio=:equal)
     UT.plotE!(E1, color=:green)
     UT.plotE!(E2, color=:red)
-    for x in samples
-        unew = kappa*[x-E1.c;1]
-        xnew = f_eval(x, unew, wnew, Ts)
-        UT.plot_arrow!(x, xnew, color=:black)
-    end
+    plot_transitions!(E1, f_eval, c_eval, nw; N=N)
     display(p)
 end
+
+
+
 
 # data-driven check
 function plot_controller_cost(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts, f_cost; N=10)
