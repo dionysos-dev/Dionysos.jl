@@ -30,6 +30,10 @@ function get_dims(elli::Ellipsoid)
     return length(elli.c)
 end
 
+function get_root(elli::Ellipsoid)
+    return sqrtm(elli.P)
+end
+
 function centerDistance(elli1::Ellipsoid,elli2::Ellipsoid)
     return norm(get_center(elli1)-get_center(elli2))
 end
@@ -64,6 +68,12 @@ function expand(elli::Ellipsoid, α)
 end
 
 function transform(elli::Ellipsoid, A, b)
+    return Ellipsoid(A'\elli.P/A, A*elli.c+b) 
+end
+
+# return the ellidpoid f(Ε) where E = {x : (x-c)'P(x-c) <= 1} and f(x) = Ax+B
+# with A invertible
+function affine_transformation(elli::Ellipsoid, A, b)
     return Ellipsoid(A'\elli.P/A, A*elli.c+b) 
 end
 
@@ -139,7 +149,7 @@ function plotE!(elli::Ellipsoid; color=:blue, opacity=1.0, label="",lw=1,lc=:bla
     P = get_shape(elli)
     Q = inv(P)
     Q = (Q+Q')./2
-    E = LazySets.Ellipsoid(get_center(elli), Q) #not optimal, require to inverse
+    E = LazySets.Ellipsoid(collect(get_center(elli)), Q) #not optimal, require to inverse
     Plots.plot!(E; color=color, opacity=opacity, label=label,lw=lw,lc=lc)
 end
 

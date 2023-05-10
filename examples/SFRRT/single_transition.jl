@@ -7,6 +7,9 @@ using StaticArrays
 using LinearAlgebra
 using Plots
 using SDPA, JuMP
+using IntervalArithmetic
+UT = Dionysos.Utils
+SI = Dionysos.Symbolic
 
 
 lib = CDDLib.Library() #polyhedron lib
@@ -17,74 +20,130 @@ sv(M) = SVector{size(M,1)}(M)
 
 optimizer = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
-function trial(dt,Usz,Wmax,contraction,initial_vol)
-      # Define system
-      Ac = sm([0.0  1.0  0.0;
-               0.0  0.0  1.0;
-               1.0 -1.0 -1.0]);
+# convert square box into intersection of degenerated ellipsoids
+# square box [-x,x]
+function convert_H_into_E(Ub::IntervalBox)
+    nu = length(Ub)
+    Uaux = diagm(1:nu)
+    U = [(Uaux.==i)./Ub[i].hi for i in 1:nu]
 
-      Bc = sm([0.0; 0.0; 1.0]);
+    return U
+end
 
-      gc = sv(zeros(3,1))
-
-      n_sys = 3
-      n_u = 1; 
-
-      Ze = zeros(n_u+1,n_sys+n_u+1)
-
-      M_aux = exp(vcat([Ac Bc gc],Ze)*dt)
+function get_controllers_matrices(m)
+    return m[:, 1:end-1], m[:, end]
+end
 
 
-      A = M_aux[1:n_sys,1:n_sys];
+function get_f_eval(sys)
+    return f_eval(x, u, w) = sys.A*x+sys.B*u+sys.D*w+sys.c
+end
+function get_c_eval(kappa, c)
+    K, ℓ = get_controllers_matrices(kappa)
+    return c_eval(x) = K*(x-c)+ℓ
+end
 
-      B = M_aux[1:n_sys,n_sys.+(1:n_u)]
-      g = M_aux[1:n_sys,n_sys+n_u+1];
+# for a two-dimensional state space system
+function plot_results_2D(sys, kappa, E1, E2)
+    aff_sys = sys.constrainedAffineSys
+    f_eval = get_f_eval(aff_sys)
+    c_eval = get_c_eval(kappa, E1.c)
+    
+    p = plot(aspect_ratio=:equal)
+    UT.plotE!(E1, color=:green)
+    UT.plotE!(E2, color=:blue)
+    K, ℓ = get_controllers_matrices(kappa)
+    Ef = UT.affine_transformation(E1, aff_sys.A+aff_sys.B*K, aff_sys.B*ℓ+aff_sys.c)
+    UT.plotE!(Ef, color=:red)
+    SI.plot_transitions!(E1, f_eval, c_eval, 1; N=100)
+    display(p)
+end
 
-      Uaux = diagm(1:n_u)
-      U = [(Uaux.==i)./Usz for i in 1:n_u];
+function trial(dt, Ubound, Wmax, contraction, initial_vol)
+    ########## PWA approximation description ##########
+    Ac = sm([0.0  1.0;;
+             1.0 -1.0]);
+
+    Bc = sm([1.0; 1.0]);
+
+    gc = sv(zeros(2,1))
+
+    E = sm([1.0; 1.0]);
+    nx = 2
+    nu = 1
+    nw = 1 
+
+    xbar = zeros(nx)
+    ubar = zeros(nu)
+    wbar = zeros(nw)
+    ΔX = IntervalBox(-1.0..1.0, nx) 
+    ΔU = IntervalBox(-10*2..10*2, nu)
+    ΔW = IntervalBox(-0.0..0.0, nw)
+    X̄ =  IntervalBox(xbar .+ ΔX)
+    Ū =  IntervalBox(ubar .+ ΔU)
+    W̄ =  IntervalBox(wbar .+ ΔW)
+    L = [0.0;0.0;0.0]
+
+    ########## Inputs description ##########
+    #Ubound = 10
+    Ub = IntervalBox(-Ubound..Ubound, nu)
+    U = convert_H_into_E(Ub)
+    println(U)
+    ########## Noise description ##########
+    W = Wmax*[-1 1]
+    ########## Cost description ##########
+    S = Matrix{Float64}(I(nx+nu+1))
+
+    ########## Ellipsoids ##########
+    E1 = UT.Ellipsoid(Matrix{Float64}(I(nx)), [0.0;0.0])
+    E2 = UT.Ellipsoid(Matrix{Float64}(I(nx))*(1/15), [3.0;3.0])
+
+    ################################################################################
+    sys = Dionysos.System.build_AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
+    has_transition, kappa, cost = Dionysos.Symbolic.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
+    sr = 1.0
+    println("Has transition: $(has_transition)")
+    if has_transition
+        #println("K:\t $(K)\nell:\t $(ell)")
+        println("cost:\t $(cost)")
+        println("s.r.:\t $(sr)")
+    end
+
+    f_eval = get_f_eval(sys.constrainedAffineSys)
+    c_eval = get_c_eval(kappa, E1.c)
+
+    bool = SI.check_controller(E1, E2, f_eval, c_eval, nw, Ub; N=500) 
+    println(bool)
+    println(kappa)
+
+
+    
+    plot_results_2D(sys, kappa, E1, E2)
+    K, ℓ = get_controllers_matrices(kappa)
+    EU = UT.affine_transformation(E1, K, ℓ)
+    println(EU)
+    println(Ub)
+    # p = plot(aspect_ratio=:equal)
+    # #UT.plotE!(EU)
+
+    # U = sm([1/10.0])
+    # println("JULIEN CALBERT")
+    # println(size(U))
+    # c = [0.0]
+    # UEllipsoid = UT.DegenerateEllipsoid(U, c)
+    # UT.plotE!(UEllipsoid)
+    
+    # #plot!(Ub)
+    # display(p)
 
 
 
+    println()
 
-      W = Wmax*hcat(collect.(vec(collect(Iterators.product(eachrow(repeat([-1 1],n_sys))...))))...); # polytope of disturbances
+    
 
-      L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
-
-
-
-
-      repX = intersect(HalfSpace(SVector{n_sys}(zeros(n_sys,1)), 0))
-      pX = polyhedron(repX, lib);
-
-      repU = HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩ HalfSpace(SVector{n_u}([1.0]), Usz) 
-      pU = polyhedron(repU, lib);
-
-      system = ConstrainedAffineControlDiscreteSystem(A, B, g, pX, pU) 
-
-      is_controllable, K0, P0, gamma = Dionysos.Symbolic._provide_P(system, optimizer);
-
-      vol_P0 = Dionysos.Symbolic.ellipsoid_vol(P0,1)
-      P = P0*(vol_P0/initial_vol)^(2/n_sys)
-      #println(round.(P,digits=4))
-      Pp = P*contraction
-      c = hcat([0.0;0.0;0.0]);
-      #cp =B*5
-      cp =hcat([0.1;0.5;1.9]);
-      if (cp'P*cp)[1] ≤ 1
-            println("cp in B_s")
-      end
-
-      has_transition, cost, kappa = Dionysos.Symbolic._has_transition(system,P,c,Pp,cp,W,L,U,optimizer)
-      K = kappa[:,1:n_sys];
-      ell = kappa[:,n_sys+1];
-      sr = max(abs.(eigen(A+B*K).values)...);
-      println("Has transition: $(has_transition)")
-      if has_transition
-            println("K:\t $(K)\nell:\t $(ell)")
-            println("cost:\t $(cost)")
-            println("s.r.:\t $(sr)")
-      end
-      return has_transition, cost, sr
+    #SI.plot_check(E1, f_eval, c_eval, 1, E2; N=100)
+    #return has_transition, cost, sr
 end
 
 
@@ -94,89 +153,39 @@ end
 # - contraction 
 
 dt = 0.5
-
-Usz = 20 # upper limit on |u|
-
-Wmax = .01
+Ubound = 10.0 # upper limit on |u|
+Wmax = 0.0
 initial_vol = 10
+contraction = 0.8 #1.0
 
-contraction = 0.8; #1.0
-
-initial_vol_span = 1:2:100#100 #10 .^ (0:0.1:2);
-Wmax_span = 0:0.01:0.05;
-contraction_span = 0.9:0.01:1.0#1.2;
-
-cost_vector = zeros(length(initial_vol_span),length(contraction_span));
-sr_vector = zeros(length(initial_vol_span),length(contraction_span));
-
-cost_dist_vector = zeros(length(initial_vol_span),length(Wmax_span));
-sr_dist_vector = zeros(length(initial_vol_span),length(Wmax_span));
-
-for i=1:length(initial_vol_span)
-      for j=1:length(contraction_span)
-            has_transition, cost, sr = trial(dt, Usz, Wmax, contraction_span[j], initial_vol_span[i])
-            if has_transition
-                  cost_vector[i,j] = cost
-                  sr_vector[i,j] = sr
-            else
-                  cost_vector[i,j] = Inf
-                  sr_vector[i,j] = Inf
-            end
-      end
-end
-
-for i=1:length(initial_vol_span)
-      for j=1:length(Wmax_span)
-            has_transition, cost, sr = trial(dt, Usz, Wmax_span[j], contraction, initial_vol_span[i])
-            if has_transition
-                  cost_dist_vector[i,j] = cost
-                  sr_dist_vector[i,j] = sr
-            else
-                  cost_dist_vector[i,j] = Inf
-                  sr_dist_vector[i,j] = Inf
-            end
-      end
-end
+trial(dt, Ubound, Wmax, contraction, initial_vol)
 
 
-levels = [10,12,14,16,18,20,22]
-c = contour(initial_vol_span, contraction_span, cost_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
-xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
-xlabel!("vol \$(\\mathbb{B}_s)\$")
-ylabel!("\$\\eta\$")
-title!("\$\\widetilde{\\mathcal{J}}\$")
-display(c)
-# savefig("ex1_cost.png")
 
 
-levels = 6
-c = contour(initial_vol_span, Wmax_span, sr_dist_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
-xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
-xlabel!("\${\\rm vol}(\\mathbb{B}_s)\$")
-ylabel!("\$\\omega_{\\max}\$")
-title!("\$\\rho(A_{\\rm cl})\$")
-display(c)
-# savefig("ex1_sr_omega.png")
 
+# ########## PWA approximation description ##########
+# Ac = sm([0.0  1.0  0.0;
+# 0.0  0.0  1.0;
+# 1.0 -1.0 -1.0]);
 
-levels = 6
-c = contour(initial_vol_span, contraction_span, sr_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
-xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
-xlabel!("vol \$(\\mathbb{B}_s)\$")
-ylabel!("\$\\eta\$")
-title!("\$\\rho(A_{\\rm cl})\$")
-display(c)
-# savefig("ex1_sr.png")
+# Bc = sm([0.0; 0.0; 1.0]);
 
+# gc = sv(zeros(3,1))
 
-levels = 6
-c = contour(initial_vol_span, Wmax_span, cost_dist_vector', levels=levels, color=:viridis, clabels=true, cbar=true, lw=3, 
-xtickfontsize=10, ytickfontsize=10, guidefontsize=18, titlefontsize=19)
-xlabel!("vol \$(\\mathbb{B}_s)\$")
-ylabel!("\$\\omega_{max}\$")
-title!("\$\\widetilde{\\mathcal{J}}\$")
-display(c)
-# savefig("ex1_cost_omega.png")
+# E = sm([1.0; 1.0; 1.0]);
+# nx = 3
+# nu = 1
+# nw = 1 
 
-
+# xbar = zeros(nx)
+# ubar = zeros(nu)
+# wbar = zeros(nw)
+# ΔX = IntervalBox(-1.0..1.0, nx) 
+# ΔU = IntervalBox(-10*2..10*2, nu)
+# ΔW = IntervalBox(-0.0..0.0, nw)
+# X̄ =  IntervalBox(xbar .+ ΔX)
+# Ū =  IntervalBox(ubar .+ ΔU)
+# W̄ =  IntervalBox(wbar .+ ΔW)
+# L = [0.0;0.0;0.0]
 
