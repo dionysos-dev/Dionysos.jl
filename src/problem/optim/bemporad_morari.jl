@@ -39,6 +39,17 @@ end
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
+    if param.name == "problem"
+        err = nothing
+        if !(value isa Problem.OptimalControlProblem)
+            err = "$(typeof(value)) not supported"
+        elseif !isfinite(value.time)
+            err = "Infinite time not supported"
+        end
+        if !isnothing(err)
+            throw(MOI.UnsupportedAttribute(param, err))
+        end
+    end
     setproperty!(model, Symbol(param.name), value)
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
