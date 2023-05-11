@@ -14,6 +14,12 @@ edges(g::Digraph)    = g.edges
  
 neighbours(g::Digraph, v) = Set((b, c) for ((a, b), c) in edges(g) if a == v)
  
+
+
+# return 
+# -the path: rst = [source p2 ... dest]
+# -the cost from source to every element in the path: cost = Dict{source=>c0, p2=>c1, p3=>c2,...}
+#  where c0 = 0.0, c1 is the cost from source to p2,  c2 is the cost from source to p3,...
 function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
     @assert source ∈ vertices(g) "$source is not a vertex in the graph"
  
@@ -59,21 +65,3 @@ end
 function reverse_graph(gc)
     return gc
 end
- 
-# testgraph = [("a", "b", 1), ("b", "e", 2), ("a", "e", 4)]
-# testgraph = [("a", "b", 7.1),  ("a", "c", 9.5),  ("a", "f", 14.5), ("b", "c", 10.5),
-#              ("b", "d", 15.5), ("c", "d", 20.5), ("c", "f", 2.5),  ("d", "e", 26.5),
-#              ("e", "f", 9.5),("e", "g", 9.5)]
-# g = Digraph(testgraph)
-
-# src, dst = "a", "g"
-# path, cost = dijkstrapath(g, src, dst)
-# println("Shortest path from $src to $dst: ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost)")
- 
-# Print all possible paths
-# @printf("\n%4s | %3s | %s\n", "src", "dst", "path")
-# @printf("----------------\n")
-# for src in vertices(g), dst in vertices(g)
-#     path, cost = dijkstrapath(g, src, dst)
-#     @printf("%4s | %3s | %s\n", src, dst, isempty(path) ? "no possible path" : join(path, " → ") * " ($cost)")
-# end

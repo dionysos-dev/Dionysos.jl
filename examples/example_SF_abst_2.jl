@@ -10,11 +10,17 @@ using SDPA, Ipopt, JuMP
 using Test
 
 
+# Example of ellipsoidal based abstraction
+
 if !isdefined(@__MODULE__, :Usz)
       Usz = 50 # upper limit on |u|
       Wsz = 5
       n_step = 5 # discretization of one unit of space
 end
+
+Usz = 50 # upper limit on |u|
+Wsz = 5
+n_step = 5 # discretization of one unit of space
 
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
@@ -110,8 +116,8 @@ testgraph = transFdict(transitionCost) # uses said function
 # control design
 src, dst = initlist[1], finallist[1] # initial and goal sets
 rev_graph = [(t[2],t[1],t[3]) for t in testgraph]
-gc = Dionysos.Search.Digraph(rev_graph) 
-@time rev_path, cost = Dionysos.Search.dijkstrapath(gc, dst, src) # gets optimal path
+gc = Dionysos.Utils.Digraph(rev_graph) 
+@time rev_path, cost = Dionysos.Utils.dijkstrapath(gc, dst, src) # gets optimal path
 path = reverse(rev_path)
 println("Shortest path from $src to $dst: ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost[dst])")
 
