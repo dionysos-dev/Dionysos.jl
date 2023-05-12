@@ -7,7 +7,10 @@ using SemialgebraicSets
 using StaticArrays
 using LinearAlgebra
 using SDPA, Ipopt, JuMP
+using Plots, Colors
 using Test
+
+const UT = Dionysos.Utils
 
 
 # Example of ellipsoidal based abstraction
@@ -17,10 +20,6 @@ if !isdefined(@__MODULE__, :Usz)
       Wsz = 5
       n_step = 5 # discretization of one unit of space
 end
-
-Usz = 50 # upper limit on |u|
-Wsz = 5
-n_step = 5 # discretization of one unit of space
 
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
@@ -34,8 +33,8 @@ dt = 0.01;
 const problem = PWAsys.problem(lib, dt, Usz)
 const system = problem.system
 
-n_sys = size(system.resetmaps[1].A,1);
-n_u = size(system.resetmaps[1].B,2);
+n_sys = size(system.resetmaps[1].A, 1);
+n_u = size(system.resetmaps[1].B, 2);
 
 W = Wsz*[-1 -1  1 1;
          -1  1 -1 1]*dt; # polytope of disturbances
@@ -75,10 +74,10 @@ transitionKappa = Dict() #dictionary with controller associated each transition
 empty!(symmodel.autom)
 
 #building abstraction
-@time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
+@time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
-x0 = SVector{n_sys}(problem.initial_set); # initial condition
+x0 = SVector{n_sys}(problem.initial_set) # initial condition
 Xinit = Dionysos.Domain.DomainList(Xgrid)
 Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
 Xfinal = Dionysos.Domain.DomainList(Xgrid) # goal set
@@ -116,15 +115,17 @@ testgraph = transFdict(transitionCost) # uses said function
 # control design
 src, dst = initlist[1], finallist[1] # initial and goal sets
 rev_graph = [(t[2],t[1],t[3]) for t in testgraph]
-gc = Dionysos.Utils.Digraph(rev_graph) 
-@time rev_path, cost = Dionysos.Utils.dijkstrapath(gc, dst, src) # gets optimal path
+gc = UT.Digraph(rev_graph) 
+UT.add_states!(gc, [src, dst])
+
+@time rev_path, cost = UT.dijkstrapath(gc, dst, src) # gets optimal path
 path = reverse(rev_path)
 println("Shortest path from $src to $dst: ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost[dst])")
 
 ## converts path to Int64 and add to list of control actions
 for l = 1:length(path)-1
     new_action = (path[l], path[l+1])
-    Dionysos.Utils.push_new!(contr, new_action)
+    UT.push_new!(contr, new_action)
 end
 
 # Simulation
@@ -143,9 +144,9 @@ k = 1; #iterator
 costBound = 0;
 costTrue = 0;
 currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
-push!(state_traj,currState)
+push!(state_traj, currState)
 println("started at: $(currState)")
-while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reached max iter 
+while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While not at goal or not reached max iter 
       println("k: $(k)")
       next_action = nothing
       for action in contr.data
@@ -183,110 +184,175 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(costBound)")
 println("True cost:\t\t $(costTrue)")
 
-#Plotting  #######################################################
-
 @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
-      using PyPlot
-      include("../src/utils/plotting/plotting.jl")
-      PyPlot.pygui(true) 
+      ############# Figure 1 #############
 
-
-      PyPlot.rc("text",usetex=true)
-      PyPlot.rc("font",family="serif")
-      PyPlot.rc("font",serif="Computer Modern Roman")
-      PyPlot.rc("text.latex",preamble="\\usepackage{amsfonts}")
-      ##
-
-      fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
-
-      ax = PyPlot.axes(aspect = "equal")
-      ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-      ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-
-      vars = [1, 2];
-
-
-
-      Plot.domain_ellips!(ax, vars, P, domainX, fc = "none", ew = 0.5)
-
-
-      d=0.02;
+      fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+      xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+      ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+      vars = [1, 2]
+      Plots.plot!(domainX; dims=[1,2], color=:yellow, opacity=0.2)
       for t in symmodel.autom.transitions.data
             if isempty(t ∩ obstaclelist) 
-                  offset = randn(1)[1]*d
-                  arrow_x, arrow_y = Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_xpos_by_state(symmodel,t[2]))
-                  aux = (Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_upos_by_symbol(symmodel,t[1]))-[arrow_x, arrow_y])
-                  arrow_dx, arrow_dy = aux*(norm(aux)-0.15)/norm(aux)
-                  color = (abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)));
+                  color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
                   if t[1]==t[2]
-                        PyPlot.scatter(arrow_x, arrow_y, s=10, fc=color, ec=color)
+                        p1 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
+                        UT.plot_point!(p1; dims=vars, color=color)
                   else
-                        PyPlot.arrow(arrow_x+offset, arrow_y+offset, arrow_dx, arrow_dy,fc=color, ec=color,width=0.01, head_width=.08)
+                        p1 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
+                        p2 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[1]))
+                        UT.plot_arrow!(p1, p2; dims=vars, color=color)
                   end
             end
 
       end
-      PyPlot.xlabel("\$x_1\$", fontsize=14)
-      PyPlot.ylabel("\$x_2\$", fontsize=14)
-      PyPlot.title("Transitions", fontsize=14)
-      #plt.savefig("ex2_trans.eps", format="eps")
-      gcf() 
+      xlabel!("\$x_1\$")
+      ylabel!("\$x_2\$")
+      title!("Transitions")
+      # savefig("ex2_trans.png")
+      display(fig)
 
+      ############# Figure 2 #############
 
+      fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+      xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+      ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+      vars = [1, 2]
 
-      fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
-
-      ax = PyPlot.axes(aspect = "equal")
-      ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-      ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-
-      vars = [1, 2];
-
-      #Plot.domain_ellips!(ax, vars, P, domainX, fc = "none")
-      # for i=2:(k-1)
-      #       lyap_val = cost[(state_traj[i] ∩ path)[1]]
-      #       aux_dom = AB.DomainList(Xgrid)
-      #       AB.add_coord!(aux_dom, x_traj[:,i])
-      #       Plot.domain_ellips!(ax, vars, P, aux_dom, fc = (0.8*(costBound-lyap_val)/costBound, 0.8*lyap_val/costBound, 0.5))
-      # end
-      lyap_max = max(filter(isfinite,getfield.([cost...],:second))...)
-
-      cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...),dims=2))
-      for (lyap,state) in cost_ordered
-            aux_dom = Dionysos.Domain.DomainList(Xgrid)
-            x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
-            #println(state,": ",lyap)
-            Dionysos.Domain.add_coord!(aux_dom, x_aux)
+      LyapMax = max(filter(isfinite,getfield.([cost...],:second))...)
+      colormap = Colors.colormap("Blues")
+      mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
+      cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...), dims=2))
+      for (lyap, state) in cost_ordered
+            pos = Dionysos.Symbolic.get_xpos_by_state(symmodel, state)
+            elli = Dionysos.Domain.get_elem_by_pos(Xgrid, pos)
             if (lyap ≠ Inf)
-                  Plot.domain_ellips!(ax, vars, P, aux_dom,  ew = 0, fc = (0.4*lyap/lyap_max+0.5, 0.4*(lyap_max-lyap)/lyap_max+0.5, 0.75), fa=1.0)
-            end
-            
-      end
-      for (lyap,state) in cost_ordered
-            aux_dom = Dionysos.Domain.DomainList(Xgrid)
-            x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
-            #println(state,": ",lyap)
-            Dionysos.Domain.add_coord!(aux_dom, x_aux)
-            if (lyap == Inf)
-                  Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", ew = 0.2)
+                  UT.plotE!(elli, color=UT.get_color(mycolorMap, lyap))
             else
-                  Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", fa=1.0, ew = 0.2)
+                  UT.plotE!(elli, color=:yellow)
             end
-            
       end
-      Plot.domain_ellips!(ax, vars, P, Xinit, fc = "none", ew = 3)
-      Plot.domain_ellips!(ax, vars, P, Xfinal, fc = "none", ew = 3)
+      Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
+      Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
+      UT.plotE!(Einit, color=:green)
+      UT.plotE!(Etarget, color=:red)
+      Plots.plot!(Xobstacles, color=:black, opacity=1.0)
 
-      Plot.domain_ellips!(ax, vars, P, Xobstacles, fc = "black", ew = 0.5, fa=1.0)
+      trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
+      UT.plot_traj!(trajCoord, color=:black)
 
-      PyPlot.plot(x_traj[1,1:k],x_traj[2,1:k],"bo-",markersize=4)
-      cmap = PyPlot.ColorMap("mycolor",hcat([0.0,0.8,0.5,0.5],[0.8,0.0,0.5,0.5])');
-      PyPlot.colorbar(PyPlot.ScalarMappable(norm=PyPlot.cm.colors.Normalize(vmin=0, vmax=lyap_max),cmap=cmap),shrink=0.7)
-
-      PyPlot.xlabel("\$x_1\$", fontsize=14)
-      PyPlot.ylabel("\$x_2\$", fontsize=14)
-      PyPlot.title("Trajectory and Lyapunov-like Fun.", fontsize=14)
-      #plt.savefig("ex2_traj.pdf", format="pdf")
-      gcf() 
+      UT.plot_colorBar!(mycolorMap)
+      xlabel!("\$x_1\$")
+      ylabel!("\$x_2\$")
+      title!("Trajectory and Lyapunov-like Fun.")
+      # savefig("ex2_traj.png")
+      display(fig)
 
 end
+
+
+# @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
+#       using PyPlot
+#       include("../src/utils/plotting/plotting.jl")
+#       PyPlot.pygui(true) 
+
+
+#       PyPlot.rc("text",usetex=true)
+#       PyPlot.rc("font",family="serif")
+#       PyPlot.rc("font",serif="Computer Modern Roman")
+#       PyPlot.rc("text.latex",preamble="\\usepackage{amsfonts}")
+#       ##
+
+#       fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
+
+#       ax = PyPlot.axes(aspect = "equal")
+#       ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+#       ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+
+#       vars = [1, 2];
+
+
+
+#       Plot.domain_ellips!(ax, vars, P, domainX, fc = "none", ew = 0.5)
+
+
+#       d=0.02;
+#       for t in symmodel.autom.transitions.data
+#             if isempty(t ∩ obstaclelist) 
+#                   offset = randn(1)[1]*d
+#                   arrow_x, arrow_y = Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_xpos_by_state(symmodel,t[2]))
+#                   aux = (Dionysos.Domain.get_coord_by_pos(Xgrid,Dionysos.Symbolic.get_upos_by_symbol(symmodel,t[1]))-[arrow_x, arrow_y])
+#                   arrow_dx, arrow_dy = aux*(norm(aux)-0.15)/norm(aux)
+#                   color = (abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)));
+#                   if t[1]==t[2]
+#                         PyPlot.scatter(arrow_x, arrow_y, s=10, fc=color, ec=color)
+#                   else
+#                         PyPlot.arrow(arrow_x+offset, arrow_y+offset, arrow_dx, arrow_dy,fc=color, ec=color,width=0.01, head_width=.08)
+#                   end
+#             end
+
+#       end
+#       PyPlot.xlabel("\$x_1\$", fontsize=14)
+#       PyPlot.ylabel("\$x_2\$", fontsize=14)
+#       PyPlot.title("Transitions", fontsize=14)
+#       #plt.savefig("ex2_trans.eps", format="eps")
+#       gcf() 
+
+
+
+#       fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
+
+#       ax = PyPlot.axes(aspect = "equal")
+#       ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+#       ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+
+#       vars = [1, 2];
+
+#       #Plot.domain_ellips!(ax, vars, P, domainX, fc = "none")
+#       # for i=2:(k-1)
+#       #       lyap_val = cost[(state_traj[i] ∩ path)[1]]
+#       #       aux_dom = AB.DomainList(Xgrid)
+#       #       AB.add_coord!(aux_dom, x_traj[:,i])
+#       #       Plot.domain_ellips!(ax, vars, P, aux_dom, fc = (0.8*(costBound-lyap_val)/costBound, 0.8*lyap_val/costBound, 0.5))
+#       # end
+#       lyap_max = max(filter(isfinite,getfield.([cost...],:second))...)
+
+#       cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...),dims=2))
+#       for (lyap,state) in cost_ordered
+#             aux_dom = Dionysos.Domain.DomainList(Xgrid)
+#             x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
+#             #println(state,": ",lyap)
+#             Dionysos.Domain.add_coord!(aux_dom, x_aux)
+#             if (lyap ≠ Inf)
+#                   Plot.domain_ellips!(ax, vars, P, aux_dom,  ew = 0, fc = (0.4*lyap/lyap_max+0.5, 0.4*(lyap_max-lyap)/lyap_max+0.5, 0.75), fa=1.0)
+#             end
+            
+#       end
+#       for (lyap,state) in cost_ordered
+#             aux_dom = Dionysos.Domain.DomainList(Xgrid)
+#             x_aux = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
+#             #println(state,": ",lyap)
+#             Dionysos.Domain.add_coord!(aux_dom, x_aux)
+#             if (lyap == Inf)
+#                   Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", ew = 0.2)
+#             else
+#                   Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", fa=1.0, ew = 0.2)
+#             end
+            
+#       end
+#       Plot.domain_ellips!(ax, vars, P, Xinit, fc = "none", ew = 3)
+#       Plot.domain_ellips!(ax, vars, P, Xfinal, fc = "none", ew = 3)
+
+#       Plot.domain_ellips!(ax, vars, P, Xobstacles, fc = "black", ew = 0.5, fa=1.0)
+
+#       PyPlot.plot(x_traj[1,1:k],x_traj[2,1:k],"bo-",markersize=4)
+#       cmap = PyPlot.ColorMap("mycolor",hcat([0.0,0.8,0.5,0.5],[0.8,0.0,0.5,0.5])');
+#       PyPlot.colorbar(PyPlot.ScalarMappable(norm=PyPlot.cm.colors.Normalize(vmin=0, vmax=lyap_max),cmap=cmap),shrink=0.7)
+
+#       PyPlot.xlabel("\$x_1\$", fontsize=14)
+#       PyPlot.ylabel("\$x_2\$", fontsize=14)
+#       PyPlot.title("Trajectory and Lyapunov-like Fun.", fontsize=14)
+#       #plt.savefig("ex2_traj.pdf", format="pdf")
+#       gcf() 
+
+# end

@@ -1,10 +1,18 @@
 struct Colormap
     range::Vector{Float64}
     colormap::Vector{RGB{Float64}}
+    function Colormap(range, mycolor)
+        v1 = minimum(range)
+        v2 = maximum(range)
+        if abs(v2-v1)<=10e-8
+            v2 += 10e-2
+        end
+        return new([v1, v2], mycolor)
+    end
 end
 
 function Colormap(range)
-    return Colormap([min(range), max(range)],Colors.colormap("Blues"))
+    return Colormap(range, Colors.colormap("Blues"))
 end
 
 function get_color(colorMap::Colormap, val::Float64)

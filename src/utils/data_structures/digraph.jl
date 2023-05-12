@@ -1,20 +1,35 @@
-struct Digraph{T <: Real,U}
+mutable struct Digraph{T <: Real,U}
     edges::Dict{Tuple{U,U},T}
     verts::Set{U}
 end
  
+# constructor based on transitions
 function Digraph(edges::Vector{Tuple{U,U,T}}) where {T <: Real,U}
     vnames = Set{U}(v for edge in edges for v in edge[1:2])
     adjmat = Dict((edge[1], edge[2]) => edge[3] for edge in edges)
     return Digraph(adjmat, vnames)
 end
  
+function add_states!(g::Digraph{T,U}, states::Vector{U}) where {T <: Real,U}
+    vnames = Set{U}(v for v in states)
+    g.verts = g.verts∪vnames
+end
+
+function add_transitions!(g::Digraph{T,U}, edges::Vector{Tuple{U,U,T}}) where {T <: Real,U}
+    vnames = Set{U}(v for edge in edges for v in edge[1:2])
+    adjmat = Dict((edge[1], edge[2]) => edge[3] for edge in edges)
+    g.verts = g.verts∪vnames
+    g.edges = Dict(merge(g.edges, adjmat))
+end
+
 vertices(g::Digraph) = g.verts
 edges(g::Digraph)    = g.edges
  
 neighbours(g::Digraph, v) = Set((b, c) for ((a, b), c) in edges(g) if a == v)
  
-
+function is_state(g::Digraph, s)
+    return s∈vertices(g)
+end
 
 # return 
 # -the path: rst = [source p2 ... dest]
