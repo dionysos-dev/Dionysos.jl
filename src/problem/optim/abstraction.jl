@@ -259,8 +259,8 @@ function MOI.optimize!(optimizer::OptimizerEllipsoids)
 
     rev_graph = [(t[2],t[1],t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
 
-    gc = Dionysos.Search.Digraph(rev_graph) 
-    t = @elapsed rev_path, lyap_fun = Dionysos.Search.dijkstrapath(gc, dst, src) # gets optimal path
+    gc = Dionysos.Utils.Digraph(rev_graph) 
+    t = @elapsed rev_path, lyap_fun = Dionysos.Utils.dijkstrapath(gc, dst, src) # gets optimal path
     path = reverse(rev_path)
 
 

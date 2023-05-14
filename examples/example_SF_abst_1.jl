@@ -8,6 +8,9 @@ using LinearAlgebra
 using Plots
 using SDPA, JuMP
 
+# Example to illustrate the cost of a transition between two ellispoids as a function of meta-parameters
+# such as the volume of the initial ellispoid and the contraction factor
+
 
 lib = CDDLib.Library() #polyhedron lib
 # aux functions

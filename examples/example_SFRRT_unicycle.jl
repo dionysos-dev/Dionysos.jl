@@ -297,7 +297,7 @@ while !(X0 ∈ Xnew) && maxIter>0
         print("\t ")
         print(norm(X0.c-ElMin.c))
         print("\t ")
-        println(UT.volume(ElMin))
+        println(UT.get_volume(ElMin))
         if bestDist > dAux
             global bestDist = dAux
             print("******")

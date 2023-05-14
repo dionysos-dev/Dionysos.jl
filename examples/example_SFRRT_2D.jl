@@ -296,7 +296,7 @@ while !(X0 ∈ Xnew) && maxIter>0
         print("\t ")
         print(norm(X0.c-ElMin.c))
         print("\t ")
-        println(UT.volume(ElMin))
+        println(UT.get_volume(ElMin))
         if bestDist > dAux
             global bestDist = dAux
             print("******")
@@ -337,93 +337,56 @@ end
 
 
 if true
-# @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
-    using PyPlot
-    include("../src/utils/plotting/plotting.jl")
-    PyPlot.pygui(true) 
+    @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
+        fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
 
+        xlims!(X[1].lo-0.2, X[1].hi+0.2)
+        ylims!(X[2].lo-0.2, X[2].hi+0.2)
 
-    PyPlot.rc("text",usetex=true)
-    PyPlot.rc("font",family="serif")
-    PyPlot.rc("font",serif="Computer Modern Roman")
-    PyPlot.rc("text.latex",preamble="\\usepackage{amsfonts}")
-    ##
+        LyapMax = (max(map(x-> x.path_cost, treeLeaves)...))
+        colormap = Colors.colormap("Blues")
+        mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
 
-    fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
+        plotted = []
+        currNode = last(treeLeaves)
 
-    ax = PyPlot.axes(aspect = "equal")
-    ax.set_xlim(X[1].lo-0.2, X[1].hi+0.2)
-    ax.set_ylim(X[2].lo-0.2, X[2].hi+0.2)
-
-    vars = [1, 2];
-
-    function plotEllipse!(ax,elli::UT.Ellipsoid;
-            fc = "red", fa = 0.5, ec = "black", ea = 1.0, ew = 0.5, n_points=30) 
-        @assert length(vars) == 2 
-        fca = Plot.FC(fc, fa)
-        eca = Plot.FC(ec, ea)
-        L = cholesky((elli.P+elli.P')/2).U;
-        theta = range(0,2π,length=n_points);
-        x = L\hcat(sin.(theta),cos.(theta))'
-
-
-        vertslist = NTuple{n_points,Vector}[]
-
-        push!(vertslist, tuple(Vector.(eachcol(x.+elli.c))...))
-
-
-        polylist = matplotlib.collections.PolyCollection(vertslist)
-        polylist.set_facecolor(fca)
-        polylist.set_edgecolor(eca)
-        polylist.set_linewidth(ew)
-        ax.add_collection(polylist)
-
-    end
-    plotted = []
-    currNode = last(treeLeaves)
-    LyapMax = (max(map(x-> x.path_cost, treeLeaves)...))
-    for n in treeLeaves
-        push!(plotted, n)
-        lyap = (n.path_cost)
-        plotEllipse!(ax, n.state, fc =  (0.4*lyap/LyapMax+0.5, 0.4*(LyapMax-lyap)/LyapMax+0.5, 0.75), ew = 0.5);
-        nodePar = n.parent
-        aTail = n.state.c
-        while nodePar !== nothing 
-            aDir = (nodePar.state.c-aTail)*0.8
-            if !(nodePar ∈ plotted)
-                lyap = (nodePar.path_cost)
-                plotEllipse!(ax, nodePar.state, fc =  (0.4*lyap/LyapMax+0.5, 0.4*(LyapMax-lyap)/LyapMax+0.5, 0.75), ew = 0.5);
-                push!(plotted, nodePar)
-                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.005, head_width=.28)
-                aTail = nodePar.state.c
-                nodePar = nodePar.parent
-            else
-                PyPlot.arrow(aTail[1], aTail[2], aDir[1], aDir[2], fc=(0,0,0), ec=(0,0,0),width=0.005, head_width=.28)
-                nodePar = nothing
+        for n in treeLeaves
+            push!(plotted, n)
+            lyap = (n.path_cost)
+            
+            UT.plotE!(n.state, color=UT.get_color(mycolorMap, lyap))
+            nodePar = n.parent
+            aTail = n.state.c
+            while nodePar !== nothing 
+                aHead = nodePar.state.c 
+                if !(nodePar ∈ plotted)
+                    lyap = (nodePar.path_cost)
+                    UT.plotE!(nodePar.state, color=UT.get_color(mycolorMap, lyap))
+                    push!(plotted, nodePar)
+                    UT.plot_arrow!(aTail, aHead)
+                    aTail = nodePar.state.c
+                    nodePar = nodePar.parent
+                else
+                    UT.plot_arrow!(aTail, aHead)
+                    nodePar = nothing
+                end
             end
-
         end
+        xlabel!("\$x_1\$")
+        ylabel!("\$x_2\$")
+        title!("Trajectory and Lyapunov-like Fun.")
+
+        while currNode !== nothing
+            lyap = (currNode.path_cost)
+            UT.plotE!(currNode.state, color=UT.get_color(mycolorMap, lyap))
+            global currNode = currNode.parent
+        end
+        UT.plotE!(X0, color=:green)
+        UT.plotE!(obstacles[1], color=:black)
+        UT.plotE!(XF, color=:red)
+        UT.plot_colorBar!(mycolorMap)
+
+        # savefig("ex2_traj.png")          
+        display(fig)
     end
-
-    while currNode !== nothing
-        lyap = (currNode.path_cost)
-        plotEllipse!(ax,currNode.state, fc =  (0.4*lyap/LyapMax+0.5, 0.4*(LyapMax-lyap)/LyapMax+0.5, 0.75), ew = 2);
-        global currNode = currNode.parent
-    end
-    plotEllipse!(ax, X0, fa=0.1, ew = 0.5);
-        
-    cmap = PyPlot.ColorMap("mycolor",hcat([0.0,0.8,0.5,0.5],[0.8,0.0,0.5,0.5])');
-    
-    PyPlot.colorbar(PyPlot.ScalarMappable(norm=PyPlot.cm.colors.Normalize(vmin=0, vmax=LyapMax),cmap=cmap),shrink=0.7)
-
-    PyPlot.xlabel("\$x_1\$", fontsize=14)
-    PyPlot.ylabel("\$x_2\$", fontsize=14)
-    xSpan = hcat(xSpan...)
-    PyPlot.plot(xSpan[1,1:k],xSpan[2,1:k],"bo-",markersize=4)
-      
-    PyPlot.title("Trajectory and Lyapunov-like Fun.", fontsize=14)
-    plt.savefig("ex2_traj.pdf", format="pdf")
-    gcf() 
-
  end #if 
-
