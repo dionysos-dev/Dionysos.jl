@@ -39,6 +39,10 @@ function with_automaton(symmodel::SymbolicModelList, autom)
     )
 end
 
+function is_in(symmodel::SymbolicModelList, xpos)
+    return haskey(symmodel.xpos2int, xpos)
+end
+
 function get_xpos_by_state(symmodel::SymbolicModelList, state)
     return symmodel.xint2pos[state]
 end

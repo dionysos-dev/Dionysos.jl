@@ -89,9 +89,9 @@ This problem was tackled in the paper [State-feedback Abstractions for Optimal C
 """
 function problem(lib=CDDLib.Library(), dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = Infinity())
     sys = system(lib, dt, Usz)
-    n_sys = size(sys.resetmaps[1].A,1);
-    n_u = size(sys.resetmaps[1].B,2);
-    
+    n_sys = size(sys.resetmaps[1].A,1)
+    n_u = size(sys.resetmaps[1].B,2)
+
     state_cost = ZeroFunction()
     transition_cost = Fill(QuadraticStateControlFunction(Matrix{Float64}(I(n_sys)*(dt^2)),Matrix{Float64}(I(n_u)*(dt^2)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(
