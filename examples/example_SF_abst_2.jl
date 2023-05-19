@@ -204,7 +204,6 @@ println("True cost:\t\t $(costTrue)")
                         UT.plot_arrow!(p1, p2; dims=vars, color=color)
                   end
             end
-
       end
       xlabel!("\$x_1\$")
       ylabel!("\$x_2\$")

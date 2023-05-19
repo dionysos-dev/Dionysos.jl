@@ -5,7 +5,7 @@ using Test
 using StaticArrays
 using MathematicalSystems
 
-# At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
+# At this point, we import the useful Dionysos sub-module for this problem:
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
