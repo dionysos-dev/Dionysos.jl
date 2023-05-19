@@ -20,6 +20,7 @@ SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 
 [compat]
 Documenter = "0.27"
