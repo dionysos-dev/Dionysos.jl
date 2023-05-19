@@ -11,7 +11,8 @@ include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
 #####
 
-include("data_structures/BDD/BDD.jl")
+# Temporarily remove BDDs
+# include("data_structures/BDD/BDD.jl")
 include("data_structures/sorted_vector_set.jl")
 include("data_structures/queue.jl")
 include("data_structures/tree.jl")
