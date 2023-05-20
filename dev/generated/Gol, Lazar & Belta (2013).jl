@@ -3,7 +3,7 @@ import GLPK
 import OSQP
 using JuMP
 import Pavito
-import Cbc
+import HiGHS
 import Ipopt
 
 using Dionysos
@@ -23,7 +23,7 @@ qp_solver = optimizer_with_attributes(
 );
 
 mip_solver = optimizer_with_attributes(
-    Cbc.Optimizer,
+    HiGHS.Optimizer,
     MOI.Silent() => true
 );
 
