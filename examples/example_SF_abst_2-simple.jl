@@ -17,13 +17,12 @@ const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
 
-
 # Example of ellipsoidal based abstraction
 
 if !isdefined(@__MODULE__, :Usz)
       Usz = 50 # upper limit on |u|
       Wsz = 5
-      n_step = 5 # discretization of one unit of space
+      n_step = 3 # discretization of one unit of space
 end
 
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
@@ -33,9 +32,9 @@ lib = CDDLib.Library() #polyhedron lib
 include("../problems/PWAsys.jl")
 
 
-dt = 0.01;
-
-const problem = PWAsys.problem(lib, dt, Usz)
+dt = 0.01
+x_0 = [-1.0,-0.6]
+const problem = PWAsys.problem(lib, dt, Usz, x_0)
 const system = problem.system
 
 n_sys = size(system.resetmaps[1].A, 1);
@@ -49,8 +48,7 @@ U = [(Uaux.==i)./Usz for i in 1:n_u];
 
 # Create Abstraction
 
-max_x = 2 # bound on |x|_∞
-rectX = UT.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
+rectX = UT.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3));
 rectU = rectX
 
 
@@ -96,7 +94,9 @@ end
 
 initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
 finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
-obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];
+filterTab = [pos for pos in DO.enum_pos(Xobstacles)]
+filtered_array = filter(x->SY.is_in(symmodel, x), filterTab)
+obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in filtered_array]; 
 # Synthesis of the discrete controler
 
 contr = CO.NewControllerList();
@@ -179,7 +179,7 @@ while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While 
       x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
 
       global k += 1;
-      global currState =  SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
+      global currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
       push!(state_traj,currState)
       println("Arrived in: $(currState): $(x_traj[:,k])")
 end
@@ -204,7 +204,7 @@ println("True cost:\t\t $(costTrue)")
                         UT.plot_point!(p1; dims=vars, color=color)
                   else
                         p1 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[2]))
-                        p2 = DOn.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[1]))
+                        p2 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[1]))
                         UT.plot_arrow!(p1, p2; dims=vars, color=color)
                   end
             end
@@ -250,5 +250,4 @@ println("True cost:\t\t $(costTrue)")
       title!("Trajectory and Lyapunov-like Fun.")
       # savefig("ex2_traj.png")
       display(fig)
-
 end

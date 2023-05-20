@@ -4,11 +4,11 @@ module TestMain
     Wsz = 0
     n_step = 2
     no_plot = true
-    include("../../examples/example_SF_abst_2.jl")
+    include("../../examples/example_SF_abst_2-simple.jl")
     
     @testset "state_trans" begin
-        @test contr.data[1] == (45,21)
-        @test costBound ≈ 2.796543525044841 rtol=1e-3
-        @test costTrue <= costTrue
+        @test contr.data[1] == (18, 14)
+        @test costBound ≈ 0.6757639538776234 rtol=1e-3
+        @test costTrue <= costBound
     end
 end

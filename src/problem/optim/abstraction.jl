@@ -6,18 +6,30 @@ using JuMP
 using LinearAlgebra
 
 import Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     state_grid::Union{Nothing, Dionysos.Domain.Grid}
     input_grid::Union{Nothing, Dionysos.Domain.Grid}
     problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
-    controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
+    symmodel::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
+    abstract_controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
+    controller
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
+            nothing
         )
     end
 end
@@ -50,12 +62,12 @@ function build_abstraction(
     return symmodel
 end
 
-function build_abstraction(
+
+function build_abstract_problem(
     problem::Dionysos.Problem.OptimalControlProblem,
-    state_grid::Dionysos.Domain.Grid,
-    input_grid::Dionysos.Domain.Grid,
+    symmodel::Dionysos.Symbolic.SymbolicModelList,
 )
-    symmodel = build_abstraction(problem.system, state_grid, input_grid)
+    state_grid = symmodel.Xdom.grid
     Xinit = Dionysos.Domain.DomainList(state_grid)
     Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.OUTER)
     Xtarget = Dionysos.Domain.DomainList(state_grid)
@@ -70,12 +82,11 @@ function build_abstraction(
     )
 end
 
-function build_abstraction(
+function build_abstract_problem(
     problem::Dionysos.Problem.SafetyProblem,
-    state_grid::Dionysos.Domain.Grid,
-    input_grid::Dionysos.Domain.Grid,
+    symmodel::Dionysos.Symbolic.SymbolicModelList,
 )
-    symmodel = build_abstraction(problem.system, state_grid, input_grid)
+    state_grid = symmodel.Xdom.grid
     Xinit = Dionysos.Domain.DomainList(state_grid)
     Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.INNER)
     Xsafe = Dionysos.Domain.DomainList(state_grid)
@@ -113,13 +124,42 @@ function _compute_controller!(controller, discrete_problem::Dionysos.Problem.Saf
 end
 
 function MOI.optimize!(optimizer::Optimizer)
-    discrete_problem = build_abstraction(optimizer.problem, optimizer.state_grid, optimizer.input_grid)
-    optimizer.controller = Dionysos.Control.NewControllerList()
+    # design the abstraction
+    symmodel = build_abstraction(optimizer.problem.system, optimizer.state_grid, optimizer.input_grid)
+    optimizer.symmodel = symmodel
+    # design the abstract problem
+    abstract_problem = build_abstract_problem(optimizer.problem, symmodel)
+    optimizer.abstract_problem = abstract_problem
+    # solve the abstract problem
+    optimizer.abstract_controller = Dionysos.Control.NewControllerList()
     @time _compute_controller!(
-        optimizer.controller,
-        discrete_problem,
+        optimizer.abstract_controller,
+        abstract_problem,
     )
-    return
+    # refine the abstract controllerto the concrete controller
+    function controller(x;param=false)
+        xpos = DO.get_pos_by_coord(symmodel.Xdom.grid, x)
+        if !(xpos ∈ symmodel.Xdom)
+            @warn("State out of domain")
+            return nothing
+        end
+        source = SY.get_state_by_xpos(symmodel, xpos)
+        symbollist = UT.fix_and_eliminate_first(optimizer.abstract_controller, source)
+        if isempty(symbollist)
+            @warn("Uncontrollable state")
+            return nothing
+        end
+        if param
+            symbol = rand(collect(symbollist))[1]
+        else
+            symbol = first(symbollist)[1]
+        end
+        upos = SY.get_upos_by_symbol(symmodel, symbol)
+        u = DO.get_coord_by_pos(symmodel.Udom.grid, upos)
+        return u
+    end
+    optimizer.controller = controller
+    return 
 end
 
 
