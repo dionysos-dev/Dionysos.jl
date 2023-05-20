@@ -48,6 +48,10 @@ function get_center(rect::HyperRectangle)
     return (rect.lb+rect.ub)/2
 end
 
+function get_h(rect::HyperRectangle)
+    return rect.ub-rect.lb
+end
+
 function get_dims(rect::HyperRectangle)
     return length(rect.lb)
 end
@@ -58,4 +62,10 @@ end
 
 function rectangle(c,r)
     Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+end
+
+function Plots.plot!(rect::HyperRectangle; dims=[1,2], color=:yellow, opacity=1.0)
+    center = get_center(rect)
+    h = get_h(rect)
+    plot!(rectangle(center[dims],h[dims]./2), opacity=opacity, color=color)
 end

@@ -15,7 +15,7 @@ const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
 
-function dynamicofsystem(vs = 1.0, rL = 0.05, xL = 3.0, rC = 0.005, xC = 70.0, r0 = 1.0,ngrowthbound = 5)
+function dynamicofsystem(vs = 1.0, rL = 0.05, xL = 3.0, rC = 0.005, xC = 70.0, r0 = 1.0, ngrowthbound = 5)
     # Definition of the dynamics functions $f_p$ of the system:
     b = SVector(vs/xL, 0.0);
     A1 = SMatrix{2,2}(-rL/xL, 0.0, 0.0, -1.0/xC/(r0+rC))
@@ -29,7 +29,7 @@ function dynamicofsystem(vs = 1.0, rL = 0.05, xL = 3.0, rC = 0.005, xC = 70.0, r
     L_growthbound = let A1 = A1, A2_abs = A2_abs
         u -> u[1] == 1 ? A1 : A2_abs
     end
-    return F_sys, L_growthbound,ngrowthbound
+    return F_sys, L_growthbound, ngrowthbound
 end
 
 

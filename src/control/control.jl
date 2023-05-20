@@ -15,4 +15,5 @@ SY = Symbolic
 include("optimal_control.jl")
 include("controller.jl")
 include("lazy_abstraction.jl")
+include("trajectory.jl")
 end  # module control

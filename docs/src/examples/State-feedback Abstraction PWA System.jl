@@ -50,8 +50,8 @@ dt = 0.01; # discretization step
 
 include("../../../problems/PWAsys.jl")
 
-const problem = PWAsys.problem(lib, dt, Usz)
-const system = problem.system
+problem = PWAsys.problem(lib, dt, Usz)
+system = problem.system
 
 n_x = size(system.resetmaps[1].A,1)
 n_u = size(system.resetmaps[1].B,2) 
@@ -196,101 +196,65 @@ println("Guaranteed cost:\t $(costBound)")
 println("True cost:\t\t $(costTrue)")
 
 # Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction
+using Plots
 
-using PyPlot
-include("../../../src/utils/plotting/plotting.jl")
-
-PyPlot.pygui(true) #jl
-
-
-PyPlot.rc("text",usetex=true)
-PyPlot.rc("font",family="serif")
-PyPlot.rc("font",serif="Computer Modern Roman")
-PyPlot.rc("text.latex",preamble="\\usepackage{amsfonts}")
-
-
-fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
-
-ax = PyPlot.axes(aspect = "equal")
-ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-
-vars = [1, 2];
-
-
-
-Plot.domain_ellips!(ax, vars, P, domainX, fc = "none", ew = 0.5)
-
-
-d=0.02;
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+vars = [1, 2]
+Plots.plot!(domainX; dims=[1,2], color=:yellow, opacity=0.2)
 for t in symmodel.autom.transitions.data
       if isempty(t ∩ obstaclelist) 
-            offset = randn(1)[1]*d
-            arrow_x, arrow_y = Dionysos.Domain.get_coord_by_pos(state_grid,Dionysos.Symbolic.get_xpos_by_state(symmodel,t[2]))
-            aux = (Dionysos.Domain.get_coord_by_pos(state_grid,Dionysos.Symbolic.get_upos_by_symbol(symmodel,t[1]))-[arrow_x, arrow_y])
-            arrow_dx, arrow_dy = aux*(norm(aux)-0.15)/norm(aux)
-            color = (abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)));
+            color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
             if t[1]==t[2]
-                  PyPlot.scatter(arrow_x, arrow_y, s=10, fc=color, ec=color)
+                  p1 = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
+                  UT.plot_point!(p1; dims=vars, color=color)
             else
-                  PyPlot.arrow(arrow_x+offset, arrow_y+offset, arrow_dx, arrow_dy,fc=color, ec=color,width=0.01, head_width=.08)
+                  p1 = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
+                  p2 = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[1]))
+                  UT.plot_arrow!(p1, p2; dims=vars, color=color)
             end
       end
-
 end
-PyPlot.xlabel("\$x_1\$", fontsize=14)
-PyPlot.ylabel("\$x_2\$", fontsize=14)
-PyPlot.title("Transitions", fontsize=14)
-gcf() #md
-gcf() #nb
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Transitions")
+display(fig)
 
 # Then we plot a colormap with the Lyapunov-like function $v(x)$ and the simulated trajectory in blue.
 
-fig = PyPlot.figure(tight_layout=true, figsize=(4,4))
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+vars = [1, 2]
 
-ax = PyPlot.axes(aspect = "equal")
-ax.set_xlim(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-ax.set_ylim(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-
-vars = [1, 2];
-
-lyap_max = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
-
-cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in lyap_fun]...),dims=2))
-for (lyap,state) in cost_ordered
-      aux_dom = Dionysos.Domain.DomainList(state_grid)
-      x_aux = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
-      Dionysos.Domain.add_coord!(aux_dom, x_aux)
+LyapMax = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
+colormap = Colors.colormap("Blues")
+mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
+cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in lyap_fun]...), dims=2))
+for (lyap, state) in cost_ordered
+      pos = Dionysos.Symbolic.get_xpos_by_state(symmodel, state)
+      elli = Dionysos.Domain.get_elem_by_pos(state_grid, pos)
       if (lyap ≠ Inf)
-            Plot.domain_ellips!(ax, vars, P, aux_dom,  ew = 0, fc = (0.4*lyap/lyap_max+0.5, 0.4*(lyap_max-lyap)/lyap_max+0.5, 0.75), fa=1.0)
-      end
-      
-end
-for (lyap,state) in cost_ordered
-      aux_dom = Dionysos.Domain.DomainList(state_grid)
-      x_aux = Dionysos.Domain.get_coord_by_pos(state_grid, Dionysos.Symbolic.get_upos_by_symbol(symmodel,state))
-      Dionysos.Domain.add_coord!(aux_dom, x_aux)
-      if (lyap == Inf)
-            Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", ew = 0.2)
+            UT.plotE!(elli, color=UT.get_color(mycolorMap, lyap))
       else
-            Plot.domain_ellips!(ax, vars, P, aux_dom, fc = "none", fa=1.0, ew = 0.2)
+            UT.plotE!(elli, color=:yellow)
       end
-      
 end
-Plot.domain_ellips!(ax, vars, P, Xinit, fc = "none", ew = 3)
-Plot.domain_ellips!(ax, vars, P, Xfinal, fc = "none", ew = 3)
+Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
+Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
+UT.plotE!(Einit, color=:green)
+UT.plotE!(Etarget, color=:red)
+Plots.plot!(Xobstacles, color=:black, opacity=1.0)
 
-Plot.domain_ellips!(ax, vars, P, Xobstacles, fc = "black", ew = 0.5, fa=1.0)
+trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
+UT.plot_traj!(trajCoord, color=:black)
 
-PyPlot.plot(x_traj[1,1:k],x_traj[2,1:k],"bo-",markersize=4)
-cmap = PyPlot.ColorMap("mycolor",hcat([0.0,0.8,0.5,0.5],[0.8,0.0,0.5,0.5])');
-PyPlot.colorbar(PyPlot.ScalarMappable(norm=PyPlot.cm.colors.Normalize(vmin=0, vmax=lyap_max),cmap=cmap),shrink=0.7)
-
-PyPlot.xlabel("\$x_1\$", fontsize=14)
-PyPlot.ylabel("\$x_2\$", fontsize=14)
-PyPlot.title("Trajectory and Lyapunov-like Fun.", fontsize=14)
-gcf() #md
-gcf() #nb
+UT.plot_colorBar!(mycolorMap)
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Trajectory and Lyapunov-like Fun.")
+display(fig)
 
 # We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
 
