@@ -1,7 +1,7 @@
 using JuMP
-import Cbc
+import HiGHS
 mip_solver = optimizer_with_attributes(
-    Cbc.Optimizer,
+    HiGHS.Optimizer,
     MOI.Silent() => true
 )
 @static if false

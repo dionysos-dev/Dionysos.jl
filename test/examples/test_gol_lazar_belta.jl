@@ -12,12 +12,11 @@ module TestMain
 
     _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
 
-    function _prob( N, q_0, x_0::Vector{T}, zero_cost::Bool) where {T}
+    function _prob(N, q_0, x_0::Vector{T}, zero_cost::Bool) where {T}
         return GolLazarBelta.problem(CDDLib.Library(), T; N, q_0, x_0, zero_cost)
     end
     function _test(algo, N, q0, x0, x_expected, u_expected, obj_expected, zero_cost::Bool, mi::Bool; kws...)
         problem = _prob(N, q0, x0, zero_cost)
-        @info("Solving... depth: $N")
         optimizer = MOI.instantiate(algo)
         MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
         @info("Solving... depth: $N")
@@ -123,11 +122,13 @@ module TestMain
         function tests(qp_solver, miqp_solver)
             # Pavito does not support indicator constraints yet so we use `false` here
             @testset "$(_name(algo))" for algo in [
-                optimizer_with_attributes(Dionysos.Problem.BemporadMorari.Optimizer{Float64}, "continuous_solver" => qp_solver, "mixed_integer_solver" => miqp_solver,
-                                        "indicator" => false, "log_level" => 0),
-                optimizer_with_attributes(Dionysos.Problem.BranchAndBound.Optimizer{Float64}, "continuous_solver" => qp_solver,
-                                        "max_iter" => 1111)
-    #            BranchAndBound(qp_solver, miqp_solver, HybridDualDynamicProgrammingAlgo(qp_solver), max_iter = 871)
+                optimizer_with_attributes(
+                    Dionysos.Problem.BemporadMorari.Optimizer{Float64}, 
+                    "continuous_solver" => qp_solver, 
+                    "mixed_integer_solver" => miqp_solver,  
+                    "indicator" => false,
+                    "log_level" => 0
+                ),
             ]
                 @testset "Depth: 0" begin
                 _test(algo, 0, 18, [0.0, 1.0], nothing, nothing, nothing, true, false)
@@ -162,7 +163,6 @@ module TestMain
                 "max_time" => 300.0,
                 "lower_bound" => HybridDualDynamicProgrammingAlgo(
                     qp_solver,
-                    #Polyhedra.DefaultLibrary{BigFloat}(optimizer_with_attributes(Clp.Optimizer, MOI.Silent() => true)),
                     CDDLib.Library(),
                     1e-5, 1e-4, 1))
                                             # Gurobi | OSQP
