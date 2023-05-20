@@ -1,5 +1,3 @@
-using Dionysos
-using Dionysos.Problem
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
@@ -10,8 +8,14 @@ using SDPA, Ipopt, JuMP
 using Plots, Colors
 using Test
 
-const UT = Dionysos.Utils
-
+using Dionysos
+using Dionysos.Problem
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const CO = DI.Control
 
 # Example of ellipsoidal based abstraction
 
@@ -44,27 +48,27 @@ U = [(Uaux.==i)./Usz for i in 1:n_u];
 
 # Create Abstraction
 
-rectX = Dionysos.Utils.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3));
+rectX = UT.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3));
 rectU = rectX
 
 
 X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0/n_step, 1.0/n_step);
 P = (1/n_sys)*diagm((X_step./2).^(-2))
-Xgrid = Dionysos.Domain.GridEllipsoidalRectangular(X_origin, X_step, P, rectX);
+Xgrid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX);
 
-domainX = Dionysos.Domain.DomainList(Xgrid); # state space
-Dionysos.Domain.add_set!(domainX, rectX, Dionysos.Domain.OUTER)
+domainX = DO.DomainList(Xgrid); # state space
+DO.add_set!(domainX, rectX, DO.OUTER)
 
 domainU = domainX; # input space
-Dionysos.Domain.add_set!(domainU, rectU, Dionysos.Domain.OUTER)
+DO.add_set!(domainU, rectU, DO.OUTER)
 
 #symbolic model for tilde S
-symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
+symmodel = SY.NewSymbolicModelListList(domainX, domainU);
 
 
 # stage cost matrix (J = ||L*[x; u ; 1]||)
-Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
+Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
 eigen_Q = eigen(Q_aug);
 L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))';
 
@@ -73,30 +77,29 @@ transitionKappa = Dict() #dictionary with controller associated each transition
 empty!(symmodel.autom)
 
 #building abstraction
-@time Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
+@time SY.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
 x0 = SVector{n_sys}(problem.initial_set) # initial condition
-Xinit = Dionysos.Domain.DomainList(Xgrid)
-Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
-Xfinal = Dionysos.Domain.DomainList(Xgrid) # goal set
-Dionysos.Domain.add_coord!(Xfinal, SVector{n_sys}(problem.target_set))
-#Dionysos.Domain.add_set!(Xfinal,Dionysos.Domain.HyperRectangle(SVector(-2.0, 0.5), SVector(-2.0, 0.5)), Dionysos.Domain.OUTER) 
+Xinit = DO.DomainList(Xgrid)
+DO.add_coord!(Xinit, problem.initial_set)
+Xfinal = DO.DomainList(Xgrid) # goal set
+DO.add_coord!(Xfinal, SVector{n_sys}(problem.target_set))
 
 
-Xobstacles = Dionysos.Domain.DomainList(Xgrid) # obstacle set
+Xobstacles = DO.DomainList(Xgrid) # obstacle set
 for o in system.ext[:obstacles]
-      Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER) 
+      DO.add_set!(Xobstacles, o, DO.OUTER) 
 end
 
-initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]; 
-finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
-filterTab = [pos for pos in Dionysos.Domain.enum_pos(Xobstacles)]
-filtered_array = filter(x->Dionysos.Symbolic.is_in(symmodel, x), filterTab)
-obstaclelist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in filtered_array]; 
+initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
+finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
+filterTab = [pos for pos in DO.enum_pos(Xobstacles)]
+filtered_array = filter(x->SY.is_in(symmodel, x), filterTab)
+obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in filtered_array]; 
 # Synthesis of the discrete controler
 
-contr = Dionysos.Control.NewControllerList();
+contr = CO.NewControllerList();
 
 
 # function to transform the transition cost from Dict to Vector{Tuple{String, String, Int64}}:
@@ -144,7 +147,7 @@ state_traj = []
 k = 1; #iterator
 costBound = 0;
 costTrue = 0;
-currState = Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
+currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
 push!(state_traj, currState)
 println("started at: $(currState)")
 while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While not at goal or not reached max iter 
@@ -156,9 +159,9 @@ while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While 
                   println("next action: $(next_action)")
             end
       end
-      println("cm: $(Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[2])))")
+      println("cm: $(DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, next_action[2])))")
       
-      c = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, next_action[1]))
+      c = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, next_action[1]))
       println("c: $(c)")
 
 
@@ -176,7 +179,7 @@ while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While 
       x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
 
       global k += 1;
-      global currState =  Dionysos.Symbolic.get_all_states_by_xpos(symmodel,Dionysos.Domain.crop_to_domain(domainX,Dionysos.Domain.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
+      global currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
       push!(state_traj,currState)
       println("Arrived in: $(currState): $(x_traj[:,k])")
 end
@@ -197,11 +200,11 @@ println("True cost:\t\t $(costTrue)")
             if isempty(t ∩ obstaclelist) 
                   color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
                   if t[1]==t[2]
-                        p1 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
+                        p1 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[2]))
                         UT.plot_point!(p1; dims=vars, color=color)
                   else
-                        p1 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[2]))
-                        p2 = Dionysos.Domain.get_coord_by_pos(Xgrid, Dionysos.Symbolic.get_xpos_by_state(symmodel, t[1]))
+                        p1 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[2]))
+                        p2 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[1]))
                         UT.plot_arrow!(p1, p2; dims=vars, color=color)
                   end
             end
@@ -224,8 +227,8 @@ println("True cost:\t\t $(costTrue)")
       mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
       cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...), dims=2))
       for (lyap, state) in cost_ordered
-            pos = Dionysos.Symbolic.get_xpos_by_state(symmodel, state)
-            elli = Dionysos.Domain.get_elem_by_pos(Xgrid, pos)
+            pos = SY.get_xpos_by_state(symmodel, state)
+            elli = DO.get_elem_by_pos(Xgrid, pos)
             if (lyap ≠ Inf)
                   UT.plotE!(elli, color=UT.get_color(mycolorMap, lyap))
             else

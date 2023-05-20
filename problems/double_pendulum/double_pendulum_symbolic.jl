@@ -14,8 +14,6 @@ Random.seed!(123)
 
 include("double_pendulum_urdf.jl")
 
-# les moments d'inerties ne semblent pas etre les memes ?  q2(eux) = q2(moi)-q1
-
 # q1: is the shoulder joint angle
 # q2: is the elbow (relative) joint angle
 # v1 and v2 are the respective time derivative
