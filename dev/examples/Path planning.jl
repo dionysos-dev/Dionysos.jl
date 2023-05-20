@@ -37,18 +37,18 @@ using Test     #src
 # For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the the pre-image
 # of the target set.
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl).
-using StaticArrays
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+using StaticArrays, Plots
 
-# At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
+# At this point, we import the useful Dionysos sub-module for this problem.
 using Dionysos
 using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const CO = DI.Control
 
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
@@ -84,17 +84,33 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
-@test length(controller.data) == 5577 #src
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+@test length(abstract_controller.data) == 5577 #src
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
 # ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
-nstep = 100;
-x0 = SVector(0.4, 0.4, 0.0);
+nstep = 100
+function reached(x)
+    if x∈problem.target_set
+        return true
+    else
+        return false
+    end
+end
+
+x0 = SVector(0.4, 0.4, 0.0)
+x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
+
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
-#
-# To complete
+
+fig = plot(aspect_ratio=:equal)
+Plots.plot!(problem.system.X; dims=[1,2], color=:yellow, opacity=0.5)
+Plots.plot!(problem.initial_set; dims=[1,2], color=:green)
+Plots.plot!(problem.target_set; dims=[1,2], color=:red)
+UT.plot_traj!(x_traj; dims=[1,2])
+display(fig)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

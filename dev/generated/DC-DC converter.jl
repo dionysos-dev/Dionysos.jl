@@ -1,4 +1,4 @@
-using StaticArrays
+using StaticArrays, Plots
 
 using Dionysos
 using Dionysos.Problem
@@ -6,8 +6,8 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const CO = DI.Control
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
@@ -27,10 +27,17 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
-#nstep = 300;
-#x0 = SVector(1.2, 5.6);
+nstep = 300
+x0 = SVector(1.2, 5.6)
+x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
+
+fig = plot(aspect_ratio=:equal)
+Plots.plot!(problem.system.X)
+UT.plot_traj!(x_traj)
+display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

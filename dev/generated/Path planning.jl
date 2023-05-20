@@ -1,4 +1,4 @@
-using StaticArrays
+using StaticArrays, Plots
 
 using Dionysos
 using Dionysos.Problem
@@ -6,8 +6,8 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const CO = DI.Control
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
 
@@ -32,10 +32,27 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
-nstep = 100;
-x0 = SVector(0.4, 0.4, 0.0);
+nstep = 100
+function reached(x)
+    if x∈problem.target_set
+        return true
+    else
+        return false
+    end
+end
+
+x0 = SVector(0.4, 0.4, 0.0)
+x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
+
+fig = plot(aspect_ratio=:equal)
+Plots.plot!(problem.system.X; dims=[1,2], color=:yellow, opacity=0.5)
+Plots.plot!(problem.initial_set; dims=[1,2], color=:green)
+Plots.plot!(problem.target_set; dims=[1,2], color=:red)
+UT.plot_traj!(x_traj; dims=[1,2])
+display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

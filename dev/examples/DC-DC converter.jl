@@ -36,19 +36,19 @@ using Test     #src
 # to compute the relations in the abstraction based on the feedback refinement relation.
 #
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl).
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
 
-using StaticArrays
+using StaticArrays, Plots
 
-# At this point, we import the useful Dionysos sub-module for this problem: [Abstraction](@__REPO_ROOT_URL__/src/Abstraction/abstraction.jl).
+# At this point, we import the useful Dionysos sub-modules.
 using Dionysos
 using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const CO = DI.Control
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
@@ -71,15 +71,21 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"));
-@test length(controller.data) == 893803 #src
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+@test length(abstract_controller.data) == 893803 #src
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
-#nstep = 300;
-#x0 = SVector(1.2, 5.6);
-# To complete
+nstep = 300
+x0 = SVector(1.2, 5.6)
+x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
+
+fig = plot(aspect_ratio=:equal)
+Plots.plot!(problem.system.X)
+UT.plot_traj!(x_traj)
+display(fig)
 
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.
