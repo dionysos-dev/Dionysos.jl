@@ -64,6 +64,7 @@ SemialgebraicSets = "0.2"
 SimpleWeightedGraphs = "1.2"
 SpecialFunctions = "2"
 StaticArrays = "1"
+Symbolics = "5"
 julia = "1.6"
 
 [extras]
