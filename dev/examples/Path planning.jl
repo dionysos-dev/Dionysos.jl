@@ -40,15 +40,13 @@ using Test     #src
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
 using StaticArrays, Plots
 
-# At this point, we import the useful Dionysos sub-module for this problem.
+# At this point, we import Dionysos.
 using Dionysos
-using Dionysos.Problem
 const DI = Dionysos
-const UT = DI.Utils
 const DO = DI.Domain
-const ST = DI.System
-const SY = DI.Symbolic
+const OP = DI.Optim
 const CO = DI.Control
+const UT = DI.Utils
 
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
@@ -78,7 +76,7 @@ input_grid = DO.GridFree(u0, h);
 # We now solve the optimal control problem with the `Abstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(Abstraction.Optimizer)
+optimizer = MOI.instantiate(OP.Abstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)

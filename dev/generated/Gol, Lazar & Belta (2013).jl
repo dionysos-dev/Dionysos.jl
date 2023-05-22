@@ -7,8 +7,9 @@ import HiGHS
 import Ipopt
 
 using Dionysos
-using Dionysos.Control
-using Dionysos.Problem
+const DI = Dionysos
+const CO = DI.Control
+const OP = DI.Optim
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
 
@@ -40,7 +41,8 @@ miqp_solver = optimizer_with_attributes(
 );
 
 
-algo = optimizer_with_attributes(BemporadMorari.Optimizer{Float64},
+algo = optimizer_with_attributes(
+    OP.BemporadMorari.Optimizer{Float64},
     "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
     "indicator" => false,
@@ -57,7 +59,7 @@ termination = MOI.get(optimizer, MOI.TerminationStatus())
 
 objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 
-xu = MOI.get(optimizer, ContinuousTrajectoryAttribute());
+xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
 
 using PyPlot
 using Colors

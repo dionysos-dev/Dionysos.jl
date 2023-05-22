@@ -1,13 +1,11 @@
 using StaticArrays, Plots
 
 using Dionysos
-using Dionysos.Problem
 const DI = Dionysos
-const UT = DI.Utils
 const DO = DI.Domain
-const ST = DI.System
-const SY = DI.Symbolic
+const OP = DI.Optim
 const CO = DI.Control
+const UT = DI.Utils
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
 
@@ -26,7 +24,7 @@ h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
-optimizer = MOI.instantiate(Abstraction.Optimizer)
+optimizer = MOI.instantiate(OP.Abstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)

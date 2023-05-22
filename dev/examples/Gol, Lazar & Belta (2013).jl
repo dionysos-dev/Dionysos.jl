@@ -29,8 +29,9 @@ import Ipopt
 
 # At this point we import Dionysos
 using Dionysos
-using Dionysos.Control
-using Dionysos.Problem
+const DI = Dionysos
+const CO = DI.Control
+const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
@@ -66,7 +67,8 @@ miqp_solver = optimizer_with_attributes(
 );
 
 
-algo = optimizer_with_attributes(BemporadMorari.Optimizer{Float64},
+algo = optimizer_with_attributes(
+    OP.BemporadMorari.Optimizer{Float64},
     "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
     "indicator" => false,
@@ -91,7 +93,7 @@ objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 @test objective_value ≈ 11.38 atol=1e-2     #src
 
 # and recover the corresponding continuous trajectory
-xu = MOI.get(optimizer, ContinuousTrajectoryAttribute());
+xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
 
 # A little bit of data visualization now:
 
