@@ -3,7 +3,7 @@ using Documenter, Literate
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "src", "examples")
 const REFERENCE_DIR = joinpath(@__DIR__, "src", "reference")
-const OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
+const OUTPUT_DIR   = joinpath(@__DIR__, "src", "generated")
 
 const EXAMPLES = readdir(EXAMPLES_DIR)
 const REFERENCE = readdir(REFERENCE_DIR)

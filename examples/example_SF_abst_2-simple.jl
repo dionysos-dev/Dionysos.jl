@@ -9,13 +9,13 @@ using Plots, Colors
 using Test
 
 using Dionysos
-using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
+const PR = DI.Problem
 
 # Example of ellipsoidal based abstraction
 
@@ -138,7 +138,7 @@ end
 get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
 
 
-K = typeof(problem.time) == Infinity ? 100 : problem.time; #max num of steps
+K = typeof(problem.time) == PR.Infinity ? 100 : problem.time; #max num of steps
 x_traj = zeros(n_sys,K+1);
 u_traj = zeros(n_u,K+1);
 x_traj[:,1] = x0;

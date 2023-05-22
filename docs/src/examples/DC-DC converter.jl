@@ -42,13 +42,13 @@ using StaticArrays, Plots
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos
-using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
+const OP = DI.Optim
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
@@ -65,7 +65,7 @@ hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
-optimizer = MOI.instantiate(Abstraction.Optimizer)
+optimizer = MOI.instantiate(OP.Abstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)

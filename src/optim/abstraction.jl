@@ -12,14 +12,15 @@ const DO = DI.Domain
 const ST = DI.System
 const CO = DI.Control
 const SY = DI.Symbolic
+const PR = DI.Problem
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    state_grid::Union{Nothing, Dionysos.Domain.Grid}
-    input_grid::Union{Nothing, Dionysos.Domain.Grid}
-    problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
-    symmodel::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
-    abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
-    abstract_controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
+    state_grid::Union{Nothing, DO.Grid}
+    input_grid::Union{Nothing, DO.Grid}
+    problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
+    symmodel::Union{Nothing, SY.SymbolicModelList}
+    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
+    abstract_controller::Union{Nothing, UT.SortedTupleSet{2,NTuple{2,Int}}}
     controller
     function Optimizer{T}() where {T}
         return new{T}(
@@ -47,15 +48,15 @@ end
 
 function build_abstraction(
     system,
-    state_grid::Dionysos.Domain.Grid,
-    input_grid::Dionysos.Domain.Grid,
+    state_grid::DO.Grid,
+    input_grid::DO.Grid,
 )
-    Xfull = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_set!(Xfull, system.X, Dionysos.Domain.OUTER)
-    Ufull = Dionysos.Domain.DomainList(input_grid)
-    Dionysos.Domain.add_set!(Ufull, system.U, Dionysos.Domain.CENTER)
-    symmodel = Dionysos.Symbolic.NewSymbolicModelListList(Xfull, Ufull)
-    @time Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
+    Xfull = DO.DomainList(state_grid)
+    DO.add_set!(Xfull, system.X, DO.OUTER)
+    Ufull = DO.DomainList(input_grid)
+    DO.add_set!(Ufull, system.U, DO.CENTER)
+    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+    @time SY.compute_symmodel_from_controlsystem!(
         symmodel,
         system.f,
     )
@@ -64,15 +65,15 @@ end
 
 
 function build_abstract_problem(
-    problem::Dionysos.Problem.OptimalControlProblem,
-    symmodel::Dionysos.Symbolic.SymbolicModelList,
+    problem::PR.OptimalControlProblem,
+    symmodel::SY.SymbolicModelList,
 )
     state_grid = symmodel.Xdom.grid
-    Xinit = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.OUTER)
-    Xtarget = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, Dionysos.Domain.OUTER)
-    return Dionysos.Problem.OptimalControlProblem(
+    Xinit = DO.DomainList(state_grid)
+    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
+    Xtarget = DO.DomainList(state_grid)
+    DO.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, DO.OUTER)
+    return PR.OptimalControlProblem(
         symmodel,
         Xinit,
         Xtarget,
@@ -83,15 +84,15 @@ function build_abstract_problem(
 end
 
 function build_abstract_problem(
-    problem::Dionysos.Problem.SafetyProblem,
-    symmodel::Dionysos.Symbolic.SymbolicModelList,
+    problem::PR.SafetyProblem,
+    symmodel::SY.SymbolicModelList,
 )
     state_grid = symmodel.Xdom.grid
-    Xinit = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, Dionysos.Domain.INNER)
-    Xsafe = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xsafe, symmodel.Xdom, problem.safe_set, Dionysos.Domain.INNER)
-    return Dionysos.Problem.SafetyProblem(
+    Xinit = DO.DomainList(state_grid)
+    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.INNER)
+    Xsafe = DO.DomainList(state_grid)
+    DO.add_subset!(Xsafe, symmodel.Xdom, problem.safe_set, DO.INNER)
+    return PR.SafetyProblem(
         symmodel,
         Xinit,
         Xsafe,
@@ -99,10 +100,10 @@ function build_abstract_problem(
     )
 end
 
-function _compute_controller!(controller, discrete_problem::Dionysos.Problem.OptimalControlProblem)
-    init_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.initial_set)]
-    target_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.target_set)]
-    Dionysos.Control.compute_controller_reach!(
+function _compute_controller!(controller, discrete_problem::PR.OptimalControlProblem)
+    init_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.initial_set)]
+    target_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.target_set)]
+    CO.compute_controller_reach!(
         controller,
         discrete_problem.system.autom,
         init_list,
@@ -111,10 +112,10 @@ function _compute_controller!(controller, discrete_problem::Dionysos.Problem.Opt
     return
 end
 
-function _compute_controller!(controller, discrete_problem::Dionysos.Problem.SafetyProblem)
-    init_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.initial_set)]
-    safe_list = [Dionysos.Symbolic.get_state_by_xpos(discrete_problem.system, pos) for pos in Dionysos.Domain.enum_pos(discrete_problem.safe_set)]
-    Dionysos.Control.compute_controller_safe!(
+function _compute_controller!(controller, discrete_problem::PR.SafetyProblem)
+    init_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.initial_set)]
+    safe_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.safe_set)]
+    CO.compute_controller_safe!(
         controller,
         discrete_problem.system.autom,
         init_list,
@@ -131,7 +132,7 @@ function MOI.optimize!(optimizer::Optimizer)
     abstract_problem = build_abstract_problem(optimizer.problem, symmodel)
     optimizer.abstract_problem = abstract_problem
     # solve the abstract problem
-    optimizer.abstract_controller = Dionysos.Control.NewControllerList()
+    optimizer.abstract_controller = CO.NewControllerList()
     @time _compute_controller!(
         optimizer.abstract_controller,
         abstract_problem,
@@ -164,12 +165,12 @@ end
 
 
 mutable struct OptimizerEllipsoids{T} <: MOI.AbstractOptimizer
-    state_grid::Union{Nothing, Dionysos.Domain.GridEllipsoidalRectangular}
-    problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
-    symmodel::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
+    problem::Union{Nothing, PR.OptimalControlProblem}
+    symmodel::Union{Nothing, SY.SymbolicModelList}
     transitionCost::Union{Nothing, Dict}
     transitionKappa::Union{Nothing, Dict}
-    controller::Union{Nothing,Dionysos.Utils.SortedTupleSet{2,NTuple{2,Int}}}
+    controller::Union{Nothing,UT.SortedTupleSet{2,NTuple{2,Int}}}
     lyap_fun::Union{Nothing, Any}
     ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
@@ -202,28 +203,28 @@ end
 
 function build_abstraction(
     problem,
-    state_grid::Dionysos.Domain.GridEllipsoidalRectangular,
+    state_grid::DO.GridEllipsoidalRectangular,
     opt_sdp::MOI.OptimizerWithAttributes,
     opt_ip::MOI.OptimizerWithAttributes
 )
     system = problem.system
     # Instantiate $\mathcal{X}_d$ as `domainX`
     
-    domainX = Dionysos.Domain.DomainList(state_grid); # state space
-    Dionysos.Domain.add_set!(domainX, state_grid.rect, Dionysos.Domain.OUTER)
+    domainX = DO.DomainList(state_grid); # state space
+    DO.add_set!(domainX, state_grid.rect, DO.OUTER)
 
     # the input space 
 
     domainU = domainX; # input space
-    Dionysos.Domain.add_set!(domainU, state_grid.rect, Dionysos.Domain.OUTER)
+    DO.add_set!(domainU, state_grid.rect, DO.OUTER)
 
     #and the symbolic model for the state-feedback abstraction $\tilde{\mathcal{S}}$
-    symmodel = Dionysos.Symbolic.NewSymbolicModelListList(domainX, domainU);
+    symmodel = SY.NewSymbolicModelListList(domainX, domainU);
     empty!(symmodel.autom)
 
     
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
-    Q_aug = Dionysos.Control.get_full_psd_matrix(problem.transition_cost[1][1])
+    Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
     eigen_Q = eigen(Q_aug);
     L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'
 
@@ -239,7 +240,7 @@ function build_abstraction(
  
     U = system.ext[:U]
     W = system.ext[:W]
-    t = @elapsed Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
+    t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
  
     # println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
     symmodel, transitionCost, transitionKappa
@@ -257,20 +258,20 @@ function MOI.optimize!(optimizer::OptimizerEllipsoids)
     # Now let us prepare to synthesize our controller. Define the specifications
     
 
-    Xinit = Dionysos.Domain.DomainList(state_grid) # set of initial cells
-    Dionysos.Domain.add_coord!(Xinit, problem.initial_set)
+    Xinit = DO.DomainList(state_grid) # set of initial cells
+    DO.add_coord!(Xinit, problem.initial_set)
 
-    Xfinal = Dionysos.Domain.DomainList(state_grid) # set of target cells
-    Dionysos.Domain.add_coord!(Xfinal, Vector(problem.target_set))
+    Xfinal = DO.DomainList(state_grid) # set of target cells
+    DO.add_coord!(Xfinal, Vector(problem.target_set))
 
-    Xobstacles = Dionysos.Domain.DomainList(state_grid) # set of obstacle cells
+    Xobstacles = DO.DomainList(state_grid) # set of obstacle cells
     for o in system.ext[:obstacles]
-        Dionysos.Domain.add_set!(Xobstacles, o, Dionysos.Domain.OUTER) 
+        DO.add_set!(Xobstacles, o, DO.OUTER) 
     end
 
-    initlist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]; 
-    finallist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xfinal)];
-    obstaclelist = [Dionysos.Symbolic.get_state_by_xpos(symmodel, pos) for pos in Dionysos.Domain.enum_pos(Xobstacles)];
+    initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
+    finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
+    obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];
 
 
     # ## Control synthesis
@@ -293,14 +294,14 @@ function MOI.optimize!(optimizer::OptimizerEllipsoids)
 
     # We perform the synthesis of the discrete controller through Dijkstra's algorithm to the reversed graph associated to the abstraction $\tilde{\mathcal{S}}$
 
-    controller = Dionysos.Control.NewControllerList();
+    controller = CO.NewControllerList();
 
     src, dst = initlist[1], finallist[1] # initial and goal sets
 
     rev_graph = [(t[2],t[1],t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
 
-    gc = Dionysos.Utils.Digraph(rev_graph) 
-    t = @elapsed rev_path, lyap_fun = Dionysos.Utils.dijkstrapath(gc, dst, src) # gets optimal path
+    gc = UT.Digraph(rev_graph) 
+    t = @elapsed rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src) # gets optimal path
     path = reverse(rev_path)
 
 
@@ -309,7 +310,7 @@ function MOI.optimize!(optimizer::OptimizerEllipsoids)
     # We create the list of control actions along the optimal path
     for l = 1:length(path)-1 
         new_action = (path[l], path[l+1])
-        Dionysos.Utils.push_new!(controller, new_action)
+        UT.push_new!(controller, new_action)
     end
     optimizer.controller = controller
     optimizer.lyap_fun = lyap_fun
@@ -328,7 +329,7 @@ end
 
 
 mutable struct OptimizerLazyEllipsoids <: MOI.AbstractOptimizer
-    problem #::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
+    problem #::Union{Nothing, PR.OptimalControlProblem}
     distance
     rand_state
     new_conf
@@ -343,7 +344,7 @@ mutable struct OptimizerLazyEllipsoids <: MOI.AbstractOptimizer
     sdp_opt
     k1
     k2
-    tree::Union{Nothing, Dionysos.Utils.Tree} #later we could create a symmodel with overelapping cells
+    tree::Union{Nothing, UT.Tree} #later we could create a symmodel with overelapping cells
 
     # sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
 end
@@ -378,7 +379,7 @@ function MOI.optimize!(optimizer::OptimizerLazyEllipsoids)
     compute_transition = optimizer.compute_transition
     k1 = optimizer.k1
     k2 = optimizer.k2
-    tree = Dionysos.Utils.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, optimizer; maxIter=maxIter, RRTstar=RRTstar, compute_transition, k1=k1, k2=k2)
+    tree = UT.RRT(Etarget, Einit, distance, rand_state, new_conf, keep, stop_crit, optimizer; maxIter=maxIter, RRTstar=RRTstar, compute_transition, k1=k1, k2=k2)
     
     optimizer.tree = tree 
     return 

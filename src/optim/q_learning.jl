@@ -3,12 +3,14 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
+import Dionysos
+const DI = Dionysos
+const CO = DI.Control
+const PR = DI.Problem
+
 using HybridSystems
 using Polyhedra
 using JuMP
-
-using ..Dionysos.Control
-using ..Dionysos.Problem
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
 
@@ -74,7 +76,7 @@ DiscreteLowerBoundAlgo{T}(solver) where {T} = DiscreteLowerBoundAlgo{T, typeof(s
 struct DiscreteLowerBound{D}
     discrete_lb::D
 end
-function instantiate(prob::OptimalControlProblem, algo::DiscreteLowerBoundAlgo{T}) where {T}
+function instantiate(prob::PR.OptimalControlProblem, algo::DiscreteLowerBoundAlgo{T}) where {T}
     syst = prob.system
     dists = JuMP.Containers.@container([0:prob.time, modes(syst)], typemax(T))
     dists[0, prob.target_set] = 0.0
@@ -97,7 +99,7 @@ end
 function value_function(Q::DiscreteLowerBound, left::Int, mode)
     return ConstantFunction(Q.discrete_lb[left, mode])
 end
-function learn(::DiscreteLowerBound, prob, ::DiscreteTrajectory, ::ContinuousTrajectory, ::DiscreteLowerBoundAlgo) end
+function learn(::DiscreteLowerBound, prob, ::CO.DiscreteTrajectory, ::CO.ContinuousTrajectory, ::DiscreteLowerBoundAlgo) end
 
 struct HybridDualDynamicProgrammingAlgo{T, S, P}
     solver::S
@@ -114,7 +116,7 @@ end
 function _no_cuts(time, modes, ::Type{T}) where {T}
     return JuMP.Containers.@container(
         [0:time, modes],
-        AffineFunction{T}[]
+        CO.AffineFunction{T}[]
     )
 end
 function _full_domains(time, modes, d, ::Type{T}) where {T}
@@ -123,7 +125,7 @@ function _full_domains(time, modes, d, ::Type{T}) where {T}
         hrep(HalfSpace{T, Vector{T}}[], d = d)
     )
 end
-function instantiate(prob::OptimalControlProblem, algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
+function instantiate(prob::PR.OptimalControlProblem, algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
     cuts = _no_cuts(prob.time, modes(prob.system), T)
     domains = _full_domains(prob.time, modes(prob.system), length(prob.initial_set[2]), T)
     discrete = instantiate(prob, DiscreteLowerBoundAlgo{T}(algo.solver))
@@ -145,16 +147,16 @@ end
 function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) where {T}
     d = fulldim(Q.domains[left, mode])
     time = axes(Q.cuts, 1).stop
-    return PolyhedralFunction(
+    return CO.PolyhedralFunction(
         Q.discrete.discrete_lb[left, mode],
         reduce(append!, (Q.cuts[i, mode] for i in left:time),
-               init = AffineFunction{T}[]),
+               init = CO.AffineFunction{T}[]),
         # TODO use intersect! once it is implemented in Polyhedra
         reduce(intersect, (Q.domains[i, mode] for i in left:time),
                init = hrep(HalfSpace{T, Vector{T}}[], d = d))
     )
 end
-function vertices(f::PolyhedralFunction{T}, X, lib) where T
+function vertices(f::CO.PolyhedralFunction{T}, X, lib) where T
     h = (hrep(X) ∩ f.domain) * intersect(HalfSpace([-one(T)], -f.lower_bound))
     cuts = [HalfSpace([p.a; -one(T)], -p.β) for p in f.pieces]
     h_cut = h ∩ hrep(cuts, d = fulldim(h))
@@ -165,10 +167,10 @@ end
 function vertices(Q::HybridDualDynamicProgramming, prob, left, mode, lib)
     return vertices(value_function(Q, left, mode), stateset(prob.system, mode), lib)
 end
-function learn(::HybridDualDynamicProgramming, prob, ::DiscreteTrajectory, ::ContinuousTrajectory,
+function learn(::HybridDualDynamicProgramming, prob, ::CO.DiscreteTrajectory, ::CO.ContinuousTrajectory,
                ::DiscreteLowerBoundAlgo)
 end
-function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory, ctraj::ContinuousTrajectory,
+function learn(Q::HybridDualDynamicProgramming, prob, dtraj::CO.DiscreteTrajectory, ctraj::CO.ContinuousTrajectory,
                algo::HybridDualDynamicProgrammingAlgo{T}) where {T}
     for i in length(dtraj):-1:1
         x = i == 1 ? prob.initial_set[2] : ctraj.x[i - 1]
@@ -222,7 +224,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
             return
         end
         V = value_function(Q, left + 1, mode)
-        before = function_value(V, x)
+        before = CO.function_value(V, x)
         # FIXME OSQP does not support accessing `DualObjectiveValue`
         #after = dual_objective_value(model)
         after = MOI.get(model, MOI.ObjectiveValue())
@@ -316,7 +318,7 @@ function learn(Q::HybridDualDynamicProgramming, prob, dtraj::DiscreteTrajectory,
 
         for a in points(cuts)
             β = after - a ⋅ x
-            cut = AffineFunction{T}(a, β)
+            cut = CO.AffineFunction{T}(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
             if algo.log_level >= 2
                 @info("Cut added: $cut, $after > $before.")
