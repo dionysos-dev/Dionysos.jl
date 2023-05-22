@@ -1,6 +1,5 @@
 module Problem
 
-
 struct Infinity <: Real end
 
 Base.isfinite(::Infinity) = false
@@ -20,11 +19,6 @@ struct SafetyProblem{S, XI, XS, T<:Real}
     safe_set::XS
     time::T
 end
-
-include("optim/abstraction.jl")
-include("optim/bemporad_morari.jl")
-include("optim/branch_and_bound.jl")
-include("optim/q_learning.jl")
 
 export OptimalControlProblem
 export SafetyProblem

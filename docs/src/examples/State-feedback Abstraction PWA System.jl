@@ -74,13 +74,14 @@ system.ext[:U] = U
 
 # At this point we'll import Dionysos in order to solve our optimal control problem
 using Dionysos
-using Dionysos.Problem
+
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
-const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
+const PR = DI.Problem
+const OP = DI.Optim
 
 # Let us now define the state space $X$ within which we are searching for a optimal solution.
 max_x = 2 # bound on |X|_∞
@@ -102,7 +103,7 @@ state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
 # abstractions `OptimizerEllipsoids`
 
 using JuMP
-optimizer = MOI.instantiate(Abstraction.OptimizerEllipsoids) # 
+optimizer = MOI.instantiate(OP.Abstraction.OptimizerEllipsoids) # 
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
@@ -132,7 +133,7 @@ domainX = symmodel.Xdom
 
 ϕ(x) = findfirst(m -> (x ∈ m.X), system.resetmaps) # returns pwa mode for a given x
 
-K = typeof(problem.time) == Infinity ? 100 : problem.time; #max num of steps
+K = typeof(problem.time) == PR.Infinity ? 100 : problem.time; #max num of steps
 x_traj = zeros(n_x,K+1);
 u_traj = zeros(n_u,K+1);
 x_traj[:,1] = x0;

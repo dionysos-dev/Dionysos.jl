@@ -2,11 +2,12 @@ export BemporadMorari
 
 module BemporadMorari
 
-using ..Problem
-using ...Dionysos.Control
+import Dionysos
+const DI = Dionysos
+const CO = DI.Control
+const PR = DI.Problem
+
 using JuMP
-
-
 
 import MutableArithmetics
 const MA = MutableArithmetics
@@ -21,7 +22,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     indicator::Bool
     log_level::Int
     modes::Union{Nothing, Vector{Vector{Int}}}
-    problem::Union{Nothing, Problem.OptimalControlProblem}
+    problem::Union{Nothing, PR.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
     inner
     x
@@ -41,7 +42,7 @@ MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     if param.name == "problem"
         err = nothing
-        if !(value isa Problem.OptimalControlProblem)
+        if !(value isa PR.OptimalControlProblem)
             err = "$(typeof(value)) not supported"
         elseif !isfinite(value.time)
             err = "Infinite time not supported"
@@ -165,27 +166,27 @@ end
 # TODO move to MA
 #Base.zero(::Type{MA.Zero}) = MA.Zero()
 
-function hybrid_cost(model, costs::AbstractArray{ZeroFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(model, costs::AbstractArray{CO.ZeroFunction}, x, u, δ, ::Type{T}) where {T}
     return zero(T), δ
 end
-function hybrid_cost(model, costs::AbstractArray{<:ConstantFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(model, costs::AbstractArray{<:CO.ConstantFunction}, x, u, δ, ::Type{T}) where {T}
     δ = indicator_variables(model, δ, T)
     cost = [cost.value for cost in costs]
     return cost ⋅ δ, δ
 end
-function hybrid_cost(model, costs::Fill{<:ConstantFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(model, costs::Fill{<:CO.ConstantFunction}, x, u, δ, ::Type{T}) where {T}
     return first(costs).value, δ
 end
-function hybrid_cost(model, costs::Fill{<:QuadraticControlFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(model, costs::Fill{<:CO.QuadraticControlFunction}, x, u, δ, ::Type{T}) where {T}
     cost = first(costs)
     return u' * cost.Q * u, δ
 end
-function hybrid_cost(model, costs::Fill{<:PolyhedralFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(model, costs::Fill{<:CO.PolyhedralFunction}, x, u, δ, ::Type{T}) where {T}
     cost = first(costs)
     θ = add_variable(model)
     add_constraint(model, θ, MOI.GreaterThan(cost.lower_bound))
     for piece in cost.pieces
-        add_constraint(model, θ - function_value(piece, x), MOI.GreaterThan(zero(T)))
+        add_constraint(model, θ - CO.function_value(piece, x), MOI.GreaterThan(zero(T)))
     end
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(cost.domain))
     return θ, δ
@@ -333,7 +334,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
 end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
-function MOI.get(optimizer::Optimizer, ::ContinuousTrajectoryAttribute)
+function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
     #if optimizer.log_level >= 1
     #    if δ_modes !== nothing
     #        @show (x -> value.(x)).(δ_modes)
@@ -343,9 +344,9 @@ function MOI.get(optimizer::Optimizer, ::ContinuousTrajectoryAttribute)
     #    end
     #end
     if optimizer.discrete_presolve_status == TRIVIAL
-        return ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
+        return CO.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
     else
-        return ContinuousTrajectory(_rows(_value.(optimizer.inner, optimizer.x)), _rows(_value.(optimizer.inner, optimizer.u)))
+        return CO.ContinuousTrajectory(_rows(_value.(optimizer.inner, optimizer.x)), _rows(_value.(optimizer.inner, optimizer.u)))
     end
 end
 

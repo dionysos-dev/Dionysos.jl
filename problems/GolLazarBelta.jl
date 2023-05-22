@@ -1,12 +1,14 @@
 module GolLazarBelta
 
+import Dionysos
+const DI = Dionysos
+const CO = DI.Control
+const PR = DI.Problem
+
 using FillArrays
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
-using Dionysos
-using Dionysos.Control
-using Dionysos.Problem
 
 import CDDLib
 
@@ -131,15 +133,15 @@ Notice that we used `Fill` for all `N` time steps as we consider time-invariant 
 function problem(lib=CDDLib.Library(), T::Type=Float64; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
     sys = system(lib, T)
     if zero_cost
-        state_cost = Fill(ZeroFunction(), nmodes(sys))
+        state_cost = Fill(CO.ZeroFunction(), nmodes(sys))
     else
         state_cost = [
-            mode == sys.ext[:q_T] ? ConstantFunction(zero(T)) : ConstantFunction(one(T))
+            mode == sys.ext[:q_T] ? CO.ConstantFunction(zero(T)) : CO.ConstantFunction(one(T))
             for mode in modes(sys)
         ]
     end
-    transition_cost = QuadraticControlFunction(ones(T, 1, 1))
-    problem = OptimalControlProblem(
+    transition_cost = CO.QuadraticControlFunction(ones(T, 1, 1))
+    problem = PR.OptimalControlProblem(
         sys,
         (q_0, x_0),
         sys.ext[:q_T],
