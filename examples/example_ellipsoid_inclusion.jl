@@ -1,6 +1,5 @@
-include("../src/Dionysos.jl")
-using .Dionysos
-UT = Dionysos.Utils
+using Dionysos
+const UT = Dionysos.Utils
 using Plots, Colors, LinearAlgebra, LaTeXStrings
 
 
@@ -8,6 +7,8 @@ myblue = RGB(108 ./256,142 ./256,191 ./256)
 myblueN = RGB(32 ./256,103 ./256,205 ./256)
 myorange = RGB(255 ./280,158 ./280,56 ./280) 
 myorangeN = RGB(255 ./280,130 ./280,0.0 ./280) 
+myred = RGB(255 ./256, 102 ./256, 102 ./256) 
+myredN = RGB(204 ./256, 0.0 ./256, 0.0 ./256) 
 
 function tansformations()
     c0 = [3.0; 5.0]
@@ -82,7 +83,11 @@ function plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h; eps=1e-10)
     yticks!([intervalfx[1],intervalfx[2]])
 
     inv_vals = 1 ./ vals
-    tab = vcat(inv_vals, [intervalx[1], intervalx[2]])
+    if maximum(inv_vals) > ub
+        tab = [intervalx[1], min(ub,intervalx[2])]
+    else
+        tab = vcat(inv_vals, [intervalx[1], intervalx[2]])
+    end
     bounds = sort(tab)
     for i in 1:length(bounds)-1
         current_interval = [bounds[i], bounds[i+1]]
@@ -114,7 +119,7 @@ function plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h; eps=1e-10)
     display(p)
 end
 
-
+# intersection but non inclusion
 function fig1()
     a = 1.0
     c0 = [1.6+a; 1.4+a]
@@ -138,11 +143,14 @@ function fig1()
     UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
     annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
     annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
+
+    #annotate!(x, ylimits[1]-0.08*(ylimits[2]-ylimits[1]), text(latexstring("\$\\frac{1}{\\lambda_{$(i)}}\$")))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
+# inclusion with contact point
 function fig2()
     a = 0.89
     c0 = [1.6+a; 1.4+a]
@@ -171,6 +179,7 @@ function fig2()
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
+# strict inclusion
 function fig3()
     a = 0.6
     c0 = [1.6+a; 1.4+a]
@@ -200,7 +209,7 @@ function fig3()
 end
 
 function fig4()
-    a = 0.6
+    a = 1.6
     c0 = [1.6+a; 1.4+a]
     P0 = [0.4 -0.1;
          -0.1 0.5]
@@ -209,22 +218,28 @@ function fig4()
     P = [4.0 0.5;       
          0.5 6.0]
     ############ Plot parameters ############
-    intervalx = [-0.02, 0.8]
-    intervalfx = [-3, 1.0]
     ϵ = 0.0001
     h = 0.0001
     ########################################
     El0 = UT.Ellipsoid(P0, c0)
     El = UT.Ellipsoid(P, c)
+    Elnew = UT.scale_for_inclusion_contact_point(El0, El) 
     #########################################
     p = plot(aspect_ratio=:equal,legend=false)
+    UT.plotE!(Elnew, color=myred; opacity=0.4, lw=4,lc=myredN)
     UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
     UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
+    annotate!(4.9, 4.4, text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper, color=myredN, 30))
     annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
     annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
     display(p)
     #########################################
+    intervalx = [-0.02, 0.8]
+    intervalfx = [-3, 1.0]
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
+    intervalx = [-0.02, 0.4]
+    intervalfx = [-3, 1.0]
+    plotSecularFunction(Elnew, El, intervalx, intervalfx, ϵ, h)
 end
 
 function particularCase()
@@ -330,8 +345,8 @@ function particularCase(c0, V0, D0, cx, i, V, D)
     return El0, El, El0_1, El_1, El_2
 end
 
-# plot a case where the longest axis ofE is orthogonal with c-c0 but we still have an asymptote
-function test5()
+# plot a case where the longest axis of E is orthogonal with c-c0 but we still have an asymptote
+function test1()
     c0 = [3.2; 3.0]
     θ0 = 30*π/180
     V0 = [cos(θ0) -sin(θ0); sin(θ0) cos(θ0)]
@@ -365,11 +380,11 @@ function test5()
     intervalfx = [-200, 1.0]
     ϵ = 0.00001
     h = 0.0001
-    #plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
+    plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
 # plot a case where we do ot have an asymptot
-function test6()
+function test2()
     c0 = [3.2; 3.0]
     θ0 = 30*π/180
     V0 = [cos(θ0) -sin(θ0); sin(θ0) cos(θ0)]
@@ -403,10 +418,7 @@ function test6()
     intervalfx = [-200, 1.0]
     ϵ = 0.00001
     h = 0.0001
-   # plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
+    plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
-#tansformations()
-# fig3()
-test6()
-# particularCase()
+fig1()
