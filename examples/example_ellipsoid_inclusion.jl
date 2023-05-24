@@ -143,8 +143,6 @@ function fig1()
     UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
     annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
     annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
-
-    #annotate!(x, ylimits[1]-0.08*(ylimits[2]-ylimits[1]), text(latexstring("\$\\frac{1}{\\lambda_{$(i)}}\$")))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
