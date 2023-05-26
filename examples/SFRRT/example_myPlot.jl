@@ -25,11 +25,11 @@ function example_arrow()
     n_x = 2
     E0 = UT.Ellipsoid(Matrix{Float64}(I(n_x))*8.0, [-10.0;-10.0])
     EF = UT.Ellipsoid(Matrix{Float64}(I(n_x))*3.0, [10.0;10.0])
-    plot(aspect_ratio=:equal)
+    fig = plot(aspect_ratio=:equal)
     UT.plotE!(E0)
     UT.plotE!(EF)
-    UT.plot_arrow!(E0.c,EF.c;dims=[1,2],color=:black,markeralpha=0.0)
+    plot!(fig, UT.DrawArrow(E0.c,EF.c), color = :black, markeralpha=0.0)
 end
 
 example_colormap()
-# example_arrow()
+example_arrow()

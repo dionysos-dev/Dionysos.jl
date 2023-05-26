@@ -1,6 +1,5 @@
 using Dionysos
 
-# const PR = Dionysos.Problem
 const SY = Dionysos.System
 const UT = Dionysos.Utils
 
@@ -363,11 +362,11 @@ if true
                     lyap = (nodePar.path_cost)
                     UT.plotE!(nodePar.state, color=UT.get_color(mycolorMap, lyap))
                     push!(plotted, nodePar)
-                    UT.plot_arrow!(aTail, aHead)
+                    plot!(fig, UT.DrawArrow(aTail, aHead))
                     aTail = nodePar.state.c
                     nodePar = nodePar.parent
                 else
-                    UT.plot_arrow!(aTail, aHead)
+                    plot!(fig, UT.DrawArrow(aTail, aHead))
                     nodePar = nothing
                 end
             end

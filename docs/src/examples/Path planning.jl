@@ -107,7 +107,7 @@ fig = plot(aspect_ratio=:equal)
 Plots.plot!(problem.system.X; dims=[1,2], color=:yellow, opacity=0.5)
 Plots.plot!(problem.initial_set; dims=[1,2], color=:green)
 Plots.plot!(problem.target_set; dims=[1,2], color=:red)
-UT.plot_traj!(x_traj; dims=[1,2])
+Plots.plot!(fig, UT.DrawTrajectory(x_traj))
 display(fig)
 
 # ### References

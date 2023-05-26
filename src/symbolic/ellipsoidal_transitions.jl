@@ -575,7 +575,7 @@ function plot_transitions!(E1::UT.Ellipsoid, f_eval, c_eval, nw; N=100)
     for x in samples
         unew = c_eval(x)
         xnew = f_eval(x, unew, wnew)
-        UT.plot_arrow!(x, xnew, color=:black)
+        plot!(UT.DrawArrow(x, xnew), color = :black)
     end
 end
 

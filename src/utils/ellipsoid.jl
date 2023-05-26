@@ -155,9 +155,9 @@ end
 
 function plotAxis!(elli::Ellipsoid; color1=:black, color2=:black)
     p1, p2 = get_axis_points(elli, 1)
-    plot_segment!(p1, p2; color=color1)
+    plot!(DrawSegment(p1, p2), color = color1)
     p1, p2 = get_axis_points(elli, 2)
-    plot_segment!(p1, p2; color=color2)
+    plot!(DrawSegment(p1, p2), color = color2)
 end
 
 

@@ -228,7 +228,7 @@ function plot_Tree!(tree::Tree; arrow=true)
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent!==nothing
-                    plot_arrow!(leave.state.c,leave.parent.state.c)
+                    plot!(UT.DrawArrow(leave.state.c, leave.parent.state.c))
                 end
             end
             parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
@@ -251,6 +251,6 @@ function plot_path!(node::NodeT)
     plot_colorBar!(colorMap)
     # plot edges of the tree
     for i in 1:length(path)-1
-        plot_arrow!(path[i].state.c,path[i+1].state.c)
+        plot!(UT.DrawArrow(path[i].state.c, path[i+1].state.c))
     end
 end

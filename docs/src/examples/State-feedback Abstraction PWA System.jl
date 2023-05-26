@@ -215,11 +215,11 @@ for t in symmodel.autom.transitions.data
             color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
             if t[1]==t[2]
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
-                  UT.plot_point!(p1; dims=vars, color=color)
+                  plot!(fig, UT.DrawPoint(p1), color = color)
             else
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
                   p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
-                  UT.plot_arrow!(p1, p2; dims=vars, color=color)
+                  Plots.plot!(fig, UT.DrawArrow(p1, p2), color = color)
             end
       end
 end
@@ -255,7 +255,7 @@ UT.plotE!(Etarget, color=:red)
 Plots.plot!(Xobstacles, color=:black, opacity=1.0)
 
 trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-UT.plot_traj!(trajCoord, color=:black)
+Plots.plot!(fig, UT.DrawTrajectory(trajCoord))
 
 UT.plot_colorBar!(mycolorMap)
 xlabel!("\$x_1\$")

@@ -259,10 +259,6 @@ UT.plot_Tree!(tree)
 # UT.plot_path!(NI)
 UT.plotE!(Einit, color=:green)
 UT.plotE!(Etarget, color=:red)
-
-# # x = Einit.c #[3.0;-8.0] #E0.c
-# # trajx, trajE = UT.simulate(tree, f_eval, Ts, x) 
-# # UT.plot_traj!(trajx, trajE, color=:green)
 display(p)
 
 
