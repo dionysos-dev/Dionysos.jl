@@ -1,4 +1,6 @@
 import Base.append!
+import Base.delete!
+
 mutable struct SortedTupleSet{N,T} <: AbstractSet{T}
     data::Vector{T}
     is_sorted::Bool

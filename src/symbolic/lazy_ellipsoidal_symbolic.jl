@@ -62,7 +62,7 @@ end
 
 function plot_traj!(trajx, trajE; color=:black)
     for E in trajE
-        UT.plotE!(E, color=:blue)
+        plot!(E, color = :blue)
     end
     plot!(UT.DrawTrajectory(trajx), color = color)
 end

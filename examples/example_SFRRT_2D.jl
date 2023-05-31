@@ -1,3 +1,5 @@
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
 using Dionysos
 
 const SY = Dionysos.System
@@ -352,15 +354,14 @@ if true
         for n in treeLeaves
             push!(plotted, n)
             lyap = (n.path_cost)
-            
-            UT.plotE!(n.state, color=UT.get_color(mycolorMap, lyap))
+            plot!(fig, n.state, color=UT.get_color(mycolorMap, lyap))
             nodePar = n.parent
             aTail = n.state.c
             while nodePar !== nothing 
                 aHead = nodePar.state.c 
                 if !(nodePar ∈ plotted)
                     lyap = (nodePar.path_cost)
-                    UT.plotE!(nodePar.state, color=UT.get_color(mycolorMap, lyap))
+                    plot!(fig, nodePar.state, color=UT.get_color(mycolorMap, lyap))
                     push!(plotted, nodePar)
                     plot!(fig, UT.DrawArrow(aTail, aHead))
                     aTail = nodePar.state.c
@@ -377,12 +378,12 @@ if true
 
         while currNode !== nothing
             lyap = (currNode.path_cost)
-            UT.plotE!(currNode.state, color=UT.get_color(mycolorMap, lyap))
+            plot!(fig, currNode.state, color=UT.get_color(mycolorMap, lyap))
             global currNode = currNode.parent
         end
-        UT.plotE!(X0, color=:green)
-        UT.plotE!(obstacles[1], color=:black)
-        UT.plotE!(XF, color=:red)
+        plot!(fig, X0, color = :green)
+        plot!(fig, obstacles[1], color = :black)
+        plot!(fig, XF, color=:red)
         UT.plot_colorBar!(mycolorMap)
 
         # savefig("ex2_traj.png")          

@@ -1,3 +1,5 @@
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
 using Dionysos
 UT = Dionysos.Utils
 SY = Dionysos.System
@@ -252,13 +254,13 @@ tree = optimizer.tree
 println("Path cost from EI : ", NI.path_cost)
 p = plot(aspect_ratio=:equal)
 for obs in obstacles
-    UT.plotE!(obs,color=:black)
+    plot!(p, obs)
 end
 
 UT.plot_Tree!(tree)
 # UT.plot_path!(NI)
-UT.plotE!(Einit, color=:green)
-UT.plotE!(Etarget, color=:red)
+plot!(p, Einit, color = :green)
+plot!(p, Etarget, color = :red)
 display(p)
 
 

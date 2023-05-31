@@ -10,9 +10,9 @@ function check_inclusion(El0,El)
     println(Elnew)
 
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(El0, color=:red, label="El0")
-    UT.plotE!(Elnew, color=:green, label="Elnew")
-    UT.plotE!(El, color=:blue, label="El")
+    plot!(p, El0, color=:red, label="El0")
+    plot!(p, Elnew, color=:green, label="Elnew")
+    plot!(p, El, color=:blue, label="El")
     display(p)
 end
 
@@ -23,9 +23,9 @@ function check_intersection(El0,El)
     println(Elnew)
 
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(El0, color=:red, label="El0")
-    UT.plotE!(El, color=:blue, label="El")
-    UT.plotE!(Elnew, color=:green, label="Elnew")
+    plot!(p, El0, color=:red, label="El0")
+    plot!(p, El, color=:blue, label="El")
+    plot!(p, Elnew, color=:green, label="Elnew")
     display(p)
 end
 
@@ -41,5 +41,5 @@ P = [4.0 0.5;
 El0 = UT.Ellipsoid(P0, c0)
 El = UT.Ellipsoid(P, c)
 
-# check_intersection(El0,El)
+check_intersection(El0,El)
 check_inclusion(El0,El)

@@ -3,7 +3,6 @@ using .Dionysos
 UT = Dionysos.Utils
 using Plots, Colors, LinearAlgebra, LaTeXStrings
 
-
 myblue = RGB(108 ./256,142 ./256,191 ./256) 
 myblueN = RGB(32 ./256,103 ./256,205 ./256)
 myorange = RGB(255 ./280,158 ./280,56 ./280) 
@@ -34,15 +33,15 @@ function tansformations()
     println(El0∈El)
 
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(El0, color=:orange, label="El0")
-    UT.plotE!(El, color=:blue, label="El")
+    plot!(p, El0, color = :orange, label = "El10")
+    plot!(p, El, color = :blue, label = "El")
 
-    UT.plotE!(El0_1, color=:black, label="El0_1", opacity=0.5)
-    UT.plotE!(El_1, color=:yellow, label="El_1")
+    plot!(p, El0_1, color = :black, label = "El0_1", opacity = .5)
+    plot!(p, El_1, color = :yellow, label = "El_1")
 
-    UT.plotE!(Elnew, color=:pink, label="Elnew")
-    UT.plotE!(El0_2, color=:green, label="El0_2")
-    UT.plotE!(El_2, color=:red, label="El_2")
+    plot!(p, Elnew, color = :pink, label = "Elnew")
+    plot!(p, El0_2, color = :green, label = "El0_2")
+    plot!(p, El_2, color = :red, label = "El_2")
 
     display(p)
 end
@@ -134,10 +133,11 @@ function fig1()
     El = UT.Ellipsoid(P, c)
     #########################################
     p = plot(aspect_ratio=:equal,legend=false)
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
-    annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
+    plot!(p, El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(p, El, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+
+    annotate!(p, 3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
+    annotate!(p, 1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
@@ -162,10 +162,10 @@ function fig2()
     El = UT.Ellipsoid(P, c)
     #########################################
     p = plot(aspect_ratio=:equal,legend=false)
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
-    annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
+    plot!(p, El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(p, El, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    annotate!(p, 3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
+    annotate!(p, 1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
@@ -190,10 +190,10 @@ function fig3()
     El = UT.Ellipsoid(P, c)
     #########################################
     p = plot(aspect_ratio=:equal,legend=false)
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
-    annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
+    plot!(p, El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(p, El, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    annotate!(p, 3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
+    annotate!(p, 1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
@@ -218,10 +218,10 @@ function fig4()
     El = UT.Ellipsoid(P, c)
     #########################################
     p = plot(aspect_ratio=:equal,legend=false)
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    annotate!(3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
-    annotate!(1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
+    plot!(p, El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(p, El, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    annotate!(p, 3.0, 3.0, text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 30))
+    annotate!(p, 1.5, 1.5, text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 30))
     display(p)
     #########################################
     plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
@@ -258,28 +258,23 @@ function particularCase()
     myorange = RGB(255 ./280,158 ./280,56 ./280) 
     myorangeN = RGB(255 ./280,130 ./280,0.0 ./280) 
 
-    p = plot(aspect_ratio=:equal,legend=false)
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El1, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    UT.plotE!(El02, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El2, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    UT.plotE!(El3, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-
-    plot!(p, UT.DrawArrow(El02.c, El3.c), color = :black, markeralpha = 1.0)
-    plot!(p, UT.DrawArrow(El02.c, El2.c), color = :black, markeralpha = 1.0)
-    plot!(p, UT.DrawArrow(El0.c, El1.c), color = :black, markeralpha = 1.0)
-
+    plot!(El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(El1, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    plot!(El02, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(El2, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    plot!(El3, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    plot!(UT.DrawArrow(El02.c, El3.c), color = :black, markeralpha = 1.0)
+    plot!(UT.DrawArrow(El02.c, El2.c), color = :black, markeralpha = 1.0)
+    plot!(UT.DrawArrow(El0.c, El1.c), color = :black, markeralpha = 1.0)
     annotate!(El0.c[1], El0.c[2], text(latexstring("\$\\mathcal{E}_0\$"), :upper, color=myorangeN, 25))
     annotate!(El1.c[1], El1.c[2], text(latexstring("\$\\mathcal{E}\$"), :upper, color=myblueN, 25))
     annotate!(El02.c[1], El02.c[2], text(latexstring("\$\\tilde{\\mathcal{E}}_0\$"), :upper, color=myorangeN, 20))
     annotate!(El2.c[1], El2.c[2], text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper, color=myblueN, 20))
     annotate!(El3.c[1], El3.c[2], text(latexstring("\$\\tilde{\\tilde{\\mathcal{E}}}\$"), :upper, color=myblueN, 15))
 
-    UT.plotAxis!(El0)
-    UT.plotAxis!(El1)
-    UT.plotAxis!(El2)
-    UT.plotAxis!(El3)
-
+    for E = [El0, El1, El2, El3]
+        plot!(E, axis_plot = true)
+    end
     println(eigen(El1.P).vectors)
     println(eigen(El0.P).vectors)
     display(p)
@@ -307,19 +302,17 @@ function particularCase(c0, V0, D0, cx, i, V, D)
     El0_2 = UT.transform(El0_1, V1',0*El0.c) 
     El_2 = UT.transform(El_1, V1',0*El0.c) 
     #########################################
-    UT.plotE!(El0, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    UT.plotE!(El0_1, color=myorange; opacity=0.6, lw=4,lc=myorangeN)
-    UT.plotE!(El_1, color=myblue; opacity=0.8, lw=4,lc=myblueN)
-    UT.plotE!(El_2, color=myblue; opacity=0.8, lw=4,lc=myblueN)
+    plot!(El0, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(El, color = myblue, opacity = .8, lw = 4, lc = myblueN)
+    plot!(El0_1, color = myorange, opacity = .6, lw = 4, lc = myorangeN)
+    plot!(El_1, color = myblue, opacity=0.8, lw = 4, lc=myblueN)
+    plot!(El_2, color = myblue, opacity=0.8, lw = 4, lc=myblueN)
+    plot!(UT.DrawArrow(El0.c, El.c), markeralpha = 1.0)
+    plot!(UT.DrawArrow(El0_1.c, El_1.c), markeralpha = 1.0)
 
-    plot!(UT.DrawArrow(El0.c, El.c), markeralpha=1.0)
-    plot!(UT.DrawArrow(El0_1.c, El_1.c), markeralpha=1.0)
-
-    UT.plotAxis!(El0;color1=:green, color2=:red)
-    UT.plotAxis!(El;color1=:green, color2=:red)
-    UT.plotAxis!(El_1;color1=:green, color2=:red)
-    UT.plotAxis!(El_2;color1=:green, color2=:red)
+    for E = [El0, El, El_1, El_2]
+        plot!(E, axis_plot = true, color1 = :green, color2 = :red)
+    end
     #########################################
     vals = eigen(El.P).values
     vals0 = eigen(El0.P).values
@@ -408,7 +401,7 @@ function test6()
    # plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
-#tansformations()
+# tansformations()
 # fig3()
 test6()
 # particularCase()

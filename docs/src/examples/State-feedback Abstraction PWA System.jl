@@ -243,15 +243,17 @@ for (lyap, state) in cost_ordered
       pos = SY.get_xpos_by_state(symmodel, state)
       elli = DO.get_elem_by_pos(state_grid, pos)
       if (lyap ≠ Inf)
-            UT.plotE!(elli, color=UT.get_color(mycolorMap, lyap))
+            plot!(fig, elli, color = UT.get_color(mycolorMap, lyap))
       else
-            UT.plotE!(elli, color=:yellow)
+            plot!(fig, elli, color = :yellow)
       end
 end
 Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
 Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
-UT.plotE!(Einit, color=:green)
-UT.plotE!(Etarget, color=:red)
+plot!()
+
+plot!(fig, Einit, color=:green)
+plot!(fig, Etarget, color=:red)
 Plots.plot!(Xobstacles, color=:black, opacity=1.0)
 
 trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]

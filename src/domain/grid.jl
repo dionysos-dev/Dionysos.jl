@@ -140,7 +140,7 @@ end
 
 function plot_elem!(grid::GridEllipsoidalRectangular, pos; dims=[1,2], opacity=1.0, color=:yellow)
     elli = get_elem_by_pos(grid, pos)
-    UT.plotE!(elli, opacity=opacity, color=color)
+    plot!(elli, opacity = opacity, color = color)
 end
 
 #######################################################
