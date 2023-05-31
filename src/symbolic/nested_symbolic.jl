@@ -244,7 +244,7 @@ function Plots.plot!(symmodel::NestedSymbolicModel;dims=[1,2],annotate=false)
            center = DO.get_coord_by_pos(dom.grid, pos)
            annotate!([(center[dims[1]], center[dims[2]], text(s, :red))])
         end
-        DO.plot_elem!(grid,pos, opacity=.9,color=colors)
+        plot!(grid, pos, opacity = .9, color = colors)
     end
 end
 
@@ -336,7 +336,7 @@ function plot_shannon_entropy!(symmodel::NestedSymbolicModel;dims=[1,2],xlims=[]
             val = get_shannon_entropy(mc, s)
             opacity = val/max_val
             if opacity > 0.01
-                DO.plot_elem!(dom.grid, pos, dims=dims,opacity=opacity*2.0,color=:yellow)
+                plot!(dom.grid, pos, opacity = opacity * 2., color = :yellow)
             end
         end
     end
@@ -363,7 +363,7 @@ function plot_steady_state!(symmodel::NestedSymbolicModel;dims=[1,2],fact=1.0,to
             opa = 1.0
         end
         if opa > tol
-            DO.plot_elem!(dom.grid, pos, dims=dims,opacity=opa*12.0,color=color) #*12.0
+            plot!(dom.grid, pos, opacity = opa * 12., color = color)
         end
     end
 end
@@ -431,7 +431,7 @@ function plot_region!(symmodel,region)
         println(s)
         (l,pos) = get_xpos_by_state(symmodel, s)
         dom = symmodel.Xdom.domains[l]
-        DO.plot_elem!(dom.grid, pos,opacity=1,color=:yellow)
+        plot!(dom.grid, pos, opacity = 1., color = :yellow)
     end
 end
 
@@ -452,7 +452,7 @@ function plot_entropy!(symmodel::NestedSymbolicModel;dims=[1,2])
         val = get_entropy(mc, s)
         opacity = val/max_val
         if opacity > 0.01
-            DO.plot_elem!(dom.grid, pos, dims=dims,opacity=opacity,color=:yellow)
+            plot!(dom.grid, pos, opacity = opacity, color = :yellow)
         end
     end
 end
@@ -466,7 +466,7 @@ function plot_SCC(sys,symmodel::NestedSymbolicModel;dims=[1,2])
                 s = mc.symmodel_from_mc[idx]
                 (l,pos) = get_xpos_by_state(symmodel, s)
                 dom = symmodel.Xdom.domains[l]
-                DO.plot_elem!(dom.grid, pos, dims=dims,color=i)
+                plot!(dom.grid, pos, color = i)
             end
         end
     end
@@ -480,7 +480,7 @@ function plot_SCC(sys,symmodel::NestedSymbolicModel;dims=[1,2])
                 s = mc.symmodel_from_mc[idx]
                 (l,pos) = get_xpos_by_state(symmodel, s)
                 dom = symmodel.Xdom.domains[l]
-                DO.plot_elem!(dom.grid, pos, dims=dims,color=i)
+                plot!(dom.grid, pos, color = i)
             end
         end
     end
@@ -526,7 +526,7 @@ function plot_map(symmodel::NestedSymbolicModel,f;dims=[1,2])
         # println()
         # println(val)
         # println(opacity)
-        DO.plot_elem!(grid, pos, opacity=opacity,color=:yellow)
+        plot!(grid, pos, opacity = opacity, color = :yellow)
     end
     # x0 = SVector(2.0,2.0)
     # plot_trajectory!(sys,x0,200)
@@ -546,11 +546,11 @@ function plot_Jacobian(sys,symmodel::NestedSymbolicModel,Jacobian;dims=[1,2])
         r1 = real(eigenvalues[1])
         r2 = real(eigenvalues[2])
         if r1<0 && r2<0
-            DO.plot_elem!(grid, pos, opacity=1.0,color=:green)
+            plot!(grid, pos, opacity = 1., color = :green)
         elseif r1>0 && r2>0
-            DO.plot_elem!(grid, pos, opacity=1.0,color=:red)
+            plot!(grid, pos, opacity = 1., color = :red)
         else
-            DO.plot_elem!(grid, pos, opacity=1.0,color=:yellow)
+            plot!(grid, pos, opacity = 1., color = :yellow)
         end
     end
     x0 = SVector(2.0,2.0)

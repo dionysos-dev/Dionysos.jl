@@ -83,7 +83,7 @@ function Plots.plot!(symmodel::LazySymbolicModel;dims=[1,2], color=:yellow, opac
         pos = get_xpos_by_state(symmodel, s)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            DO.plot_elem!(grid, pos; dims=dims, opacity=opacity, color=color)
+            plot!(grid, pos; opacity = opacity, color = color)
         end
     end
 end

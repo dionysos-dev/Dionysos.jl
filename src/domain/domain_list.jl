@@ -165,7 +165,7 @@ function Plots.plot!(Xdom::DomainType{N,T};dims=[1,2], color=:yellow, opacity=0.
     for pos in enum_pos(Xdom)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            plot_elem!(grid, pos; dims=dims, opacity=opacity, color=color)
+            plot!(grid, pos, opacity = opacity, color = color)
         end
     end
 end

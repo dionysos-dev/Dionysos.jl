@@ -140,7 +140,7 @@ function Plots.plot!(Ndomain::NestedDomain;dims=[1,2])
         for (pos, v) in Ndomain.active[l]
             grid = get_grid(Ndomain, l)
             if v == true
-                plot_elem!(grid, pos)
+                plot!(grid, pos)
             end
         end
     end
