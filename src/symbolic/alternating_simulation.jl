@@ -78,7 +78,7 @@ end
 function plot_heuristic!(heuristic::symmodelHeuristic;dims=[1,2],opacity=0.2,color=:red)
     symmodel = heuristic.symmodel
     dists = heuristic.dists
-    DO.plot!(symmodel.Xdom,dims=dims,opacity=opacity,color=color)
+    plot!(symmodel.Xdom,dims=dims,opacity=opacity,color=color)
     i = 1
     for elem in DO.enum_pos(symmodel.Xdom)
         x = DO.get_coord(symmodel.Xdom,elem)[dims]
