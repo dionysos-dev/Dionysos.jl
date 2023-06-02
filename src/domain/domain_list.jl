@@ -159,13 +159,20 @@ function get_coord(domain::DomainType, pos)
     return get_coord_by_pos(domain.grid,pos)
 end
 
-function Plots.plot!(Xdom::DomainType{N,T};dims=[1,2], color=:yellow, opacity=0.2) where {N,T}
+@recipe function f(Xdom::DomainType{N, T}) where {N, T}
+    opacity     := 0.2
+    color       := :yellow
+    legend      := false
+
+    dims = [1, 2]
     grid = get_grid(Xdom)
     dict = Dict{NTuple{2,Int}, Any}()
     for pos in enum_pos(Xdom)
         if !haskey(dict,pos[dims])
             dict[pos[dims]] = true
-            plot!(grid, pos, opacity = opacity, color = color)
+            @series begin
+                return grid, pos
+            end
         end
     end
 end
