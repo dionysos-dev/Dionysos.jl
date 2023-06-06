@@ -36,7 +36,7 @@ x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0,
 
 fig = plot(aspect_ratio=:equal)
 Plots.plot!(problem.system.X)
-UT.plot_traj!(x_traj)
+Plots.plot!(fig, UT.DrawTrajectory(x_traj))
 display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
