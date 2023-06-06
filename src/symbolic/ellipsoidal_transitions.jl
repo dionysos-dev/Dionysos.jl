@@ -575,15 +575,15 @@ function plot_transitions!(E1::UT.Ellipsoid, f_eval, c_eval, nw; N=100)
     for x in samples
         unew = c_eval(x)
         xnew = f_eval(x, unew, wnew)
-        UT.plot_arrow!(x, xnew, color=:black)
+        plot!(UT.DrawArrow(x, xnew), color = :black)
     end
 end
 
 # data-driven plot
 function plot_check(E1::UT.Ellipsoid, f_eval, c_eval, nw, E2::UT.Ellipsoid; N=100)
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(E1, color=:green)
-    UT.plotE!(E2, color=:red)
+    plot!(p, E1, color = :green)
+    plot!(p, E2, color = :red)
     plot_transitions!(E1, f_eval, c_eval, nw; N=N)
     display(p)
 end
@@ -607,8 +607,7 @@ function plot_controller_cost(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval,
     end
     colorMap = UT.Colormap([vmin,vmax], Colors.colormap("Blues"))
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(E1, color=:white)
-    #UT.plotE!(E2, color=:red)
+    plot!(p, E1, color = :white)
     for (i,x) in enumerate(samples)
         plot!([x[1]], [x[2]], seriestype=:scatter, ms=2; color=UT.get_color(colorMap, costs[i]))
         #UT.plot!(x; color=UT.get_color(colorMap, costs[i]))

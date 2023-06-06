@@ -145,21 +145,27 @@ function get_inscribed_ball(elli::Ellipsoid)
     return Ellipsoid((1/(r*r))*I_elli, elli.c)
 end
 
-function plotE!(elli::Ellipsoid; color=:blue, opacity=1.0, label="",lw=1,lc=:black)
-    P = get_shape(elli)
-    Q = inv(P)
-    Q = (Q+Q')./2
-    E = LazySets.Ellipsoid(collect(get_center(elli)), Q) #not optimal, require to inverse
-    Plots.plot!(E; color=color, opacity=opacity, label=label,lw=lw,lc=lc)
+@recipe function f(e::Ellipsoid; axis_plot = false, color1 = :black, color2 = :black)
+    if axis_plot
+        @series begin 
+            color   :=    color1
+            p1, p2 = get_axis_points(e, 1)
+            return DrawSegment(p1, p2)
+        end
+        color   := color2
+        p1, p2 = get_axis_points(e, 2)
+        return DrawSegment(p1, p2)
+    else
+        opacity := 1.
+        label   := "" 
+        lw      := 1
+        lc      := :black
+        Pvar = get_shape(e)
+        Qvar = inv(Pvar)
+        Qvar = (Qvar + Qvar') ./ 2
+        return LazySets.Ellipsoid(collect(get_center(e)), Qvar)
+    end
 end
-
-function plotAxis!(elli::Ellipsoid; color1=:black, color2=:black)
-    p1, p2 = get_axis_points(elli, 1)
-    plot_segment!(p1, p2; color=color1)
-    p1, p2 = get_axis_points(elli, 2)
-    plot_segment!(p1, p2; color=color2)
-end
-
 
 # get the farthest point of the ellipsoid in direction d
 function get_farthest_point(elli::Ellipsoid, d)

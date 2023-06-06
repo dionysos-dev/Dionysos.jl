@@ -1,3 +1,5 @@
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
 using Dionysos
 UT = Dionysos.Utils
 SY = Dionysos.System
@@ -258,17 +260,13 @@ if NI !== nothing
 end
 p = plot(aspect_ratio=:equal)
 for obs in obstacles
-    UT.plotE!(obs,color=:black)
+    plot!(p, obs)
 end
 
 UT.plot_Tree!(tree)
 # UT.plot_path!(NI)
-UT.plotE!(Einit, color=:green)
-UT.plotE!(Etarget, color=:red)
-
-# # x = Einit.c #[3.0;-8.0] #E0.c
-# # trajx, trajE = UT.simulate(tree, f_eval, Ts, x) 
-# # UT.plot_traj!(trajx, trajE, color=:green)
+plot!(p, Einit, color = :green)
+plot!(p, Etarget, color = :red)
 display(p)
 
 

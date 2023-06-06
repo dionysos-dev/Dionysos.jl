@@ -91,10 +91,12 @@ function sample_elem(grid::GridFree, xpos, N::Int)
     return UT.sample_from_rec(rec,N)
 end
 
-function plot_elem!(grid::GridFree, pos; dims=[1,2], opacity=.9, color=:yellow)
-    center = get_coord_by_pos(grid, pos)
-    h = grid.h[dims]
-    plot!(rectangle(center[dims],h./2), opacity=opacity,color=color)
+@recipe function f(gf::GridFree, pos)
+    opacity := .9
+    color   := :yellow
+    center = get_coord_by_pos(gf, pos)
+    h = gf.h[[1, 2]]
+    return rectangle(center[[1, 2]], h ./ 2)
 end
 
 #######################################################
@@ -138,9 +140,10 @@ function get_elem_by_coord(grid::GridEllipsoidalRectangular, x)
     return get_elem_by_pos(grid, pos)
 end
 
-function plot_elem!(grid::GridEllipsoidalRectangular, pos; dims=[1,2], opacity=1.0, color=:yellow)
-    elli = get_elem_by_pos(grid, pos)
-    UT.plotE!(elli, opacity=opacity, color=color)
+@recipe function f(ger::GridEllipsoidalRectangular, pos)
+    opacity := 1.
+    color   := :yellow
+    return get_elem_by_pos(ger, pos)
 end
 
 #######################################################
@@ -213,30 +216,47 @@ function sample_elem(Dgrid::DeformedGrid, xpos, N::Int)
     return [Dgrid.f(x) for x in points]
 end
 
-function plot_deformed_rectangle!(rec,f;dims=[1,2],opacity=0.9,color=:yellow,N=2)
-     lb = rec.lb[dims]
-     ub = rec.ub[dims]
-     vertices = [SVector(lb[1],lb[2]), SVector(lb[1],ub[2]), SVector(ub[1],lb[2]), SVector(ub[1],ub[2])]
-     points = SVector[]
-     for x in LinRange(lb[1],ub[1],N)
-         push!(points,f(SVector(x,lb[2])))
-     end
-     for x in LinRange(lb[2],ub[2],N)
-         push!(points,f(SVector(ub[1],x)))
-     end
-     for x in LinRange(ub[1],lb[1],N)
-         push!(points,f(SVector(x,ub[2])))
-     end
-     for x in LinRange(ub[2],lb[2],N)
-         push!(points,f(SVector(lb[1],x)))
-     end
-     unique!(points)
-     x = [point[1] for point in points]
-     y = [point[2] for point in points]
-     plot!(Shape(x,y),opacity=opacity,color=color)
+# Not sure if the recipe for DeformedGrid is optimal, to check
+struct DeformedRectangleDraw
+    rec::Any
+    N::Integer
+    f
+end
+@recipe function f(r::DeformedRectangleDraw)
+    opacity --> .9
+    color   --> :yellow
+
+    rec = r.rec
+    N = r.N
+    f = r.f
+
+    dims = [1, 2]
+
+    lb = rec.lb[dims]
+    ub = rec.ub[dims]
+    points = SVector[]
+    for x in LinRange(lb[1],ub[1],N)
+        push!(points,f(SVector(x,lb[2])))
+    end
+    for x in LinRange(lb[2],ub[2],N)
+        push!(points,f(SVector(ub[1],x)))
+    end
+    for x in LinRange(ub[1],lb[1],N)
+        push!(points,f(SVector(x,ub[2])))
+    end
+    for x in LinRange(ub[2],lb[2],N)
+        push!(points,f(SVector(lb[1],x)))
+    end
+    unique!(points)
+    x = [point[1] for point in points]
+    y = [point[2] for point in points]
+    return Shape(x, y)
 end
 
-function plot_elem!(Dgrid::DeformedGrid, pos; dims=[1,2], opacity=1.0, color=:yellow, N=8)
-    rec = get_rec(Dgrid.grid,pos)
-    plot_deformed_rectangle!(rec,Dgrid.f;dims=dims,opacity=opacity,color=color, N=N)
+@recipe function f(dg::DeformedGrid, pos; N = 8)
+    opacity := 1.
+    color   := :yellow
+    rec = get_rec(dg.grid, pos)
+    return DeformedRectangleDraw(rec, N, dg.f)
 end
+

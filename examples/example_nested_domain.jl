@@ -30,7 +30,7 @@ function test()
 
     DO.cut_pos!(Ndomain, (4,4), 2)
     fig = plot(aspect_ratio = 1,legend = false)
-    DO.plot!(Ndomain)
+    plot!(Ndomain)
     display(fig)
 end
 

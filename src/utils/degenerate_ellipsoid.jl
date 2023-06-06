@@ -46,23 +46,28 @@ end
 
 # If U'U is not invertible, the ellipsoid defined by {x: (x-c)'U'U(x-c) <= 1} is a 
 # degenerate ellipsoid and can be visualized as a line segment
-function plotE!(elli::DegenerateEllipsoid; color=:blue, opacity=1.0, label="",lw=1,lc=:black)
-    P = get_shape(elli)
-    if is_degenerate(elli)
-        U = get_root(elli)
-        v = nullspace(U'*U)
-        v = v ./ norm(v)
-        c = get_center(elli)
-        # Define two points on the line segment
-        p1 = c - v
-        p2 = c + v
-
-        # Plot the line segment
-        plot([p1[1], p2[1]], [p1[2], p2[2]], xlims=(minimum([p1[1], p2[1]])-0.1, maximum([p1[1], p2[1]])+0.1), ylims=(minimum([p1[2], p2[2]])-0.1, maximum([p1[2], p2[2]])+0.1), aspect_ratio=:equal)
-    else
-        Q = inv(P)
-        Q = (Q+Q')./2
-        E = LazySets.Ellipsoid(collect(get_center(elli)), Q) #not optimal, require to inverse
-        Plots.plot!(E; color=color, opacity=opacity, label=label,lw=lw,lc=lc)
+@recipe function f(e::DegenerateEllipsoid)
+    if !is_degenerate(e)
+        return Ellipsoid(e.P, E.c)
     end
+
+    color   := :blue
+    opacity := 1.
+    label   := "" 
+    lw      := 1
+    lc      := :black
+
+    U = get_root(e)
+    v = nullspace(U' * U)
+    v = v ./ norm(v)
+    c = get_center(e)
+    # Define two points on the line segment
+    p1 = c - v
+    p2 = c + v
+
+    xlims           := (minimum([p1[1], p2[1]]) - .1, maximum([p1[1], p2[1]]) + .1)
+    ylims           := (minimum([p1[2], p2[2]]) - .1, maximum([p1[2], p2[2]]) + .1)
+    aspect_ratio    := equal
+
+    return DrawSegment(p1, p2)
 end

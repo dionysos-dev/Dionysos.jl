@@ -34,9 +34,6 @@ println("Started test")
     @test length(pos_iter) == 48
     DO.remove_set!(domain, UT.HyperRectangle(SVector(4.5, 7.5), SVector(7.5, 12.0)), DO.OUTER)
     @test DO.get_ncells(domain) == 36
-    # fig = plot(aspect_ratio = 1,legend = false)
-    # DO.plot!(domain)
-    # display(fig)
 end
 
 @testset "GeneralDomain HyperRec representation" begin
@@ -49,10 +46,6 @@ end
 
     domain = DO.GeneralDomainList(hx;elems=d,periodic=periodic,periods=periods,fit=true)
     @test DO.get_ncells(domain) == 48
-
-    # fig = plot(aspect_ratio = 1,legend = false)
-    # DO.plot!(domain)
-    # display(fig)
 end
 
 sleep(0.1) # used for good printing

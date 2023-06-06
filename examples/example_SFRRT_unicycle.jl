@@ -1,3 +1,5 @@
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
 using Dionysos
 
 # const PR = Dionysos.Problem

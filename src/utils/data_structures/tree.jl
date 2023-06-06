@@ -205,8 +205,6 @@ function print_data(tree::Tree)
     println()
 end
 
-
-# should just replace plotE! by generic plot! of the state, to get fully generic plot tree function
 function plot_Tree!(tree::Tree; arrow=true)
     # create a Colormap
     vmin = get_min_path_cost(tree)
@@ -219,7 +217,7 @@ function plot_Tree!(tree::Tree; arrow=true)
     allNodes = collect_nodes(tree)
     sort!(allNodes,  by=compare, rev=true)
     for node in allNodes
-        plotE!(node.state;color=get_color(colorMap,node.path_cost))
+        plot!(node.state, color = get_color(colorMap,node.path_cost))
         plot_colorBar!(colorMap)
     end
     # plot edges of the tree
@@ -228,7 +226,7 @@ function plot_Tree!(tree::Tree; arrow=true)
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent!==nothing
-                    plot_arrow!(leave.state.c,leave.parent.state.c)
+                    plot!(UT.DrawArrow(leave.state.c, leave.parent.state.c))
                 end
             end
             parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
@@ -246,11 +244,11 @@ function plot_path!(node::NodeT)
     # plot the nodes of the tree
     sortedPath = sort(path,  by=compare, rev=true)
     for node in sortedPath
-        plotE!(node.state;color=get_color(colorMap,node.path_cost))
+        plot!(node.state, color = get_color(colorMap,node.path_cost))
     end
     plot_colorBar!(colorMap)
     # plot edges of the tree
     for i in 1:length(path)-1
-        plot_arrow!(path[i].state.c,path[i+1].state.c)
+        plot!(UT.DrawArrow(path[i].state.c, path[i+1].state.c))
     end
 end

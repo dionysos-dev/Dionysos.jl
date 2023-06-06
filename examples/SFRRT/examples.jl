@@ -1,4 +1,6 @@
-using Dionysos
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
+using .Dionysos
 UT = Dionysos.Utils
 SY = Dionysos.System
 SC = Dionysos.Symbolic
@@ -23,7 +25,7 @@ function example_box_ellipsoid()
     box = UT.get_min_bounding_box(E)
     p = plot(aspect_ratio=:equal)
     UT.plot_box!(box)
-    UT.plotE!(E)
+    plot!(p, E)
     display(p)
 end
 
@@ -157,8 +159,8 @@ function test_backward_transition()
 
     
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(E1, color=:green)
-    UT.plotE!(E2, color=:red)
+    plot!(p, E1, color = :green)
+    plot!(p, E2, color = :red)
     display(p)
     println(kappa)
     println(cost)

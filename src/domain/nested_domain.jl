@@ -135,12 +135,12 @@ function enum_pos(Ndomain::NestedDomain)
     return L
 end
 
-function Plots.plot!(Ndomain::NestedDomain;dims=[1,2])
-    for l in 1:Ndomain.levels
-        for (pos, v) in Ndomain.active[l]
-            grid = get_grid(Ndomain, l)
-            if v == true
-                plot_elem!(grid, pos)
+@recipe function f(nd::NestedDomain)
+    for l = 1:nd.levels
+        for (pos, v) in nd.active[l]
+            if v
+                grid = get_grid(nd, l)
+                @series begin return grid, pos end
             end
         end
     end

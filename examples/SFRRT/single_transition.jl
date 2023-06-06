@@ -1,4 +1,6 @@
-using Dionysos
+# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+
+using .Dionysos
 using Polyhedra
 using MathematicalSystems, HybridSystems
 using CDDLib
@@ -50,11 +52,12 @@ function plot_results_2D(sys, kappa, E1, E2)
     c_eval = get_c_eval(kappa, E1.c)
     
     p = plot(aspect_ratio=:equal)
-    UT.plotE!(E1, color=:green)
-    UT.plotE!(E2, color=:blue)
+    plot!(p, E1, color = :green)
+    plot!(p, E2, color = :blue)
+
     K, ℓ = get_controllers_matrices(kappa)
     Ef = UT.affine_transformation(E1, aff_sys.A+aff_sys.B*K, aff_sys.B*ℓ+aff_sys.c)
-    UT.plotE!(Ef, color=:red)
+    plot!(p, Ef, color = :red)
     SI.plot_transitions!(E1, f_eval, c_eval, 1; N=100)
     display(p)
 end
