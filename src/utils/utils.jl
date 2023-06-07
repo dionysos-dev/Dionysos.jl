@@ -2,7 +2,8 @@ module Utils
 
 using StaticArrays
 using LinearAlgebra
-
+using Polyhedra
+using GLPK, Suppressor
 
 include("files/files_management.jl")
 ##### PLOTS

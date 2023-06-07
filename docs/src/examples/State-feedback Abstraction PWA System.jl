@@ -208,8 +208,8 @@ using Plots
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-vars = [1, 2]
-Plots.plot!(domainX; dims=[1,2], color=:yellow, opacity=0.2)
+dims = [1, 2]
+plot!(domainX; dims=dims, color=:yellow, opacity=0.2)
 for t in symmodel.autom.transitions.data
       if isempty(t ∩ obstaclelist) 
             color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
@@ -219,7 +219,7 @@ for t in symmodel.autom.transitions.data
             else
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
                   p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
-                  Plots.plot!(fig, UT.DrawArrow(p1, p2), color = color)
+                  plot!(fig, UT.DrawArrow(p1, p2), color = color)
             end
       end
 end
@@ -233,7 +233,7 @@ display(fig)
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-vars = [1, 2]
+dims = [1, 2]
 
 LyapMax = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
 colormap = Colors.colormap("Blues")
@@ -250,16 +250,14 @@ for (lyap, state) in cost_ordered
 end
 Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
 Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
-plot!()
 
 plot!(fig, Einit, color=:green)
 plot!(fig, Etarget, color=:red)
-Plots.plot!(Xobstacles, color=:black, opacity=1.0)
+plot!(Xobstacles, color=:black, opacity=1.0)
 
 trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-Plots.plot!(fig, UT.DrawTrajectory(trajCoord))
-
-UT.plot_colorBar!(mycolorMap)
+plot!(fig, UT.DrawTrajectory(trajCoord))
+plot!(mycolorMap)
 xlabel!("\$x_1\$")
 ylabel!("\$x_2\$")
 title!("Trajectory and Lyapunov-like Fun.")

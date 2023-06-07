@@ -246,7 +246,7 @@ println("True cost:\t\t $(costTrue)")
       trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
       plot!(fig, UT.DrawTrajectory(trajCoord), color = :black)
 
-      UT.plot_colorBar!(mycolorMap)
+      plot!(mycolorMap)
       xlabel!("\$x_1\$")
       ylabel!("\$x_2\$")
       title!("Trajectory and Lyapunov-like Fun.")

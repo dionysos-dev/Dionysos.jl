@@ -23,7 +23,12 @@ function get_color(colorMap::Colormap, val::Float64)
     return colorMap.colormap[Int(b)]
 end
 
-function plot_colorBar!(colorMap::Colormap)
-    scatter!([], [],marker_z=colorMap.range,legend=false,colorbar=true,color=palette(colorMap.colormap))
+
+@recipe function f(colorMap::Colormap) 
+    marker_z  --> colorMap.range
+    legend    --> false
+    colorbar  --> true
+    color  --> palette(colorMap.colormap)
+    [], []
 end
 
