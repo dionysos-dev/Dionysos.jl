@@ -29,11 +29,17 @@ function dynamicofsystem(vs = 1.0, rL = 0.05, xL = 3.0, rC = 0.005, xC = 70.0, r
     L_growthbound = let A1 = A1, A2_abs = A2_abs
         u -> u[1] == 1 ? A1 : A2_abs
     end
-    return F_sys, L_growthbound, ngrowthbound
+
+    DF_sys = let A1 = A1, A2 = A2
+        (x, u) -> u[1] == 1 ? A1 : A2
+    end
+    bound_DF(u) = 0.0
+    bound_DDF(u) = 0.0
+    return F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF 
 end
 
 
-function system(
+function system(;
     sysnoise = SVector(0.0, 0.0),
     measnoise = SVector(0.0, 0.0),
     tstep = 0.5,
@@ -41,17 +47,23 @@ function system(
     _X_ = UT.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85)),
     _U_ = UT.HyperRectangle(SVector(1), SVector(2)),
     xdim=2,
-    udim=1
+    udim=1,
+    approx_mode="growth",
 )
+
     # Definition of the dynamics functions $f_p$ of the system:
-    F_sys,L_growthbound,ngrowthbound=dynamicofsystem();
-    contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                        measnoise, nsys, ngrowthbound);
+    F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem();
+    contsys = nothing
+    if approx_mode=="growth"
+        contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise, measnoise, nsys, ngrowthbound);
+    elseif approx_mode=="linearized"
+        contsys = ST.NewControlSystemLinearizedRK4(tstep, F_sys, DF_sys, bound_DF, bound_DDF, measnoise, nsys)
+    end
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(contsys, xdim, udim, _X_, _U_)
 end
 
-function problem()
-    sys = system()
+function problem(;approx_mode="growth")
+    sys = system(approx_mode=approx_mode)
     return PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
 end
 

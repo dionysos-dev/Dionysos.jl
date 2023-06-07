@@ -55,7 +55,7 @@ const OP = DI.Optim
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
 # and we can instantiate the DC system with the provided system
-problem = DCDC.problem()
+problem = DCDC.problem(approx_mode="growth")
 
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0/4.0e3, 2.0/4.0e3)

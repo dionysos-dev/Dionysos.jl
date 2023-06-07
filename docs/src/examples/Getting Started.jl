@@ -118,7 +118,7 @@ SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2in
 
 domainPostx = DO.DomainList(Xgrid);
 for pos in symmodel.xint2pos[post]
-    DO.add_pos!(domainPostx,pos)
+    DO.add_pos!(domainPostx, pos)
 end
 
 # Let us visualize this

@@ -54,7 +54,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.j
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-problem = PathPlanning.problem();
+problem = PathPlanning.problem(simple=true, approx_mode="growth");
 
 # `F_sys` is the function, `_X_` the state domain and `_U_` the input domain
 F_sys = problem.system.f;
@@ -83,7 +83,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-@test length(abstract_controller.data) == 5577 #src
+@test length(abstract_controller.data) == 19400 #src
 controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
 # ### Trajectory display
@@ -97,17 +97,30 @@ function reached(x)
         return false
     end
 end
-
 x0 = SVector(0.4, 0.4, 0.0)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
-
 fig = plot(aspect_ratio=:equal)
-Plots.plot!(problem.system.X; dims=[1,2], color=:yellow, opacity=0.5)
-Plots.plot!(problem.initial_set; dims=[1,2], color=:green)
-Plots.plot!(problem.target_set; dims=[1,2], color=:red)
-Plots.plot!(fig, UT.DrawTrajectory(x_traj))
+# We display the concrete domain
+plot!(problem.system.X, color=:yellow, opacity=0.5)
+
+# We display the abstract domain
+abstract_system = OP.Abstraction.get_abstract_system(optimizer)
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+
+# We display the concrete specifications
+plot!(problem.initial_set, color=:green, opacity=0.2)
+plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2)
+
+# We display the abstract specifications
+abstract_problem = OP.Abstraction.get_abstract_problem(optimizer)
+plot!(abstract_problem.initial_set, color=:green)
+plot!(abstract_problem.target_set, color=:red)
+
+# We display the concrete trajectory
+plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
+
 display(fig)
 
 # ### References
