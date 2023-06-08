@@ -7,16 +7,15 @@ const DI = Dionysos
 const UT = DI.Utils
 
 function plot_config!(El0, El, Elnew)
-    fig = plot(aspect_ratio=:equal)
+    fig = plot(aspect_ratio=:equal);
     if Elnew∈El0
-        plot!(fig, El0, color=:red, label="El0")
-        plot!(fig, Elnew, color=:green, label="Elnew")
+        plot!(fig, El0, color=:red, label="El0");
+        plot!(fig, Elnew, color=:green, label="Elnew");
     else
-        plot!(fig, Elnew, color=:green, label="Elnew")
-        plot!(fig, El0, color=:red, label="El0")
+        plot!(fig, Elnew, color=:green, label="Elnew");
+        plot!(fig, El0, color=:red, label="El0");
     end
-    plot!(fig, El, color=:blue, label="El")
-    display(fig)
+    plot!(fig, El, color=:blue, label="El", show = true)
 end
 
 function analyze(i)

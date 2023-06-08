@@ -34,10 +34,9 @@ nstep = 300
 x0 = SVector(1.2, 5.6)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
 
-fig = plot(aspect_ratio=:equal)
-Plots.plot!(problem.system.X)
-Plots.plot!(fig, UT.DrawTrajectory(x_traj))
-display(fig)
+fig = plot(aspect_ratio=:equal);
+plot!(problem.system.X);
+plot!(fig, UT.DrawTrajectory(x_traj))
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

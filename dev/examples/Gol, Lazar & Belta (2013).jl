@@ -105,7 +105,7 @@ using HybridSystems
 using Suppressor
 
 ##Initialize our canvas
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(-10.5, 3.0)
 ylims!(-10.5, 3.0)
 
@@ -114,27 +114,25 @@ for mode in states(problem.system)
     t = (problem.system.ext[:q_T] in [mode, mode + 11]) ? "XT" : (mode == problem.system.ext[:q_A] ? "A" : (mode == problem.system.ext[:q_B] ? "B" :
             mode <= 11 ? string(mode) : string(mode - 11)))
     set = stateset(problem.system, mode)
-    plot!(set, color=:white)
-    UT.text_in_set_plot!(fig, set, t)
+    plot!(set, color=:white);
+    UT.text_in_set_plot!(fig, set, t);
 end
 
 ##Plot obstacles
 for i in eachindex(problem.system.ext[:obstacles])
     set = problem.system.ext[:obstacles][i]
-    plot!(set, color=:black, opacity=0.5)
-    println(typeof(set))
-    UT.text_in_set_plot!(fig, set, "O$i")
+    plot!(set, color=:black, opacity=0.5);
+    UT.text_in_set_plot!(fig, set, "O$i");
 end
 
 ##Plot trajectory
 x0 = problem.initial_set[2]
 x_traj = [x0, xu.x...] 
-plot!(fig, UT.DrawTrajectory(x_traj))
+plot!(fig, UT.DrawTrajectory(x_traj));
 
 ##Plot initial point
 plot!(fig, UT.DrawPoint(x0), color=:blue)
 annotate!(fig, x0[1], x0[2]-0.5, "x0") 
-display(fig)
 
 # ### References
 #
