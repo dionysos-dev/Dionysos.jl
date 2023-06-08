@@ -203,11 +203,8 @@ initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
 targetlist = SY.get_symbol(symmodel, _T_, DO.INNER);
 
 # Solve the abstract problem
-time = @elapsed begin
 problem, sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h1, heuristic_data=heuristic_data)
-contr = problem.contr
-end
-println("total time: lazy abstraction + controller: ", time)
+contr = problem.contr;
 
 # Display a trajectory
 fig = plot(aspect_ratio=:equal)
