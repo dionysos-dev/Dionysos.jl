@@ -122,15 +122,15 @@ for pos in symmodel.xint2pos[post]
 end
 
 # Let us visualize this
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16)
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16);
 xlims!(-2, 2)
 ylims!(-2, 2)
 dims = [1, 2]
 
-plot!(domainX, fc = "white", dims=dims)
+plot!(domainX, fc = "white", dims=dims);
 domainx = DO.DomainList(Xgrid);
 DO.add_pos!(domainx, xpos)
-plot!(domainx, fc = "blue", dims=dims)
+plot!(domainx, fc = "blue", dims=dims);
 plot!(domainPostx, fc = "green", dims=dims)
 
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
