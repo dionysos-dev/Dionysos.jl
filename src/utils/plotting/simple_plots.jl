@@ -1,4 +1,3 @@
-using Plots
 
 struct DrawPoint{T<:Real, VT<:AbstractVector{T}}
     p::VT
@@ -65,4 +64,17 @@ end
         @series begin DrawArrow(t.vp[i], t.vp[i + 1]) end
     end
     t.vp[1]
+end
+
+
+# Auxiliary function for annotation
+function text_in_set_plot!(fig, po::Polyhedra.Rep, t)
+    ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
+    @suppress  begin
+        solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.GLP_ON)
+        if t !== nothing
+            c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
+            annotate!(fig, c[1], c[2], t) 
+        end
+    end
 end

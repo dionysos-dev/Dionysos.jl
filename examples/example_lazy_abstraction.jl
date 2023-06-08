@@ -11,7 +11,7 @@ const SY = DI.Symbolic
 const LA = DI.Control.LazyAbstractionReach
 
 ## specific function
-function post_image(symmodel,contsys,xpos,u)
+function post_image(symmodel, contsys, xpos, u)
     Xdom = symmodel.Xdom
     x = DO.get_coord_by_pos(Xdom.grid, xpos)
     tstep = contsys.tstep
@@ -35,7 +35,7 @@ function post_image(symmodel,contsys,xpos,u)
     return allin ? over_approx : []
 end
 
-function pre_image(symmodel,contsys,xpos,u)
+function pre_image(symmodel, contsys, xpos, u)
     grid = symmodel.Xdom.grid
     x = DO.get_coord_by_pos(grid, xpos)
     tstep = contsys.tstep
@@ -58,7 +58,7 @@ function pre_image(symmodel,contsys,xpos,u)
     return potential
 end
 
-function compute_reachable_set(rect::UT.HyperRectangle,contsys,Udom)
+function compute_reachable_set(rect::UT.HyperRectangle, contsys, Udom)
     tstep = contsys.tstep
     r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
     Fr = r
@@ -81,7 +81,7 @@ function get_transitions(symmodel, sys, source)
     return  SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
 end
 
-function minimum_transition_cost(symmodel,contsys,source,target)
+function minimum_transition_cost(symmodel, contsys, source, target)
     return 1.0
 end
 
@@ -102,7 +102,7 @@ end
 function build_system()
     tstep = 0.8
     measnoise = SVector(0.0, 0.0)
-    return NewSimpleSystem(tstep,measnoise)
+    return NewSimpleSystem(tstep, measnoise)
 end
 
 function build_dom()
@@ -136,7 +136,7 @@ function transition_cost(x,u)
 end
 
 ## Heursitic
-function h(node::UT.Node,problem::LA.LazyAbstraction)
+function h(node::UT.Node, problem::LA.LazyAbstraction)
     source = node.state.source
     symmodel = problem.symmodel
     xpos = SY.get_xpos_by_state(symmodel, source)
@@ -149,7 +149,7 @@ function h(node::UT.Node,problem::LA.LazyAbstraction)
     return heuristic.dists[source2]
 end
 
-function build_heuristic_data(X,contsys,Udom,_I_)
+function build_heuristic_data(X, contsys, Udom, _I_)
     # build the alternating simulation
     hx = [1.0, 1.0]*1.5
     periodic = Int[]
@@ -182,7 +182,7 @@ function test()
     heuristic_data = build_heuristic_data(X,contsys,Udom,_I_)
     # Lazy Abstraction implementation
     time = @elapsed begin
-    problem,sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h, heuristic_data=heuristic_data)
+    problem, sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h, heuristic_data=heuristic_data)
     contr = problem.contr
     end
     println("total time: lazy abstraction + controller: ", time)

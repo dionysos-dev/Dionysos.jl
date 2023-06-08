@@ -45,6 +45,17 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 
+function get_abstract_system(optimizer)
+    return optimizer.symmodel
+end
+
+function get_abstract_problem(optimizer)
+    return optimizer.abstract_problem
+end
+
+function get_concrete_controller(optimizer)
+    return optimizer.controller
+end
 
 function build_abstraction(
     system,
@@ -52,7 +63,7 @@ function build_abstraction(
     input_grid::DO.Grid,
 )
     Xfull = DO.DomainList(state_grid)
-    DO.add_set!(Xfull, system.X, DO.OUTER)
+    DO.add_set!(Xfull, system.X, DO.INNER)
     Ufull = DO.DomainList(input_grid)
     DO.add_set!(Ufull, system.U, DO.CENTER)
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
@@ -72,7 +83,7 @@ function build_abstract_problem(
     Xinit = DO.DomainList(state_grid)
     DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
     Xtarget = DO.DomainList(state_grid)
-    DO.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, DO.OUTER)
+    DO.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, DO.INNER)
     return PR.OptimalControlProblem(
         symmodel,
         Xinit,
@@ -89,7 +100,7 @@ function build_abstract_problem(
 )
     state_grid = symmodel.Xdom.grid
     Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.INNER)
+    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
     Xsafe = DO.DomainList(state_grid)
     DO.add_subset!(Xsafe, symmodel.Xdom, problem.safe_set, DO.INNER)
     return PR.SafetyProblem(

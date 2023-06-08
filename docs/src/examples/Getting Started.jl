@@ -13,18 +13,11 @@
 using Dionysos
 using StaticArrays
 using LinearAlgebra
-using PyPlot
-
-
+using Plots
 
 # The main package [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) provides most important data structures that we will need.
 # Additionally  [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) provides faster implementation of Arrays (which have static memory allocation),
-# [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/) allows us to perform some additional operations and [PyPlot](https://github.com/JuliaPy/PyPlot.jl) is
-# important for data visualization.
-
-include("../../../src/utils/plotting/plotting.jl")
-
-# The submodule [plotting.jl](@__REPO_ROOT_URL__/src/plotting.jl) has functions that will be useful for 2D-visualization of the functions that we are implementing.
+# [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/) allows us to perform some additional operations.
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -125,23 +118,20 @@ SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2in
 
 domainPostx = DO.DomainList(Xgrid);
 for pos in symmodel.xint2pos[post]
-    DO.add_pos!(domainPostx,pos)
+    DO.add_pos!(domainPostx, pos)
 end
 
 # Let us visualize this
-PyPlot.pygui(true) #jl
-fig = PyPlot.figure()
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16)
+xlims!(-2, 2)
+ylims!(-2, 2)
+dims = [1, 2]
 
-ax = PyPlot.axes(aspect = "equal")
-ax.set_xlim(-2, 2)
-ax.set_ylim(-2, 2)
-
-vars = [1, 2];
-Plot.domain!(ax, vars, domainX, fc = "white")
-Plot.cell!(ax, vars, Xgrid, xpos, fc = "blue")
-Plot.domain!(ax, vars, domainPostx, fc = "green")
-gcf() #md
-gcf() #nb
+plot!(domainX, fc = "white", dims=dims)
+domainx = DO.DomainList(Xgrid);
+DO.add_pos!(domainx, xpos)
+plot!(domainx, fc = "blue", dims=dims)
+plot!(domainPostx, fc = "green", dims=dims)
 
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
 # the corresponding Post domain in green. The argument `vars` given to the Plot functions refer to the projection

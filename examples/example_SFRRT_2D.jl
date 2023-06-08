@@ -384,7 +384,7 @@ if true
         plot!(fig, X0, color = :green)
         plot!(fig, obstacles[1], color = :black)
         plot!(fig, XF, color=:red)
-        UT.plot_colorBar!(mycolorMap)
+        plot!(mycolorMap)
 
         # savefig("ex2_traj.png")          
         display(fig)
