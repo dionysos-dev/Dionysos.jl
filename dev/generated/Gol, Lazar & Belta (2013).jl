@@ -8,6 +8,7 @@ import Ipopt
 
 using Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const OP = DI.Optim
 
@@ -61,58 +62,42 @@ objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 
 xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
 
-using PyPlot
-using Colors
+using Plots
 using Polyhedra
 using HybridSystems
-
-##Auxiliary function for annotating
-function text_in_set_plot!(ax, po, t;  fillcolor = :white, linecolor = :black, fillalpha = 1)
-    ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
-    solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.GLP_ON)
-    poly = matplotlib.patches.Polygon(GolLazarBelta.get_ordered_vertices(po))
-    poly.set_facecolor(fillcolor)
-    poly.set_edgecolor(linecolor)
-    poly.set_alpha(fillalpha)
-    ax.add_patch(poly)
-
-    if t !== nothing
-        c, r = hchebyshevcenter(hrep(po), solver, verbose=0)
-        ax.annotate(t, c, ha="center", va="center")
-    end
-end
+using Suppressor
 
 ##Initialize our canvas
-PyPlot.pygui(true)
-fig = PyPlot.figure()
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+xlims!(-10.5, 3.0)
+ylims!(-10.5, 3.0)
 
-ax = PyPlot.axes(aspect = "equal")
-ax.set_xlim(-10.5,3)
-ax.set_ylim(-10.5,3)
-
-##Show the discrete modes
+##Plot the discrete modes
 for mode in states(problem.system)
     t = (problem.system.ext[:q_T] in [mode, mode + 11]) ? "XT" : (mode == problem.system.ext[:q_A] ? "A" : (mode == problem.system.ext[:q_B] ? "B" :
             mode <= 11 ? string(mode) : string(mode - 11)))
-    text_in_set_plot!(ax, stateset(problem.system, mode), t, fillcolor = "none", linecolor = :black)
+    set = stateset(problem.system, mode)
+    plot!(set, color=:white)
+    UT.text_in_set_plot!(fig, set, t)
 end
 
 ##Plot obstacles
 for i in eachindex(problem.system.ext[:obstacles])
-    text_in_set_plot!(ax, problem.system.ext[:obstacles][i], "O$i", fillcolor = :black, fillalpha = 0.1)
+    set = problem.system.ext[:obstacles][i]
+    plot!(set, color=:black, opacity=0.5)
+    println(typeof(set))
+    UT.text_in_set_plot!(fig, set, "O$i")
 end
 
+##Plot trajectory
+x0 = problem.initial_set[2]
+x_traj = [x0, xu.x...]
+plot!(fig, UT.DrawTrajectory(x_traj))
 
-##Initial state
-ax.scatter([problem.initial_set[2][1]], [problem.initial_set[2][2]])
-ax.annotate("x0", [problem.initial_set[2][1], problem.initial_set[2][2]-0.5], ha="center", va="center")
-
-##Split the vector into x1 and x2
-x1 = [xu.x[j][1] for j in eachindex(xu.x)]
-x2 = [xu.x[j][2] for j in eachindex(xu.x)]
-
-##Plot the trajectory
-ax.scatter(x1, x2)
+##Plot initial point
+plot!(fig, UT.DrawPoint(x0), color=:blue)
+annotate!(fig, x0[1], x0[2]-0.5, "x0")
+display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

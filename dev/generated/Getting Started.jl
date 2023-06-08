@@ -1,9 +1,7 @@
 using Dionysos
 using StaticArrays
 using LinearAlgebra
-using PyPlot
-
-include("../../../src/utils/plotting/plotting.jl")
+using Plots
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -66,20 +64,19 @@ SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2in
 
 domainPostx = DO.DomainList(Xgrid);
 for pos in symmodel.xint2pos[post]
-    DO.add_pos!(domainPostx,pos)
+    DO.add_pos!(domainPostx, pos)
 end
 
-PyPlot.pygui(true)
-fig = PyPlot.figure()
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16)
+xlims!(-2, 2)
+ylims!(-2, 2)
+dims = [1, 2]
 
-ax = PyPlot.axes(aspect = "equal")
-ax.set_xlim(-2, 2)
-ax.set_ylim(-2, 2)
-
-vars = [1, 2];
-Plot.domain!(ax, vars, domainX, fc = "white")
-Plot.cell!(ax, vars, Xgrid, xpos, fc = "blue")
-Plot.domain!(ax, vars, domainPostx, fc = "green")
+plot!(domainX, fc = "white", dims=dims)
+domainx = DO.DomainList(Xgrid);
+DO.add_pos!(domainx, xpos)
+plot!(domainx, fc = "blue", dims=dims)
+plot!(domainPostx, fc = "green", dims=dims)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

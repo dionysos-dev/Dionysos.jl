@@ -9,7 +9,7 @@ const UT = DI.Utils
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
 
-problem = PathPlanning.problem();
+problem = PathPlanning.problem(simple=true, approx_mode="growth");
 
 F_sys = problem.system.f;
 _X_ = problem.system.X;
@@ -41,15 +41,25 @@ function reached(x)
         return false
     end
 end
-
 x0 = SVector(0.4, 0.4, 0.0)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
 
 fig = plot(aspect_ratio=:equal)
-Plots.plot!(problem.system.X; dims=[1,2], color=:yellow, opacity=0.5)
-Plots.plot!(problem.initial_set; dims=[1,2], color=:green)
-Plots.plot!(problem.target_set; dims=[1,2], color=:red)
-Plots.plot!(fig, UT.DrawTrajectory(x_traj))
+
+plot!(problem.system.X, color=:yellow, opacity=0.5)
+
+abstract_system = OP.Abstraction.get_abstract_system(optimizer)
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+
+plot!(problem.initial_set, color=:green, opacity=0.2)
+plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2)
+
+abstract_problem = OP.Abstraction.get_abstract_problem(optimizer)
+plot!(abstract_problem.initial_set, color=:green)
+plot!(abstract_problem.target_set, color=:red)
+
+plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
+
 display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

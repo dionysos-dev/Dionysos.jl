@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>State-feedback Abstraction PWA System · Dionysos</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li class="is-active"><a class="tocitem" href>State-feedback Abstraction PWA System</a><ul class="internal"><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Temporary API/">Temporary API</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/State-feedback Abstraction PWA System.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions"><a class="docs-heading-anchor" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions">Example: Optimal control of a PWA System by State-feedback Abstractions</a><a id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions" title="Permalink"></a></h1><p><a href="https://mybinder.org/v2/gh/dionysos-dev/Dionysos.jl/gh-pages?filepath=dev/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"/></a> <a href="https://nbviewer.jupyter.org/github/dionysos-dev/Dionysos.jl/blob/gh-pages/dev/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-579ACA.svg" alt="nbviewer"/></a></p><p>This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems. Consider a system <span>$\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$</span> with the transition function</p><p class="math-container">\[\begin{equation}
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>State-feedback Abstraction PWA System · Dionysos</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li class="is-active"><a class="tocitem" href>State-feedback Abstraction PWA System</a><ul class="internal"><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Temporary API/">Temporary API</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/State-feedback Abstraction PWA System.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions"><a class="docs-heading-anchor" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions">Example: Optimal control of a PWA System by State-feedback Abstractions</a><a id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions" title="Permalink"></a></h1><p><a href="https://mybinder.org/v2/gh/dionysos-dev/Dionysos.jl/gh-pages?filepath=dev/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"/></a> <a href="https://nbviewer.jupyter.org/github/dionysos-dev/Dionysos.jl/blob/gh-pages/dev/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-579ACA.svg" alt="nbviewer"/></a></p><p>This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems. Consider a system <span>$\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$</span> with the transition function</p><p class="math-container">\[\begin{equation}
     \{A_{\psi(x)}x+B_{\psi(x)}u+g_{\psi(x)}\}\oplus\Omega_{\psi(x)}
 \end{equation}\]</p><p>where <span>$\psi:\mathcal{X}\rightarrow\{1,\dots,N_p\}$</span> selects one of the <span>$N_p$</span> subsystems defined by the matrices</p><p class="math-container">\[\begin{equation}
 	A_1=\begin{bmatrix}
@@ -148,83 +148,83 @@ next action: (45, 21)
 cm: [1.5, -2.0]
 c: [2.0, -2.0]
 x: [2.0, -2.0]
-u: [0.13854653700925823, 5.936346629063677]
-Arrived in: [21]: [1.5071649176699653, -2.074186274104936]
+u: [0.13854656250737918, 5.936346646569815]
+Arrived in: [21]: [1.4981599828419452, -2.076631475182305]
 k: 2
 next action: (21, 15)
 cm: [0.5, -2.0]
 c: [1.5, -2.0]
-x: [1.5071649176699653, -2.074186274104936]
-u: [-31.2301547630346, 11.639883932652193]
-Arrived in: [15, 63]: [0.6608864739399363, -2.0475344690052584]
+x: [1.4981599828419452, -2.076631475182305]
+u: [-30.58899162472389, 11.722673466917275]
+Arrived in: [15, 63]: [0.6845445057097802, -2.048870515380731]
 k: 3
 next action: (15, 41)
 cm: [0.5, -1.5]
 c: [0.5, -2.0]
-x: [0.6608864739399363, -2.0475344690052584]
-u: [-21.420840058744147, 29.50141109928605]
-Arrived in: [41]: [0.6383725601774972, -1.5944464329214743]
+x: [0.6845445057097802, -2.048870515380731]
+u: [-22.29316201664462, 29.284823480142855]
+Arrived in: [41]: [0.6454387162184243, -1.5907121529524197]
 k: 4
 next action: (41, 26)
 cm: [0.0, -1.5]
 c: [0.5, -1.5]
-x: [0.6383725601774972, -1.5944464329214743]
-u: [-61.03425510491691, -12.459904468654075]
-Arrived in: [26, 41]: [0.1676404728317193, -1.5459753791656894]
+x: [0.6454387162184243, -1.5907121529524197]
+u: [-61.40224044620987, -12.859597972757184]
+Arrived in: [26, 41]: [0.20491117400099376, -1.5566291804914962]
 k: 5
 next action: (41, 26)
 next action: (26, 50)
 cm: [-0.5, -1.0]
 c: [0.0, -1.5]
-x: [0.1676404728317193, -1.5459753791656894]
-u: [-62.339500485650305, 45.120096495749046]
-Arrived in: [50, 48]: [-0.32672016386174907, -1.0869968648624575]
+x: [0.20491117400099376, -1.5566291804914962]
+u: [-63.901951104020014, 45.08566215938975]
+Arrived in: [50, 48]: [-0.2903068110334974, -1.0878425855965115]
 k: 6
 next action: (50, 34)
 cm: [-1.0, -1.0]
 c: [-0.5, -1.0]
-x: [-0.32672016386174907, -1.0869968648624575]
-u: [-56.47689774683517, 13.01809956810472]
-Arrived in: [34, 50]: [-0.8019330296335621, -1.0781229395834144]
+x: [-0.2903068110334974, -1.0878425855965115]
+u: [-57.912159554336945, 12.771605231144584]
+Arrived in: [34, 50]: [-0.7798896433924195, -1.0823538397273647]
 k: 7
 next action: (50, 34)
 next action: (34, 9)
 cm: [-1.5, -0.5]
 c: [-1.0, -1.0]
-x: [-0.8019330296335621, -1.0781229395834144]
-u: [-19.033886338558773, 40.78715602035483]
-Arrived in: [61, 9]: [-1.4470527869720695, -0.7226970113111452]
+x: [-0.7798896433924195, -1.0823538397273647]
+u: [-20.827960901154633, 41.05766615187626]
+Arrived in: [61, 9]: [-1.442226395246198, -0.7299244945245452]
 k: 8
 next action: (9, 52)
 cm: [-2.0, 0.0]
 c: [-1.5, -0.5]
-x: [-1.4470527869720695, -0.7226970113111452]
-u: [-17.05913023478054, 45.38909246516109]
-Arrived in: [44, 52]: [-1.9643023838618558, -0.2603042701451787]
+x: [-1.442226395246198, -0.7299244945245452]
+u: [-17.19690763653218, 45.658743538832816]
+Arrived in: [44, 52]: [-1.9689851722696434, -0.26393509641687324]
 k: 9
 next action: (52, 69)
 cm: [-2.0, 0.5]
 c: [-2.0, 0.0]
-x: [-1.9643023838618558, -0.2603042701451787]
-u: [14.795803137511216, 41.686900978902415]
-Arrived in: [52, 69]: [-2.0437905104534115, 0.22161421691663163]
+x: [-1.9689851722696434, -0.26393509641687324]
+u: [15.01097431364325, 41.80169469088334]
+Arrived in: [52, 69]: [-2.0076875358587913, 0.22854156146188837]
 k: 10
 next action: (52, 69)
 next action: (69, 78)
 cm: [-2.0, 1.0]
 c: [-2.0, 0.5]
-x: [-2.0437905104534115, 0.22161421691663163]
-u: [7.274069931101084, 40.218798125246295]
-Arrived in: [69, 78]: [-2.043313876445469, 0.7006777884896572]
+x: [-2.0076875358587913, 0.22854156146188837]
+u: [5.3718300261861955, 40.180424281606456]
+Arrived in: [69, 78]: [-2.0347742373353004, 0.709938516394193]
 Goal set reached
-Guaranteed cost:	 3.230370547766089
-True cost:		 2.3679506567109048</code></pre><p>Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction</p><pre><code class="language-julia hljs">using Plots
+Guaranteed cost:	 3.2303705493671435
+True cost:		 2.41860153333338</code></pre><p>Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction</p><pre><code class="language-julia hljs">using Plots
 
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-vars = [1, 2]
-Plots.plot!(domainX; dims=[1,2], color=:yellow, opacity=0.2)
+dims = [1, 2]
+plot!(domainX; dims=dims, color=:yellow, opacity=0.2)
 for t in symmodel.autom.transitions.data
       if isempty(t ∩ obstaclelist)
             color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
@@ -234,705 +234,17 @@ for t in symmodel.autom.transitions.data
             else
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
                   p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
-                  Plots.plot!(fig, UT.DrawArrow(p1, p2), color = color)
+                  plot!(fig, UT.DrawArrow(p1, p2), color = color)
             end
       end
 end
 xlabel!(&quot;\$x_1\$&quot;)
 ylabel!(&quot;\$x_2\$&quot;)
 title!(&quot;Transitions&quot;)
-display(fig)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:
-GKS:</code></pre><p>Then we plot a colormap with the Lyapunov-like function <span>$v(x)$</span> and the simulated trajectory in blue.</p><pre><code class="language-julia hljs">fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+display(fig)</code></pre><p>Then we plot a colormap with the Lyapunov-like function <span>$v(x)$</span> and the simulated trajectory in blue.</p><pre><code class="language-julia hljs">fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-vars = [1, 2]
+dims = [1, 2]
 
 LyapMax = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
 colormap = Colors.colormap(&quot;Blues&quot;)
@@ -949,321 +261,15 @@ for (lyap, state) in cost_ordered
 end
 Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
 Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
-plot!()
 
 plot!(fig, Einit, color=:green)
 plot!(fig, Etarget, color=:red)
-Plots.plot!(Xobstacles, color=:black, opacity=1.0)
+plot!(Xobstacles, color=:black, opacity=1.0)
 
 trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-Plots.plot!(fig, UT.DrawTrajectory(trajCoord))
-
-UT.plot_colorBar!(mycolorMap)
+plot!(fig, UT.DrawTrajectory(trajCoord))
+plot!(mycolorMap)
 xlabel!(&quot;\$x_1\$&quot;)
 ylabel!(&quot;\$x_2\$&quot;)
 title!(&quot;Trajectory and Lyapunov-like Fun.&quot;)
-display(fig)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine FILLAREA
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYMARKER
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine CELLARRAY
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine POLYLINE
-GKS: GKS not in proper state. GKS must be either in the state WSAC or SGOP in routine TEXT</code></pre><p>We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use <code>Usz = 50</code>, <code>Wsz = 5</code> and <code>n_step = 5</code>.</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Path planning/">« Path planning</a><a class="docs-footer-nextpage" href="../../reference/Temporary API/">Temporary API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 6 June 2023 12:46">Tuesday 6 June 2023</span>. Using Julia version 1.9.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+display(fig)</code></pre><p>We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use <code>Usz = 50</code>, <code>Wsz = 5</code> and <code>n_step = 5</code>.</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Path planning/">« Path planning</a><a class="docs-footer-nextpage" href="../../reference/Temporary API/">Temporary API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 8 June 2023 09:06">Thursday 8 June 2023</span>. Using Julia version 1.9.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
