@@ -1,6 +1,6 @@
-export SCOTS
+export SCOTSAbstraction
 
-module SCOTS
+module SCOTSAbstraction
 
 import Dionysos
 const DI = Dionysos

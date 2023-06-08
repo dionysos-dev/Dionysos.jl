@@ -1,7 +1,7 @@
 module Abstraction
 
-include("SCOTS.jl")
-include("ellipsoids_abstractions.jl")
-include("lazy_ellipsoids_abstractions.jl")
+include("SCOTS_abstraction.jl")
+include("ellipsoids_abstraction.jl")
+include("lazy_ellipsoids_abstraction.jl")
 
 end

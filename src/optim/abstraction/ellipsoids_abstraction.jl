@@ -1,6 +1,6 @@
-export EllipsoidsAbstractions
+export EllipsoidsAbstraction
 
-module EllipsoidsAbstractions
+module EllipsoidsAbstraction
 
 import Dionysos
 const DI = Dionysos

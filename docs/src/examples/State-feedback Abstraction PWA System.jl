@@ -104,7 +104,7 @@ state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
 # abstractions `EllipsoidsAbstractions.Optimizer`
 
 using JuMP
-optimizer = MOI.instantiate(AB.EllipsoidsAbstractions.Optimizer) # 
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer) # 
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)

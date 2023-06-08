@@ -1,6 +1,6 @@
-export LazyEllipsoidsAbstractions
+export LazyEllipsoidsAbstraction
 
-module LazyEllipsoidsAbstractions
+module LazyEllipsoidsAbstraction
 
 import Dionysos
 const DI = Dionysos
