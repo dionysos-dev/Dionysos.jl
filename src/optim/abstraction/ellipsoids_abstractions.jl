@@ -43,6 +43,11 @@ Optimizer() = Optimizer{Float64}()
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
+    if param.name == "problem"
+        if !(value isa PR.OptimalControlProblem)
+            throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
+        end
+    end
     setproperty!(model, Symbol(param.name), value)
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)

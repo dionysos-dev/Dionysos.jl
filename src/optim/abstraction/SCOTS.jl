@@ -16,7 +16,7 @@ using JuMP
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
-    problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
+    problem::Union{Nothing, PR.ProblemType}
     symmodel::Union{Nothing, SY.SymbolicModelList}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2,NTuple{2,Int}}}
