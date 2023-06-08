@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>State-feedback Abstraction PWA System · Dionysos</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li class="is-active"><a class="tocitem" href>State-feedback Abstraction PWA System</a><ul class="internal"><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Temporary API/">Temporary API</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/State-feedback Abstraction PWA System.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions"><a class="docs-heading-anchor" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions">Example: Optimal control of a PWA System by State-feedback Abstractions</a><a id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions" title="Permalink"></a></h1><p><a href="https://mybinder.org/v2/gh/dionysos-dev/Dionysos.jl/gh-pages?filepath=previews/PR229/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"/></a> <a href="https://nbviewer.jupyter.org/github/dionysos-dev/Dionysos.jl/blob/gh-pages/previews/PR229/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-579ACA.svg" alt="nbviewer"/></a></p><p>This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems. Consider a system <span>$\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$</span> with the transition function</p><p class="math-container">\[\begin{equation}
+    \{A_{\psi(x)}x+B_{\psi(x)}u+g_{\psi(x)}\}\oplus\Omega_{\psi(x)}
+\end{equation}\]</p><p>where <span>$\psi:\mathcal{X}\rightarrow\{1,\dots,N_p\}$</span> selects one of the <span>$N_p$</span> subsystems defined by the matrices</p><p class="math-container">\[\begin{equation}
+	A_1=\begin{bmatrix}
+    1.01 &amp; 0.3\\
+    -0.1 &amp; 1.01
+\end{bmatrix}, ~B_1=\begin{bmatrix}
+    1&amp;0\\ 0 &amp; 1
+\end{bmatrix},~g_1=\begin{bmatrix}
+-0.1\\-0.1
+\end{bmatrix},
+\end{equation}\]</p><p class="math-container">\[A_2=A_1^\top,~ A_3=A_1,~B_2=B_3=B_1,~g_2=0\]</p><p>and <span>$g_3=-g_1$</span>. These systems are three spiral sources with unstable equilibria at <span>$x_{e1}=[-0.9635~~0.3654]^\top,~x_{e2}=0,$</span> and <span>$x_{e3}=-x_{e1}$</span>. We also define the additive-noise sets <span>$\Omega_1=\Omega_2=\Omega_3=[-0.05,0.05]^2$</span>, the control-input set <span>$\mathcal{U}=[-0.5,0.5]^2$</span> and the state space <span>$\mathcal{X}=[-2,2]^2$</span>. The <span>$N_p=3$</span> partitions of <span>$\mathcal{X}$</span> are <span>$\mathcal{X}_1= \{x\in\mathcal{X}~:~x_1\leq-1 \},~\mathcal{X}_3= \{x\in\mathcal{X}~:~x_1&gt;1 \},$</span> and <span>$\mathcal{X}_2=\mathcal{X}\setminus(\mathcal{X}_1\cup\mathcal{X}_3)$</span>. The goal is to bring the state <span>$x$</span> from the initial set <span>$\mathcal{X}_0$</span> to a final set <span>$\mathcal{X}_*$</span>, while avoiding the obstacle <span>$\mathcal{O}$</span>, which are to be defined.</p><p>First, let us import <a href="https://github.com/JuliaArrays/StaticArrays.jl">StaticArrays</a>, <a href="https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/">LinearAlgebra</a>, <a href="https://github.com/JuliaPolyhedra/CDDLib.jl">CDDLib</a>, <a href="https://github.com/jump-dev/SDPA.jl">SDPA</a>, <a href="https://github.com/jump-dev/Ipopt.jl">Ipopt</a>, and <a href="https://jump.dev/JuMP.jl/stable/">JuMP</a>. We also instantiate our optimizers and CDDLib.</p><pre><code class="language-julia hljs">using StaticArrays
+using LinearAlgebra
+using CDDLib
+using SDPA, Ipopt, JuMP
+
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() =&gt; true)
+opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() =&gt; true)
+lib = CDDLib.Library() #polyhedron lib</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">CDDLib.Library(:float)</code></pre><p>We define now the of the polytope <span>$\Omega$</span> with the disturbances and the input constraint set <span>$\mathcal{U}$</span> and we imported the optimal control problem for this example, which is defined in the <code>PWAsys.jl</code> problem:</p><pre><code class="language-julia hljs">Wsz = 3 # `Wsz = 5` in [1]
+Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
+dt = 0.01; # discretization step
+
+include(&quot;../../../problems/PWAsys.jl&quot;)
+
+problem = PWAsys.problem(lib, dt, Usz)
+system = problem.system
+
+n_x = size(system.resetmaps[1].A,1)
+n_u = size(system.resetmaps[1].B,2)
+
+W = Wsz*[-1 -1  1 1;
+         -1  1 -1 1]*dt; # polytope of disturbances
+
+Uaux = diagm(1:n_u)
+U = [(Uaux.==i)./Usz for i in 1:n_u]; # matrices U_i
+
+system.ext[:W] = W
+system.ext[:U] = U</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Matrix{Float64}}:
+ [0.014285714285714285 0.0; 0.0 0.0]
+ [0.0 0.0; 0.0 0.014285714285714285]</code></pre><p>notice that in [1] it was used <code>Wsz = 5</code> and <code>Usz = 50</code>. These, and other values were changed here to speed up the build time of the documentation.</p><p>Let us now get some more information about the problem as the dimension <span>$n_x$</span> of the system</p><p>At this point we&#39;ll import Dionysos in order to solve our optimal control problem</p><pre><code class="language-julia hljs">using Dionysos
+
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const SY = DI.Symbolic
+const CO = DI.Control
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.Optim.Abstraction</code></pre><p>Let us now define the state space <span>$X$</span> within which we are searching for a optimal solution.</p><pre><code class="language-julia hljs">max_x = 2 # bound on |X|_∞
+rectX = UT.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
+rectU = rectX</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Int64}}([-2, -2], [2, 2])</code></pre><p>This is state-space is defined by the <code>HyperRectangle rectX</code>. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells <span>$\mathcal{X}_d$</span>, given it&#39;s determinism.</p><p>To build this deterministic state-feedback abstraction in alternating simulation relation  with the system as described in [1, Lemma 1], a set of balls of radius 0.2 covering the state space is adopted as cells <span>$\xi\in\mathcal{X}_d$</span>. We assume that inside cells intersecting the boundary of partitions of <span>$\mathcal{X}$</span> the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center. An alternative to this are discussed in [1]. Let us define the corresponding grid:</p><pre><code class="language-julia hljs">n_step = 2 #  n_step = 5 in [1]
+X_origin = SVector(0.0, 0.0);
+X_step = SVector(1.0/n_step, 1.0/n_step);
+P = (1/n_x)*diagm((X_step./2).^(-2))
+
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.Domain.GridEllipsoidalRectangular{2, Float64}([0.0, 0.0], [0.5, 0.5], [8.0 0.0; 0.0 8.0], Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Int64}}([-2, -2], [2, 2]))</code></pre><p>At this point, we instantiate the optimizer provided in Dionysos that creates ellipsoidal-based abstractions <code>EllipsoidsAbstractions.Optimizer</code></p><pre><code class="language-julia hljs">using JuMP
+optimizer = MOI.instantiate(AB.EllipsoidsAbstractions.Optimizer) #
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;problem&quot;), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;state_grid&quot;), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;sdp_solver&quot;), opt_sdp)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;ip_solver&quot;), opt_ip)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MathOptInterface.OptimizerWithAttributes(Ipopt.Optimizer, Pair{MathOptInterface.AbstractOptimizerAttribute, Any}[MathOptInterface.Silent() =&gt; true])</code></pre><p>and run it to build the state-feedback abstraction and solve the optimal control problem by through Dijkstra&#39;s algorithm [2, p.86].</p><pre><code class="language-julia hljs">using Suppressor
+@suppress  begin # this is a workaround to supress the undesired output of SDPA
+      MOI.optimize!(optimizer)
+end
+contr = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;controller&quot;))
+symmodel = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;symmodel&quot;))
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionCost&quot;))
+transitionKappa = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionKappa&quot;))
+lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;lyap_fun&quot;));</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>Now let us get the Q<em>aug matrix defining the stage cost \mathcal{J}(x,u) = ||Q^{1/2} \cdot [x; u ; 1]||^2</em>2$</p><pre><code class="language-julia hljs">Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">5×5 Matrix{Float64}:
+ 0.0001  0.0     0.0     0.0     0.0
+ 0.0     0.0001  0.0     0.0     0.0
+ 0.0     0.0     0.0001  0.0     0.0
+ 0.0     0.0     0.0     0.0001  0.0
+ 0.0     0.0     0.0     0.0     0.0</code></pre><p>Let us initialize variables used in our simulation and now we will simulate one trajectory of the system.</p><pre><code class="language-julia hljs">x0 = Vector(problem.initial_set); # initial condition
+
+domainX = symmodel.Xdom
+
+ϕ(x) = findfirst(m -&gt; (x ∈ m.X), system.resetmaps) # returns pwa mode for a given x
+
+K = typeof(problem.time) == PR.Infinity ? 100 : problem.time; #max num of steps
+x_traj = zeros(n_x,K+1);
+u_traj = zeros(n_u,K+1);
+x_traj[:,1] = x0;
+state_traj = []
+
+k = 1; #iterator
+costBound = 0;
+costTrue = 0;
+currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(state_grid,x_traj[:,k])))
+push!(state_traj,currState);
+
+Xinit = DO.DomainList(state_grid) # set of initial cells
+DO.add_coord!(Xinit, problem.initial_set)
+
+Xfinal = DO.DomainList(state_grid) # set of target cells
+DO.add_coord!(Xfinal, Vector(problem.target_set))
+
+Xobstacles = DO.DomainList(state_grid) # set of obstacle cells
+for o in system.ext[:obstacles]
+      DO.add_set!(Xobstacles, o, DO.OUTER)
+end
+
+initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)];
+finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
+obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];</code></pre><p>and proceed with the simulation</p><pre><code class="language-julia hljs">println(&quot;started at: $(currState)&quot;)
+while (currState ∩ finallist) == [] &amp;&amp; k ≤ K # While not at goal or not reached max iter
+      println(&quot;k: $(k)&quot;)
+      next_action = nothing
+      for action in contr.data
+            if (action[1] ∩ currState) ≠ []
+                  next_action = action
+                  println(&quot;next action: $(next_action)&quot;)
+            end
+      end
+      println(&quot;cm: $(DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, next_action[2])))&quot;)
+
+      c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, next_action[1]))
+      println(&quot;c: $(c)&quot;)
+
+
+      u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
+      println(&quot;x: $(x_traj[:,k])&quot;)
+      println(&quot;u: $(u_traj[:,k])&quot;)
+
+      global costBound = costBound + transitionCost[next_action]
+      xk_aug = vcat(x_traj[:,k], u_traj[:,k],1.0)
+      global costTrue += xk_aug&#39;Q_aug*xk_aug
+
+
+      m = ϕ(c)
+
+      w = (2*(rand(2).^(1/4)).-1).*W[:,1]
+
+      x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
+
+      global k += 1;
+      global currState =  SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(state_grid,x_traj[:,k])));
+      push!(state_traj,currState)
+      println(&quot;Arrived in: $(currState): $(x_traj[:,k])&quot;)
+end
+
+println(&quot;Goal set reached&quot;)
+println(&quot;Guaranteed cost:\t $(costBound)&quot;)
+println(&quot;True cost:\t\t $(costTrue)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">started at: [45]
+k: 1
+next action: (45, 21)
+cm: [1.5, -2.0]
+c: [2.0, -2.0]
+x: [2.0, -2.0]
+u: [0.13854656250737918, 5.936346646569815]
+Arrived in: [21]: [1.5195280950017374, -2.0828986766842164]
+k: 2
+next action: (21, 15)
+cm: [0.5, -2.0]
+c: [1.5, -2.0]
+x: [1.5195280950017374, -2.0828986766842164]
+u: [-31.87003692609987, 12.717658774194076]
+Arrived in: [15, 63]: [0.6816031292329416, -2.0346856656845906]
+k: 3
+next action: (15, 41)
+cm: [0.5, -1.5]
+c: [0.5, -2.0]
+x: [0.6816031292329416, -2.0346856656845906]
+u: [-22.162592832663695, 28.812800770502434]
+Arrived in: [41]: [0.6432595247427868, -1.5901670181397896]
+k: 4
+next action: (41, 26)
+cm: [0.0, -1.5]
+c: [0.5, -1.5]
+x: [0.6432595247427868, -1.5901670181397896]
+u: [-61.31023289669835, -12.841607052085715]
+Arrived in: [26, 41]: [0.19798216310533542, -1.5377503780161372]
+k: 5
+next action: (41, 26)
+next action: (26, 50)
+cm: [-0.5, -1.0]
+c: [0.0, -1.5]
+x: [0.19798216310533542, -1.5377503780161372]
+u: [-63.50566682644279, 44.45752993616549]
+Arrived in: [50, 48]: [-0.3027552917617802, -1.0756779600620678]
+k: 6
+next action: (50, 34)
+cm: [-1.0, -1.0]
+c: [-0.5, -1.0]
+x: [-0.3027552917617802, -1.0756779600620678]
+u: [-57.39989375465105, 12.253209684644244]
+Arrived in: [34, 50]: [-0.7923584650622695, -1.0617113570814565]
+k: 7
+next action: (50, 34)
+next action: (34, 9)
+cm: [-1.5, -0.5]
+c: [-1.0, -1.0]
+x: [-0.7923584650622695, -1.0617113570814565]
+u: [-20.02072893115438, 39.951075856762785]
+Arrived in: [61, 9]: [-1.4463424845891373, -0.7220027790190393]
+k: 8
+next action: (9, 52)
+cm: [-2.0, 0.0]
+c: [-1.5, -0.5]
+x: [-1.4463424845891373, -0.7220027790190393]
+u: [-17.095084841137144, 45.36502060522946]
+Arrived in: [44, 52]: [-1.939674260461907, -0.2591176049512393]
+k: 9
+next action: (52, 69)
+cm: [-2.0, 0.5]
+c: [-2.0, 0.0]
+x: [-1.939674260461907, -0.2591176049512393]
+u: [13.896034285289218, 41.72400312638738]
+Arrived in: [52, 69]: [-2.0242981336063544, 0.22008079863330632]
+k: 10
+next action: (52, 69)
+next action: (69, 78)
+cm: [-2.0, 1.0]
+c: [-2.0, 0.5]
+x: [-2.0242981336063544, 0.22008079863330632]
+u: [6.310810014143607, 40.38932108302976]
+Arrived in: [69, 78]: [-2.042807494131794, 0.7058790735487473]
+Goal set reached
+Guaranteed cost:	 3.2303705493671435
+True cost:		 2.39026894834726</code></pre><p>Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction</p><pre><code class="language-julia hljs">using Plots
+
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+dims = [1, 2]
+plot!(domainX; dims=dims, color=:yellow, opacity=0.2)
+for t in symmodel.autom.transitions.data
+      if isempty(t ∩ obstaclelist)
+            color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
+            if t[1]==t[2]
+                  p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
+                  plot!(fig, UT.DrawPoint(p1), color = color)
+            else
+                  p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
+                  p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
+                  plot!(fig, UT.DrawArrow(p1, p2), color = color)
+            end
+      end
+end
+xlabel!(&quot;\$x_1\$&quot;)
+ylabel!(&quot;\$x_2\$&quot;)
+title!(&quot;Transitions&quot;)
+display(fig)</code></pre><p>Then we plot a colormap with the Lyapunov-like function <span>$v(x)$</span> and the simulated trajectory in blue.</p><pre><code class="language-julia hljs">fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
+ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
+dims = [1, 2]
+
+LyapMax = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
+colormap = Colors.colormap(&quot;Blues&quot;)
+mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
+cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in lyap_fun]...), dims=2))
+for (lyap, state) in cost_ordered
+      pos = SY.get_xpos_by_state(symmodel, state)
+      elli = DO.get_elem_by_pos(state_grid, pos)
+      if (lyap ≠ Inf)
+            plot!(fig, elli, color = UT.get_color(mycolorMap, lyap))
+      else
+            plot!(fig, elli, color = :yellow)
+      end
+end
+Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
+Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
+
+plot!(fig, Einit, color=:green)
+plot!(fig, Etarget, color=:red)
+plot!(Xobstacles, color=:black, opacity=1.0)
+
+trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
+plot!(fig, UT.DrawTrajectory(trajCoord))
+plot!(mycolorMap)
+xlabel!(&quot;\$x_1\$&quot;)
+ylabel!(&quot;\$x_2\$&quot;)
+title!(&quot;Trajectory and Lyapunov-like Fun.&quot;)
+display(fig)</code></pre><p>We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use <code>Usz = 50</code>, <code>Wsz = 5</code> and <code>n_step = 5</code>.</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Path planning/">« Path planning</a><a class="docs-footer-nextpage" href="../../reference/Temporary API/">Temporary API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 8 June 2023 15:20">Thursday 8 June 2023</span>. Using Julia version 1.9.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
