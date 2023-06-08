@@ -82,6 +82,7 @@ const SY = DI.Symbolic
 const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
+const AB = OP.Abstraction
 
 # Let us now define the state space $X$ within which we are searching for a optimal solution.
 max_x = 2 # bound on |X|_∞
@@ -100,10 +101,10 @@ P = (1/n_x)*diagm((X_step./2).^(-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX) 
 
 # At this point, we instantiate the optimizer provided in Dionysos that creates ellipsoidal-based 
-# abstractions `OptimizerEllipsoids`
+# abstractions `EllipsoidsAbstractions.Optimizer`
 
 using JuMP
-optimizer = MOI.instantiate(OP.Abstraction.OptimizerEllipsoids) # 
+optimizer = MOI.instantiate(AB.EllipsoidsAbstractions.Optimizer) # 
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)

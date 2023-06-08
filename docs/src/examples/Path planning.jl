@@ -44,9 +44,10 @@ using StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const DO = DI.Domain
-const OP = DI.Optim
 const CO = DI.Control
 const UT = DI.Utils
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 # And the file defining the hybrid system for this problem
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
@@ -73,10 +74,10 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
-# We now solve the optimal control problem with the `Abstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.SCOTS.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(OP.Abstraction.Optimizer)
+optimizer = MOI.instantiate(AB.SCOTS.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -106,7 +107,7 @@ fig = plot(aspect_ratio=:equal)
 plot!(problem.system.X, color=:yellow, opacity=0.5)
 
 # We display the abstract domain
-abstract_system = OP.Abstraction.get_abstract_system(optimizer)
+abstract_system = AB.SCOTS.get_abstract_system(optimizer)
 plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
 
 # We display the concrete specifications
@@ -114,7 +115,7 @@ plot!(problem.initial_set, color=:green, opacity=0.2)
 plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2)
 
 # We display the abstract specifications
-abstract_problem = OP.Abstraction.get_abstract_problem(optimizer)
+abstract_problem = AB.SCOTS.get_abstract_problem(optimizer)
 plot!(abstract_problem.initial_set, color=:green)
 plot!(abstract_problem.target_set, color=:red)
 
