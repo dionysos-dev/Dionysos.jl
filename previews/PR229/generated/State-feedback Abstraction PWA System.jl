@@ -51,7 +51,7 @@ P = (1/n_x)*diagm((X_step./2).^(-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
 
 using JuMP
-optimizer = MOI.instantiate(AB.EllipsoidsAbstractions.Optimizer) #
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer) #
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
@@ -146,30 +146,29 @@ println("True cost:\t\t $(costTrue)")
 
 using Plots
 
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
 dims = [1, 2]
-plot!(domainX; dims=dims, color=:yellow, opacity=0.2)
+plot!(domainX; dims=dims, color=:yellow, opacity=0.2);
 for t in symmodel.autom.transitions.data
       if isempty(t ∩ obstaclelist)
             color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
             if t[1]==t[2]
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
-                  plot!(fig, UT.DrawPoint(p1), color = color)
+                  plot!(fig, UT.DrawPoint(p1), color = color);
             else
                   p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
                   p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
-                  plot!(fig, UT.DrawArrow(p1, p2), color = color)
+                  plot!(fig, UT.DrawArrow(p1, p2), color = color);
             end
       end
 end
 xlabel!("\$x_1\$")
 ylabel!("\$x_2\$")
 title!("Transitions")
-display(fig)
 
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
 ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
 dims = [1, 2]
@@ -182,25 +181,24 @@ for (lyap, state) in cost_ordered
       pos = SY.get_xpos_by_state(symmodel, state)
       elli = DO.get_elem_by_pos(state_grid, pos)
       if (lyap ≠ Inf)
-            plot!(fig, elli, color = UT.get_color(mycolorMap, lyap))
+            plot!(fig, elli, color = UT.get_color(mycolorMap, lyap));
       else
-            plot!(fig, elli, color = :yellow)
+            plot!(fig, elli, color = :yellow);
       end
 end
 Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
 Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
 
-plot!(fig, Einit, color=:green)
-plot!(fig, Etarget, color=:red)
-plot!(Xobstacles, color=:black, opacity=1.0)
+plot!(fig, Einit, color=:green);
+plot!(fig, Etarget, color=:red);
+plot!(Xobstacles, color=:black, opacity=1.0);
 
 trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-plot!(fig, UT.DrawTrajectory(trajCoord))
-plot!(mycolorMap)
+plot!(fig, UT.DrawTrajectory(trajCoord));
+plot!(mycolorMap);
 xlabel!("\$x_1\$")
 ylabel!("\$x_2\$")
 title!("Trajectory and Lyapunov-like Fun.")
-display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

@@ -67,15 +67,15 @@ for pos in symmodel.xint2pos[post]
     DO.add_pos!(domainPostx, pos)
 end
 
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16)
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16);
 xlims!(-2, 2)
 ylims!(-2, 2)
 dims = [1, 2]
 
-plot!(domainX, fc = "white", dims=dims)
+plot!(domainX, fc = "white", dims=dims);
 domainx = DO.DomainList(Xgrid);
 DO.add_pos!(domainx, xpos)
-plot!(domainx, fc = "blue", dims=dims)
+plot!(domainx, fc = "blue", dims=dims);
 plot!(domainPostx, fc = "green", dims=dims)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

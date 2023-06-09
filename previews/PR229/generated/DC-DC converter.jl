@@ -22,7 +22,7 @@ hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTS.Optimizer)
+optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -35,10 +35,9 @@ nstep = 300
 x0 = SVector(1.2, 5.6)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
 
-fig = plot(aspect_ratio=:equal)
-Plots.plot!(problem.system.X)
-Plots.plot!(fig, UT.DrawTrajectory(x_traj))
-display(fig)
+fig = plot(aspect_ratio=:equal);
+plot!(problem.system.X);
+plot!(fig, UT.DrawTrajectory(x_traj))
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
