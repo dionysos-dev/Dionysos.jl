@@ -37,6 +37,7 @@ const SY = DI.Symbolic
 const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
+const AB = OP.Abstraction
 
 max_x = 2 # bound on |X|_∞
 rectX = UT.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
@@ -50,7 +51,7 @@ P = (1/n_x)*diagm((X_step./2).^(-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX)
 
 using JuMP
-optimizer = MOI.instantiate(OP.Abstraction.OptimizerEllipsoids) #
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer) #
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
