@@ -19,8 +19,7 @@ const DI = Dionysos
 const UT = DI.Utils
 
 # We define a plotting functions
-function plot_config!(El0, El, Elnew)
-    fig = plot(aspect_ratio=:equal);
+function plot_config!(fig, El0, El, Elnew)
     if Elnew∈El0
         plot!(fig, El0, color=:red, label="El0");
         plot!(fig, Elnew, color=:green, label="Elnew");
@@ -31,15 +30,15 @@ function plot_config!(El0, El, Elnew)
     plot!(fig, El, color=:blue, label="El", show = true)
 end
 
-function analyze(i)
+function analyze(fig1, fig2, i)
     El0 = E0L[i]
     Elnew = UT.scale_for_inclusion_contact_point(El0, El) 
-    plot_config!(El0, El, Elnew)
-    println(El0∈El)
+    plot_config!(fig1, El0, El, Elnew)
+    println(El0 ∈ El ? "El0 ∈ El" : "El0 ∉ El")
 
     Elnew = UT.scale_for_noninclusion_contact_point(El0, El) 
-    plot_config!(El0, El, Elnew)
-    println(UT.intersect(El0, El))
+    plot_config!(fig2, El0, El, Elnew)
+    println(UT.intersect(El0, El) ? "El0 ∩ El ≠ ∅" : "El0 ∩ El = ∅")
 end
 
 # We define some ellipsoids
@@ -54,17 +53,49 @@ vals = [4.1, 3.32, 2.8, 2.4]
 E0L = [UT.Ellipsoid(P0, [c0x; c0x-0.2]) for c0x in vals]
 
 
-# case 1 : non intersection
-analyze(1)
+# ### Case 1: non intersection
+fig1_1 = plot(aspect_ratio = :equal);
+fig1_2 = plot(aspect_ratio = :equal);
+analyze(fig1_1, fig1_2, 1)
 
-# case 2 : non intersection
-analyze(2)
+#
+plot!(fig1_1)
 
-# case 3 : intersection, non inclusion
-analyze(3)
+#
+plot!(fig1_2)
 
-# case 4 : inclusion
-analyze(4)
+# ### Case 2: non intersection
+fig2_1 = plot(aspect_ratio = :equal);
+fig2_2 = plot(aspect_ratio = :equal);
+analyze(fig2_1, fig2_2, 2)
+
+#
+plot!(fig2_1)
+
+#
+plot!(fig2_2)
+
+# ### Case 3: intersection, non inclusion
+fig3_1 = plot(aspect_ratio = :equal);
+fig3_2 = plot(aspect_ratio = :equal);
+analyze(fig3_1, fig3_2, 3)
+
+#
+plot!(fig3_1)
+
+#
+plot!(fig3_2)
+
+# ### Case 4: inclusion
+fig4_1 = plot(aspect_ratio = :equal);
+fig4_2 = plot(aspect_ratio = :equal);
+analyze(fig4_1, fig4_2, 4)
+
+#
+plot!(fig4_1)
+
+#
+plot!(fig4_2)
 
 
 
