@@ -83,10 +83,9 @@ nstep = 300
 x0 = SVector(1.2, 5.6)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
 
-fig = plot(aspect_ratio=:equal)
-Plots.plot!(problem.system.X)
-Plots.plot!(fig, UT.DrawTrajectory(x_traj))
-display(fig)
+fig = plot(aspect_ratio=:equal);
+plot!(problem.system.X);
+plot!(fig, UT.DrawTrajectory(x_traj))
 
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.

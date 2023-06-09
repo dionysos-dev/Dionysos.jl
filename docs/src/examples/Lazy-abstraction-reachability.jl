@@ -1,7 +1,30 @@
-module TestMain
+# # Lazy-abstraction-reachability
+#
+#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
+#
+# This is a **optimal reachability problem** for a **continuous system**.
+#
+#
+# In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
+# for the sampled system with a sampling time $\tau$.
+#
+# The abstraction is based on a feedback refinment relation [1,V.2 Definition].
+# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
+#
+# For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
+# a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
+# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
+# to compute the relations in the abstraction based on the feedback refinement relation.
+#
+# For this reachability problem, the abstraction controller is built using a solver that lazily builds the abstraction, constructing the abstraction 
+# at the same time as the controller.
 
-using Test, StaticArrays, Plots
-using ..Dionysos
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+using StaticArrays, Plots
+
+# At this point, we import Dionysos.
+using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -10,7 +33,7 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const LA = DI.Control.LazyAbstractionReach
 
-## specific function
+## specific functions
 function post_image(symmodel, contsys, xpos, u)
     Xdom = symmodel.Xdom
     x = DO.get_coord_by_pos(Xdom.grid, xpos)
@@ -115,7 +138,7 @@ function build_dom()
     grid = DO.build_grid_in_rec(X, hx)
     d = DO.RectangularObstacles(X, [obstacle])
     Xdom = DO.GeneralDomainList(hx;elems=d,periodic=periodic,periods=periods,T0=T0)
-    fig = plot(aspect_ratio = 1,legend = false)
+    fig = plot(aspect_ratio = 1)
     return X,Xdom
 end
 
@@ -135,8 +158,7 @@ function transition_cost(x,u)
     return 0.5
 end
 
-## Heursitic
-function h(node::UT.Node, problem::LA.LazyAbstraction)
+function h1(node::UT.Node, problem::LA.LazyAbstraction)
     source = node.state.source
     symmodel = problem.symmodel
     xpos = SY.get_xpos_by_state(symmodel, source)
@@ -150,47 +172,47 @@ function h(node::UT.Node, problem::LA.LazyAbstraction)
 end
 
 function build_heuristic_data(X, contsys, Udom, _I_)
-    # build the alternating simulation
     hx = [1.0, 1.0]*1.5
     periodic = Int[]
     periods = [30.0,30.0]
     T0 = [0.0,0.0]
     Xdom = DO.GeneralDomainList(hx;periodic=periodic,periods=periods,T0=T0)
     DO.add_set!(Xdom, X , DO.OUTER)
-    symmodel = SY.symmodelAS(Xdom,Udom,contsys,minimum_transition_cost,get_transitions)
-    # build the heurisitic
-    initlist = SY.get_symbol(symmodel,_I_,DO.OUTER)
-    heuristic_data = SY.build_heuristic(symmodel,initlist)
-    # fig = plot(aspect_ratio = 1,legend = false)
-    # SY.plot_heuristic!(heuristic_data)
-    # display(fig)
+    symmodel = SY.symmodelAS(Xdom, Udom,  contsys, minimum_transition_cost, get_transitions)
+    initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
+    heuristic_data = SY.build_heuristic(symmodel, initlist)
     return heuristic_data
 end
-##
-function test()
-    X,Xdom = build_dom()
-    Udom = build_Udom()
-    # build system
-    contsys = build_system()
-    symmodel = SY.LazySymbolicModel(Xdom, Udom)
-    # control problem
-    _I_ = UT.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0))
-    initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
-    _T_ = UT.HyperRectangle(SVector(25.0, 25.0), SVector(28.0, 28.0))
-    targetlist = SY.get_symbol(symmodel, _T_, DO.INNER)
-    # Heuristic data
-    heuristic_data = build_heuristic_data(X,contsys,Udom,_I_)
-    # Lazy Abstraction implementation
-    time = @elapsed begin
-    problem, sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h, heuristic_data=heuristic_data)
-    contr = problem.contr
-    end
-    println("total time: lazy abstraction + controller: ", time)
-    fig = plot(aspect_ratio = 1,legend = false)
-    x0 = SVector(5.5,5.5)
-    LA.plot_result!(problem,x0=x0)
-    display(fig)
-end
-println()
-test()
-end # end module
+
+# Define the domains
+X,Xdom = build_dom()
+Udom = build_Udom();
+# Define the system
+contsys = build_system();
+
+# Define the specifications
+_I_ = UT.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0))
+_T_ = UT.HyperRectangle(SVector(25.0, 25.0), SVector(28.0, 28.0));
+
+# Construct the heuristic to guide the A* exploration
+heuristic_data = build_heuristic_data(X, contsys, Udom, _I_);
+
+# Define the symbolic model and the abstract specifications
+symmodel = SY.LazySymbolicModel(Xdom, Udom)
+initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
+targetlist = SY.get_symbol(symmodel, _T_, DO.INNER);
+
+# Solve the abstract problem
+problem, sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h1, heuristic_data=heuristic_data)
+contr = problem.contr;
+
+# Display a trajectory
+fig = plot(aspect_ratio=:equal)
+x0 = SVector(5.5, 5.5)
+LA.plot_result!(problem, x0=x0)
+plot!(show=true, legend=false)
+
+
+# ### References
+# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
+# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.

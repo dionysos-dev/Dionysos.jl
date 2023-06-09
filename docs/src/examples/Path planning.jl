@@ -102,27 +102,26 @@ x0 = SVector(0.4, 0.4, 0.0)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
-fig = plot(aspect_ratio=:equal)
-# We display the concrete domain
-plot!(problem.system.X, color=:yellow, opacity=0.5)
+fig = plot(aspect_ratio=:equal);
+##We display the concrete domain
+plot!(problem.system.X, color=:yellow, opacity=0.5);
 
 # We display the abstract domain
 abstract_system = AB.SCOTSAbstraction.get_abstract_system(optimizer)
 plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
 
-# We display the concrete specifications
-plot!(problem.initial_set, color=:green, opacity=0.2)
-plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2)
+##We display the concrete specifications
+plot!(problem.initial_set, color=:green, opacity=0.2);
+plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2);
 
 # We display the abstract specifications
 abstract_problem = AB.SCOTSAbstraction.get_abstract_problem(optimizer)
 plot!(abstract_problem.initial_set, color=:green)
 plot!(abstract_problem.target_set, color=:red)
 
-# We display the concrete trajectory
+##We display the concrete trajectory
 plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
 
-display(fig)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
