@@ -101,7 +101,7 @@ P = (1/n_x)*diagm((X_step./2).^(-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX) 
 
 # At this point, we instantiate the optimizer provided in Dionysos that creates ellipsoidal-based 
-# abstractions `EllipsoidsAbstractions.Optimizer`
+# abstractions `EllipsoidsAbstraction.Optimizer`
 
 using JuMP
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer) # 
