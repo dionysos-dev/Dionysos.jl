@@ -1,19 +1,19 @@
-# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
-
 using Dionysos
-UT = Dionysos.Utils
-SY = Dionysos.System
-SC = Dionysos.Symbolic
-PR = Dionysos.Problem
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const CO = DI.Control
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
 
-using Plots, Colors, LinearAlgebra
-using Symbolics
-using IntervalArithmetic
-using LinearAlgebra
-using Mosek
-using MosekTools
-using JuMP
-import Random
+const LEA = AB.LazyEllipsoidsAbstraction
+
+using LinearAlgebra, Random, Symbolics, IntervalArithmetic
+using JuMP, Mosek, MosekTools
+using Plots, Colors
 Random.seed!(0)
 
 #######################################################
@@ -72,12 +72,11 @@ xinit = [-10.0;-10.0]
 Einit = UT.Ellipsoid(Matrix{Float64}(I(nx))*10.0, xinit)
 xtarget = [10.0;10.0]
 Etarget = UT.Ellipsoid(Matrix{Float64}(I(nx))*1.0, xtarget)
-X = IntervalBox(-20..20,2); #-15..15
+X = IntervalBox(-20..20,2);
 obstacles = [UT.Ellipsoid(Matrix{Float64}(I(nx))*1/50, [0.0;0.0])]
 
 #########################################
-system = SY.EllipsoidalLazySystem(f_eval, Ts, nx, nu, nw, U, Ub, W, X, obstacles, fsymbolic, x, u, w, ΔX, ΔU, ΔW)
-# maxRadius, maxΔu
+system = ST.EllipsoidalLazySystem(f_eval, Ts, nx, nu, nw, U, Ub, W, X, obstacles, fsymbolic, x, u, w, ΔX, ΔU, ΔW)
 problem = PR.OptimalControlProblem(system, Einit, Etarget, S, nothing, 0.0)
 
 #######################################################
@@ -138,9 +137,9 @@ function new_conf(tree, Nnear, Erand, optimizer)
     X̄ = IntervalBox(xnew .+ sys.ΔX)
     Ū = IntervalBox(unew .+ sys.ΔU)
     W̄ = IntervalBox(wnew .+ sys.ΔW)
-    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
+    (affineSys, L) = ST.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
     S = problem.state_cost
-    return Dionysos.Symbolic.transition_backward(affineSys, Nnear.state, xnew, unew, sys.U, S, L, optimizer.sdp_opt ; λ=optimizer.λ, maxδx=optimizer.maxδx, maxδu=optimizer.maxδu)
+    return SY.transition_backward(affineSys, Nnear.state, xnew, unew, sys.U, S, L, optimizer.sdp_opt ; λ=optimizer.λ, maxδx=optimizer.maxδx, maxδu=optimizer.maxδu)
 end
 
 # heuristic: keep only the closest ellipsoid to the initial ellipsoid
@@ -151,7 +150,7 @@ function keep(tree, LSACnew, EF, EI, distance, optimizer; scale_for_obstacle=tru
     minDist = Inf
     iMin = 0
     for (i,data) in enumerate(LSACnew)
-        Enew, kappa, cost, Nnear = data
+        Enew, cont, cost, Nnear = data
         if Enew===nothing             
             print("\tInfeasible")
         elseif EI ∈ Enew
@@ -169,7 +168,7 @@ function keep(tree, LSACnew, EF, EI, distance, optimizer; scale_for_obstacle=tru
     if iMin == 0
         return [] 
     end
-    ElMin, kappaMin, costMin, NnearMin = LSACnew[iMin]
+    ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
     if ElMin !== nothing 
         if all(O -> !(ElMin ∩ O), obstacles) #all(O -> !(ElMin.c ∈ O), obstacles)
             return [LSACnew[iMin]]
@@ -180,7 +179,7 @@ function keep(tree, LSACnew, EF, EI, distance, optimizer; scale_for_obstacle=tru
                     return []
                 end
             end
-            return [(ElMin, kappaMin, costMin, NnearMin)]
+            return [(ElMin, contMin, costMin, NnearMin)]
         else
             return []
         end
@@ -199,10 +198,10 @@ function compute_transition(E1, E2, optimizer)
     X̄ = IntervalBox(xnew .+ sys.ΔX)
     Ū = IntervalBox(unew .+ sys.ΔU)
     W̄ = IntervalBox(wnew .+ sys.ΔW)
-    (affineSys, L) = Dionysos.System.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
+    (affineSys, L) = ST.buildAffineApproximation(sys.fsymbolic, sys.x, sys.u, sys.w, xnew, unew, wnew, X̄, Ū, W̄)
     S = problem.state_cost
-    ans, kappa, cost = Dionysos.Symbolic.transition_fixed(affineSys, E1, E2, sys.U, sys.W, S, optimizer.sdp_opt)
-    return ans, kappa, cost
+    ans, cont, cost = SY.transition_fixed(affineSys, E1, E2, sys.U, sys.W, S, optimizer.sdp_opt)
+    return ans, cont, cost
 end
 
 global myBool = true
@@ -215,10 +214,10 @@ function stop_crit(tree, LNnew, EF, EI, distance, optimizer; continues=false)
     for Nnew in LNnew
         E = Nnew.state
         if distance(EI, E) <= minDist
-            ans, kappa, cost = compute_transition(EI, E, optimizer)
+            ans, cont, cost = compute_transition(EI, E, optimizer)
             if ans
                 if myBool
-                    global NI = UT.add_node!(tree, EI, Nnew, kappa, cost)
+                    global NI = UT.add_node!(tree, EI, Nnew, cont, cost)
                     println("Path cost from EI : ", NI.path_cost)
                     global myBool = false
                 end
@@ -226,7 +225,7 @@ function stop_crit(tree, LNnew, EF, EI, distance, optimizer; continues=false)
                     return true
                 else 
                     if myBool2 && cost + Nnew.path_cost  < NI.path_cost
-                        UT.rewire(tree, NI, Nnew, kappa, cost)
+                        UT.rewire(tree, NI, Nnew, cont, cost)
                         println("Path cost from EI : ", NI.path_cost)
                     end
                 end
@@ -246,22 +245,22 @@ RRTstar = false
 k1 = 1
 k2 = 1
 λ = 0.01 # 0.01
-optimizer = PR.Abstraction.build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, maxδx, maxδu, λ, sdp_opt, k1, k2)
+optimizer = LEA.build_OptimizerLazyEllipsoids(problem, distance, rand_state, new_conf, keep, stop_crit, RRTstar, compute_transition, maxIter, maxδx, maxδu, λ, sdp_opt, k1, k2)
 
 MOI.optimize!(optimizer)
 
 tree = optimizer.tree
 println("Path cost from EI : ", NI.path_cost)
-p = plot(aspect_ratio=:equal)
+fig = plot(aspect_ratio=:equal)
 for obs in obstacles
-    plot!(p, obs)
+    plot!(obs, color=:black)
 end
 
-UT.plot_Tree!(tree)
-# UT.plot_path!(NI)
-plot!(p, Einit, color = :green)
-plot!(p, Etarget, color = :red)
-display(p)
+plot!(tree; arrowsB=true, cost=true)
+# plot!(NI; pathB=true, cost=true)
+# plot!(Einit, color = :green)
+# plot!(Etarget, color = :red)
+display(fig)
 
 
 

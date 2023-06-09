@@ -73,7 +73,7 @@ end
 # vector (translist). This approach uses a bit more allocations than the OLD one
 # (29 vs 24/26) on pathplanning-simple/hard but is faster in both cases.
 function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
-        contsys::SY.ControlSystemGrowth{N}) where N
+        contsys::ST.ControlSystemGrowth{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
@@ -119,7 +119,7 @@ end
 
 # Assumes that automaton is "empty"
 function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
-        contsys::SY.ControlSystemGrowth{N}) where N
+        contsys::ST.ControlSystemGrowth{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
@@ -158,7 +158,7 @@ end
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
 function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
-        contsys::SY.ControlSystemLinearized{N}) where N
+        contsys::ST.ControlSystemLinearized{N}) where N
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom

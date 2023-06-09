@@ -12,12 +12,20 @@ using SpecialFunctions
 using ProgressMeter
 using IntervalArithmetic
 using LazySets
+using StaticArrays
 using ..Domain
 using ..Utils
 UT = Utils
 
+
 AffineSys = Union{HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap}
 
+
+function get_controller_matrices(m)
+    dims = size(m)
+    nu = dims[1]
+    return m[:, 1:end-1], SVector{nu}(m[:, end])
+end
 
 function _getμν(L,subsys::AffineSys)
     n_x = length(subsys.c)
@@ -421,7 +429,11 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
     ans = solution_summary(model).termination_status == MOI.OPTIMAL
     kappa = [value.(K) value.(ell)];
     cost = value(J);
-    return ans, kappa, cost
+
+
+    K, ℓ = get_controller_matrices(kappa)
+    cont = ST.AffineController(K, c, ℓ)
+    return ans, cont, cost
 end
 
 function transition_fixed(affsys::AffineSys, E1::UT.Ellipsoid, E2::UT.Ellipsoid, U, W, S, optimizer)
@@ -515,113 +527,25 @@ function transition_backward(A, B, c, D, c2, P2, c1, u, U, W, S, Lip, optimizer;
         L = value.(L)
         P = transpose(L)\eye(nx)/L
         kappa = [value.(F)/(L) value.(ell)];
+        K, ℓ = get_controller_matrices(kappa)
+        cont = ST.AffineController(K, c1, ℓ)
         cost = value(J);
     else
         P = nothing
-        kappa = nothing
+        cont = nothing
         cost = nothing
     end
-    return P, kappa, cost 
+    return P, cont, cost
 end
 
 function transition_backward(affsys::AffineSys, E2::UT.Ellipsoid, c1, u, U, S, Lip, optimizer; maxδx=100, maxδu=10.0*2, λ=0.01)
-    P1, kappa, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, E2.c, E2.P, c1, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
+    P1, cont, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, E2.c, E2.P, c1, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
     if P1!==nothing
-        return UT.Ellipsoid(P1, c1), kappa, cost
+        return UT.Ellipsoid(P1, c1), cont, cost
     else
         return nothing, nothing, nothing 
     end
 end
-
-
-
-# # data-driven check
-# function check_controller(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts; N=500)
-#     samples = UT.sample_ellipsoid(E1; N=N)
-#     wnew = zeros(2)
-#     for x in samples
-#         unew = kappa*[x-E1.c;1]
-#         xnew = f_eval(x, unew, wnew, Ts)
-#         if !(xnew ∈ E2)
-#             return false
-#         end
-#     end
-#     return true
-# end
-
-# data-driven check
-function check_controller(E1::UT.Ellipsoid, E2::UT.Ellipsoid, f_eval, c_eval, nw, Uset; N=500)
-    samples = UT.sample_ellipsoid(E1; N=N)
-    wnew = zeros(nw)
-    for x in samples
-        unew = c_eval(x)
-        if !(unew ∈ Uset)
-            println("Not feasible input")
-            return false
-        end
-        xnew = f_eval(x, unew, wnew)
-        if !(xnew ∈ E2)
-            println("Not in the target ellipsoid")
-            return false
-        end
-    end
-    return true
-end
-
-# data-driven plot
-function plot_transitions!(E1::UT.Ellipsoid, f_eval, c_eval, nw; N=100)
-    samples = UT.sample_ellipsoid(E1; N=N)
-    wnew = zeros(nw)
-    for x in samples
-        unew = c_eval(x)
-        xnew = f_eval(x, unew, wnew)
-        plot!(UT.DrawArrow(x, xnew), color = :black)
-    end
-end
-
-# data-driven plot
-function plot_check(E1::UT.Ellipsoid, f_eval, c_eval, nw, E2::UT.Ellipsoid; N=100)
-    p = plot(aspect_ratio=:equal)
-    plot!(p, E1, color = :green)
-    plot!(p, E2, color = :red)
-    plot_transitions!(E1, f_eval, c_eval, nw; N=N)
-    display(p)
-end
-
-
-
-
-# data-driven check
-function plot_controller_cost(E1::UT.Ellipsoid, kappa, E2::UT.Ellipsoid, f_eval, Ts, f_cost; N=10)
-    samples = UT.sample_ellipsoid(E1; N=N)
-    costs = []
-    wnew = zeros(2)
-    for x in samples
-        unew = kappa*[x-E1.c;1]
-        push!(costs, f_cost(x, unew))
-    end
-    vmin = minimum(costs)
-    vmax = maximum(costs)
-    if vmin==vmax
-        vmax += 1.0e-6
-    end
-    colorMap = UT.Colormap([vmin,vmax], Colors.colormap("Blues"))
-    p = plot(aspect_ratio=:equal)
-    plot!(p, E1, color = :white)
-    for (i,x) in enumerate(samples)
-        plot!([x[1]], [x[2]], seriestype=:scatter, ms=2; color=UT.get_color(colorMap, costs[i]))
-        #UT.plot!(x; color=UT.get_color(colorMap, costs[i]))
-    end
-    UT.plot_colorBar!(colorMap)
-    display(p)
-end
-
-
-
-
-
-
-
 
 
 

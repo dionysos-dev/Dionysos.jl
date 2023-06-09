@@ -1,5 +1,3 @@
-abstract type Controller end
-
 NewControllerList() = UT.SortedTupleSet{2,NTuple{2,Int}}()
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -120,3 +118,4 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         println("\ncompute_controller_safe! terminated without covering init set")
     end
 end
+

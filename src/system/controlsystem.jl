@@ -1,6 +1,14 @@
 
 abstract type ControlSystem{N,T} end
 
+function get_f_eval(sys)
+    return sys.f_eval
+end
+
+
+
+
+
 function RungeKutta4(F, x, u, tstep, nsub::Int)
     τ = tstep/nsub
     for i in 1:nsub
@@ -210,16 +218,6 @@ function buildAffineApproximationFromContinuousTime(f,x,u,w,X,U,W)
     (NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W), L)
 end
 
-############################################
-############################################
-############################################
-# affine discrete time system approximaton with its Lypschitz constant and the region of validity
-# of the Lipschitz constant
-struct AffineApproximationDiscreteSystem
-    constrainedAffineSys::NoisyConstrainedAffineControlDiscreteSystem
-    L
-end
-
 function getDiscreteTimeAffineSystem(A, B, c, tstep)
     # compute matrix exponential of A
     Ac = expm(A*tstep)
@@ -231,8 +229,27 @@ function getDiscreteTimeAffineSystem(A, B, c, tstep)
     return (Ac, Bc, Cc)
 end
 
-function build_AffineApproximationDiscreteSystem(A,B,c,E,X,U,W,L)
-    contSys = NoisyConstrainedAffineControlDiscreteSystem(A,B,c,E,X,U,W)
+############################################
+############################################
+############################################
+# Affine discrete time system approximaton with its Lypschitz constant and the region of validity
+# of the Lipschitz constant
+struct AffineApproximationDiscreteSystem #<: ControlSystem
+    constrainedAffineSys::NoisyConstrainedAffineControlDiscreteSystem
+    L
+    f_eval
+    function AffineApproximationDiscreteSystem(sys, L) 
+        f_eval_fun(x, u, w) = sys.A*x+sys.B*u+sys.D*w+sys.c
+        return new(sys, L, f_eval_fun)
+    end
+end
+
+function get_f_eval(sys)
+    return sys.f_eval
+end
+
+function build_AffineApproximationDiscreteSystem(A, B, c, E, X, U, W, L)
+    contSys = NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W)
     return AffineApproximationDiscreteSystem(contSys, L)
 end
 
