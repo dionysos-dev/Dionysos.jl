@@ -98,8 +98,7 @@ X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0/n_step, 1.0/n_step);
 P = (1/n_x)*diagm((X_step./2).^(-2))
 
-state_grid = DO.Grid
-soidalRectangular(X_origin, X_step, P, rectX) 
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX) 
 
 # At this point, we instantiate the optimizer provided in Dionysos that creates ellipsoidal-based 
 # abstractions `EllipsoidsAbstraction.Optimizer`
