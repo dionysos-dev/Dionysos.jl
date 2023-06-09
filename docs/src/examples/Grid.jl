@@ -67,7 +67,7 @@ function build_f_rotation(θ; c=SVector(0.0,0.0))
     return f,fi
  end
 
- function plot_deformed_grid_with_DomainList(f,fi)
+function plot_deformed_grid_with_DomainList(f,fi)
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2*π))
     grid = DO.GridFree(SVector(0.0,0.0),SVector(3.0,0.3))
     Dgrid = DO.DeformedGrid(grid,f,fi)
