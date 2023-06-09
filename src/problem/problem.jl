@@ -1,10 +1,8 @@
 module Problem
 
-struct Infinity <: Real end
+abstract type ProblemType end
 
-Base.isfinite(::Infinity) = false
-
-struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real}
+struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
@@ -13,12 +11,15 @@ struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real}
     time::T
 end
 
-struct SafetyProblem{S, XI, XS, T<:Real}
+struct SafetyProblem{S, XI, XS, T<:Real} <: ProblemType
     system::S
     initial_set::XI
     safe_set::XS
     time::T
 end
+
+struct Infinity <: Real end
+Base.isfinite(::Infinity) = false
 
 export OptimalControlProblem
 export SafetyProblem
