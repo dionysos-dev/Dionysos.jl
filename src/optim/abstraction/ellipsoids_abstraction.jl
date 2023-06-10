@@ -19,7 +19,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     problem::Union{Nothing, PR.OptimalControlProblem}
     symmodel::Union{Nothing, SY.SymbolicModelList}
     transitionCost::Union{Nothing, Dict}
-    transitionKappa::Union{Nothing, Dict}
+    transitionCont::Union{Nothing, Dict}
     controller::Union{Nothing,UT.SortedTupleSet{2,NTuple{2,Int}}}
     lyap_fun::Union{Nothing, Any}
     ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
@@ -86,27 +86,27 @@ function build_abstraction(
     # We then initialize the dictionaries for saving the cost and the controller associated with each transition in the abstraction
 
     transitionCost = Dict()  #dictionary with cost of each transition
-    transitionKappa = Dict() #dictionary with controller associated each transition
+    transitionCont = Dict() #dictionary with controller associated each transition
 
 
     # and finally build the state-feedback abstraction 
  
     U = system.ext[:U]
     W = system.ext[:W]
-    t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
+    t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionCont, system, W, L, U, opt_sdp, opt_ip);
  
     # println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
-    symmodel, transitionCost, transitionKappa
+    symmodel, transitionCost, transitionCont
 end
  
 function MOI.optimize!(optimizer::Optimizer)
     problem = optimizer.problem
     system = problem.system
     state_grid = optimizer.state_grid
-    symmodel, transitionCost, transitionKappa = build_abstraction(problem, state_grid, optimizer.sdp_solver, optimizer.ip_solver)
+    symmodel, transitionCost, transitionCont = build_abstraction(problem, state_grid, optimizer.sdp_solver, optimizer.ip_solver)
     optimizer.symmodel = symmodel
     optimizer.transitionCost = transitionCost
-    optimizer.transitionKappa = transitionKappa
+    optimizer.transitionCont = transitionCont
     
     # Now let us prepare to synthesize our controller. Define the specifications
     

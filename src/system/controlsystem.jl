@@ -5,10 +5,6 @@ function get_f_eval(sys)
     return sys.f_eval
 end
 
-
-
-
-
 function RungeKutta4(F, x, u, tstep, nsub::Int)
     τ = tstep/nsub
     for i in 1:nsub
@@ -242,10 +238,6 @@ struct AffineApproximationDiscreteSystem #<: ControlSystem
         f_eval_fun(x, u, w) = sys.A*x+sys.B*u+sys.D*w+sys.c
         return new(sys, L, f_eval_fun)
     end
-end
-
-function get_f_eval(sys)
-    return sys.f_eval
 end
 
 function build_AffineApproximationDiscreteSystem(A, B, c, E, X, U, W, L)

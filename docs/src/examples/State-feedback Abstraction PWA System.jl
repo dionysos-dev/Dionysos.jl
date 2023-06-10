@@ -78,6 +78,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
+const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
 const PR = DI.Problem
@@ -120,7 +121,7 @@ end
 contr = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 symmodel = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
 transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
-transitionKappa = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionKappa"))
+transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
 lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
 
 
@@ -177,8 +178,9 @@ while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reac
       c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, next_action[1]))
       println("c: $(c)")
 
+      c_eval = ST.get_c_eval(transitionCont[next_action])
+      u_traj[:,k] = c_eval(x_traj[:,k])
 
-      u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
       println("x: $(x_traj[:,k])")
       println("u: $(u_traj[:,k])")
 

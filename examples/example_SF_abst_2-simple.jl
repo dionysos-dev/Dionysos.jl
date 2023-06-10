@@ -75,11 +75,11 @@ eigen_Q = eigen(Q_aug);
 L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))';
 
 transitionCost = Dict()  #dictionary with cost of each transition
-transitionKappa = Dict() #dictionary with controller associated each transition
+transitionCont = Dict() #dictionary with controller associated each transition
 empty!(symmodel.autom)
 
 #building abstraction
-@time SY.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
+@time SY.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionCont, system, W, L, U, opt_sdp, opt_qp)
 
 # Define Specifications
 x0 = SVector{n_sys}(problem.initial_set) # initial condition
@@ -166,9 +166,8 @@ while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While 
       c = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, next_action[1]))
       println("c: $(c)")
 
-
-      u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
-
+      c_eval = ST.get_c_eval(transitionCont[next_action])
+      u_traj[:,k] = c_eval(x_traj[:,k])
 
       global costBound = costBound + transitionCost[next_action]
       global costTrue += norm(L*vcat(x_traj[:,k], u_traj[:,k],1.0))^2

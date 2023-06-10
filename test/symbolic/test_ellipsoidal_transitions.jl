@@ -29,7 +29,7 @@ end
     B = [0.0; 0.0; 1.0][:,:]
     c = zeros(3)
 
-    sys = HybridSystems.ConstrainedAffineControlDiscreteSystem(A,B,c,Nothing, Nothing)
+    sys = HybridSystems.ConstrainedAffineControlDiscreteSystem(A, B, c, Nothing, Nothing)
     ans, K, P, gamma = SY._provide_P(sys, opt_sdp)
     @test K ≈ [-1.97742  -1.0  -5.0] atol=1e-2
 end

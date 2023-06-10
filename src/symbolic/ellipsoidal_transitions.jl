@@ -27,13 +27,13 @@ function get_controller_matrices(m)
     return m[:, 1:end-1], SVector{nu}(m[:, end])
 end
 
-function _getμν(L,subsys::AffineSys)
+function _getμν(L, subsys::AffineSys)
     n_x = length(subsys.c)
     (vertices_list(IntervalBox((-x)..x for x in L[1:n_x])),vertices_list(IntervalBox(subsys.D*subsys.W...)))
 end
 
 
-function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
+function hasTransition(c, u, Ep::UT.Ellipsoid, subsys::AffineSys, L, S, U, maxRadius, maxΔu, optimizer; λ=0.01)
     Pp = Ep.P
     cp = Ep.c
 
@@ -115,24 +115,26 @@ function hasTransition(c, u, Ep::UT.Ellipsoid,subsys::AffineSys,L, S, U, maxRadi
      @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
 
     optimize!(model)
-    #println(solution_summary(model))
+    # println(solution_summary(model))
     if solution_summary(model).termination_status == MOI.OPTIMAL
         C = value.(C)
         El = UT.Ellipsoid(transpose(C)\eye(n)/C, c)
         kappa = [value.(F)/(C) value.(ell)];
+        # K, ℓ = get_controller_matrices(kappa)
+        # cont = ST.AffineController(K, c, ℓ)
         cost = value(J);
     else
         El = nothing
         kappa = nothing
         cost = nothing
     end
-    #println("$(solution_summary(model).solve_time) s")
+    # println("$(solution_summary(model).solve_time) s")
+    # return El, cont, cost
     return El, kappa, cost 
 end
 
 """
-    _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
-    P,c,Pp,cp,W,L,U, optimizer)
+    _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
 
 Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
 defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
@@ -149,17 +151,12 @@ This implements the optimization problem presented in Corollary 1 of the followi
 https://arxiv.org/pdf/2204.00315.pdf
 
 """
-function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDiscreteSystem,HybridSystems.HybridSystems.ConstrainedAffineControlMap},#
-    P,c,Pp,cp,W,L,U, optimizer)
-    
+function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
     eye(n) = diagm(ones(n))
-    A = subsys.A
-    B = subsys.B
-    g = subsys.c
     n = length(c);
-    m = size(U[1],2);
-    N = size(W,2);
-    p = size(W,1);
+    m = size(U[1], 2);
+    N = size(W, 2);
+    p = size(W, 1);
     Nu = length(U);
 
 
@@ -207,15 +204,22 @@ function _has_transition(subsys::Union{HybridSystems.ConstrainedAffineControlDis
     
     @objective(model, Min, J)
 
-    #print(model)
     optimize!(model)
 
+    ans = solution_summary(model).termination_status == MOI.OPTIMAL
     kappa = [value.(K) value.(ell)];
     cost = value(J);
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
-    #println("$(solution_summary(model).solve_time) s")
-    return ans, cost, kappa
+    # println("$(solution_summary(model).solve_time) s")
+    return ans, kappa, cost
 end
+
+function _has_transition(affsys::AffineSys, E1::UT.Ellipsoid, E2::UT.Ellipsoid, U, W, S, optimizer)
+    ans, kappa, cost = _has_transition(affsys.A, affsys.B, affsys.c, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
+    K, ℓ = get_controller_matrices(kappa)
+    cont = ST.AffineController(K, E1.c, ℓ)
+    return ans, cont, cost
+end
+
 
 """
     _compute_base_cell(r::SVector{S})
@@ -236,16 +240,16 @@ end
 
 
 """
-    compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
+    compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionCont::AbstractDict,
     hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp)
 
 Builds an abstraction `symmodel` where the transitions have costs given in `transitionCost`
-and are parameterized by affine-feedback controllers in `transitionKappa`. The concrete system 
+and are parameterized by affine-feedback controllers in `transitionCont`. The concrete system 
 is `hybridsys` and `W`, `L` and `U` are defined as in `_has_transition`. An SDP optimizer `opt_sdp`
 and a QP optimizer `opt_qp` must be provided as JuMP optimizers.
 
 """
-function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionKappa::AbstractDict,
+function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionCont::AbstractDict,
     hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
@@ -284,7 +288,6 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
     trans_count = 0
     @showprogress 1 "Computing symbolic control system: " (
     for xpos in Xdom.elems
-        
         source = get_state_by_xpos(symmodel, xpos)
         x = Domain.get_coord_by_pos(Xdom.grid, xpos)
         m = get_mode(x)
@@ -301,7 +304,8 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
         for xmpos in xmpos_iter
             xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
-            ans, cost, kappa =_has_transition(hybridsys.resetmaps[m],P,x,Pm,xm,W,L,U,opt_sdp)
+            #ans, cost, kappa = _has_transition(hybridsys.resetmaps[m],P,x,Pm,xm,W,L,U,opt_sdp)
+            ans, cont, cost = _has_transition(hybridsys.resetmaps[m], UT.Ellipsoid(P, x), UT.Ellipsoid(Pm, xm), U, W, L, opt_sdp)
         
             if(ans)
                 trans_count += 1
@@ -309,8 +313,8 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
                 symbol = get_symbol_by_upos(symmodel, xmpos);
                 #println("->Added $(trans_count+1)\nfrom\t $(source)\n","to\t $(target)\n\n")
                 add_transition!(symmodel.autom, source, target, symbol)
-                transitionCost[(source,target)] = cost
-                transitionKappa[(source,target)] = kappa
+                transitionCost[(source, target)] = cost
+                transitionCont[(source, target)] = cont
             end
         end
         
@@ -356,7 +360,6 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     
     @objective(model, Max, gamma)
 
-    #print(model)
     optimize!(model)
 
     P = inv(value.(S));
@@ -430,14 +433,14 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
     kappa = [value.(K) value.(ell)];
     cost = value(J);
 
-
-    K, ℓ = get_controller_matrices(kappa)
-    cont = ST.AffineController(K, c, ℓ)
-    return ans, cont, cost
+    return ans, kappa, cost
 end
 
 function transition_fixed(affsys::AffineSys, E1::UT.Ellipsoid, E2::UT.Ellipsoid, U, W, S, optimizer)
-    return transition_fixed(affsys.A, affsys.B, affsys.c, affsys.D, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
+    ans, kappa, cost = transition_fixed(affsys.A, affsys.B, affsys.c, affsys.D, U, W, S, E1.c, E1.P, E2.c, E2.P, optimizer)
+    K, ℓ = get_controller_matrices(kappa)
+    cont = ST.AffineController(K, E1.c, ℓ)
+    return ans, cont, cost
 end
 
 function _getμν(L, nx, D, W)
@@ -527,28 +530,25 @@ function transition_backward(A, B, c, D, c2, P2, c1, u, U, W, S, Lip, optimizer;
         L = value.(L)
         P = transpose(L)\eye(nx)/L
         kappa = [value.(F)/(L) value.(ell)];
-        K, ℓ = get_controller_matrices(kappa)
-        cont = ST.AffineController(K, c1, ℓ)
         cost = value(J);
     else
         P = nothing
-        cont = nothing
+        kappa = nothing
         cost = nothing
     end
-    return P, cont, cost
+    return P, kappa, cost
 end
 
 function transition_backward(affsys::AffineSys, E2::UT.Ellipsoid, c1, u, U, S, Lip, optimizer; maxδx=100, maxδu=10.0*2, λ=0.01)
-    P1, cont, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, E2.c, E2.P, c1, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
+    P1, kappa, cost = transition_backward(affsys.A, affsys.B, affsys.c, affsys.D, E2.c, E2.P, c1, u, U, affsys.W, S, Lip, optimizer; maxδx=maxδx, maxδu=maxδu, λ=λ)
     if P1!==nothing
+        K, ℓ = get_controller_matrices(kappa)
+        cont = ST.AffineController(K, c1, ℓ)
         return UT.Ellipsoid(P1, c1), cont, cost
     else
         return nothing, nothing, nothing 
     end
 end
-
-
-
 
 # to delete 
 
