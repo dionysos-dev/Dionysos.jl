@@ -43,9 +43,12 @@ using StaticArrays, Plots
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
-const DO = DI.Domain
-const CO = DI.Control
 const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const CO = DI.Control
+const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -55,12 +58,12 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.j
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-problem = PathPlanning.problem(simple=true, approx_mode="growth");
+concrete_problem = PathPlanning.problem(simple=true, approx_mode="growth");
 
 # `F_sys` is the function, `_X_` the state domain and `_U_` the input domain
-F_sys = problem.system.f;
-_X_ = problem.system.X;
-_U_ = problem.system.U;
+F_sys = concrete_problem.system.f;
+_X_ = concrete_problem.system.X;
+_U_ = concrete_problem.system.U;
 
 # ### Definition of the abstraction
 
@@ -78,50 +81,52 @@ input_grid = DO.GridFree(u0, h);
 
 using JuMP
 optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
+# Get the results
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+
 @test length(abstract_controller.data) == 19400 #src
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
 nstep = 100
 function reached(x)
-    if x∈problem.target_set
+    if x∈concrete_problem.target_set
         return true
     else
         return false
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
+x_traj, u_traj = CO.get_closed_loop_trajectory(concrete_problem.system.f, concrete_controller, x0, nstep; stopping=reached)
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(aspect_ratio=:equal);
-##We display the concrete domain
-plot!(problem.system.X, color=:yellow, opacity=0.5);
+# We display the concrete domain
+plot!(concrete_problem.system.X, color=:yellow, opacity=0.5);
 
 # We display the abstract domain
-abstract_system = AB.SCOTSAbstraction.get_abstract_system(optimizer)
 plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
 
-##We display the concrete specifications
-plot!(problem.initial_set, color=:green, opacity=0.2);
-plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2);
+# We display the concrete specifications
+plot!(concrete_problem.initial_set, color=:green, opacity=0.2);
+plot!(concrete_problem.target_set; dims=[1,2], color=:red, opacity=0.2);
 
 # We display the abstract specifications
-abstract_problem = AB.SCOTSAbstraction.get_abstract_problem(optimizer)
-plot!(abstract_problem.initial_set, color=:green)
-plot!(abstract_problem.target_set, color=:red)
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set), color=:green);
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), color=:red);
 
-##We display the concrete trajectory
+# We display the concrete trajectory
 plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
-
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

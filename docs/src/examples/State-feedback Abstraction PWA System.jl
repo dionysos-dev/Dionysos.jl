@@ -34,47 +34,15 @@ using Test     #src
 # [Ipopt](https://github.com/jump-dev/Ipopt.jl), and
 # [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
 
-using StaticArrays
-using LinearAlgebra
-using CDDLib
-using SDPA, Ipopt, JuMP
+using StaticArrays, LinearAlgebra, Polyhedra, Random
+using MathematicalSystems, HybridSystems
+using JuMP, SDPA, Ipopt
+using SemialgebraicSets, CDDLib
+using Plots, Colors
+using Test
+Random.seed!(0)
 
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
-lib = CDDLib.Library() #polyhedron lib
-
-# We define now the of the polytope $\Omega$ with the disturbances and the input constraint set $\mathcal{U}$ and we imported the optimal control problem for this example, which is defined in the ```PWAsys.jl``` problem:
-Wsz = 3 # `Wsz = 5` in [1]
-Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
-dt = 0.01; # discretization step
-
-include("../../../problems/PWAsys.jl")
-
-problem = PWAsys.problem(lib, dt, Usz)
-system = problem.system
-
-n_x = size(system.resetmaps[1].A,1)
-n_u = size(system.resetmaps[1].B,2) 
-
-W = Wsz*[-1 -1  1 1;
-         -1  1 -1 1]*dt; # polytope of disturbances 
-
-Uaux = diagm(1:n_u)
-U = [(Uaux.==i)./Usz for i in 1:n_u]; # matrices U_i
-
-system.ext[:W] = W
-system.ext[:U] = U
-
-# notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
-
-
-
-# Let us now get some more information about the problem as the dimension $n_x$ of the system
-
-
-# At this point we'll import Dionysos in order to solve our optimal control problem
 using Dionysos
-
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -85,190 +53,139 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-# Let us now define the state space $X$ within which we are searching for a optimal solution.
-max_x = 2 # bound on |X|_∞
-rectX = UT.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
-rectU = rectX
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
+lib = CDDLib.Library() # polyhedron lib
+include("../../../problems/PWAsys.jl")
 
+# Problem parameters
+# Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
+Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
+Wsz = 3 # `Wsz = 5` in [1]
+dt = 0.01; # discretization step
+
+
+concrete_problem = PWAsys.problem(lib=lib, dt=dt, Usz=Usz, Wsz=Wsz, simple=false)
+system = concrete_problem.system
+
+# Abstraction parameters
 # This is state-space is defined by the `HyperRectangle rectX`. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells $\mathcal{X}_d$, given it's determinism. 
-
 # To build this deterministic state-feedback abstraction in alternating simulation relation  with the system as described in [1, Lemma 1], a set of balls of radius 0.2 covering the state space is adopted as cells $\xi\in\mathcal{X}_d$. We assume that inside cells intersecting the boundary of partitions of $\mathcal{X}$ the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center. An alternative to this are discussed in [1]. Let us define the corresponding grid:
 
-n_step = 2 #  n_step = 5 in [1]
+n_step = 3
 X_origin = SVector(0.0, 0.0);
-X_step = SVector(1.0/n_step, 1.0/n_step);
-P = (1/n_x)*diagm((X_step./2).^(-2))
+X_step = SVector(1.0/n_step, 1.0/n_step)
+nx = size(system.resetmaps[1].A, 1)
+P = (1/nx)*diagm((X_step./2).^(-2))
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, system.ext[:X]);
 
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX) 
-
-# At this point, we instantiate the optimizer provided in Dionysos that creates ellipsoidal-based 
-# abstractions `EllipsoidsAbstraction.Optimizer`
-
-using JuMP
-optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer) # 
-
-MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
-
-# and run it to build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
+# Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
 using Suppressor
-@suppress  begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin # this is a workaround to supress the undesired output of SDPA
       MOI.optimize!(optimizer)
 end
-contr = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
-symmodel = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
-transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
+
+# Get the results
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
 
-
-# ## Simulation
-# Now let us get the Q_aug matrix defining the stage cost $\mathcal{J}(x,u) = ||Q^{1/2} \cdot [x; u ; 1]||^2_2$
-Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
-# Let us initialize variables used in our simulation and now we will simulate one trajectory of the system.
-x0 = Vector(problem.initial_set); # initial condition
-
-domainX = symmodel.Xdom
-
-ϕ(x) = findfirst(m -> (x ∈ m.X), system.resetmaps) # returns pwa mode for a given x
-
-K = typeof(problem.time) == PR.Infinity ? 100 : problem.time; #max num of steps
-x_traj = zeros(n_x,K+1);
-u_traj = zeros(n_u,K+1);
-x_traj[:,1] = x0;
-state_traj = []
-
-k = 1; #iterator
-costBound = 0;
-costTrue = 0;
-currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(state_grid,x_traj[:,k])))
-push!(state_traj,currState);
-
-Xinit = DO.DomainList(state_grid) # set of initial cells
-DO.add_coord!(Xinit, problem.initial_set)
-
-Xfinal = DO.DomainList(state_grid) # set of target cells
-DO.add_coord!(Xfinal, Vector(problem.target_set))
-
-Xobstacles = DO.DomainList(state_grid) # set of obstacle cells
-for o in system.ext[:obstacles]
-      DO.add_set!(Xobstacles, o, DO.OUTER) 
-end
-
-initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
-finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
-obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];
-
-# and proceed with the simulation
-println("started at: $(currState)")
-while (currState ∩ finallist) == [] && k ≤ K # While not at goal or not reached max iter 
-      println("k: $(k)")
+# Return pwa mode for a given x
+get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
+function f_eval1(x, u)
+      currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
       next_action = nothing
-      for action in contr.data
+      for action in abstract_controller.data
             if (action[1] ∩ currState) ≠ []
                   next_action = action
-                  println("next action: $(next_action)")
             end
       end
-      println("cm: $(DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, next_action[2])))")
-      
-      c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, next_action[1]))
-      println("c: $(c)")
-
-      c_eval = ST.get_c_eval(transitionCont[next_action])
-      u_traj[:,k] = c_eval(x_traj[:,k])
-
-      println("x: $(x_traj[:,k])")
-      println("u: $(u_traj[:,k])")
-
-      global costBound = costBound + transitionCost[next_action]
-      xk_aug = vcat(x_traj[:,k], u_traj[:,k],1.0)
-      global costTrue += xk_aug'Q_aug*xk_aug
-
-
-      m = ϕ(c)
-      
+      c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, next_action[1]))
+      m = get_mode(c)
+      W = system.ext[:W]
       w = (2*(rand(2).^(1/4)).-1).*W[:,1]
-
-      x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
-
-      global k += 1;
-      global currState =  SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(state_grid,x_traj[:,k])));
-      push!(state_traj,currState)
-      println("Arrived in: $(currState): $(x_traj[:,k])")
+      return system.resetmaps[m].A*x+system.resetmaps[m].B*u + system.resetmaps[m].c + w
 end
 
+function cost_eval(x, u)
+      x_aug = vcat(x, u, 1.0)
+      Q_aug = CO.get_full_psd_matrix(concrete_problem.transition_cost[1][1])
+      return x_aug'Q_aug*x_aug
+end
+
+### Simulation
+# We define the stopping criteria for a simulation
+nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
+function reached(x)
+    currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
+    if !isempty(currState ∩ abstract_problem.target_set)
+        return true
+    else
+        return false
+    end
+end
+
+# We simulate the closed loop trajectory
+x0 = concrete_problem.initial_set
+x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(f_eval1, concrete_controller, cost_eval, x0, nstep; stopping=reached)
+cost_bound = AB.EllipsoidsAbstraction.get_guaranteed_cost(optimizer, x0)
+cost_true = sum(cost_traj);
 println("Goal set reached")
-println("Guaranteed cost:\t $(costBound)")
-println("True cost:\t\t $(costTrue)")
+println("Guaranteed cost:\t $(cost_bound)")
+println("True cost:\t\t $(cost_true)")
 
-# Finally let us visualize the results. Let us plot the transitions in the state-feedback abstraction
-using Plots
+### Visualize the results. 
+rectX = system.ext[:X];
 
+## Display the specifications and domains
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
-xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-dims = [1, 2]
-plot!(domainX; dims=dims, color=:yellow, opacity=0.2);
-for t in symmodel.autom.transitions.data
-      if isempty(t ∩ obstaclelist) 
-            color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
-            if t[1]==t[2]
-                  p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
-                  plot!(fig, UT.DrawPoint(p1), color = color);
-            else
-                  p1 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[2]))
-                  p2 = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(symmodel, t[1]))
-                  plot!(fig, UT.DrawArrow(p1, p2), color = color);
-            end
-      end
-end
-xlabel!("\$x_1\$")
-ylabel!("\$x_2\$")
-title!("Transitions")
+xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
+ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);
+xlabel!("\$x_1\$");
+ylabel!("\$x_2\$");
+title!("Specifictions and domains");
+#We display the concrete domain
+plot!(rectX; color=:yellow, opacity=0.5);
+#We display the abstract domain
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5);
+#We display the abstract specifications
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set), color=:green, opacity=0.5);
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), color=:red, opacity=0.5);
+#We display the concrete specifications
+plot!(UT.DrawPoint(concrete_problem.initial_set), color=:green, opacity=1.0);
+plot!(UT.DrawPoint(concrete_problem.target_set), color=:red, opacity=1.0)
 
-# Then we plot a colormap with the Lyapunov-like function $v(x)$ and the simulated trajectory in blue.
-
+## Display the abstraction
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
-xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-dims = [1, 2]
+xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
+ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);
+title!("Abstractions");
+plot!(abstract_system; arrowsB=true, cost=false)
 
-LyapMax = max(filter(isfinite,getfield.([lyap_fun...],:second))...)
-colormap = Colors.colormap("Blues")
-mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
-cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in lyap_fun]...), dims=2))
-for (lyap, state) in cost_ordered
-      pos = SY.get_xpos_by_state(symmodel, state)
-      elli = DO.get_elem_by_pos(state_grid, pos)
-      if (lyap ≠ Inf)
-            plot!(fig, elli, color = UT.get_color(mycolorMap, lyap));
-      else
-            plot!(fig, elli, color = :yellow);
-      end
-end
-Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
-Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
 
-plot!(fig, Einit, color=:green);
-plot!(fig, Etarget, color=:red);
-plot!(Xobstacles, color=:black, opacity=1.0);
+## Display the Lyapunov function and the trajectory
+fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
+xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
+ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);
+xlabel!("\$x_1\$");
+ylabel!("\$x_2\$");
+title!("Trajectory and Lyapunov-like Fun.");
+plot!(abstract_system; arrowsB=false, cost=true, lyap_fun=lyap_fun);
+plot!(UT.DrawTrajectory(x_traj), color=:black)
 
-trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-plot!(fig, UT.DrawTrajectory(trajCoord));
-plot!(mycolorMap);
-xlabel!("\$x_1\$")
-ylabel!("\$x_2\$")
-title!("Trajectory and Lyapunov-like Fun.")
 
-# We recall that, to speed up the build time of this documentation, some values were modified in comparison with [1, Example 2]. To obtain the same figures use `Usz = 50`, `Wsz = 5` and `n_step = 5`.
-
-@test contr.data[1] == (45,21)            #src
-@test costBound ≈ 3.230 rtol=1e-3         #src
-@test costTrue <= costBound               #src
+@test cost_bound ≈ 2.35825 rtol=1e-3      #src
+@test cost_true <= cost_bound             #src
 
 # ## References
 #

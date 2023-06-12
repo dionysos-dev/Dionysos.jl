@@ -1,4 +1,4 @@
-using Plots
+using Plots, Colors
 
 abstract type SymbolicModel{N,M} end
 
@@ -65,6 +65,15 @@ end
 
 function enum_cells(symmodel::SymbolicModelList)
     return 1:length(symmodel.xint2pos)
+end
+
+function get_domain_from_symbols(symmodel::SymbolicModelList, symbols)
+    newDomain = DO.DomainList(symmodel.Xdom.grid)
+    for symbol in symbols
+        xpos = get_xpos_by_state(symmodel, symbol)
+        DO.add_pos!(newDomain, xpos)
+    end
+    return newDomain
 end
 
 # Assumes that automaton is "empty"
@@ -210,4 +219,46 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
     # )
     println("compute_symmodel_from_controlsystem! terminated with success: ",
         "$(ntrans) transitions created")
+end
+
+
+@recipe function f(symmodel::SymbolicModel; arrowsB=true, cost=false, lyap_fun=[])
+    # Display the cells
+    state_grid = symmodel.Xdom.grid
+    if cost
+        LyapMax = max(filter(isfinite, getfield.([lyap_fun...],:second))...)
+        colormap = Colors.colormap("Blues")
+        mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
+        cost_ordered = reverse(sort(hcat([(lyap,state) for (state,lyap) in lyap_fun]...), dims=2))
+        for (lyap, state) in cost_ordered
+            pos = get_xpos_by_state(symmodel, state)
+            elli = DO.get_elem_by_pos(state_grid, pos)
+            @series begin
+                lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
+                return elli
+            end
+        end 
+        @series begin mycolorMap end
+    else
+        @series begin symmodel.Xdom end
+    end
+    # Display the arrows
+    if arrowsB
+        for t in symmodel.autom.transitions.data
+            if t[1]==t[2]
+                @series begin
+                    color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
+                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
+                    return UT.DrawPoint(p1)
+                end
+            else
+                @series begin
+                    color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
+                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
+                    p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
+                    return UT.DrawArrow(p1, p2)
+                end
+            end
+        end
+    end
 end

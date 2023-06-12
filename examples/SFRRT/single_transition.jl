@@ -54,7 +54,7 @@ function plot_results_2D(sys, cont, E1, E2)
     display(fig)
 end
 
-function trial(dt, Ubound, Wmax, contraction, initial_vol)
+function trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
     ########## PWA approximation description ##########
     Ac = sm([0.0  1.0;;
              1.0 -1.0]);
@@ -147,7 +147,7 @@ Wmax = 0.0
 initial_vol = 10
 contraction = 0.8 #1.0
 
-trial(dt, Ubound, Wmax, contraction, initial_vol)
+trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
 
 
 

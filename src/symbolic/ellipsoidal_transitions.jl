@@ -249,11 +249,10 @@ is `hybridsys` and `W`, `L` and `U` are defined as in `_has_transition`. An SDP 
 and a QP optimizer `opt_qp` must be provided as JuMP optimizers.
 
 """
-function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionCont::AbstractDict,
+function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCont::AbstractDict, transitionCost::AbstractDict,
     hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp) where N
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
-    
 
     r = Xdom.grid.h/2.0
 
@@ -297,24 +296,23 @@ function compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, 
         c = hybridsys.resetmaps[m].c
         Upoly = hybridsys.resetmaps[m].U
         
-        xpost = _compute_xpost(A,x,B,Upoly,c,R)
-                
-        rectI = Domain.get_pos_lims_outer(Xdom.grid, Xdom.grid.rect ∩ Utils.HyperRectangle(xpost[1],xpost[2]))
+        xpost = _compute_xpost(A, x, B, Upoly, c, R)
+        rectI = Domain.get_pos_lims_outer(Xdom.grid, Xdom.grid.rect.A ∩ UT.HyperRectangle(xpost[1], xpost[2]))
 
         xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
         for xmpos in xmpos_iter
-            xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
-            #ans, cost, kappa = _has_transition(hybridsys.resetmaps[m],P,x,Pm,xm,W,L,U,opt_sdp)
-            ans, cont, cost = _has_transition(hybridsys.resetmaps[m], UT.Ellipsoid(P, x), UT.Ellipsoid(Pm, xm), U, W, L, opt_sdp)
-        
-            if(ans)
-                trans_count += 1
-                target = get_state_by_xpos(symmodel, xmpos)
-                symbol = get_symbol_by_upos(symmodel, xmpos);
-                #println("->Added $(trans_count+1)\nfrom\t $(source)\n","to\t $(target)\n\n")
-                add_transition!(symmodel.autom, source, target, symbol)
-                transitionCost[(source, target)] = cost
-                transitionCont[(source, target)] = cont
+            if xmpos ∈ Xdom
+                xm = Domain.get_coord_by_pos(Xdom.grid, xmpos) 
+                ans, cont, cost = _has_transition(hybridsys.resetmaps[m], UT.Ellipsoid(P, x), UT.Ellipsoid(Pm, xm), U, W, L, opt_sdp)
+            
+                if(ans)
+                    trans_count += 1
+                    target = get_state_by_xpos(symmodel, xmpos)
+                    symbol = get_symbol_by_upos(symmodel, xmpos);
+                    add_transition!(symmodel.autom, source, target, symbol)
+                    transitionCost[(source, target)] = cost
+                    transitionCont[(source, target)] = cont
+                end
             end
         end
         
