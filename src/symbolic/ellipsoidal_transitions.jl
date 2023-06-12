@@ -133,24 +133,22 @@ function hasTransition(c, u, Ep::UT.Ellipsoid, subsys::AffineSys, L, S, U, maxRa
     return El, kappa, cost 
 end
 
-"""
-    _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
 
-Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
-defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
-to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is 
-minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix  
-`W` defines a vertex of the polytope from which additive disturbance are drawn. 
+#     _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
 
-The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP 
-SDP optimizer (e.g., Mosek, SDPA, COSMO, ...).
+# Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
+# defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
+# to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is 
+# minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix  
+# `W` defines a vertex of the polytope from which additive disturbance are drawn. 
+
+# The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP 
+# SDP optimizer (e.g., Mosek, SDPA, COSMO, ...).
 
 
-## Note
-This implements the optimization problem presented in Corollary 1 of the following paper 
-https://arxiv.org/pdf/2204.00315.pdf
-
-"""
+# ## Note
+# This implements the optimization problem presented in Corollary 1 of the following paper 
+# https://arxiv.org/pdf/2204.00315.pdf
 function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
     eye(n) = diagm(ones(n))
     n = length(c);
