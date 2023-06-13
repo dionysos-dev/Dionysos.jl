@@ -35,7 +35,7 @@ rectU = UT.HyperRectangle(SVector(-5), SVector(5));
 # A discretization of the state space is declared using the `GridFree` structure, which requires the definition of a center `x0` and 
 # a vector `h` of discretization steps in each direction.
 x0 = SVector(0.0, 0.0);
-h = SVector(1.0/5, 1.0/5);
+h = SVector(1.0 / 5, 1.0 / 5);
 Xgrid = DO.GridFree(x0, h);
 
 # `Xgrid` represents the state space grid and holds information of `x0` and `h`, but is not a collection of cells. Indeed, a cell can be efficiently represented by a tuple of `Int`, for instance 'pos', with which the corresponding cartesian position can be computed by `x0 + h .* pos` or using functions to be shown. In Dionysos, a set of cells is called a `Domain`
@@ -50,10 +50,9 @@ DO.add_set!(domainX, rectX, DO.INNER)
 # Note, we used `DO.INNER` to make sure to add cells entirely contained in the domain. If we would like to add also cells partially covered by a given
 # HyperRectangle, `DO.OUTER` should be used instead.
 
-
 # Similarly, we define a discretization of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0);
-h = SVector(1.0/5);
+h = SVector(1.0 / 5);
 Ugrid = DO.GridFree(u0, h);
 domainU = DO.DomainList(Ugrid);
 DO.add_set!(domainU, rectU, DO.INNER);
@@ -61,32 +60,36 @@ DO.add_set!(domainU, rectU, DO.INNER);
 # Now we have to define our dynamical system. For the sake of simplicity, note that we consider a linear time-invariant dynamical system but the functions 
 # defining it allow the definition of a generic nonlinear and time-dependent system. We also define a step time `tstep` for discretizing the continuous-time dynamic.
 # The parameters
-tstep = 0.1; 
-nsys=10; # Runge-Kutta pre-scaling
+tstep = 0.1;
+nsys = 10; # Runge-Kutta pre-scaling
 
-
-A = SMatrix{2,2}(0.0, 1.0,
-                -3.0, 1.0);
-B = SMatrix{2,1}(0.0, 1.0);
+A = SMatrix{2, 2}(0.0, 1.0, -3.0, 1.0);
+B = SMatrix{2, 1}(0.0, 1.0);
 
 F_sys = let A = A
-    (x,u) -> A*x + B*u
+    (x, u) -> A * x + B * u
 end;
 
 # We also need to define a growth-bound function, which allows for the state-space discretization errors. For more details on growth bounds, please refer to [(Reissig, Weber, and Rungger, 2016)](https://arxiv.org/pdf/1503.03715v1.pdf).
-ngrowthbound=10; # Runge-Kutta pre-scaling
+ngrowthbound = 10; # Runge-Kutta pre-scaling
 A_diag = diagm(diag(A));
 A_abs = abs.(A) - abs.(A_diag) + A_diag
 L_growthbound = x -> abs.(A)
-
 
 # Finally we define the bounds on the input noise `sysnoise` and for the measurement noise `measnoise` of the system
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
 
 # And now the instantiation of the ControlSystem
-contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                       measnoise, nsys, ngrowthbound);
+contsys = ST.NewControlSystemGrowthRK4(
+    tstep,
+    F_sys,
+    L_growthbound,
+    sysnoise,
+    measnoise,
+    nsys,
+    ngrowthbound,
+);
 
 # With that in hand, we can now proceed to the construction of a symbolic model of our system
 symmodel = SY.NewSymbolicModelListList(domainX, domainU);
@@ -100,7 +103,6 @@ SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
 upos = DO.get_pos_by_coord(Ugrid, SVector(-1))
 
- 
 # On the other hand, `get_coord_by_pos` returns the coordinates of the center of a cell defined by its indices.
 x = DO.get_coord_by_pos(Xgrid, xpos)
 u = DO.get_coord_by_pos(Ugrid, upos)
@@ -122,20 +124,24 @@ for pos in symmodel.xint2pos[post]
 end
 
 # Let us visualize this
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16);
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+);
 xlims!(-2, 2)
 ylims!(-2, 2)
 dims = [1, 2]
 
-plot!(domainX, fc = "white", dims=dims);
+plot!(domainX; fc = "white", dims = dims);
 domainx = DO.DomainList(Xgrid);
 DO.add_pos!(domainx, xpos)
-plot!(domainx, fc = "blue", dims=dims);
-plot!(domainPostx, fc = "green", dims=dims)
+plot!(domainx; fc = "blue", dims = dims);
+plot!(domainPostx; fc = "green", dims = dims)
 
 # In the previous picture, we have the state space lattice in white, the chosen cell `xpos` in blue and 
 # the corresponding Post domain in green. The argument `vars` given to the Plot functions refer to the projection
 # of the state space onto the subspace of variables 1 and 2. In this case this is an identity mapping but for
 # higher-order systems, this projection is useful to visualize the behavior of the system on a 2-dimensional space.
 # 
-

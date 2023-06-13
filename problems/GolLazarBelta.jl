@@ -16,14 +16,13 @@ import CDDLib
 function get_ordered_vertices(po)
     center = center_of_mass(po)
     p = [points(po)...]
-    sort!(p, lt=(a,b) -> begin
-        a_ang = atan((a-center)...) % 2pi
-        b_ang = atan((b-center)...) % 2pi
-        return a_ang<b_ang
+    sort!(p; lt = (a, b) -> begin
+        a_ang = atan((a - center)...) % 2pi
+        b_ang = atan((b - center)...) % 2pi
+        return a_ang < b_ang
     end)
     return p
 end
-
 
 function system(lib, T::Type)
     function rect(x_l, x_u)
@@ -31,7 +30,9 @@ function system(lib, T::Type)
         return polyhedron(r, lib)
     end
     function rect(x_l, x_u, y_l, y_u)
-        r = HalfSpace([-1, 0], -T(x_l)) ∩ HalfSpace([1, 0], T(x_u)) ∩ HalfSpace([0, -1], -T(y_l)) ∩ HalfSpace([0, 1], T(y_u))
+        r =
+            HalfSpace([-1, 0], -T(x_l)) ∩ HalfSpace([1, 0], T(x_u)) ∩
+            HalfSpace([0, -1], -T(y_l)) ∩ HalfSpace([0, 1], T(y_u))
         return polyhedron(r, lib)
     end
 
@@ -55,15 +56,37 @@ function system(lib, T::Type)
     pC7 = rect(-0.5, 0.5, 0.5, 2)
     pC8 = rect(0.5, 1.85, -3, 2)
 
-    domains = [pC1, pC2, pC3, pC4, pC5, pC6, pC7, pC8, pT, pA, pB,
-               pC1, pC2, pC3, pC4, pC5, pC6, pC7, pC8, pT]
+    domains = [
+        pC1,
+        pC2,
+        pC3,
+        pC4,
+        pC5,
+        pC6,
+        pC7,
+        pC8,
+        pT,
+        pA,
+        pB,
+        pC1,
+        pC2,
+        pC3,
+        pC4,
+        pC5,
+        pC6,
+        pC7,
+        pC8,
+        pT,
+    ]
 
     #Automaton:
     automaton = GraphAutomaton(length(domains))
 
     #Resetmaps: (guards + reset)
-    A = T[1 1
-          0 1]
+    A = T[
+        1 1
+        0 1
+    ]
     B = reshape(T[0.5, 1], 2, 1)
 
     #ResetMaps = Vector{ConstrainedLinearControlDiscreteSystem}(undef, length(domains)^2)
@@ -72,13 +95,17 @@ function system(lib, T::Type)
     function back(from, to)
         # The `hrep` and `polyhedron` are workaround for an issue similar to
         # https://github.com/JuliaPolyhedra/Polyhedra.jl/issues/216
-        return polyhedron(hrep(project(polyhedron([A B] \ hrep(domains[to]) ∩ hrep(cU), lib), 1:2)) ∩ hrep(domains[from]), lib)
+        return polyhedron(
+            hrep(project(polyhedron([A B] \ hrep(domains[to]) ∩ hrep(cU), lib), 1:2)) ∩
+            hrep(domains[from]),
+            lib,
+        )
     end
 
     function is_enabled(from, to)
         all([0, 11]) do offset
             return !(from == offset + 3 && !((to - offset) in 1:3)) &&
-            !(to == offset + 3 && !((from - offset) in 1:3))
+                   !(to == offset + 3 && !((from - offset) in 1:3))
         end
     end
 
@@ -105,7 +132,7 @@ function system(lib, T::Type)
         [ConstrainedContinuousIdentitySystem(2, i) for i in domains],
         # Reset maps
         Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), k),
-        Fill(ControlledSwitching(), k)
+        Fill(ControlledSwitching(), k),
     )
 
     system.ext[:q_A] = 10
@@ -130,14 +157,21 @@ quadratic form `u' * Q * u` with `Q = ones(1, 1)`.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
 """
-function problem(lib=CDDLib.Library(), T::Type=Float64; q_0 = 3, x_0 = [1.0, -6.0], N = 11, zero_cost::Bool = true)
+function problem(
+    lib = CDDLib.Library(),
+    T::Type = Float64;
+    q_0 = 3,
+    x_0 = [1.0, -6.0],
+    N = 11,
+    zero_cost::Bool = true,
+)
     sys = system(lib, T)
     if zero_cost
         state_cost = Fill(CO.ZeroFunction(), nmodes(sys))
     else
         state_cost = [
-            mode == sys.ext[:q_T] ? CO.ConstantFunction(zero(T)) : CO.ConstantFunction(one(T))
-            for mode in modes(sys)
+            mode == sys.ext[:q_T] ? CO.ConstantFunction(zero(T)) :
+            CO.ConstantFunction(one(T)) for mode in modes(sys)
         ]
     end
     transition_cost = CO.QuadraticControlFunction(ones(T, 1, 1))

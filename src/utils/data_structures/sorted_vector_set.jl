@@ -1,14 +1,13 @@
 import Base.append!
 import Base.delete!
 
-mutable struct SortedTupleSet{N,T} <: AbstractSet{T}
+mutable struct SortedTupleSet{N, T} <: AbstractSet{T}
     data::Vector{T}
     is_sorted::Bool
-    function SortedTupleSet{N,T}() where {N,T}
+    function SortedTupleSet{N, T}() where {N, T}
         return new(T[], true)
     end
 end
-
 
 function push_new!(set::SortedTupleSet, x::Tuple)
     push!(set.data, x)
@@ -39,7 +38,7 @@ end
 
 function Base.empty!(set::SortedTupleSet)
     empty!(set.data)
-    set.is_sorted = true
+    return set.is_sorted = true
 end
 
 Base.length(set::SortedTupleSet) = length(set.data)
@@ -53,11 +52,11 @@ end
 
 drop_first(x::NTuple{2}) = (x[2],)
 drop_first(x::NTuple{3}) = (x[2], x[3])
-drop_first(x::Tuple{Int,Int,Int,Float64}) = (x[2], x[3], x[4])
+drop_first(x::Tuple{Int, Int, Int, Float64}) = (x[2], x[3], x[4])
 
 function fix_and_eliminate_first(set::SortedTupleSet, value)
     ensure_sorted!(set)
-    idxlist = searchsorted(set.data, (value,), by = x -> x[1])
+    idxlist = searchsorted(set.data, (value,); by = x -> x[1])
     return Base.Generator(drop_first, view(set.data, idxlist))
 end
 
@@ -73,12 +72,11 @@ end
 function fix_and_eliminate_tail2!(output, set::SortedTupleSet, values)
     ensure_sorted!(set)
     for el in set.data
-        if (el[2],el[3]) == values
-            push!(output, (first(el),el[4]))
+        if (el[2], el[3]) == values
+            push!(output, (first(el), el[4]))
         end
     end
 end
-
 
 # mutable struct SortedTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
 #     data::Vector{NTuple{N,T}}

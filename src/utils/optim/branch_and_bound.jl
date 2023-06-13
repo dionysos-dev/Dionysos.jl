@@ -4,23 +4,34 @@ using DataStructures, JuMP
 export Abstract_BB_Problem
 
 mutable struct Node
-    elem
-    depth
-    lower_bound
-    upper_bound
-    sol
-    parent::Union{Nothing,Node}
-    ext
+    elem::Any
+    depth::Any
+    lower_bound::Any
+    upper_bound::Any
+    sol::Any
+    parent::Union{Nothing, Node}
+    ext::Any
 end
 
-function Node(elem,depth; lower_bound=-Inf, upper_bound=Inf, sol=nothing, parent=nothing, ext=nothing)
-    return Node(elem,depth,lower_bound,upper_bound,sol,parent,ext)
+function Node(
+    elem,
+    depth;
+    lower_bound = -Inf,
+    upper_bound = Inf,
+    sol = nothing,
+    parent = nothing,
+    ext = nothing,
+)
+    return Node(elem, depth, lower_bound, upper_bound, sol, parent, ext)
 end
 
 # function used in the priority queue of the BB
 # highest depth and best lower bound (optimistic DFS)
 function Base.isless(a::Node, b::Node)
-    return isless(a.ext.cells[a.elem[end]].lower_bound, b.ext.cells[b.elem[end]].lower_bound)
+    return isless(
+        a.ext.cells[a.elem[end]].lower_bound,
+        b.ext.cells[b.elem[end]].lower_bound,
+    )
     #BFS:
     #return isless(a.lower_bound, b.lower_bound)
     #=if a.depth == b.depth
@@ -37,21 +48,23 @@ Sould implement the methods below
 abstract type Abstract_BB_Problem end
 
 # function to check if the problem is feasible at the beginning
-function check_trivial_infeasibility(prob::Abstract_BB_Problem) return false end
+function check_trivial_infeasibility(prob::Abstract_BB_Problem)
+    return false
+end
 # return the initial instance of the problem
 function get_first_instance(prob::Abstract_BB_Problem) end
 # compute an upper bound, update the field upper_bound and sol of node
-function compute_upper_bound!(prob::Abstract_BB_Problem,node::Node) end
+function compute_upper_bound!(prob::Abstract_BB_Problem, node::Node) end
 # compute an lower bound, update the field lower_bound of node
-function compute_lower_bound!(prob::Abstract_BB_Problem,node::Node) end
+function compute_lower_bound!(prob::Abstract_BB_Problem, node::Node) end
 # return the children nodes of node
-function expand(prob::Abstract_BB_Problem,node::Node) end
+function expand(prob::Abstract_BB_Problem, node::Node) end
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     problem::Abstract_BB_Problem
     lower_bound::Float64
     upper_bound::Float64
-    best_sol
+    best_sol::Any
     solve_time::Float64
     num_iter::Int64
     max_iter::Int
@@ -62,9 +75,22 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     num_pruned_bound::Int  # number of node pruned (by optimality)
     log_level::Int
 end
-function Optimizer(problem,max_iter,max_time;log_level=0)
-    return Optimizer(problem, 0.0, Inf, nothing, 0.0, 0,
-                     max_iter, max_time, MOI.OPTIMIZE_NOT_CALLED,0,0,0,log_level)
+function Optimizer(problem, max_iter, max_time; log_level = 0)
+    return Optimizer(
+        problem,
+        0.0,
+        Inf,
+        nothing,
+        0.0,
+        0,
+        max_iter,
+        max_time,
+        MOI.OPTIMIZE_NOT_CALLED,
+        0,
+        0,
+        0,
+        log_level,
+    )
 end
 
 function MOI.optimize!(optimizer::Optimizer)
@@ -76,9 +102,9 @@ function MOI.optimize!(optimizer::Optimizer)
         return
     end
 
-    node_0 = Node(get_first_instance(prob),0)
+    node_0 = Node(get_first_instance(prob), 0)
     optimizer.num_total += 1
-    compute_lower_bound!(prob,node_0)
+    compute_lower_bound!(prob, node_0)
 
     candidates = BinaryMinHeap([node_0]) #  PriorityQueue{Node,Float64}() ?
     while true
@@ -96,8 +122,7 @@ function MOI.optimize!(optimizer::Optimizer)
         cur_node = pop!(candidates)
         println(cur_node.elem)
         if cur_node.lower_bound < optimizer.upper_bound
-
-            compute_upper_bound!(prob,cur_node)
+            compute_upper_bound!(prob, cur_node)
             if cur_node.upper_bound == -Inf
                 optimizer.num_pruned_inf += 1
             else
@@ -108,7 +133,7 @@ function MOI.optimize!(optimizer::Optimizer)
                 children = expand(prob, cur_node)
                 optimizer.num_total += length(children)
                 for child in children # necessary for the PQ
-                    compute_lower_bound!(prob,child)
+                    compute_lower_bound!(prob, child)
                     if child.lower_bound == Inf
                         optimizer.num_pruned_inf += 1
                     end
@@ -132,7 +157,12 @@ using Printf
 const NUM_NODES = ["#nodes", "#pruned", "#infeas", "#queued"]
 
 function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queued)
-    num_nodes = [optimizer.num_total, optimizer.num_pruned_bound, optimizer.num_pruned_inf, num_queued]
+    num_nodes = [
+        optimizer.num_total,
+        optimizer.num_pruned_bound,
+        optimizer.num_pruned_inf,
+        num_queued,
+    ]
     if optimizer.log_level >= 1
         len = max(maximum(length, NUM_NODES), length(string(num_nodes[1])))
         if optimizer.num_iter == 0 || optimizer.log_level >= 2
@@ -143,7 +173,9 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
             println()
         end
         if optimizer.log_level >= 2 #last_iter || (optimizer.num_iter in optimizer.log_iter)
-            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (time() - start_time)
+            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (
+                time() - start_time
+            )
             for num in num_nodes
                 print(" | ", lpad(string(num), len))
             end

@@ -12,27 +12,37 @@ using JuMP
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra 
+using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    continuous_solver
-    mixed_integer_solver
+    continuous_solver::Any
+    mixed_integer_solver::Any
     indicator::Bool
     log_level::Int
     modes::Union{Nothing, Vector{Vector{Int}}}
     problem::Union{Nothing, PR.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
-    inner
-    x
-    u
-    δ_modes
-    δ_transs
+    inner::Any
+    x::Any
+    u::Any
+    δ_modes::Any
+    δ_transs::Any
     function Optimizer{T}() where {T}
         return new{T}(
-            nothing, nothing, true, 1, nothing, nothing, OPTIMIZE_NOT_CALLED,
-            nothing, nothing, nothing, nothing, nothing
+            nothing,
+            nothing,
+            true,
+            1,
+            nothing,
+            nothing,
+            OPTIMIZE_NOT_CALLED,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
         )
     end
 end
@@ -51,22 +61,19 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, err))
         end
     end
-    setproperty!(model, Symbol(param.name), value)
+    return setproperty!(model, Symbol(param.name), value)
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    getproperty(model, Symbol(param.name))
+    return getproperty(model, Symbol(param.name))
 end
 
 function default_modes(system, q_T, N)
-    return [
-        t == N ? [q_T] : HybridSystems.modes(system)
-        for t in 1:N
-    ]
+    return [t == N ? [q_T] : HybridSystems.modes(system) for t in 1:N]
 end
 
 all_same(f, it) = all(el -> f(el) == f(first(it)), it)
 
-struct IndicatorVariables{T, VT<:AbstractVector{T}}
+struct IndicatorVariables{T, VT <: AbstractVector{T}}
     choices::VT
     time::Int
 end
@@ -77,7 +84,7 @@ _base_name(iv::IndicatorVariables) = "δ_$(_name(iv.choices))_$(iv.time)"
 _Scalar = Union{JuMP.AbstractJuMPScalar, MOI.AbstractScalarFunction}
 
 indicator_variables(model, δ::AbstractVector{<:_Scalar}, ::Type) = δ
-_sum(g, T) = reduce(+, g, init = zero(MOI.ScalarAffineFunction{T}))
+_sum(g, T) = reduce(+, g; init = zero(MOI.ScalarAffineFunction{T}))
 function indicator_variables(model, iv::IndicatorVariables, T::Type)
     δ = JuMP.Containers.@container([iv.choices], add_variable(model))
     add_constraint.(model, δ, MOI.ZeroOne())
@@ -111,13 +118,25 @@ _value(model::MOI.ModelLike, v::MOI.VariableIndex) = MOI.get(model, MOI.Variable
 _value(::JuMP.Model, v::JuMP.VariableRef) = value(v)
 add_variable(model::MOI.ModelLike) = MOI.add_variable(model)
 add_variable(model::JuMP.Model) = @variable(model)
-add_constraint(model::MOI.ModelLike, func::AbstractVector, set) = MOI.add_constraint(model, MOI.Utilities.vectorize(func), set)
+add_constraint(model::MOI.ModelLike, func::AbstractVector, set) =
+    MOI.add_constraint(model, MOI.Utilities.vectorize(func), set)
 add_constraint(model::MOI.ModelLike, func, set) = MOI.add_constraint(model, func, set)
-function add_constraint(model::MOI.ModelLike, func::MOI.AbstractScalarFunction, set::MOI.AbstractScalarSet)
-    MOI.Utilities.normalize_and_add_constraint(model, func, set; allow_modify_function=true)
+function add_constraint(
+    model::MOI.ModelLike,
+    func::MOI.AbstractScalarFunction,
+    set::MOI.AbstractScalarSet,
+)
+    return MOI.Utilities.normalize_and_add_constraint(
+        model,
+        func,
+        set;
+        allow_modify_function = true,
+    )
 end
-add_constraint(model::JuMP.Model, func, set) = JuMP.add_constraint(model, JuMP.build_constraint(error, func, set))
-indicator_constraint(model::JuMP.Model, δ, func, set) = @constraint(model, δ => {func in set})
+add_constraint(model::JuMP.Model, func, set) =
+    JuMP.add_constraint(model, JuMP.build_constraint(error, func, set))
+indicator_constraint(model::JuMP.Model, δ, func, set) =
+    @constraint(model, δ => {func in set})
 
 function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimizer, δ)
     set = first(sets)
@@ -126,7 +145,13 @@ function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimiz
 end
 
 using LinearAlgebra
-function hybrid_constraints(model, sets::AbstractVector{<:Polyhedra.Rep}, x, algo::Optimizer{T}, δs) where {T}
+function hybrid_constraints(
+    model,
+    sets::AbstractVector{<:Polyhedra.Rep},
+    x,
+    algo::Optimizer{T},
+    δs,
+) where {T}
     δs = indicator_variables(model, δs, T)
     for (δ, set) in zip(δs, sets)
         # TODO implement indicator with Polyhedra in Polyhedra.jl
@@ -147,18 +172,50 @@ end
 
 hybrid_constraints(model, ::AbstractVector{FullSpace}, x, algo::Optimizer, δ) = δ
 
-function hybrid_constraints(model, systems::Fill{<:LinearControlMap}, x_prev, x, u, algo::Optimizer{T}, δ) where {T}
+function hybrid_constraints(
+    model,
+    systems::Fill{<:LinearControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
     system = first(systems)
     add_constraint.(model, x - system.A * x_prev - system.B * u, MOI.EqualTo(zero(T)))
     return δ
 end
 
-function hybrid_constraints(model, systems::AbstractVector{<:ConstrainedContinuousIdentitySystem}, x_prev, x, u, algo::Optimizer, δ)
+function hybrid_constraints(
+    model,
+    systems::AbstractVector{<:ConstrainedContinuousIdentitySystem},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer,
+    δ,
+)
     return hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
 end
 
-function hybrid_constraints(model, systems::AbstractVector{<:ConstrainedLinearControlMap}, x_prev, x, u, algo::Optimizer, δ)
-    δ = hybrid_constraints(model, inner_vector(system -> LinearControlMap(system.A, system.B), systems), x_prev, x, u, algo, δ)
+function hybrid_constraints(
+    model,
+    systems::AbstractVector{<:ConstrainedLinearControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer,
+    δ,
+)
+    δ = hybrid_constraints(
+        model,
+        inner_vector(system -> LinearControlMap(system.A, system.B), systems),
+        x_prev,
+        x,
+        u,
+        algo,
+        δ,
+    )
     δ = hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
     return hybrid_constraints(model, inner_vector(system -> system.U, systems), u, algo, δ)
 end
@@ -166,22 +223,57 @@ end
 # TODO move to MA
 #Base.zero(::Type{MA.Zero}) = MA.Zero()
 
-function hybrid_cost(model, costs::AbstractArray{CO.ZeroFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(
+    model,
+    costs::AbstractArray{CO.ZeroFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
     return zero(T), δ
 end
-function hybrid_cost(model, costs::AbstractArray{<:CO.ConstantFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(
+    model,
+    costs::AbstractArray{<:CO.ConstantFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
     δ = indicator_variables(model, δ, T)
     cost = [cost.value for cost in costs]
     return cost ⋅ δ, δ
 end
-function hybrid_cost(model, costs::Fill{<:CO.ConstantFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(
+    model,
+    costs::Fill{<:CO.ConstantFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
     return first(costs).value, δ
 end
-function hybrid_cost(model, costs::Fill{<:CO.QuadraticControlFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(
+    model,
+    costs::Fill{<:CO.QuadraticControlFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
     cost = first(costs)
     return u' * cost.Q * u, δ
 end
-function hybrid_cost(model, costs::Fill{<:CO.PolyhedralFunction}, x, u, δ, ::Type{T}) where {T}
+function hybrid_cost(
+    model,
+    costs::Fill{<:CO.PolyhedralFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
     cost = first(costs)
     θ = add_variable(model)
     add_constraint(model, θ, MOI.GreaterThan(cost.lower_bound))
@@ -192,16 +284,56 @@ function hybrid_cost(model, costs::Fill{<:CO.PolyhedralFunction}, x, u, δ, ::Ty
     return θ, δ
 end
 
-function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables, ::Type)
+function transitions_constraints(
+    model,
+    system,
+    modes_from,
+    δ_from::IndicatorVariables,
+    modes_to,
+    δ_to::IndicatorVariables,
+    trans,
+    δ_trans::IndicatorVariables,
+    ::Type,
+)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::IndicatorVariables, modes_to, δ_to::AbstractVector{<:_Scalar}, trans, δ_trans::IndicatorVariables, ::Type)
+function transitions_constraints(
+    model,
+    system,
+    modes_from,
+    δ_from::IndicatorVariables,
+    modes_to,
+    δ_to::AbstractVector{<:_Scalar},
+    trans,
+    δ_trans::IndicatorVariables,
+    ::Type,
+)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{<:_Scalar}, modes_to, δ_to::IndicatorVariables, trans, δ_trans::IndicatorVariables, ::Type)
+function transitions_constraints(
+    model,
+    system,
+    modes_from,
+    δ_from::AbstractVector{<:_Scalar},
+    modes_to,
+    δ_to::IndicatorVariables,
+    trans,
+    δ_trans::IndicatorVariables,
+    ::Type,
+)
     # Nothing to do, the impossible modes should have already been pruned
 end
-function transitions_constraints(model, system, modes_from, δ_from::AbstractVector{<:_Scalar}, modes_to, δ_to::AbstractVector{<:_Scalar}, trans, δ_trans::IndicatorVariables, T::Type)
+function transitions_constraints(
+    model,
+    system,
+    modes_from,
+    δ_from::AbstractVector{<:_Scalar},
+    modes_to,
+    δ_to::AbstractVector{<:_Scalar},
+    trans,
+    δ_trans::IndicatorVariables,
+    T::Type,
+)
     for (mode_from, from) in zip(modes_from, δ_from)
         for (mode_to, to) in zip(modes_to, δ_to)
             if !has_transition(system, mode_from, mode_to)
@@ -239,18 +371,18 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     end
     iszero(prob.time) && return _zero_steps(optimizer)
     modes = Vector{Vector{Int}}(undef, prob.time)
-    for t in 1:prob.time
+    for t in 1:(prob.time)
         modes_prev = t == 1 ? [prob.initial_set[1]] : modes[t - 1]
         modes[t] = filter(optimizer.modes[t]) do mode
             any(modes_prev) do mode_prev
-                has_transition(prob.system, mode_prev, mode)
+                return has_transition(prob.system, mode_prev, mode)
             end
         end
     end
     for t in (prob.time - 1):-1:1
         modes[t] = filter(modes[t]) do mode
             any(modes[t + 1]) do mode_next
-                has_transition(prob.system, mode, mode_next)
+                return has_transition(prob.system, mode, mode_next)
             end
         end
     end
@@ -265,13 +397,27 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     # Use `model` instead of `optimizer.inner`
     # as it is type stable.
     optimizer.inner = model
-    JuMP.Containers.@container(x[1:prob.time, 1:statedim(prob.system, first(first(modes)))], add_variable(model))
+    JuMP.Containers.@container(
+        x[1:(prob.time), 1:statedim(prob.system, first(first(modes)))],
+        add_variable(model)
+    )
     optimizer.x = x
-    JuMP.Containers.@container(u[1:prob.time, 1:inputdim(resetmap(prob.system, first(transitions(prob.system))))], add_variable(model))
+    JuMP.Containers.@container(
+        u[
+            1:(prob.time),
+            1:inputdim(resetmap(prob.system, first(transitions(prob.system)))),
+        ],
+        add_variable(model)
+    )
     optimizer.u = u
 
-    transs = [possible_transitions(prob.system, t == 1 ? [prob.initial_set[1]] : modes[t-1], modes[t])
-              for t in 1:prob.time]
+    transs = [
+        possible_transitions(
+            prob.system,
+            t == 1 ? [prob.initial_set[1]] : modes[t - 1],
+            modes[t],
+        ) for t in 1:(prob.time)
+    ]
     if any(isempty, transs)
         optimizer.log_level >= 1 && @warn("`transs` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_TRANSITION
@@ -286,21 +432,55 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     δ_modes = nothing
     δ_transs = nothing
 
-    for t in 1:prob.time
+    for t in 1:(prob.time)
         x_prev = t == 1 ? prob.initial_set[2] : x[t - 1, :]
         xi = x[t, :]
         ui = u[t, :]
         δ_mode = IndicatorVariables(modes[t], t)
-        δ_mode = hybrid_constraints(model, fillify(prob.system.modes[modes[t]]), x_prev, xi, ui, optimizer, δ_mode)
+        δ_mode = hybrid_constraints(
+            model,
+            fillify(prob.system.modes[modes[t]]),
+            x_prev,
+            xi,
+            ui,
+            optimizer,
+            δ_mode,
+        )
         symbols = symbol.(prob.system, transs[t])
         δ_trans = IndicatorVariables(transs[t], t)
-        δ_trans = hybrid_constraints(model, fillify(prob.system.resetmaps[symbols]), x_prev, xi, ui, optimizer, δ_trans)
-        state_cost, δ_mode = hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode, T)
+        δ_trans = hybrid_constraints(
+            model,
+            fillify(prob.system.resetmaps[symbols]),
+            x_prev,
+            xi,
+            ui,
+            optimizer,
+            δ_trans,
+        )
+        state_cost, δ_mode =
+            hybrid_cost(model, fillify(prob.state_cost[t][modes[t]]), xi, ui, δ_mode, T)
         total_cost = MA.operate!!(+, total_cost, state_cost)
-        trans_cost, δ_trans = hybrid_cost(model, fillify(prob.transition_cost[t][symbols]), x_prev, ui, δ_trans, T)
+        trans_cost, δ_trans = hybrid_cost(
+            model,
+            fillify(prob.transition_cost[t][symbols]),
+            x_prev,
+            ui,
+            δ_trans,
+            T,
+        )
         total_cost = MA.operate!!(+, total_cost, trans_cost)
         modes_prev = t == 1 ? [prob.initial_set[1]] : modes[t - 1]
-        transitions_constraints(model, prob.system, modes_prev, δ_mode_prev, modes[t], δ_mode, transs[t], δ_trans, T)
+        transitions_constraints(
+            model,
+            prob.system,
+            modes_prev,
+            δ_mode_prev,
+            modes[t],
+            δ_mode,
+            transs[t],
+            δ_trans,
+            T,
+        )
         δ_mode_prev = δ_mode
         δ_modes = _sparse_set(δ_modes, δ_mode, t)
         δ_transs = _sparse_set(δ_transs, δ_trans, t)
@@ -316,7 +496,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     else
         optimizer.mixed_integer_solver
     end
-    _optimizer = MOI.instantiate(solver, with_bridge_type=T)
+    _optimizer = MOI.instantiate(solver; with_bridge_type = T)
     MOI.Bridges.add_bridge(_optimizer, Polyhedra.PolyhedraToLPBridge{T})
     MOIU.reset_optimizer(model, _optimizer)
     MOIU.attach_optimizer(model)
@@ -328,7 +508,9 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
 
     if !(MOI.get(model, MOI.TerminationStatus()) in [MOI.OPTIMAL, MOI.INFEASIBLE])
         if optimizer.log_level >= 1
-            @warn("BemporadMorari: Termination status: $(MOI.get(model, MOI.TerminationStatus())), raw status: $(MOI.get(model, MOI.RawStatusString()))")
+            @warn(
+                "BemporadMorari: Termination status: $(MOI.get(model, MOI.TerminationStatus())), raw status: $(MOI.get(model, MOI.RawStatusString()))"
+            )
         end
     end
 end
@@ -346,7 +528,10 @@ function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
     if optimizer.discrete_presolve_status == TRIVIAL
         return CO.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
     else
-        return CO.ContinuousTrajectory(_rows(_value.(optimizer.inner, optimizer.x)), _rows(_value.(optimizer.inner, optimizer.u)))
+        return CO.ContinuousTrajectory(
+            _rows(_value.(optimizer.inner, optimizer.x)),
+            _rows(_value.(optimizer.inner, optimizer.u)),
+        )
     end
 end
 

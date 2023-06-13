@@ -4,10 +4,9 @@
 Struct for a custom generic domain
 """
 
-struct CustomList{N,T} <: DomainType{N,T}
-    elems::Vector{SVector{N,T}}
+struct CustomList{N, T} <: DomainType{N, T}
+    elems::Vector{SVector{N, T}}
 end
-
 
 function enum_elems()
     return domain.elems
@@ -22,15 +21,15 @@ function Base.isempty(domain::CustomList)
 end
 
 function Base.union!(domain1::CustomList, domain2::CustomList)
-    union!(domain1.elems, domain2.elems)
+    return union!(domain1.elems, domain2.elems)
 end
 
 function Base.setdiff!(domain1::CustomList, domain2::CustomList)
-    setdiff!(domain1.elems, domain2.elems)
+    return setdiff!(domain1.elems, domain2.elems)
 end
 
 function Base.empty!(domain::CustomList)
-    empty!(domain.elems)
+    return empty!(domain.elems)
 end
 
 function get_ncells(domain::CustomList)

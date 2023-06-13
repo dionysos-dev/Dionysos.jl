@@ -1,7 +1,7 @@
-NewControllerList() = UT.SortedTupleSet{2,NTuple{2,Int}}()
+NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}()
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
-    for target in 1:autom.nstates
+    for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
         end
@@ -9,13 +9,22 @@ function _compute_num_targets_unreachable(num_targets_unreachable, autom)
 end
 
 # Assumes contr is "empty"
-function _compute_controller_reach!(contr, autom, init_set, target_set, num_targets_unreachable, current_targets, next_targets)
+function _compute_controller_reach!(
+    contr,
+    autom,
+    init_set,
+    target_set,
+    num_targets_unreachable,
+    current_targets,
+    next_targets,
+)
     num_init_unreachable = length(init_set)
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
         for target in current_targets
             for (source, symbol) in SY.pre(autom, target)
-                if !(source in target_set) && iszero(num_targets_unreachable[source, symbol] -= 1)
+                if !(source in target_set) &&
+                   iszero(num_targets_unreachable[source, symbol] -= 1)
                     push!(target_set, source)
                     push!(next_targets, source)
                     UT.push_new!(contr, (source, symbol))
@@ -42,17 +51,21 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
-    if !_compute_controller_reach!(contr, autom, _data(contr, autom, initlist, targetlist)...)
+    if !_compute_controller_reach!(
+        contr,
+        autom,
+        _data(contr, autom, initlist, targetlist)...,
+    )
         println("\ncompute_controller_reach! terminated without covering init set")
         # ProgressMeter.finish!(prog)
         return
     end
     # ProgressMeter.finish!(prog)
-    println("\ncompute_controller_reach! terminated with success")
+    return println("\ncompute_controller_reach! terminated with success")
 end
 
 function _compute_pairstable(pairstable, autom)
-    for target in 1:autom.nstates
+    for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
             pairstable[soursymb[1], soursymb[2]] = true
         end
@@ -65,7 +78,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     nsymbols = autom.nsymbols
     pairstable = [false for i in 1:nstates, j in 1:nsymbols]
     _compute_pairstable(pairstable, autom)
-    nsymbolslist = sum(pairstable, dims = 2)
+    nsymbolslist = sum(pairstable; dims = 2)
     safeset = Set(safelist)
     for source in safeset
         if nsymbolslist[source] == 0
@@ -118,4 +131,3 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         println("\ncompute_controller_safe! terminated without covering init set")
     end
 end
-

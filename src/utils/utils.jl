@@ -21,7 +21,6 @@ include("data_structures/digraph.jl")
 include("search/generic_search.jl")
 include("search/RRT.jl")
 
-
 include("optim/branch_and_bound.jl")
 include("optim/bisection.jl")
 include("optim/newton_method.jl")

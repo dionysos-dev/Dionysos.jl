@@ -1,4 +1,5 @@
-mutable struct AutomatonList{S<:AbstractSet{NTuple{3,Int}}} <: HybridSystems.AbstractAutomaton
+mutable struct AutomatonList{S <: AbstractSet{NTuple{3, Int}}} <:
+               HybridSystems.AbstractAutomaton
     nstates::Int
     nsymbols::Int
     transitions::S
@@ -9,7 +10,8 @@ function AutomatonList{S}(nstates, nsymbols) where {S}
     return AutomatonList(nstates, nsymbols, transitions)
 end
 
-NewAutomatonList(nstates, nsymbols) = AutomatonList{UT.SortedTupleSet{3,NTuple{3,Int}}}(nstates, nsymbols)
+NewAutomatonList(nstates, nsymbols) =
+    AutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
 
 function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
@@ -19,21 +21,21 @@ end
 # Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
 function HybridSystems.add_transition!(autom::AutomatonList, source, target, symbol)
-    UT.push_new!(autom.transitions, (target, source, symbol))
+    return UT.push_new!(autom.transitions, (target, source, symbol))
 end
 
 function add_transitions!(autom::AutomatonList, translist)
-    UT.append_new!(autom.transitions, translist)
+    return UT.append_new!(autom.transitions, translist)
 end
 
 Base.empty!(autom::AutomatonList) = empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::AutomatonList, source, symbol)
-    UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
+    return UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 end
 
 #function compute_available!(targetlist, autom::AutomatonList, source)
-   # fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
+# fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 #end
 
 function pre(autom::AutomatonList, target)
@@ -41,7 +43,7 @@ function pre(autom::AutomatonList, target)
 end
 
 function HybridSystems.add_state!(autom::AutomatonList)
-    autom.nstates += 1
+    return autom.nstates += 1
 end
 
 # function add_inputs_images_by_xref!(uref_coll, yref_coll, autom::AutomatonList, x_ref)

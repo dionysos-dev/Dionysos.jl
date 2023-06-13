@@ -3,17 +3,17 @@
 
 Same as `Base.Set{NTuple{N,Int} where N}` but with `CUDD`.
 """
-mutable struct IntTupleSet{N,T<:Integer} <: AbstractSet{NTuple{N,T}}
+mutable struct IntTupleSet{N, T <: Integer} <: AbstractSet{NTuple{N, T}}
     manager::Ptr{CUDD.DdManager}
     variables::Vector{Ptr{CUDD.DdNode}}
-    indexes::NTuple{N,Vector{UInt16}}
+    indexes::NTuple{N, Vector{UInt16}}
     root::Ptr{CUDD.DdNode}
     phase_::Vector{Cint}
     vars_::Vector{Ptr{CUDD.DdNode}}
     z_::Vector{Cint}
 end
 
-function IntTupleSet{N,T}() where {N,T}
+function IntTupleSet{N, T}() where {N, T}
     manager = CUDD.initialize_cudd()
     variables = Ptr{CUDD.DdNode}[]
     indexes = ntuple(i -> UInt16[], N)
@@ -21,21 +21,21 @@ function IntTupleSet{N,T}() where {N,T}
     phase_ = Cint[]
     z_ = Cint[]
     vars_ = Ptr{CUDD.DdNode}[]
-    return IntTupleSet{N,T}(manager, variables, indexes, root, phase_, vars_, z_)
+    return IntTupleSet{N, T}(manager, variables, indexes, root, phase_, vars_, z_)
 end
-IntTupleSet{N}() where N = IntTupleSet{N,Int}()
+IntTupleSet{N}() where {N} = IntTupleSet{N, Int}()
 
 Base.show(io::IO, set::IntTupleSet) = Base.summary(io, set)
 function Base.summary(io::IO, set::IntTupleSet)
     nbits = length.(set.indexes)
     Base.showarg(io, set, true)
     print(io, " with ", Base.dims2string(nbits), " bit")
-    isone(prod(nbits)) || print(io, "s")
+    return isone(prod(nbits)) || print(io, "s")
 end
 
-Base.eltype(::Type{IntTupleSet{N,T}}) where {N,T} = NTuple{N,T}
-Base.empty(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
-Base.emptymutable(::IntTupleSet{N}, ::Type{T}=Int) where {N,T} = IntTupleSet{N,T}()
+Base.eltype(::Type{IntTupleSet{N, T}}) where {N, T} = NTuple{N, T}
+Base.empty(::IntTupleSet{N}, ::Type{T} = Int) where {N, T} = IntTupleSet{N, T}()
+Base.emptymutable(::IntTupleSet{N}, ::Type{T} = Int) where {N, T} = IntTupleSet{N, T}()
 Base.isempty(set::IntTupleSet) = set.root === CUDD.Cudd_ReadLogicZero(set.manager)
 function Base.empty!(set::IntTupleSet)
     set.root = CUDD.Cudd_ReadLogicZero(set.manager)
@@ -72,20 +72,27 @@ function _phase!(set, x)
     end
 end
 
-function Base.push!(set::IntTupleSet{N,T}, x::NTuple{N,T}) where {N,T}
+function Base.push!(set::IntTupleSet{N, T}, x::NTuple{N, T}) where {N, T}
     _phase!(set, x)
     set.root = CUDD.Cudd_bddAnd(set.manager, set.root, cube(set.manager, set.vars_, set.z_))
-    set.root = CUDD.Cudd_bddOr(set.manager, set.root, cube(set.manager, set.variables, set.phase_))
+    set.root =
+        CUDD.Cudd_bddOr(set.manager, set.root, cube(set.manager, set.variables, set.phase_))
     return set
 end
 
-function Base.delete!(set::IntTupleSet{N,T}, x::NTuple{N,T}) where {N,T<:Integer}
+function Base.delete!(set::IntTupleSet{N, T}, x::NTuple{N, T}) where {N, T <: Integer}
     # ∈ updates `set.phase_`
     x ∈ set || return set
     # Use Nand because `Cudd_Not()` seems not implemented in CUDD
-    set.root = CUDD.Cudd_bddAnd(set.manager, set.root,
-        CUDD.Cudd_bddNand(set.manager, CUDD.Cudd_ReadOne(set.manager),
-            cube(set.manager, set.variables, set.phase_)))
+    set.root = CUDD.Cudd_bddAnd(
+        set.manager,
+        set.root,
+        CUDD.Cudd_bddNand(
+            set.manager,
+            CUDD.Cudd_ReadOne(set.manager),
+            cube(set.manager, set.variables, set.phase_),
+        ),
+    )
     return set
 end
 Base.delete!(set::IntTupleSet, x) = set
@@ -109,18 +116,19 @@ function _in(phase, set)
     return CUDD.Cudd_Eval(set.manager, set.root, phase) === CUDD.Cudd_ReadOne(set.manager)
 end
 
-function Base.in(x::NTuple{N,T}, set::IntTupleSet{N,T}) where {N,T}
+function Base.in(x::NTuple{N, T}, set::IntTupleSet{N, T}) where {N, T}
     return iszero(_phase_truncated!(set, x)) && _in(set.phase_, set)
 end
 
 # Can we improve this?
-@inline _incr_(e::T, i, j) where T = i == j ? zero(T) : (i == j + 1 ? e + one(T) : e)
-function _increment(x::NTuple{N}, j) where N
+@inline _incr_(e::T, i, j) where {T} = i == j ? zero(T) : (i == j + 1 ? e + one(T) : e)
+function _increment(x::NTuple{N}, j) where {N}
     return ntuple(i -> _incr_(x[i], i, j), Val(N))
 end
 
-Base.iterate(set::IntTupleSet{N,T}) where {N,T} = iterate(set, ntuple(i -> zero(T), Val(N)))
-function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where N
+Base.iterate(set::IntTupleSet{N, T}) where {N, T} =
+    iterate(set, ntuple(i -> zero(T), Val(N)))
+function Base.iterate(set::IntTupleSet{N}, state::NTuple{N}) where {N}
     I = _phase_truncated!(set, state)
     I == N && return nothing
     iszero(I) && _in(set.phase_, set) && return (state, _increment(state, 0))

@@ -1,21 +1,24 @@
 using Plots, Colors
 
-abstract type SymbolicModel{N,M} end
+abstract type SymbolicModel{N, M} end
 
-mutable struct SymbolicModelList{N,M,S1<:DO.DomainType{N},S2<:DO.DomainType{M},A} <: SymbolicModel{N,M}
+mutable struct SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
+               SymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
-    xpos2int::Dict{NTuple{N,Int},Int}
-    xint2pos::Vector{NTuple{N,Int}}
-    upos2int::Dict{NTuple{M,Int},Int}
-    uint2pos::Vector{NTuple{M,Int}}
+    xpos2int::Dict{NTuple{N, Int}, Int}
+    xint2pos::Vector{NTuple{N, Int}}
+    upos2int::Dict{NTuple{M, Int}, Int}
+    uint2pos::Vector{NTuple{M, Int}}
 end
 
-
-
 # ListList refers to List for SymbolicModel, and List for automaton
-function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,NTuple{3,Int}}) where {S}
+function NewSymbolicModelListList(
+    Xdom,
+    Udom,
+    ::Type{S} = UT.SortedTupleSet{3, NTuple{3, Int}},
+) where {S}
     nx = DO.get_ncells(Xdom)
     nu = DO.get_ncells(Udom)
     xint2pos = [pos for pos in DO.enum_pos(Xdom)]
@@ -23,8 +26,7 @@ function NewSymbolicModelListList(Xdom, Udom, ::Type{S} = UT.SortedTupleSet{3,NT
     uint2pos = [pos for pos in DO.enum_pos(Udom)]
     upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
     autom = AutomatonList{S}(nx, nu)
-    return SymbolicModelList(
-        Xdom, Udom, autom, xpos2int, xint2pos, upos2int, uint2pos)
+    return SymbolicModelList(Xdom, Udom, autom, xpos2int, xint2pos, upos2int, uint2pos)
 end
 
 function with_automaton(symmodel::SymbolicModelList, autom)
@@ -81,16 +83,18 @@ end
 # we go through the list only once; this requires to store the transitions in a
 # vector (translist). This approach uses a bit more allocations than the OLD one
 # (29 vs 24/26) on pathplanning-simple/hard but is faster in both cases.
-function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
-        contsys::ST.ControlSystemGrowth{N}) where N
+function compute_symmodel_from_controlsystem!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N},
+) where {N}
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    r = Xdom.grid.h/2.0 + contsys.measnoise
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
     ntrans = 0
     # Vector to store transitions
-    translist = Tuple{Int,Int,Int}[]
+    translist = Tuple{Int, Int, Int}[]
 
     # Updates every 1 seconds
     # Commented because it changes the number of allocations
@@ -122,18 +126,22 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
         end
     end
     # )
-    println("compute_symmodel_from_controlsystem! terminated with success: ",
-        "$(ntrans) transitions created")
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
 end
 
 # Assumes that automaton is "empty"
-function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
-        contsys::ST.ControlSystemGrowth{N}) where N
+function compute_symmodel_from_controlsystem_OLD!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N},
+) where {N}
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    r = Xdom.grid.h/2.0 + contsys.measnoise
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
     ntrans = 0
     # Define the function out of the loop. This allowed to recudes the allocations
     # from 1.6M (on pathplanning-simple) to 24!
@@ -160,24 +168,28 @@ function compute_symmodel_from_controlsystem_OLD!(symmodel::SymbolicModel{N},
         end
     end
     # )
-    println("compute_symmodel_from_controlsystem! terminated with success: ",
-        "$(ntrans) transitions created")
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
 end
 
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
-function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
-        contsys::ST.ControlSystemLinearized{N}) where N
+function compute_symmodel_from_controlsystem!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemLinearized{N},
+) where {N}
     println("compute_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    r = Xdom.grid.h/2.0 + contsys.measnoise
-    _H_ = SMatrix{N,N}(I).*r
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
+    _H_ = SMatrix{N, N}(I) .* r
     _ONE_ = ones(SVector{N})
     e = norm(r, Inf)
     ntrans = 0
-    translist = Tuple{Int,Int,Int}[]
+    translist = Tuple{Int, Int, Int}[]
 
     # Updates every 1 seconds
     # Commented because it changes the number of allocations
@@ -193,10 +205,10 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
             x = DO.get_coord_by_pos(Xdom.grid, xpos)
             Fx, DFx = contsys.linsys_map(x, _H_, u, tstep)
             A = inv(DFx)
-            b = abs.(A)*Fr .+ 1.0
+            b = abs.(A) * Fr .+ 1.0
             HP = UT.CenteredPolyhedron(A, b)
             # TODO: can we improve abs.(DFx)*_ONE_?
-            rad = contsys.measnoise + abs.(DFx)*_ONE_ .+ Fe
+            rad = contsys.measnoise + abs.(DFx) * _ONE_ .+ Fe
             rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - rad, Fx + rad))
             ypos_iter = Iterators.product(DO._ranges(rectI)...)
             allin = true
@@ -217,19 +229,21 @@ function compute_symmodel_from_controlsystem!(symmodel::SymbolicModel{N},
         end
     end
     # )
-    println("compute_symmodel_from_controlsystem! terminated with success: ",
-        "$(ntrans) transitions created")
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
 end
 
-
-@recipe function f(symmodel::SymbolicModel; arrowsB=true, cost=false, lyap_fun=[])
+@recipe function f(symmodel::SymbolicModel; arrowsB = true, cost = false, lyap_fun = [])
     # Display the cells
     state_grid = symmodel.Xdom.grid
     if cost
-        LyapMax = max(filter(isfinite, getfield.([lyap_fun...],:second))...)
+        LyapMax = max(filter(isfinite, getfield.([lyap_fun...], :second))...)
         colormap = Colors.colormap("Blues")
         mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
-        cost_ordered = reverse(sort(hcat([(lyap,state) for (state,lyap) in lyap_fun]...), dims=2))
+        cost_ordered =
+            reverse(sort(hcat([(lyap, state) for (state, lyap) in lyap_fun]...); dims = 2))
         for (lyap, state) in cost_ordered
             pos = get_xpos_by_state(symmodel, state)
             elli = DO.get_elem_by_pos(state_grid, pos)
@@ -237,23 +251,35 @@ end
                 lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
                 return elli
             end
-        end 
-        @series begin mycolorMap end
+        end
+        @series begin
+            mycolorMap
+        end
     else
-        @series begin symmodel.Xdom end
+        @series begin
+            symmodel.Xdom
+        end
     end
     # Display the arrows
     if arrowsB
         for t in symmodel.autom.transitions.data
-            if t[1]==t[2]
+            if t[1] == t[2]
                 @series begin
-                    color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
+                    color = RGB(
+                        abs(0.6 * sin(t[1])),
+                        abs(0.6 * sin(t[1] + 2π / 3)),
+                        abs(0.6 * sin(t[1] - 2π / 3)),
+                    )
                     p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
                     return UT.DrawPoint(p1)
                 end
             else
                 @series begin
-                    color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
+                    color = RGB(
+                        abs(0.6 * sin(t[1])),
+                        abs(0.6 * sin(t[1] + 2π / 3)),
+                        abs(0.6 * sin(t[1] - 2π / 3)),
+                    )
                     p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
                     p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
                     return UT.DrawArrow(p1, p2)

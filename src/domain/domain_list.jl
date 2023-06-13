@@ -1,4 +1,4 @@
-abstract type DomainType{N,T} end
+abstract type DomainType{N, T} end
 
 function _invInclMode(incl_mode::INCL_MODE)
     return incl_mode == OUTER ? INNER : OUTER
@@ -11,9 +11,9 @@ end
 
 Struct for a basic domain based on a `Grid`
 """
-struct DomainList{N,T,S<:Grid{N,T}} <: DomainType{N,T}
+struct DomainList{N, T, S <: Grid{N, T}} <: DomainType{N, T}
     grid::S
-    elems::Set{NTuple{N,Int}}
+    elems::Set{NTuple{N, Int}}
 end
 
 """
@@ -21,8 +21,8 @@ end
 
 Return a new DomainList
 """
-function DomainList(grid::S) where {N,S<:Grid{N}}
-    return DomainList(grid, Set{NTuple{N,Int}}())
+function DomainList(grid::S) where {N, S <: Grid{N}}
+    return DomainList(grid, Set{NTuple{N, Int}}())
 end
 
 function get_grid(domain::DomainList)
@@ -30,16 +30,16 @@ function get_grid(domain::DomainList)
 end
 
 function add_pos!(domain::DomainList, pos)
-    push!(domain.elems, pos)
+    return push!(domain.elems, pos)
 end
 
 function add_coord!(domain, x)
-    add_pos!(domain, get_pos_by_coord(domain.grid, x))
+    return add_pos!(domain, get_pos_by_coord(domain.grid, x))
 end
 
 function add_set!(domain, setMinus::UT.LazySetMinus, incl_mode::INCL_MODE)
     add_set!(domain, setMinus.A, incl_mode)
-    remove_set!(domain, setMinus.A ∩ setMinus.B, _invInclMode(incl_mode))
+    return remove_set!(domain, setMinus.A ∩ setMinus.B, _invInclMode(incl_mode))
 end
 
 function add_set!(domain, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
@@ -55,7 +55,7 @@ function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     end
 end
 
-function get_subset_pos(domain::DomainList,rect::UT.HyperRectangle,incl_mode::INCL_MODE)
+function get_subset_pos(domain::DomainList, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain.grid, rect, incl_mode)
     pos_iter = Iterators.product(_ranges(rectI)...)
     posL = []
@@ -86,11 +86,11 @@ function add_subset!(domain1, domain2, rect::UT.HyperRectangle, incl_mode::INCL_
 end
 
 function remove_pos!(domain::DomainList, pos)
-    delete!(domain.elems, pos)
+    return delete!(domain.elems, pos)
 end
 
 function remove_coord!(domain, x)
-    remove_pos!(domain, get_pos_by_coord(domain.grid, x))
+    return remove_pos!(domain, get_pos_by_coord(domain.grid, x))
 end
 
 function remove_set!(domain, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
@@ -116,15 +116,15 @@ function remove_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
 end
 
 function Base.union!(domain1::DomainList, domain2::DomainList)
-    union!(domain1.elems, domain2.elems)
+    return union!(domain1.elems, domain2.elems)
 end
 
 function Base.setdiff!(domain1::DomainList, domain2::DomainList)
-    setdiff!(domain1.elems, domain2.elems)
+    return setdiff!(domain1.elems, domain2.elems)
 end
 
 function Base.empty!(domain::DomainList)
-    empty!(domain.elems)
+    return empty!(domain.elems)
 end
 
 function Base.in(pos, domain::DomainList)
@@ -156,19 +156,19 @@ function crop_to_domain(domain::DomainList, list)
 end
 
 function get_coord(domain::DomainType, pos)
-    return get_coord_by_pos(domain.grid,pos)
+    return get_coord_by_pos(domain.grid, pos)
 end
 
 @recipe function f(Xdom::DomainType{N, T}) where {N, T}
-    opacity     := 0.2
-    color       := :yellow
-    legend      := false
+    opacity := 0.2
+    color := :yellow
+    legend := false
 
     dims = [1, 2]
     grid = get_grid(Xdom)
-    dict = Dict{NTuple{2,Int}, Any}()
+    dict = Dict{NTuple{2, Int}, Any}()
     for pos in enum_pos(Xdom)
-        if !haskey(dict,pos[dims])
+        if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
             @series begin
                 return grid, pos

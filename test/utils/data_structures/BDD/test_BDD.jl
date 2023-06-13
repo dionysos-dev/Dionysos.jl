@@ -32,6 +32,6 @@ BDD = Dionysos.Utils.BDD
     push!(set, 40)
     @test sprint(show, MIME"text/plain"(), set) in [
         "Dionysos.Utils.BDD.BitSet with 6 bits",       # Julia v1.0
-        "Dionysos.Utils.BDD.BitSet with 6 bits:\n  40" # Julia v1.5
+        "Dionysos.Utils.BDD.BitSet with 6 bits:\n  40", # Julia v1.5
     ]
 end
