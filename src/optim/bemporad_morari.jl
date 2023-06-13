@@ -4,6 +4,7 @@ module BemporadMorari
 
 import Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const PR = DI.Problem
 
@@ -225,7 +226,7 @@ end
 
 function hybrid_cost(
     model,
-    costs::AbstractArray{CO.ZeroFunction},
+    costs::AbstractArray{UT.ZeroFunction},
     x,
     u,
     δ,
@@ -235,7 +236,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::AbstractArray{<:CO.ConstantFunction},
+    costs::AbstractArray{<:UT.ConstantFunction},
     x,
     u,
     δ,
@@ -247,7 +248,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::Fill{<:CO.ConstantFunction},
+    costs::Fill{<:UT.ConstantFunction},
     x,
     u,
     δ,
@@ -257,7 +258,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::Fill{<:CO.QuadraticControlFunction},
+    costs::Fill{<:UT.QuadraticControlFunction},
     x,
     u,
     δ,
@@ -268,7 +269,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::Fill{<:CO.PolyhedralFunction},
+    costs::Fill{<:UT.PolyhedralFunction},
     x,
     u,
     δ,
@@ -278,7 +279,7 @@ function hybrid_cost(
     θ = add_variable(model)
     add_constraint(model, θ, MOI.GreaterThan(cost.lower_bound))
     for piece in cost.pieces
-        add_constraint(model, θ - CO.function_value(piece, x), MOI.GreaterThan(zero(T)))
+        add_constraint(model, θ - UT.function_value(piece, x), MOI.GreaterThan(zero(T)))
     end
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(cost.domain))
     return θ, δ

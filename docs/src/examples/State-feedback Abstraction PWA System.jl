@@ -125,11 +125,7 @@ function f_eval1(x, u)
     return concrete_system.resetmaps[m].A * x + concrete_system.resetmaps[m].B * u + concrete_system.resetmaps[m].c + w
 end
 
-function cost_eval(x, u)
-    x_aug = vcat(x, u, 1.0)
-    Q_aug = CO.get_full_psd_matrix(concrete_problem.transition_cost[1][1])
-    return x_aug'Q_aug * x_aug
-end
+cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)
 
 # ### Simulation
 

@@ -5,6 +5,7 @@ const MA = MutableArithmetics
 
 import Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const PR = DI.Problem
 
@@ -167,7 +168,7 @@ struct HybridDualDynamicProgramming{
     discrete::DiscreteLowerBound{D}
 end
 function _no_cuts(time, modes, ::Type{T}) where {T}
-    return JuMP.Containers.@container([0:time, modes], CO.AffineFunction{T}[])
+    return JuMP.Containers.@container([0:time, modes], UT.AffineFunction{T}[])
 end
 function _full_domains(time, modes, d, ::Type{T}) where {T}
     return JuMP.Containers.@container(
@@ -200,12 +201,12 @@ end
 function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) where {T}
     d = fulldim(Q.domains[left, mode])
     time = axes(Q.cuts, 1).stop
-    return CO.PolyhedralFunction(
+    return UT.PolyhedralFunction(
         Q.discrete.discrete_lb[left, mode],
         reduce(
             append!,
             (Q.cuts[i, mode] for i in left:time);
-            init = CO.AffineFunction{T}[],
+            init = UT.AffineFunction{T}[],
         ),
         # TODO use intersect! once it is implemented in Polyhedra
         reduce(
@@ -215,7 +216,7 @@ function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) whe
         ),
     )
 end
-function vertices(f::CO.PolyhedralFunction{T}, X, lib) where {T}
+function vertices(f::UT.PolyhedralFunction{T}, X, lib) where {T}
     h = (hrep(X) ∩ f.domain) * intersect(HalfSpace([-one(T)], -f.lower_bound))
     cuts = [HalfSpace([p.a; -one(T)], -p.β) for p in f.pieces]
     h_cut = h ∩ hrep(cuts; d = fulldim(h))
@@ -333,7 +334,7 @@ function learn(
             return
         end
         V = value_function(Q, left + 1, mode)
-        before = CO.function_value(V, x)
+        before = UT.function_value(V, x)
         # FIXME OSQP does not support accessing `DualObjectiveValue`
         #after = dual_objective_value(model)
         after = MOI.get(model, MOI.ObjectiveValue())
@@ -432,7 +433,7 @@ function learn(
 
         for a in points(cuts)
             β = after - a ⋅ x
-            cut = CO.AffineFunction{T}(a, β)
+            cut = UT.AffineFunction{T}(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
             if algo.log_level >= 2
                 @info("Cut added: $cut, $after > $before.")

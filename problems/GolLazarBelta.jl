@@ -2,6 +2,7 @@ module GolLazarBelta
 
 import Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const PR = DI.Problem
 
@@ -167,14 +168,14 @@ function problem(
 )
     sys = system(lib, T)
     if zero_cost
-        state_cost = Fill(CO.ZeroFunction(), nmodes(sys))
+        state_cost = Fill(UT.ZeroFunction(), nmodes(sys))
     else
         state_cost = [
-            mode == sys.ext[:q_T] ? CO.ConstantFunction(zero(T)) :
-            CO.ConstantFunction(one(T)) for mode in modes(sys)
+            mode == sys.ext[:q_T] ? UT.ConstantFunction(zero(T)) :
+            UT.ConstantFunction(one(T)) for mode in modes(sys)
         ]
     end
-    transition_cost = CO.QuadraticControlFunction(ones(T, 1, 1))
+    transition_cost = UT.QuadraticControlFunction(ones(T, 1, 1))
     problem = PR.OptimalControlProblem(
         sys,
         (q_0, x_0),

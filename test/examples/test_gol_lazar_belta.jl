@@ -4,6 +4,7 @@ include("../../problems/GolLazarBelta.jl")
 
 import Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
@@ -75,7 +76,7 @@ function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
     @test !hasallhalfspaces(Q_function.domains[0, 15])
     @test length(Q_function.cuts[1, 15]) == 1
     @test first(Q_function.cuts[1, 15]) ≈
-          CO.AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol = 1e-6
+          UT.AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol = 1e-6
     @test !hashyperplanes(Q_function.domains[1, 15]) == 1
     @test nhalfspaces(Q_function.domains[1, 15]) == 1
     a = normalize(-[2, 1])

@@ -130,9 +130,9 @@ function problem(;
         x_0 = [-1.0, -0.6]
         x_f = [-1.5, 1.0]
     end
-    state_cost = ZeroFunction()
+    state_cost = UT.ZeroFunction()
     transition_cost = Fill(
-        QuadraticStateControlFunction(
+        UT.QuadraticStateControlFunction(
             Matrix{Float64}(I(n_sys) * (dt^2)),
             Matrix{Float64}(I(n_u) * (dt^2)),
             zeros(n_sys, n_u),
