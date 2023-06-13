@@ -194,61 +194,67 @@ function add_closest_node!(tree::Tree, state, distance, get_action)
     return newNode
 end
 
-##################### Plotting #####################
-
-function print_data(tree::Tree)
-    println()
-    println("Number of nodes  : ", get_nNodes(tree))
-    println("Number of leaves : ", get_nLeaves(tree))
-    println("Maximum value    : ", get_max_Node(tree).path_cost)
-    println("Minimal value    : ", get_min_Node(tree).path_cost)
-    println()
+function Base.show(io::IO, tree::Tree)
+    println(io, "Number of nodes  : ", get_nNodes(tree))
+    println(io, "Number of leaves : ", get_nLeaves(tree))
+    println(io, "Minimal value    : ", get_min_Node(tree).path_cost)
+    println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
 
-function plot_Tree!(tree::Tree; arrow=true)
-    # create a Colormap
-    vmin = get_min_path_cost(tree)
-    vmax = get_max_path_cost(tree)
-    if vmin==vmax
-        vmax += 1.0e-6
-    end
-    colorMap = Colormap([vmin,vmax], Colors.colormap("Blues"))
-    # plot the nodes of the tree
-    allNodes = collect_nodes(tree)
-    sort!(allNodes,  by=compare, rev=true)
-    for node in allNodes
-        plot!(node.state, color = get_color(colorMap,node.path_cost))
-        plot_colorBar!(colorMap)
-    end
-    # plot edges of the tree
-    if arrow
-        leaves = copy(tree.leaves)
-        while !isempty(leaves)
-            for leave in leaves
-                if leave.parent!==nothing
-                    plot!(UT.DrawArrow(leave.state.c, leave.parent.state.c))
-                end
-            end
-            parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
-            leaves = parents
-        end
-    end
-end
 
-function plot_path!(node::NodeT)
+@recipe function f(node::NodeT; pathB=false, cost=true)
     path = get_path(node)
     # create a Colormap
     vmin = path[end].path_cost
     vmax = path[1].path_cost
     colorMap = Colormap([vmin,vmax], Colors.colormap("Blues"))
-    # plot the nodes of the tree
-    sortedPath = sort(path,  by=compare, rev=true)
+    pathB ? path = sort(path,  by=compare, rev=true) : path = [node]
+    sortedPath = sort(path,  by=compare, rev=true) 
     for node in sortedPath
-        plot!(node.state, color = get_color(colorMap,node.path_cost))
+        @series begin
+            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
+            return node.state
+        end
     end
-    plot_colorBar!(colorMap)
-    # plot edges of the tree
+    if cost
+        @series begin colorMap end
+    end
     for i in 1:length(path)-1
-        plot!(UT.DrawArrow(path[i].state.c, path[i+1].state.c))
+        @series begin
+            DrawArrow(path[i].state.c, path[i+1].state.c)
+        end
+    end
+end
+
+@recipe function f(tree::Tree; arrowsB=true, cost=true)
+    # create a Colormap
+    vmin = get_min_path_cost(tree)
+    vmax = get_max_path_cost(tree)
+    colorMap = Colormap([vmin,vmax], Colors.colormap("Blues"))
+    # plot the nodes of the tree
+    allNodes = collect_nodes(tree)
+    sort!(allNodes,  by=compare, rev=true)
+    for node in allNodes
+        @series begin
+            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
+            return node.state
+        end 
+    end
+    if cost
+        @series begin colorMap end
+    end
+    if arrowsB
+        leaves = copy(tree.leaves)
+        while !isempty(leaves)
+            for leave in leaves
+                if leave.parent!==nothing
+                    @series begin
+                        return DrawArrow(leave.state.c, leave.parent.state.c)
+                    end
+                end
+            end
+            parents = filter(x -> x!==nothing, unique(map(x-> x.parent, leaves)))
+            leaves = parents
+        end
     end
 end

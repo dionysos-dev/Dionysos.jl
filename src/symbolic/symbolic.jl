@@ -11,7 +11,7 @@ using ..Domain
 DO = Domain
 
 using ..System
-SY = System
+ST = System
 
 include("automaton.jl")
 include("symbolicmodel.jl")

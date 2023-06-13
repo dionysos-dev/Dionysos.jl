@@ -44,18 +44,6 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 
-function get_abstract_system(optimizer)
-    return optimizer.symmodel
-end
-
-function get_abstract_problem(optimizer)
-    return optimizer.abstract_problem
-end
-
-function get_concrete_controller(optimizer)
-    return optimizer.controller
-end
-
 function build_abstraction(
     system,
     state_grid::DO.Grid,
@@ -83,10 +71,12 @@ function build_abstract_problem(
     DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
     Xtarget = DO.DomainList(state_grid)
     DO.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, DO.INNER)
+    init_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]
+    target_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xtarget)]
     return PR.OptimalControlProblem(
         symmodel,
-        Xinit,
-        Xtarget,
+        init_list,
+        target_list,
         problem.state_cost, # TODO this is the continuous cost, not the abstraction
         problem.transition_cost, # TODO this is the continuous cost, not the abstraction
         problem.time, # TODO this is the continuous time, not the number of transition
@@ -102,52 +92,50 @@ function build_abstract_problem(
     DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
     Xsafe = DO.DomainList(state_grid)
     DO.add_subset!(Xsafe, symmodel.Xdom, problem.safe_set, DO.INNER)
+    init_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]
+    safe_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xsafe)]
     return PR.SafetyProblem(
         symmodel,
-        Xinit,
-        Xsafe,
+        init_list,
+        safe_list,
         problem.time, # TODO this is the continuous time, not the number of transition
     )
 end
 
 function _compute_controller!(controller, discrete_problem::PR.OptimalControlProblem)
-    init_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.initial_set)]
-    target_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.target_set)]
     CO.compute_controller_reach!(
         controller,
         discrete_problem.system.autom,
-        init_list,
-        target_list,
+        discrete_problem.initial_set,
+        discrete_problem.target_set,
     )
     return
 end
 
 function _compute_controller!(controller, discrete_problem::PR.SafetyProblem)
-    init_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.initial_set)]
-    safe_list = [SY.get_state_by_xpos(discrete_problem.system, pos) for pos in DO.enum_pos(discrete_problem.safe_set)]
     CO.compute_controller_safe!(
         controller,
         discrete_problem.system.autom,
-        init_list,
-        safe_list,
+        discrete_problem.initial_set,
+        discrete_problem.safe_set,
     )
     return
 end
 
 function MOI.optimize!(optimizer::Optimizer)
-    # design the abstraction
+    # Design the abstraction
     symmodel = build_abstraction(optimizer.problem.system, optimizer.state_grid, optimizer.input_grid)
     optimizer.symmodel = symmodel
-    # design the abstract problem
+    # Design the abstract problem
     abstract_problem = build_abstract_problem(optimizer.problem, symmodel)
     optimizer.abstract_problem = abstract_problem
-    # solve the abstract problem
+    # Solve the abstract problem
     optimizer.abstract_controller = CO.NewControllerList()
     @time _compute_controller!(
         optimizer.abstract_controller,
         abstract_problem,
     )
-    # refine the abstract controllerto the concrete controller
+    # Refine the abstract controllerto the concrete controller
     function controller(x;param=false)
         xpos = DO.get_pos_by_coord(symmodel.Xdom.grid, x)
         if !(xpos ∈ symmodel.Xdom)

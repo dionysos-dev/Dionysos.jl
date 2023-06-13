@@ -1,256 +1,166 @@
-# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
-
-using Polyhedra
+using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using CDDLib
-using SemialgebraicSets
-using StaticArrays
-using LinearAlgebra
-using SDPA, Ipopt, JuMP
+using JuMP, SDPA, Ipopt
+using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
+Random.seed!(0)
 
 using Dionysos
-using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const CO = DI.Control
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 
 # Example of ellipsoidal based abstraction
 
 if !isdefined(@__MODULE__, :Usz)
-      Usz = 50 # upper limit on |u|
-      Wsz = 5
-      n_step = 5 # discretization of one unit of space
+      Usz = 70 # upper limit on |u|
+      Wsz = 3
+      dt = 0.01; # discretization step
+      n_step = 3 # discretization of one unit of space
+      simple = true
 end
+# Usz = 50 # upper limit on |u|
+# Wsz = 5
+# n_step = 5 # discretization of one unit of space
+# simple = false
 
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_qp = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
+opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 
-lib = CDDLib.Library() #polyhedron lib
+lib = CDDLib.Library() # polyhedron lib
 include("../problems/PWAsys.jl")
 
+# Problem parameters
+# Usz = 50 # upper limit on |u|
+# Wsz = 5
+# dt = 0.01; # discretization step
+# n_step = 5 # discretization of one unit of space
+# simple = false
 
-dt = 0.01;
+concrete_problem = PWAsys.problem(lib=lib, dt=dt, Usz=Usz, Wsz=Wsz, simple=true)
+system = concrete_problem.system
 
-const problem = PWAsys.problem(lib, dt, Usz)
-const system = problem.system
-
-n_sys = size(system.resetmaps[1].A, 1);
-n_u = size(system.resetmaps[1].B, 2);
-
-W = Wsz*[-1 -1  1 1;
-         -1  1 -1 1]*dt; # polytope of disturbances
-
-Uaux = diagm(1:n_u)
-U = [(Uaux.==i)./Usz for i in 1:n_u];
-
-# Create Abstraction
-
-max_x = 2 # bound on |x|_∞
-rectX = UT.HyperRectangle(SVector(-max_x, -max_x), SVector(max_x, max_x));
-rectU = rectX
-
-
+# Abstraction parameters
 X_origin = SVector(0.0, 0.0);
-X_step = SVector(1.0/n_step, 1.0/n_step);
-P = (1/n_sys)*diagm((X_step./2).^(-2))
-Xgrid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, rectX);
+X_step = SVector(1.0/n_step, 1.0/n_step)
+nx = size(system.resetmaps[1].A, 1)
+P = (1/nx)*diagm((X_step./2).^(-2))
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, system.ext[:X]);
 
-domainX = DO.DomainList(Xgrid); # state space
-DO.add_set!(domainX, rectX, DO.OUTER)
-
-domainU = domainX; # input space
-DO.add_set!(domainU, rectU, DO.OUTER)
-
-#symbolic model for tilde S
-symmodel = SY.NewSymbolicModelListList(domainX, domainU);
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
 
-# stage cost matrix (J = ||L*[x; u ; 1]||)
-Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
-eigen_Q = eigen(Q_aug);
-L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))';
+# Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
+MOI.optimize!(optimizer)
 
-transitionCost = Dict()  #dictionary with cost of each transition
-transitionKappa = Dict() #dictionary with controller associated each transition
-empty!(symmodel.autom)
+# Get the results
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
+lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
 
-#building abstraction
-@time SY.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_qp)
-
-# Define Specifications
-x0 = SVector{n_sys}(problem.initial_set) # initial condition
-Xinit = DO.DomainList(Xgrid)
-DO.add_coord!(Xinit, problem.initial_set)
-Xfinal = DO.DomainList(Xgrid) # goal set
-DO.add_coord!(Xfinal, SVector{n_sys}(problem.target_set))
-
-
-Xobstacles = DO.DomainList(Xgrid) # obstacle set
-for o in system.ext[:obstacles]
-      DO.add_set!(Xobstacles, o, DO.OUTER) 
-end
-
-initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
-finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
-obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];
-# Synthesis of the discrete controler
-
-contr = CO.NewControllerList();
-
-
-# function to transform the transition cost from Dict to Vector{Tuple{String, String, Int64}}:
-function transFdict(transitionCost)
-    testgraph = Vector{Tuple{Int64, Int64, Float64}}()
-    for (key, value) in transitionCost
-        # append!(testgraph,(string(key(1)),string(key(2)),value))
-        if key[2] ∉ obstaclelist
-            push!(testgraph,((key[1]),(key[2]),value))
-        end
-    end
-    return testgraph
-end
-
-testgraph = transFdict(transitionCost) # uses said function
-
-# control design
-src, dst = initlist[1], finallist[1] # initial and goal sets
-rev_graph = [(t[2],t[1],t[3]) for t in testgraph]
-gc = UT.Digraph(rev_graph) 
-UT.add_states!(gc, [src, dst])
-
-@time rev_path, cost = UT.dijkstrapath(gc, dst, src) # gets optimal path
-path = reverse(rev_path)
-println("Shortest path from $src to $dst: ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $cost[dst])")
-
-## converts path to Int64 and add to list of control actions
-for l = 1:length(path)-1
-    new_action = (path[l], path[l+1])
-    UT.push_new!(contr, new_action)
-end
-
-# Simulation
 
 # return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
-
-
-K = typeof(problem.time) == Infinity ? 100 : problem.time; #max num of steps
-x_traj = zeros(n_sys,K+1);
-u_traj = zeros(n_u,K+1);
-x_traj[:,1] = x0;
-state_traj = []
-
-k = 1; #iterator
-costBound = 0;
-costTrue = 0;
-currState = SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])))
-push!(state_traj, currState)
-println("started at: $(currState)")
-while (currState ∩ finallist) == [] && k ≤ K && k≤ length(path)-1 # While not at goal or not reached max iter 
-      println("k: $(k)")
+function f_eval1(x, u)
+      currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
       next_action = nothing
-      for action in contr.data
+      for action in abstract_controller.data
             if (action[1] ∩ currState) ≠ []
                   next_action = action
-                  println("next action: $(next_action)")
             end
       end
-      println("cm: $(DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, next_action[2])))")
-      
-      c = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, next_action[1]))
-      println("c: $(c)")
-
-
-      u_traj[:,k] = transitionKappa[next_action]*vcat(x_traj[:,k]-c,1.0)
-
-
-      global costBound = costBound + transitionCost[next_action]
-      global costTrue += norm(L*vcat(x_traj[:,k], u_traj[:,k],1.0))^2
-
-
+      c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, next_action[1]))
       m = get_mode(c)
-      
+      W = system.ext[:W]
       w = (2*(rand(2).^(1/4)).-1).*W[:,1]
-
-      x_traj[:,k+1] = system.resetmaps[m].A*x_traj[:,k]+system.resetmaps[m].B*u_traj[:,k] + system.resetmaps[m].c + w
-
-      global k += 1;
-      global currState =  SY.get_all_states_by_xpos(symmodel,DO.crop_to_domain(domainX,DO.get_all_pos_by_coord(Xgrid,x_traj[:,k])));
-      push!(state_traj,currState)
-      println("Arrived in: $(currState): $(x_traj[:,k])")
+      return system.resetmaps[m].A*x+system.resetmaps[m].B*u + system.resetmaps[m].c + w
 end
 
+function cost_eval(x, u)
+      x_aug = vcat(x, u, 1.0)
+      Q_aug = CO.get_full_psd_matrix(concrete_problem.transition_cost[1][1])
+      return x_aug'Q_aug*x_aug
+end
+
+### Simulation
+# We define the stopping criteria for a simulation
+nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
+function reached(x)
+    currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
+    if !isempty(currState ∩ abstract_problem.target_set)
+        return true
+    else
+        return false
+    end
+end
+
+# We simulate the closed loop trajectory
+x0 = concrete_problem.initial_set
+x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(f_eval1, concrete_controller, cost_eval, x0, nstep; stopping=reached)
+cost_bound = AB.EllipsoidsAbstraction.get_guaranteed_cost(optimizer, x0)
+cost_true = sum(cost_traj);
 println("Goal set reached")
-println("Guaranteed cost:\t $(costBound)")
-println("True cost:\t\t $(costTrue)")
+println("Guaranteed cost:\t $(cost_bound)")
+println("True cost:\t\t $(cost_true)")
 
 @static if get(ENV, "CI", "false") == "false" && (isdefined(@__MODULE__, :no_plot) && no_plot==false)
-      ############# Figure 1 #############
-
+      ## Display the specifications and domains
       fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
-      xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-      ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-      vars = [1, 2]
-      Plots.plot!(domainX; dims=[1,2], color=:yellow, opacity=0.2)
-      for t in symmodel.autom.transitions.data
-            if isempty(t ∩ obstaclelist) 
-                  color = RGB(abs(0.6*sin(t[1])), abs(0.6*sin(t[1]+2π/3)), abs(0.6*sin(t[1]-2π/3)))
-                  if t[1]==t[2]
-                        p1 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[2]))
-                        plot!(fig, UT.DrawPoint(p1), color = color)
-                  else
-                        p1 = DO.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[2]))
-                        p2 = DOn.get_coord_by_pos(Xgrid, SY.get_xpos_by_state(symmodel, t[1]))
-                        plot!(fig, UT.DrawArrow(p1, p2), color = color)
-                  end
-            end
-      end
+      rectX = system.ext[:X]
+      xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2)
+      ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2)
+
+      # We display the concrete domain
+      plot!(rectX; color=:yellow, opacity=0.5)
+
+      # We display the abstract domain
+      plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+
+      # We display the abstract specifications
+      plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set), color=:green, opacity=0.5)
+      plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), color=:red, opacity=0.5)
+
+      # We display the concrete specifications
+      plot!(UT.DrawPoint(concrete_problem.initial_set), color=:green, opacity=1.0);
+      plot!(UT.DrawPoint(concrete_problem.target_set), color=:red, opacity=1.0);
+
       xlabel!("\$x_1\$")
       ylabel!("\$x_2\$")
-      title!("Transitions")
-      # savefig("ex2_trans.png")
+      title!("Specifictions and domains")
       display(fig)
 
-      ############# Figure 2 #############
-
+      ## Display the abstraction
       fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
-      xlims!(rectX.lb[1]-0.2,rectX.ub[1]+0.2)
-      ylims!(rectX.lb[2]-0.2,rectX.ub[2]+0.2)
-      vars = [1, 2]
+      xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2)
+      ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2)
+      plot!(abstract_system; arrowsB=true, cost=false)
+      title!("Abstractions")
+      display(fig)
 
-      LyapMax = max(filter(isfinite,getfield.([cost...],:second))...)
-      colormap = Colors.colormap("Blues")
-      mycolorMap = UT.Colormap([0.0,LyapMax], colormap)
-      cost_ordered = reverse(sort(hcat([ (lyap,state) for (state,lyap) in cost]...), dims=2))
-      for (lyap, state) in cost_ordered
-            pos = SY.get_xpos_by_state(symmodel, state)
-            elli = DO.get_elem_by_pos(Xgrid, pos)
-            if (lyap ≠ Inf)
-                  plot!(fig, elli, color=UT.get_color(mycolorMap, lyap))
-            else
-                  plot!(fig, elli, color = :yellow)
-            end
-      end
-      Einit = UT.Ellipsoid(collect(P), collect(problem.initial_set))
-      Etarget = UT.Ellipsoid(collect(P), collect(problem.target_set))
-      plot!(fig, Einit, color = :green)
-      plot!(fig, Etarget, color = :red)
-      Plots.plot!(Xobstacles, color=:black, opacity=1.0)
-
-      trajCoord = [[x_traj[1,i], x_traj[2,i]] for i in 1:k]
-      plot!(fig, UT.DrawTrajectory(trajCoord), color = :black)
-
-      plot!(mycolorMap)
+      ## Display the Lyapunov function and the trajectory
+      fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14)
+      xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2)
+      ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2)
+      plot!(abstract_system; arrowsB=false, cost=true, lyap_fun=lyap_fun)
+      plot!(UT.DrawTrajectory(x_traj), color=:black)
       xlabel!("\$x_1\$")
       ylabel!("\$x_2\$")
       title!("Trajectory and Lyapunov-like Fun.")
-      # savefig("ex2_traj.png")
       display(fig)
-
 end

@@ -23,7 +23,6 @@ Dionysos.Symbolic._provide_P
 Dionysos.Utils.breadth_first_tree_search
 Dionysos.Utils.graph_search
 Dionysos.Symbolic.ellipsoid_vol
-Dionysos.Symbolic._has_transition
 Dionysos.Utils.best_first_tree_search
 Dionysos.Utils.successor
 Dionysos.Domain.DomainList

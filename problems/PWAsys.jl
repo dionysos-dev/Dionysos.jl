@@ -1,17 +1,22 @@
 module PWAsys
 
-using Polyhedra
-using FillArrays
+using StaticArrays, LinearAlgebra, Polyhedra
 using MathematicalSystems, HybridSystems
-using StaticArrays
-using LinearAlgebra
-using Dionysos
+using FillArrays, CDDLib
+
+import Dionysos
 using Dionysos.Control
 using Dionysos.Problem
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const CO = DI.Control
+const SY = DI.Symbolic
+const PR = DI.Problem
 
-import CDDLib
 
-function system(lib, dt, Usz)
+function system(lib, dt, Usz, Wsz; simple=false)
     eye(n) = diagm(ones(n)) # I matrix
     # Define system
     N_region = 3
@@ -67,10 +72,19 @@ function system(lib, dt, Usz)
     
     system =  HybridSystem(a, systems, resetmaps, switchings)
 
+    simple ? rectX = UT.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3)) : rectX = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+    simple ? obs = [] : obs = [UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), UT.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5))]
+    Uaux = diagm(1:n_u)
+    U = [(Uaux.==i)./Usz for i in 1:n_u]; # matrices U_i
+    W = Wsz*[-1 -1  1 1;
+             -1  1 -1 1]*dt; # polytope of disturbances 
+    obs = UT.LazyUnionSetArray(obs)
+    rectX = UT.LazySetMinus(rectX, obs)
+    system.ext[:X] = rectX
+    system.ext[:U] = U
+    system.ext[:W] = W
     system.ext[:dt] = dt
-    system.ext[:obstacles] = [Dionysos.Utils.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)), 
-                              Dionysos.Utils.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5))] 
- 
+
     return system # pwa system
 end
 
@@ -87,11 +101,14 @@ Notice that we used `Fill` for all `N` time steps as we consider time-invariant 
 
 This problem was tackled in the paper [State-feedback Abstractions for Optimal Control of Piecewise-affine Systems](https://arxiv.org/abs/2204.00315).
 """
-function problem(lib=CDDLib.Library(), dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = Infinity())
-    sys = system(lib, dt, Usz)
+function problem(;lib=CDDLib.Library(), dt=0.01, Usz=50, Wsz=5, x_0 = [1.8,-1.8], x_f = [-1.5, 1.0], N = Infinity(), simple=false)
+    sys = system(lib, dt, Usz, Wsz; simple=simple)
     n_sys = size(sys.resetmaps[1].A,1)
     n_u = size(sys.resetmaps[1].B,2)
-
+    if simple
+        x_0 = [-1.0,-0.6]
+        x_f = [-1.5, 1.0]
+    end
     state_cost = ZeroFunction()
     transition_cost = Fill(QuadraticStateControlFunction(Matrix{Float64}(I(n_sys)*(dt^2)),Matrix{Float64}(I(n_u)*(dt^2)),zeros(n_sys,n_u),zeros(n_sys),zeros(n_u),0.0),nmodes(sys))
     problem = OptimalControlProblem(

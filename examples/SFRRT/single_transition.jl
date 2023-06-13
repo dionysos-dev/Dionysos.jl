@@ -1,22 +1,25 @@
-# Warning : deprecated example, see https://github.com/dionysos-dev/Dionysos.jl/issues/221
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const CO = DI.Control
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
 
-using .Dionysos
-using Polyhedra
+const LEA = AB.LazyEllipsoidsAbstraction
+
+using LinearAlgebra, StaticArrays, Random, Symbolics, IntervalArithmetic
 using MathematicalSystems, HybridSystems
-using CDDLib
-using SemialgebraicSets
-using StaticArrays
-using LinearAlgebra
-using Plots
-using SDPA, JuMP
-using IntervalArithmetic
-UT = Dionysos.Utils
-SI = Dionysos.Symbolic
-
+using JuMP, Mosek, MosekTools, SDPA
+using Plots, Colors
+using CDDLib, SemialgebraicSets, Polyhedra
+Random.seed!(0)
 
 lib = CDDLib.Library() #polyhedron lib
 # aux functions
-eye(n) = diagm(ones(n)) # I matrix
 sm(M) = SMatrix{size(M,1),size(M,2)}(M)
 sv(M) = SVector{size(M,1)}(M)
 
@@ -32,37 +35,26 @@ function convert_H_into_E(Ub::IntervalBox)
     return U
 end
 
-function get_controllers_matrices(m)
-    return m[:, 1:end-1], m[:, end]
-end
 
-
-function get_f_eval(sys)
-    return f_eval(x, u, w) = sys.A*x+sys.B*u+sys.D*w+sys.c
-end
-function get_c_eval(kappa, c)
-    K, ℓ = get_controllers_matrices(kappa)
-    return c_eval(x) = K*(x-c)+ℓ
+function get_cost_eval()
+    return cost_eval(x, u) = u'*u
 end
 
 # for a two-dimensional state space system
-function plot_results_2D(sys, kappa, E1, E2)
+function plot_results_2D(sys, cont, E1, E2)
+    f_eval = ST.get_f_eval(sys)
     aff_sys = sys.constrainedAffineSys
-    f_eval = get_f_eval(aff_sys)
-    c_eval = get_c_eval(kappa, E1.c)
     
-    p = plot(aspect_ratio=:equal)
-    plot!(p, E1, color = :green)
-    plot!(p, E2, color = :blue)
-
-    K, ℓ = get_controllers_matrices(kappa)
-    Ef = UT.affine_transformation(E1, aff_sys.A+aff_sys.B*K, aff_sys.B*ℓ+aff_sys.c)
-    plot!(p, Ef, color = :red)
-    SI.plot_transitions!(E1, f_eval, c_eval, 1; N=100)
-    display(p)
+    fig = plot(aspect_ratio=:equal)
+    plot!(E1, color = :green)
+    plot!(E2, color = :blue)
+    Ef = UT.affine_transformation(E1, aff_sys.A+aff_sys.B*cont.K, aff_sys.B*cont.ℓ+aff_sys.c)
+    plot!(Ef, color = :red)
+    ST.plot_transitions!(E1, f_eval, cont.c_eval, 1; N=100)
+    display(fig)
 end
 
-function trial(dt, Ubound, Wmax, contraction, initial_vol)
+function trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
     ########## PWA approximation description ##########
     Ac = sm([0.0  1.0;;
              1.0 -1.0]);
@@ -102,8 +94,8 @@ function trial(dt, Ubound, Wmax, contraction, initial_vol)
     E2 = UT.Ellipsoid(Matrix{Float64}(I(nx))*(1/15), [3.0;3.0])
 
     ################################################################################
-    sys = Dionysos.System.build_AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
-    has_transition, kappa, cost = Dionysos.Symbolic.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
+    sys = ST.build_AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
+    has_transition, cont, cost = SY.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
     sr = 1.0
     println("Has transition: $(has_transition)")
     if has_transition
@@ -112,41 +104,35 @@ function trial(dt, Ubound, Wmax, contraction, initial_vol)
         println("s.r.:\t $(sr)")
     end
 
-    f_eval = get_f_eval(sys.constrainedAffineSys)
-    c_eval = get_c_eval(kappa, E1.c)
+    f_eval = ST.get_f_eval(sys)
+    c_eval = ST.get_c_eval(cont)
 
-    bool = SI.check_controller(E1, E2, f_eval, c_eval, nw, Ub; N=500) 
+    cost_eval = get_cost_eval()
+    bool = ST.check_feasibility(E1, E2, f_eval, c_eval, nw, Ub; N=100) 
     println(bool)
-    println(kappa)
 
+    fig = plot(aspect_ratio=:equal)
+    ST.plot_check_feasibility!(E1, E2, f_eval, c_eval, nw; N=100)
+    display(fig)
 
-    
-    plot_results_2D(sys, kappa, E1, E2)
-    K, ℓ = get_controllers_matrices(kappa)
-    EU = UT.affine_transformation(E1, K, ℓ)
-    println(EU)
-    println(Ub)
-    # p = plot(aspect_ratio=:equal)
-    # #UT.plotE!(EU)
+    fig = plot(aspect_ratio=:equal)
+    ST.plot_controller_cost!(E1, c_eval, cost_eval; N=4000, scale=0.004)
+    display(fig)
+
+    plot_results_2D(sys, cont, E1, E2)
+
 
     # U = sm([1/10.0])
     # println("JULIEN CALBERT")
     # println(size(U))
     # c = [0.0]
     # UEllipsoid = UT.DegenerateEllipsoid(U, c)
-    # UT.plotE!(UEllipsoid)
+    # plot!(UEllipsoid)
     
-    # #plot!(Ub)
-    # display(p)
-
+    # plot!(Ub)
 
 
     println()
-
-    
-
-    #SI.plot_check(E1, f_eval, c_eval, 1, E2; N=100)
-    #return has_transition, cost, sr
 end
 
 
@@ -161,7 +147,7 @@ Wmax = 0.0
 initial_vol = 10
 contraction = 0.8 #1.0
 
-trial(dt, Ubound, Wmax, contraction, initial_vol)
+trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
 
 
 
