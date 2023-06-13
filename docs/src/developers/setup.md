@@ -57,16 +57,18 @@ See [Start Julia Pkg prompt](@ref).
 (@v1.8) pkg> dev https://github.com/dionysos-dev/Dionysos.jl.git
 ```
 
-## Install the Revise.jl package
+## Install the Revise.jl and JuliaFormatter.jl packages
 
-We do it in the global environment so that it is available from all the environments.
+[Revise.jl](https://github.com/timholy/Revise.jl) reduces the need to restart your Julia REPL when you make changes in the source code. [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl) allows to format your code following the rules stated in `.JuliaFormatter.toml`.
+
+We install these two packages in the global environment so that it is available from all the environments.
 
 ### Julia REPL
 
 See [Start the Julia REPL](@ref).
 
 ```julia
-julia> using Pkg; Pkg.add("Revise")
+julia> using Pkg; Pkg.add("Revise"); Pkg.add("JuliaFormatter")
 ```
 
 ### Julia Pkg prompt
@@ -75,6 +77,7 @@ See [Start Julia Pkg prompt](@ref).
 
 ```julia
 (@v1.8) pkg> add Revise
+(@v1.8) pkg> add JuliaFormatter
 ```
 
 ## Open Dionysos
@@ -105,7 +108,7 @@ Once in a while you can also update with
   No Changes to `~/.julia/dev/Dionysos/docs/Manifest.toml`
 ```
 
-If you plan to change the documentation, it might be a good idea to use `Revise` (first [Install the Revise.jl package](@ref) if this was not already done):
+If you plan to change the documentation, it might be a good idea to use `Revise` (see [Install the Revise.jl and JuliaFormatter.jl packages](@ref)):
 ```julia
 julia> using Revise
 ```
