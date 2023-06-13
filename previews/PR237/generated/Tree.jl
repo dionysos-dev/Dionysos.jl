@@ -3,13 +3,9 @@ using LinearAlgebra, Plots, Colors
 using Dionysos
 UT = Dionysos.Utils
 
-function distance(E1, E2)
-    return UT.pointCenterDistance(E1, E2.c)
-end
+distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c)
 
-function get_action(E1, E2)
-    return (1.0, 1.0)
-end
+get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) =  (1.0, 1.0)
 
 Ellipsoids = [UT.Ellipsoid(Matrix{Float64}(I(2))*8.0, [-10.0;-10.0]),
               UT.Ellipsoid(Matrix{Float64}(I(2))*5.0, [0.0;-10.0]),
@@ -33,7 +29,7 @@ nNode6 = UT.add_closest_node!(tree, Ellipsoids[6], distance, get_action)
 nNode7 = UT.add_closest_node!(tree, Ellipsoids[7], distance, get_action)
 nNode8 = UT.add_closest_node!(tree, Ellipsoids[8], distance, get_action)
 
-UT.print_data(tree)
+println(tree)
 fig = plot(aspect_ratio=:equal)
 plot!(tree; arrowsB=true, cost=true)
 

@@ -14,14 +14,12 @@ using Dionysos
 UT = Dionysos.Utils
 
 # We define the underlying metric between node states
-function distance(E1, E2)
-    return UT.pointCenterDistance(E1, E2.c)
-end
+distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c)
+
 
 # We define the action function to compute a transition between two states
-function get_action(E1, E2)
-    return (1.0, 1.0)
-end
+get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) =  (1.0, 1.0)
+
 
 # We define the ellipsoids that will make up our tree states
 Ellipsoids = [UT.Ellipsoid(Matrix{Float64}(I(2))*8.0, [-10.0;-10.0]),
@@ -51,7 +49,7 @@ nNode7 = UT.add_closest_node!(tree, Ellipsoids[7], distance, get_action)
 nNode8 = UT.add_closest_node!(tree, Ellipsoids[8], distance, get_action)
 
 # Plot the tree
-UT.print_data(tree)
+println(tree)
 fig = plot(aspect_ratio=:equal)
 plot!(tree; arrowsB=true, cost=true)
 
