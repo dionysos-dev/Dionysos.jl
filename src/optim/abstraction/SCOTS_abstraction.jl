@@ -14,20 +14,20 @@ const PR = DI.Problem
 using JuMP
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+    concrete_problem::Union{Nothing, PR.ProblemType}
+    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
+    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
+    concrete_controller::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
-    problem::Union{Nothing, PR.ProblemType}
-    symmodel::Union{Nothing, SY.SymbolicModelList}
-    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    controller::Any
     function Optimizer{T}() where {T}
         return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing)
     end
 end
 Optimizer() = Optimizer{Float64}()
 
-MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
+MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     return setproperty!(model, Symbol(param.name), value)
@@ -36,96 +36,84 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function build_abstraction(system, state_grid::DO.Grid, input_grid::DO.Grid)
+function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.Grid)
     Xfull = DO.DomainList(state_grid)
-    DO.add_set!(Xfull, system.X, DO.INNER)
+    DO.add_set!(Xfull, concrete_system.X, DO.INNER)
     Ufull = DO.DomainList(input_grid)
-    DO.add_set!(Ufull, system.U, DO.CENTER)
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
-    @time SY.compute_symmodel_from_controlsystem!(symmodel, system.f)
-    return symmodel
+    DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
+    abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
+    @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+    return abstract_system
 end
 
 function build_abstract_problem(
-    problem::PR.OptimalControlProblem,
-    symmodel::SY.SymbolicModelList,
+    concrete_problem::PR.OptimalControlProblem,
+    abstract_system::SY.SymbolicModelList,
 )
-    state_grid = symmodel.Xdom.grid
+    state_grid = abstract_system.Xdom.grid
     Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
+    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
     Xtarget = DO.DomainList(state_grid)
-    DO.add_subset!(Xtarget, symmodel.Xdom, problem.target_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]
-    target_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xtarget)]
+    DO.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, DO.INNER)
+    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
+    target_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xtarget)]
     return PR.OptimalControlProblem(
-        symmodel,
+        abstract_system,
         init_list,
         target_list,
-        problem.state_cost, # TODO this is the continuous cost, not the abstraction
-        problem.transition_cost, # TODO this is the continuous cost, not the abstraction
-        problem.time, # TODO this is the continuous time, not the number of transition
+        concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
+        concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
+        concrete_problem.time, # TODO this is the continuous time, not the number of transition
     )
 end
 
-function build_abstract_problem(problem::PR.SafetyProblem, symmodel::SY.SymbolicModelList)
-    state_grid = symmodel.Xdom.grid
+function build_abstract_problem(concrete_problem::PR.SafetyProblem, abstract_system::SY.SymbolicModelList)
+    state_grid = abstract_system.Xdom.grid
     Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, symmodel.Xdom, problem.initial_set, DO.OUTER)
+    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
     Xsafe = DO.DomainList(state_grid)
-    DO.add_subset!(Xsafe, symmodel.Xdom, problem.safe_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]
-    safe_list = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xsafe)]
+    DO.add_subset!(Xsafe, abstract_system.Xdom, concrete_problem.safe_set, DO.INNER)
+    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
+    safe_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xsafe)]
     return PR.SafetyProblem(
-        symmodel,
+        abstract_system,
         init_list,
         safe_list,
-        problem.time, # TODO this is the continuous time, not the number of transition
+        concrete_problem.time, # TODO this is the continuous time, not the number of transition
     )
 end
 
-function _compute_controller!(controller, discrete_problem::PR.OptimalControlProblem)
+function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
+    abstract_controller = CO.NewControllerList()
     CO.compute_controller_reach!(
-        controller,
-        discrete_problem.system.autom,
-        discrete_problem.initial_set,
-        discrete_problem.target_set,
+        abstract_controller,
+        abstract_problem.system.autom,
+        abstract_problem.initial_set,
+        abstract_problem.target_set,
     )
-    return
+    return abstract_controller
 end
 
-function _compute_controller!(controller, discrete_problem::PR.SafetyProblem)
+function solve_abstract_problem(abstract_problem::PR.SafetyProblem)
+    abstract_controller = CO.NewControllerList()
     CO.compute_controller_safe!(
-        controller,
-        discrete_problem.system.autom,
-        discrete_problem.initial_set,
-        discrete_problem.safe_set,
+        abstract_controller,
+        abstract_problem.system.autom,
+        abstract_problem.initial_set,
+        abstract_problem.safe_set,
     )
-    return
+    return abstract_controller
 end
 
-function MOI.optimize!(optimizer::Optimizer)
-    # Design the abstraction
-    symmodel = build_abstraction(
-        optimizer.problem.system,
-        optimizer.state_grid,
-        optimizer.input_grid,
-    )
-    optimizer.symmodel = symmodel
-    # Design the abstract problem
-    abstract_problem = build_abstract_problem(optimizer.problem, symmodel)
-    optimizer.abstract_problem = abstract_problem
-    # Solve the abstract problem
-    optimizer.abstract_controller = CO.NewControllerList()
-    @time _compute_controller!(optimizer.abstract_controller, abstract_problem)
-    # Refine the abstract controllerto the concrete controller
-    function controller(x; param = false)
-        xpos = DO.get_pos_by_coord(symmodel.Xdom.grid, x)
-        if !(xpos ∈ symmodel.Xdom)
+function solve_concrete_problem(abstract_system, abstract_controller)
+    function concrete_controller(x; param = false)
+        xpos = DO.get_pos_by_coord(abstract_system.Xdom.grid, x)
+        if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain")
             return nothing
         end
-        source = SY.get_state_by_xpos(symmodel, xpos)
-        symbollist = UT.fix_and_eliminate_first(optimizer.abstract_controller, source)
+        source = SY.get_state_by_xpos(abstract_system, xpos)
+        symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return nothing
@@ -135,11 +123,28 @@ function MOI.optimize!(optimizer::Optimizer)
         else
             symbol = first(symbollist)[1]
         end
-        upos = SY.get_upos_by_symbol(symmodel, symbol)
-        u = DO.get_coord_by_pos(symmodel.Udom.grid, upos)
+        upos = SY.get_upos_by_symbol(abstract_system, symbol)
+        u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
         return u
     end
-    optimizer.controller = controller
+end
+
+function MOI.optimize!(optimizer::Optimizer)
+    # Build the abstraction
+    abstract_system = build_abstraction(
+        optimizer.concrete_problem.system,
+        optimizer.state_grid,
+        optimizer.input_grid,
+    )
+    optimizer.abstract_system = abstract_system
+    # Build the abstract problem
+    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
+    optimizer.abstract_problem = abstract_problem
+    # Solve the abstract problem
+    abstract_controller = solve_abstract_problem(abstract_problem)
+    optimizer.abstract_controller = abstract_controller
+    # Solve the concrete problem
+    optimizer.concrete_controller = solve_concrete_problem(abstract_system, abstract_controller)
     return
 end
 

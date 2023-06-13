@@ -66,7 +66,7 @@ dt = 0.01; # discretization step
 
 concrete_problem =
     PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
-system = concrete_problem.system
+concrete_system = concrete_problem.system
 
 # Abstraction parameters
 # This is state-space is defined by the `HyperRectangle rectX`. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells $\mathcal{X}_d$, given it's determinism. 
@@ -75,12 +75,12 @@ system = concrete_problem.system
 n_step = 3
 X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
-nx = size(system.resetmaps[1].A, 1)
+nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, system.ext[:X]);
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
@@ -92,17 +92,18 @@ using Suppressor
 end
 
 # Get the results
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
+concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"))
 transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
-transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
-lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"));
 
 # ## Define the mapping function
 #Return pwa mode for a given x
-get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
+get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 function f_eval1(x, u)
     currState = SY.get_all_states_by_xpos(
         abstract_system,
@@ -119,9 +120,9 @@ function f_eval1(x, u)
         SY.get_xpos_by_state(abstract_system, next_action[1]),
     )
     m = get_mode(c)
-    W = system.ext[:W]
+    W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
-    return system.resetmaps[m].A * x + system.resetmaps[m].B * u + system.resetmaps[m].c + w
+    return concrete_system.resetmaps[m].A * x + concrete_system.resetmaps[m].B * u + concrete_system.resetmaps[m].c + w
 end
 
 function cost_eval(x, u)
@@ -156,14 +157,14 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
     nstep;
     stopping = reached,
 )
-cost_bound = AB.EllipsoidsAbstraction.get_guaranteed_cost(optimizer, x0)
+cost_bound = concrete_lyap_fun(x0)
 cost_true = sum(cost_traj);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
 # ### Visualize the results. 
-rectX = system.ext[:X];
+rectX = concrete_system.ext[:X];
 
 # ## Display the specifications and domains
 fig = plot(;
@@ -223,10 +224,10 @@ ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
-plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = lyap_fun);
+plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = optimizer.lyap);
 plot!(UT.DrawTrajectory(x_traj); color = :black)
 
-@test cost_bound ≈ 2.35825 rtol = 1e-3      #src
+@test cost_bound ≈ 2.35825 rtol = 1e-3    #src
 @test cost_true <= cost_bound             #src
 
 # ## References
