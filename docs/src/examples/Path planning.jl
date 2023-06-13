@@ -115,7 +115,7 @@ fig = plot(aspect_ratio=:equal);
 plot!(concrete_problem.system.X, color=:yellow, opacity=0.5);
 
 # We display the abstract domain
-plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5);
 
 # We display the concrete specifications
 plot!(concrete_problem.initial_set, color=:green, opacity=0.2);
