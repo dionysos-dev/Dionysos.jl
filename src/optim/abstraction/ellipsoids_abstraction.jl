@@ -2,6 +2,9 @@ export EllipsoidsAbstraction
 
 module EllipsoidsAbstraction
 
+using LinearAlgebra
+using JuMP
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -11,16 +14,15 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-using JuMP
-using LinearAlgebra
-
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
     problem::Union{Nothing, PR.OptimalControlProblem}
     symmodel::Union{Nothing, SY.SymbolicModelList}
     transitionCost::Union{Nothing, Dict}
-    transitionKappa::Union{Nothing, Dict}
-    controller::Union{Nothing,UT.SortedTupleSet{2,NTuple{2,Int}}}
+    transitionCont::Union{Nothing, Dict}
+    abstract_problem::Union{Nothing, PR.OptimalControlProblem}
+    abstract_controller::Union{Nothing, UT.SortedTupleSet{2,NTuple{2,Int}}}
+    concrete_controller
     lyap_fun::Union{Nothing, Any}
     ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
@@ -35,9 +37,12 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
         )
     end
 end
+
 Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
@@ -54,120 +59,155 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     getproperty(model, Symbol(param.name))
 end
 
+function get_guaranteed_cost(optimizer::Optimizer, x)
+    symmodel = optimizer.symmodel
+    state_grid = symmodel.Xdom.grid
+    l_state = SY.get_all_states_by_xpos(symmodel, DO.crop_to_domain(symmodel.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
+    lyap_fun = optimizer.lyap_fun
+    lyap_min = Inf
+    for state in l_state
+        lyap = lyap_fun[state]
+        lyap<lyap_min ? lyap_min = lyap : lyap_min=lyap_min
+    end
+    return lyap_min
+end
+
 function build_abstraction(
     problem,
     state_grid::DO.GridEllipsoidalRectangular,
     opt_sdp::MOI.OptimizerWithAttributes,
     opt_ip::MOI.OptimizerWithAttributes
 )
-    system = problem.system
-    # Instantiate $\mathcal{X}_d$ as `domainX`
-    
+    system = problem.system    
+    # The state space
     domainX = DO.DomainList(state_grid); # state space
-    DO.add_set!(domainX, state_grid.rect, DO.OUTER)
+    X = system.ext[:X]
+    DO.add_set!(domainX, X, DO.INNER) 
+    
+    # The input space 
+    domainU = domainX; 
+    DO.add_set!(domainU, state_grid.rect, DO.INNER) 
 
-    # the input space 
-
-    domainU = domainX; # input space
-    DO.add_set!(domainU, state_grid.rect, DO.OUTER)
-
-    #and the symbolic model for the state-feedback abstraction $\tilde{\mathcal{S}}$
+    # The symbolic model for the state-feedback abstraction
     symmodel = SY.NewSymbolicModelListList(domainX, domainU);
     empty!(symmodel.autom)
 
-    
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
     Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
     eigen_Q = eigen(Q_aug);
     L = (sqrt.(eigen_Q.values).*(eigen_Q.vectors'))'
 
     # ## Building the abstraction
-
     # We then initialize the dictionaries for saving the cost and the controller associated with each transition in the abstraction
-
-    transitionCost = Dict()  #dictionary with cost of each transition
-    transitionKappa = Dict() #dictionary with controller associated each transition
-
-
-    # and finally build the state-feedback abstraction 
- 
+    transitionCont = Dict() # dictionary with controller associated each transition
+    transitionCost = Dict() # dictionary with cost of each transition
+    # And finally build the state-feedback abstraction 
     U = system.ext[:U]
     W = system.ext[:W]
-    t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(symmodel,transitionCost, transitionKappa, system, W, L, U, opt_sdp, opt_ip);
- 
-    # println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
-    symmodel, transitionCost, transitionKappa
+    t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(symmodel, transitionCont, transitionCost, system, W, L, U, opt_sdp, opt_ip);
+    println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
+    symmodel, transitionCont, transitionCost
 end
- 
-function MOI.optimize!(optimizer::Optimizer)
-    problem = optimizer.problem
-    system = problem.system
-    state_grid = optimizer.state_grid
-    symmodel, transitionCost, transitionKappa = build_abstraction(problem, state_grid, optimizer.sdp_solver, optimizer.ip_solver)
-    optimizer.symmodel = symmodel
-    optimizer.transitionCost = transitionCost
-    optimizer.transitionKappa = transitionKappa
-    
-    # Now let us prepare to synthesize our controller. Define the specifications
-    
 
+function build_abstract_problem(
+    problem::PR.OptimalControlProblem,
+    symmodel::SY.SymbolicModelList
+)
+    state_grid = symmodel.Xdom.grid
     Xinit = DO.DomainList(state_grid) # set of initial cells
     DO.add_coord!(Xinit, problem.initial_set)
 
     Xfinal = DO.DomainList(state_grid) # set of target cells
     DO.add_coord!(Xfinal, Vector(problem.target_set))
 
-    Xobstacles = DO.DomainList(state_grid) # set of obstacle cells
-    for o in system.ext[:obstacles]
-        DO.add_set!(Xobstacles, o, DO.OUTER) 
-    end
-
     initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]; 
     finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)];
-    obstaclelist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xobstacles)];
+
+    return PR.OptimalControlProblem(
+        symmodel,
+        initlist,
+        finallist,
+        problem.state_cost, 
+        problem.transition_cost, 
+        problem.time,
+    )
+end
 
 
-    # ## Control synthesis
-
-    # Before synthesizing our controller let us define this auxiliary function to transform the transition cost from Dict to Vector{Tuple{String, String, Int64}} and use it. It also removes states associated with obstacles in $\mathcal{O}$
-
-    function transFdict(transitionCost)
-        testgraph = Vector{Tuple{Int64, Int64, Float64}}()
-        for (key, value) in transitionCost
-            
-            if key[2] ∉ obstaclelist
-                push!(testgraph,((key[1]),(key[2]),value))
-            end
-        end
-        return testgraph
+# Before synthesizing our controller let us define this auxiliary function to transform the transition cost from Dict to Vector{Tuple{String, String, Int64}}
+function transFdict(transitionCost)
+    testgraph = Vector{Tuple{Int64, Int64, Float64}}()
+    for (key, value) in transitionCost
+        push!(testgraph,((key[1]),(key[2]), value))
     end
+    return testgraph
+end
 
+# We perform the synthesis of the discrete controller through Dijkstra's algorithm to the reversed graph associated to the abstraction
+function solve_abstract_problem(abstract_problem, transitionCost)
     testgraph = transFdict(transitionCost); # uses said function
-
-
-    # We perform the synthesis of the discrete controller through Dijkstra's algorithm to the reversed graph associated to the abstraction $\tilde{\mathcal{S}}$
-
-    controller = CO.NewControllerList();
-
-    src, dst = initlist[1], finallist[1] # initial and goal sets
+    src, dst = abstract_problem.initial_set[1], abstract_problem.target_set[1]
 
     rev_graph = [(t[2],t[1],t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
 
     gc = UT.Digraph(rev_graph) 
     t = @elapsed rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src) # gets optimal path
     path = reverse(rev_path)
-
-
     # println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
-
-    # We create the list of control actions along the optimal path
+    abstract_controller = CO.NewControllerList();
     for l = 1:length(path)-1 
         new_action = (path[l], path[l+1])
-        UT.push_new!(controller, new_action)
+        UT.push_new!(abstract_controller, new_action)
     end
-    optimizer.controller = controller
+    println("Abstract controller computed with: ", path[end]==dst ? "succes" : "failure")
+    return abstract_controller, lyap_fun
+end
+
+function solve_concrete_problem(symmodel, abstract_controller, transitionCont)
+    state_grid = symmodel.Xdom.grid
+    function concrete_controller(x)
+        currState = SY.get_all_states_by_xpos(symmodel, DO.crop_to_domain(symmodel.Xdom, DO.get_all_pos_by_coord(state_grid, x)))
+        next_action = nothing
+        for action in abstract_controller.data
+            if (action[1] ∩ currState) ≠ []
+                    next_action = action
+            end
+        end
+        c_eval = ST.get_c_eval(transitionCont[next_action])
+        return c_eval(x)
+    end
+    return concrete_controller
+end
+
+function MOI.optimize!(optimizer::Optimizer)
+    concrete_problem = optimizer.problem
+    state_grid = optimizer.state_grid
+    # design the abstraction
+    symmodel, transitionCont, transitionCost = build_abstraction(concrete_problem, state_grid, optimizer.sdp_solver, optimizer.ip_solver)
+    optimizer.symmodel = symmodel
+    optimizer.transitionCont = transitionCont
+    optimizer.transitionCost = transitionCost
+    # design the abstract problem
+    abstract_problem = build_abstract_problem(concrete_problem, symmodel)
+    optimizer.abstract_problem = abstract_problem
+    # solve the abstract problem
+    abstract_controller, lyap_fun = solve_abstract_problem(abstract_problem, transitionCost)
+    optimizer.abstract_controller = abstract_controller
     optimizer.lyap_fun = lyap_fun
+    # solve the concrete problem
+    optimizer.concrete_controller = solve_concrete_problem(symmodel, abstract_controller, transitionCont)
     return 
 end
+
+
+
+
+
+
+
+
+
+
+
 
 end

@@ -14,7 +14,7 @@ struct Ellipsoid{T<:Real,MT<:AbstractMatrix{T},VT<:AbstractVector{T}}
         if !isposdef(M) # see if delete this test
             error("matrix must be positive definite")
         end
-        return new{T,MT,VT}(M,c)
+        return new{T,MT,VT}(M, c)
     end
 end
 
@@ -207,7 +207,7 @@ function get_min_bounding_box(elli::Ellipsoid; optimizer=nothing)
     return box
 end
 
-function sample_ellipsoid(elli::Ellipsoid; N=500)
+function sample(elli::Ellipsoid; N=500)
     box = get_min_bounding_box(elli)
     points = [sample_box(box) for i in 1:N]
     filter!(x->x∈elli, points)

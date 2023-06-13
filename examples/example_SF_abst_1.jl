@@ -1,12 +1,12 @@
-using Dionysos
-using Polyhedra
-using MathematicalSystems, HybridSystems
-using CDDLib
-using SemialgebraicSets
-using StaticArrays
-using LinearAlgebra
+using StaticArrays, LinearAlgebra, Polyhedra
 using Plots
-using SDPA, JuMP
+using JuMP, SDPA
+using MathematicalSystems, HybridSystems, SemialgebraicSets, CDDLib 
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const SY = DI.Symbolic
 
 # Example to illustrate the cost of a transition between two ellispoids as a function of meta-parameters
 # such as the volume of the initial ellispoid and the contraction factor
@@ -20,7 +20,7 @@ sv(M) = SVector{size(M,1)}(M)
 
 optimizer = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
-function trial(dt,Usz,Wmax,contraction,initial_vol)
+function trial(dt, Usz, Wmax, contraction, initial_vol)
       # Define system
       Ac = sm([0.0  1.0  0.0;
                0.0  0.0  1.0;
@@ -46,15 +46,9 @@ function trial(dt,Usz,Wmax,contraction,initial_vol)
       Uaux = diagm(1:n_u)
       U = [(Uaux.==i)./Usz for i in 1:n_u];
 
-
-
-
       W = Wmax*hcat(collect.(vec(collect(Iterators.product(eachrow(repeat([-1 1],n_sys))...))))...); # polytope of disturbances
 
       L = [eye(n_sys+n_u) zeros(n_sys+n_u,1)]*dt;
-
-
-
 
       repX = intersect(HalfSpace(SVector{n_sys}(zeros(n_sys,1)), 0))
       pX = polyhedron(repX, lib);
@@ -64,22 +58,18 @@ function trial(dt,Usz,Wmax,contraction,initial_vol)
 
       system = ConstrainedAffineControlDiscreteSystem(A, B, g, pX, pU) 
 
-      is_controllable, K0, P0, gamma = Dionysos.Symbolic._provide_P(system, optimizer);
+      is_controllable, K0, P0, gamma = SY._provide_P(system, optimizer);
 
-      vol_P0 = Dionysos.Symbolic.ellipsoid_vol(P0,1)
+      vol_P0 = SY.ellipsoid_vol(P0, 1)
       P = P0*(vol_P0/initial_vol)^(2/n_sys)
       #println(round.(P,digits=4))
       Pp = P*contraction
-      c = hcat([0.0;0.0;0.0]);
+      c = SVector(0.0, 0.0, 0.0) 
       #cp =B*5
-      cp =hcat([0.1;0.5;1.9]);
-      if (cp'P*cp)[1] ≤ 1
-            println("cp in B_s")
-      end
-
-      has_transition, cost, kappa = Dionysos.Symbolic._has_transition(system,P,c,Pp,cp,W,L,U,optimizer)
-      K = kappa[:,1:n_sys];
-      ell = kappa[:,n_sys+1];
+      cp = SVector(0.1, 0.5, 1.9) 
+      has_transition, cont, cost = SY._has_transition(system, UT.Ellipsoid(P, c), UT.Ellipsoid(Pp, cp), U, W, L, optimizer)
+      K = cont.K
+      ell = cont.ℓ
       sr = max(abs.(eigen(A+B*K).values)...);
       println("Has transition: $(has_transition)")
       if has_transition

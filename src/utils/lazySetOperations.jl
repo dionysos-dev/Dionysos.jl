@@ -4,9 +4,27 @@ struct LazySetMinus{SA, SB}
     B::SB
 end
 
+function get_B(LSM::LazySetMinus)
+    return LSM.B
+end
+
 # LazySetMinus = sets[1] ∪ sets[2] ∪ ... ∪ sets[n]
 struct LazyUnionSetArray{S}
     sets::Vector{S}
+end
+
+import Base.isempty
+
+function isempty(A::LazyUnionSetArray)
+    return Base.isempty(A.sets)
+end
+
+function get_sets(A::LazyUnionSetArray)
+    if isempty(A)
+        return []
+    else
+        return A.sets
+    end
 end
 
 function Plots.plot!(sets::LazyUnionSetArray{S}; dims=[1,2], color=:yellow, opacity=0.2) where {S}
@@ -16,7 +34,10 @@ function Plots.plot!(sets::LazyUnionSetArray{S}; dims=[1,2], color=:yellow, opac
 end
 
 # Computes (A1 ∪ A2 ∪ ... ∪ An) ∩ B = (A1 ∩ B) ∪ (A2 ∩ B) ∪ ... ∪ (An ∩ B)
-function Base.intersect(A::LazyUnionSetArray, B)    
+function Base.intersect(A::LazyUnionSetArray, B)   
+    if isempty(A)
+        return LazyUnionSetArray([])
+    end
     sets = typeof(A.sets[1])[]
     for set in A.sets
         push!(sets, B ∩ set)

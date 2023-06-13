@@ -48,7 +48,7 @@ end
 # degenerate ellipsoid and can be visualized as a line segment
 @recipe function f(e::DegenerateEllipsoid)
     if !is_degenerate(e)
-        return Ellipsoid(e.P, E.c)
+        return Ellipsoid(e.P, e.c)
     end
 
     color   := :blue
