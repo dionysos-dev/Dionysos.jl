@@ -56,6 +56,7 @@ transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
 transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("lyap_fun"));
 
+#Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), system.resetmaps)
 function f_eval1(x, u)
       currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
@@ -78,8 +79,6 @@ function cost_eval(x, u)
       return x_aug'Q_aug*x_aug
 end
 
-### Simulation
-
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
 function reached(x)
     currState = SY.get_all_states_by_xpos(abstract_system, DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid , x)))
@@ -98,10 +97,8 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-### Visualize the results.
 rectX = system.ext[:X];
 
-# Display the specifications and domains
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
 ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);
@@ -119,15 +116,12 @@ plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), 
 plot!(UT.DrawPoint(concrete_problem.initial_set), color=:green, opacity=1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set), color=:red, opacity=1.0)
 
-# Display the abstraction
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
 ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);
 title!("Abstractions");
 plot!(abstract_system; arrowsB=true, cost=false)
 
-
-# Display the Lyapunov function and the trajectory
 fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16, titlefontsize=14);
 xlims!(rectX.A.lb[1]-0.2, rectX.A.ub[1]+0.2);
 ylims!(rectX.A.lb[2]-0.2, rectX.A.ub[2]+0.2);

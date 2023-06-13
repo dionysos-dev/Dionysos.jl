@@ -54,7 +54,7 @@ fig = plot(aspect_ratio=:equal);
 
 plot!(concrete_problem.system.X, color=:yellow, opacity=0.5);
 
-plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5);
 
 plot!(concrete_problem.initial_set, color=:green, opacity=0.2);
 plot!(concrete_problem.target_set; dims=[1,2], color=:red, opacity=0.2);
