@@ -4,15 +4,10 @@
 # See https://github.com/dionysos-dev/Dionysos.jl
 #############################################################################
 
+using StaticArrays, LinearAlgebra, Polyhedra, SpecialFunctions
+using HybridSystems, ProgressMeter, IntervalArithmetic, LazySets
 using JuMP
-using LinearAlgebra
-using Polyhedra
-using HybridSystems
-using SpecialFunctions
-using ProgressMeter
-using IntervalArithmetic
-using LazySets
-using StaticArrays
+
 using ..Domain
 using ..Utils
 UT = Utils
@@ -107,7 +102,7 @@ function hasTransition(c, u, Ep::UT.Ellipsoid, subsys::AffineSys, L, S, U, maxRa
     [eye(n)   t(C)
      C       r*eye(n) ] >= eye(n*2)*1e-4, PSDCone())
     
-#     @constraint(model,diag(C).>=ones(n,1)*0.01)
+     # @constraint(model,diag(C).>=ones(n,1)*0.01)
      @constraint(model, r<=maxRadius^2)
      @constraint(model, δu<=maxΔu^2)
      @constraint(model,diag(C).>=ones(n,1)*ϵ)
@@ -115,13 +110,10 @@ function hasTransition(c, u, Ep::UT.Ellipsoid, subsys::AffineSys, L, S, U, maxRa
      @objective(model, Min, -ϵ+λ*J)# -tr(C)) #TODO regularization ? 
 
     optimize!(model)
-    # println(solution_summary(model))
     if solution_summary(model).termination_status == MOI.OPTIMAL
         C = value.(C)
         El = UT.Ellipsoid(transpose(C)\eye(n)/C, c)
         kappa = [value.(F)/(C) value.(ell)];
-        # K, ℓ = get_controller_matrices(kappa)
-        # cont = ST.AffineController(K, c, ℓ)
         cost = value(J);
     else
         El = nothing
@@ -129,7 +121,6 @@ function hasTransition(c, u, Ep::UT.Ellipsoid, subsys::AffineSys, L, S, U, maxRa
         cost = nothing
     end
     # println("$(solution_summary(model).solve_time) s")
-    # return El, cont, cost
     return El, kappa, cost 
 end
 

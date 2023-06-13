@@ -194,15 +194,13 @@ function add_closest_node!(tree::Tree, state, distance, get_action)
     return newNode
 end
 
-
-function print_data(tree::Tree)
-    println()
-    println("Number of nodes  : ", get_nNodes(tree))
-    println("Number of leaves : ", get_nLeaves(tree))
-    println("Maximum value    : ", get_max_Node(tree).path_cost)
-    println("Minimal value    : ", get_min_Node(tree).path_cost)
-    println()
+function Base.show(io::IO, tree::Tree)
+    println(io, "Number of nodes  : ", get_nNodes(tree))
+    println(io, "Number of leaves : ", get_nLeaves(tree))
+    println(io, "Minimal value    : ", get_min_Node(tree).path_cost)
+    println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
+
 
 @recipe function f(node::NodeT; pathB=false, cost=true)
     path = get_path(node)
