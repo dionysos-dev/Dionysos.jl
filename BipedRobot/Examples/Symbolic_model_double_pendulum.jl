@@ -20,7 +20,6 @@ transpose(params)
 # ## Create double pendulum `Mechanism`
 # A `Mechanism` contains the joint layout and inertia parameters, but no state information.
 
-
 T = Num # the 'type' of the Mechanism we'll construct
 axis = SVector(zero(T), one(T), zero(T)) # axis of rotation for each of the joints
 double_pendulum = Mechanism(RigidBody{T}("world"); gravity = SVector(zero(T), zero(T), g))
@@ -41,27 +40,29 @@ The `com` and `mass` keyword arguments are required, as well as exactly one of `
 """
 
 ## The method for creating the QuaternionFloating joint was developed in my personal code
-inertia1 = SpatialInertia(CartesianFrame3D("upper_link"),
-    moment=I_1 * axis * transpose(axis),
-    com=SVector(zero(T), zero(T), c_1),
-    mass=m_1)
+inertia1 = SpatialInertia(
+    CartesianFrame3D("upper_link");
+    moment = I_1 * axis * transpose(axis),
+    com = SVector(zero(T), zero(T), c_1),
+    mass = m_1,
+)
 body1 = RigidBody(inertia1)
 joint1 = Joint("shoulder", Revolute(axis))
 joint1_to_world = one(Transform3D{T}, frame_before(joint1), default_frame(world)); # basically this transform is the identity because the joint coordinate coincides with the origin of the world
-attach!(double_pendulum, world, body1, joint1,
-    joint_pose = joint1_to_world);
+attach!(double_pendulum, world, body1, joint1; joint_pose = joint1_to_world);
 
 # Attach the second (lower) link to the world via a revolute joint named 'elbow'
-inertia2 = SpatialInertia(CartesianFrame3D("lower_link"),
-    moment=I_2 * axis * transpose(axis),
-    com=SVector(zero(T), zero(T), c_2),
-    mass=m_2)
+inertia2 = SpatialInertia(
+    CartesianFrame3D("lower_link");
+    moment = I_2 * axis * transpose(axis),
+    com = SVector(zero(T), zero(T), c_2),
+    mass = m_2,
+)
 body2 = RigidBody(inertia2)
 joint2 = Joint("elbow", Revolute(axis))
-joint2_to_body1 = Transform3D(
-    frame_before(joint2), default_frame(body1), SVector(zero(T), zero(T), l_1))
-attach!(double_pendulum, body1, body2, joint2,
-    joint_pose = joint2_to_body1)
+joint2_to_body1 =
+    Transform3D(frame_before(joint2), default_frame(body1), SVector(zero(T), zero(T), l_1))
+attach!(double_pendulum, body1, body2, joint2; joint_pose = joint2_to_body1)
 
 ## Export URDF
 # write_urdf("test.urdf", double_pendulum; robot_name="double_pendulum", include_root=true)
@@ -78,7 +79,6 @@ q = configuration(x)
 q_s = Symbolics.variables(:q, 1:length(configuration(x)))
 set_configuration!(x, q_s) # starting a pass initial configuration for i in eachindex(q)
 q = configuration(x)
-
 
 # Velocities vector
 v = velocity(x)
@@ -111,7 +111,7 @@ simplify.(dynamics_bias(x))
 v̇ = similar(v) # the joint acceleration vector, i.e., the time derivative of the joint velocity vector v
 a_s = Symbolics.variables(:v̇, 1:length(velocity(x)))
 
-for l = 1:length(v̇)
+for l in 1:length(v̇)
     v̇[l] = a_s[l]
 end
 
@@ -119,4 +119,4 @@ simplify.(inverse_dynamics(x, v̇)) # this gives you τ
 
 ## M(q)v̇ +c(q,v,w) = τ, where q is the joint configuration vector (angles), v is the joint velocity vector, and v̇ is the joint. Furthermore, c(q,v,w) 
 ## is the Coriolis tensor, which embeds viscous friction torques and possible external signals (disturbances) w and effects of gravity. 
-simplify.(inverse_dynamics(x, v̇))+simplify.(dynamics_bias(x))
+simplify.(inverse_dynamics(x, v̇)) + simplify.(dynamics_bias(x))

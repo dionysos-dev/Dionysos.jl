@@ -18,7 +18,7 @@ abstract type AbstractQueue{T} end
 
 function extend!(Q::AbstractQueue, items)
     for item in items
-         append!(Q,item)
+        append!(Q, item)
     end
 end
 
@@ -28,8 +28,8 @@ Return an empty list, suitable as a Last-In-First-Out Queue.
 struct MyStack{T}
     e::Stack{T}
 end
-MyStack{T}() where T = MyStack{T}(Stack{T}())
-append!(s::MyStack{T}, item::T) where T = push!(s.e,item)
+MyStack{T}() where {T} = MyStack{T}(Stack{T}())
+append!(s::MyStack{T}, item::T) where {T} = push!(s.e, item)
 Base.pop!(s::MyStack) = pop!(s.e)
 Base.isempty(s::MyStack) = isempty(s.e)
 Base.length(s::MyStack) = length(s.e)
@@ -39,7 +39,7 @@ Base.empty!(s::MyStack) = (empty!(s.e); s)
 Base.:(==)(x::MyStack, y::MyStack) = x.e == y.e
 function extend!(Q::MyStack, items)
     for item in items
-         append!(Q,item)
+        append!(Q, item)
     end
 end
 
@@ -49,8 +49,8 @@ A First-In-First-Out Queue.
 struct FIFOQueue{T}
     e::Queue{T}
 end
-FIFOQueue{T}() where T = FIFOQueue{T}(Queue{T}())
-append!(q::FIFOQueue{T}, item::T) where T = enqueue!(q.e,item)
+FIFOQueue{T}() where {T} = FIFOQueue{T}(Queue{T}())
+append!(q::FIFOQueue{T}, item::T) where {T} = enqueue!(q.e, item)
 Base.pop!(q::FIFOQueue) = dequeue!(q.e)
 Base.isempty(q::FIFOQueue) = isempty(q.e)
 Base.length(q::FIFOQueue) = length(q.e)
@@ -60,7 +60,7 @@ Base.empty!(q::FIFOQueue) = (empty!(q.e); q)
 Base.:(==)(x::FIFOQueue, y::FIFOQueue) = x.e == y.e
 function extend!(Q::FIFOQueue, items)
     for item in items
-         append!(Q,item)
+        append!(Q, item)
     end
 end
 
@@ -70,13 +70,15 @@ is returned first. Keys of type T and priorities of type V.
 """
 struct MyPriorityQueue{T, V}
     e::PriorityQueue{T, V}
-    f
-    ext
+    f::Any
+    ext::Any
 end
 
 #check if it faster witn BinaryMinHeap or with a self-made implementation
-MyPriorityQueue{T,V}(f,ext) where {T,V} = MyPriorityQueue{T,V}(PriorityQueue{T,V}(),f,ext)
-append!(pq::MyPriorityQueue{T,V}, item::T) where {T,V} = enqueue!(pq.e,item,pq.f(item,pq.ext))
+MyPriorityQueue{T, V}(f, ext) where {T, V} =
+    MyPriorityQueue{T, V}(PriorityQueue{T, V}(), f, ext)
+append!(pq::MyPriorityQueue{T, V}, item::T) where {T, V} =
+    enqueue!(pq.e, item, pq.f(item, pq.ext))
 dequeue_pair!(pq::MyPriorityQueue) = dequeue_pair!(pq.e)
 Base.pop!(pq::MyPriorityQueue) = dequeue!(pq.e)
 Base.isempty(pq::MyPriorityQueue) = isempty(pq.e)
@@ -87,6 +89,6 @@ Base.empty!(pq::MyPriorityQueue) = (empty!(pq.e); pq)
 Base.:(==)(x::MyPriorityQueue, y::MyPriorityQueue) = x.e == y.e
 function extend!(pq::MyPriorityQueue, items)
     for item in items
-         append!(pq,item)
+        append!(pq, item)
     end
 end

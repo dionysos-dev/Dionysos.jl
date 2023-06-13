@@ -24,8 +24,8 @@ function Base.summary(io::IO, set::BitSet)
 end
 
 Base.eltype(::Type{BitSet}) = Int
-Base.empty(::BitSet, ::Type{Int}=Int) = BitSet()
-Base.emptymutable(::BitSet, ::Type{Int}=Int) = BitSet()
+Base.empty(::BitSet, ::Type{Int} = Int) = BitSet()
+Base.emptymutable(::BitSet, ::Type{Int} = Int) = BitSet()
 Base.isempty(set::BitSet) = set.root === CUDD.Cudd_ReadLogicZero(set.manager)
 function Base.empty!(set::BitSet)
     set.root = CUDD.Cudd_ReadLogicZero(set.manager)
@@ -35,7 +35,7 @@ Base.IteratorSize(::BitSet) = Base.SizeUnknown()
 
 phase_rem(x, set::BitSet) = phase_rem(x, length(set.variables))
 
-function Base.iterate(set::BitSet, state::Int=0)
+function Base.iterate(set::BitSet, state::Int = 0)
     phase, x = phase_rem(state, set)
     if iszero(x)
         if _in(phase, set)
@@ -58,7 +58,8 @@ function phase!(set::BitSet, x::Int)
         # the same as `bddAddVar`.
         var = CUDD.Cudd_bddIthVar(set.manager, Cint(length(set.variables)))
         push!(set.variables, var)
-        set.root = CUDD.Cudd_bddAnd(set.manager, set.root, cube(set.manager, [var], [zero(Cint)]))
+        set.root =
+            CUDD.Cudd_bddAnd(set.manager, set.root, cube(set.manager, [var], [zero(Cint)]))
         x >>= 1
     end
     return phase

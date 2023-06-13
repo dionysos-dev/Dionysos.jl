@@ -20,19 +20,19 @@ function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_trans
     return symmodel
 end
 
-
 function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     Xdom = symmodel.Xdom
     grid = Xdom.grid
     pos = get_xpos_by_state(symmodel, source)
     c = DO.get_coord_by_pos(grid, pos)
     h = grid.h
-    hyperrectangle = UT.HyperRectangle(c-h/2, c+h/2)
+    hyperrectangle = UT.HyperRectangle(c - h / 2, c + h / 2)
     reachable_set = compute_reachable_set(hyperrectangle, sys, symmodel.Udom)
     # il se peut que pour les dimensions non periodiques, que les rectangles soient en dehors du domaine si
     # l'overapprox du reachable set est tres grande. (si c'est le cas, le nombre de cell à enumemer peut etre immense,
     # alors que la plupard sont hors du domaine) d'où lims dans general_domain
-    reachable_sets = DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
+    reachable_sets =
+        DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
     symbols = get_symbols(symmodel, reachable_sets, DO.OUTER)
     return symbols
 end
@@ -53,46 +53,48 @@ end
 abstract type Heuristic end
 
 struct symmodelHeuristic <: Heuristic
-    symmodel
-    dists
+    symmodel::Any
+    dists::Any
 end
 
-function build_heuristic(symmodel,initlist)
-    result = Graphs.dijkstra_shortest_paths(symmodel.autom,initlist)
+function build_heuristic(symmodel, initlist)
+    result = Graphs.dijkstra_shortest_paths(symmodel.autom, initlist)
     heuristic = symmodelHeuristic(symmodel, result.dists)
     return heuristic
 end
 
-function get_min_value_heurisitic(heuristic,subsetList)
+function get_min_value_heurisitic(heuristic, subsetList)
     symmodel = heuristic.symmodel
     val = Inf
     for subset in subsetList
-        posL = AB.get_subset_pos(symmodel.Xdom,subset,AB.OUTER)
+        posL = AB.get_subset_pos(symmodel.Xdom, subset, AB.OUTER)
         for pos in posL
-            val = min(val,heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
+            val = min(val, heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
         end
     end
     return val
 end
 
-function plot_heuristic!(heuristic::symmodelHeuristic;dims=[1,2],opacity=0.2,color=:red)
+function plot_heuristic!(
+    heuristic::symmodelHeuristic;
+    dims = [1, 2],
+    opacity = 0.2,
+    color = :red,
+)
     symmodel = heuristic.symmodel
     dists = heuristic.dists
-    plot!(symmodel.Xdom,dims=dims,opacity=opacity,color=color)
+    plot!(symmodel.Xdom; dims = dims, opacity = opacity, color = color)
     i = 1
     for elem in DO.enum_pos(symmodel.Xdom)
-        x = DO.get_coord(symmodel.Xdom,elem)[dims]
+        x = DO.get_coord(symmodel.Xdom, elem)[dims]
         if dists[i] != Inf
-            annotate!(x[1], x[2], text(Int(dists[i]),4), :color)
+            annotate!(x[1], x[2], text(Int(dists[i]), 4), :color)
         else
-            annotate!(x[1], x[2], text(Inf,4), :color)
+            annotate!(x[1], x[2], text(Inf, 4), :color)
         end
-        i = i+1
+        i = i + 1
     end
 end
-
-
-
 
 # function get_ncells(problem::symmodelProblem)
 #     symmodel = problem.symmodel
@@ -101,8 +103,6 @@ end
 # function enum_cells(problem::symmodelProblem)
 #     return [i for i=1:AB.get_ncells(problem.symmodel.Xdom)]
 # end
-
-
 
 # function build_alternating_simulation(problem::symmodelProblem)
 #     digraph = SimpleWeightedDiGraph(get_ncells(problem))

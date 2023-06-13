@@ -25,12 +25,13 @@ In order to do that, you do the following for every chunk.
 1) [Switch to the master branch and update it](@ref);
 2) then you [Create a new branch](@ref) (let's call it `mybranch` but it should be a new name for every new small chunk);
 3) then you make your changes on your computer...
-4) then you [Commit your changes](@ref), this will update your local version of `mybranch`;
-5) then you [Push your changes](@ref), this will update the version of `mybranch` in your fork (resp. `origin`) if you don't have write access) (resp. you have write access));
-6) then you [Create a pull request on Github](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request);
-6) then you should receive reviews asking you to do changes. Do these changes on your computer and push them. To do that, [Switch branches](@ref) to `mybranch` then follow steps 4) and then 5) again;
-7) you might need to [Resolve conflicts](@ref), especially if you did not follow step 1);
-8) Once your branch has been merged, [Delete your branch](@ref) and go back to step 1) for a new chunk.
+4) then you [Format your code](@ref) with [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl), so that the whole code has the same format; 
+5) then you [Commit your changes](@ref), this will update your local version of `mybranch`;
+6) then you [Push your changes](@ref), this will update the version of `mybranch` in your fork (resp. `origin`) if you don't have write access) (resp. you have write access)) ; 
+7) then you [Create a pull request on Github](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request), note that if the code was not properly formatted, the pull request will raise an error on Github;
+8) then you should receive reviews asking you to do changes. Do these changes on your computer and push them. To do that, [Switch branches](@ref) to `mybranch` then follow steps 4) and then 5) again;
+9) you might need to [Resolve conflicts](@ref), especially if you did not follow step 1);
+10) Once your branch has been merged, [Delete your branch](@ref) and go back to step 1) for a new chunk.
 
 If you want to make a change independent from the change you are currently making go back to step 1) use another branch name, say `myotherbranch`.
 Once you want to go back to the changes you were doing previously, [Switch branches](@ref) back to `mybranch`.
@@ -232,4 +233,12 @@ First [Start Git bash](@ref).
 
 ```sh
 $ git checkout mybranch
+```
+
+## Format your code
+
+To format your code, run the following in your Julia REPL. Make sure you have added [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl) before. 
+
+```julia
+julia> using JuliaFormatter; format(".")
 ```

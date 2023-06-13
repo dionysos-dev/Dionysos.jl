@@ -3,7 +3,7 @@ using Documenter, Literate
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "src", "examples")
 const REFERENCE_DIR = joinpath(@__DIR__, "src", "reference")
-const OUTPUT_DIR   = joinpath(@__DIR__, "src", "generated")
+const OUTPUT_DIR = joinpath(@__DIR__, "src", "generated")
 
 const EXAMPLES = readdir(EXAMPLES_DIR)
 const REFERENCE = readdir(REFERENCE_DIR)
@@ -27,18 +27,16 @@ const _PAGES = [
         name = string(split(jl_file, ".")[1])
         return name => "reference/$name.md"
     end,
-    "Developer Docs" => [
-        "Set up" => "developers/setup.md",
-        "Git" => "developers/git.md",
-    ],
+    "Developer Docs" =>
+        ["Set up" => "developers/setup.md", "Git" => "developers/git.md"],
 ]
 
-makedocs(
+makedocs(;
     sitename = "Dionysos",
     # See https://github.com/JuliaDocs/Documenter.jl/issues/868
-    format = Documenter.HTML(
+    format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
-        assets = ["assets/extra_styles.css"]
+        assets = ["assets/extra_styles.css"],
     ),
     # See https://github.com/jump-dev/JuMP.jl/issues/1576
     strict = true,
@@ -49,7 +47,4 @@ makedocs(
     modules = [Dionysos],
 )
 
-deploydocs(
-    repo   = "github.com/dionysos-dev/Dionysos.jl.git",
-    push_preview = true,
-)
+deploydocs(; repo = "github.com/dionysos-dev/Dionysos.jl.git", push_preview = true)

@@ -18,7 +18,7 @@ function Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle)
 end
 
 function Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle)
-    return isequal(rect1,rect2)    
+    return isequal(rect1, rect2)
 end
 function Base.isempty(rect::HyperRectangle)
     return any(rect.lb .> rect.ub)
@@ -32,7 +32,7 @@ function volume(rect::HyperRectangle)
     if Base.isempty(rect)
         return 0.0
     else
-        return prod(rect.ub-rect.lb)
+        return prod(rect.ub - rect.lb)
     end
 end
 
@@ -45,11 +45,11 @@ function Base.issubset(a::HyperRectangle, b::HyperRectangle)
 end
 
 function get_center(rect::HyperRectangle)
-    return (rect.lb+rect.ub)/2
+    return (rect.lb + rect.ub) / 2
 end
 
 function get_h(rect::HyperRectangle)
-    return rect.ub-rect.lb
+    return rect.ub - rect.lb
 end
 
 function get_dims(rect::HyperRectangle)
@@ -57,15 +57,18 @@ function get_dims(rect::HyperRectangle)
 end
 
 function scale(rect::HyperRectangle, α)
-    return HyperRectangle(rect.lb*α,rect.ub*α)
+    return HyperRectangle(rect.lb * α, rect.ub * α)
 end
 
-function rectangle(c,r)
-    Shape(c[1].-r[1] .+ [0,2*r[1],2*r[1],0], c[2].-r[2] .+ [0,0,2*r[2],2*r[2]])
+function rectangle(c, r)
+    return Shape(
+        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
+        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
+    )
 end
 
-function Plots.plot!(rect::HyperRectangle; dims=[1,2], color=:yellow, opacity=1.0)
+function Plots.plot!(rect::HyperRectangle; dims = [1, 2], color = :yellow, opacity = 1.0)
     center = get_center(rect)
     h = get_h(rect)
-    plot!(rectangle(center[dims],h[dims]./2), opacity=opacity, color=color)
+    return plot!(rectangle(center[dims], h[dims] ./ 2); opacity = opacity, color = color)
 end

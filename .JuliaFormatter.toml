@@ -1,0 +1,12 @@
+# See https://github.com/domluna/JuliaFormatter.jl
+
+whitespace_typedefs = true
+whitespace_ops_in_indices = true
+whitespace_in_kwargs = true
+remove_extra_newlines = true
+always_use_return = true
+indent_submodule = true
+separate_kwargs_with_semicolon = true
+surround_whereop_typeparameters = true
+always_for_in = true
+

@@ -1,5 +1,5 @@
 module DoublePendulum
-using RigidBodyDynamics, MeshCat, MeshCatMechanisms 
+using RigidBodyDynamics, MeshCat, MeshCatMechanisms
 using LinearAlgebra, StaticArrays, Random, Plots
 using Dionysos
 const DI = Dionysos
@@ -30,19 +30,30 @@ function create_pendulum_mechanism(g, I1, lc1, m1, l1, I2, lc2, m2)
     mechanism = Mechanism(base_link; gravity = SVector(0, 0, -g))
 
     # add second body (first arm)
-    axis = SVector(0., 1., 0.) # joint axis
-    inertia1 = SpatialInertia(CartesianFrame3D("link1"), moment=I1 * axis * axis', com=SVector(0, 0, -lc1), mass=m1)
+    axis = SVector(0.0, 1.0, 0.0) # joint axis
+    inertia1 = SpatialInertia(
+        CartesianFrame3D("link1");
+        moment = I1 * axis * axis',
+        com = SVector(0, 0, -lc1),
+        mass = m1,
+    )
     link1 = RigidBody(inertia1)
     joint1 = Joint("joint1", Revolute(axis))
     joint1_to_base_link = one(Transform3D, joint1.frame_before, default_frame(base_link))
-    attach!(mechanism, base_link, link1, joint1, joint_pose = joint1_to_base_link)
+    attach!(mechanism, base_link, link1, joint1; joint_pose = joint1_to_base_link)
 
     # add third body (second arm)
-    inertia2 = SpatialInertia(CartesianFrame3D("link2"), moment=I2 * axis * axis', com=SVector(0, 0, -lc2), mass=m2)
+    inertia2 = SpatialInertia(
+        CartesianFrame3D("link2");
+        moment = I2 * axis * axis',
+        com = SVector(0, 0, -lc2),
+        mass = m2,
+    )
     link2 = RigidBody(inertia2)
     joint2 = Joint("joint2", Revolute(axis))
-    joint2_to_link1 = Transform3D(joint2.frame_before, default_frame(link1), SVector(0, 0, -l1))
-    attach!(mechanism, link1, link2, joint2, joint_pose = joint2_to_link1)
+    joint2_to_link1 =
+        Transform3D(joint2.frame_before, default_frame(link1), SVector(0, 0, -l1))
+    attach!(mechanism, link1, link2, joint2; joint_pose = joint2_to_link1)
 
     return mechanism
 end
@@ -105,13 +116,24 @@ function add_visual!(urdf_file, lc1, l1, l2; r = 0.05, bs = [0.4 0.3 0.1])
     </geometry>
     </collision>
     """
-    UT.write_after_string!(urdf_file, "</inertial>", new_str2, 2)
+    return UT.write_after_string!(urdf_file, "</inertial>", new_str2, 2)
 end
-    
-function create_urdf_file(urdf_file; g=9.81, I1=0.333, lc1=0.5, m1=1., l1=1., I2=1.33, lc2=1., m2=1., l2=2.)
+
+function create_urdf_file(
+    urdf_file;
+    g = 9.81,
+    I1 = 0.333,
+    lc1 = 0.5,
+    m1 = 1.0,
+    l1 = 1.0,
+    I2 = 1.33,
+    lc2 = 1.0,
+    m2 = 1.0,
+    l2 = 2.0,
+)
     mechanism = create_pendulum_mechanism(g, I1, lc1, m1, l1, I2, lc2, m2)
     write_urdf(urdf_file, mechanism)
-    add_visual!(urdf_file, lc1, l1, l2)
+    return add_visual!(urdf_file, lc1, l1, l2)
 end
 
 function set_configuration(mechanism, q, v)
@@ -137,7 +159,7 @@ end
 #torques is a vector of size equal to the number of joint.
 function control!(torques::AbstractVector, t, state::MechanismState)
     torques[1] = 0.0
-    torques[2] = 0.0
+    return torques[2] = 0.0
     #rand!(torques) # for example
     #println(torques)
 end
@@ -145,8 +167,8 @@ end
 function simulate_double_pendulum(urdf)
     mechanism = parse_urdf(urdf)
     # simulation
-    q = [π,Float64(0.1)]  #[π,Float64(0.1)]
-    v = [0.0,0.0]
+    q = [π, Float64(0.1)]  #[π,Float64(0.1)]
+    v = [0.0, 0.0]
     states = MechanismState(mechanism, q, v)
     #states = set_configuration(mechanism, q, v)
     ts, qs, vs = simulate(states, 5.0, control!; Δt = 1e-3)
@@ -157,31 +179,30 @@ function simulate_double_pendulum(urdf)
 
     animation = MeshCat.Animation(mvis, ts, qs)
     setanimation!(mvis, animation)
-    open(vis)  # open the visualizer in a separate tab/window
+    return open(vis)  # open the visualizer in a separate tab/window
 end
-
 
 function plot_double_pendulum(urdf)
     mechanism = parse_urdf(urdf)
     # simulation
-    q = [π,Float64(0.1)]
-    v = [0.0,0.0]
+    q = [π, Float64(0.1)]
+    v = [0.0, 0.0]
     states = MechanismState(mechanism, q, v)
     #states = set_configuration(mechanism, q, v)
     ts, qs, vs = simulate(states, 5.0, control!; Δt = 1e-3)
 
-    p = plot(xlabel = "Time [s]", ylabel = "Angle [rad]")
-    plot!(ts, collect(q[1] for q in qs), label = "Shoulder") 
-    plot!(ts, collect(q[2] for q in qs), label = "Elbow") 
-    plot!(ts, collect(v[1] for v in vs), label = "Derivative Shoulder") 
-    plot!(ts, collect(v[2] for v in vs), label = "Derivative Elbow") 
-    display(p)
+    p = plot(; xlabel = "Time [s]", ylabel = "Angle [rad]")
+    plot!(ts, collect(q[1] for q in qs); label = "Shoulder")
+    plot!(ts, collect(q[2] for q in qs); label = "Elbow")
+    plot!(ts, collect(v[1] for v in vs); label = "Derivative Shoulder")
+    plot!(ts, collect(v[2] for v in vs); label = "Derivative Elbow")
+    return display(p)
 end
 
 function example()
     urdf = "C:\\Users\\jcalbert\\Documents\\GitHub\\Dionysos.jl\\problems\\double_pendulum\\double_pendulum.urdf"
     simulate_double_pendulum(urdf)
-    plot_double_pendulum(urdf)
+    return plot_double_pendulum(urdf)
 end
 
 # example()

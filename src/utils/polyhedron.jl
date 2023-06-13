@@ -1,5 +1,5 @@
 # Polyhedron defined by {x : |[Ax]_i| ≦ b_i ∀ i}
-struct CenteredPolyhedron{MT,VT}
+struct CenteredPolyhedron{MT, VT}
     A::MT
     b::VT
 end
@@ -11,7 +11,7 @@ end
 # end
 
 function Base.in(x, H::CenteredPolyhedron)
-    return all(abs.(H.A*x) .<= H.b)
+    return all(abs.(H.A * x) .<= H.b)
 end
 # all(x .<= y) is (surprisingly) faster than all(i -> x[i] <= y[i], eachindex(x))
 # See also test_performances

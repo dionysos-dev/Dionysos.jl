@@ -13,11 +13,11 @@ using JuMP, Polyhedra
 using HybridSystems
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    continuous_solver
-    mixed_integer_solver
-    Q_function_init
-    Q_function
-    lower_bound
+    continuous_solver::Any
+    mixed_integer_solver::Any
+    Q_function_init::Any
+    Q_function::Any
+    lower_bound::Any
     horizon::Int
     indicator::Bool
     log_level::Int
@@ -37,10 +37,29 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     best_traj::Union{Nothing, CO.ContinuousTrajectory}
     function Optimizer{T}() where {T}
         return new{T}(
-            nothing, nothing, nothing, nothing, nothing,
-            0, false, 1, 0:100:typemax(Int),
-            1000, 60.0, nothing, nothing,
-            MOI.OPTIMIZE_NOT_CALLED, NaN, NaN, 0, 0, 0, 0, 0, nothing)
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            0,
+            false,
+            1,
+            0:100:typemax(Int),
+            1000,
+            60.0,
+            nothing,
+            nothing,
+            MOI.OPTIMIZE_NOT_CALLED,
+            NaN,
+            NaN,
+            0,
+            0,
+            0,
+            0,
+            0,
+            nothing,
+        )
     end
 end
 
@@ -52,10 +71,10 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
         end
     end
-    setproperty!(model, Symbol(param.name), value)
+    return setproperty!(model, Symbol(param.name), value)
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    getproperty(model, Symbol(param.name))
+    return getproperty(model, Symbol(param.name))
 end
 
 struct Candidate{T, TT}
@@ -73,9 +92,9 @@ function Base.isless(a::Candidate, b::Candidate)
 end
 
 function number_of_nodes(prob)
-    num = JuMP.Containers.@container([0:prob.time, modes(prob.system)], 0)
+    num = JuMP.Containers.@container([0:(prob.time), modes(prob.system)], 0)
     num[0, prob.target_set] = 1
-    for i in 1:prob.time
+    for i in 1:(prob.time)
         for mode in modes(prob.system)
             for t in out_transitions(prob.system, mode)
                 num[i, mode] += num[i - 1, target(prob.system, t)]
@@ -95,7 +114,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         "continuous_solver" => algo.continuous_solver,
         "mixed_integer_solver" => algo.mixed_integer_solver,
         "indicator" => algo.indicator,
-        "log_level" => algo.log_level
+        "log_level" => algo.log_level,
     )
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
@@ -108,10 +127,12 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         state_cost = [state_cost[1:(end - 1)]; [state_cost[end] .+ Ref(terminal_cost)]]
     end
     cont_traj_prob = PR.OptimalControlProblem(
-        prob.system, prob.initial_set,
+        prob.system,
+        prob.initial_set,
         CO.last_mode(prob.system, traj),
-        state_cost, prob.transition_cost[1:length(traj)],
-        length(traj)
+        state_cost,
+        prob.transition_cost[1:length(traj)],
+        length(traj),
     )
     start_optimizer = MOI.instantiate(sub_algo)
     MOI.set(start_optimizer, MOI.RawOptimizerAttribute("modes"), modes)
@@ -131,9 +152,15 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     end
     if left <= algo.horizon || false # prob.allow_less_iterations
         horizon_prob = PR.OptimalControlProblem(
-            prob.system, (CO.last_mode(prob.system, traj), length(traj) == 0 ? prob.initial_set[2] : start_sol.x[end]),
-            prob.target_set, prob.state_cost[(length(traj) + 1):end], prob.transition_cost[(length(traj) + 1):end],
-            min(left, algo.horizon)
+            prob.system,
+            (
+                CO.last_mode(prob.system, traj),
+                length(traj) == 0 ? prob.initial_set[2] : start_sol.x[end],
+            ),
+            prob.target_set,
+            prob.state_cost[(length(traj) + 1):end],
+            prob.transition_cost[(length(traj) + 1):end],
+            min(left, algo.horizon),
         )
         horizon_optimizer = MOI.instantiate(sub_algo)
         MOI.set(horizon_optimizer, MOI.RawOptimizerAttribute("problem"), horizon_prob)
@@ -150,7 +177,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         sol_horizon = MOI.get(horizon_optimizer, CO.ContinuousTrajectoryAttribute())
         sol_traj = CO.ContinuousTrajectory(
             [start_sol.x; sol_horizon.x],
-            [start_sol.u; sol_horizon.u]
+            [start_sol.u; sol_horizon.u],
         )
     end
     return Candidate(lb, ub, traj), sol_traj
@@ -158,14 +185,17 @@ end
 
 using Printf
 
-const NUM_NODES = [
-   "#nodes", "#queued", "#done", "#pruned", "#infeas", "#left"
-]
+const NUM_NODES = ["#nodes", "#queued", "#done", "#pruned", "#infeas", "#left"]
 
 # Inspired from Pavito's `printgap`
 function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queued)
-    num_nodes = [optimizer.num_total, num_queued, optimizer.num_done,
-                 optimizer.num_pruned_bound, optimizer.num_pruned_inf]
+    num_nodes = [
+        optimizer.num_total,
+        num_queued,
+        optimizer.num_done,
+        optimizer.num_pruned_bound,
+        optimizer.num_pruned_inf,
+    ]
     push!(num_nodes, 2optimizer.num_total - sum(num_nodes))
     @assert num_nodes[end] >= 0
     if optimizer.log_level >= 1
@@ -178,7 +208,9 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
             println()
         end
         if last_iter || (optimizer.num_iter in optimizer.log_iter)
-            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (time() - start_time)
+            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (
+                time() - start_time
+            )
             for num in num_nodes
                 print(" | ", lpad(string(num), len))
             end
@@ -216,7 +248,12 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     if optimizer.Q_function_init !== nothing
         optimizer.Q_function = OP.q_merge(optimizer.Q_function, optimizer.Q_function_init)
     end
-    candidate_0, optimizer.best_traj = candidate(prob, optimizer, optimizer.Q_function, CO.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]))
+    candidate_0, optimizer.best_traj = candidate(
+        prob,
+        optimizer,
+        optimizer.Q_function,
+        CO.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]),
+    )
     candidate_0 === nothing && return
     optimizer.upper_bound = candidate_0.upper_bound
     optimizer.num_iter = 0
@@ -226,7 +263,8 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     optimizer.num_pruned_inf = 0
     while true
         if isempty(candidates)
-            optimizer.status = optimizer.best_traj === nothing ? MOI.INFEASIBLE : MOI.OPTIMAL
+            optimizer.status =
+                optimizer.best_traj === nothing ? MOI.INFEASIBLE : MOI.OPTIMAL
         elseif optimizer.num_iter >= optimizer.max_iter
             optimizer.status = MOI.ITERATION_LIMIT
         elseif time() - start_time >= optimizer.max_time
@@ -238,12 +276,17 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         optimizer.num_iter += 1
         cur_candidate = pop!(candidates)
         if cur_candidate.lower_bound < optimizer.upper_bound
-            for t in out_transitions(prob.system, CO.last_mode(prob.system, cur_candidate.traj))
+            for t in
+                out_transitions(prob.system, CO.last_mode(prob.system, cur_candidate.traj))
                 new_traj = CO.append(cur_candidate.traj, t)
                 # Shortcuts avoiding to solve the QP in case, it's infeasible.
-                nnodes = num_nodes[prob.time - length(new_traj), CO.last_mode(prob.system, new_traj)]
+                nnodes = num_nodes[
+                    prob.time - length(new_traj),
+                    CO.last_mode(prob.system, new_traj),
+                ]
                 iszero(nnodes) && continue
-                new_candidate_traj = candidate(prob, optimizer, optimizer.Q_function, new_traj)
+                new_candidate_traj =
+                    candidate(prob, optimizer, optimizer.Q_function, new_traj)
                 if new_candidate_traj === nothing
                     optimizer.num_pruned_inf += nnodes - 1
                     optimizer.num_done += 1
@@ -254,7 +297,13 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
                         # with the discrete solution of the last part.
                         # If `horizon == 0`, there is no difference but otherwise,
                         # it does matter
-                        OP.learn(optimizer.Q_function, prob, new_traj, sol_traj, optimizer.lower_bound)
+                        OP.learn(
+                            optimizer.Q_function,
+                            prob,
+                            new_traj,
+                            sol_traj,
+                            optimizer.lower_bound,
+                        )
                     end
                     if new_candidate.upper_bound < optimizer.upper_bound
                         if optimizer.feasible_solution_callback !== nothing

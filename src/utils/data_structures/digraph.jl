@@ -1,59 +1,66 @@
-mutable struct Digraph{T <: Real,U}
-    edges::Dict{Tuple{U,U},T}
+mutable struct Digraph{T <: Real, U}
+    edges::Dict{Tuple{U, U}, T}
     verts::Set{U}
 end
- 
+
 # constructor based on transitions
-function Digraph(edges::Vector{Tuple{U,U,T}}) where {T <: Real,U}
+function Digraph(edges::Vector{Tuple{U, U, T}}) where {T <: Real, U}
     vnames = Set{U}(v for edge in edges for v in edge[1:2])
     adjmat = Dict((edge[1], edge[2]) => edge[3] for edge in edges)
     return Digraph(adjmat, vnames)
 end
- 
-function add_states!(g::Digraph{T,U}, states::Vector{U}) where {T <: Real,U}
+
+function add_states!(g::Digraph{T, U}, states::Vector{U}) where {T <: Real, U}
     vnames = Set{U}(v for v in states)
-    g.verts = g.verts∪vnames
+    return g.verts = g.verts ∪ vnames
 end
 
-function add_transitions!(g::Digraph{T,U}, edges::Vector{Tuple{U,U,T}}) where {T <: Real,U}
+function add_transitions!(
+    g::Digraph{T, U},
+    edges::Vector{Tuple{U, U, T}},
+) where {T <: Real, U}
     vnames = Set{U}(v for edge in edges for v in edge[1:2])
     adjmat = Dict((edge[1], edge[2]) => edge[3] for edge in edges)
-    g.verts = g.verts∪vnames
-    g.edges = Dict(merge(g.edges, adjmat))
+    g.verts = g.verts ∪ vnames
+    return g.edges = Dict(merge(g.edges, adjmat))
 end
 
 vertices(g::Digraph) = g.verts
-edges(g::Digraph)    = g.edges
- 
+edges(g::Digraph) = g.edges
+
 neighbours(g::Digraph, v) = Set((b, c) for ((a, b), c) in edges(g) if a == v)
- 
+
 function is_state(g::Digraph, s)
-    return s∈vertices(g)
+    return s ∈ vertices(g)
 end
 
 # return 
 # -the path: rst = [source p2 ... dest]
 # -the cost from source to every element in the path: cost = Dict{source=>c0, p2=>c1, p3=>c2,...}
 #  where c0 = 0.0, c1 is the cost from source to p2,  c2 is the cost from source to p3,...
-function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
+function dijkstrapath(g::Digraph{T, U}, source::U, dest::U) where {T, U}
     @assert source ∈ vertices(g) "$source is not a vertex in the graph"
- 
+
     # Easy case
-    if source == dest return [source], 0 end
+    if source == dest
+        return [source], 0
+    end
     # Initialize variables
-    inf  = typemax(T)
+    inf = typemax(T)
     dist = Dict(v => inf for v in vertices(g))
-    prev = Dict(v => v   for v in vertices(g))
+    prev = Dict(v => v for v in vertices(g))
     dist[source] = 0
     Q = copy(vertices(g))
     neigh = Dict(v => neighbours(g, v) for v in vertices(g))
- 
+
     # Main loop
     while !isempty(Q)
         u = reduce((x, y) -> dist[x] < dist[y] ? x : y, Q)
         pop!(Q, u)
         #if dist[u] == inf || u == dest break end
-        if dist[u] == inf  break end
+        if dist[u] == inf
+            break
+        end
         for (v, cost) in neigh[u]
             alt = dist[u] + cost
             if alt < dist[v]
@@ -62,7 +69,7 @@ function dijkstrapath(g::Digraph{T,U}, source::U, dest::U) where {T, U}
             end
         end
     end
- 
+
     # Return path
     rst, cost = U[], dist
     if prev[dest] == dest

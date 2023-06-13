@@ -25,19 +25,19 @@ world = root_body(double_pendulum) # the fixed 'world' rigid body
 
 ## modify the mechanism
 # Attach the first (upper) link to the world via a revolute joint named 'shoulder'
-inertia1 = SpatialInertia(CartesianFrame3D("upper_link"),
-    moment=I_1 * axis * transpose(axis),
-    com=SVector(zero(T), zero(T), c_1),
-    mass=m_1)
+inertia1 = SpatialInertia(
+    CartesianFrame3D("upper_link");
+    moment = I_1 * axis * transpose(axis),
+    com = SVector(zero(T), zero(T), c_1),
+    mass = m_1,
+)
 body1 = RigidBody(inertia1)
 joint1 = Joint("shoulder", Revolute(axis))
 joint1_to_world = one(Transform3D{T}, frame_before(joint1), default_frame(world));
-attach!(double_pendulum, world, body1, joint1,
-    joint_pose = joint1_to_world);
+attach!(double_pendulum, world, body1, joint1; joint_pose = joint1_to_world);
 
 ## Export URDF
 # write_urdf("test.urdf", double_pendulum; robot_name="double_pendulum", include_root=true)
-
 
 # ## Create `MechanismState` associated with the double pendulum `Mechanism`
 # A `MechanismState` stores all state-dependent information associated with a `Mechanism`.
@@ -52,10 +52,9 @@ q_s = @variables q_1
 set_configuration!(x, q_s) # starting a pass initial configuration for i in eachindex(q)
 q = configuration(x)
 
-
 # Velocities vector
 v = velocity(x)
-v_s = @variables v_1 
+v_s = @variables v_1
 set_velocity!(x, v_s) # Set the joint velocity vector of the MechanismState to a new vector of symbolic variables
 v = velocity(x)
 
@@ -87,4 +86,4 @@ simplify.(inverse_dynamics(x, v̇)) # this gives you τ
 
 ## M(x)v̇ +c(q,v,w) = τ, where x is the joint configuration vector (angles), v is the joint velocity vector, and v̇ is the joint. Furthermore, c(q,v,w) 
 ## is the Coriolis tensor, which embeds viscous friction torques and possible external signals (disturbances) w and effects of gravity. 
-simplify.(inverse_dynamics(x, v̇))+simplify.(dynamics_bias(x))
+simplify.(inverse_dynamics(x, v̇)) + simplify.(dynamics_bias(x))

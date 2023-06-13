@@ -2,7 +2,7 @@ module Problem
 
 abstract type ProblemType end
 
-struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real} <: ProblemType
+struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
@@ -11,7 +11,7 @@ struct OptimalControlProblem{S, XI, XT, XC, TC, T<:Real} <: ProblemType
     time::T
 end
 
-struct SafetyProblem{S, XI, XS, T<:Real} <: ProblemType
+struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     safe_set::XS

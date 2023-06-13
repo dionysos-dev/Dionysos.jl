@@ -8,28 +8,28 @@ UT = Utils
 # -Graph keeping all transitions computed (even tose delete from rewiring).
 
 " return the nodes containing x in increasing order of costs "
-function get_nodes_from_x(tree::UT.Tree, x; earlyStop=false)
+function get_nodes_from_x(tree::UT.Tree, x; earlyStop = false)
     stage = tree.leaves
     nodes = []
     while !isempty(stage)
         for node in stage
             if x ∈ node.state
-                push!(nodes,node)
+                push!(nodes, node)
                 if earlyStop
                     return nodes
                 end
             end
         end
-        stage = filter(x -> x!==nothing, unique(map(x-> x.parent, stage)))
+        stage = filter(x -> x !== nothing, unique(map(x -> x.parent, stage)))
     end
-    sort!(nodes, by=UT.compare, rev=false)
+    sort!(nodes; by = UT.compare, rev = false)
     return nodes
 end
 
 function check_covered(tree::UT.Tree, x)
-    if isempty(get_nodes_from_x(tree, x, earlyStop=true))
+    if isempty(get_nodes_from_x(tree, x; earlyStop = true))
         return false
-    else 
+    else
         return true
     end
 end
@@ -43,7 +43,7 @@ function simulate(tree::UT.Tree, f_eval, Ts, x)
         trajE = [currNode.state]
         while !(x ∈ EF)
             kappa = currNode.action
-            unew = kappa*[x-currNode.state.c;1]
+            unew = kappa * [x - currNode.state.c; 1]
             wnew = zeros(2)
             x = f_eval(x, unew, wnew, Ts)
             currNode = currNode.parent
@@ -60,12 +60,9 @@ function simulate(tree::UT.Tree, f_eval, Ts, x)
     end
 end
 
-function plot_traj!(trajx, trajE; color=:black)
+function plot_traj!(trajx, trajE; color = :black)
     for E in trajE
-        plot!(E, color = :blue)
+        plot!(E; color = :blue)
     end
-    plot!(UT.DrawTrajectory(trajx), color = color)
+    return plot!(UT.DrawTrajectory(trajx); color = color)
 end
-
-
-
