@@ -12,10 +12,10 @@ const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
 
-problem = DCDC.problem(approx_mode="growth")
+problem = DCDC.problem(; approx_mode = "growth")
 
 x0 = SVector(0.0, 0.0)
-hx = SVector(2.0/4.0e3, 2.0/4.0e3)
+hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(1)
 hu = SVector(1)
@@ -35,7 +35,7 @@ nstep = 300
 x0 = SVector(1.2, 5.6)
 x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
 
-fig = plot(aspect_ratio=:equal);
+fig = plot(; aspect_ratio = :equal);
 plot!(problem.system.X);
 plot!(fig, UT.DrawTrajectory(x_traj))
 

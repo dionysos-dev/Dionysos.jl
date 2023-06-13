@@ -15,7 +15,7 @@ function post_image(symmodel, contsys, xpos, u)
     x = DO.get_coord_by_pos(Xdom.grid, xpos)
     tstep = contsys.tstep
     Fx = contsys.sys_map(x, u, tstep)
-    r = Xdom.grid.h/2.0 + contsys.measnoise
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
     Fr = r
 
     rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
@@ -23,7 +23,7 @@ function post_image(symmodel, contsys, xpos, u)
     over_approx = []
     allin = true
     for ypos in ypos_iter
-        ypos = DO.set_in_period_pos(Xdom,ypos)
+        ypos = DO.set_in_period_pos(Xdom, ypos)
         if !(ypos in Xdom)
             allin = false
             break
@@ -39,17 +39,17 @@ function pre_image(symmodel, contsys, xpos, u)
     x = DO.get_coord_by_pos(grid, xpos)
     tstep = contsys.tstep
     potential = Int[]
-    x_prev = x-tstep*u
-    xpos_cell = DO.get_pos_by_coord(grid,x_prev)
+    x_prev = x - tstep * u
+    xpos_cell = DO.get_pos_by_coord(grid, x_prev)
     n = 2
-    for i=-n:n
-        for j=-n:n
-            x_n = (xpos_cell[1]+i,xpos_cell[2]+j)
-            x_n = DO.set_in_period_pos(symmodel.Xdom,x_n)
+    for i in (-n):n
+        for j in (-n):n
+            x_n = (xpos_cell[1] + i, xpos_cell[2] + j)
+            x_n = DO.set_in_period_pos(symmodel.Xdom, x_n)
             if x_n in symmodel.Xdom
                 cell = SY.get_state_by_xpos(symmodel, x_n)[1]
                 if !(cell in potential)
-                    push!(potential,cell)
+                    push!(potential, cell)
                 end
             end
         end
@@ -59,25 +59,25 @@ end
 
 function compute_reachable_set(rect::UT.HyperRectangle, contsys, Udom)
     tstep = contsys.tstep
-    r = (rect.ub-rect.lb)/2.0 + contsys.measnoise
+    r = (rect.ub - rect.lb) / 2.0 + contsys.measnoise
     Fr = r
     x = UT.get_center(rect)
-    n =  UT.get_dims(rect)
-    lb = fill(Inf,n)
-    ub = fill(-Inf,n)
+    n = UT.get_dims(rect)
+    lb = fill(Inf, n)
+    ub = fill(-Inf, n)
     for upos in DO.enum_pos(Udom)
-        u = DO.get_coord_by_pos(Udom.grid,upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
         Fx = contsys.sys_map(x, u, tstep)
-        lb = min.(lb,Fx .- Fr)
-        ub = max.(ub,Fx .+ Fr)
+        lb = min.(lb, Fx .- Fr)
+        ub = max.(ub, Fx .+ Fr)
     end
     lb = SVector{n}(lb)
     ub = SVector{n}(ub)
-    return UT.HyperRectangle(lb,ub)
+    return UT.HyperRectangle(lb, ub)
 end
 
 function get_transitions(symmodel, sys, source)
-    return  SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
+    return SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
 end
 
 function minimum_transition_cost(symmodel, contsys, source, target)
@@ -85,15 +85,15 @@ function minimum_transition_cost(symmodel, contsys, source, target)
 end
 
 # problem data
-struct SimpleSystem{N,T,F<:Function} <: ST.ControlSystem{N,T}
+struct SimpleSystem{N, T, F <: Function} <: ST.ControlSystem{N, T}
     tstep::Float64
-    measnoise::SVector{N,T}
+    measnoise::SVector{N, T}
     sys_map::F
 end
 
-function NewSimpleSystem(tstep,measnoise::SVector{N,T}) where {N,T}
-    function sys_map(x::SVector{N,T}, u, tstep)
-        return x+tstep*u
+function NewSimpleSystem(tstep, measnoise::SVector{N, T}) where {N, T}
+    function sys_map(x::SVector{N, T}, u, tstep)
+        return x + tstep * u
     end
     return SimpleSystem(tstep, measnoise, sys_map)
 end
@@ -109,20 +109,21 @@ function build_dom()
     obstacle = UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
     hx = [0.5, 0.5]
     periodic = Int[]
-    periods = [30.0,30.0]
-    T0 = [0.0,0.0]
+    periods = [30.0, 30.0]
+    T0 = [0.0, 0.0]
     grid = DO.build_grid_in_rec(X, hx)
     d = DO.RectangularObstacles(X, [obstacle])
-    Xdom = DO.GeneralDomainList(hx;elems=d,periodic=periodic,periods=periods,T0=T0)
-    fig = plot(aspect_ratio = 1)
-    return X,Xdom
+    Xdom =
+        DO.GeneralDomainList(hx; elems = d, periodic = periodic, periods = periods, T0 = T0)
+    fig = plot(; aspect_ratio = 1)
+    return X, Xdom
 end
 
 function build_Udom()
     U = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
     x0 = SVector(0.0, 0.0)
-    hu = SVector(0.5,0.5)
-    Ugrid = DO.GridFree(x0,hu)
+    hu = SVector(0.5, 0.5)
+    Ugrid = DO.GridFree(x0, hu)
     Udom = DO.DomainList(Ugrid)
     DO.add_set!(Udom, U, DO.OUTER)
     box = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
@@ -130,7 +131,7 @@ function build_Udom()
     return Udom
 end
 
-function transition_cost(x,u)
+function transition_cost(x, u)
     return 0.5
 end
 
@@ -148,19 +149,19 @@ function h1(node::UT.Node, problem::LA.LazyAbstraction)
 end
 
 function build_heuristic_data(X, contsys, Udom, _I_)
-    hx = [1.0, 1.0]*1.5
+    hx = [1.0, 1.0] * 1.5
     periodic = Int[]
-    periods = [30.0,30.0]
-    T0 = [0.0,0.0]
-    Xdom = DO.GeneralDomainList(hx;periodic=periodic,periods=periods,T0=T0)
-    DO.add_set!(Xdom, X , DO.OUTER)
-    symmodel = SY.symmodelAS(Xdom, Udom,  contsys, minimum_transition_cost, get_transitions)
+    periods = [30.0, 30.0]
+    T0 = [0.0, 0.0]
+    Xdom = DO.GeneralDomainList(hx; periodic = periodic, periods = periods, T0 = T0)
+    DO.add_set!(Xdom, X, DO.OUTER)
+    symmodel = SY.symmodelAS(Xdom, Udom, contsys, minimum_transition_cost, get_transitions)
     initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
     heuristic_data = SY.build_heuristic(symmodel, initlist)
     return heuristic_data
 end
 
-X,Xdom = build_dom()
+X, Xdom = build_dom()
 Udom = build_Udom();
 
 contsys = build_system();
@@ -174,13 +175,23 @@ symmodel = SY.LazySymbolicModel(Xdom, Udom)
 initlist = SY.get_symbol(symmodel, _I_, DO.OUTER)
 targetlist = SY.get_symbol(symmodel, _T_, DO.INNER);
 
-problem, sucess = LA.compute_controller(symmodel, contsys, initlist, targetlist, transition_cost, pre_image, post_image, h1, heuristic_data=heuristic_data)
+problem, sucess = LA.compute_controller(
+    symmodel,
+    contsys,
+    initlist,
+    targetlist,
+    transition_cost,
+    pre_image,
+    post_image,
+    h1;
+    heuristic_data = heuristic_data,
+)
 contr = problem.contr;
 
-fig = plot(aspect_ratio=:equal)
+fig = plot(; aspect_ratio = :equal)
 x0 = SVector(5.5, 5.5)
-LA.plot_result!(problem, x0=x0)
-plot!(show=true, legend=false)
+LA.plot_result!(problem; x0 = x0)
+plot!(; show = true, legend = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

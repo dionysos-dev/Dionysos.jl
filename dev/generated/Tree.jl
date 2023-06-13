@@ -5,16 +5,18 @@ UT = Dionysos.Utils
 
 distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c)
 
-get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) =  (1.0, 1.0)
+get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = (1.0, 1.0)
 
-Ellipsoids = [UT.Ellipsoid(Matrix{Float64}(I(2))*8.0, [-10.0;-10.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*5.0, [0.0;-10.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*1.0, [-10.0;0.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*3.0, [20.0;-10.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*3.0, [-1.0;0.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*3.0, [1.0;-8.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*3.0, [-1.0;5.0]),
-              UT.Ellipsoid(Matrix{Float64}(I(2))*3.0, [3.0;0.0])]
+Ellipsoids = [
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 8.0, [-10.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 5.0, [0.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [-10.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [20.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [1.0; -8.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 5.0]),
+    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [3.0; 0.0]),
+]
 
 tree = UT.Tree(Ellipsoids[1])
 
@@ -30,16 +32,16 @@ nNode7 = UT.add_closest_node!(tree, Ellipsoids[7], distance, get_action)
 nNode8 = UT.add_closest_node!(tree, Ellipsoids[8], distance, get_action)
 
 println(tree)
-fig = plot(aspect_ratio=:equal)
-plot!(tree; arrowsB=true, cost=true)
+fig = plot(; aspect_ratio = :equal)
+plot!(tree; arrowsB = true, cost = true)
 
 nNode3.path_cost = 5.0
 UT.propagate_cost_to_leaves(nNode3)
-fig = plot(aspect_ratio=:equal)
+fig = plot(; aspect_ratio = :equal)
 plot!(tree)
 
 UT.rewire(tree, nNode5, nNode6, 1.0, 1.0)
-fig = plot(aspect_ratio=:equal)
+fig = plot(; aspect_ratio = :equal)
 plot!(tree)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

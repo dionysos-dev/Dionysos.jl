@@ -14,31 +14,29 @@ rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
 rectU = UT.HyperRectangle(SVector(-5), SVector(5));
 
 x0 = SVector(0.0, 0.0);
-h = SVector(1.0/5, 1.0/5);
+h = SVector(1.0 / 5, 1.0 / 5);
 Xgrid = DO.GridFree(x0, h);
 
 domainX = DO.DomainList(Xgrid);
 DO.add_set!(domainX, rectX, DO.INNER)
 
 u0 = SVector(0.0);
-h = SVector(1.0/5);
+h = SVector(1.0 / 5);
 Ugrid = DO.GridFree(u0, h);
 domainU = DO.DomainList(Ugrid);
 DO.add_set!(domainU, rectU, DO.INNER);
 
 tstep = 0.1;
-nsys=10; # Runge-Kutta pre-scaling
+nsys = 10; # Runge-Kutta pre-scaling
 
-
-A = SMatrix{2,2}(0.0, 1.0,
-                -3.0, 1.0);
-B = SMatrix{2,1}(0.0, 1.0);
+A = SMatrix{2, 2}(0.0, 1.0, -3.0, 1.0);
+B = SMatrix{2, 1}(0.0, 1.0);
 
 F_sys = let A = A
-    (x,u) -> A*x + B*u
+    (x, u) -> A * x + B * u
 end;
 
-ngrowthbound=10; # Runge-Kutta pre-scaling
+ngrowthbound = 10; # Runge-Kutta pre-scaling
 A_diag = diagm(diag(A));
 A_abs = abs.(A) - abs.(A_diag) + A_diag
 L_growthbound = x -> abs.(A)
@@ -46,8 +44,15 @@ L_growthbound = x -> abs.(A)
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
 
-contsys = ST.NewControlSystemGrowthRK4(tstep, F_sys, L_growthbound, sysnoise,
-                                       measnoise, nsys, ngrowthbound);
+contsys = ST.NewControlSystemGrowthRK4(
+    tstep,
+    F_sys,
+    L_growthbound,
+    sysnoise,
+    measnoise,
+    nsys,
+    ngrowthbound,
+);
 
 symmodel = SY.NewSymbolicModelListList(domainX, domainU);
 
@@ -67,16 +72,21 @@ for pos in symmodel.xint2pos[post]
     DO.add_pos!(domainPostx, pos)
 end
 
-fig = plot(aspect_ratio=:equal, xtickfontsize=10, ytickfontsize=10, guidefontsize=16);
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+);
 xlims!(-2, 2)
 ylims!(-2, 2)
 dims = [1, 2]
 
-plot!(domainX, fc = "white", dims=dims);
+plot!(domainX; fc = "white", dims = dims);
 domainx = DO.DomainList(Xgrid);
 DO.add_pos!(domainx, xpos)
-plot!(domainx, fc = "blue", dims=dims);
-plot!(domainPostx, fc = "green", dims=dims)
+plot!(domainx; fc = "blue", dims = dims);
+plot!(domainPostx; fc = "green", dims = dims)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 

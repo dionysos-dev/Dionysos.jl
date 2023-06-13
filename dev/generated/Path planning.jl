@@ -13,7 +13,7 @@ const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
 
-concrete_problem = PathPlanning.problem(simple=true, approx_mode="growth");
+concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth");
 
 F_sys = concrete_problem.system.f;
 _X_ = concrete_problem.system.X;
@@ -41,28 +41,40 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller")
 
 nstep = 100
 function reached(x)
-    if x∈concrete_problem.target_set
+    if x ∈ concrete_problem.target_set
         return true
     else
         return false
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(concrete_problem.system.f, concrete_controller, x0, nstep; stopping=reached)
+x_traj, u_traj = CO.get_closed_loop_trajectory(
+    concrete_problem.system.f,
+    concrete_controller,
+    x0,
+    nstep;
+    stopping = reached,
+)
 
-fig = plot(aspect_ratio=:equal);
+fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_problem.system.X, color=:yellow, opacity=0.5);
+plot!(concrete_problem.system.X; color = :yellow, opacity = 0.5);
 
-plot!(abstract_system.Xdom, color=:blue, opacity=0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 
-plot!(concrete_problem.initial_set, color=:green, opacity=0.2);
-plot!(concrete_problem.target_set; dims=[1,2], color=:red, opacity=0.2);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
+plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
 
-plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set), color=:green);
-plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), color=:red);
+plot!(
+    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    color = :green,
+);
+plot!(
+    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    color = :red,
+);
 
-plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
+plot!(fig, UT.DrawTrajectory(x_traj); ms = 0.5)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
