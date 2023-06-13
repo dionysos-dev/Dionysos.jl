@@ -2,19 +2,22 @@ using StaticArrays, Plots
 
 using Dionysos
 const DI = Dionysos
-const DO = DI.Domain
-const CO = DI.Control
 const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const CO = DI.Control
+const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
 
-problem = PathPlanning.problem(simple=true, approx_mode="growth");
+concrete_problem = PathPlanning.problem(simple=true, approx_mode="growth");
 
-F_sys = problem.system.f;
-_X_ = problem.system.X;
-_U_ = problem.system.U;
+F_sys = concrete_problem.system.f;
+_X_ = concrete_problem.system.X;
+_U_ = concrete_problem.system.U;
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
@@ -26,41 +29,39 @@ input_grid = DO.GridFree(u0, h);
 
 using JuMP
 optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
 
 nstep = 100
 function reached(x)
-    if x∈problem.target_set
+    if x∈concrete_problem.target_set
         return true
     else
         return false
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep; stopping=reached)
+x_traj, u_traj = CO.get_closed_loop_trajectory(concrete_problem.system.f, concrete_controller, x0, nstep; stopping=reached)
 
 fig = plot(aspect_ratio=:equal);
-##We display the concrete domain
-plot!(problem.system.X, color=:yellow, opacity=0.5);
 
-abstract_system = AB.SCOTSAbstraction.get_abstract_system(optimizer)
-plot!(abstract_system.Xdom, color=:blue, opacity=0.5)
+plot!(concrete_problem.system.X, color=:yellow, opacity=0.5);
 
-##We display the concrete specifications
-plot!(problem.initial_set, color=:green, opacity=0.2);
-plot!(problem.target_set; dims=[1,2], color=:red, opacity=0.2);
+plot!(abstract_system.Xdom, color=:blue, opacity=0.5);
 
-abstract_problem = AB.SCOTSAbstraction.get_abstract_problem(optimizer)
-plot!(abstract_problem.initial_set, color=:green)
-plot!(abstract_problem.target_set, color=:red)
+plot!(concrete_problem.initial_set, color=:green, opacity=0.2);
+plot!(concrete_problem.target_set; dims=[1,2], color=:red, opacity=0.2);
 
-##We display the concrete trajectory
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set), color=:green);
+plot!(SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set), color=:red);
+
 plot!(fig, UT.DrawTrajectory(x_traj), ms=0.5)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
