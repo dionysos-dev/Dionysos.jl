@@ -26,5 +26,6 @@ include("./control/test_controllerreach.jl")
 include("./control/test_controllersafe.jl")
 include("./control/test_lazy_periodicity.jl")
 
+include("./examples/test_lazy_ellipsoids_abstraction.jl")
 include("./examples/test_state_feedback_trans.jl")
 include("./examples/test_gol_lazar_belta.jl")
