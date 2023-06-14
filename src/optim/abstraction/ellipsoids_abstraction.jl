@@ -15,19 +15,22 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
-    problem::Union{Nothing, PR.OptimalControlProblem}
-    symmodel::Union{Nothing, SY.SymbolicModelList}
-    transitionCost::Union{Nothing, Dict}
-    transitionCont::Union{Nothing, Dict}
+    concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
+    abstract_system::Union{Nothing, SY.SymbolicModelList}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
-    lyap_fun::Union{Nothing, Any}
+    abstract_lyap_fun::Union{Nothing, Any}
+    concrete_lyap_fun::Union{Nothing, Any}
+    state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
+    lyap::Union{Nothing, Any}
+    transitionCost::Union{Nothing, Dict}
+    transitionCont::Union{Nothing, Dict}
     ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     function Optimizer{T}() where {T}
         return new{T}(
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -45,10 +48,10 @@ end
 
 Optimizer() = Optimizer{Float64}()
 
-MOI.is_empty(optimizer::Optimizer) = optimizer.problem === nothing
+MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    if param.name == "problem"
+    if param.name == "concrete_problem"
         if !(value isa PR.OptimalControlProblem)
             throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
         end
@@ -59,32 +62,16 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function get_guaranteed_cost(optimizer::Optimizer, x)
-    symmodel = optimizer.symmodel
-    state_grid = symmodel.Xdom.grid
-    l_state = SY.get_all_states_by_xpos(
-        symmodel,
-        DO.crop_to_domain(symmodel.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
-    )
-    lyap_fun = optimizer.lyap_fun
-    lyap_min = Inf
-    for state in l_state
-        lyap = lyap_fun[state]
-        lyap < lyap_min ? lyap_min = lyap : lyap_min = lyap_min
-    end
-    return lyap_min
-end
-
 function build_abstraction(
-    problem,
+    concrete_problem,
     state_grid::DO.GridEllipsoidalRectangular,
     opt_sdp::MOI.OptimizerWithAttributes,
     opt_ip::MOI.OptimizerWithAttributes,
 )
-    system = problem.system
+    concrete_system = concrete_problem.system
     # The state space
     domainX = DO.DomainList(state_grid) # state space
-    X = system.ext[:X]
+    X = concrete_system.ext[:X]
     DO.add_set!(domainX, X, DO.INNER)
 
     # The input space 
@@ -92,11 +79,11 @@ function build_abstraction(
     DO.add_set!(domainU, state_grid.rect, DO.INNER)
 
     # The symbolic model for the state-feedback abstraction
-    symmodel = SY.NewSymbolicModelListList(domainX, domainU)
-    empty!(symmodel.autom)
+    abstract_system = SY.NewSymbolicModelListList(domainX, domainU)
+    empty!(abstract_system.autom)
 
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
-    Q_aug = CO.get_full_psd_matrix(problem.transition_cost[1][1])
+    Q_aug = UT.get_full_psd_matrix(concrete_problem.transition_cost[1][1])
     eigen_Q = eigen(Q_aug)
     L = (sqrt.(eigen_Q.values) .* (eigen_Q.vectors'))'
 
@@ -105,13 +92,13 @@ function build_abstraction(
     transitionCont = Dict() # dictionary with controller associated each transition
     transitionCost = Dict() # dictionary with cost of each transition
     # And finally build the state-feedback abstraction 
-    U = system.ext[:U]
-    W = system.ext[:W]
+    U = concrete_system.ext[:U]
+    W = concrete_system.ext[:W]
     t = @elapsed SY.compute_symmodel_from_hybridcontrolsystem!(
-        symmodel,
+        abstract_system,
         transitionCont,
         transitionCost,
-        system,
+        concrete_system,
         W,
         L,
         U,
@@ -119,30 +106,30 @@ function build_abstraction(
         opt_ip,
     )
     println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
-    return symmodel, transitionCont, transitionCost
+    return abstract_system, transitionCont, transitionCost
 end
 
 function build_abstract_problem(
-    problem::PR.OptimalControlProblem,
-    symmodel::SY.SymbolicModelList,
+    concrete_problem::PR.OptimalControlProblem,
+    abstract_system::SY.SymbolicModelList,
 )
-    state_grid = symmodel.Xdom.grid
+    state_grid = abstract_system.Xdom.grid
     Xinit = DO.DomainList(state_grid) # set of initial cells
-    DO.add_coord!(Xinit, problem.initial_set)
+    DO.add_coord!(Xinit, concrete_problem.initial_set)
 
     Xfinal = DO.DomainList(state_grid) # set of target cells
-    DO.add_coord!(Xfinal, Vector(problem.target_set))
+    DO.add_coord!(Xfinal, Vector(concrete_problem.target_set))
 
-    initlist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xinit)]
-    finallist = [SY.get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(Xfinal)]
+    initlist = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
+    finallist = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xfinal)]
 
     return PR.OptimalControlProblem(
-        symmodel,
+        abstract_system,
         initlist,
         finallist,
-        problem.state_cost,
-        problem.transition_cost,
-        problem.time,
+        concrete_problem.state_cost,
+        concrete_problem.transition_cost,
+        concrete_problem.time,
     )
 end
 
@@ -175,12 +162,12 @@ function solve_abstract_problem(abstract_problem, transitionCost)
     return abstract_controller, lyap_fun
 end
 
-function solve_concrete_problem(symmodel, abstract_controller, transitionCont)
-    state_grid = symmodel.Xdom.grid
+function solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
+    state_grid = abstract_system.Xdom.grid
     function concrete_controller(x)
         currState = SY.get_all_states_by_xpos(
-            symmodel,
-            DO.crop_to_domain(symmodel.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
+            abstract_system,
+            DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )
         next_action = nothing
         for action in abstract_controller.data
@@ -194,29 +181,53 @@ function solve_concrete_problem(symmodel, abstract_controller, transitionCont)
     return concrete_controller
 end
 
+function build_abstract_lyap_fun(lyap)
+    return abstract_lyap_fun(state) = lyap[state]
+end
+
+function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
+    state_grid = abstract_system.Xdom.grid
+    function concrete_lyap_fun(x)
+        l_state = SY.get_all_states_by_xpos(
+            abstract_system,
+            DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
+        )
+        lyap_min = Inf
+        for state in l_state
+            lyap = abstract_lyap_fun(state)
+            lyap < lyap_min ? lyap_min = lyap : lyap_min = lyap_min
+        end
+        return lyap_min
+    end
+    return concrete_lyap_fun
+end
+
 function MOI.optimize!(optimizer::Optimizer)
-    concrete_problem = optimizer.problem
+    concrete_problem = optimizer.concrete_problem
     state_grid = optimizer.state_grid
-    # design the abstraction
-    symmodel, transitionCont, transitionCost = build_abstraction(
+    # Build the abstraction
+    abstract_system, transitionCont, transitionCost = build_abstraction(
         concrete_problem,
         state_grid,
         optimizer.sdp_solver,
         optimizer.ip_solver,
     )
-    optimizer.symmodel = symmodel
+    optimizer.abstract_system = abstract_system
     optimizer.transitionCont = transitionCont
     optimizer.transitionCost = transitionCost
-    # design the abstract problem
-    abstract_problem = build_abstract_problem(concrete_problem, symmodel)
+    # Build the abstract problem
+    abstract_problem = build_abstract_problem(concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
-    # solve the abstract problem
-    abstract_controller, lyap_fun = solve_abstract_problem(abstract_problem, transitionCost)
+    # Solve the abstract problem
+    abstract_controller, lyap = solve_abstract_problem(abstract_problem, transitionCost)
     optimizer.abstract_controller = abstract_controller
-    optimizer.lyap_fun = lyap_fun
-    # solve the concrete problem
+    optimizer.lyap = lyap
+    optimizer.abstract_lyap_fun = build_abstract_lyap_fun(lyap)
+    # Solve the concrete problem
     optimizer.concrete_controller =
-        solve_concrete_problem(symmodel, abstract_controller, transitionCont)
+        solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
+    optimizer.concrete_lyap_fun =
+        build_concrete_lyap_fun(abstract_system, optimizer.abstract_lyap_fun)
     return
 end
 

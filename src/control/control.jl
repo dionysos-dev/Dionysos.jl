@@ -13,8 +13,6 @@ using ..Symbolic
 SY = Symbolic
 
 using StaticArrays, LinearAlgebra, Plots
-
-include("optimal_control.jl")
 include("controller.jl")
 include("lazy_abstraction.jl")
 include("trajectory.jl")

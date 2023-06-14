@@ -16,7 +16,9 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/NonLinear.jl")
+include("../../../problems/NonLinear.jl")
+
+# # First example
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
@@ -51,7 +53,10 @@ AB.LazyEllipsoidsAbstraction.set_Optimizer!(
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
-MOI.optimize!(optimizer)
+using Suppressor
+@suppress begin # this is a workaround to supress the undesired output of SDPA
+    MOI.optimize!(optimizer)
+end
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -83,64 +88,59 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-@static if get(ENV, "CI", "false") == "false" &&
-           (isdefined(@__MODULE__, :no_plot) && no_plot == false)
+# ## Display the results
+# # Display the specifications and domains
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlabel!("\$x_1\$");
+ylabel!("\$x_2\$");
+title!("Specifictions and domains");
 
-    # ## Display the results
-    # # Display the specifications and domains
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    xlabel!("\$x_1\$")
-    ylabel!("\$x_2\$")
-    title!("Specifictions and domains")
-
-    #Display the concrete domain
-    plot!(concrete_system.X; color = :yellow, opacity = 0.5)
-    for obs in concrete_system.obstacles
-        plot!(obs; color = :black)
-    end
-
-    #Display the abstract domain
-    plot!(abstract_system; arrowsB = false, cost = false)
-
-    #Display the concrete specifications
-    plot!(concrete_problem.initial_set; color = :green)
-    plot!(concrete_problem.target_set; color = :red)
-    display(fig)
-
-    # # Display the abstraction
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    title!("Abstractions")
-    plot!(abstract_system; arrowsB = true, cost = false)
-    display(fig)
-
-    # # Display the Lyapunov function and the trajectory
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    xlabel!("\$x_1\$")
-    ylabel!("\$x_2\$")
-    title!("Trajectory and Lyapunov-like Fun.")
-
-    for obs in concrete_system.obstacles
-        plot!(obs; color = :black)
-    end
-    plot!(abstract_system; arrowsB = false, cost = true)
-    plot!(UT.DrawTrajectory(x_traj); color = :black)
-    display(fig)
+#Display the concrete domain
+plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+for obs in concrete_system.obstacles
+    plot!(obs; color = :black)
 end
+
+#Display the abstract domain
+plot!(abstract_system; arrowsB = false, cost = false);
+
+#Display the concrete specifications
+plot!(concrete_problem.initial_set; color = :green);
+plot!(concrete_problem.target_set; color = :red)
+
+# # Display the abstraction
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+title!("Abstractions");
+plot!(abstract_system; arrowsB = true, cost = false)
+
+# # Display the Lyapunov function and the trajectory
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlabel!("\$x_1\$");
+ylabel!("\$x_2\$");
+title!("Trajectory and Lyapunov-like Fun.");
+
+for obs in concrete_system.obstacles
+    plot!(obs; color = :black)
+end
+plot!(abstract_system; arrowsB = false, cost = true);
+plot!(UT.DrawTrajectory(x_traj); color = :black)
+
+@test cost_true <= cost_bound             #src

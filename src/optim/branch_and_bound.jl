@@ -4,6 +4,7 @@ module BranchAndBound
 
 import Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
@@ -145,10 +146,10 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     start_cost = MOI.get(start_optimizer, MOI.ObjectiveValue())
     start_sol = MOI.get(start_optimizer, CO.ContinuousTrajectoryAttribute())
     if isempty(state_cost)
-        lb = start_cost + CO.function_value(terminal_cost, prob.initial_set[2])
+        lb = start_cost + UT.function_value(terminal_cost, prob.initial_set[2])
     else
         lb = start_cost
-        start_cost -= CO.function_value(terminal_cost, start_sol.x[end])
+        start_cost -= UT.function_value(terminal_cost, start_sol.x[end])
     end
     if left <= algo.horizon || false # prob.allow_less_iterations
         horizon_prob = PR.OptimalControlProblem(
