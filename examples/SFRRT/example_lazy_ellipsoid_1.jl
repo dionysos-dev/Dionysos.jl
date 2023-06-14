@@ -22,7 +22,10 @@ concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
 # Optimizer's parameters
+const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+
 maxδx = 100 # 100
 maxδu = 10 * 2 # Usz * 2
 λ = 0.01 # 0.01
