@@ -620,9 +620,6 @@ function transition_backward(
     end
 end
 
-
-
-
 """
     compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionCont::AbstractDict,
     hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp)

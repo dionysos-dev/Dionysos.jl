@@ -22,5 +22,3 @@ Base.isfinite(::Infinity) = false
 export OptimalControlProblem
 export SafetyProblem
 export Infinity
-
-

@@ -305,23 +305,24 @@ end
 ############################################
 ############################################
 
-#f_eval, Ts, U, Ub, W, X, obstacles, x, u, w, fsymbolic, ΔX, ΔU, ΔW
-struct EllipsoidalLazySystem{}
-    f_eval::Any
+struct SymbolicSystem{}
+    fsymbolicT::Any
+    fsymbolic::Any
     Ts::Any
     nx::Any
     nu::Any
     nw::Any
-    U::Any
-    Ub::Any
-    W::Any
-    X::Any
-    obstacles::Any
-    fsymbolic::Any
     x::Any
     u::Any
     w::Any
     ΔX::Any
     ΔU::Any
     ΔW::Any
+    X::Any
+    Ub::Any
+    U::Any
+    W::Any
+    obstacles::Any
+    f_eval::Any
+    f_backward_eval::Any
 end

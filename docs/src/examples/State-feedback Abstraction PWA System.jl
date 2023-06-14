@@ -58,7 +58,7 @@ opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 lib = CDDLib.Library() # polyhedron lib
 include("../../../problems/PWAsys.jl")
 
-# Problem parameters
+# # Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
 Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
@@ -68,7 +68,7 @@ concrete_problem =
     PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
 concrete_system = concrete_problem.system
 
-# Abstraction parameters
+# # Abstraction parameters
 # This is state-space is defined by the `HyperRectangle rectX`. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells $\mathcal{X}_d$, given it's determinism. 
 # To build this deterministic state-feedback abstraction in alternating simulation relation  with the system as described in [1, Lemma 1], a set of balls of radius 0.2 covering the state space is adopted as cells $\xi\in\mathcal{X}_d$. We assume that inside cells intersecting the boundary of partitions of $\mathcal{X}$ the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center. An alternative to this are discussed in [1]. Let us define the corresponding grid:
 
@@ -122,7 +122,10 @@ function f_eval1(x, u)
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
-    return concrete_system.resetmaps[m].A * x + concrete_system.resetmaps[m].B * u + concrete_system.resetmaps[m].c + w
+    return concrete_system.resetmaps[m].A * x +
+           concrete_system.resetmaps[m].B * u +
+           concrete_system.resetmaps[m].c +
+           w
 end
 
 cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)

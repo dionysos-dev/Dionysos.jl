@@ -27,7 +27,8 @@ end
 struct QuadraticControlFunction{T, MT <: AbstractMatrix{T}} <: ScalarFunction
     Q::MT
 end
-function function_value(f::QuadraticControlFunction, x) <: ScalarFunction
+function function_value(f::QuadraticControlFunction, x)
+    <:ScalarFunction
     return x'f.Q * x
 end
 
@@ -57,14 +58,14 @@ struct ConstantControlFunction{T} <: ScalarControlFunction
 end
 function_value(f::ConstantControlFunction, x, u) = f.value
 
-
 """
     QuadraticStateControlFunction{T, MT<:AbstractMatrix{T}}
     
 Quadratic function on state and input defined as
 `x'Qx + u'Ru + 2x'Nu + 2x'q + 2u'r + v` 
 """
-struct QuadraticStateControlFunction{T, MT <: AbstractMatrix{T}, AT <: AbstractArray{T}} <: ScalarControlFunction
+struct QuadraticStateControlFunction{T, MT <: AbstractMatrix{T}, AT <: AbstractArray{T}} <:
+       ScalarControlFunction
     Q::MT
     R::MT
     N::MT
@@ -72,7 +73,7 @@ struct QuadraticStateControlFunction{T, MT <: AbstractMatrix{T}, AT <: AbstractA
     r::AT
     v::T
 end
-function function_value(f::QuadraticStateControlFunction, x, u) 
+function function_value(f::QuadraticStateControlFunction, x, u)
     return x'f.Q * x + u'f.R * u + 2 * (x'f.N * u + x'f.q + u'f.r) + f.v
 end
 function get_full_psd_matrix(f::QuadraticStateControlFunction)

@@ -93,11 +93,12 @@ function f_eval1(x, u)
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
-    return concrete_system.resetmaps[m].A * x + concrete_system.resetmaps[m].B * u + concrete_system.resetmaps[m].c + w
+    return concrete_system.resetmaps[m].A * x +
+           concrete_system.resetmaps[m].B * u +
+           concrete_system.resetmaps[m].c +
+           w
 end
 
-println(concrete_problem.transition_cost[1][1])
-println(typeof(concrete_problem.transition_cost[1][1]))
 cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)
 
 ### Simulation

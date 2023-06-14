@@ -82,7 +82,8 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj = CO.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+x_traj, u_traj =
+    CO.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);

@@ -23,6 +23,12 @@ function NodeT(
     return NodeT(state, parent, action, cost, path_cost, depth, children)
 end
 
+get_state(node::NodeT) = node.state
+get_parent(node::NodeT) = node.parent
+get_action(node::NodeT) = node.action
+get_cost(node::NodeT) = node.cost
+get_path_cost(node::NodeT) = node.path_cost
+
 "
 Tree structure with
 - cost for transitions (the cost function a non-negative function);
@@ -129,6 +135,20 @@ end
 # Return a list with all the children of node
 function collect_nodes(tree::Tree)
     return collect_nodes(tree.root)
+end
+
+function get_nodes(tree::Tree, state, compare)
+    function explore!(node, nodeAccumulator)
+        if node !== nothing && compare(node.state, state)
+            push!(nodeAccumulator, node)
+        end
+        for child in node.children
+            explore!(child, nodeAccumulator)
+        end
+    end
+    nodes = []
+    explore!(tree.root, nodes)
+    return nodes
 end
 
 function collect_states(tree::Tree)

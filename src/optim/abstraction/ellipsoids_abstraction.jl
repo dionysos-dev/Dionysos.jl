@@ -226,7 +226,8 @@ function MOI.optimize!(optimizer::Optimizer)
     # Solve the concrete problem
     optimizer.concrete_controller =
         solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
-    optimizer.concrete_lyap_fun = build_concrete_lyap_fun(abstract_system, optimizer.abstract_lyap_fun)
+    optimizer.concrete_lyap_fun =
+        build_concrete_lyap_fun(abstract_system, optimizer.abstract_lyap_fun)
     return
 end
 

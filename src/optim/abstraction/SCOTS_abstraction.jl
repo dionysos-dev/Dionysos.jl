@@ -56,7 +56,8 @@ function build_abstract_problem(
     Xtarget = DO.DomainList(state_grid)
     DO.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, DO.INNER)
     init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
-    target_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xtarget)]
+    target_list =
+        [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xtarget)]
     return PR.OptimalControlProblem(
         abstract_system,
         init_list,
@@ -67,7 +68,10 @@ function build_abstract_problem(
     )
 end
 
-function build_abstract_problem(concrete_problem::PR.SafetyProblem, abstract_system::SY.SymbolicModelList)
+function build_abstract_problem(
+    concrete_problem::PR.SafetyProblem,
+    abstract_system::SY.SymbolicModelList,
+)
     state_grid = abstract_system.Xdom.grid
     Xinit = DO.DomainList(state_grid)
     DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
@@ -144,7 +148,8 @@ function MOI.optimize!(optimizer::Optimizer)
     abstract_controller = solve_abstract_problem(abstract_problem)
     optimizer.abstract_controller = abstract_controller
     # Solve the concrete problem
-    optimizer.concrete_controller = solve_concrete_problem(abstract_system, abstract_controller)
+    optimizer.concrete_controller =
+        solve_concrete_problem(abstract_system, abstract_controller)
     return
 end
 

@@ -51,20 +51,6 @@ struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T
     continuous::ContinuousTrajectory{T, XVT, UVT}
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Trajectory closed loop
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
     x = x0
@@ -91,6 +77,7 @@ function get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = (x) -> false,
+    noise = false,
 )
     x = x0
     x_traj = [x]
@@ -104,7 +91,12 @@ function get_closed_loop_trajectory(
         end
         push!(u_traj, u)
         push!(cost_traj, cost_eval(x, u))
-        x = f_eval(x, u)
+        if noise
+            w = zeros(2)
+            x = f_eval(x, u, w)
+        else
+            x = f_eval(x, u)
+        end
         push!(x_traj, x)
         i = i + 1
     end
