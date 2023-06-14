@@ -59,11 +59,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.j
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
 concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth");
-
-# `F_sys` is the function, `_X_` the state domain and `_U_` the input domain
-F_sys = concrete_problem.system.f;
-_X_ = concrete_problem.system.X;
-_U_ = concrete_problem.system.U;
+concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
 
@@ -81,16 +77,16 @@ input_grid = DO.GridFree(u0, h);
 
 using JuMP
 optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
 
 # Get the results
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("symmodel"))
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 @test length(abstract_controller.data) == 19400 #src
 
@@ -107,7 +103,7 @@ function reached(x)
 end
 x0 = SVector(0.4, 0.4, 0.0)
 x_traj, u_traj = CO.get_closed_loop_trajectory(
-    concrete_problem.system.f,
+    concrete_system.f,
     concrete_controller,
     x0,
     nstep;
@@ -117,7 +113,7 @@ x_traj, u_traj = CO.get_closed_loop_trajectory(
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
 # We display the concrete domain
-plot!(concrete_problem.system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :yellow, opacity = 0.5);
 
 # We display the abstract domain
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
@@ -137,7 +133,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(fig, UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
