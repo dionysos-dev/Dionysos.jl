@@ -21,7 +21,7 @@ include("../../problems/NonLinear.jl")
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
-# Optimizer's parameters
+# Optimizer's parameters, see https://github.com/MOSEK/Mosek.jl/issues/206
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
