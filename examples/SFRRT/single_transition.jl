@@ -59,7 +59,7 @@ end
 
 function trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
     ########## PWA approximation description ##########
-    Ac = sm([0.0 1.0 1.0 -1.0])
+    Ac = sm([0.0 1.0; 1.0 -1.0])
 
     Bc = sm([1.0; 1.0])
 

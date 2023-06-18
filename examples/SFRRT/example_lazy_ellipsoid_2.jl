@@ -24,10 +24,11 @@ concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
 # Optimizer's parameters
+# sdp_opt = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 maxδx = 100 # 100
 maxδu = 10 * 2 # Usz * 2
-λ = 0.01 # 0.01
+λ = 0.01# 0.01 # 0.01
 k1 = 1
 k2 = 1
 RRTstar = false

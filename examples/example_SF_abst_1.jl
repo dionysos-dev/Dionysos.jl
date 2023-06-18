@@ -63,7 +63,7 @@ function trial(dt, Usz, Wmax, contraction, initial_vol)
 
     is_controllable, K0, P0, gamma = SY._provide_P(system, optimizer)
 
-    vol_P0 = SY.ellipsoid_vol(P0, 1)
+    vol_P0 = UT.get_volume(UT.Ellipsoid(P0, zeros(n_sys)))
     P = P0 * (vol_P0 / initial_vol)^(2 / n_sys)
     #println(round.(P,digits=4))
     Pp = P * contraction

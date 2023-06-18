@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA, Ipopt
+using JuMP, SDPA
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -25,26 +25,30 @@ if !isdefined(@__MODULE__, :Usz)
     dt = 0.01 # discretization step
     n_step = 3 # discretization of one unit of space
     simple = true
+    no_plot = true
 end
-# Usz = 50 # upper limit on |u|
-# Wsz = 5
-# n_step = 5 # discretization of one unit of space
-# simple = false
-
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
-
 lib = CDDLib.Library() # polyhedron lib
 include("../problems/PWAsys.jl")
 
 # Problem parameters
+
+# Usz = 50 # upper limit on |u|
+# Wsz = 5
+# n_step = 5 # discretization of one unit of space
+# simple = false
+# no_plot = false
+
 # Usz = 50 # upper limit on |u|
 # Wsz = 5
 # dt = 0.01; # discretization step
 # n_step = 5 # discretization of one unit of space
 # simple = false
+# no_plot = false
 
-concrete_problem = PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = true)
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+
+concrete_problem =
+    PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = simple)
 concrete_system = concrete_problem.system
 
 # Abstraction parameters
@@ -58,7 +62,6 @@ optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
 MOI.optimize!(optimizer)
