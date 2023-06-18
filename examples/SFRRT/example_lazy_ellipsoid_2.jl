@@ -25,14 +25,23 @@ concrete_system = concrete_problem.system
 
 # Optimizer's parameters
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-maxδx = 100 # 1  (bound on the squared radius)
-maxδu = 10 * 2
+maxδx = 100 # 100
+maxδu = 10 * 2 # Usz * 2
 λ = 0.01 # 0.01
 k1 = 1
-k2 = 20 # 10
-RRTstar = true
-continues = true
-maxIter = 70 # 70
+k2 = 1
+RRTstar = false
+continues = false
+maxIter = 100 # 100
+
+# maxδx = 100 # 1  (bound on the squared radius)
+# maxδu = 10 * 2
+# λ = 0.01 # 0.01
+# k1 = 1
+# k2 = 20 # 10
+# RRTstar = true
+# continues = true
+# maxIter = 70 # 70
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_Optimizer!(
