@@ -34,7 +34,7 @@ const CO = DI.Control
 const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belta.jl"))
 
 # Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta.jl)
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);

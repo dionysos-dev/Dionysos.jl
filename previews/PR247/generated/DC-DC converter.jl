@@ -10,7 +10,7 @@ const CO = DI.Control
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 concrete_problem = DCDC.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system

@@ -54,7 +54,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 lib = CDDLib.Library() # polyhedron lib
-include("../../../problems/PWAsys.jl")
+include("../../../problems/pwa_sys.jl")
 
 # # Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.

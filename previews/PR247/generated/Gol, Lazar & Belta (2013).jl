@@ -12,7 +12,7 @@ const UT = DI.Utils
 const CO = DI.Control
 const OP = DI.Optim
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "GolLazarBelta.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belta.jl"))
 
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 

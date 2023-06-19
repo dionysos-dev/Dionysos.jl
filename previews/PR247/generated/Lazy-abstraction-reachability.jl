@@ -11,7 +11,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/SimpleProblem.jl")
+include("../../../problems/simple_problem.jl")
 
 # specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -88,7 +88,7 @@ maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
 
-AB.LazyAbstraction.set_Optimizer!(
+AB.LazyAbstraction.set_optimizer!(
     optimizer,
     concrete_problem,
     maxIter,
@@ -141,7 +141,7 @@ plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
 fig = plot(; aspect_ratio = :equal)
 x0 = SVector(5.5, 5.5)
-AB.LazyAbstraction.plot_result!(optimizer.lazySearchProblem; x0 = x0)
+AB.LazyAbstraction.plot_result!(optimizer.lazy_search_problem; x0 = x0)
 plot!(; show = true, legend = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

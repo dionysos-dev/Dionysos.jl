@@ -18,7 +18,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 lib = CDDLib.Library() # polyhedron lib
-include("../../../problems/PWAsys.jl")
+include("../../../problems/pwa_sys.jl")
 
 Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
