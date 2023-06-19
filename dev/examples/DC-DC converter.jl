@@ -53,7 +53,7 @@ const AB = OP.Abstraction
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem(; approx_mode = "growth")

@@ -16,7 +16,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/NonLinear.jl")
+include("../../../problems/non_linear.jl")
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
@@ -35,7 +35,7 @@ continues = false
 maxIter = 100 # 100
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
-AB.LazyEllipsoidsAbstraction.set_Optimizer!(
+AB.LazyEllipsoidsAbstraction.set_optimizer!(
     optimizer,
     concrete_problem,
     sdp_opt,

@@ -11,7 +11,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.jl"))
 
 concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth");
 concrete_system = concrete_problem.system;

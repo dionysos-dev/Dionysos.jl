@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA, Ipopt
+using JuMP, SDPA
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -17,10 +17,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 lib = CDDLib.Library() # polyhedron lib
-include("../../../problems/PWAsys.jl")
+include("../../../problems/pwa_sys.jl")
 
 Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
@@ -36,12 +34,12 @@ X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
 using Suppressor
 @suppress begin # this is a workaround to supress the undesired output of SDPA
@@ -59,6 +57,7 @@ transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 
 #Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
+
 function f_eval1(x, u)
     currState = SY.get_all_states_by_xpos(
         abstract_system,
