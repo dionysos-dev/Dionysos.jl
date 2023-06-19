@@ -1,26 +1,3 @@
-# # Lazy-abstraction-reachability
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
-#
-# This is a **optimal reachability problem** for a **continuous system**.
-#
-#
-# In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
-# for the sampled system with a sampling time $\tau$.
-#
-# The abstraction is based on a feedback refinment relation [1,V.2 Definition].
-# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
-#
-# For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
-# a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
-# to compute the relations in the abstraction based on the feedback refinement relation.
-#
-# For this reachability problem, the abstraction controller is built using a solver that lazily builds the abstraction, constructing the abstraction 
-# at the same time as the controller.
-
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
 using StaticArrays, JuMP, Plots
 
 # At this point, we import Dionysos.
@@ -35,7 +12,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include("../problems/simple_problem.jl")
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)

@@ -33,12 +33,6 @@ function get_dims(elli::Ellipsoid)
     return length(elli.c)
 end
 
-# function is_in(elli::Ellipsoid, x)
-#     c = get_center(elli)
-#     val = (x-c)'*elli.P*(x-c)
-#     return (x-c)'*elli.P*(x-c) ≤ 1.0
-# end
-
 function get_root(elli::Ellipsoid)
     return sqrtm(elli.P)
 end

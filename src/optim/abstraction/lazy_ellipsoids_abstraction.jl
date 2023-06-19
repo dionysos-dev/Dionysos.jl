@@ -103,7 +103,7 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function set_Optimizer!(
+function set_optimizer!(
     optimizer::Optimizer,
     concrete_problem,
     sdp_opt,
@@ -143,7 +143,7 @@ function set_Optimizer!(
     )
 end
 
-function set_Optimizer!(
+function set_optimizer!(
     optimizer::Optimizer,
     concrete_problem,
     sdp_opt,

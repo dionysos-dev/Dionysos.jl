@@ -64,14 +64,14 @@ end
 
 "Create a search tree Node, derived from a parent by an action."
 function Node(state; parent = nothing, action = nothing, path_cost = 0.0)
-    depth = parent != nothing ? parent.depth + 1 : 0
+    depth = parent !== nothing ? parent.depth + 1 : 0
     return Node(state, parent, action, path_cost, depth)
 end
 
 "Create a list of nodes from the root to this node."
 function path(node::Node)
     x, result = node, [node]
-    while x.parent != nothing
+    while x.parent !== nothing
         push!(result, x.parent)
         x = x.parent
     end

@@ -26,11 +26,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     lyap::Union{Nothing, Any}
     transitionCost::Union{Nothing, Dict}
     transitionCont::Union{Nothing, Dict}
-    ip_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     function Optimizer{T}() where {T}
         return new{T}(
-            nothing,
             nothing,
             nothing,
             nothing,
@@ -66,7 +64,6 @@ function build_abstraction(
     concrete_problem,
     state_grid::DO.GridEllipsoidalRectangular,
     opt_sdp::MOI.OptimizerWithAttributes,
-    opt_ip::MOI.OptimizerWithAttributes,
 )
     concrete_system = concrete_problem.system
     # The state space
@@ -103,7 +100,6 @@ function build_abstraction(
         L,
         U,
         opt_sdp,
-        opt_ip,
     )
     println("Abstraction created in $t seconds with $(length(transitionCost)) transitions")
     return abstract_system, transitionCont, transitionCost
@@ -206,12 +202,8 @@ function MOI.optimize!(optimizer::Optimizer)
     concrete_problem = optimizer.concrete_problem
     state_grid = optimizer.state_grid
     # Build the abstraction
-    abstract_system, transitionCont, transitionCost = build_abstraction(
-        concrete_problem,
-        state_grid,
-        optimizer.sdp_solver,
-        optimizer.ip_solver,
-    )
+    abstract_system, transitionCont, transitionCost =
+        build_abstraction(concrete_problem, state_grid, optimizer.sdp_solver)
     optimizer.abstract_system = abstract_system
     optimizer.transitionCont = transitionCont
     optimizer.transitionCost = transitionCost

@@ -6,6 +6,7 @@ using SDPA, Ipopt, JuMP
 using HybridSystems
 
 const DI = Dionysos
+const UT = DI.Utils
 const SY = DI.Symbolic
 
 println("Started test")
@@ -16,10 +17,12 @@ println("Started test")
         1.0 0.0
         0.0 0.25
     ]
-    x = SY._get_min_bounding_box(P, opt_qp)
+    box = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(2)); optimizer = opt_qp)
+    x = [interval.hi for interval in box]
     @test x ≈ [1.0, 2.0] atol = 1e-2
     P = [1.5 -0.5; -0.5 2.5]
-    x = SY._get_min_bounding_box(P, opt_qp)
+    box = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(2)); optimizer = opt_qp)
+    x = [interval.hi for interval in box]
     @test x ≈ [0.84515, 0.65465] atol = 1e-2
 end
 

@@ -36,7 +36,7 @@ using Test     #src
 
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA, Ipopt
+using JuMP, SDPA
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -53,10 +53,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-opt_ip = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 lib = CDDLib.Library() # polyhedron lib
-include("../../../problems/PWAsys.jl")
+include("../../../problems/pwa_sys.jl")
 
 # # Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
@@ -78,12 +76,12 @@ X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("ip_solver"), opt_ip)
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
 using Suppressor
@@ -104,6 +102,8 @@ transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 # ## Define the mapping function
 #Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
+# To simplify : "We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode
+# defined at its center."
 function f_eval1(x, u)
     currState = SY.get_all_states_by_xpos(
         abstract_system,

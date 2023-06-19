@@ -1,8 +1,5 @@
-#  Copyright 2022, Lucas N. Egidio, Thiago Alves Lima, and contributors
-#############################################################################
-# Dionysos
-# See https://github.com/dionysos-dev/Dionysos.jl
-#############################################################################
+# functions to compute transitions between ellipsoids 
+# (forward vs backward, PWA vs non-linear, fixed shape vs optimized shape)
 
 using StaticArrays, LinearAlgebra, Polyhedra, SpecialFunctions
 using HybridSystems, ProgressMeter, IntervalArithmetic, LazySets
@@ -562,6 +559,7 @@ function transition_backward(
 
     @variable(model, t)
     u_q = [L[i, j] for j in 1:nx for i in 1:j]
+
     @constraint(model, vcat(t, 1, u_q) in MOI.LogDetConeTriangle(nx))
 
     @objective(model, Min, λ * J + (1 - λ) * (-t))
@@ -638,8 +636,8 @@ function compute_symmodel_from_hybridcontrolsystem!(
     W,
     L,
     U,
-    opt_sdp,
-    opt_qp,
+    opt_sdp;
+    opt_qp = nothing,
 ) where {N}
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
@@ -650,8 +648,8 @@ function compute_symmodel_from_hybridcontrolsystem!(
     if Xdom.grid isa Domain.GridEllipsoidalRectangular
         Pm = Xdom.grid.P
         P = Pm
-        R = _get_min_bounding_box(P, opt_qp)
-
+        box = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(n_sys)); optimizer = opt_qp)
+        R = [interval.hi for interval in box]
     else
         Pm = (1 / n_sys) * diagm(inv.(r .^ 2))
         P = Pm
@@ -724,40 +722,4 @@ function compute_symmodel_from_hybridcontrolsystem!(
         "compute_symmodel_from_controlsystem! terminated with success: ",
         "$(trans_count) transitions created",
     )
-end
-
-# to delete 
-
-"""
-    ellipsoid_vol(P,r)
-    
-Calculates the n-volume of the n-ellipsoid defined as {x'Px < r}.
-"""
-function ellipsoid_vol(P, r)
-    N = size(P, 1)
-    return pi^(N / 2) / (gamma(N / 2 + 1)) * det(P / r)^(-1 / 2)
-end
-
-"""
-    _get_min_bounding_box(P, optimizer) 
-
-Finds the minimum bounding box containing the ellipsoid {x'Px < 1}. 
-"""
-function _get_min_bounding_box(P, optimizer)
-    n = size(P, 1)
-    R = zeros(n)
-
-    model = Model(optimizer)
-    @variable(model, x[i = 1:n])
-
-    @constraint(model, x'P * x <= 1)
-
-    for i in 1:n
-        new_model, reference_map = copy_model(model)
-        set_optimizer(new_model, optimizer)
-        @objective(new_model, Max, reference_map[x[i]])
-        optimize!(new_model)
-        R[i] = abs(value(reference_map[x[i]]))
-    end
-    return R
 end
