@@ -561,7 +561,6 @@ function transition_backward(
     u_q = [L[i, j] for j in 1:nx for i in 1:j]
 
     @constraint(model, vcat(t, 1, u_q) in MOI.LogDetConeTriangle(nx))
-    # @constraint(model, vcat(t, u_q) in MOI.RootDetConeTriangle(nx))
 
     @objective(model, Min, λ * J + (1 - λ) * (-t))
     optimize!(model)

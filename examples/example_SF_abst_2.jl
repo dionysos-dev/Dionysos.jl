@@ -28,7 +28,7 @@ if !isdefined(@__MODULE__, :Usz)
     no_plot = true
 end
 lib = CDDLib.Library() # polyhedron lib
-include("../problems/PWAsys.jl")
+include("../problems/pwa_sys.jl")
 
 # Problem parameters
 

@@ -26,7 +26,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_bell_fun::Union{Nothing, Any}
     concrete_bell_fun::Union{Nothing, Any}
 
-    lazySearchProblem::Union{Nothing, Any}
+    lazy_search_problem::Union{Nothing, Any}
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -151,7 +151,7 @@ function h1(node::UT.Node, problem)
     return heuristic.dists[source2]
 end
 
-function set_Optimizer!(
+function set_optimizer!(
     optimizer::Optimizer,
     concrete_problem,
     maxIter,
@@ -179,7 +179,7 @@ function set_Optimizer!(
         build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set)
 
     # Build the search problem
-    lazySearchProblem = LazySearchProblem(
+    lazy_search_problem = LazySearchProblem(
         abstract_problem,
         concrete_problem,
         pre_image,
@@ -190,17 +190,17 @@ function set_Optimizer!(
         transitions_previously_added,
         maxIter,
     )
-    optimizer.lazySearchProblem = lazySearchProblem
+    optimizer.lazy_search_problem = lazy_search_problem
 
     return
 end
 
 function build_abstraction(optimizer::Optimizer)
-    lazySearchProblem = optimizer.lazySearchProblem
-    node, nb = UT.astar_graph_search(lazySearchProblem, lazySearchProblem.h)
+    lazy_search_problem = optimizer.lazy_search_problem
+    node, nb = UT.astar_graph_search(lazy_search_problem, lazy_search_problem.h)
     println(
         "\nnumber of transitions created: ",
-        length(lazySearchProblem.abstract_system.autom.transitions),
+        length(lazy_search_problem.abstract_system.autom.transitions),
     )
     if node === nothing
         println("compute_controller_reach! terminated without covering init set")
@@ -235,9 +235,9 @@ end
 function MOI.optimize!(optimizer::Optimizer)
     # Co-design the abstract system and the abstract controller
     build_abstraction(optimizer)
-    lazySearchProblem = optimizer.lazySearchProblem
+    lazy_search_problem = optimizer.lazy_search_problem
     abstract_system = optimizer.abstract_system
-    abstract_controller = lazySearchProblem.contr
+    abstract_controller = lazy_search_problem.contr
     optimizer.abstract_controller = abstract_controller
     optimizer.concrete_controller =
         get_concrete_controller(abstract_system, abstract_controller)
@@ -379,8 +379,8 @@ function UT.path_cost(problem::LazySearchProblem, c, state1::State, action, stat
     upos = SY.get_upos_by_symbol(problem.abstract_system, action)
     u = DO.get_coord_by_pos(problem.abstract_system.Udom.grid, upos)
 
-    problem.costs[source] += problem.transition_cost(x, u) #add the cost of the transition (should be the worst for the cell)
-    return problem.costs[source] #c + 0.5
+    problem.costs[source] += problem.transition_cost(x, u)
+    return problem.costs[source]
 end
 
 function transitions!(source, symbol, u, abstract_system, concrete_system, post_image)

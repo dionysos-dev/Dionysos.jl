@@ -53,7 +53,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 # And the file defining the hybrid system for this problem
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PathPlanning.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.jl"))
 
 # ### Definition of the problem
 
