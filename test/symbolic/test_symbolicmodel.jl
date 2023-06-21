@@ -28,6 +28,12 @@ println("Started test")
     DO.add_pos!(Ufull, (0,))
 
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+
+    @test SY.is_in(symmodel, (1, 1)) == true
+    @test SY.is_in(symmodel, (2, 2)) == true
+    @test SY.is_in(symmodel, (3, 4)) == false
+    @test SY.is_in(symmodel, (0, 0)) == false
+
     stateslist = Int[]
     push!(stateslist, SY.get_state_by_xpos(symmodel, (1, 1)))
     push!(stateslist, SY.get_state_by_xpos(symmodel, (2, 2)))
@@ -44,6 +50,17 @@ println("Started test")
     push!(uposlist, SY.get_upos_by_symbol(symmodel, 1))
     sort!(uposlist)
     @test all(uposlist .== [(0,)])
+
+    @test SY.get_state_by_coord(symmodel, SVector(1.0, 2.5)) == 1
+    @test SY.get_state_by_coord(symmodel, SVector(1.5, 3.0)) == 2
+
+    subDomain = SY.get_domain_from_symbols(symmodel, [1])
+    positions = [pos for pos in DO.enum_pos(subDomain)]
+    @test all(positions .== [(1, 1)])
+
+    subDomain = SY.get_domain_from_symbols(symmodel, [1, 2])
+    positions = [pos for pos in DO.enum_pos(subDomain)]
+    @test all(positions .== [(1, 1), (2, 2)])
 end
 
 sleep(0.1) # used for good printing

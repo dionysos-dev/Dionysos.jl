@@ -29,6 +29,10 @@ function get_grid(domain::DomainList)
     return domain.grid
 end
 
+function get_pos_by_coord(domain::DomainList, pos)
+    return get_pos_by_coord(get_grid(domain), pos)
+end
+
 function add_pos!(domain::DomainList, pos)
     return push!(domain.elems, pos)
 end

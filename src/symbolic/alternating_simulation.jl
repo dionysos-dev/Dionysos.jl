@@ -46,15 +46,3 @@ function build_heuristic(symmodel, initlist)
     heuristic = symmodelHeuristic(symmodel, result.dists)
     return heuristic
 end
-
-function get_min_value_heurisitic(heuristic, subsetList)
-    symmodel = heuristic.symmodel
-    val = Inf
-    for subset in subsetList
-        posL = AB.get_subset_pos(symmodel.Xdom, subset, AB.OUTER)
-        for pos in posL
-            val = min(val, heuristic.dists[AB.get_state_by_xpos(symmodel, pos)])
-        end
-    end
-    return val
-end

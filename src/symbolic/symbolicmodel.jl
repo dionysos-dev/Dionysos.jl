@@ -137,48 +137,6 @@ function compute_symmodel_from_controlsystem!(
     )
 end
 
-# Assumes that automaton is "empty"
-function compute_symmodel_from_controlsystem_OLD!(
-    symmodel::SymbolicModel{N},
-    contsys::ST.ControlSystemGrowth{N},
-) where {N}
-    println("compute_symmodel_from_controlsystem! started")
-    Xdom = symmodel.Xdom
-    Udom = symmodel.Udom
-    tstep = contsys.tstep
-    r = Xdom.grid.h / 2.0 + contsys.measnoise
-    ntrans = 0
-    # Define the function out of the loop. This allowed to recudes the allocations
-    # from 1.6M (on pathplanning-simple) to 24!
-    not_in_Xdom = x -> !(x ∈ Xdom)
-
-    # Updates every 1 seconds
-    # @showprogress 1 "Computing symbolic control system: " (
-    for upos in DO.enum_pos(Udom)
-        symbol = get_symbol_by_upos(symmodel, upos)
-        u = DO.get_coord_by_pos(Udom.grid, upos)
-        Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
-        for xpos in DO.enum_pos(Xdom)
-            source = get_state_by_xpos(symmodel, xpos)
-            x = DO.get_coord_by_pos(Xdom.grid, xpos)
-            Fx = contsys.sys_map(x, u, tstep)
-            rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - Fr, Fx + Fr))
-            ypos_iter = Iterators.product(DO._ranges(rectI)...)
-            any(not_in_Xdom, ypos_iter) && continue
-            for ypos in ypos_iter
-                target = get_state_by_xpos(symmodel, ypos)
-                add_transition!(symmodel.autom, source, target, symbol)
-            end
-            ntrans += length(ypos_iter)
-        end
-    end
-    # )
-    return println(
-        "compute_symmodel_from_controlsystem! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
-end
-
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
 function compute_symmodel_from_controlsystem!(
