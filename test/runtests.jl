@@ -2,6 +2,8 @@
 # include("./utils/data_structures/BDD/test_BDD.jl")
 # include("./utils/data_structures/BDD/test_inttupleset.jl")
 
+include("./mapping/test_mapping_continuous.jl")
+
 include("./utils/data_structures/test_queue.jl")
 include("./utils/data_structures/test_digraph.jl")
 include("./utils/data_structures/tree.jl")
