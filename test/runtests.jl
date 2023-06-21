@@ -24,7 +24,6 @@ include("./control/test_controllersafe.jl")
 include("./control/test_fromcontrolsystemgrowth.jl")
 include("./control/test_fromcontrolsystemlinearized.jl")
 
-# include("./optim/solvers.jl")
 include("./optim/test_SCOTS_safety.jl")
 include("./optim/test_SCOTS_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")
