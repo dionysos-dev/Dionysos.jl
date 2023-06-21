@@ -104,22 +104,6 @@ println("Started test")
 
     xpos = DO.get_somepos(Xinit)
     x0 = DO.get_coord_by_pos(Xgrid, xpos)
-
-    # @static if get(ENV, "CI", "false") == "false"
-    #     include("../../src/Abstraction/plotting.jl")
-    #     using PyPlot
-    #     fig = PyPlot.figure()
-    #     ax = fig.gca()
-    #     ax.set_xlim((-5.5, 5.5))
-    #     ax.set_ylim((-5.3, 5.3))
-    #     Plot.domain!(ax, 1:2, Xfull, fa = 0.0)
-    #     Plot.domain!(ax, 1:2, Xinit)
-    #     Plot.domain!(ax, 1:2, Xsafe, fa = 0.1)
-    #     Plot.domain!(ax, 1:2, Xinv, fa = 0.1, fc = "yellow")
-    #     Plot.domain!(ax, 1:2, Yinv; fc = "blue")
-    #     Plot.trajectory_closed_loop!(
-    #         ax, 1:2, contsys, symmodel, contr, x0, 100, randchoose = true)
-    # end
 end
 
 sleep(0.1) # used for good printing

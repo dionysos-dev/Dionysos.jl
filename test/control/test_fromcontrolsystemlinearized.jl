@@ -72,21 +72,6 @@ println("Started test")
     for target in targetlist
         DO.add_pos!(Ysimple, SY.get_xpos_by_state(symmodel, target))
     end
-
-    # @static if get(ENV, "CI", "false") == "false"
-    #     include("../../src/Abstraction/plotting.jl")
-    #     using PyPlot
-    #     fig = PyPlot.figure()
-    #     ax = fig.gca()
-    #     ax.set_xlim((-1.0, 11.0))
-    #     ax.set_ylim((-2.0, 14.0))
-    #     Plot.domain!(ax, 1:2, Xfull, fa = 0.1)
-    #     Plot.domain!(ax, 1:2, Xsimple)
-    #     Plot.domain!(ax, 1:2, Ysimple)
-    #     Plot.trajectory_open_loop!(ax, 1:2, contsys, x, u, 50)
-    #     Plot.cell_image!(ax, 1:2, Xsimple, Usimple, contsys)
-    #     Plot.cell_approx!(ax, 1:2, Xsimple, Usimple, contsys)
-    # end
 end
 
 sleep(0.1) # used for good printing

@@ -79,7 +79,13 @@ function enum_cells(symmodel::LazySymbolicModel)
     return 1:get_ncells(symmodel)
 end
 
-@recipe function f(symmodel::LazySymbolicModel; dims = [1, 2], arrowsB = false, cost = false, lyap_fun = [])
+@recipe function f(
+    symmodel::LazySymbolicModel;
+    dims = [1, 2],
+    arrowsB = false,
+    cost = false,
+    lyap_fun = [],
+)
     dom = symmodel.Xdom
     grid = DO.get_grid(dom)
     if cost
@@ -129,4 +135,3 @@ end
         end
     end
 end
-

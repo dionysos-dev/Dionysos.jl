@@ -124,25 +124,6 @@ println("Started test")
             xpos = DO.get_somepos(Ys)
         end
     end
-
-    # @static if get(ENV, "CI", "false") == "false"
-    #     include("../../src/utils/plotting/plotting.jl")
-    #     using PyPlot
-    #     fig = PyPlot.figure()
-    #     ax = fig.gca()
-    #     ax.set_xlim((-5.5, 5.5))
-    #     ax.set_ylim((-5.3, 5.3))
-    #     Plot.domain!(ax, 1:2, Xfull, fa = 0.1)
-    #     Plot.domain!(ax, 1:2, Xinit)
-    #     Plot.domain!(ax, 1:2, Xtarget)
-    #     for (Xs, Us, Ys) in XUYsimple_
-    #         Plot.domain!(ax, 1:2, Xs, fc = "green")
-    #         Plot.domain!(ax, 1:2, Ys, fc = "blue")
-    #         Plot.cell_image!(ax, 1:2, Xs, Us, contsys)
-    #         Plot.cell_approx!(ax, 1:2, Xs, Us, contsys)
-    #     end
-    #     Plot.trajectory_closed_loop!(ax, 1:2, contsys, symmodel, contr, x0, 10)
-    # end
 end
 
 sleep(0.1) # used for good printing

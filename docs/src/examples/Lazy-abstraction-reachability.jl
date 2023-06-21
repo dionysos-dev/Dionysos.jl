@@ -182,19 +182,23 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 #We display the concrete trajectory
 plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
-
 # # Display the abstraction and Lyapunov-like function
 fig = plot(; aspect_ratio = :equal);
 plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
 
 # # Display the Bellman-like value function (heuristic)
 fig = plot(; aspect_ratio = :equal)
-plot!(optimizer.abstract_system_heuristic; arrowsB = false, dims = [1, 2], cost = true, lyap_fun = optimizer.bell_fun)
+plot!(
+    optimizer.abstract_system_heuristic;
+    arrowsB = false,
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.bell_fun,
+)
 
 # # Display the results of the A* algorithm
 fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
-
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

@@ -1,5 +1,6 @@
+module TestMain
 using StaticArrays, JuMP, Plots
-
+using Test
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
@@ -12,7 +13,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../problems/simple_problem.jl")
+include("../../problems/simple_problem.jl")
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -81,15 +82,19 @@ function minimum_transition_cost(symmodel, contsys, source, target)
     return 1.0
 end
 
+# setup for the tests
+if !isdefined(@__MODULE__, :hx)
+    hx = [0.5, 0.5]
+    u0 = SVector(0.0, 0.0)
+    hu = SVector(0.5, 0.5)
+    Ugrid = DO.GridFree(u0, hu)
+    hx_heuristic = [1.0, 1.0] * 1.5
+    maxIter = 100
+    no_plot = true
+end
+
 concrete_problem = SimpleProblem.problem()
 concrete_system = concrete_problem.system
-
-hx = [0.5, 0.5]
-u0 = SVector(0.0, 0.0)
-hu = SVector(0.5, 0.5)
-Ugrid = DO.GridFree(u0, hu)
-hx_heuristic = [1.0, 1.0] * 1.5
-maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
 
@@ -118,13 +123,13 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
-concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"));
+concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"))
 
 # ## Simulation
 # We define the cost and stopping criteria for a simulation
 cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
 reached(x) = x ∈ concrete_problem.target_set
-nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
+nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time # max num of steps
 # We simulate the closed loop trajectory
 x0 = UT.get_center(concrete_problem.initial_set)
 x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
@@ -138,41 +143,55 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
 )
 
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_traj)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-# ## Display the results
-# # Display the specifications and domains
-fig = plot(; aspect_ratio = :equal);
-#We display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+@static if get(ENV, "CI", "false") == "false" &&
+           (isdefined(@__MODULE__, :no_plot) && no_plot == false)
+    # ## Display the results
+    # # Display the specifications and domains
+    fig = plot(; aspect_ratio = :equal)
+    #We display the concrete domain
+    plot!(concrete_system.X; color = :yellow, opacity = 0.5)
 
-#We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+    #We display the abstract domain
+    plot!(abstract_system.Xdom; color = :blue, opacity = 0.5)
 
-#We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
+    #We display the concrete specifications
+    plot!(concrete_problem.initial_set; color = :green, opacity = 0.8)
+    plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
-#We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+    #We display the concrete trajectory
+    plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
+    # # Display the abstraction and Lyapunov-like function
+    fig = plot(; aspect_ratio = :equal)
+    plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
 
-# # Display the abstraction and Lyapunov-like function
-fig = plot(; aspect_ratio = :equal);
-plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+    # # Display the Bellman-like value function (heuristic)
+    fig = plot(; aspect_ratio = :equal)
+    plot!(
+        optimizer.abstract_system_heuristic;
+        arrowsB = false,
+        dims = [1, 2],
+        cost = true,
+        lyap_fun = optimizer.bell_fun,
+    )
 
-# # Display the Bellman-like value function (heuristic)
-fig = plot(; aspect_ratio = :equal)
-plot!(optimizer.abstract_system_heuristic; arrowsB = false, dims = [1, 2], cost = true, lyap_fun = optimizer.bell_fun)
+    # # Display the results of the A* algorithm
+    fig = plot(; aspect_ratio = :equal)
+    plot!(optimizer.lazy_search_problem)
+end
 
-# # Display the results of the A* algorithm
-fig = plot(; aspect_ratio = :equal)
-plot!(optimizer.lazy_search_problem)
-
+@testset "lazy_abstraction" begin
+    @test cost_bound ≈ 9.0 rtol = 1e-3
+    @test cost_true ≈ 9.0 rtol = 1e-3
+    @test cost_true <= cost_bound
+end
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
 # 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.
+end

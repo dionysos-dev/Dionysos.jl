@@ -1,3 +1,6 @@
+module TestMain
+using Test
+
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
 using JuMP, SDPA
@@ -28,7 +31,7 @@ if !isdefined(@__MODULE__, :Usz)
     no_plot = true
 end
 lib = CDDLib.Library() # polyhedron lib
-include("../problems/pwa_sys.jl")
+include("../../problems/pwa_sys.jl")
 
 # Problem parameters
 
@@ -52,11 +55,11 @@ concrete_problem =
 concrete_system = concrete_problem.system
 
 # Abstraction parameters
-X_origin = SVector(0.0, 0.0);
+X_origin = SVector(0.0, 0.0)
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X])
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -74,7 +77,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
 concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"))
 transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCont"))
-transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"));
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 
 # return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
@@ -106,7 +109,7 @@ cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u
 
 ### Simulation
 # We define the stopping criteria for a simulation
-nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
+nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time #max num of steps
 function reached(x)
     currState = SY.get_all_states_by_xpos(
         abstract_system,
@@ -130,7 +133,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
     stopping = reached,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_traj)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -206,4 +209,10 @@ println("True cost:\t\t $(cost_true)")
     ylabel!("\$x_2\$")
     title!("Trajectory and Lyapunov-like Fun.")
     display(fig)
+end
+@testset "state_trans" begin
+    @test cost_bound ≈ 0.6250139513432214 rtol = 1e-3
+    @test cost_true ≈ 0.36844089806471475 rtol = 1e-1
+    @test cost_true <= cost_bound
+end
 end

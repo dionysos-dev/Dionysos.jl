@@ -113,7 +113,13 @@ function build_abstract_problem(concrete_problem::PR.OptimalControlProblem, abst
 end
 
 # Construct the heuristic to guide the A* exploration
-function build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set, minimum_transition_cost, hx_heuristic)
+function build_heuristic_data(
+    concrete_problem,
+    abstract_system,
+    compute_reachable_set,
+    minimum_transition_cost,
+    hx_heuristic,
+)
     function get_transitions(symmodel, sys, source)
         return SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
     end
@@ -177,10 +183,16 @@ function set_optimizer!(
     optimizer.abstract_problem = abstract_problem
 
     # Build the abstraction-based heuristic
-    heuristic_data =
-        build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set, minimum_transition_cost, hx_heuristic)
+    heuristic_data = build_heuristic_data(
+        concrete_problem,
+        abstract_system,
+        compute_reachable_set,
+        minimum_transition_cost,
+        hx_heuristic,
+    )
     optimizer.abstract_system_heuristic = heuristic_data.symmodel
-    optimizer.bell_fun = Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
+    optimizer.bell_fun =
+        Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
 
     # Build the search problem
     lazy_search_problem = LazySearchProblem(
@@ -271,16 +283,18 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.concrete_controller =
         get_concrete_controller(abstract_system, abstract_controller)
     # Construct Lyapunov-like function
-    lyap_fun = Dict(state => lyap for (state, lyap) in enumerate(lazy_search_problem.costs))   
+    lyap_fun = Dict(state => lyap for (state, lyap) in enumerate(lazy_search_problem.costs))
     optimizer.lyap_fun = lyap_fun
     abstract_lyap_fun = build_abstract_lyap_fun(lyap_fun)
     optimizer.abstract_lyap_fun = abstract_lyap_fun
-    optimizer.concrete_lyap_fun = build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
+    optimizer.concrete_lyap_fun =
+        build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
 
     # Construct Bellman-like value function 
     abstract_bell_fun = build_abstract_bell_fun(optimizer.bell_fun)
     optimizer.abstract_bell_fun = abstract_bell_fun
-    optimizer.concrete_bell_fun = build_concrete_bell_fun(optimizer.abstract_system_heuristic, abstract_bell_fun)
+    optimizer.concrete_bell_fun =
+        build_concrete_bell_fun(optimizer.abstract_system_heuristic, abstract_bell_fun)
     return
 end
 
@@ -514,51 +528,51 @@ end
     domain = abstract_system.Xdom
     grid = domain.grid
     legend := false
-     # states for which transisitons have been computed for at least one input
-     dict = Dict{NTuple{2, Int}, Any}()
-     for k in 1:(abstract_system.autom.nstates)
-         if any(u -> problem.transitions_added[k, u], 1:(problem.transitions_added.num_rows))
-             pos = SY.get_xpos_by_state(abstract_system, k)
-             if !haskey(dict, pos[dims])
-                 dict[pos[dims]] = true
-                 @series begin
+    # states for which transisitons have been computed for at least one input
+    dict = Dict{NTuple{2, Int}, Any}()
+    for k in 1:(abstract_system.autom.nstates)
+        if any(u -> problem.transitions_added[k, u], 1:(problem.transitions_added.num_rows))
+            pos = SY.get_xpos_by_state(abstract_system, k)
+            if !haskey(dict, pos[dims])
+                dict[pos[dims]] = true
+                @series begin
                     opacity := 0.2
                     color := :yellow
                     return grid, pos
-                 end
-             end
-         end
-     end
- 
-     # controllable state
-     dict = Dict{NTuple{2, Int}, Any}()
-     for (cell, symbol) in contr.data
-         pos = SY.get_xpos_by_state(abstract_system, cell)
-         if !haskey(dict, pos[dims])
-             dict[pos[dims]] = true
-             @series begin
+                end
+            end
+        end
+    end
+
+    # controllable state
+    dict = Dict{NTuple{2, Int}, Any}()
+    for (cell, symbol) in contr.data
+        pos = SY.get_xpos_by_state(abstract_system, cell)
+        if !haskey(dict, pos[dims])
+            dict[pos[dims]] = true
+            @series begin
                 opacity := 0.3
                 color := :blue
                 return grid, pos
             end
-         end
-     end
- 
-     # states selected by A* to compute their pre-image
-     dict = Dict{NTuple{2, Int}, Any}()
-     for state in Base.keys(problem.closed)
-         pos = SY.get_xpos_by_state(abstract_system, state.source)
-         if !haskey(dict, pos[dims])
-             dict[pos[dims]] = true
-             @series begin
+        end
+    end
+
+    # states selected by A* to compute their pre-image
+    dict = Dict{NTuple{2, Int}, Any}()
+    for state in Base.keys(problem.closed)
+        pos = SY.get_xpos_by_state(abstract_system, state.source)
+        if !haskey(dict, pos[dims])
+            dict[pos[dims]] = true
+            @series begin
                 opacity := 0.5
                 color := :blue
                 return grid, pos
-             end
-         end
-     end
+            end
+        end
+    end
 
-     # initial set
+    # initial set
     dict = Dict{NTuple{2, Int}, Any}()
     for s in initlist
         pos = SY.get_xpos_by_state(abstract_system, s)
