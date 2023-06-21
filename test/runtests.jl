@@ -19,6 +19,8 @@ include("./symbolic/test_symbolicmodel.jl")
 include("./symbolic/test_lazy_symbolic.jl")
 include("./symbolic/test_ellipsoidal_transitions.jl")
 
+include("./problem/test_problems.jl")
+
 include("./control/test_controller.jl")
 include("./control/test_controllerreach.jl")
 include("./control/test_controllersafe.jl")
