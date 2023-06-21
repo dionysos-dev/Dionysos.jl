@@ -75,26 +75,48 @@ function get_min_value_heurisitic(heuristic, subsetList)
     return val
 end
 
-function plot_heuristic!(
-    heuristic::symmodelHeuristic;
-    dims = [1, 2],
-    opacity = 0.2,
-    color = :red,
-)
-    symmodel = heuristic.symmodel
-    dists = heuristic.dists
-    plot!(symmodel.Xdom; dims = dims, opacity = opacity, color = color)
-    i = 1
-    for elem in DO.enum_pos(symmodel.Xdom)
-        x = DO.get_coord(symmodel.Xdom, elem)[dims]
-        if dists[i] != Inf
-            annotate!(x[1], x[2], text(Int(dists[i]), 4), :color)
-        else
-            annotate!(x[1], x[2], text(Inf, 4), :color)
-        end
-        i = i + 1
-    end
-end
+
+# @recipe function f(heuristic::symmodelHeuristic; dims = [1, 2])
+#     opacity := 0.2
+#     color := :red
+#     symmodel = heuristic.symmodel
+#     @series begin
+#         return symmodel.Xdom
+#     end
+#     dists = heuristic.dists
+#     for (i, elem) in enumerate(DO.enum_pos(symmodel.Xdom))
+#         x = DO.get_coord(symmodel.Xdom, elem)[dims]
+#         if i < length(dists)
+#             @series begin
+#                 x[1], x[2]
+#                 annotate!(x[1], x[2], text(Int(dists[i]), 4), color)
+#             end
+#         end
+#     end
+# end
+
+
+
+# function plot_heuristic!(
+#     heuristic::symmodelHeuristic;
+#     dims = [1, 2],
+#     opacity = 0.2,
+#     color = :red,
+# )
+#     symmodel = heuristic.symmodel
+#     dists = heuristic.dists
+#     plot!(symmodel.Xdom; dims = dims, opacity = opacity, color = color)
+#     i = 1
+#     for elem in DO.enum_pos(symmodel.Xdom)
+#         x = DO.get_coord(symmodel.Xdom, elem)[dims]
+#         if dists[i] != Inf
+#             annotate!(x[1], x[2], text(Int(dists[i]), 4), :color)
+#         else
+#             annotate!(x[1], x[2], text(Inf, 4), :color)
+#         end
+#         i = i + 1
+#     end
+# end
 
 # function get_ncells(problem::symmodelProblem)
 #     symmodel = problem.symmodel

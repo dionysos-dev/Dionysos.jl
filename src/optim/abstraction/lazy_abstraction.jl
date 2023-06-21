@@ -24,12 +24,17 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
-    concrete_bell_fun::Union{Nothing, Any}
+    concrete_bell_fun::Union{Nothing, Any} # from the initial set
+    abstract_system_heuristic::Union{Nothing, Any}
+    lyap_fun::Union{Nothing, Any}
+    bell_fun::Union{Nothing, Any}
 
     lazy_search_problem::Union{Nothing, Any}
 
     function Optimizer{T}() where {T}
         return new{T}(
+            nothing,
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -108,19 +113,14 @@ function build_abstract_problem(concrete_problem::PR.OptimalControlProblem, abst
 end
 
 # Construct the heuristic to guide the A* exploration
-function build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set)
+function build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set, minimum_transition_cost, hx_heuristic)
     function get_transitions(symmodel, sys, source)
         return SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
     end
-
-    function minimum_transition_cost(symmodel, contsys, source, target)
-        return 1.0
-    end
-    hx = [1.0, 1.0] * 1.5
     concrete_system = concrete_problem.system
     X = concrete_system.X.A
     Xdom = DO.GeneralDomainList(
-        hx;
+        hx_heuristic;
         periodic = concrete_system.periodic,
         periods = concrete_system.periods,
         T0 = concrete_system.T0,
@@ -158,6 +158,8 @@ function set_optimizer!(
     pre_image,
     post_image,
     compute_reachable_set,
+    minimum_transition_cost,
+    hx_heuristic,
     hx,
     Ugrid;
     transitions_previously_added = nothing,
@@ -176,7 +178,9 @@ function set_optimizer!(
 
     # Build the abstraction-based heuristic
     heuristic_data =
-        build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set)
+        build_heuristic_data(concrete_problem, abstract_system, compute_reachable_set, minimum_transition_cost, hx_heuristic)
+    optimizer.abstract_system_heuristic = heuristic_data.symmodel
+    optimizer.bell_fun = Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
 
     # Build the search problem
     lazy_search_problem = LazySearchProblem(
@@ -232,6 +236,31 @@ function get_concrete_controller(abstract_system, abstract_controller)
     return concrete_controller
 end
 
+function build_abstract_lyap_fun(lyap)
+    return abstract_lyap_fun(state) = lyap[state]
+end
+
+function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
+    function concrete_lyap_fun(x)
+        state = SY.get_state_by_coord(abstract_system, x)
+        return abstract_lyap_fun(state)
+    end
+    return concrete_lyap_fun
+end
+
+function build_abstract_bell_fun(bell)
+    return abstract_bell_fun(state) = bell[state]
+end
+
+function build_concrete_bell_fun(abstract_system_heuristic, abstract_bell_fun)
+    function concrete_bell_fun(x)
+        println(typeof(abstract_system_heuristic))
+        state = SY.get_state_by_coord(abstract_system_heuristic, x)
+        return abstract_bell_fun(state)
+    end
+    return concrete_bell_fun
+end
+
 function MOI.optimize!(optimizer::Optimizer)
     # Co-design the abstract system and the abstract controller
     build_abstraction(optimizer)
@@ -241,7 +270,17 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.abstract_controller = abstract_controller
     optimizer.concrete_controller =
         get_concrete_controller(abstract_system, abstract_controller)
+    # Construct Lyapunov-like function
+    lyap_fun = Dict(state => lyap for (state, lyap) in enumerate(lazy_search_problem.costs))   
+    optimizer.lyap_fun = lyap_fun
+    abstract_lyap_fun = build_abstract_lyap_fun(lyap_fun)
+    optimizer.abstract_lyap_fun = abstract_lyap_fun
+    optimizer.concrete_lyap_fun = build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
 
+    # Construct Bellman-like value function 
+    abstract_bell_fun = build_abstract_bell_fun(optimizer.bell_fun)
+    optimizer.abstract_bell_fun = abstract_bell_fun
+    optimizer.concrete_bell_fun = build_concrete_bell_fun(optimizer.abstract_system_heuristic, abstract_bell_fun)
     return
 end
 
@@ -401,7 +440,7 @@ function _update_cache!(problem::LazySearchProblem, ns1, ns2, nsym)
     resize!(problem.controllable, ns2)
     resize!(problem.costs, ns2)
     for i in (ns1 + 1):ns2
-        problem.costs[i] = 0.0
+        problem.costs[i] = Inf
         problem.controllable[i] = false
     end
 end
@@ -467,69 +506,69 @@ function UT.successor(problem::LazySearchProblem, state::State)
     return successors
 end
 
-## printing
-function rectangle(c, r)
-    return Shape(
-        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
-        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
-    )
-end
-
-function plot_result!(problem; dims = [1, 2], x0 = nothing)
-    println()
-    println("Plotting")
+@recipe function f(problem::LazySearchProblem; dims = [1, 2])
     targetlist = [init.source for init in problem.initial]
     initlist = [goal.source for goal in problem.goal]
-    contsys = problem.concrete_system
     contr = problem.contr
     abstract_system = problem.abstract_system
     domain = abstract_system.Xdom
     grid = domain.grid
-    h = grid.h[dims]
-
-    # states for which transisitons have been computed for at least one input
-    dict = Dict{NTuple{2, Int}, Any}()
-    for k in 1:(abstract_system.autom.nstates)
-        if any(u -> problem.transitions_added[k, u], 1:(problem.transitions_added.num_rows))
-            pos = SY.get_xpos_by_state(abstract_system, k)
-            if !haskey(dict, pos[dims])
-                dict[pos[dims]] = true
-                center = DO.get_coord_by_pos(grid, pos)
-                Plots.plot!(rectangle(center[dims], h ./ 2); opacity = 0.2, color = :yellow)
+    legend := false
+     # states for which transisitons have been computed for at least one input
+     dict = Dict{NTuple{2, Int}, Any}()
+     for k in 1:(abstract_system.autom.nstates)
+         if any(u -> problem.transitions_added[k, u], 1:(problem.transitions_added.num_rows))
+             pos = SY.get_xpos_by_state(abstract_system, k)
+             if !haskey(dict, pos[dims])
+                 dict[pos[dims]] = true
+                 @series begin
+                    opacity := 0.2
+                    color := :yellow
+                    return grid, pos
+                 end
+             end
+         end
+     end
+ 
+     # controllable state
+     dict = Dict{NTuple{2, Int}, Any}()
+     for (cell, symbol) in contr.data
+         pos = SY.get_xpos_by_state(abstract_system, cell)
+         if !haskey(dict, pos[dims])
+             dict[pos[dims]] = true
+             @series begin
+                opacity := 0.3
+                color := :blue
+                return grid, pos
             end
-        end
-    end
+         end
+     end
+ 
+     # states selected by A* to compute their pre-image
+     dict = Dict{NTuple{2, Int}, Any}()
+     for state in Base.keys(problem.closed)
+         pos = SY.get_xpos_by_state(abstract_system, state.source)
+         if !haskey(dict, pos[dims])
+             dict[pos[dims]] = true
+             @series begin
+                opacity := 0.5
+                color := :blue
+                return grid, pos
+             end
+         end
+     end
 
-    # controllable state
-    dict = Dict{NTuple{2, Int}, Any}()
-    for (cell, symbol) in contr.data
-        pos = SY.get_xpos_by_state(abstract_system, cell)
-        if !haskey(dict, pos[dims])
-            dict[pos[dims]] = true
-            center = DO.get_coord_by_pos(grid, pos)
-            Plots.plot!(rectangle(center[dims], h ./ 2); opacity = 0.3, color = :blue)
-        end
-    end
-
-    # states selected by A* to compute their pre-image
-    dict = Dict{NTuple{2, Int}, Any}()
-    for state in Base.keys(problem.closed)
-        pos = SY.get_xpos_by_state(abstract_system, state.source)
-        if !haskey(dict, pos[dims])
-            dict[pos[dims]] = true
-            center = DO.get_coord_by_pos(grid, pos)
-            Plots.plot!(rectangle(center[dims], h ./ 2); opacity = 0.5, color = :blue)
-        end
-    end
-
-    # initial set
+     # initial set
     dict = Dict{NTuple{2, Int}, Any}()
     for s in initlist
         pos = SY.get_xpos_by_state(abstract_system, s)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            center = DO.get_coord_by_pos(grid, pos)
-            Plots.plot!(rectangle(center[dims], h ./ 2); opacity = 0.4, color = :green)
+            @series begin
+                opacity := 0.4
+                color := :green
+                return grid, pos
+            end
         end
     end
 
@@ -539,75 +578,13 @@ function plot_result!(problem; dims = [1, 2], x0 = nothing)
         pos = SY.get_xpos_by_state(abstract_system, s)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            center = DO.get_coord_by_pos(grid, pos)
-            Plots.plot!(rectangle(center[dims], h ./ 2); opacity = 0.5, color = :red)
+            @series begin
+                opacity := 0.5
+                color := :red
+                return grid, pos
+            end
         end
     end
-
-    # plot a trajectory
-    if x0 != nothing
-        (traj, success) = trajectory_reach(contsys, abstract_system, contr, x0, targetlist)
-        plot_trajectory!(abstract_system, traj; dims = dims)
-    end
-end
-
-function trajectory_reach(
-    contsys,
-    abstract_system,
-    contr,
-    x0,
-    targetlist;
-    randchoose = false,
-)
-    traj = []
-    while true
-        x0 = DO.set_in_period_coord(abstract_system.Xdom, x0)
-        push!(traj, x0)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom.grid, x0)
-        if !(xpos ∈ abstract_system.Xdom)
-            @warn("Trajectory out of domain")
-            return (traj, false)
-        end
-        source = SY.get_state_by_xpos(abstract_system, xpos)[1]
-        if source ∈ targetlist
-            break
-        end
-        symbollist = UT.fix_and_eliminate_first(contr, source)
-        if isempty(symbollist)
-            @warn("Uncontrollable state")
-            return (traj, false)
-        end
-        if randchoose
-            symbol = rand(collect(symbollist))[1]
-        else
-            symbol = first(symbollist)[1]
-        end
-
-        upos = SY.get_upos_by_symbol(abstract_system, symbol)
-        u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
-        x0 = contsys.sys_map(x0, u, contsys.tstep)
-    end
-    return (traj, true)
-end
-
-function plot_trajectory!(abstract_system, traj; dims = [1, 2])
-    domain = abstract_system.Xdom
-    grid = domain.grid
-    k = dims[1]
-    l = dims[2]
-    for i in 1:(length(traj) - 1)
-        Plots.plot!(
-            [traj[i][k], traj[i + 1][k]],
-            [traj[i][l], traj[i + 1][l]];
-            color = :red,
-            linewidth = 2,
-        )
-        if i > 1
-            Plots.scatter!([traj[i][k]], [traj[i][l]]; color = :red, markersize = 2)
-        end
-    end
-    Plots.scatter!([traj[1][k]], [traj[1][l]]; color = :green, markersize = 3)
-    return Plots.scatter!([traj[end][k]], [traj[end][l]]; color = :yellow, markersize = 3)
 end
 
 end

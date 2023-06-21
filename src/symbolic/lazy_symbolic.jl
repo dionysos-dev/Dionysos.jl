@@ -79,38 +79,54 @@ function enum_cells(symmodel::LazySymbolicModel)
     return 1:get_ncells(symmodel)
 end
 
-function Plots.plot!(
-    symmodel::LazySymbolicModel;
-    dims = [1, 2],
-    color = :yellow,
-    opacity = 0.2,
-)
+@recipe function f(symmodel::LazySymbolicModel; dims = [1, 2], arrowsB = false, cost = false, lyap_fun = [])
     dom = symmodel.Xdom
     grid = DO.get_grid(dom)
-    dict = Dict{NTuple{2, Int}, Any}()
-    for s in enum_cells(symmodel)
-        pos = get_xpos_by_state(symmodel, s)
-        if !haskey(dict, pos[dims])
-            dict[pos[dims]] = true
-            plot!(grid, pos; opacity = opacity, color = color)
+    if cost
+        LyapMax = max(filter(isfinite, getfield.([lyap_fun...], :second))...)
+        colormap = Colors.colormap("Blues")
+        mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
+        cost_ordered =
+            reverse(sort(hcat([(lyap, state) for (state, lyap) in lyap_fun]...); dims = 2))
+        for (lyap, state) in cost_ordered
+            pos = get_xpos_by_state(symmodel, state)
+            @series begin
+                lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
+                return grid, pos
+            end
+        end
+        @series begin
+            mycolorMap
+        end
+    else
+        dict = Dict{NTuple{2, Int}, Any}()
+        for s in enum_cells(symmodel)
+            pos = get_xpos_by_state(symmodel, s)
+            if !haskey(dict, pos[dims])
+                dict[pos[dims]] = true
+                @series begin
+                    legend := false
+                    return grid, pos
+                end
+            end
+        end
+    end
+    # Display the arrows
+    if arrowsB
+        for (target, source, symbol) in symmodel.autom.transitions
+            if source == target
+                @series begin
+                    p1 = DO.get_coord_by_pos(grid, get_xpos_by_state(symmodel, source))
+                    return UT.DrawPoint(p1)
+                end
+            else
+                @series begin
+                    p1 = DO.get_coord_by_pos(grid, get_xpos_by_state(symmodel, source))
+                    p2 = DO.get_coord_by_pos(grid, get_xpos_by_state(symmodel, target))
+                    return UT.DrawArrow(p1, p2)
+                end
+            end
         end
     end
 end
 
-function plot_trajectory!(traj; dims = [1, 2])
-    k = dims[1]
-    l = dims[2]
-    for i in 1:(length(traj) - 1)
-        Plots.plot!(
-            [traj[i][k], traj[i + 1][k]],
-            [traj[i][l], traj[i + 1][l]];
-            color = :red,
-            linewidth = 2,
-        )
-        if i > 1
-            Plots.scatter!([traj[i][k]], [traj[i][l]]; color = :red, markersize = 2)
-        end
-    end
-    Plots.scatter!([traj[1][k]], [traj[1][l]]; color = :green, markersize = 3)
-    return Plots.scatter!([traj[end][k]], [traj[end][l]]; color = :yellow, markersize = 3)
-end
