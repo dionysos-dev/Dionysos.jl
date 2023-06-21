@@ -53,6 +53,11 @@ function get_state_by_xpos(symmodel::SymbolicModelList, xpos)
     return symmodel.xpos2int[xpos]
 end
 
+function get_state_by_coord(symmodel::SymbolicModelList, x)
+    xpos = DO.get_pos_by_coord(symmodel.Xdom, x)
+    return get_state_by_xpos(symmodel, xpos)
+end
+
 function get_all_states_by_xpos(symmodel::SymbolicModelList, l_xpos)
     return [symmodel.xpos2int[xpos] for xpos in l_xpos]
 end
@@ -235,7 +240,7 @@ function compute_symmodel_from_controlsystem!(
     )
 end
 
-@recipe function f(symmodel::SymbolicModel; arrowsB = true, cost = false, lyap_fun = [])
+@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
     # Display the cells
     state_grid = symmodel.Xdom.grid
     if cost

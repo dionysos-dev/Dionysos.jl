@@ -77,6 +77,10 @@ struct GridFree{N, T} <: Grid{N, T}
     h::SVector{N, T}
 end
 
+function get_elem_by_pos(grid::GridFree, pos)
+    return grid, pos
+end
+
 function get_rec(grid::GridFree, pos)
     x = get_coord_by_pos(grid, pos)
     r = grid.h / 2.0

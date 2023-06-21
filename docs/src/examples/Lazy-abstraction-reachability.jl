@@ -100,6 +100,9 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     ub = SVector{n}(ub)
     return UT.HyperRectangle(lb, ub)
 end
+function minimum_transition_cost(symmodel, contsys, source, target)
+    return 1.0
+end
 
 concrete_problem = SimpleProblem.problem()
 concrete_system = concrete_problem.system
@@ -108,6 +111,7 @@ hx = [0.5, 0.5]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
+hx_heuristic = [1.0, 1.0] * 1.5
 maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
@@ -119,6 +123,8 @@ AB.LazyAbstraction.set_optimizer!(
     pre_image,
     post_image,
     compute_reachable_set,
+    minimum_transition_cost,
+    hx_heuristic,
     hx,
     Ugrid,
 )
@@ -134,8 +140,8 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-# abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
-# concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"));
+abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
+concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"));
 
 # ## Simulation
 # We define the cost and stopping criteria for a simulation
@@ -154,30 +160,45 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
     noise = false,
 )
 
+cost_bound = concrete_lyap_fun(x0)
 cost_true = sum(cost_traj);
 println("Goal set reached")
+println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-# Here we display the coordinate projection on the two first components of the state space along the trajectory.
+# ## Display the results
+# # Display the specifications and domains
 fig = plot(; aspect_ratio = :equal);
-# We display the concrete domain
+#We display the concrete domain
 plot!(concrete_system.X; color = :yellow, opacity = 0.5);
 
-# # We display the abstract domain
+#We display the abstract domain
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 
-# # We display the concrete specifications
+#We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 
-# We display the concrete trajectory
+#We display the concrete trajectory
 plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
-# Display a trajectory
+# # Display the abstraction and Lyapunov-like function
+fig = plot(; aspect_ratio = :equal);
+plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+
+# # Display the Bellman-like value function (heuristic)
 fig = plot(; aspect_ratio = :equal)
-x0 = SVector(5.5, 5.5)
-AB.LazyAbstraction.plot_result!(optimizer.lazy_search_problem; x0 = x0)
-plot!(; show = true, legend = false)
+plot!(
+    optimizer.abstract_system_heuristic;
+    arrowsB = false,
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.bell_fun,
+)
+
+# # Display the results of the A* algorithm
+fig = plot(; aspect_ratio = :equal)
+plot!(optimizer.lazy_search_problem)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

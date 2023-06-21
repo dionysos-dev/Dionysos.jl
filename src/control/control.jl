@@ -14,6 +14,5 @@ SY = Symbolic
 
 using StaticArrays, LinearAlgebra, Plots
 include("controller.jl")
-include("lazy_abstraction.jl")
 include("trajectory.jl")
 end  # module control

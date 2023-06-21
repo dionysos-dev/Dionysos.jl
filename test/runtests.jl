@@ -4,28 +4,30 @@
 
 include("./utils/data_structures/test_queue.jl")
 include("./utils/data_structures/test_digraph.jl")
+include("./utils/data_structures/tree.jl")
 include("./utils/search/test_search.jl")
 include("./utils/rectangle.jl")
 include("./utils/ellipsoid.jl")
-include("./utils/data_structures/tree.jl")
 
 include("./domain/test_griddomain.jl")
 include("./domain/test_general_domain.jl")
 include("./domain/test_nested_domain.jl")
-include("./domain/test_general_domain.jl")
 
 include("./symbolic/test_automaton.jl")
 include("./symbolic/test_symbolicmodel.jl")
 include("./symbolic/test_lazy_symbolic.jl")
 include("./symbolic/test_ellipsoidal_transitions.jl")
 
-include("./control/test_fromcontrolsystemgrowth.jl")
-include("./control/test_fromcontrolsystemlinearized.jl")
 include("./control/test_controller.jl")
 include("./control/test_controllerreach.jl")
 include("./control/test_controllersafe.jl")
-include("./control/test_lazy_periodicity.jl")
+include("./control/test_fromcontrolsystemgrowth.jl")
+include("./control/test_fromcontrolsystemlinearized.jl")
 
-include("./examples/test_state_feedback_trans.jl")
+include("./optim/test_SCOTS_safety.jl")
+include("./optim/test_SCOTS_reachability.jl")
+include("./optim/test_lazy_abstraction.jl")
+include("./optim/test_ellipsoids_abstraction.jl")
+include("./optim/test_lazy_ellipsoids_abstraction.jl")
+
 include("./examples/test_gol_lazar_belta.jl")
-include("./examples/test_lazy_ellipsoids_abstraction.jl")
