@@ -5,7 +5,8 @@ Mapping containing methods to convert elements in a `ContinuousDomain` to a grid
 and vice-versa.
 """
 struct MappingContinuousGrid{
-    N, T, 
+    N,
+    T,
     F1 <: Function,
     F2 <: Function,
     S <: DO.Grid{N, T},
@@ -18,12 +19,10 @@ struct MappingContinuousGrid{
     grid2cont::F2
 end
 
-function MappingContinuousGrid(c::C, g::DO.DomainList{N, T, S}) where {
-    N, 
-    T, 
-    S <: DO.Grid{N, T}, 
-    C <: DO.ContinuousDomain{N, T}
-}   
+function MappingContinuousGrid(
+    c::C,
+    g::DO.DomainList{N, T, S},
+) where {N, T, S <: DO.Grid{N, T}, C <: DO.ContinuousDomain{N, T}}
     is_ellipsoid = g.grid isa DO.GridEllipsoidalRectangular
 
     cont2grid(x) = is_ellipsoid ? DO.get_elem_by_pos(g.grid, x) : DO.get_rec(g.grid, x)
@@ -39,11 +38,14 @@ Mapping containing methods to convert elements in a `ContinuousDomain` to a `Con
 and vice-versa.
 """
 struct MappingContinuousEllipsoid{
-    N, T, B, E,
-    F1 <: Function, 
+    N,
+    T,
+    B,
+    E,
+    F1 <: Function,
     F2 <: Function,
-    C <: DO.ContinuousDomain{N, T}, 
-    G <: DO.ContinuousBoundedEllipsoidDomain{N, T, B, E}
+    C <: DO.ContinuousDomain{N, T},
+    G <: DO.ContinuousBoundedEllipsoidDomain{N, T, B, E},
 }
     continuousdomain::C
     ellidomain::G
@@ -51,11 +53,11 @@ struct MappingContinuousEllipsoid{
     elli2cont::F2
 end
 
-function MappingContinuousEllipsoid(c::C, e::DO.ContinuousBoundedEllipsoidDomain{N, T, B, E}) where {
-    N, T, B, E, 
-    C <: DO.ContinuousDomain{N, T}
-}
-    function cont2elli(x) 
+function MappingContinuousEllipsoid(
+    c::C,
+    e::DO.ContinuousBoundedEllipsoidDomain{N, T, B, E},
+) where {N, T, B, E, C <: DO.ContinuousDomain{N, T}}
+    function cont2elli(x)
         idx = findfirst([x ∈ ell for ell in e.ellips])
         return idx === nothing ? idx : e.ellips[idx]
     end

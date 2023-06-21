@@ -10,11 +10,11 @@ const DO = DI.Domain
 const MA = DI.Mapping
 
 @testset "MappingContinuousGrid" begin
-    orig = SVector(0., 0.)
-    h = SVector(.1, .1)
+    orig = SVector(0.0, 0.0)
+    h = SVector(0.1, 0.1)
     cont_dom = DO.ContinuousUnboundedDomain(orig)
 
-    x = SVector(.5, .5)
+    x = SVector(0.5, 0.5)
 
     grid_free = DO.GridFree(orig, h)
     grid_free_dom = DO.DomainList(grid_free)
@@ -25,8 +25,8 @@ const MA = DI.Mapping
     xi_free = DO.get_rec(grid_free, x)
     @test mcg_free.grid2cont(xi_free) === UT.get_center(xi_free)
 
-    P = SMatrix{2, 2}(2., 1., 1., 3.)
-    rect = UT.HyperRectangle(SVector(-2., -2.), SVector(2., 2.))
+    P = SMatrix{2, 2}(2.0, 1.0, 1.0, 3.0)
+    rect = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
     grid_ell = DO.GridEllipsoidalRectangular(orig, h, P, rect)
     grid_ell_dom = DO.DomainList(grid_ell)
     mcg_ell = MA.MappingContinuousGrid(cont_dom, grid_ell_dom)
@@ -39,17 +39,17 @@ const MA = DI.Mapping
 end
 
 @testset "MappingContinuousEllipsoid" begin
-    orig = SVector(0., 0.)
-    bound = 3.
-    P = SMatrix{2, 2}(2., 1., 1., 3.)
+    orig = SVector(0.0, 0.0)
+    bound = 3.0
+    P = SMatrix{2, 2}(2.0, 1.0, 1.0, 3.0)
     ell = UT.Ellipsoid(P, orig)
 
     cont_dom = DO.ContinuousUnboundedDomain(orig)
     elli_dom = DO.ContinuousBoundedEllipsoidDomain(orig, bound, Set([ell]))
     mce = MA.MappingContinuousEllipsoid(cont_dom, elli_dom)
 
-    x = SVector(.5, .5)
-        
+    x = SVector(0.5, 0.5)
+
     @test mce.continuousdomain === cont_dom
     @test mce.ellidomain === elli_dom
     @test mce.cont2elli(x) === nothing

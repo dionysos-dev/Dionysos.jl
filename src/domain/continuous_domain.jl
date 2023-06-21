@@ -30,6 +30,6 @@ struct ContinuousBoundedEllipsoidDomain{N, T, B, E} <: ContinuousDomain{N, T}
     ellips::Set{E}
 end
 
-function ContinuousBoundedEllipsoidDomain(orig::SVector{N, T}, bound) where {N, T} 
+function ContinuousBoundedEllipsoidDomain(orig::SVector{N, T}, bound) where {N, T}
     return ContinuousBoundedEllipsoidDomain(orig, bound, Set{UT.Ellipsoid}())
 end
