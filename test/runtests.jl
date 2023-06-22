@@ -14,9 +14,12 @@ include("./domain/test_general_domain.jl")
 include("./domain/test_nested_domain.jl")
 
 include("./symbolic/test_automaton.jl")
+include("./symbolic/test_proba_automaton.jl")
 include("./symbolic/test_symbolicmodel.jl")
 include("./symbolic/test_lazy_symbolic.jl")
 include("./symbolic/test_ellipsoidal_transitions.jl")
+
+include("./problem/test_problems.jl")
 
 include("./control/test_controller.jl")
 include("./control/test_controllerreach.jl")

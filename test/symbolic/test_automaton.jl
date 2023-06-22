@@ -8,6 +8,9 @@ const SY = DI.Symbolic
 sleep(0.1) # used for good printing
 println("Started test")
 
+sleep(0.1) # used for good printing
+println("Started test")
+
 @testset "Automaton" begin
     nstates = 10
     nsymbols = 11

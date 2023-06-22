@@ -95,6 +95,10 @@ function test()
 
         (x, s, xpos) = traj[11]
         @test (s, xpos) == (11, (2, 26))
+
+        @test SY.get_ncells(symmodel) == 11
+
+        @test all(SY.enum_cells(symmodel) .== 1:11)
     end
 
     @testset "Deformed grid and LazySymbolic" begin
@@ -133,6 +137,9 @@ function test()
 
         (x, s, xpos) = traj[11]
         @test (s, xpos) == (10, (2, 23))
+
+        @test SY.get_ncells(symmodel) == 10
+        @test all(SY.enum_cells(symmodel) .== 1:10)
     end
 end
 

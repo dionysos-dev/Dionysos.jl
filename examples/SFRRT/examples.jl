@@ -140,9 +140,6 @@ function example_test_controller() # could be added as a test for ellipsoidal_tr
 
     #could be good to print the cost in the original ellipsoid from te transition with a color bar.
     SC.check_controller(E1, kappa, E2, f_eval, sys.Ts; N = 500)
-
-    # SC.plot_controller(E1, kappa, E2, f_eval, sys.Ts; N=100)
-
     return SC.plot_controller_cost(E1, kappa, E2, f_eval, sys.Ts, f_cost; N = 2000)
 end
 
@@ -185,32 +182,6 @@ function test_backward_transition()
         maxδu = optimizer.maxδu,
     )
 
-    # W = 0.0*[-1 -1  1 1;
-    #          -1  1 -1 1]
-
-    # n_x = 2
-    # n_u = 2
-    # n_w = 2
-    # S = Matrix{Float64}(I(n_x+n_u+1))
-    # sdp_opt =  optimizer_with_attributes(SCS.Optimizer, MOI.Silent() => true)
-
-    # A = affineSys.A
-    # B = affineSys.B
-    # g = affineSys.c
-    # Lip = L
-    # U = sys.Ub
-    # u = zeros(2)
-    # ##########################
-    # #A, B, g, ct, Pt, c, U, W, S, Lip, optimizer;  maxRadius=Inf, maxΔu=Inf, λ=0.01
-
-    # maxδx = 100  #
-    # maxδu = 10.0*2
-    # #E1, kappa, cost = Dionysos.Symbolic.transition_backward(A, B, g, E2.c, E2.P, c, u, U, W, S, Lip, sdp_opt, affineSys; maxδx=maxδx, maxδu=maxδu, λ=0.08) #0.01
-    # E1, kappa, cost = SY.transition_backward(affineSys, E2, c, u, U, S, Lip, sdp_opt; maxδx=maxδx, maxδu=maxδu, λ=0.01)
-
-    # E1 = UT.Ellipsoid([2.0 0.2 ; 0.2 0.5], [0.0 ; 0.0])
-    # ans, kappa, cost = Dionysos.Symbolic.transition_fixed(affineSys, E1, E2, sys.Ub, W, S, sdp_opt)
-
     p = plot(; aspect_ratio = :equal)
     plot!(p, E1; color = :green)
     plot!(p, E2; color = :red)
@@ -226,24 +197,11 @@ function test_backward_transition()
     end
     println(sys.U)
     Uset = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [0.0; 0.0])
-    return println(SY.check_controller(E1, E2, f_eval, c_eval, 2, Uset; N = 500)) #check_controller(E1, kappa, E2, f_eval, sys.Ts; N=500))
-    #SY.plot_controller(E1, kappa, E2, f_eval, sys.Ts; N=100)
-    #println(vol) # on a vol <= 4/3 π δx^3
-
+    return println(SY.check_controller(E1, E2, f_eval, c_eval, 2, Uset; N = 500))
 end
 
 using JuMP, Mosek, MosekTools, SCS
 function test_log_det()
-
-    # sdp_opt =  optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-
-    # model = Model(sdp_opt)
-    # @variable(model, X[1:3, 1:3])
-    # @variable(model, t)
-    # @constraint(model, [t; 1; vec(X)] in MOI.LogDetConeSquare(3))
-    # @objective(model, Max, t)
-    # optimize!(model)
-
     sdp_opt = optimizer_with_attributes(SCS.Optimizer, MOI.Silent() => true)
     model = Model(sdp_opt)
     @variable(model, Q[1:3, 1:3] in PSDCone())
@@ -255,7 +213,4 @@ function test_log_det()
     return println(value(t))
 end
 
-# example_box_ellipsoid()
-# example_test_controller()
 test_backward_transition()
-# test_log_det()

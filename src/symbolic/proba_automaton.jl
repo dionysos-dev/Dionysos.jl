@@ -21,7 +21,7 @@ end
 
 # Assumes not add twice same transition !!!
 function HybridSystems.add_transition!(autom::ProbaAutomaton, source, symbol, target, proba)
-    return push_new!(autom.transitions, (target, source, symbol, proba))
+    return UT.push_new!(autom.transitions, (target, source, symbol, proba))
 end
 
 function comparison(t1::Tuple{Int, Int, Int, Float64}, t2::Tuple{Int, Int})
@@ -32,14 +32,10 @@ function delete_transition_post!(autom::ProbaAutomaton, source, symbol)
     return UT.delete!(autom.transitions, (source, symbol), comparison)
 end
 
-# # translist is an iterable of Tuple{Int,Int,Int}
-# function append_new!(s, translist)
-#     union!(s, translist)
-# end
-
 function add_transitions!(autom::ProbaAutomaton, translist)
     return UT.append_new!(autom.transitions, translist)
 end
+
 Base.empty!(autom::ProbaAutomaton) = empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::ProbaAutomaton, source, symbol)
