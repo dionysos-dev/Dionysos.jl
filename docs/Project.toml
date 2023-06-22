@@ -26,6 +26,8 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Libtiff_jll = "89763e89-9b03-5906-acba-b20f662cd828"
 
 [compat]
 Documenter = "0.27"
+Libtiff_jll = "4.4.0"
