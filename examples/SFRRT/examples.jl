@@ -197,8 +197,7 @@ function test_backward_transition()
     end
     println(sys.U)
     Uset = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [0.0; 0.0])
-    return println(SY.check_controller(E1, E2, f_eval, c_eval, 2, Uset; N = 500)) #check_controller(E1, kappa, E2, f_eval, sys.Ts; N=500))
-
+    return println(SY.check_controller(E1, E2, f_eval, c_eval, 2, Uset; N = 500))
 end
 
 using JuMP, Mosek, MosekTools, SCS
@@ -215,4 +214,3 @@ function test_log_det()
 end
 
 test_backward_transition()
-
