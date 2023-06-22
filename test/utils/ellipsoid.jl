@@ -26,12 +26,14 @@ const UT = DI.Utils
         0.0 1.0
     ]
     E3 = UT.Ellipsoid(P3, c3)
+    E4 = 2.0 * E1
+    E4 = E4 / 2.0
 
     @test UT.get_center(E1) == [1.0; 1.0]
     @test UT.get_shape(E1) == [0.4 -0.1; -0.1 0.5]
-    @test isposdef(UT.get_shape(E1)) &&
-          isposdef(UT.get_shape(E2)) &&
-          isposdef(UT.get_shape(E3)) == true
+    @test UT.isposdef(UT.get_shape(E1)) &&
+          UT.isposdef(UT.get_shape(E2)) &&
+          UT.isposdef(UT.get_shape(E3)) == true
     @test UT.get_dims(E1) == 2
     @test UT.centerDistance(E1, E2) == 3.0
     @test UT.pointCenterDistance(E1, [5.0; 4.0]) == 5.0
@@ -42,6 +44,18 @@ const UT = DI.Utils
           IntervalBox(UT.get_center(E2) .- [1.0; 1.0], UT.get_center(E2) .+ [1.0; 1.0])
     @test UT.get_min_bounding_box(E3) ==
           IntervalBox(UT.get_center(E3) .- [2.0; 1.0], UT.get_center(E3) .+ [2.0; 1.0])
+    @test UT.get_shape(E4) == [0.4 -0.1; -0.1 0.5]
+    @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.expand(E1, 2.0))
+    @test UT.get_axis_points(E2, 1) == ([3.0, 1.0], [5.0, 1.0])
+    @test UT.get_axis_points(E2, 2) == ([4.0, 0.0], [4.0, 2.0])
+    @test UT.get_all_axis_points(E2) == [([3.0, 1.0], [5.0, 1.0]), ([4.0, 0.0], [4.0, 2.0])]
+    @test UT.get_length_semiaxis_sorted(E2, 1) == 1.0
+    @test UT.get_length_semiaxis_sorted(E2, 2) == 1.0
+    @test UT.get_length_semiaxis(E3, 1) == 2.0
+    @test UT.get_length_semiaxis(E3, 2) == 1.0
+    @test UT.get_length_semiaxis(E3) == [2.0, 1.0]
+    @test UT.get_shape(UT.get_inscribed_ball(E3)) == 0.25 * P2
+    @test UT.get_center(UT.get_inscribed_ball(E3)) == c3
 end
 
 @testset "EllipsoidOperations" begin
@@ -116,6 +130,15 @@ end
         norm(E1scaled2.P - [0.073295 -0.018323; -0.01832382 0.0916196])
     @test err <= 10e-4
     @test Base.in(E, UT.Ellipsoid(E1scaled2.P * 0.99, E1scaled2.c)) == true
+
+    #############################################
+    Id = [
+        1.0 0.0
+        0.0 1.0
+    ]
+    E5 = UT.affine_transformation(E0, Id, c)
+    @test UT.get_shape(E5) == P0
+    @test UT.get_center(E5) == [3.1; 2.9]
 end
 
 println("End test")

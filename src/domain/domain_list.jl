@@ -1,5 +1,3 @@
-abstract type DomainType{N, T} end
-
 function _invInclMode(incl_mode::INCL_MODE)
     return incl_mode == OUTER ? INNER : OUTER
 end
