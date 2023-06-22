@@ -43,8 +43,8 @@ struct AffineController{
 end
 
 # data-driven check
-function check_feasibility(set1, set2, f_eval, c_eval, nw, Uset; N = 500)
-    samples = UT.sample(set1; N = N)
+function check_feasibility(ell1, ell2, f_eval, c_eval, nw, Uset; N = 500)
+    samples = UT.sample(ell1; N = N)
     wnew = zeros(nw)
     for x in samples
         unew = c_eval(x)
@@ -53,7 +53,7 @@ function check_feasibility(set1, set2, f_eval, c_eval, nw, Uset; N = 500)
             return false
         end
         xnew = f_eval(x, unew, wnew)
-        if !(xnew ∈ set2)
+        if !(xnew ∈ ell2)
             println("Not in the target ellipsoid")
             return false
         end
