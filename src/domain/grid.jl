@@ -134,11 +134,6 @@ function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
     return all_pos
 end
 
-function get_ellip(grid::GridEllipsoidalRectangular, pos)
-    xList = get_all_pos_by_coord(grid, pos)
-    return [UT.Ellipsoid(grid.P, x) for x in xList]
-end
-
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
     return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
 end

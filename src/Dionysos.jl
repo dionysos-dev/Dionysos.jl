@@ -7,5 +7,6 @@ include("symbolic/symbolic.jl")
 include("control/control.jl")
 include("problem/problem.jl")
 include("optim/optim.jl")
+include("mapping/mapping.jl")
 
 end

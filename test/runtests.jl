@@ -1,4 +1,4 @@
-# Two following tests temporarily removed 
+# Two following tests temporarily removed, see https://github.com/dionysos-dev/Dionysos.jl/issues/209
 # include("./utils/data_structures/BDD/test_BDD.jl")
 # include("./utils/data_structures/BDD/test_inttupleset.jl")
 
@@ -29,5 +29,7 @@ include("./optim/test_SCOTS_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")
 include("./optim/test_ellipsoids_abstraction.jl")
 include("./optim/test_lazy_ellipsoids_abstraction.jl")
+
+include("./mapping/test_mapping_continuous.jl")
 
 include("./examples/test_gol_lazar_belta.jl")

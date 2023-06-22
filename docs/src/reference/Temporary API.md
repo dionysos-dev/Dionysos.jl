@@ -46,4 +46,9 @@ Dionysos.Utils.propagate_cost_to_leaves
 Dionysos.Utils.get_path
 Dionysos.Utils.Tree
 Dionysos.Symbolic.get_nodes_from_x
+Dionysos.Mapping.MappingContinuousGrid
+Dionysos.Domain.ContinuousUnboundedDomain
+Dionysos.Mapping.MappingContinuousEllipsoid
+Dionysos.Domain.ContinuousBoundedEllipsoidDomain
+Dionysos.Domain.ContinuousBoundedDomain
 ```
