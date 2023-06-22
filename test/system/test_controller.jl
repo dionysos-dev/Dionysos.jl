@@ -21,7 +21,7 @@ Random.seed!(SEED)
     c = [0.1; 0.2]
     cont = ST.ConstantController(c)
     @test cont.c === c
-    @test (cont.c_eval)(1.) === c
+    @test (cont.c_eval)(1.0) === c
 end
 
 @testset "check_feasibility" begin
@@ -35,9 +35,13 @@ end
     gc = sv(zeros(2, 1))
     E = sm([1.0; 1.0])
 
-    nx = 2; nu = 1; nw = 1
+    nx = 2
+    nu = 1
+    nw = 1
 
-    xbar = zeros(nx); ubar = zeros(nu); wbar = zeros(nw)
+    xbar = zeros(nx)
+    ubar = zeros(nu)
+    wbar = zeros(nw)
     ΔX = IntervalBox(-1.0 .. 1.0, nx)
     ΔU = IntervalBox(-10 * 2 .. 10 * 2, nu)
     ΔW = IntervalBox(-0.0 .. 0.0, nw)
@@ -57,15 +61,14 @@ end
 
     sys = ST.AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
 
-    W = 100. * [-1 1]
+    W = 100.0 * [-1 1]
     S = Matrix{Float64}(I(nx + nu + 1))
 
     optimizer = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
-    _, cont, _ =
-        SY.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
+    _, cont, _ = SY.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
 
     f_eval = ST.get_f_eval(sys)
-    
+
     c_eval = ST.get_c_eval(cont)
     @test ST.check_feasibility(E1, E2, f_eval, c_eval, nw, Ub; N = 100)
 end
