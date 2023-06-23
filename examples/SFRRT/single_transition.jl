@@ -96,7 +96,7 @@ function trial_jc(dt, Ubound, Wmax, contraction, initial_vol)
     E2 = UT.Ellipsoid(Matrix{Float64}(I(nx)) * (1 / 15), [3.0; 3.0])
 
     ################################################################################
-    sys = ST.build_AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
+    sys = ST.AffineApproximationDiscreteSystem(Ac, Bc, gc, E, X̄, Ū, W̄, L)
     has_transition, cont, cost =
         SY.transition_fixed(sys.constrainedAffineSys, E1, E2, U, W, S, optimizer)
     sr = 1.0
