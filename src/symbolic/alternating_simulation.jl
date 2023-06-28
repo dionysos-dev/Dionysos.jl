@@ -20,13 +20,8 @@ function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     Xdom = symmodel.Xdom
     grid = Xdom.grid
     pos = get_xpos_by_state(symmodel, source)
-    c = DO.get_coord_by_pos(grid, pos)
-    h = grid.h
-    hyperrectangle = UT.HyperRectangle(c - h / 2, c + h / 2)
-    reachable_set = compute_reachable_set(hyperrectangle, sys, symmodel.Udom)
-    # il se peut que pour les dimensions non periodiques, que les rectangles soient en dehors du domaine si
-    # l'overapprox du reachable set est tres grande. (si c'est le cas, le nombre de cell à enumemer peut etre immense,
-    # alors que la plupard sont hors du domaine) d'où lims dans general_domain
+    rec = DO.get_rec(grid, pos)
+    reachable_set = compute_reachable_set(rec, sys, symmodel.Udom)
     reachable_sets =
         DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
     symbols = get_symbols(symmodel, reachable_sets, DO.OUTER)

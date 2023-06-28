@@ -7,7 +7,7 @@ Struct for a rectangular domain with rectangular obstacles
 """
 struct RectangularObstacles{VT} <: AbstractSet{VT}
     X::UT.HyperRectangle{VT}
-    O::Vector{UT.HyperRectangle{VT}}
+    O::Union{Any, Vector{UT.HyperRectangle{VT}}}
 end
 
 function Base.in(pos, dom::RectangularObstacles)
@@ -92,7 +92,7 @@ function GeneralDomainList(
         x0[dim] = T0[i] + hx[dim] / 2.0
     end
     grid = GridFree(SVector{N, Float64}(x0), SVector{N, Float64}(hx))
-    if f != nothing
+    if f !== nothing
         grid = DeformedGrid(grid, f, fi, A)
     end
     return GeneralDomainList(

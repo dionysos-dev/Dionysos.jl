@@ -28,8 +28,11 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_system_heuristic::Union{Nothing, Any}
     lyap_fun::Union{Nothing, Any}
     bell_fun::Union{Nothing, Any}
+    heuristic_data::Union{Nothing, Any}
 
     lazy_search_problem::Union{Nothing, Any}
+    solved::Union{Nothing, Bool}
+    param::Union{Nothing, Any}
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -45,6 +48,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
+            nothing,
+            false,
             nothing,
         )
     end
@@ -78,21 +85,22 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function set_abstract_system(concrete_system, hx, Ugrid)
-    X = concrete_system.X.A
-    obstacles = concrete_system.X.B.sets
-    d = DO.RectangularObstacles(X, obstacles)
-    Xdom = DO.GeneralDomainList(
-        hx;
-        elems = d,
-        periodic = concrete_system.periodic,
-        periods = concrete_system.periods,
-        T0 = concrete_system.T0,
-    )
+function set_abstract_system(concrete_system, hx, Ugrid; Xdom = nothing)
+    if Xdom === nothing
+        X = concrete_system.X.A
+        obstacles = concrete_system.X.B.sets
+        d = DO.RectangularObstacles(X, obstacles)
+        Xdom = DO.GeneralDomainList(
+            hx;
+            elems = d,
+            periodic = concrete_system.periodic,
+            periods = concrete_system.periods,
+            T0 = concrete_system.T0,
+        )
+    end
 
     Udom = DO.DomainList(Ugrid)
     DO.add_set!(Udom, concrete_system.U, DO.OUTER)
-
     abstract_system = SY.LazySymbolicModel(Xdom, Udom)
     return abstract_system
 end
@@ -113,38 +121,41 @@ function build_abstract_problem(concrete_problem::PR.OptimalControlProblem, abst
 end
 
 # Construct the heuristic to guide the A* exploration
-function build_heuristic_data(
-    concrete_problem,
-    abstract_system,
+function build_abstract_system_heuristic(
+    concrete_system,
+    Udom,
     compute_reachable_set,
     minimum_transition_cost,
-    hx_heuristic,
+    hx_heuristic;
+    Xdom = nothing,
 )
     function get_transitions(symmodel, sys, source)
         return SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
     end
-    concrete_system = concrete_problem.system
-    X = concrete_system.X.A
-    Xdom = DO.GeneralDomainList(
-        hx_heuristic;
-        periodic = concrete_system.periodic,
-        periods = concrete_system.periods,
-        T0 = concrete_system.T0,
-    )
-    DO.add_set!(Xdom, X, DO.OUTER)
-    symmodel = SY.symmodelAS(
-        Xdom,
-        abstract_system.Udom,
-        concrete_system,
-        minimum_transition_cost,
-        get_transitions,
-    )
-    initlist = SY.get_symbol(symmodel, concrete_problem.initial_set, DO.OUTER)
-    heuristic_data = SY.build_heuristic(symmodel, initlist)
+    if Xdom === nothing
+        X = concrete_system.X.A
+        Xdom = DO.GeneralDomainList(
+            hx_heuristic;
+            periodic = concrete_system.periodic,
+            periods = concrete_system.periods,
+            T0 = concrete_system.T0,
+        )
+        DO.add_set!(Xdom, X, DO.OUTER)
+    end
+
+    symmodel =
+        SY.symmodelAS(Xdom, Udom, concrete_system, minimum_transition_cost, get_transitions)
+    return symmodel
+end
+
+function build_heuristic(abstract_system_heuristic, initial_set)
+    initlist = SY.get_symbol(abstract_system_heuristic, initial_set, DO.OUTER)
+    heuristic_data = SY.build_heuristic(abstract_system_heuristic, initlist)
     return heuristic_data
 end
 
-function h1(node::UT.Node, problem)
+# Default abstract heuristic
+function h_abstract(node::UT.Node, problem)
     source = node.state.source
     abstract_system = problem.abstract_system
     xpos = SY.get_xpos_by_state(abstract_system, source)
@@ -155,6 +166,32 @@ function h1(node::UT.Node, problem)
     xpos2 = DO.get_pos_by_coord(symmodel2.Xdom.grid, x)
     source2 = SY.get_state_by_xpos(symmodel2, xpos2)[1]
     return heuristic.dists[source2]
+end
+
+function set_optimizer_parameters!(
+    optimizer::Optimizer,
+    maxIter,
+    pre_image,
+    post_image,
+    compute_reachable_set,
+    minimum_transition_cost,
+    hx,
+    hx_heuristic;
+    γ = 1.0,
+    h_user = (node, prob) -> 0.0,
+    transitions_previously_added = nothing,
+)
+    optimizer.param = Dict()
+    optimizer.param[:maxIter] = maxIter
+    optimizer.param[:pre_image] = pre_image
+    optimizer.param[:post_image] = post_image
+    optimizer.param[:compute_reachable_set] = compute_reachable_set
+    optimizer.param[:minimum_transition_cost] = minimum_transition_cost
+    optimizer.param[:hx] = hx
+    optimizer.param[:hx_heuristic] = hx_heuristic
+    optimizer.param[:γ] = γ
+    optimizer.param[:h_user] = h_user
+    return optimizer.param[:transitions_previously_added] = transitions_previously_added
 end
 
 function set_optimizer!(
@@ -168,51 +205,96 @@ function set_optimizer!(
     hx_heuristic,
     hx,
     Ugrid;
+    abstract_system_heuristic = nothing,
+    γ = 1.0,
+    h_user = (node, prob) -> 0.0,
     transitions_previously_added = nothing,
+    Xdom = nothing,
 )
+    set_optimizer_parameters!(
+        optimizer,
+        maxIter,
+        pre_image,
+        post_image,
+        compute_reachable_set,
+        minimum_transition_cost,
+        hx,
+        hx_heuristic;
+        γ = γ,
+        h_user = h_user,
+        transitions_previously_added = transitions_previously_added,
+    )
+
     optimizer.concrete_problem = concrete_problem
     concrete_system = concrete_problem.system
     optimizer.concrete_system = concrete_system
 
     # Initialize the abstract system
-    abstract_system = set_abstract_system(concrete_system, hx, Ugrid)
+    abstract_system = set_abstract_system(concrete_system, hx, Ugrid; Xdom = Xdom)
     optimizer.abstract_system = abstract_system
 
     # Build the abstract specifications
     abstract_problem = build_abstract_problem(concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
 
-    # Build the abstraction-based heuristic
-    heuristic_data = build_heuristic_data(
-        concrete_problem,
-        abstract_system,
-        compute_reachable_set,
-        minimum_transition_cost,
-        hx_heuristic,
-    )
-    optimizer.abstract_system_heuristic = heuristic_data.symmodel
-    optimizer.bell_fun =
-        Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
-
-    # Build the search problem
-    lazy_search_problem = LazySearchProblem(
-        abstract_problem,
-        concrete_problem,
-        pre_image,
-        post_image,
-        compute_reachable_set,
-        h1,
-        heuristic_data,
-        transitions_previously_added,
-        maxIter,
-    )
-    optimizer.lazy_search_problem = lazy_search_problem
+    # Set the abstract system for heuristic if given
+    optimizer.abstract_system_heuristic = abstract_system_heuristic
 
     return
 end
 
+function set_optimizer!(
+    optimizer::Optimizer,
+    concrete_problem,
+    Ugrid;
+    abstract_system_heuristic = nothing,
+    Xdom = nothing,
+)
+    return set_optimizer!(
+        optimizer,
+        concrete_problem,
+        optimizer.param[:maxIter],
+        optimizer.param[:pre_image],
+        optimizer.param[:post_image],
+        optimizer.param[:compute_reachable_set],
+        optimizer.param[:minimum_transition_cost],
+        optimizer.param[:hx_heuristic],
+        optimizer.param[:hx],
+        Ugrid;
+        γ = optimizer.param[:γ],
+        h_user = optimizer.param[:h_user],
+        abstract_system_heuristic = abstract_system_heuristic,
+        transitions_previously_added = nothing,
+        Xdom = Xdom,
+    )
+end
+
+function Base.copy(optimizer::Optimizer)
+    new_optimizer = Optimizer()
+    new_optimizer.param = copy(optimizer.param)
+    return new_optimizer
+end
+
 function build_abstraction(optimizer::Optimizer)
-    lazy_search_problem = optimizer.lazy_search_problem
+    # Define the heuristic
+    γ = optimizer.param[:γ]
+    h_user = optimizer.param[:h_user]
+    h(node::UT.Node, problem) = γ * max(h_abstract(node, problem), h_user(node, problem))
+
+    # Build the search problem
+    lazy_search_problem = LazySearchProblem(
+        optimizer.abstract_problem,
+        optimizer.concrete_problem,
+        optimizer.param[:pre_image],
+        optimizer.param[:post_image],
+        optimizer.param[:compute_reachable_set],
+        h,
+        optimizer.heuristic_data,
+        optimizer.param[:transitions_previously_added],
+        optimizer.param[:maxIter],
+    )
+    optimizer.lazy_search_problem = lazy_search_problem
+
     node, nb = UT.astar_graph_search(lazy_search_problem, lazy_search_problem.h)
     println(
         "\nnumber of transitions created: ",
@@ -266,7 +348,6 @@ end
 
 function build_concrete_bell_fun(abstract_system_heuristic, abstract_bell_fun)
     function concrete_bell_fun(x)
-        println(typeof(abstract_system_heuristic))
         state = SY.get_state_by_coord(abstract_system_heuristic, x)
         return abstract_bell_fun(state)
     end
@@ -274,6 +355,25 @@ function build_concrete_bell_fun(abstract_system_heuristic, abstract_bell_fun)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    concrete_problem = optimizer.concrete_problem
+    # Build the abstraction-based heuristic
+    if optimizer.abstract_system_heuristic === nothing
+        abstract_system_heuristic = build_abstract_system_heuristic(
+            concrete_problem.system,
+            optimizer.abstract_system.Udom,
+            optimizer.param[:compute_reachable_set],
+            optimizer.param[:minimum_transition_cost],
+            optimizer.param[:hx_heuristic],
+        )
+        optimizer.abstract_system_heuristic = abstract_system_heuristic
+    end
+    # Build the Bellman-like value funtion
+    heuristic_data =
+        build_heuristic(optimizer.abstract_system_heuristic, concrete_problem.initial_set)
+    optimizer.heuristic_data = heuristic_data
+    optimizer.bell_fun =
+        Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
+
     # Co-design the abstract system and the abstract controller
     build_abstraction(optimizer)
     lazy_search_problem = optimizer.lazy_search_problem
@@ -295,6 +395,8 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.abstract_bell_fun = abstract_bell_fun
     optimizer.concrete_bell_fun =
         build_concrete_bell_fun(optimizer.abstract_system_heuristic, abstract_bell_fun)
+
+    optimizer.solved = true
     return
 end
 
@@ -462,12 +564,10 @@ end
 function update_abstraction!(successors, problem::LazySearchProblem, source)
     abstract_system = problem.abstract_system
     concrete_system = problem.concrete_system
-    Xdom = abstract_system.Xdom
     Udom = abstract_system.Udom
     nsym = abstract_system.autom.nsymbols
 
     xpos = SY.get_xpos_by_state(abstract_system, source)
-    x = DO.get_coord_by_pos(Xdom.grid, xpos)
     for upos in DO.enum_pos(Udom)
         symbol = SY.get_symbol_by_upos(abstract_system, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
@@ -478,7 +578,6 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
         for cell in cells
             if !problem.controllable[cell]
                 if !problem.transitions_added[cell, symbol]
-                    # add transitions for input u starting from cell if it has not be done yet
                     n_trans = 0
                     if problem.transitions_previously_added[cell, symbol] != -1
                         n_trans = problem.transitions_previously_added[cell, symbol]

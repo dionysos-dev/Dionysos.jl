@@ -28,17 +28,12 @@ end
 # function used in the priority queue of the BB
 # highest depth and best lower bound (optimistic DFS)
 function Base.isless(a::Node, b::Node)
-    return isless(
-        a.ext.cells[a.elem[end]].lower_bound,
-        b.ext.cells[b.elem[end]].lower_bound,
-    )
-    #BFS:
     #return isless(a.lower_bound, b.lower_bound)
-    #=if a.depth == b.depth
+    if a.depth == b.depth
         return isless(a.lower_bound, b.lower_bound)
     else
         return a.depth > b.depth
-    end=#
+    end
 end
 
 """
@@ -93,6 +88,8 @@ function Optimizer(problem, max_iter, max_time; log_level = 0)
     )
 end
 
+has_solution(optimizer::Optimizer) = optimizer.best_sol !== nothing
+using DataStructures
 function MOI.optimize!(optimizer::Optimizer)
     start_time = time()
     prob = optimizer.problem
@@ -106,7 +103,7 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.num_total += 1
     compute_lower_bound!(prob, node_0)
 
-    candidates = BinaryMinHeap([node_0]) #  PriorityQueue{Node,Float64}() ?
+    candidates = BinaryMinHeap([node_0])#PriorityQueue{Node,Float64}()# BinaryMinHeap([node_0]) #  PriorityQueue{Node,Float64}() ?
     while true
         if isempty(candidates)
             optimizer.status = optimizer.best_sol === nothing ? MOI.INFEASIBLE : MOI.OPTIMAL
