@@ -69,6 +69,10 @@ println("Started test")
     lyap_fun = Dict(state => 2.0 * state for state in SY.enum_cells(symmodel))
     plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
     @test isa(fig, Plots.Plot{Plots.GRBackend})
+
+    fig = plot(; aspect_ratio = :equal)
+    plot!(fig, symmodel; arrowsB = true, cost = false)
+    @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 
 sleep(0.1) # used for good printing

@@ -1,3 +1,5 @@
+import Base.isempty
+
 # LazySetMinus(A, B) = A \ B
 struct LazySetMinus{SA, SB}
     A::SA
@@ -13,8 +15,6 @@ struct LazyUnionSetArray{S}
     sets::Vector{S}
 end
 
-import Base.isempty
-
 function isempty(A::LazyUnionSetArray)
     return Base.isempty(A.sets)
 end
@@ -24,17 +24,6 @@ function get_sets(A::LazyUnionSetArray)
         return []
     else
         return A.sets
-    end
-end
-
-function Plots.plot!(
-    sets::LazyUnionSetArray{S};
-    dims = [1, 2],
-    color = :yellow,
-    opacity = 0.2,
-) where {S}
-    for set in sets.sets
-        plot!(set; dims = dims, color = color, opacity = opacity)
     end
 end
 
@@ -55,12 +44,22 @@ function Base.intersect(A, B::LazyUnionSetArray)
     return B ∩ A
 end
 
-function Plots.plot!(
-    set::LazySetMinus{SA, SB};
-    dims = [1, 2],
-    color = :yellow,
-    opacity = 0.2,
-) where {SA, SB}
-    plot!(set.A; dims = dims, color = color, opacity = opacity)
-    return plot!(set.B; dims = dims, color = :black, opacity = 1.0)
+@recipe function f(set::LazyUnionSetArray; dims = [1, 2])
+    dims := dims
+    for elem in set.sets
+        @series begin
+            return elem
+        end
+    end
+end
+
+@recipe function f(set::LazySetMinus; dims = [1, 2])
+    dims := dims
+    @series begin
+        return set.A
+    end
+    @series begin
+        color := :black
+        return set.B
+    end
 end

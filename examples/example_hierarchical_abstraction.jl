@@ -12,10 +12,6 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-if !isdefined(@__MODULE__, :no_plot)
-    no_plot = false
-end
-
 include("../problems/simple_problem.jl")
 
 ## specific functions
@@ -165,33 +161,31 @@ if optimizer.solved
     println("Cost:\t $(cost)")
 end
 
-@static if get(ENV, "CI", "false") == "false" &&
-           (isdefined(@__MODULE__, :no_plot) && no_plot == false)
-    # ## Display the results
-    # # Display the specifications, domains and trajectory
-    fig = plot(; aspect_ratio = :equal)
+# ## Display the results
+# # Display the specifications, domains and trajectory
+fig1 = plot(; aspect_ratio = :equal)
 
-    #We display the concrete domain
-    plot!(concrete_system.X; color = :yellow, opacity = 0.5)
+#We display the concrete domain
+plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
 
-    #We display the abstract domain
-    plot!(abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5)
+#We display the abstract domain
+plot!(fig1, abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5)
 
-    #We display the concrete specifications
-    plot!(concrete_problem.initial_set; color = :green, opacity = 0.8)
-    plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
+#We display the concrete specifications
+plot!(fig1, concrete_problem.initial_set; color = :green, opacity = 0.8)
+plot!(fig1, concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
-    #We display the concrete trajectory
-    plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+#We display the concrete trajectory
+plot!(fig1, UT.DrawTrajectory(x_traj); ms = 0.5)
 
-    # # Display the lazy abstraction 
-    fig = plot(; aspect_ratio = :equal)
+# # Display the lazy abstraction 
+fig2 = plot(; aspect_ratio = :equal)
 
-    plot!(
-        optimizer.hierarchical_problem;
-        path = optimizer.optimizer_BB.best_sol,
-        heuristic = false,
-        fine = true,
-    )
-    plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
-end
+plot!(
+    fig2,
+    optimizer.hierarchical_problem;
+    path = optimizer.optimizer_BB.best_sol,
+    heuristic = false,
+    fine = true,
+)
+plot!(fig2, UT.DrawTrajectory(x_traj); ms = 0.5)

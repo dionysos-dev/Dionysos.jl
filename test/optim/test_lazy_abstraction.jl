@@ -78,9 +78,8 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     ub = SVector{n}(ub)
     return UT.HyperRectangle(lb, ub)
 end
-function minimum_transition_cost(symmodel, contsys, source, target)
-    return 1.0
-end
+
+minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 
 # setup for the tests
 if !isdefined(@__MODULE__, :hx)
@@ -148,47 +147,49 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-@static if get(ENV, "CI", "false") == "false" &&
-           (isdefined(@__MODULE__, :no_plot) && no_plot == false)
-    # ## Display the results
-    # # Display the specifications and domains
-    fig = plot(; aspect_ratio = :equal)
-    #We display the concrete domain
-    plot!(concrete_system.X; color = :yellow, opacity = 0.5)
+# ## Display the results
+# # Display the specifications and domains
+fig1 = plot(; aspect_ratio = :equal)
+#We display the concrete domain
+plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
 
-    #We display the abstract domain
-    plot!(abstract_system.Xdom; color = :blue, opacity = 0.5)
+#We display the abstract domain
+plot!(fig1, abstract_system.Xdom; color = :blue, opacity = 0.5)
 
-    #We display the concrete specifications
-    plot!(concrete_problem.initial_set; color = :green, opacity = 0.8)
-    plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
+#We display the concrete specifications
+plot!(fig1, concrete_problem.initial_set; color = :green, opacity = 0.8)
+plot!(fig1, concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
-    #We display the concrete trajectory
-    plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+#We display the concrete trajectory
+plot!(fig1, UT.DrawTrajectory(x_traj); ms = 0.5)
 
-    # # Display the abstraction and Lyapunov-like function
-    fig = plot(; aspect_ratio = :equal)
-    plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+# # Display the abstraction and Lyapunov-like function
+fig2 = plot(; aspect_ratio = :equal)
+plot!(fig2, abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
 
-    # # Display the Bellman-like value function (heuristic)
-    fig = plot(; aspect_ratio = :equal)
-    plot!(
-        optimizer.abstract_system_heuristic;
-        arrowsB = false,
-        dims = [1, 2],
-        cost = true,
-        lyap_fun = optimizer.bell_fun,
-    )
+# # Display the Bellman-like value function (heuristic)
+fig3 = plot(; aspect_ratio = :equal)
+plot!(
+    fig3,
+    optimizer.abstract_system_heuristic;
+    arrowsB = false,
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.bell_fun,
+)
 
-    # # Display the results of the A* algorithm
-    fig = plot(; aspect_ratio = :equal)
-    plot!(optimizer.lazy_search_problem)
-end
+# # Display the results of the A* algorithm
+fig4 = plot(; aspect_ratio = :equal)
+plot!(fig4, optimizer.lazy_search_problem)
 
 @testset "lazy_abstraction" begin
     @test cost_bound ≈ 9.0 rtol = 1e-3
     @test cost_true ≈ 9.0 rtol = 1e-3
     @test cost_true <= cost_bound
+    @test isa(fig1, Plots.Plot{Plots.GRBackend})
+    @test isa(fig2, Plots.Plot{Plots.GRBackend})
+    @test isa(fig3, Plots.Plot{Plots.GRBackend})
+    @test isa(fig4, Plots.Plot{Plots.GRBackend})
 end
 
 # ### References
