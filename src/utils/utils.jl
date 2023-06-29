@@ -31,7 +31,6 @@ include("box.jl")
 include("ellipsoid.jl")
 include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
-include("monteCarlo.jl")
 
 include("lazySetOperations.jl")
 

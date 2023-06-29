@@ -670,18 +670,6 @@ function f1(tableau)
     return false
 end
 
-# check if the last element is already in the array,
-# used to impose that a trajectory can not visits twice the same large cell
-function f2(A)
-    last = A[end]
-    for i in 1:(length(A) - 1)
-        if (A[i] == last)
-            return true
-        end
-    end
-    return false
-end
-
 function f3(i, prob)
     new_path = [
         get_shortest_path_abstract_system(prob.abstract_system, prob.abstract_problem)...,

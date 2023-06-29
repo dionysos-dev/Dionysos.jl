@@ -83,64 +83,57 @@ println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
-@static if get(ENV, "CI", "false") == "false" &&
-           (isdefined(@__MODULE__, :no_plot) && no_plot == false)
+# ## Display the results
+# # Display the specifications and domains
+fig1 = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+)
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Specifictions and domains")
 
-    # ## Display the results
-    # # Display the specifications and domains
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    xlabel!("\$x_1\$")
-    ylabel!("\$x_2\$")
-    title!("Specifictions and domains")
-
-    #Display the concrete domain
-    plot!(concrete_system.X; color = :yellow, opacity = 0.5)
-    for obs in concrete_system.obstacles
-        plot!(obs; color = :black)
-    end
-
-    #Display the abstract domain
-    plot!(abstract_system; arrowsB = false, cost = false)
-
-    #Display the concrete specifications
-    plot!(concrete_problem.initial_set; color = :green)
-    plot!(concrete_problem.target_set; color = :red)
-    display(fig)
-
-    # # Display the abstraction
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    title!("Abstractions")
-    plot!(abstract_system; arrowsB = true, cost = false)
-    display(fig)
-
-    # # Display the Lyapunov function and the trajectory
-    fig = plot(;
-        aspect_ratio = :equal,
-        xtickfontsize = 10,
-        ytickfontsize = 10,
-        guidefontsize = 16,
-        titlefontsize = 14,
-    )
-    xlabel!("\$x_1\$")
-    ylabel!("\$x_2\$")
-    title!("Trajectory and Lyapunov-like Fun.")
-
-    for obs in concrete_system.obstacles
-        plot!(obs; color = :black)
-    end
-    plot!(abstract_system; arrowsB = false, cost = true)
-    plot!(UT.DrawTrajectory(x_traj); color = :black)
-    display(fig)
+#Display the concrete domain
+plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
+for obs in concrete_system.obstacles
+    plot!(fig1, obs; color = :black)
 end
+
+#Display the abstract domain
+plot!(fig1, abstract_system; arrowsB = false, cost = false)
+
+#Display the concrete specifications
+plot!(fig1, concrete_problem.initial_set; color = :green)
+plot!(fig1, concrete_problem.target_set; color = :red)
+
+# # Display the abstraction
+fig2 = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+)
+title!("Abstractions")
+plot!(fig2, abstract_system; arrowsB = true, cost = false)
+
+# # Display the Lyapunov function and the trajectory
+fig3 = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+)
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Trajectory and Lyapunov-like Fun.")
+
+for obs in concrete_system.obstacles
+    plot!(fig3, obs; color = :black)
+end
+plot!(fig3, abstract_system; arrowsB = false, cost = true)
+plot!(fig3, UT.DrawTrajectory(x_traj); color = :black)
