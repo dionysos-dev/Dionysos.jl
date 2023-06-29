@@ -100,9 +100,7 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     ub = SVector{n}(ub)
     return UT.HyperRectangle(lb, ub)
 end
-function minimum_transition_cost(symmodel, contsys, source, target)
-    return 1.0
-end
+minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 
 concrete_problem = SimpleProblem.problem()
 concrete_system = concrete_problem.system
