@@ -1,6 +1,6 @@
 module TestMain
 
-using Test, StaticArrays
+using Test, StaticArrays, Plots
 using Dionysos
 
 const DI = Dionysos
@@ -99,6 +99,14 @@ function test()
         @test SY.get_ncells(symmodel) == 11
 
         @test all(SY.enum_cells(symmodel) .== 1:11)
+
+        translist = [(1, 2, 1), (1, 8, 1)]
+        SY.add_transitions!(symmodel.autom, translist)
+
+        fig = plot(; aspect_ratio = :equal)
+        lyap_fun = Dict(state => 2.0 * state for state in SY.enum_cells(symmodel))
+        plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
+        @test isa(fig, Plots.Plot{Plots.GRBackend})
     end
 
     @testset "Deformed grid and LazySymbolic" begin

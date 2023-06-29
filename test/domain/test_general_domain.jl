@@ -36,6 +36,10 @@ println("Started test")
         DO.OUTER,
     )
     @test DO.get_ncells(domain) == 36
+
+    fig = plot(; aspect_ratio = :equal)
+    plot!(fig, domain)
+    @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 
 @testset "GeneralDomain HyperRec representation" begin

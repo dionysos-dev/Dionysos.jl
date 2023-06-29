@@ -149,7 +149,7 @@ AB.HierarchicalAbstraction.set_optimizer!(
 )
 
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin
     MOI.optimize!(optimizer)
 end
 
