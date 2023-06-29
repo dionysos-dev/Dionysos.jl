@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using StaticArrays
+using StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -60,19 +60,9 @@ println("Started test")
     )
     @test DO.get_ncells(domain2) == 46
 
-    # @static if get(ENV, "CI", "false") == "false"
-    #     include("../../src/Abstraction/plotting.jl")
-    #     using PyPlot
-    #     fig = PyPlot.figure()
-    #     ax = fig.gca()
-    #     ax.set_xlim((-2.0, 14.0))
-    #     ax.set_ylim((-2.0, 14.0))
-    #     Plot.domain!(ax, 1:2, domain2, fa = 0.3)
-    #     Plot.set!(ax, 1:2, AB.HyperRectangle(SVector(1.0, 0.0), SVector(8.0, 10.0)))
-    #     Plot.set!(ax, 1:2, AB.HyperRectangle(SVector(5.0, 5.0), SVector(10000.0, 10000.0)))
-    #     Plot.set!(ax, 1:2, AB.HyperRectangle(SVector(1.0, 1.0), SVector(2.0, 2.0)))
-    #     Plot.set!(ax, 1:2, AB.HyperRectangle(SVector(0.0, 0.0), SVector(5.0, 5.0)))
-    # end
+    fig = plot(; aspect_ratio = :equal)
+    plot!(fig, domain1)
+    @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 
 sleep(0.1) # used for good printing

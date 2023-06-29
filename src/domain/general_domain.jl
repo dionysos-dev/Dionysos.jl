@@ -202,7 +202,7 @@ function get_subset_pos(
     incl_mode::INCL_MODE,
 ) where {N}
     lims = domain.lims
-    if lims != nothing
+    if lims !== nothing
         if any(rect.lb .> lims.ub) || any(rect.ub .< lims.lb)
             return NTuple{N, Int}[]
         else

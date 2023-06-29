@@ -1,5 +1,5 @@
 module Test
-using Test, StaticArrays
+using Test, StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -46,6 +46,10 @@ println("Started test")
     @test DO.get_levels(Ndomain) == 3
     @test DO.get_ncells(Ndomain) == 76
     @test DO.get_depth(Ndomain, x) == 3
+
+    fig = plot(; aspect_ratio = :equal, legend = false)
+    plot!(fig, Ndomain)
+    @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 
 end

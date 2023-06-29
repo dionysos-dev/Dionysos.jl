@@ -89,7 +89,7 @@ function Optimizer(problem, max_iter, max_time; log_level = 0)
 end
 
 has_solution(optimizer::Optimizer) = optimizer.best_sol !== nothing
-using DataStructures
+
 function MOI.optimize!(optimizer::Optimizer)
     start_time = time()
     prob = optimizer.problem
@@ -103,7 +103,7 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.num_total += 1
     compute_lower_bound!(prob, node_0)
 
-    candidates = BinaryMinHeap([node_0])#PriorityQueue{Node,Float64}()# BinaryMinHeap([node_0]) #  PriorityQueue{Node,Float64}() ?
+    candidates = BinaryMinHeap([node_0])
     while true
         if isempty(candidates)
             optimizer.status = optimizer.best_sol === nothing ? MOI.INFEASIBLE : MOI.OPTIMAL
@@ -169,7 +169,7 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
             end
             println()
         end
-        if optimizer.log_level >= 2 #last_iter || (optimizer.num_iter in optimizer.log_iter)
+        if optimizer.log_level >= 2
             @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (
                 time() - start_time
             )

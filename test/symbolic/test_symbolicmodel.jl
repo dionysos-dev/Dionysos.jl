@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using StaticArrays
+using StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -61,6 +61,14 @@ println("Started test")
     subDomain = SY.get_domain_from_symbols(symmodel, [1, 2])
     positions = [pos for pos in DO.enum_pos(subDomain)]
     @test all(positions .== [(1, 1), (2, 2)])
+
+    translist = [(1, 2, 1), (2, 1, 1)]
+    SY.add_transitions!(symmodel.autom, translist)
+
+    fig = plot(; aspect_ratio = :equal)
+    lyap_fun = Dict(state => 2.0 * state for state in SY.enum_cells(symmodel))
+    plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
+    @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 
 sleep(0.1) # used for good printing
