@@ -67,8 +67,8 @@ function rectangle(c, r)
     )
 end
 
-function Plots.plot!(rect::HyperRectangle; dims = [1, 2], color = :yellow, opacity = 1.0)
+@recipe function f(rect::HyperRectangle; dims = [1, 2])
     center = get_center(rect)
     h = get_h(rect)
-    return plot!(rectangle(center[dims], h[dims] ./ 2); opacity = opacity, color = color)
+    return rectangle(center[dims], h[dims] ./ 2)
 end

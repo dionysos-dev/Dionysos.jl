@@ -32,6 +32,7 @@ include("./optim/test_SCOTS_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")
 include("./optim/test_ellipsoids_abstraction.jl")
 include("./optim/test_lazy_ellipsoids_abstraction.jl")
+include("./optim/test_hierarchical_abstraction.jl")
 
 include("./mapping/test_mapping_continuous.jl")
 
