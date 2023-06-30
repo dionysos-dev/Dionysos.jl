@@ -139,6 +139,49 @@ end
     E5 = UT.affine_transformation(E0, Id, c)
     @test UT.get_shape(E5) == P0
     @test UT.get_center(E5) == [3.1; 2.9]
+
+    E6 = UT.Ellipsoid(Id, [-2.0; -2.0])
+    E7 = UT.Ellipsoid(Id, [2.0; 2.0])
+    @test UT.compress_if_intersection(E6, E7) == E6
+
+    ############################################
+    P1 = [
+        0.17 -0.09
+        -0.09 0.26
+    ]
+    E8 = UT.Ellipsoid(P1, c0)
+    @test isapprox(UT.get_root(E8), P0, atol = 1e-6)
+end
+
+@testset "DegenerateEllipsoid" begin
+    U0 = [
+        1.0 0.0
+        1.0 0.0
+    ]
+    c0 = [1.0; 1.0]
+    E0 = UT.DegenerateEllipsoid(U0, c0)
+
+    P0 = [
+        2.0 0.0
+        0.0 0.0
+    ]
+
+    @test UT.get_dims(E0) == 2
+    @test UT.get_center(E0) == c0
+    @test UT.get_shape(E0) == P0
+    @test UT.is_degenerate(E0)
+    @test UT.get_root(E0) == U0
+
+    U2 = [
+        1.0 0.0
+        0.0 2.0
+    ]
+    b = [2.0; 3.0]
+    E2 = UT.DegenerateEllipsoid(U2, c0)
+
+    @test !UT.is_degenerate(E2)
+    @test UT.get_center(UT.affine_transformation(E2, U2, b)) == [3.0; 5.0]
+    @test UT.get_shape(UT.affine_transformation(E2, U2, b)) == [1.0 0.0; 0.0 1.0]
 end
 
 println("End test")

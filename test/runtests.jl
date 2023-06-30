@@ -8,6 +8,7 @@ include("./utils/data_structures/tree.jl")
 include("./utils/search/test_search.jl")
 include("./utils/rectangle.jl")
 include("./utils/ellipsoid.jl")
+include("./utils/scalar_functions.jl")
 
 include("./domain/test_griddomain.jl")
 include("./domain/test_general_domain.jl")
