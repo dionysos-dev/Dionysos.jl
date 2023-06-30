@@ -34,7 +34,7 @@ function get_dims(elli::Ellipsoid)
 end
 
 function get_root(elli::Ellipsoid)
-    return sqrtm(elli.P)
+    return sqrt(elli.P)
 end
 
 function centerDistance(elli1::Ellipsoid, elli2::Ellipsoid)
