@@ -15,6 +15,25 @@ AffineSys = Union{
     HybridSystems.HybridSystems.ConstrainedAffineControlMap,
 }
 
+function convert_input_set_into_format(rec::UT.HyperRectangle)
+    n = UT.get_dims(rec)
+    Uaux = diagm(1:n)
+    U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
+    return U
+end
+
+function convert_input_set_into_format(elli::UT.Ellipsoid)
+    return [UT.get_root(elli)]
+end
+
+function convert_input_set_into_format(iset::UT.IntersectionSet)
+    result = []
+    for set in iset.sets
+        append!(result, convert_input_set_into_format(set))
+    end
+    return result
+end
+
 function get_controller_matrices(m)
     dims = size(m)
     nu = dims[1]

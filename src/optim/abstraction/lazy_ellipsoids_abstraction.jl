@@ -255,7 +255,7 @@ function get_candidate(
     probE0 = 0.05,
     intialDist = 1,
 )
-    guess = UT.sample_box(X)
+    guess = UT.sample(X)
     randVal = rand()
     if randVal > probSkew + probE0
         return guess
@@ -284,13 +284,20 @@ function rand_state(
 end
 
 # data-driven technique on nominal system (without noise)
-function get_closest_reachable_point(concrete_system, xinit, xtarget, U, Ub; nSamples = 500)
-    unew = UT.sample_box(Ub) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
+function get_closest_reachable_point(
+    concrete_system,
+    xinit,
+    xtarget,
+    U,
+    Uformat;
+    nSamples = 500,
+)
+    unew = UT.sample(U) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
     wnew = zeros(concrete_system.nw)
     xnew = concrete_system.f_backward_eval(xinit, unew, wnew) # sys.fsymbolicT(xinit, unew, wnew, -sys.Ts)
     uBestDist = norm(xnew - xtarget)
     for i in 1:nSamples
-        ucandnew = UT.sample_box(Ub) * 0.002 * i
+        ucandnew = UT.sample(U) * 0.002 * i
         xcandnew = concrete_system.f_backward_eval(xinit, ucandnew, wnew) # sys.fsymbolicT(xinit, ucandnew, wnew, -sys.Ts)
         if norm(xcandnew - xtarget) < uBestDist
             uBestDist = norm(xcandnew - xtarget)
@@ -314,7 +321,7 @@ function new_conf(
         Nnear.state.c,
         Erand.c,
         concrete_system.U,
-        concrete_system.Ub,
+        concrete_system.Uformat,
     )
     wnew = zeros(concrete_system.nw)
     X̄ = IntervalBox(xnew .+ concrete_system.ΔX)
@@ -338,7 +345,7 @@ function new_conf(
         Nnear.state,
         xnew,
         unew,
-        concrete_system.U,
+        concrete_system.Uformat,
         S,
         L,
         optimizer.sdp_opt;
@@ -427,7 +434,7 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optim
         affineSys,
         E1,
         E2,
-        concrete_system.U,
+        concrete_system.Uformat,
         concrete_system.W,
         S,
         optimizer.sdp_opt,

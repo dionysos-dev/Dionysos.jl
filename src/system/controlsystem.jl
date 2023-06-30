@@ -255,8 +255,8 @@ struct SymbolicSystem{}
     ΔU::Any
     ΔW::Any
     X::Any
-    Ub::Any
     U::Any
+    Uformat::Any
     W::Any
     obstacles::Any
     f_eval::Any

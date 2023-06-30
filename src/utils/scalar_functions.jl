@@ -28,7 +28,6 @@ struct QuadraticControlFunction{T, MT <: AbstractMatrix{T}} <: ScalarFunction
     Q::MT
 end
 function function_value(f::QuadraticControlFunction, x)
-    <:ScalarFunction
     return x'f.Q * x
 end
 

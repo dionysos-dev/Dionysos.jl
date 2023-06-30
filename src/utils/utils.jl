@@ -31,6 +31,7 @@ include("box.jl")
 include("ellipsoid.jl")
 include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
+include("intersection_set.jl")
 
 include("lazySetOperations.jl")
 

@@ -1,3 +1,11 @@
+
+using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
+using MathematicalSystems, HybridSystems
+using JuMP, Mosek, MosekTools
+using Plots, Colors
+using Test
+Random.seed!(0)
+
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -9,149 +17,38 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-const LEA = AB.LazyEllipsoidsAbstraction
-
-using LinearAlgebra, Random, Symbolics, IntervalArithmetic
-using JuMP, Mosek, MosekTools, SCS
-using Plots, Colors
-Random.seed!(0)
-
 function example_box_ellipsoid()
     c = [-10.0; -10.0]
     P = [2.0 6.0; 6.0 20.0]
     E = UT.Ellipsoid(P, c)
     box = UT.get_min_bounding_box(E)
-    p = plot(; aspect_ratio = :equal)
-    UT.plot_box!(box)
-    plot!(p, E)
-    return display(p)
+    fig = plot(; aspect_ratio = :equal)
+    plot!(fig, box)
+    plot!(fig, E)
+    display(fig)
+    return
 end
 
-function create_sys()
-    function unstableSimple()
-        Symbolics.@variables px py vx vy wx wy T
-
-        f = [
-            1.1 * px - 0.2 * py - 0.00005 * py^3 + T * vx
-            1.1 * py + 0.2 * px + 0.00005 * px^3 + T * vy
-        ]
-
-        x = [px; py] # state
-        u = [vx; vy] # control
-        w = [wx; wy]
-        return f, x, u, w, T
-    end
-
-    ########## Function description #########
-    f, x, u, w, T = unstableSimple()
-    nx = length(x)
-    nu = length(u)
-    nw = length(w)
-    Ts = 1
-    f_eval = eval(build_function(f, x, u, w, T)[1])
-
-    #### PWA approximation description #####
-    fsymbolic = Symbolics.substitute(f, Dict([T => Ts]))
-    ΔX = IntervalBox(-1.0 .. 1.0, 2)
-    ΔU = IntervalBox(-10 * 2 .. 10 * 2, 2)
-    ΔW = IntervalBox(-0.0 .. 0.0, 1)
-
-    ########## Inputs description ##########
-    Usz = 10
-    Ub = IntervalBox(-Usz .. Usz, nu)
-    U = convert_H_into_E(Ub)
-
-    ########## Noise description ##########
-    W = 0.0 * [
-        -1 -1 1 1
-        -1 1 -1 1
-    ]
-
-    system = ST.EllipsoidalLazySystem(
-        f_eval,
-        Ts,
-        nx,
-        nu,
-        nw,
-        U,
-        Ub,
-        W,
-        X,
-        obstacles,
-        fsymbolic,
-        x,
-        u,
-        w,
-        ΔX,
-        ΔU,
-        ΔW,
-    )
-    return system
-end
-
-function example_test_controller() # could be added as a test for ellipsoidal_transition
-    E1 = UT.Ellipsoid([1.0 0.5; 0.5 1.0], [0.0; 0.0])
-    E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [3.0; 3.0])
-
-    ##### get the system #####
-    sys = create_sys()
-    xnew = E1.c
-    unew = [0.0; 0.0]
-    wnew = zeros(2)
-    X̄ = IntervalBox(xnew .+ sys.ΔX)
-    Ū = IntervalBox(unew .+ sys.ΔU)
-    W̄ = IntervalBox(wnew .+ sys.ΔW)
-    (affineSys, L) = ST.buildAffineApproximation(
-        sys.fT,
-        sys.x,
-        sys.u,
-        sys.w,
-        xnew,
-        unew,
-        wnew,
-        X̄,
-        Ū,
-        W̄,
-    )
-    W = 0.0 * [
-        -1 -1 1 1
-        -1 1 -1 1
-    ]
-    n_x = 2
-    n_u = 2
-    n_w = 2
-    ########### Cost description ############
-    S = Matrix{Float64}(I(nx + nu + 1)) #TODO
-    sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-
-    A = affineSys.A
-    B = affineSys.B
-    c = affineSys.c
-    ##########################
-    ans, cost, kappa =
-        Dionysos.Symbolic.my_has_transition(A, B, c, W, sys.Ub, S, E1, E2, sdp_opt)
-    println("succeed to compute the controller : ", ans)
-    function f_eval(x, u, w, Ts)
-        return A * x + B * u + c
-    end
-    function f_cost(x, u)
-        return norm(x) + norm(u)# 1.0# norm(x) + norm(u)
-    end
-
-    #could be good to print the cost in the original ellipsoid from te transition with a color bar.
-    SC.check_controller(E1, kappa, E2, f_eval, sys.Ts; N = 500)
-    return SC.plot_controller_cost(E1, kappa, E2, f_eval, sys.Ts, f_cost; N = 2000)
-end
+include("../../problems/non_linear.jl")
 
 function test_backward_transition()
-    c = [0.0; 0.0]
     E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [3.0; 3.0])
-
-    ##### get the system #####
-    sys = create_sys()
-    xnew = c
+    Ubound = 5.0
+    # U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
+    # U = UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0])
+    # U = UT.IntersectionSet([UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]), UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0])])
+    U = UT.IntersectionSet([
+        UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]),
+        UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
+        UT.HyperRectangle(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
+    ])
+    problem = NonLinear.problem(; U = U)
+    sys = problem.system
+    # Construct the linear approximation
+    xnew = SVector{2, Float64}([0.0; 0.0])
     unew = [0.0; 0.0]
-    wnew = zeros(sys.nw)
+    nw = sys.nw
+    wnew = zeros(nw)
     X̄ = IntervalBox(xnew .+ sys.ΔX)
     Ū = IntervalBox(unew .+ sys.ΔU)
     W̄ = IntervalBox(wnew .+ sys.ΔW)
@@ -167,50 +64,73 @@ function test_backward_transition()
         Ū,
         W̄,
     )
-    S = problem.state_cost
-    E1, kappa, cost = SY.transition_backward(
+    # Solve the control problem
+    S = UT.get_full_psd_matrix(problem.transition_cost)
+    sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+    maxδx = 100
+    maxδu = 10 * 2
+    λ = 0.01
+    E1, cont, cost = SY.transition_backward(
         affineSys,
         E2,
         xnew,
         unew,
-        sys.U,
+        sys.Uformat,
         S,
         L,
-        optimizer.sdp_opt;
-        λ = optimizer.λ,
-        maxδx = optimizer.maxδx,
-        maxδu = optimizer.maxδu,
+        sdp_opt;
+        λ = λ,
+        maxδx = maxδx,
+        maxδu = maxδu,
     )
 
-    p = plot(; aspect_ratio = :equal)
-    plot!(p, E1; color = :green)
-    plot!(p, E2; color = :red)
-    display(p)
-    println(kappa)
-    println(cost)
+    println("Max cost : ", cost)
+    println(
+        "Controller feasible : ",
+        ST.check_feasibility(
+            E1,
+            E2,
+            sys.f_eval,
+            cont.c_eval,
+            nw,
+            sys.U;
+            N = 500,
+            input_check = true,
+        ),
+    )
 
-    function f_eval(x, u, w, Ts)
-        return A * x + B * u + g
-    end
-    function c_eval(x)
-        return zeros(2)
-    end
-    println(sys.U)
-    Uset = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [0.0; 0.0])
-    return println(SY.check_controller(E1, E2, f_eval, c_eval, 2, Uset; N = 500))
-end
+    fig1 = plot(; aspect_ratio = :equal)
+    ST.plot_check_feasibility!(E1, E2, sys.f_eval, cont.c_eval, nw; dims = [1, 2], N = 500)
+    display(fig1)
 
-using JuMP, Mosek, MosekTools, SCS
-function test_log_det()
-    sdp_opt = optimizer_with_attributes(SCS.Optimizer, MOI.Silent() => true)
-    model = Model(sdp_opt)
-    @variable(model, Q[1:3, 1:3] in PSDCone())
-    @variable(model, t)
-    u_q = [Q[i, j] for j in 1:3 for i in 1:j]
-    @constraint(model, vcat(t, 1, u_q) in MOI.LogDetConeTriangle(3))
-    @objective(model, Max, t)
-    optimize!(model)
-    return println(value(t))
+    fig2 = plot(; aspect_ratio = :equal)
+    cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
+    ST.plot_controller_cost!(
+        E1,
+        cont.c_eval,
+        cost_eval;
+        N = 3000,
+        scale = 0.01,
+        dims = [1, 2],
+        color = :white,
+        linewidth = 7,
+    )
+    plot!(E2; color = :red)
+    display(fig2)
+
+    U_used = UT.affine_transformation(E1, cont.K, cont.ℓ - cont.K * cont.c)
+    fig3 = plot(; aspect_ratio = :equal)
+    plot!(
+        fig3,
+        sys.U;
+        color = :green,
+        label = "Feasible input set",
+        fillalpha = 0.4,
+        linealpha = 1.0,
+        linewidth = 2,
+    )
+    plot!(fig3, U_used; color = :red, label = "Input set used")
+    return display(fig3)
 end
 
 test_backward_transition()

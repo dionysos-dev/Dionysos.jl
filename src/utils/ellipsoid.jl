@@ -34,7 +34,7 @@ function get_dims(elli::Ellipsoid)
 end
 
 function get_root(elli::Ellipsoid)
-    return sqrtm(elli.P)
+    return sqrt(elli.P)
 end
 
 function centerDistance(elli1::Ellipsoid, elli2::Ellipsoid)
@@ -212,7 +212,7 @@ end
 
 function sample(elli::Ellipsoid; N = 500)
     box = get_min_bounding_box(elli)
-    points = [sample_box(box) for i in 1:N]
+    points = [sample(box) for i in 1:N]
     filter!(x -> x ∈ elli, points)
     return points
 end
