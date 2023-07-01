@@ -15,23 +15,27 @@ AffineSys = Union{
     HybridSystems.HybridSystems.ConstrainedAffineControlMap,
 }
 
-function convert_input_set_into_format(rec::UT.HyperRectangle)
+function format_input_set(rec::UT.HyperRectangle)
     n = UT.get_dims(rec)
     Uaux = diagm(1:n)
     U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
     return U
 end
 
-function convert_input_set_into_format(elli::UT.Ellipsoid)
+function format_input_set(elli::UT.Ellipsoid)
     return [UT.get_root(elli)]
 end
 
-function convert_input_set_into_format(iset::UT.IntersectionSet)
+function format_input_set(iset::UT.IntersectionSet)
     result = []
     for set in iset.sets
-        append!(result, convert_input_set_into_format(set))
+        append!(result, format_input_set(set))
     end
     return result
+end
+
+function format_noise_set(rec::UT.HyperRectangle)
+    return UT.get_vertices(rec)
 end
 
 function get_controller_matrices(m)
@@ -457,13 +461,12 @@ function transition_fixed(
 end
 
 function _getμν(L, nx, D, W)
-    return (
-        vertices_list(IntervalBox((-x) .. x for x in L[1:nx])),
-        vertices_list(IntervalBox(D * W...)),
-    )
+    vertices_matrix = D * W
+    noise_vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
+    return (vertices_list(IntervalBox((-x) .. x for x in L[1:nx])), noise_vertices)
 end
 
-# the dynamic: Ax+Bu+g+Dw
+# the dynamic: Ax+Bu+c+Dw
 # linearization point: (̄x,̄u, w) = (c,u,0)
 # inputs constraint: u
 # polytopic noise: W
@@ -493,6 +496,7 @@ function transition_backward(
     Nx = length(μ) #number of vertex of the hyperrectangle: 2^nx
     Nw = length(ν) #number of vertex of the polytopic noise (to check, now I hink it is only for hyperrecangle polytope)
     Nu = length(U) #number of constraints on u
+    # println(Lip)
 
     model = Model(optimizer)
     @variable(model, L[i = 1:nx, j = 1:nx], PSD)
@@ -603,6 +607,7 @@ function transition_backward(
     c1,
     u,
     U,
+    W,
     S,
     Lip,
     optimizer;
@@ -620,7 +625,7 @@ function transition_backward(
         c1,
         u,
         U,
-        affsys.W,
+        W,
         S,
         Lip,
         optimizer;

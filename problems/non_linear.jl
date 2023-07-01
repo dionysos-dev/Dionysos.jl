@@ -14,42 +14,50 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-function unstableSimple()
+function unstableSimple(; μ = 0.00005, noise = false)
     Symbolics.@variables px py vx vy wx wy T
-
-    f = [
-        1.1 * px - 0.2 * py - 0.00005 * py^3 + T * vx
-        1.1 * py + 0.2 * px + 0.00005 * px^3 + T * vy
-    ]
+    if noise
+        f = [
+            1.1 * px - 0.2 * py - μ * py^3 + T * vx + wx
+            1.1 * py + 0.2 * px + μ * px^3 + T * vy + wy
+        ]
+    else
+        f = [
+            1.1 * px - 0.2 * py - μ * py^3 + T * vx
+            1.1 * py + 0.2 * px + μ * px^3 + T * vy
+        ]
+    end
 
     x = [px; py] # state
     u = [vx; vy] # control
-    w = [wx; wy]
+    w = [wx; wy] # noise
     return f, x, u, w, T
 end
 
-function system(X, U, W, obstacles, Ts)
-    f, x, u, w, T = unstableSimple()
+function system(X, U, W, obstacles, Ts, noise, μ)
+    f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
+
     fsymbolicT = eval(build_function(f, x, u, w, T)[1])
     #### PWA approximation description #####
     fsymbolic = Symbolics.substitute(f, Dict([T => Ts]))
     ΔX = IntervalBox(-1.0 .. 1.0, 2)
     ΔU = IntervalBox(-10 * 2 .. 10 * 2, 2)
     ΔW = IntervalBox(-0.0 .. 0.0, 1)
-
-    ########## Inputs description ##########
-    Uformat = SY.convert_input_set_into_format(U)
+    #### Format of input and noise set #####
+    Uformat = SY.format_input_set(U)
+    Wformat = SY.format_noise_set(W)
+    #### Forward and backward dynamics #####
     function f_eval(x, u, w)
         return [
-            1.1 * x[1] - 0.2 * x[2] - 0.00005 * x[2]^3 + Ts * u[1]
-            1.1 * x[2] + 0.2 * x[1] + 0.00005 * x[1]^3 + Ts * u[2]
+            1.1 * x[1] - 0.2 * x[2] - μ * x[2]^3 + Ts * u[1] + w[1]
+            1.1 * x[2] + 0.2 * x[1] + μ * x[1]^3 + Ts * u[2] + w[2]
         ]
     end
 
     function f_backward_eval(x, u, w)
         return [
-            1.1 * x[1] - 0.2 * x[2] - 0.00005 * x[2]^3 - Ts * u[1]
-            1.1 * x[2] + 0.2 * x[1] + 0.00005 * x[1]^3 - Ts * u[2]
+            1.1 * x[1] - 0.2 * x[2] - μ * x[2]^3 - Ts * u[1] - w[1]
+            1.1 * x[2] + 0.2 * x[1] + μ * x[1]^3 - Ts * u[2] - w[2]
         ]
     end
 
@@ -71,11 +79,12 @@ function system(X, U, W, obstacles, Ts)
         ΔW,
         X,
         U,
-        Uformat,
         W,
         obstacles,
         f_eval,
         f_backward_eval,
+        Uformat,
+        Wformat,
     )
 end
 
@@ -94,15 +103,14 @@ function problem(;
         zeros(2),
         1.0,
     ),
-    W = 0.0 * [
-        -1 -1 1 1
-        -1 1 -1 1
-    ],
+    W = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0)),
     Ts = 1.0,
     N = Infinity(),
+    noise = false,
+    μ = 0.00005,
 )
-    sys = system(X, U, W, obstacles, Ts)
-
+    #W = 0.0 * [-1 -1 1 1;-1 1 -1 1]
+    sys = system(X, U, W, obstacles, Ts, noise, μ)
     problem = OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
     return problem
 end

@@ -256,9 +256,10 @@ struct SymbolicSystem{}
     ΔW::Any
     X::Any
     U::Any
-    Uformat::Any
     W::Any
     obstacles::Any
     f_eval::Any
     f_backward_eval::Any
+    Uformat::Any
+    Wformat::Any
 end

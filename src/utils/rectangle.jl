@@ -70,6 +70,25 @@ function get_volume(rect::HyperRectangle)
     return prod(rect.ub - rect.lb)
 end
 
+function get_vertices(rect::HyperRectangle)
+    n = length(rect.lb)
+    vertices = zeros(n, 2^n)
+    for i in 0:(2^n - 1)
+        vertex = zeros(n)
+        for j in 1:n
+            vertex[j] = i & (1 << (j - 1)) > 0 ? rect.ub[j] : rect.lb[j]
+        end
+        vertices[:, i + 1] = vertex
+    end
+    return vertices
+end
+
+function collect_vertices(rect::HyperRectangle)
+    vertices_matrix = get_vertices(rect)
+    vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
+    return vertices
+end
+
 function sample(rect::HyperRectangle)
     n = get_dims(rect)
     sample_point = similar(rect.lb)

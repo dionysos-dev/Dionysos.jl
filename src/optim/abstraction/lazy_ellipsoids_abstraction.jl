@@ -346,6 +346,7 @@ function new_conf(
         xnew,
         unew,
         concrete_system.Uformat,
+        concrete_system.Wformat,
         S,
         L,
         optimizer.sdp_opt;
@@ -435,7 +436,7 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optim
         E1,
         E2,
         concrete_system.Uformat,
-        concrete_system.W,
+        concrete_system.Wformat,
         S,
         optimizer.sdp_opt,
     )
