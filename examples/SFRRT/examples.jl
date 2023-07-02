@@ -1,5 +1,4 @@
-
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
+using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
 using MathematicalSystems, HybridSystems
 using JuMP, Mosek, MosekTools
 using Plots, Colors
@@ -33,8 +32,8 @@ include("../../problems/non_linear.jl")
 
 function test_backward_transition()
     E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [3.0; 3.0])
-    Ubound = 5.0
-    U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
+    # Ubound = 5.0
+    # U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
     # U = UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0])
     # U = UT.IntersectionSet([UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]), UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0])])
     U = UT.IntersectionSet([
@@ -42,15 +41,14 @@ function test_backward_transition()
         UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
         UT.HyperRectangle(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
     ])
-    Wbound = 0.01
+    Wbound = 0.1
     W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
-    problem = NonLinear.problem(; U = U, W = W, noise = false, μ = 0.005)
+    problem = NonLinear.problem(; U = U, W = W, noise = true, μ = 0.005)
     sys = problem.system
     # Construct the linear approximation
     xnew = SVector{2, Float64}([1.0; 1.0]) # SVector{2, Float64}([0.0; 0.0])
-    unew = [0.0; 0.0]
-    nw = sys.nw
-    wnew = zeros(nw)
+    unew = zeros(sys.nu)
+    wnew = zeros(sys.nw)
     X̄ = IntervalBox(xnew .+ sys.ΔX)
     Ū = IntervalBox(unew .+ sys.ΔU)
     W̄ = IntervalBox(wnew .+ sys.ΔW)
@@ -73,6 +71,7 @@ function test_backward_transition()
     maxδx = 100.0
     maxδu = 100.0 # 10*2
     λ = 0.01 #0.01
+
     E1, cont, cost = SY.transition_backward(
         affineSys,
         E2,
@@ -88,9 +87,19 @@ function test_backward_transition()
         maxδu = maxδu,
     )
 
+    # Get results
+    cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
+    ETilde = UT.affine_transformation(
+        E1,
+        affineSys.A + affineSys.B * cont.K,
+        affineSys.B * (cont.ℓ - cont.K * cont.c) + affineSys.c,
+    )
+    U_used = UT.affine_transformation(E1, cont.K, cont.ℓ - cont.K * cont.c)
+    # Display results
     println()
     println("Max cost : ", cost)
     println("Volume of initial ellipsoid : ", UT.get_volume(E1))
+    println("Input set volume : ", UT.get_volume(U_used))
     println(
         "Controller feasible : ",
         ST.check_feasibility(
@@ -98,32 +107,28 @@ function test_backward_transition()
             E2,
             sys.f_eval,
             cont.c_eval,
-            nw,
-            sys.U;
+            sys.U,
+            sys.W;
             N = 500,
             input_check = true,
+            noise_check = true,
         ),
     )
 
     # Display the initial set, target set and the image of the initial ellipsoid under the linear model approximation
-    ETilde = UT.affine_transformation(
-        E1,
-        affineSys.A + affineSys.B * cont.K,
-        affineSys.B * (cont.ℓ - cont.K * cont.c) + affineSys.c,
-    )
     fig1 = plot(; aspect_ratio = :equal)
     plot!(fig1, E1; color = :green)
     plot!(fig1, E2; color = :red)
     plot!(fig1, ETilde; color = :blue)
+    ST.plot_transitions!(E1, sys.f_eval, cont.c_eval, sys.W; N = 100)
     return display(fig1)
 
-    # Display the data-driven test of the controller
+    # # Display the data-driven test of the controller
     # fig2 = plot(; aspect_ratio = :equal)
-    # ST.plot_check_feasibility!(E1, E2, sys.f_eval, cont.c_eval, nw; dims = [1, 2], N = 500)
+    # ST.plot_check_feasibility!(E1, E2, sys.f_eval, cont.c_eval, sys.W; dims = [1, 2], N = 500)
     # display(fig2)
 
-    # Display the cost of the controller
-    # cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
+    # # Display the cost of the controller
     # fig3 = plot(; aspect_ratio = :equal)
     # ST.plot_controller_cost!(
     #     E1,
@@ -138,9 +143,7 @@ function test_backward_transition()
     # plot!(E2; color = :red)
     # display(fig3)
 
-    # Display the feasible input set and the input set effectively used
-    # U_used = UT.affine_transformation(E1, cont.K, cont.ℓ - cont.K * cont.c)
-    # println("Input set volume : ", UT.get_volume(U_used))
+    # # Display the feasible input set and the input set effectively used
     # fig4 = plot(; aspect_ratio = :equal)
     # plot!(
     #     fig4,

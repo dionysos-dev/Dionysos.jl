@@ -48,19 +48,21 @@ function check_feasibility(
     ell2,
     f_eval,
     c_eval,
-    nw,
-    Uset;
+    Uset,
+    Wset;
     N = 500,
     input_check = true,
+    noise_check = true,
 )
     samples = UT.sample(ell1; N = N)
-    wnew = zeros(nw)
+    nw = UT.get_dims(Wset)
     for x in samples
         unew = c_eval(x)
         if input_check && !(unew ∈ Uset)
             println("Not feasible input")
             return false
         end
+        noise_check ? wnew = UT.sample(Wset) : wnew = zeros(nw)
         xnew = f_eval(x, unew, wnew)
         if !(xnew ∈ ell2)
             println("Not in the target ellipsoid")
@@ -71,22 +73,22 @@ function check_feasibility(
 end
 
 # data-driven plot
-function plot_transitions!(set, f_eval, c_eval, nw; dims = [1, 2], N = 100)
+function plot_transitions!(set, f_eval, c_eval, W; dims = [1, 2], N = 100)
     samples = UT.sample(set; N = N)
     nx = UT.get_dims(set)
-    wnew = zeros(nw)
     for x in samples
         unew = c_eval(x)
+        wnew = UT.sample(W)
         xnew = f_eval(x, unew, wnew)
         plot!(UT.DrawArrow(SVector{nx}(x[dims]), SVector{nx}(xnew[dims])); color = :black)
     end
 end
 
 # data-driven plot
-function plot_check_feasibility!(set1, set2, f_eval, c_eval, nw; dims = [1, 2], N = 100)
+function plot_check_feasibility!(set1, set2, f_eval, c_eval, W; dims = [1, 2], N = 100)
     plot!(set1; dims = dims, color = :green)
     plot!(set2; dims = dims, color = :red)
-    return plot_transitions!(set1, f_eval, c_eval, nw; dims = dims, N = N)
+    return plot_transitions!(set1, f_eval, c_eval, W; dims = dims, N = N)
 end
 
 function plot_controller_cost!(
