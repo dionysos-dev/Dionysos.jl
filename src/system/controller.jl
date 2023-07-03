@@ -43,15 +43,26 @@ struct AffineController{
 end
 
 # data-driven check
-function check_feasibility(ell1, ell2, f_eval, c_eval, nw, Uset; N = 500)
+function check_feasibility(
+    ell1,
+    ell2,
+    f_eval,
+    c_eval,
+    Uset,
+    Wset;
+    N = 500,
+    input_check = true,
+    noise_check = true,
+)
     samples = UT.sample(ell1; N = N)
-    wnew = zeros(nw)
+    nw = UT.get_dims(Wset)
     for x in samples
         unew = c_eval(x)
-        if !(unew ∈ Uset)
+        if input_check && !(unew ∈ Uset)
             println("Not feasible input")
             return false
         end
+        noise_check ? wnew = UT.sample(Wset) : wnew = zeros(nw)
         xnew = f_eval(x, unew, wnew)
         if !(xnew ∈ ell2)
             println("Not in the target ellipsoid")
@@ -62,24 +73,22 @@ function check_feasibility(ell1, ell2, f_eval, c_eval, nw, Uset; N = 500)
 end
 
 # data-driven plot
-function plot_transitions!(set, f_eval, c_eval, nw; dims = [1, 2], N = 100)
+function plot_transitions!(set, f_eval, c_eval, W; dims = [1, 2], N = 100)
     samples = UT.sample(set; N = N)
     nx = UT.get_dims(set)
-    wnew = zeros(nw)
     for x in samples
         unew = c_eval(x)
+        wnew = UT.sample(W)
         xnew = f_eval(x, unew, wnew)
         plot!(UT.DrawArrow(SVector{nx}(x[dims]), SVector{nx}(xnew[dims])); color = :black)
     end
 end
 
 # data-driven plot
-function plot_check_feasibility!(set1, set2, f_eval, c_eval, nw; dims = [1, 2], N = 100)
-    fig = plot(; aspect_ratio = :equal)
+function plot_check_feasibility!(set1, set2, f_eval, c_eval, W; dims = [1, 2], N = 100)
     plot!(set1; dims = dims, color = :green)
     plot!(set2; dims = dims, color = :red)
-    plot_transitions!(set1, f_eval, c_eval, nw; dims = dims, N = N)
-    return display(fig)
+    return plot_transitions!(set1, f_eval, c_eval, W; dims = dims, N = N)
 end
 
 function plot_controller_cost!(
@@ -90,6 +99,7 @@ function plot_controller_cost!(
     scale = 0.0001,
     dims = [1, 2],
     color = :white,
+    linewidth = 1,
 )
     samples = UT.sample(set; N = N)
     costs = []
@@ -101,7 +111,7 @@ function plot_controller_cost!(
     vmax = maximum(costs)
     colorMap = UT.Colormap([vmin, vmax], Colors.colormap("Blues"))
     P = (1 / scale) * Matrix{Float64}(I(2))
-    plot!(set; color = color)
+    plot!(set; color = color, linealpha = 1.0, linewidth = linewidth, linecolor = :black)
     for (i, x) in enumerate(samples)
         plot!(UT.Ellipsoid(P, x[dims]); color = UT.get_color(colorMap, costs[i]), lw = 0)
     end

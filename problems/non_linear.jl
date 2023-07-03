@@ -14,44 +14,55 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-# convert square box into intersection of degenerated ellipsoids
-# square box [-x,x]
-function convert_H_into_E(Ub::IntervalBox)
-    nu = length(Ub)
-    Uaux = diagm(1:nu)
-    U = [(Uaux .== i) ./ Ub[i].hi for i in 1:nu]
-    return U
-end
-
-function unstableSimple()
+function unstableSimple(; μ = 0.00005, noise = false)
     Symbolics.@variables px py vx vy wx wy T
-
-    f = [
-        1.1 * px - 0.2 * py - 0.00005 * py^3 + T * vx
-        1.1 * py + 0.2 * px + 0.00005 * px^3 + T * vy
-    ]
+    if noise
+        f = [
+            1.1 * px - 0.2 * py - μ * py^3 + T * vx + wx
+            1.1 * py + 0.2 * px + μ * px^3 + T * vy + wy
+        ]
+    else
+        f = [
+            1.1 * px - 0.2 * py - μ * py^3 + T * vx
+            1.1 * py + 0.2 * px + μ * px^3 + T * vy
+        ]
+    end
 
     x = [px; py] # state
     u = [vx; vy] # control
-    w = [wx; wy]
+    w = [wx; wy] # noise
     return f, x, u, w, T
 end
 
-function system(X, Ub, W, obstacles, Ts)
-    f, x, u, w, T = unstableSimple()
-    fsymbolicT = eval(build_function(f, x, u, w, T)[1])
+function system(X, U, W, obstacles, Ts, noise, μ)
+    f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
 
+    fsymbolicT = eval(build_function(f, x, u, w, T)[1])
     #### PWA approximation description #####
     fsymbolic = Symbolics.substitute(f, Dict([T => Ts]))
     ΔX = IntervalBox(-1.0 .. 1.0, 2)
     ΔU = IntervalBox(-10 * 2 .. 10 * 2, 2)
     ΔW = IntervalBox(-0.0 .. 0.0, 1)
+    #### Format of input and noise set #####
+    Uformat = SY.format_input_set(U)
+    Wformat = SY.format_noise_set(W)
+    #### Forward and backward dynamics #####
+    function f_eval(x, u, w)
+        return [
+            1.1 * x[1] - 0.2 * x[2] - μ * x[2]^3 + Ts * u[1] + w[1]
+            1.1 * x[2] + 0.2 * x[1] + μ * x[1]^3 + Ts * u[2] + w[2]
+        ]
+    end
 
-    ########## Inputs description ##########
-    U = convert_H_into_E(Ub)
+    function f_backward_eval(x, u, w)
+        return [
+            1.1 * x[1] - 0.2 * x[2] - μ * x[2]^3 - Ts * u[1] - w[1]
+            1.1 * x[2] + 0.2 * x[1] + μ * x[1]^3 - Ts * u[2] - w[2]
+        ]
+    end
 
-    f_eval(x, u, w) = fsymbolicT(x, u, w, Ts)
-    f_backward_eval(x, u, w) = fsymbolicT(x, u, w, -Ts)
+    # f_eval(x, u, w) = fsymbolicT(x, u, w, Ts)
+    # f_backward_eval(x, u, w) = fsymbolicT(x, u, w, -Ts)
 
     return ST.SymbolicSystem(
         fsymbolicT,
@@ -67,18 +78,20 @@ function system(X, Ub, W, obstacles, Ts)
         ΔU,
         ΔW,
         X,
-        Ub,
         U,
         W,
         obstacles,
         f_eval,
         f_backward_eval,
+        Uformat,
+        Wformat,
     )
 end
 
 function problem(;
-    X = IntervalBox(-20 .. 20, 2),
+    X = IntervalBox(-20.0 .. 20.0, 2),
     obstacles = [UT.Ellipsoid(Matrix{Float64}(I(2)) * 1 / 50, [0.0; 0.0])],
+    U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
     E0 = UT.Ellipsoid(Matrix{Float64}(I(2)) * 10.0, [-10.0; -10.0]),
     Ef = UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [10.0; 10.0]),
     state_cost = UT.ZeroFunction(),
@@ -90,18 +103,13 @@ function problem(;
         zeros(2),
         1.0,
     ),
-    Usz = 10,
-    W = 0.0 * [
-        -1 -1 1 1
-        -1 1 -1 1
-    ],
-    Ts = 1,
+    W = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0)),
+    Ts = 1.0,
     N = Infinity(),
-    simple = false,
+    noise = false,
+    μ = 0.00005,
 )
-    Ub = IntervalBox(-Usz .. Usz, 2)
-    sys = system(X, Ub, W, obstacles, Ts)
-
+    sys = system(X, U, W, obstacles, Ts, noise, μ)
     problem = OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
     return problem
 end

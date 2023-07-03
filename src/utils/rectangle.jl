@@ -1,3 +1,5 @@
+using LazySets
+
 struct HyperRectangle{VT}
     lb::VT
     ub::VT
@@ -52,12 +54,53 @@ function get_h(rect::HyperRectangle)
     return rect.ub - rect.lb
 end
 
+function get_r(rect::HyperRectangle)
+    return get_h(rect) ./ 2.0
+end
+
 function get_dims(rect::HyperRectangle)
     return length(rect.lb)
 end
 
 function scale(rect::HyperRectangle, α)
     return HyperRectangle(rect.lb * α, rect.ub * α)
+end
+
+function get_volume(rect::HyperRectangle)
+    return prod(rect.ub - rect.lb)
+end
+
+function get_vertices(rect::HyperRectangle)
+    n = length(rect.lb)
+    vertices = zeros(n, 2^n)
+    for i in 0:(2^n - 1)
+        vertex = zeros(n)
+        for j in 1:n
+            vertex[j] = i & (1 << (j - 1)) > 0 ? rect.ub[j] : rect.lb[j]
+        end
+        vertices[:, i + 1] = vertex
+    end
+    return vertices
+end
+
+function collect_vertices(rect::HyperRectangle)
+    vertices_matrix = get_vertices(rect)
+    vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
+    return vertices
+end
+
+function sample(rect::HyperRectangle)
+    n = get_dims(rect)
+    sample_point = similar(rect.lb)
+    for i in 1:n
+        sample_point[i] = rand() * (rect.ub[i] - rect.lb[i]) + rect.lb[i]
+    end
+    return sample_point
+end
+
+function affine_transformation(rect::HyperRectangle, A, b)
+    X = LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
+    return LazySets.AffineMap(Matrix(A), X, Vector(b))
 end
 
 function rectangle(c, r)

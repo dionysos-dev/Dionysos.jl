@@ -22,9 +22,9 @@ global NI = nothing
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_problem::Union{Nothing, PR.OptimalControlProblem} # for now they are the same, should be conservative version of the concrete
+    abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
-    abstract_system_full::Union{Nothing, Any} #Union{Nothing, UT.Graph}
+    abstract_system_full::Union{Nothing, Any}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Union{Nothing, Any}
     abstract_lyap_fun::Union{Nothing, Any}
@@ -45,7 +45,6 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     k1::Union{Nothing, Int}
     k2::Union{Nothing, Int}
     continues::Union{Nothing, Bool}
-    # sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -255,7 +254,7 @@ function get_candidate(
     probE0 = 0.05,
     intialDist = 1,
 )
-    guess = UT.sample_box(X)
+    guess = UT.sample(X)
     randVal = rand()
     if randVal > probSkew + probE0
         return guess
@@ -267,7 +266,7 @@ function get_candidate(
         l = randVal / probSkew
         r = dist / intialDist
         return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) +
-               (0.3 * r) * guess #heuristic bias
+               (0.3 * r) * guess
     end
 end
 
@@ -284,14 +283,21 @@ function rand_state(
 end
 
 # data-driven technique on nominal system (without noise)
-function get_closest_reachable_point(concrete_system, xinit, xtarget, U, Ub; nSamples = 500)
-    unew = UT.sample_box(Ub) #(0.8+0.2*norm(xPar-X0.c)/intialDist)
+function get_closest_reachable_point(
+    concrete_system,
+    xinit,
+    xtarget,
+    U,
+    Uformat;
+    nSamples = 500,
+)
+    unew = UT.sample(U)
     wnew = zeros(concrete_system.nw)
-    xnew = concrete_system.f_backward_eval(xinit, unew, wnew) # sys.fsymbolicT(xinit, unew, wnew, -sys.Ts)
+    xnew = concrete_system.f_backward_eval(xinit, unew, wnew)
     uBestDist = norm(xnew - xtarget)
     for i in 1:nSamples
-        ucandnew = UT.sample_box(Ub) * 0.002 * i
-        xcandnew = concrete_system.f_backward_eval(xinit, ucandnew, wnew) # sys.fsymbolicT(xinit, ucandnew, wnew, -sys.Ts)
+        ucandnew = UT.sample(U) * 0.002 * i
+        xcandnew = concrete_system.f_backward_eval(xinit, ucandnew, wnew)
         if norm(xcandnew - xtarget) < uBestDist
             uBestDist = norm(xcandnew - xtarget)
             xnew = xcandnew
@@ -314,7 +320,7 @@ function new_conf(
         Nnear.state.c,
         Erand.c,
         concrete_system.U,
-        concrete_system.Ub,
+        concrete_system.Uformat,
     )
     wnew = zeros(concrete_system.nw)
     X̄ = IntervalBox(xnew .+ concrete_system.ΔX)
@@ -338,7 +344,8 @@ function new_conf(
         Nnear.state,
         xnew,
         unew,
-        concrete_system.U,
+        concrete_system.Uformat,
+        concrete_system.Wformat,
         S,
         L,
         optimizer.sdp_opt;
@@ -383,7 +390,7 @@ function keep(
     end
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
     if ElMin !== nothing
-        if all(O -> !(ElMin ∩ O), obstacles) #all(O -> !(ElMin.c ∈ O), obstacles)
+        if all(O -> !(ElMin ∩ O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles
@@ -427,8 +434,8 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optim
         affineSys,
         E1,
         E2,
-        concrete_system.U,
-        concrete_system.W,
+        concrete_system.Uformat,
+        concrete_system.Wformat,
         S,
         optimizer.sdp_opt,
     )

@@ -212,7 +212,7 @@ end
 
 function sample(elli::Ellipsoid; N = 500)
     box = get_min_bounding_box(elli)
-    points = [sample_box(box) for i in 1:N]
+    points = [sample(box) for i in 1:N]
     filter!(x -> x ∈ elli, points)
     return points
 end

@@ -25,8 +25,8 @@ end
 
 @recipe function f(colorMap::Colormap)
     marker_z --> colorMap.range
-    legend --> false
     colorbar --> true
     color --> palette(colorMap.colormap)
+    label --> ""
     return [], []
 end
