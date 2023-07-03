@@ -109,7 +109,6 @@ function problem(;
     noise = false,
     μ = 0.00005,
 )
-    #W = 0.0 * [-1 -1 1 1;-1 1 -1 1]
     sys = system(X, U, W, obstacles, Ts, noise, μ)
     problem = OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
     return problem

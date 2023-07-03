@@ -69,8 +69,8 @@ function test_backward_transition()
     S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
-    maxδu = 100.0 # 10*2
-    λ = 0.01 #0.01
+    maxδu = 100.0
+    λ = 0.01
 
     E1, cont, cost = SY.transition_backward(
         affineSys,
@@ -121,44 +121,49 @@ function test_backward_transition()
     plot!(fig1, E2; color = :red)
     plot!(fig1, ETilde; color = :blue)
     ST.plot_transitions!(E1, sys.f_eval, cont.c_eval, sys.W; N = 100)
-    return display(fig1)
+    display(fig1)
 
-    # # Display the data-driven test of the controller
-    # fig2 = plot(; aspect_ratio = :equal)
-    # ST.plot_check_feasibility!(E1, E2, sys.f_eval, cont.c_eval, sys.W; dims = [1, 2], N = 500)
-    # display(fig2)
+    # Display the data-driven test of the controller
+    fig2 = plot(; aspect_ratio = :equal)
+    ST.plot_check_feasibility!(
+        E1,
+        E2,
+        sys.f_eval,
+        cont.c_eval,
+        sys.W;
+        dims = [1, 2],
+        N = 500,
+    )
+    display(fig2)
 
-    # # Display the cost of the controller
-    # fig3 = plot(; aspect_ratio = :equal)
-    # ST.plot_controller_cost!(
-    #     E1,
-    #     cont.c_eval,
-    #     cost_eval;
-    #     N = 3000,
-    #     scale = 0.01,
-    #     dims = [1, 2],
-    #     color = :white,
-    #     linewidth = 7,
-    # )
-    # plot!(E2; color = :red)
-    # display(fig3)
+    # Display the cost of the controller
+    fig3 = plot(; aspect_ratio = :equal)
+    ST.plot_controller_cost!(
+        E1,
+        cont.c_eval,
+        cost_eval;
+        N = 3000,
+        scale = 0.01,
+        dims = [1, 2],
+        color = :white,
+        linewidth = 7,
+    )
+    plot!(E2; color = :red)
+    display(fig3)
 
-    # # Display the feasible input set and the input set effectively used
-    # fig4 = plot(; aspect_ratio = :equal)
-    # plot!(
-    #     fig4,
-    #     sys.U;
-    #     color = :green,
-    #     label = "Feasible input set",
-    #     fillalpha = 0.4,
-    #     linealpha = 1.0,
-    #     linewidth = 2,
-    # )
-    # plot!(fig4, U_used; color = :red, label = "Input set used")
-    # display(fig4)
+    # Display the feasible input set and the input set effectively used
+    fig4 = plot(; aspect_ratio = :equal)
+    plot!(
+        fig4,
+        sys.U;
+        color = :green,
+        label = "Feasible input set",
+        fillalpha = 0.4,
+        linealpha = 1.0,
+        linewidth = 2,
+    )
+    plot!(fig4, U_used; color = :red, label = "Input set used")
+    return display(fig4)
 end
 
-#fig1: plot le front de pareto de lambda et le faire pour increasing value of noise (dont plusieurs front de pareto)
-#fig2: plot le front de pareto de lambda et le faire pour increasing value of nonlinearité (dont plusieurs front de pareto)
-#fig3: plot pour different lambda: les valeurs du volume et du cost.
 test_backward_transition()

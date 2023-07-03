@@ -469,7 +469,7 @@ end
 # the dynamic: Ax+Bu+c+Dw
 # linearization point: (̄x,̄u, w) = (c,u,0)
 # inputs constraint: u
-# polytopic noise: W
+# polytopic noise: W (ach column is a vertex)
 # objective function: S
 function transition_backward(
     A,
@@ -494,9 +494,8 @@ function transition_backward(
     nu = size(U[1], 2) #dimension of the input
     μ, ν = _getμν(Lip, nx, D, W)
     Nx = length(μ) #number of vertex of the hyperrectangle: 2^nx
-    Nw = length(ν) #number of vertex of the polytopic noise (to check, now I hink it is only for hyperrecangle polytope)
+    Nw = length(ν) #number of vertex of the polytopic noise
     Nu = length(U) #number of constraints on u
-    # println(Lip)
 
     model = Model(optimizer)
     @variable(model, L[i = 1:nx, j = 1:nx], PSD)

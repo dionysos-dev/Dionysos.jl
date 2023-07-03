@@ -1,5 +1,5 @@
 using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
-using JuMP, Mosek
+using JuMP, Mosek, MosekTools
 using Plots, Colors
 Random.seed!(0)
 
@@ -330,11 +330,11 @@ plot_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
 
 # fig 1.2
 Wbound_span = [0.0, 0.1, 0.2, 0.4, 0.5]
-# plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
+plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
 
 # fig 1.3
 μ_span = [0.0003, 0.0006, 0.001, 0.003]
-# plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
+plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
 
 #########################################################################################
 ######### fig2: plot for λ=1.0 the cost as a function of noise and non-linearity #########
@@ -343,7 +343,16 @@ Ubound = 5.0
 λ = 1.0
 μ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
 Wbound_span = 0:0.02:0.6
-# contour_plot(E2, c, Ubound, λ, μ_span, Wbound_span; cost=true, levels1 = [6.8, 7.3, 7.8, 8.4, 9, 9.4]) 
+contour_plot(
+    E2,
+    c,
+    Ubound,
+    λ,
+    μ_span,
+    Wbound_span;
+    cost = true,
+    levels1 = [6.8, 7.3, 7.8, 8.4, 9, 9.4],
+)
 
 #########################################################################################
 #### fig3: plot for λ=0.0 the volume value as a function of noise and non-linearity #####
@@ -352,4 +361,13 @@ Ubound = 5.0
 λ = 0.0
 μ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
 Wbound_span = 0:0.02:0.6;
-# contour_plot(E2, c, Ubound, λ, μ_span, Wbound_span; cost=false, levels2 = [1, 3, 6, 12, 18, 24, 30, 36])
+contour_plot(
+    E2,
+    c,
+    Ubound,
+    λ,
+    μ_span,
+    Wbound_span;
+    cost = false,
+    levels2 = [1, 3, 6, 12, 18, 24, 30, 36],
+)
