@@ -52,7 +52,7 @@ mutable struct BipedRobot
 end
 
 function BipedRobot(; readFile::Bool = true,
-                    URDFfileName::String = "ZMP_bipedalRobot.urdf",
+                    URDFfileName::String = "ZMP_2DbipedalRobot.urdf",
                     paramFileName::String = "param.jl",
                     saveFolder::String = "docs/")
     if (readFile)
@@ -62,11 +62,10 @@ function BipedRobot(; readFile::Bool = true,
         A, B, C = cartTableModel(zc, g)
         Ad, Bd, Cd = continuous2discrete(A, B, C, Ts)
         p = rank(Cd);       # rank of Cd
-        # r = size(Bd)[1];    # rank of Bd, can't do rank([n][1] vector) 
         n = rank(Ad);       # rank of Ad
 
         # Define cost function weights
-        Qe =  q_e * eye(p);    # tracking error weight matrix
+        Qe = q_e * eye(p);    # tracking error weight matrix
         Qx = 0. * eye(n);     # incremental state weight matrix
         R = r_u * eye(p);    # control vector weight matrix
 
@@ -76,7 +75,7 @@ function BipedRobot(; readFile::Bool = true,
         numbers = split(s, " ")
         offset_ankle_to_foot = parse(Float64, numbers[3])
         # TODO : get the value from URDF file 
-        offset_hip_to_motor = 0.04025
+        # offset_hip_to_motor = 0.04025
 
         return BipedRobot(  Ts, zc, g, Ad, Bd, Cd,
                             zmax, Δz, L1, L2, offset_hip_to_motor, offset_ankle_to_foot,
