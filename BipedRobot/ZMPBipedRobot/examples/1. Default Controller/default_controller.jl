@@ -80,7 +80,7 @@ ik = ZMProbot.InverseKinematics(br = br, fp = fp, ct = ct, sf = sf, check = PLOT
 #                       Save Results                      #
 ###########################################################
 if SAVE_CSV
-    # Store into more convienant variables 
+    # Store into more convenient variables 
     qr = ik.q_r; 
     ql = ik.q_l; 
     qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
