@@ -2,7 +2,7 @@
 
 ## Implementation of an ZMP based controller for a simple 8 D.o.F robot 
 
-This project was part of another project called [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) in order to benchmark the biped robot. This project is associated to the following  [thesis](https://eur03.safelinks.protection.outlook.com/?url=https%3A%2F%2Fdial.uclouvain.be%2Fdownloader%2Fdownloader_thesis.php%3Fpid%3Dthesis%3A40693%26datastream%3DPDF_01%26key%3D8b2cc138cd5db26d48602e804a9a548a&data=05%7C01%7Cxing.chen%40student.uclouvain.be%7C6c13df580a2143b3df6b08db6756670c%7C7ab090d4fa2e4ecfbc7c4127b4d582ec%7C0%7C0%7C638217393017003936%7CUnknown%7CTWFpbGZsb3d8eyJWIjoiMC4wLjAwMDAiLCJQIjoiV2luMzIiLCJBTiI6Ik1haWwiLCJXVCI6Mn0%3D%7C3000%7C%7C%7C&sdata=Z%2B0DtvalPfAVmtWYsjAwp0SMeM%2B058%2BAoZ2wLHBK7h0%3D&reserved=0
+This project is part of another project called [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) in order to benchmark the biped robot. This project is associated to the following  [thesis](https://dial.uclouvain.be/downloader/downloader_thesis.php?pid=thesis:40693&datastream=PDF_01&key=8b2cc138cd5db26d48602e804a9a548a
 ).
 Every part of this project is sample code which shows how to do the following : 
 
