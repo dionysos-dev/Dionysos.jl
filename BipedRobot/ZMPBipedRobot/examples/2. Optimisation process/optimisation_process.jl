@@ -16,7 +16,8 @@ include(joinpath(@__DIR__, "..", "..", "deps", "param.jl"))
 
 import .ZMPBipedRobot as ZMProbot
 
-saveFolder = "examples/2. Optimisation process/results"
+local_dir = joinpath(@__DIR__, "..", "../")
+saveFolder = local_dir*"examples/2. Optimisation process/results"
 
 Δz_space = (0.05 : 0.05 : 0.3)*zmax
 Tstep_space = 0.1 : 0.1 : 1

@@ -28,12 +28,13 @@ GRAVITY = true;
 CONTACTS = false; 
 GROUND = true; 
 
-saveFolder = "examples/4. Simulation Environment/results"
-# refFolder = "examples/1. Default Controller/results"
-refFolder = "examples/3. Optimised Controller/results"
+local_dir = joinpath(@__DIR__, "../../")
+saveFolder = local_dir*"examples/4. Simulation Environment/results"
+# refFolder = local_dir* "examples/1. Default Controller/results"
+refFolder = local_dir*"examples/3. Optimised Controller/results"
 
 # define file name to open
-ref_fileName = refFolder*"/walkingPattern_ref_slow-temp2.csv"
+ref_fileName = refFolder*"/walkingPattern_ref_slow.csv"
 # ref_fileName = refFolder*"/walkingPattern_ref_fast.csv"
 
 

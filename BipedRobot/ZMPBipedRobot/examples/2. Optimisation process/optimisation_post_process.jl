@@ -12,7 +12,8 @@ using LaTeXStrings
 
 using DelimitedFiles
 
-saveFolder = "examples/2. Optimisation process/results"
+local_dir = joinpath(@__DIR__, "..", "../")
+saveFolder = local_dir*"examples/2. Optimisation process/results"
 
 # read data from file into a matrix
 # objectives = readdlm(saveFolder*"/objectives_values.txt", ',');

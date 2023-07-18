@@ -21,12 +21,13 @@ import .ZMPBipedRobot as ZMProbot
 ###########################################################
 PLOT_RESULT = true;
 SAVE_RESULT = false; 
-ANIMATE_RESULT = false; 
+ANIMATE_RESULT = true; 
 
 MODEL_2D = false; 
 
 # Folder to save figures 
-saveFolder = "examples/1. Default Controller/results"
+local_dir = joinpath(@__DIR__, "..", "../")
+saveFolder = local_dir*"examples/1. Default Controller/results"
 
 ###########################################################
 #                    Simulation parameters                #
@@ -115,9 +116,9 @@ rs = ZMProbot.RobotSimulator(   fileName = robot_model,
 vis = ZMProbot.set_visulalizer(mechanism = rs.mechanism)
 
 # Intiial configuration 
-boom = [ 0, 0 ]
-actuators = [ 0, 0, 0, 0 ]
-ZMProbot.set_nominal!(rs, vis, boom, actuators)
+# boom = [ 0, 0 ]
+# actuators = [ 0, 0, 0, 0 ]
+ZMProbot.set_initialbody!(rs, vis)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)

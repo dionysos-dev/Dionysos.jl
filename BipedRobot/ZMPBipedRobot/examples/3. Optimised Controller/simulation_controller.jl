@@ -28,7 +28,8 @@ GRAVITY = true;
 CONTACTS = true; 
 GROUND = true; 
 
-saveFolder = "examples/3. Optimised Controller/results"
+local_dir = joinpath(@__DIR__, "../../")
+saveFolder = local_dir*"examples/3. Optimised Controller/results"
 
 # define file name to save 
 ref_fileName = saveFolder*"/walkingPattern_ref.csv"
@@ -74,7 +75,7 @@ ctrl = true
 # best_key = 261
 
 # Get the optimised paramters for a controller samplled at 50 Hz 
-candidates =  readdlm("examples/2. Optimisation process/results/solutions_Fs50.txt", ',');
+candidates =  readdlm(local_dir*"examples/2. Optimisation process/results/solutions_Fs50.txt", ',');
 best_key = 93   # Slow trajectory
 best_key = 247 # Fast trajectory
 

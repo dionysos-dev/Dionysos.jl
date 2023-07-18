@@ -3,7 +3,7 @@
 #-----------------------Global parameters-----------------------
 zmax = 0.4225;                      # Initial height of the robot
 Δz = 0.1 * zmax                     # Get down for about 10% of his initial height 
-zc = 0.1924541398385977;            # Height of the CoM z-plane computed via URDF file and RigidBodyDynamics     
+zc = 0.1924541398385977;            # Height of the CoM z-plane computed via URDF file and RigidBodyDynamics when the robot stands up   
 ΔCoMz = 0.21916919708029195 - zc;   # Variation of the height computed via URDF file and RigidBodyDynamics    
 Ts = 0.02;                          # Sampling frequency 
 g = 9.81;                           # Gravity constant
@@ -18,7 +18,7 @@ isLeftSupport = true;               # Initial support foot
 
 #-----------------------Path to follow definition-----------------------
 # Straight path for 2D mode (default path) 
-t = vec(0 : 100);                # Parameter on the parametric equation of the path 
+t = vec(0 : 100);                   # Parameter on the parametric equation of the path 
 yPath = 1.18 .+ 0.0 .* t; 
 xPath = 0.01 * t;
 

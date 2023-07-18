@@ -20,12 +20,13 @@ import .ZMPBipedRobot as ZMProbot
 ###########################################################
 #                    Code parameters                      #
 ###########################################################
-PLOT_RESULT = false;
+PLOT_RESULT = true;
 MODEL_2D = true;
 
 SAVE_CSV = false; 
 
-saveFolder = "examples/1. Default Controller/results"
+local_dir = joinpath(@__DIR__, "..", "../")
+saveFolder = local_dir*"examples/1. Default Controller/results"
 
 # define file name to save 
 ref_fileName = saveFolder*"/walkingPattern_ref.csv"
