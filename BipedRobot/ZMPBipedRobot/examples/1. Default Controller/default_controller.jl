@@ -51,7 +51,7 @@ end
 #                    ZMP based controller                 #
 ###########################################################
 
-# Construct the biped robot which store the geomtrical propreties and the path wanted 
+# Construct the biped robot which store the geometrical properties and the path wanted 
 br = ZMProbot.BipedRobot(readFile = true,
                          URDFfileName = robot_model, 
                          paramFileName = "param.jl",
@@ -81,7 +81,7 @@ ik = ZMProbot.InverseKinematics(br = br, fp = fp, ct = ct, sf = sf, check = PLOT
 #                       Save Results                      #
 ###########################################################
 if SAVE_CSV
-    # Store into more convienant variables 
+    # Store into more convenient variables 
     qr = ik.q_r; 
     ql = ik.q_l; 
     qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
