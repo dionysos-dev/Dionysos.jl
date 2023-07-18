@@ -50,7 +50,7 @@ end
 #                    ZMP based controller                 #
 ###########################################################
 
-# Construct the biped robot which store the geomtrical propreties and the path wanted 
+# Construct the biped robot which store the geometrical properties and the path wanted 
 br = ZMProbot.BipedRobot(readFile = true,
                          URDFfileName = robot_model, 
                          paramFileName = "param.jl",
