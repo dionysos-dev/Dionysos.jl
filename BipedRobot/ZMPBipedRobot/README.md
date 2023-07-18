@@ -33,4 +33,4 @@ This project has many examples, see [Examples](examples/) for further informatio
 
 ## Actual Version 
 
-This version of the project does not support a closed-loop system. In a short term, a closed-loop form will be develloped in a disturbed environment. 
+This version of the project does not support a closed-loop system. In a short term, a closed-loop form will be developed to handle disturbed environment. 
