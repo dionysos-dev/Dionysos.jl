@@ -11,7 +11,7 @@ Every part of this project is sample code which shows how to do the following :
 * Create a robot visualiser 
 * Simulate the biped robot on a well-controlled environment 
 
-## Controlle r's Structure 
+## Controller Structure 
 ![Structure of the ZMP controller](ZMP_based_controller.png)
 
 The figure shows the intended structure of the implemented controller in open loop. The controller separated into 2 mains blocks : 
