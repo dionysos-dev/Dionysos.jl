@@ -9,7 +9,7 @@ Every part of this project is sample code which shows how to do the following :
 * Generate the joint trajectories for a biped robot based on the ZMP stability criteria on a csv file 
 * Read an URDF file 
 * Create a robot visualiser 
-* Simulate the biped robot on a well-constrolled environment 
+* Simulate the biped robot on a well-controlled environment 
 
 ## Controlle r's Structure 
 ![Structure of the ZMP controller](ZMP_based_controller.png)
