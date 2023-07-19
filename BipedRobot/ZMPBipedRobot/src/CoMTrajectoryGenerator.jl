@@ -21,116 +21,129 @@ The input of of the `CoMTrajectory` require :
 
 """
 
-struct CoMTrajectory 
+struct CoMTrajectory
     CoM::Array
     p::Array
     hip_height::Array
-end 
+end
 
 """
 
 Constructor 
 """
-function CoMTrajectory(; br::BipedRobot, pc::PreviewController, zt::ZMPTrajectory, check::Bool = false)
+function CoMTrajectory(;
+    br::BipedRobot,
+    pc::PreviewController,
+    zt::ZMPTrajectory,
+    check::Bool = false,
+)
     CoM, ZMP, hip_height = computeCoMTrajectory(br, pc, zt)
     if (check)
         CoMplot = reduce(hcat, CoM)
         ZMPplot = reduce(hcat, ZMP)
         hip_height_plot = reduce(hcat, hip_height)
-        timeVec = zt.timeVec;
-        ZMP_ref = zt.ZMP;
-        ZMP_refplot = reduce(hcat, ZMP_ref);
-        tplot = reduce(vcat, timeVec);
-        plt = plot( title = "CoM Trajectory",
-                    # xlim = (0, 3), #ylim = (-.1, .1), 
-                    xlabel = "t [s]", ylabel = "Y[m]", #zlabel = "Z[m]", 
-                    layout = (2,1),
-                    dpi = 600)
+        timeVec = zt.timeVec
+        ZMP_ref = zt.ZMP
+        ZMP_refplot = reduce(hcat, ZMP_ref)
+        tplot = reduce(vcat, timeVec)
+        plt = plot(;
+            title = "CoM Trajectory",
+            # xlim = (0, 3), #ylim = (-.1, .1), 
+            xlabel = "t [s]",
+            ylabel = "Y[m]", #zlabel = "Z[m]", 
+            layout = (2, 1),
+            dpi = 600,
+        )
         for (i, dir) in enumerate(["X[m]", "Y[m]"])
-            plot!(plt[i], tplot, ZMP_refplot[i, :], ylabel = dir, label = "Reference ZMP", lw = 2)
-            plot!(plt[i], tplot, ZMPplot[i, :], ylabel = dir, label = "ZMP", lw = 2)
-            plot!(plt[i], tplot, CoMplot[i, :], ylabel = dir, label = "CoM", lw = 2)
-        end 
+            plot!(
+                plt[i],
+                tplot,
+                ZMP_refplot[i, :];
+                ylabel = dir,
+                label = "Reference ZMP",
+                lw = 2,
+            )
+            plot!(plt[i], tplot, ZMPplot[i, :]; ylabel = dir, label = "ZMP", lw = 2)
+            plot!(plt[i], tplot, CoMplot[i, :]; ylabel = dir, label = "CoM", lw = 2)
+        end
         display(plt)
-        savefig(plt,br.saveFolder*"/CoM_trajectory.png")
-    end 
+        savefig(plt, br.saveFolder * "/CoM_trajectory.png")
+    end
     return CoMTrajectory(CoM, ZMP, hip_height)
-end 
+end
 
 """
 
 Solve the discrete time system in 2D : only on the XY plane
 """
 function compute2DCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTrajectory)
+    Ad = br.Ad
+    Bd = br.Bd
+    Cd = br.Cd
+    Ts = br.Ts
+    previewTime = br.previewTime
 
-    Ad = br.Ad; Bd = br.Bd; Cd = br.Cd; 
-    Ts = br.Ts; previewTime = br.previewTime;
-
-    ZMP = zt.ZMP;
-    timeVec = zt.timeVec;
-    longTime= reduce(vcat, timeVec)
+    ZMP = zt.ZMP
+    timeVec = zt.timeVec
+    longTime = reduce(vcat, timeVec)
     longZMP = reduce(hcat, ZMP)
     kmax = length(longTime)
-    h = Int(round(previewTime/Ts) + 1)
-    Gx = pc.Gx;
-    Gi = pc.Gi;
-    Gd = pc.Gd;
-    # # LQI controller 
-    # # Ts = 0.05s R = 1e-6 Qx = 0 Qe = 1
-    # Gx = [401.209406448068	109.533868103990	12.7804020885290]
-    # Gi = 673.149312487976
-    # Gd = zeros(length(Gd))
-    # # Ts = 0.005s and R = 1e-12 Qx = 0 Qe = 1
-    # Gx = [197899.381121166	51606.6759919477	175.432419179106]
-    # Gi = 375845.434799691
-    # Gd = zeros(length(Gd))
+    h = Int(round(previewTime / Ts) + 1)
+    Gx = pc.Gx
+    Gi = pc.Gi
+    Gd = pc.Gd
+
     xx = br.xinit
     xy = br.yinit
-    intEi_k_1 = [0; 0]; 
+    intEi_k_1 = [0; 0]
 
-    p = [   xx[1, 1] - zc/g * xx[3, 1];     # Initial ZMP on x component 
-            xy[1, 1]- zc/g * xy[3, 1]]      # Initial ZMP on y component ;         
-    
+    p = [
+        xx[1, 1] - zc / g * xx[3, 1]     # Initial ZMP on x component 
+        xy[1, 1] - zc / g * xy[3, 1]
+    ]      # Initial ZMP on y component ;         
+
     # Simulation of the pattern generator with preview control 
     # This is done using x(k+1) = Ad * x(k) + Bd * u(k)
     # with u(k) = -Gx * x(k) - Gi * e(k) - \sum_{i = 1}^{i = N_l} Gd(i) * r(i)
-    for k = 1 : kmax - 1
+    for k in 1:(kmax - 1)
 
         # Compute the error 
-        e_k = p[:, k] - longZMP[:, k];
+        e_k = p[:, k] - longZMP[:, k]
 
         # Compute the integral action 
         intEi_k = intEi_k_1 - Gi .* e_k #.* Ts;
-        intEi_k_1 = intEi_k; 
-        
+        intEi_k_1 = intEi_k
+
         # Compute the preview action 
-        preview_k = [0.0; 0.0]; 
-        for l = 1 : h
-            if (k + l  < kmax)
-                preview_k = preview_k - Gd[l] .* longZMP[:, k + l];
+        preview_k = [0.0; 0.0]
+        for l in 1:h
+            if (k + l < kmax)
+                preview_k = preview_k - Gd[l] .* longZMP[:, k + l]
             else    # if we exceed the vector of reference, we took the last value 
-                preview_k = preview_k - Gd[l] .* longZMP[:, kmax];
-            end 
+                preview_k = preview_k - Gd[l] .* longZMP[:, kmax]
+            end
         end
 
         # Compute the control input for both x-direction and y-direction 
-        u_k = [ intEi_k[1] .- Gx * xx[:, k] .+ preview_k[1] ; 
-                intEi_k[2] .- Gx * xy[:,k] .+ preview_k[2]];
+        u_k = [
+            intEi_k[1] .- Gx * xx[:, k] .+ preview_k[1]
+            intEi_k[2] .- Gx * xy[:, k] .+ preview_k[2]
+        ]
         # println(u_k)
         # Compute the next state vector 
-        xx_k_1 = Ad * xx[:,k] + Bd * u_k[1];
-        xy_k_1 = Ad * xy[:,k] + Bd * u_k[2];
- 
-        xx = reduce(hcat, [xx, xx_k_1]);
-        xy = reduce(hcat, [xy, xy_k_1]);
-        
+        xx_k_1 = Ad * xx[:, k] + Bd * u_k[1]
+        xy_k_1 = Ad * xy[:, k] + Bd * u_k[2]
+
+        xx = reduce(hcat, [xx, xx_k_1])
+        xy = reduce(hcat, [xy, xy_k_1])
+
         # Compute the next controlled output
-        p_k_1 =  [Cd * xx[:, k + 1]; Cd * xy[:, k + 1]]
-        p = reduce(hcat, [p, p_k_1]);
-    end 
+        p_k_1 = [Cd * xx[:, k + 1]; Cd * xy[:, k + 1]]
+        p = reduce(hcat, [p, p_k_1])
+    end
     CoM = Matrix(transpose(reduce(hcat, [xx[1, :], xy[1, :]])))
     return CoM, p
-end 
+end
 
 """
 
@@ -142,9 +155,11 @@ The z position of the CoM is computed by a constant. At the beginning (step 1), 
 
 Where `t  ∈ [0; Tdelay + Tstep]` and α, β are constants 
 """
-function computeCoMTrajectory( br::BipedRobot, pc::PreviewController, zt::ZMPTrajectory)
-    zc = br.zc; Δz = br.Δz; 
-    L1 = br.L_thigh; L2 = br.L_leg; 
+function computeCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTrajectory)
+    zc = br.zc
+    Δz = br.Δz
+    L1 = br.L_thigh
+    L2 = br.L_leg
     d1 = br.offset_hip_to_motor
     d4 = br.offset_ankle_to_foot
     ΔCoMz = br.ΔCoMz
@@ -152,47 +167,46 @@ function computeCoMTrajectory( br::BipedRobot, pc::PreviewController, zt::ZMPTra
 
     Tdelay = br.Tdelay
     longCoM, longp = compute2DCoMTrajectory(br, pc, zt)
-    
+
     p = Array{Float64}[]
     CoM = Array{Float64}[]
     hip_height = Array{Float64}[]
 
-    init = 1;
-    stepNum = 1; 
-    ZMP = zt.ZMP;
-    timeVec = zt.timeVec; 
+    init = 1
+    stepNum = 1
+    ZMP = zt.ZMP
+    timeVec = zt.timeVec
 
-    for stepNum = 1 : length(ZMP)
-        tstep = timeVec[stepNum];
-        len = length(tstep); 
-        if (stepNum == 1 )
+    for stepNum in 1:length(ZMP)
+        tstep = timeVec[stepNum]
+        len = length(tstep)
+        if (stepNum == 1)
             CoMz = zeros(1, length(tstep))
             new_height = zeros(1, length(tstep))
             coeffCoM = getSplineCoeff(0.0, Float64(Tdelay), zc + ΔCoMz, zc)
-            coeffHeight = getSplineCoeff(0.0, Float64(Tdelay), max_height,  max_height - Δz)
+            coeffHeight = getSplineCoeff(0.0, Float64(Tdelay), max_height, max_height - Δz)
             for idx in eachindex(tstep)
                 if (tstep[idx] <= Tdelay)
-                    CoMz[idx] = spline(tstep[idx], coeffCoM)[1];
-                    new_height[idx] = spline(tstep[idx], coeffHeight)[1];
+                    CoMz[idx] = spline(tstep[idx], coeffCoM)[1]
+                    new_height[idx] = spline(tstep[idx], coeffHeight)[1]
                 else
-                    CoMz[idx] = zc;
-                    new_height[idx] =  -Δz .+ max_height;
-                end 
-            end 
+                    CoMz[idx] = zc
+                    new_height[idx] = -Δz .+ max_height
+                end
+            end
         else
-            CoMz = zc * ones(1, len);
-            new_height = (-Δz .+ max_height) * ones(1, len);
-        end 
-        tempCoM = longCoM[:, init : init + len-1]
+            CoMz = zc * ones(1, len)
+            new_height = (-Δz .+ max_height) * ones(1, len)
+        end
+        tempCoM = longCoM[:, init:(init + len - 1)]
         temph = vcat(tempCoM, new_height)
         tempCoM = vcat(tempCoM, CoMz)
-        tempZMP = longp[:, init : init + len-1]
-    
+        tempZMP = longp[:, init:(init + len - 1)]
+
         push!(CoM, tempCoM)
         push!(hip_height, temph)
         push!(p, tempZMP)
-        init = init + len; 
-    end     
+        init = init + len
+    end
     return CoM, p, hip_height
 end
-

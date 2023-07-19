@@ -10,16 +10,18 @@ g = 9.81;                           # Gravity constant
 
 #-----------------------Foot pattern parameters-----------------------
 Lmax = 0.1;                         # Half of the step length 
-θ_max = 12* pi/180;                 # Max orientation change on the foot 
-d = 0.052 ;                         # Centre-to-centre distance between the right foot and the left foot 
-x0 = 0.0; y0 = 1.18; θ_0 = 0.0;     # Initial position of the robot (robot frame)    
+θ_max = 12 * pi / 180;                 # Max orientation change on the foot 
+d = 0.052;                         # Centre-to-centre distance between the right foot and the left foot 
+x0 = 0.0;
+y0 = 1.18;
+θ_0 = 0.0;     # Initial position of the robot (robot frame)    
 initial_position = [x0; y0; θ_0]
 isLeftSupport = true;               # Initial support foot 
 
 #-----------------------Path to follow definition-----------------------
 # Straight path for 2D mode (default path) 
-t = vec(0 : 100);                   # Parameter on the parametric equation of the path 
-yPath = 1.18 .+ 0.0 .* t; 
+t = vec(0:100);                   # Parameter on the parametric equation of the path 
+yPath = 1.18 .+ 0.0 .* t;
 xPath = 0.01 * t;
 
 # # Circular path 
@@ -39,8 +41,8 @@ q_e = 1;                    # Weight of the error term in objective function
 r_u = 1e-6;                 # Weight of the input term in  objective function
 
 #-----------------------ZMP preview control block-----------------------
-xinit = [x0;0.0;0.0];    # Initial state on the X component of the ZMP 
-yinit = [y0;0.0;0.0];    # Initial state on the Y component of the ZMP 
+xinit = [x0; 0.0; 0.0];    # Initial state on the X component of the ZMP 
+yinit = [y0; 0.0; 0.0];    # Initial state on the Y component of the ZMP 
 
 #-----------------------Swing Foot Trajectory Generator-----------------------
 Tver = 0.0 * Tstep;     # Vertical time at the end of the step
@@ -52,4 +54,3 @@ L1 = 0.20125            # Length of the thigh
 L2 = 0.172              # Length of the leg
 offset_hip_to_motor = 0.04025;
 offset_ankle_to_foot = 0.009;
-

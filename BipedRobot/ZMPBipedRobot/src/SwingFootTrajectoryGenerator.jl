@@ -22,155 +22,182 @@ The input of of the `CoMTrajectory` require :
 struct SwingFootTrajectory
     stepR::Array
     stepL::Array
-end 
+end
 
 """
 
 Function that describe the X or Y motion of the foot during the step as describe in the paper 
 """
-function xyFoot(br::BipedRobot, t::Union{Vector, StepRangeLen}, xs::Union{Int64, Float64}, xf::Union{Int64, Float64})
-    δ = br.δ; Tstep = br.Tstep;
-    Tver = br.Tver; 
-    tDSP = δ * Tstep; 
-    return 0.5 * (xf - xs) .* (1 .- cos.(pi*(t .- tDSP)/(Tstep-tDSP - Tver))) .+ xs
-end 
+function xyFoot(
+    br::BipedRobot,
+    t::Union{Vector, StepRangeLen},
+    xs::Union{Int64, Float64},
+    xf::Union{Int64, Float64},
+)
+    δ = br.δ
+    Tstep = br.Tstep
+    Tver = br.Tver
+    tDSP = δ * Tstep
+    return 0.5 * (xf - xs) .* (1 .- cos.(pi * (t .- tDSP) / (Tstep - tDSP - Tver))) .+ xs
+end
 
 """
 
 Function that describe the Z motion of the foot during the step as describe in the paper 
 """
 function zFoot(br::BipedRobot, t::Union{Vector, StepRangeLen})
-    δ = br.δ; Tstep = br.Tstep;
-    tDSP = δ * Tstep; 
-    hstep = br.hstep; 
-    return 0.5 * hstep .* (1 .- cos.(2 .* pi .*(t.-tDSP)./(Tstep-tDSP)));
-end 
+    δ = br.δ
+    Tstep = br.Tstep
+    tDSP = δ * Tstep
+    hstep = br.hstep
+    return 0.5 * hstep .* (1 .- cos.(2 .* pi .* (t .- tDSP) ./ (Tstep - tDSP)))
+end
 
 """
 
 Constructor 
 """
-function SwingFootTrajectory(; br::BipedRobot, fp::FootPlanner, zt::ZMPTrajectory, check::Bool = false)
+function SwingFootTrajectory(;
+    br::BipedRobot,
+    fp::FootPlanner,
+    zt::ZMPTrajectory,
+    check::Bool = false,
+)
     stepR, stepL = computeSwingFootTrajectory(br, fp, zt)
-    if(check)
+    if (check)
         stepR_plot = reduce(hcat, stepR)
         stepL_plot = reduce(hcat, stepL)
         step_plot = reduce(vcat, [stepL_plot, stepR_plot])
-        
-        plt = plot( title = "Swing Foot Trajectory",
-                    xlabel = "X[m]", ylabel = "Z[m]",
-                    #layout = (1,2), 
-                    dpi = 600)
-        i = 1 
+
+        plt = plot(;
+            title = "Swing Foot Trajectory",
+            xlabel = "X[m]",
+            ylabel = "Z[m]",
+            #layout = (1,2), 
+            dpi = 600,
+        )
+        i = 1
         for foot in ["left", "right"]
-            plot!(step_plot[i + 2 * (i - 1), :], step_plot[i + 1 + 2 * (i - 1), :], step_plot[i + 2 + 2 * (i - 1), :], label = foot)
-            i = i + 1; 
-        end 
-        savefig(plt,br.saveFolder*"/swing_foot.png")
+            plot!(
+                step_plot[i + 2 * (i - 1), :],
+                step_plot[i + 1 + 2 * (i - 1), :],
+                step_plot[i + 2 + 2 * (i - 1), :];
+                label = foot,
+            )
+            i = i + 1
+        end
+        savefig(plt, br.saveFolder * "/swing_foot.png")
         display(plt)
-    end 
+    end
     return SwingFootTrajectory(stepR, stepL)
-end 
+end
 
 """
 
 Compute all trajectories (X, Y, Z) of each step (and both feet) of the motion
 """
 function computeSwingFootTrajectory(br::BipedRobot, fp::FootPlanner, zt::ZMPTrajectory)
-    isLeftSupport = br.isLeftSupport;
-    tstart = br.Tdelay; Twait = br.Twait; Ts = br.Ts; Tstep = br.Tstep; tver = br.Tver;
-    δ = br.δ; 
+    isLeftSupport = br.isLeftSupport
+    tstart = br.Tdelay
+    Twait = br.Twait
+    Ts = br.Ts
+    Tstep = br.Tstep
+    tver = br.Tver
+    δ = br.δ
 
-    offset = br.d; 
-    right = fp.right; left = fp.left; 
-    center = fp.center; 
-    timeVec = zt.timeVec; 
-    ZMP = zt.ZMP; 
+    offset = br.d
+    right = fp.right
+    left = fp.left
+    center = fp.center
+    timeVec = zt.timeVec
+    ZMP = zt.ZMP
 
-    stepR = Array{Float64}[];
-    stepL =  Array{Float64}[];
+    stepR = Array{Float64}[]
+    stepL = Array{Float64}[]
 
-    left_flag = ~isLeftSupport; 
-    tDSP = δ * Tstep; 
+    left_flag = ~isLeftSupport
+    tDSP = δ * Tstep
 
-    for stepNum = 1 : length(ZMP)
-        tstep = timeVec[stepNum];
-        if (stepNum <  length(ZMP))
+    for stepNum in 1:length(ZMP)
+        tstep = timeVec[stepNum]
+        if (stepNum < length(ZMP))
             if (left_flag == true)
-                lastStep = left[stepNum];        # Position of the last step left
-                nextStep = left[stepNum+1];    # Position of the next step left
-            else    
-                lastStep = right[stepNum];        # Position of the last step right
-                nextStep = right[stepNum+1];    # Position of the next step right
+                lastStep = left[stepNum]        # Position of the last step left
+                nextStep = left[stepNum + 1]    # Position of the next step left
+            else
+                lastStep = right[stepNum]        # Position of the last step right
+                nextStep = right[stepNum + 1]    # Position of the next step right
             end
-        elseif (stepNum ==  length(ZMP))
+        elseif (stepNum == length(ZMP))
             temp = center[end]                  # Get last position 
-            lastFootPos = footPosition(temp[1], temp[2], temp[3], offset, left_flag)    
+            lastFootPos = footPosition(temp[1], temp[2], temp[3], offset, left_flag)
             if (left_flag == true)
-                lastStep = left[stepNum];        # Position of the last step left
-                nextStep = lastFootPos;         # Position of the next step left (beside the right foot)
-            else 
-                lastStep = right[stepNum];        # Position of the last step right
-                nextStep = lastFootPos;         # Position of the next step right (beside the left foot)
+                lastStep = left[stepNum]        # Position of the last step left
+                nextStep = lastFootPos         # Position of the next step left (beside the right foot)
+            else
+                lastStep = right[stepNum]        # Position of the last step right
+                nextStep = lastFootPos         # Position of the next step right (beside the left foot)
             end
-        end 
-    
-        xf = nextStep[1];       # x-position of the next foot 
-        xs = lastStep[1];       # x-position of the last foot 
-        yf = nextStep[2];       # y-position of the next foot 
-        ys = lastStep[2];       # y-position of the last foot 
-        
+        end
+
+        xf = nextStep[1]       # x-position of the next foot 
+        xs = lastStep[1]       # x-position of the last foot 
+        yf = nextStep[2]       # y-position of the next foot 
+        ys = lastStep[2]       # y-position of the last foot 
+
         # Taking account of the initial delay 
         if (stepNum == 1)
-            delay = tstart + Twait; 
-        else    
-            delay = tstep[1] - Ts; # - Ts because in the way that timeVec are constructed
-        end     
-    
+            delay = tstart + Twait
+        else
+            delay = tstep[1] - Ts # - Ts because in the way that timeVec are constructed
+        end
+
         # Reset the temp variables 
         stepX = []
         stepY = []
         stepZ = []
         i = 1
-    
+
         # At the beginning (Double support phase), no mouvement 
         while (tstep[i] <= delay + tDSP)
-            stepX = reduce(vcat, [stepX, xs]);
-            stepY = reduce(vcat, [stepY, ys]);
-            stepZ = reduce(vcat, [stepZ, 0]);
-            i +=1; 
-        end 
-        
+            stepX = reduce(vcat, [stepX, xs])
+            stepY = reduce(vcat, [stepY, ys])
+            stepZ = reduce(vcat, [stepZ, 0])
+            i += 1
+        end
+
         # Evaluate the position of the foot in local time (only between tDSP < t < t0)
-        stepZ = reduce(vcat, [stepZ, zFoot(br, tstep[i : end].- delay)]);
-        
+        stepZ = reduce(vcat, [stepZ, zFoot(br, tstep[i:end] .- delay)])
+
         # Compute the vertical time index
-        idxVer = Int(round(tver/Ts)); 
+        idxVer = Int(round(tver / Ts))
         # println("Tver = $(tver)")
-        
+
         # Evaluate the position of the foot in local time (only between tDSP < t <= t0 - tver)
-        stepX = reduce(vcat, [stepX, xyFoot(br, tstep[i :  end - idxVer] .- delay, xs, xf)]);
-        stepY = reduce(vcat, [stepY, xyFoot(br, tstep[i :  end - idxVer] .- delay, ys, yf)]);
-        
+        stepX = reduce(vcat, [stepX, xyFoot(br, tstep[i:(end - idxVer)] .- delay, xs, xf)])
+        stepY = reduce(vcat, [stepY, xyFoot(br, tstep[i:(end - idxVer)] .- delay, ys, yf)])
+
         # Evaluate the position of the foot in local time (only between t0 - tver < t < t0)
-        stepX = reduce(vcat, [stepX, xf * ones(idxVer)]);
-        stepY = reduce(vcat, [stepY, yf * ones(idxVer)]);
-        
+        stepX = reduce(vcat, [stepX, xf * ones(idxVer)])
+        stepY = reduce(vcat, [stepY, yf * ones(idxVer)])
+
         # Group up all computated values in one 
-        swingFoot = hcat(stepX, stepY, stepZ)';
-        
+        swingFoot = hcat(stepX, stepY, stepZ)'
+
         if (left_flag == true)  # Left foot = swing foot 
             # define the stand foot as the coordinate of the foot position 
-            standFoot = vcat(right[stepNum][1:2] .* ones(2 , length(tstep)) , zeros(1, length(tstep)));
+            standFoot =
+                vcat(right[stepNum][1:2] .* ones(2, length(tstep)), zeros(1, length(tstep)))
             push!(stepL, swingFoot)
             push!(stepR, standFoot)
         else                    # Right foot = swing foot 
             # define the stand foot as the coordinate of the foot position 
-            standFoot = vcat(left[stepNum][1:2] .* ones(2 , length(tstep)), zeros(1, length(tstep)));
+            standFoot =
+                vcat(left[stepNum][1:2] .* ones(2, length(tstep)), zeros(1, length(tstep)))
             push!(stepR, swingFoot)
             push!(stepL, standFoot)
         end
-        left_flag = ~left_flag;             # Change foot swing 
-    end 
+        left_flag = ~left_flag             # Change foot swing 
+    end
     return stepR, stepL
-end 
+end

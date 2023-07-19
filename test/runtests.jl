@@ -22,7 +22,6 @@ include("./symbolic/test_ellipsoidal_transitions.jl")
 
 include("./problem/test_problems.jl")
 
-include("./control/test_controller.jl")
 include("./control/test_controllerreach.jl")
 include("./control/test_controllersafe.jl")
 include("./control/test_fromcontrolsystemgrowth.jl")

@@ -11,15 +11,19 @@ Disponible sur: http://ieeexplore.ieee.org/document/1241826/
 
 """
 function cartTableModel(zc::Union{Int64, Float64}, g::Union{Int64, Float64})
-    A = [   0   1.   0   ;
-            0   0   1.   ;
-            0   0   0   ];
-    B = [   0.;
-            0.;
-            1.];
-    C = [   1  0   -zc/g];
+    A = [
+        0 1.0 0
+        0 0 1.0
+        0 0 0
+    ]
+    B = [
+        0.0
+        0.0
+        1.0
+    ]
+    C = [1 0 -zc / g]
     return A, B, C
-end 
+end
 
 """
 
@@ -30,12 +34,21 @@ Taylor definition to find Bd with finite terms
 The higher order terms can be computed but they are equal to 0
 
 """
-function continuous2discrete(A::T, B::Vector, C::T, Ts::Union{Int64, Float64}) where T<:Union{Vector, Matrix}
-    Ad = exp(A*Ts)
-    Bd =  B*Ts + 1/2 * A*B*Ts^2  + 1/6*A^2 *B*Ts^3 + 1/(4*6) * A^3 * B*Ts^4;
+function continuous2discrete(
+    A::T,
+    B::Vector,
+    C::T,
+    Ts::Union{Int64, Float64},
+) where {T <: Union{Vector, Matrix}}
+    Ad = exp(A * Ts)
+    Bd =
+        B * Ts +
+        1 / 2 * A * B * Ts^2 +
+        1 / 6 * A^2 * B * Ts^3 +
+        1 / (4 * 6) * A^3 * B * Ts^4
     Cd = C
     return Ad, Bd, Cd
-end    
+end
 """
 
 Create an Identity matrix with the dimension `dims`
@@ -60,15 +73,16 @@ The initial condition is given by :
     * `x'(δ * Tstep) = 0 `
 
 """
-function getSplineCoeff(xStart::Float64, xEnd::Float64,
-    yStart::Float64, yEnd::Float64)
-    A = [   1 xStart xStart^2 xStart^3;
-            1 xEnd xEnd^2 xEnd^3;
-            0 1 2*xStart 3*xStart^2;
-            0 1 2*xEnd 3*xEnd^2 ]
+function getSplineCoeff(xStart::Float64, xEnd::Float64, yStart::Float64, yEnd::Float64)
+    A = [
+        1 xStart xStart^2 xStart^3
+        1 xEnd xEnd^2 xEnd^3
+        0 1 2*xStart 3*xStart^2
+        0 1 2*xEnd 3*xEnd^2
+    ]
     b = [yStart; yEnd; 0; 0]
     return A \ b
-end 
+end
 
 """
 
@@ -78,13 +92,13 @@ Here we construct the cubic equation :
 
 for the given coefficents and x vector 
 """
-function spline(x::T, coeff::Vector) where T<:Union{Vector, StepRangeLen, Float64}
-    sum = zeros(length(x));
-    for i = 1 : length(coeff)
-        sum = sum .+ coeff[i] * x.^(i-1) 
-    end 
-    return sum;   
-end 
+function spline(x::T, coeff::Vector) where {T <: Union{Vector, StepRangeLen, Float64}}
+    sum = zeros(length(x))
+    for i in 1:length(coeff)
+        sum = sum .+ coeff[i] * x .^ (i - 1)
+    end
+    return sum
+end
 
 """
 
@@ -94,6 +108,6 @@ function openCSV(filename::String)
     # Define the path to the CSV file
     csvpath() = joinpath("$(filename)")
     # Read the CSV file into a DataFrame
-    data = (CSV.read(csvpath(), DataFrame,  header=[2],  delim=','));
-    return data 
-end 
+    data = (CSV.read(csvpath(), DataFrame; header = [2], delim = ','))
+    return data
+end

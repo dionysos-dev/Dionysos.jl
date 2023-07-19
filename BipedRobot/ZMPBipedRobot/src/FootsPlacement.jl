@@ -1,4 +1,3 @@
-
 """
 
 A Foot Planner as defined in sec. 2 of : 
@@ -24,32 +23,37 @@ struct FootPlanner
     right::Array
     left::Array
     center::Array
-end 
+end
 
 """
 
 Constructor 
 """
-function FootPlanner(;br::BipedRobot, check::Bool = false) 
+function FootPlanner(; br::BipedRobot, check::Bool = false)
     right, left, center = computeFootsPlacement(br)
-    
+
     if (check)
         xpath = br.xPath
         ypath = br.yPath
         right_plot = reduce(hcat, right)
         left_plot = reduce(hcat, left)
-        plt = plot( title = "Foot Planner", 
-                    xlabel = "X[m]", ylabel = "Y[m]", 
-                    dpi = 600)
-        plot!(xpath, ypath, label = "Reference path")
-        scatter!(left_plot[1, :], left_plot[2, :], shape=:rect, label = "Left")
-        scatter!(right_plot[1, :], right_plot[2, :], shape=:rect, label = "Right")
-        scatter!(getindex.(center, 1), getindex.(center,2), label = "Center", markershape=:cross)
-        savefig(plt, br.saveFolder*"/Foot_planner.png")
+
+        plt = plot(; title = "Foot Planner", xlabel = "X[m]", ylabel = "Y[m]", dpi = 600)
+
+        plot!(xpath, ypath; label = "Reference path")
+        scatter!(left_plot[1, :], left_plot[2, :]; shape = :rect, label = "Left")
+        scatter!(right_plot[1, :], right_plot[2, :]; shape = :rect, label = "Right")
+        scatter!(
+            getindex.(center, 1),
+            getindex.(center, 2);
+            label = "Center",
+            markershape = :cross,
+        )
+        savefig(plt, br.saveFolder * "/Foot_planner.png")
         display(plt)
-    end 
+    end
     return FootPlanner(right, left, center)
-end 
+end
 
 """
 
@@ -60,67 +64,75 @@ This algorithm is describe in the paper mentionned earlier with some modificatio
 
 """
 function computeFootsPlacement(br::BipedRobot)
-    Lmax = br.Lmax; θ_max = br.θ_max; 
-    offset = br.d; initial_position = br.initial_postion;
-    xPath = br.xPath; yPath = br.yPath; 
-    isLeftSupport = br.isLeftSupport; 
-    
-    k = 1;      
-    x_p = initial_position[1];
-    y_p = initial_position[2];
-    θ = initial_position[3]; 
+    Lmax = br.Lmax
+    θ_max = br.θ_max
+    offset = br.d
+    initial_position = br.initial_postion
+    xPath = br.xPath
+    yPath = br.yPath
+    isLeftSupport = br.isLeftSupport
+
+    k = 1
+    x_p = initial_position[1]
+    y_p = initial_position[2]
+    θ = initial_position[3]
 
     # Position of the left foot 
-    left = Array{Float64}[];
-    temp = footPosition(x_p, y_p, θ, offset, true);  
+    left = Array{Float64}[]
+    temp = footPosition(x_p, y_p, θ, offset, true)
     push!(left, temp)
 
     # Position of the right foot
-    right = Array{Float64}[];
-    temp = footPosition(x_p, y_p, θ,  offset, false);  
-    push!(right, temp)  
-    
+    right = Array{Float64}[]
+    temp = footPosition(x_p, y_p, θ, offset, false)
+    push!(right, temp)
+
     # Position of the reference point on the path
-    center = Array{Float64}[];  
-    push!(center, [x_p; y_p; θ]) 
+    center = Array{Float64}[]
+    push!(center, [x_p; y_p; θ])
 
-        # Initiate the foot to move                         
-    left_flag = ~isLeftSupport;                          
+    # Initiate the foot to move                         
+    left_flag = ~isLeftSupport
 
-    while(k < length(xPath))
+    while (k < length(xPath))
         result = nextPoint(k, x_p, y_p, θ, Lmax, θ_max, xPath, yPath)
-        push!(center, result[2 : 4]);  # New reference point 
+        push!(center, result[2:4])  # New reference point 
         # Store the computed vector in the right place 
         if (left_flag == true)
-            push!(left,  footPosition(result[2], result[3], result[4], offset, left_flag))
-            push!(right,  right[end]) # Support foot -> no movement 
+            push!(left, footPosition(result[2], result[3], result[4], offset, left_flag))
+            push!(right, right[end]) # Support foot -> no movement 
         else
-            push!(right,footPosition(result[2], result[3], result[4], offset, left_flag)); 
-            push!(left,  left[end]) # Support foot -> no movement   
+            push!(right, footPosition(result[2], result[3], result[4], offset, left_flag))
+            push!(left, left[end]) # Support foot -> no movement   
         end
-        left_flag = ~left_flag;         # Invert support foot 
-        k = Int(result[1]);             # Update path index 
-        x_p = result[2];                # X component of the next point
-        y_p = result[3];                # Y component of the next point
-        θ = result[4];                  # Angle component of the next point
+        left_flag = ~left_flag         # Invert support foot 
+        k = Int(result[1])             # Update path index 
+        x_p = result[2]                # X component of the next point
+        y_p = result[3]                # Y component of the next point
+        θ = result[4]                  # Angle component of the next point
     end
     return right, left, center
-end 
+end
 
 """
 
 Compute the right and left foot position according to the reference point. 
 """
-function footPosition(x_p::Float64, y_p::Float64, θ_p::Float64, 
-                    offset::Float64, isleft::Bool)
+function footPosition(
+    x_p::Float64,
+    y_p::Float64,
+    θ_p::Float64,
+    offset::Float64,
+    isleft::Bool,
+)
     if (isleft == true)
-        x = x_p + offset/2 * -sin(θ_p);
-        y = y_p + offset/2 * cos(θ_p);
-    else 
-        x = x_p - offset/2 * -sin(θ_p);
-        y = y_p - offset/2 * cos(θ_p);
+        x = x_p + offset / 2 * -sin(θ_p)
+        y = y_p + offset / 2 * cos(θ_p)
+    else
+        x = x_p - offset / 2 * -sin(θ_p)
+        y = y_p - offset / 2 * cos(θ_p)
     end
-    return foot = [x ; y ; θ_p];
+    return [x; y; θ_p]
 end
 
 """
@@ -129,10 +141,18 @@ This algorithm is explained in the first paper.
 I have ajudted the algorithm to take into account the orientation of the robot with 
 the variable `direction` but overall, the algorithm is still the same than the paper 
 
-"""
-function nextPoint(k_p::Int64, x_p::Float64, y_p::Float64,  θ_p::Float64,
-                    Lmax::Float64, θ_max::Float64, 
-                    xPath::T, yPath::T) where T<:Union{Vector, StepRangeLen}
+# """
+function nextPoint(
+    k_p::Int64, 
+    x_p::Float64, 
+    y_p::Float64, 
+    θ_p::Float64,
+    Lmax::Float64, 
+    θ_max::Float64, 
+    xPath::T, 
+    yPath::T
+    ) where T<:Union{Vector, StepRangeLen}
+
     L0 = Lmax; 
     k = k_p; 
     result = []; 
@@ -165,7 +185,7 @@ function nextPoint(k_p::Int64, x_p::Float64, y_p::Float64,  θ_p::Float64,
             if(Δ > 0)
                 direction = 1;
             elseif (Δ < 0 )
-                    direction = -1;
+                direction = -1;
             end
             if (abs(Δ) <= θ_max)
                 return result = [k; xPath[k]; yPath[k]; θ];
