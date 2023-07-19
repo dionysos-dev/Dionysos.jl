@@ -1,4 +1,4 @@
-## Import useful packages 
+## Import useful packages
 using LinearAlgebra
 using StaticArrays
 using StructArrays
@@ -12,7 +12,7 @@ using MechanismGeometries
 using LaTeXStrings
 using DelimitedFiles
 
-## Include and import the ZMP based controller 
+## Include and import the ZMP based controller
 include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 import .ZMPBipedRobot as ZMProbot
 
@@ -31,52 +31,52 @@ GROUND = true;
 local_dir = joinpath(@__DIR__, "../../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
 
-# define file name to save 
+# define file name to save
 ref_fileName = saveFolder * "/walkingPattern_ref.csv"
 
 ###########################################################
 #                    Simulation parameters                #
 ###########################################################
 if MODEL_2D
-    ## Straight path for 2D Robot Model 
+    ## Straight path for 2D Robot Model
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
-    ## Circle path for 3D Robot Model 
+    ## Circle path for 3D Robot Model
     t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
     robot_model = "ZMP_3DBipedRobot.urdf"
 end
 
-# Plot Format 
-lw = 2          # Plot line width 
+# Plot Format
+lw = 2          # Plot line width
 dpi = 600       # dpi for saved figures
 msw = 0.1       # Plot dot outerline width
-ms = 2          # Plot dot size 
+ms = 2          # Plot dot size
 
-Δt = 1e-3       # Simulation step 
+Δt = 1e-3       # Simulation step
 
 # Position control parameters
 Kp = 10000.0
 Ki = 100.0
 Kd = 100.0
 
-# true : PD with dynamics compensation, false  : PD control 
+# true : PD with dynamics compensation, false  : PD control
 ctrl = true
 
 ###########################################################
 #                    ZMP based controller                 #
 ###########################################################
-# # Get the optimised paramters 
+# # Get the optimised paramters
 # candidates =  readdlm("examples/2. Optimisation process/solutions.txt", ',');
 # best_key = 261
 
-# Get the optimised paramters for a controller samplled at 50 Hz 
+# Get the optimised paramters for a controller samplled at 50 Hz
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
-best_key = 93   # Slow trajectory
+# best_key = 93   # Slow trajectory
 best_key = 247 # Fast trajectory
 
 x = candidates[best_key, :]
@@ -87,33 +87,34 @@ Lmax = x[3];
 Tver = x[5];
 hstep = x[6];
 
-# Construct the best candidate 
+# Construct the best candidate
 wo = ZMProbot.WalkingOptimization(Δz, Tstep, Lmax, δ, Tver, hstep, 0.4275, 5, NaN, NaN)
 ZMProbot.computeAutoDefineParameters!(wo);
 br = ZMProbot.defineBipedRobot(wo);
 br.saveFolder = saveFolder;
 br.xPath = xPath;
 br.yPath = yPath;
+br.initial_position = [xPath[1], yPath[1], θ_0]
 
 # Construct the Preview Controller
 pc = ZMProbot.PreviewController(; br = br, check = PLOT_RESULT)
 
-# Run the Foot Planer Algorithm and get the foot position 
+# Run the Foot Planer Algorithm and get the foot position
 fp = ZMProbot.FootPlanner(; br = br, check = PLOT_RESULT)
 
-# Get the ZMP reference trajectory 
+# Get the ZMP reference trajectory
 zt = ZMProbot.ZMPTrajectory(; br = br, fp = fp, check = PLOT_RESULT)
 
 # Convert the ZMP reference trajectory into CoM trajectory
 ct = ZMProbot.CoMTrajectory(; br = br, pc = pc, zt = zt, check = PLOT_RESULT)
 
-# Get the Swing Foot trajectory 
+# Get the Swing Foot trajectory
 sf = ZMProbot.SwingFootTrajectory(; br = br, fp = fp, zt = zt, check = PLOT_RESULT)
 
-# Get the joint trajectory from the all path 
+# Get the joint trajectory from the all path
 ik = ZMProbot.InverseKinematics(; br = br, fp = fp, ct = ct, sf = sf, check = PLOT_RESULT)
 
-# Store into more convienant variables 
+# Store into more convienant variables
 qr = ik.q_r;
 ql = ik.q_l;
 qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
@@ -125,8 +126,8 @@ tplot = reduce(vcat, zt.timeVec)
 ###########################################################
 #                  Simulation environement                #
 ###########################################################
-tend = tplot[end]       # Simulation time 
-# Construct the robot in the simulation engine 
+tend = tplot[end]       # Simulation time
+# Construct the robot in the simulation engine
 rs = ZMProbot.RobotSimulator(;
     fileName = robot_model,
     symbolic = false,
@@ -134,19 +135,20 @@ rs = ZMProbot.RobotSimulator(;
     add_gravity = GRAVITY,
     add_flat_ground = GROUND,
 );
-# Generate the visualiser 
+# Generate the visualiser
 vis = ZMProbot.set_visulalizer(; mechanism = rs.mechanism)
 
-# Intiial configuration 
-# boom = [ 0, 0 ]
-# actuators = [ 0, 0, 0, 0 ]
-ZMProbot.set_initialbody!(rs, vis)
+# Intiial configuration
+boom = [ 0, 0 ]
+actuators = [ 0, 0, 0, 0 ]
+foot = [ 0, 0 ]
+ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
-# Simulate the robot 
+# Simulate the robot
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
 
-# Open the visulaiser and run the animation 
+# Open the visulaiser and run the animation
 if ANIMATE_RESULT
     open(vis)
     MeshCatMechanisms.animate(vis, ts, qs)
@@ -174,16 +176,16 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(   #title = "Joints angles",;;;;;;;;;;;;;;;;;
+plt_θ = plot( 
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
     legendcolumns = 2,
-    #titlefont=font(fs, ff), 
+    #titlefont=font(fs, ff),
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
+plt_ω = plot(
     xlims = (0, tend),
     #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
@@ -191,7 +193,7 @@ plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(   #title = "Joints Torques",;;;;;;;;;;;;;;;;;
+plt_τ = plot(
     xlims = (0, tend),
     #ylims = (-pi, pi),
     dpi = dpi,

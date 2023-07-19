@@ -25,7 +25,7 @@ mutable struct BipedRobot
     Lmax::Union{Int64, Float64}
     θ_max::Union{Int64, Float64}
     d::Float64
-    initial_postion::Vector
+    initial_position::Vector
     isLeftSupport::Bool
     xPath::Union{Vector, StepRangeLen}
     yPath::Union{Vector, StepRangeLen}
@@ -53,7 +53,7 @@ end
 
 function BipedRobot(;
     readFile::Bool = true,
-    URDFfileName::String = "ZMP_2DbipedalRobot.urdf",
+    URDFfileName::String = "ZMP_2DBipedRobot.urdf",
     paramFileName::String = "param.jl",
     saveFolder::String = "docs/",
 )

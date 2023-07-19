@@ -75,7 +75,7 @@ br = ZMProbot.BipedRobot(;
 )
 br.xPath = xPath;
 br.yPath = yPath;
-br.saveFolder = saveFolder;
+br.initial_position = [xPath[1], yPath[1], θ_0]
 
 # Construct the Preview Controller
 pc = ZMProbot.PreviewController(; br = br, check = PLOT_RESULT)
@@ -120,9 +120,10 @@ rs = ZMProbot.RobotSimulator(;
 vis = ZMProbot.set_visulalizer(; mechanism = rs.mechanism)
 
 # Intiial configuration 
-# boom = [ 0, 0 ]
-# actuators = [ 0, 0, 0, 0 ]
-ZMProbot.set_initialbody!(rs, vis)
+boom = [ 0, 0 ]
+actuators = [ 0, 0, 0, 0 ]
+foot = [ 0, 0 ]
+ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
@@ -156,7 +157,24 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(   #title = "Joints angles",;;;;;;;;;;;;;;;;;
+plt_θ = plot(   #title = "Joints angles",
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
@@ -165,7 +183,24 @@ plt_θ = plot(   #title = "Joints angles",;;;;;;;;;;;;;;;;;
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
+plt_ω = plot(   #title = "Joints Velocity",
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
     xlims = (0, tend),
     #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
@@ -173,7 +208,24 @@ plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(   #title = "Joints Torques",;;;;;;;;;;;;;;;;;
+plt_τ = plot(   #title = "Joints Torques",
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
     xlims = (0, tend),
     #ylims = (-pi, pi),
     dpi = dpi,

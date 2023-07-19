@@ -60,6 +60,7 @@ br = ZMProbot.BipedRobot(;
 )
 br.xPath = xPath;
 br.yPath = yPath;
+br.initial_position = [xPath[1], yPath[1], θ_0]
 
 # Construct the Preview Controller
 pc = ZMProbot.PreviewController(; br = br, check = PLOT_RESULT)

@@ -67,7 +67,7 @@ function computeFootsPlacement(br::BipedRobot)
     Lmax = br.Lmax
     θ_max = br.θ_max
     offset = br.d
-    initial_position = br.initial_postion
+    initial_position = br.initial_position
     xPath = br.xPath
     yPath = br.yPath
     isLeftSupport = br.isLeftSupport

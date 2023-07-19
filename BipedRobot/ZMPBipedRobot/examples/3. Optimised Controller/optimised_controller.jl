@@ -39,12 +39,14 @@ if MODEL_2D
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
+    θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis 
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model 
     t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
+    θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis 
     robot_model = "ZMP_3DBipedRobot.urdf"
 end
 ########################################################### 
@@ -73,8 +75,10 @@ wo = ZMProbot.WalkingOptimization(Δz, Tstep, Lmax, δ, Tver, hstep, 0.4275, 5, 
 ZMProbot.computeAutoDefineParameters!(wo);
 br = ZMProbot.defineBipedRobot(wo);
 br.saveFolder = saveFolder;
+
 br.xPath = xPath;
 br.yPath = yPath;
+br.initial_position = [xPath[1], yPath[1], θ_0]
 
 # Construct the Preview Controller
 pc = ZMProbot.PreviewController(; br = br, check = PLOT_RESULT)

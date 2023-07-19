@@ -25,7 +25,7 @@ function ZMPTrajectory(; br::BipedRobot, fp::FootPlanner, check::Bool = false)
     if (check)
         ZMPplot = reduce(hcat, ZMP)
         tplot = reduce(vcat, timeVec)
-        
+
         plt = plot(;
             title = "ZMP Trajectory",
             xlabel = "X [m]",
@@ -101,16 +101,16 @@ function computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     lastTime = t[end]
 
     while (stepNum <= length(center))
-        # if stepNum == length(center)
-        #     nextZMP = center[stepNum][1:2];     ## At the end get COM in the center
-        # else 
-        if (left_flag == true)
-            nextZMP = right[stepNum][1:2] # ZMP ref of the next step 
-        else
-            nextZMP = left[stepNum][1:2] # ZMP of the next step       
+        if stepNum == length(center)
+            nextZMP = center[stepNum][1:2];     ## At the end get COM in the center
+        else 
+            if (left_flag == true)
+                nextZMP = right[stepNum][1:2] # ZMP ref of the next step 
+            else
+                nextZMP = left[stepNum][1:2] # ZMP of the next step       
+            end
+            left_flag = ~left_flag    # Change support foot 
         end
-        left_flag = ~left_flag    # Change support foot 
-        # end
 
         # Creating a cubic spline in the X direction for connecting 2 differents ZMPx 
         xSplineX = DSPtime

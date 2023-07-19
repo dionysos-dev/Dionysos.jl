@@ -158,7 +158,7 @@ function computeAutoDefineParameters!(wo::WalkingOptimization)
     ctrl = true
     Δt = 1e-3
     controller! = trajectory_controller!(rs, tstep, qref, Δt, Kp, Ki, Kd, ctrl)
-    RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!)
+    RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!)
     CoMsim = reduce(hcat, rs.CoM)
 
     wo.zc = CoMsim[3, end]
