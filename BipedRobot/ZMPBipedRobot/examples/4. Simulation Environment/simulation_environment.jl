@@ -29,9 +29,9 @@ CONTACTS = false;
 GROUND = true; 
 
 local_dir = joinpath(@__DIR__, "../../")
-saveFolder = local_dir*"examples/4. Simulation Environment/results"
-# refFolder = local_dir* "examples/1. Default Controller/results"
-refFolder = local_dir*"examples/3. Optimised Controller/results"
+saveFolder = local_dir*"docs/4. Simulation Environment"
+# refFolder = local_dir* "examples/1. Default Controller"
+refFolder = local_dir*"docs/3. Optimised Controller"
 
 # define file name to open
 ref_fileName = refFolder*"/walkingPattern_ref_slow.csv"

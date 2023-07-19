@@ -17,13 +17,13 @@ include(joinpath(@__DIR__, "..", "..", "deps", "param.jl"))
 import .ZMPBipedRobot as ZMProbot
 
 local_dir = joinpath(@__DIR__, "..", "../")
-saveFolder = local_dir*"examples/2. Optimisation process/results"
+saveFolder = local_dir*"docs/2. Optimisation process"
 
 Δz_space = (0.05 : 0.05 : 0.3)*zmax
 Tstep_space = 0.1 : 0.1 : 1
 Lmax_space = 0.05 : 0.05 : (L1+L2)/2
 δ_space = 0.05 : 0.05 : 0.2
-δver_space = 0#  : 0.05 : 0.2
+δver_space = 0 #  : 0.05 : 0.2
 hstep_space = 0.02 : 0.01 : 0.05
 i = 1; 
 solutions = Array[]

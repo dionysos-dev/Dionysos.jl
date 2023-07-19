@@ -13,7 +13,7 @@ using LaTeXStrings
 using DelimitedFiles
 
 local_dir = joinpath(@__DIR__, "..", "../")
-saveFolder = local_dir*"examples/2. Optimisation process/results"
+saveFolder = local_dir*"docs/2. Optimisation process/"
 
 # read data from file into a matrix
 # objectives = readdlm(saveFolder*"/objectives_values.txt", ',');
@@ -53,11 +53,6 @@ obj1 = obj1/maximum(obj1)
 obj2 = obj2/maximum(obj2[isfinite.(obj2)])
 obj3 = obj3/maximum(obj3[isfinite.(obj3)])
 
-# obj1 = obj1[isfinite.(obj3)]/maximum(obj1)
-# obj2 = obj2[isfinite.(obj3)]/maximum(obj2[isfinite.(obj2)])
-# obj3 = obj3[isfinite.(obj3)]/maximum(obj3[isfinite.(obj3)])
-
-
 plt = plot( #title = "Simualtion results for sorted by Walking Speed",
             xlabel = "Candidate", ylabel = "Normelized Objectives values",
             #xlim = best_range,
@@ -79,23 +74,3 @@ best_objective = sorted_obj1[best_range[1] .+ best .- 1][2]
 best_key = sorted_obj1[best_range[1] .+ best .- 1][1]
 
 best_x = solutions[:, best_key]
-
-
-plt = plot( #title = "Simualtion results for sorted by Walking Speed",
-            xlabel = L"F_1(x)", ylabel = L"F_2(x)", zlabel = L"F_3(x)",
-            #xlim = (1550,1570),
-            #xlim = best_range,
-            legend=:top,  dpi=600)
-# scatter!(obj, label = L"F(x)", ms = msize, msw = 0)
-scatter!(obj1,obj2,obj3, label = false, ms = msize, msw = .1)
-display(plt) 
-
-plt = plot( #title = "Simualtion results for sorted by Walking Speed",
-            dpi=600,
-            # layout = (3,1)
-            )
-
-# scatter!(plt[1], obj1, obj2, label = false, ms = msize, msw = .1, xlabel = L"F_1(x)", ylabel = L"F_2(x)",)
-# scatter!(plt[2], obj2, obj3, label = false, ms = msize, msw = .1, xlabel = L"F_2(x)", ylabel = L"F_3(x)",)
-scatter!(obj1, obj3, label = false, ms = msize, msw = .1, xlabel = L"F_1(x)", ylabel = L"F_3(x)",)
-display(plt) 

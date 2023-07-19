@@ -26,7 +26,7 @@ MODEL_2D = false;
 SAVE_CSV = true; 
 
 local_dir = joinpath(@__DIR__, "..", "../")
-saveFolder = local_dir*"examples/3. Optimised Controller/results"
+saveFolder = local_dir*"docs/3. Optimised Controller"
 
 # define file name to save 
 ref_fileName = saveFolder*"/walkingPattern_ref_slow.csv"
@@ -51,11 +51,11 @@ end
 #                    ZMP based controller                 #
 ###########################################################
 # # Get the optimised paramters 
-# candidates =  readdlm(local_dir*"examples/2. Optimisation process/results/solutions.txt", ',');
+# candidates =  readdlm(local_dir*"docs/2. Optimisation process/solutions.txt", ',');
 # best_key = 261
 
 # Get the optimised paramters for a controller samplled at 50 Hz 
-candidates =  readdlm(local_dir * "examples/2. Optimisation process/results/solutions_Fs50.txt", ',');
+candidates =  readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
 # best_key = 247  # Fast Trajectory 
 best_key = 93 # Slow Trajectory 
 

@@ -27,7 +27,7 @@ MODEL_2D = false;
 
 # Folder to save figures 
 local_dir = joinpath(@__DIR__, "..", "../")
-saveFolder = local_dir*"examples/1. Default Controller/results"
+saveFolder = local_dir*"docs/1. Default Controller"
 
 ###########################################################
 #                    Simulation parameters                #

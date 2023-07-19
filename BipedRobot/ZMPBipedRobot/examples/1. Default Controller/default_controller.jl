@@ -26,7 +26,7 @@ MODEL_2D = true;
 SAVE_CSV = false; 
 
 local_dir = joinpath(@__DIR__, "..", "../")
-saveFolder = local_dir*"examples/1. Default Controller/results"
+saveFolder = local_dir*"docs/1. Default Controller"
 
 # define file name to save 
 ref_fileName = saveFolder*"/walkingPattern_ref.csv"
