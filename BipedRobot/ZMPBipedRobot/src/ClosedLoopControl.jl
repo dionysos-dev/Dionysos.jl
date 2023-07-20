@@ -159,7 +159,7 @@ function ClosedLoopZMPcontroller!(
                 q_dk = [qactual[2] qactual[4]] # -> Right leg joints 
             end
 
-            # Forward Kinematics to compute the actual Pelvis configuration
+            # Forward Kinematics to compute the actual Pelvis configuration using the support foot as reference
             xhip = dk[1].(q_dk[1], q_dk[2])
             yhip = dk[2].(q_dk[1], q_dk[2]) .+ d4
 

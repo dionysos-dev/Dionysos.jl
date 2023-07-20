@@ -65,7 +65,7 @@ for Δz in Δz_space
     end
 end
 objectives = reduce(hcat, objectives)
-plt_objective = plot(   #title = "Objective function plot for each candidate",;;;;;;;;;;;;;;;;;
+plt_objective = plot(
     xlabel = "max $(L"f_1(x)")",
     ylabel = "min $(L"f_2(x)")",
     zlabel = "min $(L"f_3(x)")",

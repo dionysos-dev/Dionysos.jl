@@ -20,10 +20,10 @@ import .ZMPBipedRobot as ZMProbot
 #                      Code parameters                    #
 ###########################################################
 PLOT_RESULT = true;
-SAVE_RESULT = false;
+SAVE_RESULT = true;
 ANIMATE_RESULT = true;
 
-MODEL_2D = false;
+MODEL_2D = true;
 
 # Folder to save figures 
 local_dir = joinpath(@__DIR__, "..", "../")
@@ -60,7 +60,7 @@ Kp = 10000.0
 Ki = 100.0
 Kd = 100.0
 
-# true : PD with dynamics compensation, false  : PD control 
+# true : PD with dynamics compensation, false  : random torque 
 ctrl = true
 
 ###########################################################
@@ -127,7 +127,7 @@ ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
 
 # Open the visulaiser and run the animation 
 if ANIMATE_RESULT
@@ -157,24 +157,7 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(   #title = "Joints angles",
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
+plt_θ = plot(
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
@@ -183,24 +166,7 @@ plt_θ = plot(   #title = "Joints angles",
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(   #title = "Joints Velocity",
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
+plt_ω = plot(
     xlims = (0, tend),
     #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
@@ -208,24 +174,7 @@ plt_ω = plot(   #title = "Joints Velocity",
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(   #title = "Joints Torques",
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
-;
+plt_τ = plot(
     xlims = (0, tend),
     #ylims = (-pi, pi),
     dpi = dpi,

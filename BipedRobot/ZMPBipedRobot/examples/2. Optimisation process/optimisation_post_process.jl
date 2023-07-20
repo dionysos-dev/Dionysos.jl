@@ -52,7 +52,7 @@ obj1 = obj1 / maximum(obj1)
 obj2 = obj2 / maximum(obj2[isfinite.(obj2)])
 obj3 = obj3 / maximum(obj3[isfinite.(obj3)])
 
-plt = plot( #title = "Simualtion results for sorted by Walking Speed",;;;;;;;;;;;;;;;;;
+plt = plot(
     xlabel = "Candidate",
     ylabel = "Normelized Objectives values",
     #xlim = best_range,

@@ -25,7 +25,7 @@ SAVE_RESULT = false;
 
 ANIMATE_RESULT = true;
 GRAVITY = true;
-CONTACTS = false;
+CONTACTS = true;
 GROUND = true;
 
 local_dir = joinpath(@__DIR__, "../../")
@@ -34,8 +34,7 @@ saveFolder = local_dir * "docs/4. Simulation Environment"
 refFolder = local_dir * "docs/3. Optimised Controller"
 
 # define file name to open
-ref_fileName = refFolder * "/walkingPattern_ref_slow.csv"
-# ref_fileName = refFolder*"/walkingPattern_ref_fast.csv"
+ref_fileName = refFolder * "/walkingPattern_ref.csv"
 
 if CONTACTS
     robot_model = "ZMP_3DBipedRobot.urdf"
@@ -59,8 +58,8 @@ Kp = 10000.0
 Ki = 0.0
 Kd = 100.0
 
-# true : PD with dynamics compensation, false  : PD control 
-ctrl = true
+# true : PD with dynamics compensation, false  : random torque 
+ctrl = false
 
 ###########################################################
 #                  Simulation environement                #
@@ -106,7 +105,7 @@ ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
 
 # Open the visulaiser and run the animation 
 if ANIMATE_RESULT
@@ -135,7 +134,7 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(   #title = "Joints angles",;;;;;;;;;;;;;;;;;
+plt_θ = plot(  
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
@@ -144,7 +143,7 @@ plt_θ = plot(   #title = "Joints angles",;;;;;;;;;;;;;;;;;
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
+plt_ω = plot(
     xlims = (0, tend),
     #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
@@ -152,7 +151,7 @@ plt_ω = plot(   #title = "Joints Velocity",;;;;;;;;;;;;;;;;;
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(   #title = "Joints Torques",;;;;;;;;;;;;;;;;;
+plt_τ = plot(  
     xlims = (0, tend),
     #ylims = (-pi, pi),
     dpi = dpi,

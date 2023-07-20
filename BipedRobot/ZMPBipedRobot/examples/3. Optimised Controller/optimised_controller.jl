@@ -29,7 +29,7 @@ local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
 
 # define file name to save 
-ref_fileName = saveFolder * "/walkingPattern_ref_slow.csv"
+ref_fileName = saveFolder * "/walkingPattern_ref.csv"
 
 ###########################################################
 #                    Simulation parameters                #
@@ -58,8 +58,8 @@ end
 
 # Get the optimised paramters for a controller samplled at 50 Hz 
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
-# best_key = 247  # Fast Trajectory 
-best_key = 93 # Slow Trajectory 
+best_key = 247 # Fast Trajectory 
+# best_key = 93 # Slow Trajectory 
 
 x = candidates[best_key, :]
 # x[2]  = x[2] + 0.2

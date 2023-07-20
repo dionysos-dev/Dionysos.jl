@@ -56,7 +56,7 @@ Return a `BipedRobot` data structure based on a `WalkingOptimization` data struc
 """
 function defineBipedRobot(wo::WalkingOptimization)
     include(joinpath(packagepath(), "param.jl"))
-
+    urdfpath() = joinpath(packagepath(), "ZMP_2DBipedRobot.urdf")
     Δz = wo.Δz
     Tstep = wo.Tstep
     Lmax = wo.Lmax
@@ -77,6 +77,42 @@ function defineBipedRobot(wo::WalkingOptimization)
     Qe = q_e * eye(p)     # tracking error weight matrix
     Qx = 0.0 * eye(n)       # incremental state weight matrix
     R = r_u * eye(p)       # control vector weight matrix
+
+    visual = URDFVisuals(urdfpath())
+    e = root(visual.xdoc)
+
+    L1 = 0.0 
+    L2 = 0.0 
+    d = 0.0 
+    offset_hip_to_motor = 0.0 
+    offset_ankle_to_foot = 0.0
+
+    for  (i, joint) in enumerate(e["joint"]) 
+        if (attribute(joint, "name")) == "l_hip_to_motor"
+            s = attribute(joint["origin"]..., "xyz")
+            numbers = split(s, " ")
+            offset_hip_to_motor = abs(parse(Float64, numbers[3])) 
+            d = 2 * abs(parse(Float64, numbers[2])) 
+        end 
+        if  (attribute(joint, "name")) == "l_thigh_link_to_motor"
+            s = attribute(joint["origin"]..., "xyz")
+            numbers = split(s, " ")
+            L1 = abs(parse(Float64, numbers[3])) 
+        end 
+        if  (attribute(joint, "name")) == "l_ankle"
+            s = attribute(joint["origin"]..., "xyz")
+            numbers = split(s, " ")
+            L2 = abs(parse(Float64, numbers[3])) 
+        end 
+    end 
+    
+    for (i, link) in enumerate(e["link"])
+        if (attribute(link, "name") == "l_foot_link")
+            s = attribute(link["visual"][1]["geometry"][1]["box"]..., "size")
+            numbers = split(s, " ")
+            offset_ankle_to_foot = abs(parse(Float64, numbers[3])) 
+        end 
+    end 
 
     return BipedRobot(
         Ts,
@@ -144,8 +180,9 @@ function computeAutoDefineParameters!(wo::WalkingOptimization)
             CoMz[idx] = spline(tstep[idx], coeffCoM)[1]
         end
     end
-
-    q = twoLinksInverseKinematics.(zeros(length(tstep)), -new_height)
+    L1 = br.L_thigh
+    L2 = br.L_leg
+    q = twoLinksInverseKinematics.(zeros(length(tstep)), -new_height, L1, L2)
     qr = reduce(vcat, q)
     ql = reduce(vcat, q)
     qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
@@ -237,7 +274,7 @@ function simulate(
     set_configuration!(rs.state, config)
     zero_velocity!(rs.state)
     controller! = trajectory_controller!(rs, tref, qref, Δt, Kp, Ki, Kd, ctrl)
-    ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!)
+    ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!)
     qsim = reduce(hcat, qs)'
     vsim = reduce(hcat, vs)'
     tsim = reduce(vcat, ts)

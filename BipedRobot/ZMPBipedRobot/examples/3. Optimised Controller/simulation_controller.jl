@@ -64,7 +64,7 @@ Kp = 10000.0
 Ki = 100.0
 Kd = 100.0
 
-# true : PD with dynamics compensation, false  : PD control
+# true : PD with dynamics compensation, false  : random torque 
 ctrl = true
 
 ###########################################################

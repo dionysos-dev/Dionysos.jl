@@ -37,7 +37,7 @@ end
 
 """
 
-Return the Homogenous transforamtion matrix from foot frame to hip frame in function format 
+Return the location of the foot frame w.r.t the hip frame in function format
 """
 function foot2hip(br::BipedRobot)
     # q1 = qside[1, :]
@@ -50,10 +50,10 @@ function foot2hip(br::BipedRobot)
     a_i = [0, L1, L2, 0]
     α_i = [pi / 2, 0, 0, 0]
     d_i = [-d1, 0, 0, 0]
-    θ_i = [0, q1 - pi / 2, -q2, -q1 + pi / 2 + q2]
+    θ_i = [0, q1 - pi / 2, q2, q1 + pi / 2 + q2]
 
     H_foot2hip = getTransformationMatrix(a_i, α_i, d_i, θ_i)
-    p_ground_foot = [0; -d4; 0; 1]
+    p_ground_foot = [0; 0; 0; 1]
 
     p_ground_hip = H_foot2hip * p_ground_foot
     p = build_function.(p_ground_hip, q1, q2)
@@ -62,7 +62,7 @@ end
 
 """
 
-Return the Homogenous transforamtion matrix from hip frame to foot frame in function format 
+Return the location of the hip frame w.r.t the foot/ankle frame in function format 
 """
 function hip2foot(br::BipedRobot)
     # q1 = qside[1, :]
@@ -75,10 +75,10 @@ function hip2foot(br::BipedRobot)
     a_i = [L2, L1, 0, 0]
     α_i = [0, 0, 0, 0]
     d_i = [0, 0, 0, 0]
-    θ_i = [pi / 2 - q2 + q1, q2, -pi / 2 - q1, 0]
+    θ_i = [pi / 2 + q2 + q1, -q2, -pi / 2 + q1, 0]
 
     H_hip2foot = getTransformationMatrix(a_i, α_i, d_i, θ_i)
-    p_hip_hip = [0; d1; 0; 1]
+    p_hip_hip = [0; 0; 0; 1]
 
     p_hip_foot = *(H_hip2foot, p_hip_hip)
     p = build_function.(p_hip_foot, q1, q2)

@@ -11,7 +11,6 @@ g = 9.81;                           # Gravity constant
 #-----------------------Foot pattern parameters-----------------------
 Lmax = 0.1;                         # Half of the step length 
 θ_max = 12 * pi / 180;              # Max orientation change on the foot 
-d = 0.052;                          # Centre-to-centre distance between the right foot and the left foot 
 θ_0 = 0.0;                          # Initial orientation of the robot (robot frame)    
 isLeftSupport = true;               # Initial support foot 
 
@@ -46,10 +45,3 @@ yinit = [yPath[1]; 0.0; 0.0];    # Initial state on the Y component of the ZMP
 #-----------------------Swing Foot Trajectory Generator-----------------------
 Tver = 0.0 * Tstep;     # Vertical time at the end of the step
 hstep = 0.01;           # Maximal height of the foot position w.r.t world
-
-#-----------------------Inverse Finematics block-----------------------
-## TODO : make a code to get theses values from the URDF file 
-L1 = 0.20125            # Length of the thigh
-L2 = 0.172              # Length of the leg
-offset_hip_to_motor = 0.04025;
-offset_ankle_to_foot = 0.009;

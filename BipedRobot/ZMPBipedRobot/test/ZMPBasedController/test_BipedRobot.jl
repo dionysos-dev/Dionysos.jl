@@ -1,4 +1,4 @@
-module Test_ZT
+module Test_BR
 
 include(joinpath(@__DIR__,"..", "..", "src", "ZMPBipedRobot.jl"))
 import .ZMPBipedRobot as ZMProbot
@@ -8,18 +8,22 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 
-@testset "ZMP Trajectory Generator" begin 
+@testset "Biped Robot" begin 
+    
+    URDFfileName = "ZMP_2DBipedRobot.urdf"
+    # URDFfileName = "ZMP_3DBipedRobot.urdf"
+
     br = ZMProbot.BipedRobot(;
         readFile = true,
+        URDFfileName = URDFfileName,
         paramFileName = "param_test.jl",
     )
 
-    fp = ZMProbot.FootPlanner(br = br)
-    zt = ZMProbot.ZMPTrajectory(br = br, fp = fp, check = false)
-    tref = reduce(vcat, zt.timeVec)
-    
-    @test length(zt.ZMP) == length(fp.center)
-    @test [tref[i] ≈  br.Ts * (i-1) for i = 1: length(tref)] == ones( length(tref))
+    @test br.L_leg != 0 
+    @test br.L_thigh != 0 
+    @test br.offset_hip_to_motor != 0
+    @test br.offset_ankle_to_foot != 0
+    @test br.d != 0
 end 
 
 sleep(0.1) # used for good printing

@@ -22,17 +22,19 @@ end
 
 Direct kinematics of a double pendulum
 """
-function twoLinksDirectKinematics(θ1::Union{Int64, Float64}, θ2::Union{Int64, Float64})
-    x = L1 * cos(θ1) + L2 * cos(θ1 + θ2)
-    y = L1 * sin(θ1) + L2 * sin(θ1 + θ2)
-    return [x y]
+function twoLinksDirectKinematics( θ1::T, θ2::T, L1::T, L2::T) where T <: Union{Int64, Float64}
+    x = L1 * sin(θ1) + L2 * sin(θ1 + θ2)
+    z =- L1 * cos(θ1) - L2 * cos(θ1 + θ2)
+    return [x z]
 end
 
 """
 
 Inverse kinematics of a double pendulum
 """
-function twoLinksInverseKinematics(x::Union{Int64, Float64}, y::Union{Int64, Float64})
+function twoLinksInverseKinematics( x::T, y::T, L1::T, L2::T) where T <: Union{Int64, Float64}
+    # L1 = br.L_thigh; 
+    # L2 = br.L_leg; 
     D = (x^2 + y^2 - L1^2 - L2^2) / (2 * L1 * L2) # = cos θ1 
     if (D^2 > 1)
         #println("cos^2(θ1) = ", D^2)
@@ -65,8 +67,7 @@ function InverseKinematics(;
     steplocalL_plot = reduce(hcat, stepLocalL)
 
     if (check)
-        plt = plot( #title = "Inverse Kinematrics", 
-            ;
+        plt = plot(
             xlabel = "X [m]",
             ylabel = "Z [m]",
             #xlim = (-0.1, 0.1), 
@@ -94,20 +95,18 @@ function InverseKinematics(;
         display(plt)
         savefig(plt, br.saveFolder * "/Global2Local.png")
     end
-
-    qr = twoLinksInverseKinematics.(steplocalR_plot[1, :], steplocalR_plot[3, :])
-    ql = twoLinksInverseKinematics.(steplocalL_plot[1, :], steplocalL_plot[3, :])
+    L1 = br.L_thigh
+    L2 = br.L_leg
+    qr = twoLinksInverseKinematics.(steplocalR_plot[1, :], steplocalR_plot[3, :], L1, L2)
+    ql = twoLinksInverseKinematics.(steplocalL_plot[1, :], steplocalL_plot[3, :], L1, L2)
     qr = reduce(vcat, qr)
     ql = reduce(vcat, ql)
 
     if (check)
         plt_θ = plot(;
             title = "Inverse Kinematrics",
-            # xlims = (0, tend), 
-            #ylims = (0.28, 0.32),
-            xlabel = L"$t$ [s]", #ylabel = "Joint [rad]", 
+            xlabel = L"$t$ [s]", 
             legend = false,
-            #titlefont=font(fs, ff), 
             dpi = 600,
             layout = (2, 2),
         )

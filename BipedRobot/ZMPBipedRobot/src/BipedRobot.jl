@@ -71,14 +71,48 @@ function BipedRobot(;
         Qx = 0.0 * eye(n)     # incremental state weight matrix
         R = r_u * eye(p)    # control vector weight matrix
 
+        L1 = 0.0 
+        L2 = 0.0 
+        d = 0.0 
+        offset_hip_to_motor = 0.0 
+        offset_ankle_to_foot = 0.0
+
         visual = URDFVisuals(urdfpath())
         e = root(visual.xdoc)
-        s = attribute(e["link"][end]["visual"][1]["geometry"][1]["box"]..., "size")
-        numbers = split(s, " ")
-        offset_ankle_to_foot = parse(Float64, numbers[3])
-        # TODO : get the value from URDF file 
-        # offset_hip_to_motor = 0.04025
-
+        
+        # println("Searching length in URDF file")
+        for  (i, joint) in enumerate(e["joint"]) 
+            if (attribute(joint, "name")) == "l_hip_to_motor"
+                s = attribute(joint["origin"]..., "xyz")
+                numbers = split(s, " ")
+                offset_hip_to_motor = abs(parse(Float64, numbers[3])) 
+                # println("Value found for offset_hip_to_motor = $(offset_hip_to_motor)")
+                d = 2 * abs(parse(Float64, numbers[2])) 
+                # println("Value found for d = $(d)")
+            end 
+            if  (attribute(joint, "name")) == "l_thigh_link_to_motor"
+                s = attribute(joint["origin"]..., "xyz")
+                numbers = split(s, " ")
+                L1 = abs(parse(Float64, numbers[3])) 
+                # println("Value found for L1 = $(L1)")
+            end 
+            if  (attribute(joint, "name")) == "l_ankle"
+                s = attribute(joint["origin"]..., "xyz")
+                numbers = split(s, " ")
+                L2 = abs(parse(Float64, numbers[3])) 
+                # println("Value found for L2 = $(L2)")
+            end 
+        end 
+        
+        for (i, link) in enumerate(e["link"])
+            if (attribute(link, "name") == "l_foot_link")
+                s = attribute(link["visual"][1]["geometry"][1]["box"]..., "size")
+                numbers = split(s, " ")
+                offset_ankle_to_foot = abs(parse(Float64, numbers[3])) 
+                # println("Value found for offset_ankle_to_foot = $(offset_ankle_to_foot)")
+            end 
+        end 
+        # println("End searching length in URDF file")
         return BipedRobot(
             Ts,
             zc,

@@ -20,7 +20,7 @@ import .ZMPBipedRobot as ZMProbot
 ###########################################################
 #                    Code parameters                      #
 ###########################################################
-PLOT_RESULT = true;
+PLOT_RESULT = false;
 MODEL_2D = true;
 
 SAVE_CSV = false;
