@@ -27,5 +27,6 @@ In this example, you can find 1 code :
 
 *  [`simulation_environment.jl`](4.%20Simulation%20Environment/simulation_environment.jl): Open a csv file and fetch it to the simulation environment in order to simulate the trajectories given by the csv file. 
 
+Note : This code is only used for a specific type of robot which require flat foot. Other type of URDF file which doesn't follow the same structure as the example may not work on this code. 
 ## Example 5 : Closed-loop Simulation 
 Soon... 
