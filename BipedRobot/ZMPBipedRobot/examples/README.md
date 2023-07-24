@@ -1,5 +1,15 @@
 # How to run the code 
 
+* Install Julia on your computer
+* Activate the ZMPBipedRobot project by using the following command in the Julia REPL 
+
+```
+julia> ] 
+(@v1.9) pkg> activate BipedRobot\\ZMPBipedRobot\\
+    Activating project at `E:\Design and control of a biepiedal walking robot\temp\7380xing\Dionysos.jl\BipedRobot\ZMPBipedRobot`
+(ZMPBipedRobot) pkg> 
+```
+
 ## Example 1 : Default Controller 
 In this example, you can find 2 codes : 
 
@@ -28,5 +38,15 @@ In this example, you can find 1 code :
 *  [`simulation_environment.jl`](4.%20Simulation%20Environment/simulation_environment.jl): Open a csv file and fetch it to the simulation environment in order to simulate the trajectories given by the csv file. 
 
 Note : This code is only used for a specific type of robot which require flat foot. Other type of URDF file which doesn't follow the same structure as the example may not work on this code. 
+
 ## Example 5 : Closed-loop Simulation 
 Soon... 
+
+# Example 6 : Generic Simulation Environment 
+
+In this example, you can find 1 code : 
+
+*  [`simulation_environment.jl`](6.%20Generic%20Simulation%20Environment/simulation_environment.jl): Open a csv file and an URDF file and fetch it to the simulation environment in order to simulate the trajectories given by the csv file. 
+
+This code also need to define a controller which is done by defining the function `controller!(&tau, t, state)` where `&tau` is the previous output torque at time `k - 1`, `k` is the actual sample, `t` is the actual time at `k` and `state` is the current state of the `mechanism` defined by `RigidBodyDynamics.jl`   
+ 
