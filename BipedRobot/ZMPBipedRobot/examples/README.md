@@ -43,7 +43,7 @@ Note : This code is only used for a specific type of robot which require flat fo
 ## Example 5 : Closed-loop Simulation 
 Soon... 
 
-# Example 6 : Generic Simulation Environment 
+## Example 6 : Generic Simulation Environment 
 
 In this example, you can find 1 code : 
 
