@@ -6,9 +6,10 @@
 ```
 julia> ] 
 (@v1.9) pkg> activate BipedRobot\\ZMPBipedRobot\\
-    Activating project at `E:\Design and control of a biepiedal walking robot\temp\7380xing\Dionysos.jl\BipedRobot\ZMPBipedRobot`
+    Activating project at `YourPath\Dionysos.jl\BipedRobot\ZMPBipedRobot`
 (ZMPBipedRobot) pkg> 
 ```
+* Run the code in the following folder 
 
 ## Example 1 : Default Controller 
 In this example, you can find 2 codes : 
