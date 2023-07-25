@@ -76,8 +76,8 @@ ctrl = true
 
 # Get the optimised paramters for a controller samplled at 50 Hz
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
-# best_key = 93   # Slow trajectory
-best_key = 247 # Fast trajectory
+best_key = 93   # Slowest trajectory
+# best_key = 245 # Fast trajectory
 
 x = candidates[best_key, :]
 Δz = x[1];

@@ -51,11 +51,11 @@ end
 obj1 = obj1 / maximum(obj1)
 obj2 = obj2 / maximum(obj2[isfinite.(obj2)])
 obj3 = obj3 / maximum(obj3[isfinite.(obj3)])
-
+best_range = [1, length(obj1)]
 plt = plot(
     xlabel = "Candidate",
     ylabel = "Normelized Objectives values",
-    #xlim = best_range,
+    xlim = best_range,
     legend = :top,
     dpi = 600,
 )
@@ -65,9 +65,9 @@ scatter!(obj2; label = L"F_2(x)", ms = msize, shape = :utriangle, msw = 0)
 scatter!(obj3; label = L"F_3(x)", ms = msize, shape = :rect, msw = 0)
 display(plt)
 
-# savefig(plt,saveFolder*"/Simualtion results for sorted by Walking Speed.png")
+savefig(plt,saveFolder*"/Simualtion results for sorted by Walking Speed.png")
 
-best_range = [1; 1512]
+best_range = [1; 800]
 argmax(obj1[best_range[1]:best_range[2]])
 best = argmin(obj2[best_range[1]:best_range[2]])
 argmin(obj3[best_range[1]:best_range[2]])

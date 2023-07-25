@@ -30,8 +30,8 @@ initial_position = [xPath[1]; yPath[1]; θ_0]
 #-----------------------ZMP generator block-----------------------
 Tstep = 1;                  # Step period of the walking process
 δ = 0.2;                    # Ratio between double support phase and the step period
-Tdelay = 5;                 # Delay to allows the robot to reach his final height 
-Twait = 1                   # Delay before walking 
+Tdelay = 1;                 # Delay to allows the robot to reach his final height 
+Twait = 0                   # Delay before walking 
 
 #-----------------------Preview control parameter-----------------------
 previewTime = 1             #  [s]

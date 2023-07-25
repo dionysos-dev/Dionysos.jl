@@ -327,8 +327,8 @@ function ZMPbipedObjective(x)
     timeVec = zt.timeVec
     tplot = reduce(vcat, timeVec)
     qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
-    # tend_sim = br.Tdelay + 3. * br.Tstep
-    tend_sim = tplot[end]
+    tend_sim = br.Tdelay + 3. * br.Tstep + br.Twait
+    # tend_sim = tplot[end]
     tsim, qsim, vsim, torque_sim, CoMsim =
         simulate(rs, qref, tplot, tend_sim, Kp, Ki, Kd, 1e-3)
 
@@ -350,7 +350,7 @@ function ZMPbipedObjective(x)
         (maximum(abs.(vsim[:, 6])) < omega_knee_max)
 
     Δt = 1e-3
-    tstart = br.Tdelay + br.Tstep
+    tstart = br.Tdelay + br.Tstep + br.Twait 
     tend = tstart + br.Tstep
     i_start = Int(round(tstart / Δt + 1))
     i_end = Int(round(tend / Δt + 1))

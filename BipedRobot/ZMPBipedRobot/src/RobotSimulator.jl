@@ -25,7 +25,7 @@ end
 Constructor 
 """
 function RobotSimulator(;
-    fileName::String = "ZMP_bipedalRobot.urdf",
+    fileName::String = "ZMP_2DBipedRobot.urdf",
     symbolic::Bool = false,
     use_urdf::Bool = !symbolic,
     T::Type = symbolic ? Num : Float64,
@@ -140,7 +140,7 @@ function getMechanism(;
             HalfSpace3D(Point3D(frame, 0.0, 0.0, 0.0), FreeVector3D(frame, 0.0, 0.0, 1.0))
         add_environment_primitive!(mechanism, ground)
     end
-    return mechanism #, vis
+    return mechanism
 end
 
 """

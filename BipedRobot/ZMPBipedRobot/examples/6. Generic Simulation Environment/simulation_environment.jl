@@ -12,32 +12,30 @@ using MechanismGeometries
 using LaTeXStrings
 using Tables, CSV
 using DelimitedFiles, DataFrames
+using Random
 
+## Include and import the ZMP based controller 
+include(joinpath(@__DIR__, "utils/", "GenericSimulationEnvironment.jl"))
+import .GenericSimulationEnvironment as GSE
 
 ###########################################################
 #                    Code parameters                      #
 ###########################################################
 PLOT_RESULT = true;
-SAVE_RESULT = false;
 
 ANIMATE_RESULT = true;
 GRAVITY = true;
-CONTACTS = true;
+CONTACTS = false;
 GROUND = true;
 
 local_dir = joinpath(@__DIR__, "../../")
-saveFolder = local_dir * "docs/4. Simulation Environment"
+saveFolder = local_dir * "docs/6. Generic Simulation Environment"
 # refFolder = local_dir* "examples/1. Default Controller"
-refFolder = local_dir * "docs/3. Optimised Controller"
+refFolder = local_dir * "examples/6. Generic Simulation Environment/deps"
 
 # define file name to open
 ref_fileName = refFolder * "/walkingPattern_ref.csv"
 
-if CONTACTS
-    robot_model = "ZMP_3DBipedRobot.urdf"
-else
-    robot_model = "ZMP_2DBipedRobot_noContacts.urdf"
-end
 ###########################################################
 #                    Simulation parameters                #
 ###########################################################
@@ -47,210 +45,164 @@ dpi = 600
 msw = 0.1
 ms = 2
 
-# Simulation parametersx
-Δt = 1e-3       # Simulation step 
+# File Nme of the urdf file to open 
+# fileName = "ZMP_3DBipedRobot.urdf"
+fileName = "ZMP_2DBipedRobot_noContacts.urdf"
 
-# Position control parameters
-Kp = 10000.0
-Ki = 0.0
-Kd = 100.0
+# Simulation parameters 
+Δt = 1e-3       # Simulation step [s]
+tend = 15        # Simulation time [s]
 
-# true : PD with dynamics compensation, false  : random torque 
-ctrl = false
+# Contact Points location in the ankle foot frame  
+cp = [0.0, 0.0, -0.009] 
+cp1 = [0.035, 0.02, -0.009] 
+cp2 = [0.035, -0.02, -0.009] 
+cp3 = [-0.035, 0.02, -0.009] 
+cp4 = [-0.035, -0.02, -0.009] 
 
-###########################################################
-#                  Simulation environement                #
-###########################################################
-data = ZMProbot.openCSV(ref_fileName)
+# Normal Contact Model (Hunt-Crossley)
+k_n = 50e3      # Stiffness constant [N/m]
+α = 0.2         # 1st order coefficient of the linerised coefficient of restitution [s/m]
+
+# Tangent Contact Model (Coulomb)
+μ = 0.8         # Coefficient of friction between the foot and the ground [.] 
+k_t = 20e3      # Stiffness constant [N/m]
+λ_t = 100.0     # Damping constant [kg/s]
+
+# open a reference joint trajectory 
+csvpath() = joinpath(@__DIR__, "deps/", "$(ref_fileName)")
+# Read the CSV file into a DataFrame
+data = CSV.read(csvpath(), DataFrame; header = [2], delim = ',')
 q1_r = data.q1_r
 q1_l = data.q1_l
 q2_r = data.q2_r
 q2_l = data.q2_l
-tplot = data.time
-
-ZMPx = data.ZMPx
-ZMPy = data.ZMPy
-CoMx = data.CoMx
-CoMy = data.CoMy
-CoMz = data.CoMz
+tref = data.time
 
 qref = [q1_l q1_r q2_l q2_r]
-ZMP = [ZMPx ZMPy]'
-CoM = [CoMx CoMy CoMz]'
-tend = tplot[end]       # Simulation time 
 
-# Construct the robot in the simulation engine 
-rs = ZMProbot.RobotSimulator(;
-    fileName = robot_model,
-    symbolic = false,
+###########################################################
+#                     Robot Definition                    #
+###########################################################
+
+# Contact Model definition
+contactmodel = SoftContactModel(
+    hunt_crossley_hertz(α = α, k = k_n),
+    ViscoelasticCoulombModel(µ, k_t, λ_t)
+)
+
+contacts_points = Array[]
+push!(contacts_points, cp)
+push!(contacts_points, cp1)
+push!(contacts_points, cp2)
+push!(contacts_points, cp3)
+push!(contacts_points, cp4)
+
+vr = GSE.VirtualRobot(
+    fileName = fileName, 
+    contactmodel =  contactmodel, 
+    contacts_points = contacts_points, 
     add_contact_points = CONTACTS,
-    add_gravity = GRAVITY,
     add_flat_ground = GROUND,
-);
-# Generate the visualiser 
-vis = ZMProbot.set_visulalizer(; mechanism = rs.mechanism)
+    add_gravity =  GRAVITY
+)
 
-# Intiial configuration
-if CONTACTS
-    boom = [0, 0]
-else
-    boom = []
-end
-actuators = [q1_l[1], q1_r[1], q2_l[1], q2_r[1]]
-foot = [0, 0]
-ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
+###########################################################
+#                   Controller Definition                 #
+###########################################################
+# This controller is called 4 time for one sample Δt 
 
-# Simulate the robot 
-controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
+function define_controller!(
+    vr::GSE.VirtualRobot,
+    Δt,
+    Ts, 
+    # Feel free to add more arguments to complexify the controller
+    )
+    flag = 1; 
+    mechanism = vr.mechanism
+    state = vr.state
+    i =  0.0
+    idx_sim = 0 
+    
+    # Do not touch the arguments of this function as it will be called at each sample 
+    function controller!(τ, t, state)
+        # Update the next torque as random value between 0 and 1 
+        # rand!(τ)        
+        # τ .= (τ .- 0.5)
 
-# Open the visulaiser and run the animation 
+        # Example of a basic controller 
+        if t <= 1
+            τ .= 0
+            τ[3:3] .= 0 
+        else 
+            if isapprox(t, i * Ts, atol = Δt/10) 
+                if (configuration(state)[3] <= -30 * pi/180)
+                    τ[3:3] .= τ[3] + 0.002
+                    flag = 1
+                elseif  (configuration(state)[3] >= 30 * pi/180)
+                    τ[3:3]  .= τ[3] - 0.002
+                    flag = 0
+                else 
+                    if flag == 1 
+                        τ[3:3] .= τ[3] + 0.002
+                    else
+                        τ[3:3] .= τ[3] - 0.002
+                    end 
+                end  
+            end 
+            if abs(τ[3]) >= 0.08
+                τ[3:3] .= sign(τ[3]) *  0.08
+            end     
+        end 
+        if isapprox(t, i * Ts, atol = Δt/10) 
+            i = i + 1 
+        end 
+        if isapprox(t, idx_sim * Δt, atol = Δt/10)
+            idx_sim = idx_sim + 1; 
+            push!(vr.torques, copy(τ))
+        end 
+        return nothing
+    end 
+end 
+
+###########################################################
+#                  Simulation environement                #
+###########################################################
+GSE.set_initialbody!(vr)
+# GSE.set_nominal!(vr, [0,0,30*pi/180,0,0,0])
+
+# Define the controller 
+controller! = define_controller!(vr, Δt, 0.2)
+
+# Simulate the controller
+ts, qs, vs = RigidBodyDynamics.simulate(vr.state, tend, Δt = Δt, controller!);
+
 if ANIMATE_RESULT
-    open(vis)
-    MeshCatMechanisms.animate(vis, ts, qs)
-end
+    open(vr.vis) 
+    MeshCatMechanisms.animate(vr.vis, ts, qs)
+end 
+
 ###########################################################
 #                      Plot results                       #
 ###########################################################
-qsim = reduce(hcat, qs)';
-vsim = reduce(hcat, vs)';
-tsim = reduce(vcat, ts);
-torque_sim = reduce(hcat, rs.torques)
-CoMsim = reduce(hcat, rs.CoM)
-dof_offset = length(boom);
-ZMPsim = reduce(hcat, rs.ZMP)
-
-if (length(torque_sim[1, :]) == length(tsim) + 1)
-    len_sim = length(tsim)
-    len_t = len_sim
-elseif (length(torque_sim[1, :]) == length(tsim) - 1)
-    len_t = length(torque_sim[1, :])
-    len_sim = len_t
-else
-    len_t = length(tsim)
-    len_sim = len_t
-end
-
-plt_θ = plot(  
-    xlims = (0, tend),
-    xlabel = L"$t$ [s]",
-    legend = true,
-    legendcolumns = 2,
-    #titlefont=font(fs, ff), 
-    dpi = dpi,
-    layout = (2, 2),
-)
-plt_ω = plot(
-    xlims = (0, tend),
-    #ylims = (-pi, pi),
-    xlabel = L"$t$ [s]",
-    ylabel = L"$\omega$ [rad/s]",
-    layout = (2, 2),
-    dpi = dpi,
-)
-plt_τ = plot(  
-    xlims = (0, tend),
-    #ylims = (-pi, pi),
-    dpi = dpi,
-    xlabel = L"$t$ [s]",
-    ylabel = L"$\tau$ [Nm]",
-    layout = (2, 2),
-)
-
-for (side_idx, side) in enumerate(["Left", "Right"])
-    for (joint, name) in enumerate(["Leg", "Knee"])
-        plot!(
-            plt_θ[joint, side_idx],
-            tplot,
-            qref[:, (2 * joint - 1) + (side_idx - 1)];
-            lw = lw,
-            label = "Reference",
-            title = "$(side) $(name)",
-        )
-        plot!(
-            plt_θ[joint, side_idx],
-            tsim,
-            qsim[:, dof_offset + (2 * joint - 1) + (side_idx - 1)];
-            lw = lw,
-            label = "Simulation",
-        )
-        str = latexstring("q_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
-        ylabel!(plt_θ[joint, side_idx], str)
-
-        str = latexstring("q̇_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
-        ylabel!(plt_ω[joint, side_idx], str)
-
-        str = latexstring("τ_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
-        ylabel!(plt_τ[joint, side_idx], str)
-        plot!(
-            plt_τ[joint, side_idx],
-            tsim[1:len_t],
-            torque_sim[dof_offset + (2 * joint - 1) + (side_idx - 1), 1:len_sim];
-            lw = lw,
-            label = false,
-            title = "$(side) $(name)",
-        )
-        plot!(
-            plt_ω[joint, side_idx],
-            tsim,
-            vsim[:, dof_offset + (2 * joint - 1) + (side_idx - 1)];
-            lw = lw,
-            label = false,
-            title = "$(side) $(name)",
-        )
-        if (joint == 1)
-            plot!(plt_θ[joint, side_idx]; legend = false)
-        end
-    end
-end
-
-plt_com = plot(; xlabel = L"$t$ [s]", xlims = (0, tend), layout = (2, 1), dpi = dpi)
-
-plot!(
-    plt_com[1],
-    tsim[1:len_t],
-    CoMsim[1, 1:len_sim];
-    lw = lw,
-    label = "Simulated",
-    ylabel = L"$x$ [m]",
-    title = "CoMx",
-)
-plot!(plt_com[1], tplot, CoM[1, :]; label = "Predicted", lw = lw)
-plot!(
-    plt_com[2],
-    tsim[1:len_t],
-    CoMsim[3, 1:len_sim];
-    lw = lw,
-    label = "Simulated",
-    ylabel = L"$z$ [m]",
-    title = "CoMz",
-)
-plot!(plt_com[2], tplot, CoM[3, :]; label = "Predicted", lw = lw)
-
-plt_ZMP = plot(;
-    title = "ZMP in XY plane",
-    xlabel = L"$x$ [m]",
-    ylabel = L"$y$ [m]",
-    legend = true,
-    dpi = dpi,
-    #aspect_ratio =:equal,
-    #xlim = (-0.3, 1.5), ylim = (-0.3, 1.5)
-)
-scatter!(ZMPsim[1, :], ZMPsim[2, :]; ms = ms, msw = msw, label = "Measured ZMP")
-plot!(ZMP[1, :], ZMP[2, :]; label = "Reference", lw = lw)
-
 if PLOT_RESULT
-    display(plt_θ)
-    display(plt_τ)
-    display(plt_ω)
-    display(plt_com)
-    display(plt_ZMP)
-end
+    qsim = reduce(hcat, qs)';
+    vsim = reduce(hcat, vs)';
+    tsim = reduce(vcat, ts);
 
-if SAVE_RESULT
-    savefig(plt_θ, saveFolder * "/sim_joints_angles.png")
-    savefig(plt_ω, saveFolder * "/sim_joints_velocities.png")
-    savefig(plt_τ, saveFolder * "/sim_joints_torques.png")
-    savefig(plt_com, saveFolder * "/sim_CoMxz.png")
-    savefig(plt_ZMP, saveFolder * "/sim_ZMPxy.png")
-end
+    torques_sim = reduce(hcat, vr.torques)'
+
+    for q in range(1, length(vr.state.v))
+        plt = plot(
+            xlims = (0, tend),
+            xlabel = L"$t$ [s]",
+            legend = false,
+            layout = (3, 1),
+        )
+        plot!(plt[1, 1], tsim,  qsim[:, q], ylabel = "q_$(q)")
+        plot!(plt[2, 1], tsim,  vsim[:, q], ylabel = "̇q_$(q)")
+        plot!(plt[3, 1], tsim,  torques_sim[:, q], ylabel = "τ_$(q)")
+        
+        display(plt)
+    end 
+end 

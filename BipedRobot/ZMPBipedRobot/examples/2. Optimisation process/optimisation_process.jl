@@ -13,7 +13,7 @@ using LaTeXStrings
 ## Include and import the ZMP based controller 
 include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 include(joinpath(@__DIR__, "..", "..", "deps", "param.jl"))
-L1 = 0.20175
+L1 = 0.20125
 L2 = 0.172 
 
 import .ZMPBipedRobot as ZMProbot
@@ -75,9 +75,9 @@ plt_objective = plot(
     dpi = 600,
 )
 scatter!(
-    [objectives[:, 1]],
-    [objectives[:, 2]],
-    [objectives[:, 3]];
+    objectives[1, :],
+    objectives[2, :],
+    [objectives[3, :]];
     label = false,
     ms = 2,
     msw = 1,
