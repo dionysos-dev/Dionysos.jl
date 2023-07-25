@@ -42,12 +42,14 @@ if MODEL_2D
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
+    θ_0 = 0 
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model
     t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
+    θ_0 = 0
     robot_model = "ZMP_3DBipedRobot.urdf"
 end
 
@@ -219,13 +221,13 @@ for (side_idx, side) in enumerate(["Left", "Right"])
             lw = lw,
             label = "Simulation",
         )
-        str = latexstring("q_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
+        str = latexstring("q_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad]"
         ylabel!(plt_θ[joint, side_idx], str)
 
         str = latexstring("q̇_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
         ylabel!(plt_ω[joint, side_idx], str)
 
-        str = latexstring("τ_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
+        str = latexstring("τ_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [Nm]"
         ylabel!(plt_τ[joint, side_idx], str)
         plot!(
             plt_τ[joint, side_idx],

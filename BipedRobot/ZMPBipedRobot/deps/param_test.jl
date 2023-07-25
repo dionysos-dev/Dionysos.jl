@@ -1,4 +1,5 @@
 # Defaut values for the ZMP based controller 
+# DO NOT change this file ortherwise, the runtest.jl will show errors 
 
 #-----------------------Global parameters-----------------------
 zmax = 0.4225;                      # Initial height of the robot
@@ -16,7 +17,7 @@ isLeftSupport = true;               # Initial support foot
 
 #-----------------------Path to follow definition-----------------------
 # Straight path for 2D mode (default path) 
-t = vec(0:100);                   # Parameter on the parametric equation of the path 
+t = vec(0:20);                   # Parameter on the parametric equation of the path 
 yPath = 1.18 .+ 0.0 .* t;
 xPath = 0.01 * t;
 
@@ -30,8 +31,8 @@ initial_position = [xPath[1]; yPath[1]; θ_0]
 #-----------------------ZMP generator block-----------------------
 Tstep = 1;                  # Step period of the walking process
 δ = 0.2;                    # Ratio between double support phase and the step period
-Tdelay = 5;                 # Delay to allows the robot to reach his final height 
-Twait = 1                   # Delay before walking 
+Tdelay = 1;                 # Delay to allows the robot to reach his final height 
+Twait = .5                   # Delay before walking 
 
 #-----------------------Preview control parameter-----------------------
 previewTime = 1             #  [s]

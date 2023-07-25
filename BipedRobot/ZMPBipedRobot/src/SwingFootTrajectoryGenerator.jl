@@ -72,7 +72,8 @@ function SwingFootTrajectory(;
         plt = plot(;
             title = "Swing Foot Trajectory",
             xlabel = "X[m]",
-            ylabel = "Z[m]",
+            ylabel = "Y[m]",
+            zlabel = "Z[m]",
             #layout = (1,2), 
             dpi = 600,
         )

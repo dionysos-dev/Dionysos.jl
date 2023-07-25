@@ -200,13 +200,13 @@ for (side_idx, side) in enumerate(["Left", "Right"])
             lw = lw,
             label = "Simulation",
         )
-        str = latexstring("q_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
+        str = latexstring("q_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad]"
         ylabel!(plt_θ[joint, side_idx], str)
 
         str = latexstring("q̇_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
         ylabel!(plt_ω[joint, side_idx], str)
 
-        str = latexstring("τ_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
+        str = latexstring("τ_$(dof_offset + (2*joint - 1) + (side_idx - 1))") * " [Nm]"
         ylabel!(plt_τ[joint, side_idx], str)
         plot!(
             plt_τ[joint, side_idx],

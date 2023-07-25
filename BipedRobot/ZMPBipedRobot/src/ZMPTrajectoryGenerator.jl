@@ -81,8 +81,7 @@ function computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     right = fp.right
     left = fp.left
     center = fp.center
-    # DSPtime = 0.01 : 0.01 : 0.2 
-    # SSPtime = 0.01 : 0.01 : 0.8
+
     DSPtime = (1:(δ * (Tstep / Ts))) * Ts
     SSPtime = (1:((1 - δ) * (Tstep / Ts))) * Ts
     stepNum = 1                                             # step index
@@ -101,20 +100,16 @@ function computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     lastTime = t[end]
 
     while (stepNum <= length(center))
-        if stepNum == length(center)
-            nextZMP = center[stepNum][1:2];     ## At the end get COM in the center
-        else 
-            if (left_flag == true)
-                nextZMP = right[stepNum][1:2] # ZMP ref of the next step 
-            else
-                nextZMP = left[stepNum][1:2] # ZMP of the next step       
-            end
-            left_flag = ~left_flag    # Change support foot 
+
+        if (left_flag == true)
+            nextZMP = right[stepNum][1:2] # ZMP ref of the next step 
+        else
+            nextZMP = left[stepNum][1:2] # ZMP of the next step       
         end
+        left_flag = ~left_flag    # Change support foot 
 
         # Creating a cubic spline in the X direction for connecting 2 differents ZMPx 
         xSplineX = DSPtime
-        # println("xSplineX $(xSplineX)")
         coeff = getSplineCoeff(xSplineX[1], xSplineX[end], lastZMP[1], nextZMP[1])                                     # X position of the point for the spline (time data) 
         ySplineX = spline(xSplineX, coeff)
 
@@ -126,7 +121,6 @@ function computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
         # Contruct the first part with a spline for the ZMP value 
         t = vcat(t, lastTime .+ DSPtime)  # Construct the time vector 
         lastTime = t[end]                  # get the last value of t
-        # println("lastTime = $(lastTime)")
         zmp = vcat(zmp', hcat(ySplineX, ySplineY)) # Construct the ZMP vector 
         zmp = zmp'
 

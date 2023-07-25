@@ -122,7 +122,7 @@ function InverseKinematics(;
                     label = false,
                     title = "$(side) $(name)",
                 )
-                str = latexstring("q_$(2 + (2*joint - 1) + (side_idx - 1))") * " [rad/s]"
+                str = latexstring("q_$(2 + (2*joint - 1) + (side_idx - 1))") * " [rad]"
                 ylabel!(plt_θ[joint, side_idx], str)
             end
         end
