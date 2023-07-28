@@ -1,5 +1,4 @@
-# How to run the code 
-# How to open and run the 7380xing/Dionysos.jl project 
+# How to install and run the 7380xing/Dionysos.jl project 
 
 * Install Julia
 * Open git Bash and go to your desired directory `~/`
