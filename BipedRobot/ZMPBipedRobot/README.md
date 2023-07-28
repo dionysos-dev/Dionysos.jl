@@ -11,10 +11,12 @@ Every part of this project is sample code which shows how to do the following :
 * Create a robot visualiser 
 * Simulate the biped robot on a well-controlled environment 
 
-![Robot 2D model](Robot_model-dark.png)
+![Robot 2D model](https://github.com/7380Xing/Dionysos.jl/assets/99494151/46b26ba4-53af-4dd0-936a-76c8f2c6e123)
+
 
 ## Controller Structure 
-![Structure of the ZMP controller](ZMP_based_controller-dark.png)
+![Structure of the ZMP controller](https://github.com/7380Xing/Dionysos.jl/assets/99494151/4ddd3f21-071b-4264-a485-be3cac7fc3c5)
+ark.png)
 
 The figure shows the intended structure of the implemented controller in open loop. The controller separated into 2 mains blocks : 
 * ZMP based controller : 
@@ -27,7 +29,8 @@ The figure shows the intended structure of the implemented controller in open lo
     * Position Control, a classical PID controller with dynamic compensation.
     * Robot, a virtual robot in a virtual environment 
     
-![Result of the ZMP controller](simres_opti_robot.gif)
+![Result of the ZMP controller](https://github.com/7380Xing/Dionysos.jl/assets/99494151/1112c75a-d8aa-47c2-9f44-c9a1254466fb)
+
 
 ## How to run this project 
 
