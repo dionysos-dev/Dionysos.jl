@@ -33,11 +33,8 @@ end
 Inverse kinematics of a double pendulum
 """
 function twoLinksInverseKinematics( x::T, y::T, L1::T, L2::T) where T <: Union{Int64, Float64}
-    # L1 = br.L_thigh; 
-    # L2 = br.L_leg; 
     D = (x^2 + y^2 - L1^2 - L2^2) / (2 * L1 * L2) # = cos θ1 
     if (D^2 > 1)
-        #println("cos^2(θ1) = ", D^2)
         D = 1
         println("Singular configuration or not reachable for ($(x), $(y)) !")
     end
@@ -70,7 +67,6 @@ function InverseKinematics(;
         plt = plot(
             xlabel = "X [m]",
             ylabel = "Z [m]",
-            #xlim = (-0.1, 0.1), 
             layout = (1, 2),
             dpi = 600,
         )
@@ -152,7 +148,6 @@ function computeGlobal2Local(
 
     stepLocalR = Array{Float64}[]
     stepLocalL = Array{Float64}[]
-    hipLocal = Array{Float64}[]
 
     p_l_global =
         p_r_global = for stepNum in 1:length(stepL)

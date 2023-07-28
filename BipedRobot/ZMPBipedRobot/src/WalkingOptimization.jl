@@ -65,7 +65,6 @@ function defineBipedRobot(wo::WalkingOptimization)
     hstep = wo.hstep
     zc = wo.zc
     previewTime = wo.previewTime
-    ΔCoMz = 0.21902787835056647 - zc
 
     A, B, C = cartTableModel(zc, g)
     Ad, Bd, Cd = continuous2discrete(A, B, C, Ts)

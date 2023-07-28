@@ -74,7 +74,6 @@ function SwingFootTrajectory(;
             xlabel = "X[m]",
             ylabel = "Y[m]",
             zlabel = "Z[m]",
-            #layout = (1,2), 
             dpi = 600,
         )
         i = 1
@@ -172,7 +171,6 @@ function computeSwingFootTrajectory(br::BipedRobot, fp::FootPlanner, zt::ZMPTraj
 
         # Compute the vertical time index
         idxVer = Int(round(tver / Ts))
-        # println("Tver = $(tver)")
 
         # Evaluate the position of the foot in local time (only between tDSP < t <= t0 - tver)
         stepX = reduce(vcat, [stepX, xyFoot(br, tstep[i:(end - idxVer)] .- delay, xs, xf)])

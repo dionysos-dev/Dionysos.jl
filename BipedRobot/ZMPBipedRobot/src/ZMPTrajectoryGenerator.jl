@@ -24,13 +24,10 @@ function ZMPTrajectory(; br::BipedRobot, fp::FootPlanner, check::Bool = false)
     ZMP, timeVec = computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     if (check)
         ZMPplot = reduce(hcat, ZMP)
-        tplot = reduce(vcat, timeVec)
-
         plt = plot(;
             title = "ZMP Trajectory",
             xlabel = "X [m]",
             ylabel = "Y [m]",
-            #layout = (2,1)
             dpi = 600,
         )
         xpath = br.xPath

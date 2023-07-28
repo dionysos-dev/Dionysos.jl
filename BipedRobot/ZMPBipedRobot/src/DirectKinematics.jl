@@ -13,10 +13,6 @@ function getTransformationMatrix(a_i::Vector, α_i::Vector, d_i::Vector, θ_i::V
     ]
     H_ij = Array[]
     for i in eachindex(a_i)
-        # if(i == 1)
-        #     # this if condition is just to suppress the numerical residue of cos(pi/2) != 0
-        #     H = simplify.(substitute.(H_DH, (Dict(a => a_i[i], sin(α) => 1, cos(α) => 0, d => d_i[i], θ => θ_i[i]),)))
-        # else
         H =
             simplify.(
                 substitute.(
@@ -24,7 +20,6 @@ function getTransformationMatrix(a_i::Vector, α_i::Vector, d_i::Vector, θ_i::V
                     (Dict(a => a_i[i], α => α_i[i], d => d_i[i], θ => θ_i[i]),),
                 )
             )
-        # end 
         push!(H_ij, H)
     end
     H_0n = eye(4)
@@ -37,15 +32,12 @@ end
 
 """
 
-Return the location of the foot frame w.r.t the hip frame in function format
+Return the location of the ankle joint w.r.t the hip frame in function format
 """
 function foot2hip(br::BipedRobot)
-    # q1 = qside[1, :]
-    # q2 = qside[2, :]
     L1 = br.L_thigh
     L2 = br.L_leg
     d1 = br.offset_hip_to_motor
-    d4 = br.offset_ankle_to_foot
 
     a_i = [0, L1, L2, 0]
     α_i = [pi / 2, 0, 0, 0]
@@ -62,15 +54,11 @@ end
 
 """
 
-Return the location of the hip frame w.r.t the foot/ankle frame in function format 
+Return the location of the hip joint w.r.t the ankle jo in function format 
 """
 function hip2foot(br::BipedRobot)
-    # q1 = qside[1, :]
-    # q2 = qside[2, :]
     L1 = br.L_thigh
     L2 = br.L_leg
-    d1 = br.offset_hip_to_motor
-    d4 = br.offset_ankle_to_foot
 
     a_i = [L2, L1, 0, 0]
     α_i = [0, 0, 0, 0]

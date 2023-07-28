@@ -14,7 +14,6 @@ A `RobotSimulator` has 5 differents outputs :
 struct RobotSimulator
     mechanism::Mechanism
     state::MechanismState
-    #vis::MechanismVisualizer
     CoM::Array
     torques::Array
     ZMP::Array
@@ -81,11 +80,9 @@ function getMechanism(;
     if use_urdf
         mechanism = RigidBodyDynamics.parse_urdf(urdfpath())
         visual = URDFVisuals(urdfpath())
-        # vis = set_visulalizer(mechanism, urdfpath())
         if (add_gravity)
             mechanism.gravitational_acceleration =
                 FreeVector3D(root_frame(mechanism), 0, 0, -9.81)
-            # println("Gravity added")
         else
             mechanism.gravitational_acceleration =
                 FreeVector3D(root_frame(mechanism), 0, 0, 0)
@@ -95,8 +92,6 @@ function getMechanism(;
     end
     # Configuration of the contact points
     if !symbolic && add_contact_points && contactmodel !== nothing
-        # println("Contacts points added")
-
         e = root(visual.xdoc)
         s = attribute(e["link"][end]["visual"][1]["geometry"][1]["box"]..., "size")
         
@@ -118,7 +113,6 @@ function getMechanism(;
                         sign * left_foot_width / div,
                         -left_foot_height,
                     )
-                    # setelement!(vis, cp, 0.005) 
                     add_contact_point!(foot_link, ContactPoint(cp, contactmodel))
                     cp = Point3D(
                         frame,
@@ -126,7 +120,6 @@ function getMechanism(;
                         sign * left_foot_width / div,
                         -left_foot_height,
                     )
-                    # setelement!(vis, cp, 0.005) 
                     add_contact_point!(foot_link, ContactPoint(cp, contactmodel))
                 end
             end
@@ -134,7 +127,6 @@ function getMechanism(;
     end
     # Configuration of the ground
     if !symbolic && add_flat_ground
-        # println("Ground added")
         frame = root_frame(mechanism)
         ground =
             HalfSpace3D(Point3D(frame, 0.0, 0.0, 0.0), FreeVector3D(frame, 0.0, 0.0, 1.0))
@@ -182,7 +174,6 @@ Return the visualiser
 function set_visulalizer(; mechanism::Mechanism, fileName::String = "ZMP_2DBipedRobot.urdf")
     urdfpath() = joinpath(packagepath(), fileName)
     vis = MechanismVisualizer(mechanism, URDFVisuals(urdfpath()))
-    # open(vis)
     return vis
 end
 
@@ -261,7 +252,6 @@ function trajectory_controller!(
         end
 
         if (use_control == false)
-            # τ[(end - 3 - ddl):(end - ddl)] .= v̇_new
             rand!(τ)
             if (length(τ) >= 8)
                 τ[1:2] .= 0
@@ -279,7 +269,6 @@ function trajectory_controller!(
             com = center_of_mass(state).v
             push!(rs.CoM, com)
             push!(rs.torques, τ)
-            # push!(rs.c, dynamics_bias(state))
             measureZMP(rs, dynamics_results, state)
         end
         if (t >= time[index] && stop == false)

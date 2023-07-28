@@ -10,3 +10,4 @@ include("./ZMPBasedController/test_InverseKinematics.jl")
 include("./ZMPBasedController/test_SwingFootTrajectoryGenerator.jl")
 
 # Test the simulator 
+include("./Simulation Environment/test_RobotSimulator.jl")

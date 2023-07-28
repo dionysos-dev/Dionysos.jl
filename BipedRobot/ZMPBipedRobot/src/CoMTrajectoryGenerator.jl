@@ -41,14 +41,12 @@ function CoMTrajectory(;
     if (check)
         CoMplot = reduce(hcat, CoM)
         ZMPplot = reduce(hcat, ZMP)
-        hip_height_plot = reduce(hcat, hip_height)
         timeVec = zt.timeVec
         ZMP_ref = zt.ZMP
         ZMP_refplot = reduce(hcat, ZMP_ref)
         tplot = reduce(vcat, timeVec)
         plt = plot(;
             title = "CoM Trajectory",
-            # xlim = (0, 3), #ylim = (-.1, .1), 
             xlabel = "t [s]",
             ylabel = "Y[m]", #zlabel = "Z[m]", 
             layout = (2, 1),
@@ -129,7 +127,6 @@ function compute2DCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTr
             intEi_k[1] .- Gx * xx[:, k] .+ preview_k[1]
             intEi_k[2] .- Gx * xy[:, k] .+ preview_k[2]
         ]
-        # println(u_k)
         # Compute the next state vector 
         xx_k_1 = Ad * xx[:, k] + Bd * u_k[1]
         xy_k_1 = Ad * xy[:, k] + Bd * u_k[2]

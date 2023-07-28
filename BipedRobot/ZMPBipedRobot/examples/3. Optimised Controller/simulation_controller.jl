@@ -72,12 +72,10 @@ ctrl = true
 ###########################################################
 #                    ZMP based controller                 #
 ###########################################################
-# # Get the optimised paramters
-# candidates =  readdlm("examples/2. Optimisation process/solutions.txt", ',');
-# best_key = 261
-
-# Get the optimised paramters for a controller samplled at 50 Hz
+# Get the optimised paramters for a controller sampled at 50 Hz
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
+
+# Uncomment/comment the desired set of parameters 
 best_key = 93   # Slowest trajectory
 # best_key = 245 # Fast trajectory
 
@@ -129,6 +127,7 @@ tplot = reduce(vcat, zt.timeVec)
 #                  Simulation environement                #
 ###########################################################
 tend = tplot[end]       # Simulation time
+
 # Construct the robot in the simulation engine
 rs = ZMProbot.RobotSimulator(;
     fileName = robot_model,
@@ -283,14 +282,11 @@ plt_ZMP = plot(;
     ylabel = L"$y$ [m]",
     legend = true,
     dpi = dpi,
-    #aspect_ratio =:equal,
-    #xlim = (-0.3, 1.5), ylim = (-0.3, 1.5)
 )
 scatter!(ZMPsim[1, :], ZMPsim[2, :]; ms = ms, msw = msw, label = "Measured ZMP")
 plot!(ZMPref[1, :], ZMPref[2, :]; label = "Reference", lw = lw)
 scatter!(left_plot[1, :], left_plot[2, :]; shape = :rect, label = "Left")
 scatter!(right_plot[1, :], right_plot[2, :]; shape = :rect, label = "Right")
-#plot!(legend=:outerbottom, legendcolumns=4)
 
 if PLOT_RESULT
     display(plt_θ)

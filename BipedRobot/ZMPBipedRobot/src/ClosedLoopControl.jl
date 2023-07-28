@@ -201,9 +201,6 @@ function ClosedLoopZMPcontroller!(
                 println("t = $(t)")
                 println("tref[time_idx] = $(tref[time_idx])")
                 println("stepNum = $(stepNum)")
-                # println("fifo_ΔZMPx = $(fifo_ΔZMPx)")
-                # println("fifo_states = $(fifo_states)")
-                # println("fifo_ref_states = $(fifo_ref_states)")
                 println("qactual = $(qactual)")
                 println("desired_q = $(desired_q)")
                 println("qref = $(qref)")
@@ -269,7 +266,7 @@ function measureZMP(
     contact_torque_left = sensor_left.angular
     contact_force_left = sensor_left.linear
 
-    d = 0.0045 # half foot hight
+    d = 0.0045 # half foot height
     pr_x_right =
         (-contact_torque_right[2] - contact_force_right[1] * d) / contact_force_right[3]
     pr_y_right =
