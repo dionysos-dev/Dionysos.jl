@@ -1,11 +1,11 @@
 # How to run the code 
-
 # How to open and run the 7380xing/Dionysos.jl project 
 
-* Install Julia on your computer 
+* Install Julia
 * Open git Bash and go to your desired directory `~/`
 * Use the following command to clone the repository 
-`$ git clone https://github.com/7380Xing/Dionysos.jl.git
+```
+$ git clone https://github.com/7380Xing/Dionysos.jl.git
 Cloning into 'Dionysos.jl'...
 remote: Enumerating objects: 3664, done.
 remote: Counting objects: 100% (1662/1662), done.
@@ -13,23 +13,29 @@ remote: Compressing objects: 100% (870/870), done.
 remote: Total 3664 (delta 981), reused 1317 (delta 777), pack-reused 2002
 Receiving objects: 100% (3664/3664), 37.48 MiB | 426.00 KiB/s, done.
 Resolving deltas: 100% (2219/2219), done.
-Updating files: 100% (212/212), done.`
+Updating files: 100% (212/212), done.
+```
 * Then, go to the clonned directory 
-`$ cd Dionysos.jl/`
-
+```
+$ cd Dionysos.jl/
+```
 ## Run on Visual Studio Code 
-* Run the code BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl in order to launch Julia REPL
+* Run the code `BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl` in order to launch Julia REPL
 * This will lead to an error but we need to activate the `ZMPBipedRobot` environment in this new Julia REPL terminal 
-`julia> ]
+```
+julia> ]
 (@v1.9) pkg> activate BipedRobot\\ZMPBipedRobot\\
   Activating project at `E:\Design and control of a biepiedal walking robot\temp\7380xing\Dionysos.jl\BipedRobot\ZMPBipedRobot`
-(ZMPBipedRobot) pkg> `
+(ZMPBipedRobot) pkg> 
+```
 * Then add all necessary pacakges in the new environment using instantiate command
-`(ZMPBipedRobot) pkg> instantiate`
+```
+(ZMPBipedRobot) pkg> instantiate
+```
 * Wait until all package is installed
-* Run the code BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl as a test 
+* Run the code `BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl`` as a test 
 
-* For other code, run the code in the following folder Examples
+* Run the code in the following folder 
 
 ## Example 1 : Default Controller 
 In this example, you can find 2 codes : 
