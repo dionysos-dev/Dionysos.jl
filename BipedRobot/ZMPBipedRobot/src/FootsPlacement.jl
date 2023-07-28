@@ -49,7 +49,6 @@ function FootPlanner(; br::BipedRobot, check::Bool = false)
             label = "Center",
             markershape = :cross,
         )
-        savefig(plt, br.saveFolder * "/Foot_planner.png")
         display(plt)
     end
     return FootPlanner(right, left, center)

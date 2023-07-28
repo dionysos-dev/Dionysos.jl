@@ -89,7 +89,6 @@ function InverseKinematics(;
             title = "Local Right Foot",
         )
         display(plt)
-        savefig(plt, br.saveFolder * "/Global2Local.png")
     end
     L1 = br.L_thigh
     L2 = br.L_leg
@@ -123,7 +122,6 @@ function InverseKinematics(;
             end
         end
         display(plt_θ)
-        savefig(plt_θ, br.saveFolder * "/InverseKinematics.png")
     end
 
     return InverseKinematics(qr, ql)

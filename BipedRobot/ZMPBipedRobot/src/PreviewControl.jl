@@ -42,7 +42,6 @@ function PreviewController(; br::BipedRobot, check::Bool = false)
         )
         plot!(0:Ts:((length(Gd) - 1) * Ts), -reduce(vcat, Gd); label = false)
         display(plt)
-        savefig(plt, br.saveFolder * "/PreviewGain.png")
     end
 
     return PreviewController(Matrix(Gx), vec(Gi), reduce(vcat, Gd))

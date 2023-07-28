@@ -23,7 +23,7 @@ import .ZMPBipedRobot as ZMProbot
 PLOT_RESULT = true; # Plot and save results
 MODEL_2D = false;
 
-SAVE_CSV = true;
+SAVE_CSV = false;
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
@@ -60,8 +60,8 @@ end
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
 
 # Uncomment/comment the desired set of parameters 
-best_key = 245 # Fast Trajectory
-# best_key = 96 # Slow Trajectory
+# best_key = 245 # Fast Trajectory
+best_key = 96 # Slow Trajectory
 
 x = candidates[best_key, :]
 Δz = x[1];

@@ -47,7 +47,6 @@ function ZMPTrajectory(; br::BipedRobot, fp::FootPlanner, check::Bool = false)
         )
         plot!(ZMPplot[1, :], ZMPplot[2, :]; label = "Reference ZMP", lw = 2)
         display(plt)
-        savefig(plt, br.saveFolder * "/ZMP_trajectory.png")
     end
     return ZMPTrajectory(ZMP, timeVec)
 end

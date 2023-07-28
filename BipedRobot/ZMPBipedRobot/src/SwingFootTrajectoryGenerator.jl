@@ -86,7 +86,6 @@ function SwingFootTrajectory(;
             )
             i = i + 1
         end
-        savefig(plt, br.saveFolder * "/swing_foot.png")
         display(plt)
     end
     return SwingFootTrajectory(stepR, stepL)

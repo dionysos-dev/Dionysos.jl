@@ -65,7 +65,6 @@ function CoMTrajectory(;
             plot!(plt[i], tplot, CoMplot[i, :]; ylabel = dir, label = "CoM", lw = 2)
         end
         display(plt)
-        savefig(plt, br.saveFolder * "/CoM_trajectory.png")
     end
     return CoMTrajectory(CoM, ZMP, hip_height)
 end
