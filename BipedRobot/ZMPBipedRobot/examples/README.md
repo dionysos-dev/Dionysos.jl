@@ -1,15 +1,35 @@
 # How to run the code 
 
-* Install Julia on your computer
-* Activate the ZMPBipedRobot project by using the following command in the Julia REPL 
+# How to open and run the 7380xing/Dionysos.jl project 
 
-```
-julia> ] 
+* Install Julia on your computer 
+* Open git Bash and go to your desired directory `~/`
+* Use the following command to clone the repository 
+`$ git clone https://github.com/7380Xing/Dionysos.jl.git
+Cloning into 'Dionysos.jl'...
+remote: Enumerating objects: 3664, done.
+remote: Counting objects: 100% (1662/1662), done.
+remote: Compressing objects: 100% (870/870), done.
+remote: Total 3664 (delta 981), reused 1317 (delta 777), pack-reused 2002
+Receiving objects: 100% (3664/3664), 37.48 MiB | 426.00 KiB/s, done.
+Resolving deltas: 100% (2219/2219), done.
+Updating files: 100% (212/212), done.`
+* Then, go to the clonned directory 
+`$ cd Dionysos.jl/`
+
+## Run on Visual Studio Code 
+* Run the code BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl in order to launch Julia REPL
+* This will lead to an error but we need to activate the `ZMPBipedRobot` environment in this new Julia REPL terminal 
+`julia> ]
 (@v1.9) pkg> activate BipedRobot\\ZMPBipedRobot\\
-    Activating project at `YourPath\Dionysos.jl\BipedRobot\ZMPBipedRobot`
-(ZMPBipedRobot) pkg> 
-```
-* Run the code in the following folder 
+  Activating project at `E:\Design and control of a biepiedal walking robot\temp\7380xing\Dionysos.jl\BipedRobot\ZMPBipedRobot`
+(ZMPBipedRobot) pkg> `
+* Then add all necessary pacakges in the new environment using instantiate command
+`(ZMPBipedRobot) pkg> instantiate`
+* Wait until all package is installed
+* Run the code BipedRobot//ZMPBipedRobot//examples//1. Default Controller//default_controller.jl as a test 
+
+* For other code, run the code in the following folder Examples
 
 ## Example 1 : Default Controller 
 In this example, you can find 2 codes : 

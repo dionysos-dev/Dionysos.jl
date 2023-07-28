@@ -23,7 +23,7 @@ import .ZMPBipedRobot as ZMProbot
 PLOT_RESULT = true;
 MODEL_2D = true;
 
-SAVE_CSV = true;
+SAVE_CSV = false;
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/1. Default Controller"
