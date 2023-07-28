@@ -20,7 +20,7 @@ import .ZMPBipedRobot as ZMProbot
 #                      Code parameters                    #
 ###########################################################
 PLOT_RESULT = true;
-SAVE_RESULT = true;
+
 ANIMATE_RESULT = true;
 
 MODEL_2D = true;
@@ -162,13 +162,11 @@ plt_θ = plot(
     xlabel = L"$t$ [s]",
     legend = true,
     legendcolumns = 2,
-    #titlefont=font(fs, ff), 
     dpi = dpi,
     layout = (2, 2),
 )
 plt_ω = plot(
     xlims = (0, tend),
-    #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
     ylabel = L"$\omega$ [rad/s]",
     layout = (2, 2),
@@ -176,7 +174,6 @@ plt_ω = plot(
 )
 plt_τ = plot(
     xlims = (0, tend),
-    #ylims = (-pi, pi),
     dpi = dpi,
     xlabel = L"$t$ [s]",
     ylabel = L"$\tau$ [Nm]",
@@ -262,14 +259,11 @@ plt_ZMP = plot(;
     ylabel = L"$y$ [m]",
     legend = true,
     dpi = dpi,
-    #aspect_ratio =:equal,
-    #xlim = (-0.3, 1.5), ylim = (-0.3, 1.5)
 )
 scatter!(ZMPsim[1, :], ZMPsim[2, :]; ms = ms, msw = msw, label = "Measured ZMP")
 plot!(ZMPref[1, :], ZMPref[2, :]; label = "Reference", lw = lw)
 scatter!(left_plot[1, :], left_plot[2, :]; shape = :rect, label = "Left")
 scatter!(right_plot[1, :], right_plot[2, :]; shape = :rect, label = "Right")
-#plot!(legend=:outerbottom, legendcolumns=4)
 
 if PLOT_RESULT
     display(plt_θ)
@@ -277,12 +271,4 @@ if PLOT_RESULT
     display(plt_ω)
     display(plt_com)
     display(plt_ZMP)
-end
-
-if SAVE_RESULT
-    savefig(plt_θ, saveFolder * "/sim_joints_angles.png")
-    savefig(plt_ω, saveFolder * "/sim_joints_velocities.png")
-    savefig(plt_τ, saveFolder * "/sim_joints_torques.png")
-    savefig(plt_com, saveFolder * "/sim_CoMxz.png")
-    savefig(plt_ZMP, saveFolder * "/sim_ZMPxy.png")
 end

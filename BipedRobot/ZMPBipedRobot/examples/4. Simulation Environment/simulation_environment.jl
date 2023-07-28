@@ -21,7 +21,6 @@ import .ZMPBipedRobot as ZMProbot
 #                    Code parameters                      #
 ###########################################################
 PLOT_RESULT = true;
-SAVE_RESULT = false;
 
 ANIMATE_RESULT = true;
 GRAVITY = true;
@@ -234,8 +233,6 @@ plt_ZMP = plot(;
     ylabel = L"$y$ [m]",
     legend = true,
     dpi = dpi,
-    #aspect_ratio =:equal,
-    #xlim = (-0.3, 1.5), ylim = (-0.3, 1.5)
 )
 scatter!(ZMPsim[1, :], ZMPsim[2, :]; ms = ms, msw = msw, label = "Measured ZMP")
 plot!(ZMP[1, :], ZMP[2, :]; label = "Reference", lw = lw)
@@ -246,12 +243,4 @@ if PLOT_RESULT
     display(plt_ω)
     display(plt_com)
     display(plt_ZMP)
-end
-
-if SAVE_RESULT
-    savefig(plt_θ, saveFolder * "/sim_joints_angles.png")
-    savefig(plt_ω, saveFolder * "/sim_joints_velocities.png")
-    savefig(plt_τ, saveFolder * "/sim_joints_torques.png")
-    savefig(plt_com, saveFolder * "/sim_CoMxz.png")
-    savefig(plt_ZMP, saveFolder * "/sim_ZMPxy.png")
 end

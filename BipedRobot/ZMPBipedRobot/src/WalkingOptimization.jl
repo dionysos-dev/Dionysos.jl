@@ -55,7 +55,7 @@ end
 Return a `BipedRobot` data structure based on a `WalkingOptimization` data structure 
 """
 function defineBipedRobot(wo::WalkingOptimization)
-    include(joinpath(packagepath(), "param.jl"))
+    include(joinpath(packagepath(), "param_test.jl"))
     urdfpath() = joinpath(packagepath(), "ZMP_2DBipedRobot.urdf")
     Δz = wo.Δz
     Tstep = wo.Tstep

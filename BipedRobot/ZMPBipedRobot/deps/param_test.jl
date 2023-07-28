@@ -21,11 +21,6 @@ t = vec(0:20);                   # Parameter on the parametric equation of the p
 yPath = 1.18 .+ 0.0 .* t;
 xPath = 0.01 * t;
 
-# # Circular path 
-# t = vec(100 : -1: 75); 
-# xPath = -0 .- 1.18 * sin.(2*pi/100 .*t);
-# yPath = 0 .+ 1.18 * cos.(2*pi/100 .*t);
-
 initial_position = [xPath[1]; yPath[1]; θ_0]
 
 #-----------------------ZMP generator block-----------------------

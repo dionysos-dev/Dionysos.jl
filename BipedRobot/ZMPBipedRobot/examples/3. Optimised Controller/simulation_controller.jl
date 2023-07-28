@@ -20,7 +20,6 @@ import .ZMPBipedRobot as ZMProbot
 #                    Code parameters                      #
 ###########################################################
 PLOT_RESULT = true;
-SAVE_RESULT = false;
 
 ANIMATE_RESULT = true;
 MODEL_2D = false;
@@ -182,13 +181,11 @@ plt_θ = plot(
     xlabel = L"$t$ [s]",
     legend = true,
     legendcolumns = 2,
-    #titlefont=font(fs, ff),
     dpi = dpi,
     layout = (2, 2),
 )
 plt_ω = plot(
     xlims = (0, tend),
-    #ylims = (-pi, pi),
     xlabel = L"$t$ [s]",
     ylabel = L"$\omega$ [rad/s]",
     layout = (2, 2),
@@ -196,7 +193,6 @@ plt_ω = plot(
 )
 plt_τ = plot(
     xlims = (0, tend),
-    #ylims = (-pi, pi),
     dpi = dpi,
     xlabel = L"$t$ [s]",
     ylabel = L"$\tau$ [Nm]",
@@ -294,12 +290,4 @@ if PLOT_RESULT
     display(plt_ω)
     display(plt_com)
     display(plt_ZMP)
-end
-
-if SAVE_RESULT
-    savefig(plt_θ, saveFolder * "/sim_joints_angles.png")
-    savefig(plt_ω, saveFolder * "/sim_joints_velocities.png")
-    savefig(plt_τ, saveFolder * "/sim_joints_torques.png")
-    savefig(plt_com, saveFolder * "/sim_CoMxz.png")
-    savefig(plt_ZMP, saveFolder * "/sim_ZMPxy.png")
 end

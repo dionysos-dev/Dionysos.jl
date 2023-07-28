@@ -179,7 +179,7 @@ end
 
 """
 
-Update the visulatiser to the new state 
+Update the visualiser to the new state 
 """
 function update_visulizer!(rs::RobotSimulator, vis::MechanismVisualizer)
     return set_configuration!(vis, RigidBodyDynamics.configuration(rs.state))

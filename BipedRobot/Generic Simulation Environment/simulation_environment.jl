@@ -30,7 +30,7 @@ GROUND = true;
 
 local_dir = joinpath(@__DIR__, "../../")
 saveFolder = local_dir * "docs/6. Generic Simulation Environment"
-# refFolder = local_dir* "examples/1. Default Controller"
+
 refFolder = local_dir * "examples/6. Generic Simulation Environment/deps"
 
 # define file name to open

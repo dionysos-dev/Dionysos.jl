@@ -1,5 +1,3 @@
-__precompile__()
-
 module GenericSimulationEnvironment 
 using LinearAlgebra
 using StructArrays

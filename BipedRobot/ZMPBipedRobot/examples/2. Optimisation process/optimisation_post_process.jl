@@ -15,10 +15,6 @@ using DelimitedFiles
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/2. Optimisation process/"
 
-# read data from file into a matrix
-# objectives = readdlm(saveFolder*"/objectives_values.txt", ',');
-# solutions =  readdlm(saveFolder*"/solutions.txt", ',');
-
 # Get the optimised paramters for a controller samplled at 50 Hz 
 objectives = readdlm(saveFolder * "/objectives_values_Fs50.txt", ',')';
 solutions = readdlm(saveFolder * "/solutions_Fs50.txt", ',')';
@@ -30,9 +26,6 @@ obj_values = objectives
 n_candidates = size(obj_values, 1)
 
 no_sorted_obj1 = Dict{Int, Vector{Float64}}() # create an empty dictionary
-
-# Define comparison function based on first element of vector
-compare(x, y) = x[1] < y[1]
 
 for i in 1:n_candidates  # loop over the indices
     no_sorted_obj1[i] = obj_values[i, :] # store the objectives values for the index i in the dictionary
@@ -64,8 +57,6 @@ scatter!(obj1; label = L"F_1(x)", ms = msize, msw = 0)
 scatter!(obj2; label = L"F_2(x)", ms = msize, shape = :utriangle, msw = 0)
 scatter!(obj3; label = L"F_3(x)", ms = msize, shape = :rect, msw = 0)
 display(plt)
-
-savefig(plt,saveFolder*"/Simualtion results for sorted by Walking Speed.png")
 
 best_range = [1; 800]
 argmax(obj1[best_range[1]:best_range[2]])

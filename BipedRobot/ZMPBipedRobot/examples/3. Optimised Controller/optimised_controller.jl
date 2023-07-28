@@ -23,7 +23,7 @@ import .ZMPBipedRobot as ZMProbot
 PLOT_RESULT = true; # Plot and save results
 MODEL_2D = false;
 
-SAVE_CSV = false;
+SAVE_CSV = true;
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
@@ -43,7 +43,7 @@ if MODEL_2D
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model
-    t = vec(100:-1:75)
+    t = vec(100:-1:-0)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
     θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis
@@ -52,16 +52,12 @@ end
 ###########################################################
 #                    ZMP based controller                 #
 ###########################################################
-# # Get the optimised paramters
-# candidates =  readdlm(local_dir*"docs/2. Optimisation process/solutions.txt", ',');
-# best_key = 261
-
 # Get the optimised paramters for a controller samplled at 50 Hz
 candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.txt", ',');
 
 # Uncomment/comment the desired set of parameters 
-# best_key = 245 # Fast Trajectory
-best_key = 96 # Slow Trajectory
+best_key = 245 # Fast Trajectory
+# best_key = 96 # Slow Trajectory
 
 x = candidates[best_key, :]
 Δz = x[1];

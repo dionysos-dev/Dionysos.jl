@@ -25,7 +25,7 @@ saveFolder = local_dir * "docs/2. Optimisation process"
 Tstep_space = 0.1:0.1:1
 Lmax_space = 0.05:0.05:((L1 + L2) / 2)
 δ_space = 0.05:0.05:0.2
-δver_space = 0 #  : 0.05 : 0.2
+δver_space = 0
 hstep_space = 0.02:0.01:0.05
 i = 1;
 solutions = Array[]
@@ -83,7 +83,6 @@ scatter!(
     msw = 1,
 )
 display(plt_objective)
-savefig(plt_objective, saveFolder * "/sim_objectives.png")
 
 ## Write into text file 
 using DelimitedFiles

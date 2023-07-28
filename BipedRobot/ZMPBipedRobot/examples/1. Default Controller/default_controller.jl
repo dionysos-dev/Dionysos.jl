@@ -96,7 +96,6 @@ if SAVE_CSV
     ZMP = reduce(hcat, zt.ZMP)
 
     # define headers for each column 
-    # ref_header = ["time[s]" "q1_l[rad]" "q1_r[rad]"  "q2_l[rad]"  "q2_r[rad]"]
     ref_header = ["time" "q1_l" "q1_r" "q2_l" "q2_r" "ZMPx" "ZMPy" "CoMx" "CoMy" "CoMz"]
 
     # combine arrays into a table
