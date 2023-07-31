@@ -23,13 +23,13 @@ import .ZMPBipedRobot as ZMProbot
 PLOT_RESULT = true; # Plot and save results
 MODEL_2D = false;
 
-SAVE_CSV = true;
+SAVE_CSV = false;
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
 
 # define file name to save
-ref_fileName = saveFolder * "/walkingPattern_ref_cir_fast.csv"
+ref_fileName = saveFolder * "/walkingPattern_ref.csv"
 
 ###########################################################
 #                    Simulation parameters                #
