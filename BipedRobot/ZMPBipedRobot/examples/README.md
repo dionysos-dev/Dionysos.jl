@@ -32,7 +32,7 @@ julia> ]
 (ZMPBipedRobot) pkg> instantiate
 ```
 * Wait until all packages is installed
-* Run the code `BipedRobot//ZMPBipedRobot//test//runtest.jl`` as a test 
+* Run the code `BipedRobot//ZMPBipedRobot//test//runtest.jl` as a test 
 
 * Run the code in the following folder for more examples
 
