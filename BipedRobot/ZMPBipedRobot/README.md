@@ -31,6 +31,12 @@ The figure shows the intended structure of the implemented controller in open lo
     
 ![Result of the ZMP controller](https://github.com/7380Xing/Dionysos.jl/assets/99494151/1112c75a-d8aa-47c2-9f44-c9a1254466fb)
 
+## Main References 
+| Block | Reference(s) |
+|-------|--------------|
+| Foot Planner | R. Khusainov, A. Sagitov, A. Klimchik, and E. Magid. “Arbitrary Trajectory Foot Planner for Bipedal Walking:” in: Proceedings of the 14th International Conference on Informatics in Control, Automation and Robotics. 14th International Conference on Informatics in Control, Automation and Robotics. Madrid, Spain: SCITEPRESS - Science and Technology Publications, 2017, pp. 417–424. isbn: 978-989-758-263-9 978-989-758-264-6. doi: 10.5220/ 006442504170424.|
+|Swing Foot | R. Khusainov, A. Sagitov, A. Klimchik, and E. Magid. “Arbitrary Trajectory Foot Planner for Bipedal Walking:” in: Proceedings of the 14th International Conference on Informatics in Control, Automation and Robotics. 14th International Conference on Informatics in Control, Automation and Robotics. Madrid, Spain: SCITEPRESS - Science and Technology Publications, 2017, pp. 417–424. isbn: 978-989-758-263-9 978-989-758-264-6. doi: 10.5220/ 006442504170424.|
+| CoM Trajectory Generator | S. Kajita, F. Kanehiro, K. Kaneko, K. Fujiwara, K. Harada, K. Yokoi, and H. Hirukawa. “Biped walking pattern generation by using preview control of zero-moment point”. In: 2003 IEEE International Conference on Robotics and Automation (Cat. No.03CH37422). IEEE International Conference on Robotics and Automation. IEEE ICRA 2003. Taipei, Taiwan: IEEE, 2003, pp. 1620–1626. isbn: 978-0-7803-7736-3. doi: 10.1109/ROBOT.2003.1241826.|
 
 ## How to run this project 
 

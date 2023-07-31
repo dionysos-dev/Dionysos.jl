@@ -65,6 +65,7 @@ ctrl = true
     actuators = [ 0, 0, 0, 0 ]
     foot = [ 0, 0 ]
     ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
+    ZMProbot.set_initialbody!(rs, vis)
 
     # Simulate the robot 
     controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)

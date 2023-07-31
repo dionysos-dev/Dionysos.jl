@@ -28,10 +28,9 @@ GRAVITY = true;
 CONTACTS = false;
 GROUND = true;
 
-local_dir = joinpath(@__DIR__, "../../")
-saveFolder = local_dir * "docs/6. Generic Simulation Environment"
+local_dir = joinpath(@__DIR__)
 
-refFolder = local_dir * "examples/6. Generic Simulation Environment/deps"
+refFolder = local_dir * "/deps"
 
 # define file name to open
 ref_fileName = refFolder * "/walkingPattern_ref.csv"
@@ -46,12 +45,11 @@ msw = 0.1
 ms = 2
 
 # File Nme of the urdf file to open 
-# fileName = "ZMP_3DBipedRobot.urdf"
 fileName = "ZMP_2DBipedRobot_noContacts.urdf"
 
 # Simulation parameters 
 Δt = 1e-3       # Simulation step [s]
-tend = 15        # Simulation time [s]
+tend = 20        # Simulation time [s]
 
 # Contact Points location in the ankle foot frame  
 cp = [0.0, 0.0, -0.009] 
@@ -126,32 +124,28 @@ function define_controller!(
     
     # Do not touch the arguments of this function as it will be called at each sample 
     function controller!(τ, t, state)
-        # Update the next torque as random value between 0 and 1 
-        # rand!(τ)        
-        # τ .= (τ .- 0.5)
-
-        # Example of a basic controller 
+        # Example of a basic controller for one joint 
         if t <= 1
             τ .= 0
-            τ[3:3] .= 0 
         else 
             if isapprox(t, i * Ts, atol = Δt/10) 
-                if (configuration(state)[3] <= -30 * pi/180)
-                    τ[3:3] .= τ[3] + 0.002
+                if (configuration(state)[2] <= -30 * pi/180)
+                    τ[2:2].= τ[2] + 0.02
                     flag = 1
-                elseif  (configuration(state)[3] >= 30 * pi/180)
-                    τ[3:3]  .= τ[3] - 0.002
+                elseif  (configuration(state)[2] >= 30 * pi/180)
+                    τ[2:2]  .= τ[2] - 0.02
                     flag = 0
                 else 
                     if flag == 1 
-                        τ[3:3] .= τ[3] + 0.002
+                        τ[2:2] .= τ[2] + 0.02
                     else
-                        τ[3:3] .= τ[3] - 0.002
+                        τ[2:2] .= τ[2] - 0.02
                     end 
                 end  
             end 
-            if abs(τ[3]) >= 0.08
-                τ[3:3] .= sign(τ[3]) *  0.08
+            # Saturation 
+            if abs(τ[2]) >= 0.5
+                τ[2:2] .= sign(τ[2]) *  0.5
             end     
         end 
         if isapprox(t, i * Ts, atol = Δt/10) 
@@ -169,7 +163,6 @@ end
 #                  Simulation environement                #
 ###########################################################
 GSE.set_initialbody!(vr)
-# GSE.set_nominal!(vr, [0,0,30*pi/180,0,0,0])
 
 # Define the controller 
 controller! = define_controller!(vr, Δt, 0.2)
@@ -201,8 +194,7 @@ if PLOT_RESULT
         )
         plot!(plt[1, 1], tsim,  qsim[:, q], ylabel = "q_$(q)")
         plot!(plt[2, 1], tsim,  vsim[:, q], ylabel = "̇q_$(q)")
-        plot!(plt[3, 1], tsim,  torques_sim[:, q], ylabel = "τ_$(q)")
-        
+        plot!(plt[3, 1], tsim,  torques_sim[:, q], ylabel = "τ_$(q)") 
         display(plt)
     end 
 end 

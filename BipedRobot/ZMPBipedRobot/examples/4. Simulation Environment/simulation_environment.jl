@@ -30,6 +30,7 @@ GROUND = true;
 local_dir = joinpath(@__DIR__, "../../")
 saveFolder = local_dir * "docs/4. Simulation Environment"
 
+# Change the folder path accordingly the CSV file you want to open 
 # refFolder = local_dir* "examples/1. Default Controller"
 refFolder = local_dir * "docs/3. Optimised Controller"
 
