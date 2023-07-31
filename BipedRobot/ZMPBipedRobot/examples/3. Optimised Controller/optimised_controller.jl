@@ -23,7 +23,7 @@ import .ZMPBipedRobot as ZMProbot
 PLOT_RESULT = true; # Plot and save results
 MODEL_2D = false;
 
-SAVE_CSV = false;
+SAVE_CSV = true;
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/3. Optimised Controller"
@@ -43,7 +43,7 @@ if MODEL_2D
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model
-    t = vec(100:-1:-0)
+    t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
     θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis
@@ -71,7 +71,6 @@ hstep = x[6];
 wo = ZMProbot.WalkingOptimization(Δz, Tstep, Lmax, δ, Tver, hstep, 0.4275, 5, NaN, NaN)
 ZMProbot.computeAutoDefineParameters!(wo);
 br = ZMProbot.defineBipedRobot(wo);
-br.saveFolder = saveFolder;
 
 br.xPath = xPath;
 br.yPath = yPath;

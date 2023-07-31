@@ -48,7 +48,7 @@ function CoMTrajectory(;
         plt = plot(;
             title = "CoM Trajectory",
             xlabel = "t [s]",
-            ylabel = "Y[m]", #zlabel = "Z[m]", 
+            ylabel = "Y[m]", 
             layout = (2, 1),
             dpi = 600,
         )
@@ -96,8 +96,8 @@ function compute2DCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTr
 
     p = [
         xx[1, 1] - zc / g * xx[3, 1]     # Initial ZMP on x component 
-        xy[1, 1] - zc / g * xy[3, 1]
-    ]      # Initial ZMP on y component ;         
+        xy[1, 1] - zc / g * xy[3, 1]     # Initial ZMP on y component    
+    ]       
 
     # Simulation of the pattern generator with preview control 
     # This is done using x(k+1) = Ad * x(k) + Bd * u(k)
@@ -145,11 +145,11 @@ end
 
 Construct a 3D version of the CoM. And store the CoM into array to get the vector for each step. 
 
-The z position of the CoM is computed by a constant. At the beginning (step 1), we just impose a linear behavior of the z component :
+The z position of the CoM is computed by a constant. At the beginning (step 1), we just impose a third order polynomial behavior of the z component :
 
-    `CoMz(t) = α * t + β`
+    `CoMz(t) = a_0 + a_1 * t + a_2 * t^2 + a_3 * t^3 `
 
-Where `t  ∈ [0; Tdelay + Tstep]` and α, β are constants 
+Where `t  ∈ [0; Tdelay + Tstep]` and a_i  are constants 
 """
 function computeCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTrajectory)
     zc = br.zc

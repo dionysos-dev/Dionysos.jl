@@ -146,7 +146,6 @@ function defineBipedRobot(wo::WalkingOptimization)
         ΔCoMz,
         hstep,
         Tver,
-        "docs/",
     )
 end
 

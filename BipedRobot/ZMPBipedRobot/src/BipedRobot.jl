@@ -44,18 +44,12 @@ mutable struct BipedRobot
     # Swing Foot trajectory parameters
     hstep::Float64
     Tver::Union{Int64, Float64}
-
-    # Direct and Inverse Kinematics parameter
-
-    # Save plots folder
-    saveFolder::String
 end
 
 function BipedRobot(;
     readFile::Bool = true,
     URDFfileName::String = "ZMP_2DBipedRobot.urdf",
     paramFileName::String = "param.jl",
-    saveFolder::String = "docs/",
 )
     if (readFile)
         urdfpath() = joinpath(packagepath(), URDFfileName)
@@ -139,7 +133,6 @@ function BipedRobot(;
             ΔCoMz,
             hstep,
             Tver,
-            saveFolder,
         )
     end
 end

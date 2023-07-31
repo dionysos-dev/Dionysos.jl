@@ -60,7 +60,7 @@ Ki = 0.0
 Kd = 100.0
 
 # true : PD with dynamics compensation, false  : random torque 
-ctrl = false
+ctrl = true
 
 ###########################################################
 #                  Simulation environement                #

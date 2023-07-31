@@ -76,7 +76,7 @@ candidates = readdlm(local_dir * "docs/2. Optimisation process/solutions_Fs50.tx
 
 # Uncomment/comment the desired set of parameters 
 best_key = 93   # Slowest trajectory
-# best_key = 245 # Fast trajectory
+best_key = 245 # Fast trajectory
 
 x = candidates[best_key, :]
 Δz = x[1];
@@ -90,7 +90,6 @@ hstep = x[6];
 wo = ZMProbot.WalkingOptimization(Δz, Tstep, Lmax, δ, Tver, hstep, 0.4275, 5, NaN, NaN)
 ZMProbot.computeAutoDefineParameters!(wo);
 br = ZMProbot.defineBipedRobot(wo);
-br.saveFolder = saveFolder;
 br.xPath = xPath;
 br.yPath = yPath;
 br.initial_position = [xPath[1], yPath[1], θ_0]

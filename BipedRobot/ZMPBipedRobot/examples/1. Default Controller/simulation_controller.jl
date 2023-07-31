@@ -71,7 +71,6 @@ br = ZMProbot.BipedRobot(;
     readFile = true,
     URDFfileName = robot_model,
     paramFileName = "param.jl",
-    saveFolder = saveFolder,
 )
 br.xPath = xPath;
 br.yPath = yPath;
