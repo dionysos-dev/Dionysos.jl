@@ -2,7 +2,7 @@
 
 * Install Julia and Git Bash
 * Open Git Bash and go to your desired directory `~/`
-* Use the following command git clone https://github.com/7380Xing/Dionysos.jl.git` to clone the repository 
+* Use the following command `git clone https://github.com/7380Xing/Dionysos.jl.git` to clone the repository 
 ```
 $ git clone https://github.com/7380Xing/Dionysos.jl.git
 Cloning into 'Dionysos.jl'...
@@ -27,7 +27,7 @@ julia> ]
   Activating project at `E:\Design and control of a biepiedal walking robot\temp\7380xing\Dionysos.jl\BipedRobot\ZMPBipedRobot`
 (ZMPBipedRobot) pkg> 
 ```
-* Then add all necessary pacakges in the new environment using instantiate command
+* Then add all necessary pacakges in the new environment using `instantiate` command
 ```
 (ZMPBipedRobot) pkg> instantiate
 ```
