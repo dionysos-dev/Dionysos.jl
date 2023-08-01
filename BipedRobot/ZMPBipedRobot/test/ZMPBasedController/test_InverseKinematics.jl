@@ -48,13 +48,6 @@ println("Started test")
     xhip_Lfoot = p_foot2hip[1].(-ik.q_l[:, 1], -ik.q_l[:, 2])
     zhip_Lfoot = p_foot2hip[3].(-ik.q_l[:, 1], -ik.q_l[:, 2]) .+ br.offset_hip_to_motor
 
-    # ## Visualisation 
-    # using Plots
-    # scatter(steplocalR_plot[1, :], steplocalR_plot[3, :])
-    # plot!(xhip_Rfoot,zhip_Rfoot .+ br.offset_hip_to_motor)
-    # scatter(steplocalL_plot[1, :], steplocalL_plot[3, :])
-    # plot!(xhip_Lfoot,zhip_Lfoot )
-
     @test [isapprox(xhip_Lfoot, steplocalL_plot[1, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
     @test [isapprox(zhip_Lfoot, steplocalL_plot[3, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
     @test [isapprox(xhip_Rfoot, steplocalR_plot[1, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))

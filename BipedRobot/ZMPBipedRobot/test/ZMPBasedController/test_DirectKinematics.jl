@@ -10,7 +10,6 @@ println("Started test")
 
 @testset "Direct Kinematics" begin 
     URDFfileName = "ZMP_2DBipedRobot.urdf"
-    # URDFfileName = "ZMP_3DBipedRobot.urdf"
     
     br = ZMProbot.BipedRobot(;
         readFile = true,
@@ -35,12 +34,6 @@ println("Started test")
     zhip_foot = p_foot2hip[3].(q1, q2) .+ br.offset_hip_to_motor # remove the offset to compare with expected value 
     xfoot_hip = p_hip2foot[1].(q1, q2)
     zfoot_hip = p_hip2foot[2].(q1, q2)
-
-    # ## Visualisation 
-    # using Plots
-    # plot(xhip_foot,zhip_foot)
-    # plot!(xz[:, 1], xz[:, 2])
-    # plot(xfoot_hip,zfoot_hip)
 
     @test [isapprox(xz[:, 1], xhip_foot, atol = 1e-6) for i = 1 : length(xhip_foot)] == ones(length(xhip_foot))
     @test [isapprox(xz[:, 2], zhip_foot, atol = 1e-6) for i = 1 : length(xhip_foot)] == ones(length(xhip_foot))

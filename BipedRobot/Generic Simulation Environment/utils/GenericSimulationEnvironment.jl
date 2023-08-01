@@ -16,7 +16,7 @@ using DataStructures
 using LaTeXStrings
 using DataFrames
 
-packagepath() = joinpath(@__DIR__, "../", "deps")
+packagepath() = joinpath(@__DIR__, "../../ZMPBipedRobot/", "deps")
 
 include("VirtualRobot.jl")
 export VirtualRobot

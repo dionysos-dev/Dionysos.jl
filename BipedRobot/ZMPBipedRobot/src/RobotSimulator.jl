@@ -277,3 +277,50 @@ function trajectory_controller!(
         return nothing
     end
 end
+
+"""
+
+Estiiate the ZMP of the Virtual Robot 
+"""
+
+function measureZMP(
+    rs::RobotSimulator,
+    dynamics_results::DynamicsResult,
+    state::MechanismState,
+)
+    RigidBodyDynamics.contact_dynamics!(dynamics_results, state)
+    foot_link = findbody(rs.mechanism, "r_foot_link")
+    sensor_right = RigidBodyDynamics.contact_wrench(dynamics_results, foot_link)
+    foot_link = findbody(rs.mechanism, "l_foot_link")
+    sensor_left = RigidBodyDynamics.contact_wrench(dynamics_results, foot_link)
+    contact_torque_right = sensor_right.angular
+    contact_force_right = sensor_right.linear
+    contact_torque_left = sensor_left.angular
+    contact_force_left = sensor_left.linear
+
+    d = 0.0045 # half foot height
+    pr_x_right =
+        (-contact_torque_right[2] - contact_force_right[1] * d) / contact_force_right[3]
+    pr_y_right =
+        (contact_torque_right[1] - contact_force_right[2] * d) / contact_force_right[3]
+
+    pr_x_left =
+        (-contact_torque_left[2] - contact_force_left[1] * d) / contact_force_left[3]
+    pr_y_left = (contact_torque_left[1] - contact_force_left[2] * d) / contact_force_left[3]
+
+    px =
+        (pr_x_right * contact_force_right[3] + pr_x_left * contact_force_left[3]) /
+        (contact_force_right[3] + contact_force_left[3])
+    py =
+        (pr_y_right * contact_force_right[3] + pr_y_left * contact_force_left[3]) /
+        (contact_force_right[3] + contact_force_left[3])
+    if (contact_force_left[3] <= 0 && contact_force_right[3] >= 0)
+        p = [pr_x_right, pr_y_right]
+    elseif (contact_force_left[3] >= 0 && contact_force_right[3] <= 0)
+        p = [pr_x_left, pr_y_left]
+    else
+        p = [px, py]
+    end
+    push!(rs.ZMP, p)
+    return p
+end

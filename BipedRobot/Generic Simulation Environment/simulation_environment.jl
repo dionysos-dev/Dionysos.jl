@@ -30,10 +30,10 @@ GROUND = true;
 
 local_dir = joinpath(@__DIR__)
 
-refFolder = local_dir * "/deps"
+refFolder = joinpath(local_dir, "..", "ZMPBipedRobot", "examples", "3. Optimised Controller")
 
 # define file name to open
-ref_fileName = refFolder * "/walkingPattern_ref.csv"
+ref_fileName = joinpath(refFolder,  "walkingPattern_ref.csv")
 
 ###########################################################
 #                    Simulation parameters                #
@@ -67,10 +67,8 @@ k_n = 50e3      # Stiffness constant [N/m]
 k_t = 20e3      # Stiffness constant [N/m]
 λ_t = 100.0     # Damping constant [kg/s]
 
-# open a reference joint trajectory 
-csvpath() = joinpath(@__DIR__, "deps/", "$(ref_fileName)")
-# Read the CSV file into a DataFrame
-data = CSV.read(csvpath(), DataFrame; header = [2], delim = ',')
+# Read the CSV file into a DataFrame]
+data = CSV.read(ref_fileName, DataFrame; header = [2], delim = ',')
 q1_r = data.q1_r
 q1_l = data.q1_l
 q2_r = data.q2_r

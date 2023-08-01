@@ -59,12 +59,10 @@ export RobotSimulator,
     update_visulizer!,
     show_frame!,
     trajectory_controller!,
-    simulate
+    simulate,
+    measureZMP
 include("WalkingOptimization.jl")
 export computeEnergy, simulate
-
-include("ClosedLoopControl.jl")
-export measureZMP, ClosedLoopZMPcontroller
 
 include("positionControl.jl")
 export pid_control!
