@@ -184,11 +184,16 @@ if PLOT_RESULT
 
     torques_sim = reduce(hcat, vr.torques)'
 
-    for q in range(1, length(vr.state.v))
-        plt = plot(; xlims = (0, tend), xlabel = "$t [s]", legend = false, layout = (3, 1))
-        plot!(plt[1, 1], tsim, qsim[:, q]; ylabel = "q_$(q)")
-        plot!(plt[2, 1], tsim, vsim[:, q]; ylabel = "q_$(q)")
-        plot!(plt[3, 1], tsim, torques_sim[:, q]; ylabel = "τ_$(q)")
-        display(plt)
+    for q in 1:length(vr.state.v)
+        p = plot(;
+            xlims = (0, tend),
+            xlabel = "\$$t [s]\$",
+            legend = false,
+            layout = (3, 1),
+        )
+        plot!(p[1, 1], tsim, qsim[:, q]; ylabel = "\$q_{$q}\$")
+        plot!(p[2, 1], tsim, vsim[:, q]; ylabel = "\$q_{$q}\$")
+        plot!(p[3, 1], tsim, torques_sim[:, q]; ylabel = "\$\\tau_{$q}\$")
+        display(p)
     end
 end
