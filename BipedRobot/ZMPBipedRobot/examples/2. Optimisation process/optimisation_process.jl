@@ -16,7 +16,8 @@ include(joinpath(@__DIR__, "..", "..", "deps", "param.jl"))
 L1 = 0.20125
 L2 = 0.172
 
-import .ZMPBipedRobot as ZMProbot
+import .ZMPBipedRobot
+const ZMProbot = ZMPBipedRobot
 
 local_dir = joinpath(@__DIR__, "..", "../")
 saveFolder = local_dir * "docs/2. Optimisation process"

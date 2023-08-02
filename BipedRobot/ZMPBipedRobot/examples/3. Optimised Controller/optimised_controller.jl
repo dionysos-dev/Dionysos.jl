@@ -15,7 +15,8 @@ using DelimitedFiles
 
 ## Include and import the ZMP based controller
 include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
-import .ZMPBipedRobot as ZMProbot
+import .ZMPBipedRobot
+const ZMProbot = ZMPBipedRobot
 
 ###########################################################
 #                    Code parameters                      #

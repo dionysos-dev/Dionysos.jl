@@ -1,7 +1,8 @@
 module Test_BR
 
 include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
-import .ZMPBipedRobot as ZMProbot
+import .ZMPBipedRobot
+const ZMProbot = ZMPBipedRobot
 using Test
 
 sleep(0.1) # used for good printing
