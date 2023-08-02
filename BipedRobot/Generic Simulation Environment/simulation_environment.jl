@@ -16,7 +16,9 @@ using Random
 
 ## Include and import the ZMP based controller 
 include(joinpath(@__DIR__, "utils/", "GenericSimulationEnvironment.jl"))
-import .GenericSimulationEnvironment as GSE
+import .GenericSimulationEnvironment
+
+const GSE = GenericSimulationEnvironment
 
 ###########################################################
 #                    Code parameters                      #
@@ -167,7 +169,7 @@ GSE.set_initialbody!(vr)
 controller! = define_controller!(vr, Δt, 0.2)
 
 # Simulate the controller
-ts, qs, vs = RigidBodyDynamics.simulate(vr.state, tend; Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(vr.state, tend, controller!; Δt = Δt);
 
 if ANIMATE_RESULT
     open(vr.vis)
