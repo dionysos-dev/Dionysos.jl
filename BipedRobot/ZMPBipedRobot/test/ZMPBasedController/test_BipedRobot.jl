@@ -1,15 +1,13 @@
 module Test_BR
 
-include(joinpath(@__DIR__,"..", "..", "src", "ZMPBipedRobot.jl"))
+include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 import .ZMPBipedRobot as ZMProbot
-using Test 
+using Test
 
 sleep(0.1) # used for good printing
 println("Started test")
 
-
-@testset "Biped Robot" begin 
-    
+@testset "Biped Robot" begin
     URDFfileName = "ZMP_2DBipedRobot.urdf"
     br = ZMProbot.BipedRobot(;
         readFile = true,
@@ -22,7 +20,7 @@ println("Started test")
     @test br.offset_hip_to_motor == 0.04025
     @test br.offset_ankle_to_foot == 0.009
     @test br.d == 0.052
-end 
+end
 
 sleep(0.1) # used for good printing
 println("End test")

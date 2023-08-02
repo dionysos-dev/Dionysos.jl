@@ -39,14 +39,14 @@ if MODEL_2D
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
-    θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis
+    θ_0 = 0.0      # initial orientation of the robot w.r.t the x-axis
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model
     t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
-    θ_0 = 0.0;      # initial orientation of the robot w.r.t the x-axis
+    θ_0 = 0.0      # initial orientation of the robot w.r.t the x-axis
     robot_model = "ZMP_3DBipedRobot.urdf"
 end
 ###########################################################

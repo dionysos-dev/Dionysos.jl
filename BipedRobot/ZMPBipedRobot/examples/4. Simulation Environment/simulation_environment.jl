@@ -106,7 +106,7 @@ ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!);
 
 # Open the visulaiser and run the animation 
 if ANIMATE_RESULT
@@ -135,7 +135,7 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(  
+plt_θ = plot(;
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
@@ -143,14 +143,14 @@ plt_θ = plot(
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(
+plt_ω = plot(;
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     ylabel = L"$\omega$ [rad/s]",
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(  
+plt_τ = plot(;
     xlims = (0, tend),
     dpi = dpi,
     xlabel = L"$t$ [s]",

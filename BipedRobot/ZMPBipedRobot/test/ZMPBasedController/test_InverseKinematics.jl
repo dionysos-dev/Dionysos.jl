@@ -1,13 +1,13 @@
 module Test_IK
 
-include(joinpath(@__DIR__,"..", "..", "src", "ZMPBipedRobot.jl"))
+include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 import .ZMPBipedRobot as ZMProbot
 using Test
 
 sleep(0.1) # used for good printing
 println("Started test")
 
-@testset "Inverse Kinematics" begin 
+@testset "Inverse Kinematics" begin
     URDFfileName = "ZMP_2DBipedRobot.urdf"
     br = ZMProbot.BipedRobot(;
         readFile = true,
@@ -48,11 +48,23 @@ println("Started test")
     xhip_Lfoot = p_foot2hip[1].(-ik.q_l[:, 1], -ik.q_l[:, 2])
     zhip_Lfoot = p_foot2hip[3].(-ik.q_l[:, 1], -ik.q_l[:, 2]) .+ br.offset_hip_to_motor
 
-    @test [isapprox(xhip_Lfoot, steplocalL_plot[1, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
-    @test [isapprox(zhip_Lfoot, steplocalL_plot[3, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
-    @test [isapprox(xhip_Rfoot, steplocalR_plot[1, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
-    @test [isapprox(zhip_Rfoot, steplocalR_plot[3, :], atol = 1e-6) for i = 1 : length(xhip_Rfoot)] == ones(length(xhip_Rfoot))
-end 
+    @test [
+        isapprox(xhip_Lfoot, steplocalL_plot[1, :]; atol = 1e-6) for
+        i in 1:length(xhip_Rfoot)
+    ] == ones(length(xhip_Rfoot))
+    @test [
+        isapprox(zhip_Lfoot, steplocalL_plot[3, :]; atol = 1e-6) for
+        i in 1:length(xhip_Rfoot)
+    ] == ones(length(xhip_Rfoot))
+    @test [
+        isapprox(xhip_Rfoot, steplocalR_plot[1, :]; atol = 1e-6) for
+        i in 1:length(xhip_Rfoot)
+    ] == ones(length(xhip_Rfoot))
+    @test [
+        isapprox(zhip_Rfoot, steplocalR_plot[3, :]; atol = 1e-6) for
+        i in 1:length(xhip_Rfoot)
+    ] == ones(length(xhip_Rfoot))
+end
 
 sleep(0.1) # used for good printing
 println("End test")

@@ -24,12 +24,8 @@ function ZMPTrajectory(; br::BipedRobot, fp::FootPlanner, check::Bool = false)
     ZMP, timeVec = computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     if (check)
         ZMPplot = reduce(hcat, ZMP)
-        plt = plot(;
-            title = "ZMP Trajectory",
-            xlabel = "X [m]",
-            ylabel = "Y [m]",
-            dpi = 600,
-        )
+        plt =
+            plot(; title = "ZMP Trajectory", xlabel = "X [m]", ylabel = "Y [m]", dpi = 600)
         xpath = br.xPath
         ypath = br.yPath
         right_plot = reduce(hcat, fp.right)
@@ -96,7 +92,6 @@ function computeZMPTrajectory(br::BipedRobot, fp::FootPlanner)
     lastTime = t[end]
 
     while (stepNum <= length(center))
-
         if (left_flag == true)
             nextZMP = right[stepNum][1:2] # ZMP ref of the next step 
         else

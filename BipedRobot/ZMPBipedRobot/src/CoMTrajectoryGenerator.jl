@@ -48,7 +48,7 @@ function CoMTrajectory(;
         plt = plot(;
             title = "CoM Trajectory",
             xlabel = "t [s]",
-            ylabel = "Y[m]", 
+            ylabel = "Y[m]",
             layout = (2, 1),
             dpi = 600,
         )
@@ -97,7 +97,7 @@ function compute2DCoMTrajectory(br::BipedRobot, pc::PreviewController, zt::ZMPTr
     p = [
         xx[1, 1] - zc / g * xx[3, 1]     # Initial ZMP on x component 
         xy[1, 1] - zc / g * xy[3, 1]     # Initial ZMP on y component    
-    ]       
+    ]
 
     # Simulation of the pattern generator with preview control 
     # This is done using x(k+1) = Ad * x(k) + Bd * u(k)

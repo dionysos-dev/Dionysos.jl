@@ -1,4 +1,4 @@
-module GenericSimulationEnvironment 
+module GenericSimulationEnvironment
 using LinearAlgebra
 using StructArrays
 using Plots

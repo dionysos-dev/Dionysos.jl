@@ -80,38 +80,38 @@ function defineBipedRobot(wo::WalkingOptimization)
     visual = URDFVisuals(urdfpath())
     e = root(visual.xdoc)
 
-    L1 = 0.0 
-    L2 = 0.0 
-    d = 0.0 
-    offset_hip_to_motor = 0.0 
+    L1 = 0.0
+    L2 = 0.0
+    d = 0.0
+    offset_hip_to_motor = 0.0
     offset_ankle_to_foot = 0.0
 
-    for  (i, joint) in enumerate(e["joint"]) 
+    for (i, joint) in enumerate(e["joint"])
         if (attribute(joint, "name")) == "l_hip_to_motor"
             s = attribute(joint["origin"]..., "xyz")
             numbers = split(s, " ")
-            offset_hip_to_motor = abs(parse(Float64, numbers[3])) 
-            d = 2 * abs(parse(Float64, numbers[2])) 
-        end 
-        if  (attribute(joint, "name")) == "l_thigh_link_to_motor"
+            offset_hip_to_motor = abs(parse(Float64, numbers[3]))
+            d = 2 * abs(parse(Float64, numbers[2]))
+        end
+        if (attribute(joint, "name")) == "l_thigh_link_to_motor"
             s = attribute(joint["origin"]..., "xyz")
             numbers = split(s, " ")
-            L1 = abs(parse(Float64, numbers[3])) 
-        end 
-        if  (attribute(joint, "name")) == "l_ankle"
+            L1 = abs(parse(Float64, numbers[3]))
+        end
+        if (attribute(joint, "name")) == "l_ankle"
             s = attribute(joint["origin"]..., "xyz")
             numbers = split(s, " ")
-            L2 = abs(parse(Float64, numbers[3])) 
-        end 
-    end 
-    
+            L2 = abs(parse(Float64, numbers[3]))
+        end
+    end
+
     for (i, link) in enumerate(e["link"])
         if (attribute(link, "name") == "l_foot_link")
             s = attribute(link["visual"][1]["geometry"][1]["box"]..., "size")
             numbers = split(s, " ")
-            offset_ankle_to_foot = abs(parse(Float64, numbers[3])) 
-        end 
-    end 
+            offset_ankle_to_foot = abs(parse(Float64, numbers[3]))
+        end
+    end
 
     return BipedRobot(
         Ts,
@@ -193,7 +193,7 @@ function computeAutoDefineParameters!(wo::WalkingOptimization)
     ctrl = true
     Δt = 1e-3
     controller! = trajectory_controller!(rs, tstep, qref, Δt, Kp, Ki, Kd, ctrl)
-    RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!)
+    RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!)
     CoMsim = reduce(hcat, rs.CoM)
 
     wo.zc = CoMsim[3, end]
@@ -272,7 +272,7 @@ function simulate(
     set_configuration!(rs.state, config)
     zero_velocity!(rs.state)
     controller! = trajectory_controller!(rs, tref, qref, Δt, Kp, Ki, Kd, ctrl)
-    ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!)
+    ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!)
     qsim = reduce(hcat, qs)'
     vsim = reduce(hcat, vs)'
     tsim = reduce(vcat, ts)
@@ -325,7 +325,7 @@ function ZMPbipedObjective(x)
     timeVec = zt.timeVec
     tplot = reduce(vcat, timeVec)
     qref = [ql[:, 1] qr[:, 1] ql[:, 2] qr[:, 2]]
-    tend_sim = br.Tdelay + 3. * br.Tstep + br.Twait
+    tend_sim = br.Tdelay + 3.0 * br.Tstep + br.Twait
     # tend_sim = tplot[end]
     tsim, qsim, vsim, torque_sim, CoMsim =
         simulate(rs, qref, tplot, tend_sim, Kp, Ki, Kd, 1e-3)
@@ -348,7 +348,7 @@ function ZMPbipedObjective(x)
         (maximum(abs.(vsim[:, 6])) < omega_knee_max)
 
     Δt = 1e-3
-    tstart = br.Tdelay + br.Tstep + br.Twait 
+    tstart = br.Tdelay + br.Tstep + br.Twait
     tend = tstart + br.Tstep
     i_start = Int(round(tstart / Δt + 1))
     i_end = Int(round(tend / Δt + 1))

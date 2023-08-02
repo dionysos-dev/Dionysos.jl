@@ -22,9 +22,14 @@ end
 
 Direct kinematics of a double pendulum
 """
-function twoLinksDirectKinematics( θ1::T, θ2::T, L1::T, L2::T) where T <: Union{Int64, Float64}
+function twoLinksDirectKinematics(
+    θ1::T,
+    θ2::T,
+    L1::T,
+    L2::T,
+) where {T <: Union{Int64, Float64}}
     x = L1 * sin(θ1) + L2 * sin(θ1 + θ2)
-    z =- L1 * cos(θ1) - L2 * cos(θ1 + θ2)
+    z = -L1 * cos(θ1) - L2 * cos(θ1 + θ2)
     return [x z]
 end
 
@@ -32,7 +37,12 @@ end
 
 Inverse kinematics of a double pendulum
 """
-function twoLinksInverseKinematics( x::T, y::T, L1::T, L2::T) where T <: Union{Int64, Float64}
+function twoLinksInverseKinematics(
+    x::T,
+    y::T,
+    L1::T,
+    L2::T,
+) where {T <: Union{Int64, Float64}}
     D = (x^2 + y^2 - L1^2 - L2^2) / (2 * L1 * L2) # = cos θ1 
     if (D^2 > 1)
         D = 1
@@ -64,12 +74,7 @@ function InverseKinematics(;
     steplocalL_plot = reduce(hcat, stepLocalL)
 
     if (check)
-        plt = plot(
-            xlabel = "X [m]",
-            ylabel = "Z [m]",
-            layout = (1, 2),
-            dpi = 600,
-        )
+        plt = plot(; xlabel = "X [m]", ylabel = "Z [m]", layout = (1, 2), dpi = 600)
         scatter!(
             plt[1],
             steplocalL_plot[1, :],
@@ -100,7 +105,7 @@ function InverseKinematics(;
     if (check)
         plt_θ = plot(;
             title = "Inverse Kinematrics",
-            xlabel = L"$t$ [s]", 
+            xlabel = L"$t$ [s]",
             legend = false,
             dpi = 600,
             layout = (2, 2),

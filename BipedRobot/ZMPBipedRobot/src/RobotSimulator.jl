@@ -94,7 +94,7 @@ function getMechanism(;
     if !symbolic && add_contact_points && contactmodel !== nothing
         e = root(visual.xdoc)
         s = attribute(e["link"][end]["visual"][1]["geometry"][1]["box"]..., "size")
-        
+
         numbers = split(s, " ")
         left_foot_length = parse(Float64, numbers[1])
         left_foot_width = parse(Float64, numbers[2])
@@ -255,9 +255,9 @@ function trajectory_controller!(
             rand!(τ)
             if (length(τ) >= 8)
                 τ[1:2] .= 0
-            end 
-            τ .= (τ.-0.5)
-            τ[end-1:end] .= 0 
+            end
+            τ .= (τ .- 0.5)
+            τ[(end - 1):end] .= 0
         else
             # Torque in the constrained space 
             newτ = inverse_dynamics(state, v̇) #- dynamics_bias(state)

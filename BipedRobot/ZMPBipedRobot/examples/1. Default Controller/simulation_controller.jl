@@ -38,14 +38,14 @@ if MODEL_2D
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
-    θ_0 = 0 
+    θ_0 = 0
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model 
     t = vec(100:-1:75)
     xPath = -0 .- 1.18 * sin.(2 * pi / 100 .* t)
     yPath = 0 .+ 1.18 * cos.(2 * pi / 100 .* t)
-    θ_0 = 0 
+    θ_0 = 0
     robot_model = "ZMP_3DBipedRobot.urdf"
 end
 
@@ -121,14 +121,14 @@ rs = ZMProbot.RobotSimulator(;
 vis = ZMProbot.set_visulalizer(; mechanism = rs.mechanism)
 
 # Intiial configuration 
-boom = [ 0, 0 ]
-actuators = [ 0, 0, 0, 0 ]
-foot = [ 0, 0 ]
+boom = [0, 0]
+actuators = [0, 0, 0, 0]
+foot = [0, 0]
 ZMProbot.set_nominal!(rs, vis, boom, actuators, foot)
 
 # Simulate the robot 
 controller! = ZMProbot.trajectory_controller!(rs, tplot, qref, Δt, Kp, Ki, Kd, ctrl)
-ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend, Δt = Δt, controller!);
+ts, qs, vs = RigidBodyDynamics.simulate(rs.state, tend; Δt = Δt, controller!);
 
 # Open the visulaiser and run the animation 
 if ANIMATE_RESULT
@@ -158,7 +158,7 @@ else
     len_sim = len_t
 end
 
-plt_θ = plot(
+plt_θ = plot(;
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     legend = true,
@@ -166,14 +166,14 @@ plt_θ = plot(
     dpi = dpi,
     layout = (2, 2),
 )
-plt_ω = plot(
+plt_ω = plot(;
     xlims = (0, tend),
     xlabel = L"$t$ [s]",
     ylabel = L"$\omega$ [rad/s]",
     layout = (2, 2),
     dpi = dpi,
 )
-plt_τ = plot(
+plt_τ = plot(;
     xlims = (0, tend),
     dpi = dpi,
     xlabel = L"$t$ [s]",

@@ -1,24 +1,23 @@
 module Test_DK
 
-include(joinpath(@__DIR__,"..", "..", "src", "ZMPBipedRobot.jl"))
+include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 import .ZMPBipedRobot as ZMProbot
 using Test
 
 sleep(0.1) # used for good printing
 println("Started test")
 
-
-@testset "Direct Kinematics" begin 
+@testset "Direct Kinematics" begin
     URDFfileName = "ZMP_2DBipedRobot.urdf"
-    
+
     br = ZMProbot.BipedRobot(;
         readFile = true,
         URDFfileName = URDFfileName,
         paramFileName = "param_test.jl",
     )
     # Simple test with a given value of q1 and q2 
-    q1 = 0:pi/100:pi
-    q2 = -2*pi:pi/50:0
+    q1 = 0:(pi / 100):pi
+    q2 = (-2 * pi):(pi / 50):0
 
     # Foot frame location in hip frame 
     p_foot2hip = ZMProbot.foot2hip(br)
@@ -35,9 +34,9 @@ println("Started test")
     xfoot_hip = p_hip2foot[1].(q1, q2)
     zfoot_hip = p_hip2foot[2].(q1, q2)
 
-    @test [isapprox(xz[:, 1], xhip_foot, atol = 1e-6) for i = 1 : length(xhip_foot)] == ones(length(xhip_foot))
-    @test [isapprox(xz[:, 2], zhip_foot, atol = 1e-6) for i = 1 : length(xhip_foot)] == ones(length(xhip_foot))
-end 
+    @test [isapprox(xz[:, 1], xhip_foot; atol = 1e-6) for i in 1:length(xhip_foot)] == ones(length(xhip_foot))
+    @test [isapprox(xz[:, 2], zhip_foot; atol = 1e-6) for i in 1:length(xhip_foot)] == ones(length(xhip_foot))
+end
 
 sleep(0.1) # used for good printing
 println("End test")

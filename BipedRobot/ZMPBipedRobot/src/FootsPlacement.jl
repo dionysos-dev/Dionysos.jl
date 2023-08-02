@@ -142,55 +142,54 @@ the variable `direction` but overall, the algorithm is still the same than the p
 
 # """
 function nextPoint(
-    k_p::Int64, 
-    x_p::Float64, 
-    y_p::Float64, 
+    k_p::Int64,
+    x_p::Float64,
+    y_p::Float64,
     θ_p::Float64,
-    Lmax::Float64, 
-    θ_max::Float64, 
-    xPath::T, 
-    yPath::T
-    ) where T<:Union{Vector, StepRangeLen}
-
-    L0 = Lmax; 
-    k = k_p; 
-    result = []; 
-    e = 1e-12;
-    direction = 1; 
+    Lmax::Float64,
+    θ_max::Float64,
+    xPath::T,
+    yPath::T,
+) where {T <: Union{Vector, StepRangeLen}}
+    L0 = Lmax
+    k = k_p
+    result = []
+    e = 1e-12
+    direction = 1
     while (L0 >= 0 - e)
-        if(L0 <= 0 + e && L0 >= 0 - e )
-            θ_new = θ_p + direction * θ_max;
+        if (L0 <= 0 + e && L0 >= 0 - e)
+            θ_new = θ_p + direction * θ_max
             if (θ_new >= pi)
-                θ_new = -pi + (θ_new - pi);
+                θ_new = -pi + (θ_new - pi)
             elseif (θ_new <= -pi)
-                θ_new = +pi + (θ_new + pi);
+                θ_new = pi + (θ_new + pi)
             end
-            return result = [k_p; x_p; y_p; θ_new];
-        else 
-            L = sqrt((xPath[k] - x_p)^2 + (yPath[k]-y_p)^2);
+            return result = [k_p; x_p; y_p; θ_new]
+        else
+            L = sqrt((xPath[k] - x_p)^2 + (yPath[k] - y_p)^2)
             while (k < length(xPath) && L < L0)
-                L = sqrt((xPath[k] - x_p)^2 + (yPath[k]-y_p)^2);
+                L = sqrt((xPath[k] - x_p)^2 + (yPath[k] - y_p)^2)
                 if (L < L0)
-                    k = k+1 ;            
+                    k = k + 1
                 end
             end
-            θ = atan(yPath[k]-yPath[k-1], xPath[k]-xPath[k-1]);
-            Δ = (θ - θ_p);
+            θ = atan(yPath[k] - yPath[k - 1], xPath[k] - xPath[k - 1])
+            Δ = (θ - θ_p)
             if (Δ > pi)
-                Δ = 2*pi - Δ; 
+                Δ = 2 * pi - Δ
             elseif (Δ < -pi)
-                Δ = 2*pi + Δ; 
+                Δ = 2 * pi + Δ
             end
-            if(Δ > 0)
-                direction = 1;
-            elseif (Δ < 0 )
-                direction = -1;
+            if (Δ > 0)
+                direction = 1
+            elseif (Δ < 0)
+                direction = -1
             end
             if (abs(Δ) <= θ_max)
-                return result = [k; xPath[k]; yPath[k]; θ];
-            else 
-                L0 = L0 - 0.01;
-                k = k_p; 
+                return result = [k; xPath[k]; yPath[k]; θ]
+            else
+                L0 = L0 - 0.01
+                k = k_p
             end
         end
     end

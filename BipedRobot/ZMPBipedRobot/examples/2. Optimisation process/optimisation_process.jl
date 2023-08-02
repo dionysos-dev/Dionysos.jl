@@ -14,7 +14,7 @@ using LaTeXStrings
 include(joinpath(@__DIR__, "..", "..", "src", "ZMPBipedRobot.jl"))
 include(joinpath(@__DIR__, "..", "..", "deps", "param.jl"))
 L1 = 0.20125
-L2 = 0.172 
+L2 = 0.172
 
 import .ZMPBipedRobot as ZMProbot
 
@@ -67,7 +67,7 @@ for Δz in Δz_space
     end
 end
 objectives = reduce(hcat, objectives)
-plt_objective = plot(
+plt_objective = plot(;
     xlabel = "max $(L"f_1(x)")",
     ylabel = "min $(L"f_2(x)")",
     zlabel = "min $(L"f_3(x)")",

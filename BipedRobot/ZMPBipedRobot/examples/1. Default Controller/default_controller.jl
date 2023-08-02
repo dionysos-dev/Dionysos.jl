@@ -39,7 +39,7 @@ if MODEL_2D
     t = vec(0:100)
     yPath = 1.18 .+ 0.0 .* t
     xPath = 0.01 * t
-    θ_0 = 0 
+    θ_0 = 0
     robot_model = "ZMP_2DBipedRobot.urdf"
 else
     ## Circle path for 3D Robot Model 
