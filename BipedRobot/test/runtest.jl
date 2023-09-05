@@ -1,5 +1,6 @@
 using BipedRobot
 using RigidBodyDynamics
+using Test
 
 # Test for mechanism via URDF + setnominal :
 #mechanism_urdf = BipedRobot.mechanism(symbolic = false, add_contact_points = true, add_flat_ground = true)
@@ -13,4 +14,15 @@ mechanism_sym = BipedRobot.mechanism(;
     add_flat_ground = true,
 )
 state_sym = MechanismState(mechanism_sym)
-simplify.(mass_matrix(state_sym))
+M = mass_matrix(state_sym)
+@test size(M) == (10, 10)
+
+mechanism_sym = BipedRobot.mechanism(;
+    symbolic = true,
+    add_contact_points = true,
+    add_flat_ground = true,
+)
+state_sym = MechanismState(mechanism_sym)
+mass_matrix(state_sym)
+M = BipedRobot.simplify.(mass_matrix(state_sym))
+@test size(M) == (10, 10)
