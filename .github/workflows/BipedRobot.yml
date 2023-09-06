@@ -1,4 +1,4 @@
-name: Documentation
+name: BipedRobot
 on:
   push:
     branches: [master]
