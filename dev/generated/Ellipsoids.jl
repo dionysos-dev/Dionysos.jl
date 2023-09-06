@@ -75,4 +75,3 @@ plot!(fig4_1)
 plot!(fig4_2)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

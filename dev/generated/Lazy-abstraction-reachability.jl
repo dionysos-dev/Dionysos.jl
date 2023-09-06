@@ -166,4 +166,3 @@ fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

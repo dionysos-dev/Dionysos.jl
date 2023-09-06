@@ -104,4 +104,3 @@ plot!(fig, UT.DrawPoint(x0); color = :blue)
 annotate!(fig, x0[1], x0[2] - 0.5, "x0")
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

@@ -45,4 +45,3 @@ fig = plot(; aspect_ratio = :equal)
 plot!(tree)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

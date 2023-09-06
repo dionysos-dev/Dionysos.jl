@@ -42,4 +42,3 @@ plot!(concrete_system.X);
 plot!(UT.DrawTrajectory(x_traj))
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

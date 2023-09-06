@@ -133,4 +133,3 @@ plot!(abstract_system; arrowsB = false, cost = true);
 plot!(UT.DrawTrajectory(x_traj); color = :black)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

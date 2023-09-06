@@ -173,4 +173,3 @@ plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = optimizer.lyap);
 plot!(UT.DrawTrajectory(x_traj); color = :black)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

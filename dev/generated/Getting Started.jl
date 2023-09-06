@@ -89,4 +89,3 @@ plot!(domainx; fc = "blue", dims = dims);
 plot!(domainPostx; fc = "green", dims = dims)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

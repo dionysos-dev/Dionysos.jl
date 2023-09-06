@@ -180,4 +180,3 @@ plot!(
 plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-
