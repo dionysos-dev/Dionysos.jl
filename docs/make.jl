@@ -18,6 +18,7 @@ end
 const _PAGES = [
     "Index" => "index.md",
     "Manual" => [
+        "manual/abstraction-based-control.md",
         "manual/manual.md",
     ],
     "Examples" => map(EXAMPLES) do jl_file
