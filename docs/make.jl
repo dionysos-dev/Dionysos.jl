@@ -18,8 +18,7 @@ end
 const _PAGES = [
     "Index" => "index.md",
     "Manual" => [
-        "manual/intro.md",
-        "manual/temp.md",
+        "manual/manual.md",
     ],
     "Examples" => map(EXAMPLES) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
