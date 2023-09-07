@@ -518,7 +518,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         end
     end
 
-    optimizer.solve_time_sec = time() - t_ref
+    return optimizer.solve_time_sec = time() - t_ref
 end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]

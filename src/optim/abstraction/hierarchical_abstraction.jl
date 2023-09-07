@@ -63,7 +63,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             false,
             nothing,
-            0.0
+            0.0,
         )
     end
 end

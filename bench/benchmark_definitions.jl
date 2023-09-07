@@ -74,9 +74,10 @@ for (qp_name, qp_solver) in QP_SOLVERS
             "mixed_integer_solver" => miqp_solver,
             "indicator" => false,
             "log_level" => 0,
-            "problem" => problems_modules["gol_lazar_belta.jl"].problem()
+            "problem" => problems_modules["gol_lazar_belta.jl"].problem(),
         )
-        bench["BemporadMorari($qp_name, $miqp_name)", "gol_lazar_belta.jl"] = MOI.instantiate(solver_bm)
+        bench["BemporadMorari($qp_name, $miqp_name)", "gol_lazar_belta.jl"] =
+            MOI.instantiate(solver_bm)
     end
 end
 
@@ -91,10 +92,11 @@ u0 = SVector(1)
 hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 solver_scots_dc_dc = optimizer_with_attributes(
-    AB.SCOTSAbstraction.Optimizer, 
-    "concrete_problem" => problems_modules["dc_dc.jl"].problem(; approx_mode = "growth"), 
-    "state_grid" => state_grid, 
-    "input_grid" => input_grid
+    AB.SCOTSAbstraction.Optimizer,
+    "concrete_problem" =>
+        problems_modules["dc_dc.jl"].problem(; approx_mode = "growth"),
+    "state_grid" => state_grid,
+    "input_grid" => input_grid,
 )
 bench["SCOTSAbstraction", "dc_dc.jl"] = MOI.instantiate(solver_scots_dc_dc)
 
@@ -105,10 +107,13 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 solver_scots_path_planning = optimizer_with_attributes(
-    AB.SCOTSAbstraction.Optimizer, 
-    "concrete_problem" => problems_modules["path_planning.jl"].problem(; approx_mode = "growth", simple = true), 
-    "state_grid" => state_grid, 
-    "input_grid" => input_grid
+    AB.SCOTSAbstraction.Optimizer,
+    "concrete_problem" => problems_modules["path_planning.jl"].problem(;
+        approx_mode = "growth",
+        simple = true,
+    ),
+    "state_grid" => state_grid,
+    "input_grid" => input_grid,
 )
 bench["SCOTSAbstraction", "path_planning.jl"] = MOI.instantiate(solver_scots_path_planning)
 
@@ -251,7 +256,7 @@ hx_global = [10.0, 10.0]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
-max_iter = 6 
+max_iter = 6
 max_time = 1000
 
 solver_hierarchical_simple = MOI.instantiate(AB.HierarchicalAbstraction.Optimizer)
@@ -279,7 +284,13 @@ Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
 dt = 0.01; # discretization step
 
-problem_pwa = problems_modules["pwa_sys.jl"].problem(;lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
+problem_pwa = problems_modules["pwa_sys.jl"].problem(;
+    lib = lib,
+    dt = dt,
+    Usz = Usz,
+    Wsz = Wsz,
+    simple = false,
+)
 concrete_system = problem_pwa.system
 
 n_step = 3
@@ -291,10 +302,10 @@ state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.
 opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
 
 solver_ellispoids_pwa = optimizer_with_attributes(
-    AB.EllipsoidsAbstraction.Optimizer, 
-    "concrete_problem" => problem_pwa, 
-    "state_grid" => state_grid, 
-    "sdp_solver" => opt_sdp
+    AB.EllipsoidsAbstraction.Optimizer,
+    "concrete_problem" => problem_pwa,
+    "state_grid" => state_grid,
+    "sdp_solver" => opt_sdp,
 )
 
 bench["EllipsoidsAbstraction", "pwa_sys.jl"] = MOI.instantiate(solver_ellispoids_pwa)
@@ -311,8 +322,8 @@ const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 
-maxδx = 100 
-maxδu = 10 * 2 
+maxδx = 100
+maxδu = 10 * 2
 λ = 0.01
 k1 = 1
 k2 = 1
@@ -336,4 +347,3 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
 )
 
 bench["LazyEllipsoidsAbstraction", "non_linear.jl"] = solver_lazy_ellipsoids_nonlinear
-
