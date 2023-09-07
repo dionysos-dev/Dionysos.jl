@@ -1,42 +1,43 @@
-# [Temp](@id TempAPI)
+# Utils 
 
-Temporary API Reference file
+This folder contains all the auxiliary functions needed.
+
+## Ellipsoids 
+
+```@docs
+```
+
+## Functions 
+
+```@docs
+Dionysos.Utils.QuadraticStateControlFunction 
+```
+
+## Search
 
 ```@docs
 Dionysos.Utils.expand
 Dionysos.Utils.path_cost
-Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
 Dionysos.Utils.breadth_first_graph_search
 Dionysos.Utils.depth_first_graph_search
 Dionysos.Utils.best_first_graph_search
 Dionysos.Utils.path
 Dionysos.Utils.AbstractQueue
-Dionysos.Symbolic._compute_base_cell
 Dionysos.Utils.MyStack
-Dionysos.Control.DiscreteTrajectory
 Dionysos.Utils.tree_search
 Dionysos.Utils.goal_test
 Dionysos.Utils.astar_graph_search
 Dionysos.Utils.astar_tree_search
-Dionysos.Symbolic._provide_P
 Dionysos.Utils.breadth_first_tree_search
 Dionysos.Utils.graph_search
 Dionysos.Utils.best_first_tree_search
 Dionysos.Utils.successor
-Dionysos.Domain.DomainList
 Dionysos.Utils.Node
 Dionysos.Utils.depth_first_tree_search
 Dionysos.Utils.MyPriorityQueue
 Dionysos.Utils.FIFOQueue
-Dionysos.Control.ContinuousTrajectory
 Dionysos.Utils.SearchProblem
 Dionysos.Utils.BranchAndBound.Abstract_BB_Problem
-Dionysos.Utils.QuadraticStateControlFunction 
-Dionysos.Domain.RectangularObstacles
-Dionysos.Domain.GeneralDomainList
-Dionysos.Domain.GridRectangular
-Dionysos.Domain.GridFree
-Dionysos.Domain.GridEllipsoidalRectangular
 Dionysos.Utils.get_min_bounding_box
 Dionysos.Utils.NodeT
 Dionysos.Utils.collect_children
@@ -45,9 +46,4 @@ Dionysos.Utils.add_node!
 Dionysos.Utils.propagate_cost_to_leaves
 Dionysos.Utils.get_path
 Dionysos.Utils.Tree
-Dionysos.Mapping.MappingContinuousGrid
-Dionysos.Domain.ContinuousUnboundedDomain
-Dionysos.Mapping.MappingContinuousEllipsoid
-Dionysos.Domain.ContinuousBoundedEllipsoidDomain
-Dionysos.Domain.ContinuousBoundedDomain
 ```
