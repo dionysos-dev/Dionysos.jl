@@ -1,6 +1,5 @@
 abstract type ProblemType end
 
-
 """
 The structure 
 
