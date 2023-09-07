@@ -20,6 +20,11 @@ global myBool = true
 global myBool2 = false
 global NI = nothing
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+Lazy ellipsoids abstraction solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}

@@ -13,6 +13,11 @@ using DataStructures # for BinaryMinHeap
 using JuMP, Polyhedra
 using HybridSystems
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+Branch and bound solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any

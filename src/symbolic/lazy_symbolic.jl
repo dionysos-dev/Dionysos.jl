@@ -1,3 +1,8 @@
+"""
+    LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
+
+TO ADD
+"""
 mutable struct LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
                SymbolicModel{N, M}
     Xdom::S1

@@ -5,6 +5,11 @@ function get_c_eval(cont)
 end
 
 # Constant state-dependent controller of the form: κ(x) = c 
+"""
+    ConstantController{T, VT}
+
+encodes a constant state-dependent controller of the κ(x) = c
+"""
 struct ConstantController{T <: Real, VT <: AbstractVector{T}} <: Controller
     c::VT
     c_eval::Any
@@ -16,6 +21,11 @@ struct ConstantController{T <: Real, VT <: AbstractVector{T}} <: Controller
 end
 
 # Affine state-dependent controller of the form: κ(x) = K*(x-c)+ℓ
+"""
+    AffineController{T, MT, VT1, VT2}
+
+encodes an affine state-dependent controller of the κ(x) = K*(x-c)+ℓ
+"""
 struct AffineController{
     T <: Real,
     MT <: AbstractMatrix{T},

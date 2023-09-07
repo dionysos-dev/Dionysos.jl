@@ -298,13 +298,12 @@ function _has_transition(
     return ans, cont, cost
 end
 
-"""
-    _compute_base_cell(r::SVector{S})
-
-Computes a polyhedron containing the base hyperrectangular cell, centered at the origin
-and with the i-th side lenght given by `2*r[i]`. 
-
-"""
+#
+#    _compute_base_cell(r::SVector{S})
+#
+# Computes a polyhedron containing the base hyperrectangular cell, centered at the origin
+# and with the i-th side lenght given by `2*r[i]`. 
+#
 function _compute_base_cell(r::SVector{S}) where {S}
     baseCellList = []
     for i in 1:S
@@ -314,13 +313,13 @@ function _compute_base_cell(r::SVector{S}) where {S}
     return polyhedron(intersect(baseCellList...))
 end
 
-"""
-    _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
+#
+#    _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
+#
+# If `subsys` is a stabilizable system, finds the matrix `P` and the state-feedback gain `K`
+# that satisfy the discrete-time Lyapunov inequality (A+BK)'P(A+BK)-P < 0. The condition number
+# of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
 
-If `subsys` is a stabilizable system, finds the matrix `P` and the state-feedback gain `K`
-that satisfy the discrete-time Lyapunov inequality (A+BK)'P(A+BK)-P < 0. The condition number
-of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
-"""
 function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
     eye(n) = diagm(ones(n))
     A = subsys.A
