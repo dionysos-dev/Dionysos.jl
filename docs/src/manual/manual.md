@@ -87,7 +87,7 @@ The following tables summarize the different solver types in abbreviated form.
 Each solver is defined by a module which must define the structure [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and implement the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
 For example, for the SCOTS solver, this structure and function are defined as follows
 
-```@example solver definition
+```
 using JuMP
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
@@ -106,7 +106,7 @@ end
 
 and
 
-```@example solver definition optimize!
+```
 function MOI.optimize!(optimizer::Optimizer)
     # Build the abstraction
     abstract_system = build_abstraction(
