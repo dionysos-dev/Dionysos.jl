@@ -19,13 +19,13 @@ Rather than relying on closed-form analysis of a model of the dynamical system, 
 * To develop a mathematical and algorithmic framework for efficient Abstraction of Cyber-Physical Systems thriving on recent technologies in Optimization and Control;
 * To leverage this framework in situations where the system is described by data, rather than a classical model.
 
+
 ## Structure of the documentation 
 
 The documentation is organised as follows.
-
-* The **Examples** section contains a few examples of solving problems with Dionysos. Start with [Getting started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Getting%20Started/) if you want to get familiar with Dionysos.
 * The **Manual** section contains all the useful information to use Dionysos as a user.
 * The **API Reference** sections contains all the functions that we currently use in Dionysos. 
+* The **Examples** section contains a few examples of solving problems with Dionysos. Start with [Getting started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Getting%20Started/) if you want to get familiar with Dionysos.
 * The **Developer Docs** section is dedicated to the contributors to Dionysos developement. 
 
  

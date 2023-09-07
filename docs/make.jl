@@ -17,6 +17,10 @@ end
 
 const _PAGES = [
     "Index" => "index.md",
+    "Manual" => [
+        "manual/intro.md",
+        "manual/temp.md",
+    ],
     "Examples" => map(EXAMPLES) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
         name = string(split(jl_file, ".")[1])
@@ -44,7 +48,7 @@ makedocs(;
     # The following ensures that we only include the docstrings from
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
-    modules = [Dionysos],
+    # modules = [Dionysos],
 )
 
 deploydocs(; repo = "github.com/dionysos-dev/Dionysos.jl.git", push_preview = true)
