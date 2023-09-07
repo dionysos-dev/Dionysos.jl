@@ -25,6 +25,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     modes::Union{Nothing, Vector{Vector{Int}}}
     problem::Union{Nothing, PR.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
+    solve_time_sec::T
     inner::Any
     x::Any
     u::Any
@@ -39,6 +40,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             OPTIMIZE_NOT_CALLED,
+            0.0,
             nothing,
             nothing,
             nothing,
@@ -366,6 +368,7 @@ function _zero_steps(optimizer)
 end
 
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
+    t_ref = time()
     prob = optimizer.problem
     if optimizer.modes === nothing
         optimizer.modes = default_modes(prob.system, prob.target_set, prob.time)
@@ -514,6 +517,8 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
             )
         end
     end
+
+    optimizer.solve_time_sec = time() - t_ref
 end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
@@ -536,7 +541,11 @@ function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
     end
 end
 
-function MOI.get(optimizer::Optimizer, attr::Union{MOI.SolveTimeSec, MOI.ObjectiveValue})
+function MOI.get(optimizer::Optimizer, ::MOI.SolveTimeSec)
+    return optimizer.solve_time_sec
+end
+
+function MOI.get(optimizer::Optimizer, attr::MOI.ObjectiveValue)
     if optimizer.discrete_presolve_status == TRIVIAL
         return 0.0
     else

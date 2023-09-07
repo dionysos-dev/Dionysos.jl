@@ -39,6 +39,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     max_time::Union{Nothing, Any}
     solved::Union{Nothing, Bool}
     param::Union{Nothing, Any}
+    solve_time_sec::T
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -62,6 +63,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             false,
             nothing,
+            0.0
         )
     end
 end
@@ -79,10 +81,6 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     return setproperty!(model, Symbol(param.name), value)
 end
 
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
-end
-
 Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
@@ -92,6 +90,9 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
+end
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
 end
 
 function build_abstract_system(
@@ -183,6 +184,8 @@ function simulate_trajectory(optimizer::Optimizer, x0)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
     # Co-design the abstract system and the abstract controller
     hierarchical_problem = HierarchicalProblem(
         optimizer.concrete_problem,
@@ -199,8 +202,11 @@ function MOI.optimize!(optimizer::Optimizer)
         log_level = 2,
     )
     optimizer.optimizer_BB = optimizer_BB
-    @time MOI.optimize!(optimizer_BB)
+    MOI.optimize!(optimizer_BB)
     optimizer.solved = BB.has_solution(optimizer_BB)
+
+    optimizer.solve_time_sec = time() - t_ref
+
     return
 end
 

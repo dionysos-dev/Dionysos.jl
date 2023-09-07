@@ -45,6 +45,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     k1::Union{Nothing, Int}
     k2::Union{Nothing, Int}
     continues::Union{Nothing, Bool}
+    solve_time_sec::T
+
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -70,6 +72,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            0.0
         )
     end
 end
@@ -97,6 +100,9 @@ MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     return setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
@@ -211,6 +217,8 @@ function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
     concrete_problem = optimizer.concrete_problem
     optimizer.abstract_problem = concrete_problem
     # Co-design the abstract system and the abstract controller
@@ -236,6 +244,8 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.abstract_lyap_fun = abstract_lyap_fun
     optimizer.concrete_lyap_fun =
         build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
+
+    optimizer.solve_time_sec = time() - t_ref
     return
 end
 

@@ -21,8 +21,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_controller::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
+    solve_time_sec::T
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing, 0.0)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -31,6 +32,9 @@ MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     return setproperty!(model, Symbol(param.name), value)
+end
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
@@ -134,6 +138,8 @@ function solve_concrete_problem(abstract_system, abstract_controller)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
     # Build the abstraction
     abstract_system = build_abstraction(
         optimizer.concrete_problem.system,
@@ -150,6 +156,8 @@ function MOI.optimize!(optimizer::Optimizer)
     # Solve the concrete problem
     optimizer.concrete_controller =
         solve_concrete_problem(abstract_system, abstract_controller)
+
+    optimizer.solve_time_sec = time() - t_ref
     return
 end
 
