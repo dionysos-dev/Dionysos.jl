@@ -45,7 +45,7 @@ makedocs(;
     # The following ensures that we only include the docstrings from
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
-    # modules = [Dionysos],
+    modules = [Dionysos],
 )
 
 deploydocs(; repo = "github.com/dionysos-dev/Dionysos.jl.git", push_preview = true)
