@@ -4,6 +4,10 @@ using CDDLib
 using LinearAlgebra
 using SDPA
 using Mosek, MosekTools
+using OSQP
+using Ipopt
+using HiGHS
+using Pavito
 
 using Dionysos
 const OP = Dionysos.Optim
@@ -35,7 +39,6 @@ end
 # Bemporad Morari #
 ###################
 
-import OSQP
 osqp = optimizer_with_attributes(
     OSQP.Optimizer,
     "eps_abs" => 1e-8,
@@ -44,16 +47,13 @@ osqp = optimizer_with_attributes(
     MOI.Silent() => true,
 )
 
-import Ipopt
 ipopt = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true);
 QP_SOLVERS = [("OSQP", osqp), ("Ipopt", ipopt)]
 
-import HiGHS
 highs = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true);
 MIP_SOLVERS = [("HiGHS", highs)]
 
 MIQP_SOLVERS = []
-import Pavito
 for (mip_name, mip_solver) in MIP_SOLVERS
     for (qp_name, qp_solver) in QP_SOLVERS
         pavito = optimizer_with_attributes(
