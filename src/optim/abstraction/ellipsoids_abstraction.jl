@@ -32,6 +32,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     transitionCost::Union{Nothing, Dict}
     transitionCont::Union{Nothing, Dict}
     sdp_solver::Union{Nothing, MOI.OptimizerWithAttributes}
+    solve_time_sec::T
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -45,6 +46,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            nothing,
+            0.0,
         )
     end
 end
@@ -60,6 +63,10 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         end
     end
     return setproperty!(model, Symbol(param.name), value)
+end
+
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
 end
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
@@ -204,6 +211,8 @@ function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
     concrete_problem = optimizer.concrete_problem
     state_grid = optimizer.state_grid
     # Build the abstraction
@@ -225,6 +234,8 @@ function MOI.optimize!(optimizer::Optimizer)
         solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
     optimizer.concrete_lyap_fun =
         build_concrete_lyap_fun(abstract_system, optimizer.abstract_lyap_fun)
+
+    optimizer.solve_time_sec = time() - t_ref
     return
 end
 

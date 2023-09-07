@@ -38,6 +38,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     lazy_search_problem::Union{Nothing, Any}
     solved::Union{Nothing, Bool}
     param::Union{Nothing, Any}
+    solve_time_sec::T
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -58,6 +59,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             false,
             nothing,
+            0.0,
         )
     end
 end
@@ -73,6 +75,10 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         end
     end
     return setproperty!(model, Symbol(param.name), value)
+end
+
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
 end
 
 function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
@@ -360,6 +366,8 @@ function build_concrete_bell_fun(abstract_system_heuristic, abstract_bell_fun)
 end
 
 function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
     concrete_problem = optimizer.concrete_problem
     # Build the abstraction-based heuristic
     if optimizer.abstract_system_heuristic === nothing
@@ -402,6 +410,8 @@ function MOI.optimize!(optimizer::Optimizer)
         build_concrete_bell_fun(optimizer.abstract_system_heuristic, abstract_bell_fun)
 
     optimizer.solved = true
+
+    optimizer.solve_time_sec = time() - t_ref
     return
 end
 
