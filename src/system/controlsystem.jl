@@ -20,6 +20,11 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
     return x
 end
 
+"""
+    ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <: ControlSystem{N, T}
+
+TO ADD
+"""
 struct ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <:
        ControlSystem{N, T}
     tstep::Float64
@@ -63,6 +68,11 @@ function NewControlSystemGrowthRK4(
     )
 end
 
+"""
+    ControlSystemLinearized{N, T, F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function, } <: ControlSystem{N, T}
+
+TO ADD
+"""
 struct ControlSystemLinearized{
     N,
     T,
@@ -151,6 +161,11 @@ function NewControlSystemLinearizedRK4(
     )
 end
 
+"""
+    SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}   
+
+TO ADD
+"""
 struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
     tstep::Float64
     measnoise::SVector{N, T}
@@ -165,6 +180,11 @@ function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N, T}, nsys) where {N,
     return SimpleSystem(tstep, measnoise, sys_map, F_sys)
 end
 
+"""
+    EllipsoidalAffineApproximatedSystem{}   
+    
+TO ADD
+"""
 struct EllipsoidalAffineApproximatedSystem{}
     dynamics::Dict{UT.Ellipsoid, NoisyConstrainedAffineControlDiscreteSystem}
     L::Dict{UT.Ellipsoid, Float64} # smoothness constant to bound error
@@ -223,6 +243,11 @@ end
 ############################################
 # Affine discrete time system approximaton with its Lypschitz constant and the region of validity
 # of the Lipschitz constant
+"""
+    AffineApproximationDiscreteSystem      
+    
+TO ADD
+"""
 struct AffineApproximationDiscreteSystem #<: ControlSystem
     constrainedAffineSys::NoisyConstrainedAffineControlDiscreteSystem
     L::Any
@@ -241,6 +266,11 @@ end
 ############################################
 ############################################
 
+"""
+    SymbolicSystem{}  
+    
+TO ADD
+"""
 struct SymbolicSystem{}
     fsymbolicT::Any
     fsymbolic::Any
