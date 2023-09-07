@@ -14,6 +14,11 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+Solver from Lazy Abstraction
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_system::Union{Nothing, Any}
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}

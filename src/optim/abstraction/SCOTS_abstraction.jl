@@ -13,6 +13,11 @@ const PR = DI.Problem
 
 using JuMP
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+SCOTS abstraction solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.ProblemType}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}

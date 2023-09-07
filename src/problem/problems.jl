@@ -1,3 +1,10 @@
+"""
+The structure 
+
+    ProblemType
+
+is the abstract type which defines a problem.
+"""
 abstract type ProblemType end
 
 """

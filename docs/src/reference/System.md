@@ -1,6 +1,6 @@
 # System
 
-This folder contains 
+This folder contains different ways to define systems, for instance to encode a controller.
 
 ## Control system
 ```@docs

@@ -17,6 +17,11 @@ const BB = UT.BranchAndBound
 
 using ..LazyAbstraction
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+    
+Hierarchical abstraction solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_system::Union{Nothing, Any}
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}

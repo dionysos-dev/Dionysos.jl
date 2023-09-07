@@ -14,6 +14,11 @@ const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+Ellispoids abtraction solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
