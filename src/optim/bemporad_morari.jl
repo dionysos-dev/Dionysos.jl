@@ -17,6 +17,11 @@ using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, P
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
+"""
+    Optimizer{T} <: MOI.AbstractOptimizer
+
+Bemporad Morari solver
+"""
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any
