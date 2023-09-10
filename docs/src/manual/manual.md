@@ -24,10 +24,7 @@ Description of the core of the Dionysos.jl package, the [`src`](https://github.c
 
 The system types supported in Dionysos.jl are:
 * [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem), which proposes generic and flexible system definitions (e.g.     discrete-time/continuous-time, constrained, noisy systems), such that, for example, the system [`MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem) of the form $$x(k+1) = A x(k) + B u(k) + c + D w(k), \ x(k)\in\mathcal{X}, \ u(k)\in\mathcal{U},\ w(k)\in\mathcal{W}\ \forall k$$
-where 
-    * $\mathcal{X}$ is the state constraints;
-    * $\mathcal{U}$ is the input constraints;
-    * $\mathcal{W}$ is the noise constraints.
+where $\mathcal{X}$ is the state constraint, $\mathcal{U}$ is the input constraint and $\mathcal{W}$ is the noise constraint.
 * [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem), which extends the class of systems of [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem) to hybrid systems.
 
 
@@ -61,8 +58,8 @@ The following tables summarize the different solver types in abbreviated form.
 
 | Type          | Description | Reference |
 | :--------------- | :---------- | :---------- |
-| [`Bemporad Morari`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BemporadMorari.Optimizer) |  | [`Control of systems integrating logic, dynamics, and constraints`](https://www.sciencedirect.com/science/article/abs/pii/S0005109898001782)
-| [`BranchAndBound`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BranchAndBound.Optimizer) |  | [`Abstraction-based branch and bound approach to Q-learning for hybrid optimal control`](https://proceedings.mlr.press/v144/legat21a.html)
+| [`Bemporad Morari`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures. | [`Control of systems integrating logic, dynamics, and constraints`](https://www.sciencedirect.com/science/article/abs/pii/S0005109898001782)
+| [`BranchAndBound`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems via a predictive control scheme combining a branch and bound algorithm that can refine Q-functions using Lagrangian duality. | [`Abstraction-based branch and bound approach to Q-learning for hybrid optimal control`](https://proceedings.mlr.press/v144/legat21a.html)
 
 
 **Solver interface**
@@ -70,7 +67,7 @@ The following tables summarize the different solver types in abbreviated form.
 Each solver is defined by a module which must define the structure [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and implement the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
 For example, for the SCOTS solver, this structure and function are defined as follows
 
-```
+```julia
 using JuMP
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
@@ -89,7 +86,7 @@ end
 
 and
 
-```
+```julia
 function MOI.optimize!(optimizer::Optimizer)
     # Build the abstraction
     abstract_system = build_abstraction(
@@ -118,19 +115,19 @@ For an executable version of this example, see [`Example: Path planning problem`
 First you need to define a control problem, i.e., the system and the specification of the desired closed loop behaviour.
 To do this, you can define new ones yourself or directly load an existing benchmark, for example
 
-```
+```julia
 concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth");
 concrete_system = concrete_problem.system;
 ```
 
 Choose the solver you wish to use
-```
+```julia
 using JuMP
 optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
 ```
 
 Define the solver's meta-parameters
-```
+```julia
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
 state_grid = DO.GridFree(x0, hx);
@@ -140,19 +137,19 @@ input_grid = DO.GridFree(u0, hu);
 ```
 
 Set the solver's meta-parameters
-```
+```julia
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 ```
 
 Solve the control problem
-```
+```julia
 MOI.optimize!(optimizer)
 ```
 
 Get the results
-```
+```julia
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
@@ -162,7 +159,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 In Dionysos, all the structures that could be relevant to plot (such as trajectories, state-space discretization, specifications, obstacles, etc.) 
 have an associated [`@recipe`](https://github.com/JuliaPlots/RecipesBase.jl) function, which makes it very easy to plot all the results using the single common [`plot`](https://docs.juliaplots.org/latest/generated/unitfulext_plots/) function of [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl).
 For example
-```
+```julia
 using Plots
 
 plot!(concrete_system.X; color = :yellow, opacity = 0.5);
