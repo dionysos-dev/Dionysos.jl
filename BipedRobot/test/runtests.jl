@@ -7,6 +7,9 @@ using Test
 #state_urdf = MechanismState(mechanism_urdf)
 #BipedRobot.setnominal!(state_urdf)
 
+# Otherwise ambiguous normalize
+normalize(v::FreeVector3D, p::Real) = RigidBodyDynamics.Spatial.normalize(v, p) 
+
 # Test for mechanism via symbolic variables :
 mechanism_sym = BipedRobot.mechanism(;
     symbolic = false,
