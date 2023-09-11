@@ -8,7 +8,8 @@ using Test
 #BipedRobot.setnominal!(state_urdf)
 
 # Otherwise ambiguous normalize
-normalize(v::FreeVector3D, p::Real) = RigidBodyDynamics.Spatial.normalize(v, p)
+using LinearAlgebra
+LinearAlgebra.normalize(v::FreeVector3D, p::Real) = FreeVector3D(v.frame, normalize(v.v, p))
 
 # Test for mechanism via symbolic variables :
 mechanism_sym = BipedRobot.mechanism(;
