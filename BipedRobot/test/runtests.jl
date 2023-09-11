@@ -7,9 +7,11 @@ using Test
 #state_urdf = MechanismState(mechanism_urdf)
 #BipedRobot.setnominal!(state_urdf)
 
-# Otherwise ambiguous normalize
-using LinearAlgebra
+# To avoid ambiguities
+using LinearAlgebra, Symbolics, Quaternions
 LinearAlgebra.normalize(v::FreeVector3D, p::Real) = FreeVector3D(v.frame, normalize(v.v, p))
+Base.:/(q::Quaternion, x::Symbolics.Num) =
+    Quaternion(q.s / x.val, q.v1 / x.val, q.v2 / x.val, q.v3 / x.val)
 
 # Test for mechanism via symbolic variables :
 mechanism_sym = BipedRobot.mechanism(;
