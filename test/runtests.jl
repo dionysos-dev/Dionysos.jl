@@ -9,6 +9,7 @@ include("./utils/search/test_search.jl")
 include("./utils/rectangle.jl")
 include("./utils/ellipsoid.jl")
 include("./utils/scalar_functions.jl")
+include("./utils/test_LazySetOperations.jl")
 
 include("./domain/test_griddomain.jl")
 include("./domain/test_general_domain.jl")
