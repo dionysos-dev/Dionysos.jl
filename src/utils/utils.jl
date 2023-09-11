@@ -33,6 +33,6 @@ include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
 include("intersection_set.jl")
 
-include("lazySetOperations.jl")
+include("lazy_set_operations.jl")
 
 end  # module Utils
