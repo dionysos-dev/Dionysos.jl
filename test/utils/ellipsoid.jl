@@ -78,8 +78,8 @@ end
     a = 0.8
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test UT.intersect(E1, E) == true
-    @test UT.intersect(E, E1) == true
+    @test UT.is_intersected(E1, E)
+    @test UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err = norm(E1scaled.c - [2.4; 2.2]) + norm(E1scaled.P - [2.388 -0.597; -0.597 2.985])
     @test err <= 10e-4
@@ -95,8 +95,8 @@ end
     a = 1.2
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test UT.intersect(E1, E) == true
-    @test UT.intersect(E, E1) == true
+    @test UT.is_intersected(E1, E)
+    @test UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err = norm(E1scaled.c - [2.8; 2.599]) + norm(E1scaled.P - [0.725 -0.181; -0.181 0.906])
     @test err <= 1e-2
@@ -113,8 +113,8 @@ end
     a = 2.5
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test UT.intersect(E1, E) == false
-    @test UT.intersect(E, E1) == false
+    @test !UT.is_intersected(E1, E)
+    @test !UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err =
         norm(E1scaled.c - [4.1; 3.9]) +

@@ -223,7 +223,7 @@ include("ellipsoid_intersection.jl")
 # compress E1 if E1∩E2≠∅
 # return nothing if impossible
 function compress_if_intersection(E1::Ellipsoid, E2::Ellipsoid)
-    if E1 ∩ E2
+    if is_intersected(E1, E2)
         return scale_for_noninclusion_contact_point(E1, E2)
     else
         return E1
