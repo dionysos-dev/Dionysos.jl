@@ -405,7 +405,7 @@ function keep(
     end
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
     if ElMin !== nothing
-        if all(O -> !(ElMin ∩ O), obstacles)
+        if all(O -> !UT.is_intersected(ElMin, O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles

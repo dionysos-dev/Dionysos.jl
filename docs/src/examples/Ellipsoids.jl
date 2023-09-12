@@ -38,7 +38,7 @@ function analyze(fig1, fig2, i)
 
     Elnew = UT.scale_for_noninclusion_contact_point(El0, El)
     plot_config!(fig2, El0, El, Elnew)
-    return println(UT.intersect(El0, El) ? "El0 ∩ El ≠ ∅" : "El0 ∩ El = ∅")
+    return println(UT.is_intersected(El0, El) ? "El0 ∩ El ≠ ∅" : "El0 ∩ El = ∅")
 end
 
 # We define some ellipsoids
