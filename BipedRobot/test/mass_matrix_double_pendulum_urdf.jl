@@ -1,18 +1,14 @@
 using BipedRobot
 using RigidBodyDynamics
 
-urdf = joinpath(
-    dirname(dirname(pathof(BipedRobot))),
-    "deps",
-    "doublependulum.urdf",
-)
+urdf = joinpath(dirname(dirname(pathof(BipedRobot))), "deps", "doublependulum.urdf")
 doublependulum = parse_urdf(Float64, urdf)
 
 const state = MechanismState(doublependulum)
 
 @static if get(ENV, "CI", "false") == "false"
     using MechCatMechanisms
-    vis = MechanismVisualizer(doublependulum, URDFVisuals(urdf));
+    vis = MechanismVisualizer(doublependulum, URDFVisuals(urdf))
     #IJuliaCell(vis)
 end
 
@@ -21,7 +17,7 @@ set_configuration!(state, [1.0, -1.5])
     set_configuration!(vis, configuration(state))
 end
 
-ts, qs, vs = simulate(state, 5., Δt = 1e-3);
+ts, qs, vs = simulate(state, 5.0; Δt = 1e-3);
 
 @static if get(ENV, "CI", "false") == "false"
     MeshCatMechanisms.animate(vis, ts, qs)
@@ -31,10 +27,13 @@ shoulder_angles = collect(q[1] for q in qs)
 
 @static if get(ENV, "CI", "false") == "false"
     using Plots
-    plot(ts, shoulder_angles, 
-        xlabel = "Time [s]", 
-        ylabel = "Angle [rad]", 
-        label = "Shoulder")
+    plot(
+        ts,
+        shoulder_angles;
+        xlabel = "Time [s]",
+        ylabel = "Angle [rad]",
+        label = "Shoulder",
+    )
 end
 
 bodies(doublependulum)
@@ -49,21 +48,21 @@ q[shoulder]
 
 frame_after(elbow)
 @static if get(ENV, "CI", "false") == "false"
-    setelement!(vis, frame_after(elbow));
+    setelement!(vis, frame_after(elbow))
 end
 frame_before(shoulder)
 @static if get(ENV, "CI", "false") == "false"
-    setelement!(vis, frame_before(shoulder));
+    setelement!(vis, frame_before(shoulder))
 end
 p = Point3D(frame_after(elbow), 0.0, 0.0, -2.0)
 
 radius = 0.1
 @static if get(ENV, "CI", "false") == "false"
-    setelement!(vis, p, radius, "tip");
+    setelement!(vis, p, radius, "tip")
 end
 p = transform(state, p, root_frame(doublependulum))
 
-displacement = FreeVector3D(frame_after(elbow), 2., 3., 4.)
+displacement = FreeVector3D(frame_after(elbow), 2.0, 3.0, 4.0)
 
 try
     p + displacement
@@ -93,7 +92,7 @@ else
 end
 
 v̇ = similar(velocity(state))
-v̇ .= [2.; 3.] # the joint acceleration vector, i.e., the time derivative of the joint velocity vector v
+v̇ .= [2.0; 3.0] # the joint acceleration vector, i.e., the time derivative of the joint velocity vector v
 τ = inverse_dynamics(state, v̇)
 @show τ;
 
