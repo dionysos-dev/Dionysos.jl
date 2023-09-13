@@ -219,4 +219,6 @@ function setnominal!(Robotstate::MechanismState)
     return set_configuration!(Robotstate, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 end
 
+include("piracy.jl")
+
 end # module
