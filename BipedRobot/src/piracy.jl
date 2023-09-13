@@ -11,7 +11,8 @@ import LinearAlgebra, Quaternions, RigidBodyDynamics, Symbolics
 function LinearAlgebra.normalize(v::RigidBodyDynamics.FreeVector3D, p::Real)
     return RigidBodyDynamics.FreeVector3D(v.frame, LinearAlgebra.normalize(v.v, p))
 end
-Base.:/(q::Quaternions.Quaternion, x::Symbolics.Num) =
-    Quaternion(q.s / x.val, q.v1 / x.val, q.v2 / x.val, q.v3 / x.val)
+function Base.:/(q::Quaternions.Quaternion, x::Symbolics.Num)
+    return Quaternions.Quaternion(q.s / x.val, q.v1 / x.val, q.v2 / x.val, q.v3 / x.val)
+end
 
 end
