@@ -28,3 +28,4 @@ M = BipedRobot.simplify.(mass_matrix(state_sym))
 @test size(M) == (10, 10)
 
 include("mass_matrix_double_pendulum_urdf.jl")
+include("Biped_robot.jl")

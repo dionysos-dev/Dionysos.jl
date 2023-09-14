@@ -1,11 +1,11 @@
 # Here we hope to chieve simulation of our biped robot. Options with and without control added.
 # using Revise
 using RigidBodyDynamics
-using MeshCatMechanisms
 using RigidBodyDynamics.Contact
 using Random
 using StaticArrays
 using Symbolics
+using BipedRobot
 
 ## first we will try do define the robot mechanism with symbolic variables. Then we will export the robot model. 
 ## there are some limitations with this method. for example, only inertia tags are supported for the links
@@ -41,8 +41,8 @@ world = root_body(robot) # the fixed 'world' rigid body
 # create a symbolic symmetric inertia matrix
 function get_symb_Inertia_matrix(H)
     I_m = Symbolics.variables(H, 1:3, 1:3)
-    for i in 1:3
-        for j in 1:3
+    for i = 1:3
+        for j = 1:3
             if i > j
                 I_m[i, j] = I_m[j, i]
             end
@@ -85,7 +85,7 @@ joint1_to_world = Transform3D(
     frame_before(joint1),
     default_frame(world),
     SVector(zero(T), one(T), one(T)),
-);
+)
 
 attach!(robot, world, body1, joint1; joint_pose = joint1_to_world); # attach the link to the mechanism tree
 
@@ -294,14 +294,19 @@ const state = MechanismState(robot)
 
 ## visualisation and simulation
 
-vis = MechanismVisualizer(robot, URDFVisuals(urdfpath()));
-open(vis)
+@static if get(ENV, "CI", "false") == "false"
+    using MeshCatMechanisms
+    vis = MechanismVisualizer(robot, URDFVisuals(urdfpath()));
+    open(vis)
+end
 
 ## set the configurations and velocities of the joints (i.e., initial angles (called configuration in julia robotics) and initial velocities):
 # set_configuration!(state, [1,0,0,0,0,0,1,0,0,0,0]) # starting a pass initial configuration
 set_configuration!(state, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) # starting a pass initial configuration
 
-set_configuration!(vis, configuration(state)) ## update the configuration also in the visualiser
+@static if get(ENV, "CI", "false") == "false"
+    set_configuration!(vis, configuration(state)) ## update the configuration also in the visualiser
+end
 
 # ## Basic simulation is easy (but see RigidBodySim.jl for a more featureful simulator). 
 
@@ -339,6 +344,8 @@ end
 ts, qs, vs = simulate(state, 1, control!; Δt = 1e-3);
 
 ## After which we can animate the results:
-MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 0.2)
+@static if get(ENV, "CI", "false") == "false"
+    MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 0.2)
+end
 
 ##########
