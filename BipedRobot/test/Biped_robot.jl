@@ -41,8 +41,8 @@ world = root_body(robot) # the fixed 'world' rigid body
 # create a symbolic symmetric inertia matrix
 function get_symb_Inertia_matrix(H)
     I_m = Symbolics.variables(H, 1:3, 1:3)
-    for i = 1:3
-        for j = 1:3
+    for i in 1:3
+        for j in 1:3
             if i > j
                 I_m[i, j] = I_m[j, i]
             end
@@ -296,7 +296,7 @@ const state = MechanismState(robot)
 
 @static if get(ENV, "CI", "false") == "false"
     using MeshCatMechanisms
-    vis = MechanismVisualizer(robot, URDFVisuals(urdfpath()));
+    vis = MechanismVisualizer(robot, URDFVisuals(urdfpath()))
     open(vis)
 end
 

@@ -27,5 +27,21 @@ mass_matrix(state_sym)
 M = BipedRobot.simplify.(mass_matrix(state_sym))
 @test size(M) == (10, 10)
 
-include("mass_matrix_double_pendulum_urdf.jl")
-include("Biped_robot.jl")
+"""
+    _include_sandbox(filename)
+
+Include the `filename` in a temporary module that acts as a sandbox. (Ensuring
+no constants or functions leak into other files.)
+
+This function was taken from `JuMP/docs/make.jl`.
+"""
+function _include_sandbox(filename)
+    mod = @eval module $(gensym()) end
+    return Base.include(mod, filename)
+end
+
+for file in ["mass_matrix_double_pendulum_urdf.jl", "Biped_robot.jl"]
+    @testset "$file" begin
+        _include_sandbox(file)
+    end
+end
