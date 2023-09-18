@@ -39,8 +39,6 @@ makedocs(;
         prettyurls = get(ENV, "CI", nothing) == "true",
         assets = ["assets/extra_styles.css"],
     ),
-    # See https://github.com/jump-dev/JuMP.jl/issues/1576
-    strict = true,
     pages = _PAGES,
     # The following ensures that we only include the docstrings from
     # this module for functions defined in Base that we overwrite.
