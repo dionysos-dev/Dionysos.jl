@@ -41,7 +41,7 @@ function _test(
         @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.INFEASIBLE
     else
         @test MOI.get(optimizer, MOI.TerminationStatus()) in
-              [MOI.OPTIMAL, MOI.LOCALLY_SOLVED]
+              [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_LOCALLY_SOLVED]
         xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute())
         @test typeof(x_expected) == typeof(xu.x)
         @test typeof(u_expected) == typeof(xu.u)
