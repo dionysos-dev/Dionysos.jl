@@ -27,4 +27,5 @@ for (i, ((method, problem), optimizer)) in enumerate(bench)
     end
 end
 
-CSV.write("bench/benchmark.csv", df)
+CSV.write("./benchmark.csv", df)
+
