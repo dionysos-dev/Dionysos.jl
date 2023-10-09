@@ -86,6 +86,7 @@ OSQP = "ab2f91bb-94b4-55e3-9ba0-7f65df51de79"
 Pavito = "cd433a01-47d1-575d-afb7-6db927ee8d8f"
 SDPA = "b9a10b5b-afa4-512f-a053-bb3d8080febc"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+CUDD = "345a2cc7-28d8-58b2-abdf-cff77ea7d7f1"
 
 [targets]
-test = ["CDDLib", "Ipopt", "OSQP", "Pavito", "SDPA", "Test", "HiGHS", "Mosek", "MosekTools"]
+test = ["CDDLib", "Ipopt", "OSQP", "Pavito", "SDPA", "Test", "HiGHS", "Mosek", "MosekTools", "CUDD"]
