@@ -28,4 +28,3 @@ for (i, ((method, problem), optimizer)) in enumerate(bench)
 end
 
 CSV.write("./benchmark.csv", df)
-
