@@ -191,7 +191,7 @@ struct EllipsoidalAffineApproximatedSystem{}
 end
 
 function _getLipschitzConstants(J, xi, rules)
-    L = zeros(length(xi))
+    L = zeros(Base.length(xi))
     for (i, g) in enumerate(eachrow(J))
         Hg_s = Symbolics.jacobian(g, xi) #gets symbolic hessian of the i-th component of f(x,u,w)
         Hg = Symbolics.substitute(Hg_s, rules)
@@ -214,9 +214,9 @@ end
 # MathematicalSystems.NoisyAffineControlDiscreteSystem
 # is a system of the form x(k+1) = Ax(k)+Bu(k)+c+Ew(k) with x(k)∈X, u(k)∈U, w(k)∈W
 function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
-    n = length(x)
-    m = length(u)
-    p = length(w)
+    n = Base.length(x)
+    m = Base.length(u)
+    p = Base.length(w)
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
     Xi = X × U × W

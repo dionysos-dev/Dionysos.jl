@@ -67,7 +67,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set.c
-x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,
@@ -77,7 +77,7 @@ x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
     noise = true,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_control_trajectory.costs.seq);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -135,4 +135,4 @@ for obs in concrete_system.obstacles
     plot!(fig3, obs; color = :black)
 end
 plot!(fig3, abstract_system; arrowsB = false, cost = true)
-plot!(fig3, UT.DrawTrajectory(x_traj); color = :black)
+plot!(fig3, cost_control_trajectory; color = :black)

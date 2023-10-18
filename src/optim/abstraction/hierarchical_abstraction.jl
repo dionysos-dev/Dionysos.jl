@@ -187,6 +187,12 @@ function simulate_trajectory(optimizer::Optimizer, x0)
     return simulate_trajectory(optimizer.hierarchical_problem, best_path, x0)
 end
 
+function get_closed_loop_trajectory(optimizer::Optimizer, x0)
+    x_traj, u_traj, c_traj = simulate_trajectory(optimizer, x0)
+    control_trajectory = ST.Control_trajectory(ST.Trajectory(x_traj), ST.Trajectory(u_traj))
+    return ST.Cost_control_trajectory(control_trajectory, ST.Trajectory(c_traj))
+end
+
 function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
@@ -632,7 +638,7 @@ function simulate_trajectory(prob::HierarchicalProblem, path, x0)
         reached(x) = x ∈ concrete_problem.target_set
         cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
         nstep = 100
-        x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
+        cost_control_trajectory = ST.get_closed_loop_trajectory(
             concrete_system.f_eval,
             concrete_controller,
             cost_eval,
@@ -641,6 +647,9 @@ function simulate_trajectory(prob::HierarchicalProblem, path, x0)
             stopping = reached,
             noise = false,
         )
+        x_traj = cost_control_trajectory.control_trajectory.states.seq
+        u_traj = cost_control_trajectory.control_trajectory.inputs.seq
+        cost_traj = cost_control_trajectory.costs.seq
         append!(full_x_traj, x_traj[2:end])
         append!(full_u_traj, u_traj)
         append!(full_cost_traj, cost_traj)

@@ -81,12 +81,12 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj =
+control_trajectory =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);
-plot!(UT.DrawTrajectory(x_traj))
+plot!(control_trajectory)
 
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.

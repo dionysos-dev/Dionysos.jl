@@ -153,10 +153,10 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 println("Solved : ", optimizer.solved)
 if optimizer.solved
     x0 = UT.get_center(concrete_problem.initial_set)
-    x_traj, u_traj, cost_traj =
-        AB.HierarchicalAbstraction.simulate_trajectory(optimizer, x0)
-    cost = sum(cost_traj)
-    println("Goal set reached: $(x_traj[end]∈concrete_problem.target_set)")
+    cost_control_trajectory =
+        AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
+    cost = sum(cost_control_trajectory.costs.seq)
+    println("Goal set reached: $(ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory))∈concrete_problem.target_set)")
     println("Cost:\t $(cost)")
 end
 
@@ -175,7 +175,7 @@ plot!(fig1, concrete_problem.initial_set; color = :green, opacity = 0.8)
 plot!(fig1, concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
 #We display the concrete trajectory
-plot!(fig1, UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(fig1, cost_control_trajectory; ms = 0.5)
 
 # # Display the lazy abstraction 
 fig2 = plot(; aspect_ratio = :equal)
@@ -187,4 +187,4 @@ plot!(
     heuristic = false,
     fine = true,
 )
-plot!(fig2, UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(fig2, cost_control_trajectory; ms = 0.5)
