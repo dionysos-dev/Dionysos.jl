@@ -76,13 +76,18 @@ println("Started test")
     end
 
     contr = AB.SCOTSAbstraction.NewControllerList()
-    AB.SCOTSAbstraction.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+    AB.SCOTSAbstraction.compute_controller_reach!(
+        contr,
+        symmodel.autom,
+        initlist,
+        targetlist,
+    )
     @test length(contr) == 412
     if VERSION >= v"1.5"
         function f(autom, initlist, targetlist)
             contr = AB.SCOTSAbstraction.NewControllerList()
             initset, targetset, num_targets_unreachable, current_targets, next_targets =
-            AB.SCOTSAbstraction._data(contr, autom, initlist, targetlist)
+                AB.SCOTSAbstraction._data(contr, autom, initlist, targetlist)
             # Preallocates to make sure `_compute_controller_reach` does not need to allocate
             sizehint!(contr.data, 500)
             sizehint!(current_targets, 50)

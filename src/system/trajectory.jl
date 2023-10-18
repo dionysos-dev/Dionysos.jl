@@ -51,7 +51,6 @@ struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T
     continuous::ContinuousTrajectory{T, XVT, UVT}
 end
 
-
 struct Trajectory{T}
     seq::Vector{T}
 end
@@ -67,7 +66,6 @@ struct Control_trajectory{T1, T2}
     states::Trajectory{T1}
     inputs::Trajectory{T2}
 end
-
 
 Base.length(traj::Control_trajectory) = length(traj.states)
 get_state(traj::Control_trajectory, n::Int) = get_elem(traj.states, n)
@@ -87,12 +85,12 @@ Base.length(traj::Cost_control_trajectory) = length(traj.control_trajectory)
 get_state(traj::Cost_control_trajectory, n::Int) = get_state(traj.control_trajectory, n)
 get_input(traj::Cost_control_trajectory, n::Int) = get_input(traj.control_trajectory, n)
 get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
-get_elem(traj::Cost_control_trajectory, n::Int) = (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
+get_elem(traj::Cost_control_trajectory, n::Int) =
+    (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
 
 @recipe function f(traj::Cost_control_trajectory)
     return traj.control_trajectory
 end
-
 
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
     x = x0

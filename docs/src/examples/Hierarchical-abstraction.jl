@@ -159,9 +159,12 @@ println("Solved : ", optimizer.solved)
 
 # ## Simulation
 x0 = UT.get_center(concrete_problem.initial_set)
-cost_control_trajectory = AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
+cost_control_trajectory =
+    AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
 cost = sum(cost_control_trajectory.costs.seq);
-println("Goal set reached: $(ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory))∈concrete_problem.target_set)")
+println(
+    "Goal set reached: $(ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory))∈concrete_problem.target_set)",
+)
 println("Cost:\t $(cost)")
 
 # ## Display the results
