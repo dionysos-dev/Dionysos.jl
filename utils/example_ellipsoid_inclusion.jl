@@ -8,7 +8,6 @@ using Plots, Colors, LinearAlgebra, LaTeXStrings
 # ellipsoids. They consider 3 different cases : when there is an intersection but no inclusion, 
 # when there is inclusion with a contact point and finally, when there is a strict inclusion.
 
-
 myblue = RGB(108 ./ 256, 142 ./ 256, 191 ./ 256)
 myblueN = RGB(32 ./ 256, 103 ./ 256, 205 ./ 256)
 myorange = RGB(255 ./ 280, 158 ./ 280, 56 ./ 280)

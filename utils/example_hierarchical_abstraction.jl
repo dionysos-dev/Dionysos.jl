@@ -4,7 +4,6 @@ using StaticArrays, JuMP, Plots, Test
 # developed in Dionysos for a reach-avoid optimal control problem. The whole procedure is detailed and commented, and 
 # the results are displayed at the end.
 
-
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
