@@ -27,7 +27,7 @@ Dionysos.System.ConstantController
 Dionysos.System.AffineController
 ```
 
-## SHOULD BE REMOVED 
+## Trajectories 
 ```@docs
 Dionysos.Control.DiscreteTrajectory
 Dionysos.Control.ContinuousTrajectory
