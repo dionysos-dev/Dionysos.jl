@@ -1,5 +1,10 @@
 using StaticArrays, JuMP, Plots, Test
 
+# The objective of this file is to provide an example of the application of the hierarchical abstraction-based technique 
+# developed in Dionysos for a reach-avoid optimal control problem. The whole procedure is detailed and commented, and 
+# the results are displayed at the end.
+
+
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
@@ -12,9 +17,10 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+# We export the system from the problems folder.
 include("../problems/simple_problem.jl")
 
-## specific functions
+# Specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
     Xdom = abstract_system.Xdom
     x = DO.get_coord_by_pos(Xdom.grid, xpos)
@@ -80,6 +86,13 @@ end
 
 minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 
+# We define the concrete problem that we want to solve. For instance:
+# - the whole domain for the state and the obstacles/constraints 
+# - the domain for the input and the obstacles/constraints 
+# - the initial and targets sets
+# - the state and transition costs 
+# - the time step
+# - etc.
 concrete_problem = SimpleProblem.problem(;
     rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(60.0, 60.0)),
     obstacles = [UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))],
@@ -96,6 +109,7 @@ concrete_problem = SimpleProblem.problem(;
     measnoise = SVector(0.0, 0.0),
 )
 
+# The concrete system is the real system
 concrete_system = concrete_problem.system
 
 # Local optimizer parameters
@@ -150,7 +164,7 @@ end
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 
-# ## Simulation
+# Simulation
 println("Solved : ", optimizer.solved)
 if optimizer.solved
     x0 = UT.get_center(concrete_problem.initial_set)
@@ -161,24 +175,24 @@ if optimizer.solved
     println("Cost:\t $(cost)")
 end
 
-# ## Display the results
-# # Display the specifications, domains and trajectory
+# Display the results
+# First, display the specifications, domains and trajectory
 fig1 = plot(; aspect_ratio = :equal)
 
-#We display the concrete domain
+# Then, we display the concrete domain
 plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
 
-#We display the abstract domain
+# We display the abstract domain
 plot!(fig1, abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5)
 
-#We display the concrete specifications
+# We display the concrete specifications
 plot!(fig1, concrete_problem.initial_set; color = :green, opacity = 0.8)
 plot!(fig1, concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
-#We display the concrete trajectory
+# We display the concrete trajectory
 plot!(fig1, UT.DrawTrajectory(x_traj); ms = 0.5)
 
-# # Display the lazy abstraction 
+# Finally, we display the lazy abstraction 
 fig2 = plot(; aspect_ratio = :equal)
 
 plot!(

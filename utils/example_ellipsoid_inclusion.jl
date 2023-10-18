@@ -2,6 +2,13 @@ using Dionysos
 const UT = Dionysos.Utils
 using Plots, Colors, LinearAlgebra, LaTeXStrings
 
+# The aim of this file is to generate Figure 1 of the paper "An Efficient Method to Verify the Inclusion
+# of Ellipsoids" from J. CALBERT, L.N. EGIDIO and R.M. JUNGERS (arXiv 2022).
+# The objective is to illustrate Theorem 1 which provides a criterion to check the inclusion of two
+# ellipsoids. They consider 3 different cases : when there is an intersection but no inclusion, 
+# when there is inclusion with a contact point and finally, when there is a strict inclusion.
+
+
 myblue = RGB(108 ./ 256, 142 ./ 256, 191 ./ 256)
 myblueN = RGB(32 ./ 256, 103 ./ 256, 205 ./ 256)
 myorange = RGB(255 ./ 280, 158 ./ 280, 56 ./ 280)
@@ -147,7 +154,7 @@ function plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h; eps = 1e-10)
     return display(p)
 end
 
-# intersection but non inclusion
+# CASE 1: Intersection but no inclusion
 function fig1()
     a = 1.0
     c0 = [1.6 + a; 1.4 + a]
@@ -191,7 +198,7 @@ function fig1()
     return plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
-# inclusion with contact point
+# CASE 2: Inclusion with contact point
 function fig2()
     a = 0.89
     c0 = [1.6 + a; 1.4 + a]
@@ -234,7 +241,7 @@ function fig2()
     return plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h)
 end
 
-# strict inclusion
+# CASE 3: Strict inclusion
 function fig3()
     a = 0.6
     c0 = [1.6 + a; 1.4 + a]
@@ -599,6 +606,5 @@ end
 
 # tansformations()
 # fig3()
-test6()
 # particularCase()
 fig1()

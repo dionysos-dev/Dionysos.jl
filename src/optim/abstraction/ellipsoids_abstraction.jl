@@ -17,7 +17,7 @@ const PR = DI.Problem
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Ellispoids abtraction solver
+Abstraction-based solver for which the domain is covered with elippsoidal cells, independently of the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}

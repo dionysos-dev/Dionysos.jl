@@ -16,7 +16,7 @@ using JuMP
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-SCOTS abstraction solver
+Solver based on the classical abstraction method (used for instance in SCOTS) for which the while domain is partioned into hyper-rectangular cells, independently of the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.ProblemType}

@@ -3,7 +3,7 @@ using StaticArrays, Plots
 """
     RectangularObstacles{VT} <: AbstractSet{VT}
 
-Struct for a rectangular domain with rectangular obstacles
+Struct for a rectangular domain with rectangular obstacles.
 """
 struct RectangularObstacles{VT} <: AbstractSet{VT}
     X::UT.HyperRectangle{VT}
@@ -36,7 +36,7 @@ _fit_grid(elems::Set, grid, nx, fit) = elems
 """
     GeneralDomainList{N,E<:AbstractSet{NTuple{N,Int}},T,S<:Grid{N,T},F} <: DomainType{N,T}
 
-Struct for a rectangular domain with rectangular obstacles
+Struct for a rectangular domain with rectangular obstacles.
 """
 struct GeneralDomainList{N, E <: AbstractSet{NTuple{N, Int}}, T, S <: Grid{N, T}, F} <:
        DomainType{N, T}

@@ -1,6 +1,10 @@
 # Symbolic 
 
-This folder contains different methods to build an abstraction.
+This folder contains the data structures needed to encode the different abstractions.
+
+```@docs
+Dionysos.Symbolic.SymbolicModel
+```
 
 ```@docs
 Dionysos.Symbolic.SymbolicModelList

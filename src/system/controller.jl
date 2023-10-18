@@ -8,7 +8,7 @@ end
 """
     ConstantController{T, VT}
 
-encodes a constant state-dependent controller of the κ(x) = c
+encodes a constant state-dependent controller of the κ(x) = c.
 """
 struct ConstantController{T <: Real, VT <: AbstractVector{T}} <: Controller
     c::VT
@@ -24,7 +24,7 @@ end
 """
     AffineController{T, MT, VT1, VT2}
 
-encodes an affine state-dependent controller of the κ(x) = K*(x-c)+ℓ
+encodes an affine state-dependent controller of the κ(x) = K*(x-c)+ℓ.
 """
 struct AffineController{
     T <: Real,
