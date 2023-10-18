@@ -10,7 +10,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
@@ -161,7 +160,7 @@ function solve_abstract_problem(abstract_problem, transitionCost)
     t = @elapsed rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src) # gets optimal path
     path = reverse(rev_path)
     # println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
-    abstract_controller = CO.NewControllerList()
+    abstract_controller = UT.SortedTupleSet{2, NTuple{2, Int}}()
     for l in 1:(length(path) - 1)
         new_action = (path[l], path[l + 1])
         UT.push_new!(abstract_controller, new_action)

@@ -10,7 +10,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 
@@ -507,7 +506,7 @@ function LazySearchProblem(
     end
 
     closed = nothing
-    contr = CO.NewControllerList()
+    contr = UT.SortedTupleSet{2, NTuple{2, Int}}()
     return LazySearchProblem(
         initial,
         goal,

@@ -10,7 +10,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 const BB = UT.BranchAndBound
@@ -633,7 +632,7 @@ function simulate_trajectory(prob::HierarchicalProblem, path, x0)
         reached(x) = x ∈ concrete_problem.target_set
         cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
         nstep = 100
-        x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+        x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
             concrete_system.f_eval,
             concrete_controller,
             cost_eval,

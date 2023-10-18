@@ -47,7 +47,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -102,7 +101,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,

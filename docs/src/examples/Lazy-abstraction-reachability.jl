@@ -30,7 +30,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -148,7 +147,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 # We simulate the closed loop trajectory
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,

@@ -5,7 +5,6 @@ using MathematicalSystems, HybridSystems
 using Dionysos
 const UT = Dionysos.Utils
 const DO = Dionysos.Domain
-const CO = Dionysos.Control
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 

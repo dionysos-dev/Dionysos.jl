@@ -4,13 +4,11 @@ using StaticArrays, LinearAlgebra, Symbolics, IntervalArithmetic
 using MathematicalSystems, HybridSystems
 
 import Dionysos
-using Dionysos.Control
 using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 const PR = DI.Problem
 

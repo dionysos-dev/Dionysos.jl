@@ -30,7 +30,7 @@ import Ipopt
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
@@ -86,7 +86,7 @@ objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 @test objective_value ≈ 11.38 atol = 1e-2     #src
 
 # and recover the corresponding continuous trajectory
-xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
+xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
 
 # ## A little bit of data visualization now:
 

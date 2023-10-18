@@ -6,7 +6,7 @@ const MA = MutableArithmetics
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const PR = DI.Problem
 
 using HybridSystems
@@ -145,8 +145,8 @@ end
 function learn(
     ::DiscreteLowerBound,
     prob,
-    ::CO.DiscreteTrajectory,
-    ::CO.ContinuousTrajectory,
+    ::ST.DiscreteTrajectory,
+    ::ST.ContinuousTrajectory,
     ::DiscreteLowerBoundAlgo,
 ) end
 
@@ -230,15 +230,15 @@ end
 function learn(
     ::HybridDualDynamicProgramming,
     prob,
-    ::CO.DiscreteTrajectory,
-    ::CO.ContinuousTrajectory,
+    ::ST.DiscreteTrajectory,
+    ::ST.ContinuousTrajectory,
     ::DiscreteLowerBoundAlgo,
 ) end
 function learn(
     Q::HybridDualDynamicProgramming,
     prob,
-    dtraj::CO.DiscreteTrajectory,
-    ctraj::CO.ContinuousTrajectory,
+    dtraj::ST.DiscreteTrajectory,
+    ctraj::ST.ContinuousTrajectory,
     algo::HybridDualDynamicProgrammingAlgo{T},
 ) where {T}
     for i in length(dtraj):-1:1

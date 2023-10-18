@@ -48,7 +48,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -148,7 +147,7 @@ end
 
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+x_traj, u_traj, cost_traj = ST.get_closed_loop_trajectory(
     f_eval1,
     concrete_controller,
     cost_eval,

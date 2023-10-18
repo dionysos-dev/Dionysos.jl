@@ -5,7 +5,7 @@ module BranchAndBound
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const PR = DI.Problem
 const OP = DI.Optim
 
@@ -40,7 +40,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     num_done::Int
     num_pruned_bound::Int
     num_pruned_inf::Int
-    best_traj::Union{Nothing, CO.ContinuousTrajectory}
+    best_traj::Union{Nothing, ST.ContinuousTrajectory}
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -86,7 +86,7 @@ end
 struct Candidate{T, TT}
     lower_bound::T
     upper_bound::T
-    traj::CO.DiscreteTrajectory{TT}
+    traj::ST.DiscreteTrajectory{TT}
 end
 
 function Base.isless(a::Candidate, b::Candidate)
@@ -125,7 +125,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
     left = prob.time - length(traj)
-    terminal_cost = OP.value_function(Q_function, left, CO.last_mode(prob.system, traj))
+    terminal_cost = OP.value_function(Q_function, left, ST.last_mode(prob.system, traj))
     @assert isempty(state_cost) == iszero(length(traj))
     if !isempty(state_cost)
         # We use `Ref` as `Base.broadcastable` is not defined for functions that
@@ -135,7 +135,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     cont_traj_prob = PR.OptimalControlProblem(
         prob.system,
         prob.initial_set,
-        CO.last_mode(prob.system, traj),
+        ST.last_mode(prob.system, traj),
         state_cost,
         prob.transition_cost[1:length(traj)],
         length(traj),
@@ -149,7 +149,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     end
     left = prob.time - length(traj)
     start_cost = MOI.get(start_optimizer, MOI.ObjectiveValue())
-    start_sol = MOI.get(start_optimizer, CO.ContinuousTrajectoryAttribute())
+    start_sol = MOI.get(start_optimizer, ST.ContinuousTrajectoryAttribute())
     if isempty(state_cost)
         lb = start_cost + UT.function_value(terminal_cost, prob.initial_set[2])
     else
@@ -160,7 +160,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         horizon_prob = PR.OptimalControlProblem(
             prob.system,
             (
-                CO.last_mode(prob.system, traj),
+                ST.last_mode(prob.system, traj),
                 length(traj) == 0 ? prob.initial_set[2] : start_sol.x[end],
             ),
             prob.target_set,
@@ -180,8 +180,8 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         sol_traj = nothing
     else
         ub = start_cost + MOI.get(horizon_optimizer, MOI.ObjectiveValue())
-        sol_horizon = MOI.get(horizon_optimizer, CO.ContinuousTrajectoryAttribute())
-        sol_traj = CO.ContinuousTrajectory(
+        sol_horizon = MOI.get(horizon_optimizer, ST.ContinuousTrajectoryAttribute())
+        sol_traj = ST.ContinuousTrajectory(
             [start_sol.x; sol_horizon.x],
             [start_sol.u; sol_horizon.u],
         )
@@ -234,7 +234,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     if iszero(prob.time)
         if optimizer.problem.target_set == optimizer.problem.initial_set[1]
             optimizer.status = MOI.OPTIMAL
-            optimizer.best_traj = CO.ContinuousTrajectory(Vector{T}[], Vector{T}[])
+            optimizer.best_traj = ST.ContinuousTrajectory(Vector{T}[], Vector{T}[])
             optimizer.upper_bound = zero(T)
         else
             optimizer.status = MOI.INFEASIBLE
@@ -258,7 +258,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         prob,
         optimizer,
         optimizer.Q_function,
-        CO.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]),
+        ST.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]),
     )
     candidate_0 === nothing && return
     optimizer.upper_bound = candidate_0.upper_bound
@@ -283,12 +283,12 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         cur_candidate = pop!(candidates)
         if cur_candidate.lower_bound < optimizer.upper_bound
             for t in
-                out_transitions(prob.system, CO.last_mode(prob.system, cur_candidate.traj))
-                new_traj = CO.append(cur_candidate.traj, t)
+                out_transitions(prob.system, ST.last_mode(prob.system, cur_candidate.traj))
+                new_traj = ST.append(cur_candidate.traj, t)
                 # Shortcuts avoiding to solve the QP in case, it's infeasible.
                 nnodes = num_nodes[
                     prob.time - length(new_traj),
-                    CO.last_mode(prob.system, new_traj),
+                    ST.last_mode(prob.system, new_traj),
                 ]
                 iszero(nnodes) && continue
                 new_candidate_traj =
@@ -332,14 +332,14 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
             end
         else
             left = prob.time - length(cur_candidate.traj)
-            nnodes = num_nodes[left, CO.last_mode(prob.system, cur_candidate.traj)]
+            nnodes = num_nodes[left, ST.last_mode(prob.system, cur_candidate.traj)]
             optimizer.num_pruned_bound += nnodes - 1
         end
         optimizer.num_done += 1
     end
 end
 
-function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
+function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
     return optimizer.best_traj
 end
 function MOI.get(optimizer::Optimizer, ::MOI.ObjectiveValue)

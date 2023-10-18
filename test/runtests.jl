@@ -23,12 +23,11 @@ include("./symbolic/test_ellipsoidal_transitions.jl")
 
 include("./problem/test_problems.jl")
 
-include("./control/test_controller.jl")
-include("./control/test_controllerreach.jl")
-include("./control/test_controllersafe.jl")
-include("./control/test_fromcontrolsystemgrowth.jl")
-include("./control/test_fromcontrolsystemlinearized.jl")
-
+include("./optim/unit_tests_SCOTS/test_controller.jl")
+include("./optim/unit_tests_SCOTS/test_controllerreach.jl")
+include("./optim/unit_tests_SCOTS/test_controllersafe.jl")
+include("./optim/unit_tests_SCOTS/test_fromcontrolsystemgrowth.jl")
+include("./optim/unit_tests_SCOTS/test_fromcontrolsystemlinearized.jl")
 include("./optim/test_SCOTS_safety.jl")
 include("./optim/test_SCOTS_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")

@@ -3,7 +3,6 @@ module GolLazarBelta
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
 const PR = DI.Problem
 
 using FillArrays

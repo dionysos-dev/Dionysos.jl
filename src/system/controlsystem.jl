@@ -1,6 +1,6 @@
 
 abstract type ControlSystem{N, T} end
-
+using IntervalArithmetic
 function get_f_eval(sys)
     return sys.f_eval
 end
@@ -200,8 +200,8 @@ function _getLipschitzConstants(J, xi, rules)
         # mat = Base.invokelatest(f_aux)
         mat = Symbolics.value.(Hg)
         #println(mat)
-        if any(x -> isa(x, Interval), mat)
-            mat = Interval.(mat)
+        if any(x -> isa(x, IntervalArithmetic.Interval), mat)
+            mat = IntervalArithmetic.Interval.(mat)
             eigenbox = IntervalLinearAlgebra.eigenbox(mat)
             L[i] = abs(eigenbox).hi
         else
