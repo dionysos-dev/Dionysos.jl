@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Path planning problem
+# # Example: Path planning problem solved by [Naive abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
@@ -23,21 +23,14 @@ using Test     #src
 #
 # In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
 # for the sampled system with a sampling time $\tau$.
-#
-# The abstraction is based on a feedback refinment relation [1,V.2 Definition].
-# Basically, this is equivalent to an alternating simulation relationship with the additional constraint that the input of the
-# concrete and symbolic system preserving the relation must be identical.
-# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
-#
 # For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
 # a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
-# to compute the relations in the abstraction based on the feedback refinement relation.
+# attainable sets of a particular cell based on the state reach by its center.
 #
-# For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the the pre-image
+# For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the pre-image
 # of the target set.
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
 
 # At this point, we import Dionysos.

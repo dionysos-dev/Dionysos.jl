@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: DC-DC converter
+# # Example: DC-DC converter solved by [Naive abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/DC-DC converter.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/DC-DC converter.ipynb)
@@ -19,24 +19,13 @@ using Test     #src
 # A_1 = \begin{bmatrix} -\frac{r_l}{x_l} &0 \\ 0 & -\frac{1}{x_c}\frac{1}{r_0+r_c}  \end{bmatrix}, A_2= \begin{bmatrix} -\frac{1}{x_l}\left(r_l+\frac{r_0r_c}{r_0+r_c}\right) & -\frac{1}{x_l}\frac{r_0}{r_0+r_c}  \\ \frac{1}{x_c}\frac{r_0}{r_0+r_c}   & -\frac{1}{x_c}\frac{1}{r_0+r_c}  \end{bmatrix}, b = \begin{bmatrix} \frac{v_s}{x_l}\\0\end{bmatrix}.
 # ```
 # The goal is to design a controller to keep the state of the system in a safety region around the reference desired value, using as input only the switching
-# signal.
-#
-#
-# In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
-# for the sampled system with a sampling time $\tau$.
-#
-# The abstraction is based on a feedback refinment relation [4,V.2 Definition].
-# Basically, this is equivalent to an alternating simulation relationship with the additional constraint that the input of the
-# concrete and symbolic system preserving the relation must be identical.
-# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
-#
-# For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
-# a particular cell. In this example, we consider the used of a growth bound function  [4, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
-# to compute the relations in the abstraction based on the feedback refinement relation.
+# signal. In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
+# for the sampled system with a sampling time $\tau$. For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
+# a particular cell. In this example, we consider the use of a growth bound function  [4, VIII.2, VIII.5] which is one of the possible methods to over-approximate
+# attainable sets of a particular cell based on the state reach by its center.
 #
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 
 using StaticArrays, Plots
 

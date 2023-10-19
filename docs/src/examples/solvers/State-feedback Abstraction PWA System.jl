@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Optimal control of a PWA System by State-feedback Abstractions
+# # Example: Optimal control of a PWA System by State-feedback Abstractions solved by [Ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
@@ -53,7 +53,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 lib = CDDLib.Library() # polyhedron lib
-include("../../../problems/pwa_sys.jl")
+include("../../../../problems/pwa_sys.jl")
 
 # # Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.

@@ -1,4 +1,4 @@
-# # Hierarchical-abstraction
+# # Example: Reachability problem solved by [Hierarchical abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Hierarchical-abstraction.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Hierarchical-abstraction.ipynb)
@@ -17,7 +17,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include("../../../../problems/simple_problem.jl")
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -125,11 +125,11 @@ AB.LazyAbstraction.set_optimizer_parameters!(
 )
 
 # Global optimizer parameters
-hx_global = [10.0, 10.0] #[15.0, 15.0]
+hx_global = [10.0, 10.0]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
-max_iter = 6 # 9
+max_iter = 6 
 max_time = 1000
 
 optimizer = MOI.instantiate(AB.HierarchicalAbstraction.Optimizer)
