@@ -23,7 +23,7 @@ end
 for example in EXAMPLES_UTILS
     literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
 end
-literate_actions(joinpath(@__DIR__, "src", "Getting Started.jl"), OUTPUT_DIR)
+literate_actions(joinpath(@__DIR__, "src", "examples", "Getting Started.jl"), OUTPUT_DIR)
 
 const _PAGES = [
     "Index" => "index.md",
