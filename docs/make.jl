@@ -28,6 +28,7 @@ literate_actions(joinpath(@__DIR__, "src", "Getting Started.jl"), OUTPUT_DIR)
 const _PAGES = [
     "Index" => "index.md",
     "Manual" => ["manual/abstraction-based-control.md", "manual/manual.md"],
+    "Getting Started" => "generated/Getting Started.md",
     "Solvers" => map(EXAMPLES_SOLVERS) do jl_file
         # Need `string` as Documenter fails if `name` is a `SubString{String}`.
         name = string(split(jl_file, ".")[1])
