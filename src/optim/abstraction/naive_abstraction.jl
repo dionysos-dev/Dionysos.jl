@@ -1,6 +1,6 @@
-export SCOTSAbstraction
+export NaiveAbstraction
 
-module SCOTSAbstraction
+module NaiveAbstraction
 
 import Dionysos
 const DI = Dionysos
@@ -15,7 +15,7 @@ using JuMP
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-SCOTS abstraction solver
+Naive abstraction solver
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.ProblemType}

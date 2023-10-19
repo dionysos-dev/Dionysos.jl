@@ -72,10 +72,10 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
-# We now solve the optimal control problem with the `Abstraction.SCOTSAbstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.NaiveAbstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
