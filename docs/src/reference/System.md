@@ -20,6 +20,6 @@ Dionysos.System.AffineController
 
 ## SHOULD BE REMOVED 
 ```@docs
-Dionysos.Control.DiscreteTrajectory
-Dionysos.Control.ContinuousTrajectory
+Dionysos.System.DiscreteTrajectory
+Dionysos.System.ContinuousTrajectory
 ```

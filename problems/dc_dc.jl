@@ -12,7 +12,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const PB = DI.Problem
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 
 function dynamicofsystem(

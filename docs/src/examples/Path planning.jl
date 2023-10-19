@@ -47,7 +47,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -102,7 +101,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(
+control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
@@ -133,7 +132,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(control_trajectory; ms = 0.5)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

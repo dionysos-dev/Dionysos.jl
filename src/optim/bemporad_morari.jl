@@ -5,7 +5,7 @@ module BemporadMorari
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const PR = DI.Problem
 
 using JuMP
@@ -527,7 +527,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
 end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
-function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
+function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
     #if optimizer.log_level >= 1
     #    if δ_modes !== nothing
     #        @show (x -> value.(x)).(δ_modes)
@@ -537,9 +537,9 @@ function MOI.get(optimizer::Optimizer, ::CO.ContinuousTrajectoryAttribute)
     #    end
     #end
     if optimizer.discrete_presolve_status == TRIVIAL
-        return CO.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
+        return ST.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
     else
-        return CO.ContinuousTrajectory(
+        return ST.ContinuousTrajectory(
             _rows(_value.(optimizer.inner, optimizer.x)),
             _rows(_value.(optimizer.inner, optimizer.u)),
         )

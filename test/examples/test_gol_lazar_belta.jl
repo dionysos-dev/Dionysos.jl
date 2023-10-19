@@ -5,7 +5,7 @@ include("../../problems/gol_lazar_belta.jl")
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const PR = DI.Problem
 const OP = DI.Optim
 
@@ -42,7 +42,7 @@ function _test(
     else
         @test MOI.get(optimizer, MOI.TerminationStatus()) in
               [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_LOCALLY_SOLVED]
-        xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute())
+        xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute())
         @test typeof(x_expected) == typeof(xu.x)
         @test typeof(u_expected) == typeof(xu.u)
         if isempty(x_expected)
@@ -67,8 +67,8 @@ end
 function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
     prob = _prob(1, 15, x0, false)
     t(i, j) = first(transitions(prob.system, i, j))
-    dtraj = CO.DiscreteTrajectory(15, [t(15, 20)])
-    ctraj = CO.ContinuousTrajectory([[-0.5, 0.5]], [[-1.2916666674915085]])
+    dtraj = ST.DiscreteTrajectory(15, [t(15, 20)])
+    ctraj = ST.ContinuousTrajectory([[-0.5, 0.5]], [[-1.2916666674915085]])
     algo = OP.HybridDualDynamicProgrammingAlgo(qp_solver, CDDLib.Library(), 1e-5, 1e-4, 1)
     Q_function = OP.instantiate(prob, algo)
     OP.learn(Q_function, prob, dtraj, ctraj, algo)

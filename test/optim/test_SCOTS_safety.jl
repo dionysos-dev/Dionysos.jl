@@ -10,7 +10,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -51,11 +50,11 @@ no_plot = false
     # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
     nstep = 300
     x0 = SVector(1.2, 5.6)
-    x_traj, u_traj =
-        CO.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+    control_trajectory =
+        ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
     fig = plot(; aspect_ratio = :equal)
     plot!(concrete_system.X)
-    plot!(UT.DrawTrajectory(x_traj))
+    plot!(control_trajectory)
 end
 end

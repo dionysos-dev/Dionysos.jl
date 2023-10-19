@@ -8,7 +8,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -131,7 +130,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time # max num of steps
 # We simulate the closed loop trajectory
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,
@@ -142,7 +141,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
 )
 
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj)
+cost_true = sum(cost_control_trajectory.costs.seq)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -161,7 +160,7 @@ plot!(fig1, concrete_problem.initial_set; color = :green, opacity = 0.8)
 plot!(fig1, concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8)
 
 #We display the concrete trajectory
-plot!(fig1, UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(fig1, cost_control_trajectory; ms = 0.5)
 
 # # Display the abstraction and Lyapunov-like function
 fig2 = plot(; aspect_ratio = :equal)

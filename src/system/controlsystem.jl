@@ -1,6 +1,6 @@
 
 abstract type ControlSystem{N, T} end
-
+using IntervalArithmetic
 function get_f_eval(sys)
     return sys.f_eval
 end
@@ -191,7 +191,7 @@ struct EllipsoidalAffineApproximatedSystem{}
 end
 
 function _getLipschitzConstants(J, xi, rules)
-    L = zeros(length(xi))
+    L = zeros(Base.length(xi))
     for (i, g) in enumerate(eachrow(J))
         Hg_s = Symbolics.jacobian(g, xi) #gets symbolic hessian of the i-th component of f(x,u,w)
         Hg = Symbolics.substitute(Hg_s, rules)
@@ -200,8 +200,8 @@ function _getLipschitzConstants(J, xi, rules)
         # mat = Base.invokelatest(f_aux)
         mat = Symbolics.value.(Hg)
         #println(mat)
-        if any(x -> isa(x, Interval), mat)
-            mat = Interval.(mat)
+        if any(x -> isa(x, IntervalArithmetic.Interval), mat)
+            mat = IntervalArithmetic.Interval.(mat)
             eigenbox = IntervalLinearAlgebra.eigenbox(mat)
             L[i] = abs(eigenbox).hi
         else
@@ -214,9 +214,9 @@ end
 # MathematicalSystems.NoisyAffineControlDiscreteSystem
 # is a system of the form x(k+1) = Ax(k)+Bu(k)+c+Ew(k) with x(k)∈X, u(k)∈U, w(k)∈W
 function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
-    n = length(x)
-    m = length(u)
-    p = length(w)
+    n = Base.length(x)
+    m = Base.length(u)
+    p = Base.length(w)
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
     Xi = X × U × W

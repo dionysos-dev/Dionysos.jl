@@ -7,7 +7,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 
 sleep(0.1) # used for good printing
@@ -30,30 +29,28 @@ println("Started test")
     Ufull = DO.DomainList(Ugrid)
     DO.add_set!(Ufull, UT.HyperRectangle(lb, ub), DO.OUTER)
 
-    tstep = 0.5
+    tstep = 5.0
     nsys = 3
-    # F_sys(x, u) = (1.0-cos(x(2)), -x(1) + u(1)
-    # L_growthbound(u) = (0.0 1.0; 1.0 0.0)
+    ngrowthbound = 3
+    # F_sys(x, u) = [1.0-cos(x[2]), -x[1] + u[1]]
+    # L_growthbound(u) = [0.0 1.0; 1.0 0.0]
     F_sys(x, u) = SVector(u[1], -cos(x[1]))
-    DF_sys(x, u) = SMatrix{2, 2}(0.0, sin(x[1]), 0.0, 0.0)
-    bound_DF(u) = 1.0
-    # DDF_1 = [0.0 0.0; 0.0 0.0]
-    # DDF_2 = [cos(x[1]) 0.0; 0.0 0.0]
-    bound_DDF(u) = 1.0
+    L_growthbound(u) = SMatrix{2, 2}(0.0, 1.0, 0.0, 0.0)
+    sysnoise = SVector(1.0, 1.0) * 0.1
     measnoise = SVector(1.0, 1.0) * 0.0
 
-    contsys = ST.NewControlSystemLinearizedRK4(
+    contsys = ST.NewControlSystemGrowthRK4(
         tstep,
         F_sys,
-        DF_sys,
-        bound_DF,
-        bound_DDF,
+        L_growthbound,
+        sysnoise,
         measnoise,
         nsys,
+        ngrowthbound,
     )
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
     SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    @test SY.ntransitions(symmodel.autom) == 2155
+    @test SY.ntransitions(symmodel.autom) == 1145
 
     xpos = (1, 2)
     upos = (1,)
