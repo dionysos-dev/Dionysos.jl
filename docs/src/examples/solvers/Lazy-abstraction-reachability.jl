@@ -29,7 +29,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -176,7 +176,13 @@ plot!(cost_control_trajectory; ms = 0.5)
 
 # # Display the abstraction and Lyapunov-like function
 fig = plot(; aspect_ratio = :equal);
-plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun, label = false)
+plot!(
+    abstract_system;
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.lyap_fun,
+    label = false,
+)
 
 # # Display the Bellman-like value function (heuristic)
 fig = plot(; aspect_ratio = :equal)

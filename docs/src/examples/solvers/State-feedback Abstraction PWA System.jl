@@ -53,7 +53,8 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 lib = CDDLib.Library() # polyhedron lib
-include("../../../../problems/pwa_sys.jl")
+
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pwa_sys.jl"))
 
 # # Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.

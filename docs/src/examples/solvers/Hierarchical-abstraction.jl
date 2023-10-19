@@ -17,7 +17,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -129,7 +129,7 @@ hx_global = [10.0, 10.0]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
-max_iter = 6 
+max_iter = 6
 max_time = 1000
 
 optimizer = MOI.instantiate(AB.HierarchicalAbstraction.Optimizer)

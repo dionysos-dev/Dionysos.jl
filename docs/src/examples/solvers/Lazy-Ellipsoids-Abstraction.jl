@@ -18,7 +18,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../../problems/non_linear.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
 
 # # First example
 
@@ -105,17 +105,17 @@ ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5, label=false);
+plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
 for obs in concrete_system.obstacles
-    plot!(obs; color = :black, label=false)
+    plot!(obs; color = :black, label = false)
 end
 
 #Display the abstract domain
-plot!(abstract_system; arrowsB = false, cost = false, label=false);
+plot!(abstract_system; arrowsB = false, cost = false, label = false);
 
 #Display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, label=false);
-plot!(concrete_problem.target_set; color = :red, label=false)
+plot!(concrete_problem.initial_set; color = :green, label = false);
+plot!(concrete_problem.target_set; color = :red, label = false)
 
 # # Display the abstraction
 fig = plot(;
