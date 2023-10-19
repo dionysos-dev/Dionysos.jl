@@ -5,7 +5,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -94,8 +93,8 @@ concrete_problem = SimpleProblem.problem(;
     measnoise = SVector(0.0, 0.0),
 )
 
-concrete_system = concrete_problem.system;</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">WARNING: method definition for system at /home/runner/work/Dionysos.jl/Dionysos.jl/problems/simple_problem.jl:30 declares type variable T but does not use it.
-WARNING: method definition for system at /home/runner/work/Dionysos.jl/Dionysos.jl/problems/simple_problem.jl:30 declares type variable N but does not use it.</code></pre><p>Local optimizer parameters</p><pre><code class="language-julia hljs">hx_local = [0.5, 0.5]
+concrete_system = concrete_problem.system;</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">WARNING: method definition for system at /home/runner/work/Dionysos.jl/Dionysos.jl/problems/simple_problem.jl:28 declares type variable T but does not use it.
+WARNING: method definition for system at /home/runner/work/Dionysos.jl/Dionysos.jl/problems/simple_problem.jl:28 declares type variable N but does not use it.</code></pre><p>Local optimizer parameters</p><pre><code class="language-julia hljs">hx_local = [0.5, 0.5]
 hx_heuristic = [1.0, 1.0]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
@@ -141,9 +140,12 @@ using Suppressor
 end</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
 
 println(&quot;Solved : &quot;, optimizer.solved)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Solved : true</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = AB.HierarchicalAbstraction.simulate_trajectory(optimizer, x0)
-cost = sum(cost_traj);
-println(&quot;Goal set reached: $(x_traj[end]∈concrete_problem.target_set)&quot;)
+cost_control_trajectory =
+    AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
+cost = sum(cost_control_trajectory.costs.seq);
+println(
+    &quot;Goal set reached: $(ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory))∈concrete_problem.target_set)&quot;,
+)
 println(&quot;Cost:\t $(cost)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Goal set reached: true
 Cost:	 38.0</code></pre><h2 id="Display-the-results"><a class="docs-heading-anchor" href="#Display-the-results">Display the results</a><a id="Display-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results" title="Permalink"></a></h2><h1 id="Display-the-specifications,-domains-and-trajectory"><a class="docs-heading-anchor" href="#Display-the-specifications,-domains-and-trajectory">Display the specifications, domains and trajectory</a><a id="Display-the-specifications,-domains-and-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-specifications,-domains-and-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal);
 
@@ -158,7 +160,7 @@ plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 
 #We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)</code></pre><img src="78fa80ab.svg" alt="Example block output"/><h1 id="Display-the-lazy-abstraction"><a class="docs-heading-anchor" href="#Display-the-lazy-abstraction">Display the lazy abstraction</a><a id="Display-the-lazy-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-lazy-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal);
+plot!(cost_control_trajectory; ms = 0.5)</code></pre><img src="6e7c8e49.svg" alt="Example block output"/><h1 id="Display-the-lazy-abstraction"><a class="docs-heading-anchor" href="#Display-the-lazy-abstraction">Display the lazy abstraction</a><a id="Display-the-lazy-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-lazy-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal);
 
 plot!(
     optimizer.hierarchical_problem;
@@ -166,4 +168,4 @@ plot!(
     heuristic = false,
     fine = true,
 )
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)</code></pre><img src="a0c7027c.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Grid/">« Grid</a><a class="docs-footer-nextpage" href="../Lazy-Ellipsoids-Abstraction/">Lazy-Ellipsoids-Abstraction »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Thursday 12 October 2023 12:07">Thursday 12 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(cost_control_trajectory; ms = 0.5)</code></pre><img src="b61ef0de.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Grid/">« Grid</a><a class="docs-footer-nextpage" href="../Lazy-Ellipsoids-Abstraction/">Lazy-Ellipsoids-Abstraction »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Thursday 19 October 2023 08:16">Thursday 19 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -48,7 +48,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -148,7 +147,7 @@ end
 
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     f_eval1,
     concrete_controller,
     cost_eval,
@@ -157,7 +156,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
     stopping = reached,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_control_trajectory.costs.seq);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -224,7 +223,7 @@ xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
 plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = optimizer.lyap);
-plot!(UT.DrawTrajectory(x_traj); color = :black)
+plot!(cost_control_trajectory; color = :black)
 
 @test cost_bound ≈ 2.35825 rtol = 1e-3    #src
 @test cost_true <= cost_bound             #src

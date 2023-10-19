@@ -6,7 +6,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -34,11 +33,11 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj =
-    CO.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+control_trajectory =
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);
-plot!(UT.DrawTrajectory(x_traj))
+plot!(control_trajectory)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
