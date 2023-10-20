@@ -10,7 +10,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 # specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -103,7 +103,7 @@ AB.LazyAbstraction.set_optimizer!(
 )
 
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin
     MOI.optimize!(optimizer)
 end
 
@@ -150,7 +150,13 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 plot!(cost_control_trajectory; ms = 0.5)
 
 fig = plot(; aspect_ratio = :equal);
-plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+plot!(
+    abstract_system;
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.lyap_fun,
+    label = false,
+)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(
@@ -159,6 +165,7 @@ plot!(
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.bell_fun,
+    label = false,
 )
 
 fig = plot(; aspect_ratio = :equal)
