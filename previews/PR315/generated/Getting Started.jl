@@ -7,7 +7,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 
 rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));

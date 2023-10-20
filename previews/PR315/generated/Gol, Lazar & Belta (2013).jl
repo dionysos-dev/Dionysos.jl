@@ -9,7 +9,7 @@ import Ipopt
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const OP = DI.Optim
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belta.jl"))
@@ -53,7 +53,7 @@ termination = MOI.get(optimizer, MOI.TerminationStatus())
 
 objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 
-xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
+xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
 
 using Plots
 using Polyhedra

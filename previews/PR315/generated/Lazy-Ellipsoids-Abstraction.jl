@@ -11,12 +11,11 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/non_linear.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
@@ -66,7 +65,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 
 x0 = concrete_problem.initial_set.c
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,
@@ -76,7 +75,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
     noise = true,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_control_trajectory.costs.seq);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -87,23 +86,24 @@ fig = plot(;
     ytickfontsize = 10,
     guidefontsize = 16,
     titlefontsize = 14,
+    label = false,
 );
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
 for obs in concrete_system.obstacles
-    plot!(obs; color = :black)
+    plot!(obs; color = :black, label = false)
 end
 
 #Display the abstract domain
-plot!(abstract_system; arrowsB = false, cost = false);
+plot!(abstract_system; arrowsB = false, cost = false, label = false);
 
 #Display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green);
-plot!(concrete_problem.target_set; color = :red)
+plot!(concrete_problem.initial_set; color = :green, label = false);
+plot!(concrete_problem.target_set; color = :red, label = false)
 
 fig = plot(;
     aspect_ratio = :equal,
@@ -130,6 +130,6 @@ for obs in concrete_system.obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; arrowsB = false, cost = true);
-plot!(UT.DrawTrajectory(x_traj); color = :black)
+plot!(cost_control_trajectory; color = :black)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

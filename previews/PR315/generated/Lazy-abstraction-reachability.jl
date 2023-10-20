@@ -6,12 +6,11 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 # specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -104,7 +103,7 @@ AB.LazyAbstraction.set_optimizer!(
 )
 
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin
     MOI.optimize!(optimizer)
 end
 
@@ -120,7 +119,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,
@@ -131,7 +130,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
 )
 
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_control_trajectory.costs.seq);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -148,10 +147,16 @@ plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 
 #We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(cost_control_trajectory; ms = 0.5)
 
 fig = plot(; aspect_ratio = :equal);
-plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+plot!(
+    abstract_system;
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.lyap_fun,
+    label = false,
+)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(
@@ -160,6 +165,7 @@ plot!(
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.bell_fun,
+    label = false,
 )
 
 fig = plot(; aspect_ratio = :equal)

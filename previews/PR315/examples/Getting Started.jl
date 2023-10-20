@@ -23,7 +23,6 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
 
 # Additionally, we will short the submodules accondingly 

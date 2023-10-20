@@ -6,7 +6,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -25,7 +24,7 @@ h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -45,7 +44,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(
+control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
@@ -71,6 +70,6 @@ plot!(
     color = :red,
 );
 
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(control_trajectory; ms = 0.5)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
