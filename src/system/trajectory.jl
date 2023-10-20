@@ -52,7 +52,7 @@ struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute end
 `discrete` is the discrete trajectory of type `DiscreteTrajectory` and  `continuous` is a the continuous trajectory of type `ContinuousTrajectory`.
 """
 struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
-    discrete::DiscreteTrajectory{TT} 
+    discrete::DiscreteTrajectory{TT}
     continuous::ContinuousTrajectory{T, XVT, UVT}
 end
 
