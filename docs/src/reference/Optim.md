@@ -8,7 +8,7 @@ Dionysos.Optim.Abstraction.LazyAbstraction.Optimizer
 Dionysos.Optim.Abstraction.EllipsoidsAbstraction.Optimizer
 Dionysos.Optim.Abstraction.HierarchicalAbstraction.Optimizer
 Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
-Dionysos.Optim.Abstraction.SCOTSAbstraction.Optimizer
+Dionysos.Optim.Abstraction.NaiveAbstraction.Optimizer
 ```
 
 ## Other solvers

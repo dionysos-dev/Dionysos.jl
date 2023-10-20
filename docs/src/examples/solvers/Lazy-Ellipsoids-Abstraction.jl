@@ -1,3 +1,6 @@
+# # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+#
+
 using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
 using MathematicalSystems, HybridSystems
 using JuMP, Mosek, MosekTools
@@ -15,7 +18,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/non_linear.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
 
 # # First example
 
@@ -95,23 +98,24 @@ fig = plot(;
     ytickfontsize = 10,
     guidefontsize = 16,
     titlefontsize = 14,
+    label = false,
 );
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
 for obs in concrete_system.obstacles
-    plot!(obs; color = :black)
+    plot!(obs; color = :black, label = false)
 end
 
 #Display the abstract domain
-plot!(abstract_system; arrowsB = false, cost = false);
+plot!(abstract_system; arrowsB = false, cost = false, label = false);
 
 #Display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green);
-plot!(concrete_problem.target_set; color = :red)
+plot!(concrete_problem.initial_set; color = :green, label = false);
+plot!(concrete_problem.target_set; color = :red, label = false)
 
 # # Display the abstraction
 fig = plot(;

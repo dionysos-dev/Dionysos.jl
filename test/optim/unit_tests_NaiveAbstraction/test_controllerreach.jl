@@ -75,8 +75,8 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = AB.SCOTSAbstraction.NewControllerList()
-    AB.SCOTSAbstraction.compute_controller_reach!(
+    contr = AB.NaiveAbstraction.NewControllerList()
+    AB.NaiveAbstraction.compute_controller_reach!(
         contr,
         symmodel.autom,
         initlist,
@@ -85,14 +85,14 @@ println("Started test")
     @test length(contr) == 412
     if VERSION >= v"1.5"
         function f(autom, initlist, targetlist)
-            contr = AB.SCOTSAbstraction.NewControllerList()
+            contr = AB.NaiveAbstraction.NewControllerList()
             initset, targetset, num_targets_unreachable, current_targets, next_targets =
-                AB.SCOTSAbstraction._data(contr, autom, initlist, targetlist)
+                AB.NaiveAbstraction._data(contr, autom, initlist, targetlist)
             # Preallocates to make sure `_compute_controller_reach` does not need to allocate
             sizehint!(contr.data, 500)
             sizehint!(current_targets, 50)
             sizehint!(next_targets, 200)
-            @allocated AB.SCOTSAbstraction._compute_controller_reach!(
+            @allocated AB.NaiveAbstraction._compute_controller_reach!(
                 contr,
                 autom,
                 initset,

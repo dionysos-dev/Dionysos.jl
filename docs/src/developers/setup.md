@@ -115,12 +115,13 @@ julia> using Revise
 
 If you don't plan to test the examples, comment out the Literate part in `docs/make.jl`:
 ```julila
- 11 #for example in EXAMPLES
- 12 #    example_filepath = joinpath(EXAMPLES_DIR, example)
- 13 #    Literate.markdown(example_filepath, OUTPUT_DIR)
- 14 #    Literate.notebook(example_filepath, OUTPUT_DIR)
- 15 #    Literate.script(example_filepath, OUTPUT_DIR)
- 16 #end
+ 20 # for example in EXAMPLES_SOLVERS
+ 21 #     literate_actions(joinpath(EXAMPLES_SOLVERS_DIR, example), OUTPUT_DIR)
+ 22 # end
+ 23 # for example in EXAMPLES_UTILS
+ 24 #     literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
+ 25 # end
+ 26 # literate_actions(joinpath(@__DIR__, "src", "Getting Started.jl"), OUTPUT_DIR)
 ```
 This will speed up building the documentation quite a lot.
 

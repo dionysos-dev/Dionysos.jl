@@ -29,7 +29,7 @@ hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -38,7 +38,7 @@ MOI.optimize!(optimizer)
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-@testset "SCOTS safety" begin
+@testset "NaiveAbstraction safety" begin
     @test length(abstract_controller.data) == 893803 #src
 end
 

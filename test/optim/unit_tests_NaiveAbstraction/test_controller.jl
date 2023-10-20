@@ -11,7 +11,7 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "Controller" begin
-    contr = AB.SCOTSAbstraction.NewControllerList()
+    contr = AB.NaiveAbstraction.NewControllerList()
 
     UT.push_new!(contr, (5, 6))
     UT.push_new!(contr, (5, 6))

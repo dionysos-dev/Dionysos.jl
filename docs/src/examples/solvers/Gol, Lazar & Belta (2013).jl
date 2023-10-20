@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Gol, Lazar and Belta (2013)
+# # Example: Gol, Lazar and Belta (2013) solved by [Bemporad Morari](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)

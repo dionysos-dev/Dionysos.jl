@@ -1,11 +1,11 @@
-# Standard form problem
+# Overview
 
 Dionysos aims to design a controller for a system $\mathcal{S}$ so that the closed-loop system satisfies the specification $\Sigma$ where:
 * the system $\mathcal{S}$ is specified by [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem) or [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem) objects;
 * the specification $\Sigma$ is specified by [`ProblemType`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Problem/#Dionysos.Problem.ProblemType) objects;
 * the solver $\mathcal{O}$ implementents the abstract type [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) of [`MathOptInterface`](https://github.com/jump-dev/MathOptInterface.jl).
 
-So a control problem $(\mathcal{S},\Sigma)$ can be addressed by a solver $\mathcal{O}$ via the [`JuMP`](https://github.com/jump-dev/JuMP.jl) interface, with Dionysos inheriting JuMP's powerful and practical optimization framework.
+So a control problem $(\mathcal{S},\Sigma)$ can be solved by $\mathcal{O}$ via the [`JuMP`](https://github.com/jump-dev/JuMP.jl) interface, with Dionysos inheriting JuMP's powerful and practical optimization framework.
 
 # Overview of the code structure
 Description of the core of the Dionysos.jl package, the [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src) folder:
@@ -14,8 +14,8 @@ Description of the core of the Dionysos.jl package, the [`src`](https://github.c
 | :--------------- | :---------- |
 | [`utils`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/utils) | Contains useful functions, data structures, classic search algorithms, file management, ... |
 | [`domain`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/domain) | Contains structures defining the domain of a system |
-| [`system`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/system) | Contains specific systems and controllers |
-| [`problem`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/problem) | Contains specifications |
+| [`system`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/system) | Contains a description of specific systems |
+| [`problem`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/problem) | Contains control problems that can be solved by Dionysos solvers |
 | [`symbolic`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/symbolic) | Contains the data structures needed to encode the abstractions |
 | [`optim`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/optim) | Contains the solvers |
 
@@ -28,9 +28,9 @@ where $\mathcal{X}$ is the state constraint, $\mathcal{U}$ is the input constrai
 * [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem), which extends the class of systems of [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem) to hybrid systems.
 
 
-# Specifications
+# Problems
 
-The specification types implemented in Dionysos.jl are:
+The problem types supported in Dionysos.jl are:
 
 | Type         | Description |
 | :--------------- | :---------- |
@@ -41,14 +41,14 @@ Extensions for linear temporal logic (LTL) specifications are currently being im
 
 # Solvers
 
-The following tables summarize the different solver types in abbreviated form. 
+The following tables summarize the different solvers. 
 
 
 **Abstraction-based solver types implemented in Dionysos.jl:**
 
 | Type          | Full vs partial discretization | Partition vs Cover | Shape | Local controller | Abstraction | System | Reference | 
 | :--------------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- |
-| [`SCOTS`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.SCOTSAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`SCOTS: A Tool for the Synthesis of Symbolic Controllers`](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
+| [`Naive abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.NaiveAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`SCOTS: A Tool for the Synthesis of Symbolic Controllers`](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
 | [`Lazy abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.LazyAbstraction.Optimizer) | Partial | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`Alternating simulation on hierarchical abstractions`](https://ieeexplore.ieee.org/abstract/document/9683448/?casa_token=AXyECYU9FdwAAAAA:ERfvlbkORIbfGLbDd42d2K5K9SLVOjl-8kRs9pfp7lMa4QZEv0W4VgzlP8FshBlxXQF4ZQrDuzk) |
 | [`Hierarchical abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.HierarchicalAbstraction.Optimizer) | Partial | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`Alternating simulation on hierarchical abstractions`](https://ieeexplore.ieee.org/abstract/document/9683448/?casa_token=AXyECYU9FdwAAAAA:ERfvlbkORIbfGLbDd42d2K5K9SLVOjl-8kRs9pfp7lMa4QZEv0W4VgzlP8FshBlxXQF4ZQrDuzk) |
 | [`Ellipsoid abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.EllipsoidsAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piece-wise affine | Determinisitic | Discrete-time affine | [`State-feedback Abstractions for Optimal Control of Piecewise-affine Systems`](https://arxiv.org/abs/2204.00315) |
@@ -64,8 +64,8 @@ The following tables summarize the different solver types in abbreviated form.
 
 **Solver interface**
 
-Each solver is defined by a module which must define the structure [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and implement the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
-For example, for the SCOTS solver, this structure and function are defined as follows
+Each solver is defined by a module which must implement the abstract type [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
+For example, for the NaiveAbstraction solver, this structure and function are defined as follows
 
 ```julia
 using JuMP
@@ -110,9 +110,9 @@ end
 
 # Running an example
 In this section, we outline how to define and solve a control problem with Dionsysos.
-For an executable version of this example, see [`Example: Path planning problem`](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Path%20planning/#Example:-Path-planning-problem) in the documentation.
+For an executable version of this example, see [`Solvers: Path planning problem`](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Path%20planning/#Example:-Path-planning-problem) in the documentation.
 
-First you need to define a control problem, i.e., the system and the specification of the desired closed loop behaviour.
+Define a control problem, i.e., the system and the specification of the desired closed loop behaviour.
 To do this, you can define new ones yourself or directly load an existing benchmark, for example
 
 ```julia
@@ -123,7 +123,7 @@ concrete_system = concrete_problem.system;
 Choose the solver you wish to use
 ```julia
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 ```
 
 Define the solver's meta-parameters
@@ -166,7 +166,7 @@ plot!(concrete_system.X; color = :yellow, opacity = 0.5);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(control_trajectory; ms = 0.5)
 ```
 
 
