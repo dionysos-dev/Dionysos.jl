@@ -10,7 +10,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -36,10 +35,10 @@ u0 = SVector(0.0, 0.0)
 h = SVector(0.3, 0.3)
 input_grid = DO.GridFree(u0, h)
 
-# We now solve the optimal control problem with the `Abstraction.SCOTSAbstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.NaiveAbstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -51,7 +50,7 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-@testset "SCOTS reachability" begin
+@testset "NaiveAbstraction reachability" begin
     @test length(abstract_controller.data) == 19400 #src
 end
 
@@ -67,7 +66,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(
+control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
@@ -102,7 +101,7 @@ no_plot = false
     )
 
     # We display the concrete trajectory
-    plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+    plot!(control_trajectory; ms = 0.5)
 end
 end
 # ### References

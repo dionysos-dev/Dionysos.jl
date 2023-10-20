@@ -8,8 +8,9 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
@@ -74,19 +75,24 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = CO.NewControllerList()
-    CO.compute_controller_reach!(contr, symmodel.autom, initlist, targetlist)
+    contr = AB.NaiveAbstraction.NewControllerList()
+    AB.NaiveAbstraction.compute_controller_reach!(
+        contr,
+        symmodel.autom,
+        initlist,
+        targetlist,
+    )
     @test length(contr) == 412
     if VERSION >= v"1.5"
         function f(autom, initlist, targetlist)
-            contr = CO.NewControllerList()
+            contr = AB.NaiveAbstraction.NewControllerList()
             initset, targetset, num_targets_unreachable, current_targets, next_targets =
-                CO._data(contr, autom, initlist, targetlist)
+                AB.NaiveAbstraction._data(contr, autom, initlist, targetlist)
             # Preallocates to make sure `_compute_controller_reach` does not need to allocate
             sizehint!(contr.data, 500)
             sizehint!(current_targets, 50)
             sizehint!(next_targets, 200)
-            @allocated CO._compute_controller_reach!(
+            @allocated AB.NaiveAbstraction._compute_controller_reach!(
                 contr,
                 autom,
                 initset,
@@ -97,7 +103,7 @@ println("Started test")
             )
         end
         f(symmodel.autom, initlist, targetlist)
-        @test f(symmodel.autom, initlist, targetlist) == 3224896 # check this
+        @test f(symmodel.autom, initlist, targetlist) == 3220912 # check this
     end
 
     xpos = DO.get_somepos(Xinit)

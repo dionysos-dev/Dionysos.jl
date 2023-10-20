@@ -1,4 +1,4 @@
-# # Lazy-abstraction-reachability
+# # Example: Reachability problem solved by [Lazy abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Lazy-abstraction-reachability.ipynb)
@@ -8,19 +8,14 @@
 #
 # In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
 # for the sampled system with a sampling time $\tau$.
-#
-# The abstraction is based on a feedback refinment relation [1,V.2 Definition].
-# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
-#
 # For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
 # a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
-# to compute the relations in the abstraction based on the feedback refinement relation.
+# attainable sets of a particular cell based on the state reach by its center. 
 #
 # For this reachability problem, the abstraction controller is built using a solver that lazily builds the abstraction, constructing the abstraction 
 # at the same time as the controller.
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, JuMP, Plots
 
 # At this point, we import Dionysos.
@@ -30,12 +25,11 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -127,9 +121,9 @@ AB.LazyAbstraction.set_optimizer!(
     Ugrid,
 )
 
-# Build the state feedback abstraction and solve the optimal control problem using A* algorithm
+# Build the abstraction and solve the optimal control problem using A* algorithm
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin
     MOI.optimize!(optimizer)
 end
 
@@ -148,7 +142,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 # We simulate the closed loop trajectory
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
+cost_control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f_eval,
     concrete_controller,
     cost_eval,
@@ -159,7 +153,7 @@ x_traj, u_traj, cost_traj = CO.get_closed_loop_trajectory(
 )
 
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_traj);
+cost_true = sum(cost_control_trajectory.costs.seq);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -178,11 +172,17 @@ plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 
 #We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(cost_control_trajectory; ms = 0.5)
 
 # # Display the abstraction and Lyapunov-like function
 fig = plot(; aspect_ratio = :equal);
-plot!(abstract_system; dims = [1, 2], cost = true, lyap_fun = optimizer.lyap_fun)
+plot!(
+    abstract_system;
+    dims = [1, 2],
+    cost = true,
+    lyap_fun = optimizer.lyap_fun,
+    label = false,
+)
 
 # # Display the Bellman-like value function (heuristic)
 fig = plot(; aspect_ratio = :equal)
@@ -192,12 +192,9 @@ plot!(
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.bell_fun,
+    label = false,
 )
 
 # # Display the results of the A* algorithm
 fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
-
-# ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.

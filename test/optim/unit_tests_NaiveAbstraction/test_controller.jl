@@ -4,13 +4,14 @@ using Test
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "Controller" begin
-    contr = CO.NewControllerList()
+    contr = AB.NaiveAbstraction.NewControllerList()
 
     UT.push_new!(contr, (5, 6))
     UT.push_new!(contr, (5, 6))

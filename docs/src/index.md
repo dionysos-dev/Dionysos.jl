@@ -24,8 +24,9 @@ Rather than relying on closed-form analysis of a model of the dynamical system, 
 
 The documentation is organised as follows.
 * The **Manual** section contains all the useful information to use Dionysos as a user.
+* The **Solvers** section contains a few examples of solving problems with Dionysos. Start with [Getting started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Getting%20Started/) if you want to get familiar with Dionysos.
+* The **Utils** section contains some examples of basic Dionysos functions.
 * The **API Reference** sections contains all the functions that we currently use in Dionysos. 
-* The **Examples** section contains a few examples of solving problems with Dionysos. Start with [Getting started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Getting%20Started/) if you want to get familiar with Dionysos.
 * The **Developer Docs** section is dedicated to the contributors to Dionysos developement. 
 
  

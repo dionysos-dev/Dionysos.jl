@@ -29,6 +29,6 @@ Dionysos.System.AffineController
 
 ## Trajectories 
 ```@docs
-Dionysos.Control.DiscreteTrajectory
-Dionysos.Control.ContinuousTrajectory
+Dionysos.System.DiscreteTrajectory
+Dionysos.System.ContinuousTrajectory
 ```

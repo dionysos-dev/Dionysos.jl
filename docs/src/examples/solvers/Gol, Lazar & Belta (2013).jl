@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Gol, Lazar and Belta (2013)
+# # Example: Gol, Lazar and Belta (2013) solved by [Bemporad Morari](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
@@ -30,7 +30,7 @@ import Ipopt
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const CO = DI.Control
+const ST = DI.System
 const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
@@ -86,7 +86,7 @@ objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 @test objective_value ≈ 11.38 atol = 1e-2     #src
 
 # and recover the corresponding continuous trajectory
-xu = MOI.get(optimizer, CO.ContinuousTrajectoryAttribute());
+xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
 
 # ## A little bit of data visualization now:
 

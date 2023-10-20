@@ -51,7 +51,47 @@ struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T
     continuous::ContinuousTrajectory{T, XVT, UVT}
 end
 
-# Trajectory closed loop
+struct Trajectory{T}
+    seq::Vector{T}
+end
+
+Base.length(traj::Trajectory) = length(traj.seq)
+get_elem(traj::Trajectory, n::Int) = traj.seq[n]
+
+@recipe function f(traj::Trajectory)
+    return UT.DrawTrajectory(traj.seq)
+end
+
+struct Control_trajectory{T1, T2}
+    states::Trajectory{T1}
+    inputs::Trajectory{T2}
+end
+
+Base.length(traj::Control_trajectory) = length(traj.states)
+get_state(traj::Control_trajectory, n::Int) = get_elem(traj.states, n)
+get_input(traj::Control_trajectory, n::Int) = get_elem(traj.inputs, n)
+get_elem(traj::Control_trajectory, n::Int) = (get_state(traj, n), get_input(traj, n))
+
+@recipe function f(traj::Control_trajectory)
+    return traj.states
+end
+
+struct Cost_control_trajectory{T1, T2, T3}
+    control_trajectory::Control_trajectory{T1, T2}
+    costs::Trajectory{T3}
+end
+
+Base.length(traj::Cost_control_trajectory) = length(traj.control_trajectory)
+get_state(traj::Cost_control_trajectory, n::Int) = get_state(traj.control_trajectory, n)
+get_input(traj::Cost_control_trajectory, n::Int) = get_input(traj.control_trajectory, n)
+get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
+get_elem(traj::Cost_control_trajectory, n::Int) =
+    (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
+
+@recipe function f(traj::Cost_control_trajectory)
+    return traj.control_trajectory
+end
+
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
     x = x0
     x_traj = [x]
@@ -67,7 +107,7 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
         push!(u_traj, u)
         i = i + 1
     end
-    return x_traj, u_traj
+    return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
 end
 
 function get_closed_loop_trajectory(
@@ -100,5 +140,6 @@ function get_closed_loop_trajectory(
         push!(x_traj, x)
         i = i + 1
     end
-    return x_traj, u_traj, cost_traj
+    control_trajectory = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
+    return Cost_control_trajectory(control_trajectory, Trajectory(cost_traj))
 end

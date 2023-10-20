@@ -1,4 +1,4 @@
-# # Hierarchical-abstraction
+# # Example: Reachability problem solved by [Hierarchical abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Hierarchical-abstraction.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Hierarchical-abstraction.ipynb)
@@ -13,12 +13,11 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/simple_problem.jl")
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem.jl"))
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -126,11 +125,11 @@ AB.LazyAbstraction.set_optimizer_parameters!(
 )
 
 # Global optimizer parameters
-hx_global = [10.0, 10.0] #[15.0, 15.0]
+hx_global = [10.0, 10.0]
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
-max_iter = 6 # 9
+max_iter = 6
 max_time = 1000
 
 optimizer = MOI.instantiate(AB.HierarchicalAbstraction.Optimizer)
@@ -160,9 +159,12 @@ println("Solved : ", optimizer.solved)
 
 # ## Simulation
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, cost_traj = AB.HierarchicalAbstraction.simulate_trajectory(optimizer, x0)
-cost = sum(cost_traj);
-println("Goal set reached: $(x_traj[end]∈concrete_problem.target_set)")
+cost_control_trajectory =
+    AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
+cost = sum(cost_control_trajectory.costs.seq);
+println(
+    "Goal set reached: $(ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory))∈concrete_problem.target_set)",
+)
 println("Cost:\t $(cost)")
 
 # ## Display the results
@@ -180,7 +182,7 @@ plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 
 #We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(cost_control_trajectory; ms = 0.5)
 
 # # Display the lazy abstraction 
 fig = plot(; aspect_ratio = :equal);
@@ -191,4 +193,4 @@ plot!(
     heuristic = false,
     fine = true,
 )
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(cost_control_trajectory; ms = 0.5)

@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Path planning problem
+# # Example: Path planning problem solved by [Naive abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
@@ -23,21 +23,14 @@ using Test     #src
 #
 # In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
 # for the sampled system with a sampling time $\tau$.
-#
-# The abstraction is based on a feedback refinment relation [1,V.2 Definition].
-# Basically, this is equivalent to an alternating simulation relationship with the additional constraint that the input of the
-# concrete and symbolic system preserving the relation must be identical.
-# This allows to easily determine the controller of the concrete system from the abstraction controller by simply adding a quantization step.
-#
 # For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
 # a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center. Therefore, it is used
-# to compute the relations in the abstraction based on the feedback refinement relation.
+# attainable sets of a particular cell based on the state reach by its center.
 #
-# For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the the pre-image
+# For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the pre-image
 # of the target set.
 
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots].
+# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
 
 # At this point, we import Dionysos.
@@ -47,7 +40,6 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-const CO = DI.Control
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -73,10 +65,10 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
-# We now solve the optimal control problem with the `Abstraction.SCOTSAbstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.NaiveAbstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(AB.SCOTSAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -102,7 +94,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = CO.get_closed_loop_trajectory(
+control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
@@ -133,7 +125,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(UT.DrawTrajectory(x_traj); ms = 0.5)
+plot!(control_trajectory; ms = 0.5)
 
 # ### References
 # 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.

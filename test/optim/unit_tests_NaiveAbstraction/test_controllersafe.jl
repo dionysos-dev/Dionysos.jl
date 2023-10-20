@@ -7,8 +7,9 @@ const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const CO = DI.Control
 const SY = DI.Symbolic
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 sleep(0.1) # used for good printing
 println("Started test")
@@ -73,8 +74,8 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = CO.NewControllerList()
-    CO.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
+    contr = AB.NaiveAbstraction.NewControllerList()
+    AB.NaiveAbstraction.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
     @test length(contr) == 15043
 
     invlist = Int[]
