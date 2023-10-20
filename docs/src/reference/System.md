@@ -31,4 +31,8 @@ Dionysos.System.AffineController
 ```@docs
 Dionysos.System.DiscreteTrajectory
 Dionysos.System.ContinuousTrajectory
+Dionysos.System.HybridTrajectory
+Dionysos.System.Trajectory
+Dionysos.System.Control_trajectory
+Dionysos.System.Cost_control_trajectory
 ```
