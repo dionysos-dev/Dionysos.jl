@@ -4,12 +4,11 @@ This folder contains all the different (abstraction-based or not) solvers that c
 
 ## Abstraction-based solvers
 ```@docs
-Dionysos.Optim.Abstraction.SCOTSAbstraction.Optimizer
+Dionysos.Optim.Abstraction.NaiveAbstraction.Optimizer
 Dionysos.Optim.Abstraction.EllipsoidsAbstraction.Optimizer
 Dionysos.Optim.Abstraction.HierarchicalAbstraction.Optimizer
 Dionysos.Optim.Abstraction.LazyAbstraction.Optimizer
 Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
-Dionysos.Optim.Abstraction.NaiveAbstraction.Optimizer
 ```
 
 ## Other solvers
