@@ -9,8 +9,7 @@ using Polyhedra
 """
     DiscreteTrajectory{Q, TT}
 
-`q_0` is the starting mode and `transitions` is a sequence of discrete
-transitions in the system.
+`q_0` is the starting mode and `transitions` is a sequence of discrete transitions in the system.
 """
 struct DiscreteTrajectory{Q, TT}
     q_0::Q
@@ -36,8 +35,7 @@ end
 """
     ContinuousTrajectory{T, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
 
-`x` is a sequence of points in the state space and `u` is a sequence of points
-in the input space.
+`x` is a sequence of points in the state space and `u` is a sequence of points in the input space.
 """
 struct ContinuousTrajectory{T, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
     x::Vector{XVT}

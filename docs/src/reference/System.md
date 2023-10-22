@@ -4,13 +4,13 @@ This folder contains different ways to define systems, for instance to encode a 
 
 ## Control system
 
-Each control system should be implemented as a ControlSystem .
+Each control system should be implemented as a ControlSystem.
 
 ```@docs
 Dionysos.System.ControlSystem
 ```
 
-So far, we have implemented a few examples of control systems : 
+So far, we have implemented a few examples of control systems: 
 
 ```@docs
 Dionysos.System.SimpleSystem
@@ -20,7 +20,7 @@ Dionysos.System.EllipsoidalAffineApproximatedSystem
 ```
 
 ## Controller 
-So far, the abstraction-based methods that we use define either piece-wise constant or piecewise-affine controllers.
+So far, the abstraction-based methods that we use define either piecewise-constant or piecewise-affine controllers.
 
 ```@docs
 Dionysos.System.ConstantController

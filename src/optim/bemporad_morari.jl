@@ -20,7 +20,7 @@ using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, P
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Bemporad Morari solver : Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures.
+Bemporad Morari solver: Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any

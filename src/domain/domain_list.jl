@@ -7,7 +7,7 @@ end
 """
     DomainList{N,T,S<:Grid{N,T}}
 
-Struct for a basic domain based on a `Grid` .
+Struct for a basic domain based on a `Grid`.
 """
 struct DomainList{N, T, S <: Grid{N, T}} <: DomainType{N, T}
     grid::S

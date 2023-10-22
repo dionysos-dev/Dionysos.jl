@@ -3,7 +3,7 @@ The structure
 
     ControlSystem{N, T}
 
-is the abstract type which defines a control system.
+is the abstract type that defines a control system.
 """
 abstract type ControlSystem{N, T} end
 using IntervalArithmetic
@@ -170,7 +170,7 @@ end
 """
     SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}   
 
-is one implementation of the `ControlSystem` type 
+is one implementation of the `ControlSystem` type. 
 """
 struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
     tstep::Float64

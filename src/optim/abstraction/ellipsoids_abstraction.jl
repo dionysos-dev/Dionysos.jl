@@ -16,7 +16,7 @@ const PR = DI.Problem
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Abstraction-based solver for which the domain is covered with elippsoidal cells, independently of the control task.
+Abstraction-based solver for which the domain is covered with ellipsoidal cells, independently of the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
