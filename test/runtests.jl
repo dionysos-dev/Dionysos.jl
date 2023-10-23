@@ -1,7 +1,3 @@
-# Two following tests temporarily removed, see https://github.com/dionysos-dev/Dionysos.jl/issues/209
-include("./utils/data_structures/BDD/test_BDD.jl")
-include("./utils/data_structures/BDD/test_inttupleset.jl")
-
 include("./utils/data_structures/test_queue.jl")
 include("./utils/data_structures/test_digraph.jl")
 include("./utils/data_structures/tree.jl")
