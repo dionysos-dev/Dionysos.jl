@@ -11,8 +11,6 @@ Dionysos.Utils.QuadraticStateControlFunction
 ## Search
 
 ```@docs
-Dionysos.Utils.BDD.BitSet
-Dionysos.Utils.BDD.IntTupleSet
 Dionysos.Utils.expand
 Dionysos.Utils.path_cost
 Dionysos.Utils.breadth_first_graph_search
