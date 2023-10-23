@@ -16,7 +16,7 @@ const PR = DI.Problem
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Solver from Lazy Abstraction
+Abstraction-based solver for which the hyper-rectangular abstraction and the controller are co-designed to reduce the computation cost of the abstraction.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_system::Union{Nothing, Any}

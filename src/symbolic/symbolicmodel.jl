@@ -1,11 +1,16 @@
 using Plots, Colors
 
+"""
+    SymbolicModel{N, M}
+
+is the abtract type which defines a symbolic model.
+"""
 abstract type SymbolicModel{N, M} end
 
 """
     SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
     
-TO ADD
+is one implementation of the `SymbolicModel` type for classical abstraction-based methods, i.e. when the whole domain is partitioned/covered.
 """
 mutable struct SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
                SymbolicModel{N, M}

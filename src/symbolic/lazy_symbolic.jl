@@ -1,7 +1,7 @@
 """
     LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
 
-TO ADD
+is one implementation of the `SymbolicModel` type for the lazy abstraction-based methods, i.e. when a subset of the domain is partitioned/covered.
 """
 mutable struct LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
                SymbolicModel{N, M}

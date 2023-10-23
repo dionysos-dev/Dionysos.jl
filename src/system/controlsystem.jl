@@ -1,4 +1,10 @@
+"""
+The structure
 
+    ControlSystem{N, T}
+
+is the abstract type that defines a control system.
+"""
 abstract type ControlSystem{N, T} end
 using IntervalArithmetic
 function get_f_eval(sys)
@@ -23,7 +29,7 @@ end
 """
     ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <: ControlSystem{N, T}
 
-TO ADD
+is one implementation of the `ControlSystem` type for which we have a growth bound function.
 """
 struct ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <:
        ControlSystem{N, T}
@@ -71,7 +77,7 @@ end
 """
     ControlSystemLinearized{N, T, F1 <: Function, F2 <: Function, F3 <: Function, F4 <: Function, } <: ControlSystem{N, T}
 
-TO ADD
+is one implementation of the `ControlSystem` type for which we have linearized the system map.
 """
 struct ControlSystemLinearized{
     N,
@@ -164,7 +170,7 @@ end
 """
     SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}   
 
-TO ADD
+is one implementation of the `ControlSystem` type. 
 """
 struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
     tstep::Float64
@@ -183,7 +189,7 @@ end
 """
     EllipsoidalAffineApproximatedSystem{}   
     
-TO ADD
+is a system whose dynamics is a noisy constrained affine control discrete system whose cells are ellipsoids, with a bound on the Lipschitz constant.
 """
 struct EllipsoidalAffineApproximatedSystem{}
     dynamics::Dict{UT.Ellipsoid, NoisyConstrainedAffineControlDiscreteSystem}
@@ -243,11 +249,7 @@ end
 ############################################
 # Affine discrete time system approximaton with its Lypschitz constant and the region of validity
 # of the Lipschitz constant
-"""
-    AffineApproximationDiscreteSystem      
-    
-TO ADD
-"""
+
 struct AffineApproximationDiscreteSystem #<: ControlSystem
     constrainedAffineSys::NoisyConstrainedAffineControlDiscreteSystem
     L::Any
@@ -266,11 +268,6 @@ end
 ############################################
 ############################################
 
-"""
-    SymbolicSystem{}  
-    
-TO ADD
-"""
 struct SymbolicSystem{}
     fsymbolicT::Any
     fsymbolic::Any

@@ -16,7 +16,7 @@ using HybridSystems
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Branch and bound solver
+Branch and bound solver: Optimal control of hybrid systems via a predictive control scheme combining a branch and bound algorithm that can refine Q-functions using Lagrangian duality.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     continuous_solver::Any

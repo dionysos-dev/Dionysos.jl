@@ -22,7 +22,7 @@ global NI = nothing
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Lazy ellipsoids abstraction solver
+Abstraction-based solver using the lazy abstraction method with ellipsoidal cells.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}

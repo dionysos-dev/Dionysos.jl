@@ -9,8 +9,7 @@ using Polyhedra
 """
     DiscreteTrajectory{Q, TT}
 
-`q_0` is the starting mode and `transitions` is a sequence of discrete
-transitions in the system
+`q_0` is the starting mode and `transitions` is a sequence of discrete transitions in the system.
 """
 struct DiscreteTrajectory{Q, TT}
     q_0::Q
@@ -36,8 +35,7 @@ end
 """
     ContinuousTrajectory{T, XVT<:AbstractVector{T}, UVT<:AbstractVector{T}}
 
-`x` is a sequence of points in the state space and `u` is a sequence of points
-in the input space
+`x` is a sequence of points in the state space and `u` is a sequence of points in the input space.
 """
 struct ContinuousTrajectory{T, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
     x::Vector{XVT}
@@ -46,11 +44,21 @@ end
 
 struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute end
 
+"""
+    HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
+
+`discrete` is the discrete trajectory of type `DiscreteTrajectory` and  `continuous` is a the continuous trajectory of type `ContinuousTrajectory`.
+"""
 struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
     discrete::DiscreteTrajectory{TT}
     continuous::ContinuousTrajectory{T, XVT, UVT}
 end
 
+"""
+    Trajectory{T}
+
+provides the sequence of some elements of a trajectory.
+"""
 struct Trajectory{T}
     seq::Vector{T}
 end
@@ -62,6 +70,11 @@ get_elem(traj::Trajectory, n::Int) = traj.seq[n]
     return UT.DrawTrajectory(traj.seq)
 end
 
+"""
+    Control_trajectory{T1, T2}
+
+provides the sequence of states and inputs of a trajectory.
+"""
 struct Control_trajectory{T1, T2}
     states::Trajectory{T1}
     inputs::Trajectory{T2}
@@ -76,6 +89,11 @@ get_elem(traj::Control_trajectory, n::Int) = (get_state(traj, n), get_input(traj
     return traj.states
 end
 
+"""
+    Cost_control_trajectory{T1, T2, T3}
+
+provides the sequence of states, inputs (via `Control_trajectory`) and costs of a trajectory.
+"""
 struct Cost_control_trajectory{T1, T2, T3}
     control_trajectory::Control_trajectory{T1, T2}
     costs::Trajectory{T3}

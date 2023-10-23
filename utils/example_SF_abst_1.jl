@@ -8,8 +8,12 @@ const DI = Dionysos
 const UT = DI.Utils
 const SY = DI.Symbolic
 
-# Example to illustrate the cost of a transition between two ellispoids as a function of meta-parameters
-# such as the volume of the initial ellispoid and the contraction factor
+# The aim of this file is to generate Figure 2 of the paper "State-feedback Abstractions for Optimal 
+# Control of Piecewise-affine Systems" from L.N. EGIDIO, T.A. LIMA and R.M. JUNGERS (CDC 2022).
+# This paper investigates symbolic abstractions that capture the behavior of piecewise-affine systems
+# under input constraints and bounded external noise. This file illustrates the cost of a transition 
+# between two ellispoids as a function of meta-parameters such as the volume of the initial ellispoid 
+# and the contraction factor.
 
 lib = CDDLib.Library() #polyhedron lib
 # aux functions

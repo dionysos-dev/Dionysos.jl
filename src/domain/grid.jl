@@ -113,7 +113,7 @@ end
     GridEllipsoidalRectangular{N,T} <: Grid{N,T}
 
 Uniform grid on rectangular space `rect`, centered at `orig` and with steps set by the vector `h`.
-Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`
+Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`.
 """
 struct GridEllipsoidalRectangular{N, T} <: Grid{N, T}
     orig::SVector{N, T}

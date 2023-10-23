@@ -2,11 +2,6 @@
 
 This folder contains all the auxiliary functions needed.
 
-## Ellipsoids 
-
-```@docs
-```
-
 ## Functions 
 
 ```@docs

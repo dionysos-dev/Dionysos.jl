@@ -19,7 +19,7 @@ using ..LazyAbstraction
 """
     Optimizer{T} <: MOI.AbstractOptimizer
     
-Hierarchical abstraction solver
+Abstraction-based solver for which the domain is initially partioned into coarse hyper-rectangular cells, which are iteratively locally smartly refined with respect to the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_system::Union{Nothing, Any}
