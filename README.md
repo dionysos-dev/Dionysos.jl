@@ -23,7 +23,6 @@
 Dionysos is the software of the ERC project Learning to control (L2C). In view of the Cyber-Physical Revolution, the only sensible way of controlling these complex systems is often by discretizing the different variables, thus transforming the model into a simple combinatorial problem on a finite-state automaton, called an abstraction of this system. The goal of L2C is to transform this approach into an effective, scalable, cutting-edge technology that will address the CPS challenges and unlock their potential. This ambitious goal will be achieved by leveraging powerful tools from Mathematical Engineering.
 
 ## Current version
-https://dionysos-dev.github.io/Dionysos.jl/dev/generated/
 The current version is still in the making, and allows to solve problems such as reachability problems for hybrid systems. See the [Docs](https://dionysos-dev.github.io/Dionysos.jl/dev/) for further information.
 
 ## Longterm objectives
