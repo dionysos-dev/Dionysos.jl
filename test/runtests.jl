@@ -6,6 +6,8 @@ include("./utils/rectangle.jl")
 include("./utils/ellipsoid.jl")
 include("./utils/scalar_functions.jl")
 include("./utils/test_lazy_set_operations.jl")
+include("./utils/optim/newton_method.jl")
+include("./utils/optim/bisection.jl")
 
 include("./domain/test_griddomain.jl")
 include("./domain/test_general_domain.jl")
