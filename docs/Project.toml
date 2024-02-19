@@ -29,10 +29,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
-SDPA_jll = "7fc90fd6-dbef-5a6a-93f8-169f2a2e705b"
 
 [compat]
 Documenter = "1"
-CxxWrap = "0.13"
-SDPA_jll = "=700.300.801, =700.301.800"
