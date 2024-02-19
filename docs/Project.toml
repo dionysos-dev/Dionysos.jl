@@ -34,5 +34,5 @@ SDPA_jll = "7fc90fd6-dbef-5a6a-93f8-169f2a2e705b"
 
 [compat]
 Documenter = "1"
-CxxWrap = "0.13"
+CxxWrap = "0.12, 0.13"
 SDPA_jll = "=700.300.801, =700.301.800"
