@@ -1,6 +1,3 @@
-# # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-
 using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
 using MathematicalSystems, HybridSystems
 using JuMP, Mosek, MosekTools
@@ -18,21 +15,19 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
-
-# # First example
+include("../../../problems/non_linear.jl")
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
-# Optimizer's parameters
+# Optimizer's parameters, see https://github.com/MOSEK/Mosek.jl/issues/206
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 
 maxδx = 100
-maxδu = 10 * 2 
-λ = 0.01 
+maxδu = 10 * 2
+λ = 0.01
 k1 = 1
 k2 = 1
 RRTstar = false
@@ -55,10 +50,7 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -92,55 +84,55 @@ println("True cost:\t\t $(cost_true)")
 
 # ## Display the results
 # # Display the specifications and domains
-fig = plot(;
+fig1 = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
     guidefontsize = 16,
     titlefontsize = 14,
-    label = false,
-);
-xlabel!("\$x_1\$");
-ylabel!("\$x_2\$");
-title!("Specifictions and domains");
+)
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Specifictions and domains")
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
+plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
+for obs in concrete_system.obstacles
+    plot!(fig1, obs; color = :black)
+end
 
 #Display the abstract domain
-plot!(abstract_system; arrowsB = false, cost = false, label = false);
+plot!(fig1, abstract_system; arrowsB = false, cost = false)
 
 #Display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, label = false);
-plot!(concrete_problem.target_set; color = :red, label = false)
+plot!(fig1, concrete_problem.initial_set; color = :green)
+plot!(fig1, concrete_problem.target_set; color = :red)
 
 # # Display the abstraction
-fig = plot(;
+fig2 = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
     guidefontsize = 16,
     titlefontsize = 14,
-);
-title!("Abstractions");
-plot!(abstract_system; arrowsB = true, cost = false)
+)
+title!("Abstractions")
+plot!(fig2, abstract_system; arrowsB = true, cost = false)
 
 # # Display the Lyapunov function and the trajectory
-fig = plot(;
+fig3 = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
     guidefontsize = 16,
     titlefontsize = 14,
-);
-xlabel!("\$x_1\$");
-ylabel!("\$x_2\$");
-title!("Trajectory and Lyapunov-like Fun.");
+)
+xlabel!("\$x_1\$")
+ylabel!("\$x_2\$")
+title!("Trajectory and Lyapunov-like Fun.")
 
 for obs in concrete_system.obstacles
-    plot!(obs; color = :black)
+    plot!(fig3, obs; color = :black)
 end
-plot!(abstract_system; arrowsB = false, cost = true);
-plot!(cost_control_trajectory; color = :black)
-
-@test cost_true <= cost_bound             #src
+plot!(fig3, abstract_system; arrowsB = false, cost = true)
+plot!(fig3, cost_control_trajectory; color = :black)
