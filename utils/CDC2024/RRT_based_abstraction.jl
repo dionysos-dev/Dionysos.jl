@@ -23,26 +23,29 @@ xnew = SVector{2, Float64}([1.0; 1.0])
 Wbound = 0.0
 λ = 0.01
 
-
-concrete_problem = NonLinear.problem(; 
-X = IntervalBox(-20.0 .. 20.0, 2),
-obstacles = [UT.Ellipsoid(Matrix{Float64}(I(2)) * 1 / 50, [0.0; 0.0]), UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]), UT.Ellipsoid([2.0 0.2; 0.2 0.5] * 0.2, [20.0; 0.0])],
-U = U,
-E0 = UT.Ellipsoid(Matrix{Float64}(I(2)) * 10.0, [-10.0; -10.0]),
-Ef = UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [10.0; 10.0]),
-state_cost = UT.ZeroFunction(),
-transition_cost = UT.QuadraticStateControlFunction(
-    Matrix{Float64}(I(2)),
-    Matrix{Float64}(I(2)),
-    zeros(2, 2),
-    zeros(2),
-    zeros(2),
-    1.0,
-),
-W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
-noise = false,
-μ = ρ,)
-
+concrete_problem = NonLinear.problem(;
+    X = IntervalBox(-20.0 .. 20.0, 2),
+    obstacles = [
+        UT.Ellipsoid(Matrix{Float64}(I(2)) * 1 / 50, [0.0; 0.0]),
+        UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),
+        UT.Ellipsoid([2.0 0.2; 0.2 0.5] * 0.2, [20.0; 0.0]),
+    ],
+    U = U,
+    E0 = UT.Ellipsoid(Matrix{Float64}(I(2)) * 10.0, [-10.0; -10.0]),
+    Ef = UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [10.0; 10.0]),
+    state_cost = UT.ZeroFunction(),
+    transition_cost = UT.QuadraticStateControlFunction(
+        Matrix{Float64}(I(2)),
+        Matrix{Float64}(I(2)),
+        zeros(2, 2),
+        zeros(2),
+        zeros(2),
+        1.0,
+    ),
+    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
+    noise = false,
+    μ = ρ,
+)
 
 concrete_system = concrete_problem.system
 
@@ -50,11 +53,11 @@ concrete_system = concrete_problem.system
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
-maxδx = 100 
+maxδx = 100
 maxδu = 10 * 2
 k1 = 1
 k2 = 1
-RRTstar = false 
+RRTstar = false
 continues = false
 maxIter = 100
 
@@ -131,9 +134,8 @@ plot!(abstract_system; arrowsB = true, cost = true)
 #Display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green)
 
-
 xlabel!("\$x_1\$")
 ylabel!("\$x_2\$")
-xlims!(-25, 25) 
+xlims!(-25, 25)
 
 display(fig)

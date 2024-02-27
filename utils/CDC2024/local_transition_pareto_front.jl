@@ -43,7 +43,7 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     )
 
     # Solve the control problem
-    
+
     S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
     MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
@@ -317,7 +317,7 @@ c = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.0008
 Ubound = 5.0
 Wbound = 0.01
-λ_span = 0.0005:0.01:1.0 
+λ_span = 0.0005:0.01:1.0
 
 # fig 1.1
 plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
@@ -353,7 +353,7 @@ contour_plot(
 #########################################################################################
 Ubound = 5.0
 λ = 0.0
-ρ_span = 0.0:0.0004:0.004 
+ρ_span = 0.0:0.0004:0.004
 Wbound_span = 0:0.02:0.6;
 contour_plot(
     E2,
