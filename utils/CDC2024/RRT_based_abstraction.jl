@@ -17,7 +17,6 @@ const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
 
-# Data
 U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0))
 xnew = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.00005
@@ -51,7 +50,7 @@ concrete_system = concrete_problem.system
 const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
-maxδx = 100 # 1.5
+maxδx = 100 
 maxδu = 10 * 2
 k1 = 1
 k2 = 1

@@ -120,11 +120,6 @@ function compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     return max_cost_vector, init_set_volume_vector, input_set_volume_vector
 end
 
-# You can normalize the objective functions in a biobjective optimization problem to ensure that the weights are approximately equivalent. 
-# Normalizing the objective functions can help balance the contributions of the two objectives when optimizing the weighted sum.
-# -Calculate the minimum and maximum values for each objective function over the entire search space.
-# -Normalize each objective function value using the corresponding minimum and maximum values.
-# -Apply the weights to the normalized objective function values to compute the weighted sum.
 function plot_pareto_front!(E2, c, ρ, Ubound, Wbound, λ_span, mycolorMap; lbls = false)
     max_cost_vector, init_set_volume_vector, input_set_volume_vector =
         compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
@@ -166,10 +161,6 @@ function plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     )
     plot!(mycolorMap)
     return display(fig1)
-    # fig2 = plot(; xtickfontsize = 10, ytickfontsize = 10, guidefontsize = 18, titlefontsize = 16,)
-    # plot!(λ_span, -max_cost_vector, label="-\$\\widetilde{\\mathcal{J}}\$")
-    # plot!(λ_span, init_set_volume_vector, label ="\${\\rm vol}(E_1)\$")
-    # display(fig2)
 end
 
 function plot_pareto_front_Wspan(E2, c, ρ, Ubound, Wbound_span, λ_span)
@@ -326,7 +317,7 @@ c = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.0008
 Ubound = 5.0
 Wbound = 0.01
-λ_span = 0.0005:0.01:1.0  #0.01:0.1:0.8
+λ_span = 0.0005:0.01:1.0 
 
 # fig 1.1
 plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
@@ -344,7 +335,7 @@ plot_pareto_front_ρspan(E2, c, ρ_span, Ubound, Wbound, λ_span)
 #########################################################################################
 Ubound = 5.0
 λ = 1.0
-ρ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
+ρ_span = 0.0:0.0004:0.004
 Wbound_span = 0:0.02:0.6
 contour_plot(
     E2,
@@ -362,7 +353,7 @@ contour_plot(
 #########################################################################################
 Ubound = 5.0
 λ = 0.0
-ρ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
+ρ_span = 0.0:0.0004:0.004 
 Wbound_span = 0:0.02:0.6;
 contour_plot(
     E2,

@@ -202,17 +202,18 @@ xnew = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.0005
 Wbound = 0.1
 λ = 0.01
+test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
 #fig 2
 ρ = 0.0005
 Wbound = 0.1
 λ = 0.3
+test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
 # #fig 3
 ρ = 0.001
 Wbound = 0.15
 λ = 0.01
-
 test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
 
