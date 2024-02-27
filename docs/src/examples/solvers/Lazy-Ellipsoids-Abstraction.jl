@@ -31,8 +31,8 @@ sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 
 maxδx = 100
-maxδu = 10 * 2 
-λ = 0.01 
+maxδu = 10 * 2
+λ = 0.01
 k1 = 1
 k2 = 1
 RRTstar = false
