@@ -59,9 +59,6 @@ function system(X, U, W, obstacles, Ts, noise, μ)
         ]
     end
 
-    # f_eval(x, u, w) = fsymbolicT(x, u, w, Ts)
-    # f_backward_eval(x, u, w) = fsymbolicT(x, u, w, -Ts)
-
     return ST.SymbolicSystem(
         fsymbolicT,
         fsymbolic,

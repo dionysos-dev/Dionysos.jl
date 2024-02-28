@@ -15,7 +15,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/non_linear.jl")
+include("../../../problems/non_linear.jl")
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
@@ -25,14 +25,14 @@ const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 
-maxδx = 100 # 100
-maxδu = 10 * 2 # Usz * 2
-λ = 0.01 # 0.01
+maxδx = 100
+maxδu = 10 * 2
+λ = 0.01
 k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 100 # 100
+maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(

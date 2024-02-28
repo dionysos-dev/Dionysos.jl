@@ -1,6 +1,6 @@
 module TestMain
 
-include("../../utils/SFRRT/example_lazy_ellipsoid_1.jl")
+include("units_tests_LazyEllispoidAbstraction/example_lazy_ellipsoid.jl")
 @testset "lazy-ellipsoids-abstraction" begin
     @test cost_true <= cost_bound
     @test isa(fig1, Plots.Plot{Plots.GRBackend})
