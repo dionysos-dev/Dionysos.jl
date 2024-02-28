@@ -3,7 +3,7 @@ using Test
 
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA
+using JuMP, Clarabel
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -47,7 +47,7 @@ include("../../problems/pwa_sys.jl")
 # simple = false
 # no_plot = false
 
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 concrete_problem =
     PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = simple)

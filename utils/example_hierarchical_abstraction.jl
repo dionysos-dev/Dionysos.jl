@@ -155,7 +155,7 @@ AB.HierarchicalAbstraction.set_optimizer!(
 )
 
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin # this is a workaround to supress the undesired output of Clarabel
     MOI.optimize!(optimizer)
 end
 

@@ -30,13 +30,13 @@ using Test     #src
 # [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
 # [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
 # [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
-# [SDPA](https://github.com/jump-dev/SDPA.jl),
+# [Clarabel](https://github.com/oxfordcontrol/Clarabel.jl),
 # [Ipopt](https://github.com/jump-dev/Ipopt.jl), and
 # [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
 
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA
+using JuMP, Clarabel
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -76,7 +76,7 @@ X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -85,7 +85,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
 using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
+@suppress begin # this is a workaround to supress the undesired output of Clarabel
     MOI.optimize!(optimizer)
 end
 
