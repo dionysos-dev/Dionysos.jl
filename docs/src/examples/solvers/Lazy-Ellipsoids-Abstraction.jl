@@ -55,10 +55,7 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of Clarabel
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
