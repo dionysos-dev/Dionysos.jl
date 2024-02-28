@@ -2,7 +2,7 @@ module TestMain
 
 using Test
 using Dionysos
-using SDPA, Ipopt, JuMP
+using Clarabel, Ipopt, JuMP
 using HybridSystems
 
 const DI = Dionysos
@@ -27,7 +27,7 @@ println("Started test")
 end
 
 @testset "Provide P" begin
-    opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+    opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     A = [
         0.0 1.0 0.0
         0.0 0.0 1.0
@@ -38,7 +38,7 @@ end
 
     sys = HybridSystems.ConstrainedAffineControlDiscreteSystem(A, B, c, Nothing, Nothing)
     ans, K, P, gamma = SY._provide_P(sys, opt_sdp)
-    @test K ≈ [-1.97742 -1.0 -5.0] atol = 1e-2
+    @test K ≈ [-2.0 -1.0 -5.0] atol = 1e-2
 end
 
 println("End test")
