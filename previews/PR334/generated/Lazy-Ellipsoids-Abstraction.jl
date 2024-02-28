@@ -48,10 +48,7 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     maxIter,
 )
 
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of Clarabel
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))

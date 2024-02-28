@@ -41,10 +41,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_probl
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of Clarabel
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))

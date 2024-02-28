@@ -84,10 +84,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of Clarabel
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
