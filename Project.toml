@@ -42,7 +42,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
-ArnoldiMethod = "0.2"
+ArnoldiMethod = "0.2, 0.4"
 Colors = "0.12"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
