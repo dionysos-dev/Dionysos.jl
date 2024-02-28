@@ -406,7 +406,12 @@ function learn(
                 @constraint(dual_model, λ_cons[t, v] == 0)
             end
         end
-        U_v = vrep([zeros(length(u))], Line{T, Vector{T}}[], Ray{T, Vector{T}}[])
+
+        pv = [zeros(length(u))]
+        lv = Line{T, Vector{T}}[]
+        rv = Ray{T, Vector{T}}[]
+        U_v = Polyhedra.Hull(Polyhedra.FullDim_rec(pv, lv, rv), pv, lv, rv)
+
         for i in eachindex(U_h)
             α = u_value ⋅ U_h[i].a
             if α >= U_h[i].β - (max(abs(α), abs(U_h[i].β)) + 1) * algo.tight_tol
