@@ -1,7 +1,7 @@
 name = "Dionysos"
 uuid = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
 authors = ["Raphael Jungers <raphael.jungers@uclouvain.be>", "Antoine Aspeel <antoine.aspeel@uclouvain.be>", "Guillaume Berger <guillaume.berger@uclouvain.be>", "Julien Calbert <julien.calbert@uclouvain.be>", "Virginie Debauche <virginie.debauche@uclouvain.be>", "Mahsa Farjadnia <mahsa.farjadnia@uclouvain.be>", "Benoît Legat <benoit.legat@uclouvain.be>", "Zheming Wang <zheming.wang@uclouvain.be>", "Lucas N. Egidio <lucas.egidio@uclouvain.be>", "Adrien Banse <adrien.banse@uclouvain.be>", "Somya Singh <somya.singh@uclouvain.be>"]
-version = "0.0.1"
+version = "0.1.0"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
@@ -42,7 +42,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
-ArnoldiMethod = "0.2"
+ArnoldiMethod = "0.2, 0.4"
 Colors = "0.12"
 DataStructures = "0.18"
 DiscreteMarkovChains = "0.2"
@@ -52,7 +52,7 @@ GLPK = "1"
 Graphs = "1"
 HiGHS = "1"
 HybridSystems = "0.4"
-IntervalArithmetic = "0.20, 0.21"
+IntervalArithmetic = "0.20, 0.21, 0.22"
 IntervalLinearAlgebra = "0.1"
 JuMP = "1"
 LaTeXStrings = "1"
@@ -84,8 +84,8 @@ Mosek = "6405355b-0ac2-5fba-af84-adbd65488c0e"
 MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
 OSQP = "ab2f91bb-94b4-55e3-9ba0-7f65df51de79"
 Pavito = "cd433a01-47d1-575d-afb7-6db927ee8d8f"
-SDPA = "b9a10b5b-afa4-512f-a053-bb3d8080febc"
+Clarabel = "61c947e1-3e6d-4ee4-985a-eec8c727bd6e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["CDDLib", "Ipopt", "OSQP", "Pavito", "SDPA", "Test", "HiGHS", "Mosek", "MosekTools"]
+test = ["CDDLib", "Ipopt", "OSQP", "Pavito", "Clarabel", "Test", "HiGHS", "Mosek", "MosekTools"]

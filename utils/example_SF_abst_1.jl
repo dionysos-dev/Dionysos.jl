@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Polyhedra
 using Plots
-using JuMP, SDPA
+using JuMP, Clarabel
 using MathematicalSystems, HybridSystems, SemialgebraicSets, CDDLib
 
 using Dionysos
@@ -21,7 +21,7 @@ eye(n) = diagm(ones(n)) # I matrix
 sm(M) = SMatrix{size(M, 1), size(M, 2)}(M)
 sv(M) = SVector{size(M, 1)}(M)
 
-optimizer = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+optimizer = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 function trial(dt, Usz, Wmax, contraction, initial_vol)
     # Define system

@@ -15,10 +15,12 @@ const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
 
-function trial(E2, c, μ, Ubound, Wbound, λ)
+const FALLBACK_URL = "mosek://solve.mosek.com:30080"
+
+function trial(E2, c, ρ, Ubound, Wbound, λ)
     U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
     W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
-    problem = NonLinear.problem(; U = U, W = W, noise = true, μ = μ)
+    problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
 
     # Construct the linear approximation
@@ -41,8 +43,10 @@ function trial(E2, c, μ, Ubound, Wbound, λ)
     )
 
     # Solve the control problem
+
     S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
+    MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
     maxδx = 100.0
     maxδu = 100.0
     E1, cont, max_cost = SY.transition_backward(
@@ -91,7 +95,7 @@ function trial(E2, c, μ, Ubound, Wbound, λ)
     return (success, max_cost, init_set_volume, input_set_volume)
 end
 
-function compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+function compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     # Data vectors
     success_vector = zeros(length(λ_span))
     max_cost_vector = zeros(length(λ_span))
@@ -101,7 +105,7 @@ function compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
     for i in 1:length(λ_span)
         println("Problem solved : ", i, " / ", length(λ_span))
         (success, max_cost, init_set_volume, input_set_volume) =
-            trial(E2, c, μ, Ubound, Wbound, λ_span[i])
+            trial(E2, c, ρ, Ubound, Wbound, λ_span[i])
         success_vector[i] = success
         if success
             max_cost_vector[i] = max_cost
@@ -116,14 +120,9 @@ function compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
     return max_cost_vector, init_set_volume_vector, input_set_volume_vector
 end
 
-# You can normalize the objective functions in a biobjective optimization problem to ensure that the weights are approximately equivalent. 
-# Normalizing the objective functions can help balance the contributions of the two objectives when optimizing the weighted sum.
-# -Calculate the minimum and maximum values for each objective function over the entire search space.
-# -Normalize each objective function value using the corresponding minimum and maximum values.
-# -Apply the weights to the normalized objective function values to compute the weighted sum.
-function plot_pareto_front!(E2, c, μ, Ubound, Wbound, λ_span, mycolorMap; lbls = false)
+function plot_pareto_front!(E2, c, ρ, Ubound, Wbound, λ_span, mycolorMap; lbls = false)
     max_cost_vector, init_set_volume_vector, input_set_volume_vector =
-        compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+        compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
     return plot!(
         -max_cost_vector,
@@ -135,8 +134,8 @@ function plot_pareto_front!(E2, c, μ, Ubound, Wbound, λ_span, mycolorMap; lbls
     )
 end
 
-function plot_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
-    colormap = Colors.colormap("Blues") # Blues, Reds, Greens
+function plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
+    colormap = Colors.colormap("Blues")
     mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
     colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
 
@@ -151,7 +150,7 @@ function plot_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
     ylabel!("\${\\rm vol}(E_1)\$")
     title!("Pareto front (\$\\lambda\$)")
     max_cost_vector, init_set_volume_vector, input_set_volume_vector =
-        compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+        compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     plot!(
         -max_cost_vector,
         init_set_volume_vector;
@@ -162,14 +161,10 @@ function plot_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
     )
     plot!(mycolorMap)
     return display(fig1)
-    # fig2 = plot(; xtickfontsize = 10, ytickfontsize = 10, guidefontsize = 18, titlefontsize = 16,)
-    # plot!(λ_span, -max_cost_vector, label="-\$\\widetilde{\\mathcal{J}}\$")
-    # plot!(λ_span, init_set_volume_vector, label ="\${\\rm vol}(E_1)\$")
-    # display(fig2)
 end
 
-function plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
-    colormap = Colors.colormap("Blues") # Blues, Reds, Greens
+function plot_pareto_front_Wspan(E2, c, ρ, Ubound, Wbound_span, λ_span)
+    colormap = Colors.colormap("Blues")
     mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
     colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
     lColors = [:red, :green, :black, :blue, :yellow]
@@ -184,7 +179,7 @@ function plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
     title!("Pareto front (\$\\lambda\$)")
     for (i, Wbound) in enumerate(Wbound_span)
         max_cost_vector, init_set_volume_vector, input_set_volume_vector =
-            compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+            compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
         plot!(
             -max_cost_vector,
             init_set_volume_vector;
@@ -200,8 +195,8 @@ function plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
     return display(fig)
 end
 
-function plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
-    colormap = Colors.colormap("Blues") # Blues, Reds, Greens
+function plot_pareto_front_ρspan(E2, c, ρ_span, Ubound, Wbound, λ_span)
+    colormap = Colors.colormap("Blues")
     mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
     colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
     lColors = [:red, :green, :black, :blue, :yellow]
@@ -214,9 +209,9 @@ function plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
     xlabel!("-\$\\widetilde{\\mathcal{J}}\$")
     ylabel!("\${\\rm vol}(E_1)\$")
     title!("Pareto front (\$\\lambda\$)")
-    for (i, μ) in enumerate(μ_span)
+    for (i, ρ) in enumerate(ρ_span)
         max_cost_vector, init_set_volume_vector, input_set_volume_vector =
-            compute_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+            compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
         plot!(
             -max_cost_vector,
             init_set_volume_vector;
@@ -225,7 +220,7 @@ function plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
             color = colors,
             line = :path,
             linecolor = lColors[i],
-            label = "\$\\mu = $μ\$",
+            label = "\$\\mu = $ρ\$",
         )
     end
     plot!(mycolorMap)
@@ -237,28 +232,28 @@ function contour_plot(
     c,
     Ubound,
     λ,
-    μ_span,
+    ρ_span,
     Wbound_span;
     cost = true,
     levels1 = 6,
     levels2 = 6,
 )
     # Data vectors
-    success_vector = zeros(length(μ_span), length(Wbound_span))
-    max_cost_vector = zeros(length(μ_span), length(Wbound_span))
-    init_set_volume_vector = zeros(length(μ_span), length(Wbound_span))
-    input_set_volume_vector = zeros(length(μ_span), length(Wbound_span))
+    success_vector = zeros(length(ρ_span), length(Wbound_span))
+    max_cost_vector = zeros(length(ρ_span), length(Wbound_span))
+    init_set_volume_vector = zeros(length(ρ_span), length(Wbound_span))
+    input_set_volume_vector = zeros(length(ρ_span), length(Wbound_span))
 
-    for i in 1:length(μ_span)
+    for i in 1:length(ρ_span)
         for j in 1:length(Wbound_span)
             println(
                 "Problem solved : ",
                 (i - 1) * length(Wbound_span) + j,
                 " / ",
-                length(μ_span) * length(Wbound_span),
+                length(ρ_span) * length(Wbound_span),
             )
             (success, max_cost, init_set_volume, input_set_volume) =
-                trial(E2, c, μ_span[i], Ubound, Wbound_span[j], λ)
+                trial(E2, c, ρ_span[i], Ubound, Wbound_span[j], λ)
             success_vector[i, j] = success
             if success
                 max_cost_vector[i, j] = max_cost
@@ -273,7 +268,7 @@ function contour_plot(
     end
 
     fig1 = contour(
-        μ_span,
+        ρ_span,
         Wbound_span,
         max_cost_vector';
         levels = levels1,
@@ -292,7 +287,7 @@ function contour_plot(
     display(fig1)
 
     fig2 = contour(
-        μ_span,
+        ρ_span,
         Wbound_span,
         init_set_volume_vector';
         levels = levels2,
@@ -319,35 +314,35 @@ c = SVector{2, Float64}([1.0; 1.0])
 #########################################################################################
 #### fig1: plot pareto front with repsect to λ #####
 #########################################################################################
-μ = 0.0008
+ρ = 0.0008
 Ubound = 5.0
 Wbound = 0.01
-λ_span = 0.0005:0.01:1.0  #0.01:0.1:0.8
+λ_span = 0.0005:0.01:1.0
 
 # fig 1.1
-plot_pareto_front(E2, c, μ, Ubound, Wbound, λ_span)
+plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
 
 # fig 1.2
 Wbound_span = [0.0, 0.1, 0.2, 0.4, 0.5]
-plot_pareto_front_Wspan(E2, c, μ, Ubound, Wbound_span, λ_span)
+plot_pareto_front_Wspan(E2, c, ρ, Ubound, Wbound_span, λ_span)
 
 # fig 1.3
-μ_span = [0.0003, 0.0006, 0.001, 0.003]
-plot_pareto_front_μspan(E2, c, μ_span, Ubound, Wbound, λ_span)
+ρ_span = [0.0003, 0.0006, 0.001, 0.003]
+plot_pareto_front_ρspan(E2, c, ρ_span, Ubound, Wbound, λ_span)
 
 #########################################################################################
 ######### fig2: plot for λ=1.0 the cost as a function of noise and non-linearity #########
 #########################################################################################
 Ubound = 5.0
 λ = 1.0
-μ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
+ρ_span = 0.0:0.0004:0.004
 Wbound_span = 0:0.02:0.6
 contour_plot(
     E2,
     c,
     Ubound,
     λ,
-    μ_span,
+    ρ_span,
     Wbound_span;
     cost = true,
     levels1 = [6.8, 7.3, 7.8, 8.4, 9, 9.4],
@@ -358,14 +353,14 @@ contour_plot(
 #########################################################################################
 Ubound = 5.0
 λ = 0.0
-μ_span = 0.0:0.0004:0.004 # 0.0:0.0002:0.003
+ρ_span = 0.0:0.0004:0.004
 Wbound_span = 0:0.02:0.6;
 contour_plot(
     E2,
     c,
     Ubound,
     λ,
-    μ_span,
+    ρ_span,
     Wbound_span;
     cost = false,
     levels2 = [1, 3, 6, 12, 18, 24, 30, 36],

@@ -30,14 +30,14 @@ const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
 MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
 
-maxδx = 100 # 100
-maxδu = 10 * 2 # Usz * 2
-λ = 0.01 # 0.01
+maxδx = 100
+maxδu = 10 * 2
+λ = 0.01
 k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 100 # 100
+maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(
@@ -55,10 +55,7 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -106,9 +103,6 @@ title!("Specifictions and domains");
 
 #Display the concrete domain
 plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
-for obs in concrete_system.obstacles
-    plot!(obs; color = :black, label = false)
-end
 
 #Display the abstract domain
 plot!(abstract_system; arrowsB = false, cost = false, label = false);

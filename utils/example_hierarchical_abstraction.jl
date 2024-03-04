@@ -154,10 +154,7 @@ AB.HierarchicalAbstraction.set_optimizer!(
     option = true,
 )
 
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))

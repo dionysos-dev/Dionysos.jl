@@ -2,7 +2,7 @@ using JuMP
 using StaticArrays
 using CDDLib
 using LinearAlgebra
-using SDPA
+using Clarabel
 using Mosek, MosekTools
 using OSQP
 using Ipopt
@@ -299,7 +299,7 @@ X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 solver_ellispoids_pwa = optimizer_with_attributes(
     AB.EllipsoidsAbstraction.Optimizer,
