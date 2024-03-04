@@ -198,3 +198,6 @@ plot!(
 # # Display the results of the A* algorithm
 fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
+plot!(cost_control_trajectory; color = :black)
+
+display(fig)

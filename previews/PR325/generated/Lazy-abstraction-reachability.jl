@@ -170,5 +170,8 @@ plot!(
 
 fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
+plot!(cost_control_trajectory; color = :black)
+
+display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

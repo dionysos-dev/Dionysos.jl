@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Polyhedra, Random
 using MathematicalSystems, HybridSystems
-using JuMP, SDPA
+using JuMP, Clarabel
 using SemialgebraicSets, CDDLib
 using Plots, Colors
 using Test
@@ -34,17 +34,14 @@ X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
-opt_sdp = optimizer_with_attributes(SDPA.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 
-using Suppressor
-@suppress begin # this is a workaround to supress the undesired output of SDPA
-    MOI.optimize!(optimizer)
-end
+MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
