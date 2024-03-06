@@ -129,7 +129,8 @@ function problem(; simple = false, approx_mode = "growth")
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
     else
-        _X_ = UT.HyperRectangle(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
+        _X_ =
+            UT.HyperRectangle(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
     end
