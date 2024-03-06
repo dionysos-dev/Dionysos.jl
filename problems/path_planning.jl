@@ -46,14 +46,7 @@ function dynamicofsystem()
     return F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF
 end
 
-function _initTargetSets()
-    _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
-    _T_ = UT.HyperRectangle(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
-    return _I_, _T_
-end
-
-function filter_obstacles(_X_, obs)
-    _I_, _T_ = _initTargetSets()
+function filter_obstacles(_X_, _I_, _T_, obs)
     obstacles = typeof(_X_)[]
     for ob in obs
         if ob ⊆ _X_ && isempty(ob ∩ _I_) && isempty(ob ∩ _T_)
@@ -136,12 +129,12 @@ function problem(; simple = false, approx_mode = "growth")
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
     else
-        _X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(10.0, 10.0, pi + 0.4))
+        _X_ = UT.HyperRectangle(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
     end
     obs = get_obstacles(_X_)
-    obstacles_LU = filter_obstacles(_X_, obs)
+    obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
     sys = system(_X_; approx_mode = approx_mode)
     problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
