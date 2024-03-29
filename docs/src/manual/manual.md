@@ -48,7 +48,7 @@ The following tables summarize the different solvers.
 
 | Type          | Full vs partial discretization | Partition vs Cover | Shape | Local controller | Abstraction | System | Reference | 
 | :--------------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- |
-| [`Classical abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.ClassicalAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`SCOTS: A Tool for the Synthesis of Symbolic Controllers`](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
+| [`Uniform grid abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`SCOTS: A Tool for the Synthesis of Symbolic Controllers`](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
 | [`Lazy abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.LazyAbstraction.Optimizer) | Partial | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`Alternating simulation on hierarchical abstractions`](https://ieeexplore.ieee.org/abstract/document/9683448/?casa_token=AXyECYU9FdwAAAAA:ERfvlbkORIbfGLbDd42d2K5K9SLVOjl-8kRs9pfp7lMa4QZEv0W4VgzlP8FshBlxXQF4ZQrDuzk) |
 | [`Hierarchical abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.HierarchicalAbstraction.Optimizer) | Partial | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`Alternating simulation on hierarchical abstractions`](https://ieeexplore.ieee.org/abstract/document/9683448/?casa_token=AXyECYU9FdwAAAAA:ERfvlbkORIbfGLbDd42d2K5K9SLVOjl-8kRs9pfp7lMa4QZEv0W4VgzlP8FshBlxXQF4ZQrDuzk) |
 | [`Ellipsoid abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.EllipsoidsAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piece-wise affine | Determinisitic | Discrete-time affine | [`State-feedback Abstractions for Optimal Control of Piecewise-affine Systems`](https://arxiv.org/abs/2204.00315) |
@@ -65,7 +65,7 @@ The following tables summarize the different solvers.
 **Solver interface**
 
 Each solver is defined by a module which must implement the abstract type [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
-For example, for the ClassicalAbstraction solver, this structure and function are defined as follows
+For example, for the UniformGridAbstraction solver, this structure and function are defined as follows
 
 ```julia
 using JuMP
@@ -123,7 +123,7 @@ concrete_system = concrete_problem.system;
 Choose the solver you wish to use
 ```julia
 using JuMP
-optimizer = MOI.instantiate(AB.ClassicalAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 ```
 
 Define the solver's meta-parameters

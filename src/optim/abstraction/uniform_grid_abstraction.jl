@@ -1,6 +1,6 @@
-export ClassicalAbstraction
+export UniformGridAbstraction
 
-module ClassicalAbstraction
+module UniformGridAbstraction
 
 import Dionysos
 const DI = Dionysos

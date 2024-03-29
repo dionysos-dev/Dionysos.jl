@@ -74,8 +74,8 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = AB.ClassicalAbstraction.NewControllerList()
-    AB.ClassicalAbstraction.compute_controller_safe!(
+    contr = AB.UniformGridAbstraction.NewControllerList()
+    AB.UniformGridAbstraction.compute_controller_safe!(
         contr,
         symmodel.autom,
         initlist,
