@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Path planning problem solved by [Classical abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
@@ -65,10 +65,10 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
-# We now solve the optimal control problem with the `Abstraction.ClassicalAbstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.UniformGridAbstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(AB.ClassicalAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
