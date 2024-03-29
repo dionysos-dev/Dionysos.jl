@@ -1,6 +1,6 @@
-export NaiveAbstraction
+export ClassicalAbstraction
 
-module NaiveAbstraction
+module ClassicalAbstraction
 
 import Dionysos
 const DI = Dionysos

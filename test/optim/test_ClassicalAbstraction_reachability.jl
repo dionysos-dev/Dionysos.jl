@@ -35,10 +35,10 @@ u0 = SVector(0.0, 0.0)
 h = SVector(0.3, 0.3)
 input_grid = DO.GridFree(u0, h)
 
-# We now solve the optimal control problem with the `Abstraction.NaiveAbstraction.Optimizer`.
+# We now solve the optimal control problem with the `Abstraction.ClassicalAbstraction.Optimizer`.
 
 using JuMP
-optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.ClassicalAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
@@ -50,7 +50,7 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-@testset "NaiveAbstraction reachability" begin
+@testset "ClassicalAbstraction reachability" begin
     @test length(abstract_controller.data) == 19400 #src
 end
 
