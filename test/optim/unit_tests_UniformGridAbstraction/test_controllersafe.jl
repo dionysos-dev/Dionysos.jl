@@ -74,8 +74,13 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = AB.NaiveAbstraction.NewControllerList()
-    AB.NaiveAbstraction.compute_controller_safe!(contr, symmodel.autom, initlist, safelist)
+    contr = AB.UniformGridAbstraction.NewControllerList()
+    AB.UniformGridAbstraction.compute_controller_safe!(
+        contr,
+        symmodel.autom,
+        initlist,
+        safelist,
+    )
     @test length(contr) == 15043
 
     invlist = Int[]
