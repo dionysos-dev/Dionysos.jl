@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: DC-DC converter solved by [Naive abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: DC-DC converter solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/DC-DC converter.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/DC-DC converter.ipynb)
@@ -55,7 +55,7 @@ hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
-optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)

@@ -22,7 +22,7 @@ hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
-optimizer = MOI.instantiate(AB.NaiveAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
