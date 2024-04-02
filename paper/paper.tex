@@ -143,20 +143,17 @@ Additionally, a controller $\Cont$ is said to \emph{solve} the control problem $
 \end{defi}
 
 
-% \vskip 6pt
-% In this framework, we will refer to $\Sys_1=(\set{X}_1, \set{U}_1,F_1)$ as the concrete system and $\Sys_2=(\set{X}_2, \set{U}_2, F_2)$ as its abstraction.
-
 
 \subsection{Classical abstraction}
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/Abstraction-based control.png}}
+\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/Abstraction-based-control.pdf}}
 \caption{The three steps of abstraction-based control.}
 	\label{fig:abstraction-procedure}
 \end{figure}
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/strict-cover-partition.png}}
+\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/strict-cover-partition.pdf}}
 \caption{Types of discretization of the concrete state space.
     Let $\Sys_{1} = (\set{X}_1,\set{U}_1,F_1)$ with $\set{X}_1 = [0,1]^2$, $\Sys_{2} = (\set{X}_2,\set{U}_2,F_2)$ with $\set{X}_2 = \{q_1,q_2,q_3,q_4\}$, $R_1 \subseteq \set{X}_1\times \set{X}_2$ and $R_2 \subseteq \set{X}_1\times \set{X}_2$ are explicit from the figure.
     Left: $R_1$ is a strict single-valued map, i.e., it induces a full partition of $\set{X}_1$. Right: $R_2$ is a non-strict set-valued map, i.e., it induces a partial cover of $\set{X}_1$.}
@@ -195,7 +192,6 @@ A strict relation $R$ is a \emph{feedback refinement relation} between the syste
 \end{enumerate}
 \end{defi}
 
-% In the classical approach, this is achieved by constructing a strict relation $R$ which is a predefined partition and a 
 This specific relation allows a simple concretization scheme (see~\cite[V.4 Theorem]{reissig2016feedback})
 \begin{equation}\label{eq:concrete_controller_FRR}
     \Cont_1(x_1) = \Cont_2(R(x_1)).
@@ -238,14 +234,14 @@ By designing these local state-dependent controllers, for example by solving an 
 In addition, contrary to the classical approach, this technique avoids discretizing the input-space and uses all the available inputs, making it possible to design, given some cost metric, better control solutions.
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-constant.png}}
+\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-constant.pdf}}
 \caption{Piecewise constant controller $\forall x_1\in R^{-1}(x_2):\ \Cont_1(x_1) = \{u\}$ where $u\in \set{U}_2\subseteq \set{U}_1$. 
 Left: The two-dimensional concrete system with its state space discretization. Right: The abstract system.}
 	\label{fig:Piece-wise-constant}
 \end{figure}
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-dependent.png}}
+\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-dependent.pdf}}
 \caption{Piecewise affine controller $\forall x_1\in R^{-1}(x_2):\ \Cont_1(x_1) = \{\kappa(x_1)\}$ where $\kappa\in\set{U}_2$ and $\kappa(x_1) = K_{\kappa}x_1 + \ell_{\kappa}\in  \set{U}_1$.  The map $G_1(x) = F_1(x,\kappa(x))$ provides the closed-loop transition under the controller $\kappa$.
 Left: The two-dimensional concrete system with its state space discretization. Right: The abstract system.}
 	\label{fig:Piece-wise-dependent}
@@ -259,7 +255,7 @@ during the construction of the abstraction.
 For example, the combined use of ellipsoid-based covering and affine local feedback controllers can leverage the power of linear matrix inequalities (or LMI) and convex optimization to create larger/non-standard cells (see Figure~\ref{fig:Full-vs-Partial}).
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=\linewidth]{Figures/Solvers/Illustration.png}}
+\centerline{\includegraphics[width=\linewidth]{Figures/Abstraction/Classical-vs-smart.pdf}}
 \caption{Comparison between classical and smart abstractions for a planar system with state trajectory (blue line) and value function (color map) obtained for the optimal control problem of departing from $\set{X}_I$ and reaching $\set{X}_T$ while avoiding obstacles~$\set{X}_O$. 
 Left: Abstraction covering the entire state space with a naive grid-based partition. Non-colored represents a region where no controller could be designed. Right: Abstraction partially covering the state space with ellipsoidal cells and a local feedback controller.}
 	\label{fig:Full-vs-Partial}
@@ -458,9 +454,6 @@ end
     \label{fig:structure}
 \end{figure}
 
-%\texttt{Dionysos.jl} features definitions for optimal control problems, encompassing descriptions of both the
-%mathematical system and the desired closed-loop behavior. Importantly, it incorporates various
-%abstraction-based optimal control strategies, viewed as \emph{solvers} inheriting from \texttt{JuMP}~\cite{Lubin2023}, a powerful optimization framework embedded in Julia.
 
 \section{Numerical example}
 \label{sec:examples}
@@ -598,7 +591,7 @@ plot!(
 \section{Benchmarking}
 \label{sec:benchmarks}
 
-In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. We do not compare the performance of \texttt{Dionysos.jl} with that of CoSyMa~\cite{mouelhi2013cosyma} because the latter is dedicated to a specific class of systems, namely incrementally stable switching systems.
+In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. We do not compare the performance of \texttt{Dionysos.jl} with that of CoSyMA~\cite{mouelhi2013cosyma} because the latter is dedicated to a specific class of systems, namely incrementally stable switching systems.
 We reproduced the two numerical experiments of \cite{rungger2016scots}, that is the path planning problem presented in \cite[Section 4.1]{rungger2016scots} and the synthesis of a controller for a DC-DC converter presented in \cite[Section 4.2]{rungger2016scots}. 
 
 \vspace{6pt}
