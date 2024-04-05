@@ -598,15 +598,16 @@ plot!(
 \section{Benchmarking}
 \label{sec:benchmarks}
 
-In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. We do not compare the performance of \texttt{Dionysos.jl} with that of CoSyMa~\cite{mouelhi2013cosyma} because the latter is dedicated to a specific class of systems, namely incrementally stable switching systems.
-We reproduced the two numerical experiments of \cite{rungger2016scots}, that is the path planning problem presented in \cite[Section 4.1]{rungger2016scots} and the synthesis of a controller for a DC-DC converter presented in \cite[Section 4.2]{rungger2016scots}. 
+In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. \textcolor{magenta}{Altough CoSyMA is limited to incrementally stable systems, and computes approximately bisimilar abstractions \cite{mouelhi2013cosyma}, we also compare our package to this tool.}
+We reproduced the two numerical experiments of \cite{rungger2016scots}. The path planning problem presented in \cite[Section 4.1]{rungger2016scots} is executed with \texttt{Dionysos.jl} and SCOTS, and the synthesis of a controller for a DC-DC converter presented in \cite[Section 4.2]{rungger2016scots} in executed with {Dionysos.jl}, SCOTS and CoSyMA.
 
 \vspace{6pt}
 
-The code ran to compare SCOTS and \texttt{Dionysos.jl} is published on CodeOcean \cite{Calbert2024}, and is entirely reproducible. We summarize the results in Table~\ref{tab:benchmark}. For more information, we invite the reader to read the \texttt{README.md} file in the CodeOcean capsule.
+The code for comparing these packages is published on CodeOcean \cite{Calbert2024}, and is entirely reproducible. We summarize the results in Table~\ref{tab:benchmark}. For more information, we invite the reader to read the \texttt{README.md} file in the CodeOcean capsule.
 
 \begin{table}[ht!]
     \centering
+    \color{magenta}
     \begin{tabular}{cc|cc}
         & & Abstraction [s] & Synthesis [s] \\ 
         \hline 
@@ -615,12 +616,14 @@ The code ran to compare SCOTS and \texttt{Dionysos.jl} is published on CodeOcean
         \hline
         DC-DC & \texttt{Dionysos.jl} & \textbf{7.26} & \textbf{6.65} \\
         & SCOTS & 20.98 & 91.77 \\ 
+        & CoSyMA & - & (5.56)
     \end{tabular}
-    \caption{Comparaison between SCOTS and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the two problems presented in \cite{rungger2016scots}.}
+    \color{black}
+    \caption{Comparaison between SCOTS and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the two problems in \cite{rungger2016scots}. \textcolor{magenta}{CoSyMA is also executed on the DC-DC converter problem for information.}}
     \label{tab:benchmark}
 \end{table}
 
-We see that \texttt{Dionysos.jl} outperforms SCOTS for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures.
+We see that \texttt{Dionysos.jl} outperforms SCOTS for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures. \textcolor{magenta}{Moreover, we see that the synthesis performance of \texttt{Dionysos.jl} is close to the one of CoSyMA on the DC-DC converter example, whereas the latter constructs approximate bisimilar abstractions, unlike \texttt{Dionysos.jl}.}
 
 
 % \bl{Mentionne que SCOTS admette déjà dans leur papier que les BDD constituent un bottleneck. Mentionne aussi que Pessoa n'utilise pas de BDD mais qu'ils sont plus lents que SCOTS quand même (bizarre quand même, c'est à cause qu'une partie est en Matlab ?)}
