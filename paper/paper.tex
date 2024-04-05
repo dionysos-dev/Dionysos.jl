@@ -591,8 +591,8 @@ plot!(
 \section{Benchmarking}
 \label{sec:benchmarks}
 
-In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. \textcolor{magenta}{Altough CoSyMA is limited to incrementally stable systems, and computes approximately bisimilar abstractions \cite{mouelhi2013cosyma}, we also compare our package to this tool.}
-We reproduced the two numerical experiments of \cite{rungger2016scots}. The path planning problem presented in \cite[Section 4.1]{rungger2016scots} is executed with \texttt{Dionysos.jl} and SCOTS, and the synthesis of a controller for a DC-DC converter presented in \cite[Section 4.2]{rungger2016scots} in executed with {Dionysos.jl}, SCOTS and CoSyMA.
+In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. \textcolor{magenta}{Altough CoSyMA is limited to incrementally stable systems, and computes approximately bisimilar abstractions \cite{mouelhi2013cosyma}, we also compare our package to this tool.
+We reproduced the two numerical experiments of \cite{rungger2016scots}. The path planning problem presented in \cite[Section 4.1]{rungger2016scots} is executed with \texttt{Dionysos.jl} and SCOTS, and the synthesis of a controller for a DC-DC converter presented in \cite[Section 4.2]{rungger2016scots} is executed with {Dionysos.jl}, SCOTS and CoSyMA.}
 
 \vspace{6pt}
 
@@ -616,11 +616,7 @@ The code for comparing these packages is published on CodeOcean \cite{Calbert202
     \label{tab:benchmark}
 \end{table}
 
-We see that \texttt{Dionysos.jl} outperforms SCOTS for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures. \textcolor{magenta}{Moreover, we see that the synthesis performance of \texttt{Dionysos.jl} is close to the one of CoSyMA on the DC-DC converter example, whereas the latter constructs approximate bisimilar abstractions, unlike \texttt{Dionysos.jl}.}
-
-
-% \bl{Mentionne que SCOTS admette déjà dans leur papier que les BDD constituent un bottleneck. Mentionne aussi que Pessoa n'utilise pas de BDD mais qu'ils sont plus lents que SCOTS quand même (bizarre quand même, c'est à cause qu'une partie est en Matlab ?)}
-
+We see that \texttt{Dionysos.jl} outperforms SCOTS for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures. \textcolor{magenta}{Moreover, we see that the synthesis performance of \texttt{Dionysos.jl} is close to the one of CoSyMA on the DC-DC converter example, while the latter constructs approximate bisimilar abstractions, unlike \texttt{Dionysos.jl}.}
 
 
 \begin{figure}[ht!]
