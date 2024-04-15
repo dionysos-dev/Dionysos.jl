@@ -8,6 +8,8 @@ const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 
+@enum ApproxMode GROWTH LINEARIZED
+
 function dynamicofsystem()
     # System eq x' = F_sys(x, u)
     function F_sys(x, u)
@@ -79,11 +81,11 @@ function system(
     measnoise = SVector(0.0, 0.0, 0.0),
     tstep = 0.3,
     nsys = 5,
-    approx_mode = "growth",
+    approx_mode::ApproxMode = GROWTH,
 )
     F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem()
     contsys = nothing
-    if approx_mode == "growth"
+    if approx_mode == GROWTH
         contsys = ST.NewControlSystemGrowthRK4(
             tstep,
             F_sys,
@@ -93,7 +95,7 @@ function system(
             nsys,
             ngrowthbound,
         )
-    elseif approx_mode == "linearized"
+    elseif approx_mode == LINEARIZED
         contsys = ST.NewControlSystemLinearizedRK4(
             tstep,
             F_sys,
@@ -123,7 +125,7 @@ Then, we define initial and target domains for the state of the system.
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
 with the system, the initial and target domains, and null cost functions.
 """
-function problem(; simple = false, approx_mode = "growth")
+function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
     if simple
         _X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))

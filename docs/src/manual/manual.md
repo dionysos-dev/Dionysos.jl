@@ -116,7 +116,7 @@ Define a control problem, i.e., the system and the specification of the desired 
 To do this, you can define new ones yourself or directly load an existing benchmark, for example
 
 ```julia
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth");
+concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
 concrete_system = concrete_problem.system;
 ```
 
