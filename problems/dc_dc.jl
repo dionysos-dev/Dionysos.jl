@@ -88,6 +88,13 @@ function system(;
             measnoise,
             nsys,
         )
+    elseif approx_mode == "δ-GAS Lyapunov"
+        contsys = ST.NewSimpleSystem(
+            tstep,
+            F_sys,
+            measnoise,
+            nsys,
+        )
     end
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         contsys,

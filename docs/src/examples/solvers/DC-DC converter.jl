@@ -77,6 +77,48 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);
 plot!(control_trajectory)
 
+# # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
+# ### Definition of the system
+# we can import the module containing the DCDC problem like this 
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+
+# and we can instantiate the DC system with the provided system
+concrete_problem = DCDC.problem(; approx_mode = "δ-GAS Lyapunov")
+concrete_system = concrete_problem.system
+
+origin = SVector(0.0, 0.0)
+η = (2/4.0)*10^(-3)
+ϵ = 0.1*0.01
+P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
+state_grid = DO.GridEllipsoidalRectangular(origin, h = SVector(η, η), P/ϵ, concrete_system.X)
+
+u0 = SVector(1)
+hu = SVector(1)
+input_grid = DO.GridFree(u0, hu)
+
+using JuMP
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("δGAS"), true)
+MOI.optimize!(optimizer)
+
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+
+# ### Trajectory display
+# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# as well as the true initial state `x0` which is contained in the initial state-space defined previously.
+nstep = 300
+x0 = SVector(1.2, 5.6)
+control_trajectory =
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+
+fig = plot(; aspect_ratio = :equal);
+plot!(concrete_system.X);
+plot!(control_trajectory)
+
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.
 # 2. S. Mouelhi, A. Girard, and G. Gössler. “CoSyMA: a tool for controller synthesis using multi-scale abstractions”. In: HSCC. ACM. 2013, pp. 83–88.

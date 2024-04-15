@@ -25,9 +25,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_controller::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
+    δGAS::Union{Nothing, Bool}
     solve_time_sec::T
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing, 0.0)
+        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing, false, 0.0)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -44,13 +45,17 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.Grid)
+function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.Grid, δGAS)
     Xfull = DO.DomainList(state_grid)
     DO.add_set!(Xfull, concrete_system.X, DO.INNER)
     Ufull = DO.DomainList(input_grid)
     DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
     abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
-    @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+    if δGAS
+        @time SY.compute_deterministic_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+    else
+        @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+    end
     return abstract_system
 end
 
@@ -149,6 +154,7 @@ function MOI.optimize!(optimizer::Optimizer)
         optimizer.concrete_problem.system,
         optimizer.state_grid,
         optimizer.input_grid,
+        optimizer.δGAS,
     )
     optimizer.abstract_system = abstract_system
     # Build the abstract problem
