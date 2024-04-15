@@ -1,0 +1,1620 @@
+<robot name="onshape">
+<link name="hips_total_asmb">
+<visual>
+<origin xyz="-0.027589433512088923361 0.0062452631122416899304 0.0069846872934270221034" rpy="-1.5707963267949351938 -3.0109766738370552547e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589433512088923361 0.0062452631122416899304 0.0069846872934270221034" rpy="-1.5707963267949351938 -3.0109766738370552547e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.015589433581672303836 0.0062439708277469080713 0.0069846872934244269571" rpy="-1.570796326794936526 -2.5675251512671337602e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.015589433581672303836 0.0062439708277469080713 0.0069846872934244269571" rpy="-1.570796326794936526 -2.5675251512671337602e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027599433512021979975 0.0062452642756751931136 0.0069846872395253889465" rpy="-1.570796326794856812 5.4770872794406531644e-14 1.5706886364201251283" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+<material name="leg_top_part_2_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027599433512021979975 0.0062452642756751931136 0.0069846872395253889465" rpy="-1.570796326794856812 5.4770872794406531644e-14 1.5706886364201251283" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0015994336627869374604 0.0062424643259341976859 0.066234687203612557793" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0015994336627869374604 0.0062424643259341976859 0.066234687203612557793" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0067994336326336638973 0.0062430243158825395391 0.049984687239528854952" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0067994336326336638973 0.0062430243158825395391 0.049984687239528854952" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0036105652300953087336 0.0062319032591391073164 -0.11126531276047937902" rpy="3.7515955490517664672e-14 3.0109761548542574068e-14 1.5706886364201282369" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0036105652300953087336 0.0062319032591391073164 -0.11126531276047937902" rpy="3.7515955490517664672e-14 3.0109761548542574068e-14 1.5706886364201282369" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.024400566186418413961 0.0062396643762023208321 0.02608468723952444418" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+<material name="motor_xmh_430_hold_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.024400566186418413961 0.0062396643762023208321 0.02608468723952444418" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027451802701134037088 -0.015754751750311844771 0.049984687239529285163" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027451802701134037088 -0.015754751750311844771 0.049984687239529285163" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589435509264848001 0.0062252698674915346241 -0.26201531286337798043" rpy="1.5707963267949367481 3.3617149589651516016e-14 1.5706886238812247658" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589435509264848001 0.0062252698674915346241 -0.26201531286337798043" rpy="1.5707963267949367481 3.3617149589651516016e-14 1.5706886238812247658" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588997971409 0.006235263198830162841 -0.34127531276048289621" rpy="3.1415926535897567007 3.8819121159681930661e-14 -1.5709040171696659893" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp.stl"/>
+</geometry>
+<material name="foot_bosch20x20_zmp_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588997971409 0.006235263198830162841 -0.34127531276048289621" rpy="3.1415926535897567007 3.8819121159681930661e-14 -1.5709040171696659893" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0587894344080755471 0.0062386231385086971316 -0.21526531276047700114" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0587894344080755471 0.0062386231385086971316 -0.21526531276047700114" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027639434588706865426 0.0062352685833509712346 -0.35627531427066455594" rpy="3.6338288677821436067e-14 -3.8819121159681930661e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp_40x70.stl"/>
+</geometry>
+<material name="foot_bosch20x20_zmp_40x70_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027639434588706865426 0.0062352685833509712346 -0.35627531427066455594" rpy="3.6338288677821436067e-14 -3.8819121159681930661e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp_40x70.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02739392561422624231 -0.12826475873842280162 -0.12751531291638829035" rpy="-3.1415926535897598093 1.2538861289774617704e-08 3.1414849632150225744" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02739392561422624231 -0.12826475873842280162 -0.12751531291638829035" rpy="-3.1415926535897598093 1.2538861289774617704e-08 3.1414849632150225744" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0036081960418533664051 -0.015768096613292665459 -0.15126531276047872066" rpy="3.7515955490517664672e-14 3.0109761548542574068e-14 1.5706886364201282369" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0036081960418533664051 -0.015768096613292665459 -0.15126531276047872066" rpy="3.7515955490517664672e-14 3.0109761548542574068e-14 1.5706886364201282369" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.03840228915126130127 0.022238156618169857559 0.06633468720361197779" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.03840228915126130127 0.022238156618169857559 0.06633468720361197779" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02759943351202119935 0.0062452642756762174678 0.025984687239525371127" rpy="-3.1415926535897540361 -2.7755513335342738609e-14 1.5706886364201262385" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+<material name="motor_xmh_430_material">
+<color rgba="0.49803921568627451677 0.49803921568627451677 0.49803921568627451677 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02759943351202119935 0.0062452642756762174678 0.025984687239525371127" rpy="-3.1415926535897540361 -2.7755513335342738609e-14 1.5706886364201262385" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027441803778099984473 -0.01576475282716262305 -0.15126531276047747165" rpy="3.7515941937990306655e-14 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027441803778099984473 -0.01576475282716262305 -0.15126531276047747165" rpy="3.7515941937990306655e-14 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.05878943440807397891 0.0062386231385097553129 -0.17526531276047693786" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.05878943440807397891 0.0062386231385097553129 -0.17526531276047693786" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589441257615400505 0.0062352633554677208 -0.46327531286338274885" rpy="1.5707963267948577002 -3.6668289164570567245e-14 3.14148495067611222" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589441257615400505 0.0062352633554677208 -0.46327531286338274885" rpy="1.5707963267948577002 -3.6668289164570567245e-14 3.14148495067611222" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.013597710547208378268 0.022243756517653590077 0.066334687203612616169" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.013597710547208378268 0.022243756517653590077 0.066334687203612616169" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434433790235857 0.0062352565301730198538 -0.074265312657577797761" rpy="-1.5707963267949358599 3.8819121651500827672e-14 -1.5709040046307649607" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434433790235857 0.0062352565301730198538 -0.074265312657577797761" rpy="-1.5707963267949358599 3.8819121651500827672e-14 -1.5709040046307649607" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027599433511991428025 0.0062452642756660493861 0.026084687239525200519" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+<material name="motor_xmh_430_hold_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027599433511991428025 0.0062452642756660493861 0.026084687239525200519" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0036005663070595456815 0.0062419043359857491471 0.089984687239535676717" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0036005663070595456815 0.0062419043359857491471 0.089984687239535676717" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0035981971188171523249 -0.015758095536445707041 0.049984687239528716174" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0035981971188171523249 -0.015758095536445707041 0.049984687239528716174" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027689434588587066854 0.006235273967868844476 -0.34727531789652171801" rpy="-1.5707963267949334174 3.8819121159681930661e-14 -1.5709040171696659893" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/axis_diam_6mm_l30_foot_zmp.stl"/>
+</geometry>
+<material name="axis_diam_6mm_l30_foot_zmp_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027689434588587066854 0.006235273967868844476 -0.34727531789652171801" rpy="-1.5707963267949334174 3.8819121159681930661e-14 -1.5709040171696659893" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/axis_diam_6mm_l30_foot_zmp.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.058801802519345899856 -0.015751375657065226632 0.025984687239525898483" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.058801802519345899856 -0.015751375657065226632 0.025984687239525898483" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.013599433593203123088 0.0062437566104304046202 0.066334687203612616169" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.013599433593203123088 0.0062437566104304046202 0.066334687203612616169" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0036005663070600877826 0.006241904335985756086 0.049984687239528757807" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0036005663070600877826 0.006241904335985756086 0.049984687239528757807" rpy="-2.9335436749613509297e-14 -2.2426331008792984357e-14 1.5706886364201029238" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0015977106167921928566 0.022242464233157309417 0.066334687203612491269" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0015977106167921928566 0.022242464233157309417 0.066334687203612491269" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027591803777230871492 -0.015764736673607230438 -0.17526531276047746521" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027591803777230871492 -0.015764736673607230438 -0.17526531276047746521" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.055600566005530940861 0.0062363044365023115323 -0.014015312760482345755" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.055600566005530940861 0.0062363044365023115323 -0.014015312760482345755" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027813911197622769034 -0.12825471350995643061 -0.0075153126045525361909" rpy="-5.4430493208834107057e-14 -1.2538863106303538147e-08 -0.00010769037477170883177" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027813911197622769034 -0.12825471350995643061 -0.0075153126045525361909" rpy="-5.4430493208834107057e-14 -1.2538863106303538147e-08 -0.00010769037477170883177" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.050400566035682672905 0.0062368644264505692515 0.066334687203611936157" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.050400566035682672905 0.0062368644264505692515 0.066334687203611936157" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588985810998 0.0062352632506227911868 -0.19426531276047775965" rpy="-1.5707963267948603647 -3.881912115968192435e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_bottom.stl"/>
+</geometry>
+<material name="bosh_part_bottom_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588985810998 0.0062352632506227911868 -0.19426531276047775965" rpy="-1.5707963267948603647 -3.881912115968192435e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_bottom.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589456282258287972 0.0060352698686256828903 -0.074265312657577964295" rpy="-1.5707963267948596986 -4.2310409015502524649e-14 1.5706886489590281553" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589456282258287972 0.0060352698686256828903 -0.074265312657577964295" rpy="-1.5707963267948596986 -4.2310409015502524649e-14 1.5706886489590281553" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434433798579877 0.0062352565301814644877 -0.19427531265757980172" rpy="-1.5707963267949329733 3.881912161532389375e-14 -1.5709040046307714" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434433798579877 0.0062352565301814644877 -0.19427531265757980172" rpy="-1.5707963267949329733 3.881912161532389375e-14 -1.5709040046307714" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.058799433331103115319 0.006248624215366193127 0.025984687239525752767" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.058799433331103115319 0.006248624215366193127 0.025984687239525752767" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.039589446365332084388 0.006126555570482064908 0.0069846872934220954887" rpy="-1.57079632679485659 3.3917090692692546898e-14 1.5706886364201260164" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.039589446365332084388 0.006126555570482064908 0.0069846872934220954887" rpy="-1.57079632679485659 3.3917090692692546898e-14 1.5706886364201260164" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588960584649 0.0062352631988134487803 -0.17516531276047808685" rpy="-3.1415926535897558125 3.0109761548542574068e-14 1.5706886364201280148" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+<material name="motor_xmh_430_hold_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588960584649 0.0062352631988134487803 -0.17516531276047808685" rpy="-3.1415926535897558125 3.0109761548542574068e-14 1.5706886364201280148" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588990623121 0.0062352631988235396668 -0.17526531276047813135" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+<material name="motor_xmh_430_material">
+<color rgba="0.49803921568627451677 0.49803921568627451677 0.49803921568627451677 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588990623121 0.0062352631988235396668 -0.17526531276047813135" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0067970644443908680848 0.028243024188314383438 0.049984687239528965974" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0067970644443908680848 0.028243024188314383438 0.049984687239528965974" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.050402289081677667526 0.022236864333673618532 0.066234687203611836148" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.050402289081677667526 0.022236864333673618532 0.066234687203611836148" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027599433356820853719 0.0062452576070349602108 0.12698468734242532308" rpy="-1.5707963267949354158 -5.4770872308287956156e-14 -1.570904004630766071" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027599433356820853719 0.0062452576070349602108 0.12698468734242532308" rpy="-1.5707963267949354158 -5.4770872308287956156e-14 -1.570904004630766071" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027599433512016907644 0.0062452643274755539893 0.0069846872395257636468" rpy="-1.57079632679485659 5.4770872794406519022e-14 1.5706886364201251283" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_top.stl"/>
+</geometry>
+<material name="bosh_part_top_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027599433512016907644 0.0062452643274755539893 0.0069846872395257636468" rpy="-1.57079632679485659 5.4770872794406519022e-14 1.5706886364201251283" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_top.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.0036105652300936824303 0.0062319032591380005628 -0.15126531276047927577" rpy="3.7515941937990306655e-14 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.0036105652300936824303 0.0062319032591380005628 -0.15126531276047927577" rpy="3.7515941937990306655e-14 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589446434915423229 0.0061252632859873177434 0.0069846872934215958884" rpy="-1.57079632679485659 3.3917090692692546898e-14 1.5706886364201260164" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589446434915423229 0.0061252632859873177434 0.0069846872934215958884" rpy="-1.57079632679485659 3.3917090692692546898e-14 1.5706886364201260164" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02760180270026427532 -0.015754735596755588267 0.025984687239525343372" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02760180270026427532 -0.015754735596755588267 0.025984687239525343372" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0015994336627869567592 0.006242464325934181206 0.066234687239531575553" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/hips_part.stl"/>
+</geometry>
+<material name="hips_part_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0015994336627869567592 0.006242464325934181206 0.066234687239531575553" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/hips_part.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.055602935193773031508 0.028236304308934014051 0.025984687239524142943" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.055602935193773031508 0.028236304308934014051 0.025984687239524142943" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434744189001575 0.0062352698674693323583 -0.1942753126575801903" rpy="-1.5707963267948603647 -3.8819121615324146186e-14 1.5706886489590281553" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434744189001575 0.0062352698674693323583 -0.1942753126575801903" rpy="-1.5707963267948603647 -3.8819121615324146186e-14 1.5706886489590281553" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.055600566005529872271 0.0062363044365020816814 0.025984687239524149882" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.055600566005529872271 0.0062363044365020816814 0.025984687239524149882" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.02425293537556085649 0.028239680402180424024 0.04998468723952842474" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.02425293537556085649 0.028239680402180424024 0.04998468723952842474" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.038400566105266750738 0.0062381567109467154705 0.06633468720361197779" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+<material name="screw_hips_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.038400566105266750738 0.0062381567109467154705 0.06633468720361197779" rpy="-1.570796326794896558 -1.1124297007314293349e-15 3.1414849632149062231" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_hips.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027413924537201969645 -0.12825475658466992113 -0.0075153129163819804015" rpy="-3.141592653589738493 1.2538862066680046277e-08 3.1414849632150230185" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027413924537201969645 -0.12825475658466992113 -0.0075153129163819804015" rpy="-3.141592653589738493 1.2538862066680046277e-08 3.1414849632150230185" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.05879180359631436259 -0.015761376733920959281 -0.17526531276047627173" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.05879180359631436259 -0.015761376733920959281 -0.17526531276047627173" rpy="-3.1415926535897558125 3.010976154854266242e-14 1.5706886364201257944" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.0067994336326342138047 0.0062430243158825022426 0.089984687239535551817" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.0067994336326342138047 0.0062430243158825022426 0.089984687239535551817" rpy="-3.1893363058463949638e-14 -4.0967318994008397349e-14 -1.5709040171698811506" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.024402935374691195336 0.028239664248624181397 0.025984687239524580094" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.024402935374691195336 0.028239664248624181397 0.025984687239524580094" rpy="3.1415926535897513716 -6.4392919781513620912e-14 -1.5709040171696921906" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589427920345997031 0.0062352633540210099933 -0.19427531265758291035" rpy="-1.5707963267948577002 3.5898288191072331107e-14 -0.00010767783587895358381" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589427920345997031 0.0062352633540210099933 -0.19427531265758291035" rpy="-1.5707963267948577002 3.5898288191072331107e-14 -0.00010767783587895358381" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027599433667213759541 0.0062452709443285795571 0.12698468734242501776" rpy="-1.5707963267948557018 5.4914134280534472196e-14 1.5706886489590259348" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027599433667213759541 0.0062452709443285795571 0.12698468734242501776" rpy="-1.5707963267948557018 5.4914134280534472196e-14 1.5706886489590259348" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588991341296 0.0062352631988243211597 -0.19426531276047814822" rpy="-1.5707963267948605868 -3.8819121159681918039e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+<material name="leg_top_part_2_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588991341296 0.0062352631988243211597 -0.19426531276047814822" rpy="-1.5707963267948605868 -3.8819121159681918039e-14 1.5706886364201271267" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.058799433331102754496 0.0062486242153661167992 -0.014015312760481707377" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.058799433331102754496 0.0062486242153661167992 -0.014015312760481707377" rpy="-3.1415926535897518157 -2.8088648005366069071e-14 1.5706886364201113615" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589427920343769646 0.0062352633540142402349 -0.074265312657574661381" rpy="-1.5707963267948577002 3.6338288191073071898e-14 -0.00010767783589800865383" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589427920343769646 0.0062352633540142402349 -0.074265312657574661381" rpy="-1.5707963267948577002 3.6338288191073071898e-14 -0.00010767783589800865383" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589434588989089625 0.0062352631470204162439 0.0069846872934218456885" rpy="-1.5707963267949367481 -3.3617135533684658278e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_1.stl"/>
+</geometry>
+<material name="leg_top_part_1_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589434588989089625 0.0062352631470204162439 0.0069846872934218456885" rpy="-1.5707963267949367481 -3.3617135533684658278e-14 -1.5709040171696675436" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_1.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027589433356883196619 0.0062452565301156963765 0.0069846873424216499027" rpy="-1.5707963267949356378 -3.3617148596345146128e-14 -1.570904004630766515" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027589433356883196619 0.0062452565301156963765 0.0069846873424216499027" rpy="-1.5707963267949356378 -3.3617148596345146128e-14 -1.570904004630766515" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02758944125760971755 0.0062352633554630630675 -0.34326531286337802484" rpy="1.5707963267948577002 -3.6338289164570153647e-14 3.1414849506761228781" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02758944125760971755 0.0062352633554630630675 -0.34326531286337802484" rpy="1.5707963267948577002 -3.6338289164570153647e-14 3.1414849506761228781" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.024400566186448442024 0.0062396643761924042854 0.025984687239524593971" rpy="3.1415926535897518157 -6.4837137740371691426e-14 -1.5709040171696910804" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+<material name="motor_xmh_430_material">
+<color rgba="0.49803921568627451677 0.49803921568627451677 0.49803921568627451677 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.024400566186448442024 0.0062396643761924042854 0.025984687239524593971" rpy="3.1415926535897518157 -6.4837137740371691426e-14 -1.5709040171696910804" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.027784943563751302031 0.14073528513607319601 -0.12751531291639728316" rpy="3.1415926535897598093 1.2538940765729592864e-08 -0.00010769037477093419642" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.027784943563751302031 0.14073528513607319601 -0.12751531291639728316" rpy="3.1415926535897598093 1.2538940765729592864e-08 -0.00010769037477093419642" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<inertial>
+<origin xyz="-0.01651675675448384395 0.0062053671916047640003 -0.081310735294016375785" rpy="0 0 0"/>
+<mass value="0.65353972481692879093" />
+<inertia ixx="0.011208270104354788044" ixy="2.8572923953821330812e-07"  ixz="-0.00090258872519718806593" iyy="0.011521943248912161484" iyz="2.3104273431669761541e-06" izz="0.00042221078879280674523" />
+</inertial>
+</link>
+
+<link name="leg_top_full_asmb">
+<visual>
+<origin xyz="-1.0000000002464634608e-05 0.20125000000000189959 0.050189999999999714009" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000000002464634608e-05 0.20125000000000189959 0.050189999999999714009" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.1345000001029003911 0.033500000155914727573 0.018800006668629850454" rpy="-1.570796326794896558 -1.5707963142559957515 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.1345000001029003911 0.033500000155914727573 0.018800006668629850454" rpy="-1.570796326794896558 -1.5707963142559957515 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.022010000000002381826 0.20125000000000167755 0.050189999999999596048" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.022010000000002381826 0.20125000000000167755 0.050189999999999596048" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-6.668628196523918028e-09 -0.10100000010289905683 0.018999999844084757006" rpy="3.1415926535897895633 1.2538901000024245182e-08 3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-6.668628196523918028e-09 -0.10100000010289905683 0.018999999844084757006" rpy="3.1415926535897895633 1.2538901000024245182e-08 3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.0000000000624093e-05 0.13725000000000184275 -0.012210000000000748033" rpy="1.570796326794901443 -5.4199253509689670647e-15 1.0416274636391455085e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000000000624093e-05 0.13725000000000184275 -0.012210000000000748033" rpy="1.570796326794901443 -5.4199253509689670647e-15 1.0416274636391455085e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-8.6527571566130667691e-11 0.018999999946102297255 0.0069900000000005764814" rpy="-3.1415926535897868987 5.4199181490764673836e-15 -3.1415926535897829019" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-8.6527571566130667691e-11 0.018999999946102297255 0.0069900000000005764814" rpy="-3.1415926535897868987 5.4199181490764673836e-15 -3.1415926535897829019" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.0000000002327591453e-05 0.20125000000000192735 0.018989999999999222779" rpy="-1.5707963267949029973 -5.4199242169861402975e-15 1.0416274636391462974e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+<material name="motor_xmh_430_material">
+<color rgba="0.49803921568627451677 0.49803921568627451677 0.49803921568627451677 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000000002327591453e-05 0.20125000000000192735 0.018989999999999222779" rpy="-1.5707963267949029973 -5.4199242169861402975e-15 1.0416274636391462974e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.00011999991347952810444 0.018999999946103546256 0.030990000000000361008" rpy="-6.1339875128684400111e-15 -5.639929839587511092e-15 1.1446274636391464328e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.00011999991347952810444 0.018999999946103546256 0.030990000000000361008" rpy="-6.1339875128684400111e-15 -5.639929839587511092e-15 1.1446274636391464328e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02201000000000216672 0.2012500000000017053 0.018989999999999215841" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02201000000000216672 0.2012500000000017053 0.018989999999999215841" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.02201000000000141385 0.17725000000000140643 0.018839999999999326036" rpy="1.5707963267949001107 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.02201000000000141385 0.17725000000000140643 0.018839999999999326036" rpy="1.5707963267949001107 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.00011999991347765286837 0.01899999994610239093 0.018990000000000523822" rpy="-6.1339807559126420508e-15 -5.6399315421032000456e-15 1.1446274636391454862e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.00011999991347765286837 0.01899999994610239093 0.018990000000000523822" rpy="-6.1339807559126420508e-15 -5.6399315421032000456e-15 1.1446274636391454862e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.13451000010290076192 0.1535000001559150562 0.018780006668628806965" rpy="-1.5707963267948856778 -1.5707963142559875358 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.13451000010290076192 0.1535000001559150562 0.018780006668628806965" rpy="-1.5707963267948856778 -1.5707963142559875358 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.9993331373679631979e-05 0.28800000010290044417 0.01898999984408590927" rpy="-3.1415926535897860106 1.2538895580087551226e-08 1.104627454069964182e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.9993331373679631979e-05 0.28800000010290044417 0.01898999984408590927" rpy="-3.1415926535897860106 1.2538895580087551226e-08 1.104627454069964182e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.0000000001280685835e-05 0.17725000000000171174 -0.012210000000000928444" rpy="1.5707963267949001107 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000000001280685835e-05 0.17725000000000171174 -0.012210000000000928444" rpy="1.5707963267949001107 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.0000000003475978394e-05 0.2412500000000023237 0.05018999999999945727" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000000003475978394e-05 0.2412500000000023237 0.05018999999999945727" rpy="-1.5707963267948932273 2.6642177643913655499e-15 1.0416274636391480329e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.022010000000001556097 0.17725000000000207256 -0.012210000000001119264" rpy="1.570796326794901443 -5.4199253509689670647e-15 1.0416274636391455085e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+<material name="motor_xmh_430_idler_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.022010000000001556097 0.17725000000000207256 -0.012210000000001119264" rpy="1.570796326794901443 -5.4199253509689670647e-15 1.0416274636391455085e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_idler.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="5.1799740712066277837e-11 0.019000000000000311778 0.019000000000000502598" rpy="-6.3539816113973397557e-15 -5.5309380744681447029e-15 4.1521491543795477911e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_top.stl"/>
+</geometry>
+<material name="bosh_part_top_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="5.1799740712066277837e-11 0.019000000000000311778 0.019000000000000502598" rpy="-6.3539816113973397557e-15 -5.5309380744681447029e-15 4.1521491543795477911e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_top.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.13450000010290011354 0.033499999844087607892 0.019199993331370155542" rpy="1.5707963267949136554 1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.13450000010290011354 0.033499999844087607892 0.019199993331370155542" rpy="1.5707963267949136554 1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.000000001193795951e-05 0.20115000000000129998 0.018989999999968722871" rpy="-1.5707963267948898967 -5.4199315249005090771e-15 1.0416274636391448775e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+<material name="motor_xmh_430_hold_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.000000001193795951e-05 0.20115000000000129998 0.018989999999968722871" rpy="-1.5707963267948898967 -5.4199315249005090771e-15 1.0416274636391448775e-14" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/motor_xmh_430_hold.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0 0.019000000000000006467 0.018999999999999996059" rpy="-2.1999999999998777299e-16 -1.1038576593496368558e-20 1.6773923637911445902e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+<material name="leg_top_part_2_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0 0.019000000000000006467 0.018999999999999996059" rpy="-2.1999999999998777299e-16 -1.1038576593496368558e-20 1.6773923637911445902e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="6.6686308350383249888e-09 -0.10100000010289872376 0.019000000155914725103" rpy="-2.2000554617730564193e-16 -1.2538901000022235133e-08 2.8712989309579425411e-21" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="6.6686308350383249888e-09 -0.10100000010289872376 0.019000000155914725103" rpy="-2.2000554617730564193e-16 -1.2538901000022235133e-08 2.8712989309579425411e-21" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-1.0000051809123423896e-05 0.018999999946103535847 0.018990000000000478719" rpy="-3.1415926535897868987 5.4199170857749111367e-15 -3.1415926535897820138" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_1.stl"/>
+</geometry>
+<material name="leg_top_part_1_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-1.0000051809123423896e-05 0.018999999946103535847 0.018990000000000478719" rpy="-3.1415926535897868987 5.4199170857749111367e-15 -3.1415926535897820138" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_1.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-6.6686388867573387351e-09 0.018999999897101566698 0.018989999844085760083" rpy="-3.1415926535897868987 1.2538906419927056166e-08 -3.1415926535897842342" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-6.6686388867573387351e-09 0.018999999897101566698 0.018989999844085760083" rpy="-3.1415926535897868987 1.2538906419927056166e-08 -3.1415926535897842342" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="0.13449000010289854923 0.15350000015591799829 0.019199993331371130456" rpy="-1.5707963267949076602 1.5707963142560037451 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="0.13449000010289854923 0.15350000015591799829 0.019199993331371130456" rpy="-1.5707963267949076602 1.5707963142560037451 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-8.6527573300854143667e-11 0.018999999946102397869 0.018990000000000485658" rpy="-3.1415926535897868987 5.4199181490764673836e-15 -3.1415926535897829019" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+<material name="screw_little_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-8.6527573300854143667e-11 0.018999999946102397869 0.018990000000000485658" rpy="-3.1415926535897868987 5.4199181490764673836e-15 -3.1415926535897829019" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_little.stl"/>
+</geometry>
+</collision>
+<inertial>
+<origin xyz="-6.30166340754140237e-06 0.14166759331650660703 0.019197022193232601145" rpy="0 0 0"/>
+<mass value="0.23975623733965453765" />
+<inertia ixx="0.00093633523899732654019" ixy="6.2950650631746639497e-08"  ixz="8.8963521275593191992e-11" iyy="3.7451244045579336057e-05" iyz="-2.8241409963996956261e-06" izz="0.00093221606657549872885" />
+</inertial>
+</link>
+
+<link name="leg_bottom_asmb">
+<visual>
+<origin xyz="1.559147429219809311e-10 0.1680000001029003931 0.019000006668630414763" rpy="-3.141592653589793116 -1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="1.559147429219809311e-10 0.1680000001029003931 0.019000006668630414763" rpy="-3.141592653589793116 -1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-6.6686298002757715686e-09 0.01900999989709906135 0.018999999844085187217" rpy="3.1415926535897900074 1.2538906444358460906e-08 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-6.6686298002757715686e-09 0.01900999989709906135 0.018999999844085187217" rpy="3.1415926535897900074 1.2538906444358460906e-08 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="6.6686299095633505551e-09 0.019009999897099782995 0.019000000155914572447" rpy="2.8033103085189926673e-15 -1.2538900997354619017e-08 3.1285317290412105376e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="6.6686299095633505551e-09 0.019009999897099782995 0.019000000155914572447" rpy="2.8033103085189926673e-15 -1.2538900997354619017e-08 3.1285317290412105376e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="9.0205620750793968909e-16 0.17201000513604025599 0.019100000000171316744" rpy="3.1415926535897895633 5.4443600317621006675e-15 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/axis_diam_6mm_l30_foot_zmp.stl"/>
+</geometry>
+<material name="axis_diam_6mm_l30_foot_zmp_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="9.0205620750793968909e-16 0.17201000513604025599 0.019100000000171316744" rpy="3.1415926535897895633 5.4443600317621006675e-15 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/axis_diam_6mm_l30_foot_zmp.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-8.6736173798840354721e-19 0.018999999999999961364 0.018999999999999999528" rpy="-2.1999999999999647511e-16 -7.8853701375148465898e-21 3.1285299063029680481e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+<material name="leg_top_part_2_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-8.6736173798840354721e-19 0.018999999999999961364 0.018999999999999999528" rpy="-2.1999999999999647511e-16 -7.8853701375148465898e-21 3.1285299063029680481e-30" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/leg_top_part_2.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-0.00019999333137003111327 -0.10100000010289990338 0.019000000155914732042" rpy="-2.2000679867234577396e-16 -1.253890100000695049e-08 8.2108016157722124695e-23" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-0.00019999333137003111327 -0.10100000010289990338 0.019000000155914732042" rpy="-2.2000679867234577396e-16 -1.253890100000695049e-08 8.2108016157722124695e-23" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="2.0625862129364236353e-15 0.1810100015101819837 0.019050000000001586498" rpy="1.5707963267948996666 -5.4443600317621006675e-15 2.2061191631606259259e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp_40x70.stl"/>
+</geometry>
+<material name="foot_bosch20x20_zmp_40x70_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="2.0625862129364236353e-15 0.1810100015101819837 0.019050000000001586498" rpy="1.5707963267948996666 -5.4443600317621006675e-15 2.2061191631606259259e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp_40x70.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="1.5591469608444707973e-10 -0.10100000010290055563 0.018999993331369625926" rpy="-3.4682967937881812374e-29 1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="1.5591469608444707973e-10 -0.10100000010290055563 0.018999993331369625926" rpy="-3.4682967937881812374e-29 1.5707963142559955294 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="5.290906601729261638e-17 0.16600999999999982437 0.019000000000000349942" rpy="1.5707963267948934494 5.4443600317621006675e-15 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp.stl"/>
+</geometry>
+<material name="foot_bosch20x20_zmp_material">
+<color rgba="0.098039215686274508443 0.098039215686274508443 0.098039215686274508443 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="5.290906601729261638e-17 0.16600999999999982437 0.019000000000000349942" rpy="1.5707963267948934494 5.4443600317621006675e-15 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/foot_bosch20x20_zmp.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="1.5591482011717561207e-10 0.019009999897099227884 0.018999993331370024913" rpy="-5.5171385274664399501e-24 1.5707963142559902003 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="1.5591482011717561207e-10 0.019009999897099227884 0.018999993331370024913" rpy="-5.5171385274664399501e-24 1.5707963142559902003 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="1.5591476981019480874e-10 0.2880100001028996215 0.019000006668630931711" rpy="-3.141592653589793116 -1.5707963142559953074 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="1.5591476981019480874e-10 0.2880100001028996215 0.019000006668630931711" rpy="-3.141592653589793116 -1.5707963142559953074 0" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="-6.6686299910953539261e-09 -0.10100000010289977848 0.01899999984408529824" rpy="-3.141592653589793116 1.2538901000003754264e-08 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+<material name="screw_big_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="-6.6686299910953539261e-09 -0.10100000010289977848 0.01899999984408529824" rpy="-3.141592653589793116 1.2538901000003754264e-08 -3.141592653589793116" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/screw_big.stl"/>
+</geometry>
+</collision>
+<visual>
+<origin xyz="5.1799980971267700625e-11 0.018999999999999933609 0.018999999999999916261" rpy="3.247402288395447704e-15 3.1817126523727438558e-18 2.2061191631607685781e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_bottom.stl"/>
+</geometry>
+<material name="bosh_part_bottom_material">
+<color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+</material>
+</visual>
+<collision>
+<origin xyz="5.1799980971267700625e-11 0.018999999999999933609 0.018999999999999916261" rpy="3.247402288395447704e-15 3.1817126523727438558e-18 2.2061191631607685781e-29" />
+<geometry>
+<mesh filename="../utils/urdfs/double_pendulum_right/bosh_part_bottom.stl"/>
+</geometry>
+</collision>
+<inertial>
+<origin xyz="-1.4760286547758127903e-05 0.10313121774757177951 0.018993131582899697163" rpy="0 0 0"/>
+<mass value="0.13347740934566071358" />
+<inertia ixx="0.00045109504387860803942" ixy="6.9787856161608456443e-08"  ixz="8.4940675671418239528e-11" iyy="2.298842073733843301e-05" iyz="-3.5159800478546954459e-07" izz="0.00045345001984951622664" />
+</inertial>
+</link>
+
+<joint name="knee_right" type="revolute">
+<origin xyz="-1.0000000002195752469e-05 0.20125000000000198286 -1.0000000001039559272e-05" rpy="-9.1545865848882347255e-16 -6.8601480141926880519e-15 1.0416269668332699095e-14" />
+<parent link="leg_top_full_asmb" />
+<child link="leg_bottom_asmb" />
+<axis xyz="0 0 1"/>
+<limit effort="1" velocity="20" />
+<joint_properties friction="0.0"/>
+</joint>
+
+<joint name="hip_right" type="revolute">
+<origin xyz="0.0054005662966220384369 0.0062417104933095435282 0.025984687239525378066" rpy="-1.5707963267949356378 -6.4759020555573183571e-14 -1.5709040171696670996" />
+<parent link="hips_total_asmb" />
+<child link="leg_top_full_asmb" />
+<axis xyz="0 0 1"/>
+<limit effort="1" velocity="20" />
+<joint_properties friction="0.0"/>
+</joint>
+
+
+</robot>

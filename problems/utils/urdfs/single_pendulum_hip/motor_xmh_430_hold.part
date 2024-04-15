@@ -1,0 +1,13 @@
+{
+    "configuration": "default",
+    "documentId": "033ca0e37c14982505ca7efe",
+    "documentMicroversion": "39c266894eb03e3f36c38712",
+    "elementId": "1cd4d4cf73203996a551f2a2",
+    "fullConfiguration": "default",
+    "id": "Mz9rssIdMlZnw9uda",
+    "isStandardContent": false,
+    "name": "Motor_XMH_430_hold <2>",
+    "partId": "KF/D",
+    "suppressed": false,
+    "type": "Part"
+}
