@@ -44,7 +44,7 @@ const AB = OP.Abstraction
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 # and we can instantiate the DC system with the provided system
-concrete_problem = DCDC.problem(; approx_mode = "growth")
+concrete_problem = DCDC.problem(; approx_mode = DCDC.GROWTH)
 concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0)
@@ -83,13 +83,13 @@ plot!(control_trajectory)
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 # and we can instantiate the DC system with the provided system
-concrete_problem = DCDC.problem(; approx_mode = "δ-GAS Lyapunov")
+concrete_problem = DCDC.problem(; approx_mode = DCDC.DELTA_GAS)
 concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
 η = (2 / 4.0) * 10^(-3)
 
-# Note: In the following, P and ϵ are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
+# Note: In the following, `P` and `ϵ` are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
 ϵ = 0.1 * 0.01
 P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
 state_grid = DO.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ, concrete_system.X)

@@ -11,7 +11,7 @@ const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
-concrete_problem = DCDC.problem(; approx_mode = "growth")
+concrete_problem = DCDC.problem(; approx_mode = DCDC.GROWTH)
 concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0)
@@ -42,7 +42,7 @@ plot!(control_trajectory)
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
-concrete_problem = DCDC.problem(; approx_mode = "δ-GAS Lyapunov")
+concrete_problem = DCDC.problem(; approx_mode = DCDC.DELTA_GAS)
 concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
