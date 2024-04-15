@@ -87,10 +87,11 @@ concrete_problem = DCDC.problem(; approx_mode = "δ-GAS Lyapunov")
 concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
-η = (2/4.0)*10^(-3)
-ϵ = 0.1*0.01
+η = (2 / 4.0) * 10^(-3)
+ϵ = 0.1 * 0.01
 P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
-state_grid = DO.GridEllipsoidalRectangular(origin, h = SVector(η, η), P/ϵ, concrete_system.X)
+state_grid =
+    DO.GridEllipsoidalRectangular(origin; h = SVector(η, η), P / ϵ, concrete_system.X)
 
 u0 = SVector(1)
 hu = SVector(1)

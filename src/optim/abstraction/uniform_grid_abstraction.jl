@@ -28,7 +28,17 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing, false, 0.0)
+        return new{T}(
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            false,
+            0.0,
+        )
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -52,7 +62,10 @@ function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.
     DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
     abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
     if δGAS
-        @time SY.compute_deterministic_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+        @time SY.compute_deterministic_symmodel_from_controlsystem!(
+            abstract_system,
+            concrete_system.f,
+        )
     else
         @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
     end
