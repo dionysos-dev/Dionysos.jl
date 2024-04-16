@@ -91,10 +91,10 @@ state_grid = DO.GridFree(x0, hx)
 u0 = SVector(1)
 hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
+DCDC = problems_modules["dc_dc.jl"]
 solver_scots_dc_dc = optimizer_with_attributes(
     AB.SCOTSAbstraction.Optimizer,
-    "concrete_problem" =>
-        problems_modules["dc_dc.jl"].problem(; approx_mode = "growth"),
+    "concrete_problem" => DCDC.problem(; approx_mode = DCDC.GROWTH),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
 )
@@ -106,12 +106,11 @@ state_grid = DO.GridFree(x0, h);
 u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
+PathPlanning = problems_modules["path_planning.jl"]
 solver_scots_path_planning = optimizer_with_attributes(
     AB.SCOTSAbstraction.Optimizer,
-    "concrete_problem" => problems_modules["path_planning.jl"].problem(;
-        approx_mode = "growth",
-        simple = true,
-    ),
+    "concrete_problem" =>
+        PathPlanning.problem(; approx_mode = PathPlanning.GROWTH, simple = true),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
 )

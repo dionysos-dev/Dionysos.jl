@@ -20,7 +20,7 @@ include("../../problems/path_planning.jl")
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = "growth")
+concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH)
 concrete_system = concrete_problem.system
 
 # ### Definition of the abstraction

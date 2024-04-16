@@ -11,7 +11,7 @@ using LinearAlgebra, Plots, Colors
 
 # The main package [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) provides most important data structures that we will need.
 using Dionysos
-UT = Dionysos.Utils
+const UT = Dionysos.Utils
 
 # We define the underlying metric between node states
 distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c)
