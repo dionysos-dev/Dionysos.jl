@@ -1,7 +1,7 @@
 name = "Dionysos"
 uuid = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
 authors = ["Raphael Jungers <raphael.jungers@uclouvain.be>", "Antoine Aspeel <antoine.aspeel@uclouvain.be>", "Guillaume Berger <guillaume.berger@uclouvain.be>", "Julien Calbert <julien.calbert@uclouvain.be>", "Virginie Debauche <virginie.debauche@uclouvain.be>", "Mahsa Farjadnia <mahsa.farjadnia@uclouvain.be>", "Benoît Legat <benoit.legat@uclouvain.be>", "Zheming Wang <zheming.wang@uclouvain.be>", "Lucas N. Egidio <lucas.egidio@uclouvain.be>", "Adrien Banse <adrien.banse@uclouvain.be>", "Somya Singh <somya.singh@uclouvain.be>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
