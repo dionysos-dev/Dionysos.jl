@@ -102,7 +102,7 @@ println("Started test")
                 next_targets,
             )
         end
-        @test f(symmodel.autom, initlist, targetlist) == 0 # check this
+        @test f(symmodel.autom, initlist, targetlist) == 0
     end
 
     xpos = DO.get_somepos(Xinit)
