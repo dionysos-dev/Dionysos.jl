@@ -152,32 +152,23 @@ function compute_deterministic_symmodel_from_controlsystem!(
     contsys;
     tstep = contsys.tstep,
 ) where {N}
-    println("compute_symmodel_from_controlsystem! started")
+    println("compute_deterministic_symmodel_from_controlsystem! started")
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     ntrans = 0
-    # Vector to store transitions
-    translist = Tuple{Int, Int, Int}[]
 
     for upos in DO.enum_pos(Udom)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
         for xpos in DO.enum_pos(Xdom)
-            empty!(translist)
             source = get_state_by_xpos(symmodel, xpos)
             x = DO.get_coord_by_pos(Xdom.grid, xpos)
             Fx = contsys.sys_map(x, u, tstep)
             ypos = DO.get_pos_by_coord(Xdom.grid, Fx)
-            allin = true
-            if !(ypos in Xdom)
-                allin = false
-            else
+            if ypos in Xdom
                 target = get_state_by_xpos(symmodel, ypos)
-                push!(translist, (target, source, symbol))
-            end
-            if allin
-                add_transitions!(symmodel.autom, translist)
-                ntrans += length(translist)
+                HybridSystems.add_transition!(symmodel.autom, source, target, symbol)
+                ntrans += 1
             end
         end
     end
