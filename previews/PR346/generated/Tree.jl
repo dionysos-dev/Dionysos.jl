@@ -1,7 +1,7 @@
 using LinearAlgebra, Plots, Colors
 
 using Dionysos
-UT = Dionysos.Utils
+const UT = Dionysos.Utils
 
 distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c)
 
