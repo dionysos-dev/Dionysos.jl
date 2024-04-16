@@ -7,7 +7,7 @@ using JuMP
 
 using ..Domain
 using ..Utils
-UT = Utils
+const UT = Utils
 
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,

@@ -5,13 +5,13 @@ using StaticArrays
 using LinearAlgebra
 
 using ..Utils
-UT = Utils
+const UT = Utils
 
 using ..Domain
-DO = Domain
+const DO = Domain
 
 using ..System
-ST = System
+const ST = System
 
 include("automaton.jl")
 include("symbolicmodel.jl")

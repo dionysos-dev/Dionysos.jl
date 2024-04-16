@@ -63,8 +63,8 @@ println("Started test")
     domain3 = DO.DomainList(DO.GridFree(orig, SVector(0.1, 0.1)))
     # First we compile
     @allocated DO.add_set!(domain3, rect, DO.OUTER)
-    # It gives me 208 with Julia v1.10.2 but let's leave some margin
-    @test (@allocated DO.add_set!(domain3, rect, DO.OUTER)) < 256
+    # Test for the regression detected in https://github.com/dionysos-dev/Dionysos.jl/pull/346#issuecomment-2059069415
+    @test (@allocated DO.add_set!(domain3, rect, DO.OUTER)) == 0
 end
 
 sleep(0.1) # used for good printing

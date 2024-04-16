@@ -50,18 +50,11 @@ function add_set!(domain, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_M
     end
 end
 
-# For some reason that I fail to see, Julia's inference fails and the loop
-# then allocates for every iteration if the content of this function is
-# just copy-pasted to `add_set!`
-function _add_set!(domain, ranges)
-    for pos in Iterators.product(ranges...)
-        add_pos!(domain, pos)
-    end
-end
-
 function add_set!(domain, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(domain.grid, rect, incl_mode)
-    return _add_set!(domain, _ranges(rectI))
+    for pos in Iterators.product(_ranges(rectI)...)
+        add_pos!(domain, pos)
+    end
 end
 
 function get_subset_pos(domain::DomainList, rect::UT.HyperRectangle, incl_mode::INCL_MODE)

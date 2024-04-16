@@ -2,7 +2,7 @@ module Domain
 
 using StaticArrays, Plots
 using ..Utils
-UT = Utils
+const UT = Utils
 
 abstract type DomainType{N, T} end
 
