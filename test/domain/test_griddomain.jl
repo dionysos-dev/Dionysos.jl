@@ -23,11 +23,8 @@ println("Started test")
     DO.add_coord!(domain1, SVector(-0.5002, -1.0))
     @test DO.get_ncells(domain1) == 2
 
-    DO.add_set!(
-        domain1,
-        UT.HyperRectangle(SVector(1.0, 0.0), SVector(11.0, 10.0)),
-        DO.OUTER,
-    )
+    rect = UT.HyperRectangle(SVector(1.0, 0.0), SVector(11.0, 10.0))
+    DO.add_set!(domain1, rect, DO.OUTER)
     @test DO.get_ncells(domain1) == 67
 
     DO.remove_coord!(domain1, SVector(2.0, 2.0))
@@ -62,6 +59,12 @@ println("Started test")
     fig = plot(; aspect_ratio = :equal)
     plot!(fig, domain1)
     @test isa(fig, Plots.Plot{Plots.GRBackend})
+
+    domain3 = DO.DomainList(DO.GridFree(orig, SVector(0.1, 0.1)))
+    # First we compile
+    @allocated DO.add_set!(domain3, rect, DO.OUTER)
+    # It gives me 208 with Julia v1.10.2 but let's leave some margin
+    @test (@allocated DO.add_set!(domain3, rect, DO.OUTER)) < 256
 end
 
 sleep(0.1) # used for good printing
