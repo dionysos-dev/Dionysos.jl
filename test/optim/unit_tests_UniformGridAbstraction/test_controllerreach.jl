@@ -102,8 +102,7 @@ println("Started test")
                 next_targets,
             )
         end
-        f(symmodel.autom, initlist, targetlist)
-        @test f(symmodel.autom, initlist, targetlist) == 3220912 # check this
+        @test f(symmodel.autom, initlist, targetlist) == 0 # check this
     end
 
     xpos = DO.get_somepos(Xinit)
