@@ -1,4 +1,4 @@
-using ModelingToolkit, RigidBodyDynamics#, DataFrames, RigidBodyDynamics, DifferentialEquations
+using ModelingToolkit, RigidBodyDynamics, DifferentialEquations
 
 ### ---- Handling of the reference torque in Open-Loop ----
 
@@ -6,7 +6,7 @@ using ModelingToolkit, RigidBodyDynamics#, DataFrames, RigidBodyDynamics, Differ
 # include("../utils/torque_references/references.jl")
 # include("../utils/recorded_data/load_real_data.jl")
 
-# Using the module or its functions
+# # Using the module or its functions
 # using .torque_references: waveform_value_at_time
 # using .torque_references: current_for_time
 
@@ -17,18 +17,24 @@ using ModelingToolkit, RigidBodyDynamics#, DataFrames, RigidBodyDynamics, Differ
 #     push!(u_functions, UFunction(dfs[i], 2)) # Select between 3 methods
 # end
 
-@component function VariableInput(; name, experiment = 1)
-    @named output = RealOutput()
+# function torque_ext(t, kt; exp = 1)
+#     u_function = u_functions[exp]
+#     voltage = u_function(t)
+#     return voltage * kt
+# end
 
-    u_function = u_functions[experiment]
-    equation = u_function(t)
+# @component function VariableInput(; name, experiment = 1)
+#     @named output = RealOutput()
 
-    eqs = [
-        output.u ~ equation
-    ]
+#     u_function = u_functions[experiment]
+#     equation = u_function(t)
 
-    compose(ODESystem(eqs, t, [], []; name = name), [output])
-end
+#     eqs = [
+#         output.u ~ equation
+#     ]
+
+#     compose(ODESystem(eqs, t, [], []; name = name), [output])
+# end
 
 @mtkmodel ConstantInput begin
     @components begin
@@ -44,10 +50,11 @@ end
 
 ### ---- Compute the gravitational torque using RBD.jl ----
 
-function compute_dynamics(mechanism, θ, ω)
-    actual_state = MechanismState(mechanism, [θ], [ω])
-    v̇ = copy(velocity(actual_state))
-    v̇[1] = 0
+function compute_dynamics(mechanism, θs, ωs)
+    actual_state = MechanismState(mechanism, θs, ωs)
+    zero_velocity!(actual_state)
+    v̇ = similar(velocity(actual_state))
+    fill!(v̇, 0.0)
     τ_dynamics = -inverse_dynamics(actual_state, v̇)[1]
     return τ_dynamics
 end
@@ -80,19 +87,35 @@ end
 end
 
 @mtkmodel GravitationalTorque begin
+    @structural_parameters begin
+        hip = false
+        single_pendulum = true
+    end
     @components begin
         joint_in = Joint()
         joint_out = Joint()
+        if !single_pendulum 
+            other_joint = Joint()
+        end
     end
     @variables begin
         q(t), [description = "Absolute rotation angle", guess = 0.0]
         q̇(t), [description = "Absolute angular velocity", guess = 0.0]
     end
+    begin
+        if single_pendulum
+            τ_grav = compute_dynamics(mechanism, [q], [q])
+        elseif hip
+            τ_grav = compute_dynamics(mechanism, [q, other_joint.q], [q, other_joint.q])
+        else # knee of double_pendulum
+            τ_grav = compute_dynamics(mechanism, [other_joint.q, q], [other_joint.q, q])
+        end
+    end
     @equations begin
         q ~ joint_in.q
         q ~ joint_out.q
         D(q) ~ q̇
-        joint_out.τ ~ joint_in.τ - compute_dynamics(mechanism, q, q̇)
+        joint_out.τ ~ -joint_in.τ + τ_grav
     end
 end
 
@@ -127,17 +150,24 @@ end
         q ~ joint_in.q
         q ~ joint_out.q
         D(q) ~ q̇
-        joint_out.τ ~ -joint_in.τ + τ_f
+        joint_out.τ ~ -joint_in.τ - τ_f
     end
 end
 
 @mtkmodel TotalInertia begin
+    @structural_parameters begin
+        hip = true
+        single_pendulum = true
+    end
     @parameters begin
         J_motor = 0.07305, [description = "Motor's Moment of inertia"]
     end
     @components begin
         joint_in = Joint()
         joint_out = Joint()
+        if hip 
+            joint_knee = Joint()
+        end
     end
     # begin
     #     @symcheck J_motor > 0 || throw(ArgumentError("Expected `J` to be positive"))
@@ -147,12 +177,21 @@ end
         q̇(t) = 0., [description = "Absolute angular velocity", guess = 0.0]
         q̈(t) = 0., [description = "Absolute angular acceleration", guess = 0.0]
     end
+    begin
+        if single_pendulum
+            J_external = mass_matrix(MechanismState(mechanism, [q], [q̇]))[1]
+        elseif hip
+            J_external = mass_matrix(MechanismState(mechanism, [q, joint_knee.q], [q, joint_knee.q]))[1]
+        else 
+            J_external = mass_matrix(MechanismState(mechanism, [0., q], [0., q]))[4]
+        end
+    end
     @equations begin
         q ~ joint_in.q
         q ~ joint_out.q
         D(q) ~ q̇
         D(q̇) ~ q̈
-        q̈ ~ joint_in.τ / (J_motor + mass_matrix(MechanismState(mechanism, [q], [q̇]))[1])
+        q̈ ~ -joint_in.τ / (J_motor + J_external)
     end
 end
 

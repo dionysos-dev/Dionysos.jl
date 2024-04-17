@@ -2,12 +2,10 @@ module single_pendulum_system
 
 ### Please note : the sign(velocity) function is a tanh, because continuous/discrete events are not (not yet ?) working well with components (I didn't achieve to make it working)
 
-using ModelingToolkit, ModelingToolkitStandardLibrary, DifferentialEquations#, Plots, RigidBodyDynamics, DifferentialEquations
+using ModelingToolkit, ModelingToolkitStandardLibrary, DifferentialEquations
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
 include("../model_components.jl")
-# include("single_pendulum_urdf.jl")
-# global mechanism = single_pendulum.single_pendulum_mechanism()
 
 function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = 1, constant_input=true)
     global mechanism = mechanism_
@@ -49,7 +47,7 @@ function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.3
     return sys, model
 end
 
-function problem(sys; u0 = [0., 0.], tspan = (0.0, 120.0), constant_input = false, experiment = 1)
+function problem(sys; u0 = [0., 0.], tspan = (0.0, 10.0), constant_input = false, experiment = 1)
     if !constant_input
         tspan = (dfs[experiment].timestamp[1], dfs[experiment].timestamp[end])
     end
@@ -59,7 +57,7 @@ end
 
 function get_next_state(sys, uk, input, tspan)
     prob = ODEProblem(sys, [sys.J_total.q => uk[1], sys.J_total.q̇ => uk[2]], (0., tspan), [sys.v_input.U => input])
-    sol = solve(prob, Rosenbrock23(), dtmax=0.01, reltol=1e-3, abstol=1e-3)
+    sol = solve(prob, Tsit5(), dtmax=0.01, reltol=1e-5, abstol=1e-5)
     next_u = (sol.u[end][1], sol.u[end][2])
     return next_u
 end

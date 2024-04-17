@@ -4,8 +4,8 @@
 include("single_pendulum_urdf.jl")
 include("single_pendulum_system.jl")
 
-# Define as global variable the single-pendulum mechanism (RigidBodyDynamics)
-global mechanism = single_pendulum_urdf.single_pendulum_mechanism()
+# Define the single-pendulum mechanism (RigidBodyDynamics)
+mechanism = single_pendulum_urdf.single_pendulum_mechanism()
 
 # Estimate the next state from a given state u0 = [q, q̇], for a given input, in a given time tspan
 input = 2.
