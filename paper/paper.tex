@@ -591,14 +591,13 @@ plot!(
 \section{Benchmarking}
 \label{sec:benchmarks}
 
-In order to compare the performance of \texttt{Dionysos.jl} against other similar packages, we focus our comparison on SCOTS~\cite{rungger2016scots} as it outperforms other packages such as PESSOA \cite{mazo2010pessoa, Roy2011}, as highlighted in \cite{rungger2016scots}. \textcolor{magenta}{Although CoSyMA is limited to incrementally stable systems \cite{mouelhi2013cosyma}, we also compare our package to this tool.} The code for comparing these packages is \textcolor{blue}{published on CodeOcean \cite{Calbert2024}}, and is entirely reproducible. For more information, we invite the reader to read the \texttt{README.md} file in the CodeOcean capsule.
+In order to evaluate the performance of \texttt{Dionysos.jl}, we compare the performance of our package against other similar packages, namely SCOTS \cite{rungger2016scots} and CoSyMA \cite{mouelhi2013cosyma}. We exclude PESSOA \cite{mazo2010pessoa, Roy2011} from the comparison as it is outperformed by SCOTS \cite{rungger2016scots}. The code for comparing these packages is \textcolor{blue}{published on CodeOcean \cite{Calbert2024}}, and is entirely reproducible. For more information, we invite the reader to read the \texttt{README.md} file in the CodeOcean capsule.
 
 \vskip 6pt
 
-\textcolor{magenta}{We reproduced the two numerical experiments of \cite{rungger2016scots}. First, the DC-DC converter example presented in \cite[Section 4.2]{rungger2016scots} is reproduced with \texttt{Dionysos.jl}, SCOTS and CoSyMA. Thanks to the modularity of \texttt{Dionysos.jl}, we can specify to the package that the system is incrementally stable, resulting in sped-up abstraction and synthesis procedures \cite{Camara2011}. For the sake of completeness, we also provide the performance of \texttt{Dionysos.jl} in the setting where no prior knowledge on the stability is given. The results can be found in Table~\ref{tab:dcdc_bench}.}
+We reproduced the two numerical experiments of \cite{rungger2016scots}. First, the DC-DC converter example presented in \cite[Section 4.2]{rungger2016scots} is reproduced with \texttt{Dionysos.jl}, SCOTS and CoSyMA. Thanks to the modularity of \texttt{Dionysos.jl}, we can specify to the package that the system is incrementally stable, resulting in sped-up abstraction and synthesis procedures \cite{Camara2011}. For the sake of completeness, we also provide the performance of \texttt{Dionysos.jl} in the setting where no prior knowledge on the stability is given. The results can be found in Table~\ref{tab:dcdc_bench}.
 
 \begin{table}[ht!]
-    \color{magenta}
     \centering
     \begin{tabular}{c|ccc}
         & Abstraction [s] & Synthesis [s] & Total [s] \\ 
@@ -606,16 +605,15 @@ In order to compare the performance of \texttt{Dionysos.jl} against other simila
         \texttt{Dionysos.jl} (no prior) & \textbf{1.24} & \textbf{3.53} & \textbf{4.77} \\
         \texttt{Dionysos.jl} (prior) & \textbf{0.63} & \textbf{2.76} & \textbf{3.39} \\
         SCOTS & 19.05 & 74.01 & 93.06 \\
-        CoSyMA & - & - & 5.31
+        CoSyMA & --- & --- & 5.31
     \end{tabular}
-    \caption{\textcolor{magenta}{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the DC-DC converter example. \texttt{Dionysos.jl} outperforms SCOTS and CoSyMA with and without prior knowledge of the system's incrementally stable property.}}
+    \caption{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the DC-DC converter example. \texttt{Dionysos.jl} outperforms SCOTS and CoSyMA with and without prior knowledge of the system's incrementally stable property.}
     \label{tab:dcdc_bench}
 \end{table}
 
-\textcolor{magenta}{Second, the path planning problem presented in \cite[Section 4.1]{rungger2016scots} is executed with \texttt{Dionysos.jl} and SCOTS. The results can be found in Table~\ref{tab:vehicle_bench}.}
+Second, the path planning problem presented in \cite[Section 4.1]{rungger2016scots} is executed with \texttt{Dionysos.jl} and SCOTS. We exclude CoSyMA because this system is not incrementally stable. The results can be found in Table~\ref{tab:vehicle_bench}.
 
 \begin{table}[ht!]
-    \color{magenta}
     \centering
     \begin{tabular}{c|ccc}
         & Abstraction [s] & Synthesis [s] & Total [s] \\ 
@@ -623,32 +621,15 @@ In order to compare the performance of \texttt{Dionysos.jl} against other simila
         \texttt{Dionysos.jl} & \textbf{8.58} & \textbf{6.45} & \textbf{15.03} \\
         SCOTS & 117.52 & 480.44 & 597.96 \\
     \end{tabular}
-    \caption{\textcolor{magenta}{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the path planning example. \texttt{Dionysos.jl} outperforms SCOTS.}}
+    \caption{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the path planning example. \texttt{Dionysos.jl} outperforms SCOTS.}
     \label{tab:vehicle_bench}
 \end{table}
 
-\color{black}
+We see that \texttt{Dionysos.jl} outperforms the other packages for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The visualizations of the DC-DC converter controller with and without prior knwoledge are identical, \textcolor{blue}{as it can be verified in \cite{Calbert2024}}.
 
-% \begin{table}[ht!]
-%     \centering
-%     \color{magenta}
-%     \begin{tabular}{cc|cc}
-%         & & Abstraction [s] & Synthesis [s] \\ 
-%         \hline 
-%         Path planning & \texttt{Dionysos.jl} & \textbf{26.58} & \textbf{31.46} \\
-%         & SCOTS & 116.55 & 522.09 \\
-%         \hline
-%         DC-DC & \texttt{Dionysos.jl} & \textbf{6.62} & \textbf{6.10} \\
-%         & SCOTS & 20.97 & 74.18 \\ 
-%         & CoSyMA & - & (5.97)
-%     \end{tabular}
-%     \color{black}
-%     \caption{Comparaison between SCOTS and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the two problems in \cite{rungger2016scots}. \textcolor{magenta}{CoSyMA is also executed on the DC-DC converter problem for information.}}
-%     \label{tab:benchmark}
-% \end{table}
+\vskip 6pt
 
-We see that \texttt{Dionysos.jl} outperforms the other packages for these two examples. We also reproduced \cite[Figures 3 and 4]{rungger2016scots} in Figure~\ref{fig:dcdc} and Figure~\ref{fig:vehicle}, which shows that they compute the same controller. The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures. 
-% \textcolor{magenta}{Moreover, we see that the synthesis performance of \texttt{Dionysos.jl} is close to the one of CoSyMA on the DC-DC converter example, while the latter constructs approximate bisimilar abstractions, unlike \texttt{Dionysos.jl}.}
+The reason for such a difference between SCOTS, written in C++, and \texttt{Dionysos.jl} does not lie in the programming language used to write the package but in the synthesis algorithm itself. For example, unlike SCOTS, our package does not make use of \emph{Binary Decision Diagrams} (or \emph{BDDs})~\cite{bryant1992symbolic}, which as recognized in~\cite{rungger2016scots} results in substantially longer execution times compared to tools that use alternative data structures. 
 
 
 \begin{figure}[ht!]
