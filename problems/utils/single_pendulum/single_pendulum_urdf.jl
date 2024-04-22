@@ -5,7 +5,7 @@ using RigidBodyDynamics#, Symbolics
 function single_pendulum_mechanism()
     # Load the URDF file
     # global urdf_path = "../utils/urdfs/doublependulum_new_knee_fixed.urdf"
-    urdf_path = "../utils/urdfs/single_pendulum_hip/robot.urdf"
+    urdf_path = joinpath("..", "utils", "urdfs", "single_pendulum_hip", "robot.urdf")
     mechanism = parse_urdf(Float64, urdf_path)
     remove_fixed_tree_joints!(mechanism)
 
