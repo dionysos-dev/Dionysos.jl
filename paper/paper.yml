@@ -1,0 +1,19 @@
+title: "Dionysos.jl: a Modular Platform for Smart Symbolic Control"
+keywords:
+  - Systems and Control, Symbolic Models, Smart abstractions
+authors:
+  - name: Julien Calbert
+    affiliation: 1
+  - name: Adrien Banse
+    affiliation: 1
+  - name: Benoît Legat
+    affiliation: 2
+  - name: Raphaël M. Jungers
+    affiliation: 1
+affiliations:
+  - name: ICTEAM, UCLouvain
+    index: 1
+  - name: STADIUS, KU Leuven
+    index: 2
+date: 14 February 2024
+bibliography: ref.bib
