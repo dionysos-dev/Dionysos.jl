@@ -1,13 +1,18 @@
 using BipedRobot
 using RigidBodyDynamics
 
+@static if get(ENV, "CI", "false") == "false"
+    using MeshCatMechanisms
+    using Plots
+    using BenchmarkTools
+end
+
 urdf = joinpath(dirname(dirname(pathof(BipedRobot))), "deps", "doublependulum.urdf")
 doublependulum = parse_urdf(Float64, urdf)
 
 const state = MechanismState(doublependulum)
 
 @static if get(ENV, "CI", "false") == "false"
-    using MechCatMechanisms
     vis = MechanismVisualizer(doublependulum, URDFVisuals(urdf))
     #IJuliaCell(vis)
 end
@@ -26,7 +31,6 @@ end
 shoulder_angles = collect(q[1] for q in qs)
 
 @static if get(ENV, "CI", "false") == "false"
-    using Plots
     plot(
         ts,
         shoulder_angles;
@@ -85,7 +89,6 @@ M = mass_matrix(state)
 mass_matrix!(M, state)
 
 @static if get(ENV, "CI", "false") == "false"
-    using BenchmarkTools
     @btime (setdirty!($state); mass_matrix!($M, $state))
 else
     mass_matrix!(M, state)

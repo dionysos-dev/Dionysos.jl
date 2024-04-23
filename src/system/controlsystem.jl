@@ -236,7 +236,15 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     L = _getLipschitzConstants(Jxi, xi, sub_rules_Xi)
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
-    evalSym(x) = Float64.(Symbolics.value.(Symbolics.substitute(x, sub_rules_x̄i)))
+    function evalSym(x)
+        # When x is a Vector{SymbolicUtils.BasicSymbolic{Real}}, 
+        # one needs to substitute each element of the vector
+        if eltype(x) <: SymbolicUtils.BasicSymbolic{Real}
+            return [Symbolics.substitute(elem, sub_rules_x̄i) for elem in x]
+        end
+        return Float64.(Symbolics.value.(Symbolics.substitute(x, sub_rules_x̄i)))
+    end
+
     A = evalSym(Jx)
     B = evalSym(Ju)
     E = evalSym(Jw)
