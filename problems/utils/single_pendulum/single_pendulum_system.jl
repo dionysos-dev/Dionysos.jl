@@ -5,7 +5,7 @@ module single_pendulum_system
 using ModelingToolkit, ModelingToolkitStandardLibrary, DifferentialEquations
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
-include("../model_components.jl")
+include(joinpath("..", "model_components.jl"))
 
 function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = 1, constant_input=true)
     global mechanism = mechanism_

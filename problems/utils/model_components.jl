@@ -1,5 +1,5 @@
 using ModelingToolkit, RigidBodyDynamics, DifferentialEquations
-
+using ModelingToolkitStandardLibrary.Blocks: RealOutput, RealInput, RealOutputArray, RealInputArray
 ### ---- Handling of the reference torque in Open-Loop ----
 
 # Include using a relative path
@@ -17,17 +17,19 @@ using ModelingToolkit, RigidBodyDynamics, DifferentialEquations
 #     push!(u_functions, UFunction(dfs[i], 2)) # Select between 3 methods
 # end
 
-# function torque_ext(t, kt; exp = 1)
-#     u_function = u_functions[exp]
-#     voltage = u_function(t)
-#     return voltage * kt
-# end
-
-# @component function VariableInput(; name, experiment = 1)
-#     @named output = RealOutput()
-
-#     u_function = u_functions[experiment]
-#     equation = u_function(t)
+# @component function VariableInput(; name, experiment = 1, nin = 1)
+#     if nin == 1
+#         @named output = RealOutput()
+#         u_function = u_functions[experiment]
+#         equation = u_function(t)
+#     else
+#         @named output = RealOutputArray(nout=nin)
+#         equations = Array{typeof(u_functions[1](t))}(undef, nin)  # Initialize an array for the equations.
+#         for i in 1:nin
+#             u_function = u_functions[experiment[i]]  # Assume experiment is now an array of indices.
+#             equations[i] = u_function(t)  # Apply each function to `t`.
+#         end
+#     end
 
 #     eqs = [
 #         output.u ~ equation
@@ -36,6 +38,8 @@ using ModelingToolkit, RigidBodyDynamics, DifferentialEquations
 #     compose(ODESystem(eqs, t, [], []; name = name), [output])
 # end
 
+# 22 April 2024 : MTK have not the possibility yet to create variable array length https://github.com/SciML/ModelingToolkit.jl/issues/2453
+# So a quick and dirty bypass is proposed
 @mtkmodel ConstantInput begin
     @components begin
         output = RealOutput()
@@ -47,6 +51,20 @@ using ModelingToolkit, RigidBodyDynamics, DifferentialEquations
         output.u ~ U
     end
 end
+
+@mtkmodel ConstantInput2 begin
+    @components begin
+        output = RealOutputArray(nout=2)
+    end
+    @parameters begin
+        U[1:2]::Float64 = zeros(2), [description = "Constant output value"]
+    end
+    @equations begin
+        output.u[1] ~ U[1]
+        output.u[2] ~ U[2]
+    end
+end
+
 
 ### ---- Compute the gravitational torque using RBD.jl ----
 
@@ -66,23 +84,82 @@ end
     τ(t), [connect = Flow, description = "Cut torque in joint"]
 end
 
+# Same here, the @structural_parameters solution doesn't yet propose the possibility to define variable length parameters
+# @mtkmodel OLController begin
+#     @components begin
+#         input_voltage = RealInput()
+#         joint_out = Joint()
+#     end
+#     @parameters begin
+#         kt = 0.2843
+#         constant_input = false
+#     end
+#     @variables begin
+#         q(t) = 0., [description = "Absolute rotation angle"]
+#         q̇(t) = 0., [description = "Absolute angular velocity"]
+#     end
+#     @equations begin
+#         q ~ joint_out.q
+#         D(q) ~ q̇
+#         joint_out.τ ~ input_voltage.u * kt
+#     end
+# end
 @mtkmodel OLController begin
+    @structural_parameters begin
+        nin = 1
+    end
     @components begin
         input_voltage = RealInput()
         joint_out = Joint()
+        if nin == 2
+            input_voltage = RealInputArray(nin=nin)
+            joint_out = [Joint() for i in 1:2]
+        end
     end
     @parameters begin
         kt = 0.2843
         constant_input = false
     end
     @variables begin
-        q(t) = 0., [description = "Absolute rotation angle", guess = 0.0]
-        q̇(t) = 0., [description = "Absolute angular velocity", guess = 0.0]
+        q(t) = zeros(nin), [description = "Absolute rotation angle"]
+        q̇(t) = zeros(nin), [description = "Absolute angular velocity"]
     end
     @equations begin
-        q ~ joint_out.q
+        if nin==1
+            q[1] ~ joint_out.q
+            D(q[1]) ~ q̇[1]
+            joint_out.τ ~ input_voltage.u * kt
+        else
+            for i in 1:nin
+                q[2] ~ joint_out[i].q
+                D(q[2]) ~ q̇[2]
+                joint_out[i].τ ~ input_voltage[i].u * kt
+            end
+        end
+    end
+end
+
+@mtkmodel OLController2 begin
+    @components begin
+        input_voltage = RealInputArray(nin=2)
+        # joint_out = [Joint() for i in 1:2] -> doesn't work...
+        joint_out1 = Joint()
+        joint_out2 = Joint()
+    end
+    @parameters begin
+        kt = 0.2843
+        constant_input = false
+    end
+    @variables begin
+        q(t)[1:2] = zeros(2), [description = "Absolute rotation angle"]
+        q̇(t)[1:2] = zeros(2), [description = "Absolute angular velocity"]
+    end
+    @equations begin
         D(q) ~ q̇
-        joint_out.τ ~ input_voltage.u * kt
+        q[1] ~ joint_out1.q
+        joint_out1.τ ~ input_voltage.u[1] * kt
+        q[2] ~ joint_out2.q
+        joint_out2.τ ~ input_voltage.u[2] * kt
     end
 end
 
@@ -173,9 +250,9 @@ end
     #     @symcheck J_motor > 0 || throw(ArgumentError("Expected `J` to be positive"))
     # end
     @variables begin
-        q(t) = 0., [description = "Absolute rotation angle", guess = 0.0]
-        q̇(t) = 0., [description = "Absolute angular velocity", guess = 0.0]
-        q̈(t) = 0., [description = "Absolute angular acceleration", guess = 0.0]
+        q(t) = 0., [description = "Absolute rotation angle"]
+        q̇(t) = 0., [description = "Absolute angular velocity"]
+        q̈(t) = 0., [description = "Absolute angular acceleration"]
     end
     begin
         if single_pendulum
@@ -196,30 +273,40 @@ end
 end
 
 ### ---- Components and connectors definition needed for linearization (source : ModelingToolkitStandardLibrary.jl) ----
-@connector function RealOutput(; name)
-    @variables u(t)=0. [
-        output = true,
-        description = "Inner variable in RealOutput $name",
-    ]
-    ODESystem(Equation[], t, [u...], []; name = name)
-end
-
-@connector function RealInput(; name)
-    @variables u(t)=0. [
-        input = true,
-        description = "Inner variable in RealInput $name"
-    ]
-    ODESystem(Equation[], t, [u...], []; name = name)
-end
-
 @mtkmodel PositionSensor begin
+    @structural_parameters begin
+        nin = 1
+    end
     @components begin
         joint_in = Joint()
         q = RealOutput()
+        if nin > 1
+            joint_in = Joint()
+            q = RealOutputArray(nout = nin)
+        end
     end
     @equations begin
-        joint_in.q ~ q.u
-        joint_in.τ ~ 0
+        if nin == 1
+            joint_in.q ~ q.u
+            joint_in.τ ~ 0
+        else 
+            joint_in.q ~ q.u
+            joint_in.τ ~ 0
+        end
+    end
+end
+
+@mtkmodel PositionSensor2 begin
+    @components begin
+        joint_in1 = Joint()
+        joint_in2 = Joint()
+        q = RealOutputArray(nout = 2)
+    end
+    @equations begin
+        joint_in1.q ~ q.u[1]
+        joint_in1.τ ~ 0
+        joint_in2.q ~ q.u[2]
+        joint_in2.τ ~ 0
     end
 end
 
@@ -227,6 +314,16 @@ end
     @components begin
         input = RealInput()
         output = RealOutput()
+    end
+    @equations begin
+        output.u ~ input.u
+    end
+end
+
+@mtkmodel Feedback2D begin
+    @components begin
+        input = RealInputArray(nin = 2)
+        output = RealOutputArray(nout = 2)
     end
     @equations begin
         output.u ~ input.u
