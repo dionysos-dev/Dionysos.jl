@@ -237,7 +237,9 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
     function evalSym(x)
-        if x isa Vector{SymbolicUtils.BasicSymbolic{Real}}
+        # When x is a Vector{SymbolicUtils.BasicSymbolic{Real}}, 
+        # one needs to substitute each element of the vector
+        if eltype(x) <: SymbolicUtils.BasicSymbolic{Real}
             return [Symbolics.substitute(elem, sub_rules_x̄i) for elem in x]
         end
         return Float64.(Symbolics.value.(Symbolics.substitute(x, sub_rules_x̄i)))
