@@ -3,7 +3,7 @@ module Problem
 using StaticArrays
 
 using ..Utils
-UT = Utils
+const UT = Utils
 
 include("problems.jl")
 

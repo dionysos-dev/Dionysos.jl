@@ -12,10 +12,10 @@ bisection = Dionysos.Utils.bisection
     result = bisection(test_function; interval = [0, 4], δ = ϵ, verbose = false)
     @test isapprox(result[1], -4.0; atol = ϵ) && 0 ≤ result[2] ≤ 4
 
-    result = bisection(test_function; interval = [0, 4], δ = ϵ, verbose = true)
+    result = bisection(test_function; interval = [0, 4], δ = ϵ, verbose = false)
     @test isapprox(result[1], -4.0; atol = ϵ) && 0 ≤ result[2] ≤ 4
 
-    result = bisection(test_function; interval = [1, 3], δ = ϵ, verbose = true)
+    result = bisection(test_function; interval = [1, 3], δ = ϵ, verbose = false)
     @test isapprox(result[1], -3.0; atol = ϵ) && 0 ≤ result[2] ≤ 4
 
     result = bisection(

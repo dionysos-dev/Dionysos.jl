@@ -14,6 +14,8 @@ const PB = DI.Problem
 const ST = DI.System
 const SY = DI.Symbolic
 
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
+
 function dynamicofsystem(
     vs = 1.0,
     rL = 0.05,
@@ -62,13 +64,13 @@ function system(;
     _U_ = UT.HyperRectangle(SVector(1), SVector(2)),
     xdim = 2,
     udim = 1,
-    approx_mode = "growth",
+    approx_mode::ApproxMode = GROWTH,
 )
 
     # Definition of the dynamics functions $f_p$ of the system:
     F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem()
     contsys = nothing
-    if approx_mode == "growth"
+    if approx_mode == GROWTH
         contsys = ST.NewControlSystemGrowthRK4(
             tstep,
             F_sys,
@@ -78,7 +80,7 @@ function system(;
             nsys,
             ngrowthbound,
         )
-    elseif approx_mode == "linearized"
+    elseif approx_mode == LINEARIZED
         contsys = ST.NewControlSystemLinearizedRK4(
             tstep,
             F_sys,
@@ -88,6 +90,8 @@ function system(;
             measnoise,
             nsys,
         )
+    elseif approx_mode == DELTA_GAS
+        contsys = ST.NewSimpleSystem(tstep, F_sys, measnoise, nsys)
     end
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         contsys,
@@ -98,7 +102,7 @@ function system(;
     )
 end
 
-function problem(; approx_mode = "growth")
+function problem(; approx_mode::ApproxMode = GROWTH)
     sys = system(; approx_mode = approx_mode)
     return PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
 end

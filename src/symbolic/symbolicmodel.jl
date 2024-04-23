@@ -147,6 +147,37 @@ function compute_symmodel_from_controlsystem!(
     )
 end
 
+function compute_deterministic_symmodel_from_controlsystem!(
+    symmodel::SymbolicModel{N},
+    contsys;
+    tstep = contsys.tstep,
+) where {N}
+    println("compute_deterministic_symmodel_from_controlsystem! started")
+    Xdom = symmodel.Xdom
+    Udom = symmodel.Udom
+    ntrans = 0
+
+    for upos in DO.enum_pos(Udom)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        for xpos in DO.enum_pos(Xdom)
+            source = get_state_by_xpos(symmodel, xpos)
+            x = DO.get_coord_by_pos(Xdom.grid, xpos)
+            Fx = contsys.sys_map(x, u, tstep)
+            ypos = DO.get_pos_by_coord(Xdom.grid, Fx)
+            if ypos in Xdom
+                target = get_state_by_xpos(symmodel, ypos)
+                HybridSystems.add_transition!(symmodel.autom, source, target, symbol)
+                ntrans += 1
+            end
+        end
+    end
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
 function compute_symmodel_from_controlsystem!(

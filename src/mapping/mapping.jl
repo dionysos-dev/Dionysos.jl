@@ -1,10 +1,10 @@
 module Mapping
 
 using ..Domain
-DO = Domain
+const DO = Domain
 
 using ..Utils
-UT = Utils
+const UT = Utils
 
 include("mapping_continuous.jl")
 
