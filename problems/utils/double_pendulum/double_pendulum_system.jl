@@ -7,15 +7,15 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 
 include("../model_components.jl")
 
-function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = nothing, constant_input=nothing)
+function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = nothing, constant_input=[0., 0.])
     global mechanism = mechanism_
     if !stribeck
         push!(pars, 0.)
     end
-    if constant_input !== nothing
-        @named v_input = ConstantInput2(U = constant_input)
-    elseif experiment !== nothing
+    if experiment !== nothing
         @named v_input = VariableInput2(experiment = experiment, nin = 2)
+    else
+        @named v_input = ConstantInput2(U = constant_input)
     end
 
     @named ctrl = OLController2(kt = pars[3])
@@ -67,17 +67,19 @@ function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.3
     return sys, model
 end
 
-function problem(sys; u0 = [0., 0., 0., 0.], tspan = (0.0, 10.0), constant_input = false, experiment = 1)
-    if !constant_input
+function problem(sys; u0 = [0., 0., 0., 0.], tspan = (0.0, 10.0), experiment = nothing, constant_input=nothing)
+    if experiment !== nothing
         tspan = (dfs[experiment[1]].timestamp[1], dfs[experiment[1]].timestamp[end])
+        prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2], sys.J_total2.q => u0[3], sys.J_total2.q̇ => u0[4]], tspan, [])
+    else
+        prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2], sys.J_total2.q => u0[3], sys.J_total2.q̇ => u0[4]], tspan, [sys.v_input.U[1] => constant_input[1], sys.v_input.U[2] => constant_input[2]])
     end
-    prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2], sys.J_total2.q => u0[3], sys.J_total2.q̇ => u0[4]], tspan, [])
     return prob
 end
 
-function get_next_state(sys, u0, input, tspan)
-    prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2], sys.J_total2.q => u0[3], sys.J_total2.q̇ => u0[4]], (0., tspan), [sys.v_input.U[1] => input[1], sys.v_input.U[2] => input[2]])
-    sol = solve(prob, Rosenbrock23(), dtmax=0.01, reltol=1e-3, abstol=1e-3)
+function get_next_state(sys, prob, uk, input, tspan)
+    newprob = remake(prob, tspan = (0, tspan); u0 = [sys.J_total.q => uk[1], sys.J_total.q̇ => uk[2], sys.J_total2.q => uk[3], sys.J_total2.q̇ => uk[4]], p = [sys.v_input.U[1] => input[1], sys.v_input.U[2] => input[2]])
+    sol = solve(newprob, Tsit5(), dtmax=0.01, reltol=1e-3, abstol=1e-3)
     next_u = (sol.u[end][1], sol.u[end][2], sol.u[end][3], sol.u[end][4])
     return next_u
 end

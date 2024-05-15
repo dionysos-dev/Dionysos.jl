@@ -7,17 +7,13 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 
 include(joinpath("..", "model_components.jl"))
 
-function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = 1, constant_input=true)
+function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.39454422423683916, 0., 0.06510461345450586, 0.], stribeck=false, experiment = nothing, constant_input = 0.)
     global mechanism = mechanism_
-    if !stribeck
-        push!(pars, 0.)
-    end
-    if constant_input
-        @named v_input = ConstantInput(U = experiment)
-    else
+    if experiment !== nothing
         @named v_input = VariableInput(experiment = experiment)
+    else
+        @named v_input = ConstantInput(U = constant_input)
     end
-
     @named ctrl = OLController(kt = pars[3])
     @named J_total = TotalInertia(J_motor = pars[4])
     @named τ_f = FrictionTorque(stribeck = stribeck, τ_c = pars[1], Kv = pars[2], τ_s = pars[5], q̇_s = pars[6])
@@ -47,17 +43,19 @@ function system(mechanism_; pars = [0.06510461345450586, 1.5879662676966781, 0.3
     return sys, model
 end
 
-function problem(sys; u0 = [0., 0.], tspan = (0.0, 10.0), constant_input = false, experiment = 1)
-    if !constant_input
+function problem(sys; u0 = [0., 0.], tspan = (0.0, 10.0), experiment = nothing, constant_input=nothing)
+    if experiment !== nothing
         tspan = (dfs[experiment].timestamp[1], dfs[experiment].timestamp[end])
+        prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2]], tspan, [])
+    else 
+        prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2]], tspan, [sys.v_input.U => constant_input])
     end
-    prob = ODEProblem(sys, [sys.J_total.q => u0[1], sys.J_total.q̇ => u0[2]], tspan, [])
     return prob
 end
 
-function get_next_state(sys, uk, input, tspan)
-    prob = ODEProblem(sys, [sys.J_total.q => uk[1], sys.J_total.q̇ => uk[2]], (0., tspan), [sys.v_input.U => input])
-    sol = solve(prob, Tsit5(), dtmax=0.01, reltol=1e-5, abstol=1e-5)
+function get_next_state(sys, prob, uk, input, tspan)
+    newprob = remake(prob, tspan = (0, tspan); u0 = [sys.J_total.q => uk[1], sys.J_total.q̇ => uk[2]], p = [sys.v_input.U => input])
+    sol = solve(newprob, Tsit5(), dtmax=0.01, reltol=1e-3, abstol=1e-3)
     next_u = (sol.u[end][1], sol.u[end][2])
     return next_u
 end
