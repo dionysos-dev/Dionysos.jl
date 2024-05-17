@@ -65,24 +65,51 @@ function filter_obstacles(_X_, _I_, _T_, obs)
 	return obstacles_LU
 end
 
+function extract_rectangles(matrix)
+	if isempty(matrix)
+		return []
+	end
+
+	n, m = size(matrix)
+	tlx, tly, brx, bry = Int[], Int[], Int[], Int[]
+
+	# Build histogram heights
+	for i in 1:n
+		j = 1
+		while j <= m
+			if matrix[i, j] == 1
+				j += 1
+				continue
+			end
+			push!(tlx, j)
+			push!(tly, i)
+			while j <= m && matrix[i, j] == 0
+				j += 1
+			end
+			push!(brx, j - 1)
+			push!(bry, i)
+		end
+	end
+
+	return zip(tlx, tly, brx, bry)
+end
+
+
 function get_obstacles(
 	_X_;
 	lb_x1 = -3.5,
 	ub_x1 = 3.5,
 	lb_x2 = -2.6,
 	ub_x2 = 2.6,
-	#h = 0.2,
-	steps = 100,
+	h = 0.2,
 )
 	# Define the obstacles
-	x1 = range(lb_x1, stop = ub_x1, length = steps)
-	x2 = range(lb_x2, stop = ub_x2, length = steps)
-	#x1 = range(lb_x1, stop = ub_x1, step = h)
-	#x2 = range(lb_x2, stop = ub_x2, step = h)
-	#steps = length(x1)
+	x1 = range(lb_x1, stop = ub_x1, step = h)
+	x2 = range(lb_x2, stop = ub_x2, step = h)
+	steps1, steps2 = length(x1), length(x2)
 
-	X1 = x1' .* ones(steps)
-	X2 = ones(steps)' .* x2 
+	X1 = x1' .* ones(steps2)
+	X2 = ones(steps1)' .* x2
 
 	Z1 = (X1 .^ 2 .- X2 .^ 2) .<= 4
 	Z2 = (4 .* X2 .^ 2 .- X1 .^ 2) .<= 16
@@ -90,32 +117,28 @@ function get_obstacles(
 
 	# Find the upper and lower bounds of X1 and X2 for the obstacle 
 	grid = Z1 .& Z2
-	X1_lb = [x2[argmax(grid[:, i])] for i in 1:steps]
-	X1_ub = [x2[steps-argmax(reverse(grid[:, i]))] for i in 1:steps]
-	X2_lb = [x1[argmax(grid[j, :])] for j in 1:steps]
-	X2_ub = [x1[steps-argmax(reverse(grid[j, :]))] for j in 1:steps]
+
+	#X1_lb = [x1[argmax(grid[:, i])] for i in 1:steps1]
+	#X2_lb = [x2[argmax(grid[j, :])] for j in 1:steps2]
+
+	#X1_ub = x1[steps1 + 1 .- [argmax(reverse(grid[:, i])) for i in 1:steps1]]
+	#X2_ub = x2[steps2 + 1 .- [argmax(reverse(grid[j, :])) for j in 1:steps2]]
+
+	#X1_lb = [    -3.5, -3.5+2*h, -3.5+5*h,  -3.5+9*h]
+	#X2_lb = [    -2.6,     -2.6,     -2.6,      -2.6]
+	#X1_ub = [-3.5+2*h, -3.5+5*h, -3.5+9*h,         0]
+	#X2_ub = [     2.6, -2.6+1*h, -2.6+2*h,  -2.6+3*h]
 
 	return [
+		UT.HyperRectangle(SVector(x1[x1lb], x2[x2lb], _X_.lb[3]), SVector(x1[x1ub], x2[x2ub], _X_.ub[3]))
+		for (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
+	]
+
+	#=return [
 		UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
 		for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
-	]
+	]=#
 end
-
-
-#=
-function get_obstacles(
-	_X_;
-	X1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3],
-	X1_ub = [1.2, 2.4, 2.4, 3.6, 4.8, 6.0, 6.0, 7.2, 8.4, 9.3, 10.0, 9.3, 10.0, 9.3, 10.0],
-	X2_lb = [0.0, 0.0, 6.0, 0.0, 1.0, 0.0, 7.0, 1.0, 0.0, 8.2, 7.0, 5.8, 4.6, 3.4, 2.2],
-	X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6],
-)
-	return [
-		UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
-		for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
-	]
-end
-=#
 
 function system(
 	_X_;
