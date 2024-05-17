@@ -118,26 +118,11 @@ function get_obstacles(
 	# Find the upper and lower bounds of X1 and X2 for the obstacle 
 	grid = Z1 .& Z2
 
-	#X1_lb = [x1[argmax(grid[:, i])] for i in 1:steps1]
-	#X2_lb = [x2[argmax(grid[j, :])] for j in 1:steps2]
-
-	#X1_ub = x1[steps1 + 1 .- [argmax(reverse(grid[:, i])) for i in 1:steps1]]
-	#X2_ub = x2[steps2 + 1 .- [argmax(reverse(grid[j, :])) for j in 1:steps2]]
-
-	#X1_lb = [    -3.5, -3.5+2*h, -3.5+5*h,  -3.5+9*h]
-	#X2_lb = [    -2.6,     -2.6,     -2.6,      -2.6]
-	#X1_ub = [-3.5+2*h, -3.5+5*h, -3.5+9*h,         0]
-	#X2_ub = [     2.6, -2.6+1*h, -2.6+2*h,  -2.6+3*h]
-
 	return [
 		UT.HyperRectangle(SVector(x1[x1lb], x2[x2lb], _X_.lb[3]), SVector(x1[x1ub], x2[x2ub], _X_.ub[3]))
 		for (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
 	]
 
-	#=return [
-		UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
-		for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
-	]=#
 end
 
 function system(
