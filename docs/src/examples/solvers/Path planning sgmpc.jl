@@ -58,7 +58,7 @@ concrete_system = concrete_problem.system;
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
+h = SVector(0.1, 0.1, 0.2);
 state_grid = DO.GridFree(x0, h);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
