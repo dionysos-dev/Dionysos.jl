@@ -101,7 +101,7 @@ function get_obstacles(
 	ub_x1 = 3.5,
 	lb_x2 = -2.6,
 	ub_x2 = 2.6,
-	h = 0.2,
+	h = 0.1,
 )
 	# Define the obstacles
 	x1 = range(lb_x1, stop = ub_x1, step = h)
