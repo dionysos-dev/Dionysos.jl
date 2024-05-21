@@ -1,4 +1,5 @@
 using Test     #src
+# FIXME: Update the comment below
 # # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
@@ -61,7 +62,7 @@ h = SVector(0.2, 0.2, 0.2);
 state_grid = DO.GridFree(x0, h);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
-u0 = SVector(0.0, 0.0);
+u0 = SVector(0.3, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
@@ -104,6 +105,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
+
 # We display the concrete domain
 plot!(concrete_system.X; color = :yellow, opacity = 0.5);
 
