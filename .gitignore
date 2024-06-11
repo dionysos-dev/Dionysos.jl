@@ -20,3 +20,5 @@ paper/paper.pdf
 *.bbl
 *.synctex.gz
 *.log
+Control Systems/v-infinite-horizon-pwer-converter/sdp.py
+Control Systems/v-infinite-horizon-pwer-converter/vtailcost.py
