@@ -51,7 +51,8 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning_
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanningSgMPC.jl) 
-concrete_problem = PathPlanningSgMPC.problem(; simple = true, approx_mode = PathPlanningSgMPC.GROWTH);
+concrete_problem =
+    PathPlanningSgMPC.problem(; simple = true, approx_mode = PathPlanningSgMPC.GROWTH);
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
