@@ -13,7 +13,7 @@ using Test     #src
 # ```
 # with $f: \mathbb{R}^3 × U ↦ \mathbb{R}^3$ given by
 # ```math
-# f(x,(u_1,u_2)) = \begin{bmatrix} u_1 \cos(α+x_3)\cos(α^{-1}) \\ u_1 \sin(α+x_3)\cos(α^{-1}) \\ u_1 \tan(u_2)  \end{bmatrix}
+# f(x,(u_1,u_2)) = \begin{bmatrix} u_1 \cos(α+x_3)\cos(α)^{-1} \\ u_1 \sin(α+x_3)\cos(α)^{-1} \\ u_1 \tan(u_2)  \end{bmatrix}
 # ```
 # and with $U = [−1, 1] \times [−1, 1]$ and $α = \arctan(\tan(u_2)/2)$. Here, $(x_1, x_2)$ is the position and $x_3$ is the
 # orientation of the vehicle in the 2-dimensional plane. The control inputs $u_1$ and $u_2$ are the rear
