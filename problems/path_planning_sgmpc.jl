@@ -173,11 +173,11 @@ with the system, the initial and target domains, and null cost functions.
 function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
     if simple
         _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
-        _I_ = UT.HyperRectangle(SVector(1.0, -1.5, 0.0), SVector(1.2, -1.7, 0.0))
+        _I_ = UT.HyperRectangle(SVector(1.0, -1.7, 0.0), SVector(1.2, -1.5, 0.0))
         _T_ = UT.HyperRectangle(SVector(0.5, 0.5, 0.0), SVector(0.7, 0.7, 0.0))
     else
         _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
-        _I_ = UT.HyperRectangle(SVector(1.0, -1.5, 0.0), SVector(1.2, -1.7, 0.0))
+        _I_ = UT.HyperRectangle(SVector(1.0, -1.7, 0.0), SVector(1.2, -1.5, 0.0))
         _T_ = UT.HyperRectangle(
             SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), 0.0),
             SVector(sqrt(32.0 / 3.0) - 0.2, sqrt(20.0 / 3.0) - 0.2, 0.0),
