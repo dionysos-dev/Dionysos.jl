@@ -20,7 +20,7 @@ x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.1, 0.1, 0.2);
 state_grid = DO.GridFree(x0, h);
 
-u0 = SVector(0.3, 0.0);
+u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 
@@ -44,7 +44,7 @@ function reached(x)
         return false
     end
 end
-x0 = SVector(0.5, 0.5, 0.0)
+x0 = SVector(1.1, -1.6, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
@@ -70,6 +70,8 @@ plot!(
     SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
     color = :red,
 );
+
+display(control_trajectory)
 
 plot!(control_trajectory; ms = 0.5)
 
