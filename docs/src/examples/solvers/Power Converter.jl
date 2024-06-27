@@ -27,7 +27,13 @@ using Test     #src
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 
-using StaticArrays, Plots
+import CDDLib
+import GLPK
+import OSQP
+using JuMP
+import Pavito
+import HiGHS
+import Ipopt
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos
@@ -41,4 +47,113 @@ const AB = OP.Abstraction
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pc-osqp.jl"))
+#include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pc-osqp.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pc-osqp-rmaps.jl"))
+
+problem = PCOSQPRM.problem(CDDLib.Library(), Float64);
+
+# Finally, we select the method presented in [2] as our optimizer
+
+qp_solver = optimizer_with_attributes(
+    OSQP.Optimizer,
+    "eps_abs" => 1e-8,
+    "eps_rel" => 1e-8,
+    "max_iter" => 100000,
+    MOI.Silent() => true,
+);
+
+mip_solver = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true);
+
+cont_solver = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true);
+
+miqp_solver = optimizer_with_attributes(
+    Pavito.Optimizer,
+    "mip_solver" => mip_solver,
+    "cont_solver" => cont_solver,
+    MOI.Silent() => true,
+);
+
+algo = optimizer_with_attributes(
+    OP.BemporadMorari.Optimizer{Float64},
+    "continuous_solver" => qp_solver,
+    "mixed_integer_solver" => miqp_solver,
+    "indicator" => false,
+    "log_level" => 0,
+);
+
+# and use it to solve the given problem, with the help of the abstraction layer
+# MathOptInterface provided by [JuMP](https://github.com/jump-dev/JuMP.jl)
+optimizer = MOI.instantiate(algo)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
+MOI.optimize!(optimizer)
+
+# We check the solver time
+MOI.get(optimizer, MOI.SolveTimeSec())
+
+# the termination status
+termination = MOI.get(optimizer, MOI.TerminationStatus())
+
+# the objective value
+objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
+
+##@test objective_value ≈ 11.38 atol = 1e-2     #src
+
+# and recover the corresponding continuous trajectory
+xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
+
+# ## A little bit of data visualization now:
+
+using Plots
+using Polyhedra
+using HybridSystems
+using Suppressor
+
+#Initialize our canvas
+fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlims!(-10.5, 3.0)
+ylims!(-10.5, 3.0)
+
+#Plot the discrete modes
+for mode in states(problem.system)
+    t =
+        (problem.system.ext[:q_T] in [mode, mode + 11]) ? "XT" :
+        (
+            mode == problem.system.ext[:q_A] ? "A" :
+            (
+                mode == problem.system.ext[:q_B] ? "B" :
+                mode <= 11 ? string(mode) : string(mode - 11)
+            )
+        )
+    set = stateset(problem.system, mode)
+    plot!(set; color = :white)
+    UT.text_in_set_plot!(fig, set, t)
+end
+
+#Plot obstacles
+for i in eachindex(problem.system.ext[:obstacles])
+    set = problem.system.ext[:obstacles][i]
+    plot!(set; color = :black, opacity = 0.5)
+    UT.text_in_set_plot!(fig, set, "O$i")
+end
+
+#Plot trajectory
+x0 = problem.initial_set[2]
+x_traj = [x0, xu.x...]
+plot!(fig, UT.DrawTrajectory(x_traj));
+
+#Plot initial point
+plot!(fig, UT.DrawPoint(x0); color = :blue)
+annotate!(fig, x0[1], x0[2] - 0.5, "x0")
+
+# ### References
+#
+# 1. Gol, E. A., Lazar, M., & Belta, C. (2013). Language-guided controller synthesis for linear systems. IEEE Transactions on Automatic Control, 59(5), 1163-1176.
+# 1. Bemporad, A., & Morari, M. (1999). Control of systems integrating logic, dynamics, and constraints. Automatica, 35(3), 407-427.
+# 1. Legat B., Bouchat J., Jungers R. M. (2021). Abstraction-based branch and bound approach to Q-learning for hybrid optimal control. 3rd Annual Learning for Dynamics & Control Conference, 2021.
+# 1. Legat B., Bouchat J., Jungers R. M. (2021). Abstraction-based branch and bound approach to Q-learning for hybrid optimal control. https://www.codeocean.com/. https://doi.org/10.24433/CO.6650697.v1.

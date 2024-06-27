@@ -123,8 +123,9 @@ function system(lib, T::Type)
 		Fill(ControlledSwitching(), ntransitions),
 	)
 
-	system.ext[:q_T] = nmodes(system)
+	system.ext[:q_M] = nmodes(system)
     system.ext[:q_C] = C
+    system.ext[:q_T] = ntransitions
     
 	return system
 end
@@ -138,8 +139,8 @@ Then, we define initial conditions (continuous and discrete states) to this syst
 and set `N` as horizon, i.e., the number of allowed time steps.
 
 We instantiate our Optimal Control Problem by defining the state and tail costs.
-Notice that `state_cost` is defined to be \sum(\gamma^t \times norm(Cx_t)) for each time step `t`
-and the `tail_cost` is defined to be \gamma^N V(x_N) that we considering constant in this version.
+Notice that `state_cost` is defined to be `sum(gamma^t * norm(Cx_t))` for each time step `t`
+and the `tail_cost` is defined to be `gamma^N V(x_N)` that we considering constant in this version.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
 """
@@ -157,17 +158,19 @@ function problem(
     end 
 
 	state_cost = [
-			mode == sys.ext[:q_T] ? UT.ConstantFunction(zero(T)) :
+			mode == sys.ext[:q_M] ? UT.ConstantFunction(zero(T)) :
 			UT.ConstantFunction(one(T)) for mode in modes(sys)
 	]
 
-	transition_cost = UT.QuadraticControlFunction(ones(T, 1, 1))
+	transition_cost = UT.QuadraticControlFunction(sys.ext[:q_C] * sys.ext[:q_C]')
 	problem = PR.OptimalControlProblem(
 		sys,
 		(x_0),
-		sys.ext[:q_T],
+		sys.ext[:q_M],
 		Fill(state_cost, N),
-		Fill(Fill(transition_cost, ntransitions(sys)), N),
+        #transition_cost,
+        Fill(transition_cost, sys.ext[:q_M]),
+		#Fill(Fill(transition_cost, sys.ext[:q_M]), N),
 		N,
 	)
 	return problem
