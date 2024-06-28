@@ -13,7 +13,7 @@ end
 
 function RungeKutta4(F, x, u, tstep, nsub::Int)
     τ = tstep / nsub
-    for i in 1:nsub
+    for _ in 1:nsub
         Fx1 = F(x, u)
         xrk = x + Fx1 * (τ / 2.0)
         Fx2 = F(xrk, u)
