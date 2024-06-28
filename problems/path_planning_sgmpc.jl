@@ -8,52 +8,6 @@ const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 
-@enum ApproxMode GROWTH LINEARIZED
-
-function dynamicofsystem()
-    # System eq x' = F_sys(x, u)
-    function F_sys(x, u)
-        return SVector{3}(
-            x[1] + u[1] * cos(x[3]),
-            x[2] + u[1] * sin(x[3]),
-            x[3] + u[2] % (2 * π),
-        )
-    end
-
-    # We define the growth bound function of $f$:
-    ngrowthbound = 5
-
-    # We define the growth bound function of $f$:
-    # FIXME: Double check if this is need and is the correct growth bound
-    function L_growthbound(u)
-        beta = abs(u[1]) # We assume that the velocity is bounded by 1?
-        gamma = abs(u[2])  # We assume that the angle is bounded by 2π
-        return SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, beta, beta, gamma)
-    end
-
-    # We define the linearized system of $f$:
-    # DF(x, u) = ∂f/∂x(x, u)
-    function DF_sys(x, u)
-        return SMatrix{3, 3}(
-            1.0,
-            0.0,
-            -u[1] * cos(x[3]),
-            0.0,
-            1.0,
-            -u[1] * sin(x[3]),
-            0.0,
-            0.0,
-            1,
-        )
-    end
-
-    # We define the bound of the linearized system of $f$:
-    bound_DF(u) = 0.0
-    bound_DDF(u) = 0.0
-
-    return F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF
-end
-
 function filter_obstacles(_X_, _I_, _T_, obs)
     obstacles = typeof(_X_)[]
     for ob in obs
@@ -124,33 +78,39 @@ function system(
     udim = 2,
     sysnoise = SVector(0.0, 0.0, 0.0),
     measnoise = SVector(0.0, 0.0, 0.0),
-    tstep = 0.3,
+    tstep = 1.,
     nsys = 5,
-    approx_mode::ApproxMode = GROWTH,
+    ngrowthbound = 5
 )
-    F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem()
-    contsys = nothing
-    if approx_mode == GROWTH
-        contsys = ST.NewControlSystemGrowthRK4(
-            tstep,
-            F_sys,
-            L_growthbound,
-            sysnoise,
-            measnoise,
-            nsys,
-            ngrowthbound,
-        )
-    elseif approx_mode == LINEARIZED
-        contsys = ST.NewControlSystemLinearizedRK4(
-            tstep,
-            F_sys,
-            DF_sys,
-            bound_DF,
-            bound_DDF,
-            measnoise,
-            nsys,
+    sys_map = let nsys = nsys
+        (x, u, _) -> SVector{3}(
+            x[1] + u[1] * cos(x[3]),
+            x[2] + u[1] * sin(x[3]),
+            (x[3] + u[2]) % (2 * π),
         )
     end
+    sys_inv_map = let nsys = nsys
+        (x, u, _) -> SVector{3}(
+            x[1] - u[1] * cos((x[3] - u[2]) % (2 * π)),
+            x[2] - u[1] * sin((x[3] - u[2]) % (2 * π)),
+            (x[3] - u[2]) % (2 * π), # to check
+        )
+    end
+    growthbound_map = let ngrowthbound = ngrowthbound
+        (r, u, _) -> SVector{3}(
+            u[1] * r[3], 
+            u[1] * r[3], 
+            0.
+        )
+    end
+    contsys = ST.ControlSystemGrowth( 
+        tstep,
+        sysnoise,
+        measnoise,
+        sys_map,
+        growthbound_map,
+        sys_inv_map,
+    )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         contsys,
         xdim,
@@ -186,7 +146,7 @@ function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
-    sys = system(_X_; approx_mode = approx_mode)
+    sys = system(_X_)
     problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     return problem
 end
