@@ -130,7 +130,7 @@ Then, we define initial and target domains for the state of the system.
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
 with the system, the initial and target domains, and null cost functions.
 """
-function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
+function problem(; simple = false)
     if simple
         _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
         _I_ = UT.HyperRectangle(SVector(1.0, -1.7, 0.0), SVector(1.2, -1.5, 0.0))
