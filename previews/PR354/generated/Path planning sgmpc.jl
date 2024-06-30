@@ -12,8 +12,14 @@ const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning_sgmpc.jl"))
 
-concrete_problem =
-    PathPlanningSgMPC.problem(; simple = true, approx_mode = PathPlanningSgMPC.GROWTH);
+initial = SVector(1.0, -1.7, 0.0)
+#initial = SVector(0.0, 0.0, 0.0)
+target = SVector(0.5, 0.5, -pi)
+#target = SVector(2.6, 2.0, -pi)
+#target = SVector(-2.6, 2.0, -pi)
+#target = SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), -pi)
+
+concrete_problem = PathPlanningSgMPC.problem(; sgmpc = false, initial = initial, target = target)
 concrete_system = concrete_problem.system;
 
 x0 = SVector(0.0, 0.0, 0.0);
@@ -44,7 +50,7 @@ function reached(x)
         return false
     end
 end
-x0 = SVector(1.1, -1.6, 0.0)
+x0 = initial #SVector(1.1, -1.6, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,

@@ -1,35 +1,45 @@
 using Test     #src
-# FIXME: Update the comment below
-# # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Path planning problem solved by [Symbolically guided Model Predictive Control (SgMPC)](https://doi.org/10.1016/j.ifacol.2022.09.039).
 #
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
-#
-# This example was borrowed from [1, IX. Examples, A] whose dynamics comes from the model given in [2, Ch. 2.4].
-# This is a **reachability problem** for a **continuous system**.
+# This example was adapted from the numerical experiments in [1, Sec. 5].
+# This is a **control problem** for a **discrete-time nonlinear system**.
 #
 # Let us consider the 3-dimensional state space control system of the form
 # ```math
-# \dot{x} = f(x, u)
+# x_{t+1} = f(x_t, u_t)
 # ```
-# with $f: \mathbb{R}^3 × U ↦ \mathbb{R}^3$ given by
+# with $f: \mathbb{R}^3 × \mathbb{R}^2 \to \mathbb{R}^3$ given by
 # ```math
-# f(x,(u_1,u_2)) = \begin{bmatrix} u_1 \cos(α+x_3)\cos(α^{-1}) \\ u_1 \sin(α+x_3)\cos(α^{-1}) \\ u_1 \tan(u_2)  \end{bmatrix}
+# f(x, (u_1, u_2)) = \begin{bmatrix} x_1 + u_1 \cos(x_3) \\ x_2 + u_1 \sin(x_3) \\ x_3 + u_2 \ (\text{mod} \ 2\pi) \end{bmatrix}
 # ```
-# and with $U = [−1, 1] \times [−1, 1]$ and $α = \arctan(\tan(u_2)/2)$. Here, $(x_1, x_2)$ is the position and $x_3$ is the
-# orientation of the vehicle in the 2-dimensional plane. The control inputs $u_1$ and $u_2$ are the rear
-# wheel velocity and the steering angle.
-# The control objective is to drive the vehicle which is situated in a maze made of obstacles from an initial position to a target position.
+# and with state and control constraints given by:
+# ```math
+# X = \left\{ (x_1, x_2)^T \in \mathbb{R}^2 \ | \ x_1^2 - x_2^2 \leq 4, \ 4x_2^2 - x_1^2 \leq 16 \right\}
+# ```
+# ```math
+# U = [0.2, 2] \times [-1, 1]
+# ```
+# Here, $(x_1, x_2)$ represents the 2D Cartesian coordinates and $x_3$ is the angular orientation of a mobile cart.
+# The control inputs $u_1$ and $u_2$ are the linear and angular velocities.
+# The control objective is to drive the mobile cart to a desired reference position $x_r$.
 #
 #
-# In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
-# for the sampled system with a sampling time $\tau$.
-# For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
-# a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center.
+# In order to validate the proposed Symbolically guided Model Predictive Control (SgMPC) strategy, the authors consider the following setup:
+# 
+# The optimization problem is set with a prediction horizon $N = 20$ and the stage cost:
+# ```math
+# \ell(x, u) = 100 \|(x_1, x_2)^T - x_r\|^2 + \|u\|^2
+# ```
+# The terminal cost is:
+# ```math
+# L(x) = 100 \|(x_1, x_2)^T - x_r\|^2
+# ```
 #
-# For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the pre-image
-# of the target set.
+# Simulations are performed for two reference positions: 
+# - $x_r = (0.5, 0.5)$
+# - $x_r = (\sqrt{32}/3, \sqrt{20}/3)$
+#
+
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
@@ -50,9 +60,16 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning_
 
 # ### Definition of the problem
 
+# Defining the initial and target sets for the state-space of the system:
+initial = SVector(1.0, -1.7, 0.0)
+#initial = SVector(0.0, 0.0, 0.0)
+target = SVector(0.5, 0.5, -pi)
+#target = SVector(2.6, 2.0, -pi)
+#target = SVector(-2.6, 2.0, -pi)
+#target = SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), -pi)
+
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanningSgMPC.jl) 
-concrete_problem =
-    PathPlanningSgMPC.problem(; simple = true, approx_mode = PathPlanningSgMPC.GROWTH);
+concrete_problem = PathPlanningSgMPC.problem(; sgmpc = false, initial = initial, target = target)
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
@@ -95,7 +112,7 @@ function reached(x)
         return false
     end
 end
-x0 = SVector(1.1, -1.6, 0.0)
+x0 = initial #SVector(1.1, -1.6, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
@@ -133,5 +150,4 @@ display(control_trajectory)
 plot!(control_trajectory; ms = 0.5)
 
 # ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.
+# 1. Z. Azaki, A. Girard and S. Olaru, "Predictive and Symbolic Control: Performance and Safety for Non-linear Systems," in IFAC-PapersOnLine, 2022, vol. 55, no 16, pp. 290-295..
