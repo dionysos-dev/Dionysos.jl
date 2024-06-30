@@ -130,24 +130,24 @@ Then, we define initial and target domains for the state of the system.
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
 with the system, the initial and target domains, and null cost functions.
 """
-function problem(; simple = false)
-    if simple
-        _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
-        _I_ = UT.HyperRectangle(SVector(1.0, -1.7, 0.0), SVector(1.2, -1.5, 0.0))
-        _T_ = UT.HyperRectangle(SVector(0.5, 0.5, -pi), SVector(0.7, 0.7, pi))
-    else
-        _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
-        _I_ = UT.HyperRectangle(SVector(1.0, -1.7, 0.0), SVector(1.2, -1.5, 0.0))
-        _T_ = UT.HyperRectangle(
-            SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), -pi),
-            SVector(sqrt(32.0 / 3.0) - 0.2, sqrt(20.0 / 3.0) - 0.2, pi),
-        )
-    end
+function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SVector(0.5, 0.5, -pi))
+    _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
+    _I_ = UT.HyperRectangle(initial, initial + SVector(0.2, 0.2, 0.0))
+    _T_ = UT.HyperRectangle(target, target + SVector(0.2, 0.2, 2*pi))
+
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
     sys = system(_X_)
-    problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+
+    if sgmpc
+        problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    else
+        #TODO: Convert LazySetMinus to HyperRectangle to use SafetyProblem
+        #problem = PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
+        problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    end
+
     return problem
 end
 
