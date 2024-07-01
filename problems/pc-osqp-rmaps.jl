@@ -34,7 +34,20 @@ function system(lib, T::Type)
     nodes = generate_combinations(possible_values, nvars)
     nnodes = length(nodes)
     
-	domains = []
+    ## domains
+    function rect(x_l, x_u)
+        r = HalfSpace([-1], -T(x_l)) ∩ HalfSpace([1], T(x_u))
+        return polyhedron(r, lib)
+    end
+    function rect(x_l, x_u, y_l, y_u)
+        r =
+            HalfSpace([-1, 0], -T(x_l)) ∩ HalfSpace([1, 0], T(x_u)) ∩
+            HalfSpace([0, -1], -T(y_l)) ∩ HalfSpace([0, 1], T(y_u))
+        return polyhedron(r, lib)
+    end
+
+    pX = rect(-10,10)
+    pU = rect(-1, 1)
 
 	#Automaton:
 	automaton = GraphAutomaton(nnodes)
@@ -110,9 +123,14 @@ function system(lib, T::Type)
 		maybe_add_transition(from, to)
 	end
 
-    modes = [ConstrainedContinuousIdentitySystem(12, i) for i in 1:nnodes]
-    resetmaps = [AffineContinuousSystem(A, B*nodes[indexB[i]]) for i in 1:ntransitions]
-	
+    #modes = [ConstrainedContinuousIdentitySystem(12, i) for i in 1:nnodes]
+    modes = [ConstrainedContinuousIdentitySystem(12, FullSpace()) for i in 1:nnodes]
+
+    #L290: ERROR: DimensionMismatch: matrix A has dimensions (6,6), vector B has length 0
+    #resetmaps = [ConstrainedAffineMap(A, B*nodes[indexB[i]], FullSpace()) for i in 1:ntransitions]
+    #resetmaps = Fill(ConstrainedAffineMap(A, B*nodes[indexB[i]], FullSpace()), ntransitions)
+	resetmaps = Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), ntransitions)
+
 	system = HybridSystem(
 		automaton,
 		# Modes
@@ -121,11 +139,12 @@ function system(lib, T::Type)
 		resetmaps,
         # Switching
 		Fill(ControlledSwitching(), ntransitions),
+        #Fill(AutonomousSwitching(), ntransitions),
 	)
 
-	system.ext[:q_M] = nmodes(system)
+	system.ext[:modes] = nmodes(system)
     system.ext[:q_C] = C
-    system.ext[:q_T] = ntransitions
+    system.ext[:transitions] = ntransitions
     
 	return system
 end
@@ -148,31 +167,35 @@ function problem(
 	lib = CDDLib.Library(),
 	T::Type = Float64;
 	gamma = 0.95,
-	x_0 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    q0 = 1,
+	x_0 = [1 for _ in 1:12], #The first state is the initial state #[0 for i in 1:12],
 	N = 3,
 	tail_cost::Bool = false,
 )
 	sys = system(lib, T)
-	if tail_cost
-		transition_cost = Fill(UT.ZeroFunction(), nmodes(sys))
-    end 
+	#if tail_cost
+	#	transition_cost = Fill(UT.ZeroFunction(), nmodes(sys))
+    #end 
 
-	state_cost = [
-			mode == sys.ext[:q_M] ? UT.ConstantFunction(zero(T)) :
-			UT.ConstantFunction(one(T)) for mode in modes(sys)
-	]
 
-	transition_cost = UT.QuadraticControlFunction(sys.ext[:q_C] * sys.ext[:q_C]')
+	#state_cost = UT.QuadraticControlFunction(sys.ext[:q_C]' * sys.ext[:q_C])
+    state_cost = UT.QuadraticControlFunction(ones(T, 6, 6))
+    
+    #x_0 = [0 for _ in 1:sys.ext[:modes]]
+    #problem = PR.OptimalControlProblem(sys, (q0, x_0), sys.ext[:modes], nothing, nothing, N)
+
+    #==#
 	problem = PR.OptimalControlProblem(
 		sys,
-		(x_0),
-		sys.ext[:q_M],
-		Fill(state_cost, N),
+		(q0, x_0),
+		sys.ext[:modes],
+        #state_cost,
+		Fill(Fill(state_cost, sys.ext[:modes]), N),#Fill(Fill(state_cost, sys.ext[:modes]),N),
         #transition_cost,
-        Fill(transition_cost, sys.ext[:q_M]),
-		#Fill(Fill(transition_cost, sys.ext[:q_M]), N),
+		Fill(Fill(UT.ZeroFunction(), sys.ext[:transitions]), N),
 		N,
 	)
+    #==#
 	return problem
 end
 

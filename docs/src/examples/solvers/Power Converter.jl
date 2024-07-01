@@ -122,7 +122,7 @@ ylims!(-10.5, 3.0)
 #Plot the discrete modes
 for mode in states(problem.system)
     t =
-        (problem.system.ext[:q_T] in [mode, mode + 11]) ? "XT" :
+        (problem.system.ext[:modes] in [mode, mode + 11]) ? "XT" :
         (
             mode == problem.system.ext[:q_A] ? "A" :
             (
