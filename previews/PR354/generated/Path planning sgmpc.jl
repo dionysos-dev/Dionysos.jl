@@ -20,7 +20,8 @@ target = SVector(-0.5, 0.5, -pi)
 #target = SVector(-2.6, 2.0, -pi)
 #target = SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), -pi)
 
-concrete_problem = PathPlanningSgMPC.problem(; sgmpc = true, initial = initial, target = target)
+concrete_problem =
+    PathPlanningSgMPC.problem(; sgmpc = true, initial = initial, target = target)
 concrete_system = concrete_problem.system;
 
 x0 = SVector(0.0, 0.0, 0.0);

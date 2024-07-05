@@ -40,7 +40,6 @@ using Test     #src
 # - $x_r = (\sqrt{32}/3, \sqrt{20}/3)$
 #
 
-
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
 
@@ -70,7 +69,8 @@ target = SVector(-0.5, 0.5, -pi)
 #target = SVector(sqrt(32.0 / 3.0), sqrt(20.0 / 3.0), -pi)
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanningSgMPC.jl) 
-concrete_problem = PathPlanningSgMPC.problem(; sgmpc = true, initial = initial, target = target)
+concrete_problem =
+    PathPlanningSgMPC.problem(; sgmpc = true, initial = initial, target = target)
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
