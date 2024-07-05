@@ -8,40 +8,38 @@ const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 
-
 # TODO: Move to Dionysos.Utils (the function is already there, but it imposes that Q, R, and N must be the same type and *size* and that q and r should be the same type and *size*)
-struct QuadraticStateControlFunction{T} <:
-    UT.ScalarControlFunction
- Q::AbstractMatrix{T}
- R::AbstractMatrix{T}
- N::AbstractMatrix{T}
- q::AbstractArray{T}
- r::AbstractArray{T}
- v::T
+struct QuadraticStateControlFunction{T} <: UT.ScalarControlFunction
+    Q::AbstractMatrix{T}
+    R::AbstractMatrix{T}
+    N::AbstractMatrix{T}
+    q::AbstractArray{T}
+    r::AbstractArray{T}
+    v::T
 
- #=
- function QuadraticStateControlFunction(Q::MT, R::MT, N::MT, q::AT, r::AT, v::T) where {T, MT <: AbstractMatrix{T}, AT <: AbstractArray{T}}
-    # Perform size checks
-    @assert size(Q, 1) == size(Q, 2) "Q must be square"
-    @assert size(R, 1) == size(R, 2) "R must be square"
-    @assert size(Q, 1) == size(N, 1) "Q and N must have compatible dimensions"
-    @assert size(R, 1) == size(N, 2) "R and N must have compatible dimensions"
-    @assert size(Q, 1) == length(q) "Q and q must have compatible dimensions"
-    @assert size(R, 1) == length(r) "R and r must have compatible dimensions"
-    new{T, MT, AT}(Q, R, N, q, r, v)
-end
-=#
+    #=
+    function QuadraticStateControlFunction(Q::MT, R::MT, N::MT, q::AT, r::AT, v::T) where {T, MT <: AbstractMatrix{T}, AT <: AbstractArray{T}}
+       # Perform size checks
+       @assert size(Q, 1) == size(Q, 2) "Q must be square"
+       @assert size(R, 1) == size(R, 2) "R must be square"
+       @assert size(Q, 1) == size(N, 1) "Q and N must have compatible dimensions"
+       @assert size(R, 1) == size(N, 2) "R and N must have compatible dimensions"
+       @assert size(Q, 1) == length(q) "Q and q must have compatible dimensions"
+       @assert size(R, 1) == length(r) "R and r must have compatible dimensions"
+       new{T, MT, AT}(Q, R, N, q, r, v)
+    end
+    =#
 
 end
 function function_value(f::QuadraticStateControlFunction, x, u)
- return x'f.Q * x + u'f.R * u + 2 * (x'f.N * u + x'f.q + u'f.r) + f.v
+    return x'f.Q * x + u'f.R * u + 2 * (x'f.N * u + x'f.q + u'f.r) + f.v
 end
 function get_full_psd_matrix(f::QuadraticStateControlFunction)
- return [
-     f.Q f.N f.q
-     f.N' f.R f.r
-     f.q' f.r' f.v
- ]
+    return [
+        f.Q f.N f.q
+        f.N' f.R f.r
+        f.q' f.r' f.v
+    ]
 end
 ##########
 
@@ -115,9 +113,9 @@ function system(
     udim = 2,
     sysnoise = SVector(0.0, 0.0, 0.0),
     measnoise = SVector(0.0, 0.0, 0.0),
-    tstep = 1.,
+    tstep = 1.0,
     nsys = 5,
-    ngrowthbound = 5
+    ngrowthbound = 5,
 )
     sys_map = let nsys = nsys
         (x, u, _) -> SVector{3}(
@@ -134,13 +132,9 @@ function system(
         )
     end
     growthbound_map = let ngrowthbound = ngrowthbound
-        (r, u, _) -> SVector{3}(
-            u[1] * r[3], 
-            u[1] * r[3], 
-            0.
-        )
+        (r, u, _) -> SVector{3}(u[1] * r[3], u[1] * r[3], 0.0)
     end
-    contsys = ST.ControlSystemGrowth( 
+    contsys = ST.ControlSystemGrowth(
         tstep,
         sysnoise,
         measnoise,
@@ -178,10 +172,14 @@ L(x) = 100 |(x_1, x_2)^T - x_r|^2
 
 These costs are defined by the quadratic form `x' * Q * x + u' * R * u + 2 * (x' * N * u + x' * q + u' * r) + v`.
 """
-function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SVector(0.5, 0.5, -pi))
+function problem(;
+    sgmpc = false,
+    initial = SVector(1.0, -1.7, 0.0),
+    target = SVector(0.5, 0.5, -pi),
+)
     _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
     _I_ = UT.HyperRectangle(initial, initial + SVector(0.2, 0.2, 0.0))
-    _T_ = UT.HyperRectangle(target, target + SVector(0.2, 0.2, 2*pi))
+    _T_ = UT.HyperRectangle(target, target + SVector(0.2, 0.2, 2 * pi))
 
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
@@ -189,15 +187,8 @@ function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SV
     sys = system(_X_)
 
     if sgmpc
-        Q = SMatrix{3, 3}(
-            100.0, 0.0, 0.0,
-            0.0, 100.0, 0.0,
-            0.0, 0.0, 0.0,
-        )
-        R = SMatrix{2, 2}(
-            1.0, 0.0,
-            0.0, 1.0,
-        )
+        Q = SMatrix{3, 3}(100.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0, 0.0)
+        R = SMatrix{2, 2}(1.0, 0.0, 0.0, 1.0)
         N = zeros(Float64, 3, 2)
 
         target_without_last_element = SVector{3}(1.0, 1.0, 0.0) .* target
@@ -206,19 +197,20 @@ function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SV
         v = 100 * target_without_last_element' * target_without_last_element
         NT = 20
 
-        zero_cost = QuadraticStateControlFunction(zeros(Float64, 3, 3), zeros(Float64, 2, 2), zeros(Float64, 3, 2), [0.0, 0.0, 0.0], [0.0, 0.0], 0.0)
-        state_cost = [QuadraticStateControlFunction(Q, R, N, q, r, v) for _ in 1:(NT-1)]
-        terminal_cost = [ zero_cost for _ in 1:NT]
-        terminal_cost[NT] = QuadraticStateControlFunction(Q, zeros(Float64, 2, 2), N, q, r, v)
-        
-        problem = PB.OptimalControlProblem(
-            sys, 
-            _I_, 
-            _T_, 
-            state_cost,
-            terminal_cost, 
-            NT,
+        zero_cost = QuadraticStateControlFunction(
+            zeros(Float64, 3, 3),
+            zeros(Float64, 2, 2),
+            zeros(Float64, 3, 2),
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0],
+            0.0,
         )
+        state_cost = [QuadraticStateControlFunction(Q, R, N, q, r, v) for _ in 1:(NT - 1)]
+        terminal_cost = [zero_cost for _ in 1:NT]
+        terminal_cost[NT] =
+            QuadraticStateControlFunction(Q, zeros(Float64, 2, 2), N, q, r, v)
+
+        problem = PB.OptimalControlProblem(sys, _I_, _T_, state_cost, terminal_cost, NT)
     else
         #TODO: Convert LazySetMinus to HyperRectangle to use SafetyProblem
         #problem = PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
