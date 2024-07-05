@@ -1,12 +1,35 @@
 module PathPlanningSgMPC
 
-using StaticArrays
+using StaticArrays, FillArrays
 using MathematicalSystems, HybridSystems
 using Dionysos
 const UT = Dionysos.Utils
 const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
+
+
+# TODO: Move to Dionysos.Utils (the function is already there, but it imposes that Q, R, and N must be the same type and *size* and that q and r should be the same type and *size*)
+struct QuadraticStateControlFunction{T} <:
+    UT.ScalarControlFunction
+ Q::AbstractMatrix{T}
+ R::AbstractMatrix{T}
+ N::AbstractMatrix{T}
+ q::AbstractArray{T}
+ r::AbstractArray{T}
+ v::T
+end
+function function_value(f::QuadraticStateControlFunction, x, u)
+ return x'f.Q * x + u'f.R * u + 2 * (x'f.N * u + x'f.q + u'f.r) + f.v
+end
+function get_full_psd_matrix(f::QuadraticStateControlFunction)
+ return [
+     f.Q f.N f.q
+     f.N' f.R f.r
+     f.q' f.r' f.v
+ ]
+end
+##########
 
 function filter_obstacles(_X_, _I_, _T_, obs)
     obstacles = typeof(_X_)[]
@@ -141,7 +164,36 @@ function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SV
     sys = system(_X_)
 
     if sgmpc
-        problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+        Q = SMatrix{3, 3}(
+            100.0, 0.0, 0.0,
+            0.0, 100.0, 0.0,
+            0.0, 0.0, 0.0,
+        )
+        R = SMatrix{2, 2}(
+            1.0, 0.0,
+            0.0, 1.0,
+        )
+        N = zeros(Float64, 3, 2)
+
+        target_without_last_element = SVector{3}(1.0, 1.0, 0.0) .* target
+        q = -100 * target_without_last_element
+        r = SVector{2}(0.0, 0.0)
+        v = 100 * target_without_last_element' * target_without_last_element
+        NT = 20
+
+        zero_cost = QuadraticStateControlFunction(zeros(Float64, 3, 3), zeros(Float64, 2, 2), zeros(Float64, 3, 2), [0.0, 0.0, 0.0], [0.0, 0.0], 0.0)
+        state_cost = [QuadraticStateControlFunction(Q, R, N, q, r, v) for _ in 1:(NT-1)]
+        terminal_cost = [ zero_cost for _ in 1:NT]
+        terminal_cost[NT] = QuadraticStateControlFunction(Q, zeros(Float64, 2, 2), N, q, r, v)
+        
+        problem = PB.OptimalControlProblem(
+            sys, 
+            _I_, 
+            _T_, 
+            state_cost,
+            terminal_cost, 
+            NT,
+        )
     else
         #TODO: Convert LazySetMinus to HyperRectangle to use SafetyProblem
         #problem = PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
