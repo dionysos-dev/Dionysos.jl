@@ -165,7 +165,18 @@ This function create the system with `PathPlanningSgMPC.system`.
 Then, we define initial and target domains for the state of the system.
 
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
-with the system, the initial and target domains, and null cost functions.
+with the system, the initial and target domains, and cost functions.
+
+The optimization problem is set with a prediction horizon `N = 20` and the stage cost:
+```math
+l(x, u) = 100 |(x_1, x_2)^T - x_r|^2 + |u|^2
+```
+The terminal cost is:
+```math
+L(x) = 100 |(x_1, x_2)^T - x_r|^2
+```
+
+These costs are defined by the quadratic form `x' * Q * x + u' * R * u + 2 * (x' * N * u + x' * q + u' * r) + v`.
 """
 function problem(; sgmpc = false, initial = SVector(1.0, -1.7, 0.0), target = SVector(0.5, 0.5, -pi))
     _X_ = UT.HyperRectangle(SVector(-3.5, -2.6, -pi), SVector(3.5, 2.6, pi))
