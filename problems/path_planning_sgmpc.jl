@@ -18,6 +18,20 @@ struct QuadraticStateControlFunction{T} <:
  q::AbstractArray{T}
  r::AbstractArray{T}
  v::T
+
+ #=
+ function QuadraticStateControlFunction(Q::MT, R::MT, N::MT, q::AT, r::AT, v::T) where {T, MT <: AbstractMatrix{T}, AT <: AbstractArray{T}}
+    # Perform size checks
+    @assert size(Q, 1) == size(Q, 2) "Q must be square"
+    @assert size(R, 1) == size(R, 2) "R must be square"
+    @assert size(Q, 1) == size(N, 1) "Q and N must have compatible dimensions"
+    @assert size(R, 1) == size(N, 2) "R and N must have compatible dimensions"
+    @assert size(Q, 1) == length(q) "Q and q must have compatible dimensions"
+    @assert size(R, 1) == length(r) "R and r must have compatible dimensions"
+    new{T, MT, AT}(Q, R, N, q, r, v)
+end
+=#
+
 end
 function function_value(f::QuadraticStateControlFunction, x, u)
  return x'f.Q * x + u'f.R * u + 2 * (x'f.N * u + x'f.q + u'f.r) + f.v
