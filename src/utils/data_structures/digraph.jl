@@ -25,13 +25,13 @@ function add_transitions!(
     return g.edges = Dict(merge(g.edges, adjmat))
 end
 
-vertices(g::Digraph) = g.verts
+verts(g::Digraph) = g.verts
 edges(g::Digraph) = g.edges
 
 neighbours(g::Digraph, v) = Set((b, c) for ((a, b), c) in edges(g) if a == v)
 
 function is_state(g::Digraph, s)
-    return s ∈ vertices(g)
+    return s ∈ verts(g)
 end
 
 # return 
@@ -39,7 +39,7 @@ end
 # -the cost from source to every element in the path: cost = Dict{source=>c0, p2=>c1, p3=>c2,...}
 #  where c0 = 0.0, c1 is the cost from source to p2,  c2 is the cost from source to p3,...
 function dijkstrapath(g::Digraph{T, U}, source::U, dest::U) where {T, U}
-    @assert source ∈ vertices(g) "$source is not a vertex in the graph"
+    @assert source ∈ verts(g) "$source is not a vertex in the graph"
 
     # Easy case
     if source == dest
@@ -47,11 +47,11 @@ function dijkstrapath(g::Digraph{T, U}, source::U, dest::U) where {T, U}
     end
     # Initialize variables
     inf = typemax(T)
-    dist = Dict(v => inf for v in vertices(g))
-    prev = Dict(v => v for v in vertices(g))
+    dist = Dict(v => inf for v in verts(g))
+    prev = Dict(v => v for v in verts(g))
     dist[source] = 0
-    Q = copy(vertices(g))
-    neigh = Dict(v => neighbours(g, v) for v in vertices(g))
+    Q = copy(verts(g))
+    neigh = Dict(v => neighbours(g, v) for v in verts(g))
 
     # Main loop
     while !isempty(Q)
