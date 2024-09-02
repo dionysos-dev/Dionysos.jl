@@ -1,7 +1,7 @@
 module Utils
 
 using StaticArrays
-# using LinearAlgebra
+using LinearAlgebra
 using Polyhedra
 using GLPK, Suppressor
 

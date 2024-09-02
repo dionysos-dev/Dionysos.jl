@@ -3,7 +3,6 @@ module System
 using StaticArrays
 using Symbolics
 using MathematicalSystems
-using LinearAlgebra
 using IntervalArithmetic
 using IntervalLinearAlgebra
 using Plots
