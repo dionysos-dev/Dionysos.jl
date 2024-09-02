@@ -81,10 +81,6 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     end
 end
 
-Optimizer() = Optimizer{Float64}()
-
-MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
-
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     if param.name == "concrete_problem"
         if !(value isa PR.OptimalControlProblem)
@@ -102,14 +98,8 @@ Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
 
-function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    return setproperty!(model, Symbol(param.name), value)
-end
 function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time_sec
-end
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
 end
 
 function set_optimizer!(
