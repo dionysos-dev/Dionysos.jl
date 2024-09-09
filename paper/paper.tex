@@ -597,19 +597,8 @@ plot!(concrete_problem.initial_set;
 
 \begin{figure}
     \centering
-    \begin{subfigure}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth,trim=35 0 40 0, clip]{Figures/Example/abs_1.pdf}
-        \caption{}
-        \label{fig:ex_plot_1}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}{0.49\textwidth}
-        \centering
-        \includegraphics[width=\textwidth,trim=35 0 40 0, clip]{Figures/Example/abs_2.pdf}
-        \caption{}
-        \label{fig:ex_plot_2}
-    \end{subfigure}
+    \includegraphics[width=0.8\linewidth]{Figures/Example/abs_1.pdf}
+    \includegraphics[width=0.8\linewidth]{Figures/Example/abs_2.pdf}
     \caption{
     \color{red} Results of Code~\ref{lst:visu} for different meta-parameters (\texttt{other\_parameters}) of the solver \texttt{AB.LazyEllipsoidsAbstraction}. 
     The initial set $\set{X}_I$, target set $\set{X}_T$, and obstacle set $\set{X}_O$ are shown in green, red, and black, respectively. The value function, which provides an upper bound on the cost to reach the target, is shown in a blue color map, with the closed-loop system's trajectory also displayed in blue. \color{black}}
