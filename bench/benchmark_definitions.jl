@@ -82,7 +82,7 @@ for (qp_name, qp_solver) in QP_SOLVERS
 end
 
 ####################
-# SCOTSAbstraction #
+# UniformGridAbstraction #
 ####################
 
 x0 = SVector(0.0, 0.0)
@@ -92,13 +92,13 @@ u0 = SVector(1)
 hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 DCDC = problems_modules["dc_dc.jl"]
-solver_scots_dc_dc = optimizer_with_attributes(
-    AB.SCOTSAbstraction.Optimizer,
+solver_uniform_grid_dc_dc = optimizer_with_attributes(
+    AB.UniformGridAbstraction.Optimizer,
     "concrete_problem" => DCDC.problem(; approx_mode = DCDC.GROWTH),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
 )
-bench["SCOTSAbstraction", "dc_dc.jl"] = MOI.instantiate(solver_scots_dc_dc)
+bench["UniformGridAbstraction", "dc_dc.jl"] = MOI.instantiate(solver_uniform_grid_dc_dc)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
@@ -107,14 +107,14 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 input_grid = DO.GridFree(u0, h);
 PathPlanning = problems_modules["path_planning.jl"]
-solver_scots_path_planning = optimizer_with_attributes(
-    AB.SCOTSAbstraction.Optimizer,
+solver_uniform_grid_path_planning = optimizer_with_attributes(
+    AB.UniformGridAbstraction.Optimizer,
     "concrete_problem" =>
         PathPlanning.problem(; approx_mode = PathPlanning.GROWTH, simple = true),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
 )
-bench["SCOTSAbstraction", "path_planning.jl"] = MOI.instantiate(solver_scots_path_planning)
+bench["UniformGridAbstraction", "path_planning.jl"] = MOI.instantiate(solver_uniform_grid_path_planning)
 
 ###################
 # LazyAbstraction #
