@@ -114,7 +114,8 @@ solver_uniform_grid_path_planning = optimizer_with_attributes(
     "state_grid" => state_grid,
     "input_grid" => input_grid,
 )
-bench["UniformGridAbstraction", "path_planning.jl"] = MOI.instantiate(solver_uniform_grid_path_planning)
+bench["UniformGridAbstraction", "path_planning.jl"] =
+    MOI.instantiate(solver_uniform_grid_path_planning)
 
 ###################
 # LazyAbstraction #
