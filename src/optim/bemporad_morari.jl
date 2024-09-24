@@ -196,6 +196,21 @@ end
 
 function hybrid_constraints(
     model,
+    systems::AbstractVector{<:ConstrainedAffineMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    println("hybrid_constraints")
+    system = first(systems)
+    add_constraint.(model, x - system.A * x_prev - system.c, MOI.EqualTo(zero(T)))
+    return δ
+end
+
+function hybrid_constraints(
+    model,
     systems::AbstractVector{<:ConstrainedContinuousIdentitySystem},
     x_prev,
     x,
@@ -206,6 +221,8 @@ function hybrid_constraints(
     return hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
 end
 
+#TODO: Needed function for the power convertor bench implementation, but need to be fixed
+#TODO: and hybrid_cost implemented or adjusted accordingly
 function hybrid_constraints(
     model,
     systems::AbstractVector{<:ConstrainedLinearControlMap},
