@@ -93,11 +93,16 @@ A = [
 B = reshape([0.5, 1], 2, 1)
 
 using SemialgebraicSets, MathematicalSystems
+# The `MathematicalSystems.@map` macro doesn't support control input nor constraints yet
 rmap = ConstrainedLinearControlMap(A, B, FullSpace(), pU)
 ABmap = ConstrainedLinearControlMap(A, B, AB, pU)
 target_map = ConstrainedLinearControlMap(zero(A), zeros(size(B, 1), 0), pT, pU)
 system = hybrid_automaton(
-    [ConstrainedContinuousIdentitySystem(2, i) for i in 1:3],
+    [
+        @system(x' = 0, x ∈ pX),
+        @system(x' = 0, x ∈ pX),
+        @system(x' = 0, x ∈ pT),
+    ],
     [
         (1, 1) => rmap,
         (1, 2) => ABmap,
