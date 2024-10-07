@@ -104,6 +104,8 @@ system = hybrid_automaton(
         @system(x' = 0, x ∈ pT),
     ],
     [
+        # Ideally, it should be
+        # (1, 1) => @map(x -> A * x + B * u, x ∈ FullSpace(), u ∈ pU)
         (1, 1) => rmap,
         (1, 2) => ABmap,
         (2, 3) => target_map,
