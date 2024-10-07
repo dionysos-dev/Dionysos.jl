@@ -39,6 +39,72 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belt
 # Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta.jl)
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
+function hybrid_automaton(
+    modes::AbstractVector{<:MathematicalSystems.AbstractContinuousSystem},
+    ::Type{M},
+) where {M<:MathematicalSystems.AbstractMap}
+    return HybridSystem(
+        HybridSystems.GraphAutomaton(length(modes)),
+        modes,
+        M[],
+        ControlledSwitching[], # `Fill` is immutable
+    )
+end
+
+function HybridSystems.add_transition!(
+    s::HybridSystems.HybridSystem{A,S,R,W},
+    from,
+    to,
+    m::MathematicalSystems.AbstractMap,
+) where {A,S,R,W}
+    push!(s.resetmaps, m)
+    HybridSystems.add_transition!(s.automaton, from, to, length(s.resetmaps))
+    push!(s.switchings, W())
+    return s
+end
+
+using HybridSystems
+function hybrid_automaton(
+    modes::AbstractVector{<:MathematicalSystems.AbstractContinuousSystem},
+    transitions::Vector{Pair{Tuple{Int,Int},M}},
+) where {M<:MathematicalSystems.AbstractMap}
+    s = hybrid_automaton(modes, M)
+    for t in transitions
+        HybridSystems.add_transition!(s, t[1]..., t[2])
+    end
+    return s
+end
+
+using StaticArrays
+pX = UT.HyperRectangle(SVector(-10, -10.0), SVector(1.85, 2))
+pU = UT.HyperRectangle(SVector(-2.0), SVector(2.0))
+pA = UT.HyperRectangle(SVector(-6, 1.0), SVector(-5, 2.0))
+pB = UT.HyperRectangle(SVector(-5, -3.0), SVector(-4, -2.0))
+AB = UT.LazyUnionSetArray([pA, pB])
+pT = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+pO1 = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(-5.0, -5.0))
+pO2 = UT.HyperRectangle(SVector(-5.0, -4.0), SVector(1.85, -3))
+obstacles = UT.LazyUnionSetArray([pO1, pO2])
+
+A = [
+    1.0 1
+    0 1
+]
+B = reshape([0.5, 1], 2, 1)
+
+using SemialgebraicSets, MathematicalSystems
+rmap = ConstrainedLinearControlMap(A, B, FullSpace(), pU)
+ABmap = ConstrainedLinearControlMap(A, B, AB, pU)
+target_map = ConstrainedLinearControlMap(zero(A), zeros(size(B, 1), 0), pT, pU)
+system = hybrid_automaton(
+    [ConstrainedContinuousIdentitySystem(2, i) for i in 1:3],
+    [
+        (1, 1) => rmap,
+        (1, 2) => ABmap,
+        (2, 3) => target_map,
+    ]
+)
+
 # Finally, we select the method presented in [2] as our optimizer
 
 qp_solver = optimizer_with_attributes(
@@ -128,6 +194,8 @@ for i in eachindex(problem.system.ext[:obstacles])
     plot!(set; color = :black, opacity = 0.5)
     UT.text_in_set_plot!(fig, set, "O$i")
 end
+
+fig
 
 #Plot trajectory
 x0 = problem.initial_set[2]
