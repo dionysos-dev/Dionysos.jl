@@ -14,4 +14,5 @@ objective = Objective(Minimize(), :(x^2 + u^2))
 
 # Capture and visualize solution
 solution = CaptureSolution(format="table", horizon=10)
+
 Visualize(solution, plot="state_trajectory")

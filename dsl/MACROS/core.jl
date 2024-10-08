@@ -81,9 +81,44 @@ function Visualize(solution::Solution; plot::String, labels::Vector{String} = []
 	end
 end
 
-# Example Function to Create Variables
+# Create Variables
 function Variables(names::Vector{String}, domain::Domain)
 	return [Variable(name, domain) for name in names]
 end
+
+## Extend Constraint to support set constraints
+struct SetConstraint <: Constraint
+    expression::Expr
+end
+
+# Define cost structs
+struct StageCost
+    expression::Expr
+end
+
+struct TerminalCost
+    expression::Expr
+end
+
+# Define target struct for visualization
+struct Target
+    x::Float64
+    y::Float64
+end
+
+# Update the Solution struct to capture MPC solutions over a horizon
+mutable struct MPCSolution
+    format::String
+    horizon::Int
+    stage_costs::Vector{Expr}
+    terminal_cost::Expr
+    solution_data::Vector{Dict}
+end
+
+# Constructor for MPC Solution Capture
+function CaptureMPCSolution(; format::String = "table", horizon::Int = 1, stage_costs=[], terminal_cost=nothing)
+    return MPCSolution(format, horizon, stage_costs, terminal_cost, [])
+end
+
 
 end # module

@@ -76,3 +76,43 @@ function (ctrl::Control).solve(; horizon::Int = 1)
 
     return Solution("dict", horizon, solution_data)
 end
+
+function (ctrl::Control).solve_mpc(stage_costs::Vector{Expr}, terminal_cost::Expr; horizon::Int = 20)
+    println("Solving MPC with grid type: $(typeof(ctrl.grid_type)) and horizon: $horizon")
+
+    # Set up optimization and apply stage costs
+    jump_vars = Dict{String, JuMP.VariableRef}()
+    for var in ctrl.variables
+        jump_var = @variable(ctrl.model, bounds = var.bounds ? var.bounds : (-Inf, Inf))
+        jump_vars[var.name] = jump_var
+    end
+
+    for constr in ctrl.constraints
+        constraint_expr = constr.expr
+        eval_expr = eval(Expr(:quote, constraint_expr))
+        @constraint(ctrl.model, eval_expr)
+    end
+
+    # Add stage costs across the horizon
+    for stage_cost in stage_costs
+        stage_cost_expr = eval(Expr(:quote, stage_cost))
+        @objective(ctrl.model, Min, stage_cost_expr)
+    end
+
+    # Add terminal cost
+    terminal_cost_expr = eval(Expr(:quote, terminal_cost))
+    @objective(ctrl.model, Min, terminal_cost_expr)
+
+    optimize!(ctrl.model)
+
+    # Capture the solution in MPCSolution object
+    solution_data = Dict()
+    for (name, var) in jump_vars
+        solution_data[name] = value(var)
+    end
+
+    # Collect solutions over the horizon
+    mpc_solution = MPCSolution("table", horizon, stage_costs, terminal_cost, [solution_data])
+    return mpc_solution
+end
+
