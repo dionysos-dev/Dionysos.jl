@@ -1,0 +1,10 @@
+using JuMP
+model = Model()
+@variable(model, x[1:3])
+@variable(model, dot_x[1:3])
+@variable(model, -1 <= u[1:2] <= 1)
+@expression(model, α, atan(tan(u[2]) / 2))
+@constraint(model, dot_x[1] == u[1] * cos(α + x[3]) * sec(α))
+@constraint(model, dot_x[2] == u[1] * sin(α + x[3]) * sec(α))
+@constraint(model, dot_x[3] == u[1] * tan(u[2]))
+@objective(model, Min, (x[1] - 3.3)^2 + (x[2] - 0.5)^2)
