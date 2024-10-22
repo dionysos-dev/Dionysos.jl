@@ -16,8 +16,8 @@
 
 [build-img]: https://github.com/dionysos-dev/Dionysos.jl/workflows/CI/badge.svg?branch=master
 [build-url]: https://github.com/dionysos-dev/Dionysos.jl/actions?query=workflow%3ACI
-[codecov-img]: http://codecov.io/github/dionysos-dev/Dionysos.jl/coverage.svg?branch=master
-[codecov-url]: http://codecov.io/github/dionysos-dev/Dionysos.jl?branch=master
+[codecov-img]: https://codecov.io/github/dionysos-dev/Dionysos.jl/coverage.svg
+[codecov-url]: https://app.codecov.io/github/dionysos-dev/Dionysos.jl
 
 ## Overview
 Dionysos is the software of the ERC project Learning to control (L2C). In view of the Cyber-Physical Revolution, the only sensible way of controlling these complex systems is often by discretizing the different variables, thus transforming the model into a simple combinatorial problem on a finite-state automaton, called an abstraction of this system. The goal of L2C is to transform this approach into an effective, scalable, cutting-edge technology that will address the CPS challenges and unlock their potential. This ambitious goal will be achieved by leveraging powerful tools from Mathematical Engineering.
@@ -32,4 +32,4 @@ Rather than relying on closed-form analysis of a model of the dynamical system, 
 
 ## Installation
 
-Download Julia, and follow the instructions described [here](https://julialang.github.io/Pkg.jl/v1/managing-packages/#Adding-unregistered-packages).
+Download Julia, and follow the instructions described [here](https://pkgdocs.julialang.org/v1/managing-packages/#Adding-packages).
