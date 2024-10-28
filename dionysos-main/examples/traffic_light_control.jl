@@ -29,17 +29,6 @@ model = Control(
 @parameter(model, "N", 20)
 @parameter(model, "Q_initial", 70)
 
-t_green = model.variables["t_green"].value
-t_yellow = model.variables["t_yellow"].value
-t_red = model.variables["t_red"].value
-a = model.variables["a"].value
-d = model.variables["d"].value
-Q_max = model.variables["Q_max"].value
-Q_desired = model.variables["Q_desired"].value
-beta = model.variables["beta"].value
-N = Int(model.variables["N"].value)
-Q_initial = model.variables["Q_initial"].value
-
 # State Variable
 @variable(model, "Q", StateVar(), Reals(), bounds=(0, Q_max))
 

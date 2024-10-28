@@ -28,7 +28,7 @@ macro variable(ctrl, name_str, var_type_expr, domain_expr; bounds_expr=nothing)
         bounds = $(bounds_expr === nothing ? nothing : bounds_expr)
         var = CoreControls.Variable($name_str, var_type, domain; bounds=bounds)
         $ctrl.variables[$name_str] = var
-        $(esc(Symbol($name_str))) = var
+        $(esc(Symbol($name_str))) = var # Define variable in user's scope
     end
 end
 
@@ -37,9 +37,10 @@ macro parameter(ctrl, name_str, value_expr)
         value = $value_expr
         var = CoreControls.Variable($name_str, ParameterVar(), Reals(); value=value)
         $ctrl.variables[$name_str] = var
-        $(esc(Symbol($name_str))) = var
+        $(esc(Symbol($name_str))) = value # Define parameter value in user's scope
     end
 end
+ 
 
 macro constraint(ctrl, expr)
     quote
