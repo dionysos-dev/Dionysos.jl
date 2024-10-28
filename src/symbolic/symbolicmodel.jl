@@ -93,6 +93,46 @@ function get_domain_from_symbols(symmodel::SymbolicModelList, symbols)
     return newDomain
 end
 
+function compute_symmodel_from_data!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N};
+    n_samples = 10e6,
+) where {N}
+    println("compute_symmodel_from_data! started")
+    Xdom = symmodel.Xdom
+    dim = length(Xdom.grid.orig)
+    Udom = symmodel.Udom
+    tstep = contsys.tstep
+    ntrans = 0
+    transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
+    for upos in DO.enum_pos(Udom)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        for xpos in DO.enum_pos(Xdom)
+            empty!(translist)
+            source = get_state_by_xpos(symmodel, xpos)
+            rec = get_rec(Xdom.grid, xpos)
+            x_sampled = [rec.lb .+ (rec.ub .- rec.lb) .* rand(dim) for _ in 1:n_samples]
+            Fx_sampled = contsys.sys_map.(x_sampled, u, tstep)
+            pos_sampled = get_pos_by_coord.(Xdom, Fx_sampled)
+            target_sampled = get_state_by_xpos.(symmodel, pos_sampled)
+            for target in target_sampled
+                if (target, source, symbol) ∈ keys(transdict)
+                    transdict[target, source, symbol] += 1
+                else
+                    transdict[target, source, symbol] = 1
+                end
+            end
+        end
+    end
+    translist = [(t, s, sym, transdict[t, s, sym] / n_samples) for (t, s, sym) in transdict]
+    add_transitions!(symmodel.autom, translist)
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(length(translist)) transitions created",
+    )
+end
+
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
 # we go through the list only once; this requires to store the transitions in a
