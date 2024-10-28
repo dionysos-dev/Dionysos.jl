@@ -1,3 +1,5 @@
+include("./core.jl")
+
 # Define the Control class with grid type
 mutable struct Control
     name::String

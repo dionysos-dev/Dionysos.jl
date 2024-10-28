@@ -1,4 +1,4 @@
-module CoreControls
+#module CoreControls
 
 # Import necessary Julia libraries
 using LinearAlgebra  # For matrices and vector operations
@@ -121,4 +121,4 @@ function CaptureMPCSolution(; format::String = "table", horizon::Int = 1, stage_
 end
 
 
-end # module
+#end # module
