@@ -28,16 +28,6 @@ model = Control(
 @parameter(model, "holding_cost", 1.0)
 @parameter(model, "ordering_cost", 2.0)
 
-I_min = model.variables["I_min"].value
-I_max = model.variables["I_max"].value
-S_max = model.variables["S_max"].value
-D_min = model.variables["D_min"].value
-D_max = model.variables["D_max"].value
-N = Int(model.variables["N"].value)
-I_initial = model.variables["I_initial"].value
-holding_cost = model.variables["holding_cost"].value
-ordering_cost = model.variables["ordering_cost"].value
-
 # State Variable
 @variable(model, "I", StateVar(), Reals(), bounds=(I_min, I_max))
 
@@ -76,4 +66,4 @@ solution = model.solve(algorithm; horizon=N)
 time = solution.solution_data["time"]
 I_values = solution.solution_data["I"]
 plot(time, I_values, label="Inventory Level", xlabel="Time", ylabel="Inventory", title="Inventory Levels Over Time")
-gui()
+#gui()

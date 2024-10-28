@@ -24,12 +24,6 @@ model = Control(
 @parameter(model, "Δt", 0.1)
 @parameter(model, "N", 50)
 
-L = model.variables["L"].value
-v_max = model.variables["v_max"].value
-delta_max = model.variables["delta_max"].value
-Δt = model.variables["Δt"].value
-N = Int(model.variables["N"].value)
-
 # State Variables
 @variable(model, "x", StateVar(), Reals())
 @variable(model, "y", StateVar(), Reals())

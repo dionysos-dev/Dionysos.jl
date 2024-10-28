@@ -13,7 +13,7 @@ using Plots
 # Create a Control model
 model = Control(
     name="TrafficLightControl",
-    problem_type=Stabilization(),
+    problem_type=CustomProblem(),
     system_type=Auto()
 )
 
@@ -71,7 +71,7 @@ time = solution.solution_data["time"]
 Q_values = solution.solution_data["Q"]
 mode_values = solution.solution_data["mode"]
 plot(time, Q_values, label="Queue Length", xlabel="Time", ylabel="Queue", title="Queue Length Over Time")
-gui()
+#gui()
 
 plot(time, mode_values, label="Mode", xlabel="Time", ylabel="Mode", title="Traffic Light Mode Over Time")
-gui()
+#gui()
