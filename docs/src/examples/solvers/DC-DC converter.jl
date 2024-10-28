@@ -44,36 +44,47 @@ const AB = OP.Abstraction
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 # and we can instantiate the DC system with the provided system
-problem = DCDC.problem(; approx_mode = DCDC.GROWTH)
+concrete_problem = DCDC.problem(; approx_mode = DCDC.GROWTH)
+concrete_system = concrete_problem.system
 
-controller = problem.solve(;
-    method = :uniform_abstraction,
-    initial_state = [0.0, 0.0],
-    initial_input = [1.0],
-)
-# Didn't work because the default step sizes are too coarse / too small
-problem.set_state_stepsize([2.0 / 4.0e3, 2.0 / 4.0e3])
-problem.set_input_stepsize([1.0])
-controller = problem.solve()
-# Now it worked
+x0 = SVector(0.0, 0.0)
+hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
+state_grid = DO.GridFree(x0, hx)
+u0 = SVector(1)
+hu = SVector(1)
+input_grid = DO.GridFree(u0, hu)
+
+using JuMP
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.optimize!(optimizer)
+
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+@test length(abstract_controller.data) == 893803 #src
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
-x0 = [1.2, 5.6]
-control_trajectory = ST.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
+x0 = SVector(1.2, 5.6)
+control_trajectory =
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
-plot!(problem.system.X);
+plot!(concrete_system.X);
 plot!(control_trajectory)
 
 # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 # and we can instantiate the DC system with the provided system
-problem = DCDC.problem(; approx_mode = DCDC.DELTA_GAS)
+concrete_problem = DCDC.problem(; approx_mode = DCDC.DELTA_GAS)
+concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
 η = (2 / 4.0) * 10^(-3)
@@ -83,29 +94,30 @@ origin = SVector(0.0, 0.0)
 P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
 state_grid = DO.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ, concrete_system.X)
 
-# Here we give a more complex grid to the solver
-controller = problem.solve(;
-    method = :uniform_abstraction,
-    δ_gas = true,
-    state_grid = DO.GridEllipsoidalRectangular(
-        origin,
-        SVector(η, η),
-        P / ϵ,
-        concrete_system.X,
-    ),
-    initial_input = [1.0],
-    input_stepsize = [1.0],
-)
+u0 = SVector(1)
+hu = SVector(1)
+input_grid = DO.GridFree(u0, hu)
+
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("δGAS"), true)
+MOI.optimize!(optimizer)
+
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
-x0 = [1.2, 5.6]
-control_trajectory = ST.get_closed_loop_trajectory(problem.system.f, controller, x0, nstep)
+x0 = SVector(1.2, 5.6)
+control_trajectory =
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
-plot!(problem.system.X);
+plot!(concrete_system.X);
 plot!(control_trajectory)
 
 # ### References
