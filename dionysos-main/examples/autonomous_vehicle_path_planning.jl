@@ -57,7 +57,7 @@ psi_goal = 0.0
 # Obstacle (Circular)
 function add_circular_obstacle(model::Control, x::Variable, y::Variable, x_c::Float64, y_c::Float64, r::Float64, N::Int)
     for t in 0:N
-        @constraint(model.model, (x.jump_vars[t+1] - x_c)^2 + (y.jump_vars[t+1] - y_c)^2 >= r^2)
+        @constraint(model.model, (x[t+1] - x_c)^2 + (y[t+1] - y_c)^2 >= r^2)
     end
 end
 

@@ -38,26 +38,26 @@ model = Control(
 @parameter(model, "D", 50.0)  # For simplicity, using a fixed demand
 
 # Dynamics
-for t in 0:N-1
-    @constraint(model, :(I_$(t+1) == I_$t + S_$t - D))
+for k in 0:N-1
+    @constraint(model, :(I_$(k+1) == I_$k + S_$k - D))
 end
 
 # Safety Stock Constraint
-for t in 0:N
-    @constraint(model, :(I_$t >= I_min))
+for k in 0:N
+    @constraint(model, :(I_$k >= I_min))
 end
 
 # Initial Condition
 @constraint(model, :(I_0 == I_initial))
 
 # Objective Function
-@objective(model, Minimize(), :(sum(holding_cost * I_$t + ordering_cost * S_$t for t in 0:$(N-1))))
+@objective(model, Minimize(), :(sum(holding_cost * I_$k + ordering_cost * S_$k for k in 0:$(N-1))))
 
 # Print the model
 print(model)
 
 # Define algorithm (not specified, so we use default)
-algorithm = SampleBasedAlgorithm(num_samples=100)
+algorithm = UniformGridAlgorithm(grid_size=10)
 
 # Solve
 solution = model.solve(algorithm; horizon=N)

@@ -43,6 +43,11 @@ mutable struct Variable
     jump_vars::Vector{JuMP.VariableRef}  # For time-indexed variables
 end
 
+# Overload `getindex` to support time-indexed variable access
+function Base.getindex(var::Variable, t::Int)
+    return var.jump_vars[t + 1]  # Access the `jump_var` at time step `t`
+end
+
 # Constructor for Variable
 function Variable(name::String, var_type::VariableType, domain::Domain; bounds::Union{Tuple{Real, Real}, Nothing} = nothing, value::Union{Nothing, Real} = nothing)
     return Variable(name, var_type, domain, bounds, value, Vector{JuMP.VariableRef}())
