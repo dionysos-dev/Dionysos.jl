@@ -1,8 +1,8 @@
 # inventory_management.jl
 
 # Import necessary modules
-include("core.jl")
-include("solver.jl")
+include("../src/core/core.jl")
+include("../src/core/solver.jl")
 
 using .CoreControls
 using .Solver
