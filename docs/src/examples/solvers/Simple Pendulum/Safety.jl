@@ -18,7 +18,7 @@ concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0)
-hx = SVector(0.1, 0.1) 
+hx = SVector(0.1, 0.1)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector(0.0);
