@@ -1,8 +1,10 @@
-using CoreControls
-using Solver
+# Import necessary modules
+include("../src/core/core.jl")
+
+using .CoreControls
 
 # Create a Control model for the vehicle
-model = Control(
+model = @control(
     name="VehicleMazeNavigation",
     problem_type=Reachability(),
     system_type=Continuous()  # Continuous system type
@@ -14,13 +16,13 @@ model = Control(
 @parameter(model, "alpha", 0.0)  # Initialize alpha, computed later
 
 # State Variables (x1, x2 for position and x3 for orientation)
-@variable(model, "x1", StateVar(), Reals())
-@variable(model, "x2", StateVar(), Reals())
-@variable(model, "x3", StateVar(), Reals())
+@statevar(model, "x1", Reals())
+@statevar(model, "x2", Reals())
+@statevar(model, "x3", Reals())
 
 # Control Inputs (u1 for velocity and u2 for steering angle)
-@variable(model, "u1", InputVar(), Reals(), bounds=(u_min, u_max))
-@variable(model, "u2", InputVar(), Reals(), bounds=(u_min, u_max))
+@inputvar(model, "u1", Reals(), bounds=(u_min, u_max))
+@inputvar(model, "u2", Reals(), bounds=(u_min, u_max))
 
 # Dynamics for each state variable
 @constraint(model, :(dot(x1, t, Δt, model) == u1 * cos(alpha + x3) * cos(alpha)^-1))
@@ -34,17 +36,17 @@ model = Control(
 x1_start = 0.0
 x2_start = 0.0
 x3_start = 0.0
-@constraint(model, :(x1_0 == $x1_start))
-@constraint(model, :(x2_0 == $x2_start))
-@constraint(model, :(x3_0 == $x3_start))
+@constraint(model, :(x1_0 == x1_start))
+@constraint(model, :(x2_0 == x2_start))
+@constraint(model, :(x3_0 == x3_start))
 
 # Terminal Conditions (Target position)
 x1_goal = 10.0  # Example target position
 x2_goal = 10.0
 x3_goal = 0.0
-@constraint(model, :(x1_$N == $x1_goal))
-@constraint(model, :(x2_$N == $x2_goal))
-@constraint(model, :(x3_$N == $x3_goal))
+@constraint(model, :(x1_$N == x1_goal))
+@constraint(model, :(x2_$N == x2_goal))
+@constraint(model, :(x3_$N == x3_goal))
 
 # Obstacle boundaries (provided)
 x1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3]
@@ -68,13 +70,16 @@ end
 add_rectangular_obstacles(model, model.variables["x1"], model.variables["x2"], x1_lb, x1_ub, x2_lb, x2_ub, N)
 
 # Objective: Minimize time to reach the target position
-@objective(model, Minimize(), :(sum(1 for t in 0:$(N-1))))
+@minimize(model, :(sum(1 for t in 0:$(N-1))))
 
 # Define the algorithm (e.g., uniform grid)
-algorithm = UniformGridAlgorithm(grid_size=100)
+algorithm = @uniformgrid(model)
 
 # Solve the problem
-solution = model.solve(algorithm; horizon=N, Δt=0.1)
+solution = solve(model, algorithm; horizon=10, Δt=0.1)
+
+# Print the solution (Optional)
+##print(solution)
 
 # Visualize the path (Optional)
-Visualize(solution, plot="path", labels=["x1", "x2"])
+##Visualize(solution, plot="path", labels=["x1", "x2"])

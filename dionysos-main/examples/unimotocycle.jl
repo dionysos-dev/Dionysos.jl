@@ -1,8 +1,10 @@
-using CoreControls
-using Solver
+# Import necessary modules
+include("../src/core/core.jl")
+
+using .CoreControls
 
 # Define the control model for the system
-model = Control(
+model = @control(
     name="MobileCartMPC",
     problem_type=CustomProblem(),
     system_type=Discrete()  # Discrete-time system
@@ -18,13 +20,14 @@ model = Control(
 @parameter(model, "u2_max", 1.0)
 
 # State Variables (x1, x2 for position, x3 for orientation)
-@variable(model, "x1", StateVar(), Reals())
-@variable(model, "x2", StateVar(), Reals())
-@variable(model, "x3", StateVar(), Reals(), bounds=(-2*pi, 2*pi))  # Modulo operation handled later
+@statevar(model, "x1", Reals())
+@statevar(model, "x2", Reals())
+@statevar(model, "x3", Reals(), bounds=(-2*pi, 2*pi))  # Modulo operation handled later
+
 
 # Control Inputs (u1 for linear velocity and u2 for angular velocity)
-@variable(model, "u1", InputVar(), Reals(), bounds=(u1_min, u1_max))
-@variable(model, "u2", InputVar(), Reals(), bounds=(u2_min, u2_max))
+@inputvar(model, "u1", Reals(), bounds=(u1_min, u1_max))
+@inputvar(model, "u2", Reals(), bounds=(u2_min, u2_max))
 
 # Dynamics for each state variable
 for t in 0:N-1
@@ -48,11 +51,11 @@ end
 @constraint(model, :(terminal_cost == 100 * ((x1[N] - x_r1)^2 + (x2[N] - x_r2)^2)))
 
 # Objective: Minimize stage and terminal costs over the horizon
-@objective(model, Minimize(), :(sum(stage_cost[t] for t in 0:N-1) + terminal_cost))
+@minimize(model, :(sum(stage_cost[t] for t in 0:N-1) + terminal_cost))
 
 # Solve the problem
-algorithm = UniformGridAlgorithm(grid_size=10)
-solution = model.solve(algorithm; horizon=N)
+algorithm = @uniformgrid(model) # Default algorithm
+solution = solve(model, algorithm; horizon=10)
 
 # Print the solution (Optional)
 print(solution)

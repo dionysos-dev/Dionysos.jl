@@ -2,16 +2,13 @@
 
 # Import necessary modules
 include("../src/core/core.jl")
-include("../src/core/solver.jl")
 
 using .CoreControls
-using .Solver
-using JuMP
-using Ipopt
+
 using Plots
 
 # Create a Control model
-model = Control(
+model = @control(
     name="InventoryManagement",
     problem_type=Safety(),
     system_type=Discrete()
@@ -51,16 +48,16 @@ end
 @constraint(model, :(I_0 == I_initial))
 
 # Objective Function
-@objective(model, Minimize(), :(sum(holding_cost * I_$k + ordering_cost * S_$k for k in 0:$(N-1))))
+@minimize(model, :(sum(holding_cost * I_$k + ordering_cost * S_$k for k in 0:$(N-1))))
 
 # Print the model
 print(model)
 
 # Define algorithm (not specified, so we use default)
-algorithm = UniformGridAlgorithm(grid_size=10)
+algorithm = @uniformgrid(model)
 
 # Solve
-solution = model.solve(algorithm; horizon=N)
+solution = solve(model, algorithm; horizon=N)
 
 # Visualize the inventory levels
 time = solution.solution_data["time"]

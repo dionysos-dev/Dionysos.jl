@@ -2,16 +2,14 @@
 
 # Import necessary modules
 include("../src/core/core.jl")
-include("../src/core/solver.jl")
 
 using .CoreControls
-using .Solver
-using JuMP
+
 using Ipopt
 using Plots
 
 # Create a Control model with problem and system types
-model = Control(
+model = @control(
     name="AutonomousVehiclePathPlanning",
     problem_type=Reachability(),
     system_type=Auto()
@@ -22,16 +20,16 @@ model = Control(
 @parameter(model, "v_max", 30.0)
 @parameter(model, "delta_max", π / 4)
 @parameter(model, "Δt", 0.1)
-@parameter(model, "N", 50)
+@parameter(model, "N", 10)
 
 # State Variables
-@variable(model, "x", StateVar(), Reals())
-@variable(model, "y", StateVar(), Reals())
-@variable(model, "psi", StateVar(), Reals(), bounds=(-π, π))
+@statevar(model, "x", Reals(), bounds=(0, 100))
+@statevar(model, "y", Reals(), bounds=(0, 100))
+@statevar(model, "psi", Reals(), bounds=(-π, π))
 
 # Control Inputs
-@variable(model, "v", InputVar(), Reals(), bounds=(0, v_max))
-@variable(model, "delta", InputVar(), Reals(), bounds=(-delta_max, delta_max))
+@inputvar(model, "v", Reals(), bounds=(0, v_max))
+@inputvar(model, "delta", Reals(), bounds=(-delta_max, delta_max))
 
 # Dynamics using dot() for continuous-time system
 @constraint(model, :(dot(x, t, Δt, model) == v * cos(psi)))
@@ -42,9 +40,9 @@ model = Control(
 x_start = 0.0
 y_start = 0.0
 psi_start = 0.0
-@constraint(model, :(x_0 == $x_start))
-@constraint(model, :(y_0 == $y_start))
-@constraint(model, :(psi_0 == $psi_start))
+@constraint(model, :(x_0 == x_start))
+@constraint(model, :(y_0 == y_start))
+@constraint(model, :(psi_0 == psi_start))
 
 # Terminal Conditions
 x_goal = 100.0
@@ -57,7 +55,7 @@ psi_goal = 0.0
 # Obstacle (Circular)
 function add_circular_obstacle(model::Control, x::Variable, y::Variable, x_c::Float64, y_c::Float64, r::Float64, N::Int)
     for t in 0:N
-        @constraint(model.model, (x[t+1] - x_c)^2 + (y[t+1] - y_c)^2 >= r^2)
+        @constraint(model, (x[t+1] - x_c)^2 + (y[t+1] - y_c)^2 >= r^2)
     end
 end
 
@@ -65,19 +63,19 @@ end
 x_c = 50.0
 y_c = 50.0
 r = 10.0
-add_circular_obstacle(model, model.variables["x"], model.variables["y"], x_c, y_c, r, N)
+add_circular_obstacle(model, x, y, x_c, y_c, r, N)
 
 # Objective Function (Minimize total time)
-@objective(model, Minimize(), :(sum(1 for t in 0:$(N-1))))
+@minimize(model, :(sum(1 for t in 0:$(N-1))))
 
 # Print the model to verify
 print(model)
 
 # Define the algorithm
-algorithm = UniformGridAlgorithm(grid_size=100)
+algorithm = @uniformgrid(model)
 
 # Solve the problem using the specified algorithm
-solution = model.solve(algorithm; horizon=N, Δt=Δt)
+solution = solve(model, algorithm; horizon=N, Δt=Δt)
 
 # Visualize the path
-Visualize(solution, plot="path", labels=["x", "y"])
+#@visualize(solution, plot="path", labels=["x", "y"])

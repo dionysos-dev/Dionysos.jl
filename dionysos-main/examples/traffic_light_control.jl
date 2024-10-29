@@ -2,16 +2,11 @@
 
 # Import necessary modules
 include("../src/core/core.jl")
-include("../src/core/solver.jl")
 
 using .CoreControls
-using .Solver
-using JuMP
-using Ipopt
-using Plots
 
 # Create a Control model
-model = Control(
+model = @control(
     name="TrafficLightControl",
     problem_type=CustomProblem(),
     system_type=Auto()
@@ -30,10 +25,10 @@ model = Control(
 @parameter(model, "Q_initial", 70)
 
 # State Variable
-@variable(model, "Q", StateVar(), Reals(), bounds=(0, Q_max))
+@statevar(model, "Q", Reals(), bounds=(0, Q_max))
 
 # Mode Variable
-@variable(model, "mode", ModeVar(), Integers(), bounds=(1, 3))
+@modevar(model, "mode", 3) # 1: Green, 2: Yellow, 3: Red
 
 # Mode Constants
 const MODE_GREEN = 1
@@ -53,7 +48,7 @@ end
 @constraint(model, :(mode_0 == MODE_RED))
 
 # Objective Function
-@objective(model, Minimize(), :(
+@minimize(model, :(
     sum((Q_$t - Q_desired)^2 for t in 0:N) + beta * sum(mode_$t != mode_$(t-1) for t in 1:N)
 ))
 
@@ -61,10 +56,10 @@ end
 print(model)
 
 # Define algorithm (since hybrid, may need specialized solver)
-algorithm = SampleBasedAlgorithm(num_samples=100)
+algorithm = @uniformgrid(model)
 
 # Solve
-solution = model.solve(algorithm; horizon=N)
+solution = solve(model, algorithm; horizon=N)
 
 # Visualize the queue length and mode
 time = solution.solution_data["time"]
