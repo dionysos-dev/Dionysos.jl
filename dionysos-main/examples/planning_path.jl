@@ -1,5 +1,5 @@
 # Import necessary modules
-include("../src/core/core.jl")
+include(joinpath(@__DIR__, "../src/core/core.jl"))
 
 using .CoreControls
 
@@ -25,29 +25,27 @@ model = @control(
 @inputvar(model, "u1", Reals(), bounds=(u_min, u_max))
 @inputvar(model, "u2", Reals(), bounds=(u_min, u_max))
 
-# Dynamics for each state variable
-@constraint(model, :(dot(x1, t, Δt, model) == u1 * cos(alpha + x3) * cos(alpha)^-1))
-@constraint(model, :(dot(x2, t, Δt, model) == u1 * sin(alpha + x3) * cos(alpha)^-1))
-@constraint(model, :(dot(x3, t, Δt, model) == u1 * tan(u2)))
-
 # Alpha is dependent on u2
-@constraint(model, :(alpha == atan(tan(u2) / 2)))
+@constraint(model, alpha == atan(tan(u2) / 2))
+@constraint(model, dot(x1, t, Δt, model) == u1 * cos(alpha + x3) * cos(alpha)^-1)
+@constraint(model, dot(x2, t, Δt, model) == u1 * sin(alpha + x3) * cos(alpha)^-1)
+@constraint(model, dot(x3, t, Δt, model) == u1 * tan(u2))
 
 # Initial Conditions (Specify vehicle's starting position and orientation)
 x1_start = 0.0
 x2_start = 0.0
 x3_start = 0.0
-@constraint(model, :(x1_0 == x1_start))
-@constraint(model, :(x2_0 == x2_start))
-@constraint(model, :(x3_0 == x3_start))
+@constraint(model, x1_0 == x1_start)
+@constraint(model, x2_0 == x2_start)
+@constraint(model, x3_0 == x3_start)
 
 # Terminal Conditions (Target position)
 x1_goal = 10.0  # Example target position
 x2_goal = 10.0
 x3_goal = 0.0
-@constraint(model, :(x1_$N == x1_goal))
-@constraint(model, :(x2_$N == x2_goal))
-@constraint(model, :(x3_$N == x3_goal))
+@constraint(model, x1_N == x1_goal)
+@constraint(model, x2_N == x2_goal)
+@constraint(model, x3_N == x3_goal)
 
 # Obstacle boundaries (provided)
 x1_lb = [1.0, 2.2, 2.2, 3.4, 4.6, 5.8, 5.8, 7.0, 8.2, 8.4, 9.3, 8.4, 9.3, 8.4, 9.3]
@@ -59,11 +57,19 @@ x2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.
 function add_rectangular_obstacles(model::Control, x1::Variable, x2::Variable, x1_lb::Vector{Float64}, x1_ub::Vector{Float64}, x2_lb::Vector{Float64}, x2_ub::Vector{Float64}, N::Int)
     num_obstacles = length(x1_lb)
     for i in 1:num_obstacles
-        for t in 0:N-1
+        #for t in 0:N-1
             # Add constraints to ensure vehicle is outside the obstacle at time t
-            @constraint(model, :(x1[t+1] <= $x1_lb[$i] || x1[t+1] >= $x1_ub[$i]))
-            @constraint(model, :(x2[t+1] <= $x2_lb[$i] || x2[t+1] >= $x2_ub[$i]))
-        end
+            @constraint(
+                model,
+                x1[t+1] <= $x1_lb[$i] || x1[t+1] >= $x1_ub[$i] ||
+                x2[t+1] <= $x2_lb[$i] || x2[t+1] >= $x2_ub[$i],
+            )
+        #end
+        @constraint(
+            model,
+            x1 <= $x1_lb[$i] || x1 >= $x1_ub[$i] ||
+            x2 <= $x2_lb[$i] || x2 >= $x2_ub[$i],
+        )
     end
 end
 

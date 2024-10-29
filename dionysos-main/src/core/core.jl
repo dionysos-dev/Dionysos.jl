@@ -146,6 +146,27 @@ Control(name::String, problem_type::ProblemType, system_type::SystemType) = Cont
     end 
 end=#
 
+struct StateModel
+    state_variable_index::Dict{Variable,Int}
+    start_values::Vector{Float64}
+    target_values::Vector{Float64}
+    state::Dionysos.Utils.HyperRectangle
+    obstacles::Vector{Dionysos.Utils.HyperRectangle}
+    dynamic::Vector{Expr}
+    function StateModel(state_variable_index::Dict{Variable,Int})
+        nstates = length(state_variable_index)
+        return new(
+            state_variable_index,
+            fill(NaN, nstates),
+            fill(NaN, nstates),
+            nothing,
+            Hyperrectangle[],
+            Vector{Expr}(undef, nstates),
+        )
+    end
+end
+
+
 macro control(args...)
     name = "Control"
     problem_type = :(CustomProblem())
@@ -472,19 +493,40 @@ function diff(var::Variable, t::Int)
 end
 
 # Helper function to replace variables in expressions
-function replace_variables_time_indexed(expr::Expr, variables::Dict{String, Variable}, t::Int, Δt::Float64)
+function _replace_variables_time_indexed(expr::Expr, variables::Dict{String, Variable}, t::Int, Δt::Float64)
+    args = [_replace_variables_time_indexed(arg, variables, t, Δt) for arg in expr.args]
+    return Expr(expr.head, args...)
+end
+
+function replace_variables_time_indexed(state_model::StateModel, expr::Expr, variables::Dict{String, Variable}, t::Int, Δt::Float64)
+    if expr.head == :call && expr.args[1] == :(==)
+        lhs = expr.args[2]
+        if Meta.isexpr(lhs, :call) && lhs.args[1] == :dot
+            variable_name = lhs.args[2]
+            var = variables[variable_name]
+            state_model.dynamic[state_model.state_variable_index[var]] = _replace_variables_time_indexed(expr.args[2], variables, t, Δt)
+        else
+            dump(lhs)
+            error("Not supported")
+        end
+    else
+        dump(expr)
+        error("Unsupported")
+    end
+    return
     #=if expr.head == :call && expr.args[1] == :(==>) # Implication
         lhs = replace_variables_time_indexed(expr.args[2], variables, t, Δt)
         rhs = replace_variables_time_indexed(expr.args[3], variables, t, Δt)
         return Expr(:call, :(==>), lhs, rhs)
     else=#if expr.head == :call
         func = expr.args[1]
-        args = [replace_variables_time_indexed(arg, variables, t, Δt) for arg in expr.args[2:end]]
+        args = [_replace_variables_time_indexed(arg, variables, t, Δt) for arg in expr.args[2:end]]
         if func == :dot
             var_name = string(args[1])
             var = variables[var_name]
             return dot(var, t, Δt, var.model)
         elseif func == :diff
+            error("WIP")
             var_name = string(args[1])
             var = variables[var_name]
             return diff(var, t)
@@ -527,8 +569,6 @@ end
 
 # Solver function
 function solve(ctrl::Control, algorithm::Algorithm; horizon::Int = 1, Δt::Float64 = 1.0)
-    print(ctrl)
-    return
 
     println("Solving control model: $(ctrl.name)")
 
@@ -571,16 +611,24 @@ function solve(ctrl::Control, algorithm::Algorithm; horizon::Int = 1, Δt::Float
         end
     end
 
+    state_variable_indices = Dict{Variable,Int}()
+    for var in ctrl.variables
+        if v.var_type isa StateVar
+            state_variable_indices[var] = length(state_variable_indices) + 1
+        end
+    end
+    state_model = StateModel(state_variable_indices)
+
     # Add constraints to the model
     for constr in ctrl.constraints
         if ctrl.system_type isa Continuous || ctrl.system_type isa Hybrid
             for t in 0:horizon-1
-                expr = replace_variables_time_indexed(constr.expr, ctrl.variables, t, Δt)
+                expr = replace_variables_time_indexed(state_model, constr.expr, ctrl.variables, t, Δt)
                 @constraint(ctrl.model, expr)
             end
         elseif ctrl.system_type isa Discrete
             for t in 0:horizon-1
-                expr = replace_variables_time_indexed(constr.expr, ctrl.variables, t, Δt)
+                expr = replace_variables_time_indexed(state_model, constr.expr, ctrl.variables, t, Δt)
                 @constraint(ctrl.model, expr)
             end
         else
