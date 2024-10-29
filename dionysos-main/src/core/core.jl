@@ -10,6 +10,7 @@ using Ipopt
 using Dionysos
 using StaticArrays
 
+
 # Exports
 ## export macros
 export @variable, @parameter, @constraint, @control 
@@ -77,13 +78,13 @@ function Variable(name::String, var_type::VariableType, domain::Domain; bounds::
 end
 
 # Constraint Struct
-mutable struct Constraint
+#=mutable struct Constraint
     expr::Expr  # Use Julia's Expr type to store the expression
 
     Constraint(expr::Expr) = new(expr)
-end
+end=#
 
-#=mutable struct Constraint
+mutable struct Constraint
     lhs::Expr
     rhs::Expr
     is_implication::Bool
@@ -95,7 +96,7 @@ end
             return new(expr, :(), false) # Normal constraint
         end
     end
-end=#
+end
 
 
 macro constraint(model, expr)
