@@ -98,7 +98,7 @@ function compute_symmodel_from_data!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
     n_samples = Int(1e1),
-    ε = 0.05
+    ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
     Xdom = symmodel.Xdom

@@ -89,7 +89,7 @@ println("Number of self loops: $n_sl")
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
-nstep = 100
+nstep = 500
 function reached(x)
     if x ∈ concrete_problem.target_set
         return true
