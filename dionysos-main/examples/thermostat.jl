@@ -25,8 +25,8 @@ model = @control(
 @modevar(model, "mode", 2)                # Two modes: Heating (1), Idle (0)
 
 # Dynamics
-@constraint(model, :(mode == 1 ==> dot(T) == heating_rate))     # Heating mode dynamics
-@constraint(model, :(mode == 0 ==> dot(T) == 0))                 # Idle mode dynamics (or gradual cooling if needed)
+@constraint(model, :(mode == 1 => {dot(T) == heating_rate}))     # Heating mode dynamics
+@constraint(model, :(mode == 0 => {dot(T) == 0}))                 # Idle mode dynamics (or gradual cooling if needed)
 
 # Safety Constraints
 @constraint(model, T >= T_set - delta)    # Lower bound for temperature

@@ -2,7 +2,7 @@
 model = @control(
     name="ThermostatControlSystemWithControl",
     problem_type=Safety(),
-    system_type=Hybrid()
+    system_type=Auto()
 )
 
 # Parameters
@@ -21,8 +21,8 @@ model = @control(
 @modevar(model, "mode", 2)                # Two modes: Heating (1), Idle (0)
 
 # Dynamics
-@constraint(model, :(mode == 1 ==> dot(T) == k * u))      # Heating mode dynamics with control input
-@constraint(model, :(mode == 0 ==> T' == -alpha))     # Idle mode dynamics (ambient cooling)
+@constraint(model, :(mode == 1 => { dot(T) == k * u } ))      # Heating mode dynamics with control input
+@constraint(model, :(mode == 0 => { dot(T) == -alpha } ))     # Idle mode dynamics (ambient cooling)
 
 # Safety Constraints
 @constraint(model, T >= T_set - delta)            # Lower bound for temperature

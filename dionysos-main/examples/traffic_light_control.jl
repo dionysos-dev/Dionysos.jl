@@ -38,9 +38,9 @@ const MODE_RED = 3
 
 # Dynamics and Mode Transitions
 for t in 0:N-1
-    @constraint(model, :(mode_$t == MODE_GREEN ==> Q_$(t+1) == Q_$t - d))
-    @constraint(model, :(mode_$t == MODE_YELLOW ==> Q_$(t+1) == Q_$t))
-    @constraint(model, :(mode_$t == MODE_RED ==> Q_$(t+1) == Q_$t + a))
+    @constraint(model, :(mode_$t == MODE_GREEN => { Q_$(t+1) == Q_$t - d } ))
+    @constraint(model, :(mode_$t == MODE_YELLOW => { Q_$(t+1) == Q_$t } ))
+    @constraint(model, :(mode_$t == MODE_RED => { Q_$(t+1) == Q_$t + a } ))
     # Mode transitions can be further defined based on timing
 end
 

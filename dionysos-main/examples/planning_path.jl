@@ -71,7 +71,7 @@ end
 add_rectangular_obstacles(model, model.variables["x1"], model.variables["x2"], x1_lb, x1_ub, x2_lb, x2_ub, N)
 
 # Objective: Minimize time to reach the target position
-@minimize(model, :(sum(1 for t in 0:$(N-1))))
+#@minimize(model, :(sum(1 for t in 0:$(N-1))))
 
 # Define the algorithm (e.g., uniform grid)
 algorithm = @uniformgrid(model)
