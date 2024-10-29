@@ -14,6 +14,7 @@ model = @control(
 @parameter(model, "u_min", -1.0)
 @parameter(model, "u_max", 1.0)
 @parameter(model, "alpha", 0.0)  # Initialize alpha, computed later
+@parameter(model, "N", 10)  # Time step
 
 # State Variables (x1, x2 for position and x3 for orientation)
 @statevar(model, "x1", Reals())
@@ -82,4 +83,5 @@ solution = solve(model, algorithm; horizon=10, Δt=0.1)
 ##print(solution)
 
 # Visualize the path (Optional)
+#TODO: Add visualization
 ##Visualize(solution, plot="path", labels=["x1", "x2"])

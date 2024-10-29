@@ -77,13 +77,13 @@ function Variable(name::String, var_type::VariableType, domain::Domain; bounds::
 end
 
 # Constraint Struct
-#=mutable struct Constraint
+mutable struct Constraint
     expr::Expr  # Use Julia's Expr type to store the expression
 
     Constraint(expr::Expr) = new(expr)
-end=#
+end
 
-mutable struct Constraint
+#=mutable struct Constraint
     lhs::Expr
     rhs::Expr
     is_implication::Bool
@@ -95,7 +95,7 @@ mutable struct Constraint
             return new(expr, :(), false) # Normal constraint
         end
     end
-end
+end=#
 
 
 macro constraint(model, expr)
@@ -335,10 +335,6 @@ macro lazyellipsoid(jacobian)
     end
 end
 
-
-
-
-
 # Macros for variable, parameter, constraint, and objective definition
 macro variable(ctrl, name_str, var_type_expr, domain_expr, bounds_expr=:nothing)
     quote
@@ -477,11 +473,11 @@ end
 
 # Helper function to replace variables in expressions
 function replace_variables_time_indexed(expr::Expr, variables::Dict{String, Variable}, t::Int, Δt::Float64)
-    if expr.head == :call && expr.args[1] == :(==>) # Implication
+    #=if expr.head == :call && expr.args[1] == :(==>) # Implication
         lhs = replace_variables_time_indexed(expr.args[2], variables, t, Δt)
         rhs = replace_variables_time_indexed(expr.args[3], variables, t, Δt)
         return Expr(:call, :(==>), lhs, rhs)
-    elseif expr.head == :call
+    else=#if expr.head == :call
         func = expr.args[1]
         args = [replace_variables_time_indexed(arg, variables, t, Δt) for arg in expr.args[2:end]]
         if func == :dot
@@ -513,7 +509,7 @@ function replace_variables_time_indexed(expr::Expr, variables::Dict{String, Vari
     end
 end
 
-# Function to apply constraints to the JuMP model
+# Function to apply constraints to the model
 function apply_constraints_to_jump_model(ctrl::Control, jump_model::JuMP.Model, num_time_steps::Int, Δt::Float64)
     for t in 0:num_time_steps-1
         for constraint in ctrl.constraints

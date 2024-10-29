@@ -60,7 +60,8 @@ algorithm = @uniformgrid(model)
 solution = solve(model, algorithm; horizon=N)
 
 # Visualize the inventory levels
-time = solution.solution_data["time"]
-I_values = solution.solution_data["I"]
+#TODO: Add visualization
+#time = solution.solution_data["time"]
+#I_values = solution.solution_data["I"]
 plot(time, I_values, label="Inventory Level", xlabel="Time", ylabel="Inventory", title="Inventory Levels Over Time")
 #gui()

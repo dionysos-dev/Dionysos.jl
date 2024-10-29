@@ -1,3 +1,4 @@
+#NOTE: NOT RUN
 # traffic_light_control.jl
 
 # Import necessary modules
@@ -62,10 +63,11 @@ algorithm = @uniformgrid(model)
 solution = solve(model, algorithm; horizon=N)
 
 # Visualize the queue length and mode
-time = solution.solution_data["time"]
-Q_values = solution.solution_data["Q"]
-mode_values = solution.solution_data["mode"]
-plot(time, Q_values, label="Queue Length", xlabel="Time", ylabel="Queue", title="Queue Length Over Time")
+#TODO: Add visualization
+#time = solution.solution_data["time"]
+#Q_values = solution.solution_data["Q"]
+#mode_values = solution.solution_data["mode"]
+#plot(time, Q_values, label="Queue Length", xlabel="Time", ylabel="Queue", title="Queue Length Over Time")
 #gui()
 
 plot(time, mode_values, label="Mode", xlabel="Time", ylabel="Mode", title="Traffic Light Mode Over Time")
