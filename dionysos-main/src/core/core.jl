@@ -150,7 +150,7 @@ struct StateModel
     state_variable_index::Dict{Variable,Int}
     start_values::Vector{Float64}
     target_values::Vector{Float64}
-    state::Dionysos.Utils.HyperRectangle
+    state::Union{Nothing,Dionysos.Utils.HyperRectangle}
     obstacles::Vector{Dionysos.Utils.HyperRectangle}
     dynamic::Vector{Expr}
     function StateModel(state_variable_index::Dict{Variable,Int})
@@ -160,7 +160,7 @@ struct StateModel
             fill(NaN, nstates),
             fill(NaN, nstates),
             nothing,
-            Hyperrectangle[],
+            Dionysos.Utils.HyperRectangle[],
             Vector{Expr}(undef, nstates),
         )
     end
@@ -498,17 +498,76 @@ function _replace_variables_time_indexed(expr::Expr, variables::Dict{String, Var
     return Expr(expr.head, args...)
 end
 
+function _replace_variables_time_indexed(expr::Symbol, variables::Dict{String, Variable}, t::Int, Δt::Float64)
+    var_name = string(expr)
+    @show var_name
+    @show haskey(variables, var_name)
+    if haskey(variables, var_name)
+        var = variables[var_name]
+        if var.var_type isa ParameterVar
+            return var.value
+        else
+            return var.jump_vars[t+1]
+        end
+    else
+        return expr
+    end
+end
+
+function _replace_variables_time_indexed(expr::Number, ::Dict{String, Variable}, ::Int, ::Float64)
+    return expr
+end
+
+function _var_idx(state_model, variables, variable_name::Symbol)
+    return _var_idx(state_model, variables, string(variable_name))
+end
+
+function _var_idx(state_model, variables, variable_name::String)
+    var = variables[variable_name]
+    return state_model.state_variable_index[var]
+end
+
+function _fill_bounds!(bounds, state_model, variables, t, Δt, expr)
+    if expr.head == :(||)
+        for arg in expr.args
+            _fill_bounds!(bounds, state_model, variables, t, Δt, arg)
+        end
+    elseif expr.head == :call && expr.args[1] == :(>=)
+        @show expr.args[2]
+        bounds[_var_idx(state_model, variables, expr.args[2]), 1] = _replace_variables_time_indexed(expr.args[3], variables, t, Δt)
+    elseif expr.head == :call && expr.args[1] == :(<=)
+        @show expr.args[2]
+        bounds[_var_idx(state_model, variables, expr.args[2]), 2] = _replace_variables_time_indexed(expr.args[3], variables, t, Δt)
+    else
+        error("Unsupported $(expr.head) with ||")
+    end
+end
+
 function replace_variables_time_indexed(state_model::StateModel, expr::Expr, variables::Dict{String, Variable}, t::Int, Δt::Float64)
     if expr.head == :call && expr.args[1] == :(==)
         lhs = expr.args[2]
         if Meta.isexpr(lhs, :call) && lhs.args[1] == :dot
-            variable_name = lhs.args[2]
-            var = variables[variable_name]
-            state_model.dynamic[state_model.state_variable_index[var]] = _replace_variables_time_indexed(expr.args[2], variables, t, Δt)
+            state_model.dynamic[_var_idx(state_model, variables, lhs.args[2])] = _replace_variables_time_indexed(expr.args[2], variables, t, Δt)
+        elseif lhs isa Symbol
+            name = string(lhs)
+            var_idx = _var_idx(state_model, variables, name[1:end-2])
+            if endswith(name, "_0")
+                state_model.start_values[var_idx] = _replace_variables_time_indexed(expr.args[3], variables, t, Δt)
+            elseif endswith(name, "_N")
+                state_model.start_values[var_idx] = _replace_variables_time_indexed(expr.args[3], variables, t, Δt)
+            else
+                error("Unknown lhs $lhs")
+            end
         else
-            dump(lhs)
             error("Not supported")
         end
+    elseif expr.head == :(||)
+        nstates = length(state_model.start_values)
+        bounds = hcat(fill(-Inf, nstates), fill(Inf, nstates))
+        for arg in expr.args
+            _fill_bounds!(bounds, state_model, variables, t, Δt, arg)
+        end
+        error("You win")
     else
         dump(expr)
         error("Unsupported")
@@ -611,30 +670,39 @@ function solve(ctrl::Control, algorithm::Algorithm; horizon::Int = 1, Δt::Float
         end
     end
 
+    @show @__LINE__
     state_variable_indices = Dict{Variable,Int}()
-    for var in ctrl.variables
-        if v.var_type isa StateVar
+    for var in values(ctrl.variables)
+        if var.var_type isa StateVar
             state_variable_indices[var] = length(state_variable_indices) + 1
         end
     end
     state_model = StateModel(state_variable_indices)
+    @show @__LINE__
 
     # Add constraints to the model
     for constr in ctrl.constraints
+    @show @__LINE__
         if ctrl.system_type isa Continuous || ctrl.system_type isa Hybrid
+    @show @__LINE__
             for t in 0:horizon-1
                 expr = replace_variables_time_indexed(state_model, constr.expr, ctrl.variables, t, Δt)
-                @constraint(ctrl.model, expr)
+    @show @__LINE__
+                #@constraint(ctrl.model, expr)
+    @show @__LINE__
             end
         elseif ctrl.system_type isa Discrete
+    @show @__LINE__
             for t in 0:horizon-1
                 expr = replace_variables_time_indexed(state_model, constr.expr, ctrl.variables, t, Δt)
-                @constraint(ctrl.model, expr)
+                #@constraint(ctrl.model, expr)
             end
         else
             error("Unknown system type")
         end
+    @show @__LINE__
     end
+    @show @__LINE__
 
     # Add objective to the model
     if ctrl.objective !== nothing
