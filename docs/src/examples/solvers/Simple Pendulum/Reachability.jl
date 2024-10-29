@@ -70,3 +70,24 @@ plot!(
     opacity= 1.0
 );
 plot!(control_trajectory; markersize=1,arrows=false)
+
+
+
+
+using RigidBodyDynamics
+
+srcdir = dirname(pathof(RigidBodyDynamics))
+urdf = joinpath("docs", "src", "examples", "solvers", "Simple Pendulum", "SimplePendulum.urdf")
+mechanism = parse_urdf(urdf)
+
+final_time = 4.
+ts, qs, vs = simulate(state, final_time, simple_control!; Δt = 0.01);
+# println(ts)
+# println(qs)
+
+# println(qs)
+
+using MeshCatMechanisms
+
+mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf));
+MeshCatMechanisms.animate(mvis, ts, qs; realtimerate = 1.);
