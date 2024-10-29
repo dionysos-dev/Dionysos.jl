@@ -10,6 +10,7 @@ include("files/files_management.jl")
 using Plots, Colors
 include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
+include("plotting/automaton_plots.jl")
 #####
 
 include("scalar_functions.jl")

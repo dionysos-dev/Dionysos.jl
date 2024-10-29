@@ -156,18 +156,19 @@ function MOI.optimize!(optimizer::Optimizer)
     )
     optimizer.abstract_system = abstract_system
 
+    # Build the abstract problem
+    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
+    optimizer.abstract_problem = abstract_problem
 
-    # # Build the abstract problem
-    # abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
-    # optimizer.abstract_problem = abstract_problem
-    # # Solve the abstract problem
-    # abstract_controller = solve_abstract_problem(abstract_problem)
-    # optimizer.abstract_controller = abstract_controller
-    # # Solve the concrete problem
-    # optimizer.concrete_controller =
-    #     solve_concrete_problem(abstract_system, abstract_controller)
+    # Solve the abstract problem
+    abstract_controller = solve_abstract_problem(abstract_problem)
+    optimizer.abstract_controller = abstract_controller
+    
+    # Solve the concrete problem
+    optimizer.concrete_controller =
+        solve_concrete_problem(abstract_system, abstract_controller)
 
-    # optimizer.solve_time_sec = time() - t_ref
+    optimizer.solve_time_sec = time() - t_ref
     return
 end
 

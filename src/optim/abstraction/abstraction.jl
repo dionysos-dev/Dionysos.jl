@@ -1,6 +1,7 @@
 module Abstraction
 
 include("uniform_grid_abstraction.jl")
+include("sample_based_abstraction.jl")
 include("lazy_abstraction.jl")
 include("hierarchical_abstraction.jl")
 include("ellipsoids_abstraction.jl")

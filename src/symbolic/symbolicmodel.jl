@@ -1,4 +1,5 @@
 using Plots, Colors
+using ProgressMeter
 
 """
     SymbolicModel{N, M}
@@ -96,26 +97,29 @@ end
 function compute_symmodel_from_data!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
-    n_samples = 10e6,
+    n_samples = Int(1e1),
+    ε = 0.05
 ) where {N}
     println("compute_symmodel_from_data! started")
     Xdom = symmodel.Xdom
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    ntrans = 0
     transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
     for upos in DO.enum_pos(Udom)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
         for xpos in DO.enum_pos(Xdom)
-            empty!(translist)
             source = get_state_by_xpos(symmodel, xpos)
-            rec = get_rec(Xdom.grid, xpos)
-            x_sampled = [rec.lb .+ (rec.ub .- rec.lb) .* rand(dim) for _ in 1:n_samples]
-            Fx_sampled = contsys.sys_map.(x_sampled, u, tstep)
-            pos_sampled = get_pos_by_coord.(Xdom, Fx_sampled)
-            target_sampled = get_state_by_xpos.(symmodel, pos_sampled)
+            rec = DO.get_rec(Xdom.grid, xpos)
+            x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
+            Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled]
+            pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+            pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+            if !all(pos_contained_sampled)
+                continue
+            end
+            target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
             for target in target_sampled
                 if (target, source, symbol) ∈ keys(transdict)
                     transdict[target, source, symbol] += 1
@@ -125,7 +129,12 @@ function compute_symmodel_from_data!(
             end
         end
     end
-    translist = [(t, s, sym, transdict[t, s, sym] / n_samples) for (t, s, sym) in transdict]
+    translist = Tuple{Int, Int, Int}[]
+    for (t, s, sym) ∈ keys(transdict)
+        if transdict[(t, s, sym)] / n_samples >= ε
+            push!(translist, (t, s, sym))
+        end
+    end
     add_transitions!(symmodel.autom, translist)
     return println(
         "compute_symmodel_from_controlsystem! terminated with success: ",
