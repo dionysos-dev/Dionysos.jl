@@ -103,7 +103,10 @@ function build_abstraction(concrete_system, model)
             model.discretized_system,
         )
     else
-        @time SY.compute_symmodel_from_controlsystem!(abstract_system, model.discretized_system)
+        @time SY.compute_symmodel_from_controlsystem!(
+            abstract_system,
+            model.discretized_system,
+        )
     end
     return abstract_system
 end
@@ -199,10 +202,7 @@ function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
     # Build the abstraction
-    abstract_system = build_abstraction(
-        optimizer.concrete_problem.system,
-        optimizer,
-    )
+    abstract_system = build_abstraction(optimizer.concrete_problem.system, optimizer)
     optimizer.abstract_system = abstract_system
     # Build the abstract problem
     abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
