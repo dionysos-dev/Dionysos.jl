@@ -6,9 +6,9 @@ import JuMP
 @enum(VariableType, INPUT, STATE, MODE)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner
-    nlp_model
-    evaluator::Union{Nothing,MOI.Nonlinear.Evaluator}
+    inner::Any
+    nlp_model::Any
+    evaluator::Union{Nothing, MOI.Nonlinear.Evaluator}
     variable_values::Vector{Float64}
     derivative_values::Vector{Float64}
     variable_types::Vector{VariableType}
@@ -17,8 +17,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     upper::Vector{Float64}
     start::Vector{Float64}
     target::Vector{MOI.Interval{Float64}}
-    dynamic::Vector{Union{Nothing,MOI.ScalarNonlinearFunction}}
-    obstacles::Vector{Tuple{Vector{MOI.VariableIndex},MOI.HyperRectangle}}
+    dynamic::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
+    obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
@@ -35,8 +35,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Float64[],
             Float64[],
             MOI.Interval{Float64}[],
-            Union{Nothing,MOI.ScalarNonlinearFunction}[],
-            Tuple{Vector{MOI.VariableIndex},MOI.HyperRectangle}[],
+            Union{Nothing, MOI.ScalarNonlinearFunction}[],
+            Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
@@ -75,7 +75,7 @@ function MOI.add_variable(model::Optimizer)
     return MOI.VariableIndex(length(model.upper))
 end
 
-struct OuterSet{S<:MOI.AbstractVectorSet} <: MOI.AbstractVectorSet
+struct OuterSet{S <: MOI.AbstractVectorSet} <: MOI.AbstractVectorSet
     inner::S
 end
 
@@ -85,7 +85,7 @@ Base.copy(set::OuterSet) = OuterSet(copy(set.inner))
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VectorOfVariables},
-    ::Type{OuterSet{MOI.HyperRectangle{Float64}}}
+    ::Type{OuterSet{MOI.HyperRectangle{Float64}}},
 )
     return true
 end
@@ -96,33 +96,25 @@ function MOI.add_constraint(
     set::OuterSet{MOI.HyperRectangle{Float64}},
 )
     push!(model.obstacles, (func.variables, set.inner))
-    return MOI.ConstraintIndex{typeof(func),typeof(set)}(length(model.obstacles))
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.obstacles))
 end
 
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VariableIndex},
-    ::Type{<:Union{MOI.LessThan,MOI.GreaterThan}}
+    ::Type{<:Union{MOI.LessThan, MOI.GreaterThan}},
 )
     return true
 end
 
-function MOI.add_constraint(
-    model::Optimizer,
-    func::MOI.VariableIndex,
-    set::MOI.GreaterThan
-)
+function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.GreaterThan)
     model.lower[func.value] = MOI.constant(set)
-    return MOI.ConstraintIndex{typeof(func),typeof(set)}(func.value)
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
-function MOI.add_constraint(
-    model::Optimizer,
-    func::MOI.VariableIndex,
-    set::MOI.LessThan,
-)
+function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.LessThan)
     model.upper[func.value] = MOI.constant(set)
-    return MOI.ConstraintIndex{typeof(func),typeof(set)}(func.value)
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
 function MOI.supports_constraint(
@@ -143,11 +135,11 @@ function MOI.add_constraint(
         if var isa MOI.VariableIndex && func.head == :final
             model.target[var.value] = set
             model.nonlinear_index += 1
-            return MOI.ConstraintIndex{typeof(func),typeof(set)}(model.nonlinear_index)
+            return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         end
     end
     dump(func)
-    error("Unsupported")
+    return error("Unsupported")
 end
 
 function MOI.supports_constraint(
@@ -171,48 +163,36 @@ function MOI.add_constraint(
                 if lhs.head == :diff
                     model.dynamic[var.value] = rhs
                     model.nonlinear_index += 1
-                    return MOI.ConstraintIndex{typeof(func),typeof(set)}(model.nonlinear_index)
+                    return MOI.ConstraintIndex{typeof(func), typeof(set)}(
+                        model.nonlinear_index,
+                    )
                 elseif lhs.head == :final
                     model.target[var.value] = MOI.Interval(rhs, rhs)
                     model.nonlinear_index += 1
-                    return MOI.ConstraintIndex{typeof(func),typeof(set)}(model.nonlinear_index)
+                    return MOI.ConstraintIndex{typeof(func), typeof(set)}(
+                        model.nonlinear_index,
+                    )
                 end
             end
         end
     end
     dump(func)
-    error("Unsupported")
+    return error("Unsupported")
 end
 
-function MOI.supports(
-    ::Optimizer,
-    ::Union{MOI.ObjectiveSense,MOI.ObjectiveFunction}
-)
+function MOI.supports(::Optimizer, ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunction})
     return true
 end
 
-function MOI.supports(
-    ::Optimizer,
-    ::MOI.VariablePrimalStart,
-    ::Type{MOI.VariableIndex},
-)
+function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex})
     return true
 end
 
-function MOI.set(
-    model::Optimizer,
-    ::MOI.VariablePrimalStart,
-    vi::MOI.VariableIndex,
-    value,
-)
-    model.start[vi.value] = value
+function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
+    return model.start[vi.value] = value
 end
 
-function MOI.set(
-    model::Optimizer,
-    ::MOI.ObjectiveSense,
-    sense::MOI.OptimizationSense,
-)
+function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     model.objective_sense = sense
     return
 end
@@ -247,8 +227,7 @@ function obstacles(model, x_idx)
         Dionysos.Utils.HyperRectangle(
             _svec(_full(model, -Inf, o[1], o[2].lower), x_idx),
             _svec(_full(model, Inf, o[1], o[2].upper), x_idx),
-        )
-        for o in model.obstacles
+        ) for o in model.obstacles
     ]
 end
 
@@ -312,18 +291,12 @@ end
 function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
-    _X_ = Dionysos.Utils.HyperRectangle(
-        _svec(model.lower, x_idx),
-        _svec(model.upper, x_idx),
-    )
-    _U_ = Dionysos.Utils.HyperRectangle(
-        _svec(model.lower, u_idx),
-        _svec(model.upper, u_idx),
-    )
-    _I_ = Dionysos.Utils.HyperRectangle(
-        _svec(model.start, x_idx),
-        _svec(model.start, x_idx),
-    )
+    _X_ =
+        Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
+    _U_ =
+        Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
+    _I_ =
+        Dionysos.Utils.HyperRectangle(_svec(model.start, x_idx), _svec(model.start, x_idx))
     _T_ = Dionysos.Utils.HyperRectangle(
         _svec([s.lower for s in model.target], x_idx),
         _svec([s.upper for s in model.target], x_idx),
@@ -336,7 +309,12 @@ function problem(model::Optimizer)
 
     sys = system(model, _X_, _U_)
     problem = Dionysos.Problem.OptimalControlProblem(
-        sys, _I_, _T_, nothing, nothing, Dionysos.Problem.Infinity(),
+        sys,
+        _I_,
+        _T_,
+        nothing,
+        nothing,
+        Dionysos.Problem.Infinity(),
     )
     return problem
 end
@@ -368,7 +346,11 @@ function setup!(model::Optimizer)
     for i in eachindex(model.variable_types)
         if variable_type(model, MOI.VariableIndex(i)) == STATE
             # The set does not matter
-            MOI.Nonlinear.add_constraint(model.nlp_model, model.dynamic[i], MOI.EqualTo(0.0))
+            MOI.Nonlinear.add_constraint(
+                model.nlp_model,
+                model.dynamic[i],
+                MOI.EqualTo(0.0),
+            )
             state_index += 1
             model.variable_index[i] = state_index
         else
