@@ -9,6 +9,10 @@ import Dionysos
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner
+    nlp_model
+    evaluator::Union{Nothing,MOI.Nonlinear.Evaluator}
+    variable_values::Vector{Float64}
+    derivative_values::Vector{Float64}
     variable_types::Vector{VariableType}
     variable_index::Vector{Int} # MOI.VariableIndex -> state/input/mode index
     lower::Vector{Float64}
@@ -23,6 +27,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+            nothing,
+            nothing,
+            Float64[],
+            Float64[],
             VariableType[],
             Int[],
             Float64[],
@@ -41,6 +49,8 @@ end
 MOI.is_empty(model::Optimizer) = isempty(model.variable_types)
 
 function MOI.empty!(model::Optimizer)
+    empty!(model.variable_values)
+    empty!(model.derivative_values)
     empty!(model.variable_types)
     empty!(model.variable_index)
     empty!(model.lower)
@@ -56,6 +66,7 @@ function MOI.empty!(model::Optimizer)
 end
 
 function MOI.add_variable(model::Optimizer)
+    push!(model.variable_values, NaN)
     push!(model.variable_types, INPUT)
     push!(model.variable_index, 0)
     push!(model.lower, -Inf)
@@ -175,7 +186,6 @@ function MOI.add_constraint(
     error("Unsupported")
 end
 
-
 function MOI.supports(
     ::Optimizer,
     ::Union{MOI.ObjectiveSense,MOI.ObjectiveFunction}
@@ -247,15 +257,23 @@ function obstacles(model, x_idx)
     ]
 end
 
-function dynamicofsystem()
+function dynamic!(model)
+    MOI.eval_constraint(model.evaluator, model.derivative_values, model.variable_values)
+    return
+end
+
+function dynamicofsystem(model)
     # System eq x' = F_sys(x, u)
     function F_sys(x, u)
-        α = atan(tan(u[2]) / 2)
-        return SA.SVector{3}(
-            u[1] * cos(α + x[3]) / cos(α),
-            u[1] * sin(α + x[3]) / cos(α),
-            u[1] * tan(u[2]),
-        )
+        for i in eachindex(model.variable_values)
+            if variable_type(model, MOI.VariableIndex(i)) == STATE
+                model.variable_values[i] = x[model.variable_index[i]]
+            else
+                model.variable_values[i] = u[model.variable_index[i]]
+            end
+        end
+        dynamic!(model)
+        return model.derivative_values
     end
 
     # We define the growth bound function of $f$:
@@ -269,6 +287,7 @@ function dynamicofsystem()
 end
 
 function system(
+    model,
     _X_,
     _U_;
     sysnoise = SA.SVector(0.0, 0.0, 0.0),
@@ -276,7 +295,7 @@ function system(
     tstep = 0.3,
     nsys = 5,
 )
-    F_sys, L_growthbound, ngrowthbound = dynamicofsystem()
+    F_sys, L_growthbound, ngrowthbound = dynamicofsystem(model)
     contsys = Dionysos.System.NewControlSystemGrowthRK4(
         tstep,
         F_sys,
@@ -320,7 +339,7 @@ function problem(model::Optimizer)
         Dionysos.Utils.LazyUnionSetArray(obstacles(model, x_idx)),
     )
 
-    sys = system(_X_, _U_)
+    sys = system(model, _X_, _U_)
     problem = Dionysos.Problem.OptimalControlProblem(
         sys, _I_, _T_, nothing, nothing, Dionysos.Problem.Infinity(),
     )
@@ -350,8 +369,11 @@ end
 function setup!(model::Optimizer)
     input_index = 0
     state_index = 0
+    model.nlp_model = MOI.Nonlinear.Model()
     for i in eachindex(model.variable_types)
         if variable_type(model, MOI.VariableIndex(i)) == STATE
+            # The set does not matter
+            MOI.Nonlinear.add_constraint(model.nlp_model, model.dynamic[i], MOI.EqualTo(0.0))
             state_index += 1
             model.variable_index[i] = state_index
         else
@@ -359,6 +381,12 @@ function setup!(model::Optimizer)
             model.variable_index[i] = input_index
         end
     end
+    model.derivative_values = fill(NaN, state_index)
+    backend = MOI.Nonlinear.SparseReverseMode()
+    vars = MOI.VariableIndex.(eachindex(model.lower))
+    model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
+    MOI.initialize(model.evaluator, Symbol[])
+    return
 end
 
 function MOI.optimize!(model::Optimizer)
@@ -375,7 +403,6 @@ function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
 end
 
 function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
-    @show @__LINE__
     return MOI.set(model.inner, attr, value)
 end
 

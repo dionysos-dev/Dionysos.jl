@@ -48,8 +48,6 @@ x_start = [0.4, 0.4, 0.0]
 # Define the control variables: u1(t), u2(t)
 @variable(model, -1 <= u[1:2] <= 1)
 
-#@variable(model, 1 <= mode <= 2, Int)
-
 # Set α(t) = arctan(tan(u2(t)) / 2)
 @expression(model, α, atan(tan(u[2]) / 2))
 
