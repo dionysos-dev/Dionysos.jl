@@ -18,7 +18,6 @@ function dynamic()
             u[1] * tan(u[2]),
         )
     end
-    return F_sys
 end
 
 # We define the growth bound function of $f$:
@@ -30,7 +29,7 @@ function jacobian_bound()
 end
 
 function jacobian()
-    return (x, u) ->
+    return (x, u) -> begin
         α = atan(tan(u[2]) / 2)
         β = u[1] / cos(α)
         return SMatrix{3, 3}(
@@ -79,10 +78,7 @@ function get_obstacles(
     ]
 end
 
-function system(
-    _X_;
-    _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
-)
+function system(_X_; _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
         Dionysos.Utils.get_dims(_X_),
@@ -108,10 +104,8 @@ function problem(; simple = false)
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
     else
-        _X_ = UT.HyperRectangle(
-            SVector(-0.1, -0.1, -pi - 0.4),
-            SVector(10.1, 10.1, pi + 0.4),
-        )
+        _X_ =
+            UT.HyperRectangle(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
         _T_ = UT.HyperRectangle(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
     end
