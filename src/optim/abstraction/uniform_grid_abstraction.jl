@@ -2,6 +2,8 @@ export UniformGridAbstraction
 
 module UniformGridAbstraction
 
+import StaticArrays
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -23,8 +25,13 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_system::Union{Nothing, SY.SymbolicModelList}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
+    discretized_system::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
+    jacobian_bound::Union{Nothing, Function}
+    time_step::T
+    num_sub_steps_system_map::Int
+    num_sub_steps_growth_bound::Int
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
     function Optimizer{T}() where {T}
@@ -36,6 +43,11 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
+            NaN,
+            5,
+            5,
             false,
             0.0,
         )
@@ -55,19 +67,43 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.Grid, δGAS)
-    Xfull = DO.DomainList(state_grid)
+function build_abstraction(concrete_system, model)
+    Xfull = DO.DomainList(model.state_grid)
     DO.add_set!(Xfull, concrete_system.X, DO.INNER)
-    Ufull = DO.DomainList(input_grid)
+    Ufull = DO.DomainList(model.input_grid)
     DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
     abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
-    if δGAS
+
+    # TODO add noise to the description of the system so in a MathematicalSystems
+    #      this is a workaround
+    nstates = Dionysos.Utils.get_dims(concrete_system.X)
+    noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
+
+    if isnothing(model.jacobian_bound)
+        error("Please set the `jacobian_bound`.")
+    end
+
+    if isnan(model.time_step)
+        error("Please set the `time_step`.")
+    end
+
+    model.discretized_system = Dionysos.System.NewControlSystemGrowthRK4(
+        model.time_step,
+        concrete_system.f,
+        model.jacobian_bound,
+        noise,
+        noise,
+        model.num_sub_steps_system_map,
+        model.num_sub_steps_growth_bound,
+    )
+
+    if model.δGAS
         @time SY.compute_deterministic_symmodel_from_controlsystem!(
             abstract_system,
-            concrete_system.f,
+            model.discretized_system,
         )
     else
-        @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+        @time SY.compute_symmodel_from_controlsystem!(abstract_system, model.discretized_system)
     end
     return abstract_system
 end
@@ -165,9 +201,7 @@ function MOI.optimize!(optimizer::Optimizer)
     # Build the abstraction
     abstract_system = build_abstraction(
         optimizer.concrete_problem.system,
-        optimizer.state_grid,
-        optimizer.input_grid,
-        optimizer.δGAS,
+        optimizer,
     )
     optimizer.abstract_system = abstract_system
     # Build the abstract problem
