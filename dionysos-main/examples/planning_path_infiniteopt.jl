@@ -78,10 +78,6 @@ end
 # Objective: Minimize the distance to the target position at final time T
 @objective(model, Min, (x[1](T) - x_target[1])^2 + (x[2](T) - x_target[2])^2)
 
-# Solve the problem using a solver that supports nonlinear optimization
-optimize!(model, optimizer_with_attributes(Ipopt.Optimizer))
-
-include(joinpath(@__DIR__, "../src/core/core.jl"))
 
 import OrderedCollections
 
@@ -176,16 +172,24 @@ function parse_constraint!(_, c, _, _)
     error(c)
 end
 
-function parse_constraint!(_, _, v::GeneralVariableRef, ::MOI.Integer)
+function parse_constraint!(_, c, v::GeneralVariableRef, ::MOI.GreaterThan)
+    if haskey(model.state_variable_index, v)
+    elseif haskey(model.input_variable_index, v)
+    else
+        error("Unknown variable $v")
+    end
+end
+
+function parse_constraint!(model, _, v::GeneralVariableRef, ::MOI.Integer)
     return
 end
 
-function detect_variable!(model, _, f::NLPExpr, ::MOI.EqualTo)
+function parse_constraint!(model, _, f::NLPExpr, ::MOI.EqualTo)
     if f.tree_root.data == NodeData(:-) &&
         f.tree_root.child.data.value.index_type == InfiniteOpt.DerivativeIndex
         v = _underiv(f.tree_root.child.data.value)
         idx = model.state_variable_index[v]
-        model.dynamic[idx] = f.tree_root.child.data
+        model.dynamic[idx] = NLPExpr(f.tree_root.child.sibling)
     else
         error("Constraint $c not understood")
     end
@@ -198,3 +202,29 @@ for con_ref in all_constraints(model)
 end
 
 simodel
+
+# Solve the problem using a solver that supports nonlinear optimization
+optimize!(model, optimizer_with_attributes(Ipopt.Optimizer))
+
+include(joinpath(@__DIR__, "../src/core/core.jl"))
+
+
+model = InfiniteModel()
+@infinite_parameter(model, t ∈ [0, T])
+@variable(model, x, Infinite(t))
+e = sin(x) + 1
+
+import MacroTools
+
+macro test(expr)
+    new_expr = MacroTools.postwalk(expr) do leaf
+       if leaf isa Symbol
+       return esc(leaf)
+       else
+       return leaf
+       end
+    end
+    return expr
+end
+
+@test(x + 1)
