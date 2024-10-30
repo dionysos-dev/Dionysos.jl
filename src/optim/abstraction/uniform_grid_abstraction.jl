@@ -12,6 +12,8 @@ const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
+
 using JuMP
 
 """
@@ -34,6 +36,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     num_sub_steps_growth_bound::Int
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
+    approx_mode::ApproxMode
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -50,6 +53,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             5,
             false,
             0.0,
+            GROWTH,
         )
     end
 end
@@ -79,23 +83,42 @@ function build_abstraction(concrete_system, model)
     nstates = Dionysos.Utils.get_dims(concrete_system.X)
     noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
 
-    if isnothing(model.jacobian_bound)
-        error("Please set the `jacobian_bound`.")
-    end
-
     if isnan(model.time_step)
         error("Please set the `time_step`.")
     end
 
-    model.discretized_system = Dionysos.System.NewControlSystemGrowthRK4(
-        model.time_step,
-        concrete_system.f,
-        model.jacobian_bound,
-        noise,
-        noise,
-        model.num_sub_steps_system_map,
-        model.num_sub_steps_growth_bound,
-    )
+    model.discretized_system = if model.approx_mode == GROWTH
+        if isnothing(model.jacobian_bound)
+            error("Please set the `jacobian_bound`.")
+        end
+        Dionysos.System.NewControlSystemGrowthRK4(
+            model.time_step,
+            concrete_system.f,
+            model.jacobian_bound,
+            noise,
+            noise,
+            model.num_sub_steps_system_map,
+            model.num_sub_steps_growth_bound,
+        )
+    elseif model.approx_mode == LINEARIZED
+        Dionysos.System.NewControlSystemLinearizedRK4(
+            model.time_step,
+            concrete_system.f,
+            model.jacobian,
+            u -> 0.0,
+            u -> 0.0,
+            noise,
+            model.num_sub_steps_system_map,
+        )
+    else
+        @assert model.approx_mode == DELTA_GAS
+        Dionysos.System.NewSimpleSystem(
+            model.time_step,
+            concrete_system.f,
+            noise,
+            model.num_sub_steps_system_map,
+        )
+    end
 
     if model.δGAS
         @time SY.compute_deterministic_symmodel_from_controlsystem!(

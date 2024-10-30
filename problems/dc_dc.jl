@@ -14,96 +14,67 @@ const PB = DI.Problem
 const ST = DI.System
 const SY = DI.Symbolic
 
-@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
+function A1(; xL = 3.0, xC = 70.0, r0 = 1.0, rL = 0.05, rC = 0.005)
+    return SMatrix{2, 2}(-rL / xL, 0.0, 0.0, -1.0 / xC / (r0 + rC))
+end
 
-function dynamicofsystem(
-    vs = 1.0,
-    rL = 0.05,
-    xL = 3.0,
-    rC = 0.005,
-    xC = 70.0,
-    r0 = 1.0,
-    ngrowthbound = 5,
-)
-    # Definition of the dynamics functions $f_p$ of the system:
-    b = SVector(vs / xL, 0.0)
-    A1 = SMatrix{2, 2}(-rL / xL, 0.0, 0.0, -1.0 / xC / (r0 + rC))
-    A2 = SMatrix{2, 2}(
+function A2(; xL = 3.0, xC = 70.0, r0 = 1.0, rL = 0.05, rC = 0.005)
+    return SMatrix{2, 2}(
         -(rL + r0 * rC / (r0 + rC)) / xL,
         5.0 * r0 / (r0 + rC) / xC,
         -r0 / (r0 + rC) / xL / 5.0,
         -1.0 / xC / (r0 + rC),
     )
-    F_sys = let b = b, A1 = A1, A2 = A2
-        (x, u) -> u[1] == 1 ? A1 * x + b : A2 * x + b
-    end
-    A2_abs = SMatrix{2, 2}(
+end
+
+function A2_abs(; xL = 3.0, xC = 70.0, r0 = 1.0, rL = 0.05, rC = 0.005)
+    return SMatrix{2, 2}(
         -(rL + r0 * rC / (r0 + rC)) / xL,
         5.0 * r0 / (r0 + rC) / xC,
         r0 / (r0 + rC) / xL / 5.0,
         -1.0 / xC / (r0 + rC),
     )
-    L_growthbound = let A1 = A1, A2_abs = A2_abs
+end
+
+function jacobian_bound(; kws...)
+    return let A1 = A1(; kws...), A2_abs = A2_abs(; kws...)
         u -> u[1] == 1 ? A1 : A2_abs
     end
+end
 
-    DF_sys = let A1 = A1, A2 = A2
-        (x, u) -> u[1] == 1 ? A1 : A2
+function DF_sys(; kws...)
+    return let A1 = A1(; kws...), A2 = A2(; kws...)
+        u -> u[1] == 1 ? A1 : A2
     end
-    bound_DF(u) = 0.0
-    bound_DDF(u) = 0.0
-    return F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF
+end
+
+function dynamic(;
+    vs = 1.0,
+    xL = 3.0,
+    kws...,
+)
+    # Definition of the dynamics functions $f_p$ of the system:
+    b = SVector(vs / xL, 0.0)
+    return let b = b, A1 = A1(; xL, kws...), A2 = A2(; xL, kws...)
+        (x, u) -> u[1] == 1 ? A1 * x + b : A2 * x + b
+    end
 end
 
 function system(;
-    sysnoise = SVector(0.0, 0.0),
-    measnoise = SVector(0.0, 0.0),
-    tstep = 0.5,
-    nsys = 5,
     _X_ = UT.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85)),
     _U_ = UT.HyperRectangle(SVector(1), SVector(2)),
-    xdim = 2,
-    udim = 1,
-    approx_mode::ApproxMode = GROWTH,
 )
-
-    # Definition of the dynamics functions $f_p$ of the system:
-    F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem()
-    contsys = nothing
-    if approx_mode == GROWTH
-        contsys = ST.NewControlSystemGrowthRK4(
-            tstep,
-            F_sys,
-            L_growthbound,
-            sysnoise,
-            measnoise,
-            nsys,
-            ngrowthbound,
-        )
-    elseif approx_mode == LINEARIZED
-        contsys = ST.NewControlSystemLinearizedRK4(
-            tstep,
-            F_sys,
-            DF_sys,
-            bound_DF,
-            bound_DDF,
-            measnoise,
-            nsys,
-        )
-    elseif approx_mode == DELTA_GAS
-        contsys = ST.NewSimpleSystem(tstep, F_sys, measnoise, nsys)
-    end
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        contsys,
-        xdim,
-        udim,
+        dynamic(),
+        Dionysos.Utils.get_dims(_X_),
+        Dionysos.Utils.get_dims(_U_),
         _X_,
         _U_,
     )
 end
 
-function problem(; approx_mode::ApproxMode = GROWTH)
-    sys = system(; approx_mode = approx_mode)
+function problem()
+    sys = system()
     return PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
 end
 
