@@ -234,9 +234,6 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
     return MOI.Utilities.default_copy_to(model, src)
 end
 
-function system(model::Optimizer)
-end
-
 _svec(vec, idx) = SA.SVector([vec[i] for i in idx]...)
 
 function _full(model, def, vars, vals)
