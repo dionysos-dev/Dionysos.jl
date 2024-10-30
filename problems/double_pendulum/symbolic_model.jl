@@ -28,3 +28,15 @@ J_simplified = Symbolics.simplify.(J)
 # Display the Jacobian
 println("Jacobian of F with respect to x:")
 display(J_simplified)
+
+
+# Substitute specific values for parameters
+params = Dict(m1 => 1.0, m2 => 1.0, g => 9.81, l1 => 1.0, l2 => 1.0)
+J_substituted = [substitute(element, params) for element in J]
+
+# Simplify the substituted Jacobian
+J_simplified = Symbolics.simplify.(J_substituted)
+
+# Display the simplified Jacobian
+println("Simplified Jacobian with substituted parameters:")
+display(J_simplified)
