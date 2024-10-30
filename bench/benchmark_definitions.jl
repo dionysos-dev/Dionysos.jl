@@ -94,9 +94,11 @@ input_grid = DO.GridFree(u0, hu)
 DCDC = problems_modules["dc_dc.jl"]
 solver_uniform_grid_dc_dc = optimizer_with_attributes(
     AB.UniformGridAbstraction.Optimizer,
-    "concrete_problem" => DCDC.problem(; approx_mode = DCDC.GROWTH),
+    "concrete_problem" => DCDC.problem(),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
+    "jacobian_bound" => DCDC.jacobian_bound(),
+    "time_step" => 0.5,
 )
 bench["UniformGridAbstraction", "dc_dc.jl"] = MOI.instantiate(solver_uniform_grid_dc_dc)
 
@@ -110,9 +112,11 @@ PathPlanning = problems_modules["path_planning.jl"]
 solver_uniform_grid_path_planning = optimizer_with_attributes(
     AB.UniformGridAbstraction.Optimizer,
     "concrete_problem" =>
-        PathPlanning.problem(; approx_mode = PathPlanning.GROWTH, simple = true),
+        PathPlanning.problem(; simple = true),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
+    "jacobian_bound" => PathPlanning.jacobian_bound(),
+    "time_step" => 0.3,
 )
 bench["UniformGridAbstraction", "path_planning.jl"] =
     MOI.instantiate(solver_uniform_grid_path_planning)
