@@ -2,6 +2,8 @@ import MathOptInterface as MOI
 import StaticArrays as SA
 import MathematicalSystems
 import JuMP
+import MathOptSymbolicAD
+import Symbolics
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -236,19 +238,27 @@ function dynamic!(model)
     return
 end
 
-function dynamicofsystem(model)
+function symbolic(func::MathOptSymbolicAD._Function, xu)
+    Symbolics.@variables(p[1:length(func.data)])
+    e = MathOptSymbolicAD._expr_to_symbolics(
+        func.model,
+        func.expr,
+        p,
+        xu[func.ordered_variables],
+    )
+    return Symbolics.substitute(e, Dict(p[i] => func.data[i] for i in eachindex(p)))
+end
+
+function dynamicofsystem(model, x_idx, u_idx)
     # System eq x' = F_sys(x, u)
-    function F_sys(x, u)
-        for i in eachindex(model.variable_values)
-            if variable_type(model, MOI.VariableIndex(i)) == STATE
-                model.variable_values[i] = x[model.variable_index[i]]
-            else
-                model.variable_values[i] = u[model.variable_index[i]]
-            end
-        end
-        dynamic!(model)
-        return model.derivative_values
-    end
+    Symbolics.@variables(x[1:length(x_idx)], u[1:length(u_idx)])
+    xu = Vector{eltype(x)}(undef, length(model.variable_index))
+    xu[x_idx] = x
+    xu[u_idx] = u
+    expr = [symbolic(func, xu) for func in model.evaluator.backend.constraints]
+    # The second one is the inplace version that we don't want so we
+    # ignore it with `_`
+    F_sys, _ = Symbolics.build_function(expr, x, u; expression = Val{false})
 
     # We define the growth bound function of $f$:
     ngrowthbound = 5
@@ -262,14 +272,14 @@ end
 
 function system(
     model,
-    _X_,
-    _U_;
+    x_idx,
+    u_idx;
     sysnoise = SA.SVector(0.0, 0.0, 0.0),
     measnoise = SA.SVector(0.0, 0.0, 0.0),
     tstep = 0.3,
     nsys = 5,
 )
-    F_sys, L_growthbound, ngrowthbound = dynamicofsystem(model)
+    F_sys, L_growthbound, ngrowthbound = dynamicofsystem(model, x_idx, u_idx)
     contsys = Dionysos.System.NewControlSystemGrowthRK4(
         tstep,
         F_sys,
@@ -279,6 +289,14 @@ function system(
         nsys,
         ngrowthbound,
     )
+    _X_ =
+        Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
+    _X_ = Dionysos.Utils.LazySetMinus(
+        _X_,
+        Dionysos.Utils.LazyUnionSetArray(obstacles(model, x_idx)),
+    )
+    _U_ =
+        Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         contsys,
         Dionysos.Utils.get_dims(_X_),
@@ -291,10 +309,6 @@ end
 function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
-    _X_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
-    _U_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     _I_ =
         Dionysos.Utils.HyperRectangle(_svec(model.start, x_idx), _svec(model.start, x_idx))
     _T_ = Dionysos.Utils.HyperRectangle(
@@ -302,12 +316,7 @@ function problem(model::Optimizer)
         _svec([s.upper for s in model.target], x_idx),
     )
 
-    _X_ = Dionysos.Utils.LazySetMinus(
-        _X_,
-        Dionysos.Utils.LazyUnionSetArray(obstacles(model, x_idx)),
-    )
-
-    sys = system(model, _X_, _U_)
+    sys = system(model, x_idx, u_idx)
     problem = Dionysos.Problem.OptimalControlProblem(
         sys,
         _I_,
@@ -359,7 +368,7 @@ function setup!(model::Optimizer)
         end
     end
     model.derivative_values = fill(NaN, state_index)
-    backend = MOI.Nonlinear.SparseReverseMode()
+    backend = MathOptSymbolicAD.DefaultBackend()
     vars = MOI.VariableIndex.(eachindex(model.lower))
     model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
     MOI.initialize(model.evaluator, Symbol[])
