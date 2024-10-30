@@ -33,52 +33,73 @@ using Test     #src
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
 
-# At this point, we import Dionysos.
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const DO = DI.Domain
-const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
-
-# And the file defining the hybrid system for this problem
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.jl"))
+# At this point, we import Dionysos and JuMP.
+using Dionysos, JuMP
 
 # ### Definition of the problem
 
-# Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
-concrete_system = concrete_problem.system;
+# We define the problem using JuMP as follows.
+# We first create a JuMP model:
+model = Model(Dionysos.Optimizer)
+
+# Define the state variables: x1(t), x2(t), x3(t)
+x_low, x_upp = [0.0, 0.0, -pi - 0.4], [4.0, 10.0, pi + 0.4]
+x_start = [0.4, 0.4, 0.0]
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x_start[i])
+
+# Define the control variables: u1(t), u2(t)
+@variable(model, -1 <= u[1:2] <= 1)
+
+# Set α(t) = arctan(tan(u2(t)) / 2)
+@expression(model, α, atan(tan(u[2]) / 2))
+
+@constraint(model, ∂(x[1]) == u[1] * cos(α + x[3]) * sec(α))
+@constraint(model, ∂(x[2]) == u[1] * sin(α + x[3]) * sec(α))
+@constraint(model, ∂(x[3]) == u[1] * tan(u[2]))
+
+x_target = [3.3, 0.5, 0]
+
+@constraint(model, final(x[1]) in MOI.Interval(3.0, 3.6))
+@constraint(model, final(x[2]) in MOI.Interval(0.3, 0.8))
+@constraint(model, final(x[3]) in MOI.Interval(-100.0, 100.0))
+
+# Obstacle boundaries (provided)
+x1_lb = [1.0, 2.2, 2.2]
+x1_ub = [1.2, 2.4, 2.4]
+x2_lb = [0.0, 0.0, 6.0]
+x2_ub = [9.0, 5.0, 10.0]
+
+# Function to add rectangular obstacle avoidance constraints
+
+for i in eachindex(x1_ub)
+    @constraint(
+        model,
+        x[1:2] ∉ MOI.HyperRectangle([x1_lb[i], x2_lb[i]], [x1_ub[i], x2_ub[i]])
+    )
+end
 
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
+
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
-state_grid = DO.GridFree(x0, h);
+set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
-input_grid = DO.GridFree(u0, h);
+set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
-# We now solve the optimal control problem with the `Abstraction.UniformGridAbstraction.Optimizer`.
-
-using JuMP
-optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-MOI.optimize!(optimizer)
+optimize!(model)
 
 # Get the results
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+abstract_system = get_attribute(model, "abstract_system");
+abstract_problem = get_attribute(model, "abstract_problem");
+abstract_controller = get_attribute(model, "abstract_controller");
+concrete_controller = get_attribute(model, "concrete_controller")
+concrete_problem = get_attribute(model, "concrete_problem");
+concrete_system = concrete_problem.system
 
 @test length(abstract_controller.data) == 19400 #src
 
@@ -93,14 +114,17 @@ function reached(x)
         return false
     end
 end
+
 x0 = SVector(0.4, 0.4, 0.0)
-control_trajectory = ST.get_closed_loop_trajectory(
+control_trajectory = Dionysos.System.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
     nstep;
     stopping = reached,
 )
+
+using Plots
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
@@ -116,11 +140,14 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
 
 # We display the abstract specifications
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    Dionysos.Symbolic.get_domain_from_symbols(
+        abstract_system,
+        abstract_problem.initial_set,
+    );
     color = :green,
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
     color = :red,
 );
 

@@ -10,6 +10,8 @@ function get_B(LSM::LazySetMinus)
     return LSM.B
 end
 
+get_dims(s::LazySetMinus) = get_dims(s.A)
+
 # LazySetMinus = sets[1] ∪ sets[2] ∪ ... ∪ sets[n]
 struct LazyUnionSetArray{S}
     sets::Vector{S}
