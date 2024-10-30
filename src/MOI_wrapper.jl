@@ -256,9 +256,15 @@ function dynamicofsystem(model, x_idx, u_idx)
     xu[x_idx] = x
     xu[u_idx] = u
     expr = [symbolic(func, xu) for func in model.evaluator.backend.constraints]
-    # The second one is the inplace version that we don't want so we
-    # ignore it with `_`
-    F_sys, _ = Symbolics.build_function(expr, x, u; expression = Val{false})
+    # The second one is the inplace version that we don't want so we ignore it with `_`
+    # `expression = Val{false}` is used to directly get a Julia function
+    # `cse = true` is used to detect common sub-expressions (like `α` in the path planning example),
+    # cfr. https://discourse.julialang.org/t/detecting-function-composition-in-symbolics-jl/115885/6
+    # for a discussion on why it's not currently enabled by default
+    F_sys, _ = Symbolics.build_function(expr, collect(x), collect(u), expression = Val{false}, cse = true)
+
+    # To see the generated expression, use:
+    #println(Symbolics.build_function(expr, collect(x), collect(u), cse = true))
 
     # We define the growth bound function of $f$:
     ngrowthbound = 5
