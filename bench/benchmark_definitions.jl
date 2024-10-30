@@ -111,8 +111,7 @@ input_grid = DO.GridFree(u0, h);
 PathPlanning = problems_modules["path_planning.jl"]
 solver_uniform_grid_path_planning = optimizer_with_attributes(
     AB.UniformGridAbstraction.Optimizer,
-    "concrete_problem" =>
-        PathPlanning.problem(; simple = true),
+    "concrete_problem" => PathPlanning.problem(; simple = true),
     "state_grid" => state_grid,
     "input_grid" => input_grid,
     "jacobian_bound" => PathPlanning.jacobian_bound(),

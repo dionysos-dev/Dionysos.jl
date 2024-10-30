@@ -48,11 +48,7 @@ function DF_sys(; kws...)
     end
 end
 
-function dynamic(;
-    vs = 1.0,
-    xL = 3.0,
-    kws...,
-)
+function dynamic(; vs = 1.0, xL = 3.0, kws...)
     # Definition of the dynamics functions $f_p$ of the system:
     b = SVector(vs / xL, 0.0)
     return let b = b, A1 = A1(; xL, kws...), A2 = A2(; xL, kws...)
