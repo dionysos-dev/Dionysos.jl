@@ -13,8 +13,12 @@ M = m1 + m2
 # Define the system dynamics
 F1 = x3
 F2 = x4
-F3 = -sin(Δθ) * (m2 * l1 * x3^2 * cos(Δθ) + m2 * l2 * x4^2) - g * (M * sin(x1) - m2 * sin(x2) * cos(Δθ)) / (l1 * α) + u1
-F4 = sin(Δθ) * (M * l1 * x3^2 + m2 * l2 * x4^2 * cos(Δθ)) + g * (M * sin(x1) * cos(Δθ) - M * sin(x2)) / (l2 * α)
+F3 =
+    -sin(Δθ) * (m2 * l1 * x3^2 * cos(Δθ) + m2 * l2 * x4^2) -
+    g * (M * sin(x1) - m2 * sin(x2) * cos(Δθ)) / (l1 * α) + u1
+F4 =
+    sin(Δθ) * (M * l1 * x3^2 + m2 * l2 * x4^2 * cos(Δθ)) +
+    g * (M * sin(x1) * cos(Δθ) - M * sin(x2)) / (l2 * α)
 
 # Define the vector field F
 F = [F1, F2, F3, F4]
@@ -28,7 +32,6 @@ J_simplified = Symbolics.simplify.(J)
 # Display the Jacobian
 println("Jacobian of F with respect to x:")
 display(J_simplified)
-
 
 # Substitute specific values for parameters
 params = Dict(m1 => 1.0, m2 => 1.0, g => 9.81, l1 => 1.0, l2 => 1.0)

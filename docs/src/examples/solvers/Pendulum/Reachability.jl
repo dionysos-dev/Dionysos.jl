@@ -34,7 +34,6 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-
 # ### Trajectory display
 nstep = 100
 function reached(x)
@@ -45,24 +44,27 @@ function reached(x)
     end
 end
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-control_trajectory =
-    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
-    stopping = reached)
-
+control_trajectory = ST.get_closed_loop_trajectory(
+    concrete_system.f,
+    concrete_controller,
+    x0,
+    nstep;
+    stopping = reached,
+)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);
 plot!(
     SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
     color = :green,
-    opacity= 1.0
+    opacity = 1.0,
 );
 plot!(
     SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
     color = :red,
-    opacity= 1.0
+    opacity = 1.0,
 );
-plot!(control_trajectory; markersize=1,arrows=false)
+plot!(control_trajectory; markersize = 1, arrows = false)
 display(fig)
 
 # ### For Visualization
@@ -73,8 +75,9 @@ state = MechanismState(mechanism)
 joint = first(joints(mechanism))
 
 tstep = 0.1
-state_values = [ST.get_state(control_trajectory, i)[1] for i in 1:ST.length(control_trajectory)]
-ts = collect(0.0:tstep:((length(state_values)-1) * tstep))
+state_values =
+    [ST.get_state(control_trajectory, i)[1] for i in 1:ST.length(control_trajectory)]
+ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
 qs = Vector{Vector{Float64}}(undef, length(state_values))
 for i in 1:length(state_values)
     set_configuration!(state, joint, state_values[i])
@@ -85,5 +88,3 @@ MeshCatMechanisms.setanimation!(mvis, ts, qs)
 
 # add in the control trajectory the time step, so a third component with the ech times step
 # state, input, timestep
-
-

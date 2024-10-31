@@ -11,7 +11,13 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems/double_pendulum", "safety_stable_equilibrium.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems/double_pendulum",
+        "safety_stable_equilibrium.jl",
+    ),
+)
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DoublePendulum.problem(; approx_mode = "growth")
@@ -39,10 +45,10 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 100
-x0 = SVector(0.15,0.0,0.0,0.0) # SVector(0.15,0.0) #
+x0 = SVector(0.15, 0.0, 0.0, 0.0) # SVector(0.15,0.0) #
 control_trajectory =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X);
-plot!(control_trajectory; markersize=1,arrows=false)
+plot!(control_trajectory; markersize = 1, arrows = false)
