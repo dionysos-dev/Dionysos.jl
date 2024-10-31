@@ -15,7 +15,7 @@ jobs:
     - uses: julia-actions/setup-julia@latest
       with:
         # Build documentation on the latest Julia 1.x
-        version: '1'
+        version: '1.10'
     - name: Install dependencies
       shell: julia --project=docs/ {0}
       run: |
