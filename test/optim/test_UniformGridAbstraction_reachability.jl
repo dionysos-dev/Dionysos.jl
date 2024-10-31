@@ -42,6 +42,7 @@ optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
