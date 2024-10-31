@@ -97,7 +97,7 @@ end
 function compute_symmodel_from_data!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
-    n_samples = Int(1e1),
+    n_samples = 50,
     ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
@@ -106,10 +106,17 @@ function compute_symmodel_from_data!(
     Udom = symmodel.Udom
     tstep = contsys.tstep
     transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
-    for upos in DO.enum_pos(Udom)
+    
+    enum_u = DO.enum_pos(Udom)
+    for (i, upos) in enumerate(enum_u)
+        println("$i / $(length(enum_u))")
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
-        for xpos in DO.enum_pos(Xdom)
+        enum_x = DO.enum_pos(Xdom)
+        for (j, xpos) in enumerate(DO.enum_pos(Xdom))
+            if j % 1000 == 0
+                println("  $j / $(length(enum_x))")
+            end
             source = get_state_by_xpos(symmodel, xpos)
             rec = DO.get_rec(Xdom.grid, xpos)
             x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]

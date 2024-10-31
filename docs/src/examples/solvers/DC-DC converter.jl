@@ -64,6 +64,7 @@ MOI.optimize!(optimizer)
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 automaton = abstract_system.autom
 UT.analyze_non_determinism(automaton)
+n_sl = UT.analyze_self_loops(automaton)
 println("Number of self loops: $n_sl")
 
 # abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
