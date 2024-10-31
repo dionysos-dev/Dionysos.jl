@@ -35,7 +35,7 @@ function system(
     periodic,
     periods,
     T0,
-) where {N, T}
+)
     function sys_map(x::SVector{N, T}, u, tstep) where {N, T}
         return x + tstep * u
     end
