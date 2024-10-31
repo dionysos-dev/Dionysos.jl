@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Pendulum_Safety · Dionysos</title><meta name="title" content="Pendulum_Safety · Dionysos"/><meta property="og:title" content="Pendulum_Safety · Dionysos"/><meta property="twitter:title" content="Pendulum_Safety · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/manual/">Overview</a></li></ul></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Hierarchical-abstraction/">Hierarchical-abstraction</a></li><li><a class="tocitem" href="../Lazy-Ellipsoids-Abstraction/">Lazy-Ellipsoids-Abstraction</a></li><li><a class="tocitem" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li><a class="tocitem" href="../Pendulum_Reachability/">Pendulum_Reachability</a></li><li class="is-active"><a class="tocitem" href>Pendulum_Safety</a></li><li><a class="tocitem" href="../State-feedback Abstraction PWA System/">State-feedback Abstraction PWA System</a></li></ul></li><li><span class="tocitem">Utils</span><ul><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li><a class="tocitem" href="../Grid/">Grid</a></li><li><a class="tocitem" href="../Tree/">Tree</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Domain/">Domain</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Solvers</a></li><li class="is-active"><a href>Pendulum_Safety</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Pendulum_Safety</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/solvers/Pendulum_Safety.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">using Test
+using StaticArrays, Plots
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const OP = DI.Optim
+const AB = OP.Abstraction
+
+include(joinpath(dirname(dirname(pathof(Dionysos))), &quot;problems/pendulum&quot;, &quot;pendulum.jl&quot;))
+
+concrete_problem = Pendulum.problem(; objective = &quot;safety-up&quot;)
+concrete_system = concrete_problem.system
+
+x0 = SVector(0.0, 0.0)
+hx = SVector(0.05, 0.05)
+state_grid = DO.GridFree(x0, hx)
+
+u0 = SVector(0.0);
+h = SVector(0.3);
+input_grid = DO.GridFree(u0, h);
+
+using JuMP
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_problem&quot;), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;state_grid&quot;), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;input_grid&quot;), input_grid)
+MOI.optimize!(optimizer)
+
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_controller&quot;))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_controller&quot;))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(::Dionysos.Optim.Abstraction.UniformGridAbstraction.var&quot;#concrete_controller#10&quot;{Dionysos.Optim.Abstraction.UniformGridAbstraction.var&quot;#concrete_controller#9#11&quot;{Dionysos.Symbolic.SymbolicModelList{2, 1, Dionysos.Domain.DomainList{2, Float64, Dionysos.Domain.GridFree{2, Float64}}, Dionysos.Domain.DomainList{1, Float64, Dionysos.Domain.GridFree{1, Float64}}, Dionysos.Symbolic.AutomatonList{Dionysos.Utils.SortedTupleSet{3, Tuple{Int64, Int64, Int64}}}}, Dionysos.Utils.SortedTupleSet{2, Tuple{Int64, Int64}}}}) (generic function with 1 method)</code></pre><h3 id="Trajectory-display"><a class="docs-heading-anchor" href="#Trajectory-display">Trajectory display</a><a id="Trajectory-display-1"></a><a class="docs-heading-anchor-permalink" href="#Trajectory-display" title="Permalink"></a></h3><pre><code class="language-julia hljs">nstep = 100
+x0 = SVector(UT.sample(concrete_problem.initial_set)...)
+
+control_trajectory =
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+
+fig = plot(; aspect_ratio = :equal);
+plot!(concrete_system.X);
+plot!(concrete_problem.safe_set; markersize = 1, arrows = false)
+plot!(control_trajectory; markersize = 1, arrows = false)
+display(fig)</code></pre><h3 id="For-Visualization"><a class="docs-heading-anchor" href="#For-Visualization">For Visualization</a><a id="For-Visualization-1"></a><a class="docs-heading-anchor-permalink" href="#For-Visualization" title="Permalink"></a></h3><pre><code class="language-julia hljs">using RigidBodyDynamics, MeshCatMechanisms
+urdf = joinpath(dirname(dirname(pathof(Dionysos))), &quot;problems/pendulum/&quot;, &quot;Pendulum.urdf&quot;)
+mechanism = parse_urdf(urdf)
+state = MechanismState(mechanism)
+joint = first(joints(mechanism))
+
+tstep = 0.1
+state_values =
+    [ST.get_state(control_trajectory, i)[1] for i in 1:ST.length(control_trajectory)]
+ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
+qs = Vector{Vector{Float64}}(undef, length(state_values))
+for i in 1:length(state_values)
+    set_configuration!(state, joint, state_values[i])
+    qs[i] = configuration(state)
+end
+mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
+MeshCatMechanisms.setanimation!(mvis, ts, qs)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[ Info: Listening on: 127.0.0.1:8703, thread id: 1
+┌ Info: MeshCat server started. You can open the visualizer by visiting the following URL in your browser:
+└ http://127.0.0.1:8703</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Pendulum_Reachability/">« Pendulum_Reachability</a><a class="docs-footer-nextpage" href="../State-feedback Abstraction PWA System/">State-feedback Abstraction PWA System »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Thursday 31 October 2024 13:29">Thursday 31 October 2024</span>. Using Julia version 1.10.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
