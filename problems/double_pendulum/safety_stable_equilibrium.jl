@@ -14,27 +14,23 @@ const PB = DI.Problem
 const ST = DI.System
 const SY = DI.Symbolic
 
-function dynamicofsystem(
-    l1 = 1.0,
-    l2 = 1.0,
-    m1=1.0,
-    m2=1.0,
-    g = 9.81,
-)
+function dynamicofsystem(l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81)
     function F_sys(x, u)
-        M = m1+m2
-        Δθ = x[1]-x[2]
-        α = m1+m2*sin(Δθ)^2
+        M = m1 + m2
+        Δθ = x[1] - x[2]
+        α = m1 + m2 * sin(Δθ)^2
         return SVector{4}(
             x[3],
             x[4],
-            -sin(Δθ)*(m2*l1*x[3]^2*cos(Δθ)+m2*l2*x[4]^2) - g*(M*sin(x[1])-m2*sin(x[2])*cos(Δθ))/(l1*α) + u[1],
-            sin(Δθ)*(M*l1*x[3]^2+m2*l2*x[4]^2*cos(Δθ)) + g*(M*sin(x[1])*cos(Δθ)-M*sin(x[2]))/(l2*α),
+            -sin(Δθ) * (m2 * l1 * x[3]^2 * cos(Δθ) + m2 * l2 * x[4]^2) -
+            g * (M * sin(x[1]) - m2 * sin(x[2]) * cos(Δθ)) / (l1 * α) + u[1],
+            sin(Δθ) * (M * l1 * x[3]^2 + m2 * l2 * x[4]^2 * cos(Δθ)) +
+            g * (M * sin(x[1]) * cos(Δθ) - M * sin(x[2])) / (l2 * α),
         )
     end
 
     function L_growthbound(u)
-        return SMatrix{4, 4}(0.0, 1.0, (g/l), 0)
+        return SMatrix{4, 4}(0.0, 1.0, (g / l), 0)
     end
 
     return F_sys, L_growthbound
@@ -45,7 +41,7 @@ function system(;
     measnoise = SVector(0.0, 0.0, 0.0, 0.0),
     tstep = 0.1,
     nsys = 5,
-    _X_ = UT.HyperRectangle(SVector(-π, -π, -5,-5), SVector(π, π, 5, 5)),
+    _X_ = UT.HyperRectangle(SVector(-π, -π, -5, -5), SVector(π, π, 5, 5)),
     _U_ = UT.HyperRectangle(SVector(-11), SVector(11)),
     xdim = 4,
     udim = 1,
@@ -56,14 +52,14 @@ function system(;
     F_sys, L_growthbound = dynamicofsystem()
     ngrowthbound = 5
     contsys = ST.NewControlSystemGrowthRK4(
-            tstep,
-            F_sys,
-            L_growthbound,
-            sysnoise,
-            measnoise,
-            nsys,
-            ngrowthbound,
-        )
+        tstep,
+        F_sys,
+        L_growthbound,
+        sysnoise,
+        measnoise,
+        nsys,
+        ngrowthbound,
+    )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         contsys,
         xdim,
@@ -77,9 +73,15 @@ function problem(; approx_mode = "growth")
     sys = system(; approx_mode = approx_mode)
 
     ## stable equilibrium
-    _I_ = UT.HyperRectangle(SVector(-5.0*pi/180.0, -5.0*pi/180.0, -0.5, -0.5), SVector(5.0*pi/180.0, 5.0*pi/180.0, 0.5, 0.5))
+    _I_ = UT.HyperRectangle(
+        SVector(-5.0 * pi / 180.0, -5.0 * pi / 180.0, -0.5, -0.5),
+        SVector(5.0 * pi / 180.0, 5.0 * pi / 180.0, 0.5, 0.5),
+    )
     #_S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -1.0), SVector(30.0*pi/180.0, 1.0))
-    _S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -30.0*pi/180.0, -1.0, -1.0), SVector(30.0*pi/180.0, 30.0*pi/180.0, 1.0, 1.0))
+    return _S_ = UT.HyperRectangle(
+        SVector(-30.0 * pi / 180.0, -30.0 * pi / 180.0, -1.0, -1.0),
+        SVector(30.0 * pi / 180.0, 30.0 * pi / 180.0, 1.0, 1.0),
+    )
 end
 
 end
