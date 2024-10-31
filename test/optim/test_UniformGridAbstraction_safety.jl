@@ -57,8 +57,12 @@ no_plot = false
     # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
     nstep = 300
     x0 = SVector(1.2, 5.6)
-    control_trajectory =
-        ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)
+    control_trajectory = ST.get_closed_loop_trajectory(
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+        concrete_controller,
+        x0,
+        nstep,
+    )
 
     fig = plot(; aspect_ratio = :equal)
     plot!(concrete_system.X)
