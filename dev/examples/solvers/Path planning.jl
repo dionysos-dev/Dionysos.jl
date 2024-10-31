@@ -82,6 +82,15 @@ end
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
+# We define the growth bound function of $f$:
+function jacobian_bound(u)
+    β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
+    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
+end
+set_attribute(model, "jacobian_bound", jacobian_bound)
+
+set_attribute(model, "time_step", 0.3)
+
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
 set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
@@ -117,7 +126,7 @@ end
 
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    concrete_system.f,
+    get_attribute(model, "discretized_system"),
     concrete_controller,
     x0,
     nstep;
