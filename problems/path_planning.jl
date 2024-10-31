@@ -8,11 +8,9 @@ const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 
-@enum ApproxMode GROWTH LINEARIZED
-
-function dynamicofsystem()
-    # System eq x' = F_sys(x, u)
-    function F_sys(x, u)
+# System eq x' = F_sys(x, u)
+function dynamic()
+    return (x, u) -> begin
         α = atan(tan(u[2]) / 2)
         return SVector{3}(
             u[1] * cos(α + x[3]) / cos(α),
@@ -20,14 +18,18 @@ function dynamicofsystem()
             u[1] * tan(u[2]),
         )
     end
+end
 
-    # We define the growth bound function of $f$:
-    ngrowthbound = 5
-    function L_growthbound(u)
+# We define the growth bound function of $f$:
+function jacobian_bound()
+    return u -> begin
         β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
         return SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
     end
-    function DF_sys(x, u)
+end
+
+function jacobian()
+    return (x, u) -> begin
         α = atan(tan(u[2]) / 2)
         β = u[1] / cos(α)
         return SMatrix{3, 3}(
@@ -42,10 +44,14 @@ function dynamicofsystem()
             0.0,
         )
     end
-    bound_DF(u) = abs(u[1] / cos(atan(tan(u[2]) / 2)))
-    bound_DDF(u) = abs(u[1] / cos(atan(tan(u[2]) / 2)))
+end
 
-    return F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF
+function bound_norm_jacobian()
+    return u -> abs(u[1] / cos(atan(tan(u[2]) / 2)))
+end
+
+function bound_norm_hessian_tensor()
+    return u -> abs(u[1] / cos(atan(tan(u[2]) / 2)))
 end
 
 function filter_obstacles(_X_, _I_, _T_, obs)
@@ -72,44 +78,11 @@ function get_obstacles(
     ]
 end
 
-function system(
-    _X_;
-    _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
-    xdim = 3,
-    udim = 2,
-    sysnoise = SVector(0.0, 0.0, 0.0),
-    measnoise = SVector(0.0, 0.0, 0.0),
-    tstep = 0.3,
-    nsys = 5,
-    approx_mode::ApproxMode = GROWTH,
-)
-    F_sys, L_growthbound, ngrowthbound, DF_sys, bound_DF, bound_DDF = dynamicofsystem()
-    contsys = nothing
-    if approx_mode == GROWTH
-        contsys = ST.NewControlSystemGrowthRK4(
-            tstep,
-            F_sys,
-            L_growthbound,
-            sysnoise,
-            measnoise,
-            nsys,
-            ngrowthbound,
-        )
-    elseif approx_mode == LINEARIZED
-        contsys = ST.NewControlSystemLinearizedRK4(
-            tstep,
-            F_sys,
-            DF_sys,
-            bound_DF,
-            bound_DDF,
-            measnoise,
-            nsys,
-        )
-    end
+function system(_X_; _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        contsys,
-        xdim,
-        udim,
+        dynamic(),
+        Dionysos.Utils.get_dims(_X_),
+        Dionysos.Utils.get_dims(_U_),
         _X_,
         _U_,
     )
@@ -125,7 +98,7 @@ Then, we define initial and target domains for the state of the system.
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
 with the system, the initial and target domains, and null cost functions.
 """
-function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
+function problem(; simple = false)
     if simple
         _X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
@@ -139,7 +112,7 @@ function problem(; simple = false, approx_mode::ApproxMode = GROWTH)
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
-    sys = system(_X_; approx_mode = approx_mode)
+    sys = system(_X_)
     problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     return problem
 end

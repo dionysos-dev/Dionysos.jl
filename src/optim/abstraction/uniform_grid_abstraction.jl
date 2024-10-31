@@ -2,6 +2,8 @@ export UniformGridAbstraction
 
 module UniformGridAbstraction
 
+import StaticArrays
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -9,6 +11,8 @@ const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
+
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
 
 using JuMP
 
@@ -23,10 +27,16 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_system::Union{Nothing, SY.SymbolicModelList}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
+    discretized_system::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
+    jacobian_bound::Union{Nothing, Function}
+    time_step::T
+    num_sub_steps_system_map::Int
+    num_sub_steps_growth_bound::Int
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
+    approx_mode::ApproxMode
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -36,8 +46,14 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
+            NaN,
+            5,
+            5,
             false,
             0.0,
+            GROWTH,
         )
     end
 end
@@ -55,19 +71,65 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function build_abstraction(concrete_system, state_grid::DO.Grid, input_grid::DO.Grid, δGAS)
-    Xfull = DO.DomainList(state_grid)
+function build_abstraction(concrete_system, model)
+    Xfull = DO.DomainList(model.state_grid)
     DO.add_set!(Xfull, concrete_system.X, DO.INNER)
-    Ufull = DO.DomainList(input_grid)
+    Ufull = DO.DomainList(model.input_grid)
     DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
     abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
-    if δGAS
-        @time SY.compute_deterministic_symmodel_from_controlsystem!(
-            abstract_system,
+
+    # TODO add noise to the description of the system so in a MathematicalSystems
+    #      this is a workaround
+    nstates = Dionysos.Utils.get_dims(concrete_system.X)
+    noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
+
+    if isnan(model.time_step)
+        error("Please set the `time_step`.")
+    end
+
+    model.discretized_system = if model.approx_mode == GROWTH
+        if isnothing(model.jacobian_bound)
+            error("Please set the `jacobian_bound`.")
+        end
+        Dionysos.System.NewControlSystemGrowthRK4(
+            model.time_step,
             concrete_system.f,
+            model.jacobian_bound,
+            noise,
+            noise,
+            model.num_sub_steps_system_map,
+            model.num_sub_steps_growth_bound,
+        )
+    elseif model.approx_mode == LINEARIZED
+        Dionysos.System.NewControlSystemLinearizedRK4(
+            model.time_step,
+            concrete_system.f,
+            model.jacobian,
+            u -> 0.0,
+            u -> 0.0,
+            noise,
+            model.num_sub_steps_system_map,
         )
     else
-        @time SY.compute_symmodel_from_controlsystem!(abstract_system, concrete_system.f)
+        @assert model.approx_mode == DELTA_GAS
+        Dionysos.System.NewSimpleSystem(
+            model.time_step,
+            concrete_system.f,
+            noise,
+            model.num_sub_steps_system_map,
+        )
+    end
+
+    if model.δGAS
+        @time SY.compute_deterministic_symmodel_from_controlsystem!(
+            abstract_system,
+            model.discretized_system,
+        )
+    else
+        @time SY.compute_symmodel_from_controlsystem!(
+            abstract_system,
+            model.discretized_system,
+        )
     end
     return abstract_system
 end
@@ -163,12 +225,7 @@ function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
     # Build the abstraction
-    abstract_system = build_abstraction(
-        optimizer.concrete_problem.system,
-        optimizer.state_grid,
-        optimizer.input_grid,
-        optimizer.δGAS,
-    )
+    abstract_system = build_abstraction(optimizer.concrete_problem.system, optimizer)
     optimizer.abstract_system = abstract_system
     # Build the abstract problem
     abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)

@@ -249,7 +249,7 @@ function symbolic(func::MathOptSymbolicAD._Function, xu)
     return Symbolics.substitute(e, Dict(p[i] => func.data[i] for i in eachindex(p)))
 end
 
-function dynamicofsystem(model, x_idx, u_idx)
+function dynamic(model, x_idx, u_idx)
     # System eq x' = F_sys(x, u)
     Symbolics.@variables(x[1:length(x_idx)], u[1:length(u_idx)])
     xu = Vector{eltype(x)}(undef, length(model.variable_index))
@@ -272,14 +272,7 @@ function dynamicofsystem(model, x_idx, u_idx)
     # To see the generated expression, use:
     #println(Symbolics.build_function(expr, collect(x), collect(u), cse = true))
 
-    # We define the growth bound function of $f$:
-    ngrowthbound = 5
-    function L_growthbound(u)
-        β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
-        return SA.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
-    end
-
-    return F_sys, L_growthbound, ngrowthbound
+    return F_sys
 end
 
 function system(
@@ -291,16 +284,6 @@ function system(
     tstep = 0.3,
     nsys = 5,
 )
-    F_sys, L_growthbound, ngrowthbound = dynamicofsystem(model, x_idx, u_idx)
-    contsys = Dionysos.System.NewControlSystemGrowthRK4(
-        tstep,
-        F_sys,
-        L_growthbound,
-        sysnoise,
-        measnoise,
-        nsys,
-        ngrowthbound,
-    )
     _X_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
     _X_ = Dionysos.Utils.LazySetMinus(
@@ -310,7 +293,7 @@ function system(
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        contsys,
+        dynamic(model, x_idx, u_idx),
         Dionysos.Utils.get_dims(_X_),
         Dionysos.Utils.get_dims(_U_),
         _X_,
