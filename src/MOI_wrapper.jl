@@ -17,7 +17,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     variable_index::Vector{Int} # MOI.VariableIndex -> state/input/mode index
     lower::Vector{Float64}
     upper::Vector{Float64}
-    start::Vector{Float64}
+    start::Vector{Union{Float64, MOI.Interval{Float64}}}
     target::Vector{MOI.Interval{Float64}}
     dynamic::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
@@ -136,6 +136,14 @@ function MOI.add_constraint(
         var = func.args[]
         if var isa MOI.VariableIndex && func.head == :final
             model.target[var.value] = set
+            model.nonlinear_index += 1
+            return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        end
+
+        if var isa MOI.VariableIndex && func.head == :start
+            @show var
+            @show set
+            model.start[var.value] = set
             model.nonlinear_index += 1
             return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         end
@@ -304,8 +312,10 @@ end
 function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
-    _I_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.start, x_idx), _svec(model.start, x_idx))
+    _I_ = Dionysos.Utils.HyperRectangle(
+        _svec(model.start, x_idx), 
+        _svec(model.start, x_idx)
+    )
     _T_ = Dionysos.Utils.HyperRectangle(
         _svec([s.lower for s in model.target], x_idx),
         _svec([s.upper for s in model.target], x_idx),
@@ -387,13 +397,16 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, final
+export ∂, final, start
 
 function _diff end
 ∂ = JuMP.NonlinearOperator(_diff, :diff)
 
 function _final end
 final = JuMP.NonlinearOperator(_final, :final)
+
+function _start end
+start = JuMP.NonlinearOperator(_start, :start)
 
 # Type piracy
 function JuMP.parse_constraint_call(
