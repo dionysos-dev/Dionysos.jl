@@ -64,7 +64,6 @@ x_initial = [0.0, 0.0, 0.0]  # Initial state
 #@constraint(model, ∂(x[3) == mod(x[3] + u[2, t], 2 * pi))
 @constraint(model, ∂(x[3]) == x[3] + u[2])
 
-
 # Define the initial and target sets
 
 x_target = [0.5, 0.5, -pi]  # Target state
@@ -130,11 +129,10 @@ function extract_rectangles(matrix)
     return zip(tlx, tly, brx, bry)
 end
 
-function get_obstacles(lb,ub, h)
+function get_obstacles(lb, ub, h)
     #lb_x1 = -3.5, ub_x1 = 3.5, lb_x2 = -2.6, ub_x2 = 2.6, h = 0.1
     lb_x1, lb_x2, lb_x3 = lb
     ub_x1, ub_x2, ub_x3 = ub
-    
 
     # Define the obstacles
     x1 = range(lb_x1; stop = ub_x1, step = h)
@@ -151,10 +149,8 @@ function get_obstacles(lb,ub, h)
     grid = Z1 .& Z2
 
     return [
-        MOI.HyperRectangle(
-            [x1[x1lb], x2[x2lb]],
-            [x1[x1ub], x2[x2ub]]
-        ) for (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
+        MOI.HyperRectangle([x1[x1lb], x2[x2lb]], [x1[x1ub], x2[x2ub]]) for
+        (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
     ]
 end
 

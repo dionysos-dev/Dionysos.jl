@@ -55,14 +55,14 @@ x_initial = [1.0, -1.7, 0.0]
 @variable(model, x_low[i] <= x[i = 1:3, 1:N] <= x_upp[i], start = x_initial[i])
 
 # Define the control variables: u1(t), u2(t) for t = 1, ..., N-1
-@variable(model, -1 <= u[1:2, 1:(N-1)] <= 1)
+@variable(model, -1 <= u[1:2, 1:(N - 1)] <= 1)
 
 # Define the dynamics
-for t in 1:N-1
-    @constraint(model, ∂(x[1, t+1]) == x[1, t] + u[1, t] * cos(x[3, t]))
-    @constraint(model, ∂(x[2, t+1]) == x[2, t] + u[1, t] * sin(x[3, t]))
+for t in 1:(N - 1)
+    @constraint(model, ∂(x[1, t + 1]) == x[1, t] + u[1, t] * cos(x[3, t]))
+    @constraint(model, ∂(x[2, t + 1]) == x[2, t] + u[1, t] * sin(x[3, t]))
     #@constraint(model, ∂(x[3, t+1]) == mod(x[3, t] + u[2, t], 2 * pi))
-    @constraint(model, ∂(x[3, t+1]) == x[3, t] + u[2, t])
+    @constraint(model, ∂(x[3, t + 1]) == x[3, t] + u[2, t])
 end
 
 # Define the initial and target sets
@@ -84,9 +84,9 @@ x_target = [0.5, 0.5, -pi]  # Target state
 #@constraint(model, final(x[2,N]) in MOI.Interval(x_target[2] - discretization_step, x_target[2] + discretization_step))
 #@constraint(model, final(x[3,N]) in MOI.Interval(x_target[3], x_target[3]))
 
-@constraint(model, final(x[1,N]) in MOI.Interval(0.3, 0.7))
-@constraint(model, final(x[2,N]) in MOI.Interval(0.3, 0.7))
-@constraint(model, final(x[3,N]) in MOI.Interval(-pi, -pi))
+@constraint(model, final(x[1, N]) in MOI.Interval(0.3, 0.7))
+@constraint(model, final(x[2, N]) in MOI.Interval(0.3, 0.7))
+@constraint(model, final(x[3, N]) in MOI.Interval(-pi, -pi))
 
 # Obstacle boundaries (provided)
 function extract_rectangles(matrix)
@@ -118,11 +118,10 @@ function extract_rectangles(matrix)
     return zip(tlx, tly, brx, bry)
 end
 
-function get_obstacles(lb,ub, h)
+function get_obstacles(lb, ub, h)
     #lb_x1 = -3.5, ub_x1 = 3.5, lb_x2 = -2.6, ub_x2 = 2.6, h = 0.1
     lb_x1, lb_x2, lb_x3 = lb
     ub_x1, ub_x2, ub_x3 = ub
-    
 
     # Define the obstacles
     x1 = range(lb_x1; stop = ub_x1, step = h)
@@ -139,10 +138,8 @@ function get_obstacles(lb,ub, h)
     grid = Z1 .& Z2
 
     return [
-        MOI.HyperRectangle(
-            [x1[x1lb], x2[x2lb]],
-            [x1[x1ub], x2[x2ub]]
-        ) for (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
+        MOI.HyperRectangle([x1[x1lb], x2[x2lb]], [x1[x1ub], x2[x2ub]]) for
+        (x1lb, x2lb, x1ub, x2ub) in extract_rectangles(grid)
     ]
 end
 
