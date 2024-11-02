@@ -17,7 +17,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     variable_index::Vector{Int} # MOI.VariableIndex -> state/input/mode index
     lower::Vector{Float64}
     upper::Vector{Float64}
-    start::Vector{Union{Float64, MOI.Interval{Float64}}}
+    start::Vector{MOI.Interval{Float64}}
     target::Vector{MOI.Interval{Float64}}
     dynamic::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
@@ -35,7 +35,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Int[],
             Float64[],
             Float64[],
-            Float64[],
+            MOI.Interval{Float64}[],
             MOI.Interval{Float64}[],
             Union{Nothing, MOI.ScalarNonlinearFunction}[],
             Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
@@ -71,7 +71,7 @@ function MOI.add_variable(model::Optimizer)
     push!(model.variable_index, 0)
     push!(model.lower, -Inf)
     push!(model.upper, Inf)
-    push!(model.start, NaN)
+    push!(model.start, MOI.Interval(-Inf, Inf))
     push!(model.target, MOI.Interval(-Inf, Inf))
     push!(model.dynamic, nothing)
     return MOI.VariableIndex(length(model.upper))
@@ -141,8 +141,6 @@ function MOI.add_constraint(
         end
 
         if var isa MOI.VariableIndex && func.head == :start
-            @show var
-            @show set
             model.start[var.value] = set
             model.nonlinear_index += 1
             return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
@@ -313,8 +311,8 @@ function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
     _I_ = Dionysos.Utils.HyperRectangle(
-        _svec(model.start, x_idx), 
-        _svec(model.start, x_idx)
+        _svec([s.lower for s in model.start], x_idx),
+        _svec([s.upper for s in model.start], x_idx),
     )
     _T_ = Dionysos.Utils.HyperRectangle(
         _svec([s.lower for s in model.target], x_idx),

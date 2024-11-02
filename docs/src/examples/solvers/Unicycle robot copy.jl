@@ -45,13 +45,13 @@ model = Model(Dionysos.Optimizer)
 
 # Define the prediction horizon
 N = 5
-discretization_step = 0.2
+discretization_step = 0.1
 
 # Define the state variables: x1(t), x2(t), x3(t) for t = 1, ..., N
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
-#x_initial = [0.0, 0.0, 0.0]  # Initial state
-x_initial = [1.0, -1.7, 0.0]
+x_initial = [0.0, 0.0, 0.0]  # Initial state
+#x_initial = [1.0, -1.7, 0.0]
 @variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])#, start = x_initial[i])
 
 # Define the control variables: u1(t), u2(t) for t = 1, ..., N-1
@@ -88,13 +88,17 @@ x_target = [0.5, 0.5, -pi]  # Target state
 #@constraint(model, start(x[2]) in MOI.Interval(x_initial[2] - discretization_step, x_initial[2] + discretization_step))
 #@constraint(model, start(x[3]) in MOI.Interval(x_initial[3], x_initial[3]))
 
-@constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
-@constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
-@constraint(model, start(x[3]) in MOI.Interval(0, 0))
+@constraint(model, start(x[1]) in MOI.Interval(-0.2, 0.2))
+@constraint(model, start(x[2]) in MOI.Interval(-0.2, 0.2))
+@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
+
+#@constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
+#@constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
+#@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
 
 @constraint(model, final(x[1]) in MOI.Interval(0.3, 0.7))
 @constraint(model, final(x[2]) in MOI.Interval(0.3, 0.7))
-@constraint(model, final(x[3]) in MOI.Interval(-pi, -pi))
+@constraint(model, final(x[3]) in MOI.Interval(-3.14, 3.14))
 
 # Obstacle boundaries (provided)
 function extract_rectangles(matrix)
@@ -167,19 +171,37 @@ end
 
 # We define the growth bound function of $f$:
 function jacobian_bound(u)
-    β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
-    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
+    α = abs(-u[1] * sin(u[2]))
+    β = abs(u[1] * cos(u[2]))
+    #@show β
+    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, α, β, 0.0)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound)
 
-set_attribute(model, "time_step", discretization_step)
+function growth_bound(r, u, _)
+    β = u[1] * r[3]
+    return StaticArrays.SVector{3}(β, β, 0.0)
+end
+set_attribute(model, "growthbound_map", growth_bound)
+
+function sys_inv(x, u, _)
+    return StaticArrays.SVector{3}(
+        x[1] - u[1] * cos((x[3] - u[2]) % (2 * π)),
+        x[2] - u[1] * sin((x[3] - u[2]) % (2 * π)),
+        (x[3] - u[2]) % (2 * π), # to check
+    )
+end
+set_attribute(model, "sys_inv_map", sys_inv)
+
+set_attribute(model, "time_step", 1.0)
 
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(discretization_step, discretization_step, discretization_step);
+h = SVector(0.1, 0.1, 0.2);
+#h = SVector(discretization_step, discretization_step, discretization_step);
 set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
-u0 = SVector(0.0, 0.0);
+u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
@@ -207,11 +229,10 @@ function reached(x)
     end
 end
 
-x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
     get_attribute(model, "discretized_system"),
     concrete_controller,
-    x0,
+    x_initial,
     nstep;
     stopping = reached,
 )
