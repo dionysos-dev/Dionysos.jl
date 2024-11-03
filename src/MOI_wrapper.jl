@@ -197,6 +197,11 @@ function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.Variabl
 end
 
 function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
+    # create a MOI.Interval from the value if value is a scalar
+    if !isa(value, MOI.Interval)
+        value = MOI.Interval(value, value)
+    end
+    
     return model.start[vi.value] = value
 end
 
