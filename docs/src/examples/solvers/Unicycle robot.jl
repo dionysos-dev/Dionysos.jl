@@ -95,11 +95,11 @@ function extract_rectangles(matrix)
 end
 
 function get_obstacles(lb, ub, h)
-    #lb_x1 = -3.5, ub_x1 = 3.5, lb_x2 = -2.6, ub_x2 = 2.6, h = 0.1
+    ## lb_x1 = -3.5, ub_x1 = 3.5, lb_x2 = -2.6, ub_x2 = 2.6, h = 0.1
     lb_x1, lb_x2, lb_x3 = lb
     ub_x1, ub_x2, ub_x3 = ub
 
-    # Define the obstacles
+    ## Define the obstacles
     x1 = range(lb_x1; stop = ub_x1, step = h)
     x2 = range(lb_x2; stop = ub_x2, step = h)
     steps1, steps2 = length(x1), length(x2)
@@ -110,7 +110,7 @@ function get_obstacles(lb, ub, h)
     Z1 = (X1 .^ 2 .- X2 .^ 2) .<= 4
     Z2 = (4 .* X2 .^ 2 .- X1 .^ 2) .<= 16
 
-    # Find the upper and lower bounds of X1 and X2 for the obstacle 
+    ## Find the upper and lower bounds of X1 and X2 for the obstacle 
     grid = Z1 .& Z2
 
     return [
