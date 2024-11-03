@@ -201,7 +201,7 @@ function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIn
     if !isa(value, MOI.Interval)
         value = MOI.Interval(value, value)
     end
-    
+
     return model.start[vi.value] = value
 end
 
