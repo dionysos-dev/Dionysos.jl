@@ -12,7 +12,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS DSICRETE_TIME
 
 using JuMP
 
@@ -37,6 +37,13 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
     approx_mode::ApproxMode
+
+    ## for the discrete time (no need for the jacobian_bound) 
+    #but for the system_map, growthbound_map and sys_inv_map
+    system_map::Union{Nothing, Function}
+    growthbound_map::Union{Nothing, Function}
+    sys_inv_map::Union{Nothing, Function}
+
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -54,6 +61,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             false,
             0.0,
             GROWTH,
+            nothing,
+            nothing,
+            nothing,
         )
     end
 end
@@ -88,6 +98,7 @@ function build_abstraction(concrete_system, model)
     end
 
     model.discretized_system = if model.approx_mode == GROWTH
+        @show model.approx_mode
         if isnothing(model.jacobian_bound)
             error("Please set the `jacobian_bound`.")
         end
@@ -100,7 +111,27 @@ function build_abstraction(concrete_system, model)
             model.num_sub_steps_system_map,
             model.num_sub_steps_growth_bound,
         )
+    elseif model.approx_mode == DSICRETE_TIME
+        @show model.approx_mode
+        if isnothing(model.system_map)
+            error("Please set the `system_map`.")
+        end
+        if isnothing(model.growthbound_map)
+            error("Please set the `growthbound_map`.")
+        end
+        if isnothing(model.sys_inv_map)
+            error("Please set the `sys_inv_map`.")
+        end
+        Dionysos.System.ControlSystemGrowth(
+            model.time_step,
+            noise,
+            noise,
+            model.system_map,
+            model.growthbound_map,
+            model.sys_inv_map,
+        )
     elseif model.approx_mode == LINEARIZED
+        @show model.approx_mode
         Dionysos.System.NewControlSystemLinearizedRK4(
             model.time_step,
             concrete_system.f,
@@ -111,6 +142,7 @@ function build_abstraction(concrete_system, model)
             model.num_sub_steps_system_map,
         )
     else
+        @show model.approx_mode
         @assert model.approx_mode == DELTA_GAS
         Dionysos.System.NewSimpleSystem(
             model.time_step,

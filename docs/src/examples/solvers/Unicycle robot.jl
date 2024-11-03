@@ -45,14 +45,14 @@ model = Model(Dionysos.Optimizer)
 
 # Define the prediction horizon
 N = 5
-discretization_step = 0.2
+discretization_step = 0.1
 
 # Define the state variables: x1(t), x2(t), x3(t) for t = 1, ..., N
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
 #x_initial = [0.0, 0.0, 0.0]  # Initial state
 x_initial = [1.0, -1.7, 0.0]
-@variable(model, x_low[i] <= x[i = 1:3, 1:N] <= x_upp[i], start = x_initial[i])
+@variable(model, x_low[i] <= x[i = 1:3, 1:N] <= x_upp[i])#, start = x_initial[i])
 
 # Define the control variables: u1(t), u2(t) for t = 1, ..., N-1
 @variable(model, -1 <= u[1:2, 1:(N - 1)] <= 1)
@@ -83,6 +83,10 @@ x_target = [0.5, 0.5, -pi]  # Target state
 #@constraint(model, final(x[1,N]) in MOI.Interval(x_target[1] - discretization_step, x_target[1] + discretization_step))
 #@constraint(model, final(x[2,N]) in MOI.Interval(x_target[2] - discretization_step, x_target[2] + discretization_step))
 #@constraint(model, final(x[3,N]) in MOI.Interval(x_target[3], x_target[3]))
+
+@constraint(model, start(x[1]) in MOI.Interval(-0.2, 0.2))
+@constraint(model, start(x[2]) in MOI.Interval(-0.2, 0.2))
+@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
 
 @constraint(model, final(x[1, N]) in MOI.Interval(0.3, 0.7))
 @constraint(model, final(x[2, N]) in MOI.Interval(0.3, 0.7))
@@ -164,14 +168,15 @@ set_attribute(model, "jacobian_bound", jacobian_bound)
 set_attribute(model, "time_step", discretization_step)
 
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(discretization_step, discretization_step, discretization_step);
+h = SVector(discretization_step, discretization_step, 0.2);
 set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
-u0 = SVector(0.0, 0.0);
+u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
+set_attribute(model, "approx_mode", Dionysos.Optim.Abstraction.UniformGridAbstraction.DELTA_GAS)
 optimize!(model)
 
 # Get the results

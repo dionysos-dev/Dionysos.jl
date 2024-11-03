@@ -50,8 +50,8 @@ discretization_step = 0.1
 # Define the state variables: x1(t), x2(t), x3(t) for t = 1, ..., N
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
-x_initial = [0.0, 0.0, 0.0]  # Initial state
-#x_initial = [1.0, -1.7, 0.0]
+#x_initial = [0.0, 0.0, 0.0]  # Initial state
+x_initial = [1.0, -1.7, 0.0]
 @variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])#, start = x_initial[i])
 
 # Define the control variables: u1(t), u2(t) for t = 1, ..., N-1
@@ -66,8 +66,8 @@ x_initial = [0.0, 0.0, 0.0]  # Initial state
 
 # Define the initial and target sets
 
-x_target = [0.5, 0.5, -pi]  # Target state
-#x_target = [sqrt(32)/3, sqrt(20)/3, -pi]
+#x_target = [0.5, 0.5, -pi]  # Target state
+x_target = [sqrt(32)/3, sqrt(20)/3, -pi]
 
 ## constraint on the initial state+discretization_step
 #@constraint(model, start(x[1]) in MOI.Interval(x_initial[1] - discretization_step, x_initial[1] + discretization_step))
@@ -79,24 +79,28 @@ x_target = [0.5, 0.5, -pi]  # Target state
 # writing final(x[?, N]) in Interval is redundant. We should be able to write final(x[?]) in Interval
 
 #FIXME: if a julia variable is provided we should be able to handle it or to give more clear feedback
-#@constraint(model, final(x[1,N]) in MOI.Interval(x_target[1] - discretization_step, x_target[1] + discretization_step))
-#@constraint(model, final(x[2,N]) in MOI.Interval(x_target[2] - discretization_step, x_target[2] + discretization_step))
-#@constraint(model, final(x[3,N]) in MOI.Interval(x_target[3], x_target[3]))
+#@constraint(model, final(x[1]) in MOI.Interval(x_target[1] - discretization_step, x_target[1] + discretization_step))
+#@constraint(model, final(x[2]) in MOI.Interval(x_target[2] - discretization_step, x_target[2] + discretization_step))
+#@constraint(model, final(x[3]) in MOI.Interval(x_target[3], x_target[3]))
 
 #@constraint(model, start(x[1]) in MOI.Interval(x_initial[1] - discretization_step, x_initial[1] + discretization_step))
 #@constraint(model, start(x[2]) in MOI.Interval(x_initial[2] - discretization_step, x_initial[2] + discretization_step))
 #@constraint(model, start(x[3]) in MOI.Interval(x_initial[3], x_initial[3]))
 
-@constraint(model, start(x[1]) in MOI.Interval(-0.2, 0.2))
-@constraint(model, start(x[2]) in MOI.Interval(-0.2, 0.2))
-@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
-
-#@constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
-#@constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
+#@constraint(model, start(x[1]) in MOI.Interval(-0.2, 0.2))
+#@constraint(model, start(x[2]) in MOI.Interval(-0.2, 0.2))
 #@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
 
-@constraint(model, final(x[1]) in MOI.Interval(0.3, 0.7))
-@constraint(model, final(x[2]) in MOI.Interval(0.3, 0.7))
+@constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
+@constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
+@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
+
+#@constraint(model, final(x[1]) in MOI.Interval(0.3, 0.7))
+#@constraint(model, final(x[2]) in MOI.Interval(0.3, 0.7))
+#@constraint(model, final(x[3]) in MOI.Interval(-3.14, 3.14))
+
+@constraint(model, final(x[1]) in MOI.Interval(1.78, 1.98))
+@constraint(model, final(x[2]) in MOI.Interval(1.39, 1.59))
 @constraint(model, final(x[3]) in MOI.Interval(-3.14, 3.14))
 
 # Obstacle boundaries (provided)
@@ -166,13 +170,22 @@ end
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
 # We define the growth bound function of $f$:
-function jacobian_bound(u)
-    α = abs(-u[1] * sin(u[2]))
-    β = abs(u[1] * cos(u[2]))
-    #@show β
-    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, α, β, 0.0)
+#function jacobian_bound(u)
+#    α = abs(-u[1] * sin(u[2]))
+#    β = abs(u[1] * cos(u[2]))
+#    #@show β
+#    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, α, β, 0.0)
+#end
+#set_attribute(model, "jacobian_bound", jacobian_bound)
+
+function sys_map(x, u, _)
+    return StaticArrays.SVector{3}(
+            x[1] + u[1] * cos(x[3]),
+            x[2] + u[1] * sin(x[3]),
+            (x[3] + u[2]) % (2 * π),
+        )
 end
-set_attribute(model, "jacobian_bound", jacobian_bound)
+set_attribute(model, "system_map", sys_map)
 
 function growth_bound(r, u, _)
     β = u[1] * r[3]
@@ -201,6 +214,9 @@ u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
+set_attribute(model, "approx_mode", Dionysos.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME)
+#set_attribute(model, "δGAS", true)
+#set_attribute(model, "δGAS", false)
 optimize!(model)
 
 # Get the results
