@@ -98,7 +98,6 @@ function build_abstraction(concrete_system, model)
     end
 
     model.discretized_system = if model.approx_mode == GROWTH
-        @show model.approx_mode
         if isnothing(model.jacobian_bound)
             error("Please set the `jacobian_bound`.")
         end
@@ -112,7 +111,6 @@ function build_abstraction(concrete_system, model)
             model.num_sub_steps_growth_bound,
         )
     elseif model.approx_mode == DSICRETE_TIME
-        @show model.approx_mode
         if isnothing(model.system_map)
             error("Please set the `system_map`.")
         end
@@ -131,7 +129,6 @@ function build_abstraction(concrete_system, model)
             model.sys_inv_map,
         )
     elseif model.approx_mode == LINEARIZED
-        @show model.approx_mode
         Dionysos.System.NewControlSystemLinearizedRK4(
             model.time_step,
             concrete_system.f,
@@ -142,7 +139,6 @@ function build_abstraction(concrete_system, model)
             model.num_sub_steps_system_map,
         )
     else
-        @show model.approx_mode
         @assert model.approx_mode == DELTA_GAS
         Dionysos.System.NewSimpleSystem(
             model.time_step,
