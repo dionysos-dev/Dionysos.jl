@@ -36,10 +36,7 @@ using StaticArrays, Plots, Revise
 # At this point, we import Dionysos and JuMP.
 using Dionysos, JuMP
 
-# ### Definition of the problem
-#include(joinpath(@__DIR__, "../../../../src/MOi_wrapper.jl"))
-
-# We define the problem using JuMP as follows.
+# Define the problem using JuMP
 # We first create a JuMP model:
 model = Model(Dionysos.Optimizer)
 
@@ -50,42 +47,21 @@ discretization_step = 0.1
 # Define the state variables: x1(t), x2(t), x3(t) for t = 1, ..., N
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
-#x_initial = [0.0, 0.0, 0.0]  # Initial state
-x_initial = [1.0, -1.7, 0.0]
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])#, start = x_initial[i])
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])
 
 # Define the control variables: u1(t), u2(t) for t = 1, ..., N-1
 @variable(model, -1 <= u[1:2] <= 1)
 
 # Define the dynamics
-
 @constraint(model, ∂(x[1]) == x[1] + u[1] * cos(x[3]))
 @constraint(model, ∂(x[2]) == x[2] + u[1] * sin(x[3]))
-#@constraint(model, ∂(x[3) == mod(x[3] + u[2, t], 2 * pi))
 @constraint(model, ∂(x[3]) == x[3] + u[2])
 
 # Define the initial and target sets
-
+#x_initial = [0.0, 0.0, 0.0]  # Initial state
+x_initial = [1.0, -1.7, 0.0]
 #x_target = [0.5, 0.5, -pi]  # Target state
 x_target = [sqrt(32)/3, sqrt(20)/3, -pi]
-
-## constraint on the initial state+discretization_step
-#@constraint(model, start(x[1]) in MOI.Interval(x_initial[1] - discretization_step, x_initial[1] + discretization_step))
-#@constraint(model, x[:, 1] in MOI.Interval.(x_initial .- discretization_step, x_initial .+ discretization_step))
-
-## constraint on the target state+0.2
-#@constraint(model, x[:, N] == x_target)
-#FIXME: final should be able to recognized that we are walking with an horizon N and set the final corectely.
-# writing final(x[?, N]) in Interval is redundant. We should be able to write final(x[?]) in Interval
-
-#FIXME: if a julia variable is provided we should be able to handle it or to give more clear feedback
-#@constraint(model, final(x[1]) in MOI.Interval(x_target[1] - discretization_step, x_target[1] + discretization_step))
-#@constraint(model, final(x[2]) in MOI.Interval(x_target[2] - discretization_step, x_target[2] + discretization_step))
-#@constraint(model, final(x[3]) in MOI.Interval(x_target[3], x_target[3]))
-
-#@constraint(model, start(x[1]) in MOI.Interval(x_initial[1] - discretization_step, x_initial[1] + discretization_step))
-#@constraint(model, start(x[2]) in MOI.Interval(x_initial[2] - discretization_step, x_initial[2] + discretization_step))
-#@constraint(model, start(x[3]) in MOI.Interval(x_initial[3], x_initial[3]))
 
 #@constraint(model, start(x[1]) in MOI.Interval(-0.2, 0.2))
 #@constraint(model, start(x[2]) in MOI.Interval(-0.2, 0.2))
@@ -168,16 +144,6 @@ end
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
-
-# We define the growth bound function of $f$:
-#function jacobian_bound(u)
-#    α = abs(-u[1] * sin(u[2]))
-#    β = abs(u[1] * cos(u[2]))
-#    #@show β
-#    return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, α, β, 0.0)
-#end
-#set_attribute(model, "jacobian_bound", jacobian_bound)
-
 function sys_map(x, u, _)
     return StaticArrays.SVector{3}(
             x[1] + u[1] * cos(x[3]),
@@ -197,7 +163,7 @@ function sys_inv(x, u, _)
     return StaticArrays.SVector{3}(
         x[1] - u[1] * cos((x[3] - u[2]) % (2 * π)),
         x[2] - u[1] * sin((x[3] - u[2]) % (2 * π)),
-        (x[3] - u[2]) % (2 * π), # to check
+        (x[3] - u[2]) % (2 * π),
     )
 end
 set_attribute(model, "sys_inv_map", sys_inv)
@@ -206,7 +172,6 @@ set_attribute(model, "time_step", 1.0)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.1, 0.1, 0.2);
-#h = SVector(discretization_step, discretization_step, discretization_step);
 set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
@@ -215,8 +180,6 @@ h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 set_attribute(model, "approx_mode", Dionysos.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME)
-#set_attribute(model, "δGAS", true)
-#set_attribute(model, "δGAS", false)
 optimize!(model)
 
 # Get the results
@@ -226,8 +189,6 @@ abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
-
-@test length(abstract_controller.data) == 19400 #src
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
