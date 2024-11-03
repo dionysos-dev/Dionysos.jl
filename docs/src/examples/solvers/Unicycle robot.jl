@@ -54,7 +54,7 @@ x_upp = -x_low
 
 # Define the initial and target sets
 x_initial = [1.0, -1.7, 0.0]
-x_target = [sqrt(32)/3, sqrt(20)/3, -pi]
+x_target = [sqrt(32) / 3, sqrt(20) / 3, -pi]
 
 @constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
 @constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
@@ -130,15 +130,19 @@ end
 # ### Definition of the abstraction
 
 # First we need to set the mode of the abstraction to `DIONYSOS.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME`:
-set_attribute(model, "approx_mode", Dionysos.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME)
+set_attribute(
+    model,
+    "approx_mode",
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME,
+)
 
 # We define the system map $f$:
 function sys_map(x, u, _)
     return StaticArrays.SVector{3}(
-            x[1] + u[1] * cos(x[3]),
-            x[2] + u[1] * sin(x[3]),
-            (x[3] + u[2]) % (2 * π),
-        )
+        x[1] + u[1] * cos(x[3]),
+        x[2] + u[1] * sin(x[3]),
+        (x[3] + u[2]) % (2 * π),
+    )
 end
 set_attribute(model, "system_map", sys_map)
 
