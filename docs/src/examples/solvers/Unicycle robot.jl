@@ -27,7 +27,7 @@ using Test     #src
 # The nonlinear constraints are handled as obstacles in the state-space.
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
-using StaticArrays, Plots, Revise
+using StaticArrays, Plots
 
 # At this point, we import Dionysos and JuMP.
 using Dionysos, JuMP
