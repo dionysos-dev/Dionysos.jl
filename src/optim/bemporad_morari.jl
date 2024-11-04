@@ -194,6 +194,8 @@ function hybrid_constraints(
     return δ
 end
 
+#TODO: Needed function for the power convertor bench implementation, but need to be fixed
+#TODO: and hybrid_cost implemented or adjusted accordingly
 function hybrid_constraints(
     model,
     systems::AbstractVector{<:ConstrainedAffineMap},
@@ -221,8 +223,7 @@ function hybrid_constraints(
     return hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
 end
 
-#TODO: Needed function for the power convertor bench implementation, but need to be fixed
-#TODO: and hybrid_cost implemented or adjusted accordingly
+
 function hybrid_constraints(
     model,
     systems::AbstractVector{<:ConstrainedLinearControlMap},

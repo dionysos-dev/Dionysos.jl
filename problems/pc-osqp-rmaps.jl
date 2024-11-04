@@ -128,8 +128,8 @@ function system(lib, T::Type)
 
     #L290: ERROR: DimensionMismatch: matrix A has dimensions (6,6), vector B has length 0
     #resetmaps = [ConstrainedAffineMap(A, B*nodes[indexB[i]], FullSpace()) for i in 1:ntransitions]
-    #resetmaps = Fill(ConstrainedAffineMap(A, B*nodes[indexB[i]], FullSpace()), ntransitions)
-	resetmaps = Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), ntransitions)
+    resetmaps = Fill(ConstrainedAffineMap(A, B*nodes[indexB[i]], FullSpace()), ntransitions)
+	#resetmaps = Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), ntransitions)
 
 	system = HybridSystem(
 		automaton,

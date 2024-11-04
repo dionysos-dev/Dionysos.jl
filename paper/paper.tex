@@ -5,7 +5,6 @@
 % added
 \usepackage{underscore}
 \usepackage{amsmath}
-
 \begin{document}
 
 \input{header}
@@ -41,7 +40,7 @@ Several open-source toolboxes~\cite{mazo2010pessoa,Roy2011,rungger2016scots} hav
 
 \vskip 6pt
 %%% The (software) solution
-To address this issue, we introduce \texttt{Dionysos.jl}\footnote{The package is open source and available on GitHub at: \url{https://github.com/dionysos-dev/Dionysos.jl}.}, a modular Julia \cite{bezanson2017julia} package for solving optimal control problems using state-of-the-art control techniques, from control, optimization, and machine learning, for complex systems.
+To address this issue, we introduce \texttt{Dionysos.jl}\footnote{The package is open source and available on GitHub at: \url{https://github.com/dionysos-dev/Dionysos.jl}.}, a modular Julia \cite{bezanson2017julia} package for solving optimal control problems using state-of-the-art techniques, from control, optimization, and machine learning, for complex systems.
 It is built on top of different Julia packages such as \texttt{JuMP.jl} and \texttt{MathOptInterface.jl}, and
 features optimal control problem definitions and several abstraction-based methods to solve them.
 %% Origin of the project: ERC
@@ -75,14 +74,16 @@ This paper is structured as follows.  Section~\ref{sec:abstraction} introduces t
 \vskip 6pt
 \noindent \textbf{Notation:} 
 % Intervals
-The sets $\R,\Z, \Z_+$ denote respectively the sets of real numbers, integers and non-negative integer numbers.
+The sets $\R,\Z, \Z_+$ denote respectively the sets of real numbers, integers and non-negative integers.
+% Kleene closure
+\color{red}Given a set $A$, the set $A^*$ is its \emph{Kleene closure}. \color{black}
 % Set-valued map
 Given two sets $A,B$, we define a \emph{single-valued map} as $f:A\rightarrow B$, while a~\emph{set-valued map} is defined as $f:A\rightarrow 2^B$, where $2^B$ is the power set of $B$, i.e., the set of all subsets of $B$. 
 The image of a subset $\Omega\subseteq A$ under $f:A\rightarrow 2^B$ is denoted $f(\Omega)$.
 % Relation
 We identify a binary \emph{relation} $R\subseteq A \times B$ with set-valued maps, i.e., $R(a) = \{b \mid (a, b)\in R\}$ and $R^{-1}(b) =\{ a \mid (a, b)\in R\}$.
 %
-A relation $R\subseteq A\times B$ is \emph{strict} (resp. \emph{single-valued)} if for every $a\in A$ the set $R(a)\ne \myemptyset$ (resp. $R(a)$ is a singleton). 
+A relation $R\subseteq A\times B$ is \emph{strict} (resp. \emph{single-valued}) if for every $a\in A$ the set $R(a)\ne \myemptyset$ (resp. $R(a)$ is a singleton). 
 
 \section{Abstraction-based control} \label{sec:abstraction}
 
@@ -121,7 +122,7 @@ A \emph{finite-state} system, in contrast to an \emph{infinite-state} system, re
 
 \vskip 6pt
 % Definition of a solution
-A tuple $(\seq x, \seq u)\in \set{X}^{T+1}\times \set{U}^{T}$ is a \emph{trajectory} of length $T$ of the system $\Sys=(\set{X},\set{U}, F)$ starting at $x(0)$ if $T\in\N\cup \{\infty\}$, $x(0)\in\set{X}$, $\forall k\in \{0,\ldots,T\}: u(k)\in \set{U}(x(k))$ and $x(k+1) \in F(x(k), u(k))$.
+A tuple $(\seq x, \seq u)\in \set{X}^{T+1}\times \set{U}^{T}$ is a \emph{trajectory} of length $T$ of the system $\Sys=(\set{X},\set{U}, F)$ starting at $x(0)$ if $T\in\N\cup \{\infty\}$, $x(0)\in\set{X}$, $\forall k\in \{0,\ldots,\textcolor{red}{T-1}\}: u(k)\in \set{U}(x(k))$ and $x(k+1) \in F(x(k), u(k))$.
 The set of trajectories of $\Sys$ is called the \emph{behavior} of $\Sys$, denoted~$\set{B}(\Sys)$.
 
 \vskip 6pt 
@@ -138,28 +139,12 @@ We now define \emph{static} controllers, which are characterized by the fact tha
 %\vskip 6pt
 We now define the control problem.
 \begin{defi}\label{def:specification}
-Consider a system $\Sys = (\set{X},\set{U}, F)$. A \emph{specification} $\Sigma$ for $\Sys$ is defined as any subset $\Sigma \subseteq (\set{X}\times \set{U})^{\infty}$. It is said that system $\Sys$ \emph{satisfies} the specification $\Sigma$ if $\set{B}(\Sys)\subseteq \Sigma$. 
+Consider a system $\Sys = (\set{X},\set{U}, F)$. A \emph{specification} $\Sigma$ for $\Sys$ is defined as any subset \color{red}$\Sigma \subseteq (\set{X}\times \set{U})^{*} \cup (\set{X}\times \set{U})^{\infty}$\color{black}. It is said that system $\Sys$ \emph{satisfies} the specification $\Sigma$ if $\set{B}(\Sys)\subseteq \Sigma$. 
 A system $\Sys$ together with a specification $\Sigma$ constitute a \emph{control problem} $(\Sys,\Sigma)$.
 Additionally, a controller $\Cont$ is said to \emph{solve} the control problem $(\Sys,\Sigma)$ if $\Cont\times \Sys$ satisfies the specification $\Sigma$.
 \end{defi}
 
-
-
 \subsection{Classical abstraction}
-
-\begin{figure}[t]
-\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/Abstraction-based-control.pdf}}
-\caption{The three steps of abstraction-based control.}
-	\label{fig:abstraction-procedure}
-\end{figure}
-
-\begin{figure}[t]
-\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/strict-cover-partition.pdf}}
-\caption{Types of discretization of the concrete state space.
-    Let $\Sys_{1} = (\set{X}_1,\set{U}_1,F_1)$ with $\set{X}_1 = [0,1]^2$, $\Sys_{2} = (\set{X}_2,\set{U}_2,F_2)$ with $\set{X}_2 = \{q_1,q_2,q_3,q_4\}$, $R_1 \subseteq \set{X}_1\times \set{X}_2$ and $R_2 \subseteq \set{X}_1\times \set{X}_2$ are explicit from the figure.
-    Left: $R_1$ is a strict single-valued map, i.e., it induces a full partition of $\set{X}_1$. Right: $R_2$ is a non-strict set-valued map, i.e., it induces a partial cover of $\set{X}_1$.}
-	\label{fig:discretization}
-\end{figure}
 
 %%% Classical techniques "SCOTS"
 Given a mathematical description of the system dynamics and the specifications describing the desired closed-loop behavior of the system, abstraction-based control techniques involve synthesizing a correct-by-construction controller through a systematic three-step procedure illustrated on Figure~\ref{fig:abstraction-procedure}. 
@@ -170,6 +155,12 @@ Next, an abstract controller $\Cont_2$ is synthesized to solve this abstract con
 %% Step 3
 Finally, in the third step, called \emph{concretization} as opposed to abstraction, a controller $\Cont_1$ for the original control problem is derived from the abstract controller.
 
+\begin{figure}[ht!]
+\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/Abstraction-based-control.pdf}}
+\caption{The three steps of abstraction-based control.}
+    \label{fig:abstraction-procedure}
+\end{figure}
+
 \vskip 6pt
 The effectiveness of this approach stems from replacing the concrete system, often characterized by an infinite number of states, with a finite state system. This substitution enables the use of powerful control tools in the second step (see~\cite{belta2017formal,kupferman2001model}), such as those derived from graph theory, including methods like Dijkstra or the A-star algorithm. This facilitates the design of controllers that are correct by construction, often accompanied by rigorous guarantees in terms of safety or performance.
 
@@ -178,6 +169,16 @@ In practice, the abstract domain $\set{X}_2$ of $\Sys_2$ is constructed by discr
 Note that in this context, we refer to the set-valued map $R(x_1) = \{x_2 \mid (x_1, x_2)\in R\}$ as the \emph{quantizer}.
 When $R$ is a single-valued map, we refer to it as defining a \emph{partition} of $\set{X}_1$, in contrast to the case of set-valued maps where we say that it defines a \emph{cover} of $\set{X}_1$, see Figure~\ref{fig:discretization} for clarity.
 Notably, the condition that $R$ is a strict relation is equivalent to ensuring that the discretization completely covers $\set{X}_1$.
+
+\begin{figure}[ht!]
+\centerline{\includegraphics[width=8.5cm]{Figures/Abstraction/strict-cover-partition.pdf}}
+\caption{
+    Types of discretization of the concrete state space.
+    Let $\Sys_{1} = (\set{X}_1,\set{U}_1,F_1)$ with $\set{X}_1 = [0,1]^2$, $\Sys_{2} = (\set{X}_2,\set{U}_2,F_2)$ with $\set{X}_2 = \{q_1,q_2,q_3,q_4\}$, $R_1 \subseteq \set{X}_1\times \set{X}_2$ and $R_2 \subseteq \set{X}_1\times \set{X}_2$ are explicit from the figure.
+    Left: $R_1$ is a strict single-valued map, i.e., it induces a full partition of $\set{X}_1$. Right: $R_2$ is a non-strict set-valued map, i.e., it induces a partial cover of $\set{X}_1$.
+    }
+    \label{fig:discretization}
+\end{figure}
 
 \vskip 6pt
 
@@ -203,7 +204,7 @@ Observe that the requirements $(i)$ and $(ii)$ in Definition~\ref{def:FRR} restr
 
 The classical abstraction-based approach consists in constructing a feedback refinement relation $R$ based on a predefined partition of the entire state space. 
 The limitation to piecewise constant controllers, combined with the use of a rigid/predefined partition of the entire concrete state space, could result in an intractable, or even unsolvable, abstract problem $(\Sys_2, \Sigma_2)$.
-Indeed, if the system does not exhibit local incremental stability~\cite[Definition 2.1]{angeli2002lyapunov}\cite{lohmiller1998contraction} around a cell, meaning that trajectories move away from each other, the use of piecewise constant controllers introduces a significant amount of non-determinism into the abstraction as illustrated in Figure~\ref{fig:Piece-wise-constant}. 
+Indeed, if the system does not exhibit local incremental stability~\cite[Definition 2.1]{angeli2002lyapunov}\cite{lohmiller1998contraction} around a cell, meaning that trajectories move away from each other, the use of piecewise constant controllers introduces a significant amount of non-determinism into the abstraction as illustrated in Figure~\ref{fig:Piece-wise-input}. 
 %
 Indeed, this results in a high cardinality of the set of 
 outputs of the transition map $F_2(x_2,u)$ of the abstraction.
@@ -231,21 +232,17 @@ This relation provides a simple concretization scheme, even in the presence of o
 $$\Cont_1(x_1) = (\Cont_2\circ_{I_R} R)(x_1) =\bigcup_{x_2\in R(x_1)} I_R(x_1,x_2,\Cont_2(x_2)).$$
 
 
-By designing these local state-dependent controllers, for example by solving an optimization problem (e.g.,~\cite[Section V]{calbert2024smart}), we can ensure deterministic transitions in the abstraction, thereby eliminating the non-determinism imposed by the discretization of the concrete system (see Figure~\ref{fig:Piece-wise-dependent}). 
+By designing these local state-dependent controllers, for example by solving an optimization problem (e.g.,~\cite[Section V]{calbert2024smart}), we can ensure deterministic transitions in the abstraction, thereby eliminating the non-determinism imposed by the discretization of the concrete system (see Figure~\ref{fig:Piece-wise-input}). 
 In addition, contrary to the classical approach, this technique avoids discretizing the input-space and uses all the available inputs, making it possible to design, given some cost metric, better control solutions.
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-constant.pdf}}
-\caption{Piecewise constant controller $\forall x_1\in R^{-1}(x_2):\ \Cont_1(x_1) = \{u\}$ where $u\in \set{U}_2\subseteq \set{U}_1$. 
-Left: The two-dimensional concrete system with its state space discretization. Right: The abstract system.}
-	\label{fig:Piece-wise-constant}
-\end{figure}
-
-\begin{figure}[t]
-\centerline{\includegraphics[width=8cm]{Figures/Abstraction/Piece-wise-dependent.pdf}}
-\caption{Piecewise affine controller $\forall x_1\in R^{-1}(x_2):\ \Cont_1(x_1) = \{\kappa(x_1)\}$ where $\kappa\in\set{U}_2$ and $\kappa(x_1) = K_{\kappa}x_1 + \ell_{\kappa}\in  \set{U}_1$.  The map $G_1(x) = F_1(x,\kappa(x))$ provides the closed-loop transition under the controller $\kappa$.
-Left: The two-dimensional concrete system with its state space discretization. Right: The abstract system.}
-	\label{fig:Piece-wise-dependent}
+    \centerline{\includegraphics[width=\linewidth, trim=25 0 0 0, clip]{Figures/Abstraction/piece_wise_input.pdf}}
+    \caption{
+    \color{red} Comparison of piecewise constant and state-dependent controllers.
+    The red region illustrates $F_1(x_1, u)$ for all $x_1 \in R^{-1}(x_2)$, given $u \in \set{U}_1$ where $u \in \set{U}_2(x_2)$. The blue region shows $G_1(x_1) = F_1(x_1, \kappa(x_1))$ for all $x_1\in R^{-1}(x_2)$, where $\kappa \in \set{U}_2(x_2)$ is a local state-dependent controller $\kappa:\set{X}_1\rightarrow\set{U}_1$.
+    Left: The two-dimensional concrete system with its state space discretization.
+    Right: The corresponding abstract system, highlighting the non-deterministic transition $F_2(x_2,u)$ and the deterministic transition $F_2(x_2,\kappa)$.\color{black}}
+	\label{fig:Piece-wise-input}
 \end{figure}
 
 \vskip 6pt
@@ -256,7 +253,7 @@ during the construction of the abstraction.
 For example, the combined use of ellipsoid-based covering and affine local feedback controllers can leverage the power of linear matrix inequalities (or LMI) and convex optimization to create larger/non-standard cells (see Figure~\ref{fig:Full-vs-Partial}).
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=\linewidth]{Figures/Abstraction/Classical-vs-smart.pdf}}
+\centerline{\includegraphics[width=\linewidth, trim=17 0 10 0, clip]{Figures/Abstraction/Classical-vs-smart.pdf}}
 \caption{Comparison between classical and smart abstractions for a planar system with state trajectory (blue line) and value function (color map) obtained for the optimal control problem of departing from $\set{X}_I$ and reaching $\set{X}_T$ while avoiding obstacles~$\set{X}_O$. 
 Left: Abstraction covering the entire state space with a naive grid-based partition. Non-colored represents a region where no controller could be designed. Right: Abstraction partially covering the state space with ellipsoidal cells and a local feedback controller.}
 	\label{fig:Full-vs-Partial}
@@ -289,14 +286,17 @@ Given sets $\set{X}_I,\set{X}_S\subseteq \set{X}$, an \emph{invariance} specific
     &\forall k \in \Z_+: x(k)\in \set{X}_S\}, \label{eq:invariance-spec} 
 \end{align}
 which requires that all states in the initial set $\set{X}_I$ remain (safely) in the set $\set{X}_S$ forever.
-In addition to the specified specifications, a \emph{state cost function} $c:\set{X}\rightarrow \R_+$ evaluating the cost of being in a state $x$, and a \emph{transition cost function} $t:\set{X}\times \set{U}\rightarrow \R_+$ quantifying the cost of transitioning from one state $x$ to another with control input $u$, can be supplied to the control problem. The objective is then to design a controller that satisfies the specification while minimizing the cumulative cost.
-:
+In addition to the specifications, a \emph{state cost function} $c:\set{X}\rightarrow \R_+$ evaluating the cost of being in a state $x$, and a \emph{transition cost function} $t:\set{X}\times \set{U}\rightarrow \R_+$ quantifying the cost of transitioning from one state $x$ to another with control input $u$, can be supplied to the control problem. The objective is then to design a controller that satisfies the specification while minimizing the cumulative cost.
 \vskip 6pt
-\textbf{Discretization templates:} The \emph{quantizer} $R$ can either be a (partial or not) partition or cover of the concrete state space. In addition, given a continuous state space $\set{X}\subseteq \R^n$, \texttt{Dionysos.jl} supports two types of sets for the quantizer:
-\begin{itemize}
-    \item a \emph{hyperrectangle} of \emph{center} $ c\in\R^n$ and \emph{half-lengths} $h\in \R^n_{+}$: $\hyperrectangle{c}{h} = \{x\in\R^n \mid |x_i-c_i|\le h_i \text{ for }i=1,\ldots,n\};$
-    \item an \emph{ellipsoid} with \emph{center} $c\in\R^n$ and \emph{shape} defined by $P\in \pdc{n}$ is denoted as $\ellipsoid{c}{P} =  \{\vect x\in\R^n\mid (\vect x-\vect c)^\top P(\vect x-\vect c) \le 1\}.$
-\end{itemize}
+\textbf{Discretization templates:} The \emph{quantizer} $R$ can either be a (partial or not) partition or cover of the concrete state space. In addition, given a continuous state space $\set{X}\subseteq \R^n$, \texttt{Dionysos.jl} supports two types of sets for the quantizer: \color{red} \emph{hyperrectangles} (Definition~\ref{def:hyperrectangle}), and \emph{ellipsoids} (Definition~\ref{def:ellipsoid}).
+
+\begin{defi} \label{def:hyperrectangle}
+    A \emph{hyperrectangle} of \emph{center} $c\in\R^n$ and \emph{half-lengths} $h\in \R^n_{+}$ is defined as $\hyperrectangle{c}{h} = \{x\in\R^n \mid |x_i-c_i|\le h_i \text{ for }i=1,\ldots,n\}$.
+\end{defi}
+\begin{defi} \label{def:ellipsoid}
+    An \emph{ellipsoid} with \emph{center} $c\in\R^n$ and \emph{shape} defined by $P\in \pdc{n}$ is defined as $\ellipsoid{c}{P} =  \{\vect x\in\R^n\mid (\vect x-\vect c)^\top P(\vect x-\vect c) \le 1\}$.
+\end{defi}
+\color{black}
 
 \section{Package structure}
 \label{sec:package}
@@ -305,7 +305,7 @@ In this section we describe the architecture of \texttt{Dionysos.jl}. It is comp
 
 \subsection{The \texttt{System} module}
 
-The \texttt{System} module contains mathematical descriptions of controlled systems (see Definition~\ref{def:sys}), controllers (see Definition~\ref{def:controller}) and trajectories. It is an extension of \texttt{MathematicalSystems.jl} and \texttt{HybridSystems.jl} \cite{BenoitLegat2024}, it complements the latter with more specific system definitions.
+The \texttt{System} module contains mathematical descriptions of controlled systems (see Definition~\ref{def:sys}), controllers (see Definition~\ref{def:controller}) and trajectories. It is an extension of \texttt{MathematicalSystems.jl} and \texttt{HybridSystems.jl} \cite{BenoitLegat2024}, \textcolor{red}{and} complements the latter with more specific system definitions.
 
 \vskip 6pt
 
@@ -351,10 +351,10 @@ The \texttt{Problem} module contains the two structures that respectively define
     \item \texttt{transition\_cost::TC}, the transition cost function, and
     \item \texttt{time::T}, the number of allowed steps.
 \end{itemize}
-Note that, in \texttt{Dionysos.jl}, the obstacles are encoded as part of the domain of the system. The second structure is \texttt{SafetyProblem\{S,XI,XS,T<:Real\}}, and implements an invariance problem. Its fields are 
+Note that, in \texttt{Dionysos.jl}, the obstacles are encoded as part of the domain of the system\footnote{\textcolor{red}{A description of the \texttt{Domain} module can be found in the package documentation}.}. The second structure is \texttt{SafetyProblem\{S,XI,XS,T<:Real\}}, and implements an invariance problem. Its fields are 
 \begin{itemize}
     \item \texttt{system::S}, the system to be controlled,
-    \item \texttt{initial\_set::XI}, the set $\mathcal{X}_I$,
+    \item \texttt{initial\_set::XI}, the \textcolor{red}{initial} set $\mathcal{X}_I$,
     \item \texttt{safe\_set::XS}, the safe set $\mathcal{X}_S$, 
     \item \texttt{time::T}, the number of allowed steps.
 \end{itemize}
@@ -386,8 +386,11 @@ A simple example of an implementation of a classical abstraction-based method is
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt, 
+    xleftmargin=0.8em,
     label={lst:optimizer_struct}, 
-    caption={Definition of an abstraction-based strategy structure implementing the abstract type \texttt{MOI.AbstractOptimizer}.}
+    caption={Definition of an abstraction-based strategy structure implementing the abstract type \texttt{MOI.AbstractOptimizer}.},
+    captionpos=b
 ]
 mutable struct Optimizer{T}<:MOI.AbstractOptimizer
     concrete_problem::Union{
@@ -420,8 +423,11 @@ end
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt, 
+    xleftmargin=0.8em,
     label={lst:optimizer_optimize!}, 
-    caption={Definition of the \texttt{MOI.optimize!} function for the strategy \texttt{Optimizer} defined in Code~\ref{lst:optimizer_struct}.}
+    caption={Definition of the \texttt{MOI.optimize!} function for the strategy \texttt{Optimizer} defined in Code~\ref{lst:optimizer_struct}.},
+    captionpos=b
 ]
 function MOI.optimize!(opt::Optimizer)
     # Build the abstraction
@@ -450,7 +456,7 @@ end
 \end{lstlisting}
 
 \begin{figure}[t]
-    \centerline{\includegraphics[width=5cm]{Figures/Package/structure.png}}
+    \centerline{\includegraphics[width=5cm]{Figures/Package/structure.pdf}}
     \caption{Summary of Section~\ref{sec:package}. The \texttt{System} module is an extension of \texttt{MathematicalSystems.jl} and \texttt{HybridSystems.jl}, and implements mathematical definitions of dynamical systems. The \texttt{Problem} module contains mathematical definitions of control problems. All problem structures have a system as a field. The \texttt{Optim} module contains the control strategies to solve the problems. It is built on top of the optimization packages \texttt{MathOptInterface.jl} and \texttt{JuMP.jl}.}
     \label{fig:structure}
 \end{figure}
@@ -464,10 +470,8 @@ In this section, we provide an example of how \texttt{Dionysos.jl} is used to co
 \vskip 6pt
 
 \begin{exam}\label{ex:ellipsoid}
-Let $E(c, P) \subseteq \mathbb{R}^n$ be an ellipsoid with center $c \in \mathbb{R}^n$ and shaped defined by $P \in \mathbb{R}^{n \times n}$, that is
-\begin{equation}
-    E(c, P) := \{x \in \mathbb{R}^n : (x-c)^\top P (x-c) \leq 1 \}.
-\end{equation} 
+Let $E(c, P) \subseteq \mathbb{R}^n$ be an ellipsoid with center $c \in \mathbb{R}^n$ and shape defined by $P \in \mathbb{R}^{n \times n}$ \textcolor{red}as defined in \ref{def:ellipsoid}.\color{black}
+
 We consider a reach-avoid problem. The studied dynamical system is noted $(\mathcal{X} \setminus \mathcal{X}_O, \mathcal{U}, F)$, where $\mathcal{X} = [-20, 20]^2$, $\mathcal{X}_O = E(0, 0.02I_2)$, $\mathcal{U} = [-10, 10]^2$, and $F(x, u) = \{f(x, u)\}$. The function $f$ is defined as 
 \begin{equation}
     f(x, u) = \begin{pmatrix}
@@ -487,19 +491,25 @@ The system in Example~\ref{ex:ellipsoid}, as well as other examples, are already
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt,
+    xleftmargin=0.8em,
     label={lst:ex_system}, 
-    caption={The problem stated above is imported from the \texttt{problems} directory.}
+    caption={The problem stated above is imported from the \texttt{problems} directory.},
+    captionpos=b
 ]
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 \end{lstlisting}
 
-We choose to use \texttt{AB.LazyEllispoidsAbstraction} (see Table~\ref{tab:solvers}) to solve this problem, a smart abstraction method that constructs a memoryless concretization relation ($\MCR$) that partially covers the state space with ellipsoids. In Code~\ref{lst:ex_solver}, we instantiate the corresponding \texttt{Optimizer}, then set all the needed fields, including \texttt{concrete\_problem}, the reach-avoid problem stated above. For the sake of conciseness, we do not state the purpose of the other fields, and we gather them in the variable \texttt{other\_parameters} in the code.
+We choose to use \textcolor{red}{\texttt{AB.LazyEllipsoidsAbstraction}} (see Table~\ref{tab:solvers}) to solve this problem, a smart abstraction method that constructs a memoryless concretization relation ($\MCR$) that partially covers the state space with ellipsoids. In Code~\ref{lst:ex_solver}, we instantiate the corresponding \texttt{Optimizer}, then set all the needed fields, including \texttt{concrete\_problem}, the reach-avoid problem stated above. For the sake of conciseness, we do not state the purpose of the other fields, and we gather them in the variable \texttt{other\_parameters} in the code.
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt, 
+    xleftmargin=0.8em,
     label={lst:ex_solver}, 
-    caption={The \texttt{Optimizer} is instantiated, and the solver parameters are set.}
+    caption={The \texttt{Optimizer} is instantiated, and the solver parameters are set.},
+    captionpos=b
 ]
 optimizer = MOI.instantiate(
     AB.LazyEllipsoidsAbstraction.Optimizer
@@ -515,25 +525,50 @@ In Code~\ref{lst:ex_solve}, we solve the problem and retrieve the corresponding 
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt, 
+    xleftmargin=0.8em,
     label={lst:ex_solve}, 
-    caption={The problem is solved, and the result is extracted from the solver.}
+    caption={The problem is solved, and the result is extracted from the solver.},
+    captionpos=b
 ]
 MOI.optimize!(optimizer)
 abstract_system = MOI.get(
-    optimizer, 
-    MOI.RawOptimizerAttribute("abstract_system")
+  optimizer, 
+  MOI.RawOptimizerAttribute("abstract_system")
 )
 abstract_problem = MOI.get(
-    optimizer, 
-    MOI.RawOptimizerAttribute("abstract_problem")
-    )
+  optimizer, 
+  MOI.RawOptimizerAttribute("abstract_problem")
+)
 abstract_controller = MOI.get(
-    optimizer, 
-    MOI.RawOptimizerAttribute("abstract_controller")
+  optimizer, 
+  MOI.RawOptimizerAttribute("abstract_controller")
 )
 concrete_controller = MOI.get(
-    optimizer, 
-    MOI.RawOptimizerAttribute("concrete_controller")
+  optimizer, 
+  MOI.RawOptimizerAttribute("concrete_controller")
+)
+\end{lstlisting}
+
+\color{red}
+In Code~\ref{lst:ex_simulate}, we simulate a concrete closed-loop trajectory starting from an initial point $x_0$ sampled from the initial set $\set{X}_I$.
+\begin{lstlisting}[
+    language = Julia, 
+    numbers=left, 
+    numbersep=6pt,
+    xleftmargin=0.8em,
+    label={lst:ex_simulate}, 
+    caption={Simulate a closed-loop trajectory.},
+    captionpos=b,
+]
+x0 = UT.sample(concrete_problem.initial_set)
+reached(x) = x \in concrete_problem.target_set
+trajectory = ST.get_closed_loop_trajectory(
+    concrete_system,
+    concrete_controller,
+    concrete_problem.transition_cost,
+    x0;
+    stopping = reached,
 )
 \end{lstlisting}
 
@@ -541,23 +576,35 @@ In \texttt{Dionysos.jl}, we can also generate visualizations thanks to the imple
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
+    numbersep=6pt, 
+    xleftmargin=0.8em,
     label={lst:visu}, 
-    caption={The recipe implemented for the abstraction is used to visualize the abstract system.}
+    caption={The recipe implemented for the abstraction is used to visualize the abstract system. The \texttt{cost} is set to true to plot the upper-bound on the cost to reach the target.},
+    captionpos=b,
 ]
 fig = plot(aspect_ratio=:equal)
-title!(fig, "Abstraction");
-plot!(
-    fig, 
-    abstract_system; 
-    arrowsB = true, 
-    cost = false
-)
+plot!(abstract_system; 
+      arrowsB = true, 
+      cost = true)
+plot!(concrete_problem.target_set; 
+      color = :red)
+plot!(trajectory; 
+      color = :blue)
+plot!(concrete_problem.initial_set; 
+      color = :green)
 \end{lstlisting}
-\begin{figure}[ht!]
-    \centerline{\includegraphics[width=\linewidth]{Figures/Example/abs.pdf}}
-    \caption{Result of Code~\ref{lst:visu}.}
+\color{black}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{Figures/Example/abs_1.pdf}
+    \includegraphics[width=0.8\linewidth]{Figures/Example/abs_2.pdf}
+    \caption{
+    \color{red} Results of Code~\ref{lst:visu} for different meta-parameters (\texttt{other\_parameters}) of the solver \texttt{AB.LazyEllipsoidsAbstraction}. 
+    The initial set $\set{X}_I$, target set $\set{X}_T$, and obstacle set $\set{X}_O$ are shown in green, red, and black, respectively. The value function, which provides an upper bound on the cost to reach the target, is shown in a blue color map, with the closed-loop system's trajectory also displayed in blue. \color{black}}
     \label{fig:ex_plot}
 \end{figure}
+
 
 % Let us consider the piecewise-affine system $(\mathcal{X}, \mathcal{U}, F)$ with 
 % \begin{equation}
@@ -608,7 +655,7 @@ We reproduced the two numerical experiments of \cite{rungger2016scots}. First, t
         SCOTS & 19.05 & 74.01 & 93.06 \\
         CoSyMA & --- & --- & 5.31
     \end{tabular}
-    \caption{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the DC-DC converter example. \texttt{Dionysos.jl} outperforms SCOTS and CoSyMA with and without prior knowledge of the system's incrementally stable property.}
+    \caption{\textcolor{red}{Comparison} between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the DC-DC converter example. \texttt{Dionysos.jl} outperforms SCOTS and CoSyMA with and without prior knowledge of the system's incrementally stable property.}
     \label{tab:dcdc_bench}
 \end{table}
 
@@ -622,7 +669,7 @@ Second, the path planning problem presented in \cite[Section 4.1]{rungger2016sco
         \texttt{Dionysos.jl} & \textbf{8.58} & \textbf{6.45} & \textbf{15.03} \\
         SCOTS & 117.52 & 480.44 & 597.96 \\
     \end{tabular}
-    \caption{Comparaison between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the path planning example. \texttt{Dionysos.jl} outperforms SCOTS.}
+    \caption{\textcolor{red}{Comparison} between SCOTS, CoSyMA and \texttt{Dionysos.jl} (\texttt{AB.UniformGridAbstraction} solver from Table~\ref{tab:solvers}) for the path planning example. \texttt{Dionysos.jl} outperforms SCOTS.}
     \label{tab:vehicle_bench}
 \end{table}
 
@@ -634,12 +681,12 @@ The reason for such a difference between SCOTS, written in C++, and \texttt{Dion
 
 
 \begin{figure}[ht!]
-    \centerline{\includegraphics[width=0.6\linewidth]{Figures/Benchmarking/dcdc.png}}
+    \centerline{\includegraphics[width=\linewidth, trim=90 0 85 0, clip]{Figures/Benchmarking/dcdc.pdf}}
     \caption{Reproduction of \cite[Figure 4]{rungger2016scots} with \texttt{Dionysos.jl}.}
     \label{fig:dcdc}
 \end{figure}
 \begin{figure}[ht!]
-    \centerline{\includegraphics[width=0.6\linewidth]{Figures/Benchmarking/vehicle.png}}
+    \centerline{\includegraphics[width=\linewidth, trim=90 0 85 0, clip]{Figures/Benchmarking/vehicle.pdf}}
     \caption{Reproduction of \cite[Figure 3]{rungger2016scots} with \texttt{Dionysos.jl}.}
     \label{fig:vehicle}
 \end{figure}
