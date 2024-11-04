@@ -37,7 +37,7 @@ using Dionysos, JuMP
 model = Model(Dionysos.Optimizer)
 
 # Define the discretization step
-discretization_step = 0.1
+hx = 0.1
 
 # Define the state variables: x1(t), x2(t), x3(t) without specifying the start value since here it's a set. We will specify the start later using constraints.
 x_low = [-3.5, -2.6, -pi]
@@ -56,13 +56,13 @@ x_upp = -x_low
 x_initial = [1.0, -1.7, 0.0]
 x_target = [sqrt(32) / 3, sqrt(20) / 3, -pi]
 
-@constraint(model, start(x[1]) in MOI.Interval(0.8, 1.2))
-@constraint(model, start(x[2]) in MOI.Interval(-1.9, -1.5))
-@constraint(model, start(x[3]) in MOI.Interval(-0.2, 0.2))
+@constraint(model, start(x[1]) in MOI.Interval(x_initial[1] - hx, x_initial[1] + hx))
+@constraint(model, start(x[2]) in MOI.Interval(x_initial[2] - hx, x_initial[2] + hx))
+@constraint(model, start(x[3]) in MOI.Interval(x_initial[3] - hx, x_initial[3] + hx))
 
-@constraint(model, final(x[1]) in MOI.Interval(1.78, 1.98))
-@constraint(model, final(x[2]) in MOI.Interval(1.39, 1.59))
-@constraint(model, final(x[3]) in MOI.Interval(-3.14, 3.14))
+@constraint(model, final(x[1]) in MOI.Interval(x_target[1] - hx, x_target[1] + hx))
+@constraint(model, final(x[2]) in MOI.Interval(x_target[2] - hx, x_target[2] + hx))
+@constraint(model, final(x[3]) in MOI.Interval{Float64}(-pi, pi))
 
 # Obstacle boundaries computed using the function `get_obstacles` below
 function extract_rectangles(matrix)
@@ -119,7 +119,7 @@ function get_obstacles(lb, ub, h)
     ]
 end
 
-obstacles = get_obstacles(x_low, x_upp, discretization_step)
+obstacles = get_obstacles(x_low, x_upp, hx)
 
 # Function to add rectangular obstacle avoidance constraints
 
@@ -168,7 +168,7 @@ set_attribute(model, "time_step", 1.0)
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.1, 0.1, 0.2);
+h = SVector(hx, hx, 0.2);
 set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
