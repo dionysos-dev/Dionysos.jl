@@ -133,7 +133,7 @@ end
 set_attribute(
     model,
     "approx_mode",
-    Dionysos.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME,
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.DISCRETE_TIME,
 )
 
 # We define the system map $f$:

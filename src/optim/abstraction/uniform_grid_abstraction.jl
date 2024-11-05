@@ -12,7 +12,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-@enum ApproxMode GROWTH LINEARIZED DELTA_GAS DSICRETE_TIME
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS DISCRETE_TIME
 
 using JuMP
 
@@ -110,7 +110,7 @@ function build_abstraction(concrete_system, model)
             model.num_sub_steps_system_map,
             model.num_sub_steps_growth_bound,
         )
-    elseif model.approx_mode == DSICRETE_TIME
+    elseif model.approx_mode == DISCRETE_TIME
         if isnothing(model.system_map)
             error("Please set the `system_map`.")
         end
