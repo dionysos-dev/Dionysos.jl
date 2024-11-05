@@ -276,7 +276,7 @@ end
 ############################################
 ############################################
 
-struct SymbolicSystem{}
+struct SymbolicSystem
     fsymbolicT::Any
     fsymbolic::Any
     Ts::Any

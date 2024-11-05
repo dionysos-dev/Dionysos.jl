@@ -7,10 +7,13 @@ import Symbolics
 
 @enum(VariableType, INPUT, STATE, MODE)
 
+@enum(TimeType, UNKNOWN, CONTINUOUS, DISCRETE)
+
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Any
     nlp_model::Any
     evaluator::Union{Nothing, MOI.Nonlinear.Evaluator}
+    time_type::TimeType
     variable_values::Vector{Float64}
     derivative_values::Vector{Float64}
     variable_types::Vector{VariableType}
@@ -29,6 +32,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
             nothing,
             nothing,
+            UNKNOWN,
             Float64[],
             Float64[],
             VariableType[],
@@ -49,6 +53,7 @@ end
 MOI.is_empty(model::Optimizer) = isempty(model.variable_types)
 
 function MOI.empty!(model::Optimizer)
+    model.time_type = UNKNOWN
     empty!(model.variable_values)
     empty!(model.derivative_values)
     empty!(model.variable_types)
@@ -168,7 +173,21 @@ function MOI.add_constraint(
         if lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 1
             var = lhs.args[]
             if var isa MOI.VariableIndex
-                if lhs.head == :diff
+                if lhs.head == :∂
+                    if model.time_type == DISCRETE
+                        error("Cannot add constraint with `∂` since you already added a constraint with `Δ`.")
+                    end
+                    model.time_type = CONTINUOUS
+                    model.dynamic[var.value] = rhs
+                    model.nonlinear_index += 1
+                    return MOI.ConstraintIndex{typeof(func), typeof(set)}(
+                        model.nonlinear_index,
+                    )
+                elseif lhs.head == :Δ
+                    if model.time_type == CONTINUOUS
+                        error("Cannot add constraint with `Δ` since you already added a constraint with `∂`.")
+                    end
+                    model.time_type = DISCRETE
                     model.dynamic[var.value] = rhs
                     model.nonlinear_index += 1
                     return MOI.ConstraintIndex{typeof(func), typeof(set)}(
@@ -303,13 +322,23 @@ function system(
     )
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
-    return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        dynamic(model, x_idx, u_idx),
-        Dionysos.Utils.get_dims(_X_),
-        Dionysos.Utils.get_dims(_U_),
-        _X_,
-        _U_,
-    )
+    if model.time_type == CONTINUOUS
+        return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            dynamic(model, x_idx, u_idx),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            _X_,
+            _U_,
+        )
+    else
+        return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
+            dynamic(model, x_idx, u_idx),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            _X_,
+            _U_,
+        )
+    end
 end
 
 function problem(model::Optimizer)
@@ -400,16 +429,22 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, final, start
+export ∂, Δ, final, start
 
 function _diff end
-∂ = JuMP.NonlinearOperator(_diff, :diff)
+∂ = JuMP.NonlinearOperator(_diff, :∂)
+
+function _delta end
+Δ = JuMP.NonlinearOperator(_delta, :Δ)
 
 function _final end
 final = JuMP.NonlinearOperator(_final, :final)
 
 function _start end
 start = JuMP.NonlinearOperator(_start, :start)
+
+function rem end
+rem_op = JuMP.NonlinearOperator(rem, :rem)
 
 # Type piracy
 function JuMP.parse_constraint_call(
@@ -428,4 +463,8 @@ function JuMP.parse_constraint_call(
     end
     build_call = :(build_constraint($error_fn, $f, $(OuterSet)($set)))
     return parse_code, build_call
+end
+
+function Base.rem(x::JuMP.AbstractJuMPScalar, d)
+    return rem_op(x, d)
 end
