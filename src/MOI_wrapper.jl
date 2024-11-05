@@ -24,6 +24,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
+    integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
+    indicator_constraints::Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -42,6 +44,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
+            Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
+            Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
         )
     end
 end
@@ -62,6 +66,8 @@ function MOI.empty!(model::Optimizer)
     model.objective_sense = MOI.FEASIBILITY_SENSE
     model.objective_function = zero(MOI.ScalarAffineFunction{Float64})
     model.nonlinear_index = 0
+    empty!(model.integer_variables)
+    empty!(model.indicator_constraints)
     return
 end
 
@@ -208,6 +214,36 @@ function MOI.set(
     return
 end
 
+# Adding supports for integer variables
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VariableIndex},
+    ::Type{<:Union{MOI.Integer, MOI.ZeroOne}},
+)
+    return true
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    func::MOI.VariableIndex,
+    set::Union{MOI.Integer, MOI.ZeroOne},
+)
+    model.integer_variables[func] = set
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
+end
+
+# Adding support for indicator constraints
+function JuMP._build_indicator_constraint(
+    error_fn::Function,
+    lhs::JuMP.NonlinearExpr,
+    constraint::JuMP.ScalarConstraint,
+    ::Type{MOI.Indicator{A}},
+) where {A}
+    #return error("Unsupported")
+    set = MOI.Indicator{A}(JuMP.moi_set(constraint))
+    return JuMP.VectorConstraint([lhs, JuMP.jump_function(constraint)], set)
+end
+
 MOI.supports_incremental_interface(::Optimizer) = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
@@ -344,6 +380,8 @@ function input_indices(model::Optimizer)
 end
 
 function setup!(model::Optimizer)
+    @show model.indicator_constraints
+    warning("mode is not supported yet")
     input_index = 0
     state_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
@@ -403,6 +441,26 @@ function JuMP.parse_constraint_call(
     lhs,
     rhs,
 )
+    @assert !vectorized
+    f, parse_code1 = JuMP._rewrite_expression(lhs)
+    set, parse_code2 = JuMP._rewrite_expression(rhs)
+    parse_code = quote
+        $parse_code1
+        $parse_code2
+    end
+    build_call = :(build_constraint($error_fn, $f, $(OuterSet)($set)))
+    return parse_code, build_call
+end
+
+function JuMP.parse_constraint_call(
+    error_fn::Function,
+    vectorized::Bool,
+    ::Val{:ifelse},
+    args...
+)
+    @show args
+    return error("Unsupported")
+
     @assert !vectorized
     f, parse_code1 = JuMP._rewrite_expression(lhs)
     set, parse_code2 = JuMP._rewrite_expression(rhs)
