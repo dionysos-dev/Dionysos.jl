@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Grid · Dionysos</title><meta name="title" content="Grid · Dionysos"/><meta property="og:title" content="Grid · Dionysos"/><meta property="twitter:title" content="Grid · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/manual/">Overview</a></li></ul></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Hierarchical-abstraction/">Hierarchical-abstraction</a></li><li><a class="tocitem" href="../Lazy-Ellipsoids-Abstraction/">Lazy-Ellipsoids-Abstraction</a></li><li><a class="tocitem" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li><a class="tocitem" href="../State-feedback Abstraction PWA System/">State-feedback Abstraction PWA System</a></li><li><a class="tocitem" href="../Unicycle robot/">Unicycle robot</a></li></ul></li><li><span class="tocitem">Utils</span><ul><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li class="is-active"><a class="tocitem" href>Grid</a></li><li><a class="tocitem" href="../Tree/">Tree</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Domain/">Domain</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Utils</a></li><li class="is-active"><a href>Grid</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Grid</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/utils/Grid.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Grid"><a class="docs-heading-anchor" href="#Grid">Grid</a><a id="Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Grid" title="Permalink"></a></h1><p><a href="https://mybinder.org/v2/gh/dionysos-dev/Dionysos.jl/gh-pages?filepath=previews/PR383/generated/Grid.ipynb"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"/></a> <a href="https://nbviewer.jupyter.org/github/dionysos-dev/Dionysos.jl/blob/gh-pages/previews/PR383/generated/Grid.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-579ACA.svg" alt="nbviewer"/></a></p><p>In this file, we will show the different partition of the state space implemented</p><ul><li>classical grid (composed of regular hyperrectangles)</li><li>deformed grid</li><li>nested classical grid</li><li>ellipsoidal partition based on a grid</li></ul><p>First, let us import a few packages that are necessary to run this example.</p><pre><code class="language-julia hljs">using Dionysos
+using StaticArrays
+using LinearAlgebra
+using Plots</code></pre><p>The main package <a href="https://github.com/dionysos-dev/Dionysos.jl">Dionysos</a> provides most important data structures that we will need.</p><pre><code class="language-julia hljs">const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.Domain</code></pre><h3 id="Classical-grid-(composed-of-regular-hyperrectangles)"><a class="docs-heading-anchor" href="#Classical-grid-(composed-of-regular-hyperrectangles)">Classical grid (composed of regular hyperrectangles)</a><a id="Classical-grid-(composed-of-regular-hyperrectangles)-1"></a><a class="docs-heading-anchor-permalink" href="#Classical-grid-(composed-of-regular-hyperrectangles)" title="Permalink"></a></h3><pre><code class="language-julia hljs">x0 = SVector(0.0, 0.0)
+h = SVector(1.0 / 5, 1.0 / 5)
+grid = DO.GridFree(x0, h)
+rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
+domainX = DO.DomainList(grid)
+DO.add_set!(domainX, rectX, DO.INNER)
+plot(; aspect_ratio = :equal);
+plot!(domainX)</code></pre><img src="2c25e5b8.svg" alt="Example block output"/><h3 id="Deformed-grid"><a class="docs-heading-anchor" href="#Deformed-grid">Deformed grid</a><a id="Deformed-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Deformed-grid" title="Permalink"></a></h3><p>We define some invertible transformation (with their inverse)</p><pre><code class="language-julia hljs">function f1(x)
+    return x
+end
+function fi1(x)
+    return x
+end
+function f2(x)
+    return SVector(x[2] + sin(x[1]), x[1])
+end
+function fi2(x)
+    return SVector(x[2], x[1] - sin(x[2]))
+end
+function f3(x)
+    return SVector(x[1] * cos(x[2]), x[1] * sin(x[2]))
+end
+function fi3(x)
+    return SVector(sqrt(x[1] * x[1] + x[2] * x[2]), atan(x[2], x[1]))
+end
+function rotate(x, θ)
+    R = @SMatrix [
+        cos(θ) -sin(θ)
+        sin(θ) cos(θ)
+    ]
+    return R * x
+end
+function build_f_rotation(θ; c = SVector(0.0, 0.0))
+    function f(x)
+        return rotate(x - c, θ) + c
+    end
+    function fi(x)
+        return rotate(x - c, -θ) + c
+    end
+    return f, fi
+end
+
+function plot_deformed_grid_with_DomainList(f, fi)
+    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2 * π))
+    grid = DO.GridFree(SVector(0.0, 0.0), SVector(3.0, 0.3))
+    Dgrid = DO.DeformedGrid(grid, f, fi)
+    dom = DO.DomainList(Dgrid)
+    DO.add_set!(dom, X, DO.INNER)
+    plot(; aspect_ratio = :equal)
+    return plot!(dom; show = true)
+end
+
+function plot_deformed_grid_with_GeneralDomain(f, fi)
+    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2 * π))
+    obstacle = UT.HyperRectangle(SVector(10.0, 10.0), SVector(15.0, 15.0))
+    hx = [3.0, 0.3]
+    d = DO.RectangularObstacles(X, [obstacle])
+    dom = DO.GeneralDomainList(hx; elems = d, f = f, fi = fi, fit = true)
+    plot(; aspect_ratio = :equal)
+    return plot!(dom; show = true)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">plot_deformed_grid_with_GeneralDomain (generic function with 1 method)</code></pre><p>Display some deformed Grids</p><pre><code class="language-julia hljs">plot_deformed_grid_with_DomainList(f2, fi2)
+plot_deformed_grid_with_GeneralDomain(f2, fi2)</code></pre><img src="46409303.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot_deformed_grid_with_DomainList(f2, fi2)
+plot_deformed_grid_with_GeneralDomain(f2, fi2)</code></pre><img src="e7469543.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot_deformed_grid_with_DomainList(f3, fi3)
+plot_deformed_grid_with_GeneralDomain(f3, fi3)</code></pre><img src="ccea2b00.svg" alt="Example block output"/><pre><code class="language-julia hljs">f, fi = build_f_rotation(π / 3.0)
+plot_deformed_grid_with_DomainList(f, fi)</code></pre><img src="a01c4dd1.svg" alt="Example block output"/><h3 id="Nested-classical-grid"><a class="docs-heading-anchor" href="#Nested-classical-grid">Nested classical grid</a><a id="Nested-classical-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Nested-classical-grid" title="Permalink"></a></h3><pre><code class="language-julia hljs">X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
+obstacle = UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
+hx = [3.0, 1.0] * 2.0
+periodic = Int[1]
+periods = [30.0, 30.0]
+T0 = [0.0, 0.0]
+d = DO.RectangularObstacles(X, [obstacle])
+dom = DO.GeneralDomainList(
+    hx;
+    elems = d,
+    periodic = periodic,
+    periods = periods,
+    T0 = T0,
+    fit = true,
+)
+Ndomain = DO.NestedDomain(dom)
+DO.cut_pos!(Ndomain, (2, 2), 1)
+DO.cut_pos!(Ndomain, (2, 3), 1)
+DO.cut_pos!(Ndomain, (4, 4), 2)
+
+fig = plot(; aspect_ratio = :equal, legend = false);
+plot!(Ndomain)</code></pre><img src="9fb60992.svg" alt="Example block output"/><h3 id="Ellipsoidal-partition-based-on-a-grid"><a class="docs-heading-anchor" href="#Ellipsoidal-partition-based-on-a-grid">Ellipsoidal partition based on a grid</a><a id="Ellipsoidal-partition-based-on-a-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Ellipsoidal-partition-based-on-a-grid" title="Permalink"></a></h3><pre><code class="language-julia hljs">x0 = SVector(0.0, 0.0)
+n_step = 2
+h = SVector(1.0 / n_step, 1.0 / n_step)
+P = 0.5 * diagm((h ./ 2) .^ (-2))
+rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2))
+
+grid = DO.GridEllipsoidalRectangular(x0, h, P, rectX)
+domain = DO.DomainList(grid)
+DO.add_set!(domain, grid.rect, DO.OUTER)
+plot(; aspect_ratio = :equal);
+plot!(domain)</code></pre><img src="77c336b2.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Ellipsoids/">« Ellipsoids</a><a class="docs-footer-nextpage" href="../Tree/">Tree »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 6 November 2024 14:58">Wednesday 6 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
