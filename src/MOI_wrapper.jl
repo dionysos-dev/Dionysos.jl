@@ -7,17 +7,20 @@ import Symbolics
 
 @enum(VariableType, INPUT, STATE, MODE)
 
+@enum(TimeType, UNKNOWN, CONTINUOUS, DISCRETE)
+
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Any
     nlp_model::Any
     evaluator::Union{Nothing, MOI.Nonlinear.Evaluator}
+    time_type::TimeType
     variable_values::Vector{Float64}
     derivative_values::Vector{Float64}
     variable_types::Vector{VariableType}
     variable_index::Vector{Int} # MOI.VariableIndex -> state/input/mode index
     lower::Vector{Float64}
     upper::Vector{Float64}
-    start::Vector{Float64}
+    start::Vector{MOI.Interval{Float64}}
     target::Vector{MOI.Interval{Float64}}
     dynamic::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
@@ -31,13 +34,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
             nothing,
             nothing,
+            UNKNOWN,
             Float64[],
             Float64[],
             VariableType[],
             Int[],
             Float64[],
             Float64[],
-            Float64[],
+            MOI.Interval{Float64}[],
             MOI.Interval{Float64}[],
             Union{Nothing, MOI.ScalarNonlinearFunction}[],
             Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
@@ -53,6 +57,7 @@ end
 MOI.is_empty(model::Optimizer) = isempty(model.variable_types)
 
 function MOI.empty!(model::Optimizer)
+    model.time_type = UNKNOWN
     empty!(model.variable_values)
     empty!(model.derivative_values)
     empty!(model.variable_types)
@@ -77,7 +82,7 @@ function MOI.add_variable(model::Optimizer)
     push!(model.variable_index, 0)
     push!(model.lower, -Inf)
     push!(model.upper, Inf)
-    push!(model.start, NaN)
+    push!(model.start, MOI.Interval(-Inf, Inf))
     push!(model.target, MOI.Interval(-Inf, Inf))
     push!(model.dynamic, nothing)
     return MOI.VariableIndex(length(model.upper))
@@ -145,6 +150,12 @@ function MOI.add_constraint(
             model.nonlinear_index += 1
             return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         end
+
+        if var isa MOI.VariableIndex && func.head == :start
+            model.start[var.value] = set
+            model.nonlinear_index += 1
+            return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        end
     end
     dump(func)
     return error("Unsupported")
@@ -168,7 +179,25 @@ function MOI.add_constraint(
         if lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 1
             var = lhs.args[]
             if var isa MOI.VariableIndex
-                if lhs.head == :diff
+                if lhs.head == :∂
+                    if model.time_type == DISCRETE
+                        error(
+                            "Cannot add constraint with `∂` since you already added a constraint with `Δ`.",
+                        )
+                    end
+                    model.time_type = CONTINUOUS
+                    model.dynamic[var.value] = rhs
+                    model.nonlinear_index += 1
+                    return MOI.ConstraintIndex{typeof(func), typeof(set)}(
+                        model.nonlinear_index,
+                    )
+                elseif lhs.head == :Δ
+                    if model.time_type == CONTINUOUS
+                        error(
+                            "Cannot add constraint with `Δ` since you already added a constraint with `∂`.",
+                        )
+                    end
+                    model.time_type = DISCRETE
                     model.dynamic[var.value] = rhs
                     model.nonlinear_index += 1
                     return MOI.ConstraintIndex{typeof(func), typeof(set)}(
@@ -197,6 +226,11 @@ function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.Variabl
 end
 
 function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
+    # create a MOI.Interval from the value if value is a scalar
+    if !isa(value, MOI.Interval)
+        value = MOI.Interval(value, value)
+    end
+
     return model.start[vi.value] = value
 end
 
@@ -328,20 +362,39 @@ function system(
     )
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
-    return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        dynamic(model, x_idx, u_idx),
-        Dionysos.Utils.get_dims(_X_),
-        Dionysos.Utils.get_dims(_U_),
-        _X_,
-        _U_,
-    )
+    if model.time_type == CONTINUOUS
+        return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            dynamic(model, x_idx, u_idx),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            _X_,
+            _U_,
+        )
+    else
+        # `dynamic(model, x_idx, u_idx)` is a function `(x_k, u) -> x_{k+1}`
+        # However, `UniformGridAbstraction` will call it with `(x, u, t)` so with
+        # an additional time argument. I would expect it to error because there is
+        # too many arguments but it seems that `RuntimeGeneratedFunction` just
+        # ignores any trailing arguments. To be safe, we still ignore the time
+        # like so:
+        dyn = dynamic(model, x_idx, u_idx)
+        return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
+            (x, u, _) -> dyn(x, u),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            _X_,
+            _U_,
+        )
+    end
 end
 
 function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
-    _I_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.start, x_idx), _svec(model.start, x_idx))
+    _I_ = Dionysos.Utils.HyperRectangle(
+        _svec([s.lower for s in model.start], x_idx),
+        _svec([s.upper for s in model.start], x_idx),
+    )
     _T_ = Dionysos.Utils.HyperRectangle(
         _svec([s.lower for s in model.target], x_idx),
         _svec([s.upper for s in model.target], x_idx),
@@ -425,13 +478,22 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, final
+export ∂, Δ, final, start
 
 function _diff end
-∂ = JuMP.NonlinearOperator(_diff, :diff)
+∂ = JuMP.NonlinearOperator(_diff, :∂)
+
+function _delta end
+Δ = JuMP.NonlinearOperator(_delta, :Δ)
 
 function _final end
 final = JuMP.NonlinearOperator(_final, :final)
+
+function _start end
+start = JuMP.NonlinearOperator(_start, :start)
+
+function rem end
+rem_op = JuMP.NonlinearOperator(rem, :rem)
 
 # Type piracy
 function JuMP.parse_constraint_call(
@@ -452,22 +514,6 @@ function JuMP.parse_constraint_call(
     return parse_code, build_call
 end
 
-function JuMP.parse_constraint_call(
-    error_fn::Function,
-    vectorized::Bool,
-    ::Val{:ifelse},
-    args...
-)
-    @show args
-    return error("Unsupported")
-
-    @assert !vectorized
-    f, parse_code1 = JuMP._rewrite_expression(lhs)
-    set, parse_code2 = JuMP._rewrite_expression(rhs)
-    parse_code = quote
-        $parse_code1
-        $parse_code2
-    end
-    build_call = :(build_constraint($error_fn, $f, $(OuterSet)($set)))
-    return parse_code, build_call
+function Base.rem(x::JuMP.AbstractJuMPScalar, d)
+    return rem_op(x, d)
 end
