@@ -28,7 +28,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
     integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
-    indicator_constraints::Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}
+    indicator_constraints::Vector{
+        Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
+    }
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),

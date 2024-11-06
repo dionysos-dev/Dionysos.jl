@@ -55,13 +55,13 @@ T_start = 10.0
 @variable(model, 0 <= u <= 1)
 
 # Define the mode variable: mode(t)
-@variable(model,  0 <= mode <= 1, integer=true)
+@variable(model, 0 <= mode <= 1, integer = true)
 
 # Define the dynamics
 #@constraint(model, ∂(T) == (1 - mode) * (-α) + mode * k * u)
 
-@constraint(model, mode == 1 => {∂(T) == k * u} )
-@constraint(model, mode == 0 => {∂(T) == -α} )
+@constraint(model, mode == 1 => {∂(T) == k * u})
+@constraint(model, mode == 0 => {∂(T) == -α})
 
 #@constraint(model, ifelse(mode == 1, ∂(T) == k * u, ∂(T) == -α))
 
