@@ -74,7 +74,7 @@ function extract_rectangles(matrix)
     n, m = size(matrix)
     tlx, tly, brx, bry = Int[], Int[], Int[], Int[]
 
-    # Build histogram heights
+    ## Build histogram heights
     for i in 1:n
         j = 1
         while j <= m
