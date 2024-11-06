@@ -21,7 +21,7 @@ jobs:
       run: |
         using Pkg
         Pkg.add([
-            PackageSpec(url="https://github.com/blegat/IntervalLinearAlgebra.jl", rev="radius"),
+            PackageSpec(url="https://github.com/jump-dev/JuMP.jl", rev="master"),
             PackageSpec(path=pwd()),
         ])
         Pkg.instantiate()
