@@ -47,10 +47,9 @@ x_upp = -x_low
 # Define the control variables: u1(t), u2(t)
 @variable(model, -1 <= u[1:2] <= 1)
 
-# Define the dynamics
+# Define the dynamics, we do not include the remainder modulo `2π` for `Δ(x[3])`. There are options to set periodic variables in Dionysos but that's not needed for this example.
 @constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
 @constraint(model, Δ(x[2]) == x[2] + u[1] * sin(x[3]))
-#@constraint(model, Δ(x[3]) == rem(x[3] + u[2], 2 * π))
 @constraint(model, Δ(x[3]) == x[3] + u[2])
 
 # Define the initial and target sets
