@@ -81,7 +81,11 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function discretized_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem, model, noise)
+function discretized_system(
+    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
+    model,
+    noise,
+)
     if isnothing(model.growthbound_map)
         error("Please set the `growthbound_map`.")
     end
@@ -98,7 +102,11 @@ function discretized_system(concrete_system::MathematicalSystems.ConstrainedBlac
     )
 end
 
-function discretized_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem, model, noise)
+function discretized_system(
+    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
+    model,
+    noise,
+)
     if isnan(model.time_step)
         error("Please set the `time_step`.")
     end
