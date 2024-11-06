@@ -175,7 +175,9 @@ function MOI.add_constraint(
             if var isa MOI.VariableIndex
                 if lhs.head == :∂
                     if model.time_type == DISCRETE
-                        error("Cannot add constraint with `∂` since you already added a constraint with `Δ`.")
+                        error(
+                            "Cannot add constraint with `∂` since you already added a constraint with `Δ`.",
+                        )
                     end
                     model.time_type = CONTINUOUS
                     model.dynamic[var.value] = rhs
@@ -185,7 +187,9 @@ function MOI.add_constraint(
                     )
                 elseif lhs.head == :Δ
                     if model.time_type == CONTINUOUS
-                        error("Cannot add constraint with `Δ` since you already added a constraint with `∂`.")
+                        error(
+                            "Cannot add constraint with `Δ` since you already added a constraint with `∂`.",
+                        )
                     end
                     model.time_type = DISCRETE
                     model.dynamic[var.value] = rhs

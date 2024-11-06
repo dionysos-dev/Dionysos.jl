@@ -97,53 +97,54 @@ function build_abstraction(concrete_system, model)
         error("Please set the `time_step`.")
     end
 
-    model.discretized_system = if concrete_system isa MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem
-        if isnothing(model.growthbound_map)
-            error("Please set the `growthbound_map`.")
+    model.discretized_system =
+        if concrete_system isa MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem
+            if isnothing(model.growthbound_map)
+                error("Please set the `growthbound_map`.")
+            end
+            if isnothing(model.sys_inv_map)
+                error("Please set the `sys_inv_map`.")
+            end
+            Dionysos.System.ControlSystemGrowth(
+                model.time_step,
+                noise,
+                noise,
+                concrete_system.f,
+                model.growthbound_map,
+                model.sys_inv_map,
+            )
+        elseif model.approx_mode == GROWTH
+            if isnothing(model.jacobian_bound)
+                error("Please set the `jacobian_bound`.")
+            end
+            Dionysos.System.NewControlSystemGrowthRK4(
+                model.time_step,
+                concrete_system.f,
+                model.jacobian_bound,
+                noise,
+                noise,
+                model.num_sub_steps_system_map,
+                model.num_sub_steps_growth_bound,
+            )
+        elseif model.approx_mode == LINEARIZED
+            Dionysos.System.NewControlSystemLinearizedRK4(
+                model.time_step,
+                concrete_system.f,
+                model.jacobian,
+                u -> 0.0,
+                u -> 0.0,
+                noise,
+                model.num_sub_steps_system_map,
+            )
+        else
+            @assert model.approx_mode == DELTA_GAS
+            Dionysos.System.NewSimpleSystem(
+                model.time_step,
+                concrete_system.f,
+                noise,
+                model.num_sub_steps_system_map,
+            )
         end
-        if isnothing(model.sys_inv_map)
-            error("Please set the `sys_inv_map`.")
-        end
-        Dionysos.System.ControlSystemGrowth(
-            model.time_step,
-            noise,
-            noise,
-            concrete_system.f,
-            model.growthbound_map,
-            model.sys_inv_map,
-        )
-    elseif model.approx_mode == GROWTH
-        if isnothing(model.jacobian_bound)
-            error("Please set the `jacobian_bound`.")
-        end
-        Dionysos.System.NewControlSystemGrowthRK4(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian_bound,
-            noise,
-            noise,
-            model.num_sub_steps_system_map,
-            model.num_sub_steps_growth_bound,
-        )
-    elseif model.approx_mode == LINEARIZED
-        Dionysos.System.NewControlSystemLinearizedRK4(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian,
-            u -> 0.0,
-            u -> 0.0,
-            noise,
-            model.num_sub_steps_system_map,
-        )
-    else
-        @assert model.approx_mode == DELTA_GAS
-        Dionysos.System.NewSimpleSystem(
-            model.time_step,
-            concrete_system.f,
-            noise,
-            model.num_sub_steps_system_map,
-        )
-    end
 
     if model.δGAS
         @time SY.compute_deterministic_symmodel_from_controlsystem!(
