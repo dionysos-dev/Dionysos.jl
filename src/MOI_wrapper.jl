@@ -158,6 +158,13 @@ function MOI.add_constraint(
             model.nonlinear_index += 1
             return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         end
+
+        #if var isa MOI.VariableIndex && func.head == :rem
+        #    model.lower[var.value] = set.lower
+        #    model.upper[var.value] = set.upper
+        #    model.nonlinear_index += 1
+        #    return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        #end
     end
     dump(func)
     return error("Unsupported")
@@ -436,7 +443,10 @@ end
 
 function setup!(model::Optimizer)
     @show model.indicator_constraints
-    warning("mode is not supported yet")
+    if length(model.indicator_constraints) > 0
+        println("mode is not supported yet")
+    end
+    print(">>Setting up the model")
     input_index = 0
     state_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
@@ -460,6 +470,7 @@ function setup!(model::Optimizer)
     vars = MOI.VariableIndex.(eachindex(model.lower))
     model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
     MOI.initialize(model.evaluator, Symbol[])
+    print(">>Model setup complete")
     return
 end
 
