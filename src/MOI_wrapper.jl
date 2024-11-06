@@ -335,8 +335,15 @@ function system(
             _U_,
         )
     else
+        # `dynamic(model, x_idx, u_idx)` is a function `(x_k, u) -> x_{k+1}`
+        # However, `UniformGridAbstraction` will call it with `(x, u, t)` so with
+        # an additional time argument. I would expect it to error because there is
+        # too many arguments but it seems that `RuntimeGeneratedFunction` just
+        # ignores any trailing arguments. To be safe, we still ignore the time
+        # like so:
+        dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
-            dynamic(model, x_idx, u_idx),
+            (x, u, _) -> dyn(x, u),
             Dionysos.Utils.get_dims(_X_),
             Dionysos.Utils.get_dims(_U_),
             _X_,

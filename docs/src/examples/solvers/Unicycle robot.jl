@@ -147,9 +147,6 @@ function sys_inv(x, u, _)
 end
 set_attribute(model, "sys_inv_map", sys_inv)
 
-# We define the time step of the system:
-set_attribute(model, "time_step", 1.0)
-
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(hx, hx, 0.2);
