@@ -14,7 +14,6 @@ x_upp = -x_low
 
 @constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
 @constraint(model, Δ(x[2]) == x[2] + u[1] * sin(x[3]))
-#@constraint(model, Δ(x[3]) == rem(x[3] + u[2], 2 * π))
 @constraint(model, Δ(x[3]) == x[3] + u[2])
 
 x_initial = [1.0, -1.7, 0.0]
