@@ -48,9 +48,10 @@ x_upp = -x_low
 @variable(model, -1 <= u[1:2] <= 1)
 
 # Define the dynamics
-@constraint(model, ∂(x[1]) == x[1] + u[1] * cos(x[3]))
-@constraint(model, ∂(x[2]) == x[2] + u[1] * sin(x[3]))
-@constraint(model, ∂(x[3]) == x[3] + u[2])
+@constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
+@constraint(model, Δ(x[2]) == x[2] + u[1] * sin(x[3]))
+#@constraint(model, Δ(x[3]) == rem(x[3] + u[2], 2 * π))
+@constraint(model, Δ(x[3]) == x[3] + u[2])
 
 # Define the initial and target sets
 x_initial = [1.0, -1.7, 0.0]
@@ -128,23 +129,6 @@ for obstacle in obstacles
 end
 
 # ### Definition of the abstraction
-
-# First we need to set the mode of the abstraction to `DIONYSOS.Optim.Abstraction.UniformGridAbstraction.DSICRETE_TIME`:
-set_attribute(
-    model,
-    "approx_mode",
-    Dionysos.Optim.Abstraction.UniformGridAbstraction.DISCRETE_TIME,
-)
-
-# We define the system map $f$:
-function sys_map(x, u, _)
-    return StaticArrays.SVector{3}(
-        x[1] + u[1] * cos(x[3]),
-        x[2] + u[1] * sin(x[3]),
-        (x[3] + u[2]) % (2 * π),
-    )
-end
-set_attribute(model, "system_map", sys_map)
 
 # We define the growth bound function of $f$:
 function growth_bound(r, u, _)

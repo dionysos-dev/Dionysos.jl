@@ -4,6 +4,8 @@ module UniformGridAbstraction
 
 import StaticArrays
 
+import MathematicalSystems
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -12,7 +14,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-@enum ApproxMode GROWTH LINEARIZED DELTA_GAS DISCRETE_TIME
+@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
 
 using JuMP
 
@@ -39,8 +41,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     approx_mode::ApproxMode
 
     ## for the discrete time (no need for the jacobian_bound) 
-    #but for the system_map, growthbound_map and sys_inv_map
-    system_map::Union{Nothing, Function}
+    # but for the `growthbound_map` and `sys_inv_map`
     growthbound_map::Union{Nothing, Function}
     sys_inv_map::Union{Nothing, Function}
 
@@ -61,7 +62,6 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             false,
             0.0,
             GROWTH,
-            nothing,
             nothing,
             nothing,
         )
@@ -97,7 +97,22 @@ function build_abstraction(concrete_system, model)
         error("Please set the `time_step`.")
     end
 
-    model.discretized_system = if model.approx_mode == GROWTH
+    model.discretized_system = if concrete_system isa MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem
+        if isnothing(model.growthbound_map)
+            error("Please set the `growthbound_map`.")
+        end
+        if isnothing(model.sys_inv_map)
+            error("Please set the `sys_inv_map`.")
+        end
+        Dionysos.System.ControlSystemGrowth(
+            model.time_step,
+            noise,
+            noise,
+            concrete_system.f,
+            model.growthbound_map,
+            model.sys_inv_map,
+        )
+    elseif model.approx_mode == GROWTH
         if isnothing(model.jacobian_bound)
             error("Please set the `jacobian_bound`.")
         end
@@ -109,24 +124,6 @@ function build_abstraction(concrete_system, model)
             noise,
             model.num_sub_steps_system_map,
             model.num_sub_steps_growth_bound,
-        )
-    elseif model.approx_mode == DISCRETE_TIME
-        if isnothing(model.system_map)
-            error("Please set the `system_map`.")
-        end
-        if isnothing(model.growthbound_map)
-            error("Please set the `growthbound_map`.")
-        end
-        if isnothing(model.sys_inv_map)
-            error("Please set the `sys_inv_map`.")
-        end
-        Dionysos.System.ControlSystemGrowth(
-            model.time_step,
-            noise,
-            noise,
-            model.system_map,
-            model.growthbound_map,
-            model.sys_inv_map,
         )
     elseif model.approx_mode == LINEARIZED
         Dionysos.System.NewControlSystemLinearizedRK4(
