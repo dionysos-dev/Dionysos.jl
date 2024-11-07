@@ -165,6 +165,28 @@ function MOI.add_constraint(
         #    model.nonlinear_index += 1
         #    return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         #end
+        
+        # sometimes the var contains an expression of the form *(-1.0, MOI.VariableIndex(1))
+        # so we need to extract the MOI.VariableIndex and par it properly
+        if func.head == :+ && var.head == :* && var.args[2] isa MOI.VariableIndex
+            val = var.args[1]
+            var = var.args[2]
+
+            if model.lower[var.value] == -Inf
+                model.lower[var.value] = set.lower/val
+            else
+                model.lower[var.value] = max(model.lower[var.value], set.lower/val)
+            end
+
+            if model.upper[var.value] == Inf
+                model.upper[var.value] = set.upper/val
+            else
+                model.upper[var.value] = min(model.upper[var.value], set.upper/val)
+            end
+
+            model.nonlinear_index += 1
+            return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        end
     end
     dump(func)
     return error("Unsupported")
@@ -183,10 +205,20 @@ function MOI.add_constraint(
     func::MOI.ScalarNonlinearFunction,
     set::MOI.EqualTo,
 )
-    if func.head == :- && length(func.args) == 2
+    @show func
+    @show set
+    @show model.variable_index
+    if (func.head == :- || func.head == :+) && length(func.args) == 2
         lhs, rhs = func.args
+        @show lhs
+        @show rhs
+        @show lhs isa MOI.ScalarNonlinearFunction
+        @show length(lhs.args)
+        @show typeof(lhs)
+        @show typeof(rhs)
         if lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 1
             var = lhs.args[]
+            @show var
             if var isa MOI.VariableIndex
                 if lhs.head == :∂
                     if model.time_type == DISCRETE
@@ -220,6 +252,8 @@ function MOI.add_constraint(
                     )
                 end
             end
+        elseif lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 2
+            error("Unexpected! lhs is a MOI.ScalarNonlinearFunction with 2 args")
         end
     end
     dump(func)

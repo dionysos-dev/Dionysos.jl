@@ -65,10 +65,10 @@ T_start = 10.0
 
 #@constraint(model, ifelse(mode == 1, ∂(T) == k * u, ∂(T) == -α))
 
-#@constraint(model, T_r - δ <= T)
-#@constraint(model, T <= T_r + δ)
+@constraint(model, T_r - δ <= T)
+@constraint(model, T <= T_r + δ)
 
-@constraint(model, T_r - δ <= T <= T_r + δ)
+#@constraint(model, T_r - δ <= T <= T_r + δ)
 
 # Define the initial set (from the other PR to make this work)
 #@constraint(model, start(T) in MOI.Interval(9.5, 10.5))
@@ -91,4 +91,5 @@ u0 = SVector(0.0);
 h = SVector(0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
+# Solving the problem
 optimize!(model)
