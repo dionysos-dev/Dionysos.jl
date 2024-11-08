@@ -55,7 +55,6 @@ biblio = DocumenterCitations.CitationBibliography(
     style = :authoryear,
 )
 
-
 makedocs(;
     sitename = "Dionysos",
     # See https://github.com/JuliaDocs/Documenter.jl/issues/868
