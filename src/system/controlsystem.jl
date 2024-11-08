@@ -53,7 +53,8 @@ end
 
 System with growth bound function.
 """
-struct WithGrowthBound{S <: MathematicalSystems.AbstractSystem, F <: Function} <: MathematicalSystems.AbstractSystem
+struct WithGrowthBound{S <: MathematicalSystems.AbstractSystem, F <: Function} <:
+       MathematicalSystems.AbstractSystem
     system::S
     growth_bound::F
 end
@@ -70,11 +71,7 @@ function MathematicalSystems.discretize(
             runge_kutta_4(system.growth_bound, r, u, Δt, num_sub_steps)::SVector{N, T}
     end
     return WithGrowthBound(
-        MathematicalSystems.discretize(
-            system.system,
-            Δt,
-            algorithm,
-        ),
+        MathematicalSystems.discretize(system.system, Δt, algorithm),
         growth_bound,
     )
 end
@@ -143,7 +140,8 @@ function discretize_system_with_linearization(
     nsys,
 ) where {N, T}
     sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) -> runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
+        (x::SVector{N, T}, u, tstep) ->
+            runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
     end
     linsys_map = let nsys = nsys
         (x::SVector{N, T}, dx::SMatrix{N, N, T}, u, tstep) -> runge_kutta_4Linearized(
@@ -186,7 +184,8 @@ end
 
 function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N, T}, nsys) where {N, T}
     sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) -> runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
+        (x::SVector{N, T}, u, tstep) ->
+            runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
     end
     return SimpleSystem(tstep, measnoise, sys_map, F_sys)
 end
