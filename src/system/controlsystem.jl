@@ -27,19 +27,31 @@ struct RungeKuttaDiscretization <: MathematicalSystems.AbstractDiscretizationAlg
     num_sub_steps::Int
 end
 
+# Similar to `MathematicalSystems._discretize` but we create a new one as
+# it is internal
+function _discretize(
+    algorithm::RungeKuttaDiscretization,
+    Δt,
+    f::F,
+) where {F<:Function}
+    # We use the `let` block to avoid performance issues of Julia
+    # with closures. For more details, see
+    # https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured
+    return let
+        num_sub_steps = algorithm.num_sub_steps
+        Δt = Δt
+        (x, u) ->
+            runge_kutta_4(f, x, u, Δt, num_sub_steps)::typeof(x)
+    end
+end
+
 function MathematicalSystems.discretize(
     system::MathematicalSystems.BlackBoxControlContinuousSystem,
     Δt,
     algorithm::RungeKuttaDiscretization,
 )
-    f = let
-        num_sub_steps = algorithm.num_sub_steps
-        Δt = Δt
-        (x::SVector{N, T}, u) ->
-            runge_kutta_4(system.f, x, u, Δt, num_sub_steps)::SVector{N, T}
-    end
     return MathematicalSystems.BlackBoxControlDiscreteSystem(
-        f,
+        _dicretize(algorithm, Δt, f),
         system.statedim,
         system.inputdim,
     )
@@ -64,15 +76,9 @@ function MathematicalSystems.discretize(
     Δt,
     algorithm::RungeKuttaDiscretization,
 )
-    growth_bound = let
-        num_sub_steps = algorithm.num_sub_steps
-        Δt = Δt
-        (r::SVector{N, T}, u) ->
-            runge_kutta_4(system.growth_bound, r, u, Δt, num_sub_steps)::SVector{N, T}
-    end
     return WithGrowthBound(
         MathematicalSystems.discretize(system.system, Δt, algorithm),
-        growth_bound,
+        _dicretize(algorithm, Δt, system.growth_bound),
     )
 end
 
