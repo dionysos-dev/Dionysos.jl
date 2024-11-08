@@ -15,7 +15,6 @@ Quaternions = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RigidBodyDynamics = "366cf18f-59d5-5db9-a4de-86a9f6786172"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [extras]
