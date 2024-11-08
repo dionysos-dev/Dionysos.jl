@@ -60,10 +60,9 @@ makedocs(;
     # See https://github.com/JuliaDocs/Documenter.jl/issues/868
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
-        assets = ["assets/extra_styles.css"],
+        assets = ["assets/extra_styles.css", "assets/citations.css"],
     ),
     pages = _PAGES,
-    assets = ["assets/citations.css"],
     # The following ensures that we only include the docstrings from
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
