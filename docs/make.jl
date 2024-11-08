@@ -50,7 +50,7 @@ const _PAGES = [
     "Bibliography" => "bibliography.md",
 ]
 
-biblio = DocumenterCitations.CitationBibliography(
+const BIBLIO = DocumenterCitations.CitationBibliography(
     joinpath(@__DIR__, "src", "references.bib");
     style = :authoryear,
 )
@@ -68,11 +68,11 @@ makedocs(;
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
     modules = [Dionysos],
-    plugins = [biblio],
+    plugins = [BIBLIO],
 )
 
 deploydocs(;
     repo = "github.com/dionysos-dev/Dionysos.jl.git",
     push_preview = true,
-    plugins = [biblio],
+    plugins = [BIBLIO],
 )
