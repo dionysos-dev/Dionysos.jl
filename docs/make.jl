@@ -1,5 +1,6 @@
 using Dionysos
 using Documenter, Literate
+import DocumenterCitations
 
 const EXAMPLES_SOLVERS_DIR = joinpath(@__DIR__, "src", "examples", "solvers")
 const EXAMPLES_UTILS_DIR = joinpath(@__DIR__, "src", "examples", "utils")
@@ -46,7 +47,14 @@ const _PAGES = [
     end,
     "Developer Docs" =>
         ["Set up" => "developers/setup.md", "Git" => "developers/git.md"],
+    "Bibliography" => "bibliography.md",
 ]
+
+biblio = DocumenterCitations.CitationBibliography(
+    joinpath(@__DIR__, "src", "references.bib");
+    style = :authoryear,
+)
+
 
 makedocs(;
     sitename = "Dionysos",
@@ -56,10 +64,16 @@ makedocs(;
         assets = ["assets/extra_styles.css"],
     ),
     pages = _PAGES,
+    assets = ["assets/citations.css"],
     # The following ensures that we only include the docstrings from
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
     modules = [Dionysos],
+    plugins = [biblio],
 )
 
-deploydocs(; repo = "github.com/dionysos-dev/Dionysos.jl.git", push_preview = true)
+deploydocs(;
+    repo = "github.com/dionysos-dev/Dionysos.jl.git",
+    push_preview = true,
+    plugins = [biblio],
+)
