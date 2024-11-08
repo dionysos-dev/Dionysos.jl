@@ -6,14 +6,11 @@ The structure
 is the abstract type that defines a control system.
 """
 abstract type ControlSystem{N, T} end
-using IntervalArithmetic
-function get_f_eval(sys)
-    return sys.f_eval
-end
+import IntervalArithmetic
 
-function RungeKutta4(F, x, u, tstep, nsub::Int)
-    τ = tstep / nsub
-    for _ in 1:nsub
+function runge_kutta_4(F, x, u, Δt, num_sub_steps::Int)
+    τ = Δt / num_sub_steps
+    for _ in 1:num_sub_steps
         Fx1 = F(x, u)
         xrk = x + Fx1 * (τ / 2.0)
         Fx2 = F(xrk, u)
@@ -26,51 +23,59 @@ function RungeKutta4(F, x, u, tstep, nsub::Int)
     return x
 end
 
-"""
-    ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <: ControlSystem{N, T}
-
-is one implementation of the `ControlSystem` type for which we have a growth bound function.
-"""
-struct ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function} <:
-       ControlSystem{N, T}
-    tstep::Float64
-    sysnoise::SVector{N, T}
-    measnoise::SVector{N, T}
-    sys_map::F1
-    growthbound_map::F2
-    sys_inv_map::F3
+struct RungeKuttaDiscretization <: MathematicalSystems.AbstractDiscretizationAlgorithm
+    num_sub_steps::Int
 end
 
-function discretize_system_with_growth_bound(
-    tstep,
-    F_sys,
-    L_growthbound,
-    sysnoise::SVector{N, T},
-    measnoise::SVector{N, T},
-    nsys,
-    ngrowthbound,
-) where {N, T}
-    sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N, T}
+function MathematicalSystems.discretize(
+    system::MathematicalSystems.BlackBoxControlContinuousSystem,
+    Δt,
+    algorithm::RungeKuttaDiscretization,
+)
+    f = let
+        num_sub_steps = algorithm.num_sub_steps
+        Δt = Δt
+        (x::SVector{N, T}, u) ->
+            runge_kutta_4(system.f, x, u, Δt, num_sub_steps)::SVector{N, T}
     end
-    sys_inv_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) ->
-            RungeKutta4(F_sys, x, u, -tstep, nsys)::SVector{N, T}
+    return MathematicalSystems.BlackBoxControlDiscreteSystem(
+        f,
+        system.statedim,
+        system.inputdim,
+    )
+end
+
+"""
+    struct WithGrowthBound{S <: MathematicalSystems.AbstractSystem, F <: Function} <: MathematicalSystems.AbstractSystem
+        system::S
+        growth_bound::F
     end
-    F_growthbound = let sysnoise = sysnoise
-        (r, u) -> L_growthbound(u) * r + sysnoise
+
+System with growth bound function.
+"""
+struct WithGrowthBound{S <: MathematicalSystems.AbstractSystem, F <: Function} <: MathematicalSystems.AbstractSystem
+    system::S
+    growth_bound::F
+end
+
+function MathematicalSystems.discretize(
+    system::WithGrowthBound,
+    Δt,
+    algorithm::RungeKuttaDiscretization,
+)
+    growth_bound = let
+        num_sub_steps = algorithm.num_sub_steps
+        Δt = Δt
+        (r::SVector{N, T}, u) ->
+            runge_kutta_4(system.growth_bound, r, u, Δt, num_sub_steps)::SVector{N, T}
     end
-    growthbound_map = let ngrowthbound = ngrowthbound
-        (r::SVector{N, T}, u, tstep) ->
-            RungeKutta4(F_growthbound, r, u, tstep, ngrowthbound)::SVector{N, T}
-    end
-    return ControlSystemGrowth(
-        tstep,
-        sysnoise,
-        measnoise,
-        sys_map,
-        growthbound_map,
-        sys_inv_map,
+    return WithGrowthBound(
+        MathematicalSystems.discretize(
+            system.system,
+            Δt,
+            algorithm,
+        ),
+        growth_bound,
     )
 end
 
@@ -95,7 +100,7 @@ struct ControlSystemLinearized{
     sys_inv_map::F4
 end
 
-function RungeKutta4Linearized(F, DF, x, dx, u, tstep, nsub::Int)
+function runge_kutta_4Linearized(F, DF, x, dx, u, tstep, nsub::Int)
     τ = tstep / nsub
     for i in 1:nsub
         Fx1 = F(x, u)
@@ -138,10 +143,10 @@ function discretize_system_with_linearization(
     nsys,
 ) where {N, T}
     sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N, T}
+        (x::SVector{N, T}, u, tstep) -> runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
     end
     linsys_map = let nsys = nsys
-        (x::SVector{N, T}, dx::SMatrix{N, N, T}, u, tstep) -> RungeKutta4Linearized(
+        (x::SVector{N, T}, dx::SMatrix{N, N, T}, u, tstep) -> runge_kutta_4Linearized(
             F_sys,
             DF_sys,
             x,
@@ -153,7 +158,7 @@ function discretize_system_with_linearization(
     end
     sys_inv_map = let nsys = nsys
         (x::SVector{N, T}, u, tstep) ->
-            RungeKutta4(F_sys, x, u, -tstep, nsys)::SVector{N, T}
+            runge_kutta_4(F_sys, x, u, -tstep, nsys)::SVector{N, T}
     end
     error_map =
         (r::T, u, tstep) -> BoundSecondOrder(bound_DF(u), bound_DDF(u), tstep) * (r^2)::T
@@ -181,7 +186,7 @@ end
 
 function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N, T}, nsys) where {N, T}
     sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) -> RungeKutta4(F_sys, x, u, tstep, nsys)::SVector{N, T}
+        (x::SVector{N, T}, u, tstep) -> runge_kutta_4(F_sys, x, u, tstep, nsys)::SVector{N, T}
     end
     return SimpleSystem(tstep, measnoise, sys_map, F_sys)
 end
