@@ -4,7 +4,7 @@ using Test     #src
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
 #
-# This example was borrowed from [1, IX. Examples, A] whose dynamics comes from the model given in [2, Ch. 2.4].
+# This example was borrowed from [reissig2016feedback; IX. Examples, A](@cite) whose dynamics comes from the model given in [aastrom2007feedback; Ch. 2.4](@cite).
 # This is a **reachability problem** for a **continuous system**.
 #
 # Let us consider the 3-dimensional state space control system of the form
@@ -24,7 +24,7 @@ using Test     #src
 # In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
 # for the sampled system with a sampling time $\tau$.
 # For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
-# a particular cell. In this example, we consider the used of a growth bound function  [1, VIII.2, VIII.5] which is one of the possible methods to over-approximate
+# a particular cell. In this example, we consider the used of a growth bound function [reissig2016feedback; VIII.2, VIII.5](@cite) which is one of the possible methods to over-approximate
 # attainable sets of a particular cell based on the state reach by its center.
 #
 # For this reachability problem, the abstraction controller is built by solving a fixed-point equation which consists in computing the pre-image
@@ -162,7 +162,3 @@ plot!(
 
 # We display the concrete trajectory
 plot!(control_trajectory; ms = 0.5)
-
-# ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.
