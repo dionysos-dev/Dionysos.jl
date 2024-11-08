@@ -67,11 +67,15 @@ makedocs(;
     # this module for functions defined in Base that we overwrite.
     # It also errors in case we don't include a docstring in the docs
     modules = [Dionysos],
-    plugins = [BIBLIO],
+    plugins = [
+        DocumenterCitations.CitationBibliography(
+            joinpath(@__DIR__, "src", "references.bib");
+            style = :authoryear,
+        ),
+    ],
 )
 
 deploydocs(;
     repo = "github.com/dionysos-dev/Dionysos.jl.git",
     push_preview = true,
-    plugins = [BIBLIO],
 )
