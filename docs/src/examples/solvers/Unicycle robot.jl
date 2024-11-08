@@ -136,12 +136,12 @@ function growth_bound(r, u, _)
 end
 set_attribute(model, "growthbound_map", growth_bound)
 
-# We define the invariant system map:
+# We define the inverse system map:
 function sys_inv(x, u, _)
     return StaticArrays.SVector{3}(
-        x[1] - u[1] * cos((x[3] - u[2]) % (2 * π)),
-        x[2] - u[1] * sin((x[3] - u[2]) % (2 * π)),
-        (x[3] - u[2]) % (2 * π),
+        x[1] - u[1] * cos(x[3] - u[2]),
+        x[2] - u[1] * sin(x[3] - u[2]),
+        x[3] - u[2],
     )
 end
 set_attribute(model, "sys_inv_map", sys_inv)
