@@ -41,7 +41,7 @@ println("Started test")
     bound_DDF(u) = 1.0
     measnoise = SVector(1.0, 1.0) * 0.0
 
-    contsys = ST.NewControlSystemLinearizedRK4(
+    contsys = ST.discretize_system_with_linearization(
         tstep,
         F_sys,
         DF_sys,

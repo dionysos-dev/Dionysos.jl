@@ -4,6 +4,8 @@ module UniformGridAbstraction
 
 import StaticArrays
 
+import MathematicalSystems
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -37,6 +39,12 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     δGAS::Union{Nothing, Bool}
     solve_time_sec::T
     approx_mode::ApproxMode
+
+    ## for the discrete time (no need for the jacobian_bound) 
+    # but for the `growthbound_map` and `sys_inv_map`
+    growthbound_map::Union{Nothing, Function}
+    sys_inv_map::Union{Nothing, Function}
+
     function Optimizer{T}() where {T}
         return new{T}(
             nothing,
@@ -54,6 +62,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             false,
             0.0,
             GROWTH,
+            nothing,
+            nothing,
         )
     end
 end
@@ -71,6 +81,70 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
+function discretized_system(
+    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
+    model,
+    noise,
+)
+    if isnothing(model.growthbound_map)
+        error("Please set the `growthbound_map`.")
+    end
+    if isnothing(model.sys_inv_map)
+        error("Please set the `sys_inv_map`.")
+    end
+    return Dionysos.System.ControlSystemGrowth(
+        1.0, # `time_step` should be ignored by `concrete_system.f`, `model.growthbound_map` and `model.sys_inv_map` anyway
+        noise,
+        noise,
+        concrete_system.f,
+        model.growthbound_map,
+        model.sys_inv_map,
+    )
+end
+
+function discretized_system(
+    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
+    model,
+    noise,
+)
+    if isnan(model.time_step)
+        error("Please set the `time_step`.")
+    end
+
+    if model.approx_mode == GROWTH
+        if isnothing(model.jacobian_bound)
+            error("Please set the `jacobian_bound`.")
+        end
+        return Dionysos.System.discretize_system_with_growth_bound(
+            model.time_step,
+            concrete_system.f,
+            model.jacobian_bound,
+            noise,
+            noise,
+            model.num_sub_steps_system_map,
+            model.num_sub_steps_growth_bound,
+        )
+    elseif model.approx_mode == LINEARIZED
+        return Dionysos.System.discretize_system_with_linearization(
+            model.time_step,
+            concrete_system.f,
+            model.jacobian,
+            u -> 0.0,
+            u -> 0.0,
+            noise,
+            model.num_sub_steps_system_map,
+        )
+    else
+        @assert model.approx_mode == DELTA_GAS
+        return Dionysos.System.NewSimpleSystem(
+            model.time_step,
+            concrete_system.f,
+            noise,
+            model.num_sub_steps_system_map,
+        )
+    end
+end
+
 function build_abstraction(concrete_system, model)
     Xfull = DO.DomainList(model.state_grid)
     DO.add_set!(Xfull, concrete_system.X, DO.INNER)
@@ -83,42 +157,7 @@ function build_abstraction(concrete_system, model)
     nstates = Dionysos.Utils.get_dims(concrete_system.X)
     noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
 
-    if isnan(model.time_step)
-        error("Please set the `time_step`.")
-    end
-
-    model.discretized_system = if model.approx_mode == GROWTH
-        if isnothing(model.jacobian_bound)
-            error("Please set the `jacobian_bound`.")
-        end
-        Dionysos.System.NewControlSystemGrowthRK4(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian_bound,
-            noise,
-            noise,
-            model.num_sub_steps_system_map,
-            model.num_sub_steps_growth_bound,
-        )
-    elseif model.approx_mode == LINEARIZED
-        Dionysos.System.NewControlSystemLinearizedRK4(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian,
-            u -> 0.0,
-            u -> 0.0,
-            noise,
-            model.num_sub_steps_system_map,
-        )
-    else
-        @assert model.approx_mode == DELTA_GAS
-        Dionysos.System.NewSimpleSystem(
-            model.time_step,
-            concrete_system.f,
-            noise,
-            model.num_sub_steps_system_map,
-        )
-    end
+    model.discretized_system = discretized_system(concrete_system, model, noise)
 
     if model.δGAS
         @time SY.compute_deterministic_symmodel_from_controlsystem!(

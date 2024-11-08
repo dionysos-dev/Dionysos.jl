@@ -41,7 +41,7 @@ struct ControlSystemGrowth{N, T, F1 <: Function, F2 <: Function, F3 <: Function}
     sys_inv_map::F3
 end
 
-function NewControlSystemGrowthRK4(
+function discretize_system_with_growth_bound(
     tstep,
     F_sys,
     L_growthbound,
@@ -128,7 +128,7 @@ function BoundSecondOrder(a, b, tstep)
     end
 end
 
-function NewControlSystemLinearizedRK4(
+function discretize_system_with_linearization(
     tstep,
     F_sys,
     DF_sys,
@@ -276,7 +276,7 @@ end
 ############################################
 ############################################
 
-struct SymbolicSystem{}
+struct SymbolicSystem
     fsymbolicT::Any
     fsymbolic::Any
     Ts::Any
