@@ -43,7 +43,7 @@ L_growthbound = x -> abs.(A)
 measnoise = SVector(0.0, 0.0);
 sysnoise = SVector(0.0, 0.0);
 
-contsys = ST.NewControlSystemGrowthRK4(
+contsys = ST.discretize_system_with_growth_bound(
     tstep,
     F_sys,
     L_growthbound,
