@@ -39,7 +39,7 @@ println("Started test")
     sysnoise = SVector(1.0, 1.0) * 0.1
     measnoise = SVector(1.0, 1.0) * 0.0
 
-    contsys = ST.NewControlSystemGrowthRK4(
+    contsys = ST.discretize_system_with_growth_bound(
         tstep,
         F_sys,
         L_growthbound,
