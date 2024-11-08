@@ -115,7 +115,7 @@ function discretized_system(
         if isnothing(model.jacobian_bound)
             error("Please set the `jacobian_bound`.")
         end
-        return Dionysos.System.NewControlSystemGrowthRK4(
+        return Dionysos.System.discretize_system_with_growth_bound(
             model.time_step,
             concrete_system.f,
             model.jacobian_bound,
@@ -125,7 +125,7 @@ function discretized_system(
             model.num_sub_steps_growth_bound,
         )
     elseif model.approx_mode == LINEARIZED
-        return Dionysos.System.NewControlSystemLinearizedRK4(
+        return Dionysos.System.discretize_system_with_linearization(
             model.time_step,
             concrete_system.f,
             model.jacobian,
