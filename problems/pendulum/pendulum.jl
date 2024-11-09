@@ -36,7 +36,7 @@ function system(;
 )
     F_sys, L_growthbound = dynamicofsystem()
     ngrowthbound = 5
-    contsys = ST.NewControlSystemGrowthRK4(
+    contsys = ST.discretize_system_with_growth_bound(
         tstep,
         F_sys,
         L_growthbound,

@@ -22,11 +22,19 @@ u0 = SVector(0.0);
 h = SVector(0.3);
 input_grid = DO.GridFree(u0, h);
 
+l = 1.0
+g = 9.81
+function jacobian_bound(u)
+    return SMatrix{2, 2}(0.0, 1.0, (g / l), 0)
+end
+
 using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), concrete_system.f.growthbound_map)
 MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
