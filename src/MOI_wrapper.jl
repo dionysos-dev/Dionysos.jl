@@ -27,6 +27,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
+    integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
+    indicator_constraints::Vector{
+        Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
+    }
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -46,6 +50,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
+            Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
+            Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
         )
     end
 end
@@ -67,6 +73,8 @@ function MOI.empty!(model::Optimizer)
     model.objective_sense = MOI.FEASIBILITY_SENSE
     model.objective_function = zero(MOI.ScalarAffineFunction{Float64})
     model.nonlinear_index = 0
+    empty!(model.integer_variables)
+    empty!(model.indicator_constraints)
     return
 end
 
@@ -150,6 +158,35 @@ function MOI.add_constraint(
             model.nonlinear_index += 1
             return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
         end
+
+        #if var isa MOI.VariableIndex && func.head == :rem
+        #    model.lower[var.value] = set.lower
+        #    model.upper[var.value] = set.upper
+        #    model.nonlinear_index += 1
+        #    return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        #end
+        
+        # sometimes the var contains an expression of the form *(-1.0, MOI.VariableIndex(1))
+        # so we need to extract the MOI.VariableIndex and par it properly
+        if func.head == :+ && var.head == :* && var.args[2] isa MOI.VariableIndex
+            val = var.args[1]
+            var = var.args[2]
+
+            if model.lower[var.value] == -Inf
+                model.lower[var.value] = set.lower/val
+            else
+                model.lower[var.value] = max(model.lower[var.value], set.lower/val)
+            end
+
+            if model.upper[var.value] == Inf
+                model.upper[var.value] = set.upper/val
+            else
+                model.upper[var.value] = min(model.upper[var.value], set.upper/val)
+            end
+
+            model.nonlinear_index += 1
+            return MOI.ConstraintIndex{typeof(func), typeof(set)}(model.nonlinear_index)
+        end
     end
     dump(func)
     return error("Unsupported")
@@ -168,10 +205,20 @@ function MOI.add_constraint(
     func::MOI.ScalarNonlinearFunction,
     set::MOI.EqualTo,
 )
-    if func.head == :- && length(func.args) == 2
+    @show func
+    @show set
+    @show model.variable_index
+    if (func.head == :- || func.head == :+) && length(func.args) == 2
         lhs, rhs = func.args
+        @show lhs
+        @show rhs
+        @show lhs isa MOI.ScalarNonlinearFunction
+        @show length(lhs.args)
+        @show typeof(lhs)
+        @show typeof(rhs)
         if lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 1
             var = lhs.args[]
+            @show var
             if var isa MOI.VariableIndex
                 if lhs.head == :∂
                     if model.time_type == DISCRETE
@@ -205,6 +252,8 @@ function MOI.add_constraint(
                     )
                 end
             end
+        elseif lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 2
+            error("Unexpected! lhs is a MOI.ScalarNonlinearFunction with 2 args")
         end
     end
     dump(func)
@@ -240,6 +289,36 @@ function MOI.set(
 )
     model.objective_function = func
     return
+end
+
+# Adding supports for integer variables
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VariableIndex},
+    ::Type{<:Union{MOI.Integer, MOI.ZeroOne}},
+)
+    return true
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    func::MOI.VariableIndex,
+    set::Union{MOI.Integer, MOI.ZeroOne},
+)
+    model.integer_variables[func] = set
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
+end
+
+# Adding support for indicator constraints
+function JuMP._build_indicator_constraint(
+    error_fn::Function,
+    lhs::JuMP.NonlinearExpr,
+    constraint::JuMP.ScalarConstraint,
+    ::Type{MOI.Indicator{A}},
+) where {A}
+    #return error("Unsupported")
+    set = MOI.Indicator{A}(JuMP.moi_set(constraint))
+    return JuMP.VectorConstraint([lhs, JuMP.jump_function(constraint)], set)
 end
 
 MOI.supports_incremental_interface(::Optimizer) = true
@@ -397,6 +476,11 @@ function input_indices(model::Optimizer)
 end
 
 function setup!(model::Optimizer)
+    @show model.indicator_constraints
+    if length(model.indicator_constraints) > 0
+        println("mode is not supported yet")
+    end
+    print(">>Setting up the model")
     input_index = 0
     state_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
@@ -420,6 +504,7 @@ function setup!(model::Optimizer)
     vars = MOI.VariableIndex.(eachindex(model.lower))
     model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
     MOI.initialize(model.evaluator, Symbol[])
+    print(">>Model setup complete")
     return
 end
 
