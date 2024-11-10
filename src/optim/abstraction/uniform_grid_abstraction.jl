@@ -153,7 +153,7 @@ function build_abstraction(concrete_system, model)
     if isnothing(model.input_grid)
         error("Please set the `input_grid`.")
     end
-    
+
     Xfull = DO.DomainList(model.state_grid)
     DO.add_set!(Xfull, concrete_system.X, DO.INNER)
     Ufull = DO.DomainList(model.input_grid)
