@@ -397,6 +397,11 @@ function input_indices(model::Optimizer)
 end
 
 function setup!(model::Optimizer)
+    if any(isnothing, model.dynamic)
+        error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
+    end
+
+    println(">>Setting up the model")
     input_index = 0
     state_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
@@ -420,6 +425,7 @@ function setup!(model::Optimizer)
     vars = MOI.VariableIndex.(eachindex(model.lower))
     model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
     MOI.initialize(model.evaluator, Symbol[])
+    println(">>Model setup complete")
     return
 end
 
