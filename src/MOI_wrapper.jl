@@ -397,7 +397,7 @@ function input_indices(model::Optimizer)
 end
 
 function setup!(model::Optimizer)
-    if any(isnothing, model.dynamic)
+    if all(isnothing, model.dynamic)
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
 
