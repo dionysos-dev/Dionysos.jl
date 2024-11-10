@@ -129,4 +129,4 @@ plot!(
     opacity = 1.0,
 );
 plot!(control_trajectory; markersize = 1, arrows = false)
-display(fig)
+#display(fig)
