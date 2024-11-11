@@ -10,15 +10,26 @@ using Test     #src
 # The dynamics of the pendulum are given by:
 # ```math
 # dot(x_1) = x_2
+# ```
+# ```math
 # dot(x_2) = -g/l \sin(x_1) + u
 # ```
 #
 # Considering this as a reachability problem, we will use it to showcase the capabilities of the Uniform grid abstraction solving typical problem in Dionysos.
 # The initial and target sets are defined as intervals in the state space.
+#
+# ```math
 # x1_initial = [5.0 * pi / 180.0, -5.0 * pi / 180.0]
+# ```
+# ```math
 # x2_initial = [0.5, -0.5]
+# ```
+# ```math
 # x1_target = [pi + 5.0 * pi / 180.0, pi - 5.0 * pi / 180.0]
+# ```
+# ```math
 # x2_target = [1.0, -1.0]
+# ```
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
@@ -129,4 +140,3 @@ plot!(
     opacity = 1.0,
 );
 plot!(control_trajectory; markersize = 1, arrows = false)
-#display(fig)
