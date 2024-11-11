@@ -9,23 +9,23 @@ using Test     #src
 #
 # The dynamics of the pendulum are given by:
 # ```math
-# \dot(x_1) = x_2
+# \dot{x_1} = x_2
 # ```
 # ```math
-# \dot(x_2) = -g/l \sin(x_1) + u
+# \dot{x_2} = -\frac{g}{l} \sin(x_1) + u
 # ```
 #
 # Considering this as a reachability problem, we will use it to showcase the capabilities of the Uniform grid abstraction solving typical problem in Dionysos.
 # The initial and target sets are defined as intervals in the state space.
 #
 # ```math
-# x_{1,\text{initial}} = [-5.0 * pi / 180.0, 5.0 * pi / 180.0]
+# x_{1,\text{initial}} = \frac{5.0 × pi}{180.0}[-1.0, 1.0]
 # ```
 # ```math
-# x_{2,\text{initial}} = [-0.5, 0.5]
+# x_{2,\text{initial}} = 0.5 × [-1.0, 1.0]
 # ```
 # ```math
-# x_{1,\text{target}} = [pi - 5.0 * pi / 180.0, pi + 5.0 * pi / 180.0]
+# x_{1,\text{target}} = pi + \frac{5.0 × pi}{180.0}[-1.0, 1.0]
 # ```
 # ```math
 # x_{2,\text{target}} = [-1.0, 1.0]
