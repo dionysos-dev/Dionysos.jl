@@ -86,6 +86,5 @@ plot!(
     opacity = 1.0,
 );
 plot!(control_trajectory; markersize = 1, arrows = false)
-display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
