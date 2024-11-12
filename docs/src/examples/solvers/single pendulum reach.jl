@@ -9,26 +9,22 @@ using Test     #src
 #
 # The dynamics of the pendulum are given by:
 # ```math
-# \dot{x_1} = x_2
-# ```
-# ```math
-# \dot{x_2} = -\frac{g}{l} \sin(x_1) + u
+# \begin{align}
+# \dot{x}_1 & = x_2\\
+# \dot{x}_2 & = -\frac{g}{l} \sin(x_1) + u
+# \end{align}
 # ```
 #
 # Considering this as a reachability problem, we will use it to showcase the capabilities of the Uniform grid abstraction solving typical problem in Dionysos.
 # The initial and target sets are defined as intervals in the state space.
 #
 # ```math
-# x_{1,\text{initial}} = \frac{5.0 × pi}{180.0}[-1.0, 1.0]
-# ```
-# ```math
-# x_{2,\text{initial}} = 0.5 × [-1.0, 1.0]
-# ```
-# ```math
-# x_{1,\text{target}} = pi + \frac{5.0 × pi}{180.0}[-1.0, 1.0]
-# ```
-# ```math
-# x_{2,\text{target}} = [-1.0, 1.0]
+# \begin{align}
+# x_{1,\text{initial}} & = \frac{5.0 × \pi}{180.0}[-1.0, 1.0]
+# x_{2,\text{initial}} & = 0.5 × [-1.0, 1.0]
+# x_{1,\text{target}} & = \pi + \frac{5.0 × \pi}{180.0}[-1.0, 1.0]
+# x_{2,\text{target}} & = [-1.0, 1.0]
+# \end{align}
 # ```
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
@@ -40,22 +36,27 @@ using Dionysos, JuMP
 # Define the problem using JuMP
 # We first create a JuMP model:
 model = Model(Dionysos.Optimizer)
+nothing #hide
 
 # Define the discretization step
 hx = 0.05
 l = 1.0
 g = 9.81
+nothing #hide
 
 # Define the state variables: x1(t), x2(t)
 x_low, x_upp = [-π, -10.0], [π + pi, 10.0]
 @variable(model, x_low[i] <= x[i = 1:2] <= x_upp[i])
+nothing #hide
 
-# Define the control variables: u1(t), u2(t)
+# Define the control variables: ``u_1(t)``, ``u_2(t)``
 @variable(model, -3.0 <= u <= 3.0)
+nothing #hide
 
 # Define the dynamics
 @constraint(model, ∂(x[1]) == x[2])
 @constraint(model, ∂(x[2]) == -(g / l) * sin(x[1]) + u)
+nothing #hide
 
 # Define the initial and target sets
 x1_initial, x2_initial = (5.0 * pi / 180.0) .* [-1, 1], 0.5 .* [-1, 1]
@@ -98,6 +99,7 @@ abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
+nothing #hide
 
 # ### Trajectory display
 nstep = 100
