@@ -7,7 +7,7 @@ import Symbolics
 
 @enum(VariableType, INPUT, STATE, MODE)
 
-@enum(TimeType, UNKNOWN, CONTINUOUS, DISCRETE)
+@enum(TimeType, UNKNOWN, CONTINUOUS, DISCRETE, HYBRID)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Any
@@ -27,6 +27,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
+    modes_table::Vector{Union{Nothing, (MOI.VariableIndex, Function)}} # mode_index -> (mode_var, mode_func)
+    guards_table::Vector{Union{Nothing, (MOI.VariableIndex, MOI.VariableIndex , Function)}}  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
+    resetmaps_table::Vector{Union{Nothing, (Function , Function)}}  # resetmap_index -> (mode_func, resetmap_func)
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -46,6 +49,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
+            Union{Nothing, (MOI.VariableIndex, Function)}[],
+            Union{Nothing, (MOI.VariableIndex, MOI.VariableIndex , Function)}[],
+            Union{Nothing, (Function , Function)}[],
         )
     end
 end
@@ -67,6 +73,9 @@ function MOI.empty!(model::Optimizer)
     model.objective_sense = MOI.FEASIBILITY_SENSE
     model.objective_function = zero(MOI.ScalarAffineFunction{Float64})
     model.nonlinear_index = 0
+    empty!(model.modes_table)
+    empty!(model.guards_table)
+    empty!(model.resetmaps_table)
     return
 end
 
@@ -309,6 +318,11 @@ function dynamic(model, x_idx, u_idx)
     return F_sys
 end
 
+function _hybrid_system(model, x_idx, u_idx)
+    error("Hybrid systems are not yet supported")
+    return
+end
+
 function system(
     model,
     x_idx,
@@ -334,7 +348,7 @@ function system(
             _X_,
             _U_,
         )
-    else
+    elseif model.time_type == DISCRETE
         # `dynamic(model, x_idx, u_idx)` is a function `(x_k, u) -> x_{k+1}`
         # However, `UniformGridAbstraction` will call it with `(x, u, t)` so with
         # an additional time argument. I would expect it to error because there is
@@ -349,6 +363,10 @@ function system(
             _X_,
             _U_,
         )
+    elseif model.time_type == HYBRID
+        return _hybrid_system(model, x_idx, u_idx)
+    else
+        error("The system type is unknown")
     end
 end
 
@@ -377,7 +395,9 @@ function problem(model::Optimizer)
 end
 
 function variable_type(model::Optimizer, vi::MOI.VariableIndex)
-    if isnothing(model.dynamic[vi.value])
+    if  model.variable_types[vi.value] == MODE
+        return MODE
+    elseif isnothing(model.dynamic[vi.value])
         return INPUT
     else
         return STATE
@@ -396,7 +416,14 @@ function input_indices(model::Optimizer)
     end
 end
 
+function mode_indices(model::Optimizer)
+    return findall(eachindex(model.variable_index)) do i
+        return variable_type(model, MOI.VariableIndex(i)) == MODE
+    end
+end
+
 function setup!(model::Optimizer)
+    @show model.dynamic
     if all(isnothing, model.dynamic)
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
@@ -404,9 +431,11 @@ function setup!(model::Optimizer)
     println(">>Setting up the model")
     input_index = 0
     state_index = 0
+    mode_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
     for i in eachindex(model.variable_types)
-        if variable_type(model, MOI.VariableIndex(i)) == STATE
+        var_type = variable_type(model, MOI.VariableIndex(i))
+        if var_type == STATE
             # The set does not matter
             MOI.Nonlinear.add_constraint(
                 model.nlp_model,
@@ -415,9 +444,12 @@ function setup!(model::Optimizer)
             )
             state_index += 1
             model.variable_index[i] = state_index
-        else
+        elseif var_type == INPUT
             input_index += 1
             model.variable_index[i] = input_index
+        elseif var_type == MODE
+            mode_index += 1
+            model.variable_index[i] = mode_index
         end
     end
     model.derivative_values = fill(NaN, state_index)
