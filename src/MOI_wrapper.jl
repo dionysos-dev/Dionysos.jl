@@ -27,9 +27,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
-    modes_table::Vector{Union{Nothing, (MOI.VariableIndex, Function)}} # mode_index -> (mode_var, mode_func)
-    guards_table::Vector{Union{Nothing, (MOI.VariableIndex, MOI.VariableIndex , Function)}}  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
-    resetmaps_table::Vector{Union{Nothing, (Function , Function)}}  # resetmap_index -> (mode_func, resetmap_func)
+    modes_table::Vector{Union{Nothing, Tuple{MOI.VariableIndex, Function}}} # mode_index -> (mode_var, mode_func)
+    guards_table::Vector{Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex , Function}}}  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
+    resetmaps_table::Vector{Union{Nothing, Tuple{Function , Function}}}  # resetmap_index -> (mode_func, resetmap_func)
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -49,9 +49,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
-            Union{Nothing, (MOI.VariableIndex, Function)}[],
-            Union{Nothing, (MOI.VariableIndex, MOI.VariableIndex , Function)}[],
-            Union{Nothing, (Function , Function)}[],
+            Union{Nothing, Tuple{MOI.VariableIndex, Function}}[],
+            Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex , Function}}[],
+            Union{Nothing, Tuple{Function , Function}}[],
         )
     end
 end
