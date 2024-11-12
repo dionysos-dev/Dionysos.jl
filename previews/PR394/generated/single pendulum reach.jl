@@ -29,6 +29,7 @@ x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
+nothing #hide
 
 function jacobian_bound(u)
     return SMatrix{2, 2}(0.0, 1.0, (g / l), 0)
