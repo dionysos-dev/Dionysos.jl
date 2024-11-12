@@ -20,9 +20,9 @@ using Test     #src
 #
 # ```math
 # \begin{align}
-# x_{1,\text{initial}} & = \frac{5.0 × \pi}{180.0}[-1.0, 1.0]
-# x_{2,\text{initial}} & = 0.5 × [-1.0, 1.0]
-# x_{1,\text{target}} & = \pi + \frac{5.0 × \pi}{180.0}[-1.0, 1.0]
+# x_{1,\text{initial}} & = \frac{5.0 × \pi}{180.0}[-1.0, 1.0]\\
+# x_{2,\text{initial}} & = 0.5 × [-1.0, 1.0]\\
+# x_{1,\text{target}} & = \pi + \frac{5.0 × \pi}{180.0}[-1.0, 1.0]\\
 # x_{2,\text{target}} & = [-1.0, 1.0]
 # \end{align}
 # ```
