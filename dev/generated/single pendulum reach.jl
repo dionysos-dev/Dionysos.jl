@@ -3,18 +3,23 @@ using StaticArrays, Plots
 using Dionysos, JuMP
 
 model = Model(Dionysos.Optimizer)
+nothing #hide
 
 hx = 0.05
 l = 1.0
 g = 9.81
+nothing #hide
 
 x_low, x_upp = [-π, -10.0], [π + pi, 10.0]
 @variable(model, x_low[i] <= x[i = 1:2] <= x_upp[i])
+nothing #hide
 
 @variable(model, -3.0 <= u <= 3.0)
+nothing #hide
 
 @constraint(model, ∂(x[1]) == x[2])
 @constraint(model, ∂(x[2]) == -(g / l) * sin(x[1]) + u)
+nothing #hide
 
 x1_initial, x2_initial = (5.0 * pi / 180.0) .* [-1, 1], 0.5 .* [-1, 1]
 x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
@@ -24,6 +29,7 @@ x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
+nothing #hide
 
 function jacobian_bound(u)
     return SMatrix{2, 2}(0.0, 1.0, (g / l), 0)
@@ -48,6 +54,7 @@ abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
+nothing #hide
 
 nstep = 100
 function reached(x)
