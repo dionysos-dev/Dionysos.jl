@@ -478,7 +478,7 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, Δ, final, start
+export ∂, Δ, final, start, rem_op
 
 function _diff end
 ∂ = JuMP.NonlinearOperator(_diff, :∂)
