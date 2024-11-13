@@ -28,8 +28,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
     modes_table::Vector{Union{Nothing, Tuple{MOI.VariableIndex, Function}}} # mode_index -> (mode_var, mode_func)
-    guards_table::Vector{Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex , Function}}}  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
-    resetmaps_table::Vector{Union{Nothing, Tuple{Function , Function}}}  # resetmap_index -> (mode_func, resetmap_func)
+    guards_table::Vector{
+        Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex, Function}},
+    }  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
+    resetmaps_table::Vector{Union{Nothing, Tuple{Function, Function}}}  # resetmap_index -> (mode_func, resetmap_func)
+    integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
+    indicator_constraints::Vector{
+        Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
+    }
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -50,8 +56,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
             Union{Nothing, Tuple{MOI.VariableIndex, Function}}[],
-            Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex , Function}}[],
-            Union{Nothing, Tuple{Function , Function}}[],
+            Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex, Function}}[],
+            Union{Nothing, Tuple{Function, Function}}[],
+            Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
+            Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
         )
     end
 end
@@ -76,6 +84,8 @@ function MOI.empty!(model::Optimizer)
     empty!(model.modes_table)
     empty!(model.guards_table)
     empty!(model.resetmaps_table)
+    empty!(model.integer_variables)
+    empty!(model.indicator_constraints)
     return
 end
 
@@ -251,6 +261,37 @@ function MOI.set(
     return
 end
 
+# Adding supports for integer variables
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VariableIndex},
+    ::Type{<:Union{MOI.Integer, MOI.ZeroOne}},
+)
+    return true
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    func::MOI.VariableIndex,
+    set::Union{MOI.Integer, MOI.ZeroOne},
+)
+    model.integer_variables[func] = set
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
+end
+
+# Adding support for indicator constraints
+function JuMP._build_indicator_constraint(
+    error_fn::Function,
+    lhs::JuMP.NonlinearExpr,
+    constraint::JuMP.ScalarConstraint,
+    ::Type{MOI.Indicator{A}},
+) where {A}
+    #return error("Unsupported")
+    set = MOI.Indicator{A}(JuMP.moi_set(constraint))
+    return JuMP.VectorConstraint([lhs, JuMP.jump_function(constraint)], set)
+end
+
+# Support incremental interface
 MOI.supports_incremental_interface(::Optimizer) = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
@@ -395,7 +436,7 @@ function problem(model::Optimizer)
 end
 
 function variable_type(model::Optimizer, vi::MOI.VariableIndex)
-    if  model.variable_types[vi.value] == MODE
+    if model.variable_types[vi.value] == MODE
         return MODE
     elseif isnothing(model.dynamic[vi.value])
         return INPUT
@@ -478,7 +519,7 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, Δ, final, start, rem_op
+export ∂, Δ, final, start, rem, guard
 
 function _diff end
 ∂ = JuMP.NonlinearOperator(_diff, :∂)
@@ -494,6 +535,10 @@ start = JuMP.NonlinearOperator(_start, :start)
 
 function rem end
 rem_op = JuMP.NonlinearOperator(rem, :rem)
+
+# Define the mode variable, name can be any integer or string
+function _guard end
+guard = JuMP.NonlinearOperator(_guard, :guard)
 
 # Type piracy
 function JuMP.parse_constraint_call(
