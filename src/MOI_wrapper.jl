@@ -519,7 +519,7 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
 
-export ∂, Δ, final, start, rem, guard
+export ∂, Δ, final, start, rem
 
 function _diff end
 ∂ = JuMP.NonlinearOperator(_diff, :∂)
@@ -535,10 +535,6 @@ start = JuMP.NonlinearOperator(_start, :start)
 
 function rem end
 rem_op = JuMP.NonlinearOperator(rem, :rem)
-
-# Define the mode variable, name can be any integer or string
-function _guard end
-guard = JuMP.NonlinearOperator(_guard, :guard)
 
 # Type piracy
 function JuMP.parse_constraint_call(
