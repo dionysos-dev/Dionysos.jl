@@ -1,9 +1,11 @@
 import MathOptInterface as MOI
 import StaticArrays as SA
-import MathematicalSystems
+import MathematicalSystems, HybridSystems
 import JuMP
 import MathOptSymbolicAD
 import Symbolics
+
+export ∂, Δ, final, start, rem, Transition
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -291,6 +293,48 @@ function JuMP._build_indicator_constraint(
     return JuMP.VectorConstraint([lhs, JuMP.jump_function(constraint)], set)
 end
 
+# Adding support for transitions constraints
+## Transition
+struct Transition
+    model::JuMP.Model
+    mode_variable::JuMP.VariableRef
+    source_mode::Int
+    destination_mode::Int
+    switching_type::HybridSystems.AbstractSwitching
+end
+
+## Constructor for Transition
+function Transition(
+    model::JuMP.GenericModel,
+    mode_variable::JuMP.VariableRef,
+    source_mode::Int,
+    destination_mode::Int,
+    switching_type::HybridSystems.AbstractSwitching = HybridSystems.ControlledSwitching(),
+)
+    return Transition(model, mode_variable, source_mode, destination_mode, switching_type)
+end
+
+JuMP._valid_model(::Transition, ::Any) = nothing
+
+function JuMP.model_convert(t::Transition, con::Any)
+    return JuMP.model_convert(t.model, con)
+end
+
+function JuMP.add_constraint(
+    t::Transition, 
+    condition,
+    ::String
+)
+    model = t.model
+    mode_variable = t.mode_variable
+    source_mode = t.source_mode
+    destination_mode = t.destination_mode
+    switching_type = t.switching_type
+    set = JuMP.moi_set(condition)
+    @show set
+    error("Unsupported")
+end
+
 # Support incremental interface
 MOI.supports_incremental_interface(::Optimizer) = true
 
@@ -518,8 +562,6 @@ end
 function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
-
-export ∂, Δ, final, start, rem
 
 function _diff end
 ∂ = JuMP.NonlinearOperator(_diff, :∂)
