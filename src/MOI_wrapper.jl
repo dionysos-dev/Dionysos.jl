@@ -326,11 +326,7 @@ guard = JuMP.NonlinearOperator(_guard, :guard)
 function _resetmaps end
 resetmaps = JuMP.NonlinearOperator(_resetmaps, :resetmaps)
 
-function JuMP.add_constraint(
-    t::Transition, 
-    condition,
-    ::String
-)
+function JuMP.add_constraint(t::Transition, condition, ::String)
     if !(condition isa JuMP.ScalarConstraint)
         error("Unsupported constraint type. `ScalarConstraint` expected.")
     end
@@ -346,18 +342,23 @@ function JuMP.add_constraint(
     switching_type = t.switching_type
 
     lhs_expr = if condition.func isa JuMP.NonlinearExpr
-        JuMP.@expression(model, resetmaps(mode_variable == source_mode, mode_variable == destination_mode))
+        JuMP.@expression(
+            model,
+            resetmaps(mode_variable == source_mode, mode_variable == destination_mode)
+        )
     else
-        JuMP.@expression(model, guard(mode_variable == source_mode, mode_variable == destination_mode))
+        JuMP.@expression(
+            model,
+            guard(mode_variable == source_mode, mode_variable == destination_mode)
+        )
     end
-    
+
     return JuMP._build_indicator_constraint(
         JuMP.error,
         lhs_expr,
         condition,
         MOI.Indicator{MOI.ACTIVATE_ON_ONE},
     )
-    
 end
 
 function add_transition!(
