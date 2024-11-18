@@ -62,12 +62,18 @@ T_start = 10.0
 @constraint(model, mode == 1 => {∂(T) == k * u})
 @constraint(model, mode == 0 => {∂(T) == -α})
 
+
 # Define the guards
-@constraint(model, guard(mode == 1, mode == 0) => {T >= T_r - δ})
-@constraint(model, guard(mode == 0, mode == 1) => {T <= T_r + δ})
+#@constraint(model, guard(mode == 1, mode == 0) => {T >= T_r - δ})
+#@constraint(model, guard(mode == 0, mode == 1) => {T <= T_r + δ})
+t_01 = Transition(model, mode, 0, 1)
+@constraint(t_01, T <= T_r + δ)
+t_10 = Transition(model, mode, 1, 0)
+@constraint(t_10, T >= T_r - δ)
 
 # Define the resetmaps
-#@constraint(model, undefined)
+#@constraint(model, resetmaps(mode == 0, mode == 1) => {Δ(T) == ...})
+#@constraint(t_01, Δ(T) == ...)
 
 # Define the initial set 
 @constraint(model, start(T) in MOI.Interval(9.5, 10.5))
