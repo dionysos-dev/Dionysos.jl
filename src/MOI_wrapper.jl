@@ -5,7 +5,7 @@ import JuMP
 import MathOptSymbolicAD
 import Symbolics
 
-export ∂, Δ, final, start, rem, Transition
+export ∂, Δ, final, start, rem, Transition, add_transition!
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -358,6 +358,19 @@ function JuMP.add_constraint(
         MOI.Indicator{MOI.ACTIVATE_ON_ONE},
     )
     
+end
+
+function add_transition!(
+    f::Function,
+    model::JuMP.GenericModel,
+    mode_variable::JuMP.VariableRef,
+    from::Int,
+    to::Int,
+    switching_type::HybridSystems.AbstractSwitching = HybridSystems.ControlledSwitching(),
+)
+    t = Transition(model, mode_variable, from, to, switching_type)
+    f(t)
+    return t
 end
 
 # Support incremental interface
