@@ -320,19 +320,44 @@ function JuMP.model_convert(t::Transition, con::Any)
     return JuMP.model_convert(t.model, con)
 end
 
+function _guard end
+guard = JuMP.NonlinearOperator(_guard, :guard)
+
+function _resetmaps end
+resetmaps = JuMP.NonlinearOperator(_resetmaps, :resetmaps)
+
 function JuMP.add_constraint(
     t::Transition, 
     condition,
     ::String
 )
+    if !(condition isa JuMP.ScalarConstraint)
+        error("Unsupported constraint type. `ScalarConstraint` expected.")
+    end
+
+    if !(condition.func isa JuMP.NonlinearExpr || condition.func isa JuMP.AffExpr)
+        error("Unsupported function type. `NonlinearExpr` or `AffExpr` expected.")
+    end
+
     model = t.model
     mode_variable = t.mode_variable
     source_mode = t.source_mode
     destination_mode = t.destination_mode
     switching_type = t.switching_type
-    set = JuMP.moi_set(condition)
-    @show set
-    error("Unsupported")
+
+    lhs_expr = if condition.func isa JuMP.NonlinearExpr
+        JuMP.@expression(model, resetmaps(mode_variable == source_mode, mode_variable == destination_mode))
+    else
+        JuMP.@expression(model, guard(mode_variable == source_mode, mode_variable == destination_mode))
+    end
+    
+    return JuMP._build_indicator_constraint(
+        JuMP.error,
+        lhs_expr,
+        condition,
+        MOI.Indicator{MOI.ACTIVATE_ON_ONE},
+    )
+    
 end
 
 # Support incremental interface
