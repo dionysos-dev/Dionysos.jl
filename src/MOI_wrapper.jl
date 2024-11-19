@@ -187,6 +187,7 @@ function MOI.add_constraint(
     func::MOI.ScalarNonlinearFunction,
     set::MOI.EqualTo,
 )
+
     if func.head == :- && length(func.args) == 2
         lhs, rhs = func.args
         if lhs isa MOI.ScalarNonlinearFunction && length(lhs.args) == 1
@@ -230,21 +231,57 @@ function MOI.add_constraint(
     return error("Unsupported")
 end
 
-function MOI.supports(::Optimizer, ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunction})
-    return true
-end
+function _handle_hybrid_systems_table(model, lhs, rhs)
+    # Set hybrid systems tables
 
-function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex})
-    return true
-end
-
-function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
-    # create a MOI.Interval from the value if value is a scalar
-    if !isa(value, MOI.Interval)
-        value = MOI.Interval(value, value)
+    if !(length(lhs.args) == 2)
+        error(
+            "Unsupported! If you are defining a mode the left-hand side must be something like mode == val. If you are defining a guard or resetmap, use add_transition.",
+        )
     end
 
-    return model.start[vi.value] = value
+    # handling mode
+    if lhs.head == :(==)
+        lhs_var, lhs_val = lhs.args[1], lhs.args[2]
+        if !(lhs_var isa JuMP.VariableRef && lhs_val isa Int)
+            error(
+                "Unsupported! If you are defining a mode the left-hand side must be something like mode == val.",
+            )
+        end
+
+        if !haskey(model.ext, :modes)
+            model.ext[:modes] = []
+        end
+
+        push!(model.ext[:modes], (lhs_var, lhs_val, rhs))
+    end
+
+    # handling guard
+    if lhs.head == :guard
+        lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2]
+
+        if !haskey(model.ext, :guards)
+            model.ext[:guards] = []
+        end
+
+        push!(model.ext[:guards], (lhs_var, lhs_src, lhs_dst, rhs))
+    end
+
+    # handling resetmap
+    if lhs.head == :resetmaps
+        lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2]
+
+        if !haskey(model.ext, :resetmaps)
+            model.ext[:resetmaps] = []
+        end
+
+        push!(model.ext[:resetmaps], (lhs_var, lhs_src, lhs_dst, rhs))
+    end
+end
+
+# Adding support for objective sense
+function MOI.supports(::Optimizer, ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunction})
+    return true
 end
 
 function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
@@ -259,6 +296,20 @@ function MOI.set(
 )
     model.objective_function = func
     return
+end
+
+# Adding support for primal start
+function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex})
+    return true
+end
+
+function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
+    # create a MOI.Interval from the value if value is a scalar
+    if !isa(value, MOI.Interval)
+        value = MOI.Interval(value, value)
+    end
+
+    return model.start[vi.value] = value
 end
 
 # Adding supports for integer variables
@@ -280,72 +331,6 @@ function MOI.add_constraint(
 end
 
 # Adding support for indicator constraints
-function _handle_affExpr(fun, set)
-    if !(fun isa JuMP.AffExpr)
-        error("Unsupported function type. `AffExpr` expected.")
-    end
-
-    if set isa MOI.LessThan
-        return JuMP.NonlinearExpr(:(<=), fun, set.upper)
-    elseif set isa MOI.GreaterThan
-        return JuMP.NonlinearExpr(:(>=), fun, set.lower)
-    elseif set isa MOI.EqualTo
-        return JuMP.NonlinearExpr(:(==), fun, set.value)
-    end
-
-    return error(
-        "Unsupported set type {$type(set)}. `LessThan`, `GreaterThan` or `EqualTo` expected.",
-    )
-end
-
-function _handle_hybrid_systems_table(model, expr, fun)
-    # Set hybrid systems tables
-
-    if !(length(expr.args) == 2)
-        error(
-            "Unsupported! If you are defining a mode the left-hand side must be something like mode == val. If you are defining a guard or resetmap, use add_transition.",
-        )
-    end
-
-    # handling mode
-    if expr.head == :(==)
-        lhs_var, lhs_val = expr.args[1], expr.args[2]
-        if !(lhs_var isa JuMP.VariableRef && lhs_val isa Int)
-            error(
-                "Unsupported! If you are defining a mode the left-hand side must be something like mode == val.",
-            )
-        end
-
-        if !haskey(model.ext, :modes)
-            model.ext[:modes] = []
-        end
-
-        push!(model.ext[:modes], (lhs_var, lhs_val, fun))
-    end
-
-    # handling guard
-    if expr.head == :guard
-        lhs_var, lhs_src, lhs_dst = expr.args[1].args[1], expr.args[1].args[2], expr.args[2]
-
-        if !haskey(model.ext, :guards)
-            model.ext[:guards] = []
-        end
-
-        push!(model.ext[:guards], (lhs_var, lhs_src, lhs_dst, fun))
-    end
-
-    # handling resetmap
-    if expr.head == :resetmaps
-        lhs_var, lhs_src, lhs_dst = expr.args[1].args[1], expr.args[1].args[2], expr.args[2]
-
-        if !haskey(model.ext, :resetmaps)
-            model.ext[:resetmaps] = []
-        end
-
-        push!(model.ext[:resetmaps], (lhs_var, lhs_src, lhs_dst, fun))
-    end
-end
-
 function JuMP._build_indicator_constraint(
     error_fn::Function,
     lhs::JuMP.NonlinearExpr,
@@ -374,17 +359,7 @@ function JuMP._build_indicator_constraint(
         )
     end
 
-    # Check if the function is a aff expression in which case convert it into a nonlinear expression
-    if lhs isa JuMP.NonlinearExpr
-        stored_fun = fun
-        if stored_fun isa JuMP.AffExpr
-            stored_fun = _handle_affExpr(fun, set)
-        end
-        _handle_hybrid_systems_table(model, lhs, stored_fun)
-    end
-
-    # Build the constraint
-    return JuMP.build_constraint(error_fn, fun, set)
+    return JuMP.VectorConstraint([lhs, fun], set)
 end
 
 # Adding support for transitions constraints
@@ -419,6 +394,24 @@ guard = JuMP.NonlinearOperator(_guard, :guard)
 
 function _resetmaps end
 resetmaps = JuMP.NonlinearOperator(_resetmaps, :resetmaps)
+
+function _handle_affExpr(fun, set)
+    if !(fun isa JuMP.AffExpr)
+        error("Unsupported function type. `AffExpr` expected.")
+    end
+
+    if set isa MOI.LessThan
+        return JuMP.NonlinearExpr(:(<=), fun, set.upper)
+    elseif set isa MOI.GreaterThan
+        return JuMP.NonlinearExpr(:(>=), fun, set.lower)
+    elseif set isa MOI.EqualTo
+        return JuMP.NonlinearExpr(:(==), fun, set.value)
+    end
+
+    return error(
+        "Unsupported set type {$type(set)}. `LessThan`, `GreaterThan` or `EqualTo` expected.",
+    )
+end
 
 function JuMP.add_constraint(t::Transition, condition, ::String)
     if !(condition isa JuMP.ScalarConstraint)
@@ -456,7 +449,7 @@ function JuMP.add_constraint(t::Transition, condition, ::String)
 
     # Combine the lhs and rhs expressions
     expr = JuMP.NonlinearExpr(:(==), lhs_expr, rhs_expr)
-    
+
     # Build the constraint
     return JuMP.build_constraint(JuMP.error, expr, MOI.EqualTo(0.0))
 end
