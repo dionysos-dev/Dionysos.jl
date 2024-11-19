@@ -5,7 +5,7 @@ import JuMP
 import MathOptSymbolicAD
 import Symbolics
 
-export ∂, Δ, final, start, rem, Transition, add_transition!
+export ∂, Δ, final, start, rem, Transition, add_transition!, guard, resetmaps, themode
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -29,11 +29,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
-    modes_table::Vector{Union{Nothing, Tuple{MOI.VariableIndex, Function}}} # mode_index -> (mode_var, mode_func)
-    guards_table::Vector{
-        Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex, Function}},
-    }  # guard_index -> (mode_var_src, mode_var_dst, guard_func)
-    resetmaps_table::Vector{Union{Nothing, Tuple{Function, Function}}}  # resetmap_index -> (mode_func, resetmap_func)
+    modes_table::Vector{Union{Nothing, Tuple{JuMP.VariableRef, Int64, Function}}} # mode_index -> (mode_var, mode_val, mode_func)
+    guards_table::Vector{Union{Nothing, Tuple{JuMP.VariableRef, Int64, Int64, Function}}}  # guard_index -> (mode_var, src, dst, guard_func)
+    resetmaps_table::Vector{Union{Nothing, Tuple{JuMP.VariableRef, Int64, Int64, Function}}}  # resetmap_index -> (mode_var, src, dst, resetmap_func)
     integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
     indicator_constraints::Vector{
         Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
@@ -57,9 +55,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.FEASIBILITY_SENSE,
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
-            Union{Nothing, Tuple{MOI.VariableIndex, Function}}[],
-            Union{Nothing, Tuple{MOI.VariableIndex, MOI.VariableIndex, Function}}[],
-            Union{Nothing, Tuple{Function, Function}}[],
+            Union{Nothing, Tuple{JuMP.VariableRef, Int64, Function}}[],
+            Union{Nothing, Tuple{JuMP.VariableRef, Int64, Int64, Function}}[],
+            Union{Nothing, Tuple{JuMP.VariableRef, Int64, Int64, Function}}[],
             Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
             Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
         )
@@ -288,9 +286,75 @@ function JuMP._build_indicator_constraint(
     constraint::JuMP.ScalarConstraint,
     ::Type{MOI.Indicator{A}},
 ) where {A}
-    #return error("Unsupported")
-    set = MOI.Indicator{A}(JuMP.moi_set(constraint))
-    return JuMP.VectorConstraint([lhs, JuMP.jump_function(constraint)], set)
+    # Get the function and set
+    fun, set = JuMP.jump_function(constraint), JuMP.moi_set(constraint)
+    model = JuMP.owner_model(lhs)
+
+    # Check if the function is a aff expression in which case convert it into a nonlinear expression
+    stored_fun = fun
+    if fun isa JuMP.AffExpr
+        fun, set = constraint.func, constraint.set
+        stored_fun = if set isa MOI.LessThan
+            JuMP.NonlinearExpr(:(<=), fun, set.upper)
+        elseif set isa MOI.GreaterThan
+            JuMP.NonlinearExpr(:(>=), fun, set.lower)
+        elseif set isa MOI.EqualTo
+            JuMP.NonlinearExpr(:(==), fun, set.value)
+        else
+            error("Unsupported set type")
+        end
+        @show stored_fun
+    end
+    
+    # Set hybrid systems tables
+    if lhs isa JuMP.NonlinearExpr
+        if !(length(lhs.args) == 2)
+            error(
+                "Unsupported! If you are defining a mode the left-hand side must be something like mode == val. If you are defining a guard or resetmap, use add_transition.",
+            )
+        end
+
+        # handling mode
+        if lhs.head == :(==)
+            lhs_var, lhs_val = lhs.args[1], lhs.args[2]
+            if !(lhs_var isa JuMP.VariableRef && lhs_val isa Int)
+                error(
+                    "Unsupported! If you are defining a mode the left-hand side must be something like mode == val.",
+                )
+            end
+
+            if !haskey(model.ext, :modes)
+                model.ext[:modes] = []
+            end
+
+            push!(model.ext[:modes], (lhs_var, lhs_val, stored_fun))
+        end
+
+        # handling guard
+        if lhs.head == :guard
+            lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2]
+            
+            if !haskey(model.ext, :guards)
+                model.ext[:guards] = []
+            end
+
+            push!(model.ext[:guards], (lhs_var, lhs_src, lhs_dst, stored_fun))
+        end
+
+        # handling resetmap
+        if lhs.head == :resetmaps
+            lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2]
+
+            if !haskey(model.ext, :resetmaps)
+                model.ext[:resetmaps] = []
+            end
+
+            push!(model.ext[:resetmaps], (lhs_var, lhs_src, lhs_dst, stored_fun))
+        end
+    end
+
+    # Build the constraint
+    return JuMP.build_constraint(error_fn, fun, set)
 end
 
 # Adding support for transitions constraints
@@ -616,6 +680,9 @@ start = JuMP.NonlinearOperator(_start, :start)
 
 function rem end
 rem_op = JuMP.NonlinearOperator(rem, :rem)
+
+function _themode end
+themode = JuMP.NonlinearOperator(_themode, :themode)
 
 # Type piracy
 function JuMP.parse_constraint_call(

@@ -32,7 +32,7 @@ using Test
 using StaticArrays, Plots
 
 # At this point, we import Dionysos and JuMP.
-using Dionysos, JuMP
+using JuMP, Dionysos
 
 # We define the parameters of the system.
 k = 0.5 # Maximum heating rate (degrees per unit time)
@@ -69,7 +69,7 @@ T_start = 10.0
 #@constraint(model, resetmaps(mode == 0, mode == 1) => {Δ(T) == ...})
 add_transition!(model, mode, 0, 1) do t
     @constraint(t, T <= T_r + δ) # guard
-    #@constraint(t, Δ(T) == ...) # resetmap
+    @constraint(t, Δ(T) == k * u) # resetmap
 end
 
 ## Transition 1 -> 0
