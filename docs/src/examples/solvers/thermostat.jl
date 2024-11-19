@@ -106,4 +106,3 @@ set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 # ### Solving the problem
 optimize!(model)
-

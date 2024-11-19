@@ -32,8 +32,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
     mode_variable::Union{Nothing, MOI.VariableIndex}
-    guards_table::Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}  # transition_index -> [(src, dst, guard_func) for each state]
-    resetmaps_table::Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}  # transition_index -> [(src, dst, resetmap_func) for each state]
+    guards_table::Dict{
+        String,
+        Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+    }  # transition_index -> [(src, dst, guard_func) for each state]
+    resetmaps_table::Dict{
+        String,
+        Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+    }  # transition_index -> [(src, dst, resetmap_func) for each state]
     integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
     indicator_constraints::Vector{
         Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
@@ -58,8 +64,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             zero(MOI.ScalarAffineFunction{Float64}),
             0,
             nothing,
-            Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}(),
-            Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}(),
+            Dict{
+                String,
+                Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+            }(),
+            Dict{
+                String,
+                Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+            }(),
             Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
             Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
         )
@@ -274,7 +286,10 @@ end
 
 function _update_guard_table!(model, src, dst, func, val)
     if isempty(model.guards_table)
-        model.guards_table = Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}()
+        model.guards_table = Dict{
+            String,
+            Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+        }()
     end
 
     transition = "$src->$dst"
@@ -291,7 +306,10 @@ end
 
 function _update_resetmaps_table!(model, src, dst, func, val)
     if isempty(model.resetmaps_table)
-        model.resetmaps_table = Dict{String, Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}}}()
+        model.resetmaps_table = Dict{
+            String,
+            Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
+        }()
     end
 
     transition = "$src->$dst"
@@ -350,7 +368,7 @@ function MOI.add_constraint(
     return error("Unsupported! Happened when adding equality constraint.")
 end
 
-function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set=MOI.EqualTo)
+function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set = MOI.EqualTo)
     # Set hybrid systems tables
     if !(length(lhs.args) == 2)
         error(
@@ -389,12 +407,13 @@ function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set=MOI.EqualT
 
     # handling guard
     if lhs.head == :guard
-        lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2].args[2]
-        
+        lhs_var, lhs_src, lhs_dst =
+            lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2].args[2]
+
         @show rhs
         @show rhs.args[1]
         @show set
-       
+
         # build a MOI.ScalarNonlinearFunction from rhs.args[1] a MOI.ScalarAffineFunction and set a MOI.Interval
         if rhs.args[1] isa MOI.ScalarAffineFunction && set isa MOI.Interval
             #TODO: tweak this to handle more cases
@@ -409,14 +428,15 @@ function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set=MOI.EqualT
                 error("Unsupported! The set must be an interval.")
             end
         end
-       
+
         _update_guard_table!(model, lhs_src, lhs_dst, rhs, lhs_var.value)
     end
 
     # handling resetmap
     if lhs.head == :resetmaps
-        lhs_var, lhs_src, lhs_dst = lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2].args[2]
-        
+        lhs_var, lhs_src, lhs_dst =
+            lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2].args[2]
+
         if !(_is_discrete_dynamic(rhs))
             error(
                 "Unsupported! If you are defining a resetmap the right-hand side must be a discrete dynamic.",
