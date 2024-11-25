@@ -318,7 +318,7 @@ where $\tilde{F}(x, u)$ is such as in \eqref{eq:bounded_disturbances} with an ad
     \tilde{F}(x, u) = \left\{\tilde{f}(x, u) + w \, | \, w \in \mathcal{W}\right\}, 
 \end{equation}
 where $\mathcal{W} = [-W, W]^{n_x}$, and where $\tilde{f}$ is the linearized version of some possibly nonlinear function $f$. The system is considered to be sampled with a given time-step, and the corresponding discrete-time transition function is computed with a numerical derivation scheme such as the fourth-order Runge Kutta method, implemented as 
-\texttt{RungeKutta4} in \texttt{Dionsysos.jl}. The structure \texttt{ControlSystemLinearized\{N,T,F1,F2,F3,F4\}} contains the fields
+\texttt{runge_kutta_4} in \texttt{Dionsysos.jl}. The structure \texttt{ControlSystemLinearized\{N,T,F1,F2,F3,F4\}} contains the fields
 \begin{itemize}
     \item \texttt{tstep::Float64}, the sampling time-step,  
     \item \texttt{measnoise::SVector\{N,T\}}, the bound $W$ on the disturbance, 
