@@ -5,7 +5,7 @@ import JuMP
 import MathOptSymbolicAD
 import Symbolics
 
-export ∂, Δ, final, start, rem, Transition, add_transition!, guard, resetmaps, themode
+export ∂, Δ, final, start, rem, TransitionAsModel, add_transition!, guard, resetmaps, themode
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -529,7 +529,7 @@ end
 
 # Adding support for transitions constraints
 ## Transition
-struct Transition
+struct TransitionAsModel
     model::JuMP.Model
     mode_variable::JuMP.VariableRef
     source_mode::Int
@@ -538,19 +538,19 @@ struct Transition
 end
 
 ## Constructor for Transition
-function Transition(
+function TransitionAsModel(
     model::JuMP.GenericModel,
     mode_variable::JuMP.VariableRef,
     source_mode::Int,
     destination_mode::Int,
     switching_type::HybridSystems.AbstractSwitching = HybridSystems.ControlledSwitching(),
 )
-    return Transition(model, mode_variable, source_mode, destination_mode, switching_type)
+    return TransitionAsModel(model, mode_variable, source_mode, destination_mode, switching_type)
 end
 
-JuMP._valid_model(::Transition, ::Any) = nothing
+JuMP._valid_model(::TransitionAsModel, ::Any) = nothing
 
-function JuMP.model_convert(t::Transition, con::Any)
+function JuMP.model_convert(t::TransitionAsModel, con::Any)
     return JuMP.model_convert(t.model, con)
 end
 
@@ -582,7 +582,7 @@ function _handle_affExpr(fun, set)
     return JuMP.NonlinearExpr(:-, fun, _get_val_from_affExpr(set))
 end
 
-function JuMP.add_constraint(t::Transition, condition, ::String)
+function JuMP.add_constraint(t::TransitionAsModel, condition, ::String)
     if !(condition isa JuMP.ScalarConstraint)
         error("Unsupported constraint type. `ScalarConstraint` expected.")
     end
@@ -640,7 +640,7 @@ function add_transition!(
     to::Int,
     switching_type::HybridSystems.AbstractSwitching = HybridSystems.ControlledSwitching(),
 )
-    t = Transition(model, mode_variable, from, to, switching_type)
+    t = TransitionAsModel(model, mode_variable, from, to, switching_type)
     f(t)
     return t
 end
