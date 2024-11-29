@@ -5,7 +5,8 @@ import JuMP
 import MathOptSymbolicAD
 import Symbolics
 
-export ∂, Δ, final, start, rem, TransitionAsModel, add_transition!, guard, resetmaps, themode
+export ∂,
+    Δ, final, start, rem, TransitionAsModel, add_transition!, guard, resetmaps, themode
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -24,7 +25,15 @@ mutable struct Variable
     target::MOI.Interval{Float64}
 
     function Variable()
-        return new(0.0, INPUT, 0, -Inf, Inf, MOI.Interval(-Inf, Inf), MOI.Interval(-Inf, Inf))
+        return new(
+            0.0,
+            INPUT,
+            0,
+            -Inf,
+            Inf,
+            MOI.Interval(-Inf, Inf),
+            MOI.Interval(-Inf, Inf),
+        )
     end
 end
 
@@ -54,7 +63,6 @@ mutable struct Mode
     end
 end
 
-
 # Define the class Transition to handle source, destination, guard, and resetmap.
 struct Transition
     source::Int
@@ -80,8 +88,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     mode_variable::Union{Nothing, MOI.VariableIndex}
     transitions::Dict{String, Transition}
     integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
-    indicator_constraints::Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}
-    
+    indicator_constraints::Vector{
+        Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
+    }
+
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
@@ -95,7 +105,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             Dict{String, Transition}(),
             Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
-            Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}(),            
+            Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}(),
         )
     end
 end
@@ -302,14 +312,13 @@ end
 function _update_guard_table!(model, src, dst, func, val)
     transition = _create_transition_if_not_exists!(model, src, dst)
 
-    model.transitions[transition].guard[val] = func
-
+    return model.transitions[transition].guard[val] = func
 end
 
 function _update_resetmaps_table!(model, src, dst, func, val)
     transition = _create_transition_if_not_exists!(model, src, dst)
 
-    model.transitions[transition].resetmap[val] = func
+    return model.transitions[transition].resetmap[val] = func
 end
 
 function MOI.add_constraint(
@@ -533,7 +542,13 @@ function TransitionAsModel(
     destination_mode::Int,
     switching_type::HybridSystems.AbstractSwitching = HybridSystems.ControlledSwitching(),
 )
-    return TransitionAsModel(model, mode_variable, source_mode, destination_mode, switching_type)
+    return TransitionAsModel(
+        model,
+        mode_variable,
+        source_mode,
+        destination_mode,
+        switching_type,
+    )
 end
 
 JuMP._valid_model(::TransitionAsModel, ::Any) = nothing
@@ -663,7 +678,11 @@ end
 
 function dynamic!(model, mode = DEFAULT_MODE)
     variable_values = [v.value for v in model.variables]
-    MOI.eval_constraint(model.modes[mode].evaluator, model.derivative_values, variable_values)
+    MOI.eval_constraint(
+        model.modes[mode].evaluator,
+        model.derivative_values,
+        variable_values,
+    )
     return
 end
 
@@ -721,28 +740,24 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     end
 
     # Assemble the continuous systems for each mode
-    continuous_systems = Vector{MathematicalSystems.AbstractContinuousSystem}(undef, n_modes)
+    continuous_systems =
+        Vector{MathematicalSystems.AbstractContinuousSystem}(undef, n_modes)
     for mode in eachindex(model.modes)
-        continuous_systems[mode] = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-            dynamic(model, x_idx, u_idx, mode),
-            Dionysos.Utils.get_dims(_X_),
-            Dionysos.Utils.get_dims(_U_),
-            _X_,
-            _U_,
-        )
+        continuous_systems[mode] =
+            MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+                dynamic(model, x_idx, u_idx, mode),
+                Dionysos.Utils.get_dims(_X_),
+                Dionysos.Utils.get_dims(_U_),
+                _X_,
+                _U_,
+            )
     end
 
     # Assemble the guard for each transition
     #TODO: This is a bit of a hack. We should probably have a better way to handle this
     guard_constraints = [
-        Dionysos.Utils.HyperRectangle(
-            [-Inf],
-            [19.0],
-        ),
-        Dionysos.Utils.HyperRectangle(
-            [21.0],
-            [Inf],
-        )
+        Dionysos.Utils.HyperRectangle([-Inf], [19.0]),
+        Dionysos.Utils.HyperRectangle([21.0], [Inf]),
     ]
 
     guard_maps = Vector{MathematicalSystems.AbstractMap}(undef, length(model.transitions))
@@ -763,12 +778,8 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     switchings = fill(HybridSystems.ControlledSwitching(), length(model.transitions))
 
     # Assemble the hybrid system
-    system = HybridSystems.HybridSystem(
-        automaton, 
-        continuous_systems, 
-        guard_maps,
-        switchings
-    )
+    system =
+        HybridSystems.HybridSystem(automaton, continuous_systems, guard_maps, switchings)
 
     system.ext[:X] = _X_
     system.ext[:U] = _U_
@@ -786,17 +797,17 @@ function system(
     nsys = 5,
 )
     _X_ = Dionysos.Utils.HyperRectangle(
-            _svec_lower(model.variables, x_idx), 
-            _svec_upper(model.variables, x_idx),
-        )
+        _svec_lower(model.variables, x_idx),
+        _svec_upper(model.variables, x_idx),
+    )
     _X_ = Dionysos.Utils.LazySetMinus(
         _X_,
         Dionysos.Utils.LazyUnionSetArray(obstacles(model, x_idx)),
     )
     _U_ = Dionysos.Utils.HyperRectangle(
-            _svec_lower(model.variables, u_idx),
-            _svec_upper(model.variables, u_idx),
-        )
+        _svec_lower(model.variables, u_idx),
+        _svec_upper(model.variables, u_idx),
+    )
     if model.time_type == CONTINUOUS
         return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamic(model, x_idx, u_idx),
@@ -838,7 +849,7 @@ function problem(model::Optimizer)
         _svec([s.target.lower for s in model.variables], x_idx),
         _svec([s.target.upper for s in model.variables], x_idx),
     )
-    
+
     sys = system(model, x_idx, u_idx)
     problem = Dionysos.Problem.OptimalControlProblem(
         sys,
@@ -887,7 +898,7 @@ function _check_missing(model)
         end
     end
 
-   transition_missing = isempty(model.transitions)
+    transition_missing = isempty(model.transitions)
     guard_missing = false
     for key in eachindex(model.transitions)
         @show model.transitions[key].guard
@@ -920,7 +931,7 @@ function setup!(model::Optimizer)
     input_index = 0
     state_index = 0
     mode_index = 0
-    
+
     for i in eachindex(model.variables)
         var_type = variable_type(model, MOI.VariableIndex(i))
         if var_type == STATE
@@ -935,7 +946,6 @@ function setup!(model::Optimizer)
                     model.modes[mode].dynamic[i],
                     MOI.EqualTo(0.0),
                 )
-                
             end
 
             state_index += 1
@@ -953,7 +963,8 @@ function setup!(model::Optimizer)
     vars = MOI.VariableIndex.(eachindex(model.variables))
 
     for mode in eachindex(model.modes)
-        model.modes[mode].evaluator = MOI.Nonlinear.Evaluator(model.modes[mode].nlp_model, backend, vars)
+        model.modes[mode].evaluator =
+            MOI.Nonlinear.Evaluator(model.modes[mode].nlp_model, backend, vars)
         MOI.initialize(model.modes[mode].evaluator, Symbol[])
     end
 
