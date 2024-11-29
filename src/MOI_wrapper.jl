@@ -13,91 +13,105 @@ export ∂, Δ, final, start, rem, TransitionAsModel, add_transition!, guard, re
 
 DEFAULT_MODE = 1
 
-mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner::Any
+# Define the class Variable to handle a variable value, type, index, lower, upper, start, and target.
+mutable struct Variable
+    value::Float64
+    type::VariableType
+    index::Int
+    lower::Float64
+    upper::Float64
+    start::MOI.Interval{Float64}
+    target::MOI.Interval{Float64}
+
+    function Variable()
+        return new(0.0, INPUT, 0, -Inf, Inf, MOI.Interval(-Inf, Inf), MOI.Interval(-Inf, Inf))
+    end
+end
+
+# Define the class Objective to handle the sense and function.
+mutable struct Objective
+    sense::MOI.OptimizationSense
+    func::MOI.AbstractScalarFunction
+
+    function Objective()
+        return new(MOI.FEASIBILITY_SENSE, zero(MOI.ScalarAffineFunction{Float64}))
+    end
+end
+
+# Define the class Mode to handle nlp_model, evaluator, and dynamic.
+# The dynamic is a dictionary with mode_name -> [dynamic_func for each state]).
+# The evaluator is a dictionary with mode_name -> evaluator.
+# The nlp_model is a dictionary with mode_name -> nlp_model.
+# if no mode is specified, the default mode is used.
+mutable struct Mode
+    name::Int
     nlp_model::Any
     evaluator::Union{Nothing, MOI.Nonlinear.Evaluator}
+    dynamic::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
+
+    function Mode(name, nvars)
+        return new(name, MOI.Nonlinear.Model(), nothing, fill(nothing, nvars))
+    end
+end
+
+
+# Define the class Transition to handle source, destination, guard, and resetmap.
+struct Transition
+    source::Int
+    destination::Int
+    guard::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
+    resetmap::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
+
+    function Transition(src, dst, nvars)
+        return new(src, dst, fill(nothing, nvars), fill(nothing, nvars))
+    end
+end
+
+# Define the class Optimizer to handle the inner, modes, time_type, variables, derivative_values, obstacles, objective, nonlinear_index, mode_variable, transitions, integer_variables, and indicator_constraints.
+mutable struct Optimizer <: MOI.AbstractOptimizer
+    inner::Any
+    variables::Vector{Variable}
+    modes::Dict{Int, Mode}
     time_type::TimeType
-    variable_values::Vector{Float64}
     derivative_values::Vector{Float64}
-    variable_types::Vector{VariableType}
-    variable_index::Vector{Int} # MOI.VariableIndex -> state/input/mode index
-    lower::Vector{Float64}
-    upper::Vector{Float64}
-    start::Vector{MOI.Interval{Float64}}
-    target::Vector{MOI.Interval{Float64}}
-    dynamic::Dict{Int64, Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}} # mode_name -> [dynamic_func for each state] (in continuous and discrete time there is only one mode_name)
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
-    objective_sense::MOI.OptimizationSense
-    objective_function::MOI.AbstractScalarFunction
+    objective::Objective
     nonlinear_index::Int
     mode_variable::Union{Nothing, MOI.VariableIndex}
-    guards_table::Dict{
-        String,
-        Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-    }  # transition_index -> [(src, dst, guard_func) for each state]
-    resetmaps_table::Dict{
-        String,
-        Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-    }  # transition_index -> [(src, dst, resetmap_func) for each state]
+    transitions::Dict{String, Transition}
     integer_variables::Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}
-    indicator_constraints::Vector{
-        Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction},
-    }
+    indicator_constraints::Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}
+    
     function Optimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
-            nothing,
-            nothing,
+            Vector{Variable}(),
+            Dict{Int, Mode}(),
             UNKNOWN,
-            Float64[],
-            Float64[],
-            VariableType[],
-            Int[],
-            Float64[],
-            Float64[],
-            MOI.Interval{Float64}[],
-            MOI.Interval{Float64}[],
-            Dict{Int64, Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}}(),
-            Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
-            MOI.FEASIBILITY_SENSE,
-            zero(MOI.ScalarAffineFunction{Float64}),
+            Vector{Float64}(),
+            Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}(),
+            Objective(),
             0,
             nothing,
-            Dict{
-                String,
-                Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-            }(),
-            Dict{
-                String,
-                Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-            }(),
+            Dict{String, Transition}(),
             Dict{MOI.VariableIndex, Union{MOI.Integer, MOI.ZeroOne}}(),
-            Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}[],
+            Vector{Tuple{MOI.VariableIndex, Bool, MOI.ScalarNonlinearFunction}}(),            
         )
     end
 end
 
-MOI.is_empty(model::Optimizer) = isempty(model.variable_types)
+MOI.is_empty(model::Optimizer) = isempty(model.variables)
 
 function MOI.empty!(model::Optimizer)
     model.time_type = UNKNOWN
-    empty!(model.variable_values)
+    empty!(model.variables)
+    empty!(model.modes)
     empty!(model.derivative_values)
-    empty!(model.variable_types)
-    empty!(model.variable_index)
-    empty!(model.lower)
-    empty!(model.upper)
-    empty!(model.start)
-    empty!(model.target)
-    empty!(model.dynamic)
     empty!(model.obstacles)
-    model.objective_sense = MOI.FEASIBILITY_SENSE
-    model.objective_function = zero(MOI.ScalarAffineFunction{Float64})
+    model.objective = Objective()
     model.nonlinear_index = 0
     model.mode_variable = nothing
-    empty!(model.guards_table)
-    empty!(model.resetmaps_table)
+    empty!(model.transitions)
     empty!(model.integer_variables)
     empty!(model.indicator_constraints)
     return
@@ -105,18 +119,9 @@ end
 
 function MOI.add_variable(model::Optimizer)
     println(">>Adding variable")
-    push!(model.variable_values, NaN)
-    push!(model.variable_types, INPUT)
-    push!(model.variable_index, 0)
-    push!(model.lower, -Inf)
-    push!(model.upper, Inf)
-    push!(model.start, MOI.Interval(-Inf, Inf))
-    push!(model.target, MOI.Interval(-Inf, Inf))
-    if !(haskey(model.dynamic, DEFAULT_MODE))
-        model.dynamic[DEFAULT_MODE] = Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}()
-    end
-    push!(model.dynamic[DEFAULT_MODE], nothing)
-    return MOI.VariableIndex(length(model.upper))
+    push!(model.variables, Variable())
+
+    return MOI.VariableIndex(length(model.variables))
 end
 
 struct OuterSet{S <: MOI.AbstractVectorSet} <: MOI.AbstractVectorSet
@@ -152,12 +157,12 @@ function MOI.supports_constraint(
 end
 
 function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.GreaterThan)
-    model.lower[func.value] = MOI.constant(set)
+    model.variables[func.value].lower = MOI.constant(set)
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
 function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.LessThan)
-    model.upper[func.value] = MOI.constant(set)
+    model.variables[func.value].upper = MOI.constant(set)
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
@@ -188,12 +193,12 @@ function MOI.add_constraint(
     if length(func.args) == 1
         var = func.args[]
         if var isa MOI.VariableIndex && func.head == :final
-            model.target[var.value] = set
+            model.variables[var.value].target = set
             return _new_nonlinear_index!(model, func, set)
         end
 
         if var isa MOI.VariableIndex && func.head == :start
-            model.start[var.value] = set
+            model.variables[var.value].start = set
             return _new_nonlinear_index!(model, func, set)
         end
     end
@@ -272,56 +277,39 @@ function _is_guard_setup(expr)
 end
 
 function _update_dynamic_dict!(model, type, func, val, mode = DEFAULT_MODE)
-    if !haskey(model.dynamic, mode)
-        model.dynamic[mode] = Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}()
-        # initialize the dynamic functions with nothing
-        for _ in 1:length(model.variable_index)
-            push!(model.dynamic[mode], nothing)
-        end
+    if !haskey(model.modes, mode)
+        model.modes[mode] = Mode(mode, length(model.variables))
     end
 
     model.time_type = type
-    return model.dynamic[mode][val] = func
+
+    return model.modes[mode].dynamic[val] = func
+end
+
+function _create_transition_if_not_exists!(model, src, dst)
+    if isempty(model.transitions)
+        model.transitions = Dict{String, Transition}()
+    end
+
+    transition = "$src->$dst"
+    if !haskey(model.transitions, transition)
+        model.transitions[transition] = Transition(src, dst, length(model.variables))
+    end
+
+    return transition
 end
 
 function _update_guard_table!(model, src, dst, func, val)
-    if isempty(model.guards_table)
-        model.guards_table = Dict{
-            String,
-            Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-        }()
-    end
+    transition = _create_transition_if_not_exists!(model, src, dst)
 
-    transition = "$src->$dst"
-    if !haskey(model.guards_table, transition)
-        model.guards_table[transition] = []
+    model.transitions[transition].guard[val] = func
 
-        for _ in 1:length(model.variable_index)
-            push!(model.guards_table[transition], nothing)
-        end
-    end
-
-    return model.guards_table[transition][val] = (src, dst, func)
 end
 
 function _update_resetmaps_table!(model, src, dst, func, val)
-    if isempty(model.resetmaps_table)
-        model.resetmaps_table = Dict{
-            String,
-            Vector{Union{Nothing, Tuple{Int64, Int64, MOI.ScalarNonlinearFunction}}},
-        }()
-    end
+    transition = _create_transition_if_not_exists!(model, src, dst)
 
-    transition = "$src->$dst"
-    if !haskey(model.resetmaps_table, transition)
-        model.resetmaps_table[transition] = []
-
-        for _ in 1:length(model.variable_index)
-            push!(model.resetmaps_table[transition], nothing)
-        end
-    end
-
-    return model.resetmaps_table[transition][val] = (src, dst, func)
+    model.transitions[transition].resetmap[val] = func
 end
 
 function MOI.add_constraint(
@@ -400,7 +388,7 @@ function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set = MOI.Equa
         end
 
         model.mode_variable = lhs_var
-        model.variable_types[lhs_var.value] = MODE
+        model.variables[lhs_var.value].type = MODE
 
         _update_dynamic_dict!(model, HYBRID, rhs_rhs, rhs_var.value, lhs_val)
     end
@@ -456,7 +444,7 @@ function MOI.supports(::Optimizer, ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunc
 end
 
 function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
-    model.objective_sense = sense
+    model.objective.sense = sense
     return
 end
 
@@ -465,7 +453,7 @@ function MOI.set(
     ::MOI.ObjectiveFunction,
     func::MOI.AbstractScalarFunction,
 )
-    model.objective_function = func
+    model.objective.func = func
     return
 end
 
@@ -480,7 +468,7 @@ function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIn
         value = MOI.Interval(value, value)
     end
 
-    return model.start[vi.value] = value
+    return model.variables[vi.value].start = value
 end
 
 # Adding supports for integer variables
@@ -653,9 +641,11 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
 end
 
 _svec(vec, idx) = SA.SVector([vec[i] for i in idx]...)
+_svec_lower(vec, idx) = SA.SVector([vec[i].lower for i in idx]...)
+_svec_upper(vec, idx) = SA.SVector([vec[i].upper for i in idx]...)
 
 function _full(model, def, vars, vals)
-    v = fill(def, length(model.variable_index))
+    v = fill(def, length(model.variables))
     for (var, val) in zip(vars, vals)
         v[var.value] = val
     end
@@ -671,8 +661,9 @@ function obstacles(model, x_idx)
     ]
 end
 
-function dynamic!(model)
-    MOI.eval_constraint(model.evaluator, model.derivative_values, model.variable_values)
+function dynamic!(model, mode = DEFAULT_MODE)
+    variable_values = [v.value for v in model.variables]
+    MOI.eval_constraint(model.modes[mode].evaluator, model.derivative_values, variable_values)
     return
 end
 
@@ -687,13 +678,13 @@ function symbolic(func::MathOptSymbolicAD._Function, xu)
     return Symbolics.substitute(e, Dict(p[i] => func.data[i] for i in eachindex(p)))
 end
 
-function dynamic(model, x_idx, u_idx)
+function dynamic(model, x_idx, u_idx, mode = DEFAULT_MODE)
     # System eq x' = F_sys(x, u)
     Symbolics.@variables(x[1:length(x_idx)], u[1:length(u_idx)])
-    xu = Vector{eltype(x)}(undef, length(model.variable_index))
+    xu = Vector{eltype(x)}(undef, length(model.variables))
     xu[x_idx] = x
     xu[u_idx] = u
-    expr = [symbolic(func, xu) for func in model.evaluator.backend.constraints]
+    expr = [symbolic(func, xu) for func in model.modes[mode].evaluator.backend.constraints]
     # The second one is the inplace version that we don't want so we ignore it with `_`
     # `expression = Val{false}` is used to directly get a Julia function
     # `cse = true` is used to detect common sub-expressions (like `α` in the path planning example),
@@ -727,14 +718,18 @@ function system(
     tstep = 0.3,
     nsys = 5,
 )
-    _X_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
+    _X_ = Dionysos.Utils.HyperRectangle(
+            _svec_lower(model.variables, x_idx), 
+            _svec_upper(model.variables, x_idx),
+        )
     _X_ = Dionysos.Utils.LazySetMinus(
         _X_,
         Dionysos.Utils.LazyUnionSetArray(obstacles(model, x_idx)),
     )
-    _U_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
+    _U_ = Dionysos.Utils.HyperRectangle(
+            _svec_lower(model.variables, u_idx),
+            _svec_upper(model.variables, u_idx),
+        )
     if model.time_type == CONTINUOUS
         return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamic(model, x_idx, u_idx),
@@ -769,14 +764,14 @@ function problem(model::Optimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
     _I_ = Dionysos.Utils.HyperRectangle(
-        _svec([s.lower for s in model.start], x_idx),
-        _svec([s.upper for s in model.start], x_idx),
+        _svec([s.start.lower for s in model.variables], x_idx),
+        _svec([s.start.upper for s in model.variables], x_idx),
     )
     _T_ = Dionysos.Utils.HyperRectangle(
-        _svec([s.lower for s in model.target], x_idx),
-        _svec([s.upper for s in model.target], x_idx),
+        _svec([s.target.lower for s in model.variables], x_idx),
+        _svec([s.target.upper for s in model.variables], x_idx),
     )
-
+    
     sys = system(model, x_idx, u_idx)
     problem = Dionysos.Problem.OptimalControlProblem(
         sys,
@@ -790,9 +785,9 @@ function problem(model::Optimizer)
 end
 
 function variable_type(model::Optimizer, vi::MOI.VariableIndex)
-    if model.variable_types[vi.value] == MODE
+    if model.variables[vi.value].type == MODE
         return MODE
-    elseif isnothing(model.dynamic[DEFAULT_MODE][vi.value])
+    elseif isnothing(model.modes[DEFAULT_MODE].dynamic[vi.value])
         return INPUT
     else
         return STATE
@@ -800,44 +795,45 @@ function variable_type(model::Optimizer, vi::MOI.VariableIndex)
 end
 
 function state_indices(model::Optimizer)
-    return findall(eachindex(model.variable_index)) do i
+    return findall(eachindex(model.variables)) do i
         return variable_type(model, MOI.VariableIndex(i)) == STATE
     end
 end
 
 function input_indices(model::Optimizer)
-    return findall(eachindex(model.variable_index)) do i
+    return findall(eachindex(model.variables)) do i
         return variable_type(model, MOI.VariableIndex(i)) == INPUT
     end
 end
 
 function mode_indices(model::Optimizer)
-    return findall(eachindex(model.variable_index)) do i
+    return findall(eachindex(model.variables)) do i
         return variable_type(model, MOI.VariableIndex(i)) == MODE
     end
 end
 
 function _check_missing(model)
-    for key in eachindex(model.dynamic)
-        @show model.dynamic[key]
-        if all(isnothing, model.dynamic[key])
+    for key in eachindex(model.modes)
+        @show model.modes[key].dynamic
+        if all(isnothing, model.modes[key].dynamic)
             error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
         end
     end
 
-    guard_missing = isempty(model.guards_table)
-    for key in eachindex(model.guards_table)
-        @show model.guards_table[key]
-        if all(isnothing, model.guards_table[key])
+   transition_missing = isempty(model.transitions)
+    guard_missing = false
+    for key in eachindex(model.transitions)
+        @show model.transitions[key].guard
+        if all(isnothing, model.transitions[key].guard)
             guard_missing = true
             break
         end
     end
 
-    resetmaps_missing = isempty(model.resetmaps_table)
-    for key in eachindex(model.resetmaps_table)
-        @show model.resetmaps_table[key]
-        if all(isnothing, model.resetmaps_table[key])
+    resetmaps_missing = false
+    for key in eachindex(model.transitions)
+        @show model.transitions[key].resetmap
+        if all(isnothing, model.transitions[key].resetmap)
             resetmaps_missing = true
             break
         end
@@ -847,7 +843,7 @@ function _check_missing(model)
         error("Missing guards and/or resetmaps. i.e. guard(x, u, t) and resetmaps(x, u)")
     end
 
-    @show model.variable_types
+    @show [v.type for v in model.variables]
 end
 
 function setup!(model::Optimizer)
@@ -857,31 +853,43 @@ function setup!(model::Optimizer)
     input_index = 0
     state_index = 0
     mode_index = 0
-    model.nlp_model = MOI.Nonlinear.Model()
-    for i in eachindex(model.variable_types)
+    
+    for i in eachindex(model.variables)
         var_type = variable_type(model, MOI.VariableIndex(i))
         if var_type == STATE
             # The set does not matter
-            MOI.Nonlinear.add_constraint(
-                model.nlp_model,
-                model.dynamic[DEFAULT_MODE][i],
-                MOI.EqualTo(0.0),
-            )
+            for mode in eachindex(model.modes)
+                if isnothing(model.modes[mode].dynamic[i])
+                    error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
+                end
+
+                MOI.Nonlinear.add_constraint(
+                    model.modes[mode].nlp_model,
+                    model.modes[mode].dynamic[i],
+                    MOI.EqualTo(0.0),
+                )
+                
+            end
+
             state_index += 1
-            model.variable_index[i] = state_index
+            model.variables[i].index = state_index
         elseif var_type == INPUT
             input_index += 1
-            model.variable_index[i] = input_index
+            model.variables[i].index = input_index
         elseif var_type == MODE
             mode_index += 1
-            model.variable_index[i] = mode_index
+            model.variables[i].index = mode_index
         end
     end
     model.derivative_values = fill(NaN, state_index)
     backend = MathOptSymbolicAD.DefaultBackend()
-    vars = MOI.VariableIndex.(eachindex(model.lower))
-    model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
-    MOI.initialize(model.evaluator, Symbol[])
+    vars = MOI.VariableIndex.(eachindex(model.variables))
+
+    for mode in eachindex(model.modes)
+        model.modes[mode].evaluator = MOI.Nonlinear.Evaluator(model.modes[mode].nlp_model, backend, vars)
+        MOI.initialize(model.modes[mode].evaluator, Symbol[])
+    end
+
     println(">>Model setup complete")
     return
 end
