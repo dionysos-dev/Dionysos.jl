@@ -704,9 +704,76 @@ function dynamic(model, x_idx, u_idx, mode = DEFAULT_MODE)
     return F_sys
 end
 
-function _hybrid_system(model, x_idx, u_idx)
-    error("Hybrid systems are not yet supported")
-    return
+function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
+    println(">>Assembling the hybrid system")
+
+    # Create the automaton
+    n_modes = length(model.modes)
+    automaton = HybridSystems.GraphAutomaton(n_modes)
+
+    # Add the transitions
+    index = 1
+    for (_, transition) in model.transitions
+        src, dst = transition.source, transition.destination
+        @show src, dst, index
+        HybridSystems.add_transition!(automaton, src, dst, index)
+        index += 1
+    end
+
+    # Assemble the continuous systems for each mode
+    continuous_systems = Vector{MathematicalSystems.AbstractContinuousSystem}(undef, n_modes)
+    for mode in eachindex(model.modes)
+        continuous_systems[mode] = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            dynamic(model, x_idx, u_idx, mode),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            _X_,
+            _U_,
+        )
+    end
+
+    # Assemble the guard for each transition
+    #TODO: This is a bit of a hack. We should probably have a better way to handle this
+    guard_constraints = [
+        Dionysos.Utils.HyperRectangle(
+            [-Inf],
+            [19.0],
+        ),
+        Dionysos.Utils.HyperRectangle(
+            [21.0],
+            [Inf],
+        )
+    ]
+
+    guard_maps = Vector{MathematicalSystems.AbstractMap}(undef, length(model.transitions))
+    index = 1
+    for (_, transition) in model.transitions
+        guard_maps[index] = MathematicalSystems.ConstrainedBlackBoxControlMap(
+            length(x_idx),
+            Dionysos.Utils.get_dims(_X_),
+            Dionysos.Utils.get_dims(_U_),
+            (x, _) -> x,
+            guard_constraints[index],
+            _U_,
+        )
+        index += 1
+    end
+
+    # Assemble the switching conditions
+    switchings = fill(HybridSystems.ControlledSwitching(), length(model.transitions))
+
+    # Assemble the hybrid system
+    system = HybridSystems.HybridSystem(
+        automaton, 
+        continuous_systems, 
+        guard_maps,
+        switchings
+    )
+
+    system.ext[:X] = _X_
+    system.ext[:U] = _U_
+
+    return system
 end
 
 function system(
@@ -754,7 +821,7 @@ function system(
             _U_,
         )
     elseif model.time_type == HYBRID
-        return _hybrid_system(model, x_idx, u_idx)
+        return _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     else
         error("The system type is unknown")
     end

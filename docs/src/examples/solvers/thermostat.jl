@@ -55,33 +55,33 @@ T_start = 10.0
 @variable(model, 0 <= u <= 1)
 
 # Define the mode variable: mode(t)
-@variable(model, 0 <= mode <= 1, integer = true)
+@variable(model, 1 <= mode <= 2, integer = true)
 
 # ### Define the dynamics of the system
 # Define the modes
-@constraint(model, mode == 1 => {∂(T) == k * u})
-@constraint(model, mode == 0 => {∂(T) == -α})
+@constraint(model, mode == 2 => {∂(T) == k * u})
+@constraint(model, mode == 1 => {∂(T) == -α})
 
 # Define the guards and resetmaps for each transition
 
 # Transition 0 -> 1
-@constraint(model, guard(mode == 1, mode == 0) => {T >= T_r - δ})
+@constraint(model, guard(mode == 2, mode == 1) => {T >= T_r - δ})
 
 # The resetmaps can be defined as follows:
 # ```julia 
-# @constraint(model, resetmaps(mode == 0, mode == 1) => {Δ(T) == ...})
+# @constraint(model, resetmaps(mode == 1, mode == 2) => {Δ(T) == ...})
 # ```
 
 # Alternatively we can define the transitions using `add_transition!` function
 # ```julia
-# add_transition!(model, mode, 0, 1) do t
+# add_transition!(model, mode, 1, 2) do t
 #    @constraint(t, T <= T_r + δ) # guard
 #    @constraint(t, Δ(T) == ...) # resetmap
 # end
 # ```
 
-# Transition 1 -> 0
-@constraint(model, guard(mode == 0, mode == 1) => {T <= T_r + δ})
+# Transition 2 -> 1
+@constraint(model, guard(mode == 1, mode == 2) => {T <= T_r + δ})
 
 # Define the initial set 
 @constraint(model, start(T) in MOI.Interval(9.5, 10.5))
