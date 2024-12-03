@@ -911,14 +911,7 @@ function problem(model::Optimizer)
     return problem
 end
 
-function problem_hybrid(model::Optimizer)
-    lib = CDDLib.Library()
-    T::Type = Float64
-    q_0 = 1 #length(model.modes)
-    x_0 = [1.0]
-    N = 11
-    zero_cost::Bool = true
-
+function problem_hybrid(model::Optimizer, lib, T::Type, x_0 = [1.0], N = 11)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
     _I_ = Dionysos.Utils.HyperRectangle(
@@ -931,7 +924,13 @@ function problem_hybrid(model::Optimizer)
     )
 
     sys = system(model, x_idx, u_idx)
+    q_0 = length(x_idx)
 
+    if q_0 != length(x_0)
+        error("The initial state must have the same dimension as the state variables {$q_0} != {$length(x_0)}")
+    end
+
+    #TODO: This is a bit of a hack. We should probably have a better way to handle costs properly
     state_cost = Fill(Dionysos.Utils.ZeroFunction(), sys.ext[:q_T])
     transition_cost = Dionysos.Utils.QuadraticControlFunction(ones(T, 1, 1))
 
@@ -1088,7 +1087,7 @@ function MOI.optimize!(model::Optimizer)
             "log_level" => 0,
         )
         model.inner = MOI.instantiate(algo)
-        MOI.set(model.inner, MOI.RawOptimizerAttribute("problem"), problem_hybrid(model))
+        MOI.set(model.inner, MOI.RawOptimizerAttribute("problem"), problem_hybrid(model, CDDLib.Library(), Float64))
     else # CONTINUOUS or DISCRETE
         println(">>Solving the {model.time_type} system")
         MOI.set(model.inner, MOI.RawOptimizerAttribute("concrete_problem"), problem(model))
