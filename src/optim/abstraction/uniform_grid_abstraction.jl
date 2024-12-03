@@ -223,6 +223,7 @@ function build_abstraction(concrete_system, model)
     )
 
     #TODO: add noise to the description of the system so in a MathematicalSystems
+    @warn("Noise is not now taken into account!")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
     
     model.discretized_system = _maybe_discretized_system(concrete_system, model, noise)
@@ -241,45 +242,50 @@ function build_abstraction(concrete_system, model)
     return abstract_system
 end
 
+"""
+    _corresponding_abstract_state_points(abstract_system, set, position_in_domain)
+
+Returns the corresponding abstract points based on the `abstract_system`, `set`, and `position_in_domain`.
+"""
+function _corresponding_abstract_points(set, position_in_domain, abstract_system)
+    grid = abstract_system.Xdom.grid
+    domain_list = Dionysos.Domain.DomainList(grid)
+    Dionysos.Domain.add_subset!(domain_list, abstract_system.Xdom, set, position_in_domain)
+    return [
+        Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos)
+        for pos in Dionysos.Domain.enum_pos(domain_list)
+    ]
+end
+
+"""
+    build_abstract_problem(concrete_problem, abstract_system)
+
+Builds the abstract problem based on the `concrete_problem` and `abstract_system`.
+"""
 function build_abstract_problem(
     concrete_problem::Dionysos.Problem.OptimalControlProblem,
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
-    state_grid = abstract_system.Xdom.grid
-    Xinit = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, Dionysos.Domain.OUTER)
-    Xtarget = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, Dionysos.Domain.INNER)
-    init_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]
-    target_list =
-        [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xtarget)]
-    return Dionysos.Problem.OptimalControlProblem(
+    if isa(concrete_problem, Dionysos.Problem.SafetyProblem)
+        return Dionysos.Problem.SafetyProblem(
         abstract_system,
-        init_list,
-        target_list,
-        concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
-        concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
+        _corresponding_abstract_points(concrete_problem.initial_set, Dionysos.Domain.OUTER, abstract_system),
+        _corresponding_abstract_points(concrete_problem.safe_set, Dionysos.Domain.INNER, abstract_system),
         concrete_problem.time, # TODO this is the continuous time, not the number of transition
     )
-end
-
-function build_abstract_problem(
-    concrete_problem::Dionysos.Problem.SafetyProblem,
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
-)
-    state_grid = abstract_system.Xdom.grid
-    Xinit = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, Dionysos.Domain.OUTER)
-    Xsafe = Dionysos.Domain.DomainList(state_grid)
-    Dionysos.Domain.add_subset!(Xsafe, abstract_system.Xdom, concrete_problem.safe_set, Dionysos.Domain.INNER)
-    init_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]
-    safe_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xsafe)]
-    return Dionysos.Problem.SafetyProblem(
-        abstract_system,
-        init_list,
-        safe_list,
-        concrete_problem.time, # TODO this is the continuous time, not the number of transition
-    )
+    elseif isa(concrete_problem, Dionysos.Problem.OptimalControlProblem)
+        @warn("The `state_cost` and `transition_cost` is not yet fully implemented")
+        return Dionysos.Problem.OptimalControlProblem(
+            abstract_system,
+            _corresponding_abstract_points(concrete_problem.initial_set, Dionysos.Domain.OUTER, abstract_system),
+            _corresponding_abstract_points(concrete_problem.target_set, Dionysos.Domain.INNER, abstract_system),
+            concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
+            concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
+            concrete_problem.time, # TODO this is the continuous time, not the number of transition
+        )
+    else
+        error("Unsupported problem type: $(typeof(concrete_problem))")
+    end
 end
 
 function solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
