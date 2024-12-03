@@ -17,20 +17,35 @@ end</code></pre><p>Transition 2 -&gt; 1</p><pre><code class="language-julia hljs
 h = SVector(0.1);
 set_attribute(model, &quot;state_grid&quot;, Dionysos.Domain.GridFree(x0, h))</code></pre><p>Definition of the grid of the input-space on which the abstraction is based (origin <code>u0</code> and input-space discretization <code>h</code>):</p><pre><code class="language-julia hljs">u0 = SVector(0.0);
 h = SVector(0.3);
-set_attribute(model, &quot;input_grid&quot;, Dionysos.Domain.GridFree(u0, h))</code></pre><h3 id="Solving-the-problem"><a class="docs-heading-anchor" href="#Solving-the-problem">Solving the problem</a><a id="Solving-the-problem-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-the-problem" title="Permalink"></a></h3><pre><code class="language-julia hljs">optimize!(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&gt;&gt;Adding variable
-&gt;&gt;Adding variable
-&gt;&gt;Adding variable
-&gt;&gt;Adding mode setup
-&gt;&gt;Adding mode setup
-&gt;&gt;Adding guard setup
-&gt;&gt;Adding guard setup
-(model.modes[key]).dynamic = Union{Nothing, MathOptInterface.ScalarNonlinearFunction}[+(*(0.5, MOI.VariableIndex(2))), nothing, nothing]
-(model.modes[key]).dynamic = Union{Nothing, MathOptInterface.ScalarNonlinearFunction}[+(-0.1), nothing, nothing]
-(model.transitions[key]).guard = Union{Nothing, MathOptInterface.ScalarNonlinearFunction}[nothing, nothing, &gt;=(MOI.VariableIndex(1), 21.0)]
-(model.transitions[key]).guard = Union{Nothing, MathOptInterface.ScalarNonlinearFunction}[nothing, nothing, &lt;=(MOI.VariableIndex(1), 19.0)]
-(model.transitions[key]).resetmap = Union{Nothing, MathOptInterface.ScalarNonlinearFunction}[nothing, nothing, nothing]
-[v.type for v = model.variables] = Dionysos.VariableType[Dionysos.INPUT, Dionysos.INPUT, Dionysos.MODE]
-&gt;&gt;Setting up the model
-&gt;&gt;Model setup complete
-&gt;&gt;Solving the hybrid system
-&gt;&gt;Assembling the hybrid system</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../single pendulum reach/">« single pendulum reach</a><a class="docs-footer-nextpage" href="../Ellipsoids/">Ellipsoids »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Tuesday 3 December 2024 10:05">Tuesday 3 December 2024</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+set_attribute(model, &quot;input_grid&quot;, Dionysos.Domain.GridFree(u0, h))</code></pre><h3 id="Solving-the-problem"><a class="docs-heading-anchor" href="#Solving-the-problem">Solving the problem</a><a id="Solving-the-problem-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-the-problem" title="Permalink"></a></h3><pre><code class="language-julia hljs">optimize!(model)
+
+optimizer = get_attribute(model, &quot;inner&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MOIU.CachingOptimizer
+├ state: ATTACHED_OPTIMIZER
+├ mode: MANUAL
+├ model_cache: MOIU.UniversalFallback{MOIU.Model{Float64}}
+│ ├ ObjectiveSense: MIN_SENSE
+│ ├ ObjectiveFunctionType: MOI.ScalarQuadraticFunction{Float64}
+│ ├ NumberOfVariables: 22
+│ └ NumberOfConstraints: 44
+│   ├ MOI.ScalarAffineFunction{Float64} in MOI.EqualTo{Float64}: 22
+│   └ MOI.VectorOfVariables in Polyhedra.PolyhedraOptSet{Float64, CDDLib.CDDInequalityMatrix{Float64, Float64}}: 22
+└ optimizer: MOIB.LazyBridgeOptimizer{MOIU.CachingOptimizer{OSQP.MOIOSQP.Optimizer, MOIU.UniversalFallback{MOIU.Model{Float64}}}}
+  ├ Variable bridges: none
+  ├ Constraint bridges:
+  │ └ Polyhedra.PolyhedraToLPBridge{Float64, MOI.ScalarAffineFunction{Float64}}
+  ├ Objective bridges: none
+  └ model: MOIU.CachingOptimizer
+    ├ state: ATTACHED_OPTIMIZER
+    ├ mode: AUTOMATIC
+    ├ model_cache: MOIU.UniversalFallback{MOIU.Model{Float64}}
+    │ ├ ObjectiveSense: MIN_SENSE
+    │ ├ ObjectiveFunctionType: MOI.ScalarQuadraticFunction{Float64}
+    │ ├ NumberOfVariables: 22
+    │ └ NumberOfConstraints: 55
+    │   ├ MOI.ScalarAffineFunction{Float64} in MOI.EqualTo{Float64}: 22
+    │   └ MOI.ScalarAffineFunction{Float64} in MOI.LessThan{Float64}: 33
+    └ optimizer: OSQP.MOIOSQP.Optimizer
+      ├ ObjectiveSense: MIN_SENSE
+      ├ ObjectiveFunctionType: unknown
+      ├ NumberOfVariables: 22
+      └ NumberOfConstraints: unknown</code></pre><p>We check the solver time</p><pre><code class="language-julia hljs">MOI.get(optimizer, MOI.SolveTimeSec())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">7.303600000000001e-5</code></pre><p>the termination status</p><pre><code class="language-julia hljs">termination = MOI.get(optimizer, MOI.TerminationStatus())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">INFEASIBLE::TerminationStatusCode = 2</code></pre><p>the objective value</p><pre><code class="language-julia hljs">objective_value = MOI.get(optimizer, MOI.ObjectiveValue())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0e30</code></pre><p>and recover the corresponding continuous trajectory</p><pre><code class="language-julia hljs">xu = MOI.get(optimizer, Dionysos.System.ContinuousTrajectoryAttribute());</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../single pendulum reach/">« single pendulum reach</a><a class="docs-footer-nextpage" href="../Ellipsoids/">Ellipsoids »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Tuesday 3 December 2024 10:39">Tuesday 3 December 2024</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

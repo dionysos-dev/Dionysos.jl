@@ -106,3 +106,17 @@ set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 # ### Solving the problem
 optimize!(model)
+
+optimizer = get_attribute(model, "inner")
+
+# We check the solver time
+MOI.get(optimizer, MOI.SolveTimeSec())
+
+# the termination status
+termination = MOI.get(optimizer, MOI.TerminationStatus())
+
+# the objective value
+objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
+
+# and recover the corresponding continuous trajectory
+xu = MOI.get(optimizer, Dionysos.System.ContinuousTrajectoryAttribute());

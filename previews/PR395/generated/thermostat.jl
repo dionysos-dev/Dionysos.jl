@@ -42,4 +42,14 @@ set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 optimize!(model)
 
+optimizer = get_attribute(model, "inner")
+
+MOI.get(optimizer, MOI.SolveTimeSec())
+
+termination = MOI.get(optimizer, MOI.TerminationStatus())
+
+objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
+
+xu = MOI.get(optimizer, Dionysos.System.ContinuousTrajectoryAttribute());
+
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
