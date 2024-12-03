@@ -804,8 +804,8 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     # Assemble the guard for each transition
     #TODO: This is a bit of a hack. We should probably have a better way to handle this
     guard_constraints = [
-        Dionysos.Utils.HyperRectangle([-Inf], [19.0]),
-        Dionysos.Utils.HyperRectangle([21.0], [Inf]),
+        Dionysos.Utils.HyperRectangle([19.0], [Inf]),
+        Dionysos.Utils.HyperRectangle([-Inf], [21.0]),
     ]
 
     guard_maps = Vector{MathematicalSystems.AbstractMap}(undef, length(model.transitions))
