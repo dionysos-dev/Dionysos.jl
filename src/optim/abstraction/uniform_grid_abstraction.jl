@@ -19,7 +19,11 @@ Solver based on the classical abstraction method (used for instance in SCOTS) fo
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, Dionysos.Problem.ProblemType}
-    abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
+    abstract_problem::Union{
+        Nothing,
+        Dionysos.Problem.OptimalControlProblem,
+        Dionysos.Problem.SafetyProblem,
+    }
     abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
     abstract_controller::Union{Nothing, Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
@@ -111,7 +115,7 @@ systems. Throws an error if required fields like `sys_inv_map` or `growthbound_m
 are missing or invalid.
 """
 function _validate_discrete_model(model::Optimizer)
-    _validate_model(model, [:growthbound_map, :sys_inv_map])
+    return _validate_model(model, [:growthbound_map, :sys_inv_map])
 end
 
 """
@@ -119,15 +123,14 @@ end
 
 Returns the discretized system based on the `concrete_system` and `model`.
 """
-function _maybe_discretized_system(
-    concrete_system,
-    model,
-    noise,
-)
+function _maybe_discretized_system(concrete_system, model, noise)
     if isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
         _validate_discrete_model(model)
         return _discrete_system(concrete_system, model, noise)
-    elseif isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
+    elseif isa(
+        concrete_system,
+        MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
+    )
         _validate_continuous_model(model)
         return _discretize_continuous_system(concrete_system, model, noise)
     else
@@ -204,7 +207,7 @@ Returns a `Dionysos.Domain.DomainList` based on the `variables` and `grid`.
 function _get_domain_list(variables, grid, position_in_domain)
     domain_list = Dionysos.Domain.DomainList(grid)
     Dionysos.Domain.add_set!(domain_list, variables, position_in_domain)
-    return domain_list    
+    return domain_list
 end
 
 _vector_of_tuple(size, value = 0.0) = StaticArrays.SVector(ntuple(_ -> value, Val(size)))
@@ -225,7 +228,7 @@ function build_abstraction(concrete_system, model)
     #TODO: add noise to the description of the system so in a MathematicalSystems
     @warn("Noise is not now taken into account!")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
-    
+
     model.discretized_system = _maybe_discretized_system(concrete_system, model, noise)
 
     if model.δGAS
@@ -252,8 +255,8 @@ function _corresponding_abstract_points(set, position_in_domain, abstract_system
     domain_list = Dionysos.Domain.DomainList(grid)
     Dionysos.Domain.add_subset!(domain_list, abstract_system.Xdom, set, position_in_domain)
     return [
-        Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos)
-        for pos in Dionysos.Domain.enum_pos(domain_list)
+        Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for
+        pos in Dionysos.Domain.enum_pos(domain_list)
     ]
 end
 
@@ -268,17 +271,33 @@ function build_abstract_problem(
 )
     if isa(concrete_problem, Dionysos.Problem.SafetyProblem)
         return Dionysos.Problem.SafetyProblem(
-        abstract_system,
-        _corresponding_abstract_points(concrete_problem.initial_set, Dionysos.Domain.OUTER, abstract_system),
-        _corresponding_abstract_points(concrete_problem.safe_set, Dionysos.Domain.INNER, abstract_system),
-        concrete_problem.time, # TODO this is the continuous time, not the number of transition
-    )
+            abstract_system,
+            _corresponding_abstract_points(
+                concrete_problem.initial_set,
+                Dionysos.Domain.OUTER,
+                abstract_system,
+            ),
+            _corresponding_abstract_points(
+                concrete_problem.safe_set,
+                Dionysos.Domain.INNER,
+                abstract_system,
+            ),
+            concrete_problem.time, # TODO this is the continuous time, not the number of transition
+        )
     elseif isa(concrete_problem, Dionysos.Problem.OptimalControlProblem)
         @warn("The `state_cost` and `transition_cost` is not yet fully implemented")
         return Dionysos.Problem.OptimalControlProblem(
             abstract_system,
-            _corresponding_abstract_points(concrete_problem.initial_set, Dionysos.Domain.OUTER, abstract_system),
-            _corresponding_abstract_points(concrete_problem.target_set, Dionysos.Domain.INNER, abstract_system),
+            _corresponding_abstract_points(
+                concrete_problem.initial_set,
+                Dionysos.Domain.OUTER,
+                abstract_system,
+            ),
+            _corresponding_abstract_points(
+                concrete_problem.target_set,
+                Dionysos.Domain.INNER,
+                abstract_system,
+            ),
             concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
             concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
             concrete_problem.time, # TODO this is the continuous time, not the number of transition
@@ -287,7 +306,6 @@ function build_abstract_problem(
         error("Unsupported problem type: $(typeof(concrete_problem))")
     end
 end
-
 
 """
     solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
@@ -450,7 +468,7 @@ function _data(contr, autom, initlist, targetlist)
     next_targets = Int[]
     return initset, targetset, num_targets_unreachable, current_targets, next_targets
 end
-    
+
 """
     compute_controller_reach!(contr, autom, initlist, targetlist)
 
