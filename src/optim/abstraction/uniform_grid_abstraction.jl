@@ -263,7 +263,7 @@ end
 Builds the abstract problem based on the `concrete_problem` and `abstract_system`.
 """
 function build_abstract_problem(
-    concrete_problem::Dionysos.Problem.OptimalControlProblem,
+    concrete_problem,
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
     if isa(concrete_problem, Dionysos.Problem.SafetyProblem)
@@ -288,6 +288,12 @@ function build_abstract_problem(
     end
 end
 
+
+"""
+    solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
+
+Solves the abstract optimal control problem based on the `abstract_problem`.
+"""
 function solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
     abstract_controller = NewControllerList()
     compute_controller_reach!(
@@ -299,6 +305,11 @@ function solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalContro
     return abstract_controller
 end
 
+"""
+    solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem)
+
+Solves the abstract safety problem based on the `abstract_problem`.
+"""
 function solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem)
     abstract_controller = NewControllerList()
     compute_controller_safe!(
@@ -310,52 +321,78 @@ function solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem
     return abstract_controller
 end
 
+"""
+    solve_concrete_problem(abstract_system, abstract_controller)
+
+Solves the concrete problem based on the `abstract_system` and `abstract_controller`.
+"""
 function solve_concrete_problem(abstract_system, abstract_controller)
     function concrete_controller(x; param = false)
+        # Getting the position of the state in the abstract system
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain")
             return nothing
         end
+
+        # Getting the corresponding abstract state
         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
         symbollist = Dionysos.Utils.fix_and_eliminate_first(abstract_controller, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return nothing
         end
+
+        # Choosing a random symbol or the first one
         if param
             symbol = rand(collect(symbollist))[1]
         else
             symbol = first(symbollist)[1]
         end
+
+        # Getting and return the control points
         upos = Dionysos.Symbolic.get_upos_by_symbol(abstract_system, symbol)
         u = Dionysos.Domain.get_coord_by_pos(abstract_system.Udom.grid, upos)
         return u
     end
 end
 
+"""
+    optimize!(optimizer::Optimizer)
+
+Optimizes the `optimizer` based on the abstraction method.
+"""
 function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
     # Build the abstraction
     abstract_system = build_abstraction(optimizer.concrete_problem.system, optimizer)
     optimizer.abstract_system = abstract_system
+
     # Build the abstract problem
     abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
+
     # Solve the abstract problem
     abstract_controller = solve_abstract_problem(abstract_problem)
     optimizer.abstract_controller = abstract_controller
+
     # Solve the concrete problem
     optimizer.concrete_controller =
         solve_concrete_problem(abstract_system, abstract_controller)
 
+    # Time elapsed
     optimizer.solve_time_sec = time() - t_ref
     return
 end
 
 NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
+"""
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
+
+Computes the number of targets unreachable based on the `autom`.
+"""
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:(autom.nstates)
         for soursymb in Dionysos.Symbolic.pre(autom, target)
@@ -364,6 +401,11 @@ function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     end
 end
 
+"""
+    _compute_controller_reach!(contr, autom, init_set, target_set, num_targets_unreachable, current_targets, next_targets)
+
+Computes the controller reach based on the `contr`, `autom`, `init_set`, `target_set`, `num_targets_unreachable`, `current_targets`, and `next_targets`.
+"""
 function _compute_controller_reach!(
     contr,
     autom,
@@ -393,6 +435,12 @@ function _compute_controller_reach!(
     end
     return iszero(num_init_unreachable)
 end
+
+"""
+    _data(contr, autom, initlist, targetlist)
+
+Returns the data based on the `contr`, `autom`, `initlist`, and `targetlist`.
+"""
 function _data(contr, autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -402,6 +450,12 @@ function _data(contr, autom, initlist, targetlist)
     next_targets = Int[]
     return initset, targetset, num_targets_unreachable, current_targets, next_targets
 end
+    
+"""
+    compute_controller_reach!(contr, autom, initlist, targetlist)
+
+Computes the controller reach based on the `contr`, `autom`, `initlist`, and `targetlist`.
+"""
 function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
@@ -419,6 +473,11 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
     return println("\ncompute_controller_reach! terminated with success")
 end
 
+"""
+    _compute_pairstable(pairstable, autom)
+
+Computes the pairstable based on the `pairstable` and `autom`.
+"""
 function _compute_pairstable(pairstable, autom)
     for target in 1:(autom.nstates)
         for soursymb in Dionysos.Symbolic.pre(autom, target)
@@ -427,6 +486,11 @@ function _compute_pairstable(pairstable, autom)
     end
 end
 
+"""
+    compute_controller_safe!(contr, autom, initlist, safelist)
+
+Computes the controller safe based on the `contr`, `autom`, `initlist`, and `safelist`.
+"""
 function compute_controller_safe!(contr, autom, initlist, safelist)
     println("compute_controller_safe! started")
     nstates = autom.nstates
