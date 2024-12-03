@@ -75,17 +75,76 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function discretized_system(
+"""
+    validate_model!(model::Optimizer, required_fields::Vector{Symbol})
+
+Ensures the specified `required_fields` are set in the `model`. Throws an error
+if any field is missing.
+"""
+function _validate_model(model::Optimizer, required_fields::Vector{Symbol})
+    for field in required_fields
+        if isnothing(getfield(model, field))
+            error("Please set the `$(field)`.")
+        end
+    end
+end
+
+"""
+    validate_continuous_model!(model::Optimizer)
+
+Validates that the `Optimizer` model is correctly configured for continuous
+systems. Throws an error if required fields like `time_step` or `jacobian_bound`
+are missing or invalid.
+"""
+function _validate_continuous_model(model::Optimizer)
+    _validate_model(model, [:time_step, :jacobian_bound])
+    if isnan(model.time_step)
+        error("Please set the `time_step`.")
+    end
+end
+
+"""
+    validate_discrete_model!(model::Optimizer)
+
+Validates that the `Optimizer` model is correctly configured for discrete
+systems. Throws an error if required fields like `sys_inv_map` or `growthbound_map`
+are missing or invalid.
+"""
+function _validate_discrete_model(model::Optimizer)
+    _validate_model(model, [:growthbound_map, :sys_inv_map])
+end
+
+"""
+    discretized_system(concrete_system, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _maybe_discretized_system(
+    concrete_system,
+    model,
+    noise,
+)
+    if isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
+        _validate_discrete_model(model)
+        return _discrete_system(concrete_system, model, noise)
+    elseif isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
+        _validate_continuous_model(model)
+        return _discretize_continuous_system(concrete_system, model, noise)
+    else
+        error("Unsupported system type: $(typeof(concrete_system))")
+    end
+end
+
+"""
+    discretized_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _discrete_system(
     concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
     model,
     noise,
 )
-    if isnothing(model.growthbound_map)
-        error("Please set the `growthbound_map`.")
-    end
-    if isnothing(model.sys_inv_map)
-        error("Please set the `sys_inv_map`.")
-    end
     return Dionysos.System.ControlSystemGrowth(
         1.0, # `time_step` should be ignored by `concrete_system.f`, `model.growthbound_map` and `model.sys_inv_map` anyway
         noise,
@@ -96,19 +155,17 @@ function discretized_system(
     )
 end
 
-function discretized_system(
+"""
+    _discretize_continuous_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _discretize_continuous_system(
     concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
     model,
     noise,
 )
-    if isnan(model.time_step)
-        error("Please set the `time_step`.")
-    end
-
     if model.approx_mode == GROWTH
-        if isnothing(model.jacobian_bound)
-            error("Please set the `jacobian_bound`.")
-        end
         return Dionysos.System.discretize_system_with_growth_bound(
             model.time_step,
             concrete_system.f,
@@ -139,27 +196,36 @@ function discretized_system(
     end
 end
 
+"""
+    _get_domain_list(model, variables, grid)
+
+Returns a `Dionysos.Domain.DomainList` based on the `variables` and `grid`.
+"""
+function _get_domain_list(variables, grid, position_in_domain)
+    domain_list = Dionysos.Domain.DomainList(grid)
+    Dionysos.Domain.add_set!(domain_list, variables, position_in_domain)
+    return domain_list    
+end
+
+_vector_of_tuple(size, value = 0.0) = StaticArrays.SVector(ntuple(_ -> value, Val(size)))
+
+"""
+    build_abstraction(concrete_system, model)
+
+Builds the abstraction based on the `concrete_system` and `model`.
+"""
 function build_abstraction(concrete_system, model)
-    if isnothing(model.state_grid)
-        error("Please set the `state_grid`.")
-    end
+    _validate_model(model, [:state_grid, :input_grid])
 
-    if isnothing(model.input_grid)
-        error("Please set the `input_grid`.")
-    end
+    abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(
+        _get_domain_list(concrete_system.X, model.state_grid, Dionysos.Domain.INNER),
+        _get_domain_list(concrete_system.U, model.input_grid, Dionysos.Domain.CENTER),
+    )
 
-    Xfull = Dionysos.Domain.DomainList(model.state_grid)
-    Dionysos.Domain.add_set!(Xfull, concrete_system.X, Dionysos.Domain.INNER)
-    Ufull = Dionysos.Domain.DomainList(model.input_grid)
-    Dionysos.Domain.add_set!(Ufull, concrete_system.U, Dionysos.Domain.CENTER)
-    abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(Xfull, Ufull)
-
-    # TODO add noise to the description of the system so in a MathematicalSystems
-    #      this is a workaround
-    nstates = Dionysos.Utils.get_dims(concrete_system.X)
-    noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
-
-    model.discretized_system = discretized_system(concrete_system, model, noise)
+    #TODO: add noise to the description of the system so in a MathematicalSystems
+    noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
+    
+    model.discretized_system = _maybe_discretized_system(concrete_system, model, noise)
 
     if model.δGAS
         @time Dionysos.Symbolic.compute_deterministic_symmodel_from_controlsystem!(
