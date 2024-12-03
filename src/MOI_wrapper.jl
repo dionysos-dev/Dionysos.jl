@@ -927,7 +927,9 @@ function problem_hybrid(model::Optimizer, lib, T::Type, x_0 = [1.0], N = 11)
     q_0 = length(x_idx)
 
     if q_0 != length(x_0)
-        error("The initial state must have the same dimension as the state variables {$q_0} != {$length(x_0)}")
+        error(
+            "The initial state must have the same dimension as the state variables {$q_0} != {$length(x_0)}",
+        )
     end
 
     #TODO: This is a bit of a hack. We should probably have a better way to handle costs properly
@@ -1087,7 +1089,11 @@ function MOI.optimize!(model::Optimizer)
             "log_level" => 0,
         )
         model.inner = MOI.instantiate(algo)
-        MOI.set(model.inner, MOI.RawOptimizerAttribute("problem"), problem_hybrid(model, CDDLib.Library(), Float64))
+        MOI.set(
+            model.inner,
+            MOI.RawOptimizerAttribute("problem"),
+            problem_hybrid(model, CDDLib.Library(), Float64),
+        )
     else # CONTINUOUS or DISCRETE
         println(">>Solving the {model.time_type} system")
         MOI.set(model.inner, MOI.RawOptimizerAttribute("concrete_problem"), problem(model))
