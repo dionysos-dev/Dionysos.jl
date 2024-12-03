@@ -4,9 +4,21 @@ import MathematicalSystems, HybridSystems
 import JuMP
 import MathOptSymbolicAD
 import Symbolics
+import OSQP, HiGHS, Ipopt, Pavito, CDDLib
+using Polyhedra
+using FillArrays
 
 export ∂,
-    Δ, final, start, rem, TransitionAsModel, add_transition!, guard, resetmaps, themode
+    Δ,
+    final,
+    start,
+    rem,
+    TransitionAsModel,
+    add_transition!,
+    guard,
+    resetmaps,
+    themode,
+    set_algorithm!
 
 @enum(VariableType, INPUT, STATE, MODE)
 
@@ -723,7 +735,38 @@ function dynamic(model, x_idx, u_idx, mode = DEFAULT_MODE)
     return F_sys
 end
 
+function _rect(lb, ub, lib, T)
+    if lb == -Inf && ub == Inf
+        r =  FullSpace(1)
+    elseif lb == -Inf
+        r = hrep([HalfSpace([1], T(ub))])
+    elseif ub == Inf
+        r = hrep([HalfSpace([-1], -T(lb))])
+    else
+        r = HalfSpace([-1], -T(lb)) ∩ HalfSpace([1], T(ub))
+    end
+
+    return polyhedron(r, lib)
+end
+
+function _HyperRectangle_to_polyhedra(hrect, lib, T)
+    n = length(hrect.lb)#lower)  # number of dimensions
+    lb_vector = hrect.lb#lower
+    ub_vector = hrect.ub#upper
+
+    result = Vector{Polyhedra.Rep}(undef, n)
+    
+    for i in 1:n
+        result[i] = _rect(lb_vector[1], ub_vector[1], lib, T)
+    end
+    
+    return reduce(∩, result)
+end
+
 function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
+    lib = CDDLib.Library()
+    T::Type = Float64
+
     println(">>Assembling the hybrid system")
 
     # Create the automaton
@@ -742,15 +785,32 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     # Assemble the continuous systems for each mode
     continuous_systems =
         Vector{MathematicalSystems.AbstractContinuousSystem}(undef, n_modes)
+
+    funcs = [
+        MathematicalSystems.ConstrainedAffineControlContinuousSystem(
+            zeros(Float64, length(x_idx), 1),
+            -0.5 .* ones(Float64, length(u_idx), 1),
+            fill(0.0, 1),
+            _X_,
+            _U_,
+        ),
+        MathematicalSystems.ConstrainedAffineControlContinuousSystem(
+            zeros(Float64, length(x_idx), 1),
+            zeros(Float64, length(u_idx), 1),
+            fill(1.0, 1),
+            _X_,
+            _U_,
+        )
+    ]
     for mode in eachindex(model.modes)
-        continuous_systems[mode] =
-            MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+        continuous_systems[mode] = funcs[mode]
+            #=MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
                 dynamic(model, x_idx, u_idx, mode),
                 Dionysos.Utils.get_dims(_X_),
                 Dionysos.Utils.get_dims(_U_),
                 _X_,
                 _U_,
-            )
+            )=#
     end
 
     # Assemble the guard for each transition
@@ -758,19 +818,27 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     guard_constraints = [
         Dionysos.Utils.HyperRectangle([-Inf], [19.0]),
         Dionysos.Utils.HyperRectangle([21.0], [Inf]),
+        #MOI.HyperRectangle([-Inf], [19.0]),
+        #MOI.HyperRectangle([21.0], [Inf]),
     ]
 
     guard_maps = Vector{MathematicalSystems.AbstractMap}(undef, length(model.transitions))
     index = 1
     for (_, transition) in model.transitions
-        guard_maps[index] = MathematicalSystems.ConstrainedBlackBoxControlMap(
+        guard_maps[index] = MathematicalSystems.ConstrainedLinearControlMap(
+            zeros(Float64, length(x_idx), 1),
+            zeros(Float64, length(u_idx), 1),
+            _HyperRectangle_to_polyhedra(guard_constraints[index], lib, T),
+            _HyperRectangle_to_polyhedra(_U_, lib, T),
+        )
+        #=MathematicalSystems.ConstrainedBlackBoxControlMap(
             length(x_idx),
             Dionysos.Utils.get_dims(_X_),
             Dionysos.Utils.get_dims(_U_),
             (x, _) -> x,
             guard_constraints[index],
             _U_,
-        )
+        )=#
         index += 1
     end
 
@@ -783,6 +851,8 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
 
     system.ext[:X] = _X_
     system.ext[:U] = _U_
+    system.ext[:q_T] = n_modes
+    system.ext[:ntransitions] = length(model.transitions)
 
     return system
 end
@@ -858,6 +928,42 @@ function problem(model::Optimizer)
         nothing,
         nothing,
         Dionysos.Problem.Infinity(),
+    )
+    
+    return problem
+end
+
+function problem_hybrid(model::Optimizer)
+    lib = CDDLib.Library()
+    T::Type = Float64
+    q_0 = 1 #length(model.modes)
+    x_0 = [1.0]
+    N = 11
+    zero_cost::Bool = true
+
+    x_idx = state_indices(model)
+    u_idx = input_indices(model)
+    _I_ = Dionysos.Utils.HyperRectangle(
+        _svec([s.start.lower for s in model.variables], x_idx),
+        _svec([s.start.upper for s in model.variables], x_idx),
+    )
+    _T_ = Dionysos.Utils.HyperRectangle(
+        _svec([s.target.lower for s in model.variables], x_idx),
+        _svec([s.target.upper for s in model.variables], x_idx),
+    )
+
+    sys = system(model, x_idx, u_idx)
+
+    state_cost = Fill(Dionysos.Utils.ZeroFunction(), sys.ext[:q_T])
+    transition_cost = Dionysos.Utils.QuadraticControlFunction(ones(T, 1, 1))
+
+    problem = Dionysos.Problem.OptimalControlProblem(
+        sys,
+        (q_0, x_0),
+        sys.ext[:q_T],
+        Fill(state_cost, N),
+        Fill(Fill(transition_cost, sys.ext[:ntransitions]), N),
+        N,
     )
     return problem
 end
@@ -974,7 +1080,42 @@ end
 
 function MOI.optimize!(model::Optimizer)
     setup!(model)
-    MOI.set(model.inner, MOI.RawOptimizerAttribute("concrete_problem"), problem(model))
+
+    if model.time_type == HYBRID
+        println(">>Solving the hybrid system")
+        qp_solver = JuMP.optimizer_with_attributes(
+            OSQP.Optimizer,
+            "eps_abs" => 1e-8,
+            "eps_rel" => 1e-8,
+            "max_iter" => 100000,
+            MOI.Silent() => true,
+        )
+
+        mip_solver = JuMP.optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+
+        cont_solver = JuMP.optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
+
+        miqp_solver = JuMP.optimizer_with_attributes(
+            Pavito.Optimizer,
+            "mip_solver" => mip_solver,
+            "cont_solver" => cont_solver,
+            MOI.Silent() => true,
+        )
+
+        algo = JuMP.optimizer_with_attributes(
+            Dionysos.Optim.BemporadMorari.Optimizer{Float64},
+            "continuous_solver" => qp_solver,
+            "mixed_integer_solver" => miqp_solver,
+            "indicator" => false,
+            "log_level" => 0,
+        )
+        model.inner = MOI.instantiate(algo)
+        MOI.set(model.inner, MOI.RawOptimizerAttribute("problem"), problem_hybrid(model))
+    else # CONTINUOUS or DISCRETE
+        println(">>Solving the {model.time_type} system")
+        MOI.set(model.inner, MOI.RawOptimizerAttribute("concrete_problem"), problem(model))
+    end
+
     MOI.optimize!(model.inner)
     return
 end
@@ -1028,4 +1169,9 @@ end
 
 function Base.rem(x::JuMP.AbstractJuMPScalar, d)
     return rem_op(x, d)
+end
+
+function set_algorithm!(model::JuMP.GenericModel, algorithm::Any)
+    model.moi_backend.optimizer.model.inner = MOI.instantiate(algorithm)
+    return
 end
