@@ -7,12 +7,6 @@ import StaticArrays
 import MathematicalSystems
 
 import Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const DO = DI.Domain
-const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
 
 @enum ApproxMode GROWTH LINEARIZED DELTA_GAS
 
@@ -24,14 +18,14 @@ using JuMP
 Solver based on the classical abstraction method (used for instance in SCOTS) for which the whole domain is partioned into hyper-rectangular cells, independently of the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    concrete_problem::Union{Nothing, PR.ProblemType}
-    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
+    concrete_problem::Union{Nothing, Dionysos.Problem.ProblemType}
+    abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem, Dionysos.Problem.SafetyProblem}
+    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_controller::Union{Nothing, Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
     discretized_system::Any
-    state_grid::Union{Nothing, DO.Grid}
-    input_grid::Union{Nothing, DO.Grid}
+    state_grid::Union{Nothing, Dionysos.Domain.Grid}
+    input_grid::Union{Nothing, Dionysos.Domain.Grid}
     jacobian_bound::Union{Nothing, Function}
     time_step::T
     num_sub_steps_system_map::Int
@@ -154,11 +148,11 @@ function build_abstraction(concrete_system, model)
         error("Please set the `input_grid`.")
     end
 
-    Xfull = DO.DomainList(model.state_grid)
-    DO.add_set!(Xfull, concrete_system.X, DO.INNER)
-    Ufull = DO.DomainList(model.input_grid)
-    DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
-    abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
+    Xfull = Dionysos.Domain.DomainList(model.state_grid)
+    Dionysos.Domain.add_set!(Xfull, concrete_system.X, Dionysos.Domain.INNER)
+    Ufull = Dionysos.Domain.DomainList(model.input_grid)
+    Dionysos.Domain.add_set!(Ufull, concrete_system.U, Dionysos.Domain.CENTER)
+    abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(Xfull, Ufull)
 
     # TODO add noise to the description of the system so in a MathematicalSystems
     #      this is a workaround
@@ -168,12 +162,12 @@ function build_abstraction(concrete_system, model)
     model.discretized_system = discretized_system(concrete_system, model, noise)
 
     if model.δGAS
-        @time SY.compute_deterministic_symmodel_from_controlsystem!(
+        @time Dionysos.Symbolic.compute_deterministic_symmodel_from_controlsystem!(
             abstract_system,
             model.discretized_system,
         )
     else
-        @time SY.compute_symmodel_from_controlsystem!(
+        @time Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
             abstract_system,
             model.discretized_system,
         )
@@ -182,18 +176,18 @@ function build_abstraction(concrete_system, model)
 end
 
 function build_abstract_problem(
-    concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.SymbolicModelList,
+    concrete_problem::Dionysos.Problem.OptimalControlProblem,
+    abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
     state_grid = abstract_system.Xdom.grid
-    Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
-    Xtarget = DO.DomainList(state_grid)
-    DO.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
+    Xinit = Dionysos.Domain.DomainList(state_grid)
+    Dionysos.Domain.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, Dionysos.Domain.OUTER)
+    Xtarget = Dionysos.Domain.DomainList(state_grid)
+    Dionysos.Domain.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, Dionysos.Domain.INNER)
+    init_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]
     target_list =
-        [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xtarget)]
-    return PR.OptimalControlProblem(
+        [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xtarget)]
+    return Dionysos.Problem.OptimalControlProblem(
         abstract_system,
         init_list,
         target_list,
@@ -204,17 +198,17 @@ function build_abstract_problem(
 end
 
 function build_abstract_problem(
-    concrete_problem::PR.SafetyProblem,
-    abstract_system::SY.SymbolicModelList,
+    concrete_problem::Dionysos.Problem.SafetyProblem,
+    abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
     state_grid = abstract_system.Xdom.grid
-    Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
-    Xsafe = DO.DomainList(state_grid)
-    DO.add_subset!(Xsafe, abstract_system.Xdom, concrete_problem.safe_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
-    safe_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xsafe)]
-    return PR.SafetyProblem(
+    Xinit = Dionysos.Domain.DomainList(state_grid)
+    Dionysos.Domain.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, Dionysos.Domain.OUTER)
+    Xsafe = Dionysos.Domain.DomainList(state_grid)
+    Dionysos.Domain.add_subset!(Xsafe, abstract_system.Xdom, concrete_problem.safe_set, Dionysos.Domain.INNER)
+    init_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xinit)]
+    safe_list = [Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for pos in Dionysos.Domain.enum_pos(Xsafe)]
+    return Dionysos.Problem.SafetyProblem(
         abstract_system,
         init_list,
         safe_list,
@@ -222,7 +216,7 @@ function build_abstract_problem(
     )
 end
 
-function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
+function solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
     abstract_controller = NewControllerList()
     compute_controller_reach!(
         abstract_controller,
@@ -233,7 +227,7 @@ function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
     return abstract_controller
 end
 
-function solve_abstract_problem(abstract_problem::PR.SafetyProblem)
+function solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem)
     abstract_controller = NewControllerList()
     compute_controller_safe!(
         abstract_controller,
@@ -246,13 +240,13 @@ end
 
 function solve_concrete_problem(abstract_system, abstract_controller)
     function concrete_controller(x; param = false)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom.grid, x)
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain")
             return nothing
         end
-        source = SY.get_state_by_xpos(abstract_system, xpos)
-        symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
+        source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+        symbollist = Dionysos.Utils.fix_and_eliminate_first(abstract_controller, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return nothing
@@ -262,8 +256,8 @@ function solve_concrete_problem(abstract_system, abstract_controller)
         else
             symbol = first(symbollist)[1]
         end
-        upos = SY.get_upos_by_symbol(abstract_system, symbol)
-        u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
+        upos = Dionysos.Symbolic.get_upos_by_symbol(abstract_system, symbol)
+        u = Dionysos.Domain.get_coord_by_pos(abstract_system.Udom.grid, upos)
         return u
     end
 end
@@ -288,11 +282,11 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}()
+NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:(autom.nstates)
-        for soursymb in SY.pre(autom, target)
+        for soursymb in Dionysos.Symbolic.pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
         end
     end
@@ -311,12 +305,12 @@ function _compute_controller_reach!(
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
         for target in current_targets
-            for (source, symbol) in SY.pre(autom, target)
+            for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
                 if !(source in target_set) &&
                    iszero(num_targets_unreachable[source, symbol] -= 1)
                     push!(target_set, source)
                     push!(next_targets, source)
-                    UT.push_new!(contr, (source, symbol))
+                    Dionysos.Utils.push_new!(contr, (source, symbol))
                     if source in init_set
                         num_init_unreachable -= 1
                     end
@@ -355,7 +349,7 @@ end
 
 function _compute_pairstable(pairstable, autom)
     for target in 1:(autom.nstates)
-        for soursymb in SY.pre(autom, target)
+        for soursymb in Dionysos.Symbolic.pre(autom, target)
             pairstable[soursymb[1], soursymb[2]] = true
         end
     end
@@ -387,7 +381,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     while true
         # ProgressMeter.next!(prog)
         for target in unsafeset
-            for soursymb in SY.pre(autom, target)
+            for soursymb in Dionysos.Symbolic.pre(autom, target)
                 if pairstable[soursymb[1], soursymb[2]]
                     pairstable[soursymb[1], soursymb[2]] = false
                     nsymbolslist[soursymb[1]] -= 1
@@ -408,7 +402,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                UT.push_new!(contr, (source, symbol))
+                Dionysos.Utils.push_new!(contr, (source, symbol))
             end
         end
     end
