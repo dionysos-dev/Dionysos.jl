@@ -238,7 +238,11 @@ function hybrid_constraints(
     δ,
 ) where {T}
     system = first(systems)
-    add_constraint.(model, x - system.A * x_prev - system.B * u - system.c, MOI.EqualTo(zero(T)))
+    add_constraint.(
+        model,
+        x - system.A * x_prev - system.B * u - system.c,
+        MOI.EqualTo(zero(T)),
+    )
     return δ
 end
 

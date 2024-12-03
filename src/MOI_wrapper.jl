@@ -419,10 +419,6 @@ function _handle_hybrid_systems_table(model::Optimizer, lhs, rhs, set = MOI.Equa
         lhs_var, lhs_src, lhs_dst =
             lhs.args[1].args[1], lhs.args[1].args[2], lhs.args[2].args[2]
 
-        @show rhs
-        @show rhs.args[1]
-        @show set
-
         # build a MOI.ScalarNonlinearFunction from rhs.args[1] a MOI.ScalarAffineFunction and set a MOI.Interval
         if rhs.args[1] isa MOI.ScalarAffineFunction && set isa MOI.Interval
             #TODO: tweak this to handle more cases
@@ -737,7 +733,7 @@ end
 
 function _rect(lb, ub, lib, T)
     if lb == -Inf && ub == Inf
-        r =  FullSpace(1)
+        r = FullSpace(1)
     elseif lb == -Inf
         r = hrep([HalfSpace([1], T(ub))])
     elseif ub == Inf
@@ -750,16 +746,16 @@ function _rect(lb, ub, lib, T)
 end
 
 function _HyperRectangle_to_polyhedra(hrect, lib, T)
-    n = length(hrect.lb)#lower)  # number of dimensions
-    lb_vector = hrect.lb#lower
-    ub_vector = hrect.ub#upper
+    n = length(hrect.lb) # number of dimensions
+    lb_vector = hrect.lb
+    ub_vector = hrect.ub
 
     result = Vector{Polyhedra.Rep}(undef, n)
-    
+
     for i in 1:n
         result[i] = _rect(lb_vector[1], ub_vector[1], lib, T)
     end
-    
+
     return reduce(∩, result)
 end
 
@@ -777,7 +773,6 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     index = 1
     for (_, transition) in model.transitions
         src, dst = transition.source, transition.destination
-        @show src, dst, index
         HybridSystems.add_transition!(automaton, src, dst, index)
         index += 1
     end
@@ -800,17 +795,10 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
             fill(1.0, 1),
             _X_,
             _U_,
-        )
+        ),
     ]
     for mode in eachindex(model.modes)
         continuous_systems[mode] = funcs[mode]
-            #=MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-                dynamic(model, x_idx, u_idx, mode),
-                Dionysos.Utils.get_dims(_X_),
-                Dionysos.Utils.get_dims(_U_),
-                _X_,
-                _U_,
-            )=#
     end
 
     # Assemble the guard for each transition
@@ -818,8 +806,6 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
     guard_constraints = [
         Dionysos.Utils.HyperRectangle([-Inf], [19.0]),
         Dionysos.Utils.HyperRectangle([21.0], [Inf]),
-        #MOI.HyperRectangle([-Inf], [19.0]),
-        #MOI.HyperRectangle([21.0], [Inf]),
     ]
 
     guard_maps = Vector{MathematicalSystems.AbstractMap}(undef, length(model.transitions))
@@ -831,14 +817,6 @@ function _hybrid_system(model, x_idx, u_idx, _X_, _U_)
             _HyperRectangle_to_polyhedra(guard_constraints[index], lib, T),
             _HyperRectangle_to_polyhedra(_U_, lib, T),
         )
-        #=MathematicalSystems.ConstrainedBlackBoxControlMap(
-            length(x_idx),
-            Dionysos.Utils.get_dims(_X_),
-            Dionysos.Utils.get_dims(_U_),
-            (x, _) -> x,
-            guard_constraints[index],
-            _U_,
-        )=#
         index += 1
     end
 
@@ -929,7 +907,7 @@ function problem(model::Optimizer)
         nothing,
         Dionysos.Problem.Infinity(),
     )
-    
+
     return problem
 end
 
