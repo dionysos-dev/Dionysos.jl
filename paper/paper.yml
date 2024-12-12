@@ -4,16 +4,18 @@ keywords:
 authors:
   - name: Julien Calbert
     affiliation: 1
+    orcid: 0000-0003-3617-5315
   - name: Adrien Banse
     affiliation: 1
+    orcid: 0000-0002-4456-6618
   - name: Benoît Legat
-    affiliation: 2
+    affiliation: 1
+    orcid: 0000-0002-5921-368X
   - name: Raphaël M. Jungers
     affiliation: 1
+    orcid: 0000-0002-7789-0940
 affiliations:
   - name: ICTEAM, UCLouvain
     index: 1
-  - name: STADIUS, KU Leuven
-    index: 2
-date: 22 April 2024
+date: 12 December 2024
 bibliography: ref.bib
