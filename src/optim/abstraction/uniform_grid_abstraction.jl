@@ -7,12 +7,6 @@ import StaticArrays
 import MathematicalSystems
 
 import Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const DO = DI.Domain
-const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
 
 @enum ApproxMode GROWTH LINEARIZED DELTA_GAS
 
@@ -24,14 +18,18 @@ using JuMP
 Solver based on the classical abstraction method (used for instance in SCOTS) for which the whole domain is partioned into hyper-rectangular cells, independently of the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    concrete_problem::Union{Nothing, PR.ProblemType}
-    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
+    concrete_problem::Union{Nothing, Dionysos.Problem.ProblemType}
+    abstract_problem::Union{
+        Nothing,
+        Dionysos.Problem.OptimalControlProblem,
+        Dionysos.Problem.SafetyProblem,
+    }
+    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_controller::Union{Nothing, Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
     discretized_system::Any
-    state_grid::Union{Nothing, DO.Grid}
-    input_grid::Union{Nothing, DO.Grid}
+    state_grid::Union{Nothing, Dionysos.Domain.Grid}
+    input_grid::Union{Nothing, Dionysos.Domain.Grid}
     jacobian_bound::Union{Nothing, Function}
     time_step::T
     num_sub_steps_system_map::Int
@@ -81,17 +79,75 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function discretized_system(
+"""
+    validate_model!(model::Optimizer, required_fields::Vector{Symbol})
+
+Ensures the specified `required_fields` are set in the `model`. Throws an error
+if any field is missing.
+"""
+function _validate_model(model::Optimizer, required_fields::Vector{Symbol})
+    for field in required_fields
+        if isnothing(getfield(model, field))
+            error("Please set the `$(field)`.")
+        end
+    end
+end
+
+"""
+    validate_continuous_model!(model::Optimizer)
+
+Validates that the `Optimizer` model is correctly configured for continuous
+systems. Throws an error if required fields like `time_step` or `jacobian_bound`
+are missing or invalid.
+"""
+function _validate_continuous_model(model::Optimizer)
+    _validate_model(model, [:time_step, :jacobian_bound])
+    if isnan(model.time_step)
+        error("Please set the `time_step`.")
+    end
+end
+
+"""
+    validate_discrete_model!(model::Optimizer)
+
+Validates that the `Optimizer` model is correctly configured for discrete
+systems. Throws an error if required fields like `sys_inv_map` or `growthbound_map`
+are missing or invalid.
+"""
+function _validate_discrete_model(model::Optimizer)
+    return _validate_model(model, [:growthbound_map, :sys_inv_map])
+end
+
+"""
+    discretized_system(concrete_system, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _maybe_discretized_system(concrete_system, model, noise)
+    if isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
+        _validate_discrete_model(model)
+        return _discrete_system(concrete_system, model, noise)
+    elseif isa(
+        concrete_system,
+        MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
+    )
+        _validate_continuous_model(model)
+        return _discretize_continuous_system(concrete_system, model, noise)
+    else
+        error("Unsupported system type: $(typeof(concrete_system))")
+    end
+end
+
+"""
+    discretized_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _discrete_system(
     concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
     model,
     noise,
 )
-    if isnothing(model.growthbound_map)
-        error("Please set the `growthbound_map`.")
-    end
-    if isnothing(model.sys_inv_map)
-        error("Please set the `sys_inv_map`.")
-    end
     return Dionysos.System.ControlSystemGrowth(
         1.0, # `time_step` should be ignored by `concrete_system.f`, `model.growthbound_map` and `model.sys_inv_map` anyway
         noise,
@@ -102,19 +158,17 @@ function discretized_system(
     )
 end
 
-function discretized_system(
+"""
+    _discretize_continuous_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem, model, noise)
+
+Returns the discretized system based on the `concrete_system` and `model`.
+"""
+function _discretize_continuous_system(
     concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
     model,
     noise,
 )
-    if isnan(model.time_step)
-        error("Please set the `time_step`.")
-    end
-
     if model.approx_mode == GROWTH
-        if isnothing(model.jacobian_bound)
-            error("Please set the `jacobian_bound`.")
-        end
         return Dionysos.System.discretize_system_with_growth_bound(
             model.time_step,
             concrete_system.f,
@@ -145,35 +199,45 @@ function discretized_system(
     end
 end
 
+"""
+    _get_domain_list(model, variables, grid)
+
+Returns a `Dionysos.Domain.DomainList` based on the `variables` and `grid`.
+"""
+function _get_domain_list(variables, grid, position_in_domain)
+    domain_list = Dionysos.Domain.DomainList(grid)
+    Dionysos.Domain.add_set!(domain_list, variables, position_in_domain)
+    return domain_list
+end
+
+_vector_of_tuple(size, value = 0.0) = StaticArrays.SVector(ntuple(_ -> value, Val(size)))
+
+"""
+    build_abstraction(concrete_system, model)
+
+Builds the abstraction based on the `concrete_system` and `model`.
+"""
 function build_abstraction(concrete_system, model)
-    if isnothing(model.state_grid)
-        error("Please set the `state_grid`.")
-    end
+    _validate_model(model, [:state_grid, :input_grid])
 
-    if isnothing(model.input_grid)
-        error("Please set the `input_grid`.")
-    end
+    abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(
+        _get_domain_list(concrete_system.X, model.state_grid, Dionysos.Domain.INNER),
+        _get_domain_list(concrete_system.U, model.input_grid, Dionysos.Domain.CENTER),
+    )
 
-    Xfull = DO.DomainList(model.state_grid)
-    DO.add_set!(Xfull, concrete_system.X, DO.INNER)
-    Ufull = DO.DomainList(model.input_grid)
-    DO.add_set!(Ufull, concrete_system.U, DO.CENTER)
-    abstract_system = SY.NewSymbolicModelListList(Xfull, Ufull)
+    #TODO: add noise to the description of the system so in a MathematicalSystems
+    @warn("Noise is not now taken into account!")
+    noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
 
-    # TODO add noise to the description of the system so in a MathematicalSystems
-    #      this is a workaround
-    nstates = Dionysos.Utils.get_dims(concrete_system.X)
-    noise = StaticArrays.SVector(ntuple(_ -> 0.0, Val(nstates)))
-
-    model.discretized_system = discretized_system(concrete_system, model, noise)
+    model.discretized_system = _maybe_discretized_system(concrete_system, model, noise)
 
     if model.δGAS
-        @time SY.compute_deterministic_symmodel_from_controlsystem!(
+        @time Dionysos.Symbolic.compute_deterministic_symmodel_from_controlsystem!(
             abstract_system,
             model.discretized_system,
         )
     else
-        @time SY.compute_symmodel_from_controlsystem!(
+        @time Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
             abstract_system,
             model.discretized_system,
         )
@@ -181,48 +245,74 @@ function build_abstraction(concrete_system, model)
     return abstract_system
 end
 
-function build_abstract_problem(
-    concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.SymbolicModelList,
-)
-    state_grid = abstract_system.Xdom.grid
-    Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
-    Xtarget = DO.DomainList(state_grid)
-    DO.add_subset!(Xtarget, abstract_system.Xdom, concrete_problem.target_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
-    target_list =
-        [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xtarget)]
-    return PR.OptimalControlProblem(
-        abstract_system,
-        init_list,
-        target_list,
-        concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
-        concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
-        concrete_problem.time, # TODO this is the continuous time, not the number of transition
-    )
+"""
+    _corresponding_abstract_state_points(abstract_system, set, position_in_domain)
+
+Returns the corresponding abstract points based on the `abstract_system`, `set`, and `position_in_domain`.
+"""
+function _corresponding_abstract_points(set, position_in_domain, abstract_system)
+    grid = abstract_system.Xdom.grid
+    domain_list = Dionysos.Domain.DomainList(grid)
+    Dionysos.Domain.add_subset!(domain_list, abstract_system.Xdom, set, position_in_domain)
+    return [
+        Dionysos.Symbolic.get_state_by_xpos(abstract_system, pos) for
+        pos in Dionysos.Domain.enum_pos(domain_list)
+    ]
 end
 
+"""
+    build_abstract_problem(concrete_problem, abstract_system)
+
+Builds the abstract problem based on the `concrete_problem` and `abstract_system`.
+"""
 function build_abstract_problem(
-    concrete_problem::PR.SafetyProblem,
-    abstract_system::SY.SymbolicModelList,
+    concrete_problem,
+    abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
-    state_grid = abstract_system.Xdom.grid
-    Xinit = DO.DomainList(state_grid)
-    DO.add_subset!(Xinit, abstract_system.Xdom, concrete_problem.initial_set, DO.OUTER)
-    Xsafe = DO.DomainList(state_grid)
-    DO.add_subset!(Xsafe, abstract_system.Xdom, concrete_problem.safe_set, DO.INNER)
-    init_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xinit)]
-    safe_list = [SY.get_state_by_xpos(abstract_system, pos) for pos in DO.enum_pos(Xsafe)]
-    return PR.SafetyProblem(
-        abstract_system,
-        init_list,
-        safe_list,
-        concrete_problem.time, # TODO this is the continuous time, not the number of transition
-    )
+    if isa(concrete_problem, Dionysos.Problem.SafetyProblem)
+        return Dionysos.Problem.SafetyProblem(
+            abstract_system,
+            _corresponding_abstract_points(
+                concrete_problem.initial_set,
+                Dionysos.Domain.OUTER,
+                abstract_system,
+            ),
+            _corresponding_abstract_points(
+                concrete_problem.safe_set,
+                Dionysos.Domain.INNER,
+                abstract_system,
+            ),
+            concrete_problem.time, # TODO this is the continuous time, not the number of transition
+        )
+    elseif isa(concrete_problem, Dionysos.Problem.OptimalControlProblem)
+        @warn("The `state_cost` and `transition_cost` is not yet fully implemented")
+        return Dionysos.Problem.OptimalControlProblem(
+            abstract_system,
+            _corresponding_abstract_points(
+                concrete_problem.initial_set,
+                Dionysos.Domain.OUTER,
+                abstract_system,
+            ),
+            _corresponding_abstract_points(
+                concrete_problem.target_set,
+                Dionysos.Domain.INNER,
+                abstract_system,
+            ),
+            concrete_problem.state_cost, # TODO this is the continuous cost, not the abstraction
+            concrete_problem.transition_cost, # TODO this is the continuous cost, not the abstraction
+            concrete_problem.time, # TODO this is the continuous time, not the number of transition
+        )
+    else
+        error("Unsupported problem type: $(typeof(concrete_problem))")
+    end
 end
 
-function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
+"""
+    solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
+
+Solves the abstract optimal control problem based on the `abstract_problem`.
+"""
+function solve_abstract_problem(abstract_problem::Dionysos.Problem.OptimalControlProblem)
     abstract_controller = NewControllerList()
     compute_controller_reach!(
         abstract_controller,
@@ -233,7 +323,12 @@ function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
     return abstract_controller
 end
 
-function solve_abstract_problem(abstract_problem::PR.SafetyProblem)
+"""
+    solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem)
+
+Solves the abstract safety problem based on the `abstract_problem`.
+"""
+function solve_abstract_problem(abstract_problem::Dionysos.Problem.SafetyProblem)
     abstract_controller = NewControllerList()
     compute_controller_safe!(
         abstract_controller,
@@ -244,26 +339,38 @@ function solve_abstract_problem(abstract_problem::PR.SafetyProblem)
     return abstract_controller
 end
 
+"""
+    solve_concrete_problem(abstract_system, abstract_controller)
+
+Solves the concrete problem based on the `abstract_system` and `abstract_controller`.
+"""
 function solve_concrete_problem(abstract_system, abstract_controller)
     function concrete_controller(x; param = false)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom.grid, x)
+        # Getting the position of the state in the abstract system
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain")
             return nothing
         end
-        source = SY.get_state_by_xpos(abstract_system, xpos)
-        symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
+
+        # Getting the corresponding abstract state
+        source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+        symbollist = Dionysos.Utils.fix_and_eliminate_first(abstract_controller, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return nothing
         end
+
+        # Choosing a random symbol or the first one
         if param
             symbol = rand(collect(symbollist))[1]
         else
             symbol = first(symbollist)[1]
         end
-        upos = SY.get_upos_by_symbol(abstract_system, symbol)
-        u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
+
+        # Getting and return the control points
+        upos = Dionysos.Symbolic.get_upos_by_symbol(abstract_system, symbol)
+        u = Dionysos.Domain.get_coord_by_pos(abstract_system.Udom.grid, upos)
         return u
     end
 end
@@ -274,30 +381,44 @@ function MOI.optimize!(optimizer::Optimizer)
     # Build the abstraction
     abstract_system = build_abstraction(optimizer.concrete_problem.system, optimizer)
     optimizer.abstract_system = abstract_system
+
     # Build the abstract problem
     abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
+
     # Solve the abstract problem
     abstract_controller = solve_abstract_problem(abstract_problem)
     optimizer.abstract_controller = abstract_controller
+
     # Solve the concrete problem
     optimizer.concrete_controller =
         solve_concrete_problem(abstract_system, abstract_controller)
 
+    # Time elapsed
     optimizer.solve_time_sec = time() - t_ref
     return
 end
 
-NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}()
+NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
+"""
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
+
+Computes the number of targets unreachable based on the `autom`.
+"""
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:(autom.nstates)
-        for soursymb in SY.pre(autom, target)
+        for soursymb in Dionysos.Symbolic.pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
         end
     end
 end
 
+"""
+    _compute_controller_reach!(contr, autom, init_set, target_set, num_targets_unreachable, current_targets, next_targets)
+
+Computes the controller reach based on the `contr`, `autom`, `init_set`, `target_set`, `num_targets_unreachable`, `current_targets`, and `next_targets`.
+"""
 function _compute_controller_reach!(
     contr,
     autom,
@@ -311,12 +432,12 @@ function _compute_controller_reach!(
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
         for target in current_targets
-            for (source, symbol) in SY.pre(autom, target)
+            for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
                 if !(source in target_set) &&
                    iszero(num_targets_unreachable[source, symbol] -= 1)
                     push!(target_set, source)
                     push!(next_targets, source)
-                    UT.push_new!(contr, (source, symbol))
+                    Dionysos.Utils.push_new!(contr, (source, symbol))
                     if source in init_set
                         num_init_unreachable -= 1
                     end
@@ -327,6 +448,12 @@ function _compute_controller_reach!(
     end
     return iszero(num_init_unreachable)
 end
+
+"""
+    _data(contr, autom, initlist, targetlist)
+
+Returns the data based on the `contr`, `autom`, `initlist`, and `targetlist`.
+"""
 function _data(contr, autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -336,6 +463,12 @@ function _data(contr, autom, initlist, targetlist)
     next_targets = Int[]
     return initset, targetset, num_targets_unreachable, current_targets, next_targets
 end
+
+"""
+    compute_controller_reach!(contr, autom, initlist, targetlist)
+
+Computes the controller reach based on the `contr`, `autom`, `initlist`, and `targetlist`.
+"""
 function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
@@ -353,14 +486,24 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
     return println("\ncompute_controller_reach! terminated with success")
 end
 
+"""
+    _compute_pairstable(pairstable, autom)
+
+Computes the pairstable based on the `pairstable` and `autom`.
+"""
 function _compute_pairstable(pairstable, autom)
     for target in 1:(autom.nstates)
-        for soursymb in SY.pre(autom, target)
+        for soursymb in Dionysos.Symbolic.pre(autom, target)
             pairstable[soursymb[1], soursymb[2]] = true
         end
     end
 end
 
+"""
+    compute_controller_safe!(contr, autom, initlist, safelist)
+
+Computes the controller safe based on the `contr`, `autom`, `initlist`, and `safelist`.
+"""
 function compute_controller_safe!(contr, autom, initlist, safelist)
     println("compute_controller_safe! started")
     nstates = autom.nstates
@@ -387,7 +530,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     while true
         # ProgressMeter.next!(prog)
         for target in unsafeset
-            for soursymb in SY.pre(autom, target)
+            for soursymb in Dionysos.Symbolic.pre(autom, target)
                 if pairstable[soursymb[1], soursymb[2]]
                     pairstable[soursymb[1], soursymb[2]] = false
                     nsymbolslist[soursymb[1]] -= 1
@@ -408,7 +551,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                UT.push_new!(contr, (source, symbol))
+                Dionysos.Utils.push_new!(contr, (source, symbol))
             end
         end
     end

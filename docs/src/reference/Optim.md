@@ -17,3 +17,28 @@ Dionysos.Optim.BemporadMorari.Optimizer
 Dionysos.Optim.BranchAndBound.Optimizer
 ```
 
+## Solvers details
+
+### Uniform Grid Abstraction
+
+```@docs
+Dionysos.Optim.Abstraction.UniformGridAbstraction._get_domain_list
+Dionysos.Optim.Abstraction.UniformGridAbstraction._discretize_continuous_system
+Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_continuous_model
+Dionysos.Optim.Abstraction.UniformGridAbstraction.solve_concrete_problem
+Dionysos.Optim.Abstraction.UniformGridAbstraction.build_abstraction
+Dionysos.Optim.Abstraction.UniformGridAbstraction.compute_controller_reach!
+Dionysos.Optim.Abstraction.UniformGridAbstraction._compute_num_targets_unreachable
+Dionysos.Optim.Abstraction.UniformGridAbstraction._discrete_system
+Dionysos.Optim.Abstraction.UniformGridAbstraction.compute_controller_safe!
+Dionysos.Optim.Abstraction.UniformGridAbstraction._maybe_discretized_system
+Dionysos.Optim.Abstraction.UniformGridAbstraction.solve_abstract_problem
+Dionysos.Optim.Abstraction.UniformGridAbstraction._data
+Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_discrete_model
+Dionysos.Optim.Abstraction.UniformGridAbstraction._compute_controller_reach!
+Dionysos.Optim.Abstraction.UniformGridAbstraction.build_abstract_problem
+Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_model
+Dionysos.Optim.Abstraction.UniformGridAbstraction._corresponding_abstract_points
+Dionysos.Optim.Abstraction.UniformGridAbstraction._compute_pairstable
+```
+
