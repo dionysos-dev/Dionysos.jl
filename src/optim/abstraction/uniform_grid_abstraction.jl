@@ -375,11 +375,6 @@ function solve_concrete_problem(abstract_system, abstract_controller)
     end
 end
 
-"""
-    optimize!(optimizer::Optimizer)
-
-Optimizes the `optimizer` based on the abstraction method.
-"""
 function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
