@@ -22,7 +22,7 @@ Dionysos.Optim.BranchAndBound.Optimizer
 ### Uniform Grid Abstraction
 
 ```@docs
-Dionysos.Optim.Abstraction.UniformGridAbstraction._get_domain_list :: Tuple{Any, Any, Any}
+Dionysos.Optim.Abstraction.UniformGridAbstraction._get_domain_list
 Dionysos.Optim.Abstraction.UniformGridAbstraction._discretize_continuous_system :: Tuple{MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem, Any, Any}
 MathOptInterface.optimize! :: Tuple{Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer}
 Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_continuous_model :: Tuple{Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer}
