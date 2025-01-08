@@ -37,7 +37,7 @@ end
 function system(;
     sysnoise = SVector(0.0, 0.0, 0.0, 0.0),
     measnoise = SVector(0.0, 0.0, 0.0, 0.0),
-    tstep = 0.1,
+    tstep = 0.1, # time step du truc, comme max je prends 5 fois ça
     nsys = 5,
     _X_ = UT.HyperRectangle(SVector(-π, -π, -3, -3), SVector(π, π, 3, 3)),
     _U_ = UT.HyperRectangle(SVector(-11), SVector(11)),

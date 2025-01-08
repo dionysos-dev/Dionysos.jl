@@ -9,16 +9,17 @@ const ST = DI.System
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "double_pendulum.jl"))
-# and we can instantiate the DC system with the provided system
 concrete_problem = DoublePendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0, 0.0, 0.0)
 hx = SVector(0.3, 0.3, 0.3, 0.3)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(1.);
+h = SVector(1.); # discretization step of the input space
 input_grid = DO.GridFree(u0, h);
+
 using JuMP
 optimizer = MOI.instantiate(AB.SampleBasedAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -32,7 +33,9 @@ UT.analyze_non_determinism(automaton)
 n_sl = UT.analyze_self_loops(automaton)
 println("Number of self loops: $n_sl")
 
-# abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+println()
+
 # concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 # # ### Trajectory display
 # # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`

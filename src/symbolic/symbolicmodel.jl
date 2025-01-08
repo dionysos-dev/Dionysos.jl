@@ -105,37 +105,65 @@ function compute_symmodel_from_data!(
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
+    tstep_max = 5 * tstep
+    count = 0
+
     transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
     
     enum_u = DO.enum_pos(Udom)
-    for (i, upos) in enumerate(enum_u)
+    for (i, upos) in enumerate(enum_u) # for each input
         println("$i / $(length(enum_u))")
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
         enum_x = DO.enum_pos(Xdom)
-        for (j, xpos) in enumerate(DO.enum_pos(Xdom))
-            if j % 1000 == 0
-                println("  $j / $(length(enum_x))")
-            end
-            source = get_state_by_xpos(symmodel, xpos)
-            rec = DO.get_rec(Xdom.grid, xpos)
-            x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
-            Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled]
-            pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
-            pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
-            if !all(pos_contained_sampled)
-                continue
-            end
-            target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
-            for target in target_sampled
-                if (target, source, symbol) ∈ keys(transdict)
-                    transdict[target, source, symbol] += 1
-                else
-                    transdict[target, source, symbol] = 1
+        for (j, xpos) in enumerate(DO.enum_pos(Xdom)) # for each cell
+            # if j % 10000 == 0
+            #     println("  $j / $(length(enum_x))")
+            # end
+
+            # while ici, adapter time step pour chaque tuple cellule, input
+            self_loops = true
+            tstep = contsys.tstep
+
+            while self_loops && tstep <= tstep_max
+                self_loops = false
+                source = get_state_by_xpos(symmodel, xpos) # cellule source
+                rec = DO.get_rec(Xdom.grid, xpos)
+                # uniform sampling in the cell
+                x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
+                Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled] # x_k+1
+                pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+                pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+                if !all(pos_contained_sampled)
+                    continue
                 end
-            end
+                target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
+                
+                for target in target_sampled # enumère les cellules images
+                    if target == source
+                        self_loops = true
+                        tstep *= 1.1
+                        if abs(tstep - tstep_max) < 1e-10 || tstep > tstep_max
+                            count += 1
+                        end
+                        break
+                    end
+                end
+
+                # temporaire : refaire un loop pour incrémenter les transitions
+                if !self_loops
+                    for target in target_sampled # enumère les cellules images
+                        if (target, source, symbol) ∈ keys(transdict)
+                            transdict[target, source, symbol] += 1
+                        else
+                            transdict[target, source, symbol] = 1
+                        end
+                    end
+                end
+            end 
         end
     end
+    println("Number of times max time step reached: $count")
     translist = Tuple{Int, Int, Int}[]
     for (t, s, sym) ∈ keys(transdict)
         if transdict[(t, s, sym)] / n_samples >= ε
