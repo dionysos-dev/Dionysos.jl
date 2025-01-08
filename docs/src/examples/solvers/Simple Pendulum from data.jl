@@ -42,7 +42,7 @@ println("Number of self loops: $n_sl")
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 100
 function reached(x)
-    if x ∈ concrete_problem.target_set
+    if x ∈ concrete_problem.safe_set    #target_set
         return true
     else
         return false
@@ -62,7 +62,7 @@ plot!(
     opacity= 1.0
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    SY.get_domain_from_symbols(abstract_system, abstract_problem.safe_set); #target_set
     color = :red,
     opacity= 1.0
 );

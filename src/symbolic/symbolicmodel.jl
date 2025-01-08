@@ -108,6 +108,7 @@ function compute_symmodel_from_data!(
     tstep_max = 5 * tstep
     count = 0
 
+    write = true
     transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
     
     enum_u = DO.enum_pos(Udom)
@@ -116,6 +117,7 @@ function compute_symmodel_from_data!(
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
         enum_x = DO.enum_pos(Xdom)
+
         for (j, xpos) in enumerate(DO.enum_pos(Xdom)) # for each cell
             # if j % 10000 == 0
             #     println("  $j / $(length(enum_x))")

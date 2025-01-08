@@ -296,6 +296,8 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
             end
         end
     end
+    l = length(safeset)
+    println("number of safe cells $l")
     if ⊆(initlist, safeset)
         println("\ncompute_controller_safe! terminated with success")
     else
