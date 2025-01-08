@@ -105,7 +105,7 @@ function compute_symmodel_from_data!(
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    tstep_max = 5 * tstep
+    tstep_max = 1 * tstep
     count = 0
 
     write = true
@@ -117,7 +117,6 @@ function compute_symmodel_from_data!(
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
         enum_x = DO.enum_pos(Xdom)
-
         for (j, xpos) in enumerate(DO.enum_pos(Xdom)) # for each cell
             # if j % 10000 == 0
             #     println("  $j / $(length(enum_x))")
@@ -126,8 +125,12 @@ function compute_symmodel_from_data!(
             # while ici, adapter time step pour chaque tuple cellule, input
             self_loops = true
             tstep = contsys.tstep
-
+            w_count = 0
             while self_loops && tstep <= tstep_max
+                w_count += 1
+                if w_count % 10 == 0 
+                    println("    $w_count")
+                end
                 self_loops = false
                 source = get_state_by_xpos(symmodel, xpos) # cellule source
                 rec = DO.get_rec(Xdom.grid, xpos)
@@ -153,7 +156,7 @@ function compute_symmodel_from_data!(
                 end
 
                 # temporaire : refaire un loop pour incrémenter les transitions
-                if !self_loops
+                if !self_loops || tstep > tstep_max
                     for target in target_sampled # enumère les cellules images
                         if (target, source, symbol) ∈ keys(transdict)
                             transdict[target, source, symbol] += 1
