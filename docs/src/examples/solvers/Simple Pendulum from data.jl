@@ -34,6 +34,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 
 automaton = abstract_system.autom
 UT.analyze_non_determinism(automaton)
+n_sl = UT.analyze_self_loops(automaton)
 println("Number of self loops: $n_sl")
 
 # ### Trajectory display
