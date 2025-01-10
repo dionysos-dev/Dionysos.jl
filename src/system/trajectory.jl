@@ -117,6 +117,7 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     i = 0
     while !stopping(x) && i ≤ nstep
         u, p = controller(x) # u, tstep_cur = controller(x)
+        println("u = $u, p = $p")
         if u === nothing
             break
         end

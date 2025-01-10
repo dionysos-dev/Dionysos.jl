@@ -45,7 +45,7 @@ println("Number of self loops: $n_sl")
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 100
 function reached(x)
-    if x ∈ concrete_problem.safe_set    #target_set
+    if x ∈ concrete_problem.target_set    #target_set
         return true
     else
         return false
@@ -55,8 +55,8 @@ end
 x0 = SVector(0.15,0.0)
 #x0 = SVector(4.5*pi/180, 0.75) # SVector(pi+0.15,0.5)
 control_trajectory =
-    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)#;
-    #stopping = reached)
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
+    stopping = reached)
 fig = plot(; aspect_ratio = :equal);
 # plot!(concrete_system.X);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.1);
@@ -66,7 +66,7 @@ plot!(
     opacity= 1.0
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.safe_set); #target_set
+    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set); #target_set
     color = :red,
     opacity= 1.0
 );

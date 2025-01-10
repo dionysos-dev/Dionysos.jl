@@ -106,7 +106,7 @@ function compute_symmodel_from_data!(
     Udom = symmodel.Udom
     tstep = contsys.tstep
     γ = 1.1                 # growth factor of timestep
-    tstep_max = 5 * tstep
+    tstep_max = 0.5
     count = 0
 
     write = true
