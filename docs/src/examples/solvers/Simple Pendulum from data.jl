@@ -14,10 +14,13 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems/simple_pendulum.j
 concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
-hx = SVector(0.1, 0.1)
+
+hx_param = 0.3
+
+hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(0.3);
+h = SVector(1.);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
@@ -33,7 +36,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 automaton = abstract_system.autom
-UT.analyze_non_determinism(automaton)
+UT.analyze_non_determinism(automaton, abstract_system)
 n_sl = UT.analyze_self_loops(automaton)
 println("Number of self loops: $n_sl")
 
@@ -48,6 +51,7 @@ function reached(x)
         return false
     end
 end
+
 #x0 = SVector(0.15,0.0)
 x0 = SVector(0.15,0.0) # SVector(pi+0.15,0.5)
 control_trajectory =

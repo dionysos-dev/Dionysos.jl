@@ -53,6 +53,7 @@ end
 drop_first(x::NTuple{2}) = (x[2],)
 drop_first(x::NTuple{3}) = (x[2], x[3])
 drop_first(x::Tuple{Int, Int, Int, Float64}) = (x[2], x[3], x[4])
+drop_first(x::Tuple{Int, Int, Int, Int})     = (x[2], x[3], x[4])    # for temporal abstraction : pas sur que c'est bon ? 
 
 function fix_and_eliminate_first(set::SortedTupleSet, value)
     ensure_sorted!(set)

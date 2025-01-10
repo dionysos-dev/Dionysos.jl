@@ -1,6 +1,11 @@
-function analyze_non_determinism(a)
+function analyze_non_determinism(a, sys)
     count = Dict{Tuple{Int, Int}, Int}()
     self_loops = Dict{Tuple{Int, Int}, Int}()
+
+    write_histo = false
+    write_transi = false
+    path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
+
     for (t, s, sym) ∈ a.transitions.data
         # s(ource) -> t(arget) with input-symbol sym 
         # parce que non déterministe si plusieurs edge partant du même state avec même input
@@ -14,6 +19,20 @@ function analyze_non_determinism(a)
         end
     end
 
+    if write_transi
+        # Write transitions to a text file
+        open(joinpath(path, "transitions2.txt"), "w") do file
+            for (s, sym) ∈ keys(count)
+                pos = sys.xint2pos[s] # SY.get_state_by_xpos(abstract_system, pos)
+                sl = 0
+                if (s, sym) ∈ keys(self_loops)
+                    sl = 1
+                end
+                println(file, "$s $pos $sym $(count[s, sym]) $sl")
+            end
+        end
+    end
+
     for (t, s, sym) ∈ a.transitions.data
         if (s,sym) ∈ keys(self_loops)
             self_loops[s, sym] = count[s, sym]
@@ -23,19 +42,19 @@ function analyze_non_determinism(a)
     all_counts = collect(values(count))
     all_self_loops = collect(values(self_loops))
 
-    path = "C:/Users/adrie/OneDrive - UCL/Master 2"
-
-    # Write all_counts and self_loop_values to a text file
-    open(joinpath(path,"all_counts2.txt"), "w") do file
-        # Write all_counts
-        for value in all_counts
-            println(file, value)
+    if write_histo
+        # Write all_counts and self_loop_values to a text file
+        open(joinpath(path,"all_counts.txt"), "w") do file
+            # Write all_counts
+            for value in all_counts
+                println(file, value)
+            end
         end
-    end
-    open(joinpath(path, "all_self_loops2.txt"), "w") do file
-        # Write self_loop_values
-        for value in all_self_loops
-            println(file, value)
+        open(joinpath(path, "all_self_loops.txt"), "w") do file
+            # Write self_loop_values
+            for value in all_self_loops
+                println(file, value)
+            end
         end
     end
 

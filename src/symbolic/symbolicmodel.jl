@@ -28,7 +28,7 @@ end
 function NewSymbolicModelListList(
     Xdom,
     Udom,
-    ::Type{S} = UT.SortedTupleSet{3, NTuple{3, Int}},
+    ::Type{S} = UT.SortedTupleSet{4, NTuple{4, Int}},
 ) where {S}
     nx = DO.get_ncells(Xdom)
     nu = DO.get_ncells(Udom)
@@ -105,11 +105,12 @@ function compute_symmodel_from_data!(
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    tstep_max = 1 * tstep
+    γ = 1.1                 # growth factor of timestep
+    tstep_max = 5 * tstep
     count = 0
 
     write = true
-    transdict = Dict{Tuple{Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
+    transdict = Dict{Tuple{Int, Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
     
     enum_u = DO.enum_pos(Udom)
     for (i, upos) in enumerate(enum_u) # for each input
@@ -124,19 +125,17 @@ function compute_symmodel_from_data!(
 
             # while ici, adapter time step pour chaque tuple cellule, input
             self_loops = true
-            tstep = contsys.tstep
-            w_count = 0
-            while self_loops && tstep <= tstep_max
-                w_count += 1
-                if w_count % 10 == 0 
-                    println("    $w_count")
-                end
+            tstep_cur = tstep
+            power = 0
+
+            while self_loops && tstep_cur <= tstep_max
+
                 self_loops = false
                 source = get_state_by_xpos(symmodel, xpos) # cellule source
                 rec = DO.get_rec(Xdom.grid, xpos)
                 # uniform sampling in the cell
                 x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
-                Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled] # x_k+1
+                Fx_sampled = [contsys.sys_map(x, u, tstep_cur) for x ∈ x_sampled] # x_k+1
                 pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
                 pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
                 if !all(pos_contained_sampled)
@@ -147,21 +146,35 @@ function compute_symmodel_from_data!(
                 for target in target_sampled # enumère les cellules images
                     if target == source
                         self_loops = true
-                        tstep *= 1.1
-                        if abs(tstep - tstep_max) < 1e-10 || tstep > tstep_max
+                        # tstep *= 1.1
+                        power += 1
+                        tstep_cur = tstep * γ^power
+                        if tstep_cur > tstep_max
                             count += 1
                         end
                         break
                     end
                 end
 
-                # temporaire : refaire un loop pour incrémenter les transitions
-                if !self_loops || tstep > tstep_max
+                # écrire les transitions finales
+                if !self_loops || tstep_cur > tstep_max
+                    if tstep_cur > tstep_max
+                        power = 0
+                        # si on arrive pas à éliminer les self-loops, on reprend le plus petit time step
+                        # surement moyen de faire + efficace
+                        Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled] # x_k+1
+                        pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+                        pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+                        if !all(pos_contained_sampled)
+                            continue
+                        end
+                        target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
+                    end
                     for target in target_sampled # enumère les cellules images
-                        if (target, source, symbol) ∈ keys(transdict)
-                            transdict[target, source, symbol] += 1
+                        if (target, source, symbol, power) ∈ keys(transdict)
+                            transdict[target, source, symbol, power] += 1
                         else
-                            transdict[target, source, symbol] = 1
+                            transdict[target, source, symbol, power] = 1
                         end
                     end
                 end
@@ -169,15 +182,17 @@ function compute_symmodel_from_data!(
         end
     end
     println("Number of times max time step reached: $count")
-    translist = Tuple{Int, Int, Int}[]
-    for (t, s, sym) ∈ keys(transdict)
-        if transdict[(t, s, sym)] / n_samples >= ε
-            push!(translist, (t, s, sym))
+    #translist = Tuple{Int, Int, Int}[]
+    translist = Tuple{Int, Int, Int, Int}[]
+    for (t, s, sym, p) ∈ keys(transdict)
+        if transdict[(t, s, sym, p)] / n_samples >= ε
+            #push!(translist, (t, s, sym))
+            push!(translist, (t, s, sym, p))
         end
     end
     add_transitions!(symmodel.autom, translist)
     return println(
-        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "compute_symmodel_from_data! terminated with success: ",
         "$(length(translist)) transitions created",
     )
 end

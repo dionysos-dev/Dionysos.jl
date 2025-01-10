@@ -137,11 +137,11 @@ function solve_concrete_problem(abstract_system, abstract_controller)
         if param
             symbol = rand(collect(symbollist))[1]
         else
-            symbol = first(symbollist)[1]
+            symbol = first(symbollist)[1] # symbol, timestep
         end
-        upos = SY.get_upos_by_symbol(abstract_system, symbol)
+        upos = SY.get_upos_by_symbol(abstract_system, symbol) 
         u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
-        return u
+        return u#, timestep
     end
 end
 
@@ -172,7 +172,7 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}()
+NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}() # pour chaque source un input : rajouter l'info du timestep
 
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:(autom.nstates)
@@ -240,6 +240,9 @@ end
 function _compute_pairstable(pairstable, autom)
     for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
+            if target == 1 
+                println(soursymb)
+            end
             pairstable[soursymb[1], soursymb[2]] = true
         end
     end
@@ -264,7 +267,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
         for symbol in 1:nsymbols
             pairstable[source, symbol] = false
         end
-    end
+    end 
     nextunsafeset = Set{Int}()
 
     # prog = ProgressUnknown("# iterations computing controller:")
@@ -291,8 +294,8 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     # ProgressMeter.finish!(prog)
     for source in safeset
         for symbol in 1:nsymbols
-            if pairstable[source, symbol]
-                UT.push_new!(contr, (source, symbol))
+            if pairstable[source, symbol] # source symb timestep
+                UT.push_new!(contr, (source, symbol))   # push (source, symbol, timestep)
             end
         end
     end

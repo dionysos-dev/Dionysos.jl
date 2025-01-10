@@ -1,4 +1,4 @@
-mutable struct AutomatonList{S <: AbstractSet{NTuple{3, Int}}} <:
+mutable struct AutomatonList{S <: AbstractSet{NTuple{4, Int}}} <:
                HybridSystems.AbstractAutomaton
     nstates::Int
     nsymbols::Int
@@ -11,7 +11,7 @@ function AutomatonList{S}(nstates, nsymbols) where {S}
 end
 
 NewAutomatonList(nstates, nsymbols) =
-    AutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
+    AutomatonList{UT.SortedTupleSet{4, NTuple{4, Int}}}(nstates, nsymbols)
 
 function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
