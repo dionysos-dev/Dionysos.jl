@@ -64,7 +64,7 @@ function problem(; approx_mode = "growth")
     _S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -1.0), SVector(30.0*pi/180.0, 1.0))
     _T_ = UT.HyperRectangle(SVector(pi-30.0*pi/180.0, -1.0), SVector(pi+30.0*pi/180.0, 1.0))
     ## unstable equilibrium
-    #return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
-    return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
+    return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    #return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
 end
 end

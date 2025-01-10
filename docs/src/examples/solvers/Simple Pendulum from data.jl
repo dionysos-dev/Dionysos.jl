@@ -15,12 +15,12 @@ concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
 
-hx_param = 0.3
+hx_param = 0.1
 
 hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(1.);
+h = SVector(0.3);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
@@ -52,11 +52,11 @@ function reached(x)
     end
 end
 
-#x0 = SVector(0.15,0.0)
-x0 = SVector(0.15,0.0) # SVector(pi+0.15,0.5)
+x0 = SVector(0.15,0.0)
+#x0 = SVector(4.5*pi/180, 0.75) # SVector(pi+0.15,0.5)
 control_trajectory =
-    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
-    stopping = reached)
+    ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep)#;
+    #stopping = reached)
 fig = plot(; aspect_ratio = :equal);
 # plot!(concrete_system.X);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.1);

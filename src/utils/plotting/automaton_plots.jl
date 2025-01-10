@@ -3,7 +3,7 @@ function analyze_non_determinism(a, sys)
     self_loops = Dict{Tuple{Int, Int}, Int}()
 
     write_histo = false
-    write_transi = false
+    write_transi = true
     path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
 
     for (t, s, sym) ∈ a.transitions.data

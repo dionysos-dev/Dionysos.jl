@@ -116,11 +116,11 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     u_traj = []
     i = 0
     while !stopping(x) && i ≤ nstep
-        u = controller(x) # u, tstep_cur = controller(x)
+        u, p = controller(x) # u, tstep_cur = controller(x)
         if u === nothing
             break
         end
-        x = contsys.sys_map(x, u, contsys.tstep) # x = contsys.sys_map(x, u, tstep_cur)
+        x = contsys.sys_map(x, u, contsys.tstep * 1.1^p) # x = contsys.sys_map(x, u, tstep_cur)
         push!(x_traj, x)
         push!(u_traj, u)
         i = i + 1

@@ -21,7 +21,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.ProblemType}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
     abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
+    abstract_controller::Union{Nothing, UT.SortedTupleSet{3, NTuple{3, Int}}}
     concrete_controller::Any
     state_grid::Union{Nothing, DO.Grid}
     input_grid::Union{Nothing, DO.Grid}
@@ -135,13 +135,15 @@ function solve_concrete_problem(abstract_system, abstract_controller)
             return nothing
         end
         if param
-            symbol = rand(collect(symbollist))[1]
+            temp = rand(collect(symbollist))
+            symbol, tstep = temp[1], temp[2]
         else
-            symbol = first(symbollist)[1] # symbol, timestep
+            temp = first(symbollist)
+            symbol, tstep = temp[1], temp[2] # symbol, timestep
         end
         upos = SY.get_upos_by_symbol(abstract_system, symbol) 
         u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
-        return u#, timestep
+        return u, tstep
     end
 end
 
@@ -172,12 +174,13 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-NewControllerList() = UT.SortedTupleSet{2, NTuple{2, Int}}() # pour chaque source un input : rajouter l'info du timestep
+NewControllerList() = UT.SortedTupleSet{3, NTuple{3, Int}}() # pour chaque source un input : rajouter l'info du timestep
 
-function _compute_num_targets_unreachable(num_targets_unreachable, autom)
+function _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
     for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
+            timesteps[soursymb[1], soursymb[2]] = soursymb[3]
         end
     end
 end
@@ -190,6 +193,7 @@ function _compute_controller_reach!(
     num_targets_unreachable,
     current_targets,
     next_targets,
+    timesteps,
 )
     num_init_unreachable = length(init_set)
     while !isempty(current_targets) && !iszero(num_init_unreachable)
@@ -200,7 +204,7 @@ function _compute_controller_reach!(
                    iszero(num_targets_unreachable[source, symbol] -= 1)
                     push!(target_set, source)
                     push!(next_targets, source)
-                    UT.push_new!(contr, (source, symbol))
+                    UT.push_new!(contr, (source, symbol, timesteps[source, symbol]))
                     if source in init_set
                         num_init_unreachable -= 1
                     end
@@ -213,12 +217,13 @@ function _compute_controller_reach!(
 end
 function _data(contr, autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
-    _compute_num_targets_unreachable(num_targets_unreachable, autom)
+    timesteps = Dict{Tuple{Int, Int}, Int}()
+    _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
     current_targets = copy(targetlist)
     next_targets = Int[]
-    return initset, targetset, num_targets_unreachable, current_targets, next_targets
+    return initset, targetset, num_targets_unreachable, current_targets, next_targets, timesteps
 end
 function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
@@ -237,13 +242,11 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
     return println("\ncompute_controller_reach! terminated with success")
 end
 
-function _compute_pairstable(pairstable, autom)
+function _compute_pairstable(pairstable, timesteps, autom)
     for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
-            if target == 1 
-                println(soursymb)
-            end
             pairstable[soursymb[1], soursymb[2]] = true
+            timesteps[soursymb[1], soursymb[2]] = soursymb[3]
         end
     end
 end
@@ -253,7 +256,8 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     nstates = autom.nstates
     nsymbols = autom.nsymbols
     pairstable = [false for i in 1:nstates, j in 1:nsymbols]
-    _compute_pairstable(pairstable, autom)
+    timesteps = Dict{Tuple{Int, Int}, Int}()
+    _compute_pairstable(pairstable, timesteps, autom)
     nsymbolslist = sum(pairstable; dims = 2)
     safeset = Set(safelist)
     for source in safeset
@@ -295,7 +299,7 @@ function compute_controller_safe!(contr, autom, initlist, safelist)
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol] # source symb timestep
-                UT.push_new!(contr, (source, symbol))   # push (source, symbol, timestep)
+                UT.push_new!(contr, (source, symbol, timesteps[source, symbol]))   # push (source, symbol, timestep)
             end
         end
     end
