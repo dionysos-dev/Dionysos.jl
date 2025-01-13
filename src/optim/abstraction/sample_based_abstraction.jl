@@ -11,6 +11,7 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 
 using JuMP
+using DataStructures
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
@@ -177,6 +178,7 @@ end
 NewControllerList() = UT.SortedTupleSet{3, NTuple{3, Int}}() # pour chaque source un input : rajouter l'info du timestep
 
 function _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+    # for each target, we count how many times each source/symbol pair can reach it in 1 step
     for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
             num_targets_unreachable[soursymb[1], soursymb[2]] += 1
@@ -199,12 +201,13 @@ function _compute_controller_reach!(
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
         for target in current_targets
-            for (source, symbol) in SY.pre(autom, target)
-                if !(source in target_set) &&
-                   iszero(num_targets_unreachable[source, symbol] -= 1)
+            for (source, symbol) in SY.pre(autom, target)   # pre = predecesseur
+                if !(source in target_set) &&                           
+                   iszero(num_targets_unreachable[source, symbol] -= 1) # si c'est 0, c'est déterministe
                     push!(target_set, source)
                     push!(next_targets, source)
-                    UT.push_new!(contr, (source, symbol, timesteps[source, symbol]))
+                    # controleur mis à jour 
+                    UT.push_new!(contr, (source, symbol, timesteps[source, symbol])) 
                     if source in init_set
                         num_init_unreachable -= 1
                     end
@@ -215,6 +218,64 @@ function _compute_controller_reach!(
     end
     return iszero(num_init_unreachable)
 end
+
+
+function _compute_controller_reach_with_cost!(
+    contr,
+    autom,
+    init_set,                # set of initial states
+    target_set,              # set of target states
+    num_targets_unreachable, # see _compute_num_targets_unreachable
+    current_targets,         # initiated to target set = N
+    next_targets,            # empty
+    timesteps,
+)   
+    num_init_unreachable = length(init_set)
+    # M = Int[]
+    N = PriorityQueue{Int, Float64}()
+    g = DefaultDict{Int, Float64}(typemax(Int))  # g = {source : cost} (belmann value function)
+    controlDict = Dict{Int, Tuple{Int, Int}}()   # controlDict = {source : (symbol, timestep)} (the policy)
+    for t in target_set
+        g[t] = 0
+        enqueue!(N, t, g[t])
+    end
+    post = Int[]
+    while !isempty(N) && !iszero(num_init_unreachable)
+        q = dequeue!(N)
+        # push!(M, q)
+        for (qminus, symbol) in SY.pre(autom, q)                      # get all the source/symbol pairs that can reach the target
+            if !(qminus in target_set) &&                             # if the source is not already in the target set
+                iszero(num_targets_unreachable[qminus, symbol] -= 1)  # check if deterministic or if all transitions already go to M
+                # compute max of g for each q' that can be reached from qminus 
+                empty!(post)
+                SY.compute_post!(post, autom, qminus, symbol)
+                gmax = 0
+                for qprime in post
+                    gmax = max(gmax, g[qprime])
+                end
+                time = 0.01 * 1.1^timesteps[qminus, symbol]
+                if g[qminus] > gmax + time                            # check if better
+                    g[qminus] = gmax + time
+                    controlDict[qminus] = (symbol, timesteps[qminus, symbol])
+                end 
+                if !(haskey(N, qminus))
+                    enqueue!(N, qminus, g[qminus])
+                else 
+                    setindex!(N, g[qminus], qminus)
+                end
+                if qminus in init_set
+                    num_init_unreachable -= 1
+                end
+            end
+        end
+    end
+    # build the controller from the optimal policy
+    for q in keys(controlDict)
+        UT.push_new!(contr, (q, controlDict[q][1], controlDict[q][2]))
+    end
+    return iszero(num_init_unreachable)
+end
+
 function _data(contr, autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
     timesteps = Dict{Tuple{Int, Int}, Int}()
@@ -229,7 +290,7 @@ function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{In
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
-    if !_compute_controller_reach!(
+    if !_compute_controller_reach_with_cost!(
         contr,
         autom,
         _data(contr, autom, initlist, targetlist)...,

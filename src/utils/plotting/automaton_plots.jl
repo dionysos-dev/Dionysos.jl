@@ -1,8 +1,12 @@
+# using Dionysos
+# const DI = Dionysos
+# const SY = DI.Symbolic
+
 function analyze_non_determinism(a, sys)
     count = Dict{Tuple{Int, Int}, Int}()
     self_loops = Dict{Tuple{Int, Int}, Int}()
 
-    write_histo = true
+    write_histo = false
     write_transi = false
     path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
 
