@@ -29,9 +29,9 @@ end
 function system(;
     sysnoise = SVector(0.0, 0.0),
     measnoise = SVector(0.0, 0.0),
-    tstep = 0.05, #0.5
+    tstep = 0.1, #0.5
     nsys = 5,
-    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π+pi, 5.0)), # erreur ?
+    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π+pi, 5.0)), 
     _U_ = UT.HyperRectangle(SVector(-6.0), SVector(6.0)),#11 #8 #6
     xdim = 2,
     udim = 1,

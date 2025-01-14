@@ -231,7 +231,7 @@ function _compute_controller_reach_with_cost!(
     timesteps,
 )   
     num_init_unreachable = length(init_set)
-    # M = Int[]
+    R = Int[]  # set of init states for which g(q) < inf
     N = PriorityQueue{Int, Float64}()
     g = DefaultDict{Int, Float64}(typemax(Int))  # g = {source : cost} (belmann value function)
     controlDict = Dict{Int, Tuple{Int, Int}}()   # controlDict = {source : (symbol, timestep)} (the policy)
@@ -248,13 +248,17 @@ function _compute_controller_reach_with_cost!(
                 iszero(num_targets_unreachable[qminus, symbol] -= 1)  # check if deterministic or if all transitions already go to M
                 # compute max of g for each q' that can be reached from qminus 
                 empty!(post)
-                SY.compute_post!(post, autom, qminus, symbol)
+                SY.compute_post!(post, autom, qminus, symbol, timesteps[qminus, symbol])
                 gmax = 0
                 for qprime in post
                     gmax = max(gmax, g[qprime])
                 end
-                time = 0.01 * 1.1^timesteps[qminus, symbol]
+                time = 0.1 * 1.1^timesteps[qminus, symbol]
                 if g[qminus] > gmax + time                            # check if better
+                    if qminus in init_set && !(qminus in R)
+                        push!(R, qminus)
+                        num_init_unreachable -= 1
+                    end
                     g[qminus] = gmax + time
                     controlDict[qminus] = (symbol, timesteps[qminus, symbol])
                 end 
@@ -263,12 +267,10 @@ function _compute_controller_reach_with_cost!(
                 else 
                     setindex!(N, g[qminus], qminus)
                 end
-                if qminus in init_set
-                    num_init_unreachable -= 1
-                end
             end
         end
     end
+    println("number of init unreachable $num_init_unreachable out of $(length(init_set))") 
     # build the controller from the optimal policy
     for q in keys(controlDict)
         UT.push_new!(contr, (q, controlDict[q][1], controlDict[q][2]))

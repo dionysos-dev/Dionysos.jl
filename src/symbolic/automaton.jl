@@ -34,6 +34,10 @@ function compute_post!(targetlist, autom::AutomatonList, source, symbol)
     return UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 end
 
+function compute_post!(targetlist, autom::AutomatonList, source, symbol, time)
+    return UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol, time))
+end
+
 #function compute_available!(targetlist, autom::AutomatonList, source)
 # fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))
 #end

@@ -15,12 +15,12 @@ concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
 
-hx_param = 0.1
+hx_param = 0.2
 
 hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(0.3);
+h = SVector(0.2);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
