@@ -255,10 +255,10 @@ function _compute_controller_reach_with_cost!(
     end
     post = Int[]
     iter = 0
-    while !isempty(N) #&& !iszero(num_init_unreachable)
+    while !isempty(N) && !iszero(num_init_unreachable)
         q = dequeue!(N)
-        iter += 1
         for (qminus, symbol) in SY.pre(autom, q)                      # get all the source/symbol pairs that can reach the target
+            iter += 1
             if !(qminus in target_set) &&                             # if the source is not already in the target set
                 iszero(num_targets_unreachable[qminus, symbol] -= 1)  # check if deterministic or if all transitions already go to M
                 # compute max of g for each q' that can be reached from qminus 
@@ -268,12 +268,13 @@ function _compute_controller_reach_with_cost!(
                 for qprime in post
                     gmax = max(gmax, g[qprime])
                 end
-                state = abstract_system.xint2pos[qminus]
+                # state = abstract_system.xint2pos[qminus]
                 u     = abstract_system.uint2pos[symbol]
-                true_state = DO.get_coord_by_pos(abstract_system.Xdom.grid, state)
+                # true_state = DO.get_coord_by_pos(abstract_system.Xdom.grid, state)
                 true_u     = DO.get_coord_by_pos(abstract_system.Udom.grid, u)
                 time = 0.1 * 1.1^timesteps[qminus, symbol]
-                cost = true_u[1]^2 * time #abs(true_u[1] * time * true_state[2])          # power = torque * angular velocity
+                cost = time
+                #cost = true_u[1]^2 * time #abs(true_u[1] * time * true_state[2])          # power = torque * angular velocity
                 if g[qminus] > gmax + cost                            # check if better
                     if qminus in init_set && !(qminus in R)
                         push!(R, qminus)
