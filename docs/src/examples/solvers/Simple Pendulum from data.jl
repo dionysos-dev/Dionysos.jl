@@ -20,7 +20,7 @@ hx_param = 0.2
 hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(0.2);
+h = SVector(0.3);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
@@ -52,7 +52,7 @@ function reached(x)
     end
 end
 
-x0 = SVector(0.15,0.0)
+x0 = SVector(0.0,0.0)
 #x0 = SVector(4.5*pi/180, 0.75) # SVector(pi+0.15,0.5)
 control_trajectory =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;

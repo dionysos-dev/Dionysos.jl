@@ -127,14 +127,13 @@ function compute_symmodel_from_data!(
             self_loops = true
             tstep_cur = tstep
             power = 0
+            source = get_state_by_xpos(symmodel, xpos) # cellule source
+            rec = DO.get_rec(Xdom.grid, xpos)
+            # uniform sampling in the cell
+            x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
 
             while self_loops && tstep_cur <= tstep_max
-
                 self_loops = false
-                source = get_state_by_xpos(symmodel, xpos) # cellule source
-                rec = DO.get_rec(Xdom.grid, xpos)
-                # uniform sampling in the cell
-                x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
                 Fx_sampled = [contsys.sys_map(x, u, tstep_cur) for x ∈ x_sampled] # x_k+1
                 pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
                 pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
