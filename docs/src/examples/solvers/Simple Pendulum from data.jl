@@ -15,7 +15,7 @@ concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
 
-hx_param = 0.2
+hx_param = 0.1
 
 hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
@@ -24,12 +24,16 @@ h = SVector(0.3);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
+
+println("Start of the abstraction")
 optimizer = MOI.instantiate(AB.SampleBasedAbstraction.Optimizer)
+println("check")
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.optimize!(optimizer)
+println("ok2")
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
@@ -39,6 +43,8 @@ automaton = abstract_system.autom
 UT.analyze_non_determinism(automaton, abstract_system)
 n_sl = UT.analyze_self_loops(automaton)
 println("Number of self loops: $n_sl")
+
+value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -53,6 +59,8 @@ function reached(x)
 end
 
 x0 = SVector(0.0,0.0)
+x0_state  = SY.get_state_by_coord(abstract_system, x0)
+println("worst case cost: ", value_function[x0_state])
 #x0 = SVector(4.5*pi/180, 0.75) # SVector(pi+0.15,0.5)
 control_trajectory =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;

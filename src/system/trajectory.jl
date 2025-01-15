@@ -136,8 +136,14 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
         push!(u_traj2, u[1])
         i = i + 1
     end
-    p = plot(t_traj, u_traj2, label="u(t)", seriestype=:steppost, xlabel="Time", ylabel="u", title="Step Plot of u")
-    display(p)
+    path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
+    open(joinpath(path, "u.txt"), "w") do file
+        for i in 1:length(u_traj2)
+            t = t_traj[i]
+            u = u_traj2[i]
+            println(file, "$t $u")
+        end
+    end
     println("Total time: $total_time")
     println("Energy: $energy")
     println("Control effort: $control_effort")

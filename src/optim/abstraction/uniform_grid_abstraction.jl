@@ -223,6 +223,7 @@ function _compute_controller_reach!(
     end
     return iszero(num_init_unreachable)
 end
+
 function _data(contr, autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -232,6 +233,87 @@ function _data(contr, autom, initlist, targetlist)
     next_targets = Int[]
     return initset, targetset, num_targets_unreachable, current_targets, next_targets
 end
+
+function _compute_controller_reach_with_cost!(
+    contr,
+    abstract_system,
+    autom,
+    init_set,                # set of initial states
+    target_set,              # set of target states
+    num_targets_unreachable, # see _compute_num_targets_unreachable
+    N, 
+    g, 
+    timesteps,
+)   
+    num_init_unreachable = length(init_set)
+    R = Int[]                                    # set of init states for which g(q) < inf
+    controlDict = Dict{Int, Tuple{Int, Int}}()   # controlDict = {source : (symbol, timestep)} (the policy)
+    for t in target_set
+        g[t] = 0
+        enqueue!(N, t, g[t])
+    end
+    post = Int[]
+    iter = 0
+    while !isempty(N) && !iszero(num_init_unreachable)
+        q = dequeue!(N)
+        for (qminus, symbol) in SY.pre(autom, q)                      # get all the source/symbol pairs that can reach the target
+            if iter % 100000 == 0
+                println("iteration $iter : $(length(N)) states left and $num_init_unreachable init states to reach")
+            end
+            iter += 1
+            if !(qminus in target_set) &&                             # if the source is not already in the target set
+                iszero(num_targets_unreachable[qminus, symbol] -= 1)  # check if deterministic or if all transitions already go to M
+                # compute max of g for each q' that can be reached from qminus 
+                empty!(post)
+                SY.compute_post!(post, autom, qminus, symbol, timesteps[qminus, symbol])
+                gmax = 0
+                for qprime in post   # peut être moyen de faire plus efficace ? 
+                    gmax = max(gmax, g[qprime])
+                end
+                # state = abstract_system.xint2pos[qminus]
+                u     = abstract_system.uint2pos[symbol]
+                # true_state = DO.get_coord_by_pos(abstract_system.Xdom.grid, state)
+                true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u)
+                time   = 0.1 * 1.1^timesteps[qminus, symbol]
+                # cost = time
+                cost = true_u[1]^2 * time 
+                if g[qminus] > gmax + cost                            # check if better
+                    if qminus in init_set && !(qminus in R)
+                        push!(R, qminus)
+                        num_init_unreachable -= 1
+                    end
+                    g[qminus] = gmax + cost
+                    controlDict[qminus] = (symbol, timesteps[qminus, symbol])
+                end 
+                if !(haskey(N, qminus))
+                    enqueue!(N, qminus, g[qminus])
+                else 
+                    setindex!(N, g[qminus], qminus)
+                end
+            end
+        end
+    end
+    println("Converged in $iter iterations")
+    println("number of init unreachable $num_init_unreachable out of $(length(init_set))") 
+    # build the controller from the optimal policy
+    for q in keys(controlDict)
+        UT.push_new!(contr, (q, controlDict[q][1], controlDict[q][2]))
+    end
+    return iszero(num_init_unreachable)
+end
+
+function _data_cost(contr, autom, initlist, targetlist)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
+    timesteps = Dict{Tuple{Int, Int}, Int}()
+    _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+    initset = BitSet(initlist)
+    targetset = BitSet(targetlist)
+    N = PriorityQueue{Int, Float64}()            
+    g = DefaultDict{Int, Float64}(typemax(Int))  # g = {source : cost} (belmann value function)
+    next_targets = Int[]
+    return initset, targetset, num_targets_unreachable, N, g, timesteps
+end
+
 function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,

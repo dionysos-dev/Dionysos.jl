@@ -1,5 +1,6 @@
 using Plots, Colors
 using ProgressMeter
+using Random
 
 """
     SymbolicModel{N, M}
@@ -109,7 +110,7 @@ function compute_symmodel_from_data!(
     tstep_max = 0.5
     count = 0
 
-    write = true
+    Random.seed!(1234)
     transdict = Dict{Tuple{Int, Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
     
     enum_u = DO.enum_pos(Udom)
