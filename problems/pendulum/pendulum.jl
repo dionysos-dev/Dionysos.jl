@@ -56,7 +56,7 @@ end
 
 function problem(; objective = "reachability-up-low_power")
     if objective == "safety-up"
-        sys = system()
+        sys = system(_X_ = UT.HyperRectangle(SVector(-π, -10.0), SVector(π + 0.2, 10.0)), _U_ = UT.HyperRectangle(SVector(-10), SVector(10)))
         _I_ = UT.HyperRectangle(
             SVector(pi - 5.0 * pi / 180.0, -0.5),
             SVector(pi + 5.0 * pi / 180.0, 0.5),
@@ -79,16 +79,23 @@ function problem(; objective = "reachability-up-low_power")
         return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
     elseif objective == "reachability-up-ultra_low_power"
         sys = system(;
-            _X_ = UT.HyperRectangle(SVector(-π, -10.0), SVector(π + pi, 10.0)),
+            _X_ = UT.HyperRectangle(SVector(-π, -10.0), SVector(π+0.2, 10.0)),
             _U_ = UT.HyperRectangle(SVector(-3.0), SVector(3.0)),
         )
+        # _I_ = UT.HyperRectangle(
+        #     SVector(-5.0 * pi / 180.0, -0.5),
+        #     SVector(5.0 * pi / 180.0, 0.5),
         _I_ = UT.HyperRectangle(
-            SVector(-5.0 * pi / 180.0, -0.5),
-            SVector(5.0 * pi / 180.0, 0.5),
+            SVector(-5.0 * pi / 180.0, -0.2),
+            SVector(5.0 * pi / 180.0, 0.2),
         )
+        # _T_ = UT.HyperRectangle(
+        #     SVector(pi - 5.0 * pi / 180.0, -1.0),
+        #     SVector(pi + 5.0 * pi / 180.0, 1.0),
+        # )
         _T_ = UT.HyperRectangle(
-            SVector(pi - 5.0 * pi / 180.0, -1.0),
-            SVector(pi + 5.0 * pi / 180.0, 1.0),
+            SVector(pi - 7.0 * pi / 180.0, -1.0),
+            SVector(pi + 11.0 * pi / 180.0, 1.0),
         )
         return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     elseif objective == "reachability-up-low_power"
@@ -103,14 +110,22 @@ function problem(; objective = "reachability-up-low_power")
         )
         return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     elseif objective == "reachability-up-high_power"
-        sys = system(; _U_ = UT.HyperRectangle(SVector(-10), SVector(10)))
+        sys = system(; _X_ = UT.HyperRectangle(SVector(-π, -10.0), SVector(π + 0.2, 10.0)), _U_ = UT.HyperRectangle(SVector(-10), SVector(10)))
+        # _I_ = UT.HyperRectangle(
+        #     SVector(-5.0 * pi / 180.0, -0.5),
+        #     SVector(5.0 * pi / 180.0, 0.5),
+        # )
+        # _T_ = UT.HyperRectangle(
+        #     SVector(pi - 5.0 * pi / 180.0, -2.0),
+        #     SVector(pi + 5.0 * pi / 180.0, 2.0),
+        # )
         _I_ = UT.HyperRectangle(
-            SVector(-5.0 * pi / 180.0, -0.5),
-            SVector(5.0 * pi / 180.0, 0.5),
+            SVector(-5.0 * pi / 180.0, -0.2),
+            SVector(5.0 * pi / 180.0, 0.2),
         )
         _T_ = UT.HyperRectangle(
-            SVector(pi - 5.0 * pi / 180.0, -2.0),
-            SVector(pi + 5.0 * pi / 180.0, 2.0),
+            SVector(pi - 7.0 * pi / 180.0, -1.0),
+            SVector(pi + 11.0 * pi / 180.0, 1.0),
         )
         return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     end

@@ -5,10 +5,10 @@
   <link name="base_link">
     <visual>
       <geometry>
-         <box size="0.16 0.16 0.16" />
+         <box size="0.2 0.2 0.2" />
       </geometry>
-      <material name="black">
-         <color rgba="0 0 0 1" />
+      <material name="green">
+         <color rgba="0 1 0 1" />
       </material>
     </visual>
   </link>
@@ -33,5 +33,18 @@
     <origin xyz="0 0 0" rpy="0 0 0" />
     <axis xyz="0 1 0" />
   </joint>
+
+  <!-- Obstacle -->
+  <link name="obstacle">
+    <visual>
+      <origin xyz="-1.0 0 0" rpy="0 0 0" />
+      <geometry>
+         <box size="0.2 0.2 0.2" />
+      </geometry>
+      <material name="black">
+         <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+  </link>
 
 </robot>

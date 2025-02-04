@@ -12,7 +12,7 @@ const AB = OP.Abstraction
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum", "pendulum.jl"))
 
-concrete_problem = Pendulum.problem(; objective = "reachability-up-ultra_low_power")
+concrete_problem = Pendulum.problem(; objective = "reachability-up-high_power") #reachability-up-ultra_low_power  reachability-up-high_power
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
 hx = SVector(0.05, 0.05)

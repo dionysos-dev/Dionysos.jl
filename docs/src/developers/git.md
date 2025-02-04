@@ -14,13 +14,13 @@ You can be in 2 situations:
 
 We have a `master` branch that contains the latest version of all **merged** changes.
 There is three `master` branches:
-* `origin/master`: that is the branch at https://github.com/dionysos-dev/Dionysos.jl, it is always the most up to date.
+* `origin/master`: that is the branch at https://github.com/EurekaTech-Solutions/Optim.jl, it is always the most up to date.
 * Your local `master` branch: that is the state of the branch on your computer. It may be a few commits behind `origin/master` as they do not synchronize automatically. You can update it by following [Switch to the master branch and update it](@ref).
-* `jdupont/master`: that is the branch of your fork https://github.com/jdupont/Dionysos.jl, it may be many commits behind your local `master` and even more commits behind `origin/master` but we don't care much because we won't use it so you don't have to update it. Once you have write access to `origin`, you care even less if that was possible.
+* `jdupont/master`: that is the branch of your fork https://github.com/jdupont/Optim.jl, it may be many commits behind your local `master` and even more commits behind `origin/master` but we don't care much because we won't use it so you don't have to update it. Once you have write access to `origin`, you care even less if that was possible.
 
 ## Workflow
 
-The workflow is as follows. Your contributions should be grouped into small chunks that bring Dionysos from a working state (which is the current version of `origin/master`) to a new working state containing your improvements.
+The workflow is as follows. Your contributions should be grouped into small chunks that bring Optim.jl from a working state (which is the current version of `origin/master`) to a new working state containing your improvements.
 In order to do that, you do the following for every chunk.
 1) [Switch to the master branch and update it](@ref);
 2) then you [Create a new branch](@ref) (let's call it `mybranch` but it should be a new name for every new small chunk);
@@ -42,12 +42,12 @@ It's best to also have completed step 5) so that your changes are backed up in t
 
 These are the steps that should be done only the first time when you set up.
 
-At first, you don't have write access, so create a fork https://github.com/jdupont/Dionysos.jl by going to https://github.com/dionysos-dev/Dionysos.jl and click on the "Fork" button on the top right.
+At first, you don't have write access, so create a fork https://github.com/jdupont/Optim.jl by going to https://github.com/EurekaTech-Solutions/Optim.jl and click on the "Fork" button on the top right.
 You should then add this as a remote as detailed below.
 
 ### VSCode
 
-Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then `Remote` then `Add remote...` then enter `https://github.com/jdupont/Dionysos.jl.git` (replace `jdupont` by your Github login!) and then `jdupont`.
+Switch to Source Control by pressing `Ctrl+Shift+G` then on the three horizontal dots on the top right of the left pane then `Remote` then `Add remote...` then enter `https://github.com/jdupont/Optim.jl.git` (replace `jdupont` by your Github login!) and then `jdupont`.
 
 ### Git bash
 
@@ -55,15 +55,15 @@ First [Start Git bash](@ref).
 
 Then, add the remote as follows:
 ```sh
-$ git remote add jdupont https://github.com/jdupont/Dionysos.jl.git
+$ git remote add jdupont https://github.com/jdupont/Optim.jl.git
 ```
 Your remotes should be (the order of the lines is not important):
 ```sh
 $ git remote -v
-jdupont	https://github.com/jdupont/Dionysos.jl.git (fetch)
-jdupont	https://github.com/jdupont/Dionysos.jl.git (push)
-origin	https://github.com/dionysos-dev/Dionysos.jl.git (fetch)
-origin	https://github.com/dionysos-dev/Dionysos.jl.git (push)
+jdupont	https://github.com/jdupont/Optim.jl.git (fetch)
+jdupont	https://github.com/jdupont/Optim.jl.git (push)
+origin	https://github.com/EurekaTech-Solutions/Optim.jl.git (fetch)
+origin	https://github.com/EurekaTech-Solutions/Optim.jl.git (push)
 ```
 
 ## Switch to the master branch and update it
@@ -111,9 +111,9 @@ $ git checkout mybranch # Switch to the new branch `mybranch`
 
 Before doing any changes, make sure you [Switch branches](@ref) to the right branch (which should be `mybranch`).
 Once you have made changes, they are saved on your disc but the Git history has not been modified yet; neither your local branches nor the remote one on `origin` or your fork!
-You should first stage changes (this means selecting changes you want to commit and hence to be applied on the chunk of changes you suggest to make to Dionysos in the Pull Request) and then create the commit with a message.
+You should first stage changes (this means selecting changes you want to commit and hence to be applied on the chunk of changes you suggest to make to Optim.jl in the Pull Request) and then create the commit with a message.
 Usually, you want to stage every file; both the *modified* ones and the *untracked* ones because the "untracked" ones you don't want to add should be listed in the `.gitignore` file and hence should not show up.
-The only exception is the file `docs/Project.toml` since you may have changed it by adding `Dionysos` in [Build the documentation](@ref) but you don't want to push that, you want to keep these changes to your computer only.
+The only exception is the file `docs/Project.toml` since you may have changed it by adding `Optim` in [Build the documentation](@ref) but you don't want to push that, you want to keep these changes to your computer only.
 
 ### VSCode
 
