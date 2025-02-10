@@ -38,6 +38,10 @@ MOI.is_empty(optimizer::Optimizer) = optimizer.abstraction_solver === nothing
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     param_symbol = Symbol(param.name)
 
+    if model.abstraction_solver === nothing
+        model.abstraction_solver = OptimizerEmptyProblem()
+    end
+
     if param_symbol == :concrete_problem
         # Assign appropriate control solver
         if isa(value, Dionysos.Problem.EmptyProblem)
@@ -65,9 +69,9 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         else
             error("Unsupported problem type: $(typeof(value))")
         end
+
         # Instantiate an abstraction_solver if it has not already been created
-        if model.abstraction_solver === nothing
-            model.abstraction_solver = OptimizerEmptyProblem()
+        if model.abstraction_solver.empty_problem === nothing
             empty_problem = Dionysos.Problem.EmptyProblem(value.system, value.system.X)
             MOI.set(
                 model.abstraction_solver,

@@ -39,7 +39,7 @@ _fit_grid(elems::Set, grid, nx, fit) = elems
 Struct for a rectangular domain with rectangular obstacles.
 """
 struct GeneralDomainList{N, E <: AbstractSet{NTuple{N, Int}}, T, S <: Grid{N, T}, F} <:
-       DomainType{N, T}
+        GridDomainType{N, T}
     grid::S
     elems::E
     periodic::Vector{Int} # components which are periodic

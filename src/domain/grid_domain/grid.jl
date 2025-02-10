@@ -1,5 +1,8 @@
 using Polyhedra
 
+@enum INCL_MODE INNER OUTER CENTER
+_invInclMode(incl_mode::INCL_MODE) = incl_mode == OUTER ? INNER : OUTER
+
 abstract type Grid{N, T} end
 
 function get_origin(grid::Grid)

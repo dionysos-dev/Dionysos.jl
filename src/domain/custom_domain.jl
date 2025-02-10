@@ -1,41 +1,19 @@
 """
-    CustomList{N,T} <: DomainType{N,T}
+    CustomList{N, T} <: DomainType{N, T}
 
-Struct for a custom generic domain.
+A flexible, generic domain representation that stores elements as a list of `SVector{N, T}`.  
+Useful for managing discrete sets of points in an `N`-dimensional space.
 """
 
 struct CustomList{N, T} <: DomainType{N, T}
     elems::Vector{SVector{N, T}}
 end
 
-function enum_elems()
-    return domain.elems
-end
-
-function enum_pos(domain::CustomList)
-    return domain.elems
-end
-
-function Base.isempty(domain::CustomList)
-    return isempty(domain.elems)
-end
-
-function Base.union!(domain1::CustomList, domain2::CustomList)
-    return union!(domain1.elems, domain2.elems)
-end
-
-function Base.setdiff!(domain1::CustomList, domain2::CustomList)
-    return setdiff!(domain1.elems, domain2.elems)
-end
-
-function Base.empty!(domain::CustomList)
-    return empty!(domain.elems)
-end
-
-function get_ncells(domain::CustomList)
-    return length(domain.elems)
-end
-
-# function get_coord(domain::CustomList, rec)
-#     return U.center(rec)
-# end
+enum_pos(domain::CustomList) = domain.elems #1:get_ncells(domain)
+enum_elems(domain::CustomList) = domain.elems
+get_ncells(domain::CustomList) = length(domain.elems)
+get_elem_by_pos(domain::CustomList, pos) = domain.elems[pos]
+Base.isempty(domain::CustomList) = isempty(domain.elems)
+Base.union!(domain1::CustomList, domain2::CustomList) = union!(domain1.elems, domain2.elems)
+Base.setdiff!(domain1::CustomList, domain2::CustomList) = setdiff!(domain1.elems, domain2.elems)
+Base.empty!(domain::CustomList) = empty!(domain.elems)
