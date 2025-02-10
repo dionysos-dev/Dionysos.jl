@@ -111,7 +111,13 @@ function rectangle(c, r)
 end
 
 @recipe function f(rect::HyperRectangle; dims = [1, 2])
-    center = get_center(rect)
-    h = get_h(rect)
-    return rectangle(center[dims], h[dims] ./ 2)
+    center = get_center(rect)[dims]
+    h = get_h(rect)[dims] ./ 2  # Half-width
+    x1, y1 = center[1] - h[1], center[2] - h[2]
+    x2, y2 = center[1] + h[1], center[2] + h[2]
+
+    @series begin
+        seriestype := :shape
+        [x1, x2, x2, x1, x1], [y1, y1, y2, y2, y1]
+    end
 end

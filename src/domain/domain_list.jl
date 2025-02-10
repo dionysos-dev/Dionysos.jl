@@ -137,6 +137,10 @@ function Base.isempty(domain::DomainList)
     return isempty(domain.elems)
 end
 
+function get_dim(domain::DomainList)
+    return get_dim(domain.grid)
+end
+
 function Base.issubset(domain1::DomainList, domain2::DomainList)
     return issubset(domain1.elems, domain2.elems)
 end
@@ -161,19 +165,103 @@ function get_coord(domain::DomainType, pos)
     return get_coord_by_pos(domain.grid, pos)
 end
 
-@recipe function f(Xdom::DomainType{N, T}) where {N, T}
-    opacity := 0.2
-    color := :yellow
-    legend := false
+using Base.Iterators
 
-    dims = [1, 2]
-    grid = get_grid(Xdom)
-    dict = Dict{NTuple{2, Int}, Any}()
-    for pos in enum_pos(Xdom)
-        if !haskey(dict, pos[dims])
-            dict[pos[dims]] = true
+"""
+    merge_to_hyperrectangles_pos(domain_list::DomainList)
+
+Aggregates the grid elements in `DomainList` into the largest possible hyperrectangles.
+Returns a list of `HyperRectangle`s that efficiently represent the domain.
+"""
+function merge_to_hyperrectangles_pos(domain_list::DomainList)
+    elements = collect(domain_list.elems)  # Convert set to sorted list
+    sort!(elements)
+
+    N = get_dim(domain_list)  # Retrieve the number of dimensions
+
+    hyperrectangles = Vector{UT.HyperRectangle{NTuple{N, Int}}}()
+    visited = Dict(e => false for e in elements)  # Dict to track visited elements
+
+    for e in elements
+        if visited[e]
+            continue  # Skip already processed elements
+        end
+
+        # Initialize hyperrectangle bounds
+        lower_bound = Tuple(e)
+        upper_bound = Tuple(e)
+
+        # Try to grow the hyperrectangle along each dimension
+        for dim in 1:N
+            while true
+                next_upper = ntuple(i -> upper_bound[i] + (i == dim), N)
+
+                if haskey(visited, next_upper) &&
+                   !visited[next_upper] &&
+                   all(
+                       haskey(visited, ntuple(i -> next_upper[i] - (i == dim), N)) for
+                       i in 1:N
+                   )
+                    upper_bound = next_upper
+                    visited[next_upper] = true
+                else
+                    break
+                end
+            end
+        end
+
+        visited[e] = true
+        push!(hyperrectangles, UT.HyperRectangle(lower_bound, upper_bound))
+    end
+    return hyperrectangles
+end
+
+"""
+    merge_hyperrectangles_real(domain_list::DomainList)
+
+Uses the existing `merge_to_hyperrectangles(domain_list)` function to merge elements
+in grid positions, then converts the result into real-world `HyperRectangle`s using `get_rec(grid, pos)`.
+"""
+function merge_to_hyperrectangles_real(domain_list::DomainList)
+    grid = domain_list.grid
+
+    # Step 1: Get merged hyperrectangles in terms of grid positions
+    merged_pos_rects = merge_to_hyperrectangles_pos(domain_list)
+
+    # Step 2: Convert grid-position-based hyperrectangles to real-world ones
+    real_hyperrects = [
+        UT.HyperRectangle(get_rec(grid, rect.lb).lb, get_rec(grid, rect.ub).ub) for
+        rect in merged_pos_rects
+    ]
+    return real_hyperrects
+end
+
+@recipe function f(
+    Xdom::DomainType{N, T};
+    dims = [1, 2],
+    efficient = true,
+    label = "",
+) where {N, T}
+    first_series = true
+    if !efficient
+        grid = get_grid(Xdom)
+        dict = Dict{NTuple{2, Int}, Any}()
+        for pos in enum_pos(Xdom)
+            if !haskey(dict, pos[dims])
+                dict[pos[dims]] = true
+                @series begin
+                    label := first_series ? label : ""
+                    first_series = false
+                    return grid, pos
+                end
+            end
+        end
+    else
+        for real_hyperrect in merge_to_hyperrectangles_real(Xdom)
             @series begin
-                return grid, pos
+                label := first_series ? label : ""
+                first_series = false
+                return real_hyperrect
             end
         end
     end

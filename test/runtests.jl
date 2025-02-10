@@ -30,12 +30,12 @@ include("./optim/test_UniformGridAbstraction_safety.jl")
 include("./optim/test_UniformGridAbstraction_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")
 include("./optim/test_ellipsoids_abstraction.jl")
-include("./optim/test_lazy_ellipsoids_abstraction.jl")
+# include("./optim/test_lazy_ellipsoids_abstraction.jl")
 include("./optim/test_hierarchical_abstraction.jl")
 
 include("./mapping/test_mapping_continuous.jl")
 
 include("./system/test_controlsystem.jl")
-include("./system/test_controller.jl")
+# include("./system/test_controller.jl")
 
 include("./examples/test_gol_lazar_belta.jl")

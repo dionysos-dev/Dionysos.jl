@@ -10,6 +10,21 @@ abstract type ProblemType end
 """
 The structure 
 
+    EmptyProblem{S, XI, XT, XC, TC, T}
+
+encodes consistig in constructing the abstraction in X 
+- `S` is the system,
+- `X` is the initial set, 
+- `TC` is transistion cost
+"""
+struct EmptyProblem{S, X} <: ProblemType
+    system::S
+    region::X
+end
+
+"""
+The structure 
+
     OptimalControlProblem{S, XI, XT, XC, TC, T}
 
 encodes an optimal control problem where 
@@ -49,6 +64,65 @@ end
 
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
+
+@recipe function f(problem::EmptyProblem; domain_color = :gray, region_color = :lightgray)
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+    @series begin
+        label := "Region"
+        color := region_color
+        problem.region
+    end
+end
+
+@recipe function f(
+    problem::OptimalControlProblem;
+    domain_color = :gray,
+    initial_set_color = :green,
+    target_set_color = :red,
+)
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+    @series begin
+        label := "Target set"
+        color := target_set_color
+        problem.target_set
+    end
+end
+
+@recipe function f(
+    problem::SafetyProblem;
+    domain_color = :gray,
+    initial_set_color = :green,
+    safe_set_color = :lightgray,
+)
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+    @series begin
+        label := "Safe set"
+        color := safe_set_color
+        problem.safe_set
+    end
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+end
 
 export OptimalControlProblem
 export SafetyProblem

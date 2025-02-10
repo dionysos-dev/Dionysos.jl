@@ -93,6 +93,22 @@ function get_domain_from_symbols(symmodel::SymbolicModelList, symbols)
     return newDomain
 end
 
+"""
+    _corresponding_abstract_state_points(symmodel, set, position_in_domain)
+
+Returns the corresponding abstract points based on the `symmodel`, `set`, and `position_in_domain`.
+"""
+function get_symbols_from_set(
+    symmodel::SymbolicModelList,
+    set::UT.HyperRectangle,
+    position_in_domain,
+)
+    grid = symmodel.Xdom.grid
+    domain_list = DO.DomainList(grid)
+    DO.add_subset!(domain_list, symmodel.Xdom, set, position_in_domain)
+    return [get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(domain_list)]
+end
+
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
 # we go through the list only once; this requires to store the transitions in a

@@ -1,32 +1,4 @@
 using Test     #src
-# # Example: DC-DC converter solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/DC-DC converter.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/DC-DC converter.ipynb)
-#
-# We consider a boost DC-DC converter which has been widely studied from the point of view of hybrid control, see for example in  [1, V.A],[2],[3].
-# This is a **safety problem** for a **switching system**.
-#
-# ![Boost DC-DC converter.](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/assets/dcdcboost.jpg?raw=true)
-#
-# The state of the system is given by $x(t) = \begin{bmatrix} i_l(t) & v_c(t) \end{bmatrix}^\top$.
-# The switching system has two modes consisting in two-dimensional affine dynamics:
-# ```math
-# \dot{x} = f_p(x) = A_p x + b_p,\quad p=1,2
-# ```
-# with
-# ```math
-# A_1 = \begin{bmatrix} -\frac{r_l}{x_l} &0 \\ 0 & -\frac{1}{x_c}\frac{1}{r_0+r_c}  \end{bmatrix}, A_2= \begin{bmatrix} -\frac{1}{x_l}\left(r_l+\frac{r_0r_c}{r_0+r_c}\right) & -\frac{1}{x_l}\frac{r_0}{r_0+r_c}  \\ \frac{1}{x_c}\frac{r_0}{r_0+r_c}   & -\frac{1}{x_c}\frac{1}{r_0+r_c}  \end{bmatrix}, b_1 = b_2 = \begin{bmatrix} \frac{v_s}{x_l}\\0\end{bmatrix}.
-# ```
-# The goal is to design a controller to keep the state of the system in a safety region around the reference desired value, using as input only the switching
-# signal. In order to study the concrete system and its symbolic abstraction in a unified framework, we will solve the problem
-# for the sampled system with a sampling time $\tau$. For the construction of the relations in the abstraction, it is necessary to over-approximate attainable sets of
-# a particular cell. In this example, we consider the use of a growth bound function  [4, VIII.2, VIII.5] which is one of the possible methods to over-approximate
-# attainable sets of a particular cell based on the state reach by its center.
-#
-
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
-
 using StaticArrays, Plots
 
 # At this point, we import the useful Dionysos sub-modules.
@@ -39,13 +11,11 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-# ### Definition of the system
-# we can import the module containing the DCDC problem like this 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+concrete_system = DCDC.system()
 
-# and we can instantiate the DC system with the provided system
-concrete_problem = DCDC.problem()
-concrete_system = concrete_problem.system
+### Construction of the abstraction
+empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
@@ -53,34 +23,38 @@ state_grid = DO.GridFree(x0, hx)
 u0 = SVector(1)
 hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
-
 using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
 MOI.optimize!(optimizer)
-
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-@test length(abstract_controller.data) == 893803 #src
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
+
+### Solve a safety problem
+
+# concrete_system = concrete_problem.system
+_I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
+_S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
+concrete_problem_safety =
+    Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
+MOI.optimize!(optimizer)
 abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 
-largest_invariant_set =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("largest_invariant_set"))
-unsafe_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("unsafe_set"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+# @test length(abstract_controller.data) == 893803 #src
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
+uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"))
 
-# ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
-# as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
 control_trajectory = ST.get_closed_loop_trajectory(
@@ -91,17 +65,71 @@ control_trajectory = ST.get_closed_loop_trajectory(
 );
 
 fig = plot(; aspect_ratio = :equal);
-plot!(concrete_system.X);
+plot!(concrete_problem_safety; opacity = 1.0);
+plot!(invariant_set; color = :blue, linecolor = :blue)
+plot!(uninvariant_set; color = :red, linecolor = :red)
 plot!(control_trajectory)
+display(fig)
+
+### Solve a reachability problem
+_T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
+
+# _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
+concrete_problem_reachability = Dionysos.Problem.OptimalControlProblem(
+    concrete_system,
+    _I_,
+    _T_,
+    nothing,
+    nothing,
+    Dionysos.Problem.Infinity(),
+)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("concrete_problem"),
+    concrete_problem_reachability,
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+MOI.optimize!(optimizer)
+abstract_problem_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+println("Time to solve the abstract problem: $(abstract_problem_time)")
+
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+# @test length(abstract_controller.data) == 893803 #src
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+
+nstep = 300
+x0 = SVector(1.2, 5.6)
+function reached(x)
+    if x ∈ concrete_problem_reachability.target_set
+        return true
+    else
+        return false
+    end
+end
+
+control_trajectory = ST.get_closed_loop_trajectory(
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    concrete_controller,
+    x0,
+    nstep;
+    stopping = reached,
+);
+
+fig = plot(; aspect_ratio = :equal);
+plot!(concrete_problem_reachability);
+plot!(controllable_set; color = :yellow, linecolor = :yellow, label = "Controllable set")
+plot!(uncontrollable_set; color = :black, linecolor = :black, label = "Uncontrollable set")
+plot!(control_trajectory)
+display(fig)
 
 # # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # # ### Definition of the system
 # # we can import the module containing the DCDC problem like this 
-# include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
-# # and we can instantiate the DC system with the provided system
-# concrete_problem = DCDC.problem()
-# concrete_system = concrete_problem.system
+# ### Construction of the abstraction
 
 # origin = SVector(0.0, 0.0)
 # η = (2 / 4.0) * 10^(-3)
@@ -116,7 +144,7 @@ plot!(control_trajectory)
 # input_grid = DO.GridFree(u0, hu)
 
 # optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
@@ -145,9 +173,10 @@ plot!(control_trajectory)
 # )
 
 # fig = plot(; aspect_ratio = :equal);
-# plot!(concrete_system.X);
-# println(concrete_problem.initial_set)
-# plot!(concrete_problem.initial_set; color=:red);
+# plot!(concrete_problem_safety; opacity = 1.0);
+# plot!(invariant_set, color = :blue, linecolor = :blue)
+# plot!(uninvariant_set; color = :red, linecolor = :red)
+# plot!(concrete_problem_safety.initial_set; color = :green, opacity = 1.0, label = "");
 # plot!(control_trajectory)
 
 # ### References
