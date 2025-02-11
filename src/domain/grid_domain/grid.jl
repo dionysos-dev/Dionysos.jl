@@ -3,47 +3,68 @@ using Polyhedra
 @enum INCL_MODE INNER OUTER CENTER
 _invInclMode(incl_mode::INCL_MODE) = incl_mode == OUTER ? INNER : OUTER
 
+"""
+    abstract type Grid{N, T} end
+
+Defines an abstract type for grid-based structures in `N` dimensions with floating-point values `T`.
+"""
 abstract type Grid{N, T} end
 
-function get_origin(grid::Grid)
-    return grid.orig
-end
+# ----------------------------
+# Required API for Grid Domains
+# ----------------------------
+function get_origin(grid::Grid) end
+function get_h(grid::Grid) end
 
-function get_h(grid::Grid)
-    return grid.h
-end
+# ----------------------------
+# Derived Utility Methods
+# ----------------------------
 
-function get_dim(grid::Grid)
-    return length(get_origin(grid))
-end
+get_dim(grid::Grid) = length(get_origin(grid))
 
+"""
+    get_pos_by_coord(grid::Grid{N, T}, x::SVector{N, T}) -> NTuple{N, Int}
+
+Returns the discrete position (grid indices) corresponding to a coordinate `x`.
+
+- The **cell (0,0) is centered** between `-h/2` and `+h/2`.
+- `h` is the length of a grid cell in each dimension.
+"""
 function get_pos_by_coord(grid::Grid{N}, x) where {N}
-    return ntuple(i -> round(Int, (x[i] - grid.orig[i]) / grid.h[i]), Val(N))
+    orig = get_origin(grid)
+    h = get_h(grid)
+    return ntuple(i -> round(Int, (x[i] - orig[i]) / h[i]), Val(N))
 end
 
 function get_coord_by_pos(grid::Grid, pos)
-    return grid.orig + pos .* grid.h
+    return get_origin(grid) + pos .* get_h(grid)
+end
+
+function _ranges(rect::UT.HyperRectangle{NTuple{N, T}}) where {N, T}
+    return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
 end
 
 function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
-    lbI =
-        ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i]) / grid.h[i] + 0.5), Val(N))
-    ubI =
-        ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i]) / grid.h[i] - 0.5), Val(N))
+    orig = get_origin(grid)
+    h = get_h(grid)
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
     return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_lims_outer(grid::Grid{N}, rect; tol = 0.0) where {N}
-    lbI =
-        ntuple(i -> ceil(Int, (rect.lb[i] + tol - grid.orig[i]) / grid.h[i] - 0.5), Val(N))
-    ubI =
-        ntuple(i -> floor(Int, (rect.ub[i] - tol - grid.orig[i]) / grid.h[i] + 0.5), Val(N))
+    orig = get_origin(grid)
+    h = get_h(grid)
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
     return UT.HyperRectangle(lbI, ubI)
 end
 
 function get_pos_center(grid::Grid{N}, rect; tol = 1e-6) where {N}
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - grid.orig[i]) / grid.h[i]), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - grid.orig[i]) / grid.h[i]), Val(N))
+    orig = get_origin(grid)
+    h = get_h(grid)
+    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i]), Val(N))
+    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i]), Val(N))
     return UT.HyperRectangle(lbI, ubI)
 end
 
@@ -57,18 +78,36 @@ function get_pos_lims(grid::Grid, rect, incl_mode::INCL_MODE)
     end
 end
 
-function _ranges(rect::UT.HyperRectangle{NTuple{N, T}}) where {N, T}
-    return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
+function get_rec(grid::Grid, pos)
+    x = get_coord_by_pos(grid, pos)
+    r = get_h(grid) / 2.0
+    return UT.HyperRectangle(x - r, x + r)
 end
 
-function rectangle(c, r)
-    return Shape(
-        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
-        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
-    )
+get_elem_by_pos(grid::Grid, pos) = get_rec(grid, pos)
+get_elem_by_coord(grid::Grid, x) = get_elem_by_pos(grid, get_pos_by_coord(grid, x))
+get_all_pos_by_coord(grid::Grid, x) = [get_pos_by_coord(grid, x)]
+
+function get_volume(grid::Grid)
+    r = get_h(grid) / 2.0
+    return UT.volume(UT.HyperRectangle(-r, r))
 end
 
-#######################################################
+function sample_elem(grid::Grid, pos, N::Int)
+    rec = get_rec(grid, pos)
+    return UT.sample_from_rec(rec, N)
+end
+
+@recipe function f(grid::Grid, pos; dims = [1, 2])
+    @series begin
+        dims := dims
+        get_elem_by_pos(grid, pos)
+    end
+end
+
+# ----------------------------
+# Concrete types
+# ----------------------------
 
 """
     GridFree{N,T} <: Grid{N,T}
@@ -80,37 +119,8 @@ struct GridFree{N, T} <: Grid{N, T}
     h::SVector{N, T}
 end
 
-function get_elem_by_pos(grid::GridFree, pos)
-    return grid, pos
-end
-
-function get_rec(grid::GridFree, pos)
-    x = get_coord_by_pos(grid, pos)
-    r = grid.h / 2.0
-    return UT.HyperRectangle(x - r, x + r)
-end
-
-function get_volume(grid::GridFree)
-    r = get_h(grid) / 2.0
-    return UT.volume(UT.HyperRectangle(-r, r))
-end
-
-function sample_elem(grid::GridFree, xpos, N::Int)
-    x = get_coord_by_pos(grid, xpos)
-    r = grid.h / 2
-    rec = UT.HyperRectangle(x .- r, x .+ r)
-    return UT.sample_from_rec(rec, N)
-end
-
-@recipe function f(gf::GridFree, pos)
-    opacity := 0.9
-    color := :yellow
-    center = get_coord_by_pos(gf, pos)
-    h = gf.h[[1, 2]]
-    return rectangle(center[[1, 2]], h ./ 2)
-end
-
-#######################################################
+get_origin(grid::Grid) = grid.orig
+get_h(grid::Grid) = grid.h
 
 """
     GridEllipsoidalRectangular{N,T} <: Grid{N,T}
@@ -119,10 +129,19 @@ Uniform grid on rectangular space `rect`, centered at `orig` and with steps set 
 Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`.
 """
 struct GridEllipsoidalRectangular{N, T} <: Grid{N, T}
-    orig::SVector{N, T}
-    h::SVector{N, T}
+    underlying_grid::GridFree{N, T}
     P::SMatrix{N, N}
-    rect::Any
+end
+
+function GridEllipsoidalRectangular(orig::SVector{N, T}, h::SVector{N, T}, P) where {N, T}
+    return GridEllipsoidalRectangular{N, T}(GridFree(orig, h), P)
+end
+
+get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
+get_h(grid::GridEllipsoidalRectangular) = get_h(grid.underlying_grid)
+
+function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
+    return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
 end
 
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
@@ -137,42 +156,22 @@ function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
     return all_pos
 end
 
-function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
-    return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
-end
-
-function get_elem_by_coord(grid::GridEllipsoidalRectangular, x)
-    pos = get_pos_by_coord(grid, x)
-    return get_elem_by_pos(grid, pos)
-end
-
-@recipe function f(ger::GridEllipsoidalRectangular, pos)
-    opacity := 1.0
-    color := :yellow
-    return get_elem_by_pos(ger, pos)
-end
-
-#######################################################
-
 """
-    GridRectangular{N,T} <: Grid{N,T}
+    DeformedGrid{N, T} <: Grid{N, T}
 
-Uniform grid on rectangular space `rect`, centered at `orig` and with steps set by the vector `h`.
+Represents a deformed version of a `GridFree` grid, where points are mapped via an invertible transformation `f` and its inverse `fi`.
+
+# Fields
+- `grid::GridFree{N, T}` : The underlying grid.
+- `f::Function` : The forward transformation (physical -> deformed).
+- `fi::Function` : The inverse transformation (deformed -> physical).
+- `A::Union{Nothing, SMatrix{N, N, T, N*N}}` : Optional linear transformation matrix for volume calculations.
 """
-struct GridRectangular{N, T} <: Grid{N, T}
-    orig::SVector{N, T}
-    h::SVector{N, T}
-    rect::Any
-end
-
-#######################################################
-
-# f is an inversible function
 struct DeformedGrid{N, T} <: Grid{N, T}
-    grid::GridFree{N, T}
+    underlying_grid::GridFree{N, T}
     f::Function
     fi::Function
-    A::Any
+    A::Union{Nothing, Any}
 end
 
 function DeformedGrid(
@@ -181,92 +180,32 @@ function DeformedGrid(
     fi::Function;
     A = nothing,
 ) where {N, T}
-    return DeformedGrid(grid, f, fi, A)
+    return DeformedGrid{N, T}(grid, f, fi, A)
 end
 
-function get_origin(Dgrid::DeformedGrid)
-    return get_origin(Dgrid.grid)
+get_origin(grid::DeformedGrid) = get_origin(grid.underlying_grid)
+get_h(grid::DeformedGrid) = get_h(grid.underlying_grid)
+
+get_pos_by_coord(grid::DeformedGrid, x) = get_pos_by_coord(grid.underlying_grid, grid.fi(x))
+get_coord_by_pos(grid::DeformedGrid, pos) =
+    grid.f(get_coord_by_pos(grid.underlying_grid, pos))
+function get_elem_by_pos(grid::DeformedGrid, pos; N = 10)
+    return UT.DeformedRectangleDraw(get_rec(grid, pos), grid.f; N = N)
 end
 
-function get_h(Dgrid::DeformedGrid)
-    return get_h(Dgrid.grid)
+"""
+    get_volume(Dgrid::DeformedGrid) -> T
+
+Computes the volume of a grid cell.
+- If `A` is provided (linear transformation), uses `det(A)`.
+- Otherwise, defaults to the volume of the base grid.
+"""
+function get_volume(grid::DeformedGrid)
+    return grid.A !== nothing ? abs(det(grid.A)) * get_volume(grid.underlying_grid) :
+           get_volume(grid.underlying_grid)
 end
 
-function get_dim(Dgrid::DeformedGrid)
-    return get_dim(Dgrid.grid)
-end
-
-function get_pos_by_coord(Dgrid::DeformedGrid{N}, x) where {N}
-    return get_pos_by_coord(Dgrid.grid, Dgrid.fi(x))
-end
-
-function get_coord_by_pos(Dgrid::DeformedGrid{N}, pos) where {N}
-    return Dgrid.f(get_coord_by_pos(Dgrid.grid, pos))
-end
-
-function get_pos_lims_inner(Dgrid::DeformedGrid{N}, rect; tol = 1e-6) where {N}
-    return get_pos_lims_inner(Dgrid.grid, rect; tol = tol)
-end
-
-function get_pos_lims_outer(Dgrid::DeformedGrid{N}, rect; tol = 1e-6) where {N}
-    return get_pos_lims_outer(Dgrid.grid, rect; tol = tol)
-end
-
-# only for linear transformation of the grid
-function get_volume(Dgrid::DeformedGrid)
-    if Dgrid.A !== nothing
-        return abs(det(Dgrid.A)) * get_volume(Dgrid.grid)
-    else
-        println("volume is state-dependant for nonlinear transformation")
-        return get_volume(Dgrid.grid)
-    end
-end
-
-function sample_elem(Dgrid::DeformedGrid, xpos, N::Int)
-    points = sample_elem(Dgrid.grid, xpos, N)
-    return [Dgrid.f(x) for x in points]
-end
-
-# Not sure if the recipe for DeformedGrid is optimal, to check
-struct DeformedRectangleDraw
-    rec::Any
-    N::Integer
-    f::Any
-end
-@recipe function f(r::DeformedRectangleDraw)
-    opacity --> 0.9
-    color --> :yellow
-
-    rec = r.rec
-    N = r.N
-    f = r.f
-
-    dims = [1, 2]
-
-    lb = rec.lb[dims]
-    ub = rec.ub[dims]
-    points = SVector[]
-    for x in LinRange(lb[1], ub[1], N)
-        push!(points, f(SVector(x, lb[2])))
-    end
-    for x in LinRange(lb[2], ub[2], N)
-        push!(points, f(SVector(ub[1], x)))
-    end
-    for x in LinRange(ub[1], lb[1], N)
-        push!(points, f(SVector(x, ub[2])))
-    end
-    for x in LinRange(ub[2], lb[2], N)
-        push!(points, f(SVector(lb[1], x)))
-    end
-    unique!(points)
-    x = [point[1] for point in points]
-    y = [point[2] for point in points]
-    return Shape(x, y)
-end
-
-@recipe function f(dg::DeformedGrid, pos; N = 8)
-    opacity := 1.0
-    color := :yellow
-    rec = get_rec(dg.grid, pos)
-    return DeformedRectangleDraw(rec, N, dg.f)
+function sample_elem(grid::DeformedGrid, pos, N::Int)
+    points = sample_elem(grid.underlying_grid, pos, N)
+    return [grid.f(x) for x in points]
 end

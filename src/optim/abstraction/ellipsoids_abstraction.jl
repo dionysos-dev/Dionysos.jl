@@ -80,11 +80,12 @@ function build_abstraction(
     # The state space
     domainX = DO.DomainList(state_grid) # state space
     X = concrete_system.ext[:X]
+
     DO.add_set!(domainX, X, DO.INNER)
 
     # The input space 
     domainU = domainX
-    DO.add_set!(domainU, state_grid.rect, DO.INNER)
+    DO.add_set!(domainU, X, DO.INNER)
 
     # The symbolic model for the state-feedback abstraction
     abstract_system = SY.NewSymbolicModelListList(domainX, domainU)

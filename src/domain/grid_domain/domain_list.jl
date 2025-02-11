@@ -23,10 +23,11 @@ get_ncells(domain::DomainList) = length(domain.elems)
 get_somepos(domain::DomainList) = first(domain.elems)
 Base.isempty(domain::DomainList) = isempty(domain.elems)
 Base.in(pos, domain::DomainList) = in(pos, domain.elems)
-Base.issubset(domain1::DomainList, domain2::DomainList) = issubset(domain1.elems, domain2.elems)
+Base.issubset(domain1::DomainList, domain2::DomainList) =
+    issubset(domain1.elems, domain2.elems)
 add_pos!(domain::DomainList, pos) = push!(domain.elems, pos)
 Base.union!(domain1::DomainList, domain2::DomainList) = union!(domain1.elems, domain2.elems)
-Base.setdiff!(domain1::DomainList, domain2::DomainList) = setdiff!(domain1.elems, domain2.elems)
+Base.setdiff!(domain1::DomainList, domain2::DomainList) =
+    setdiff!(domain1.elems, domain2.elems)
 Base.empty!(domain::DomainList) = empty!(domain.elems)
 remove_pos!(domain::DomainList, pos) = delete!(domain.elems, pos)
-

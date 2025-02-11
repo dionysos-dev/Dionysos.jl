@@ -7,7 +7,6 @@ An abstract interface for grid-based domains, enforcing required methods for int
 """
 abstract type GridDomainType{N, T} <: DomainType{N, T} end  # More specific domain type
 
-
 # ----------------------------
 # Required API for Grid Domains
 # ----------------------------
@@ -19,12 +18,11 @@ function Base.isempty(domain::GridDomainType) end
 function Base.in(pos, domain::GridDomainType) end
 function Base.issubset(domain1::GridDomainType, domain2::GridDomainType) end
 
-function add_pos!(domain::GridDomainType, pos) end 
+function add_pos!(domain::GridDomainType, pos) end
 function Base.union!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.setdiff!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.empty!(domain::GridDomainType) end
 function remove_pos!(domain::GridDomainType, pos) end
-
 
 # ----------------------------
 # Derived Utility Methods
@@ -34,11 +32,16 @@ get_pos_by_coord(domain::GridDomainType, coord) = get_pos_by_coord(get_grid(doma
 get_coord_by_pos(domain::GridDomainType, pos) = get_coord_by_pos(get_grid(domain), pos)
 
 get_dim(domain::GridDomainType) = get_dim(get_grid(domain))
-enum_elems(domain::GridDomainType) = [get_coord_by_pos(domain, pos) for pos in enum_pos(domain)]
+enum_elems(domain::GridDomainType) =
+    [get_coord_by_pos(domain, pos) for pos in enum_pos(domain)]
 add_coord!(domain::GridDomainType, x) = add_pos!(domain, get_pos_by_coord(domain, x))
 crop_to_domain(domain::GridDomainType, list_pos) = list_pos ∩ enum_pos(domain)
 
-function get_subset_pos(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
+function get_subset_pos(
+    domain::GridDomainType,
+    rect::UT.HyperRectangle,
+    incl_mode::INCL_MODE,
+)
     rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
     return [pos for pos in Iterators.product(_ranges(rectI)...) if pos ∈ domain]
 end
@@ -50,7 +53,11 @@ function add_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode::IN
     end
 end
 
-function add_set!(domain::GridDomainType, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
+function add_set!(
+    domain::GridDomainType,
+    unionSetArray::UT.LazyUnionSetArray,
+    incl_mode::INCL_MODE,
+)
     for set in unionSetArray.sets
         add_set!(domain, set, incl_mode)
     end
@@ -62,7 +69,12 @@ function add_set!(domain::GridDomainType, setMinus::UT.LazySetMinus, incl_mode::
 end
 
 # add_subset! adds a subset of positions from domain2 to domain1, but only if they fall within the specified hyperrectangle rect
-function add_subset!(domain1::GridDomainType, domain2::GridDomainType, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
+function add_subset!(
+    domain1::GridDomainType,
+    domain2::GridDomainType,
+    rect::UT.HyperRectangle,
+    incl_mode::INCL_MODE,
+)
     rectI = get_pos_lims(get_grid(domain1), rect, incl_mode)
     # Decide whether to iterate over `rectI` or `domain2` for efficiency
     pos_iter = Iterators.product(_ranges(rectI)...)
@@ -86,7 +98,11 @@ function remove_coord!(domain::GridDomainType, x)
     return remove_pos!(domain, get_pos_by_coord(domain, x))
 end
 
-function remove_set!(domain::GridDomainType, unionSetArray::UT.LazyUnionSetArray, incl_mode::INCL_MODE)
+function remove_set!(
+    domain::GridDomainType,
+    unionSetArray::UT.LazyUnionSetArray,
+    incl_mode::INCL_MODE,
+)
     for set in unionSetArray.sets
         remove_set!(domain, set, incl_mode)
     end

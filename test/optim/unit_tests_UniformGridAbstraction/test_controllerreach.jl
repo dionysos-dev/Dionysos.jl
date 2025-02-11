@@ -75,11 +75,12 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr, controllable_set, uncontrollable_set = 
-    AB.UniformGridAbstraction.compute_largest_controllable_set(
-        symmodel,
-        targetlist;
-        initial_set = initlist)
+    contr, controllable_set, uncontrollable_set =
+        AB.UniformGridAbstraction.compute_largest_controllable_set(
+            symmodel,
+            targetlist;
+            initial_set = initlist,
+        )
 
     # AB.UniformGridAbstraction.compute_controller_reach!(
     #     contr,
@@ -91,8 +92,12 @@ println("Started test")
     if VERSION >= v"1.5"
         function f(autom, initlist, targetlist)
             contr = AB.UniformGridAbstraction.NewControllerList()
-            initset, targetset, controllableset, num_targets_unreachable, current_targets, next_targets =
-                AB.UniformGridAbstraction._data(autom, initlist, targetlist)
+            initset,
+            targetset,
+            controllableset,
+            num_targets_unreachable,
+            current_targets,
+            next_targets = AB.UniformGridAbstraction._data(autom, initlist, targetlist)
             # Preallocates to make sure `_compute_controller_reach` does not need to allocate
             sizehint!(contr.data, 600)
             sizehint!(current_targets, 50)
