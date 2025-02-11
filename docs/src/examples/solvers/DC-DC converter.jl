@@ -42,7 +42,6 @@ const AB = OP.Abstraction
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
-
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
@@ -61,7 +60,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+
 MOI.optimize!(optimizer)
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
@@ -74,9 +73,8 @@ abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 
-largest_invariant_set =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("largest_invariant_set"))
-unsafe_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("unsafe_set"))
+invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
+uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -91,64 +89,63 @@ control_trajectory = ST.get_closed_loop_trajectory(
 );
 
 fig = plot(; aspect_ratio = :equal);
-plot!(concrete_system.X);
+plot!(concrete_system.X; label = "");
 plot!(control_trajectory)
 
-# # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
-# # ### Definition of the system
-# # we can import the module containing the DCDC problem like this 
-# include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+# # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
+# ### Definition of the system
+# we can import the module containing the DCDC problem like this 
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
-# # and we can instantiate the DC system with the provided system
-# concrete_problem = DCDC.problem()
-# concrete_system = concrete_problem.system
+# and we can instantiate the DC system with the provided system
+concrete_problem = DCDC.problem()
+concrete_system = concrete_problem.system
 
-# origin = SVector(0.0, 0.0)
-# η = (2 / 4.0) * 10^(-3)
+origin = SVector(0.0, 0.0)
+η = (2 / 4.0) * 10^(-3)
 
-# # Note: In the following, `P` and `ϵ` are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
-# ϵ = 0.1 * 0.01
-# P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
-# state_grid = DO.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ, concrete_system.X)
+# Note: In the following, `P` and `ϵ` are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
+ϵ = 0.1 * 0.01
+P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
+state_grid = DO.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ)
 
-# u0 = SVector(1)
-# hu = SVector(1)
-# input_grid = DO.GridFree(u0, hu)
+u0 = SVector(1)
+hu = SVector(1)
+input_grid = DO.GridFree(u0, hu)
 
-# optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
-# MOI.set(
-#     optimizer,
-#     MOI.RawOptimizerAttribute("approx_mode"),
-#     Dionysos.Optim.Abstraction.UniformGridAbstraction.DELTA_GAS,
-# )
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("δGAS"), true)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
-# MOI.optimize!(optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.DELTA_GAS,
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("δGAS"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
+MOI.optimize!(optimizer)
 
-# abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-# concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-# # ### Trajectory display
-# # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
-# # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
-# nstep = 300
-# x0 = SVector(1.2, 5.6)
-# control_trajectory = ST.get_closed_loop_trajectory(
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
-#     concrete_controller,
-#     x0,
-#     nstep,
-# )
+# ### Trajectory display
+# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# as well as the true initial state `x0` which is contained in the initial state-space defined previously.
+nstep = 300
+x0 = SVector(1.2, 5.6)
+control_trajectory = ST.get_closed_loop_trajectory(
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    concrete_controller,
+    x0,
+    nstep,
+)
 
-# fig = plot(; aspect_ratio = :equal);
-# plot!(concrete_system.X);
-# println(concrete_problem.initial_set)
-# plot!(concrete_problem.initial_set; color=:red);
-# plot!(control_trajectory)
+fig = plot(; aspect_ratio = :equal);
+plot!(concrete_system.X; label = "");
+plot!(concrete_problem.initial_set; color = :red, label = "");
+plot!(control_trajectory)
 
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.
