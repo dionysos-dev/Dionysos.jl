@@ -149,14 +149,11 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
 
 # We display the abstract specifications
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(
-        abstract_system,
-        abstract_problem.initial_set,
-    );
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
 );
 

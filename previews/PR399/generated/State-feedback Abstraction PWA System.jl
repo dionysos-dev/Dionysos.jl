@@ -129,12 +129,12 @@ plot!(rectX; color = :yellow, opacity = 0.5);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 #We display the abstract specifications
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
     opacity = 0.5,
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
     opacity = 0.5,
 );
