@@ -42,3 +42,10 @@ Dionysos.Utils.propagate_cost_to_leaves
 Dionysos.Utils.get_path
 Dionysos.Utils.Tree
 ```
+
+## Geometric shapes
+
+```@docs
+Dionysos.Utils.HyperRectangle
+Dionysos.Utils.DeformedRectangleDraw
+```

@@ -4,7 +4,6 @@
 A flexible, generic domain representation that stores elements as a list of `SVector{N, T}`.  
 Useful for managing discrete sets of points in an `N`-dimensional space.
 """
-
 struct CustomList{N, T} <: DomainType{N, T}
     elems::Vector{SVector{N, T}}
 end

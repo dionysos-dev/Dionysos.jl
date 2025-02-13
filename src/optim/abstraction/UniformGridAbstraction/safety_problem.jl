@@ -33,11 +33,6 @@ function MOI.get(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute
     return getproperty(model, Symbol(param.name))
 end
 
-"""
-    MOI.optimize!(optimizer::OptimizerSafetyProblem)
-
-Solves the safety problem based on the abstract system.
-"""
 function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     t_ref = time()
 
@@ -81,11 +76,6 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     return optimizer.abstract_problem_time_sec = time() - t_ref
 end
 
-"""
-    build_abstract_problem(concrete_problem, abstract_system)
-
-Builds the abstract problem based on the `concrete_problem` and `abstract_system`.
-"""
 function build_abstract_problem(
     concrete_problem::Dionysos.Problem.SafetyProblem,
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
@@ -178,11 +168,6 @@ function compute_largest_invariant_set(
     return contr, safeset, unsafeset
 end
 
-"""
-    _compute_pairstable(pairstable, autom)
-
-Computes the pairstable based on the `pairstable` and `autom`.
-"""
 function _compute_pairstable(pairstable, autom)
     for target in 1:(autom.nstates)
         for soursymb in Dionysos.Symbolic.pre(autom, target)

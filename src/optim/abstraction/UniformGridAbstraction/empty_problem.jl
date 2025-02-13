@@ -198,11 +198,6 @@ end
 
 _vector_of_tuple(size, value = 0.0) = StaticArrays.SVector(ntuple(_ -> value, Val(size)))
 
-"""
-    optimize!(optimizer::OptimizerEmptyProblem)
-
-Builds the abstraction based on the `empty_problem` and `model`.
-"""
 function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     t_ref = time()
 

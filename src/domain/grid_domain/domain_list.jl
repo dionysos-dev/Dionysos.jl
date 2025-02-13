@@ -8,11 +8,6 @@ struct DomainList{N, T, S <: Grid{N, T}} <: GridDomainType{N, T}
     elems::Set{NTuple{N, Int}}
 end
 
-"""
-    DomainList(grid::S) where {N,S<:Grid{N}}
-
-Return a new `DomainList`.
-"""
 function DomainList(grid::S) where {N, S <: Grid{N}}
     return DomainList(grid, Set{NTuple{N, Int}}())
 end

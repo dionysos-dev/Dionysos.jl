@@ -39,11 +39,6 @@ function MOI.get(model::OptimizerOptimalControlProblem, param::MOI.RawOptimizerA
     return getproperty(model, Symbol(param.name))
 end
 
-"""
-    MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
-
-Solves the optimal control problem based on the abstract system.
-"""
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t_ref = time()
 
@@ -92,11 +87,6 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     return optimizer.abstract_problem_time_sec = time() - t_ref
 end
 
-"""
-    build_abstract_problem(concrete_problem, abstract_system)
-
-Builds the abstract problem based on the `concrete_problem` and `abstract_system`.
-"""
 function build_abstract_problem(
     concrete_problem::Dionysos.Problem.OptimalControlProblem,
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
@@ -154,11 +144,6 @@ function compute_largest_controllable_set(
     return abstract_controller, controllable_set, uncontrollable_set
 end
 
-"""
-    _compute_num_targets_unreachable(num_targets_unreachable, autom)
-
-Computes the number of targets unreachable based on the `autom`.
-"""
 function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     for target in 1:(autom.nstates)
         for soursymb in Dionysos.Symbolic.pre(autom, target)
@@ -167,11 +152,6 @@ function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     end
 end
 
-"""
-    _data(contr, autom, initlist, targetlist)
-
-Returns the data based on the `autom`, `initlist`, and `targetlist`.
-"""
 function _data(autom, initlist, targetlist)
     num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -188,11 +168,6 @@ function _data(autom, initlist, targetlist)
     next_targets
 end
 
-"""
-    _compute_controller_reach!(contr, autom, init_set, target_set, num_targets_unreachable, current_targets, next_targets)
-
-Computes the controller reach based on the `contr`, `autom`, `init_set`, `target_set`, `num_targets_unreachable`, `current_targets`, and `next_targets`.
-"""
 function _compute_controller_reach!(
     contr,
     autom,

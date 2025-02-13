@@ -15,7 +15,6 @@ The structure
 encodes consistig in constructing the abstraction in X 
 - `S` is the system,
 - `X` is the initial set, 
-- `TC` is transistion cost
 """
 struct EmptyProblem{S, X} <: ProblemType
     system::S
