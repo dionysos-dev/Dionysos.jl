@@ -75,7 +75,7 @@ X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P);
 opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
@@ -181,12 +181,12 @@ plot!(rectX; color = :yellow, opacity = 0.5);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 #We display the abstract specifications
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
     opacity = 0.5,
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
     opacity = 0.5,
 );

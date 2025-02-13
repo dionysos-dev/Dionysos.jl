@@ -4,7 +4,7 @@ function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_trans
     symmodel = NewSymbolicModelListList(Xdom, Udom)
     ncells = DO.get_ncells(Xdom)
     digraph = SimpleWeightedDiGraph(ncells)
-    for source in enum_cells(symmodel)
+    for source in enum_states(symmodel)
         for neighbor in get_possible_transitions(symmodel, sys, source)
             cost = minimum_transition_cost(symmodel, sys, source, neighbor)
             if cost < Inf

@@ -98,11 +98,11 @@ no_plot = false
 
     # We display the abstract specifications
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
         color = :green,
     )
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
         color = :red,
     )
 

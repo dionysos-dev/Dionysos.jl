@@ -1,6 +1,6 @@
 module Problem
 
-using StaticArrays
+using StaticArrays, Plots
 
 using ..Utils
 const UT = Utils

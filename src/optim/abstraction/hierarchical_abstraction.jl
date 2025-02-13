@@ -249,7 +249,7 @@ end
 function compute_reachable_sets(concrete_system, abstract_system, compute_reachable_set)
     reachable_set_sets = Dict()
     symmodel = abstract_system.symmodel
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         rec = DO.get_rec(DO.get_grid(symmodel.Xdom), pos)
         reachable_set = compute_reachable_set(rec, concrete_system, symmodel.Udom)
@@ -304,7 +304,7 @@ function build_cells(
     heuristic = SY.build_heuristic(abstract_system.symmodel, [q0])
     symmodel = abstract_system.symmodel
     cells = Dict()
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         outneighbors = SimpleWeightedGraphs.outneighbors(symmodel.autom, state)
         inneighbors = SimpleWeightedGraphs.inneighbors(symmodel.autom, state)

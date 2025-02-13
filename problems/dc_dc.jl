@@ -71,7 +71,8 @@ end
 
 function problem()
     sys = system()
-    return PB.SafetyProblem(sys, sys.X, sys.X, PB.Infinity())
+    _I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
+    return PB.SafetyProblem(sys, _I_, sys.X, PB.Infinity())
 end
 
 end

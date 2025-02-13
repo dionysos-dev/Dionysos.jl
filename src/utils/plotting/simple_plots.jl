@@ -6,7 +6,7 @@ end
     color --> :black
     marker --> :circle
     linetype --> :scatter
-    legend --> false
+    label := ""
     return [p.p[1]], [p.p[2]]
 end
 
@@ -28,7 +28,7 @@ end
     markeralpha --> 0.0
     color --> :black
     arrow --> (:closed, 2.0)
-    legend --> false
+    label := ""
     return [a.p1.p[1], a.p2.p[1]], [a.p1.p[2], a.p2.p[2]]
 end
 
@@ -48,7 +48,7 @@ end
 @recipe function f(s::DrawSegment)
     linestyle --> :dash
     color --> :black
-    legend --> false
+    label := ""
     return [s.p1.p[1], s.p2.p[1]], [s.p1.p[2], s.p2.p[2]]
 end
 

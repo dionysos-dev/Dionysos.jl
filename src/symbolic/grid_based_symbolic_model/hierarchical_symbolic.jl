@@ -40,8 +40,8 @@ function get_ncells(hierarchical_symmodel::HierarchicalSymbolicSystem)
     return get_ncells(hierarchical_symmodel.symmodel)
 end
 
-function enum_cells(hierarchical_symmodel::HierarchicalSymbolicSystem)
-    return enum_cells(hierarchical_symmodel.symmodel)
+function enum_states(hierarchical_symmodel::HierarchicalSymbolicSystem)
+    return enum_states(hierarchical_symmodel.symmodel)
 end
 
 @recipe function f(
