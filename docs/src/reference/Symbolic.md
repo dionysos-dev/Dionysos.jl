@@ -10,4 +10,5 @@ Dionysos.Symbolic.SymbolicModel
 Dionysos.Symbolic.SymbolicModelList
 Dionysos.Symbolic.LazySymbolicModel
 Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
+Dionysos.Symbolic.get_symbols_from_set
 ```
