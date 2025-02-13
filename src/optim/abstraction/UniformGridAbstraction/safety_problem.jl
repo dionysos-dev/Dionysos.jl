@@ -52,11 +52,11 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
             optimizer.abstract_problem.safe_set,
         )
 
-    invariant_set = Dionysos.Symbolic.get_domain_from_symbols(
+    invariant_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
         invariant_set_symbols,
     )
-    uninvariant_set = Dionysos.Symbolic.get_domain_from_symbols(
+    uninvariant_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
         uninvariant_set_symbols,
     )
@@ -82,12 +82,12 @@ function build_abstract_problem(
 )
     return Dionysos.Problem.SafetyProblem(
         abstract_system,
-        Dionysos.Symbolic.get_symbols_from_set(
+        Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.initial_set,
             Dionysos.Domain.OUTER,
         ),
-        Dionysos.Symbolic.get_symbols_from_set(
+        Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.safe_set,
             Dionysos.Domain.INNER,

@@ -125,15 +125,12 @@ plot!(concrete_system.X);
 
 # We display the abstract domain
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(
-        abstract_system,
-        abstract_problem.initial_set,
-    );
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
     opacity = 1.0,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
     opacity = 1.0,
 );

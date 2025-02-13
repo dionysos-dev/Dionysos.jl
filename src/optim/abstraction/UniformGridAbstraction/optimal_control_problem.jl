@@ -32,7 +32,7 @@ function MOI.set(
 end
 
 function MOI.get(model::OptimizerOptimalControlProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec  # ✅ Corrected: Ensures this tracks the actual solve time
+    return model.abstract_problem_time_sec
 end
 
 function MOI.get(model::OptimizerOptimalControlProblem, param::MOI.RawOptimizerAttribute)
@@ -54,7 +54,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     # Compute the largest controllable set
     init_set =
         optimizer.early_stop ? optimizer.abstract_problem.initial_set :
-        Dionysos.Symbolic.enum_cells(optimizer.abstract_problem.system)
+        Dionysos.Symbolic.enum_states(optimizer.abstract_problem.system)
 
     abstract_controller, controllable_set_symbols, uncontrollable_set_symbols =
         compute_largest_controllable_set(
@@ -63,11 +63,11 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
             initial_set = init_set,
         )
 
-    controllable_set = Dionysos.Symbolic.get_domain_from_symbols(
+    controllable_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
         controllable_set_symbols,
     )
-    uncontrollable_set = Dionysos.Symbolic.get_domain_from_symbols(
+    uncontrollable_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
         uncontrollable_set_symbols,
     )
@@ -95,12 +95,12 @@ function build_abstract_problem(
 
     return Dionysos.Problem.OptimalControlProblem(
         abstract_system,
-        Dionysos.Symbolic.get_symbols_from_set(
+        Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.initial_set,
             Dionysos.Domain.OUTER,
         ),
-        Dionysos.Symbolic.get_symbols_from_set(
+        Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.target_set,
             Dionysos.Domain.INNER,

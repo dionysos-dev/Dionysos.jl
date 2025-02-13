@@ -1,19 +1,105 @@
 using Plots, Colors
 
 """
-    SymbolicModel{N, M}
+    Abstract Type: SymbolicModel{N, M}
 
-is the abtract type which defines a symbolic model.
+Defines a generic symbolic model interface, where:
+- `N` is the state space dimension.
+- `M` is the input space dimension.
 """
 abstract type SymbolicModel{N, M} end
 
+function get_n_state(symmodel::SymbolicModel) end
+function get_n_input(symmodel::SymbolicModel) end
+function enum_states(symmodel::SymbolicModel) end
+function enum_inputs(symmodel::SymbolicModel) end
+function get_state_domain(symmodel::SymbolicModel) end
+function get_input_domain(symmodel::SymbolicModel) end
+
+function concretize_state(symmodel::SymbolicModel, state) end
+function concretize_input(symmodel::SymbolicModel, input) end
+function abstract_state(symmodel::SymbolicModel, x) end
+function abstract_input(symmodel::SymbolicModel, u) end
+
 """
-    SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
-    
-is one implementation of the `SymbolicModel` type for classical abstraction-based methods, i.e. when the whole domain is partitioned/covered.
+    GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
+
+An intermediate abstract type for symbolic models that rely on a grid-based discretization.
+- `N`: Dimension of the state space.
+- `M`: Dimension of the input space.
 """
-mutable struct SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
-               SymbolicModel{N, M}
+abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
+
+function get_xpos_by_state(symmodel::GridBasedSymbolicModel, state) end
+function get_state_by_xpos(symmodel::GridBasedSymbolicModel, xpos) end
+function get_upos_by_symbol(symmodel::GridBasedSymbolicModel, symbol) end
+function get_symbol_by_upos(symmodel::GridBasedSymbolicModel, upos) end
+function is_xpos(symmodel::GridBasedSymbolicModel, xpos) end
+
+function concretize_state(symmodel::GridBasedSymbolicModel, state)
+    Xdom = get_state_domain(symmodel)
+    xpos = get_xpos_by_state(symmodel, state)
+    return DO.get_coord_by_pos(Xdom, xpos)
+end
+
+function concretize_input(symmodel::GridBasedSymbolicModel, input)
+    Udom = get_input_domain(symmodel)
+    upos = get_upos_by_symbol(symmodel, input)
+    return DO.get_coord_by_pos(Udom, upos)
+end
+
+function abstract_state(symmodel::GridBasedSymbolicModel, x)
+    xpos = DO.get_pos_by_coord(get_state_domain(symmodel), x)
+    return get_state_by_xpos(symmodel, xpos)
+end
+
+function abstract_input(symmodel::GridBasedSymbolicModel, u)
+    upos = DO.get_pos_by_coord(get_input_domain(symmodel), u)
+    return get_symbol_by_upos(symmodel, upos)
+end
+
+get_state_grid(symmodel::GridBasedSymbolicModel) = DO.get_grid(get_state_domain(symmodel))
+
+function get_state_by_coord(symmodel::GridBasedSymbolicModel, x)
+    xpos = DO.get_pos_by_coord(get_state_domain(symmodel), x)
+    return get_state_by_xpos(symmodel, xpos)
+end
+
+function get_all_states_by_xpos(symmodel::GridBasedSymbolicModel, l_xpos)
+    return [get_state_by_xpos(symmodel, xpos) for xpos in l_xpos]
+end
+
+function get_domain_from_states(symmodel::GridBasedSymbolicModel, states)
+    newDomain = DO.DomainList(get_state_grid(symmodel))
+    for state in states
+        DO.add_pos!(newDomain, get_xpos_by_state(symmodel, state))
+    end
+    return newDomain
+end
+
+function get_states_from_set(
+    symmodel::GridBasedSymbolicModel,
+    set::UT.HyperRectangle,
+    position_in_domain,
+)
+    grid = get_state_grid(symmodel)
+    domain_list = DO.DomainList(grid)
+    DO.add_subset!(domain_list, get_state_domain(symmodel), set, position_in_domain)
+    return [get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(domain_list)]
+end
+
+"""
+    SymbolicModelList{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
+
+A classical symbolic model where the entire domain is partitioned into grid cells.
+"""
+mutable struct SymbolicModelList{
+    N,
+    M,
+    S1 <: DO.GridDomainType{N},
+    S2 <: DO.GridDomainType{M},
+    A,
+} <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
@@ -23,7 +109,6 @@ mutable struct SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainTy
     uint2pos::Vector{NTuple{M, Int}}
 end
 
-# ListList refers to List for SymbolicModel, and List for automaton
 function NewSymbolicModelListList(
     Xdom,
     Udom,
@@ -51,63 +136,18 @@ function with_automaton(symmodel::SymbolicModelList, autom)
     )
 end
 
-function is_in(symmodel::SymbolicModelList, xpos)
-    return haskey(symmodel.xpos2int, xpos)
-end
+get_n_state(symmodel::SymbolicModelList) = length(symmodel.xint2pos)
+get_n_input(symmodel::SymbolicModelList) = length(symmodel.uint2pos)
+enum_states(symmodel::SymbolicModelList) = 1:get_n_state(symmodel)
+enum_inputs(symmodel::SymbolicModelList) = 1:get_n_input(symmodel)
+get_state_domain(symmodel::SymbolicModelList) = symmodel.Xdom
+get_input_domain(symmodel::SymbolicModelList) = symmodel.Udom
 
-function get_xpos_by_state(symmodel::SymbolicModelList, state)
-    return symmodel.xint2pos[state]
-end
-
-function get_state_by_xpos(symmodel::SymbolicModelList, xpos)
-    return symmodel.xpos2int[xpos]
-end
-
-function get_state_by_coord(symmodel::SymbolicModelList, x)
-    xpos = DO.get_pos_by_coord(symmodel.Xdom, x)
-    return get_state_by_xpos(symmodel, xpos)
-end
-
-function get_all_states_by_xpos(symmodel::SymbolicModelList, l_xpos)
-    return [symmodel.xpos2int[xpos] for xpos in l_xpos]
-end
-
-function get_upos_by_symbol(symmodel::SymbolicModel, symbol)
-    return symmodel.uint2pos[symbol]
-end
-
-function get_symbol_by_upos(symmodel::SymbolicModel, upos)
-    return symmodel.upos2int[upos]
-end
-
-function enum_cells(symmodel::SymbolicModelList)
-    return 1:length(symmodel.xint2pos)
-end
-
-function get_domain_from_symbols(symmodel::SymbolicModelList, symbols)
-    newDomain = DO.DomainList(symmodel.Xdom.grid)
-    for symbol in symbols
-        xpos = get_xpos_by_state(symmodel, symbol)
-        DO.add_pos!(newDomain, xpos)
-    end
-    return newDomain
-end
-
-"""
-    _corresponding_abstract_state_points(symmodel, set, position_in_domain)
-
-Returns the corresponding abstract points based on the `symmodel`, `set`, and `position_in_domain`.
-"""
-function get_symbols_from_set(
-    symmodel::SymbolicModelList,
-    set::UT.HyperRectangle,
-    position_in_domain,
-)
-    grid = symmodel.Xdom.grid
-    domain_list = DO.DomainList(grid)
-    DO.add_subset!(domain_list, symmodel.Xdom, set, position_in_domain)
-    return [get_state_by_xpos(symmodel, pos) for pos in DO.enum_pos(domain_list)]
-end
+get_xpos_by_state(symmodel::SymbolicModelList, state) = symmodel.xint2pos[state]
+get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
+get_upos_by_symbol(symmodel::SymbolicModelList, symbol) = symmodel.uint2pos[symbol]
+get_symbol_by_upos(symmodel::SymbolicModelList, upos) = symmodel.upos2int[upos]
+is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
@@ -119,8 +159,8 @@ function compute_symmodel_from_controlsystem!(
     contsys::ST.ControlSystemGrowth{N},
 ) where {N}
     println("compute_symmodel_from_controlsystem! started")
-    Xdom = symmodel.Xdom
-    Udom = symmodel.Udom
+    Xdom = get_state_domain(symmodel)
+    Udom = get_input_domain(symmodel)
     tstep = contsys.tstep
     r = Xdom.grid.h / 2.0 + contsys.measnoise
     ntrans = 0

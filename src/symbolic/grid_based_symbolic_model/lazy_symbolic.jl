@@ -60,6 +60,9 @@ function get_state_by_coord(symmodel::LazySymbolicModel, coord)
     return state
 end
 
+get_upos_by_symbol(symmodel::LazySymbolicModel, symbol) = symmodel.uint2pos[symbol]
+get_symbol_by_upos(symmodel::LazySymbolicModel, upos) = symmodel.upos2int[upos]
+
 function get_symbol(symmodel, subset, incl_mode::DO.INCL_MODE)
     Xdom = symmodel.Xdom
     grid = Xdom.grid
@@ -80,7 +83,7 @@ function get_ncells(symmodel::LazySymbolicModel)
     return symmodel.autom.nstates
 end
 
-function enum_cells(symmodel::LazySymbolicModel)
+function enum_states(symmodel::LazySymbolicModel)
     return 1:get_ncells(symmodel)
 end
 
@@ -111,7 +114,7 @@ end
         end
     else
         dict = Dict{NTuple{2, Int}, Any}()
-        for s in enum_cells(symmodel)
+        for s in enum_states(symmodel)
             pos = get_xpos_by_state(symmodel, s)
             if !haskey(dict, pos[dims])
                 dict[pos[dims]] = true
