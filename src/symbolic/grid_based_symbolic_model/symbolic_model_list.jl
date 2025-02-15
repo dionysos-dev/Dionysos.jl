@@ -205,7 +205,7 @@ function compute_symmodel_from_controlsystem!(
 end
 
 function compute_deterministic_symmodel_from_controlsystem!(
-    abstract_system::SymbolicModel{N},
+    abstract_system::GridBasedSymbolicModel{N},
     concrete_system;
     tstep = concrete_system.tstep,
 ) where {N}
@@ -242,7 +242,7 @@ end
 # TODO: check where to place contsys.measnoise (for pathplanning, it is equal to zero)
 # So not critical for the moment...
 function compute_symmodel_from_controlsystem!(
-    abstract_system::SymbolicModel{N},
+    abstract_system::GridBasedSymbolicModel{N},
     concrete_system::ST.ControlSystemLinearized{N},
 ) where {N}
     println("compute_symmodel_from_controlsystem! started")

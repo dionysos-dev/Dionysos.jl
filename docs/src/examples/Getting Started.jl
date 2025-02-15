@@ -100,16 +100,16 @@ SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 # Let us now explore what transitions have been created considering, for instance, the state `x`=[1.1  1.3] and the input `u`=-1. First, let us pin point the cell in the grid
 # associated with this state and this input. The method `get_pos_by_coord` returns a tuple of integers defining the indices of a cell coontaining a given coordinate.
 xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
-upos = DO.get_pos_by_coord(Ugrid, SVector(-1))
 
 # On the other hand, `get_coord_by_pos` returns the coordinates of the center of a cell defined by its indices.
 x = DO.get_coord_by_pos(Xgrid, xpos)
-u = DO.get_coord_by_pos(Ugrid, upos)
+abstract_input = 1
+u = SY.get_concrete_input(symmodel, abstract_input)
 
 # Now we create the vector `post` to receive the number of all the cells that are in the Post of `x` under `u`.
 
 post = Int[]
-SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2int[upos])
+SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], abstract_input)
 
 # It is important to highlight the differences between `xpos` and the elements of `post`. The Tuple `xpos`
 # contains information about a cell with respect to the grid `Xgrid` whereas the elements of `post` are Int's 
