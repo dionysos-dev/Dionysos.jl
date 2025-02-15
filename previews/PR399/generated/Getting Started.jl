@@ -58,13 +58,13 @@ symmodel = SY.NewSymbolicModelListList(domainX, domainU);
 SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
 
 xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
-upos = DO.get_pos_by_coord(Ugrid, SVector(-1))
 
 x = DO.get_coord_by_pos(Xgrid, xpos)
-u = DO.get_coord_by_pos(Ugrid, upos)
+abstract_input = 1
+u = SY.get_concrete_input(symmodel, abstract_input)
 
 post = Int[]
-SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], symmodel.upos2int[upos])
+SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], abstract_input)
 
 domainPostx = DO.DomainList(Xgrid);
 for pos in symmodel.xint2pos[post]
