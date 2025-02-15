@@ -45,13 +45,10 @@ println("Started test")
     sort!(xposlist)
     @test all(xposlist .== [(1, 1), (2, 2)])
 
-    uposlist = Tuple{Int}[]
-    push!(uposlist, SY.get_upos_by_symbol(symmodel, 1))
-    sort!(uposlist)
-    @test all(uposlist .== [(0,)])
+    @test SY.get_concrete_input(symmodel, 1) == [0.0]
 
-    @test SY.get_state_by_coord(symmodel, SVector(1.0, 2.5)) == 1
-    @test SY.get_state_by_coord(symmodel, SVector(1.5, 3.0)) == 2
+    @test SY.get_abstract_state(symmodel, SVector(1.0, 2.5)) == 1
+    @test SY.get_abstract_state(symmodel, SVector(1.5, 3.0)) == 2
 
     subDomain = SY.get_domain_from_states(symmodel, [1])
     positions = [pos for pos in DO.enum_pos(subDomain)]

@@ -30,6 +30,7 @@ function remove_pos!(domain::GridDomainType, pos) end
 
 get_pos_by_coord(domain::GridDomainType, coord) = get_pos_by_coord(get_grid(domain), coord)
 get_coord_by_pos(domain::GridDomainType, pos) = get_coord_by_pos(get_grid(domain), pos)
+get_elem_by_pos(domain::GridDomainType, pos) = get_elem_by_pos(get_grid(domain), pos)
 
 get_dim(domain::GridDomainType) = get_dim(get_grid(domain))
 enum_coords(domain::GridDomainType) =
@@ -38,6 +39,7 @@ enum_elems(domain::GridDomainType) =
     [get_elem_by_pos(domain, pos) for pos in enum_pos(domain)]
 add_coord!(domain::GridDomainType, x) = add_pos!(domain, get_pos_by_coord(domain, x))
 crop_to_domain(domain::GridDomainType, list_pos) = list_pos ∩ enum_pos(domain)
+convert_to_custom_domain(domain::GridDomainType) = CustomList(enum_coords(domain))
 
 function get_subset_pos(
     domain::GridDomainType,

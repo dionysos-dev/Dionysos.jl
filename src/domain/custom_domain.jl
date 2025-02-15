@@ -8,12 +8,13 @@ struct CustomList{N, T} <: DomainType{N, T}
     elems::Vector{SVector{N, T}}
 end
 
-enum_pos(domain::CustomList) = domain.elems #1:get_ncells(domain)
 enum_elems(domain::CustomList) = domain.elems
 get_ncells(domain::CustomList) = length(domain.elems)
-get_elem_by_pos(domain::CustomList, pos) = domain.elems[pos]
+get_elem_by_index(domain::CustomList, index) = domain.elems[index]
 Base.isempty(domain::CustomList) = isempty(domain.elems)
 Base.union!(domain1::CustomList, domain2::CustomList) = union!(domain1.elems, domain2.elems)
 Base.setdiff!(domain1::CustomList, domain2::CustomList) =
     setdiff!(domain1.elems, domain2.elems)
 Base.empty!(domain::CustomList) = empty!(domain.elems)
+
+convert_to_custom_domain(domain::CustomList) = domain

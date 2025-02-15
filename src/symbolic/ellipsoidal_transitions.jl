@@ -731,7 +731,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
                     if (ans)
                         trans_count += 1
                         target = get_state_by_xpos(symmodel, xmpos)
-                        symbol = get_symbol_by_upos(symmodel, xmpos)
+                        symbol = target
                         add_transition!(symmodel.autom, source, target, symbol)
                         transitionCost[(source, target)] = cost
                         transitionCont[(source, target)] = cont

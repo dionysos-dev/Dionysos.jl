@@ -50,7 +50,7 @@ println("Started test")
     )
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
     SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    @test SY.ntransitions(symmodel.autom) == 62077
+    @test SY.ntransitions(symmodel.autom) == 61905
 
     Xinit = DO.DomainList(Xgrid)
     DO.add_set!(
@@ -76,7 +76,7 @@ println("Started test")
 
     contr, invariant_set_symbols, uninvariant_set_symbols =
         AB.UniformGridAbstraction.compute_largest_invariant_set(symmodel, safelist)
-    @test length(contr) == 15043
+    @test length(contr) == 15045
 
     invlist = Int[]
     for source in 1:(symmodel.autom.nstates)

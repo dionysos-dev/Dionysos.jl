@@ -538,7 +538,7 @@ function set_local_optimizer!(
             LazyAbstraction.set_optimizer!(
                 local_optimizer,
                 local_concrete_problem,
-                DO.get_grid(abstract_system.symmodel.Udom);
+                abstract_system.symmodel.Udom; #DO.get_grid(abstract_system.symmodel.Udom);
                 Xdom = Xdom,
             )
             local_optimizer.abstract_system_heuristic = cell.heuristic_abstraction

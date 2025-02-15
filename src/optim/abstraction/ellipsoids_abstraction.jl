@@ -173,7 +173,7 @@ end
 function solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
     state_grid = abstract_system.Xdom.grid
     function concrete_controller(x)
-        currState = SY.get_all_states_by_xpos(
+        currState = SY.get_states_by_xpos(
             abstract_system,
             DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )
@@ -196,7 +196,7 @@ end
 function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
     state_grid = abstract_system.Xdom.grid
     function concrete_lyap_fun(x)
-        l_state = SY.get_all_states_by_xpos(
+        l_state = SY.get_states_by_xpos(
             abstract_system,
             DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )

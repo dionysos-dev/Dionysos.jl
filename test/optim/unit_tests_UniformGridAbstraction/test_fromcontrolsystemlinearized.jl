@@ -55,16 +55,13 @@ println("Started test")
     @test SY.ntransitions(symmodel.autom) == 2155
 
     xpos = (1, 2)
-    upos = (1,)
     x = DO.get_coord_by_pos(Xgrid, xpos)
-    u = DO.get_coord_by_pos(Ugrid, upos)
     source = SY.get_state_by_xpos(symmodel, xpos)
-    symbol = SY.get_symbol_by_upos(symmodel, upos)
+    symbol = 1
+    u = SY.get_concrete_input(symmodel, symbol)
 
     Xsimple = DO.DomainList(Xgrid)
     DO.add_pos!(Xsimple, xpos)
-    Usimple = DO.DomainList(Ugrid)
-    DO.add_pos!(Usimple, upos)
     Ysimple = DO.DomainList(Xgrid)
     targetlist = Int[]
     SY.compute_post!(targetlist, symmodel.autom, source, symbol)

@@ -115,31 +115,6 @@ println("Started test")
 
         @test f(symmodel.autom, initlist, targetlist) == 0
     end
-
-    xpos = DO.get_somepos(Xinit)
-    x0 = DO.get_coord_by_pos(Xgrid, xpos)
-    Xsimple = DO.DomainList(Xgrid)
-    XUYsimple_ = Any[]
-
-    for i in 1:6
-        source = SY.get_state_by_xpos(symmodel, xpos)
-        Xs = DO.DomainList(Xgrid)
-        Ys = DO.DomainList(Xgrid)
-        Us = DO.DomainList(Ugrid)
-        DO.add_pos!(Xs, xpos)
-        targetlist = Int[]
-        for (symbol,) in UT.fix_and_eliminate_first(contr, source)
-            SY.compute_post!(targetlist, symmodel.autom, source, symbol)
-            DO.add_pos!(Us, SY.get_upos_by_symbol(symmodel, symbol))
-        end
-        for target in targetlist
-            DO.add_pos!(Ys, SY.get_xpos_by_state(symmodel, target))
-        end
-        push!(XUYsimple_, (Xs, Us, Ys))
-        if !isempty(Ys)
-            xpos = DO.get_somepos(Ys)
-        end
-    end
 end
 
 sleep(0.1) # used for good printing

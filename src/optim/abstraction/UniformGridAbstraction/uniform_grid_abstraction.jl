@@ -162,8 +162,7 @@ function solve_concrete_problem(abstract_system, abstract_controller)
         end
 
         # Getting and return the control points
-        upos = Dionysos.Symbolic.get_upos_by_symbol(abstract_system, symbol)
-        u = Dionysos.Domain.get_coord_by_pos(abstract_system.Udom.grid, upos)
+        u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
         return u
     end
 end

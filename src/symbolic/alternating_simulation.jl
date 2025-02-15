@@ -24,7 +24,7 @@ function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     reachable_set = compute_reachable_set(rec, sys, symmodel.Udom)
     reachable_sets =
         DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
-    symbols = get_symbols(symmodel, reachable_sets, DO.OUTER)
+    symbols = get_states_from_sets(symmodel, reachable_sets, DO.OUTER)
     return symbols
 end
 
