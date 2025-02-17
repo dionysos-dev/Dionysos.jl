@@ -1,3 +1,5 @@
+using IntervalArithmetic
+
 """
 The structure
 
@@ -6,7 +8,7 @@ The structure
 is the abstract type that defines a control system.
 """
 abstract type ControlSystem{N, T} end
-using IntervalArithmetic
+
 function get_f_eval(sys)
     return sys.f_eval
 end

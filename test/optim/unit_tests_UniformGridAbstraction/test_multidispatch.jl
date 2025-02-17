@@ -31,6 +31,16 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    AB.UniformGridAbstraction.RANDOM_SIMULATION,
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
+
+# USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
+
 MOI.optimize!(optimizer)
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
@@ -58,7 +68,7 @@ uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"
 nstep = 300
 x0 = SVector(1.2, 5.6)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep,
@@ -111,7 +121,7 @@ function reached(x)
 end
 
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;
@@ -166,7 +176,7 @@ display(fig)
 # nstep = 300
 # x0 = SVector(1.2, 5.6)
 # control_trajectory = ST.get_closed_loop_trajectory(
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+#     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
 #     concrete_controller,
 #     x0,
 #     nstep,

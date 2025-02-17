@@ -13,4 +13,6 @@ UT = Utils
 include("controlsystem.jl")
 include("controller.jl")
 include("trajectory.jl")
+
+include("approximation/approximation.jl")
 end

@@ -86,3 +86,214 @@ function get_states_from_sets(
     end
     return states
 end
+
+function compute_abstract_transitions_from_rectangle!(
+    symmodel::GridBasedSymbolicModel,
+    reachable_set::UT.HyperRectangle,
+    abstract_state,
+    abstract_input,
+    translist,
+)
+    Xdom = get_state_domain(symmodel)
+    rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), reachable_set)
+    ypos_iter = Iterators.product(DO._ranges(rectI)...)
+    allin = true
+    for ypos in ypos_iter
+        if !(ypos in Xdom)
+            allin = false
+            break
+        end
+        target = get_state_by_xpos(symmodel, ypos)
+        push!(translist, (target, abstract_state, abstract_input))
+    end
+    return allin
+end
+
+function compute_abstract_transitions_from_points!(
+    symmodel::GridBasedSymbolicModel,
+    reachable_points,
+    abstract_state,
+    abstract_input,
+    translist,
+)
+    Xdom = get_state_domain(symmodel)
+    allin = true
+    for y in reachable_points
+        ypos = DO.get_pos_by_coord(Xdom, y)
+        if !(ypos in Xdom)
+            allin = false
+            break
+        end
+        target = get_state_by_xpos(symmodel, ypos)
+        push!(translist, (target, abstract_state, abstract_input))
+    end
+    return allin
+end
+
+function compute_abstract_system_from_concrete_system!(
+    abstract_system::GridBasedSymbolicModel,
+    concrete_system_approx::ST.DiscreteTimeSystemOverApproximation,
+)
+    println("compute_abstract_system_from_concrete_system!")
+    ntrans = 0
+    translist = Tuple{Int, Int, Int}[]
+    compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
+    for abstract_input in enum_inputs(abstract_system)
+        concrete_input = get_concrete_input(abstract_system, abstract_input)
+        for abstract_state in enum_states(abstract_system)
+            concrete_elem = get_concrete_elem(abstract_system, abstract_state)
+            reachable_set = compute_reachable_set(concrete_elem, concrete_input)
+            empty!(translist)
+            allin = compute_abstract_transitions_from_rectangle!(
+                abstract_system,
+                reachable_set,
+                abstract_state,
+                abstract_input,
+                translist,
+            )
+            if allin
+                add_transitions!(abstract_system, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    return println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+function compute_abstract_system_from_concrete_system!(
+    abstract_system::GridBasedSymbolicModel,
+    concrete_system_approx::ST.DiscreteTimeGrowthBound,
+)
+    println("compute_abstract_system_from_concrete_system!")
+    ntrans = 0
+    translist = Tuple{Int, Int, Int}[]
+
+    growthbound_map = concrete_system_approx.growthbound_map
+    system_map = ST.get_system_map(concrete_system_approx)
+    r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
+    for abstract_input in enum_inputs(abstract_system)
+        concrete_input = get_concrete_input(abstract_system, abstract_input)
+        Fr = growthbound_map(r, concrete_input)
+        for abstract_state in enum_states(abstract_system)
+            concrete_state = get_concrete_state(abstract_system, abstract_state)
+            Fx = system_map(concrete_state, concrete_input)
+            reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
+            empty!(translist)
+            allin = compute_abstract_transitions_from_rectangle!(
+                abstract_system,
+                reachable_set,
+                abstract_state,
+                abstract_input,
+                translist,
+            )
+            if allin
+                add_transitions!(abstract_system, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    return println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+function compute_abstract_system_from_concrete_system!(
+    abstract_system::GridBasedSymbolicModel,
+    concrete_system_approx::ST.DiscreteTimeLinearized,
+)
+    println("compute_abstract_system_from_concrete_system! started")
+    Xdom = get_state_domain(abstract_system)
+    N = DO.get_dim(Xdom)
+    r = DO.get_h(DO.get_grid(Xdom)) / 2.0
+    _H_ = SMatrix{N, N}(I) .* r
+    _ONE_ = ones(SVector{N})
+    e = norm(r, Inf)
+    ntrans = 0
+    translist = Tuple{Int, Int, Int}[]
+    error_map = concrete_system_approx.error_map
+    linsys_map = concrete_system_approx.linsys_map
+    for abstract_input in enum_inputs(abstract_system)
+        concrete_input = get_concrete_input(abstract_system, abstract_input)
+        Fe = error_map(e, concrete_input)
+        Fr = r .+ Fe
+        for abstract_state in enum_states(abstract_system)
+            concrete_state = get_concrete_state(abstract_system, abstract_state)
+            Fx, DFx = linsys_map(concrete_state, _H_, concrete_input)
+            A = inv(DFx)
+            b = abs.(A) * Fr .+ 1.0
+            HP = UT.CenteredPolyhedron(A, b)
+            # TODO: can we improve abs.(DFx)*_ONE_?
+            rad = abs.(DFx) * _ONE_ .+ Fe
+            reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
+
+            empty!(translist)
+
+            allin = compute_abstract_transitions_from_rectangle!(
+                abstract_system,
+                reachable_set,
+                abstract_state,
+                abstract_input,
+                translist,
+            )
+            # rectI = DO.get_pos_lims_outer(Xdom.grid, reachable_set)
+            # ypos_iter = Iterators.product(DO._ranges(rectI)...)
+            # allin = true
+            # for ypos in ypos_iter
+            #     y = DO.get_coord_by_pos(Xdom.grid, ypos) - Fx
+            #     !(y in HP) && continue
+            #     if !(ypos in Xdom)
+            #         allin = false
+            #         break
+            #     end
+            #     target = get_state_by_xpos(abstract_system, ypos)
+            #     push!(translist, (target, concrete_state, abstract_input))
+            # end
+            if allin
+                add_transitions!(abstract_system.autom, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    return println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+function compute_abstract_system_from_concrete_system!(
+    abstract_system::GridBasedSymbolicModel,
+    concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation,
+)
+    println("compute_abstract_system_from_concrete_system!")
+    ntrans = 0
+    translist = Tuple{Int, Int, Int}[]
+
+    under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
+    for abstract_input in enum_inputs(abstract_system)
+        concrete_input = get_concrete_input(abstract_system, abstract_input)
+        for abstract_state in enum_states(abstract_system)
+            concrete_elem = get_concrete_elem(abstract_system, abstract_state)
+            reachable_points = under_approximation_map(concrete_elem, concrete_input)
+            empty!(translist)
+            allin = compute_abstract_transitions_from_points!(
+                abstract_system,
+                reachable_points,
+                abstract_state,
+                abstract_input,
+                translist,
+            )
+            if allin
+                add_transitions!(abstract_system, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    return println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end

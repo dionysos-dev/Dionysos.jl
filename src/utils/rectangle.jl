@@ -53,12 +53,10 @@ function collect_vertices(rect::HyperRectangle)
 end
 
 function sample(rect::HyperRectangle)
-    n = get_dims(rect)
-    sample_point = similar(rect.lb)
-    for i in 1:n
-        sample_point[i] = rand() * (rect.ub[i] - rect.lb[i]) + rect.lb[i]
-    end
-    return sample_point
+    return SVector{length(rect.lb)}(rand() .* (rect.ub .- rect.lb) .+ rect.lb)
+end
+function samples(rect::HyperRectangle, N::Int)
+    return [sample(rect) for _ in 1:N]
 end
 
 function rectangle(c, r)

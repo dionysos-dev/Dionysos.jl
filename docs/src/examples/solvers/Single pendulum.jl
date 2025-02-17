@@ -108,7 +108,7 @@ function reached(x)
 end
 x0 = SVector(Dionysos.Utils.sample(concrete_problem.initial_set)...)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
     nstep;

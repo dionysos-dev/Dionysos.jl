@@ -22,14 +22,6 @@ Dionysos.Optim.BranchAndBound.Optimizer
 ### Uniform Grid Abstraction
 
 ```@docs
-Dionysos.Optim.Abstraction.UniformGridAbstraction.solve_concrete_problem
-Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_model
-Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_continuous_model
-Dionysos.Optim.Abstraction.UniformGridAbstraction._validate_discrete_model
-Dionysos.Optim.Abstraction.UniformGridAbstraction._maybe_discretized_system
-Dionysos.Optim.Abstraction.UniformGridAbstraction._discrete_system
-Dionysos.Optim.Abstraction.UniformGridAbstraction._discretize_continuous_system
-Dionysos.Optim.Abstraction.UniformGridAbstraction._get_domain_list
 Dionysos.Optim.Abstraction.UniformGridAbstraction.compute_largest_controllable_set
 Dionysos.Optim.Abstraction.UniformGridAbstraction.compute_largest_invariant_set
 ```

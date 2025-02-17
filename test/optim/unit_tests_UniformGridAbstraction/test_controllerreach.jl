@@ -2,7 +2,7 @@ module Test
 
 # using TestAbstraction
 using Test
-using StaticArrays
+using StaticArrays, MathematicalSystems
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -43,20 +43,21 @@ println("Started test")
     F_sys(x, u) = SVector(1.0, u[1])
     sysnoise = SVector(1.0, 1.0) * 0.001
     measnoise = SVector(1.0, 1.0) * 0.001
-    L_growthbound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
 
-    contsys = ST.discretize_system_with_growth_bound(
-        tstep,
+    concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
-        L_growthbound,
-        sysnoise,
-        measnoise,
-        nsys,
-        ngrowthbound,
+        1,
+        1,
+        nothing,
+        nothing,
     )
+    continuous_approx =
+        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    discrete_approx = ST.discretize(continuous_approx, tstep)
+
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     Xinit = DO.DomainList(Xgrid)
     DO.add_set!(
@@ -82,12 +83,6 @@ println("Started test")
             initial_set = initlist,
         )
 
-    # AB.UniformGridAbstraction.compute_controller_reach!(
-    #     contr,
-    #     symmodel.autom,
-    #     initlist,
-    #     targetlist,
-    # )
     @test length(contr) == 412
     if VERSION >= v"1.5"
         function f(autom, initlist, targetlist)

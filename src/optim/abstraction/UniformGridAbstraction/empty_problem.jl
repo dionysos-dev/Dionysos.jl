@@ -1,49 +1,74 @@
-@enum ApproxMode GROWTH LINEARIZED DELTA_GAS
+@enum ApproxMode USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
 mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
-    # Metaparameters
-    state_grid::Union{Nothing, Dionysos.Domain.Grid}
-    input_grid::Union{Nothing, Dionysos.Domain.Grid}
-    empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
-
-    # Constructed meta-parameters
-    discretized_system::Any
+    ### Abstraction Result
+    discrete_time_system::Union{
+        Nothing,
+        MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
+    }
     abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
     abstraction_construction_time_sec::T
 
-    # Reachable_function
-    approx_mode::ApproxMode
-    δGAS::Union{Nothing, Bool}
+    ### System Approximation
+    continuous_time_system_approximation::Union{
+        Nothing,
+        ST.ContinuousTimeSystemApproximation,
+    }
+    discrete_time_system_approximation::Union{Nothing, ST.DiscreteTimeSystemApproximation}
 
-    ## Discrete time system
+    ### User Settings
+    empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
+    state_grid::Union{Nothing, Dionysos.Domain.Grid}
+    input_grid::Union{Nothing, Dionysos.Domain.Grid}
+
+    ### USER_DEFINED
+    overapproximation_map::Union{Nothing, Function}
+
+    ### GROWTH
     growthbound_map::Union{Nothing, Function}
-    sys_inv_map::Union{Nothing, Function}
-
-    ## Continuous time system
-    time_step::T
-    num_sub_steps_system_map::Int
-    num_sub_steps_growth_bound::Int
-
-    # Specific reachable_function based on growth bound
     jacobian_bound::Union{Nothing, Function}
+    ngrowthbound::Int
+
+    ### LINEARIZED
+    DF_sys::Union{Nothing, Function}  # Jacobian function
+    bound_DF::Union{Nothing, Function}  # Bound on Jacobian
+    bound_DDF::Union{Nothing, Function}  # Bound on Hessian
+
+    ### RANDOM_SIMULATION
+    n_samples::Union{Nothing, Int}
+
+    ### Continuous-Time System Settings
+    time_step::Union{Nothing, T}
+    nsystem::Int
+
+    ### System Approximation Settings
+    approx_mode::ApproxMode
+    efficient::Bool
 
     function OptimizerEmptyProblem{T}() where {T}
-        return new{T}(
+        optimizer = new{T}(
             nothing,
             nothing,
+            0.0, # Abstraction
+            nothing,
+            nothing, # System Approximation
             nothing,
             nothing,
+            nothing, # User Settings
+            nothing, # USER_DEFINED
             nothing,
-            0.0,
+            nothing,
+            5, # GROWTH
+            nothing,
+            nothing,
+            nothing, # LINEARIZED
+            nothing,  # RANDOM_SIMULATION
+            nothing,
+            5,  # Continuous-Time System
             GROWTH,
-            false,
-            nothing,
-            nothing,
-            NaN,
-            5,
-            5,
-            nothing,
+            true, # Approximation Settings
         )
+        return optimizer
     end
 end
 
@@ -56,19 +81,13 @@ function MOI.set(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute,
 end
 
 function MOI.get(model::OptimizerEmptyProblem, ::MOI.SolveTimeSec)
-    return model.abstraction_construction_time_sec  # ✅ Returns abstraction construction time
+    return model.abstraction_construction_time_sec
 end
 
 function MOI.get(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-"""
-    validate_model!(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
-
-Ensures the specified `required_fields` are set in the `model`. Throws an error
-if any field is missing.
-"""
 function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
     for field in required_fields
         if isnothing(getfield(model, field))
@@ -79,117 +98,93 @@ function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{S
     end
 end
 
-"""
-    validate_continuous_model!(model::OptimizerEmptyProblem)
+function build_continuous_approximation(optimizer::OptimizerEmptyProblem, system)
+    mode = optimizer.approx_mode
+    if mode == USER_DEFINED
+        _validate_model(optimizer, [:overapproximation_map])
+        return ST.ContinuousTimeOverapproximationMap(
+            system,
+            optimizer.overapproximation_map,
+        )
+    elseif mode == GROWTH
+        if optimizer.growthbound_map !== nothing
+            return ST.ContinuousTimeGrowthBound(system, optimizer.growthbound_map)
+        elseif optimizer.jacobian_bound !== nothing
+            return ST.ContinuousTimeGrowthBound_from_jacobian_bound(
+                system,
+                optimizer.jacobian_bound,
+            )
+        else
+            return ST.ContinuousTimeGrowthBound(system)
+        end
+    elseif mode == LINEARIZED
+        _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
+        return ST.ContinuousTimeLinearized(
+            system,
+            optimizer.DF_sys,
+            optimizer.bound_DF,
+            optimizer.bound_DDF,
+        )
+    elseif mode == CENTER_SIMULATION
+        return ST.ContinuousTimeCenteredSimulation(system)
+    elseif mode == RANDOM_SIMULATION
+        _validate_model(optimizer, [:n_samples])
+        return ST.ContinuousTimeRandomSimulation(system, optimizer.n_samples)
 
-Validates that the `OptimizerEmptyProblem` model is correctly configured for continuous
-systems. Throws an error if required fields like `time_step` or `jacobian_bound`
-are missing or invalid.
-"""
-function _validate_continuous_model(model::OptimizerEmptyProblem)
-    _validate_model(model, [:time_step, :jacobian_bound])
-    if isnan(model.time_step)
-        error("Please set a valid `time_step`.")
-    end
-end
-
-"""
-    validate_discrete_model!(model::OptimizerEmptyProblem)
-
-Validates that the `OptimizerEmptyProblem` model is correctly configured for discrete
-systems. Throws an error if required fields like `sys_inv_map` or `growthbound_map`
-are missing or invalid.
-"""
-function _validate_discrete_model(model::OptimizerEmptyProblem)
-    return _validate_model(model, [:growthbound_map, :sys_inv_map])
-end
-
-"""
-    _maybe_discretized_system(concrete_system, model, noise)
-
-Returns the discretized system based on the `concrete_system` and `model`.
-"""
-function _maybe_discretized_system(concrete_system, model, noise)
-    if isa(concrete_system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
-        _validate_discrete_model(model)
-        return _discrete_system(concrete_system, model, noise)
-    elseif isa(
-        concrete_system,
-        MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
-    )
-        _validate_continuous_model(model)
-        return _discretize_continuous_system(concrete_system, model, noise)
     else
-        error("Unsupported system type: $(typeof(concrete_system))")
+        error("Unsupported approximation mode: $mode")
     end
 end
 
-"""
-    discretized_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem, model, noise)
-
-Returns the discretized system based on the `concrete_system` and `model`.
-"""
-function _discrete_system(
-    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
-    model,
-    noise,
-)
-    return Dionysos.System.ControlSystemGrowth(
-        1.0, # `time_step` should be ignored by `concrete_system.f`, `model.growthbound_map` and `model.sys_inv_map` anyway
-        noise,
-        noise,
-        concrete_system.f,
-        model.growthbound_map,
-        model.sys_inv_map,
-    )
-end
-
-"""
-    _discretize_continuous_system(concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem, model, noise)
-
-Returns the discretized system based on the `concrete_system` and `model`.
-"""
-function _discretize_continuous_system(
-    concrete_system::MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem,
-    model,
-    noise,
-)
-    if model.approx_mode == GROWTH
-        return Dionysos.System.discretize_system_with_growth_bound(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian_bound,
-            noise,
-            noise,
-            model.num_sub_steps_system_map,
-            model.num_sub_steps_growth_bound,
+function build_discrete_approximation(optimizer::OptimizerEmptyProblem, system)
+    mode = optimizer.approx_mode
+    if mode == USER_DEFINED
+        _validate_model(optimizer, [:overapproximation_map])
+        return ST.DiscreteTimeOverapproximationMap(system, optimizer.overapproximation_map)
+    elseif mode == GROWTH
+        _validate_model(optimizer, [:growthbound_map])
+        return ST.DiscreteTimeGrowthBound(system, optimizer.growthbound_map)
+    elseif mode == LINEARIZED
+        _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
+        return ST.DiscreteTimeLinearized(
+            system,
+            optimizer.DF_sys,
+            optimizer.bound_DF,
+            optimizer.bound_DDF,
         )
-    elseif model.approx_mode == LINEARIZED
-        return Dionysos.System.discretize_system_with_linearization(
-            model.time_step,
-            concrete_system.f,
-            model.jacobian,
-            u -> 0.0,
-            u -> 0.0,
-            noise,
-            model.num_sub_steps_system_map,
-        )
+    elseif mode == CENTER_SIMULATION
+        return ST.DiscreteTimeCenteredSimulation(system)
+    elseif mode == RANDOM_SIMULATION
+        _validate_model(optimizer, [:n_samples])
+        return ST.DiscreteTimeRandomSimulation(system, optimizer.n_samples)
     else
-        @assert model.approx_mode == DELTA_GAS
-        return Dionysos.System.NewSimpleSystem(
-            model.time_step,
-            concrete_system.f,
-            noise,
-            model.num_sub_steps_system_map,
-        )
+        error("Unsupported approximation mode: $mode")
     end
 end
 
-"""
-    _get_domain_list(model, variables, grid)
+function build_system_approximation!(optimizer::OptimizerEmptyProblem)
+    _validate_model(optimizer, [:empty_problem])
+    @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
 
-Returns a `Dionysos.Domain.DomainList` based on the `variables` and `grid`.
-"""
+    system = optimizer.empty_problem.system
+    if isa(system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
+        _validate_model(optimizer, [:time_step])  # Ensure time step is provided
+        optimizer.continuous_time_system_approximation =
+            build_continuous_approximation(optimizer, system)
+        optimizer.discrete_time_system_approximation = ST.discretize(
+            optimizer.continuous_time_system_approximation,
+            optimizer.time_step,
+        )
+    elseif isa(system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
+        optimizer.discrete_time_system_approximation =
+            build_discrete_approximation(optimizer, system)
+    else
+        error("Unknown system type: $(typeof(system))")
+    end
+    return optimizer.discrete_time_system =
+        ST.get_system(optimizer.discrete_time_system_approximation)
+end
+
 function _get_domain_list(variables, grid, position_in_domain)
     domain_list = Dionysos.Domain.DomainList(grid)
     Dionysos.Domain.add_set!(domain_list, variables, position_in_domain)
@@ -203,6 +198,10 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     # Ensure necessary parameters are set
     _validate_model(optimizer, [:state_grid, :input_grid, :empty_problem])
+    @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
+
+    # Create over-approximation method
+    build_system_approximation!(optimizer)
 
     concrete_system = optimizer.empty_problem.system
 
@@ -216,21 +215,38 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
 
-    optimizer.discretized_system =
-        _maybe_discretized_system(concrete_system, optimizer, noise)
-
-    if optimizer.δGAS
-        Dionysos.Symbolic.compute_deterministic_symmodel_from_controlsystem!(
+    if !optimizer.efficient &&
+       ST.is_over_approximation(optimizer.discrete_time_system_approximation)
+        Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
-            optimizer.discretized_system,
+            ST.get_DiscreteTimeOverApproximationMap(
+                optimizer.discrete_time_system_approximation,
+            ),
         )
     else
-        Dionysos.Symbolic.compute_symmodel_from_controlsystem!(
+        Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
-            optimizer.discretized_system,
+            optimizer.discrete_time_system_approximation,
         )
     end
 
     optimizer.abstract_system = abstract_system
-    return optimizer.abstraction_construction_time_sec = time() - t_ref  # Track the abstraction time
+    return optimizer.abstraction_construction_time_sec = time() - t_ref
 end
+
+# function validate_function_arguments(func, expected_args, func_name)
+#     if func !== nothing
+#         try
+#             arg_types = Base.methodlist(func)[1].sig.parameters[2:end]
+#             if length(arg_types) != length(expected_args) ||
+#                !all(T -> T <: expected_args[i], arg_types for i in 1:length(expected_args))
+#                 error("$func_name must accept arguments of types: $(expected_args), but got $(arg_types)")
+#             end
+#         catch
+#             error("Invalid function signature for $func_name. Expected arguments: $(expected_args)")
+#         end
+#     end
+# end
+
+# ✔ Modular → The system dynamically chooses the best method.
+# ✔ Efficient → Uses the most accurate information available.

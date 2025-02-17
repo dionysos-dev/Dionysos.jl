@@ -73,7 +73,7 @@ function reached(x)
 end
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;

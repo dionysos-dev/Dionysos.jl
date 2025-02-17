@@ -7,6 +7,7 @@ import StaticArrays
 import MathematicalSystems
 
 import Dionysos
+ST = Dionysos.System
 
 using JuMP
 
@@ -132,11 +133,6 @@ end
 
 NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
-"""
-    solve_concrete_problem(abstract_system, abstract_controller)
-
-Solves the concrete problem based on the `abstract_system` and `abstract_controller`.
-"""
 function solve_concrete_problem(abstract_system, abstract_controller)
     function concrete_controller(x; param = false)
         # Getting the position of the state in the abstract system
