@@ -130,21 +130,21 @@ end
 # ### Definition of the abstraction
 
 # We define the growth bound function of $f$:
-function growth_bound(r, u, _)
+function growth_bound(r, u)
     β = u[1] * r[3]
     return StaticArrays.SVector{3}(β, β, 0.0)
 end
 set_attribute(model, "growthbound_map", growth_bound)
 
 # We define the inverse system map:
-function sys_inv(x, u, _)
-    return StaticArrays.SVector{3}(
-        x[1] - u[1] * cos(x[3] - u[2]),
-        x[2] - u[1] * sin(x[3] - u[2]),
-        x[3] - u[2],
-    )
-end
-set_attribute(model, "sys_inv_map", sys_inv)
+# function sys_inv(x, u, _)
+#     return StaticArrays.SVector{3}(
+#         x[1] - u[1] * cos(x[3] - u[2]),
+#         x[2] - u[1] * sin(x[3] - u[2]),
+#         x[3] - u[2],
+#     )
+# end
+# set_attribute(model, "sys_inv_map", sys_inv)
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
@@ -179,7 +179,7 @@ function reached(x)
 end
 
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
     nstep;

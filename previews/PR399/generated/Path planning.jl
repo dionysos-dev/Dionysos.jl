@@ -39,8 +39,13 @@ function jacobian_bound(u)
     return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound)
-
 set_attribute(model, "time_step", 0.3)
+set_attribute(
+    model,
+    "approx_mode",
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+)
+set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
@@ -51,6 +56,9 @@ h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 optimize!(model)
+
+abstraction_time = get_attribute(model, "abstraction_construction_time_sec");
+println("Time to construct the abstraction: $(abstraction_time)")
 
 abstract_system = get_attribute(model, "abstract_system");
 abstract_problem = get_attribute(model, "abstract_problem");
@@ -70,7 +78,7 @@ end
 
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
     nstep;

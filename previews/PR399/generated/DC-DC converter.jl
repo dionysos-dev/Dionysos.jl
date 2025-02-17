@@ -28,6 +28,12 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    AB.UniformGridAbstraction.GROWTH,
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 
 MOI.optimize!(optimizer)
 
@@ -46,7 +52,7 @@ uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"
 nstep = 300
 x0 = SVector(1.2, 5.6)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep,
@@ -80,9 +86,8 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bo
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    Dionysos.Optim.Abstraction.UniformGridAbstraction.DELTA_GAS,
+    AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("δGAS"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.optimize!(optimizer)
 
@@ -92,7 +97,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 nstep = 300
 x0 = SVector(1.2, 5.6)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep,

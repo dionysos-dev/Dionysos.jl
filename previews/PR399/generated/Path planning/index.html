@@ -37,8 +37,13 @@ end</code></pre><h3 id="Definition-of-the-abstraction"><a class="docs-heading-an
     return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
 end
 set_attribute(model, &quot;jacobian_bound&quot;, jacobian_bound)
-
 set_attribute(model, &quot;time_step&quot;, 0.3)
+set_attribute(
+    model,
+    &quot;approx_mode&quot;,
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+)
+set_attribute(model, &quot;efficient&quot;, true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
@@ -46,29 +51,33 @@ set_attribute(model, &quot;state_grid&quot;, Dionysos.Domain.GridFree(x0, h))</c
 h = SVector(0.3, 0.3);
 set_attribute(model, &quot;input_grid&quot;, Dionysos.Domain.GridFree(u0, h))
 
-optimize!(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&gt;&gt;Setting up the model
+optimize!(model)
+
+abstraction_time = get_attribute(model, &quot;abstraction_construction_time_sec&quot;);
+println(&quot;Time to construct the abstraction: $(abstraction_time)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&gt;&gt;Setting up the model
 &gt;&gt;Model setup complete
 ┌ Warning: Noise is not yet accounted for in system abstraction.
-└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/vtBe6/src/optim/abstraction/UniformGridAbstraction/empty_problem.jl:216
-compute_symmodel_from_controlsystem! started
-compute_symmodel_from_controlsystem! terminated with success: 9705631 transitions created
+└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/D84FU/src/optim/abstraction/UniformGridAbstraction/empty_problem.jl:215
+compute_abstract_system_from_concrete_system!
+compute_abstract_system_from_concrete_system! terminated with success: 9705631 transitions created
 ┌ Warning: The `state_cost` and `transition_cost` are not yet fully implemented
-└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/vtBe6/src/optim/abstraction/UniformGridAbstraction/optimal_control_problem.jl:94
+└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/D84FU/src/optim/abstraction/UniformGridAbstraction/optimal_control_problem.jl:94
 
- Reachability: terminated with success</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = get_attribute(model, &quot;abstract_system&quot;);
+ Reachability: terminated with success
+Time to construct the abstraction: 2.835000991821289</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = get_attribute(model, &quot;abstract_system&quot;);
 abstract_problem = get_attribute(model, &quot;abstract_problem&quot;);
 abstract_controller = get_attribute(model, &quot;abstract_controller&quot;);
 concrete_controller = get_attribute(model, &quot;concrete_controller&quot;)
 concrete_problem = get_attribute(model, &quot;concrete_problem&quot;);
-concrete_system = concrete_problem.system</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem{RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:ˍ₋arg1, :ˍ₋arg2), Symbolics.var&quot;#_RGF_ModTag&quot;, Symbolics.var&quot;#_RGF_ModTag&quot;, (0x93a0df49, 0x14dd8c28, 0xaa782e7a, 0xd10c9189, 0x2b4c20ec), Expr}, Dionysos.Utils.LazySetMinus{Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{3, Float64}}, Dionysos.Utils.LazyUnionSetArray{Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{3, Float64}}}}, Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Float64}}}(RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:ˍ₋arg1, :ˍ₋arg2), Symbolics.var&quot;#_RGF_ModTag&quot;, Symbolics.var&quot;#_RGF_ModTag&quot;, (0x93a0df49, 0x14dd8c28, 0xaa782e7a, 0xd10c9189, 0x2b4c20ec), Expr}(:(<span class="sgr90">#= /home/runner/.julia/packages/Symbolics/Pl7kR/src/build_function.jl:346 =#</span> @inbounds begin
+concrete_system = concrete_problem.system</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem{RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:ˍ₋arg1, :ˍ₋arg2), Symbolics.var&quot;#_RGF_ModTag&quot;, Symbolics.var&quot;#_RGF_ModTag&quot;, (0x5adb05de, 0xd358bb9a, 0x0a81fec4, 0xc27897a2, 0x68aeac9b), Expr}, Dionysos.Utils.LazySetMinus{Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{3, Float64}}, Dionysos.Utils.LazyUnionSetArray{Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{3, Float64}}}}, Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Float64}}}(RuntimeGeneratedFunctions.RuntimeGeneratedFunction{(:ˍ₋arg1, :ˍ₋arg2), Symbolics.var&quot;#_RGF_ModTag&quot;, Symbolics.var&quot;#_RGF_ModTag&quot;, (0x5adb05de, 0xd358bb9a, 0x0a81fec4, 0xc27897a2, 0x68aeac9b), Expr}(:(<span class="sgr90">#= /home/runner/.julia/packages/Symbolics/Pl7kR/src/build_function.jl:346 =#</span> @inbounds begin
           <span class="sgr90">#= /home/runner/.julia/packages/Symbolics/Pl7kR/src/build_function.jl:346 =#</span>
           begin
-              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/Su6xO/src/code.jl:389 =#</span>
-              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/Su6xO/src/code.jl:390 =#</span>
-              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/Su6xO/src/code.jl:391 =#</span>
+              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/GAkMJ/src/code.jl:395 =#</span>
+              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/GAkMJ/src/code.jl:396 =#</span>
+              <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/GAkMJ/src/code.jl:397 =#</span>
               begin
                   let var&quot;##cse#989&quot; = ˍ₋arg2[2], var&quot;##cse#990&quot; = NaNMath.tan(var&quot;##cse#989&quot;), var&quot;##cse#991&quot; = (*)(0.5, var&quot;##cse#990&quot;), var&quot;##cse#992&quot; = (atan)(var&quot;##cse#991&quot;), var&quot;##cse#993&quot; = ˍ₋arg1[3], var&quot;##cse#994&quot; = (+)(var&quot;##cse#992&quot;, var&quot;##cse#993&quot;), var&quot;##cse#995&quot; = NaNMath.cos(var&quot;##cse#994&quot;), var&quot;##cse#996&quot; = ˍ₋arg2[1], var&quot;##cse#997&quot; = (sec)(var&quot;##cse#992&quot;), var&quot;##cse#998&quot; = (*)((*)(var&quot;##cse#995&quot;, var&quot;##cse#996&quot;), var&quot;##cse#997&quot;), var&quot;##cse#999&quot; = NaNMath.sin(var&quot;##cse#994&quot;), var&quot;##cse#1000&quot; = (*)((*)(var&quot;##cse#996&quot;, var&quot;##cse#999&quot;), var&quot;##cse#997&quot;), var&quot;##cse#1001&quot; = (*)(var&quot;##cse#996&quot;, var&quot;##cse#990&quot;)
-                      <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/Su6xO/src/code.jl:484 =#</span>
+                      <span class="sgr90">#= /home/runner/.julia/packages/SymbolicUtils/GAkMJ/src/code.jl:490 =#</span>
                       (SymbolicUtils.Code.create_array)(typeof(ˍ₋arg1), nothing, Val{1}(), Val{(3,)}(), var&quot;##cse#998&quot;, var&quot;##cse#1000&quot;, var&quot;##cse#1001&quot;)
                   end
               end
@@ -84,7 +93,7 @@ end
 
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, &quot;discretized_system&quot;),
+    get_attribute(model, &quot;discrete_time_system&quot;),
     concrete_controller,
     x0,
     nstep;
@@ -99,4 +108,4 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);<
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
-);</code></pre><p>We display the concrete trajectory</p><pre><code class="language-julia hljs">plot!(control_trajectory; ms = 0.5)</code></pre><img src="12d40ecb.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-abstraction-reachability/">« Lazy-abstraction-reachability</a><a class="docs-footer-nextpage" href="../Single pendulum/">Single pendulum »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Saturday 15 February 2025 12:48">Saturday 15 February 2025</span>. Using Julia version 1.11.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+);</code></pre><p>We display the concrete trajectory</p><pre><code class="language-julia hljs">plot!(control_trajectory; ms = 0.5)</code></pre><img src="ae5643ef.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-abstraction-reachability/">« Lazy-abstraction-reachability</a><a class="docs-footer-nextpage" href="../Single pendulum/">Single pendulum »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Monday 17 February 2025 15:47">Monday 17 February 2025</span>. Using Julia version 1.11.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
