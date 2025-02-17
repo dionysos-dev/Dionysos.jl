@@ -11,7 +11,7 @@
 # 
 # First, let us import a few packages that are necessary to run this example.
 using Dionysos
-using StaticArrays
+using StaticArrays, MathematicalSystems
 using LinearAlgebra
 using Plots
 
@@ -73,29 +73,21 @@ end;
 ngrowthbound = 10; # Runge-Kutta pre-scaling
 A_diag = diagm(diag(A));
 A_abs = abs.(A) - abs.(A_diag) + A_diag
-L_growthbound = x -> abs.(A)
+jacobian_bound = x -> abs.(A)
 
-# Finally we define the bounds on the input noise `sysnoise` and for the measurement noise `measnoise` of the system
-measnoise = SVector(0.0, 0.0);
-sysnoise = SVector(0.0, 0.0);
-
-# And now the instantiation of the ControlSystem
-contsys = ST.discretize_system_with_growth_bound(
-    tstep,
+concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
     F_sys,
-    L_growthbound,
-    sysnoise,
-    measnoise,
-    nsys,
-    ngrowthbound,
-);
+    2,
+    1,
+    nothing,
+    nothing,
+)
+continuous_approx =
+    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+discrete_approx = ST.discretize(continuous_approx, tstep)
 
-# With that in hand, we can now proceed to the construction of a symbolic model of our system
-symmodel = SY.NewSymbolicModelListList(domainX, domainU);
-
-# The method `compute_symmodel_from_controlsystem!` builds the transitions of the symbolic control system based on the provided domains and the dynamics
-# defined in `contsys`
-SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
+symmodel = SY.NewSymbolicModelListList(domainX, domainU)
+SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
 # Let us now explore what transitions have been created considering, for instance, the state `x`=[1.1  1.3] and the input `u`=-1. First, let us pin point the cell in the grid
 # associated with this state and this input. The method `get_pos_by_coord` returns a tuple of integers defining the indices of a cell coontaining a given coordinate.
