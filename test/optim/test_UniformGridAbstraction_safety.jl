@@ -58,7 +58,7 @@ no_plot = false
     nstep = 300
     x0 = SVector(1.2, 5.6)
     control_trajectory = ST.get_closed_loop_trajectory(
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
         concrete_controller,
         x0,
         nstep,

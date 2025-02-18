@@ -25,7 +25,7 @@ function get_symbol(
     subset,
     incl_mode::DO.INCL_MODE,
 )
-    return get_symbol(hierarchical_symmodel.symmodel, subset, incl_mode)
+    return get_states_from_set(hierarchical_symmodel.symmodel, subset, incl_mode)
 end
 
 function get_symbols(
@@ -33,15 +33,15 @@ function get_symbols(
     subsetList,
     incl_mode::DO.INCL_MODE,
 )
-    return get_symbols(hierarchical_symmodel.symmodel, subsetList, incl_mode)
+    return get_states_from_sets(hierarchical_symmodel.symmodel, subsetList, incl_mode)
 end
 
 function get_ncells(hierarchical_symmodel::HierarchicalSymbolicSystem)
     return get_ncells(hierarchical_symmodel.symmodel)
 end
 
-function enum_cells(hierarchical_symmodel::HierarchicalSymbolicSystem)
-    return enum_cells(hierarchical_symmodel.symmodel)
+function enum_states(hierarchical_symmodel::HierarchicalSymbolicSystem)
+    return enum_states(hierarchical_symmodel.symmodel)
 end
 
 @recipe function f(

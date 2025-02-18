@@ -36,3 +36,9 @@ Dionysos.System.Trajectory
 Dionysos.System.Control_trajectory
 Dionysos.System.Cost_control_trajectory
 ```
+
+## Approximation 
+```@docs
+Dionysos.System.get_under_approximation_map
+Dionysos.System.get_over_approximation_map
+```

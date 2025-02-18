@@ -1,46 +1,57 @@
 """
-    LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
+    LazySymbolicModel{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
 
-is one implementation of the `SymbolicModel` type for the lazy abstraction-based methods, i.e. when a subset of the domain is partitioned/covered.
+A symbolic model using lazy abstraction where the automaton is computed only for a subset of the state space.
 """
-mutable struct LazySymbolicModel{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
-               SymbolicModel{N, M}
+mutable struct LazySymbolicModelList{
+    N,
+    M,
+    S1 <: DO.GridDomainType{N},
+    S2 <: DO.CustomList{M},
+    A,
+} <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
     xpos2int::Dict{NTuple{N, Int}, Int}
     xint2pos::Vector{NTuple{N, Int}}
-    upos2int::Any
-    uint2pos::Any
+    ucoord2int::Any
+    uint2coord::Any
 end
 
-function LazySymbolicModel(
+function LazySymbolicModelList(
     Xdom::DO.GeneralDomainList{N, DO.RectangularObstacles{NTuple{N, T1}}},
     Udom::DO.DomainType{N, T2},
 ) where {N, T1, T2}
-    nu = DO.get_ncells(Udom)
-    uint2pos = [pos for pos in DO.enum_pos(Udom)]
-    upos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Udom)))
-    return symmodel = LazySymbolicModel(
+    customDomainList = DO.convert_to_custom_domain(Udom)
+    nu = DO.get_ncells(customDomainList)
+    uint2coord = [coord for coord in DO.enum_elems(customDomainList)]
+    ucoord2int =
+        Dict((coord, i) for (i, coord) in enumerate(DO.enum_elems(customDomainList)))
+    return symmodel = LazySymbolicModelList(
         Xdom,
-        Udom,
+        customDomainList,
         AutomatonList{Set{NTuple{3, Int}}}(0, nu),
         Dict{NTuple{N, T1}, Int}(),
         NTuple{N, T1}[],
-        upos2int,
-        uint2pos,
+        ucoord2int,
+        uint2coord,
     )
 end
 
-function get_xpos_by_state(symmodel::LazySymbolicModel, state)
-    return symmodel.xint2pos[state]
-end
+get_n_state(symmodel::LazySymbolicModelList) = length(symmodel.xint2pos)
+get_n_input(symmodel::LazySymbolicModelList) = length(symmodel.uint2coord)
+enum_states(symmodel::LazySymbolicModelList) = 1:get_n_state(symmodel)
+enum_inputs(symmodel::LazySymbolicModelList) = 1:get_n_input(symmodel)
+get_state_domain(symmodel::LazySymbolicModelList) = symmodel.Xdom
+get_input_domain(symmodel::LazySymbolicModelList) = symmodel.Udom
 
-function get_state_by_xpos(symmodel::LazySymbolicModel, pos)
+get_xpos_by_state(symmodel::LazySymbolicModelList, state) = symmodel.xint2pos[state]
+function get_state_by_xpos(symmodel::LazySymbolicModelList, pos)
     id = get(symmodel.xpos2int, pos, nothing)
     created = false
     if id === nothing
-        if pos in symmodel.Xdom
+        if pos in get_state_domain(symmodel)
             created = true
             push!(symmodel.xint2pos, pos)
             id = length(symmodel.xint2pos)
@@ -51,41 +62,17 @@ function get_state_by_xpos(symmodel::LazySymbolicModel, pos)
             error("$pos is not in state domain $(symmodel.Xdom)")
         end
     end
-    return id::Int, created
+    return id::Int
 end
+is_xpos(symmodel::LazySymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
-function get_state_by_coord(symmodel::LazySymbolicModel, coord)
-    pos = DO.get_pos_by_coord(symmodel.Xdom, coord)
-    state, created = get_state_by_xpos(symmodel, pos)
-    return state
-end
-
-function get_symbol(symmodel, subset, incl_mode::DO.INCL_MODE)
-    Xdom = symmodel.Xdom
-    grid = Xdom.grid
-    posL = DO.get_subset_pos(Xdom, subset, incl_mode)
-    symbolsList = [get_state_by_xpos(symmodel, pos)[1] for pos in posL]
-    return symbolsList
-end
-
-function get_symbols(symmodel, subsetList, incl_mode::DO.INCL_MODE)
-    symbols = Int[]
-    for subset in subsetList
-        append!(symbols, get_symbol(symmodel, subset, incl_mode))
-    end
-    return symbols
-end
-
-function get_ncells(symmodel::LazySymbolicModel)
-    return symmodel.autom.nstates
-end
-
-function enum_cells(symmodel::LazySymbolicModel)
-    return 1:get_ncells(symmodel)
-end
+get_concrete_input(symmodel::LazySymbolicModelList, input) = symmodel.uint2coord[input]
+get_abstract_input(symmodel::LazySymbolicModelList, u) = symmodel.ucoord2int[u]
+add_transitions!(symmodel::LazySymbolicModelList, translist) =
+    add_transitions!(symmodel.autom, translist)
 
 @recipe function f(
-    symmodel::LazySymbolicModel;
+    symmodel::LazySymbolicModelList;
     dims = [1, 2],
     arrowsB = false,
     cost = false,
@@ -111,7 +98,7 @@ end
         end
     else
         dict = Dict{NTuple{2, Int}, Any}()
-        for s in enum_cells(symmodel)
+        for s in enum_states(symmodel)
             pos = get_xpos_by_state(symmodel, s)
             if !haskey(dict, pos[dims])
                 dict[pos[dims]] = true

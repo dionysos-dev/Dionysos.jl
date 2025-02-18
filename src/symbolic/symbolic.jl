@@ -14,10 +14,13 @@ using ..System
 const ST = System
 
 include("automaton.jl")
-include("symbolicmodel.jl")
-include("hierarchical_symbolic.jl")
+
+include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
+include("grid_based_symbolic_model/symbolic_model_list.jl")
+include("grid_based_symbolic_model/lazy_symbolic_model_list.jl")
+include("grid_based_symbolic_model/hierarchical_symbolic.jl")
+
 include("ellipsoidal_transitions.jl")
-include("lazy_symbolic.jl")
 include("alternating_simulation.jl")
 include("proba_automaton.jl")
 

@@ -84,8 +84,7 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     n = UT.get_dims(rect)
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
-    for upos in DO.enum_pos(Udom)
-        u = DO.get_coord_by_pos(Udom.grid, upos)
+    for u in DO.enum_elems(Udom)
         Fx = concrete_system.f_eval(x, u)
         lb = min.(lb, Fx .- Fr)
         ub = max.(ub, Fx .+ Fr)
@@ -108,6 +107,8 @@ maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
 
+Udom = DO.DomainList(Ugrid)
+DO.add_set!(Udom, concrete_system.U, DO.OUTER)
 AB.LazyAbstraction.set_optimizer!(
     optimizer,
     concrete_problem,
@@ -118,7 +119,7 @@ AB.LazyAbstraction.set_optimizer!(
     minimum_transition_cost,
     hx_heuristic,
     hx,
-    Ugrid,
+    Udom,
 )
 
 # Build the abstraction and solve the optimal control problem using A* algorithm

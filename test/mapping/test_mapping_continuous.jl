@@ -27,8 +27,10 @@ const MA = DI.Mapping
 
     P = SMatrix{2, 2}(2.0, 1.0, 1.0, 3.0)
     rect = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-    grid_ell = DO.GridEllipsoidalRectangular(orig, h, P, rect)
+    grid_ell = DO.GridEllipsoidalRectangular(orig, h, P)
     grid_ell_dom = DO.DomainList(grid_ell)
+    DO.add_set!(grid_ell_dom, rect, DO.INNER)
+
     mcg_ell = MA.MappingContinuousGrid(cont_dom, grid_ell_dom)
     @test mcg_ell.continuousdomain === cont_dom
     @test mcg_ell.griddomain === grid_ell_dom

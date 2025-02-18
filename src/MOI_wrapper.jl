@@ -343,7 +343,7 @@ function system(
         # like so:
         dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
-            (x, u, _) -> dyn(x, u),
+            (x, u) -> dyn(x, u),
             Dionysos.Utils.get_dims(_X_),
             Dionysos.Utils.get_dims(_U_),
             _X_,

@@ -84,7 +84,7 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function set_abstract_system(concrete_system, hx, Ugrid; Xdom = nothing)
+function set_abstract_system(concrete_system, hx, Udom; Xdom = nothing)
     if Xdom === nothing
         X = concrete_system.X.A
         obstacles = concrete_system.X.B.sets
@@ -98,15 +98,17 @@ function set_abstract_system(concrete_system, hx, Ugrid; Xdom = nothing)
         )
     end
 
-    Udom = DO.DomainList(Ugrid)
-    DO.add_set!(Udom, concrete_system.U, DO.OUTER)
-    abstract_system = SY.LazySymbolicModel(Xdom, Udom)
+    # Udom = DO.DomainList(Ugrid)
+    # DO.add_set!(Udom, concrete_system.U, DO.OUTER)
+    abstract_system = SY.LazySymbolicModelList(Xdom, Udom)
     return abstract_system
 end
 
 function build_abstract_problem(concrete_problem::PR.OptimalControlProblem, abstract_system)
-    initlist = SY.get_symbol(abstract_system, concrete_problem.initial_set, DO.OUTER)
-    targetlist = SY.get_symbol(abstract_system, concrete_problem.target_set, DO.INNER)
+    initlist =
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, DO.OUTER)
+    targetlist =
+        SY.get_states_from_set(abstract_system, concrete_problem.target_set, DO.INNER)
     initial_set = [State(init) for init in initlist]
     target_set = [State(tar) for tar in targetlist]
     return PR.OptimalControlProblem(
@@ -148,7 +150,7 @@ function build_abstract_system_heuristic(
 end
 
 function build_heuristic(abstract_system_heuristic, initial_set)
-    initlist = SY.get_symbol(abstract_system_heuristic, initial_set, DO.OUTER)
+    initlist = SY.get_states_from_set(abstract_system_heuristic, initial_set, DO.OUTER)
     heuristic_data = SY.build_heuristic(abstract_system_heuristic, initlist)
     return heuristic_data
 end
@@ -163,7 +165,7 @@ function h_abstract(node::UT.Node, problem)
     heuristic = problem.heuristic_data
     symmodel2 = heuristic.symmodel
     xpos2 = DO.get_pos_by_coord(symmodel2.Xdom.grid, x)
-    source2 = SY.get_state_by_xpos(symmodel2, xpos2)[1]
+    source2 = SY.get_state_by_xpos(symmodel2, xpos2)
     return heuristic.dists[source2]
 end
 
@@ -203,7 +205,7 @@ function set_optimizer!(
     minimum_transition_cost,
     hx_heuristic,
     hx,
-    Ugrid;
+    Udom;
     abstract_system_heuristic = nothing,
     γ = 1.0,
     h_user = (node, prob) -> 0.0,
@@ -229,7 +231,7 @@ function set_optimizer!(
     optimizer.concrete_system = concrete_system
 
     # Initialize the abstract system
-    abstract_system = set_abstract_system(concrete_system, hx, Ugrid; Xdom = Xdom)
+    abstract_system = set_abstract_system(concrete_system, hx, Udom; Xdom = Xdom)
     optimizer.abstract_system = abstract_system
 
     # Build the abstract specifications
@@ -315,15 +317,14 @@ function get_concrete_controller(abstract_system, abstract_controller)
             @warn("Trajectory out of domain")
             return
         end
-        source = SY.get_state_by_xpos(abstract_system, xpos)[1]
+        source = SY.get_state_by_xpos(abstract_system, xpos)
         symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
         if isempty(symbollist)
             @warn("Uncontrollable state")
             return
         end
         symbol = first(symbollist)[1]
-        upos = SY.get_upos_by_symbol(abstract_system, symbol)
-        u = DO.get_coord_by_pos(abstract_system.Udom.grid, upos)
+        u = SY.get_concrete_input(abstract_system, symbol)
         return u
     end
     return concrete_controller
@@ -335,7 +336,7 @@ end
 
 function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
     function concrete_lyap_fun(x)
-        state = SY.get_state_by_coord(abstract_system, x)
+        state = SY.get_abstract_state(abstract_system, x)
         return abstract_lyap_fun(state)
     end
     return concrete_lyap_fun
@@ -347,7 +348,7 @@ end
 
 function build_concrete_bell_fun(abstract_system_heuristic, abstract_bell_fun)
     function concrete_bell_fun(x)
-        state = SY.get_state_by_coord(abstract_system_heuristic, x)
+        state = SY.get_abstract_state(abstract_system_heuristic, x)
         return abstract_bell_fun(state)
     end
     return concrete_bell_fun
@@ -534,8 +535,7 @@ function UT.path_cost(problem::LazySearchProblem, c, state1::State, action, stat
     source = state2.source
     pos = SY.get_xpos_by_state(problem.abstract_system, source)
     x = DO.get_coord_by_pos(problem.abstract_system.Xdom.grid, pos)
-    upos = SY.get_upos_by_symbol(problem.abstract_system, action)
-    u = DO.get_coord_by_pos(problem.abstract_system.Udom.grid, upos)
+    u = SY.get_concrete_input(problem.abstract_system, action)
 
     problem.costs[source] += problem.transition_cost(x, u)
     return problem.costs[source]
@@ -571,10 +571,8 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
     nsym = abstract_system.autom.nsymbols
 
     xpos = SY.get_xpos_by_state(abstract_system, source)
-    for upos in DO.enum_pos(Udom)
-        symbol = SY.get_symbol_by_upos(abstract_system, upos)
-        u = DO.get_coord_by_pos(Udom.grid, upos)
-
+    for symbol in SY.enum_inputs(abstract_system)
+        u = SY.get_concrete_input(abstract_system, symbol)
         ns1 = abstract_system.autom.nstates
         cells = problem.pre_image(abstract_system, concrete_system, xpos, u)
         _update_cache!(problem, ns1, abstract_system.autom.nstates, nsym)
