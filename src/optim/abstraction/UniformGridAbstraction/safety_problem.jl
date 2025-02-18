@@ -73,7 +73,8 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     end
 
     # Correctly track solve time
-    return optimizer.abstract_problem_time_sec = time() - t_ref
+    optimizer.abstract_problem_time_sec = time() - t_ref
+    return
 end
 
 function build_abstract_problem(

@@ -231,22 +231,6 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     end
 
     optimizer.abstract_system = abstract_system
-    return optimizer.abstraction_construction_time_sec = time() - t_ref
+    optimizer.abstraction_construction_time_sec = time() - t_ref
+    return 
 end
-
-# function validate_function_arguments(func, expected_args, func_name)
-#     if func !== nothing
-#         try
-#             arg_types = Base.methodlist(func)[1].sig.parameters[2:end]
-#             if length(arg_types) != length(expected_args) ||
-#                !all(T -> T <: expected_args[i], arg_types for i in 1:length(expected_args))
-#                 error("$func_name must accept arguments of types: $(expected_args), but got $(arg_types)")
-#             end
-#         catch
-#             error("Invalid function signature for $func_name. Expected arguments: $(expected_args)")
-#         end
-#     end
-# end
-
-# ✔ Modular → The system dynamically chooses the best method.
-# ✔ Efficient → Uses the most accurate information available.
