@@ -83,11 +83,11 @@ end
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
 # We define the growth bound function of $f$:
-function jacobian_boundb(u)
+function jacobian_bound(u)
     β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
     return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
 end
-set_attribute(model, "jacobian_bound", jacobian_boundb)
+set_attribute(model, "jacobian_bound", jacobian_bound)
 set_attribute(model, "time_step", 0.3)
 set_attribute(
     model,
@@ -115,12 +115,12 @@ concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
 abstraction_time =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+    MOI.get(model, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
 abstract_problem_time =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+    MOI.get(model, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 println("Time to solve the abstract problem: $(abstract_problem_time)")
-total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
+total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 @test length(abstract_controller.data) == 19400 #src
