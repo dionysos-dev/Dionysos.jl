@@ -121,7 +121,7 @@ using Plots
 fig = plot(; aspect_ratio = :equal);
 
 # We display the concrete domain
-plot!(concrete_system.X);
+plot!(concrete_system.X; color = :grey, label = "");
 
 # We display the abstract domain
 plot!(

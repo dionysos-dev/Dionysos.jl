@@ -97,8 +97,9 @@ control_trajectory = ST.get_closed_loop_trajectory(
 );
 
 fig = plot(; aspect_ratio = :equal);
-plot!(concrete_system.X; label = "");
-plot!(control_trajectory)
+plot!(concrete_system.X; label = "", color = :grey);
+plot!(concrete_problem.initial_set; color = :green, label = "");
+plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 
 # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # ### Definition of the system
@@ -158,9 +159,9 @@ control_trajectory = ST.get_closed_loop_trajectory(
 )
 
 fig = plot(; aspect_ratio = :equal);
-plot!(concrete_system.X; label = "");
-plot!(concrete_problem.initial_set; color = :red, label = "");
-plot!(control_trajectory)
+plot!(concrete_system.X; label = "", color = :grey);
+plot!(concrete_problem.initial_set; color = :green, label = "");
+plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 
 # ### References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.

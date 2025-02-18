@@ -297,3 +297,37 @@ function compute_abstract_system_from_concrete_system!(
         "$(ntrans) transitions created",
     )
 end
+
+function compute_abstract_system_from_concrete_system!(
+    abstract_system::GridBasedSymbolicModel,
+    concrete_system_approx::ST.DiscreteTimeCenteredSimulation,
+)
+    println("compute_abstract_system_from_concrete_system!")
+    ntrans = 0
+    translist = Tuple{Int, Int, Int}[]
+
+    system_map = ST.get_system_map(concrete_system_approx)
+    for abstract_input in enum_inputs(abstract_system)
+        concrete_input = get_concrete_input(abstract_system, abstract_input)
+        for abstract_state in enum_states(abstract_system)
+            concrete_state = get_concrete_state(abstract_system, abstract_state)
+            reachable_points = [system_map(concrete_state, concrete_input)]
+            empty!(translist)
+            allin = compute_abstract_transitions_from_points!(
+                abstract_system,
+                reachable_points,
+                abstract_state,
+                abstract_input,
+                translist,
+            )
+            if allin
+                add_transitions!(abstract_system, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    return println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end

@@ -9,9 +9,10 @@ end
 get_system(approx::DiscreteTimeCenteredSimulation) = approx.system
 
 function get_under_approximation_map(approx::DiscreteTimeCenteredSimulation)
+    system_map = get_system_map(approx)
     return (elem::Union{UT.HyperRectangle, UT.Ellipsoid}, u) -> begin
         x = UT.get_center(elem)
-        Fx = get_system_map(approx)(x, u)
+        Fx = system_map(x, u)
         return [Fx]  # Return a single point representing the propagated center
     end
 end
@@ -23,10 +24,11 @@ end
 get_system(approx::ContinuousTimeCenteredSimulation) = approx.system
 
 function get_under_approximation_map(approx::ContinuousTimeCenteredSimulation)
+    system_map = get_system_map(approx)
     return (elem::Union{UT.HyperRectangle, UT.Ellipsoid}, u, tstep) -> begin
         x = UT.get_center(elem)
-        Fx = get_system_map(approx)(x, u, tstep)
-        return [Fx]
+        Fx = system_map(x, u, tstep)
+        return [Fx]  # Return a single point representing the propagated center
     end
 end
 

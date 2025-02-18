@@ -151,14 +151,20 @@ using Plots
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
 # We display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "");
 
 # We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
 
 # We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
+plot!(
+    concrete_problem.target_set;
+    dims = [1, 2],
+    color = :red,
+    opacity = 0.5,
+    label = "Target set",
+);
 
 # We display the abstract specifications
 plot!(
@@ -171,4 +177,4 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(control_trajectory; ms = 0.5)
+plot!(control_trajectory; ms = 2.0, arrows = false)

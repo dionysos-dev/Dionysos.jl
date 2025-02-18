@@ -232,5 +232,5 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     optimizer.abstract_system = abstract_system
     optimizer.abstraction_construction_time_sec = time() - t_ref
-    return 
+    return
 end
