@@ -72,7 +72,7 @@ using Plots
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_system.X);
+plot!(concrete_system.X; color = :grey, label = "");
 
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);

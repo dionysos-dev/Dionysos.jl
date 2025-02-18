@@ -131,22 +131,30 @@ using Plots
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
 
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");
+plot!(
+    concrete_problem.target_set;
+    dims = [1, 2],
+    color = :red,
+    opacity = 0.5,
+    label = "Target set",
+);
 
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
+    efficient = false,
 );
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
+    efficient = false,
 );
 
-plot!(control_trajectory; ms = 0.5)
+plot!(control_trajectory; ms = 2.0, arrows = false, lw = 2)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

@@ -158,7 +158,7 @@ println("Cost:\t $(cost)")
 fig = plot(; aspect_ratio = :equal);
 
 #We display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 #We display the abstract domain
 plot!(abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5);

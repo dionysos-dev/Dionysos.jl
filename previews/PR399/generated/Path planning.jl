@@ -57,15 +57,20 @@ set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 optimize!(model)
 
-abstraction_time = get_attribute(model, "abstraction_construction_time_sec");
-println("Time to construct the abstraction: $(abstraction_time)")
-
 abstract_system = get_attribute(model, "abstract_system");
 abstract_problem = get_attribute(model, "abstract_problem");
 abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
+abstraction_time =
+    MOI.get(model, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+println("Time to construct the abstraction: $(abstraction_time)")
+abstract_problem_time =
+    MOI.get(model, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+println("Time to solve the abstract problem: $(abstract_problem_time)")
+total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
+println("Total time: $(total_time)")
 
 nstep = 100
 function reached(x)
@@ -89,12 +94,18 @@ using Plots
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "");
 
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
 
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
+plot!(
+    concrete_problem.target_set;
+    dims = [1, 2],
+    color = :red,
+    opacity = 0.5,
+    label = "Target set",
+);
 
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
@@ -105,6 +116,6 @@ plot!(
     color = :red,
 );
 
-plot!(control_trajectory; ms = 0.5)
+plot!(control_trajectory; ms = 2.0, arrows = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
