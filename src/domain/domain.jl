@@ -1,6 +1,6 @@
 module Domain
 
-using StaticArrays, Plots
+using StaticArrays
 using ..Utils
 const UT = Utils
 

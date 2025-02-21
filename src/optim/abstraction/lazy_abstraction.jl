@@ -2,7 +2,7 @@ export LazyAbstraction
 
 module LazyAbstraction
 using JuMP
-using LinearAlgebra, IntervalArithmetic, Random, Plots
+using LinearAlgebra, IntervalArithmetic, Random
 Random.seed!(0)
 
 import Dionysos

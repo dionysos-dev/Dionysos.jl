@@ -2,7 +2,7 @@ export HierarchicalAbstraction
 
 module HierarchicalAbstraction
 using JuMP
-using StaticArrays, LinearAlgebra, IntervalArithmetic, Plots, Graphs, SimpleWeightedGraphs
+using StaticArrays, LinearAlgebra, IntervalArithmetic, Graphs, SimpleWeightedGraphs
 using Base.Threads
 
 import Dionysos

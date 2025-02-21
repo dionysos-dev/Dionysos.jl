@@ -1,5 +1,4 @@
 using SpecialFunctions
-using Plots
 using LazySets
 using LinearAlgebra
 using Polyhedra

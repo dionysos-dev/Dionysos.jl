@@ -1,4 +1,4 @@
-using Plots, Colors
+using Colors
 
 """
     SymbolicModel{N, M}
