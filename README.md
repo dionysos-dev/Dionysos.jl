@@ -6,7 +6,7 @@
 
 | **Documentation and paper** | **Build Status** |
 |:-----------------:|:----------------:|
-| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url]  [![][docs-latest-img]][docs-stable-url]        | [![Build Status][build-img]][build-url]  [![Codecov branch][codecov-img]][codecov-url]      |
+| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url]  [![][docs-stable-img]][docs-stable-url]        | [![Build Status][build-img]][build-url]  [![Codecov branch][codecov-img]][codecov-url]      |
 
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
