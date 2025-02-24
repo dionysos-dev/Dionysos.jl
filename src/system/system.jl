@@ -17,6 +17,7 @@ UT = Utils
 include("controlsystem.jl")
 
 using Colors
+import HybridSystems
 include("controller.jl")
 include("trajectory.jl")
 

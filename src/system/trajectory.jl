@@ -20,7 +20,7 @@ function last_mode(system, traj::DiscreteTrajectory)
     if isempty(traj.transitions)
         return traj.q_0
     else
-        return target(system, traj.transitions[end])
+        return HybridSystems.target(system, traj.transitions[end])
     end
 end
 Base.length(traj::DiscreteTrajectory) = length(traj.transitions)
