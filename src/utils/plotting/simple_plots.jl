@@ -83,3 +83,13 @@ end
     end
     return t.vp[1]
 end
+
+# Auxiliary function for annotation
+function text_in_set_plot!(fig, po::Polyhedra.Rep, t)
+    ##solve finding center (HiGHS is currently the best open source LP solver)
+    solver = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    if t !== nothing
+        c, r = hchebyshevcenter(hrep(po), solver; verbose = 0)
+        annotate!(fig, c[1], c[2], t)
+    end
+end

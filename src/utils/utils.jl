@@ -9,7 +9,8 @@ import LazySets
 import IntervalArithmetic: IntervalBox
 import SpecialFunctions: gamma
 using LinearAlgebra, JuMP
-import Plots: palette, Shape
+import Plots: palette, Shape, annotate!
+import HiGHS
 
 include("files/files_management.jl")
 

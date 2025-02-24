@@ -15,6 +15,8 @@ using ..Utils
 UT = Utils
 
 include("controlsystem.jl")
+
+using Colors
 include("controller.jl")
 include("trajectory.jl")
 
