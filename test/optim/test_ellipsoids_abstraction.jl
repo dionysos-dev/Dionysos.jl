@@ -58,7 +58,7 @@ X_origin = SVector(0.0, 0.0)
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X])
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -81,7 +81,7 @@ transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 # return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 function f_eval1(x, u)
-    currState = SY.get_all_states_by_xpos(
+    currState = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
@@ -110,7 +110,7 @@ cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u
 # We define the stopping criteria for a simulation
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time #max num of steps
 function reached(x)
-    currState = SY.get_all_states_by_xpos(
+    currState = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )

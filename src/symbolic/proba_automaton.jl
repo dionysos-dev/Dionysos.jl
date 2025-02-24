@@ -1,5 +1,3 @@
-using HybridSystems
-
 mutable struct ProbaAutomaton{S <: AbstractSet{Tuple{Int, Int, Int, Float64}}} <:
                HybridSystems.AbstractAutomaton
     nstates::Int

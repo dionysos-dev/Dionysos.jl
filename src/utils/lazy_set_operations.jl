@@ -1,5 +1,3 @@
-import Base.isempty
-
 # LazySetMinus(A, B) = A \ B
 struct LazySetMinus{SA, SB}
     A::SA
@@ -17,7 +15,7 @@ struct LazyUnionSetArray{S}
     sets::Vector{S}
 end
 
-function isempty(A::LazyUnionSetArray)
+function Base.isempty(A::LazyUnionSetArray)
     return Base.isempty(A.sets)
 end
 

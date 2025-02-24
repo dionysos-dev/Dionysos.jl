@@ -1,5 +1,3 @@
-using IntervalArithmetic
-
 function sample(X::IntervalBox)
     return Vector(map(x -> x.lo + (x.hi - x.lo) * rand(), X.v))
 end

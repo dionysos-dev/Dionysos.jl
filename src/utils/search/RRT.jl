@@ -1,6 +1,3 @@
-using LinearAlgebra
-using ..Utils
-
 "
     Basic generic RRT algorihtm
     SI : initial state (this will be the root of the tree) ;

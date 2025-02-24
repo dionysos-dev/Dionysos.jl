@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using StaticArrays
+using StaticArrays, MathematicalSystems
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -35,34 +35,32 @@ println("Started test")
     # F_sys(x, u) = [1.0-cos(x[2]), -x[1] + u[1]]
     # L_growthbound(u) = [0.0 1.0; 1.0 0.0]
     F_sys(x, u) = SVector(u[1], -cos(x[1]))
-    L_growthbound(u) = SMatrix{2, 2}(0.0, 1.0, 0.0, 0.0)
-    sysnoise = SVector(1.0, 1.0) * 0.1
-    measnoise = SVector(1.0, 1.0) * 0.0
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 1.0, 0.0, 0.0)
 
-    contsys = ST.discretize_system_with_growth_bound(
-        tstep,
+    concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
-        L_growthbound,
-        sysnoise,
-        measnoise,
-        nsys,
-        ngrowthbound,
+        2,
+        1,
+        nothing,
+        nothing,
     )
+    continuous_approx =
+        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    discrete_approx = ST.discretize(continuous_approx, tstep)
+
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    @test SY.ntransitions(symmodel.autom) == 1145
+    SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
+
+    @test SY.ntransitions(symmodel.autom) == 1355
 
     xpos = (1, 2)
-    upos = (1,)
+    symbol = 1
     x = DO.get_coord_by_pos(Xgrid, xpos)
-    u = DO.get_coord_by_pos(Ugrid, upos)
+    u = SY.get_concrete_input(symmodel, symbol)
     source = SY.get_state_by_xpos(symmodel, xpos)
-    symbol = SY.get_symbol_by_upos(symmodel, upos)
 
     Xsimple = DO.DomainList(Xgrid)
     DO.add_pos!(Xsimple, xpos)
-    Usimple = DO.DomainList(Ugrid)
-    DO.add_pos!(Usimple, upos)
     Ysimple = DO.DomainList(Xgrid)
     targetlist = Int[]
     SY.compute_post!(targetlist, symmodel.autom, source, symbol)

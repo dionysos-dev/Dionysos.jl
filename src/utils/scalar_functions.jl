@@ -1,5 +1,3 @@
-using Polyhedra
-
 abstract type ScalarFunction end
 
 struct ZeroFunction <: ScalarFunction end

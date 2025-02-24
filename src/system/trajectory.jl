@@ -2,10 +2,6 @@ export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
 export last_mode
 
-using JuMP
-using HybridSystems
-using Polyhedra
-
 """
     DiscreteTrajectory{Q, TT}
 
@@ -24,7 +20,7 @@ function last_mode(system, traj::DiscreteTrajectory)
     if isempty(traj.transitions)
         return traj.q_0
     else
-        return target(system, traj.transitions[end])
+        return HybridSystems.target(system, traj.transitions[end])
     end
 end
 Base.length(traj::DiscreteTrajectory) = length(traj.transitions)
@@ -108,6 +104,28 @@ get_elem(traj::Cost_control_trajectory, n::Int) =
 
 @recipe function f(traj::Cost_control_trajectory)
     return traj.control_trajectory
+end
+
+function get_closed_loop_trajectory(
+    system::MS.ConstrainedBlackBoxControlDiscreteSystem,
+    controller,
+    x0,
+    nstep;
+    stopping = (x) -> false,
+)
+    x = x0
+    x_traj, u_traj = [x], []
+
+    for _ in 1:nstep
+        stopping(x) && break
+        u = controller(x)
+        u === nothing && break
+        x = MS.mapping(system)(x, u)
+        push!(x_traj, x)
+        push!(u_traj, u)
+    end
+
+    return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
 end
 
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)

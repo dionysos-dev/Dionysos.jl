@@ -1,6 +1,6 @@
 struct Colormap
     range::Vector{Float64}
-    colormap::Vector{RGB{Float64}}
+    colormap::Vector{Colors.RGB{Float64}}
     function Colormap(range, mycolor)
         v1 = minimum(range)
         v2 = maximum(range)

@@ -1,8 +1,10 @@
 export HierarchicalAbstraction
 
 module HierarchicalAbstraction
-using JuMP
-using StaticArrays, LinearAlgebra, IntervalArithmetic, Plots, Graphs, SimpleWeightedGraphs
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
+using LinearAlgebra, JuMP, Graphs, SimpleWeightedGraphs, IntervalArithmetic
 using Base.Threads
 
 import Dionysos
@@ -249,7 +251,7 @@ end
 function compute_reachable_sets(concrete_system, abstract_system, compute_reachable_set)
     reachable_set_sets = Dict()
     symmodel = abstract_system.symmodel
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         rec = DO.get_rec(DO.get_grid(symmodel.Xdom), pos)
         reachable_set = compute_reachable_set(rec, concrete_system, symmodel.Udom)
@@ -304,7 +306,7 @@ function build_cells(
     heuristic = SY.build_heuristic(abstract_system.symmodel, [q0])
     symmodel = abstract_system.symmodel
     cells = Dict()
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         outneighbors = SimpleWeightedGraphs.outneighbors(symmodel.autom, state)
         inneighbors = SimpleWeightedGraphs.inneighbors(symmodel.autom, state)
@@ -538,7 +540,7 @@ function set_local_optimizer!(
             LazyAbstraction.set_optimizer!(
                 local_optimizer,
                 local_concrete_problem,
-                DO.get_grid(abstract_system.symmodel.Udom);
+                abstract_system.symmodel.Udom; #DO.get_grid(abstract_system.symmodel.Udom);
                 Xdom = Xdom,
             )
             local_optimizer.abstract_system_heuristic = cell.heuristic_abstraction
