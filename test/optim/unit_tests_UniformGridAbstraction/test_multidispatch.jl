@@ -1,5 +1,5 @@
-using Test     #src
-using StaticArrays, Plots
+using Test, Plots     #src
+import StaticArrays: SVector
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos

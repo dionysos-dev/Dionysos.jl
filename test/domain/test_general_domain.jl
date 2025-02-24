@@ -37,7 +37,6 @@ println("Started test")
     )
     @test DO.get_ncells(domain) == 36
 
-    println(typeof(domain))
     fig = plot(; aspect_ratio = :equal)
     plot!(fig, domain)
     @test isa(fig, Plots.Plot{Plots.GRBackend})

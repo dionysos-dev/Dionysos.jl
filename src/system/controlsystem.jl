@@ -1,5 +1,3 @@
-using IntervalArithmetic
-
 """
 The structure
 
@@ -194,7 +192,7 @@ end
 is a system whose dynamics is a noisy constrained affine control discrete system whose cells are ellipsoids, with a bound on the Lipschitz constant.
 """
 struct EllipsoidalAffineApproximatedSystem{}
-    dynamics::Dict{UT.Ellipsoid, NoisyConstrainedAffineControlDiscreteSystem}
+    dynamics::Dict{UT.Ellipsoid, MS.NoisyConstrainedAffineControlDiscreteSystem}
     L::Dict{UT.Ellipsoid, Float64} # smoothness constant to bound error
 end
 
@@ -219,7 +217,7 @@ function _getLipschitzConstants(J, xi, rules)
     return L
 end
 
-# MathematicalSystems.NoisyAffineControlDiscreteSystem
+# MS.NoisyAffineControlDiscreteSystem
 # is a system of the form x(k+1) = Ax(k)+Bu(k)+c+Ew(k) with x(k)∈X, u(k)∈U, w(k)∈W
 function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     n = Base.length(x)
@@ -241,7 +239,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     function evalSym(x)
         # When x is a Vector{SymbolicUtils.BasicSymbolic{Real}}, 
         # one needs to substitute each element of the vector
-        if eltype(x) <: SymbolicUtils.BasicSymbolic{Real}
+        if eltype(x) <: Symbolics.SymbolicUtils.BasicSymbolic{Real}
             return [Symbolics.substitute(elem, sub_rules_x̄i) for elem in x]
         end
         return Float64.(Symbolics.value.(Symbolics.substitute(x, sub_rules_x̄i)))
@@ -251,7 +249,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     B = evalSym(Ju)
     E = evalSym(Jw)
     c = vec(evalSym(f) - A * x̄ - B * ū - E * w̄)
-    return (NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L)
+    return (MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L)
 end
 
 ############################################
@@ -261,7 +259,7 @@ end
 # of the Lipschitz constant
 
 struct AffineApproximationDiscreteSystem #<: ControlSystem
-    constrainedAffineSys::NoisyConstrainedAffineControlDiscreteSystem
+    constrainedAffineSys::MS.NoisyConstrainedAffineControlDiscreteSystem
     L::Any
     f_eval::Any
     function AffineApproximationDiscreteSystem(sys, L)
@@ -270,7 +268,7 @@ struct AffineApproximationDiscreteSystem #<: ControlSystem
     end
 end
 function AffineApproximationDiscreteSystem(A, B, c, E, X, U, W, L)
-    contSys = NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W)
+    contSys = MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W)
     return AffineApproximationDiscreteSystem(contSys, L)
 end
 

@@ -1,5 +1,3 @@
-import MathematicalSystems as MS
-
 # ------------------------------
 #  UTILITIES
 # ------------------------------

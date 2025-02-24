@@ -2,10 +2,6 @@ export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export DiscreteTrajectory
 export last_mode
 
-using JuMP
-using HybridSystems
-using Polyhedra
-
 """
     DiscreteTrajectory{Q, TT}
 
@@ -111,7 +107,7 @@ get_elem(traj::Cost_control_trajectory, n::Int) =
 end
 
 function get_closed_loop_trajectory(
-    system::MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
+    system::MS.ConstrainedBlackBoxControlDiscreteSystem,
     controller,
     x0,
     nstep;
@@ -124,7 +120,7 @@ function get_closed_loop_trajectory(
         stopping(x) && break
         u = controller(x)
         u === nothing && break
-        x = MathematicalSystems.mapping(system)(x, u)
+        x = MS.mapping(system)(x, u)
         push!(x_traj, x)
         push!(u_traj, u)
     end

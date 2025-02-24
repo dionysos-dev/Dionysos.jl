@@ -1,11 +1,3 @@
-using SpecialFunctions
-using Plots
-using LazySets
-using LinearAlgebra
-using Polyhedra
-using IntervalArithmetic
-using JuMP
-
 # model (x-c)' U' U (x-c) ≤ 1 <=> ||U(x*c)||≤1
 # note that the differnece with Ellipdoid structure is that the matrix U'u
 # could not be invertible

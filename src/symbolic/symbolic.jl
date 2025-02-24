@@ -1,8 +1,12 @@
 module Symbolic
 
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
+using LinearAlgebra, Colors
 using HybridSystems
-using StaticArrays
-using LinearAlgebra
+
+using Graphs, SimpleWeightedGraphs
 
 using ..Utils
 const UT = Utils
@@ -20,8 +24,12 @@ include("grid_based_symbolic_model/symbolic_model_list.jl")
 include("grid_based_symbolic_model/lazy_symbolic_model_list.jl")
 include("grid_based_symbolic_model/hierarchical_symbolic.jl")
 
-include("ellipsoidal_transitions.jl")
 include("alternating_simulation.jl")
 include("proba_automaton.jl")
+
+using Polyhedra
+using ProgressMeter, IntervalArithmetic, LazySets
+using JuMP
+include("ellipsoidal_transitions.jl")
 
 end  # module Symbolic

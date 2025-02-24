@@ -1,6 +1,9 @@
 module Domain
 
-using StaticArrays, Plots
+using Base.Iterators
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
 using ..Utils
 const UT = Utils
 

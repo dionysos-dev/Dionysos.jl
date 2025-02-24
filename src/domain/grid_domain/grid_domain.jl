@@ -1,5 +1,3 @@
-using Base.Iterators
-
 """
     abstract type GridDomainType{N, T} <: DomainType{N, T}
 

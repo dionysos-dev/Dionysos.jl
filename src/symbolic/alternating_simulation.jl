@@ -1,5 +1,3 @@
-using Graphs, SimpleWeightedGraphs
-
 function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_transitions)
     symmodel = NewSymbolicModelListList(Xdom, Udom)
     ncells = DO.get_ncells(Xdom)

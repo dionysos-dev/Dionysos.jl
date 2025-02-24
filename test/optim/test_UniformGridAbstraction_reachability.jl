@@ -55,14 +55,6 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-# abstraction_time =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
-# println("Time to construct the abstraction: $(abstraction_time)")
-# abstract_problem_time =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-# println("Time to solve the abstract problem: $(abstract_problem_time)")
-# total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
-# println("Total time: $(total_time)")
 
 @testset "UniformGridAbstraction reachability" begin
     @test length(abstract_controller.data) == 19400 #src

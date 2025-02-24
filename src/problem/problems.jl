@@ -10,11 +10,11 @@ abstract type ProblemType end
 """
 The structure 
 
-    EmptyProblem{S, XI, XT, XC, TC, T}
+    EmptyProblem{S, X}
 
 encodes consistig in constructing the abstraction in X 
 - `S` is the system,
-- `X` is the initial set, 
+- `X` is the region, 
 """
 struct EmptyProblem{S, X} <: ProblemType
     system::S

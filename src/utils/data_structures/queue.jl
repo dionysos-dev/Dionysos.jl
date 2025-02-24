@@ -1,7 +1,3 @@
-using DataStructures
-
-## Queues: Stack, FIFOQueue, PriorityQueue
-
 """
 AbstractQueue is an abstract type.
     There are three types:
@@ -26,9 +22,9 @@ end
 Return an empty list, suitable as a Last-In-First-Out Queue.
 """
 struct MyStack{T}
-    e::Stack{T}
+    e::DataStructures.Stack{T}
 end
-MyStack{T}() where {T} = MyStack{T}(Stack{T}())
+MyStack{T}() where {T} = MyStack{T}(DataStructures.Stack{T}())
 append!(s::MyStack{T}, item::T) where {T} = push!(s.e, item)
 Base.pop!(s::MyStack) = pop!(s.e)
 Base.isempty(s::MyStack) = isempty(s.e)
@@ -47,11 +43,11 @@ end
 A First-In-First-Out Queue.
 """
 struct FIFOQueue{T}
-    e::Queue{T}
+    e::DataStructures.Queue{T}
 end
-FIFOQueue{T}() where {T} = FIFOQueue{T}(Queue{T}())
-append!(q::FIFOQueue{T}, item::T) where {T} = enqueue!(q.e, item)
-Base.pop!(q::FIFOQueue) = dequeue!(q.e)
+FIFOQueue{T}() where {T} = FIFOQueue{T}(DataStructures.Queue{T}())
+append!(q::FIFOQueue{T}, item::T) where {T} = DataStructures.enqueue!(q.e, item)
+Base.pop!(q::FIFOQueue) = DataStructures.dequeue!(q.e)
 Base.isempty(q::FIFOQueue) = isempty(q.e)
 Base.length(q::FIFOQueue) = length(q.e)
 Base.first(q::FIFOQueue) = first(q.e)
@@ -69,18 +65,18 @@ A queue in which the minimum (or maximum) element (as determined by f)
 is returned first. Keys of type T and priorities of type V.
 """
 struct MyPriorityQueue{T, V}
-    e::PriorityQueue{T, V}
+    e::DataStructures.PriorityQueue{T, V}
     f::Any
     ext::Any
 end
 
 #check if it faster witn BinaryMinHeap or with a self-made implementation
 MyPriorityQueue{T, V}(f, ext) where {T, V} =
-    MyPriorityQueue{T, V}(PriorityQueue{T, V}(), f, ext)
+    MyPriorityQueue{T, V}(DataStructures.PriorityQueue{T, V}(), f, ext)
 append!(pq::MyPriorityQueue{T, V}, item::T) where {T, V} =
-    enqueue!(pq.e, item, pq.f(item, pq.ext))
-dequeue_pair!(pq::MyPriorityQueue) = dequeue_pair!(pq.e)
-Base.pop!(pq::MyPriorityQueue) = dequeue!(pq.e)
+    DataStructures.enqueue!(pq.e, item, pq.f(item, pq.ext))
+dequeue_pair!(pq::MyPriorityQueue) = DataStructures.dequeue_pair!(pq.e)
+Base.pop!(pq::MyPriorityQueue) = DataStructures.dequeue!(pq.e)
 Base.isempty(pq::MyPriorityQueue) = isempty(pq.e)
 Base.length(pq::MyPriorityQueue) = length(pq.e)
 Base.first(pq::MyPriorityQueue) = first(pq.e)

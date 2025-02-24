@@ -1,7 +1,5 @@
-using LazySets
-
 """
-    HyperRectangle{VT} <: LazySet
+    HyperRectangle{VT}
 
 Defines a hyper-rectangle using `lb` (lower bound) and `ub` (upper bound).
 """
@@ -79,7 +77,7 @@ end
 end
 
 """
-    DeformedRectangleDraw(rec, N, f)
+    DeformedRectangleDraw(rect, f, N, shape)
 
 A helper struct for drawing a deformed rectangle.
 """

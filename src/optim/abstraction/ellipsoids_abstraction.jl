@@ -1,9 +1,7 @@
 export EllipsoidsAbstraction
 
 module EllipsoidsAbstraction
-
-using LinearAlgebra
-using JuMP
+using LinearAlgebra, JuMP
 
 import Dionysos
 const DI = Dionysos

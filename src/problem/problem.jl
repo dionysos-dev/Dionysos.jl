@@ -1,6 +1,7 @@
 module Problem
 
-using StaticArrays, Plots
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
 
 using ..Utils
 const UT = Utils

@@ -1,8 +1,10 @@
 export HierarchicalAbstraction
 
 module HierarchicalAbstraction
-using JuMP
-using StaticArrays, LinearAlgebra, IntervalArithmetic, Plots, Graphs, SimpleWeightedGraphs
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
+using LinearAlgebra, JuMP, Graphs, SimpleWeightedGraphs, IntervalArithmetic
 using Base.Threads
 
 import Dionysos

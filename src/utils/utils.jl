@@ -1,16 +1,20 @@
 module Utils
 
-using StaticArrays
-using LinearAlgebra
-using Polyhedra
-using GLPK, Suppressor
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+import Colors
+import Polyhedra
+import DataStructures
+import LazySets
+import IntervalArithmetic: IntervalBox
+import SpecialFunctions: gamma
+using LinearAlgebra, JuMP
+import Plots: palette, Shape
 
 include("files/files_management.jl")
-##### PLOTS
-using Plots, Colors
+
 include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
-#####
 
 include("scalar_functions.jl")
 include("data_structures/sorted_vector_set.jl")

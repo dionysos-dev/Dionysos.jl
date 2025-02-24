@@ -1,8 +1,10 @@
 export LazyAbstraction
 
 module LazyAbstraction
-using JuMP
-using LinearAlgebra, IntervalArithmetic, Random, Plots
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+using LinearAlgebra, JuMP, IntervalArithmetic, Random
+
 Random.seed!(0)
 
 import Dionysos

@@ -1,5 +1,3 @@
-using Plots, Colors
-
 """
     Abstract Type: SymbolicModel{N, M}
 

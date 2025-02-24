@@ -1,14 +1,6 @@
 # functions to compute transitions between ellipsoids 
 # (forward vs backward, PWA vs non-linear, fixed shape vs optimized shape)
 
-using StaticArrays, LinearAlgebra, Polyhedra, SpecialFunctions
-using HybridSystems, ProgressMeter, IntervalArithmetic, LazySets
-using JuMP
-
-using ..Domain
-using ..Utils
-const UT = Utils
-
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,
     HybridSystems.ConstrainedAffineControlDiscreteSystem,

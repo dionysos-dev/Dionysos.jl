@@ -2,13 +2,11 @@ export UniformGridAbstraction
 
 module UniformGridAbstraction
 
-import StaticArrays
-
-import MathematicalSystems
-
 import Dionysos
 ST = Dionysos.System
 
+import StaticArrays: SVector, SMatrix
+import MathematicalSystems
 using JuMP
 
 include("empty_problem.jl")
