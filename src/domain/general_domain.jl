@@ -1,4 +1,4 @@
-using StaticArrays, Plots
+using StaticArrays
 
 """
     RectangularObstacles{VT} <: AbstractSet{VT}
