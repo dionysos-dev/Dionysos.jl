@@ -269,7 +269,7 @@ end
         for t in symmodel.autom.transitions.data
             if t[1] == t[2]
                 @series begin
-                    color = RGB(
+                    color = Colors.RGB(
                         abs(0.6 * sin(t[1])),
                         abs(0.6 * sin(t[1] + 2π / 3)),
                         abs(0.6 * sin(t[1] - 2π / 3)),
@@ -279,7 +279,7 @@ end
                 end
             else
                 @series begin
-                    color = RGB(
+                    color = Colors.RGB(
                         abs(0.6 * sin(t[1])),
                         abs(0.6 * sin(t[1] + 2π / 3)),
                         abs(0.6 * sin(t[1] - 2π / 3)),
