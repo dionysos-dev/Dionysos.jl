@@ -99,7 +99,7 @@ function sample_elem(grid::GridFree, xpos, N::Int)
     return UT.sample_from_rec(rec, N)
 end
 
-@recipe function f(gf::GridFree, pos)
+RecipesBase.@recipe function f(gf::GridFree, pos)
     opacity := 0.9
     color := :yellow
     center = get_coord_by_pos(gf, pos)
@@ -143,7 +143,7 @@ function get_elem_by_coord(grid::GridEllipsoidalRectangular, x)
     return get_elem_by_pos(grid, pos)
 end
 
-@recipe function f(ger::GridEllipsoidalRectangular, pos)
+RecipesBase.@recipe function f(ger::GridEllipsoidalRectangular, pos)
     opacity := 1.0
     color := :yellow
     return get_elem_by_pos(ger, pos)
@@ -230,7 +230,7 @@ struct DeformedRectangleDraw
     N::Integer
     f::Any
 end
-@recipe function f(r::DeformedRectangleDraw)
+RecipesBase.@recipe function f(r::DeformedRectangleDraw)
     opacity --> 0.9
     color --> :yellow
 
@@ -261,7 +261,7 @@ end
     return Shape(x, y)
 end
 
-@recipe function f(dg::DeformedGrid, pos; N = 8)
+RecipesBase.@recipe function f(dg::DeformedGrid, pos; N = 8)
     opacity := 1.0
     color := :yellow
     rec = get_rec(dg.grid, pos)

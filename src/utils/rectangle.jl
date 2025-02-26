@@ -110,7 +110,7 @@ function rectangle(c, r)
     )
 end
 
-@recipe function f(rect::HyperRectangle; dims = [1, 2])
+RecipesBase.@recipe function f(rect::HyperRectangle; dims = [1, 2])
     center = get_center(rect)
     h = get_h(rect)
     return rectangle(center[dims], h[dims] ./ 2)

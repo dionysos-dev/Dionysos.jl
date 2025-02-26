@@ -140,12 +140,12 @@ function enum_pos(Ndomain::NestedDomain)
     return L
 end
 
-@recipe function f(nd::NestedDomain)
+RecipesBase.@recipe function f(nd::NestedDomain)
     for l in 1:(nd.levels)
         for (pos, v) in nd.active[l]
             if v
                 grid = get_grid(nd, l)
-                @series begin
+                RecipesBase.@series begin
                     return grid, pos
                 end
             end

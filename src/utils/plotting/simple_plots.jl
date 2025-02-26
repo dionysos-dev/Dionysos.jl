@@ -2,7 +2,7 @@
 struct DrawPoint{T <: Real, VT <: AbstractVector{T}}
     p::VT
 end
-@recipe function f(p::DrawPoint)
+RecipesBase.@recipe function f(p::DrawPoint)
     color --> :black
     marker --> :circle
     linetype --> :scatter
@@ -23,7 +23,7 @@ struct DrawArrow{T <: Real, VT <: AbstractVector{T}}
         return new{T, VT}(DrawPoint(p1), DrawPoint(p2))
     end
 end
-@recipe function f(a::DrawArrow)
+RecipesBase.@recipe function f(a::DrawArrow)
     marker --> :circle
     markeralpha --> 0.0
     color --> :black
@@ -45,7 +45,7 @@ struct DrawSegment{T <: Real, VT <: AbstractVector{T}}
         return new{T, VT}(DrawPoint(p1), DrawPoint(p2))
     end
 end
-@recipe function f(s::DrawSegment)
+RecipesBase.@recipe function f(s::DrawSegment)
     linestyle --> :dash
     color --> :black
     legend --> false
@@ -72,12 +72,12 @@ struct DrawTrajectory{
     end
 end
 
-@recipe function f(t::DrawTrajectory)
+RecipesBase.@recipe function f(t::DrawTrajectory)
     for i in 1:(length(t.vp) - 1)
-        @series begin
+        RecipesBase.@series begin
             t.vp[i + 1]
         end
-        @series begin
+        RecipesBase.@series begin
             DrawArrow(t.vp[i], t.vp[i + 1])
         end
     end

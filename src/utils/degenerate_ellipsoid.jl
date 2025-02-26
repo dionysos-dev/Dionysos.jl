@@ -46,9 +46,9 @@ function is_degenerate(elli::DegenerateEllipsoid)
     return !isposdef((P + P') ./ 2)
 end
 
-# If U'U is not invertible, the ellipsoid defined by {x: (x-c)'U'U(x-c) <= 1} is a 
+# If U'U is not invertible, the ellipsoid defined by {x: (x-c)'U'U(x-c) <= 1} is a
 # degenerate ellipsoid and can be visualized as a line segment
-@recipe function f(e::DegenerateEllipsoid)
+RecipesBase.@recipe function f(e::DegenerateEllipsoid)
     if !is_degenerate(e)
         return Ellipsoid(e.P, e.c)
     end

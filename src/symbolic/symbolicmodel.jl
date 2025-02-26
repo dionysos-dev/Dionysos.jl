@@ -9,7 +9,7 @@ abstract type SymbolicModel{N, M} end
 
 """
     SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <: SymbolicModel{N, M}
-    
+
 is one implementation of the `SymbolicModel` type for classical abstraction-based methods, i.e. when the whole domain is partitioned/covered.
 """
 mutable struct SymbolicModelList{N, M, S1 <: DO.DomainType{N}, S2 <: DO.DomainType{M}, A} <:
@@ -239,7 +239,7 @@ function compute_symmodel_from_controlsystem!(
     )
 end
 
-@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
+RecipesBase.@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
     # Display the cells
     state_grid = symmodel.Xdom.grid
     if cost
@@ -251,16 +251,16 @@ end
         for (lyap, state) in cost_ordered
             pos = get_xpos_by_state(symmodel, state)
             elli = DO.get_elem_by_pos(state_grid, pos)
-            @series begin
+            RecipesBase.@series begin
                 lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
                 return elli
             end
         end
-        @series begin
+        RecipesBase.@series begin
             mycolorMap
         end
     else
-        @series begin
+        RecipesBase.@series begin
             symmodel.Xdom
         end
     end
@@ -268,7 +268,7 @@ end
     if arrowsB
         for t in symmodel.autom.transitions.data
             if t[1] == t[2]
-                @series begin
+                RecipesBase.@series begin
                     color = Colors.RGB(
                         abs(0.6 * sin(t[1])),
                         abs(0.6 * sin(t[1] + 2π / 3)),
@@ -278,7 +278,7 @@ end
                     return UT.DrawPoint(p1)
                 end
             else
-                @series begin
+                RecipesBase.@series begin
                     color = Colors.RGB(
                         abs(0.6 * sin(t[1])),
                         abs(0.6 * sin(t[1] + 2π / 3)),

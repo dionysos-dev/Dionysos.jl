@@ -121,7 +121,7 @@ function get_all_axis_points(elli::Ellipsoid)
 end
 
 # get the radius of the largest ball that is inscribed in an ellipsoid of the i largest
-# function with argument 1 returns the length of the longest semi-axis of the ellipsoid. 
+# function with argument 1 returns the length of the longest semi-axis of the ellipsoid.
 function get_length_semiaxis_sorted(elli::Ellipsoid, i)
     specDecomp = eigen(elli.P)
     vals = specDecomp.values
@@ -147,9 +147,9 @@ function get_inscribed_ball(elli::Ellipsoid)
     return Ellipsoid((1 / (r * r)) * I_elli, elli.c)
 end
 
-@recipe function f(e::Ellipsoid; axis_plot = false, color1 = :black, color2 = :black)
+RecipesBase.@recipe function f(e::Ellipsoid; axis_plot = false, color1 = :black, color2 = :black)
     if axis_plot
-        @series begin
+        RecipesBase.@series begin
             color := color1
             p1, p2 = get_axis_points(e, 1)
             return DrawSegment(p1, p2)
@@ -178,9 +178,9 @@ function get_farthest_point(elli::Ellipsoid, d)
 end
 
 """
-    get_min_bounding_box(elli, optimizer) 
+    get_min_bounding_box(elli, optimizer)
 
-Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}. 
+Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}.
 """
 function get_min_bounding_box(elli::Ellipsoid; optimizer = nothing)
     P = elli.P

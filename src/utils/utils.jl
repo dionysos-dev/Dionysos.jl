@@ -1,5 +1,6 @@
 module Utils
 
+import RecipesBase
 using StaticArrays
 using LinearAlgebra
 using Polyhedra

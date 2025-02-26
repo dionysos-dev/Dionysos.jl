@@ -25,7 +25,7 @@ function get_color(colorMap::Colormap, val::Float64)
     return colorMap.colormap[Int(b)]
 end
 
-@recipe function f(colorMap::Colormap)
+RecipesBase.@recipe function f(colorMap::Colormap)
     marker_z --> colorMap.range
     colorbar --> true
     color --> palette(colorMap.colormap)

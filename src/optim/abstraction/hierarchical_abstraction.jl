@@ -3,6 +3,7 @@ export HierarchicalAbstraction
 module HierarchicalAbstraction
 using JuMP
 using StaticArrays, LinearAlgebra, IntervalArithmetic, Graphs, SimpleWeightedGraphs
+import RecipesBase
 using Base.Threads
 
 import Dionysos
@@ -18,7 +19,7 @@ using ..LazyAbstraction
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
-    
+
 Abstraction-based solver for which the domain is initially partioned into coarse hyper-rectangular cells, which are iteratively locally smartly refined with respect to the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
@@ -692,8 +693,8 @@ function f3(i, prob)
     return new_path[i]
 end
 
-@recipe function f(prob::HierarchicalProblem; path = [], heuristic = false, fine = true)
-    @series begin
+RecipesBase.@recipe function f(prob::HierarchicalProblem; path = [], heuristic = false, fine = true)
+    RecipesBase.@series begin
         color := :blue
         return prob.abstract_system.symmodel.Xdom
     end
@@ -704,7 +705,7 @@ end
             heuristic_data = cell.heuristics[prev]
             bell_fun =
                 Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
-            @series begin
+            RecipesBase.@series begin
                 arrowsB := false
                 dims := [1, 2]
                 cost := true
@@ -719,7 +720,7 @@ end
             prev = i == 1 ? -2 : path[i - 1]
             next = i == length(path) ? -1 : path[i + 1]
             local_optimizer = cell.optimizers[(prev, next)]
-            @series begin
+            RecipesBase.@series begin
                 return local_optimizer.lazy_search_problem
             end
         end

@@ -89,7 +89,7 @@ function add_node!(
     return newNode
 end
 
-"assuming that the path_cost of a node has changed (and its depth), 
+"assuming that the path_cost of a node has changed (and its depth),
 we should propagate the new cost to its children"
 function propagate_cost_to_leaves(node::NodeT)
     for child in node.children
@@ -236,7 +236,7 @@ function Base.show(io::IO, tree::Tree)
     return println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
 
-@recipe function f(node::NodeT; pathB = false, cost = true)
+RecipesBase.@recipe function f(node::NodeT; pathB = false, cost = true)
     path = get_path(node)
     # create a Colormap
     vmin = path[end].path_cost
@@ -245,24 +245,24 @@ end
     pathB ? path = sort(path; by = compare, rev = true) : path = [node]
     sortedPath = sort(path; by = compare, rev = true)
     for node in sortedPath
-        @series begin
+        RecipesBase.@series begin
             cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
             return node.state
         end
     end
     if cost
-        @series begin
+        RecipesBase.@series begin
             colorMap
         end
     end
     for i in 1:(length(path) - 1)
-        @series begin
+        RecipesBase.@series begin
             DrawArrow(path[i].state.c, path[i + 1].state.c)
         end
     end
 end
 
-@recipe function f(tree::Tree; arrowsB = true, cost = true)
+RecipesBase.@recipe function f(tree::Tree; arrowsB = true, cost = true)
     # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
@@ -271,13 +271,13 @@ end
     allNodes = collect_nodes(tree)
     sort!(allNodes; by = compare, rev = true)
     for node in allNodes
-        @series begin
+        RecipesBase.@series begin
             cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
             return node.state
         end
     end
     if cost
-        @series begin
+        RecipesBase.@series begin
             colorMap
         end
     end
@@ -286,7 +286,7 @@ end
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent !== nothing
-                    @series begin
+                    RecipesBase.@series begin
                         return DrawArrow(leave.state.c, leave.parent.state.c)
                     end
                 end

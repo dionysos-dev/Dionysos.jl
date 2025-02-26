@@ -66,7 +66,7 @@ end
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
 
-@recipe function f(traj::Trajectory)
+RecipesBase.@recipe function f(traj::Trajectory)
     return UT.DrawTrajectory(traj.seq)
 end
 
@@ -85,7 +85,7 @@ get_state(traj::Control_trajectory, n::Int) = get_elem(traj.states, n)
 get_input(traj::Control_trajectory, n::Int) = get_elem(traj.inputs, n)
 get_elem(traj::Control_trajectory, n::Int) = (get_state(traj, n), get_input(traj, n))
 
-@recipe function f(traj::Control_trajectory)
+RecipesBase.@recipe function f(traj::Control_trajectory)
     return traj.states
 end
 
@@ -106,7 +106,7 @@ get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
 get_elem(traj::Cost_control_trajectory, n::Int) =
     (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
 
-@recipe function f(traj::Cost_control_trajectory)
+RecipesBase.@recipe function f(traj::Cost_control_trajectory)
     return traj.control_trajectory
 end
 

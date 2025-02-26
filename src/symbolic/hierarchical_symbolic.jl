@@ -44,19 +44,19 @@ function enum_cells(hierarchical_symmodel::HierarchicalSymbolicSystem)
     return enum_cells(hierarchical_symmodel.symmodel)
 end
 
-@recipe function f(
+RecipesBase.@recipe function f(
     hierarchical_symmodel::HierarchicalSymbolicSystem;
     dims = [1, 2],
     arrowsB = true,
     cost = false,
     lyap_fun = [],
 )
-    @series begin
+    RecipesBase.@series begin
         arrowsB := false
         hierarchical_symmodel.symmodel
     end
     for (state, sub_symmodel) in hierarchical_symmodel.sub_symmodels
-        @series begin
+        RecipesBase.@series begin
             sub_symmodel
         end
     end

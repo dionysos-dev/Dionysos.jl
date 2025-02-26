@@ -5,6 +5,7 @@ using Symbolics
 using MathematicalSystems
 using IntervalArithmetic
 using IntervalLinearAlgebra
+import RecipesBase
 
 using ..Utils
 UT = Utils

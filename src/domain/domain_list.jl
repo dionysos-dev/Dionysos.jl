@@ -161,7 +161,7 @@ function get_coord(domain::DomainType, pos)
     return get_coord_by_pos(domain.grid, pos)
 end
 
-@recipe function f(Xdom::DomainType{N, T}) where {N, T}
+RecipesBase.@recipe function f(Xdom::DomainType{N, T}) where {N, T}
     opacity := 0.2
     color := :yellow
     legend := false
@@ -172,7 +172,7 @@ end
     for pos in enum_pos(Xdom)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            @series begin
+            RecipesBase.@series begin
                 return grid, pos
             end
         end

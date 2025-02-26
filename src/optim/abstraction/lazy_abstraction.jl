@@ -3,6 +3,8 @@ export LazyAbstraction
 module LazyAbstraction
 using JuMP
 using LinearAlgebra, IntervalArithmetic, Random
+import RecipesBase
+
 Random.seed!(0)
 
 import Dionysos
@@ -391,7 +393,7 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.concrete_lyap_fun =
         build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
 
-    # Construct Bellman-like value function 
+    # Construct Bellman-like value function
     abstract_bell_fun = build_abstract_bell_fun(optimizer.bell_fun)
     optimizer.abstract_bell_fun = abstract_bell_fun
     optimizer.concrete_bell_fun =
@@ -622,7 +624,7 @@ function UT.successor(problem::LazySearchProblem, state::State)
     return successors
 end
 
-@recipe function f(problem::LazySearchProblem; dims = [1, 2])
+RecipesBase.@recipe function f(problem::LazySearchProblem; dims = [1, 2])
     targetlist = [init.source for init in problem.initial]
     initlist = [goal.source for goal in problem.goal]
     contr = problem.contr
@@ -637,7 +639,7 @@ end
             pos = SY.get_xpos_by_state(abstract_system, k)
             if !haskey(dict, pos[dims])
                 dict[pos[dims]] = true
-                @series begin
+                RecipesBase.@series begin
                     opacity := 0.2
                     color := :yellow
                     return grid, pos
@@ -652,7 +654,7 @@ end
         pos = SY.get_xpos_by_state(abstract_system, cell)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            @series begin
+            RecipesBase.@series begin
                 opacity := 0.3
                 color := :blue
                 return grid, pos
@@ -666,7 +668,7 @@ end
         pos = SY.get_xpos_by_state(abstract_system, state.source)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            @series begin
+            RecipesBase.@series begin
                 opacity := 0.5
                 color := :blue
                 return grid, pos
@@ -680,7 +682,7 @@ end
         pos = SY.get_xpos_by_state(abstract_system, s)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            @series begin
+            RecipesBase.@series begin
                 opacity := 0.4
                 color := :green
                 return grid, pos
@@ -694,7 +696,7 @@ end
         pos = SY.get_xpos_by_state(abstract_system, s)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true
-            @series begin
+            RecipesBase.@series begin
                 opacity := 0.5
                 color := :red
                 return grid, pos

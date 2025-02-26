@@ -3,6 +3,7 @@ module Symbolic
 using HybridSystems
 using StaticArrays
 using LinearAlgebra
+import RecipesBase
 
 using ..Utils
 const UT = Utils

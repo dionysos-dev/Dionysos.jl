@@ -46,21 +46,21 @@ function Base.intersect(A, B::LazyUnionSetArray)
     return B ∩ A
 end
 
-@recipe function f(set::LazyUnionSetArray; dims = [1, 2])
+RecipesBase.@recipe function f(set::LazyUnionSetArray; dims = [1, 2])
     dims := dims
     for elem in set.sets
-        @series begin
+        RecipesBase.@series begin
             return elem
         end
     end
 end
 
-@recipe function f(set::LazySetMinus; dims = [1, 2])
+RecipesBase.@recipe function f(set::LazySetMinus; dims = [1, 2])
     dims := dims
-    @series begin
+    RecipesBase.@series begin
         return set.A
     end
-    @series begin
+    RecipesBase.@series begin
         color := :black
         return set.B
     end

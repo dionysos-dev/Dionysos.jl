@@ -1,6 +1,7 @@
 module Domain
 
 using StaticArrays
+import RecipesBase
 using ..Utils
 const UT = Utils
 
