@@ -8,6 +8,7 @@ import MathematicalSystems
 
 import Dionysos
 ST = Dionysos.System
+SY = Dionysos.Symbolic
 
 using JuMP
 

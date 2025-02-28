@@ -11,7 +11,13 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems/Biped_robot", "robot_problem.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems/Biped_robot",
+        "robot_problem.jl",
+    ),
+)
 
 concrete_problem = RobotProblem.problem(; tstep = 2e-2)
 concrete_system = concrete_problem.system
@@ -29,7 +35,7 @@ hx = SVector{n_state, Float64}(fill(1.0, n_state))
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(1.0, n_input))
+hu = SVector{n_input, Float64}(fill(12.0, n_input))
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
@@ -45,7 +51,7 @@ MOI.set(
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 
 ### Optimize
-# MOI.optimize!(optimizer)
+MOI.optimize!(optimizer)
 
 ### For visualization
 rs, vis = RobotProblem.get_visualization_tool()

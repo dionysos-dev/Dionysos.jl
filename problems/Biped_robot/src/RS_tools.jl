@@ -17,14 +17,8 @@ using DataFrames, DataStructures
 using LightXML
 using GeometryTypes
 
-
 export RobotSimulator,
-    getMechanism,
-    set_nominal!,
-    set_initialbody!,
-    update_visulizer!,
-    show_frame!,
-    simulate
+    getMechanism, set_nominal!, set_initialbody!, update_visulizer!, show_frame!, simulate
 
 struct RobotSimulator
     mechanism::Mechanism
@@ -82,7 +76,7 @@ function getMechanism(;
     add_flat_ground = true,
     add_gravity = true,
     contactmodel = default_contact_model(),
-)   
+)
     urdfpath() = fileName
 
     # Define the robot mechanism

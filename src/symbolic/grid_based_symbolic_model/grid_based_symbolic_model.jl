@@ -298,16 +298,17 @@ function compute_abstract_system_from_concrete_system!(
     )
 end
 
+using ProgressMeter
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation,
 )
-    println("compute_abstract_system_from_concrete_system!")
+    println("compute_abstract_system_from_concrete_system! with CenteredSimulation")
     ntrans = 0
     translist = Tuple{Int, Int, Int}[]
 
     system_map = ST.get_system_map(concrete_system_approx)
-    for abstract_input in enum_inputs(abstract_system)
+    @showprogress for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         for abstract_state in enum_states(abstract_system)
             concrete_state = get_concrete_state(abstract_system, abstract_state)

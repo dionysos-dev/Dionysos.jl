@@ -211,6 +211,13 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         _get_domain_list(concrete_system.U, optimizer.input_grid, Dionysos.Domain.CENTER),
     )
 
+    println("Number of abstract states: ", SY.get_n_state(abstract_system))
+    println("Number of abstract inputs: ", SY.get_n_input(abstract_system))
+    println(
+        "Number of calls of f: ",
+        SY.get_n_state(abstract_system) * SY.get_n_input(abstract_system),
+    )
+
     # TODO: Consider adding noise handling
     @warn("Noise is not yet accounted for in system abstraction.")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
