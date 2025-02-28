@@ -1,5 +1,3 @@
-using StaticArrays, Plots
-
 """
     RectangularObstacles{VT} <: AbstractSet{VT}
 
@@ -39,7 +37,7 @@ _fit_grid(elems::Set, grid, nx, fit) = elems
 Struct for a rectangular domain with rectangular obstacles.
 """
 struct GeneralDomainList{N, E <: AbstractSet{NTuple{N, Int}}, T, S <: Grid{N, T}, F} <:
-       DomainType{N, T}
+       GridDomainType{N, T}
     grid::S
     elems::E
     periodic::Vector{Int} # components which are periodic
@@ -153,14 +151,14 @@ function get_grid(domain::GeneralDomainList)
     return domain.grid
 end
 
-##
+#
 function set_in_period_coord(domain::DomainList, x)
     return x
 end
 function set_in_period_pos(domain::DomainList, pos)
     return pos
 end
-##
+#
 
 _coord_tuple(domain, i, j, t::Tuple{}) = tuple()
 function _coord_tuple(domain, i, j, t::Tuple)
@@ -187,6 +185,7 @@ function _pos_tuple(domain, pos)
     end
     return Tuple(pos)
 end
+
 function set_in_period_pos(domain::GeneralDomainList, pos)
     if isempty(domain.periodic)
         return pos

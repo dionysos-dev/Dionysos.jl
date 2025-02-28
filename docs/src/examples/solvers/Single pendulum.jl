@@ -36,13 +36,11 @@ using Dionysos, JuMP
 # Define the problem using JuMP
 # We first create a JuMP model:
 model = Model(Dionysos.Optimizer)
-nothing #hide
 
 # Define the discretization step
 hx = 0.05
 l = 1.0
 g = 9.81
-nothing #hide
 
 # Define the state variables: x1(t), x2(t)
 x_low, x_upp = [-π, -10.0], [π + pi, 10.0]
@@ -51,12 +49,10 @@ nothing #hide
 
 # Define the control variables: ``u_1(t)``, ``u_2(t)``
 @variable(model, -3.0 <= u <= 3.0)
-nothing #hide
 
 # Define the dynamics
 @constraint(model, ∂(x[1]) == x[2])
 @constraint(model, ∂(x[2]) == -(g / l) * sin(x[1]) + u)
-nothing #hide
 
 # Define the initial and target sets
 x1_initial, x2_initial = (5.0 * pi / 180.0) .* [-1, 1], 0.5 .* [-1, 1]
@@ -67,7 +63,6 @@ x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
-nothing #hide
 
 # ### Definition of the abstraction
 
@@ -113,7 +108,7 @@ function reached(x)
 end
 x0 = SVector(Dionysos.Utils.sample(concrete_problem.initial_set)...)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
     nstep;
@@ -126,19 +121,16 @@ using Plots
 fig = plot(; aspect_ratio = :equal);
 
 # We display the concrete domain
-plot!(concrete_system.X);
+plot!(concrete_system.X; color = :grey, label = "");
 
 # We display the abstract domain
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(
-        abstract_system,
-        abstract_problem.initial_set,
-    );
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
     opacity = 1.0,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
     opacity = 1.0,
 );

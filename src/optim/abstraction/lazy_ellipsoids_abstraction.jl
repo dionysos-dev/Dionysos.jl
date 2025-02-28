@@ -1,9 +1,8 @@
 export LazyEllipsoidsAbstraction
 
 module LazyEllipsoidsAbstraction
+using LinearAlgebra, JuMP, IntervalArithmetic, Random
 
-using LinearAlgebra, IntervalArithmetic, Random
-using JuMP
 Random.seed!(0)
 
 import Dionysos

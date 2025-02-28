@@ -6,7 +6,7 @@ end
     color --> :black
     marker --> :circle
     linetype --> :scatter
-    legend --> false
+    label := ""
     return [p.p[1]], [p.p[2]]
 end
 
@@ -28,7 +28,7 @@ end
     markeralpha --> 0.0
     color --> :black
     arrow --> (:closed, 2.0)
-    legend --> false
+    label := ""
     return [a.p1.p[1], a.p2.p[1]], [a.p1.p[2], a.p2.p[2]]
 end
 
@@ -48,7 +48,7 @@ end
 @recipe function f(s::DrawSegment)
     linestyle --> :dash
     color --> :black
-    legend --> false
+    label := ""
     return [s.p1.p[1], s.p2.p[1]], [s.p1.p[2], s.p2.p[2]]
 end
 
@@ -86,12 +86,10 @@ end
 
 # Auxiliary function for annotation
 function text_in_set_plot!(fig, po::Polyhedra.Rep, t)
-    ##solve finding center (other solvers? https://jump.dev/JuMP.jl/dev/installation/#Supported-solvers)
-    @suppress begin
-        solver = optimizer_with_attributes(GLPK.Optimizer, "presolve" => GLPK.GLP_ON)
-        if t !== nothing
-            c, r = hchebyshevcenter(hrep(po), solver; verbose = 0)
-            annotate!(fig, c[1], c[2], t)
-        end
+    ##solve finding center (HiGHS is currently the best open source LP solver)
+    solver = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    if t !== nothing
+        c, r = Polyhedra.hchebyshevcenter(Polyhedra.hrep(po), solver; verbose = 0)
+        annotate!(fig, c[1], c[2], t)
     end
 end

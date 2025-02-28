@@ -29,12 +29,12 @@ end
 function get_traj(symmodel, sys, x0, nstep)
     u = SVector(1.0, 1.0)
     x = copy(x0)
-    s = SY.get_state_by_coord(symmodel, x)
+    s = SY.get_abstract_state(symmodel, x)
     xpos = DO.get_pos_by_coord(symmodel.Xdom, x)
     traj = [(x, s, xpos)]
     for k in 1:nstep
         x = sys.sys_map(x, u, sys.tstep)
-        s = SY.get_state_by_coord(symmodel, x)
+        s = SY.get_abstract_state(symmodel, x)
         xpos = DO.get_pos_by_coord(symmodel.Xdom, x)
         push!(traj, (x, s, xpos))
     end
@@ -61,7 +61,7 @@ function test()
 
     @testset "LazySymbolic" begin
         Xdom = DO.GeneralDomainList(hx; elems = d, f = f1, fi = fi1, fit = true)
-        symmodel = SY.LazySymbolicModel(Xdom, Udom)
+        symmodel = SY.LazySymbolicModelList(Xdom, Udom)
         traj = get_traj(symmodel, sys, x0, nstep)
         (x, s, xpos) = traj[1]
         @test (s, xpos) == (1, (0, 0))
@@ -96,15 +96,15 @@ function test()
         (x, s, xpos) = traj[11]
         @test (s, xpos) == (11, (2, 26))
 
-        @test SY.get_ncells(symmodel) == 11
+        @test SY.get_n_state(symmodel) == 11
 
-        @test all(SY.enum_cells(symmodel) .== 1:11)
+        @test all(SY.enum_states(symmodel) .== 1:11)
 
         translist = [(1, 2, 1), (1, 8, 1)]
         SY.add_transitions!(symmodel.autom, translist)
 
         fig = plot(; aspect_ratio = :equal)
-        lyap_fun = Dict(state => 2.0 * state for state in SY.enum_cells(symmodel))
+        lyap_fun = Dict(state => 2.0 * state for state in SY.enum_states(symmodel))
         plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
         @test isa(fig, Plots.Plot{Plots.GRBackend})
 
@@ -115,7 +115,7 @@ function test()
 
     @testset "Deformed grid and LazySymbolic" begin
         Xdom = DO.GeneralDomainList(hx; elems = d, f = f2, fi = fi2, fit = true)
-        symmodel = SY.LazySymbolicModel(Xdom, Udom)
+        symmodel = SY.LazySymbolicModelList(Xdom, Udom)
         traj = get_traj(symmodel, sys, x0, nstep)
         (x, s, xpos) = traj[1]
         @test (s, xpos) == (1, (0, 0))
@@ -150,8 +150,8 @@ function test()
         (x, s, xpos) = traj[11]
         @test (s, xpos) == (10, (2, 23))
 
-        @test SY.get_ncells(symmodel) == 10
-        @test all(SY.enum_cells(symmodel) .== 1:10)
+        @test SY.get_n_state(symmodel) == 10
+        @test all(SY.enum_states(symmodel) .== 1:10)
     end
 end
 

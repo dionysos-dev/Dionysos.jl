@@ -1,74 +1,35 @@
-using LazySets
+"""
+    HyperRectangle{VT}
 
+Defines a hyper-rectangle using `lb` (lower bound) and `ub` (upper bound).
+"""
 struct HyperRectangle{VT}
-    lb::VT
-    ub::VT
+    lb::VT # Lower bounds of the rectangle
+    ub::VT # Upper bounds of the rectangle
 end
 
-# Changed all(f(x[i]) for i in eachindex(x)) to all(f.(x))
-# See test_performances.
-function Base.in(x, rect::HyperRectangle)
-    return all(rect.lb .<= x .<= rect.ub)
-end
-
-function Base.in(rect1::HyperRectangle, rect2::HyperRectangle)
-    return all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
-end
-
-function Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle)
-    return all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
-end
-
-function Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle)
-    return isequal(rect1, rect2)
-end
-function Base.isempty(rect::HyperRectangle)
-    return any(rect.lb .> rect.ub)
-end
-
-function Base.intersect(a::HyperRectangle, b::HyperRectangle)
-    return HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
-end
-
-function volume(rect::HyperRectangle)
-    if Base.isempty(rect)
-        return 0.0
-    else
-        return prod(rect.ub - rect.lb)
-    end
-end
-
-function is_intersection(a::HyperRectangle, b::HyperRectangle)
-    return !Base.isempty(Base.intersect(a, b))
-end
-
-function Base.issubset(a::HyperRectangle, b::HyperRectangle)
-    return all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
-end
-
-function get_center(rect::HyperRectangle)
-    return (rect.lb + rect.ub) / 2
-end
-
-function get_h(rect::HyperRectangle)
-    return rect.ub - rect.lb
-end
-
-function get_r(rect::HyperRectangle)
-    return get_h(rect) ./ 2.0
-end
-
-function get_dims(rect::HyperRectangle)
-    return length(rect.lb)
-end
-
-function scale(rect::HyperRectangle, α)
-    return HyperRectangle(rect.lb * α, rect.ub * α)
-end
-
-function get_volume(rect::HyperRectangle)
-    return prod(rect.ub - rect.lb)
-end
+Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
+Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
+    all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
+Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
+    all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
+Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
+Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
+is_intersection(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
+Base.intersect(a::HyperRectangle, b::HyperRectangle) =
+    HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
+Base.issubset(a::HyperRectangle, b::HyperRectangle) =
+    all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
+get_center(rect::HyperRectangle) = (rect.lb + rect.ub) / 2
+get_h(rect::HyperRectangle) = rect.ub - rect.lb
+get_r(rect::HyperRectangle) = get_h(rect) ./ 2.0
+get_dims(rect::HyperRectangle) = length(rect.lb)
+volume(rect::HyperRectangle) = Base.isempty(rect) ? 0.0 : prod(rect.ub - rect.lb)
+scale(rect::HyperRectangle, α) = HyperRectangle(rect.lb * α, rect.ub * α)
+to_LazySets(rect::HyperRectangle) =
+    LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
+affine_transformation(rect::HyperRectangle, A, b) =
+    LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
 
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
@@ -90,17 +51,10 @@ function collect_vertices(rect::HyperRectangle)
 end
 
 function sample(rect::HyperRectangle)
-    n = get_dims(rect)
-    sample_point = similar(rect.lb)
-    for i in 1:n
-        sample_point[i] = rand() * (rect.ub[i] - rect.lb[i]) + rect.lb[i]
-    end
-    return sample_point
+    return SVector{length(rect.lb)}(rand() .* (rect.ub .- rect.lb) .+ rect.lb)
 end
-
-function affine_transformation(rect::HyperRectangle, A, b)
-    X = LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
-    return LazySets.AffineMap(Matrix(A), X, Vector(b))
+function samples(rect::HyperRectangle, N::Int)
+    return [sample(rect) for _ in 1:N]
 end
 
 function rectangle(c, r)
@@ -111,7 +65,54 @@ function rectangle(c, r)
 end
 
 @recipe function f(rect::HyperRectangle; dims = [1, 2])
-    center = get_center(rect)
-    h = get_h(rect)
-    return rectangle(center[dims], h[dims] ./ 2)
+    center = get_center(rect)[dims]
+    r = get_h(rect)[dims] ./ 2  # Half-width
+    x1, y1 = center[1] - r[1], center[2] - r[2]
+    x2, y2 = center[1] + r[1], center[2] + r[2]
+
+    @series begin
+        seriestype := :shape
+        [x1, x2, x2, x1, x1], [y1, y1, y2, y2, y1]
+    end
+end
+
+"""
+    DeformedRectangleDraw(rect, f, N, shape)
+
+A helper struct for drawing a deformed rectangle.
+"""
+struct DeformedRectangleDraw
+    rect::HyperRectangle
+    f::Function
+    N::Integer # used for precision
+    shape::Any
+end
+
+function DeformedRectangleDraw(rect::HyperRectangle, f::Function; N = 10, dims = [1, 2])
+    lb = rect.lb[dims]
+    ub = rect.ub[dims]
+    points = SVector[]
+    for x in LinRange(lb[1], ub[1], N)
+        push!(points, f(SVector(x, lb[2])))
+    end
+    for x in LinRange(lb[2], ub[2], N)
+        push!(points, f(SVector(ub[1], x)))
+    end
+    for x in LinRange(ub[1], lb[1], N)
+        push!(points, f(SVector(x, ub[2])))
+    end
+    for x in LinRange(ub[2], lb[2], N)
+        push!(points, f(SVector(lb[1], x)))
+    end
+    unique!(points)
+    x = [point[1] for point in points]
+    y = [point[2] for point in points]
+
+    return DeformedRectangleDraw(rect, f, N, Shape(x, y))
+end
+
+@recipe function f(deformed_rect::DeformedRectangleDraw; dims = [1, 2])
+    @series begin
+        return deformed_rect.shape
+    end
 end

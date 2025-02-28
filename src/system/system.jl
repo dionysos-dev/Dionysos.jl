@@ -1,16 +1,25 @@
 module System
 
-using StaticArrays
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+import MathematicalSystems as MS
+
 using Symbolics
-using MathematicalSystems
 using IntervalArithmetic
 using IntervalLinearAlgebra
-using Plots
+import Plots: plot!
+
+import JuMP: MOI
 
 using ..Utils
 UT = Utils
 
 include("controlsystem.jl")
+
+using Colors
+import HybridSystems
 include("controller.jl")
 include("trajectory.jl")
+
+include("approximation/approximation.jl")
 end

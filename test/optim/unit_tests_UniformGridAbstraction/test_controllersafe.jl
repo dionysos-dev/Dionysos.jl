@@ -1,7 +1,7 @@
 module TestMain
 
 using Test
-using StaticArrays
+using StaticArrays, MathematicalSystems
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -32,25 +32,26 @@ println("Started test")
     DO.add_set!(Ufull, UT.HyperRectangle(lb, ub), DO.OUTER)
 
     tstep = 0.2
-    nsys = 3
-    ngrowthbound = 3
     F_sys(x, u) = SVector(u[1], -x[2] + u[1])
     sysnoise = SVector(1.0, 1.0) * 0.001
     measnoise = SVector(1.0, 1.0) * 0.001
-    L_growthbound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, -1.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, -1.0)
 
-    contsys = ST.discretize_system_with_growth_bound(
-        tstep,
+    concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
-        L_growthbound,
-        sysnoise,
-        measnoise,
-        nsys,
-        ngrowthbound,
+        2,
+        1,
+        nothing,
+        nothing,
     )
+    continuous_approx =
+        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    discrete_approx = ST.discretize(continuous_approx, tstep)
+
     symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    @test SY.ntransitions(symmodel.autom) == 62077
+    SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
+
+    @test SY.ntransitions(symmodel.autom) == 60787
 
     Xinit = DO.DomainList(Xgrid)
     DO.add_set!(
@@ -74,14 +75,9 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = AB.UniformGridAbstraction.NewControllerList()
-    AB.UniformGridAbstraction.compute_controller_safe!(
-        contr,
-        symmodel.autom,
-        initlist,
-        safelist,
-    )
-    @test length(contr) == 15043
+    contr, invariant_set_symbols, uninvariant_set_symbols =
+        AB.UniformGridAbstraction.compute_largest_invariant_set(symmodel, safelist)
+    @test length(contr) == 15045
 
     invlist = Int[]
     for source in 1:(symmodel.autom.nstates)

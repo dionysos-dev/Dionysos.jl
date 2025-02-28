@@ -1,6 +1,3 @@
-import Base.append!
-import Base.delete!
-
 mutable struct SortedTupleSet{N, T} <: AbstractSet{T}
     data::Vector{T}
     is_sorted::Bool
@@ -15,7 +12,7 @@ function push_new!(set::SortedTupleSet, x::Tuple)
     return set
 end
 function append_new!(set::SortedTupleSet, xs)
-    append!(set.data, xs)
+    Base.append!(set.data, xs)
     set.is_sorted = false
     return set
 end
@@ -31,7 +28,7 @@ end
 #    return set
 #end
 
-function delete!(set::SortedTupleSet, x, comparison)
+function Base.delete!(set::SortedTupleSet, x, comparison)
     filter!(e -> !comparison(e, x), set.data)
     return set
 end
@@ -92,7 +89,7 @@ end
 #     return set
 # end
 # function append_new!(set::SortedTupleSet, xs)
-#     append!(set.data, xs)
+#     Base.append!(set.data, xs)
 #     set.is_sorted = false
 #     return set
 # end

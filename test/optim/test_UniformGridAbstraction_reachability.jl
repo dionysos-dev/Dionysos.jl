@@ -73,7 +73,7 @@ function reached(x)
 end
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;
@@ -98,11 +98,11 @@ no_plot = false
 
     # We display the abstract specifications
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
         color = :green,
     )
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
         color = :red,
     )
 

@@ -7,7 +7,8 @@ Dionysos.Symbolic.SymbolicModel
 ```
 
 ```@docs
+Dionysos.Symbolic.GridBasedSymbolicModel
 Dionysos.Symbolic.SymbolicModelList
-Dionysos.Symbolic.LazySymbolicModel
+Dionysos.Symbolic.LazySymbolicModelList
 Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
 ```
