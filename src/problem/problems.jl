@@ -12,7 +12,7 @@ The structure
 
     EmptyProblem{S, X}
 
-encodes consistig in constructing the abstraction in X 
+encodes a problem consisting in constructing the abstraction in X 
 - `S` is the system,
 - `X` is the region, 
 """
