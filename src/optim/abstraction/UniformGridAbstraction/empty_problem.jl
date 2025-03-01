@@ -45,6 +45,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     approx_mode::ApproxMode
     efficient::Bool
 
+    verbose::Bool
+
     function OptimizerEmptyProblem{T}() where {T}
         optimizer = new{T}(
             nothing,
@@ -67,6 +69,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             5,  # Continuous-Time System
             GROWTH,
             true, # Approximation Settings
+            true,
         )
         return optimizer
     end
@@ -211,6 +214,14 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         _get_domain_list(concrete_system.U, optimizer.input_grid, Dionysos.Domain.CENTER),
     )
 
+    if optimizer.verbose
+        @info("Number of states: $(SY.get_n_state(abstract_system))")
+        @info("Number of inputs: $(SY.get_n_input(abstract_system))")
+        @info(
+            "Number of forward images: $(SY.get_n_input(abstract_system)*SY.get_n_state(abstract_system))"
+        )
+    end
+
     # TODO: Consider adding noise handling
     @warn("Noise is not yet accounted for in system abstraction.")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
@@ -221,12 +232,14 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
             abstract_system,
             ST.get_DiscreteTimeOverApproximationMap(
                 optimizer.discrete_time_system_approximation,
-            ),
+            );
+            verbose = optimizer.verbose,
         )
     else
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
-            optimizer.discrete_time_system_approximation,
+            optimizer.discrete_time_system_approximation;
+            verbose = optimizer.verbose,
         )
     end
 

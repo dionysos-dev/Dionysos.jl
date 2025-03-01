@@ -2,6 +2,7 @@ module Symbolic
 
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
+import ProgressMeter
 
 using LinearAlgebra, Colors
 using HybridSystems

@@ -13,8 +13,10 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
     uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
 
+    verbose::Bool
+
     function OptimizerOptimalControlProblem{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, 0.0, true, nothing)
+        return new{T}(nothing, nothing, nothing, nothing, 0.0, true, nothing, nothing, true)
     end
 end
 

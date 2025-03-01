@@ -12,8 +12,9 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     invariant_set::Union{Nothing, Dionysos.Domain.DomainList}
     uninvariant_set::Union{Nothing, Dionysos.Domain.DomainList}
 
+    verbose::Bool
     function OptimizerSafetyProblem{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing)
+        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing, true)
     end
 end
 

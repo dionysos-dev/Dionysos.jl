@@ -4,6 +4,7 @@ module UniformGridAbstraction
 
 import Dionysos
 ST = Dionysos.System
+SY = Dionysos.Symbolic
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
@@ -25,12 +26,13 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Any
     solve_time_sec::T
+    verbose::Bool
 
-    function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, 0.0)
+    function Optimizer{T}(verbose::Bool = true) where {T}
+        return new{T}(nothing, nothing, nothing, 0.0, verbose)
     end
 end
-Optimizer() = Optimizer{Float64}()
+Optimizer() = Optimizer{Float64}(true)
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.abstraction_solver === nothing
 
@@ -176,11 +178,21 @@ function MOI.optimize!(optimizer::Optimizer)
 
     # Compute abstraction if not already done
     if !is_abstraction_computed(optimizer)
+        MOI.set(
+            optimizer.abstraction_solver,
+            MOI.RawOptimizerAttribute("verbose"),
+            optimizer.verbose,
+        )
         MOI.optimize!(optimizer.abstraction_solver)
     end
 
     # If there's a control solver, optimize it
     if optimizer.control_solver !== nothing
+        MOI.set(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("verbose"),
+            optimizer.verbose,
+        )
         abstract_system = MOI.get(
             optimizer.abstraction_solver,
             MOI.RawOptimizerAttribute("abstract_system"),
