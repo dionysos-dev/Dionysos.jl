@@ -3,7 +3,7 @@
 
 using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
 using MathematicalSystems, HybridSystems
-using JuMP, Mosek, MosekTools
+using JuMP, COSMO
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -26,9 +26,7 @@ concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
 # Optimizer's parameters
-const FALLBACK_URL = "mosek://solve.mosek.com:30080"
-sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+sdp_opt = optimizer_with_attributes(COSMO.Optimizer, "verbose" => false)
 
 maxδx = 100
 maxδu = 10 * 2
