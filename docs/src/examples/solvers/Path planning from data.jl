@@ -50,14 +50,15 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-concrete_problem = PathPlanning.problem(; simple = false, approx_mode = PathPlanning.GROWTH);
+concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
+hx = 0.2
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
+h = SVector(hx, hx, hx);
 state_grid = DO.GridFree(x0, h);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
@@ -79,10 +80,12 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
 automaton = abstract_system.autom
-UT.analyze_non_determinism(automaton)
-println("Number of self loops: $n_sl")
+# UT.analyze_non_determinism(automaton)
+# n_sl = UT.analyze_self_loops(automaton)
+# println("Number of self loops: $n_sl")
 
 # @test length(abstract_controller.data) == 19400 #src
 
@@ -98,6 +101,8 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
+x0_state  = SY.get_state_by_coord(abstract_system, x0)
+println("worst case cost: ", value_function[x0_state])
 control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,

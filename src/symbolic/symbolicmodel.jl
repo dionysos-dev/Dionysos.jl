@@ -197,6 +197,65 @@ function compute_symmodel_from_data!(
     )
 end
 
+function compute_symmodel_from_data2!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N};
+    n_samples = 50,
+    ε = 0.0
+) where {N}
+    println("compute_symmodel_from_data! started")
+    Xdom = symmodel.Xdom
+    dim = length(Xdom.grid.orig)
+    Udom = symmodel.Udom
+    tstep = contsys.tstep
+    eta_t = 0.05
+
+    Random.seed!(1234)
+    transdict = Dict{Tuple{Int, Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
+    
+    enum_u = DO.enum_pos(Udom)
+    for (i, upos) in enumerate(enum_u)
+        println("$i / $(length(enum_u))")
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        enum_x = DO.enum_pos(Xdom)
+        for (j, xpos) in enumerate(DO.enum_pos(Xdom))
+            tstep_cur = tstep
+            source = get_state_by_xpos(symmodel, xpos)
+            rec = DO.get_rec(Xdom.grid, xpos)
+            x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
+            for p in 0:5
+                # tstep_cur = tstep * 1.25 ^ p
+                tstep_cur   = tstep + eta_t * p
+                Fx_sampled = [contsys.sys_map(x, u, tstep_cur) for x ∈ x_sampled]
+                pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+                pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+                !all(pos_contained_sampled) && break # if we get out of state space, we stop and do not consider longer timesteps
+                target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
+                source in target_sampled && continue # if we get a self-loop, we go for longer timesteps
+                for target in target_sampled # enumère les cellules images
+                    if (target, source, symbol, p) ∈ keys(transdict)
+                        transdict[target, source, symbol, p] += 1
+                    else
+                        transdict[target, source, symbol, p] = 1
+                    end
+                end
+            end 
+        end
+    end
+    translist = Tuple{Int, Int, Int, Int}[]
+    for (t, s, sym, p) ∈ keys(transdict)
+        if transdict[(t, s, sym, p)] / n_samples >= ε
+            push!(translist, (t, s, sym, p))
+        end
+    end
+    add_transitions!(symmodel.autom, translist)
+    return println(
+        "compute_symmodel_from_data! terminated with success: ",
+        "$(length(translist)) transitions created",
+    )
+end
+
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
 # we go through the list only once; this requires to store the transitions in a

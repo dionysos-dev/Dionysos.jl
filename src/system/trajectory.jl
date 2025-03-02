@@ -122,28 +122,29 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     control_effort = 0.0    
     while !stopping(x) && i ≤ nstep
         u, p = controller(x) # u, tstep_cur = controller(x)
-        #println("u = $u, p = $p")
-        energy += x[2] * u[1] * contsys.tstep * 1.1^p
-        control_effort += u[1]^2 * contsys.tstep * 1.1^p
+        timestep = contsys.tstep + p * 0.05 #contsys.tstep * 1.5 ^ p
+        println("u = $u, p = $p, timestep = $timestep")
+        energy += x[2] * u[1] * timestep
+        control_effort += u[1]^2 * timestep
         if u === nothing
             break
         end
         push!(t_traj, total_time)
-        total_time += contsys.tstep * 1.1^p
-        x = contsys.sys_map(x, u, contsys.tstep * 1.1^p) # x = contsys.sys_map(x, u, tstep_cur)
+        total_time += timestep
+        x = contsys.sys_map(x, u, timestep)
         push!(x_traj, x)
         push!(u_traj, u)
         push!(u_traj2, u[1])
         i = i + 1
     end
-    path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
-    open(joinpath(path, "u.txt"), "w") do file
-        for i in 1:length(u_traj2)
-            t = t_traj[i]
-            u = u_traj2[i]
-            println(file, "$t $u")
-        end
-    end
+    # path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
+    # open(joinpath(path, "u.txt"), "w") do file
+    #     for i in 1:length(u_traj2)
+    #         t = t_traj[i]
+    #         u = u_traj2[i]
+    #         println(file, "$t $u")
+    #     end
+    # end
     println("Total time: $total_time")
     println("Energy: $energy")
     println("Control effort: $control_effort")
