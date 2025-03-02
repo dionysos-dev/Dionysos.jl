@@ -75,6 +75,38 @@ get_abstract_input(symmodel::SymbolicModelList, u) = symmodel.ucoord2int[u]
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
 
+is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
+
+function determinize_symbolic_model(symmodel::SymbolicModelList)
+    autom = symmodel.autom
+    new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping
+    new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse mapping
+
+    next_input_id = 1  # Track new input indices
+
+    # Go through all transitions and modify the input encoding
+    for (target, source, symbol) in UT.get_data(autom.transitions)
+        new_input = (symbol, target)  # Couple input with target
+
+        if !haskey(new_ucoord2int, new_input)
+            new_ucoord2int[new_input] = next_input_id
+            new_uint2coord[next_input_id] = new_input
+            next_input_id += 1
+        end
+    end
+
+    # Return a new symbolic model with updated inputs
+    return SymbolicModelList(
+        symmodel.Xdom,
+        symmodel.Udom,
+        autom,  # Automaton remains unchanged
+        symmodel.xpos2int,
+        symmodel.xint2pos,
+        new_ucoord2int,  # Updated input mappings
+        new_uint2coord,  # Updated input mappings
+    )
+end
+
 @recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
     # Display the cells
     state_grid = symmodel.Xdom.grid

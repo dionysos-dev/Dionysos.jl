@@ -47,7 +47,7 @@ function trial(E2, c, μ, U, W, λ)
 
     # Solve the control problem
     S = UT.get_full_psd_matrix(problem.transition_cost)
-    sdp_opt = optimizer_with_attributes(COSMO.Optimizer, "verbose" => false)
+    sdp_opt = optimizer_with_attributes(COSMO.Optimizer, "verbose" => true)
 
     maxδx = 100.0
     maxδu = 100.0
