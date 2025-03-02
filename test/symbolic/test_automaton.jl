@@ -17,7 +17,9 @@ println("Started test")
     autom = SY.NewAutomatonList(nstates, nsymbols)
 
     SY.add_transition!(autom, 5, 9, 6)
+    @test SY.is_deterministic(autom) == true
     SY.add_transition!(autom, 5, 8, 6)
+    @test SY.is_deterministic(autom) == false
     SY.add_transition!(autom, 5, 3, 7)
     SY.add_transition!(autom, 8, 3, 6)
     SY.add_transition!(autom, 5, 5, 6)
@@ -42,6 +44,8 @@ println("Started test")
     soursymblist = SY.pre(autom, 8)
     @test length(soursymblist) == 1
     @test collect(soursymblist)[1] == (5, 6)
+
+    @test SY.is_deterministic(autom) == false
 end
 
 println("End test")

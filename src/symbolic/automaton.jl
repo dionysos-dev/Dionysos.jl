@@ -17,8 +17,6 @@ function HybridSystems.ntransitions(autom::AutomatonList)
     return length(autom.transitions)
 end
 
-# In add_trans and add_translist:
-# Do not check that source, symbol, target are "inbounds"
 # Assumes not add twice same transition...
 function HybridSystems.add_transition!(autom::AutomatonList, source, target, symbol)
     return UT.push_new!(autom.transitions, (target, source, symbol))
@@ -40,6 +38,19 @@ end
 
 function HybridSystems.add_state!(autom::AutomatonList)
     return autom.nstates += 1
+end
+
+function is_deterministic(autom::AutomatonList)
+    seen = Dict{Tuple{Int, Int}, Int}()  # Stores (source, symbol) → number of targets
+
+    for (target, source, symbol) in UT.get_data(autom.transitions)
+        key = (source, symbol)
+        seen[key] = get(seen, key, 0) + 1
+        if seen[key] > 1  # If we find more than one target for (source, symbol), it's non-deterministic
+            return false
+        end
+    end
+    return true
 end
 
 # function add_inputs_images_by_xref!(uref_coll, yref_coll, autom::AutomatonList, x_ref)

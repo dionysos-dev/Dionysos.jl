@@ -35,7 +35,7 @@ k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 100
+maxIter = 5
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(
@@ -80,7 +80,7 @@ cost_control_trajectory = ST.get_closed_loop_trajectory(
     noise = true,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_control_trajectory.costs.seq);
+cost_true = ST.get_cost(cost_control_trajectory);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")

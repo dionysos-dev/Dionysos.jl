@@ -102,6 +102,11 @@ get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
 get_elem(traj::Cost_control_trajectory, n::Int) =
     (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
 
+function get_cost(traj::Cost_control_trajectory)
+    isempty(traj.costs.seq) && return 0.0
+    return sum(traj.costs.seq)
+end
+
 @recipe function f(traj::Cost_control_trajectory)
     return traj.control_trajectory
 end
