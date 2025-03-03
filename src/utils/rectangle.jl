@@ -57,13 +57,6 @@ function samples(rect::HyperRectangle, N::Int)
     return [sample(rect) for _ in 1:N]
 end
 
-function rectangle(c, r)
-    return Shape(
-        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
-        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
-    )
-end
-
 @recipe function f(rect::HyperRectangle; dims = [1, 2])
     center = get_center(rect)[dims]
     r = get_h(rect)[dims] ./ 2  # Half-width
@@ -108,7 +101,7 @@ function DeformedRectangleDraw(rect::HyperRectangle, f::Function; N = 10, dims =
     x = [point[1] for point in points]
     y = [point[2] for point in points]
 
-    return DeformedRectangleDraw(rect, f, N, Shape(x, y))
+    return DeformedRectangleDraw(rect, f, N, HyperRectangle(x, y))
 end
 
 @recipe function f(deformed_rect::DeformedRectangleDraw; dims = [1, 2])
