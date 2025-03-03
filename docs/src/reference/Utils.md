@@ -47,5 +47,5 @@ Dionysos.Utils.Tree
 
 ```@docs
 Dionysos.Utils.HyperRectangle
-Dionysos.Utils.DeformedRectangleDraw
+Dionysos.Utils.DeformedRectangle
 ```
