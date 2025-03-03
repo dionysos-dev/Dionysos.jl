@@ -135,8 +135,6 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
     total_iterations = max(
@@ -158,17 +156,13 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            allin &&
-                (add_transitions!(abstract_system, translist); ntrans += length(translist))
+            allin && add_transitions!(abstract_system, translist)
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
     verbose && ProgressMeter.finish!(progress)
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
@@ -177,10 +171,7 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!: started with GrowthBound")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
     r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
@@ -205,17 +196,13 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            allin &&
-                (add_transitions!(abstract_system, translist); ntrans += length(translist))
+            allin && add_transitions!(abstract_system, translist)
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
     verbose && ProgressMeter.finish!(progress)
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
@@ -224,15 +211,12 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    verbose &&
-        println("compute_abstract_system_from_concrete_system! started with Linearized")
     Xdom = get_state_domain(abstract_system)
     N = DO.get_dim(Xdom)
     r = DO.get_h(DO.get_grid(Xdom)) / 2.0
     _H_ = SMatrix{N, N}(I) .* r
     _ONE_ = ones(SVector{N})
     e = norm(r, Inf)
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
@@ -278,17 +262,13 @@ function compute_abstract_system_from_concrete_system!(
             #     target = get_state_by_xpos(abstract_system, ypos)
             #     push!(translist, (target, concrete_state, abstract_input))
             # end
-            allin &&
-                (add_transitions!(abstract_system, translist); ntrans += length(translist))
+            allin && add_transitions!(abstract_system, translist)
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
     verbose && ProgressMeter.finish!(progress)
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
@@ -297,12 +277,7 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    println(
-        "compute_abstract_system_from_concrete_system!: started with UnderApproximation",
-    )
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
     total_iterations = max(
         div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
@@ -323,17 +298,13 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            allin &&
-                (add_transitions!(abstract_system, translist); ntrans += length(translist))
+            allin && add_transitions!(abstract_system, translist)
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
     verbose && ProgressMeter.finish!(progress)
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
@@ -342,12 +313,7 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    println(
-        "compute_abstract_system_from_concrete_system!: started with CenteredSimulation",
-    )
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     system_map = ST.get_system_map(concrete_system_approx)
     total_iterations = max(
         div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
@@ -368,15 +334,11 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            allin &&
-                (add_transitions!(abstract_system, translist); ntrans += length(translist))
+            allin && add_transitions!(abstract_system, translist)
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
     verbose && ProgressMeter.finish!(progress)
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    return
 end

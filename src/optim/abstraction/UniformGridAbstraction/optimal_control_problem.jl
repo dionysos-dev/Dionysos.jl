@@ -13,10 +13,22 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
     uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
 
-    verbose::Bool
+    success::Bool
+    print_level::Int
 
     function OptimizerOptimalControlProblem{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, 0.0, true, nothing, nothing, true)
+        return new{T}(
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            0.0,
+            true,
+            nothing,
+            nothing,
+            false,
+            1,
+        )
     end
 end
 
@@ -58,6 +70,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         optimizer.early_stop ? optimizer.abstract_problem.initial_set :
         Dionysos.Symbolic.enum_states(optimizer.abstract_problem.system)
 
+    optimizer.print_level >= 1 && println("compute_controller_reachability! started")
     abstract_controller, controllable_set_symbols, uncontrollable_set_symbols =
         compute_largest_controllable_set(
             optimizer.abstract_problem.system,
@@ -80,12 +93,10 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     # Display results
     if ⊆(optimizer.abstract_problem.initial_set, controllable_set_symbols)
-        println("\n Reachability: terminated with success")
-    else
-        println("\n Reachability: terminated without covering initial set")
+        optimizer.success = true
     end
-
-    # Correctly track solve time
+    optimizer.print_level >= 1 &&
+        println("\n Reachability: terminated with $(optimizer.success)")
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end

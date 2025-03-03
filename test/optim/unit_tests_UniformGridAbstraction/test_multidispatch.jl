@@ -24,6 +24,7 @@ u0 = SVector(1)
 hu = SVector(1)
 input_grid = DO.GridFree(u0, hu)
 using JuMP
+
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
@@ -36,9 +37,10 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.RANDOM_SIMULATION,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+MOI.set(optimizer, MOI.Silent(), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 

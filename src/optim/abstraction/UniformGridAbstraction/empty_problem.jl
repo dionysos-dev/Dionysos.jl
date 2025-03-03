@@ -45,7 +45,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     approx_mode::ApproxMode
     efficient::Bool
 
-    verbose::Bool
+    print_level::Int
 
     function OptimizerEmptyProblem{T}() where {T}
         optimizer = new{T}(
@@ -69,7 +69,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             5,  # Continuous-Time System
             GROWTH,
             true, # Approximation Settings
-            true,
+            1,
         )
         return optimizer
     end
@@ -214,7 +214,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         _get_domain_list(concrete_system.U, optimizer.input_grid, Dionysos.Domain.CENTER),
     )
 
-    if optimizer.verbose
+    if optimizer.print_level >= 2
         @info("Number of states: $(SY.get_n_state(abstract_system))")
         @info("Number of inputs: $(SY.get_n_input(abstract_system))")
         @info(
@@ -226,6 +226,9 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
     noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
 
+    optimizer.print_level >= 1 && println(
+        "compute_abstract_system_from_concrete_system!: started with $(typeof(optimizer.discrete_time_system_approximation))",
+    )
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
@@ -233,15 +236,19 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
             ST.get_DiscreteTimeOverApproximationMap(
                 optimizer.discrete_time_system_approximation,
             );
-            verbose = optimizer.verbose,
+            verbose = optimizer.print_level >= 2,
         )
     else
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
             optimizer.discrete_time_system_approximation;
-            verbose = optimizer.verbose,
+            verbose = optimizer.print_level >= 2,
         )
     end
+    optimizer.print_level >= 1 && println(
+        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "$(HybridSystems.ntransitions(abstract_system.autom)) transitions created",
+    )
 
     optimizer.abstract_system = abstract_system
     optimizer.abstraction_construction_time_sec = time() - t_ref
