@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
 using MathematicalSystems, HybridSystems
-using JuMP, COSMO
+using JuMP, Clarabel
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -20,7 +20,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
-sdp_opt = optimizer_with_attributes(COSMO.Optimizer, "verbose" => false)
+sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 maxδx = 100
 maxδu = 10 * 2
@@ -29,7 +29,7 @@ k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 5
+maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(
