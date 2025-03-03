@@ -187,8 +187,10 @@ get_h(grid::DeformedGrid) = get_h(grid.underlying_grid)
 get_pos_by_coord(grid::DeformedGrid, x) = get_pos_by_coord(grid.underlying_grid, grid.fi(x))
 get_coord_by_pos(grid::DeformedGrid, pos) =
     grid.f(get_coord_by_pos(grid.underlying_grid, pos))
-get_elem_by_pos(grid::DeformedGrid, pos) = UT.DeformedRectangle(get_rec(grid.underlying_grid, pos), grid.f)
-get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) = get_pos_lims(grid.underlying_grid, rect, incl_mode)
+get_elem_by_pos(grid::DeformedGrid, pos) =
+    UT.DeformedRectangle(get_rec(grid.underlying_grid, pos), grid.f)
+get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
+    get_pos_lims(grid.underlying_grid, rect, incl_mode)
 
 """
     get_volume(Dgrid::DeformedGrid) -> T

@@ -44,7 +44,7 @@ f3(x) = SVector(x[2] + sin(x[1]), x[1])
 fi3(x) = SVector(x[2], x[1] - sin(x[2]))
 
 f4(x) = SVector(x[1] * cos(x[2]), x[1] * sin(x[2]))
-fi4(x) =SVector(sqrt(x[1] * x[1] + x[2] * x[2]), atan(x[2], x[1]))
+fi4(x) = SVector(sqrt(x[1] * x[1] + x[2] * x[2]), atan(x[2], x[1]))
 
 function rotate(x, θ)
     R = @SMatrix [
@@ -60,8 +60,8 @@ function build_f_rotation(θ; c = SVector(0.0, 0.0))
 end
 
 function plot_deformed_grid_with_DomainList(f, fi)
-    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2*π))
-    grid = DO.GridFree(SVector(0.0, 0.0), SVector(3.0, 2*pi/8.0))
+    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2 * π))
+    grid = DO.GridFree(SVector(0.0, 0.0), SVector(3.0, 2 * pi / 8.0))
     Dgrid = DO.DeformedGrid(grid, f, fi)
     dom = DO.DomainList(Dgrid)
     DO.add_set!(dom, X, DO.OUTER)
@@ -89,7 +89,6 @@ plot!(shape; color = :red, efficient = false, label = "Deformed")
 plot_deformed_grid_with_DomainList(f1, fi1)
 plot_deformed_grid_with_GeneralDomain(f1, fi1)
 
-
 plot_deformed_grid_with_DomainList(f2, fi2)
 plot_deformed_grid_with_GeneralDomain(f2, fi2)
 
@@ -98,7 +97,7 @@ plot_deformed_grid_with_GeneralDomain(f3, fi3)
 
 plot_deformed_grid_with_DomainList(f4, fi4)
 plot_deformed_grid_with_GeneralDomain(f4, fi4)
- 
+
 f, fi = build_f_rotation(π / 3.0)
 plot_deformed_grid_with_DomainList(f, fi)
 

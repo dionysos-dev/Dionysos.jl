@@ -104,7 +104,7 @@ function SampleBoundaryDeformedRectangle(drect::DeformedRectangle; N = 50, dims 
 end
 
 @recipe function f(drect::DeformedRectangle; dims = [1, 2], N = 50, dims = [1, 2])
-    points = SampleBoundaryDeformedRectangle(drect, N = N, dims = dims)
+    points = SampleBoundaryDeformedRectangle(drect; N = N, dims = dims)
     x = [point[1] for point in points]
     y = [point[2] for point in points]
     @series begin
