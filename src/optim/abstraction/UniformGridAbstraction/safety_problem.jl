@@ -12,8 +12,10 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     invariant_set::Union{Nothing, Dionysos.Domain.DomainList}
     uninvariant_set::Union{Nothing, Dionysos.Domain.DomainList}
 
+    success::Bool
+    print_level::Int
     function OptimizerSafetyProblem{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing)
+        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing, false, 1)
     end
 end
 
@@ -45,6 +47,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     optimizer.abstract_problem =
         build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
 
+    optimizer.print_level >= 1 && println("compute_controller_safe! started")
     # Compute the largest invariant set
     abstract_controller, invariant_set_symbols, uninvariant_set_symbols =
         compute_largest_invariant_set(
@@ -67,12 +70,10 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     # Display results
     if ⊆(optimizer.abstract_problem.initial_set, invariant_set_symbols)
-        println("\n Safety: terminated with success")
-    else
-        println("\n Safety: terminated without covering initial set")
+        optimizer.success = true
     end
 
-    # Correctly track solve time
+    optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end
@@ -106,7 +107,6 @@ function compute_largest_invariant_set(
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
     safelist,
 )
-    println("compute_controller_safe! started")
     autom = abstract_system.autom
     contr = NewControllerList()
     nstates = autom.nstates

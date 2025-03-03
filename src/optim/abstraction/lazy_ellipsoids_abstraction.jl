@@ -189,6 +189,7 @@ function build_concrete_controller(abstract_system)
     function concrete_controller(x)
         nodes = UT.get_nodes(abstract_system, x, compare)
         sorted_nodes = sort(nodes; by = UT.compare)
+        isempty(sorted_nodes) && return nothing
         cont = UT.get_action(sorted_nodes[1])
         c_eval = ST.get_c_eval(cont)
         return c_eval(x)
@@ -204,6 +205,7 @@ function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
     function concrete_lyap_fun(x)
         nodes = UT.get_nodes(abstract_system, x, compare)
         sorted_nodes = sort(nodes; by = UT.compare)
+        isempty(sorted_nodes) && return Inf
         return abstract_lyap_fun(sorted_nodes[1])
     end
     return concrete_lyap_fun

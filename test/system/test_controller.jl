@@ -2,7 +2,8 @@ module TestMain
 using Test
 
 using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
-using JuMP, Mosek, MosekTools
+using JuMP
+using Clarabel
 using Plots
 
 using Dionysos
@@ -46,10 +47,7 @@ function trial(E2, c, μ, U, W, λ)
 
     # Solve the control problem
     S = UT.get_full_psd_matrix(problem.transition_cost)
-    # Optimizer's parameters, see https://github.com/MOSEK/Mosek.jl/issues/206
-    FALLBACK_URL = "mosek://solve.mosek.com:30080"
-    sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-    MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+    sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
     maxδx = 100.0
     maxδu = 100.0

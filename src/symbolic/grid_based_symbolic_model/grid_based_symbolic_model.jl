@@ -125,17 +125,24 @@ function compute_abstract_transitions_from_points!(
         target = get_state_by_xpos(symmodel, ypos)
         push!(translist, (target, abstract_state, abstract_input))
     end
+    unique!(translist)
     return allin
 end
 
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeSystemOverApproximation,
+    concrete_system_approx::ST.DiscreteTimeSystemOverApproximation;
+    verbose = false,
+    update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
+    total_iterations = max(
+        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        1,
+    )
+    progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
+    count = 0
     for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         for abstract_state in enum_states(abstract_system)
@@ -149,29 +156,31 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            if allin
-                add_transitions!(abstract_system, translist)
-                ntrans += length(translist)
-            end
+            allin && add_transitions!(abstract_system, translist)
+            count += 1
+            verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    verbose && ProgressMeter.finish!(progress)
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeGrowthBound,
+    concrete_system_approx::ST.DiscreteTimeGrowthBound;
+    verbose = false,
+    update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
     r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
+    total_iterations = max(
+        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        1,
+    )
+    progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
+    count = 0
     for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         Fr = growthbound_map(r, concrete_input)
@@ -187,33 +196,36 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            if allin
-                add_transitions!(abstract_system, translist)
-                ntrans += length(translist)
-            end
+            allin && add_transitions!(abstract_system, translist)
+            count += 1
+            verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    verbose && ProgressMeter.finish!(progress)
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeLinearized,
+    concrete_system_approx::ST.DiscreteTimeLinearized;
+    verbose = false,
+    update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system! started")
     Xdom = get_state_domain(abstract_system)
     N = DO.get_dim(Xdom)
     r = DO.get_h(DO.get_grid(Xdom)) / 2.0
     _H_ = SMatrix{N, N}(I) .* r
     _ONE_ = ones(SVector{N})
     e = norm(r, Inf)
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
+    total_iterations = max(
+        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        1,
+    )
+    progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
+    count = 0
     for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         Fe = error_map(e, concrete_input)
@@ -250,27 +262,29 @@ function compute_abstract_system_from_concrete_system!(
             #     target = get_state_by_xpos(abstract_system, ypos)
             #     push!(translist, (target, concrete_state, abstract_input))
             # end
-            if allin
-                add_transitions!(abstract_system.autom, translist)
-                ntrans += length(translist)
-            end
+            allin && add_transitions!(abstract_system, translist)
+            count += 1
+            verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    verbose && ProgressMeter.finish!(progress)
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation,
+    concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation;
+    verbose = false,
+    update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
+    total_iterations = max(
+        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        1,
+    )
+    progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
+    count = 0
     for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         for abstract_state in enum_states(abstract_system)
@@ -284,27 +298,29 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            if allin
-                add_transitions!(abstract_system, translist)
-                ntrans += length(translist)
-            end
+            allin && add_transitions!(abstract_system, translist)
+            count += 1
+            verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    verbose && ProgressMeter.finish!(progress)
+    return
 end
 
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeCenteredSimulation,
+    concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
+    verbose = false,
+    update_interval = Int(1e5),
 )
-    println("compute_abstract_system_from_concrete_system!")
-    ntrans = 0
     translist = Tuple{Int, Int, Int}[]
-
     system_map = ST.get_system_map(concrete_system_approx)
+    total_iterations = max(
+        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        1,
+    )
+    progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
+    count = 0
     for abstract_input in enum_inputs(abstract_system)
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         for abstract_state in enum_states(abstract_system)
@@ -318,14 +334,11 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 translist,
             )
-            if allin
-                add_transitions!(abstract_system, translist)
-                ntrans += length(translist)
-            end
+            allin && add_transitions!(abstract_system, translist)
+            count += 1
+            verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
     end
-    return println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(ntrans) transitions created",
-    )
+    verbose && ProgressMeter.finish!(progress)
+    return
 end

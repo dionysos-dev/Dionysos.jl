@@ -4,9 +4,11 @@ module UniformGridAbstraction
 
 import Dionysos
 ST = Dionysos.System
+SY = Dionysos.Symbolic
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
+import HybridSystems
 using JuMP
 
 include("empty_problem.jl")
@@ -25,14 +27,19 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Any
     solve_time_sec::T
+    print_level::Int
 
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, 0.0)
+        return new{T}(nothing, nothing, nothing, 0.0, 1)
     end
 end
 Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.abstraction_solver === nothing
+
+function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
+    return model.print_level = value ? 0 : 1
+end
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     param_symbol = Symbol(param.name)
@@ -176,11 +183,21 @@ function MOI.optimize!(optimizer::Optimizer)
 
     # Compute abstraction if not already done
     if !is_abstraction_computed(optimizer)
+        MOI.set(
+            optimizer.abstraction_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            optimizer.print_level,
+        )
         MOI.optimize!(optimizer.abstraction_solver)
     end
 
     # If there's a control solver, optimize it
     if optimizer.control_solver !== nothing
+        MOI.set(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            optimizer.print_level,
+        )
         abstract_system = MOI.get(
             optimizer.abstraction_solver,
             MOI.RawOptimizerAttribute("abstract_system"),
