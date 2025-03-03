@@ -39,8 +39,13 @@ function jacobian_bound(u)
     return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound)
-
 set_attribute(model, "time_step", 0.3)
+set_attribute(
+    model,
+    "approx_mode",
+    Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+)
+set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(0.2, 0.2, 0.2);
@@ -58,6 +63,14 @@ abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system
+abstraction_time =
+    MOI.get(model, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+println("Time to construct the abstraction: $(abstraction_time)")
+abstract_problem_time =
+    MOI.get(model, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+println("Time to solve the abstract problem: $(abstract_problem_time)")
+total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
+println("Total time: $(total_time)")
 
 nstep = 100
 function reached(x)
@@ -70,7 +83,7 @@ end
 
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
     nstep;
@@ -81,25 +94,28 @@ using Plots
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "");
 
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
 
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
+plot!(
+    concrete_problem.target_set;
+    dims = [1, 2],
+    color = :red,
+    opacity = 0.5,
+    label = "Target set",
+);
 
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(
-        abstract_system,
-        abstract_problem.initial_set,
-    );
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
 );
 
-plot!(control_trajectory; ms = 0.5)
+plot!(control_trajectory; ms = 2.0, arrows = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

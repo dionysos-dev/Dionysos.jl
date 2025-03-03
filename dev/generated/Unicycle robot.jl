@@ -87,20 +87,11 @@ for obstacle in obstacles
     @constraint(model, x[1:2] ∉ obstacle)
 end
 
-function growth_bound(r, u, _)
+function growth_bound(r, u)
     β = u[1] * r[3]
     return StaticArrays.SVector{3}(β, β, 0.0)
 end
 set_attribute(model, "growthbound_map", growth_bound)
-
-function sys_inv(x, u, _)
-    return StaticArrays.SVector{3}(
-        x[1] - u[1] * cos(x[3] - u[2]),
-        x[2] - u[1] * sin(x[3] - u[2]),
-        x[3] - u[2],
-    )
-end
-set_attribute(model, "sys_inv_map", sys_inv)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(hx, hx, 0.2);
@@ -129,7 +120,7 @@ function reached(x)
 end
 
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discretized_system"),
+    get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
     nstep;
@@ -140,25 +131,30 @@ using Plots
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
 
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
-
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");
 plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(
-        abstract_system,
-        abstract_problem.initial_set,
-    );
-    color = :green,
-);
-plot!(
-    Dionysos.Symbolic.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    concrete_problem.target_set;
+    dims = [1, 2],
     color = :red,
+    opacity = 0.5,
+    label = "Target set",
 );
 
-plot!(control_trajectory; ms = 0.5)
+plot!(
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    color = :green,
+    efficient = false,
+);
+plot!(
+    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    color = :red,
+    efficient = false,
+);
+
+plot!(control_trajectory; ms = 2.0, arrows = false, lw = 2)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

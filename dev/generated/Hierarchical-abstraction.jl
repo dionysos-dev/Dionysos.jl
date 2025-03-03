@@ -65,8 +65,7 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     n = UT.get_dims(rect)
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
-    for upos in DO.enum_pos(Udom)
-        u = DO.get_coord_by_pos(Udom.grid, upos)
+    for u in DO.enum_elems(Udom)
         Fx = concrete_system.f_eval(x, u)
         lb = min.(lb, Fx .- Fr)
         ub = max.(ub, Fx .+ Fr)
@@ -159,7 +158,7 @@ println("Cost:\t $(cost)")
 fig = plot(; aspect_ratio = :equal);
 
 #We display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 #We display the abstract domain
 plot!(abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5);

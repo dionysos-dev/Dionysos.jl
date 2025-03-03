@@ -33,7 +33,7 @@ X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P);
 opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
@@ -56,7 +56,7 @@ transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 
 function f_eval1(x, u)
-    currState = SY.get_all_states_by_xpos(
+    currState = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
@@ -83,7 +83,7 @@ cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u
 
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
 function reached(x)
-    currState = SY.get_all_states_by_xpos(
+    currState = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
@@ -129,12 +129,12 @@ plot!(rectX; color = :yellow, opacity = 0.5);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
 #We display the abstract specifications
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
     opacity = 0.5,
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
     opacity = 0.5,
 );

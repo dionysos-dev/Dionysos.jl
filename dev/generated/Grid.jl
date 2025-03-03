@@ -112,9 +112,9 @@ h = SVector(1.0 / n_step, 1.0 / n_step)
 P = 0.5 * diagm((h ./ 2) .^ (-2))
 rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2))
 
-grid = DO.GridEllipsoidalRectangular(x0, h, P, rectX)
+grid = DO.GridEllipsoidalRectangular(x0, h, P)
 domain = DO.DomainList(grid)
-DO.add_set!(domain, grid.rect, DO.OUTER)
+DO.add_set!(domain, rectX, DO.OUTER)
 plot(; aspect_ratio = :equal);
 plot!(domain)
 
