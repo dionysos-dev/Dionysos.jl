@@ -26,14 +26,14 @@ function get_visualization_tool(;
         symbolic = false,
         add_contact_points = true,
         add_gravity = true,
-        add_flat_ground = false, # TODO ->true
+        add_flat_ground = true, # TODO ->true
     )
     vis = RS_tools.set_visulalizer(; mechanism = rs.mechanism, fileName = robot_urdf)
     return rs, vis
 end
 
 function system(;
-    tstep = 2e-2,
+    tstep = 5e-1,
     robot_urdf = joinpath(@__DIR__, "deps/ZMP_2DBipedRobot_nodamping.urdf"),
 )
     rs = RS_tools.RobotSimulator(;
@@ -41,7 +41,7 @@ function system(;
         symbolic = false,
         add_contact_points = true,
         add_gravity = true,
-        add_flat_ground = false, # TODO ->true
+        add_flat_ground = true, # TODO ->true
     )
 
     mechanism = rs.mechanism
@@ -71,7 +71,8 @@ function system(;
 
             τ_0 = u .* [HGR, HGR, KGR, KGR] .* ktp .- ω .* [HGR, HGR, KGR, KGR] .* Kvp
             τ_m .= τ_0 .- sign.(ω) .* [HGR, HGR, KGR, KGR] .* τc_u
-            return τ[(end - 3 - ddl):(end - ddl)] .= τ_m
+            τ[(end - 3 - ddl):(end - ddl)] .= τ_m
+            return nothing
         end
     end
 
@@ -152,8 +153,8 @@ function system(;
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
     # Define input space (bounds should be set according to actuator limits)
-    input_lower_bounds = [-12, -12, -12, -12]   # Example: torque or force limits
-    input_upper_bounds = [12, 12, 12, 12]
+    input_lower_bounds = [-8, -8, -8, -8]   # Example: torque or force limits
+    input_upper_bounds = [8, 8, 8, 8]
 
     input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
 

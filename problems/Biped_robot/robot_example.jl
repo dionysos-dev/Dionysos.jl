@@ -54,11 +54,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.optimize!(optimizer)
 
 ### For visualization
-rs, vis = RobotProblem.get_visualization_tool()
+#rs, vis = RobotProblem.get_visualization_tool()
 
 # Initial configuration 
-boom = [0, 0]
-actuators = [0, 0, 0, 0]
-foot = [0, 0]
+#boom = [0, 0]
+#actuators = [0, 0, 0, 0]
+#foot = [0, 0]
 
-RobotProblem.RS_tools.set_nominal!(rs, vis, boom, actuators, foot)
+#RobotProblem.RS_tools.set_nominal!(rs, vis, boom, actuators, foot)
