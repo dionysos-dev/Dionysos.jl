@@ -16,7 +16,7 @@
 [paper-img]: https://proceedings.juliacon.org/papers/10.21105/jcon.00160/status.svg
 [paper-url]: https://doi.org/10.21105/jcon.00160
 
-[build-img]: https://github.com/dionysos-dev/Dionysos.jl/workflows/CI/badge.svg?branch=master
+[build-img]: https://github.com/dionysos-dev/Dionysos.jl/actions/workflows/ci.yml/badge.svg?branch=main
 [build-url]: https://github.com/dionysos-dev/Dionysos.jl/actions?query=workflow%3ACI
 [codecov-img]: https://codecov.io/github/dionysos-dev/Dionysos.jl/coverage.svg
 [codecov-url]: https://app.codecov.io/github/dionysos-dev/Dionysos.jl
