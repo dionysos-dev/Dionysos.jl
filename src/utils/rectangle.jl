@@ -57,13 +57,6 @@ function samples(rect::HyperRectangle, N::Int)
     return [sample(rect) for _ in 1:N]
 end
 
-function rectangle(c, r)
-    return Shape(
-        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
-        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
-    )
-end
-
 @recipe function f(rect::HyperRectangle; dims = [1, 2])
     center = get_center(rect)[dims]
     r = get_h(rect)[dims] ./ 2  # Half-width
@@ -77,42 +70,45 @@ end
 end
 
 """
-    DeformedRectangleDraw(rect, f, N, shape)
+    DeformedRectangle(rect, f, N, shape)
 
-A helper struct for drawing a deformed rectangle.
+A deformed rectangle.
 """
-struct DeformedRectangleDraw
+struct DeformedRectangle
     rect::HyperRectangle
     f::Function
-    N::Integer # used for precision
-    shape::Any
 end
 
-function DeformedRectangleDraw(rect::HyperRectangle, f::Function; N = 10, dims = [1, 2])
+function SampleBoundaryDeformedRectangle(drect::DeformedRectangle; N = 50, dims = [1, 2])
+    rect = drect.rect
+    f = drect.f
     lb = rect.lb[dims]
     ub = rect.ub[dims]
     points = SVector[]
+
+    # Compute images of the rectangle boundary points
     for x in LinRange(lb[1], ub[1], N)
         push!(points, f(SVector(x, lb[2])))
     end
-    for x in LinRange(lb[2], ub[2], N)
-        push!(points, f(SVector(ub[1], x)))
+    for y in LinRange(lb[2], ub[2], N)
+        push!(points, f(SVector(ub[1], y)))
     end
     for x in LinRange(ub[1], lb[1], N)
         push!(points, f(SVector(x, ub[2])))
     end
-    for x in LinRange(ub[2], lb[2], N)
-        push!(points, f(SVector(lb[1], x)))
+    for y in LinRange(ub[2], lb[2], N)
+        push!(points, f(SVector(lb[1], y)))
     end
-    unique!(points)
-    x = [point[1] for point in points]
-    y = [point[2] for point in points]
 
-    return DeformedRectangleDraw(rect, f, N, Shape(x, y))
+    return points
 end
 
-@recipe function f(deformed_rect::DeformedRectangleDraw; dims = [1, 2])
+@recipe function f(drect::DeformedRectangle; dims = [1, 2], N = 50, dims = [1, 2])
+    points = SampleBoundaryDeformedRectangle(drect; N = N, dims = dims)
+    x = [point[1] for point in points]
+    y = [point[2] for point in points]
     @series begin
-        return deformed_rect.shape
+        seriestype := :polygon
+        return (x, y)
     end
 end
