@@ -16,24 +16,18 @@ DO.add_set!(domainX, rectX, DO.INNER)
 plot(; aspect_ratio = :equal);
 plot!(domainX)
 
-function f1(x)
-    return x
-end
-function fi1(x)
-    return x
-end
-function f2(x)
-    return SVector(x[2] + sin(x[1]), x[1])
-end
-function fi2(x)
-    return SVector(x[2], x[1] - sin(x[2]))
-end
-function f3(x)
-    return SVector(x[1] * cos(x[2]), x[1] * sin(x[2]))
-end
-function fi3(x)
-    return SVector(sqrt(x[1] * x[1] + x[2] * x[2]), atan(x[2], x[1]))
-end
+f1(x) = x
+fi1(x) = x
+
+f2(x) = x + SVector(5.0, 5.0)
+fi2(x) = x - SVector(5.0, 5.0)
+
+f3(x) = SVector(x[2] + sin(x[1]), x[1])
+fi3(x) = SVector(x[2], x[1] - sin(x[2]))
+
+f4(x) = SVector(x[1] * cos(x[2]), x[1] * sin(x[2]))
+fi4(x) = SVector(sqrt(x[1] * x[1] + x[2] * x[2]), atan(x[2], x[1]))
+
 function rotate(x, θ)
     R = @SMatrix [
         cos(θ) -sin(θ)
@@ -42,43 +36,48 @@ function rotate(x, θ)
     return R * x
 end
 function build_f_rotation(θ; c = SVector(0.0, 0.0))
-    function f(x)
-        return rotate(x - c, θ) + c
-    end
-    function fi(x)
-        return rotate(x - c, -θ) + c
-    end
+    f(x) = rotate(x - c, θ) + c
+    fi(x) = rotate(x - c, -θ) + c
     return f, fi
 end
 
 function plot_deformed_grid_with_DomainList(f, fi)
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2 * π))
-    grid = DO.GridFree(SVector(0.0, 0.0), SVector(3.0, 0.3))
+    grid = DO.GridFree(SVector(0.0, 0.0), SVector(3.0, 2 * pi / 8.0))
     Dgrid = DO.DeformedGrid(grid, f, fi)
     dom = DO.DomainList(Dgrid)
-    DO.add_set!(dom, X, DO.INNER)
+    DO.add_set!(dom, X, DO.OUTER)
     plot(; aspect_ratio = :equal)
-    return plot!(dom; show = true)
+    return plot!(dom; show = true, color = :grey, efficient = false)
 end
 
 function plot_deformed_grid_with_GeneralDomain(f, fi)
-    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 2 * π))
+    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 10.0))
     obstacle = UT.HyperRectangle(SVector(10.0, 10.0), SVector(15.0, 15.0))
-    hx = [3.0, 0.3]
+    hx = [2.5, 2.5]
     d = DO.RectangularObstacles(X, [obstacle])
     dom = DO.GeneralDomainList(hx; elems = d, f = f, fi = fi, fit = true)
     plot(; aspect_ratio = :equal)
-    return plot!(dom; show = true)
+    return plot!(dom; show = true, color = :grey, efficient = false)
 end
 
-plot_deformed_grid_with_DomainList(f2, fi2)
-plot_deformed_grid_with_GeneralDomain(f2, fi2)
+rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(2.0, 2.0))
+shape = UT.DeformedRectangle(rect, f2)
+plot(; aspect_ratio = :equal)
+plot!(rect; color = :grey, efficient = false, label = "Original")
+plot!(shape; color = :red, efficient = false, label = "Deformed")
+
+plot_deformed_grid_with_DomainList(f1, fi1)
+plot_deformed_grid_with_GeneralDomain(f1, fi1)
 
 plot_deformed_grid_with_DomainList(f2, fi2)
 plot_deformed_grid_with_GeneralDomain(f2, fi2)
 
 plot_deformed_grid_with_DomainList(f3, fi3)
 plot_deformed_grid_with_GeneralDomain(f3, fi3)
+
+plot_deformed_grid_with_DomainList(f4, fi4)
+plot_deformed_grid_with_GeneralDomain(f4, fi4)
 
 f, fi = build_f_rotation(π / 3.0)
 plot_deformed_grid_with_DomainList(f, fi)
@@ -104,7 +103,7 @@ DO.cut_pos!(Ndomain, (2, 3), 1)
 DO.cut_pos!(Ndomain, (4, 4), 2)
 
 fig = plot(; aspect_ratio = :equal, legend = false);
-plot!(Ndomain)
+plot!(Ndomain; color = :grey, efficient = false)
 
 x0 = SVector(0.0, 0.0)
 n_step = 2
@@ -116,6 +115,6 @@ grid = DO.GridEllipsoidalRectangular(x0, h, P)
 domain = DO.DomainList(grid)
 DO.add_set!(domain, rectX, DO.OUTER)
 plot(; aspect_ratio = :equal);
-plot!(domain)
+plot!(domain; color = :grey, opacity = 0.5, efficient = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
