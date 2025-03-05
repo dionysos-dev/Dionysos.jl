@@ -62,7 +62,7 @@ x0 = SVector(0.0,0.0)
 x0_state  = SY.get_state_by_coord(abstract_system, x0)
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 println("worst case cost: ", value_function[x0_state])
-println("start plot")
+
 control_trajectory =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
     stopping = reached)
@@ -79,4 +79,4 @@ plot!(
     color = :red,
     opacity= 1.0
 );
-plot!(control_trajectory; markersize=1,arrows=false)
+plot!(control_trajectory; markersize=1,arrows=true)

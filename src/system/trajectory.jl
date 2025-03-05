@@ -69,6 +69,9 @@ get_elem(traj::Trajectory, n::Int) = traj.seq[n]
 @recipe function f(traj::Trajectory)
     return UT.DrawTrajectory(traj.seq)
 end
+@recipe function f(traj::Trajectory, cost::Trajectory)
+    return UT.DrawCostTrajectory(traj.seq, cost.seq)
+end
 
 """
     Control_trajectory{T1, T2}
@@ -107,7 +110,7 @@ get_elem(traj::Cost_control_trajectory, n::Int) =
     (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
 
 @recipe function f(traj::Cost_control_trajectory)
-    return traj.control_trajectory
+    return traj.control_trajectory.states, traj.costs
 end
 
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
@@ -118,18 +121,16 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     t_traj = []
     i = 0
     total_time = 0.0
-    energy     = 0.0
     control_effort = 0.0    
     while !stopping(x) && i ≤ nstep
         u, p = controller(x) # u, tstep_cur = controller(x)
-        timestep = contsys.tstep + p * 0.05 #contsys.tstep * 1.5 ^ p
-        println("u = $u, p = $p, timestep = $timestep")
-        energy += x[2] * u[1] * timestep
-        control_effort += u[1]^2 * timestep
+        timestep = contsys.tstep + p * 0.2
         if u === nothing
             break
         end
-        push!(t_traj, total_time)
+        println("u = $u, p = $p, timestep = $timestep")
+        control_effort += sum(u[i]^2 * timestep for i in 1:length(u))
+        push!(t_traj, timestep)
         total_time += timestep
         x = contsys.sys_map(x, u, timestep)
         push!(x_traj, x)
@@ -137,18 +138,11 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
         push!(u_traj2, u[1])
         i = i + 1
     end
-    # path = "C:/Users/adrie/OneDrive - UCL/Master 2/mémoire visus/data/"
-    # open(joinpath(path, "u.txt"), "w") do file
-    #     for i in 1:length(u_traj2)
-    #         t = t_traj[i]
-    #         u = u_traj2[i]
-    #         println(file, "$t $u")
-    #     end
-    # end
     println("Total time: $total_time")
-    println("Energy: $energy")
     println("Control effort: $control_effort")
-    return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
+    control_traj = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj)) #, Trajectory(t_traj)
+    return Cost_control_trajectory(control_traj, Trajectory(t_traj))
+    #return control_traj
 end
 
 function get_closed_loop_trajectory(

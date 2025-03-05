@@ -197,9 +197,8 @@ NewControllerList() = UT.SortedTupleSet{3, NTuple{3, Int}}() # pour chaque sourc
 
 function compute_value_function!(g, contr, abstract_system, autom, initlist, targetlist::Vector{Int})
     # data
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,20)
-    timesteps = Dict{Tuple{Int, Int}, Int}()
-    _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,30)
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
     init_set = BitSet(initlist)
     target_set = BitSet(targetlist)
     current_targets = copy(targetlist)
@@ -215,7 +214,7 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
         for target in current_targets
             for (source, symbol, p) in SY.pre(autom, target)   # pre = predecesseur
                 if !(source in target_set) &&                           
-                iszero(num_targets_unreachable[source, symbol,p+1] -= 1)
+                iszero(num_targets_unreachable[source, symbol, p+1] -= 1)
                     #println(collect(UT.fix_and_eliminate_first(contr, source)))
                     symbollist = UT.fix_and_eliminate_first(contr, source)
                     if isempty(symbollist)
@@ -233,7 +232,7 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
                         gmax = maximum(g[q] for q in post)
                         # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                         # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
-                        cost = 0.2 + p * 0.05 #0.1 * 1.5 ^ p
+                        cost = 0.2 + p * 0.2 #0.1 * 1.5 ^ p
                         g[source] = cost + gmax
                     end
                 end
@@ -243,7 +242,7 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
     end
 end 
 
-function _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+function _compute_num_targets_unreachable(num_targets_unreachable, autom)
     # for each target, we count how many times each source/symbol pair can reach it in 1 step
     for target in 1:(autom.nstates)
         for soursymb in SY.pre(autom, target)
@@ -260,7 +259,6 @@ function _compute_controller_reach!(
     num_targets_unreachable,
     current_targets,
     next_targets,
-    timesteps,
 )
     num_init_unreachable = length(init_set)
     while !isempty(current_targets) && !iszero(num_init_unreachable)
@@ -285,14 +283,13 @@ function _compute_controller_reach!(
 end
 
 function _data(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 20)
-    timesteps = Dict{Tuple{Int, Int}, Int}()
-    _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 30)
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
     current_targets = copy(targetlist)
     next_targets = Int[]
-    return initset, targetset, num_targets_unreachable, current_targets, next_targets, timesteps
+    return initset, targetset, num_targets_unreachable, current_targets, next_targets
 end
 
 function _compute_controller_reach_with_cost!(
@@ -338,7 +335,7 @@ function _compute_controller_reach_with_cost!(
                     empty!(post)
                     SY.compute_post!(post, autom, qminus, symbol, p)
                     gmax = maximum(g[qprime] for qprime in post)
-                    time = 0.2 + p * 0.05 #0.1 * 1.5 ^ p
+                    time = 0.2 + p * 0.2 #0.1 * 1.5 ^ p
                     # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                     # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
                     cost = time #* true_u[1]^2
@@ -357,9 +354,8 @@ function _compute_controller_reach_with_cost!(
 end
 
 function _data_cost(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 20)
-    timesteps = Dict{Tuple{Int, Int}, Int}()
-    _compute_num_targets_unreachable(num_targets_unreachable, timesteps, autom)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 30)
+    _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
     N = PriorityQueue{Tuple{Int,Tuple{Int,Int}}, Float64}()            
@@ -372,7 +368,7 @@ function compute_controller_reach!(contr, abstract_system, autom, initlist, targ
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
-    cost = true
+    cost = false
     if cost 
         if !_compute_controller_reach_with_cost!(
             contr,
