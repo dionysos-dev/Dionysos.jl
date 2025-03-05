@@ -14,12 +14,12 @@ const AB = OP.Abstraction
 include(
     joinpath(
         dirname(dirname(pathof(Dionysos))),
-        "problems/Biped_robot",
+        "problems/Biped_robot/Simplified_problem",
         "robot_problem.jl",
     ),
 )
 
-concrete_problem = RobotProblem.problem(; tstep = 2e-2)
+concrete_problem = RobotProblem.problem(; tstep = 1e-1)
 concrete_system = concrete_problem.system
 
 ### Set the optimizer
@@ -31,11 +31,11 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 
 x0 = SVector{n_state, Float64}(zeros(n_state))
-hx = SVector{n_state, Float64}(fill(1.0, n_state))
+hx = SVector{n_state, Float64}(fill(1.0, n_state)) # TODO -> change the discr
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(12.0, n_input))
+hu = SVector{n_input, Float64}(fill(8.0, n_input)) # TODO -> change the discr
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP

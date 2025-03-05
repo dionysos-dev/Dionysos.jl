@@ -41,7 +41,7 @@ function system(;
         symbolic = false,
         add_contact_points = true,
         add_gravity = true,
-        add_flat_ground = true, # TODO ->true
+        add_flat_ground = true,
     )
 
     mechanism = rs.mechanism
