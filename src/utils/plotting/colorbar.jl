@@ -26,7 +26,7 @@ end
 @recipe function f(colorMap::Colormap)
     marker_z --> colorMap.range
     colorbar --> true
-    color --> palette(colorMap.colormap)
+    color --> PlotUtils.palette(colorMap.colormap)
     label --> ""
     return [], []
 end
