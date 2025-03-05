@@ -117,8 +117,8 @@ struct GridFree{N, T} <: Grid{N, T}
     h::SVector{N, T}
 end
 
-get_origin(grid::Grid) = grid.orig
-get_h(grid::Grid) = grid.h
+get_origin(grid::GridFree) = grid.orig
+get_h(grid::GridFree) = grid.h
 
 """
     GridEllipsoidalRectangular{N,T} <: Grid{N,T}
