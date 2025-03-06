@@ -84,8 +84,10 @@ end
     target_set_color = :red,
 )
     @series begin
-        label := "Domain"
-        color := domain_color
+        first_label := "Domain"
+        second_label := "Obstacles"
+        first_color := domain_color
+        second_color := :black
         problem.system.X
     end
     @series begin

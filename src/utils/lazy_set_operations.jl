@@ -46,20 +46,35 @@ end
 
 @recipe function f(set::LazyUnionSetArray; dims = [1, 2])
     dims := dims
-    for elem in set.sets
+    first = true
+    for elem in Iterators.take(set.sets, length(set.sets) - 1)
         @series begin
+            label := ""
             return elem
         end
     end
+    @series begin
+        return set.sets[end]
+    end
 end
 
-@recipe function f(set::LazySetMinus; dims = [1, 2])
+@recipe function f(
+    set::LazySetMinus;
+    dims = [1, 2],
+    first_label = "",
+    second_label = "",
+    first_color = :grey,
+    second_color = :black,
+)
     dims := dims
     @series begin
+        label := first_label
+        color := first_color
         return set.A
     end
     @series begin
-        color := :black
+        label := second_label
+        color := second_color
         return set.B
     end
 end
