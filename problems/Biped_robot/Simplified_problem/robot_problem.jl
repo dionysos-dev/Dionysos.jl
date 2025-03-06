@@ -162,16 +162,14 @@ function system(;
         return x_next
     end
     # Define state space (bounds should be set according to your robot's joint limits)
-    # TODO -> change the values
-    state_lower_bounds = [-pi / 4, -pi / 4, 0, -pi, -pi, -5 / 3 * pi]  
-    state_upper_bounds = [pi / 4, pi / 4, pi / 2, pi, pi, 5 / 3 * pi]
+    state_lower_bounds = [-16*π/180, -4*π/180, 0, -0.75, -0.3, -0.15]  
+    state_upper_bounds = [0, 12*π/180, 24*π/180, 0.15, 0.6, 0.75]
 
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
     # Define input space (bounds should be set according to actuator limits)
-    # TODO -> change the values
-    input_lower_bounds = [-8, -8, -8]   # Example: torque or force limits
-    input_upper_bounds = [8, 8, 8]
+    input_lower_bounds = [-4, -4, -4]   # Example: torque or force limits
+    input_upper_bounds = [4, 2, 4]
 
     input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
 

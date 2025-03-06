@@ -31,11 +31,11 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 
 x0 = SVector{n_state, Float64}(zeros(n_state))
-hx = SVector{n_state, Float64}(fill(1.0, n_state)) # TODO -> change the discr
+hx = SVector{n_state, Float64}([fill(2*π/180, 3)..., 0.15, 0.15, 0.15])
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(8.0, n_input)) # TODO -> change the discr
+hu = SVector{n_input, Float64}(fill(1.0, n_input))
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
