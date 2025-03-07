@@ -74,7 +74,7 @@ function system(;
 
             current_q = configuration(state)[(end - 3 - ddl):(end - ddl)]
             current_̇q = velocity(state)[(end - 3 - ddl):(end - ddl)]
-            ω = current_̇q .* [HGR, HGR, KGR, KGR]
+            ω = current_̇q .* GR
 
             # DXL controller on the right knee
             PWM = (q_ref .- current_q[4]) .* (4095.0/(2π)* Kp) # Only true because profile acceleration and profile velocity are null
@@ -83,8 +83,8 @@ function system(;
 
             U_tot = [u..., u_K...]
 
-            τ_0 = U_tot .* [HGR, HGR, KGR, KGR] .* ktp .- ω .* [HGR, HGR, KGR, KGR] .* Kvp
-            τ_m .= τ_0 .- sign.(ω) .* [HGR, HGR, KGR, KGR] .* τc_u
+            τ_0 = U_tot .* GR .* ktp .- ω .* GR .* Kvp
+            τ_m .= τ_0 .- sign.(ω) .* GR .* τc_u
             τ[(end - 3 - ddl):(end - ddl)] .= τ_m
             return nothing
         end

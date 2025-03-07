@@ -321,8 +321,8 @@ function compute_abstract_system_from_concrete_system!(
         div(n_forward_images, update_interval),
         1,
     )
-    iteration_progress_percentage = floor((update_interval / n_forward_images) * 1e5) / 1e3 # to get only 3 numbers after the decimal in %
-    @info("Total iterations : $total_iterations, the progress bar will update every $(iteration_progress_percentage)%")
+    iteration_progress_percentage = update_interval / n_forward_images
+    @info("Total number of bar updates : $total_iterations, the progress bar will update every $(iteration_progress_percentage)%")
     progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
     count = 0
     for abstract_input in enum_inputs(abstract_system)

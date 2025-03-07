@@ -49,6 +49,7 @@ MOI.set(
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+MOI.set(optimizer, MOI.Silent(), true)  
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 
