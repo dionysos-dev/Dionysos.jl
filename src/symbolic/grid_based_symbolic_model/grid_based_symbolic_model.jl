@@ -307,18 +307,22 @@ function compute_abstract_system_from_concrete_system!(
     return
 end
 
+using ProgressMeter
 function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
     verbose = false,
-    update_interval = Int(1e5),
+    update_interval = Int(1e3),
 )
     translist = Tuple{Int, Int, Int}[]
     system_map = ST.get_system_map(concrete_system_approx)
+    n_forward_images = get_n_input(abstract_system) * get_n_state(abstract_system)
     total_iterations = max(
-        div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+        div(n_forward_images, update_interval),
         1,
     )
+    iteration_progress_percentage = floor((update_interval / n_forward_images) * 1e5) / 1e3 # to get only 3 numbers after the decimal in %
+    @info("Total iterations : $total_iterations, the progress bar will update every $(iteration_progress_percentage)%")
     progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
     count = 0
     for abstract_input in enum_inputs(abstract_system)
