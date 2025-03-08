@@ -1,7 +1,7 @@
 module RobotProblem
 
 using MathematicalSystems
-using LinearAlgebra, StaticArrays
+using StaticArrays
 using RigidBodyDynamics
 
 # include Dionysos
@@ -97,7 +97,8 @@ function system(;
         # Write the maximum height to q[2]
         # (adding the distance from the hip joint to hip body and the height of the foot)
         # The most extended leg is in contact with the ground
-
+        
+        # The height of the boom is set at 0 ! # Note: there is a slight error in the URDF and the robot is flying => Init_offset
         q[2] = max(zl, zr) - Lthigh - Lleg + Init_offset
 
         # Set additional constraints
@@ -133,18 +134,25 @@ function system(;
     function vectorFieldBipedRobot(x, u)
         # Variables: [x z LH RH LK RK LA RA]
         # NB: to move the knee forward, a negative angle is needed!
-        q, q̇ = fill_state!(x)
 
+        # First step: fill state: from the n state variables -> 8 positions and 8 speeds
+        q, q̇ = fill_state!(x)
+        
+        # Second step: set the mechanism in that configuration
         set_configuration!(state, q)
         set_velocity!(state, q̇)
 
+        # Third step: get next state
         controller! = voltage_controller!(u)
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+        x_next = SVector{length(x)}(qs[end][3:6]..., vs[end][3:6]...) 
+        # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
+        # Only the final states are useful in our case
 
-        x_next = SVector{length(x)}(qs[end][3:6]..., vs[end][3:6]...)
         return x_next
     end
+
     # Define state space (bounds should be set according to your robot's joint limits)
     state_lower_bounds = [-pi / 4, -pi / 4, 0, 0, -pi, -pi, -5 / 3 * pi, -5 / 3 * pi]  # W350 -> max 30rpm, W210 -> max 50rpm
     state_upper_bounds = [pi / 4, pi / 4, pi / 2, pi / 2, pi, pi, 5 / 3 * pi, 5 / 3 * pi]

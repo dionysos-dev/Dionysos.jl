@@ -81,6 +81,7 @@ function system(;
             PWM_sat = clamp.(PWM, -885.0, 885.0)# Apply_saturation
             u_K = PWM_sat .* (12.0 / 885.0)
 
+            # The remaining motors are controlled in voltage for the simulation
             U_tot = [u..., u_K...]
 
             τ_0 = U_tot .* GR .* ktp .- ω .* GR .* Kvp
@@ -112,6 +113,7 @@ function system(;
         # (adding the distance from the hip joint to hip body and the height of the foot)
         # The most extended leg is in contact with the ground
 
+        # The height of the boom is set at 0 ! # Note: there is a slight error in the URDF and the robot is flying => Init_offset
         q[2] = max(zl, zr) - Lthigh - Lleg + Init_offset
 
         # Set additional constraints
@@ -147,17 +149,22 @@ function system(;
     function vectorFieldBipedRobot(x, u)
         # Variables: [x z LH RH LK RK LA RA]
         # NB: to move the knee forward, a negative angle is needed!
+
+        # First step: fill state: from the n state variables -> 8 positions and 8 speeds
         q, q̇ = fill_state!(x)
         q_ref = SVector{1}(0.0)
 
+        # Second step: set the mechanism in that configuration
         set_configuration!(state, q)
         set_velocity!(state, q̇)
 
+        # Third step: get next state
         controller! = voltage_controller!(u, q_ref)
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
-
         x_next = SVector{length(x)}(qs[end][3:5]..., vs[end][3:5]...)
+        # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
+        # Only the final states are useful in our case
 
         return x_next
     end
@@ -178,8 +185,8 @@ function system(;
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,
-        3 + 3, # state space : the 4 actuators in position and speed
-        3,     # input space : the volatge on 4 actuators
+        3 + 3, # state space : the 3 actuators in position and speed (right knee not included)
+        3,     # input space : the volatge on 3 actuators (right knee not included$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$)
         state_space,
         input_space,
     )

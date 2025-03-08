@@ -6,14 +6,13 @@ A `RobotSimulator` has 5 differents outputs :
     2.  `state` which is the actual state of the robot 
 """
 module RS_tools
-using MathematicalSystems
-using LinearAlgebra, StaticArrays, StructArrays, Plots, Symbolics, Random
+using RigidBodyDynamics
+using RigidBodyDynamics.Contact
+using StructArrays
 using RigidBodyDynamics
 using RigidBodyDynamics.Contact
 using MeshCat, MeshCatMechanisms, Blink
 using MechanismGeometries
-using DelimitedFiles, CSV, Tables, LaTeXStrings
-using DataFrames, DataStructures
 using LightXML
 using GeometryTypes
 
