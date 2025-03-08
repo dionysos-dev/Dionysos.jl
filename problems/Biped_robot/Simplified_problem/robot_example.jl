@@ -31,7 +31,7 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 
 x0 = SVector{n_state, Float64}(zeros(n_state))
-hx = SVector{n_state, Float64}([fill(2*π/180, 3)..., fill(0.15,3)...])
+hx = SVector{n_state, Float64}([fill(3*π/180, 3)..., fill(0.15, 3)...])
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))

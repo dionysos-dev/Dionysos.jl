@@ -170,16 +170,16 @@ function system(;
     end
     # Define state space (bounds should be set according to your robot's joint limits)
     # Note : We need to add the discretisation step at each of the borns if the ones we chose are supposed to be centroids
-    disc_steps = [fill(2*π/180, 3)..., fill(0.15, 3)...]
-    state_lower_bounds = [-16*π/180, -4*π/180, 0, -0.75, -0.3, -0.15] .- disc_steps
-    state_upper_bounds = [0, 12*π/180, 24*π/180, 0.15, 0.6, 0.75] .+ disc_steps
+    disc_steps = [fill(3*π/180, 3)..., fill(0.15, 3)...]
+    state_lower_bounds = [-15*π/180, -6*π/180, 0, -0.6, -0.15, -0.15] .- disc_steps
+    state_upper_bounds = [0, 12*π/180, 18*π/180, 0.15, 0.6, 0.6] .+ disc_steps
 
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
     # Define input space (bounds should be set according to actuator limits)
     # Note : We con't need for the inputs to add something if the born are centroids
-    input_lower_bounds = [-4, -4, -4]   # Example: torque or force limits
-    input_upper_bounds = [4, 2, 4]
+    input_lower_bounds = [-3, -3, -3]   # Example: torque or force limits
+    input_upper_bounds = [3, 2, 3]
 
     input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
 
