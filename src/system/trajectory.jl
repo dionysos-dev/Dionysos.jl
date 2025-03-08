@@ -123,8 +123,8 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     total_time = 0.0
     control_effort = 0.0    
     while !stopping(x) && i ≤ nstep
-        u, p = controller(x) # u, tstep_cur = controller(x)
-        timestep = contsys.tstep + p * 0.2
+        u, p = controller(x) 
+        timestep = contsys.tstep + p * 0.1
         if u === nothing
             break
         end

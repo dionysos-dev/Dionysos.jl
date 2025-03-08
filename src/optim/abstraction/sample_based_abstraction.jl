@@ -197,7 +197,7 @@ NewControllerList() = UT.SortedTupleSet{3, NTuple{3, Int}}() # pour chaque sourc
 
 function compute_value_function!(g, contr, abstract_system, autom, initlist, targetlist::Vector{Int})
     # data
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,30)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,100)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     init_set = BitSet(initlist)
     target_set = BitSet(targetlist)
@@ -230,9 +230,10 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
                         empty!(post)
                         SY.compute_post!(post, autom, source, symbol, p)
                         gmax = maximum(g[q] for q in post)
+                        time = 0.2 + p * 0.1 
                         # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                         # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
-                        cost = 0.2 + p * 0.2 #0.1 * 1.5 ^ p
+                        cost = time
                         g[source] = cost + gmax
                     end
                 end
@@ -283,7 +284,7 @@ function _compute_controller_reach!(
 end
 
 function _data(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 30)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 100)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
@@ -331,11 +332,11 @@ function _compute_controller_reach_with_cost!(
                 controlDict[q] = (u_opt, t_opt)
             end
             for (qminus, symbol, p) in SY.pre(autom, q) 
-                if !(qminus in M) && iszero(num_targets_unreachable[qminus, symbol, p+1] -= 1) #&& !(qminus in target_set)
+                if !(qminus in M) && iszero(num_targets_unreachable[qminus, symbol, p+1] -= 1)
                     empty!(post)
                     SY.compute_post!(post, autom, qminus, symbol, p)
                     gmax = maximum(g[qprime] for qprime in post)
-                    time = 0.2 + p * 0.2 #0.1 * 1.5 ^ p
+                    time = 0.2 + p * 0.1 #0.1 * 1.5 ^ p
                     # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                     # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
                     cost = time #* true_u[1]^2
@@ -346,7 +347,6 @@ function _compute_controller_reach_with_cost!(
         end
     end
     println("number of init unreachable $num_init_unreachable out of $(length(init_set))") 
-    # build the controller from the optimal policy
     for q in keys(controlDict)
         UT.push_new!(contr, (q, controlDict[q][1], controlDict[q][2]))
     end
@@ -354,7 +354,7 @@ function _compute_controller_reach_with_cost!(
 end
 
 function _data_cost(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 30)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 100)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
@@ -368,7 +368,7 @@ function compute_controller_reach!(contr, abstract_system, autom, initlist, targ
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
-    cost = false
+    cost = true
     if cost 
         if !_compute_controller_reach_with_cost!(
             contr,
@@ -376,7 +376,7 @@ function compute_controller_reach!(contr, abstract_system, autom, initlist, targ
             autom,
             _data_cost(contr, autom, initlist, targetlist)...,
         )
-            println("\ncompute_controller_reach! terminated without covering init set")
+            println("\ncompute_controller_reach_with_cost! terminated without covering init set")
             # ProgressMeter.finish!(prog)
             return
         end

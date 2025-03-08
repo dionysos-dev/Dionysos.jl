@@ -201,13 +201,15 @@ function compute_symmodel_from_data2!(
     ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
+    println("\tsamples per cell: $n_samples")
+    println("\ttotal samples: $(n_samples * (symmodel.autom.nstates))")
     Xdom = symmodel.Xdom
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    eta_t = .2
-    n_steps = 20
-    steps_considered = [0, 5, 10, 15, 20]
+    eta_t = .1         
+    steps_considered = [0,8]
+    n_steps = maximum(steps_considered)
 
     println("$(symmodel.autom.nstates) states")
     println("$(symmodel.autom.nsymbols) symbols and $(length(steps_considered)) timesteps")
