@@ -24,7 +24,7 @@ include(
 ################### File Parameters ###################
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jdl")
-do_empty_optim = true
+do_empty_optim = false
 
 #######################################################
 ################### Optim Parameters ##################
@@ -60,38 +60,7 @@ MOI.set(
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)   
 MOI.set(optimizer, MOI.Silent(), true)  
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-
-# Define the equality check for OptimizerEmptyProblem
-include(
-    joinpath(
-        dirname(dirname(pathof(Dionysos))),
-        "src/optim/abstraction/UniformGridAbstraction/empty_problem.jl"
-    ),
-)
-function deep_equal(x::OptimizerEmptyProblem{T}, y::OptimizerEmptyProblem{T}) where {T}
-    return x.discrete_time_system == y.discrete_time_system &&
-           x.abstract_system == y.abstract_system &&
-           x.abstraction_construction_time_sec == y.abstraction_construction_time_sec &&
-           x.continuous_time_system_approximation == y.continuous_time_system_approximation &&
-           x.discrete_time_system_approximation == y.discrete_time_system_approximation &&
-           x.empty_problem == y.empty_problem &&
-           x.state_grid == y.state_grid &&
-           x.input_grid == y.input_grid &&
-           x.overapproximation_map == y.overapproximation_map &&
-           x.growthbound_map == y.growthbound_map &&
-           x.jacobian_bound == y.jacobian_bound &&
-           x.ngrowthbound == y.ngrowthbound &&
-           x.DF_sys == y.DF_sys &&
-           x.bound_DF == y.bound_DF &&
-           x.bound_DDF == y.bound_DDF &&
-           x.n_samples == y.n_samples &&
-           x.time_step == y.time_step &&
-           x.nsystem == y.nsystem &&
-           x.approx_mode == y.approx_mode &&
-           x.efficient == y.efficient &&
-           x.print_level == y.print_level
-end
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 ### Optimize
 if(do_empty_optim)
@@ -99,16 +68,15 @@ if(do_empty_optim)
     # TODO: add a functionnality to save and import an abstraction
     my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
     start_time = time()
-    #jldsave(filename_save; my_abstraction_solver)
+    jldsave(filename_save; my_abstraction_solver)
     end_time = time()
     save_time = end_time - start_time
     @info("Time elapsed to save : $save_time")
-    # TODO : add a timer for saving to have an idea
-
-    file = jldopen(filename_save, "r")
-    reloaded_solver = file["my_abstraction_solver"]
-    @assert deep_equal(reloaded_solver, my_abstraction_solver) "The OptimizerEmptyProblem instances are not equal. Check their fields."
 else
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
+    print_level = MOI.get(optimizer, MOI.RawOptimizerAttribute("print_level"))
+    print_level_test = optimizer.abstraction_solver.print_level
+    println("$print_level $print_level_test")
 end
