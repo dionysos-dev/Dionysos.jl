@@ -1,5 +1,6 @@
 using MathematicalSystems, StaticArrays, Plots
 using JuMP
+using JLD2
 
 # include Dionysos
 using Dionysos
@@ -70,4 +71,4 @@ end
 
 # TODO: add a functionnality to save and import an abstraction
 my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
-jldsave(filename_save; abstract_system, abstract_problem, abstract_controller)
+jldsave(filename_save; my_abstraction_solver)
