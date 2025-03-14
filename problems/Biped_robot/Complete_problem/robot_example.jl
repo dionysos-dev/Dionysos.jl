@@ -19,6 +19,15 @@ include(
     ),
 )
 
+#######################################################
+################### File Parameters ###################
+#######################################################
+filename_save = joinpath(@__DIR__, "Abstraction_solver")
+do_empty_optim = true
+
+#######################################################
+################### Optim Parameters ##################
+#######################################################
 concrete_problem = RobotProblem.problem(; tstep = 2e-2)
 concrete_system = concrete_problem.system
 
@@ -54,6 +63,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 
 ### Optimize
-MOI.optimize!(optimizer)
+if(do_empty_optim)
+    MOI.optimize!(optimizer)
+else
+end
 
 # TODO: add a functionnality to save and import an abstraction
+my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
+jldsave(filename_save; abstract_system, abstract_problem, abstract_controller)
