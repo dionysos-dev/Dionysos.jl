@@ -24,7 +24,7 @@ include(
 ################### File Parameters ###################
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jdl")
-do_empty_optim = false
+do_empty_optim = true
 
 #######################################################
 ################### Optim Parameters ##################
@@ -75,8 +75,10 @@ if(do_empty_optim)
     @info("Time elapsed to save : $save_time")
     # TODO : add a timer for saving to have an idea
 
+    file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
     @assert(reloaded_solver == my_abstraction_solver)
 else
+    file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
 end
