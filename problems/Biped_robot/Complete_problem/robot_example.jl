@@ -2,8 +2,6 @@ using MathematicalSystems, StaticArrays, Plots
 using JuMP
 using JLD2
 
-import Base: ==
-
 # include Dionysos
 using Dionysos
 const DI = Dionysos
@@ -71,7 +69,7 @@ include(
         "src/optim/abstraction/UniformGridAbstraction/empty_problem.jl"
     ),
 )
-function Base.:(==)(x::OptimizerEmptyProblem{T}, y::OptimizerEmptyProblem{T}) where {T}
+function deep_equal(x::OptimizerEmptyProblem{T}, y::OptimizerEmptyProblem{T}) where {T}
     return x.discrete_time_system == y.discrete_time_system &&
            x.abstract_system == y.abstract_system &&
            x.abstraction_construction_time_sec == y.abstraction_construction_time_sec &&
@@ -101,7 +99,7 @@ if(do_empty_optim)
     # TODO: add a functionnality to save and import an abstraction
     my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
     start_time = time()
-    jldsave(filename_save; my_abstraction_solver)
+    #jldsave(filename_save; my_abstraction_solver)
     end_time = time()
     save_time = end_time - start_time
     @info("Time elapsed to save : $save_time")
@@ -109,7 +107,7 @@ if(do_empty_optim)
 
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
-    @assert reloaded_solver == my_abstraction_solver "The OptimizerEmptyProblem instances are not equal. Check their fields."
+    @assert deep_equal(reloaded_solver, my_abstraction_solver) "The OptimizerEmptyProblem instances are not equal. Check their fields."
 else
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
