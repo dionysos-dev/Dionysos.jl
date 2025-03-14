@@ -2,6 +2,8 @@ using MathematicalSystems, StaticArrays, Plots
 using JuMP
 using JLD2
 
+import Base: ==
+
 # include Dionysos
 using Dionysos
 const DI = Dionysos
@@ -62,6 +64,36 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.Silent(), true)  
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
+# Define the equality check for OptimizerEmptyProblem
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "src/optim/abstraction/UniformGridAbstraction/empty_problem.jl"
+    ),
+)
+function Base.:(==)(x::OptimizerEmptyProblem{T}, y::OptimizerEmptyProblem{T}) where {T}
+    return x.discrete_time_system == y.discrete_time_system &&
+           x.abstract_system == y.abstract_system &&
+           x.abstraction_construction_time_sec == y.abstraction_construction_time_sec &&
+           x.continuous_time_system_approximation == y.continuous_time_system_approximation &&
+           x.discrete_time_system_approximation == y.discrete_time_system_approximation &&
+           x.empty_problem == y.empty_problem &&
+           x.state_grid == y.state_grid &&
+           x.input_grid == y.input_grid &&
+           x.overapproximation_map == y.overapproximation_map &&
+           x.growthbound_map == y.growthbound_map &&
+           x.jacobian_bound == y.jacobian_bound &&
+           x.ngrowthbound == y.ngrowthbound &&
+           x.DF_sys == y.DF_sys &&
+           x.bound_DF == y.bound_DF &&
+           x.bound_DDF == y.bound_DDF &&
+           x.n_samples == y.n_samples &&
+           x.time_step == y.time_step &&
+           x.nsystem == y.nsystem &&
+           x.approx_mode == y.approx_mode &&
+           x.efficient == y.efficient &&
+           x.print_level == y.print_level
+end
 
 ### Optimize
 if(do_empty_optim)
@@ -77,7 +109,7 @@ if(do_empty_optim)
 
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
-    @assert(reloaded_solver == my_abstraction_solver)
+    @assert reloaded_solver == my_abstraction_solver "The OptimizerEmptyProblem instances are not equal. Check their fields."
 else
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
