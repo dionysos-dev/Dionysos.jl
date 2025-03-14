@@ -1,5 +1,6 @@
 using MathematicalSystems, StaticArrays, Plots
 using JuMP
+using JLD2
 
 # include Dionysos
 using Dionysos
@@ -56,4 +57,4 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 ### Optimize
 MOI.optimize!(optimizer)
 
-# TODO: add a functionnality to save and import an abstraction
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))

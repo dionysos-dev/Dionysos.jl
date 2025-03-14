@@ -85,7 +85,7 @@ plot!(control_trajectory)
 display(fig)
 
 ### Solve a reachability problem
-_T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
+_T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80)) # T = Target, I = Init
 
 # _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
 concrete_problem_reachability = Dionysos.Problem.OptimalControlProblem(
