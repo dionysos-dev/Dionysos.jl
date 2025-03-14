@@ -66,9 +66,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 ### Optimize
 if(do_empty_optim)
     MOI.optimize!(optimizer)
+    # TODO: add a functionnality to save and import an abstraction
+    my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
+    start_time = time()
+    jldsave(filename_save; my_abstraction_solver)
+    end_time = time()
+    save_time = end_time - start_time
+    @info("Time elapsed to save : $save_time")
+    # TODO : add a timer for saving to have an idea
 else
 end
-
-# TODO: add a functionnality to save and import an abstraction
-my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
-jldsave(filename_save; my_abstraction_solver)
