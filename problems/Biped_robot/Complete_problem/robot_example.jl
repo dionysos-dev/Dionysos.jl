@@ -23,8 +23,9 @@ include(
 #######################################################
 ################### File Parameters ###################
 #######################################################
-filename_save = joinpath(@__DIR__, "Abstraction_solver.jdl")
-do_empty_optim = false
+filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
+do_empty_optim = true
+verify_save = true
 
 #######################################################
 ################### Optim Parameters ##################
@@ -41,11 +42,11 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 
 x0 = SVector{n_state, Float64}(zeros(n_state))
-hx = SVector{n_state, Float64}(fill(1.0, n_state))
+hx = SVector{n_state, Float64}(fill(1.0, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(8.0, n_input))
+hu = SVector{n_input, Float64}(fill(8.0, n_input)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
@@ -60,23 +61,46 @@ MOI.set(
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)   
 MOI.set(optimizer, MOI.Silent(), true)  
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+
 
 ### Optimize
 if(do_empty_optim)
     MOI.optimize!(optimizer)
-    # TODO: add a functionnality to save and import an abstraction
+
+    # Save the abstraction solver
     my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
     start_time = time()
-    jldsave(filename_save; my_abstraction_solver)
+
+    # Open the file in write mode and save the data
+    jldopen(filename_save, "w") do file
+        file["my_abstraction_solver"] = my_abstraction_solver
+    end  # This block ensures the file is closed after writing
+
     end_time = time()
     save_time = end_time - start_time
     @info("Time elapsed to save : $save_time")
+
+    #######################################################
+    ######### Verify no info is lost in the save ##########
+    #######################################################
+    if(verify_save)
+        # In the abtgsraction_solver, we have in the results : discrete_time_system, abstract_system and abstraction_construction_time_sec
+        # We don't care about the last one. discrete_time_system is the function x[k+1] = f(x[k], u[k])
+        # So we only need to compare the abstract_system
+        jldopen(filename_save, "r") do file
+            reloaded_solver = file["my_abstraction_solver"]
+            # Perform the equality check within the read block to keep it scoped
+            equal_test = RobotProblem.deep_equal(
+                MOI.get(reloaded_solver, MOI.RawOptimizerAttribute("abstract_system")),
+                MOI.get(my_abstraction_solver, MOI.RawOptimizerAttribute("abstract_system"))
+            )
+
+            @assert equal_test "Both abstract systems are not equal. See the print to see which field is the source."
+        end
+    end
 else
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
     MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
-    print_level = MOI.get(optimizer, MOI.RawOptimizerAttribute("print_level"))
-    print_level_test = optimizer.abstraction_solver.print_level
-    println("$print_level $print_level_test")
 end

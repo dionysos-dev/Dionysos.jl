@@ -184,4 +184,53 @@ function problem(;
     return PB.EmptyProblem(sys, nothing)
 end
 
+function deep_equal(a, b)
+    # If both are the same reference, they are equal
+    if a === b
+        return true
+    end
+
+    # Handle primitive types and strings directly
+    if isbits(a) || isa(a, AbstractString)
+        return a == b
+    end
+
+    # Handle arrays element-wise
+    if isa(a, AbstractArray)
+        return length(a) == length(b) && all(deep_equal(a[i], b[i]) for i in eachindex(a, b))
+    end
+
+    # Handle dictionaries by comparing keys and values
+    if isa(a, AbstractDict) && isa(b, AbstractDict)
+        return length(a) == length(b) && all(k -> deep_equal(a[k], b[k]), keys(a))
+    end
+
+    # Handle Set elements by checking equality, disregarding order
+    if isa(a, Set) && isa(b, Set)
+        return length(a) == length(b) && all(x -> x in b, a) && all(x -> x in a, b)
+    end
+
+    # Handle Any-type fields recursively (if both are Any)
+    if isa(a, Any) || isa(b, Any)
+        return deep_equal(a, b)
+    end
+
+    # Handle Grid-like structures (e.g., DomainList, GridFree)
+    if isa(a, GridDomainType) && isa(b, GridDomainType)
+        return deep_equal(a.grid, b.grid) && deep_equal(a.elems, b.elems)
+    end
+
+    # Recursively compare fields for composite types (structs, tuples, named tuples)
+    for field in fieldnames(typeof(a))
+        val_a = getfield(a, field)
+        val_b = getfield(b, field)
+        if !deep_equal(val_a, val_b)
+            println("Difference found in field: ", field)
+            return false
+        end
+    end
+
+    return true
+end
+
 end
