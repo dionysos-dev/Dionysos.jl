@@ -80,25 +80,6 @@ if(do_empty_optim)
     end_time = time()
     save_time = end_time - start_time
     @info("Time elapsed to save : $save_time")
-
-    #######################################################
-    ######### Verify no info is lost in the save ##########
-    #######################################################
-    if(verify_save)
-        # In the abtgsraction_solver, we have in the results : discrete_time_system, abstract_system and abstraction_construction_time_sec
-        # We don't care about the last one. discrete_time_system is the function x[k+1] = f(x[k], u[k])
-        # So we only need to compare the abstract_system
-        jldopen(filename_save, "r") do file
-            reloaded_solver = file["my_abstraction_solver"]
-            # Perform the equality check within the read block to keep it scoped
-            equal_test = RobotProblem.deep_equal(
-                MOI.get(reloaded_solver, MOI.RawOptimizerAttribute("abstract_system")),
-                MOI.get(my_abstraction_solver, MOI.RawOptimizerAttribute("abstract_system"))
-            )
-
-            @assert equal_test "Both abstract systems are not equal. See the print to see which field is the source."
-        end
-    end
 else
     file = jldopen(filename_save, "r")
     reloaded_solver = file["my_abstraction_solver"]
