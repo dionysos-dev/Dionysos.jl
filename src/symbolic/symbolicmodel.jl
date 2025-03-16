@@ -208,7 +208,7 @@ function compute_symmodel_from_data2!(
     Udom = symmodel.Udom
     tstep = contsys.tstep
     eta_t = .1         
-    steps_considered = [0,3,6,9,12]
+    steps_considered = [0,1,2,3,4]
     println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
     n_steps = maximum(steps_considered)
 
