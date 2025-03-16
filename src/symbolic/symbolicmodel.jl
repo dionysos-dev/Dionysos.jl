@@ -197,7 +197,7 @@ end
 function compute_symmodel_from_data2!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
-    n_samples = 50,
+    n_samples = 500,
     ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
@@ -208,7 +208,8 @@ function compute_symmodel_from_data2!(
     Udom = symmodel.Udom
     tstep = contsys.tstep
     eta_t = .1         
-    steps_considered = [0,8]
+    steps_considered = [0,3,6,9,12]
+    println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
     n_steps = maximum(steps_considered)
 
     println("$(symmodel.autom.nstates) states")
@@ -230,19 +231,7 @@ function compute_symmodel_from_data2!(
             rec = DO.get_rec(Xdom.grid, xpos)
             x_sampled = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
             for p in 0:n_steps
-                # tstep_cur = tstep * 1.25 ^ p
                 tstep_cur   = tstep + eta_t * p
-                # Fx_sampled = x_sampled
-                # if subdivide && p > 0
-                #     for i in 1:divide
-                #         Fx_sampled = [contsys.sys_map(x, u, tstep_cur/divide) for x ∈ Fx_sampled]
-                #         pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
-                #         pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
-                #         !all(pos_contained_sampled) && break # if we get out of state space, we stop and do not consider longer timesteps
-                #     end
-                # else 
-                #     Fx_sampled = [contsys.sys_map(x,u,tstep_cur) for x ∈ x_sampled]
-                # end
                 Fx_sampled = [contsys.sys_map(x, u, tstep_cur) for x ∈ x_sampled]
                 pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
                 pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
@@ -287,10 +276,14 @@ function compute_symmodel_from_controlsystem!(
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     tstep = contsys.tstep
+    eta_t = .1         
+    steps_considered = [0,1,2,3,4]
+    println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
+    n_steps = maximum(steps_considered)
     r = Xdom.grid.h / 2.0 + contsys.measnoise
     ntrans = 0
     # Vector to store transitions
-    translist = Tuple{Int, Int, Int}[]
+    translist = Tuple{Int, Int, Int, Int}[]
 
     # Updates every 1 seconds
     # Commented because it changes the number of allocations
@@ -300,24 +293,36 @@ function compute_symmodel_from_controlsystem!(
         u = DO.get_coord_by_pos(Udom.grid, upos)
         Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
         for xpos in DO.enum_pos(Xdom)
-            empty!(translist)
             source = get_state_by_xpos(symmodel, xpos)
             x = DO.get_coord_by_pos(Xdom.grid, xpos)
-            Fx = contsys.sys_map(x, u, tstep)
-            rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - Fr, Fx + Fr))
-            ypos_iter = Iterators.product(DO._ranges(rectI)...)
-            allin = true
-            for ypos in ypos_iter
-                if !(ypos in Xdom)
-                    allin = false
+            for p in 0:n_steps 
+                empty!(translist)
+                tstep_cur = tstep + eta_t * p
+                Fx = contsys.sys_map(x, u, tstep_cur)
+                rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - Fr, Fx + Fr))
+                ypos_iter = Iterators.product(DO._ranges(rectI)...)
+                allin = true
+                self_loop = false
+                for ypos in ypos_iter
+                    if !(ypos in Xdom)
+                        allin = false
+                        break
+                    end
+                    target = get_state_by_xpos(symmodel, ypos)
+                    if target == source
+                        self_loop = true
+                        break
+                    end
+                    push!(translist, (target, source, symbol, p))
+                end
+                if allin && !self_loop && p in steps_considered
+                    add_transitions!(symmodel.autom, translist)
+                    ntrans += length(translist)
+                elseif allin && self_loop
+                    continue
+                else 
                     break
                 end
-                target = get_state_by_xpos(symmodel, ypos)
-                push!(translist, (target, source, symbol))
-            end
-            if allin
-                add_transitions!(symmodel.autom, translist)
-                ntrans += length(translist)
             end
         end
     end

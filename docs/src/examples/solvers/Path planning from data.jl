@@ -50,7 +50,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
+concrete_problem = PathPlanning.problem(; simple = false, approx_mode = PathPlanning.GROWTH);
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
@@ -82,6 +82,10 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
+println("save")
+jldsave("PP_big_data_0.1-1.3_eta0.3.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+println("saved")    
+
 automaton = abstract_system.autom
 # UT.analyze_non_determinism(automaton)
 # n_sl = UT.analyze_self_loops(automaton)
@@ -110,6 +114,8 @@ control_trajectory = ST.get_closed_loop_trajectory(
     nstep;
     stopping = reached,
 )
+
+
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);

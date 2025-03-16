@@ -32,6 +32,7 @@ using Test     #src
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
+using JLD2
 
 # At this point, we import Dionysos.
 using Dionysos
@@ -50,7 +51,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "path_planning.
 # ### Definition of the problem
 
 # Now we instantiate the problem using the function provided by [PathPlanning.jl](@__REPO_ROOT_URL__/problems/PathPlanning.jl) 
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
+concrete_problem = PathPlanning.problem(; simple = false, approx_mode = PathPlanning.GROWTH);
 concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
@@ -80,11 +81,11 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-automaton = abstract_system.autom
-UT.analyze_non_determinism(automaton)
-println("Number of self loops: $n_sl")
+# automaton = abstract_system.autom
+# UT.analyze_non_determinism(automaton)
+# println("Number of self loops: $n_sl")
 
-@test length(abstract_controller.data) == 19400 #src
+#@test length(abstract_controller.data) == 19400 #src
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -98,6 +99,14 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
+x0_state  = SY.get_state_by_coord(abstract_system, x0)
+value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
+println("worst case cost: ", value_function[x0_state])
+
+println("save")
+jldsave("PP_big_0.1-0.5_eta0.1.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+println("saved")
+
 control_trajectory = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,

@@ -70,8 +70,9 @@ function problem(; approx_mode = "growth")
     ## stable equilibrium
     _I_ = UT.HyperRectangle(SVector(-5.0*pi/180.0, -5.0*pi/180.0, -0.5, -0.5), SVector(5.0*pi/180.0, 5.0*pi/180.0, 0.5, 0.5))
     #_S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -1.0), SVector(30.0*pi/180.0, 1.0))
-    _S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -30.0*pi/180.0, -1.0, -1.0), SVector(30.0*pi/180.0, 30.0*pi/180.0, 1.0, 1.0))
-
-    return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
+    # _S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -30.0*pi/180.0, -1.0, -1.0), SVector(30.0*pi/180.0, 30.0*pi/180.0, 1.0, 1.0))
+    _T_ = UT.HyperRectangle(SVector(pi-30.0*pi/180.0, pi-30.0*pi/180.0, -1.0, -1.0), SVector(pi+30.0*pi/180.0, pi+30.0*pi/180.0, 1.0, 1.0))
+    return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    #return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
 end
 end

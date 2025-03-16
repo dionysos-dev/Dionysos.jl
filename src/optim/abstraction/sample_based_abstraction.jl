@@ -99,11 +99,10 @@ function build_abstract_problem(
     )
 end
 
-function solve_abstract_problem(abstract_system, abstract_problem::PR.OptimalControlProblem)
+function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
     abstract_controller = NewControllerList()
     @time compute_controller_reach!(
         abstract_controller,
-        abstract_system,
         abstract_problem.system.autom,
         abstract_problem.initial_set,
         abstract_problem.target_set,
@@ -111,7 +110,7 @@ function solve_abstract_problem(abstract_system, abstract_problem::PR.OptimalCon
     return abstract_controller
 end
 
-function solve_abstract_problem(abstract_system, abstract_problem::PR.SafetyProblem)
+function solve_abstract_problem(abstract_problem::PR.SafetyProblem)
     abstract_controller = NewControllerList()
     compute_controller_safe!(
         abstract_controller,
@@ -179,7 +178,7 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.abstract_problem = abstract_problem
 
     # Solve the abstract problem
-    abstract_controller = solve_abstract_problem(abstract_system, abstract_problem)
+    abstract_controller = solve_abstract_problem(abstract_problem)
     optimizer.abstract_controller = abstract_controller
     
     # Solve the concrete problem
@@ -230,7 +229,7 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
                         empty!(post)
                         SY.compute_post!(post, autom, source, symbol, p)
                         gmax = maximum(g[q] for q in post)
-                        time = 0.2 + p * 0.1 
+                        time = 0.1 + p * 0.1
                         # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                         # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
                         cost = time
@@ -295,7 +294,6 @@ end
 
 function _compute_controller_reach_with_cost!(
     contr,
-    abstract_system,
     autom,
     init_set,                # set of initial states
     target_set,              # set of target states
@@ -336,7 +334,7 @@ function _compute_controller_reach_with_cost!(
                     empty!(post)
                     SY.compute_post!(post, autom, qminus, symbol, p)
                     gmax = maximum(g[qprime] for qprime in post)
-                    time = 0.2 + p * 0.1 #0.1 * 1.5 ^ p
+                    time = 0.1 + p * 0.1
                     # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
                     # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
                     cost = time #* true_u[1]^2
@@ -364,7 +362,7 @@ function _data_cost(contr, autom, initlist, targetlist)
     return initset, targetset, num_targets_unreachable, N, g, f
 end
 
-function compute_controller_reach!(contr, abstract_system, autom, initlist, targetlist::Vector{Int})
+function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
@@ -372,7 +370,6 @@ function compute_controller_reach!(contr, abstract_system, autom, initlist, targ
     if cost 
         if !_compute_controller_reach_with_cost!(
             contr,
-            abstract_system,
             autom,
             _data_cost(contr, autom, initlist, targetlist)...,
         )

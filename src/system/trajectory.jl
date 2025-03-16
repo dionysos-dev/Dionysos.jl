@@ -145,6 +145,41 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     #return control_traj
 end
 
+function get_closed_loop_trajectory_smooth(contsys, controller, x0, nstep; stopping = (x) -> false)
+    x = x0
+    divide = 10
+    x_traj = [x]
+    u_traj = []
+    u_traj2 = []
+    t_traj = []
+    i = 0
+    total_time = 0.0
+    control_effort = 0.0    
+    while !stopping(x) && i ≤ nstep
+        u, p = controller(x) 
+        timestep = contsys.tstep + p * 0.1
+        if u === nothing
+            break
+        end
+        println("u = $u, p = $p, timestep = $timestep")
+        control_effort += sum(u[i]^2 * timestep for i in 1:length(u))
+        total_time += timestep
+        for i in 1:divide
+            x = contsys.sys_map(x, u, timestep/divide)
+            push!(x_traj, x)
+            push!(u_traj, u)
+            push!(u_traj2, u[1])
+            push!(t_traj, timestep)
+        end
+        i = i + 1
+    end
+    println("Total time: $total_time")
+    println("Control effort: $control_effort")
+    control_traj = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj)) #, Trajectory(t_traj)
+    return Cost_control_trajectory(control_traj, Trajectory(t_traj))
+    #return control_traj
+end
+
 function get_closed_loop_trajectory(
     f_eval,
     c_eval,

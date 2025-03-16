@@ -27,7 +27,7 @@ input_grid = DO.GridFree(u0, h);
 using JuMP
 
 println("Start of the abstraction")
-optimizer = MOI.instantiate(AB.SampleBasedAbstraction.Optimizer)
+optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 println("check")
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -41,15 +41,12 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
-automaton = abstract_system.autom
+# automaton = abstract_system.autom
 # UT.analyze_non_determinism(automaton, abstract_system)
 # n_sl = UT.analyze_self_loops(automaton)
 # println("Number of self loops: $n_sl")
 
-println("saving")
-println("modif")
-jldsave("simple_pendulum_data.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
-println("saved")
+jldsave("simple_pendulum_GB.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
