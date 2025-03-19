@@ -154,8 +154,8 @@ function system(;
     end
 
     # Define state space (bounds should be set according to your robot's joint limits)
-    state_lower_bounds = [-pi / 4, -pi / 4, 0, 0, -pi, -pi, -5 / 3 * pi, -5 / 3 * pi]  # W350 -> max 30rpm, W210 -> max 50rpm
-    state_upper_bounds = [pi / 4, pi / 4, pi / 2, pi / 2, pi, pi, 5 / 3 * pi, 5 / 3 * pi]
+    state_lower_bounds = [-pi / 4, -pi / 4, -pi / 4, -pi / 4, -pi, -pi, -5 / 3 * pi, -5 / 3 * pi]  # W350 -> max 30rpm, W210 -> max 50rpm
+    state_upper_bounds = [pi / 4 , pi / 4 , pi / 2 , pi / 2,  pi , pi , 5 / 3 * pi , 5 / 3 * pi]
 
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 

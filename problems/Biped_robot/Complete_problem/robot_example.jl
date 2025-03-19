@@ -25,7 +25,7 @@ include(
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
 do_empty_optim = false
-verify_save = true
+verify_save = false
 
 #######################################################
 ################### Optim Parameters ##################
@@ -42,7 +42,7 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 
 x0 = SVector{n_state, Float64}(ones(n_state).*(0))
-hx = SVector{n_state, Float64}(fill(1.0, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
+hx = SVector{n_state, Float64}(fill(0.75, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
@@ -112,8 +112,8 @@ else
     ################# Problem definition ##################
     #######################################################
     _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
-    _T_ = UT.HyperRectangle([fill(-π/4, 2)..., fill(0, 2)..., fill(1,2)..., fill(-2,2)...], 
-        [fill(π/4, 2)..., fill(π/2, 2)..., fill(2,2)..., fill(-1,2)...])
+    _T_ = UT.HyperRectangle(SVector(fill(-0.2, 2)..., fill(-0.9, 2)..., fill(-0.2,2)..., fill(-0.9,2)...), 
+        SVector(fill(0.9, 2)..., fill(0.2, 2)..., fill(0.9,2)..., fill(0.2,2)...))
       
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
@@ -139,7 +139,7 @@ else
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
     
-    nstep = 300
+    nstep = 30 # correspond to 3sec
     function reached(x)
         if x ∈ concrete_problem.target_set
             return true
@@ -147,7 +147,7 @@ else
             return false
         end
     end
-    
+
     control_trajectory = ST.get_closed_loop_trajectory(
         MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
         concrete_controller,
@@ -155,6 +155,10 @@ else
         nstep;
         stopping = reached,
     );
+
+    #println(control_trajectory.states)
+    #println(control_trajectory.inputs)
+    
 end
 
 
