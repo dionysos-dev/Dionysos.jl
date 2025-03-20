@@ -24,7 +24,7 @@ include(
 ################### File Parameters ###################
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
-do_empty_optim = false
+do_empty_optim = true
 verify_save = false
 
 #######################################################
@@ -41,8 +41,8 @@ input_space = MathematicalSystems.inputset(concrete_system)
 println("n_state: ", n_state)
 println("n_input: ", n_input)
 
-x0 = SVector{n_state, Float64}(ones(n_state).*(0))
-hx = SVector{n_state, Float64}(fill(0.75, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
+x0 = SVector{n_state, Float64}(ones(n_state).*(0)) # x0 in our case is a cell center !
+hx = SVector{n_state, Float64}(fill(0.3, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
@@ -112,8 +112,7 @@ else
     ################# Problem definition ##################
     #######################################################
     _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
-    _T_ = UT.HyperRectangle(SVector(fill(-0.2, 2)..., fill(-0.9, 2)..., fill(-0.2,2)..., fill(-0.9,2)...), 
-        SVector(fill(0.9, 2)..., fill(0.2, 2)..., fill(0.9,2)..., fill(0.2,2)...))
+    _T_ = UT.HyperRectangle() # TODO
       
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
@@ -155,9 +154,6 @@ else
         nstep;
         stopping = reached,
     );
-
-    #println(control_trajectory.states)
-    #println(control_trajectory.inputs)
     
 end
 
