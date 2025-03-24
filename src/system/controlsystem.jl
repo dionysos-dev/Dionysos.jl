@@ -95,29 +95,6 @@ struct ControlSystemLinearized{
     sys_inv_map::F4
 end
 
-function RungeKutta4Linearized(F, DF, x, dx, u, tstep, nsub::Int)
-    τ = tstep / nsub
-    for i in 1:nsub
-        Fx1 = F(x, u)
-        DFx1 = DF(x, u) * dx
-        xrk = x + Fx1 * (τ / 2.0)
-        dxrk = dx + DFx1 * (τ / 2.0)
-        Fx2 = F(xrk, u)
-        DFx2 = DF(xrk, u) * dxrk
-        xrk = x + Fx2 * (τ / 2.0)
-        dxrk = dx + DFx2 * (τ / 2.0)
-        Fx3 = F(xrk, u)
-        DFx3 = DF(xrk, u) * dxrk
-        xrk = x + Fx3 * τ
-        dxrk = dx + DFx3 * τ
-        Fx4 = F(xrk, u)
-        DFx4 = DF(xrk, u) * dxrk
-        x += (Fx1 + Fx2 * 2.0 + Fx3 * 2.0 + Fx4) * (τ / 6.0)
-        dx += (DFx1 + DFx2 * 2.0 + DFx3 * 2.0 + DFx4) * (τ / 6.0)
-    end
-    return (x, dx)
-end
-
 # Give an upper-bound on x(t) staisfying x'(t) ≦ a*x(t) + b*exp(2at)
 function BoundSecondOrder(a, b, tstep)
     if a ≈ 0.0
@@ -168,9 +145,9 @@ function discretize_system_with_linearization(
 end
 
 """
-    SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}   
+    SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
 
-is one implementation of the `ControlSystem` type. 
+is one implementation of the `ControlSystem` type.
 """
 struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
     tstep::Float64
@@ -187,8 +164,8 @@ function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N, T}, nsys) where {N,
 end
 
 """
-    EllipsoidalAffineApproximatedSystem{}   
-    
+    EllipsoidalAffineApproximatedSystem{}
+
 is a system whose dynamics is a noisy constrained affine control discrete system whose cells are ellipsoids, with a bound on the Lipschitz constant.
 """
 struct EllipsoidalAffineApproximatedSystem{}
@@ -237,7 +214,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
     function evalSym(x)
-        # When x is a Vector{SymbolicUtils.BasicSymbolic{Real}}, 
+        # When x is a Vector{SymbolicUtils.BasicSymbolic{Real}},
         # one needs to substitute each element of the vector
         if eltype(x) <: Symbolics.SymbolicUtils.BasicSymbolic{Real}
             return [Symbolics.substitute(elem, sub_rules_x̄i) for elem in x]
