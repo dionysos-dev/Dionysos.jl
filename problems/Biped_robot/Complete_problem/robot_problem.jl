@@ -160,8 +160,8 @@ function system(;
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
     # Define input space (bounds should be set according to actuator limits)
-    input_lower_bounds = [-8, -8, -8, -8]   # Example: torque or force limits
-    input_upper_bounds = [8, 8, 8, 8]
+    input_lower_bounds = [-3, -3, -3, -3]   # Example: torque or force limits
+    input_upper_bounds = [3, 3, 3, 3]
 
     input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
 

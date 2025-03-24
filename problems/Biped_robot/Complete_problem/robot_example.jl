@@ -24,13 +24,13 @@ include(
 ################### File Parameters ###################
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
-do_empty_optim = true
+do_empty_optim = false
 verify_save = false
 
 #######################################################
 ################### Optim Parameters ##################
 #######################################################
-concrete_problem = RobotProblem.problem(; tstep = 2e-2)
+concrete_problem = RobotProblem.problem(; tstep = 1e-1)
 concrete_system = concrete_problem.system
 
 ### Set the optimizer
@@ -46,7 +46,7 @@ hx = SVector{n_state, Float64}(fill(0.3, n_state)) # Intentional big discretizat
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(8.0, n_input)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
+hu = SVector{n_input, Float64}(fill(3.0, n_input)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 input_grid = DO.GridFree(u0, hu)
 
 using JuMP
@@ -112,7 +112,10 @@ else
     ################# Problem definition ##################
     #######################################################
     _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
-    _T_ = UT.HyperRectangle() # TODO
+
+    t_low = SVector{n_state,Float64}([0.1, 0.1, -0.1, -0.1, -0.8, -0.8, -0.8, -0.8])
+    t_high = SVector{n_state,Float64}([0.5, 0.5, -0.5, -0.5, 0.8, 0.8, 0.8, 0.8])
+    _T_ = UT.HyperRectangle(t_low, t_high) # TODO
       
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
