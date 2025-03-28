@@ -20,12 +20,50 @@ include(
     ),
 )
 
+function get_abstract_closed_loop_trajectory(abstract_system, abstract_controller, source, nstep; stopping = (s)->false)
+    state_traj, input_traj = [source], []
+
+    for _ in 1:nstep
+        stopping(source) && break
+        abstract_inputs = UT.fix_and_eliminate_first(abstract_controller, source)
+        if isempty(abstract_inputs)
+            @warn("Uncontrollable state: $source")
+            return nothing
+        end
+        input = first(abstract_inputs)[1]
+        targets = []
+        UT.fix_and_eliminate_tail!(targets, abstract_system.autom.transitions, (source, input))
+        source = first(targets)
+        push!(state_traj, source)
+        push!(input_traj, input)
+    end
+    return ST.Control_trajectory(ST.Trajectory(state_traj), ST.Trajectory(input_traj))
+end
+
+function get_concrete_trajectory(abstract_system, abstract_trajectory::ST.Control_trajectory)
+    concrete_state_traj, concrete_input_traj = [], []
+    for k in 1:ST.length(abstract_trajectory)
+        abstarct_state = ST.get_state(abstract_trajectory, k)
+        concrete_state = SY.get_concrete_state(abstract_system, abstarct_state)
+        push!(concrete_state_traj, concrete_state)
+
+        if k<ST.length(abstract_trajectory)
+            abstract_input = ST.get_input(abstract_trajectory, k)
+            concrete_input = SY.get_concrete_input(abstract_system, abstract_input)
+            push!(concrete_input_traj, concrete_input)
+        end
+    end
+    return ST.Control_trajectory(ST.Trajectory(concrete_state_traj), ST.Trajectory(concrete_input_traj))
+end
+
 #######################################################
 ################### File Parameters ###################
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
 do_empty_optim = false
 verify_save = false
+First_part = false
+Second_part = true
 
 #######################################################
 ################### Optim Parameters ##################
@@ -81,58 +119,140 @@ if(do_empty_optim)
     save_time = end_time - start_time
     @info("Time elapsed to save : $save_time")
 else
-    # Reload the result
-    file = jldopen(filename_save, "r")
-    reloaded_solver = file["my_abstraction_solver"]
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
+    if(First_part)
+        println("First part : ")
+        println()
+        # Reload the result
+        file = jldopen(filename_save, "r")
+        reloaded_solver = file["my_abstraction_solver"]
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
 
-    #######################################################
-    ################# Problem definition ##################
-    #######################################################
-    _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
+        #######################################################
+        ################# Problem definition ##################
+        #######################################################
+        _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
 
-    t_low = SVector{n_state,Float64}([-10*π/180.0, 2*π/180.0, 6*π/180.0, -0.75, -0.3, -0.3])
-    t_high = SVector{n_state,Float64}([-6*π/180.0, 10*π/180.0, 10*π/180.0, 0.3, 0.75, 0.75])
-    _T_ = UT.HyperRectangle(t_low, t_high)
-      
-    concrete_problem = Dionysos.Problem.OptimalControlProblem(
-        concrete_system,
-        _I_,
-        _T_,
-        nothing,
-        nothing,
-        Dionysos.Problem.Infinity(),
-    )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("concrete_problem"),
-        concrete_problem,
-    )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    MOI.optimize!(optimizer)
-    abstract_problem_time =
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-    println("Time to solve the abstract problem: $(abstract_problem_time)")
-    
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-    uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-    
-    nstep = 300 # correspond to 30 sec
-    function reached(x)
-        if x ∈ concrete_problem.target_set
-            return true
-        else
-            return false
+        t_low = SVector{n_state,Float64}([-12*π/180.0, 7*π/180.0, 8*π/180.0, -0.75, -0.3, -0.3])
+        t_high = SVector{n_state,Float64}([-8*π/180.0, 9*π/180.0, 12*π/180.0, 0.3, 0.75, 0.75])
+        _T_ = UT.HyperRectangle(t_low, t_high)
+        
+        concrete_problem = Dionysos.Problem.OptimalControlProblem(
+            concrete_system,
+            _I_,
+            _T_,
+            nothing,
+            nothing,
+            Dionysos.Problem.Infinity(),
+        )
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("concrete_problem"),
+            concrete_problem,
+        )
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+        MOI.optimize!(optimizer)
+        abstract_problem_time =
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+        println("Time to solve the abstract problem: $(abstract_problem_time)")
+        
+        abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+        concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+        controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+        uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+        
+        nstep = 300 # correspond to 30 sec
+        function reached(x)
+            if x ∈ concrete_problem.target_set
+                return true
+            else
+                return false
+            end
         end
-    end
 
-    control_trajectory = ST.get_closed_loop_trajectory(
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-        concrete_controller,
-        x0,
-        nstep;
-        stopping = reached,
-    );
+        #######################################################
+        ################# Concrete Trajectory #################
+        #######################################################
+        control_trajectory = ST.get_closed_loop_trajectory(
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+            concrete_controller,
+            x0,
+            nstep;
+            stopping = reached,
+        );
+        println(control_trajectory)
+        println()
+    end
+    if(Second_part)
+        println("Second Part")
+        println()
+        # Reload the result
+        file = jldopen(filename_save, "r")
+        reloaded_solver = file["my_abstraction_solver"]
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
+
+        #######################################################
+        ################# Problem definition ##################
+        #######################################################
+        p0 = SVector{n_state,Float64}([-0.15352800685754736, 0.11944498327439435, 0.21311298746900986, 0.0, 0.0, 0.0])
+        _I_ = UT.HyperRectangle(p0, p0)
+
+        t_low = SVector{n_state,Float64}([-1.1*π/180.0, -1.1*π/180.0, -1.1*π/180.0, -0.75, -0.3, -0.3])
+        t_high = SVector{n_state,Float64}([1.1*π/180.0, 1.1*π/180.0, 1.1*π/180.0, 0.3, 0.75, 0.75])
+        _T_ = UT.HyperRectangle(t_low, t_high)
+        
+        concrete_problem = Dionysos.Problem.OptimalControlProblem(
+            concrete_system,
+            _I_,
+            _T_,
+            nothing,
+            nothing,
+            Dionysos.Problem.Infinity(),
+        )
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("concrete_problem"),
+            concrete_problem,
+        )
+        MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+        MOI.optimize!(optimizer)
+        abstract_problem_time =
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+        println("Time to solve the abstract problem: $(abstract_problem_time)")
+        
+        abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+        abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+        concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+        controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+        uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+        
+        nstep = 300 # correspond to 30 sec
+        function reached_abstract(x)
+            if x ∈ abstract_problem.target_set
+                return true
+            else
+                return false
+            end
+        end
+
+        #######################################################
+        ################# Abstract Trajectory #################
+        #######################################################
+        abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+        abstract_init_set = Dionysos.Symbolic.get_abstract_state(abstract_system, p0)
+        #println(abstract_init_set)
+        control_trajectory = get_abstract_closed_loop_trajectory(
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system")),
+            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller")),
+            abstract_init_set,
+            nstep;
+            stopping = reached_abstract,
+        );
+        
+        println(control_trajectory)
+
+        concrete_control_trajectory = get_concrete_trajectory(abstract_system, control_trajectory)
+        println(concrete_control_trajectory)
+
+        println()
+    end
 end
