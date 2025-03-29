@@ -170,7 +170,7 @@ function system(;
     end
     # Define state space (bounds should be set according to your robot's joint limits)
     # Note : We need to add the discretisation step at each of the borns if the ones we chose are supposed to be centroids
-    disc_steps = [fill(2π/180, 3)..., fill(0.15, 3)...]
+    disc_steps = [fill(π/180, 3)..., fill(0.075, 3)...]
     state_lower_bounds = [-12*π/180, 0, 0, -0.6, -0.15, -0.15] .- disc_steps
     state_upper_bounds = [0, 12*π/180, 14*π/180, 0.15, 0.6, 0.6] .+ disc_steps
 

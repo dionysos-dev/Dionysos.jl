@@ -1,4 +1,4 @@
-using MathematicalSystems, StaticArrays, Plots
+using MathematicalSystems, StaticArrays, Plots, LinearAlgebra
 using JuMP
 using JLD2
 
@@ -227,6 +227,7 @@ else
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
+        optimizer.handle_out_of_domain = 2
 
         #######################################################
         ################# Problem definition ##################
@@ -302,57 +303,13 @@ else
             end
         end
 
-        concrete_control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-            concrete_controller,
-            p0,
-            nstep;
-            stopping = reached,
-        );
+        # In our case, the state_space has been defined too large when we did the abstraction
+        # We have to re-create the exact one
+        half_step = [fill(π/180, 3)..., fill(0.075, 3)...]
+        state_lower_bounds = [-12*π/180, 0, 0, -0.6, -0.15, -0.15] .- half_step
+        state_upper_bounds = [0, 12*π/180, 14*π/180, 0.15, 0.6, 0.6] .+ half_step
 
-        println(concrete_control_trajectory)
-        println()
-
-        """
-        for k in 1:ST.length(concrete_control_trajectory)
-            concrete_state = ST.get_state(concrete_control_trajectory, k)
-            abstract_state = SY.get_abstract_state(abstract_system, concrete_state)
-            println(abstract_state)
-        end
-        println()
-        
-        # Tests : to delete afterwards
-        p0 = SVector{n_state,Float64}([-0.1136,  0.1110,  0.1726,  0.2200,  0.1523, -0.1640])
-        _I_ = UT.HyperRectangle(p0, p0)
-        
-        t_low = SVector{n_state,Float64}([-1.1*π/180.0, -1.1*π/180.0, -1.1*π/180.0, -0.75, -0.3, -0.3])
-        t_high = SVector{n_state,Float64}([1.1*π/180.0, 1.1*π/180.0, 1.1*π/180.0, 0.3, 0.75, 0.75])
-        _T_ = UT.HyperRectangle(t_low, t_high)
-        
-        concrete_problem = Dionysos.Problem.OptimalControlProblem(
-            concrete_system,
-            _I_,
-            _T_,
-            nothing,
-            nothing,
-            Dionysos.Problem.Infinity(),
-        )
-        MOI.set(
-            optimizer,
-            MOI.RawOptimizerAttribute("concrete_problem"),
-            concrete_problem,
-        )
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-        MOI.optimize!(optimizer)
-        abstract_problem_time =
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-        println("Time to solve the abstract problem: $(abstract_problem_time)")
-        
-        abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-        abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-        concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-        controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-        uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+        state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
         concrete_control_trajectory = ST.get_closed_loop_trajectory(
             MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
@@ -360,94 +317,11 @@ else
             p0,
             nstep;
             stopping = reached,
+            handle_out_of_domain = optimizer.handle_out_of_domain,
+            state_space = state_space
         );
 
         println(concrete_control_trajectory)
-
-        p0 = SVector{n_state,Float64}([-0.10124849167413423, 0.10021950621514078, 0.14123841440383103, 0.221056128097977, 0.1435865677883655, -0.19154720021498037])
-        _I_ = UT.HyperRectangle(p0, p0)
-        
-        t_low = SVector{n_state,Float64}([-1.1*π/180.0, -1.1*π/180.0, -1.1*π/180.0, -0.75, -0.3, -0.3])
-        t_high = SVector{n_state,Float64}([1.1*π/180.0, 1.1*π/180.0, 1.1*π/180.0, 0.3, 0.75, 0.75])
-        _T_ = UT.HyperRectangle(t_low, t_high)
-        
-        concrete_problem = Dionysos.Problem.OptimalControlProblem(
-            concrete_system,
-            _I_,
-            _T_,
-            nothing,
-            nothing,
-            Dionysos.Problem.Infinity(),
-        )
-        MOI.set(
-            optimizer,
-            MOI.RawOptimizerAttribute("concrete_problem"),
-            concrete_problem,
-        )
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-        MOI.optimize!(optimizer)
-        abstract_problem_time =
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-        println("Time to solve the abstract problem: $(abstract_problem_time)")
-        
-        abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-        abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-        concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-        controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-        uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))  
-
-        concrete_control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-            concrete_controller,
-            p0,
-            nstep;
-            stopping = reached,
-        );
-
-        println(concrete_control_trajectory)
-
-        p0 = SVector{n_state,Float64}([-0.05211664591289528, 0.040428168992196055, 0.06814127957187574, 0.11836299577502285, -0.11864321715786709, -0.2206042837754665])
-        _I_ = UT.HyperRectangle(p0, p0)
-        
-        t_low = SVector{n_state,Float64}([-1.1*π/180.0, -1.1*π/180.0, -1.1*π/180.0, -0.75, -0.3, -0.3])
-        t_high = SVector{n_state,Float64}([1.1*π/180.0, 1.1*π/180.0, 1.1*π/180.0, 0.3, 0.75, 0.75])
-        _T_ = UT.HyperRectangle(t_low, t_high)
-        
-        concrete_problem = Dionysos.Problem.OptimalControlProblem(
-            concrete_system,
-            _I_,
-            _T_,
-            nothing,
-            nothing,
-            Dionysos.Problem.Infinity(),
-        )
-        MOI.set(
-            optimizer,
-            MOI.RawOptimizerAttribute("concrete_problem"),
-            concrete_problem,
-        )
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-        MOI.optimize!(optimizer)
-        abstract_problem_time =
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-        println("Time to solve the abstract problem: $(abstract_problem_time)")
-        
-        abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-        abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-        concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-        controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-        uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))  
-
-        concrete_control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-            concrete_controller,
-            p0,
-            nstep;
-            stopping = reached,
-        );
-
-        println(concrete_control_trajectory)
-        """
         println()
         
     end

@@ -117,6 +117,8 @@ function get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = (x) -> false,
+    handle_out_of_domain = 0,
+    state_space = nothing
 )
     x = x0
     x_traj, u_traj = [x], []
@@ -126,6 +128,18 @@ function get_closed_loop_trajectory(
         u = controller(x)
         u === nothing && break
         x = MS.mapping(system)(x, u)
+        if(handle_out_of_domain == 2)
+            # Changes x if it is outside of the state_space
+            if(state_space === nothing)
+                @warn("handle_out_of_domain = 2 requires the concrete state_space (a Hyperrectangle) to be passed as argument")
+                return nothing
+            end
+            if(any(x .< state_space.lb) || any(x .> state_space.ub))
+                newx = clamp.(x, state_space.lb, state_space.ub)
+                @warn("Concrete state out of domain: $x, new concrete state: $newx")
+                x = newx
+            end
+        end
         push!(x_traj, x)
         push!(u_traj, u)
     end

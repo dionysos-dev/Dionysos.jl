@@ -9,6 +9,7 @@ SY = Dionysos.Symbolic
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
 import HybridSystems
+using LinearAlgebra
 using JuMP
 
 include("empty_problem.jl")
@@ -28,7 +29,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_controller::Any
     solve_time_sec::T
     print_level::Int
-    handle_out_of_domain_type::Int
+    handle_out_of_domain::Int
 
     function Optimizer{T}() where {T}
         return new{T}(nothing, nothing, nothing, 0.0, 1, 0)
@@ -139,14 +140,22 @@ end
 
 NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
-function solve_concrete_problem(abstract_system, abstract_controller, optimizer)
+function solve_concrete_problem(abstract_system, abstract_controller, handle_out_of_domain)
     function concrete_controller(x; param = false)
         # Getting the position of the state in the abstract system
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
         if !(xpos ∈ abstract_system.Xdom)
-            @warn("State out of domain: $x")
-            if(optimizer.handle_out_of_domain_type == 0)
+            if(handle_out_of_domain == 0)
+                @warn("State out of domain: $x")
                 return nothing
+            else
+                # Handle_out_of_domain == 1: does not modify x, but uses the nearest abstract state to get the input to apply
+                # Handle_out_of_domain == 2: same as handle_out_of_domain == 1, but modifies also the x (done in trajectory.jl)
+                xnew = argmin(p -> norm(collect(p) - collect(xpos)), abstract_system.Xdom.elems)
+                if(handle_out_of_domain == 1)
+                    @warn("State out of domain: $x, abstract state: $xpos, new abstract state: $xnew")
+                end
+                xpos = xnew
             end
         end
 
@@ -217,7 +226,7 @@ function MOI.optimize!(optimizer::Optimizer)
         )
         optimizer.concrete_controller = solve_concrete_problem(
             optimizer.abstraction_solver.abstract_system,
-            abstract_controller, optimizer
+            abstract_controller, optimizer.handle_out_of_domain
         )
     end
 
