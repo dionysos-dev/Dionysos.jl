@@ -28,9 +28,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_controller::Any
     solve_time_sec::T
     print_level::Int
+    handle_out_of_domain_type::Int
 
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, 0.0, 1)
+        return new{T}(nothing, nothing, nothing, 0.0, 1, 0)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -138,13 +139,15 @@ end
 
 NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 
-function solve_concrete_problem(abstract_system, abstract_controller)
+function solve_concrete_problem(abstract_system, abstract_controller, optimizer)
     function concrete_controller(x; param = false)
         # Getting the position of the state in the abstract system
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain: $x")
-            return nothing
+            if(optimizer.handle_out_of_domain_type == 0)
+                return nothing
+            end
         end
 
         # Getting the corresponding abstract state
@@ -214,7 +217,7 @@ function MOI.optimize!(optimizer::Optimizer)
         )
         optimizer.concrete_controller = solve_concrete_problem(
             optimizer.abstraction_solver.abstract_system,
-            abstract_controller,
+            abstract_controller, optimizer
         )
     end
 
