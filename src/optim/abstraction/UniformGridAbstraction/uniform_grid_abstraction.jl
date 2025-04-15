@@ -48,6 +48,15 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         model.abstraction_solver = OptimizerEmptyProblem()
     end
 
+    if param_symbol == :abstract_system 
+        MOI.set(
+            model.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            value,
+        )
+        return
+    end
+
     if param_symbol == :concrete_problem
         # Assign appropriate control solver
         if isa(value, Dionysos.Problem.EmptyProblem)
@@ -164,6 +173,7 @@ function solve_concrete_problem(abstract_system, abstract_controller)
 
         # Getting and return the control points
         u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
+        
         return u
     end
 end

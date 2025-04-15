@@ -10,6 +10,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
 
     # Specific parameters
     early_stop::Union{Nothing, Bool}
+    sparse_input::Bool
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
     uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
 
@@ -24,6 +25,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
             nothing,
             0.0,
             true,
+            false,
             nothing,
             nothing,
             false,
@@ -76,6 +78,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
             optimizer.abstract_problem.system,
             optimizer.abstract_problem.target_set;
             initial_set = init_set,
+            sparse_input = optimizer.sparse_input,
         )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(
@@ -134,6 +137,7 @@ function compute_largest_controllable_set(
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
     target_set;
     initial_set = Dionysos.Symbolic.enum_cells(abstract_system),
+    sparse_input = false,
 )
     abstract_controller = NewControllerList()
     stateset,
@@ -141,7 +145,7 @@ function compute_largest_controllable_set(
     controllable_set,
     num_targets_unreachable,
     current_targets,
-    next_targets = _data(abstract_system.autom, initial_set, target_set)
+    next_targets = _data(abstract_system.autom, initial_set, target_set, sparse_input)
 
     _compute_controller_reach!(
         abstract_controller,
@@ -158,28 +162,50 @@ function compute_largest_controllable_set(
     return abstract_controller, controllable_set, uncontrollable_set
 end
 
-function _compute_num_targets_unreachable(num_targets_unreachable, autom)
-    for target in 1:(autom.nstates)
-        for soursymb in Dionysos.Symbolic.pre(autom, target)
-            num_targets_unreachable[soursymb[1], soursymb[2]] += 1
+
+function increase_counter!(counter::Array{Int, 2}, source::Int, symbol::Int)
+    counter[source, symbol] += 1
+end
+function increase_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, symbol::Int)
+    key = (source, symbol)
+    counter[key] = get(counter, key, 0) + 1
+end
+
+function decrease_counter!(counter::Array{Int, 2}, source::Int, symbol::Int)
+    counter[source, symbol] -= 1
+    return counter[source, symbol]
+end
+function decrease_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, symbol::Int)
+    key = (source, symbol)
+    counter[key] = get(counter, key, 0) - 1
+    return counter[key]
+end
+
+function _compute_num_targets_unreachable(counter, autom)
+    for target in 1:autom.nstates
+        for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
+            increase_counter!(counter, source, symbol)
         end
     end
 end
 
-function _data(autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
+function _data(autom, initlist, targetlist, sparse_input::Bool)
+    if sparse_input
+        num_targets_unreachable = Dict{Tuple{Int, Int}, Int}()
+    else
+        num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
+    end
+
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
+
     stateset = BitSet(1:(autom.nstates))
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
     current_targets = copy(targetlist)
     next_targets = Int[]
-    return stateset,
-    initset,
-    targetset,
-    num_targets_unreachable,
-    current_targets,
-    next_targets
+
+    return stateset, initset, targetset,
+           num_targets_unreachable, current_targets, next_targets
 end
 
 function _compute_controller_reach!(
@@ -187,27 +213,31 @@ function _compute_controller_reach!(
     autom,
     init_set,
     target_set,
-    num_targets_unreachable,
+    counter,
     current_targets,
     next_targets,
 )
     num_init_unreachable = length(init_set)
+
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
+
         for target in current_targets
             for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
-                if !(source in target_set) &&
-                   iszero(num_targets_unreachable[source, symbol] -= 1)
+                if !(source in target_set) && iszero(decrease_counter!(counter, source, symbol))
                     push!(target_set, source)
                     push!(next_targets, source)
                     Dionysos.Utils.push_new!(contr, (source, symbol))
+
                     if source in init_set
                         num_init_unreachable -= 1
                     end
                 end
             end
         end
+        
         current_targets, next_targets = next_targets, current_targets
     end
+
     return iszero(num_init_unreachable)
 end

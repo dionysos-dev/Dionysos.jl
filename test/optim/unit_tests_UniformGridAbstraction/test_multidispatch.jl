@@ -35,7 +35,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.RANDOM_SIMULATION,
+    AB.UniformGridAbstraction.GROWTH,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)

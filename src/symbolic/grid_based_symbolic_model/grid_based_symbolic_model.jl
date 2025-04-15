@@ -20,6 +20,7 @@ function get_abstract_state(symmodel::SymbolicModel, x) end
 function get_abstract_input(symmodel::SymbolicModel, u) end
 
 function add_transitions!(symmodel::SymbolicModel, translist) end
+function is_deterministic(symmodel::SymbolicModel) end
 
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}

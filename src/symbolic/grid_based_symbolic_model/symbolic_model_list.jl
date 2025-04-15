@@ -17,6 +17,9 @@ mutable struct SymbolicModelList{
     xint2pos::Vector{NTuple{N, Int}}
     ucoord2int::Any
     uint2coord::Any
+    determinized::Bool
+    # Field to store algorithm-specific data
+    metadata::Dict{Symbol, Any}
 end
 
 function NewSymbolicModelListList(
@@ -43,6 +46,8 @@ function NewSymbolicModelListList(
         xint2pos,
         ucoord2int,
         uint2coord,
+        false,
+        Dict{Symbol, Any}(),
     )
 end
 
@@ -69,8 +74,20 @@ get_xpos_by_state(symmodel::SymbolicModelList, state) = symmodel.xint2pos[state]
 get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
 is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
-get_concrete_input(symmodel::SymbolicModelList, input) = symmodel.uint2coord[input]
-get_abstract_input(symmodel::SymbolicModelList, u) = symmodel.ucoord2int[u]
+function get_concrete_input(symmodel::SymbolicModelList, input)
+    if !symmodel.determinized
+        return symmodel.uint2coord[input]
+    else
+        return get_concrete_input(symmodel.metadata[:original_symmodel], symmodel.uint2coord[input][1])
+    end
+end
+function get_abstract_input(symmodel::SymbolicModelList, u)
+    if !symmodel.determinized
+        return symmodel.ucoord2int[u]
+    else
+        return get_abstract_input(symmodel.metadata[:original_symmodel], u)
+    end
+end
 
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
@@ -79,12 +96,12 @@ is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
 
 function determinize_symbolic_model(symmodel::SymbolicModelList)
     autom = symmodel.autom
-    new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping
-    new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse mapping
+    new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping (int -> (symbol, target))
+    new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse (symbol, target) -> int
 
     next_input_id = 1  # Track new input indices
 
-    # Go through all transitions and modify the input encoding
+    # Step 1: Build new input encodings
     for (target, source, symbol) in UT.get_data(autom.transitions)
         new_input = (symbol, target)  # Couple input with target
 
@@ -95,16 +112,31 @@ function determinize_symbolic_model(symmodel::SymbolicModelList)
         end
     end
 
-    # Return a new symbolic model with updated inputs
-    return SymbolicModelList(
+     # Step 2: Create new automaton with same number of states, new number of symbols, and transitions
+     nstates = autom.nstates
+     new_nsymbols = length(new_uint2coord)
+     new_autom = AutomatonList{typeof(autom.transitions)}(nstates, new_nsymbols)
+     for (target, source, symbol) in UT.get_data(autom.transitions)
+        new_input = (symbol, target)
+        new_input_id = new_ucoord2int[new_input]
+        HybridSystems.add_transition!(new_autom, source, target, new_input_id)
+    end
+
+    new_symmodel = SymbolicModelList(
         symmodel.Xdom,
         symmodel.Udom,
-        autom,  # Automaton remains unchanged
+        new_autom,
         symmodel.xpos2int,
         symmodel.xint2pos,
-        new_ucoord2int,  # Updated input mappings
-        new_uint2coord,  # Updated input mappings
+        new_ucoord2int,
+        new_uint2coord,
+        true,
+        Dict{Symbol, Any}(),
     )
+
+    # Step 3: Store the original symmodel to keep the original input mapping (symbol -> u) and (u -> symbol)
+    new_symmodel.metadata[:original_symmodel] = symmodel
+    return new_symmodel
 end
 
 @recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
