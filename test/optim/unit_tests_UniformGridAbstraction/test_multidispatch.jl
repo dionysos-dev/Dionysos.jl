@@ -85,6 +85,7 @@ plot!(control_trajectory)
 display(fig)
 
 ### Solve a reachability problem
+# _I_= UT.HyperRectangle(SVector(1.25, 5.80), SVector(1.25, 5.80))
 _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
 
 # _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
