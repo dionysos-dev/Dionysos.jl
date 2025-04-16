@@ -1,3 +1,5 @@
+module TestMain
+
 using Test
 using Dionysos
 bisection = Dionysos.Utils.bisection
@@ -27,3 +29,5 @@ bisection = Dionysos.Utils.bisection
     )
     @test (-5 ≤ result[2] ≤ 4) && abs(result[1] + 4.0) > ϵ && result[1] < 0
 end
+
+end  # module TestMain

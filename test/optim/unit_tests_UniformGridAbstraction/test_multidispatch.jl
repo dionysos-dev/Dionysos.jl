@@ -108,7 +108,6 @@ abstract_problem_time =
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-# @test length(abstract_controller.data) == 893803 #src
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
 uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))

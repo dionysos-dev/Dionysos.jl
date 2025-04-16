@@ -13,8 +13,12 @@ end
 NewAutomatonList(nstates, nsymbols) =
     AutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
 
+get_transition(autom::AutomatonList) = autom.transitions
+get_n_state(autom::AutomatonList) = autom.nstates
+get_n_input(autom::AutomatonList) = autom.nsymbols
+
 function HybridSystems.ntransitions(autom::AutomatonList)
-    return length(autom.transitions)
+    return length(get_transition(autom))
 end
 
 # Assumes not add twice same transition...

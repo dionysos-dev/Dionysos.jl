@@ -113,6 +113,7 @@ abstract_problem = get_attribute(model, "abstract_problem");
 abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
+abstract_value_function = get_attribute(model, "abstract_value_function")
 concrete_system = concrete_problem.system
 abstraction_time =
     MOI.get(model, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
@@ -153,8 +154,8 @@ fig = plot(; aspect_ratio = :equal);
 # We display the concrete domain
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "");
 
-# We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
+# We display the abstract domain with worst-case cost
+plot!(abstract_system; value_function = abstract_value_function);
 
 # We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");

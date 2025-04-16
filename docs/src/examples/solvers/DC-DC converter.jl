@@ -160,6 +160,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
+plot!(uninvariant_set; color = :black, label = "Uninvariant set")
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 

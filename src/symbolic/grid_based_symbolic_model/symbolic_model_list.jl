@@ -60,6 +60,8 @@ function with_automaton(symmodel::SymbolicModelList, autom)
         symmodel.xint2pos,
         symmodel.ucoord2int,
         symmodel.uint2coord,
+        symmodel.determinized,
+        symmodel.metadata,
     )
 end
 
@@ -73,6 +75,11 @@ get_input_domain(symmodel::SymbolicModelList) = symmodel.Udom
 get_xpos_by_state(symmodel::SymbolicModelList, state) = symmodel.xint2pos[state]
 get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
 is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
+
+function get_transitions(symmodel::SymbolicModelList)
+    transitions = get_transition(symmodel.autom)
+    return UT.get_data(transitions)
+end
 
 function get_concrete_input(symmodel::SymbolicModelList, input)
     if !symmodel.determinized
@@ -102,7 +109,7 @@ function determinize_symbolic_model(symmodel::SymbolicModelList)
     next_input_id = 1  # Track new input indices
 
     # Step 1: Build new input encodings
-    for (target, source, symbol) in UT.get_data(autom.transitions)
+    for (target, source, symbol) in UT.get_data(get_transition(autom))
         new_input = (symbol, target)  # Couple input with target
 
         if !haskey(new_ucoord2int, new_input)
@@ -137,58 +144,4 @@ function determinize_symbolic_model(symmodel::SymbolicModelList)
     # Step 3: Store the original symmodel to keep the original input mapping (symbol -> u) and (u -> symbol)
     new_symmodel.metadata[:original_symmodel] = symmodel
     return new_symmodel
-end
-
-@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
-    # Display the cells
-    state_grid = symmodel.Xdom.grid
-    if cost
-        LyapMax = max(filter(isfinite, getfield.([lyap_fun...], :second))...)
-        colormap = Colors.colormap("Blues")
-        mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
-        cost_ordered =
-            reverse(sort(hcat([(lyap, state) for (state, lyap) in lyap_fun]...); dims = 2))
-        for (lyap, state) in cost_ordered
-            pos = get_xpos_by_state(symmodel, state)
-            elli = DO.get_elem_by_pos(state_grid, pos)
-            @series begin
-                lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
-                return elli
-            end
-        end
-        @series begin
-            mycolorMap
-        end
-    else
-        @series begin
-            symmodel.Xdom
-        end
-    end
-    # Display the arrows
-    if arrowsB
-        for t in symmodel.autom.transitions.data
-            if t[1] == t[2]
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    return UT.DrawPoint(p1)
-                end
-            else
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
-                    return UT.DrawArrow(p1, p2)
-                end
-            end
-        end
-    end
 end

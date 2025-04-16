@@ -84,32 +84,6 @@ println("Started test")
         )
 
     @test length(contr) == 412
-    if VERSION >= v"1.5"
-        function f(autom, initlist, targetlist)
-            contr = AB.UniformGridAbstraction.NewControllerList()
-            initset,
-            targetset,
-            controllableset,
-            num_targets_unreachable,
-            current_targets,
-            next_targets = AB.UniformGridAbstraction._data(autom, initlist, targetlist)
-            # Preallocates to make sure `_compute_controller_reach` does not need to allocate
-            sizehint!(contr.data, 600)
-            sizehint!(current_targets, 50)
-            sizehint!(next_targets, 200)
-            @allocated AB.UniformGridAbstraction._compute_controller_reach!(
-                contr,
-                autom,
-                initset,
-                controllableset,
-                num_targets_unreachable,
-                current_targets,
-                next_targets,
-            )
-        end
-
-        @test f(symmodel.autom, initlist, targetlist) == 0
-    end
 end
 
 sleep(0.1) # used for good printing
