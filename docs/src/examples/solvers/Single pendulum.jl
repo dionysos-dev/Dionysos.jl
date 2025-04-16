@@ -124,16 +124,6 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; color = :grey, label = "");
 
 # We display the specifications
-plot!(
-    concrete_problem.initial_set;
-    color = :green,
-    opacity = 1.0,
-    label = "Initial set",
-);
-plot!(
-    concrete_problem.target_set;
-    color = :red,
-    opacity = 1.0,
-    label = "Target set",
-);
+plot!(concrete_problem.initial_set; color = :green, opacity = 1.0, label = "Initial set");
+plot!(concrete_problem.target_set; color = :red, opacity = 1.0, label = "Target set");
 plot!(control_trajectory; markersize = 1, arrows = false)

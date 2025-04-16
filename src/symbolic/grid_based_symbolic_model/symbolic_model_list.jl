@@ -85,7 +85,10 @@ function get_concrete_input(symmodel::SymbolicModelList, input)
     if !symmodel.determinized
         return symmodel.uint2coord[input]
     else
-        return get_concrete_input(symmodel.metadata[:original_symmodel], symmodel.uint2coord[input][1])
+        return get_concrete_input(
+            symmodel.metadata[:original_symmodel],
+            symmodel.uint2coord[input][1],
+        )
     end
 end
 function get_abstract_input(symmodel::SymbolicModelList, u)
@@ -103,32 +106,30 @@ is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
 
 function determinize_symbolic_model(symmodel::SymbolicModelList)
     autom = symmodel.autom
-    new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping (int -> (symbol, target))
-    new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse (symbol, target) -> int
+    transitions = UT.get_data(get_transition(autom))
 
-    next_input_id = 1  # Track new input indices
+    new_ucoord2int = Dict{Tuple{Any, Int}, Int}() # New input mapping (int -> (symbol, target))
+    new_uint2coord = Dict{Int, Tuple{Any, Int}}() # Reverse (symbol, target) -> int
 
-    # Step 1: Build new input encodings
-    for (target, source, symbol) in UT.get_data(get_transition(autom))
-        new_input = (symbol, target)  # Couple input with target
-
-        if !haskey(new_ucoord2int, new_input)
-            new_ucoord2int[new_input] = next_input_id
-            new_uint2coord[next_input_id] = new_input
-            next_input_id += 1
-        end
-    end
-
-     # Step 2: Create new automaton with same number of states, new number of symbols, and transitions
-     nstates = autom.nstates
-     new_nsymbols = length(new_uint2coord)
-     new_autom = AutomatonList{typeof(autom.transitions)}(nstates, new_nsymbols)
-     for (target, source, symbol) in UT.get_data(autom.transitions)
+    input_counter = 1
+    transition_buffer = Vector{NTuple{3, Int}}()
+    for (target, source, symbol) in transitions
         new_input = (symbol, target)
-        new_input_id = new_ucoord2int[new_input]
-        HybridSystems.add_transition!(new_autom, source, target, new_input_id)
-    end
 
+        # Get or assign a new input ID
+        input_id = get!(new_ucoord2int, new_input) do
+            new_uint2coord[input_counter] = new_input
+            input_counter += 1
+            return input_counter - 1
+        end
+
+        push!(transition_buffer, (target, source, input_id))
+    end
+    new_autom =
+        AutomatonList{typeof(autom.transitions)}(autom.nstates, length(new_uint2coord))
+    UT.append_new!(new_autom.transitions, transition_buffer)
+
+    # Build new symbolic model
     new_symmodel = SymbolicModelList(
         symmodel.Xdom,
         symmodel.Udom,
@@ -137,11 +138,56 @@ function determinize_symbolic_model(symmodel::SymbolicModelList)
         symmodel.xint2pos,
         new_ucoord2int,
         new_uint2coord,
-        true,
+        true,  # mark as determinized
         Dict{Symbol, Any}(),
     )
 
-    # Step 3: Store the original symmodel to keep the original input mapping (symbol -> u) and (u -> symbol)
     new_symmodel.metadata[:original_symmodel] = symmodel
+
     return new_symmodel
 end
+
+# function determinize_symbolic_model(symmodel::SymbolicModelList)
+#     autom = symmodel.autom
+#     new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping (int -> (symbol, target))
+#     new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse (symbol, target) -> int
+
+#     next_input_id = 1  # Track new input indices
+
+#     # Step 1: Build new input encodings
+#     for (target, source, symbol) in UT.get_data(get_transition(autom))
+#         new_input = (symbol, target)  # Couple input with target
+
+#         if !haskey(new_ucoord2int, new_input)
+#             new_ucoord2int[new_input] = next_input_id
+#             new_uint2coord[next_input_id] = new_input
+#             next_input_id += 1
+#         end
+#     end
+
+#      # Step 2: Create new automaton with same number of states, new number of symbols, and transitions
+#      nstates = autom.nstates
+#      new_nsymbols = length(new_uint2coord)
+#      new_autom = AutomatonList{typeof(autom.transitions)}(nstates, new_nsymbols)
+#      for (target, source, symbol) in UT.get_data(autom.transitions)
+#         new_input = (symbol, target)
+#         new_input_id = new_ucoord2int[new_input]
+#         HybridSystems.add_transition!(new_autom, source, target, new_input_id)
+#     end
+
+#     new_symmodel = SymbolicModelList(
+#         symmodel.Xdom,
+#         symmodel.Udom,
+#         new_autom,
+#         symmodel.xpos2int,
+#         symmodel.xint2pos,
+#         new_ucoord2int,
+#         new_uint2coord,
+#         true,
+#         Dict{Symbol, Any}(),
+#     )
+
+#     # Step 3: Store the original symmodel to keep the original input mapping (symbol -> u) and (u -> symbol)
+#     new_symmodel.metadata[:original_symmodel] = symmodel
+#     return new_symmodel
+# end

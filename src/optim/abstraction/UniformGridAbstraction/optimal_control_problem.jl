@@ -88,13 +88,15 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         Dionysos.Symbolic.enum_states(optimizer.abstract_problem.system)
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
-    abstract_controller, controllable_set_symbols, uncontrollable_set_symbols, value_fun_tab =
-        compute_largest_controllable_set(
-            optimizer.abstract_problem.system,
-            optimizer.abstract_problem.target_set;
-            initial_set = init_set,
-            sparse_input = optimizer.sparse_input,
-        )
+    abstract_controller,
+    controllable_set_symbols,
+    uncontrollable_set_symbols,
+    value_fun_tab = compute_largest_controllable_set(
+        optimizer.abstract_problem.system,
+        optimizer.abstract_problem.target_set;
+        initial_set = init_set,
+        sparse_input = optimizer.sparse_input,
+    )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
@@ -111,8 +113,10 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     optimizer.value_fun_tab = value_fun_tab
     optimizer.abstract_value_function =
         build_abstract_value_function(optimizer.value_fun_tab)
-    optimizer.concrete_value_function =
-        build_concrete_value_function(optimizer.abstract_system, optimizer.abstract_value_function)
+    optimizer.concrete_value_function = build_concrete_value_function(
+        optimizer.abstract_system,
+        optimizer.abstract_value_function,
+    )
 
     # Display results
     if ⊆(optimizer.abstract_problem.initial_set, controllable_set_symbols)
@@ -184,13 +188,12 @@ function compute_largest_controllable_set(
     return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
 end
 
-
 function increase_counter!(counter::Array{Int, 2}, source::Int, symbol::Int)
-    counter[source, symbol] += 1
+    return counter[source, symbol] += 1
 end
 function increase_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, symbol::Int)
     key = (source, symbol)
-    counter[key] = get(counter, key, 0) + 1
+    return counter[key] = get(counter, key, 0) + 1
 end
 
 function decrease_counter!(counter::Array{Int, 2}, source::Int, symbol::Int)
@@ -204,7 +207,7 @@ function decrease_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, sym
 end
 
 function _compute_num_targets_unreachable(counter, autom)
-    for target in 1:autom.nstates
+    for target in 1:(autom.nstates)
         for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
             increase_counter!(counter, source, symbol)
         end
@@ -227,8 +230,13 @@ function _data(autom, initlist, targetlist, sparse_input::Bool)
     next_targets = Int[]
     value_fun_tab = fill(Inf, autom.nstates) # Inf = uncontrollable by default
 
-    return stateset, initset, targetset,
-           num_targets_unreachable, current_targets, next_targets, value_fun_tab
+    return stateset,
+    initset,
+    targetset,
+    num_targets_unreachable,
+    current_targets,
+    next_targets,
+    value_fun_tab
 end
 
 function _compute_controller_reach!(
@@ -254,7 +262,8 @@ function _compute_controller_reach!(
 
         for target in current_targets
             for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
-                if !(source in target_set) && iszero(decrease_counter!(counter, source, symbol))
+                if !(source in target_set) &&
+                   iszero(decrease_counter!(counter, source, symbol))
                     push!(target_set, source)
                     push!(next_targets, source)
                     Dionysos.Utils.push_new!(contr, (source, symbol))

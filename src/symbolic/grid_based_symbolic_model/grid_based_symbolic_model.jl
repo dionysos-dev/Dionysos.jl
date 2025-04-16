@@ -86,19 +86,18 @@ function get_states_from_sets(
     return states
 end
 
-
 @recipe function f(
-    symmodel::GridBasedSymbolicModel; 
-    arrowsB = false, 
-    dims = [1, 2], 
+    symmodel::GridBasedSymbolicModel;
+    arrowsB = false,
+    dims = [1, 2],
     value_function = [], # Should be a function value_function(state::Int)::Float64 or left as []
-    colormap_name = "Blues", 
-    default_color = :yellow
+    colormap_name = "Blues",
+    default_color = :yellow,
 )
     # Display the cells
     state_grid = get_state_grid(symmodel)
 
-    if isa(value_function, Function) 
+    if isa(value_function, Function)
         # 1. Extract needed parts
         projection_map = Dict{Tuple{Int, Int}, Tuple{Float64, Any}}() # value + elem
         for state in enum_states(symmodel)
@@ -123,8 +122,8 @@ end
         mycolorMap = UT.Colormap([0.0, ValueMax], cmap)
         # 4. Order states by decreasing value (for proper layering in case of overlapping cells)
         cost_ordered = sort(collect(projection_map); by = x -> -x[2][1])
-         # 5. Plot
-         @series begin
+        # 5. Plot
+        @series begin
             for (_, (value, elem)) in cost_ordered
                 color = isfinite(value) ? UT.get_color(mycolorMap, value) : default_color
 
