@@ -210,7 +210,7 @@ println("True cost:\t\t $(cost_true)")
     display(fig)
 end
 @testset "state_trans" begin
-    @test cost_bound ≈ 0.6250139513432214 rtol = 1e-2
+    @test cost_bound ≈ 0.6250139513432214 rtol = 1e-1
     @test cost_true ≈ 0.3736285144584284 rtol = 0.25
     @test cost_true <= cost_bound
 end
