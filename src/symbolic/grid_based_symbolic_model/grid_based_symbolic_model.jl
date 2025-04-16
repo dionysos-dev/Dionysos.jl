@@ -23,6 +23,8 @@ function get_transitions(symmodel::SymbolicModel) end
 function add_transitions!(symmodel::SymbolicModel, translist) end
 function is_deterministic(symmodel::SymbolicModel) end
 
+get_n_transitions(symmodel::SymbolicModel) = length(get_transitions(symmodel))
+
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
 
@@ -37,7 +39,6 @@ function get_state_by_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 function is_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 
 get_state_grid(symmodel::GridBasedSymbolicModel) = DO.get_grid(get_state_domain(symmodel))
-
 function get_concrete_state(symmodel::GridBasedSymbolicModel, state)
     xpos = get_xpos_by_state(symmodel, state)
     return DO.get_coord_by_pos(get_state_domain(symmodel), xpos)

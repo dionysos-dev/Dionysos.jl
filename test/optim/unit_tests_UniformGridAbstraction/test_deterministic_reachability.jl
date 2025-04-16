@@ -59,7 +59,7 @@ abstract_value_function =
 concrete_value_function =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
 
-nstep = 150
+nstep = 300
 function reached(x)
     if x ∈ concrete_problem.target_set
         return true
@@ -115,6 +115,9 @@ println(
     "Is the determinized abstract system deterministic ? ",
     SY.is_deterministic(determinized_abstract_system),
 )
+
+println(SY.get_n_transitions(abstract_system))
+println(SY.get_n_transitions(determinized_abstract_system))
 
 using JuMP
 new_optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
