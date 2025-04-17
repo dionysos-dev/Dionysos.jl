@@ -82,7 +82,8 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"))
+invariant_set_complement =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -160,7 +161,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
-plot!(uninvariant_set; color = :black, label = "Uninvariant set")
+plot!(invariant_set_complement; color = :black, label = "Invariant set complement")
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 
