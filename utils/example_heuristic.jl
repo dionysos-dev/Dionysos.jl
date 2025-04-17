@@ -1,4 +1,4 @@
-using StaticArrays, Plots
+using StaticArrays, JuMP
 
 using Dionysos
 const DI = Dionysos

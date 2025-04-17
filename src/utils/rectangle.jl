@@ -35,7 +35,7 @@ get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
     vertices = zeros(n, 2^n)
-    for i in 0:(2^n - 1)
+    for i in 0:(2 ^ n - 1)
         vertex = zeros(n)
         for j in 1:n
             vertex[j] = i & (1 << (j - 1)) > 0 ? rect.ub[j] : rect.lb[j]

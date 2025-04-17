@@ -13,13 +13,9 @@ function getTransformationMatrix(a_i::Vector, α_i::Vector, d_i::Vector, θ_i::V
     ]
     H_ij = Array[]
     for i in eachindex(a_i)
-        H =
-            simplify.(
-                substitute.(
-                    H_DH,
-                    (Dict(a => a_i[i], α => α_i[i], d => d_i[i], θ => θ_i[i]),),
-                )
-            )
+        H = simplify.(
+            substitute.(H_DH, (Dict(a => a_i[i], α => α_i[i], d => d_i[i], θ => θ_i[i]),)),
+        )
         push!(H_ij, H)
     end
     H_0n = eye(4)
