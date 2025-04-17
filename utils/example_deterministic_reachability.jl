@@ -1,6 +1,3 @@
-module TestMain
-using Test     #src
-
 using StaticArrays, Plots
 
 using Dionysos
@@ -13,7 +10,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../../problems/path_planning.jl")
+include("../problems/path_planning.jl")
 
 ####################################################################################
 ########### PART 1 : Construct the classical abstraction using any mode: ###########
@@ -180,5 +177,3 @@ plot!(
 plot!(control_trajectory; ms = 2.0, arrows = false, color = :blue)
 plot!(new_control_trajectory; ms = 2.0, arrows = false, color = :red)
 display(fig)
-
-end

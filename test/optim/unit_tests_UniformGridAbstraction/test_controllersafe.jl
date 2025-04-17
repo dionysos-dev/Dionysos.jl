@@ -75,7 +75,7 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr, invariant_set_symbols, uninvariant_set_symbols =
+    contr, invariant_set_symbols, invariant_set_complement_symbols =
         AB.UniformGridAbstraction.compute_largest_invariant_set(symmodel, safelist)
     @test length(contr) == 15045
 

@@ -13,7 +13,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     sparse_input::Bool
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
     uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
-    value_fun_tab::Union{Nothing, Any} # Inf means uncontrollable
+    value_fun_tab::Union{Nothing, Any} # Value function in tabular form, Inf means uncontrollable state
     abstract_value_function::Union{Nothing, Any}
     concrete_value_function::Union{Nothing, Any}
 

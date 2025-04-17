@@ -10,7 +10,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
 
     # Problem/Solver-Specific parameters
     invariant_set::Union{Nothing, Dionysos.Domain.DomainList}
-    uninvariant_set::Union{Nothing, Dionysos.Domain.DomainList}
+    invariant_set_complement::Union{Nothing, Dionysos.Domain.DomainList}
 
     success::Bool
     print_level::Int
@@ -49,7 +49,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
     # Compute the largest invariant set
-    abstract_controller, invariant_set_symbols, uninvariant_set_symbols =
+    abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
         compute_largest_invariant_set(
             optimizer.abstract_problem.system,
             optimizer.abstract_problem.safe_set,
@@ -59,14 +59,14 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
         optimizer.abstract_system,
         invariant_set_symbols,
     )
-    uninvariant_set = Dionysos.Symbolic.get_domain_from_states(
+    invariant_set_complement = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,
-        uninvariant_set_symbols,
+        invariant_set_complement_symbols,
     )
 
     optimizer.abstract_controller = abstract_controller
     optimizer.invariant_set = invariant_set
-    optimizer.uninvariant_set = uninvariant_set
+    optimizer.invariant_set_complement = invariant_set_complement
 
     # Display results
     if ⊆(optimizer.abstract_problem.initial_set, invariant_set_symbols)

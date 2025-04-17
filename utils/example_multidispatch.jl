@@ -1,4 +1,4 @@
-using Test, Plots     #src
+using Plots
 import StaticArrays: SVector
 
 # At this point, we import the useful Dionysos sub-modules.
@@ -66,7 +66,8 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 # @test length(abstract_controller.data) == 893803 #src
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"))
+invariant_set_complement =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
@@ -80,7 +81,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_safety; opacity = 1.0);
 plot!(invariant_set; color = :blue, linecolor = :blue)
-plot!(uninvariant_set; color = :red, linecolor = :red)
+plot!(invariant_set_complement; color = :red, linecolor = :red)
 plot!(control_trajectory)
 display(fig)
 
