@@ -174,7 +174,7 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 #We display the abstract domain
-plot!(abstract_system.symmodel.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.symmodel.Xdom; efficient = false, color = :blue, opacity = 0.5);
 
 #We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
@@ -191,5 +191,6 @@ plot!(
     path = optimizer.optimizer_BB.best_sol,
     heuristic = false,
     fine = true,
+    efficient = false,
 )
 plot!(cost_control_trajectory; ms = 0.5)

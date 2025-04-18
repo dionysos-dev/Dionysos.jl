@@ -94,8 +94,8 @@ abstract_problem = get_attribute(model, "abstract_problem");
 abstract_controller = get_attribute(model, "abstract_controller");
 concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
-concrete_system = concrete_problem.system
-nothing #hide
+concrete_system = concrete_problem.system;
+abstract_value_function = get_attribute(model, "abstract_value_function");
 
 # ### Trajectory display
 nstep = 100
@@ -123,15 +123,7 @@ fig = plot(; aspect_ratio = :equal);
 # We display the concrete domain
 plot!(concrete_system.X; color = :grey, label = "");
 
-# We display the abstract domain
-plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
-    color = :green,
-    opacity = 1.0,
-);
-plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
-    color = :red,
-    opacity = 1.0,
-);
+# We display the specifications
+plot!(concrete_problem.initial_set; color = :green, opacity = 1.0, label = "Initial set");
+plot!(concrete_problem.target_set; color = :red, opacity = 1.0, label = "Target set");
 plot!(control_trajectory; markersize = 1, arrows = false)

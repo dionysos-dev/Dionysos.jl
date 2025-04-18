@@ -118,7 +118,7 @@ fig = plot(;
     titlefontsize = 14,
 );
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true, cost = false)
+plot!(abstract_system; arrowsB = true)
 
 # # Display the Lyapunov function and the trajectory
 fig = plot(;
