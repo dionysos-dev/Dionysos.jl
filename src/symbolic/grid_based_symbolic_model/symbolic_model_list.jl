@@ -17,6 +17,9 @@ mutable struct SymbolicModelList{
     xint2pos::Vector{NTuple{N, Int}}
     ucoord2int::Any
     uint2coord::Any
+    determinized::Bool
+    # Field to store algorithm-specific data
+    metadata::Dict{Symbol, Any}
 end
 
 function NewSymbolicModelListList(
@@ -43,6 +46,8 @@ function NewSymbolicModelListList(
         xint2pos,
         ucoord2int,
         uint2coord,
+        false,
+        Dict{Symbol, Any}(),
     )
 end
 
@@ -55,6 +60,8 @@ function with_automaton(symmodel::SymbolicModelList, autom)
         symmodel.xint2pos,
         symmodel.ucoord2int,
         symmodel.uint2coord,
+        symmodel.determinized,
+        symmodel.metadata,
     )
 end
 
@@ -69,8 +76,28 @@ get_xpos_by_state(symmodel::SymbolicModelList, state) = symmodel.xint2pos[state]
 get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
 is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
-get_concrete_input(symmodel::SymbolicModelList, input) = symmodel.uint2coord[input]
-get_abstract_input(symmodel::SymbolicModelList, u) = symmodel.ucoord2int[u]
+function get_transitions(symmodel::SymbolicModelList)
+    transitions = get_transition(symmodel.autom)
+    return UT.get_data(transitions)
+end
+
+function get_concrete_input(symmodel::SymbolicModelList, input)
+    if !symmodel.determinized
+        return symmodel.uint2coord[input]
+    else
+        return get_concrete_input(
+            symmodel.metadata[:original_symmodel],
+            symmodel.uint2coord[input][1],
+        )
+    end
+end
+function get_abstract_input(symmodel::SymbolicModelList, u)
+    if !symmodel.determinized
+        return symmodel.ucoord2int[u]
+    else
+        return get_abstract_input(symmodel.metadata[:original_symmodel], u)
+    end
+end
 
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
@@ -79,84 +106,43 @@ is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
 
 function determinize_symbolic_model(symmodel::SymbolicModelList)
     autom = symmodel.autom
-    new_uint2coord = Dict{Int, Tuple{Any, Int}}()  # New input mapping
-    new_ucoord2int = Dict{Tuple{Any, Int}, Int}()  # Reverse mapping
+    transitions = UT.get_data(get_transition(autom))
 
-    next_input_id = 1  # Track new input indices
+    new_ucoord2int = Dict{Tuple{Any, Int}, Int}() # New input mapping (int -> (symbol, target))
+    new_uint2coord = Dict{Int, Tuple{Any, Int}}() # Reverse (symbol, target) -> int
 
-    # Go through all transitions and modify the input encoding
-    for (target, source, symbol) in UT.get_data(autom.transitions)
-        new_input = (symbol, target)  # Couple input with target
+    input_counter = 1
+    transition_buffer = Vector{NTuple{3, Int}}()
+    for (target, source, symbol) in transitions
+        new_input = (symbol, target)
 
-        if !haskey(new_ucoord2int, new_input)
-            new_ucoord2int[new_input] = next_input_id
-            new_uint2coord[next_input_id] = new_input
-            next_input_id += 1
+        # Get or assign a new input ID
+        input_id = get!(new_ucoord2int, new_input) do
+            new_uint2coord[input_counter] = new_input
+            input_counter += 1
+            return input_counter - 1
         end
-    end
 
-    # Return a new symbolic model with updated inputs
-    return SymbolicModelList(
+        push!(transition_buffer, (target, source, input_id))
+    end
+    new_autom =
+        AutomatonList{typeof(autom.transitions)}(autom.nstates, length(new_uint2coord))
+    UT.append_new!(new_autom.transitions, transition_buffer)
+
+    # Build new symbolic model
+    new_symmodel = SymbolicModelList(
         symmodel.Xdom,
         symmodel.Udom,
-        autom,  # Automaton remains unchanged
+        new_autom,
         symmodel.xpos2int,
         symmodel.xint2pos,
-        new_ucoord2int,  # Updated input mappings
-        new_uint2coord,  # Updated input mappings
+        new_ucoord2int,
+        new_uint2coord,
+        true,  # mark as determinized
+        Dict{Symbol, Any}(),
     )
-end
 
-@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
-    # Display the cells
-    state_grid = symmodel.Xdom.grid
-    if cost
-        LyapMax = max(filter(isfinite, getfield.([lyap_fun...], :second))...)
-        colormap = Colors.colormap("Blues")
-        mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
-        cost_ordered =
-            reverse(sort(hcat([(lyap, state) for (state, lyap) in lyap_fun]...); dims = 2))
-        for (lyap, state) in cost_ordered
-            pos = get_xpos_by_state(symmodel, state)
-            elli = DO.get_elem_by_pos(state_grid, pos)
-            @series begin
-                lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
-                return elli
-            end
-        end
-        @series begin
-            mycolorMap
-        end
-    else
-        @series begin
-            symmodel.Xdom
-        end
-    end
-    # Display the arrows
-    if arrowsB
-        for t in symmodel.autom.transitions.data
-            if t[1] == t[2]
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    return UT.DrawPoint(p1)
-                end
-            else
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
-                    return UT.DrawArrow(p1, p2)
-                end
-            end
-        end
-    end
+    new_symmodel.metadata[:original_symmodel] = symmodel
+
+    return new_symmodel
 end

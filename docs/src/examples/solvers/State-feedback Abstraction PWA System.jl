@@ -220,7 +220,7 @@ ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
-plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = optimizer.lyap);
+plot!(abstract_system; arrowsB = true, value_function = optimizer.abstract_lyap_fun);
 plot!(cost_control_trajectory; color = :black)
 
 @test cost_bound ≈ 2.35825 rtol = 1e-3    #src

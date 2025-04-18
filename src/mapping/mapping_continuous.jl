@@ -58,7 +58,7 @@ function MappingContinuousEllipsoid(
     e::DO.ContinuousBoundedEllipsoidDomain{N, T, B, E},
 ) where {N, T, B, E, C <: DO.ContinuousDomain{N, T}}
     function cont2elli(x)
-        idx = findfirst([x ∈ ell for ell in e.ellips])
+        idx = findfirst([x in ell for ell in e.ellips])
         return idx === nothing ? idx : e.ellips[idx]
     end
     elli2cont(xi) = xi.c

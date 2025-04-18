@@ -253,7 +253,7 @@ end
 
 Base.hash(x::YourTuple{0, S}, h::UInt) where {S} = h + Base.tuplehash_seed
 @generated function Base.hash(x::YourTuple{N}, h::UInt) where {N}
-    quote
+    return quote
         h += Base.tuplehash_seed
         @nexprs $N i -> h = hash(x.T[$N - i + 1], h)
     end

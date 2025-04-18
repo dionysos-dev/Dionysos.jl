@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
 using MathematicalSystems, HybridSystems
-using JuMP, Mosek, MosekTools
+using JuMP, Clarabel
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -28,7 +28,6 @@ function example_box_ellipsoid()
 end
 
 include("../../problems/non_linear.jl")
-const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
@@ -55,8 +54,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
     # Solve the control problem
     S = UT.get_full_psd_matrix(problem.transition_cost)
-    sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-    MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+    sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
 
@@ -102,31 +100,25 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
             noise_check = true,
         ),
     )
+    analysis = ST.ControllerAnalysis(
+        cont.c_eval,
+        sys.f_eval,
+        sys.W,
+        E1;
+        target_set = E2,
+        cost_eval = cost_eval,
+        dims = [1, 2],
+        N = 3000,
+    )
 
     # Display the initial set, target set and the image of the initial ellipsoid under the linear model approximation
     fig1 = plot(; aspect_ratio = :equal)
-    plot!(fig1, E1; color = :green)
-    plot!(fig1, E2; color = :red)
-
-    ST.plot_transitions!(E1, sys.f_eval, cont.c_eval, sys.W; N = 300)
-    plot!(fig1, ETilde; color = :blue)
+    plot!(analysis; arrowsB = true, cost = false)
+    plot!(ETilde; color = :blue)
     display(fig1)
 
-    # Display the data-driven test of the controller
-    fig2 = plot(; aspect_ratio = :equal)
-    ST.plot_check_feasibility!(
-        E1,
-        E2,
-        sys.f_eval,
-        cont.c_eval,
-        sys.W;
-        dims = [1, 2],
-        N = 500,
-    )
-    display(fig2)
-
     # Display the cost of the controller
-    fig3 = plot(;
+    fig2 = plot(;
         aspect_ratio = :equal,
         xtickfontsize = 12,
         ytickfontsize = 12,
@@ -140,25 +132,16 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     yticks!(-1:1:6)
     xlabel!("\$x_1\$")
     ylabel!("\$x_2\$")
-    ST.plot_controller_cost!(
-        E1,
-        cont.c_eval,
-        cost_eval;
-        N = 3000,
-        scale = 0.01,
-        dims = [1, 2],
-        color = :white,
-        linewidth = 7,
-    )
+    plot!(analysis; arrowsB = false, cost = true)
     col1 = parse(ColorTypes.RGB, "#ff756f")
     col2 = parse(ColorTypes.RGB, "#64bc60")
     plot!(E2; color = col1)
     plot!(ETilde; color = col2)
-    display(fig3)
+    display(fig2)
 
     #Display the feasible input set and the input set effectively used
     col3 = RGB(0.2, 0.4, 0.8)
-    fig4 = plot(;
+    fig3 = plot(;
         aspect_ratio = :equal,
         xtickfontsize = 12,
         ytickfontsize = 12,
@@ -173,22 +156,13 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     xlabel!("\$u_1\$")
     ylabel!("\$u_2\$")
 
-    plot!(
-        fig4,
-        sys.U;
-        color = col3,
-        label = "",
-        fillalpha = 0.4,
-        linealpha = 1.0,
-        linewidth = 2,
-    )
-    plot!(fig4, U_used; color = :green, label = "Input set used")
-    display(fig4)
+    plot!(sys.U; color = col3, label = "", fillalpha = 0.4, linealpha = 1.0, linewidth = 2)
+    plot!(U_used; color = :green, label = "Input set used")
+    display(fig3)
 
-    savefig(fig1, "fig1.png")
-    savefig(fig2, "fig2.png")
-    savefig(fig3, "fig3.png")
-    savefig(fig4, "fig4.png")
+    # savefig(fig1, "fig1.png")
+    # savefig(fig2, "fig2.png")
+    # savefig(fig3, "fig3.png")
     return
 end
 
@@ -211,8 +185,8 @@ Wbound = 0.1
 λ = 0.3
 test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
-# #fig 3
-ρ = 0.001
+#fig 3
+ρ = 0.0008
 Wbound = 0.15
 λ = 0.01
 test_backward_transition(Wbound, E2, xnew, U, λ, ρ)

@@ -697,6 +697,7 @@ end
 @recipe function f(prob::HierarchicalProblem; path = [], heuristic = false, fine = true)
     @series begin
         color := :blue
+        opacity := 0.2
         return prob.abstract_system.symmodel.Xdom
     end
     if heuristic
