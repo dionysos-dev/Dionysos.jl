@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Lazy-Ellipsoids-Abstraction · Dionysos</title><meta name="title" content="Lazy-Ellipsoids-Abstraction · Dionysos"/><meta property="og:title" content="Lazy-Ellipsoids-Abstraction · Dionysos"/><meta property="twitter:title" content="Lazy-Ellipsoids-Abstraction · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/manual/">Overview</a></li></ul></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Hierarchical-abstraction/">Hierarchical-abstraction</a></li><li class="is-active"><a class="tocitem" href>Lazy-Ellipsoids-Abstraction</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#First-example"><span>First example</span></a></li><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#Display-the-results"><span>Display the results</span></a></li><li class="toplevel"><a class="tocitem" href="#Display-the-specifications-and-domains"><span>Display the specifications and domains</span></a></li><li class="toplevel"><a class="tocitem" href="#Display-the-abstraction"><span>Display the abstraction</span></a></li><li class="toplevel"><a class="tocitem" href="#Display-the-Lyapunov-function-and-the-trajectory"><span>Display the Lyapunov function and the trajectory</span></a></li></ul></li><li><a class="tocitem" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li><a class="tocitem" href="../Single pendulum/">Single pendulum</a></li><li><a class="tocitem" href="../State-feedback Abstraction PWA System/">State-feedback Abstraction PWA System</a></li><li><a class="tocitem" href="../Unicycle robot/">Unicycle robot</a></li></ul></li><li><span class="tocitem">Utils</span><ul><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li><a class="tocitem" href="../Grid/">Grid</a></li><li><a class="tocitem" href="../Tree/">Tree</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Domain/">Domain</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li><li><a class="tocitem" href="../../bibliography/">Bibliography</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Solvers</a></li><li class="is-active"><a href>Lazy-Ellipsoids-Abstraction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Lazy-Ellipsoids-Abstraction</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/solvers/Lazy-Ellipsoids-Abstraction.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Example:-Reachability-problem-solved-by-[Lazy-ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers)."><a class="docs-heading-anchor" href="#Example:-Reachability-problem-solved-by-[Lazy-ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).">Example: Reachability problem solved by <a href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers">Lazy ellipsoid abstraction</a>.</a><a id="Example:-Reachability-problem-solved-by-[Lazy-ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Reachability-problem-solved-by-[Lazy-ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers)." title="Permalink"></a></h1><pre><code class="language-julia hljs">using StaticArrays, LinearAlgebra, Plots
+using JuMP, Clarabel
+
+import Random
+Random.seed!(0)
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
+
+include(joinpath(dirname(dirname(pathof(Dionysos))), &quot;problems&quot;, &quot;non_linear.jl&quot;))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Main.var&quot;Main&quot;.NonLinear</code></pre><h1 id="First-example"><a class="docs-heading-anchor" href="#First-example">First example</a><a id="First-example-1"></a><a class="docs-heading-anchor-permalink" href="#First-example" title="Permalink"></a></h1><pre><code class="language-julia hljs">concrete_problem = NonLinear.problem()
+concrete_system = concrete_problem.system</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.System.SymbolicSystem(Main.var&quot;Main&quot;.NonLinear.var&quot;#5#6&quot;(), SymbolicUtils.BasicSymbolic{Real}[1.1px - 0.2py + vx - 5.0e-5(py^3), 0.2px + 1.1py + vy + 5.0e-5(px^3)], 1.0, 2, 2, 2, Symbolics.Num[px, py], Symbolics.Num[vx, vy], Symbolics.Num[wx, wy], [-1, 1]², [-20, 20]², [0, 0]¹, [-20, 20]², Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Float64}}([-10.0, -10.0], [10.0, 10.0]), Dionysos.Utils.HyperRectangle{StaticArraysCore.SVector{2, Float64}}([0.0, 0.0], [0.0, 0.0]), Dionysos.Utils.Ellipsoid{Float64, Matrix{Float64}, Vector{Float64}}[Dionysos.Utils.Ellipsoid{Float64, Matrix{Float64}, Vector{Float64}}([0.02 0.0; 0.0 0.02], [0.0, 0.0])], Main.var&quot;Main&quot;.NonLinear.var&quot;#f_eval#2&quot;{Float64, Float64}(1.0, 5.0e-5), Main.var&quot;Main&quot;.NonLinear.var&quot;#f_backward_eval#3&quot;{Float64, Float64}(1.0, 5.0e-5), [[0.1 0.0; 0.0 0.0], [0.0 0.0; 0.0 0.1]], [0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0])</code></pre><p>Optimizer&#39;s parameters</p><pre><code class="language-julia hljs">sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() =&gt; true)
+
+maxδx = 100
+maxδu = 10 * 2
+λ = 0.01
+k1 = 1
+k2 = 1
+RRTstar = false
+continues = false
+maxIter = 100
+
+optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
+AB.LazyEllipsoidsAbstraction.set_optimizer!(
+    optimizer,
+    concrete_problem,
+    sdp_opt,
+    maxδx,
+    maxδu,
+    λ,
+    k1,
+    k2,
+    RRTstar,
+    continues,
+    maxIter,
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">compute_transition (generic function with 1 method)</code></pre><p>Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.</p><pre><code class="language-julia hljs">MOI.optimize!(optimizer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Iterations2Go:	100
+	Closest Dist: 28.284271247461902
+Iterations2Go:	99
+	Closest Dist: 21.96504288572114
+Iterations2Go:	98
+	Closest Dist: 21.96504288572114
+Iterations2Go:	97
+	Closest Dist: 21.96504288572114
+Iterations2Go:	96
+	Closest Dist: 21.96504288572114
+Iterations2Go:	95
+	Closest Dist: 21.96504288572114
+Iterations2Go:	94
+	Closest Dist: 21.96504288572114
+Iterations2Go:	93
+	Closest Dist: 21.96504288572114
+Iterations2Go:	92
+	Closest Dist: 21.96504288572114
+Iterations2Go:	91
+	Closest Dist: 21.96504288572114
+Iterations2Go:	90
+	Closest Dist: 21.96504288572114
+Iterations2Go:	89
+	Closest Dist: 21.96504288572114
+Iterations2Go:	88
+	Closest Dist: 21.96504288572114
+Iterations2Go:	87
+	Closest Dist: 21.96504288572114
+Iterations2Go:	86
+	Closest Dist: 21.96504288572114
+Iterations2Go:	85
+	Closest Dist: 21.96504288572114
+Iterations2Go:	84
+	Closest Dist: 21.96504288572114
+Iterations2Go:	83
+	Closest Dist: 21.96504288572114
+Iterations2Go:	82
+	Closest Dist: 14.612314404399257
+Iterations2Go:	81
+	Closest Dist: 14.612314404399257
+Iterations2Go:	80
+	Closest Dist: 14.612314404399257
+Iterations2Go:	79
+	Closest Dist: 12.853988479006315
+Iterations2Go:	78
+	Closest Dist: 9.822772489631578
+Path cost from EI : 1727.3367584689067</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_problem&quot;))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_controller&quot;))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_controller&quot;))
+abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_lyap_fun&quot;))
+concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_lyap_fun&quot;));</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We define the cost and stopping criteria for a simulation</p><pre><code class="language-julia hljs">cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
+reached(x) = x ∈ concrete_problem.target_set
+nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps</code></pre><p>We simulate the closed loop trajectory</p><pre><code class="language-julia hljs">x0 = concrete_problem.initial_set.c
+cost_control_trajectory = ST.get_closed_loop_trajectory(
+    concrete_system.f_eval,
+    concrete_controller,
+    cost_eval,
+    x0,
+    nstep;
+    stopping = reached,
+    noise = true,
+)
+cost_bound = concrete_lyap_fun(x0)
+cost_true = ST.get_cost(cost_control_trajectory);
+println(&quot;Goal set reached&quot;)
+println(&quot;Guaranteed cost:\t $(cost_bound)&quot;)
+println(&quot;True cost:\t\t $(cost_true)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Goal set reached
+Guaranteed cost:	 1727.3367584689067
+True cost:		 1191.1788260908293</code></pre><h2 id="Display-the-results"><a class="docs-heading-anchor" href="#Display-the-results">Display the results</a><a id="Display-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results" title="Permalink"></a></h2><h1 id="Display-the-specifications-and-domains"><a class="docs-heading-anchor" href="#Display-the-specifications-and-domains">Display the specifications and domains</a><a id="Display-the-specifications-and-domains-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-specifications-and-domains" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+    label = false,
+);
+xlabel!(&quot;\$x_1\$&quot;);
+ylabel!(&quot;\$x_2\$&quot;);
+title!(&quot;Specifictions and domains&quot;);
+
+#Display the concrete domain
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = false);
+
+#Display the abstract domain
+plot!(abstract_system; arrowsB = false, cost = false, label = false);
+
+#Display the concrete specifications
+plot!(concrete_problem.initial_set; color = :green, label = false);
+plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img src="1204a6d7.svg" alt="Example block output"/><h1 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+title!(&quot;Abstractions&quot;);
+plot!(abstract_system; arrowsB = true)</code></pre><img src="987ea838.svg" alt="Example block output"/><h1 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlabel!(&quot;\$x_1\$&quot;);
+ylabel!(&quot;\$x_2\$&quot;);
+title!(&quot;Trajectory and Lyapunov-like Fun.&quot;);
+
+for obs in concrete_system.obstacles
+    plot!(obs; color = :black)
+end
+plot!(abstract_system; arrowsB = false, cost = true);
+plot!(cost_control_trajectory; color = :black)</code></pre><img src="ffed582d.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Hierarchical-abstraction/">« Hierarchical-abstraction</a><a class="docs-footer-nextpage" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.1 on <span class="colophon-date" title="Tuesday 22 April 2025 21:36">Tuesday 22 April 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
