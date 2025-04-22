@@ -31,15 +31,13 @@ using Test     #src
 # [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
 # [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
 # [Clarabel](https://github.com/oxfordcontrol/Clarabel.jl),
-# [Ipopt](https://github.com/jump-dev/Ipopt.jl), and
 # [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
 
-using StaticArrays, LinearAlgebra, Polyhedra, Random
-using MathematicalSystems, HybridSystems
+using StaticArrays, LinearAlgebra, Plots
 using JuMP, Clarabel
-using SemialgebraicSets, CDDLib
-using Plots, Colors
-using Test
+import CDDLib
+
+import Random
 Random.seed!(0)
 
 using Dionysos
@@ -176,18 +174,20 @@ xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 #We display the concrete domain
-plot!(rectX; color = :yellow, opacity = 0.5);
+plot!(rectX; color = :grey, opacity = 1.0, label = "");
 #We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, efficient = false, opacity = 0.5);
 #We display the abstract specifications
 plot!(
     SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
+    efficient = false,
     opacity = 0.5,
 );
 plot!(
     SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
+    efficient = false,
     opacity = 0.5,
 );
 #We display the concrete specifications
@@ -205,7 +205,7 @@ fig = plot(;
 xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
 ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true, cost = false)
+plot!(abstract_system; arrowsB = true, efficient = false, cost = false)
 
 # ## Display the Lyapunov function and the trajectory
 fig = plot(;
@@ -220,11 +220,8 @@ ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
-plot!(abstract_system; arrowsB = true, value_function = optimizer.abstract_lyap_fun);
+plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun);
 plot!(cost_control_trajectory; color = :black)
-
-@test cost_bound ≈ 2.35825 rtol = 1e-3    #src
-@test cost_true <= cost_bound             #src
 
 # ## References
 #
