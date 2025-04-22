@@ -1,3 +1,60 @@
+"""
+    OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
+
+An optimizer for solving **safety control problems** on symbolic system abstractions.
+
+This solver takes a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) as input along with a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)), and computes a **controller** that ensures all trajectories remain within a given safe set indefinitely (i.e., an **invariant set**).
+
+### Key Behavior
+
+- Lifts the concrete safety problem to the symbolic abstraction space (`abstract_system`) and constructs the corresponding `abstract_problem`.
+- Computes the `invariant_set` — the largest set of abstract states from which safety can be guaranteed.
+- Synthesizes a `abstract_controller` that keeps the abstract system within this invariant set under worst-case transitions.
+- The solver is successful if the field `success` is `true` after `MOI.optimize!`.
+
+### Parameters
+
+#### Inputs
+
+- `concrete_problem`: An instance of [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) that defines the safe set, system, and dynamics.
+- `abstract_system`: The symbolic abstraction of the system, such as one produced by [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+
+#### Abstract Problem Fields
+
+- `abstract_problem`: The lifted safety problem over the abstract model.
+- `abstract_controller`: Abstract controller.
+- `abstract_problem_time_sec`: Time to solve the abstract safety problem.
+
+#### Result Sets
+
+- `invariant_set`: The largest set of abstract states guaranteed to remain within the safe set.
+- `invariant_set_complement`: The complement — states from which safety cannot be guaranteed under any control.
+
+#### Miscellaneous
+
+- `success`: A `Bool` flag that is `true` if a valid invariant set and controller were found.
+- `print_level`: Controls verbosity:
+    - `0`: silent
+    - `1`: default (info)
+    - `2`: verbose logging
+
+### Example
+
+```julia
+using Dionysos, JuMP
+optimizer = MOI.instantiate(Dionysos.Optim.OptimizerSafetyProblem.Optimizer)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+
+MOI.optimize!(optimizer)
+
+time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+```
+"""
 mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     # Inputs
     concrete_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
@@ -98,11 +155,6 @@ function build_abstract_problem(
     )
 end
 
-"""
-    compute_largest_invariant_set(abstract_system, setlist)
-
-Computes the largest controllable invariant set within safelist.
-"""
 function compute_largest_invariant_set(
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
     safelist,

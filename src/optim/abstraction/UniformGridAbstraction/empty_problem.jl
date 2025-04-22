@@ -1,5 +1,77 @@
 @enum ApproxMode USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
+"""
+    OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
+
+A solver responsible for constructing an **abstraction of the system dynamics**, independent of the control problem.  
+This optimizer encapsulates all parameters required to solve an [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem), typically used to generate a symbolic model (abstraction) from the continuous or discrete-time system.
+
+### Purpose
+
+This optimizer performs symbolic abstraction by simulating or approximating the system under different techniques.  
+The abstraction technique is selected via the `approx_mode` field.
+
+Each technique activates a specific set of fields used for approximation.
+
+#### User Settings
+
+- `empty_problem`: Instance of [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem), which defines the system.
+- `state_grid`: State space discretization.
+- `input_grid`: Input space discretization.
+
+#### Continuous-Time System Settings
+
+- `time_step`: Time step used for simulation or discretization if the system is a continuous-time system.
+- `nsystem`: Number of intermediate steps for Runge Kutta simulation.
+
+#### Approximation Settings
+Each mode in `approx_mode` corresponds to different fields:
+- `approx_mode`: Approximation strategy to use.
+    - [`USER_DEFINED`](@ref Dionysos.System.DiscreteTimeOverApproximationMap) : Custom overapproximation function.
+        - `overapproximation_map::Function`: Custom overapproximation function.
+    - [`GROWTH`](@ref Dionysos.System.DiscreteTimeGrowthBound) : Growth-bound based overapproximation.
+        - `jacobian_bound`: Used to bound system behavior via growth bounds.
+    - [`LINEARIZED`](@ref Dionysos.System.DiscreteTimeLinearized) : Linearization-based overapproximation.
+        - `DF_sys`, `bound_DF`, `bound_DDF`: Jacobian and Hessian-based approximations.
+    - [`CENTER_SIMULATION`](@ref Dionysos.System.DiscreteTimeCenteredSimulation) : Only simulates the center of each cell in the grid.
+    - [`RANDOM_SIMULATION`](@ref Dionysos.System.DiscreteTimeRandomSimulation) : Simulates the system using random sampling within the grid cells.
+        - `n_samples`: Number of simulation samples per cell in the grid for random sampling-based approximations.
+
+- `efficient`: Whether to optimize internal computations for speed or memory (by using `approx_mode` specific functions).
+- `print_level`: Level of verbosity (0 = silent, 1 = default, 2 = verbose).
+
+#### Abstraction Result
+
+- `abstract_system`: The resulting symbolic abstraction, of type [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList).
+- `discrete_time_system`: A discrete-time version of the system used internally for abstraction.
+- `abstraction_construction_time_sec`: Time taken (in seconds) to construct the abstraction.
+
+#### System Approximation
+These fields are automatically constructed based on the `approx_mode`: 
+- `continuous_time_system_approximation`: A [`ContinuousTimeSystemApproximation`](@ref Dionysos.System.ContinuousTimeSystemApproximation) constructed when the original system is continuous. 
+- `discrete_time_system_approximation`: A [`DiscreteTimeSystemApproximation`](@ref Dionysos.System.DiscreteTimeSystemApproximation) always constructed.
+
+### Example
+
+```julia
+using Dionysos, JuMP
+optimizer = MOI.instantiate(Dionysos.Optim.OptimizerEmptyProblem.Optimizer)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), GROWTH)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), my_jacobian_bound)
+
+MOI.optimize!(optimizer)
+
+time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
+```
+"""
 mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     ### Abstraction Result
     discrete_time_system::Union{

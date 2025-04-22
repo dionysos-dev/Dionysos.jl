@@ -18,9 +18,57 @@ include("safety_problem.jl")
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-    A solver implementing the classical abstraction method (e.g., used in SCOTS), where the entire domain is partitioned into hyper-rectangular cells, independent of the specific control task. 
+A solver implementing the classical abstraction method (e.g., used in SCOTS), where the entire domain is partitioned into hyper-rectangular cells, independent of the specific control task. 
+The optimizer is structured into modular sub-solvers, each dedicated to a specific problem type. It ensures that abstraction is computed before solving the control problem, maintaining modularity and extendability.
 
-    The optimizer is structured into modular sub-solvers, each dedicated to a specific problem type. It ensures that abstraction is computed before solving the control problem, maintaining modularity and extendability.
+### Structure
+
+The optimizer internally manages two sub-solvers:
+
+- [`OptimizerEmptyProblem`](@ref): computes the abstraction (symbolic model) from the system dynamics.
+- A control-specific solver, depending on the problem type:
+    - [`OptimizerSafetyProblem`](@ref): for safety specifications.
+    - [`OptimizerOptimalControlProblem`](@ref): for reachability/optimal control.
+
+### Behavior
+
+- Automatically dispatches the appropriate control solver based on the [`ProblemType`](@ref Dionysos.Problem.ProblemType) provided via `MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)`.
+- Ensures that the abstraction is computed **before** solving the control problem.
+- Allows the concrete problem to be changed without recomputing the abstraction, as long as the abstraction is already built.
+- Stores the resulting `abstract_system` and synthesizes a corresponding `concrete_controller`.
+- Tracks the time spent during the last `MOI.optimize!` call via the `solve_time_sec` field.
+- Supports configurable verbosity through `print_level`:
+    - `print_level = 0`: silent mode (no output)
+    - `print_level = 1`: standard verbosity (default)
+    - `print_level = 2`: detailed logging and messages
+
+### Access to subsolver fields
+
+Any field or attribute present in the sub-solvers (e.g., `state_grid`, `abstract_value_function`, etc.) can be accessed or set transparently through this wrapper optimizer via:
+
+```julia
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), grid)
+MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+```
+
+### Example
+
+```julia
+using Dionysos, JuMP
+optimizer = MOI.instantiate(Dionysos.Optim.UniformGridAbstraction.Optimizer)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+
+MOI.optimize!(optimizer)
+
+time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
+value_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+```
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerEmptyProblem{T}}

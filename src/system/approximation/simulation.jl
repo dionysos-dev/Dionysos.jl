@@ -2,6 +2,21 @@
 #  CENTERED SIMULATION IMPLEMENTATION
 # --------------------------------------------------
 
+"""
+    DiscreteTimeCenteredSimulation <: DiscreteTimeSystemUnderApproximation
+
+A concrete underapproximation that simulates the evolution of the **center** of the input set under a discrete-time system.
+
+This approximation is very conservative, returning a single propagated point from the center of the input set.
+
+# Fields
+- `system`: A constrained discrete-time control system (e.g., from [`MathematicalSystems.jl`](https://github.com/JuliaReach/MathematicalSystems.jl)).
+
+# Underapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector) -> Vector{SVector}`
+which returns a singleton list with the propagated center point.
+"""
 struct DiscreteTimeCenteredSimulation <: DiscreteTimeSystemUnderApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
 end
@@ -17,6 +32,24 @@ function get_under_approximation_map(approx::DiscreteTimeCenteredSimulation)
     end
 end
 
+"""
+    ContinuousTimeCenteredSimulation <: ContinuousTimeSystemUnderApproximation
+
+A concrete underapproximation of a continuous-time system using **center-point simulation**.
+
+Simulates only the center of the state set under the system dynamics. Returns a single propagated point after integration over a time step.
+
+# Fields
+- `system`: A constrained continuous-time control system.
+
+# Underapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> Vector{SVector}`
+which returns a singleton list with the propagated center point.
+
+# Notes
+Use `discretize` to convert this approximation into a discrete-time approximation suitable for use in fixed-step abstraction pipelines.
+"""
 struct ContinuousTimeCenteredSimulation <: ContinuousTimeSystemUnderApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
 end
@@ -42,6 +75,22 @@ end
 #  RANDOM SIMULATION IMPLEMENTATION
 # --------------------------------------------------
 
+"""
+    DiscreteTimeRandomSimulation <: DiscreteTimeSystemUnderApproximation
+
+A stochastic underapproximation of a discrete-time system using **random sampling**.
+
+Propagates multiple randomly sampled points from the input set to provide a discrete underapproximation of reachable states.
+
+# Fields
+- `system`: The underlying discrete-time control system.
+- `nsamples`: Number of samples to draw from the input set.
+
+# Underapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector) -> Vector{SVector}`
+which returns a list of propagated samples.
+"""
 struct DiscreteTimeRandomSimulation <: DiscreteTimeSystemUnderApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     nsamples::Int
@@ -56,6 +105,25 @@ function get_under_approximation_map(approx::DiscreteTimeRandomSimulation)
     end
 end
 
+"""
+    ContinuousTimeRandomSimulation <: ContinuousTimeSystemUnderApproximation
+
+A stochastic underapproximation for continuous-time systems using **random point sampling**.
+
+Simulates multiple samples from the input set, over a fixed time step.
+
+# Fields
+- `system`: The underlying continuous-time control system.
+- `nsamples`: Number of random samples.
+
+# Underapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> Vector{SVector}`
+which returns a list of propagated samples.
+
+# Notes
+Use `discretize` to convert this approximation into a discrete-time approximation suitable for use in fixed-step abstraction pipelines.
+"""
 struct ContinuousTimeRandomSimulation <: ContinuousTimeSystemUnderApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
     nsamples::Int

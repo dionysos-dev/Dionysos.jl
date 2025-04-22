@@ -1,20 +1,20 @@
 """
-The structure 
-
     ProblemType
 
-is the abstract type which defines a problem.
+An abstract type that represents a generic control problem.  
+All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref)) should subtype `ProblemType`.
 """
 abstract type ProblemType end
 
 """
-The structure 
+    EmptyProblem{S, X} <: ProblemType
 
-    EmptyProblem{S, X}
+A problem type used to construct an **abstraction** of a dynamical system.
 
-encodes a problem consisting in constructing the abstraction in X 
-- `S` is the system,
-- `X` is the region, 
+- `S`: The system to abstract (continuous or discrete-time).
+- `X`: The region of interest (e.g., a subset of the state space).
+
+This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
 struct EmptyProblem{S, X} <: ProblemType
     system::S
@@ -22,17 +22,18 @@ struct EmptyProblem{S, X} <: ProblemType
 end
 
 """
-The structure 
+    OptimalControlProblem{S, XI, XT, XC, TC, T} <: ProblemType
 
-    OptimalControlProblem{S, XI, XT, XC, TC, T}
+Encodes a **reach-avoid optimal control problem** over a finite horizon.
 
-encodes an optimal control problem where 
-- `S` is the system,
-- `XI` is the initial set, 
-- `XT` is the target set,
-- `XC` is the state cost,
-- `TC` is transistion cost and
-- `T` is the number of allowed time steps
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `XT`: The target set to be reached.
+- `XC`: A state cost function or structure.
+- `TC`: A transition cost function or structure.
+- `T`: The time horizon (number of allowed time steps).
+
+This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
 struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
     system::S
@@ -44,15 +45,16 @@ struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
 end
 
 """
-The structure 
+    SafetyProblem{S, XI, XS, T} <: ProblemType
 
-    SafetyProblem{S, XI, XS, T}
+Encodes a **safety control problem** over a finite horizon.
 
-encodes a safety problem where
-- `S` is the system,
-- `XI` is the initial set, 
-- `XS` is the safe set and
-- `T` is the number of allowed time steps
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `XS`: The safe set in which the system must remain.
+- `T`: The time horizon (number of allowed time steps).
+
+This problem aims to synthesize a controller that ensures the system remains within the safe set for the entire duration of the time horizon.
 """
 struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     system::S
