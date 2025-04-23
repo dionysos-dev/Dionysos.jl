@@ -34,18 +34,18 @@ using Dionysos, JuMP
 
 # Define the problem using JuMP
 # We first create a JuMP model:
-model = Model(Dionysos.Optimizer)
+model = Model(Dionysos.Optimizer);
 
 # Define the discretization step
-hx = 0.1
+hx = 0.1;
 
 # Define the state variables: x1(t), x2(t), x3(t) without specifying the start value since here it's a set. We will specify the start later using constraints.
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i]);
 
 # Define the control variables: u1(t), u2(t)
-@variable(model, -1 <= u[1:2] <= 1)
+@variable(model, -1 <= u[1:2] <= 1);
 
 # Define the dynamics, we do not include the remainder modulo `2π` for `Δ(x[3])`. There are options to set periodic variables in Dionysos but that's not needed for this example.
 @constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
@@ -119,7 +119,7 @@ function get_obstacles(lb, ub, h)
     ]
 end
 
-obstacles = get_obstacles(x_low, x_upp, hx)
+obstacles = get_obstacles(x_low, x_upp, hx);
 
 # Function to add rectangular obstacle avoidance constraints
 
@@ -136,16 +136,6 @@ function growth_bound(r, u)
 end
 set_attribute(model, "growthbound_map", growth_bound)
 
-# We define the inverse system map:
-# function sys_inv(x, u, _)
-#     return StaticArrays.SVector{3}(
-#         x[1] - u[1] * cos(x[3] - u[2]),
-#         x[2] - u[1] * sin(x[3] - u[2]),
-#         x[3] - u[2],
-#     )
-# end
-# set_attribute(model, "sys_inv_map", sys_inv)
-
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(hx, hx, 0.2);
@@ -156,15 +146,16 @@ u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
-optimize!(model)
+optimize!(model);
 
 # Get the results
 abstract_system = get_attribute(model, "abstract_system");
 abstract_problem = get_attribute(model, "abstract_problem");
 abstract_controller = get_attribute(model, "abstract_controller");
-concrete_controller = get_attribute(model, "concrete_controller")
+abstract_value_function = get_attribute(model, "abstract_value_function");
+concrete_controller = get_attribute(model, "concrete_controller");
 concrete_problem = get_attribute(model, "concrete_problem");
-concrete_system = concrete_problem.system
+concrete_system = concrete_problem.system;
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -194,7 +185,7 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 # We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
+plot!(abstract_system; value_function = abstract_value_function);
 
 # We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");

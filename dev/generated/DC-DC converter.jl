@@ -9,7 +9,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
@@ -50,7 +50,7 @@ println("Total time: $(total_time)")
 
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
 invariant_set_complement =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"));
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
@@ -66,13 +66,13 @@ plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
-η = (2 / 4.0) * 10^(-3)
+η = (2 / 4.0) * 10^(-3);
 
 ϵ = 0.1 * 0.01
 P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
@@ -93,7 +93,7 @@ MOI.set(
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))

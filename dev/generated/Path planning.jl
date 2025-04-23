@@ -2,13 +2,13 @@ using StaticArrays, Plots
 
 using Dionysos, JuMP
 
-model = Model(Dionysos.Optimizer)
+model = Model(Dionysos.Optimizer);
 
 x_low, x_upp = [0.0, 0.0, -pi - 0.4], [4.0, 10.0, pi + 0.4]
 x_start = [0.4, 0.4, 0.0]
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x_start[i])
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x_start[i]);
 
-@variable(model, -1 <= u[1:2] <= 1)
+@variable(model, -1 <= u[1:2] <= 1);
 
 @expression(model, α, atan(tan(u[2]) / 2))
 
@@ -25,7 +25,7 @@ x_target = [3.3, 0.5, 0]
 x1_lb = [1.0, 2.2, 2.2]
 x1_ub = [1.2, 2.4, 2.4]
 x2_lb = [0.0, 0.0, 6.0]
-x2_ub = [9.0, 5.0, 10.0]
+x2_ub = [9.0, 5.0, 10.0];
 
 for i in eachindex(x1_ub)
     @constraint(
@@ -55,7 +55,7 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
-optimize!(model)
+optimize!(model);
 
 abstract_system = get_attribute(model, "abstract_system");
 abstract_problem = get_attribute(model, "abstract_problem");

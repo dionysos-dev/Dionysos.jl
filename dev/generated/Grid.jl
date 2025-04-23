@@ -1,7 +1,5 @@
 using Dionysos
-using StaticArrays
-using LinearAlgebra
-using Plots
+using StaticArrays, LinearAlgebra, Plots
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -14,7 +12,7 @@ rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
 domainX = DO.DomainList(grid)
 DO.add_set!(domainX, rectX, DO.INNER)
 plot(; aspect_ratio = :equal);
-plot!(domainX)
+plot!(domainX; efficient = false, color = :grey, label = "Grid")
 
 f1(x) = x
 fi1(x) = x

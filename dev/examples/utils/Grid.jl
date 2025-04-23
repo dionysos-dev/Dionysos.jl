@@ -12,9 +12,7 @@
 # First, let us import a few packages that are necessary to run this example.
 
 using Dionysos
-using StaticArrays
-using LinearAlgebra
-using Plots
+using StaticArrays, LinearAlgebra, Plots
 
 # The main package [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) provides most important data structures that we will need.
 
@@ -30,7 +28,7 @@ rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
 domainX = DO.DomainList(grid)
 DO.add_set!(domainX, rectX, DO.INNER)
 plot(; aspect_ratio = :equal);
-plot!(domainX)
+plot!(domainX; efficient = false, color = :grey, label = "Grid")
 
 # ### Deformed grid
 # We define some invertible transformation (with their inverse)

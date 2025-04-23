@@ -1,8 +1,7 @@
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
-using MathematicalSystems, HybridSystems
+using StaticArrays, LinearAlgebra, Plots
 using JuMP, Clarabel
-using Plots, Colors
-using Test
+
+import Random
 Random.seed!(0)
 
 using Dionysos
@@ -88,7 +87,7 @@ ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = false);
 
 #Display the abstract domain
 plot!(abstract_system; arrowsB = false, cost = false, label = false);

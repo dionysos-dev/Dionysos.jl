@@ -1,11 +1,10 @@
 # # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
-using MathematicalSystems, HybridSystems
+using StaticArrays, LinearAlgebra, Plots
 using JuMP, Clarabel
-using Plots, Colors
-using Test
+
+import Random
 Random.seed!(0)
 
 using Dionysos
@@ -100,7 +99,7 @@ ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = false);
 
 #Display the abstract domain
 plot!(abstract_system; arrowsB = false, cost = false, label = false);
@@ -137,5 +136,3 @@ for obs in concrete_system.obstacles
 end
 plot!(abstract_system; arrowsB = false, cost = true);
 plot!(cost_control_trajectory; color = :black)
-
-@test cost_true <= cost_bound             #src

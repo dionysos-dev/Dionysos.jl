@@ -2,15 +2,15 @@ using StaticArrays, Plots
 
 using Dionysos, JuMP
 
-model = Model(Dionysos.Optimizer)
+model = Model(Dionysos.Optimizer);
 
-hx = 0.1
+hx = 0.1;
 
 x_low = [-3.5, -2.6, -pi]
 x_upp = -x_low
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i])
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i]);
 
-@variable(model, -1 <= u[1:2] <= 1)
+@variable(model, -1 <= u[1:2] <= 1);
 
 @constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
 @constraint(model, Δ(x[2]) == x[2] + u[1] * sin(x[3]))
@@ -81,7 +81,7 @@ function get_obstacles(lb, ub, h)
     ]
 end
 
-obstacles = get_obstacles(x_low, x_upp, hx)
+obstacles = get_obstacles(x_low, x_upp, hx);
 
 for obstacle in obstacles
     @constraint(model, x[1:2] ∉ obstacle)
@@ -101,14 +101,15 @@ u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
-optimize!(model)
+optimize!(model);
 
 abstract_system = get_attribute(model, "abstract_system");
 abstract_problem = get_attribute(model, "abstract_problem");
 abstract_controller = get_attribute(model, "abstract_controller");
-concrete_controller = get_attribute(model, "concrete_controller")
+abstract_value_function = get_attribute(model, "abstract_value_function");
+concrete_controller = get_attribute(model, "concrete_controller");
 concrete_problem = get_attribute(model, "concrete_problem");
-concrete_system = concrete_problem.system
+concrete_system = concrete_problem.system;
 
 nstep = 100
 function reached(x)
@@ -133,7 +134,7 @@ fig = plot(; aspect_ratio = :equal);
 
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false);
+plot!(abstract_system; value_function = abstract_value_function);
 
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");
 plot!(

@@ -138,14 +138,20 @@ println("True cost:\t\t $(cost_true)")
 
 fig = plot(; aspect_ratio = :equal);
 #We display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 #We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, opacity = 0.5, efficient = false, label = "");
 
 #We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.8);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.8, label = "Initial set");
+plot!(
+    concrete_problem.target_set;
+    dims = [1, 2],
+    color = :red,
+    opacity = 0.8,
+    label = "Target set",
+);
 
 #We display the concrete trajectory
 plot!(cost_control_trajectory; ms = 0.5)
@@ -166,13 +172,12 @@ plot!(
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.bell_fun,
-    label = false,
+    label = "",
+    efficient = false,
 )
 
 fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
 plot!(cost_control_trajectory; color = :black)
-
-display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

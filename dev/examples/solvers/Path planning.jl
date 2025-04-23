@@ -40,15 +40,15 @@ using Dionysos, JuMP
 
 # We define the problem using JuMP as follows.
 # We first create a JuMP model:
-model = Model(Dionysos.Optimizer)
+model = Model(Dionysos.Optimizer);
 
 # Define the state variables: x1(t), x2(t), x3(t)
 x_low, x_upp = [0.0, 0.0, -pi - 0.4], [4.0, 10.0, pi + 0.4]
 x_start = [0.4, 0.4, 0.0]
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x_start[i])
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x_start[i]);
 
 # Define the control variables: u1(t), u2(t)
-@variable(model, -1 <= u[1:2] <= 1)
+@variable(model, -1 <= u[1:2] <= 1);
 
 # Set α(t) = arctan(tan(u2(t)) / 2)
 @expression(model, α, atan(tan(u[2]) / 2))
@@ -67,7 +67,7 @@ x_target = [3.3, 0.5, 0]
 x1_lb = [1.0, 2.2, 2.2]
 x1_ub = [1.2, 2.4, 2.4]
 x2_lb = [0.0, 0.0, 6.0]
-x2_ub = [9.0, 5.0, 10.0]
+x2_ub = [9.0, 5.0, 10.0];
 
 # Function to add rectangular obstacle avoidance constraints
 
@@ -105,7 +105,7 @@ u0 = SVector(0.0, 0.0);
 h = SVector(0.3, 0.3);
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
-optimize!(model)
+optimize!(model);
 
 # Get the results
 abstract_system = get_attribute(model, "abstract_system");
