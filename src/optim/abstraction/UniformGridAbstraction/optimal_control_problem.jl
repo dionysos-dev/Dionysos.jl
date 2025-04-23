@@ -3,59 +3,56 @@
 
 An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
 
-This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)). It then solves the **abstract** versions of the control problem.
+This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)). It then solves the **abstract** version of the control problem.
 
 ### Key Behavior
 
-- Lifts the concrete reachability problem to the symbolic abstraction space (`abstract_system`) and constructs the corresponding `abstract_problem`.
+- Lifts the concrete problem to the symbolic abstraction space (`abstract_system`) and constructs the corresponding `abstract_problem`.
 - Computes the `controllable_set` — the largest set of abstract states from which reachability can be guaranteed.
-- Synthesizes a `abstract_controller` that brings the system within the target set under worst-case transitions.
-- Computes the `abstract_value_function` that maps each state (cell) to the worst-case number of steps needed to reach the target set.
+- Synthesizes an `abstract_controller` that brings the system to the target set under worst-case dynamics.
+- Computes the `abstract_value_function` that maps each state (cell) to the worst-case number of steps needed to reach the target.
 - The solver is successful if the field `success` is `true` after `MOI.optimize!`.
+
+---
 
 ### Parameters
 
-#### Inputs
+#### Mandatory fields set by the user
 
-- `concrete_problem`: Instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem), defining the reach-avoid control task.
-- `abstract_system`: The symbolic abstraction of the system, typically produced by an abstraction solver such as [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+- `concrete_problem` (**required**):  
+  An instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) that defines the reach-avoid task (system, initial set, target, costs, horizon).
 
-#### Abstract Problem Fields
+- `abstract_system` (**required**):  
+  The symbolic abstraction of the system, usually obtained from an abstraction optimizer such as [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
 
-- `abstract_problem`: The lifted problem expressed over the abstract system.
-- `abstract_controller`: Abstract controller.
-- `abstract_problem_time_sec`: Time taken to solve the abstract problem.
+#### Optional user-tunable parameters
 
-#### Fixpoint Stopping
+- `early_stop` (optional, default = `true`):  
+  If `true`, the fixpoint algorithm stops early when the initial set is fully contained in the controllable set.  
+  If `false`, it computes the entire maximal controllable set.
 
-- `early_stop`: A `Bool` that allows stopping the fixpoint iteration as soon as the initial set is fully contained in the growing **controllable set**. This is useful in reachability problems where the fixpoint expands the target set outward.
+- `sparse_input` (optional, default = `false`):  
+  If `true`, uses a sparse representation of the transition table, reducing memory usage when the number of inputs is large but only few are admissible per state (e.g., in [`determinized abstractions`](@ref Dionysos.Symbolic.determinize_symbolic_model), with `new_input = (input, target)`).
 
-#### Memory Optimization
-
-- `sparse_input`: If `true`, replaces the default state × input transition table with a sparse dictionary-based structure.  
-  This is useful when:
-  - The input space is large.
-  - Only a small subset of inputs are admissible per state.
-  - For example, in the determinized abstraction case where inputs are of the form `new_input = (input, target)`.
-
-#### Output Sets
-
-- `controllable_set`: The set of abstract states from which the target set can be reached (worst-case guaranteed).
-- `uncontrollable_set`: Complementary set of unreachable states under the chosen strategy.
-
-#### Value Functions
-
-- `value_fun_tab`: A tabular representation storing, for each state, the associated cost or number of steps to reach the target.
-- `abstract_value_function`: Maps abstract states (cells) to worst-case cost-to-go.
-- `concrete_value_function`: Optionally stores a refined value function over the original (non-abstract) state space.
-
-#### Miscellaneous
-
-- `success`: A `Bool` flag indicating whether the problem was solved successfully.
-- `print_level`: Controls verbosity:
-    - `0`: silent
-    - `1`: default (info)
+- `print_level` (optional, default = `1`):  
+  Controls verbosity:  
+    - `0`: silent  
+    - `1`: default  
     - `2`: detailed logging
+
+#### Internally computed fields
+
+These fields are generated automatically during `MOI.optimize!`.
+
+- `abstract_problem`: The lifted version of the concrete problem over the abstract system.
+- `abstract_problem_time_sec`: Time taken to solve the abstract problem.
+- `abstract_controller`: A controller mapping abstract states to control inputs.
+- `controllable_set`: Set of abstract states from which the target is reachable.
+- `uncontrollable_set`: Complementary states with no admissible reachability strategy.
+- `value_fun_tab`: Tabular value function over abstract states (e.g., cost-to-go or step count).
+- `abstract_value_function`: Functional form of the abstract value function.
+- `concrete_value_function`: Functional form of the value function mapped back to the original system.
+- `success`: Boolean flag indicating whether the solver completed successfully.
 
 ### Example
 

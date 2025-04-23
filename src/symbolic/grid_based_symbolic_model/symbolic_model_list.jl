@@ -102,8 +102,41 @@ end
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
 
+"""
+    is_deterministic(symmodel::SymbolicModelList) -> Bool
+
+Returns `true` if the symbolic model is deterministic.
+
+A symbolic model is deterministic if, for every (state, input) pair, there is **at most one successor**.  
+"""
 is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
 
+"""
+    determinize_symbolic_model(symmodel::SymbolicModelList) -> SymbolicModelList
+
+Returns a **determinized version** of the given symbolic model by encoding each transition input as a pair `(input_symbol, target_state)`.
+
+This transformation removes nondeterminism by lifting the input space: each original input is paired with its intended target, making transitions unique.  
+
+# Arguments
+- `symmodel`: A [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList) that may contain nondeterministic transitions.
+
+# Returns
+- A new [`SymbolicModelList`](@ref) that is deterministic, with:
+    - New unique inputs: `(symbol, target)` pairs.
+    - Transitions remapped to be deterministic.
+    - `metadata[:original_symmodel]` containing a reference to the original model.
+
+# Notes
+- The determinized model will have more inputs than the original.
+
+# Example
+
+```julia
+det_symmodel = determinize_symbolic_model(symmodel)
+is_deterministic(det_symmodel) == true
+```
+"""
 function determinize_symbolic_model(symmodel::SymbolicModelList)
     autom = symmodel.autom
     transitions = UT.get_data(get_transition(autom))

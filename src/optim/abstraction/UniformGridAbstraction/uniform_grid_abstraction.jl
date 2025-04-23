@@ -18,33 +18,48 @@ include("safety_problem.jl")
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-A solver implementing the classical abstraction method (e.g., used in SCOTS), where the entire domain is partitioned into hyper-rectangular cells, independent of the specific control task. 
-The optimizer is structured into modular sub-solvers, each dedicated to a specific problem type. It ensures that abstraction is computed before solving the control problem, maintaining modularity and extendability.
+A high-level abstraction-based solver that automatically orchestrates system abstraction and control synthesis.  
+This wrapper follows the **classical abstraction pipeline** (e.g., as in SCOTS), where the state and input spaces are discretized into hyper-rectangular cells, independent of the specific control task.
 
-### Structure
+It delegates responsibility to modular sub-solvers: one for abstraction and one for control, depending on the type of problem to be solved.
+
+---
+
+### Structure and Sub-solvers
 
 The optimizer internally manages two sub-solvers:
 
-- [`OptimizerEmptyProblem`](@ref): computes the abstraction (symbolic model) from the system dynamics.
-- A control-specific solver, depending on the problem type:
-    - [`OptimizerSafetyProblem`](@ref): for safety specifications.
-    - [`OptimizerOptimalControlProblem`](@ref): for reachability/optimal control.
+- `abstraction_solver`: [`OptimizerEmptyProblem`](@ref):  
+  Used to compute the symbolic abstraction of the system from its dynamics and domain.
+
+- `control_solver`: One of the following control-specific optimizers, depending on the problem type:
+    - [`OptimizerOptimalControlProblem`](@ref): for [`reachability/optimal control problems`](@ref Dionysos.Problem.OptimalControlProblem).
+    - [`OptimizerSafetyProblem`](@ref): for [`safety problems`](@ref Dionysos.Problem.SafetyProblem).
+
+---
 
 ### Behavior
 
-- Automatically dispatches the appropriate control solver based on the [`ProblemType`](@ref Dionysos.Problem.ProblemType) provided via `MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)`.
-- Ensures that the abstraction is computed **before** solving the control problem.
-- Allows the concrete problem to be changed without recomputing the abstraction, as long as the abstraction is already built.
-- Stores the resulting `abstract_system` and synthesizes a corresponding `concrete_controller`.
-- Tracks the time spent during the last `MOI.optimize!` call via the `solve_time_sec` field.
-- Supports configurable verbosity through `print_level`:
-    - `print_level = 0`: silent mode (no output)
-    - `print_level = 1`: standard verbosity (default)
-    - `print_level = 2`: detailed logging and messages
+- The user sets the control task via:  
+  `MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)`  
+  where `my_problem` is a subtype of [`ProblemType`](@ref Dionysos.Problem.ProblemType).
 
-### Access to subsolver fields
+- The optimizer automatically dispatches to the appropriate control solver based on the problem type.
 
-Any field or attribute present in the sub-solvers (e.g., `state_grid`, `abstract_value_function`, etc.) can be accessed or set transparently through this wrapper optimizer via:
+- If the abstraction has not yet been computed, it is automatically built **before** solving the control problem.
+
+- Once computed, the abstraction is cached — switching the control problem (e.g., from safety to reachability) does not recompute it.
+
+- The field `solve_time_sec` tracks the runtime of the last call to `MOI.optimize!`.
+
+- The resulting controller and value function are stored and can be queried from the wrapper.
+
+---
+
+### User-settable and access to subsolver fields
+
+Via `MOI.set(...)`, the user may configure `abstraction_solver` and `control_solver` parameters.
+Any field accessible in the sub-solvers (abstraction or control) can be transparently accessed via:
 
 ```julia
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), grid)

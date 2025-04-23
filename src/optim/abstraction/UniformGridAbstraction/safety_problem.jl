@@ -1,42 +1,49 @@
 """
     OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
 
-An optimizer for solving **safety control problems** on symbolic system abstractions.
+An optimizer for solving **safety control problems** over symbolic system abstractions.
 
-This solver takes a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) as input along with a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)), and computes a **controller** that ensures all trajectories remain within a given safe set indefinitely (i.e., an **invariant set**).
+This solver takes as input a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) and a symbolic abstraction of the system (e.g., a [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList)), and computes a controller that ensures the system remains within a safe set over a time horizon or indefinitely.
+
+---
 
 ### Key Behavior
 
-- Lifts the concrete safety problem to the symbolic abstraction space (`abstract_system`) and constructs the corresponding `abstract_problem`.
-- Computes the `invariant_set` — the largest set of abstract states from which safety can be guaranteed.
-- Synthesizes a `abstract_controller` that keeps the abstract system within this invariant set under worst-case transitions.
-- The solver is successful if the field `success` is `true` after `MOI.optimize!`.
+- Lifts the concrete safety problem to the abstract domain and builds an `abstract_problem`.
+- Computes the **invariant set**, i.e., the largest set of abstract states from which all trajectories can be safely controlled.
+- Synthesizes an `abstract_controller` that guarantees safety under worst-case transitions.
+- The optimization is successful if `success == true` after calling `MOI.optimize!`.
+
+---
 
 ### Parameters
 
-#### Inputs
+#### Mandatory fields set by the user
 
-- `concrete_problem`: An instance of [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) that defines the safe set, system, and dynamics.
-- `abstract_system`: The symbolic abstraction of the system, such as one produced by [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+- `concrete_problem` (**required**):  
+  An instance of [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) that specifies the system, initial set, safe set, and horizon.
 
-#### Abstract Problem Fields
+- `abstract_system` (**required**):  
+  A symbolic abstraction of the system, e.g., obtained from [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
 
-- `abstract_problem`: The lifted safety problem over the abstract model.
-- `abstract_controller`: Abstract controller.
-- `abstract_problem_time_sec`: Time to solve the abstract safety problem.
+#### Optional user-tunable parameters
 
-#### Result Sets
-
-- `invariant_set`: The largest set of abstract states guaranteed to remain within the safe set.
-- `invariant_set_complement`: The complement — states from which safety cannot be guaranteed under any control.
-
-#### Miscellaneous
-
-- `success`: A `Bool` flag that is `true` if a valid invariant set and controller were found.
-- `print_level`: Controls verbosity:
+- `print_level` (optional, default = `1`):  
+  Controls verbosity:
     - `0`: silent
     - `1`: default (info)
-    - `2`: verbose logging
+    - `2`: verbose debug output
+
+#### Internally computed fields
+
+These fields are automatically filled in by `MOI.optimize!`.
+
+- `abstract_problem`: The lifted version of the safety problem in the symbolic domain.
+- `abstract_problem_time_sec`: Time taken to solve the safety problem over the abstract system.
+- `abstract_controller`: A controller mapping abstract states to admissible inputs that keep the system safe.
+- `invariant_set`: The largest subset of abstract states from which safety can be maintained.
+- `invariant_set_complement`: States from which safety cannot be guaranteed.
+- `success`: Boolean flag indicating whether a valid invariant set and controller were found.
 
 ### Example
 
