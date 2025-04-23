@@ -1,3 +1,78 @@
+"""
+    OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
+
+An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
+
+This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)). It then solves the **abstract** version of the control problem.
+
+### Key Behavior
+
+- Lifts the concrete problem to the symbolic abstraction space (`abstract_system`) and constructs the corresponding `abstract_problem`.
+- Computes the `controllable_set` — the largest set of abstract states from which reachability can be guaranteed.
+- Synthesizes an `abstract_controller` that brings the system to the target set under worst-case dynamics.
+- Computes the `abstract_value_function` that maps each state (cell) to the worst-case number of steps needed to reach the target.
+- The solver is successful if the field `success` is `true` after `MOI.optimize!`.
+
+---
+
+### Parameters
+
+#### Mandatory fields set by the user
+
+- `concrete_problem` (**required**):  
+  An instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) that defines the reach-avoid task (system, initial set, target, costs, horizon).
+
+- `abstract_system` (**required**):  
+  The symbolic abstraction of the system, usually obtained from an abstraction optimizer such as [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+
+#### Optional user-tunable parameters
+
+- `early_stop` (optional, default = `true`):  
+  If `true`, the fixpoint algorithm stops early when the initial set is fully contained in the controllable set.  
+  If `false`, it computes the entire maximal controllable set.
+
+- `sparse_input` (optional, default = `false`):  
+  If `true`, uses a sparse representation of the transition table, reducing memory usage when the number of inputs is large but only few are admissible per state (e.g., in [`determinized abstractions`](@ref Dionysos.Symbolic.determinize_symbolic_model), with `new_input = (input, target)`).
+
+- `print_level` (optional, default = `1`):  
+  Controls verbosity:  
+    - `0`: silent  
+    - `1`: default  
+    - `2`: detailed logging
+
+#### Internally computed fields
+
+These fields are generated automatically during `MOI.optimize!`.
+
+- `abstract_problem`: The lifted version of the concrete problem over the abstract system.
+- `abstract_problem_time_sec`: Time taken to solve the abstract problem.
+- `abstract_controller`: A controller mapping abstract states to control inputs.
+- `controllable_set`: Set of abstract states from which the target is reachable.
+- `uncontrollable_set`: Complementary states with no admissible reachability strategy.
+- `value_fun_tab`: Tabular value function over abstract states (e.g., cost-to-go or step count).
+- `abstract_value_function`: Functional form of the abstract value function.
+- `concrete_value_function`: Functional form of the value function mapped back to the original system.
+- `success`: Boolean flag indicating whether the solver completed successfully.
+
+### Example
+
+```julia
+using Dionysos, JuMP
+optimizer = MOI.instantiate(Dionysos.Optim.OptimizerOptimalControlProblem.Optimizer)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+
+MOI.optimize!(optimizer)
+
+time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+```
+"""
 mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Inputs
     concrete_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
@@ -152,11 +227,6 @@ function build_abstract_problem(
     )
 end
 
-"""
-    compute_largest_controllable_set(abstract_system, target_set; initial_set)
-
-Computes the largest controllable set and generates an abstract controller.
-"""
 function compute_largest_controllable_set(
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
     target_set;

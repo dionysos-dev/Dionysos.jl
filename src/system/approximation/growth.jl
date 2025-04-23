@@ -2,6 +2,24 @@
 #  GROWTH OVERAPPROXIMATION IMPLEMENTATION
 # --------------------------------------------------
 
+"""
+    DiscreteTimeGrowthBound <: DiscreteTimeSystemOverApproximation
+
+A discrete-time overapproximation based on **growth bounds**.
+
+Given a system and a `growthbound_map`, this approximation inflates the center trajectory by a radius that depends on the current state set's size and the input.
+
+# Fields
+- `system`: A `ConstrainedBlackBoxControlDiscreteSystem` from `MathematicalSystems.jl`.
+- `growthbound_map`: A function  
+    `f(radius::SVector, u::SVector) -> SVector`  
+    that computes how uncertainty in state evolves under the system.
+
+# Overapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
+This function simulates the image of the center and inflates it using the computed growth bound.
+"""
 struct DiscreteTimeGrowthBound <: DiscreteTimeSystemOverApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     growthbound_map::Function
@@ -18,6 +36,24 @@ function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
     end
 end
 
+"""
+    ContinuousTimeGrowthBound <: ContinuousTimeSystemOverApproximation
+
+A continuous-time overapproximation based on **growth bounds** for reachable set propagation.
+
+It estimates how uncertainty evolves through time using a `growthbound_map` which depends on the radius, input, and time step.
+
+# Fields
+- `system`: A `ConstrainedBlackBoxControlContinuousSystem` from `MathematicalSystems.jl`.
+- `growthbound_map`: A function  
+    `f(radius::SVector, u::SVector, tstep::Real) -> SVector`  
+    that estimates how uncertainty grows over a time step.
+
+# Overapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
+This function simulates the image of the center and inflates it using the computed growth bound.
+"""
 struct ContinuousTimeGrowthBound <: ContinuousTimeSystemOverApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
     growthbound_map::Function
@@ -47,7 +83,7 @@ function ContinuousTimeGrowthBound_from_jacobian_bound(
 )
     modified_jacobian_bound = (r, u) -> jacobian_bound(u) * r
     growthbound_map =
-        (r, u, tstep) -> RungeKutta4(modified_jacobian_bound, r, u, tstep, ngrowthbound)
+        (r, u, tstep) -> runge_kutta4(modified_jacobian_bound, r, u, tstep, ngrowthbound)
     return ContinuousTimeGrowthBound(system, growthbound_map)
 end
 
