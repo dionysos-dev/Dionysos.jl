@@ -170,8 +170,9 @@ function compute_abstract_transitions_from_rectangle!(
     translist,
 )
     Xdom = get_state_domain(symmodel)
-    rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), reachable_set)
-    ypos_iter = Iterators.product(DO._ranges(rectI)...)
+    # rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), reachable_set)
+    # ypos_iter = Iterators.product(DO._ranges(rectI)...)
+    ypos_iter = DO.get_subset_pos_in_grid(Xdom, reachable_set, DO.OUTER)
     allin = true
     for ypos in ypos_iter
         if !(ypos in Xdom)

@@ -28,13 +28,12 @@ include("optim/branch_and_bound.jl")
 include("optim/bisection.jl")
 include("optim/newton_method.jl")
 
+include("lazy_set_operations.jl")
 include("rectangle.jl")
 include("box.jl")
 include("ellipsoid.jl")
 include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
 include("intersection_set.jl")
-
-include("lazy_set_operations.jl")
 
 end  # module Utils

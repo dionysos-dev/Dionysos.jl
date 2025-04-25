@@ -399,47 +399,9 @@ function recursive(L, rec, lb, ub, periodic, periods, T0, i)
         recursive(L, rec, l, u, periodic, periods, T0, i + 1)
     end
 end
+
 function set_rec_in_period(periodic, periods, T0, rec::UT.HyperRectangle)
     L = typeof(rec)[]
     recursive(L, rec, rec.lb, rec.ub, periodic, periods, T0, 1)
     return L
 end
-
-# ################### symbolic model
-# function _SymbolicModel(Xdom::GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}, Udom::Domain{M}) where {N,M,T}
-#     nu = get_ncells(Udom)
-#     uint2pos = [pos for pos in enum_pos(Udom)]
-#     upos2int = Dict((pos, i) for (i, pos) in enumerate(enum_pos(Udom)))
-#     symmodel = SymbolicModelList(
-#         Xdom,
-#         Udom,
-#         AutomatonList{Set{NTuple{3,T}}}(0, nu),
-#         Dict{NTuple{N,T},Int}(),
-#         NTuple{N,T}[],
-#         upos2int,
-#         uint2pos,
-#     )
-# end
-#
-#
-# function get_state_by_xpos(
-#     symmodel::SymbolicModelList{N,M,<:GeneralDomainList{N,RectangularObstacles{NTuple{N,T}}}},
-#     pos,
-# ) where {N,M,T}
-#     #pos = set_in_period_pos(domain,pos)
-#     id = get(symmodel.xpos2int, pos, nothing)
-#     created = false
-#     if id === nothing
-#         if pos in symmodel.Xdom
-#             created = true
-#             push!(symmodel.xint2pos, pos)
-#             id = length(symmodel.xint2pos)
-#             symmodel.xpos2int[pos] = id
-#             i = HybridSystems.add_state!(symmodel.autom)
-#             @assert i == id
-#         else
-#             error("$pos is not in state domain $(symmodel.Xdom)")
-#         end
-#     end
-#     return id::Int,created
-# end

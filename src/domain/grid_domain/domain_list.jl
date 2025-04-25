@@ -12,6 +12,12 @@ function DomainList(grid::S) where {N, S <: Grid{N}}
     return DomainList(grid, Set{NTuple{N, Int}}())
 end
 
+function DomainList(h::SVector{N, T}) where {N, T}
+    origin = zeros(SVector{N, T})
+    grid = GridFree(origin, h)
+    return DomainList(grid)
+end
+
 get_grid(domain::DomainList) = domain.grid
 enum_pos(domain::DomainList) = domain.elems
 get_ncells(domain::DomainList) = length(domain.elems)

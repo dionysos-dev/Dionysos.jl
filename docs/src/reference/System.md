@@ -114,6 +114,7 @@ Dionysos.System.AffineController
 
 ## Trajectories 
 ```@docs
+Dionysos.System.wrap_coord
 Dionysos.System.DiscreteTrajectory
 Dionysos.System.ContinuousTrajectory
 Dionysos.System.HybridTrajectory

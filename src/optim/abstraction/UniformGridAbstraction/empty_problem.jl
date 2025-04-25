@@ -26,6 +26,9 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
 - `state_grid` (**required**):  
   The discretization grid for the state space.
 
+- If `state_grid` is not provided, you must set:
+    - `h::SVector{N, T}`: Grid spacing vector (used to construct the grid internally).
+
 - `input_grid` (**required**):  
   The discretization grid for the input space.
 
@@ -68,6 +71,17 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
     - `1`: standard  
     - `2`: verbose/debug
 
+- `use_periodic_domain` (optional, default = `false`):  
+  If `true`, uses a periodic domain structure when discretizing the state space.
+
+  When enabled, the following fields are required:
+    - `periodic_dims::SVector{P, Int}`:  
+      Indices of the periodic dimensions.
+    - `periodic_periods::SVector{P, T}`:  
+      Period length for each periodic dimension.
+    - `periodic_start::SVector{P, T}` (optional):  
+      Start point of each periodic dimension. Defaults to `0.0` if not provided.
+
 ---
 
 ### Internally computed fields (after `MOI.optimize!`)
@@ -95,7 +109,7 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
 using Dionysos, JuMP
 optimizer = MOI.instantiate(Dionysos.Optim.OptimizerEmptyProblem.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("empty_problem"), my_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
@@ -111,7 +125,7 @@ discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_ti
 ```
 """
 mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
-    ### Abstraction Result
+    ## Abstraction Result
     discrete_time_system::Union{
         Nothing,
         MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
@@ -119,17 +133,23 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
     abstraction_construction_time_sec::T
 
-    ### System Approximation
+    ## System Approximation
     continuous_time_system_approximation::Union{
         Nothing,
         ST.ContinuousTimeSystemApproximation,
     }
     discrete_time_system_approximation::Union{Nothing, ST.DiscreteTimeSystemApproximation}
 
-    ### User Settings
+    ## User Settings
     empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
     state_grid::Union{Nothing, Dionysos.Domain.Grid}
     input_grid::Union{Nothing, Dionysos.Domain.Grid}
+    h::Union{Nothing, Any}
+
+    use_periodic_domain::Bool
+    periodic_dims::Union{Nothing, Any}
+    periodic_start::Union{Nothing, Any}
+    periodic_periods::Union{Nothing, Any}
 
     ### USER_DEFINED
     overapproximation_map::Union{Nothing, Function}
@@ -161,24 +181,29 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
         optimizer = new{T}(
             nothing,
             nothing,
-            0.0, # Abstraction
-            nothing,
-            nothing, # System Approximation
+            0.0,
             nothing,
             nothing,
-            nothing, # User Settings
-            nothing, # USER_DEFINED
             nothing,
             nothing,
-            5, # GROWTH
             nothing,
             nothing,
-            nothing, # LINEARIZED
-            nothing,  # RANDOM_SIMULATION
+            false,
             nothing,
-            5,  # Continuous-Time System
+            nothing,
+            nothing,
+            nothing, #USER_DEFINED
+            nothing,
+            nothing,
+            5, #GROWTH
+            nothing,
+            nothing,
+            nothing, #LINEARIZED
+            5, #RANDOM_SIMULATION
+            nothing,
+            5,
             GROWTH,
-            true, # Approximation Settings
+            true,
             1,
         )
         return optimizer
@@ -298,30 +323,90 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
         ST.get_system(optimizer.discrete_time_system_approximation)
 end
 
-function _get_domain_list(variables, grid, position_in_domain)
-    domain_list = Dionysos.Domain.DomainList(grid)
-    Dionysos.Domain.add_set!(domain_list, variables, position_in_domain)
+function build_state_domain(optimizer::OptimizerEmptyProblem)
+    state_domain = nothing
+    system_X = optimizer.empty_problem.system.X
+    if optimizer.use_periodic_domain
+        _validate_model(optimizer, [:periodic_dims, :periodic_periods])
+        if optimizer.state_grid !== nothing
+            state_domain =
+                optimizer.periodic_start !== nothing ?
+                DO.PeriodicDomainList(
+                    optimizer.periodic_dims,
+                    optimizer.periodic_periods,
+                    optimizer.periodic_start,
+                    optimizer.state_grid,
+                ) :
+                DO.PeriodicDomainList(
+                    optimizer.periodic_dims,
+                    optimizer.periodic_periods,
+                    optimizer.state_grid,
+                )
+        elseif optimizer.h !== nothing
+            state_domain =
+                optimizer.periodic_start !== nothing ?
+                DO.PeriodicDomainList(
+                    optimizer.periodic_dims,
+                    optimizer.periodic_periods,
+                    optimizer.periodic_start,
+                    optimizer.h,
+                ) :
+                DO.PeriodicDomainList(
+                    optimizer.periodic_dims,
+                    optimizer.periodic_periods,
+                    optimizer.h,
+                )
+        else
+            error(
+                "To build periodic state domain, either `state_grid` or `h` must be provided.",
+            )
+        end
+    else
+        if optimizer.state_grid !== nothing
+            state_domain = DO.DomainList(optimizer.state_grid)
+        elseif optimizer.h !== nothing
+            state_domain = DO.DomainList(optimizer.h)
+        else
+            error("To build state domain, either `state_grid` or `h` must be provided.")
+        end
+    end
+    # Fill the domain with relevant set
+    DO.add_set!(state_domain, system_X, DO.INNER)
+    return state_domain
+end
+
+function build_input_domain(optimizer::OptimizerEmptyProblem)
+    domain_list = Dionysos.Domain.DomainList(optimizer.input_grid)
+    Dionysos.Domain.add_set!(
+        domain_list,
+        optimizer.empty_problem.system.U,
+        Dionysos.Domain.CENTER,
+    )
     return domain_list
 end
 
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 
+function build_noise(optimizer::OptimizerEmptyProblem)
+    @warn("Noise is not yet accounted for in system abstraction.")
+    concrete_system = optimizer.empty_problem.system
+    return _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
+end
+
 function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     t_ref = time()
 
     # Ensure necessary parameters are set
-    _validate_model(optimizer, [:state_grid, :input_grid, :empty_problem])
+    _validate_model(optimizer, [:input_grid, :empty_problem])
     @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
 
     # Create over-approximation method
     build_system_approximation!(optimizer)
 
-    concrete_system = optimizer.empty_problem.system
-
     # Create abstract system
     abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(
-        _get_domain_list(concrete_system.X, optimizer.state_grid, Dionysos.Domain.INNER),
-        _get_domain_list(concrete_system.U, optimizer.input_grid, Dionysos.Domain.CENTER),
+        build_state_domain(optimizer),
+        build_input_domain(optimizer),
     )
 
     if optimizer.print_level >= 2
@@ -333,8 +418,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     end
 
     # TODO: Consider adding noise handling
-    @warn("Noise is not yet accounted for in system abstraction.")
-    noise = _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
+    noise = build_noise(optimizer)
 
     optimizer.print_level >= 1 && println(
         "compute_abstract_system_from_concrete_system!: started with $(typeof(optimizer.discrete_time_system_approximation))",

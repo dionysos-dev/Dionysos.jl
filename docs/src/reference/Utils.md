@@ -46,6 +46,7 @@ Dionysos.Utils.Tree
 ## Geometric shapes
 
 ```@docs
+Dionysos.Utils.set_in_period 
 Dionysos.Utils.HyperRectangle
 Dionysos.Utils.DeformedRectangle
 ```

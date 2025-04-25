@@ -26,11 +26,17 @@ Dionysos.Domain.GridDomainType
 Dionysos.Domain.merge_to_hyperrectangles_pos
 Dionysos.Domain.merge_to_hyperrectangles_real
 Dionysos.Domain.DomainList
-Dionysos.Domain.PeriodicDomainList
-Dionysos.Domain.has_same_periodicity
-Dionysos.Domain.wrap_pos
-Dionysos.Domain.wrap_coord
 Dionysos.Domain.GeneralDomainList
 Dionysos.Domain.RectangularObstacles
 Dionysos.Domain.CustomList
+```
+
+### Periodic domain 
+```@docs
+Dionysos.Domain.PeriodicDomainList
+Dionysos.Domain.is_periodic
+Dionysos.Domain.has_same_periodicity
+Dionysos.Domain.wrap_pos
+Dionysos.Domain.wrap_coord
+Dionysos.Domain._make_periodic_index_map
 ```

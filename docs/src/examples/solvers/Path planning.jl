@@ -97,13 +97,13 @@ set_attribute(
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+hx = SVector(0.2, 0.2, 0.2);
+set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, hx))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
-h = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+hu = SVector(0.3, 0.3);
+set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, hu))
 
 optimize!(model);
 
@@ -145,6 +145,7 @@ control_trajectory = Dionysos.System.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
+    periodic_wrapper = ST.get_periodic_wrapper(periodic_dims, periods),
 )
 
 using Plots

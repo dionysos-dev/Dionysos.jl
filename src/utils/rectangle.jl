@@ -70,6 +70,56 @@ end
     end
 end
 
+function one_direction(lb, ub, T, T0)
+    if ub - lb >= T
+        return [(T0, T0 + T)]
+    else
+        lb = T0 + mod(lb - T0, T)
+        ub = T0 + mod(ub - T0, T)
+        if lb <= ub
+            return [(lb, ub)]
+        else
+            return [(T0, ub), (lb, T0 + T)]
+        end
+    end
+end
+function recursive(L, rect, lb, ub, periodic, periods, start, i)
+    N = length(lb)
+    if i > length(periodic)
+        push!(L, HyperRectangle(SVector(lb), SVector(ub)))
+        return
+    end
+    dim = periodic[i]
+    intervals = one_direction(rect.lb[dim], rect.ub[dim], periods[i], start[i])
+    for interval in intervals
+        l = ntuple(i -> i == dim ? interval[1] : lb[i], Val(N))
+        u = ntuple(i -> i == dim ? interval[2] : ub[i], Val(N))
+        recursive(L, rect, l, u, periodic, periods, start, i + 1)
+    end
+end
+
+"""
+    set_in_period(
+        rect::HyperRectangle,
+        start::SVector{P, T},
+        periods::SVector{P, T},
+        periodic_dims::SVector{P, Int}
+    ) -> LazyUnionSetArray{HyperRectangle}
+
+Split a rectangle along periodic boundaries (if it crosses any) and return
+a LazyUnionSetArray of wrapped rectangles.
+"""
+function set_in_period(
+    rect::HyperRectangle,
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
+) where {N, T, P}
+    L = typeof(rect)[]
+    recursive(L, rect, rect.lb, rect.ub, periodic_dims, periods, start, 1)
+    return LazyUnionSetArray(L)
+end
+
 """
     DeformedRectangle(rect, f, N, shape)
 
