@@ -17,19 +17,28 @@ const SY = DI.Symbolic
 include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
 import .RS_tools
 
-function get_visualization_tool(;
-    robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
-)
-    # Construct the robot in the simulation engine 
-    rs = RS_tools.RobotSimulator(;
-        fileName = robot_urdf,
-        symbolic = false,
-        add_contact_points = true,
-        add_gravity = true,
-        add_flat_ground = true, # TODO ->true
-    )
-    vis = RS_tools.set_visulalizer(; mechanism = rs.mechanism, fileName = robot_urdf)
-    return rs, vis
+First_step = false
+Second_step = !First_step
+
+if(First_step)
+    global _q_memory = MVector{8, Float64}(zeros(8))
+    global _̇q_memory = MVector{8, Float64}(zeros(8))
+end
+
+if(Second_step)
+    global _q_memory = MVector{8, Float64}([0.049058604856456675, -0.003932170125478732, -0.18042316250653628, 0.13622830985740686, 0.206712192483932, 0.002029860330582976, -0.022494885911054616, -0.1387064802449647])
+    global _̇q_memory = MVector{8, Float64}([0.1134335693380015, -0.021190509505154363, -0.007679917690689772, 0.33468327982982954, 0.27985467499008787, -0.05511265455459322, -0.4435231613211813, -0.3601744988743658])
+end
+
+function remember(value1, value2)
+    global _q_memory
+    global _̇q_memory
+    _q_memory .= value1
+    _̇q_memory .= value2
+end
+
+function recall()
+    return _q_memory, _̇q_memory
 end
 
 function system(;
@@ -150,17 +159,20 @@ function system(;
         # NB: to move the knee forward, a negative angle is needed!
 
         # First step: fill state: from the n state variables -> 8 positions and 8 speeds
-        q, q̇ = fill_state!(x)
+        q, q̇ = recall()
         q_ref = SVector{1}(0.0)
 
         # Second step: set the mechanism in that configuration
-        set_configuration!(state, q)
-        set_velocity!(state, q̇)
+        set_configuration!(state, _q_memory)
+        set_velocity!(state, _̇q_memory)
+
 
         # Third step: get next state
         controller! = voltage_controller!(u, q_ref)
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+        remember(qs[end], vs[end])
+
         x_next = SVector{length(x)}(qs[end][3:5]..., vs[end][3:5]...)
         # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
         # Only the final states are useful in our case

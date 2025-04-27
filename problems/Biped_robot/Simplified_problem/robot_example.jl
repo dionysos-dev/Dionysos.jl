@@ -170,6 +170,12 @@ else
             end
         end
 
+        filename_controller_1 = joinpath(@__DIR__, "Controller_step_1.jld2")
+        # Open the file in write mode and save the data
+        jldopen(filename_controller_1, "w") do file
+            file["optimizer"] = optimizer
+        end  # This block ensures the file is closed after writing
+
         #######################################################
         ################# Concrete Trajectory #################
         #######################################################
@@ -183,42 +189,6 @@ else
         println(control_trajectory)
         println()
 
-        for k in 1:ST.length(control_trajectory)
-            concrete_state = ST.get_state(control_trajectory, k)
-            abstract_state = SY.get_abstract_state(abstract_system, concrete_state)
-            println(abstract_state)
-        end
-        println()
-
-        nstep = 300 # correspond to 30 sec
-        function reached_abstract(x)
-            if x ∈ abstract_problem.target_set
-                return true
-            else
-                return false
-            end
-        end
-
-        #######################################################
-        ################# Abstract Trajectory #################
-        #######################################################
-        abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-        abstract_init_set = Dionysos.Symbolic.get_abstract_state(abstract_system, x0)
-        #println(abstract_init_set)
-        control_trajectory = get_abstract_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system")),
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller")),
-            abstract_init_set,
-            nstep;
-            stopping = reached_abstract,
-        );
-        
-        println(control_trajectory)
-
-        #concrete_control_trajectory = get_concrete_trajectory(abstract_system, control_trajectory)
-        #println(concrete_control_trajectory)
-
-        println()
     end
     if(Second_part)
         println("Second Part")
@@ -227,7 +197,7 @@ else
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
-        optimizer.handle_out_of_domain = 2
+        optimizer.handle_out_of_domain = 1
 
         #######################################################
         ################# Problem definition ##################
@@ -263,6 +233,12 @@ else
         concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
         controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
         uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+
+        filename_controller_2 = joinpath(@__DIR__, "Controller_step_2.jld2")
+        # Open the file in write mode and save the data
+        jldopen(filename_controller_2, "w") do file
+            file["optimizer"] = optimizer
+        end  # This block ensures the file is closed after writing
         
         nstep = 300 # correspond to 30 sec
         function reached_abstract(x)
@@ -273,6 +249,7 @@ else
             end
         end
 
+        """
         #######################################################
         ################# Abstract Trajectory #################
         #######################################################
@@ -293,7 +270,7 @@ else
         println(concrete_control_trajectory)
 
         println()
-
+        """
         
         function reached(x)
             if x ∈ concrete_problem.target_set
