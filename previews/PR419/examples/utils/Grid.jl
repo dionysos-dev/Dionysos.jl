@@ -138,4 +138,3 @@ DO.add_set!(ellip_domain, rectX, DO.OUTER)
 # Plot
 fig2 = plot(; aspect_ratio = :equal)
 plot!(ellip_domain; color = :grey, opacity = 0.5, efficient = false)
-
