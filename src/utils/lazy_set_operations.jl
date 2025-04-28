@@ -22,13 +22,13 @@ function set_in_period(
     return LazySetMinus(A_wrapped, B_wrapped)
 end
 
-@recipe function f(set::LazySetMinus; dims = [1, 2])
+@recipe function f(set::LazySetMinus; dims = [1, 2], colorMinus = :black)
     dims := dims
     @series begin
         return set.A
     end
     @series begin
-        color := :black
+        color := colorMinus
         return set.B
     end
 end

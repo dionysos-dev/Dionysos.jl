@@ -411,12 +411,6 @@ function build_heuristic_abstraction!(prob::HierarchicalProblem, cell::Cell)
         hx_heuristic,
     )
 
-    # Xdom = DO.GeneralDomainList(
-    #     hx_heuristic;
-    #     periodic = concrete_system.periodic,
-    #     periods = concrete_system.periods,
-    #     T0 = concrete_system.T0,
-    # )
     DO.add_set!(Xdom, cell.rec, DO.OUTER)
     for i in cell.outneighbors
         for rec in cell.local_target_set[i]
@@ -522,15 +516,6 @@ function set_local_optimizer!(
         cell.reachable_set.lb - SVector(v, v),
         cell.reachable_set.ub + SVector(v, v),
     )
-    # d = DO.RectangularObstacles(rec, [])
-    # Xdom = DO.GeneralDomainList(
-    #     reference_local_optimizer.param[:hx];
-    #     elems = d,
-    #     periodic = concrete_system.periodic,
-    #     periods = concrete_system.periods,
-    #     T0 = concrete_system.T0,
-    #     fit = true,
-    # )
 
     hx = reference_local_optimizer.param[:hx]
     grid = DO.GridFree(SVector(0.0, 0.0) + hx/2.0, hx)
