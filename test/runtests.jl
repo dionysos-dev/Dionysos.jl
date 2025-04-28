@@ -10,7 +10,6 @@ include("./utils/optim/newton_method.jl")
 include("./utils/optim/bisection.jl")
 
 include("./domain/test_griddomain.jl")
-include("./domain/test_general_domain.jl")
 include("./domain/test_nested_domain.jl")
 include("./domain/test_periodic_domain.jl")
 

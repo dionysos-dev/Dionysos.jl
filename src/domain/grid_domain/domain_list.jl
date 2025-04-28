@@ -32,3 +32,14 @@ Base.setdiff!(domain1::DomainList, domain2::DomainList) =
     setdiff!(domain1.elems, domain2.elems)
 Base.empty!(domain::DomainList) = empty!(domain.elems)
 remove_pos!(domain::DomainList, pos) = delete!(domain.elems, pos)
+
+function rescale_domain(domain::DomainList, scale::Float64)
+    old_h = get_h(get_grid(domain))
+    old_orig = get_origin(get_grid(domain))
+    div = 1/scale
+
+    new_h = old_h * scale
+    new_orig = old_orig - new_h * (div-1) / 2
+    new_grid = GridFree(new_orig, new_h)
+    return DomainList(new_grid)
+end

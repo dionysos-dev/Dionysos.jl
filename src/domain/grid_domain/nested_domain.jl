@@ -1,150 +1,158 @@
-mutable struct NestedDomain{N}
-    domains::Vector{GeneralDomainList}
-    active::Vector{Dict{NTuple{N, Int}, Any}}
+"""
+    NestedDomain{N, T}
+
+A multiresolution **hierarchical domain** structure that stores a **stack of grid-based domains** (`GridDomainType`), allowing dynamic **refinement** of the domain in space.
+
+Each level represents a **grid discretization** of the state space, where finer grids can be added progressively.
+
+# Fields
+- `domains::Vector{GridDomainType{N, T}}`:  
+  List of domain grids at each refinement level.  
+- `active::Vector{Dict{NTuple{N, Int}, Bool}}`:  
+  Dictionary at each level storing which cells are currently **active** (occupied).
+- `levels::Int`:  
+  Current number of refinement levels.
+
+# Key Features
+- **Dynamic Refinement**:  
+  You can subdivide a cell into finer cells on demand (`cut_pos!`).
+- **Multi-level Access**:  
+  Query which level (`depth`) a point belongs to.
+- **Efficient Storage**:  
+  Only active cells are stored at each level.
+- **Grid-Based**:  
+  Works with any domain subtype implementing `GridDomainType`.
+
+# Typical Usage
+- Start from a coarse grid domain.
+- Add levels by splitting cells when higher resolution is needed.
+- Track multi-resolution hierarchical structure easily.
+"""
+mutable struct NestedDomain{N, T}
+    domains::Vector{GridDomainType{N, T}}
+    active::Vector{Dict{NTuple{N, Int}, Bool}}
     levels::Int
 end
 
-function NestedDomain(dom::GeneralDomainList{N}) where {N}
-    dict = Dict{NTuple{N, Int}, Any}()
+# Constructor
+function NestedDomain(dom::GridDomainType{N, T}) where {N, T}
+    dict = Dict{NTuple{N, Int}, Bool}()
     for pos in enum_pos(dom)
         dict[pos] = true
     end
-    return NestedDomain(GeneralDomainList[dom], [dict], 1)
+    return NestedDomain{N, T}([dom], [dict], 1)
 end
 
-function get_levels(Ndomain::NestedDomain)
-    return Ndomain.levels
-end
+# Get number of levels
+get_levels(Ndomain::NestedDomain) = Ndomain.levels
 
+# Check if a position is active at level l
 function is_active(Ndomain::NestedDomain, pos, l)
     if l > Ndomain.levels
         return false
     end
-    return Ndomain.active[l][pos]
+    return get(Ndomain.active[l], pos, false)
 end
 
-function get_pos_by_coord(Ndomain::NestedDomain, l, x)
-    return get_pos_by_coord(Ndomain.domains[l], x)
-end
+# Get position index from coordinate at level l
+get_pos_by_coord(Ndomain::NestedDomain, l, x) = get_pos_by_coord(Ndomain.domains[l], x)
 
-function get_coord_by_pos(Ndomain::NestedDomain, l, xpos)
-    return get_coord_by_pos(Ndomain.domains[l].grid, xpos)
-end
+# Get coordinate from position at level l
+get_coord_by_pos(Ndomain::NestedDomain, l, pos) = get_coord_by_pos(Ndomain.domains[l], pos)
 
+# Check if a pos exists in the domain at level l
+is_pos(Ndomain::NestedDomain, pos, l) = pos in Ndomain.domains[l]
+
+# Find which level a point belongs to
 function get_depth(Ndomain::NestedDomain, x)
-    for l in 1:(Ndomain.levels)
+    for l in 1:Ndomain.levels
         pos = get_pos_by_coord(Ndomain, l, x)
-        if is_pos(Ndomain, pos, l)
-            if is_active(Ndomain, pos, l)
-                return l
-            end
-        else
-            return 0
+        if is_pos(Ndomain, pos, l) && is_active(Ndomain, pos, l)
+            return l
         end
     end
     return 0
 end
 
-function add_dom!(Ndomain::NestedDomain, dom::GeneralDomainList)
+# Add a new domain
+function add_dom!(Ndomain::NestedDomain, dom::GridDomainType)
     push!(Ndomain.domains, dom)
+    push!(Ndomain.active, Dict{NTuple{length(get_h(dom)), Int}, Bool}())
     return Ndomain.levels += 1
 end
 
-function get_grid(Ndomain::NestedDomain, l::Int)
-    return get_grid(Ndomain.domains[l])
-end
+# Get the grid at a given level
+get_grid(Ndomain::NestedDomain, l::Int) = get_grid(Ndomain.domains[l])
 
-function get_grid(Ndomain::NestedDomain, x::SVector)
-    return get_grid(Ndomain, get_depth(Ndomain, x))
-end
+# Get grid for a point x
+get_grid(Ndomain::NestedDomain, x::SVector) = get_grid(Ndomain, get_depth(Ndomain, x))
 
-#add a domain fitting inside the previous one
-function add_sub_dom!(Ndomain::NestedDomain{N}) where {N}
+# Add a finer subdomain by halving the current grid step
+function add_sub_dom!(Ndomain::NestedDomain{N, T}; div = 2) where {N, T}
     l = Ndomain.levels
     dom = Ndomain.domains[l]
-    hx = get_h(dom.grid) / 2.0
-    subdom = GeneralDomainList(
-        hx;
-        elems = dom.elemsCoord,
-        periodic = dom.periodic,
-        periods = dom.periods,
-        T0 = dom.T0,
-        fit = dom.fit,
-    )
-    push!(Ndomain.domains, subdom)
-    push!(Ndomain.active, Dict{NTuple{N, Int}, Any}())
+    subdomain = rescale_domain(dom, 1/div)
+    push!(Ndomain.domains, subdomain)
+    push!(Ndomain.active, Dict{NTuple{N, Int}, Bool}())
     return Ndomain.levels += 1
 end
 
-function get_subpos(pos)
-    lbI = Tuple([p * 2 for p in pos])
-    ubI = Tuple([p * 2 + 1 for p in pos])
+# Given a pos, return the subdivided child positions after cut
+function get_subpos(pos, div::Int)
+    lbI = Tuple(p * div for p in pos)
+    ubI = Tuple(p * div + div - 1 for p in pos)
     rectI = UT.HyperRectangle(lbI, ubI)
-    return rectI
+    return Iterators.product(_ranges(rectI)...)
 end
 
-function cut_pos!(Ndomain, pos, l)
+# Refine a cell by splitting it into subcells
+function cut_pos!(Ndomain::NestedDomain, pos, l; div = 2)
     if l == Ndomain.levels
-        add_sub_dom!(Ndomain)
+        add_sub_dom!(Ndomain; div = div)
     end
     dict = Ndomain.active[l + 1]
     Ndomain.active[l][pos] = false
-    subpos = Iterators.product(_ranges(get_subpos(pos))...)
-    for spos in subpos
+    subpositions = get_subpos(pos, div)
+    for spos in subpositions
         dict[spos] = true
     end
-    return subpos
+    return subpositions
 end
 
+# Empty all domains
 function Base.empty!(Ndomain::NestedDomain)
     for dom in Ndomain.domains
         empty!(dom)
     end
 end
 
-function is_pos(Ndomain::NestedDomain, pos, l)
-    return in(pos, Ndomain.domains[l])
-end
-
+# Find pos and level from a coordinate
 function get_pos_by_coord(Ndomain::NestedDomain, x)
     l = get_depth(Ndomain, x)
     return (get_pos_by_coord(Ndomain, l, x), l)
 end
 
+# Check if the whole NestedDomain is empty
 function Base.isempty(Ndomain::NestedDomain)
-    for dom in Ndomain.domains
-        if isempty(dom)
-            return true
-        end
-    end
-    return false
+    return all(isempty, Ndomain.domains)
 end
 
+# Number of active positions
 function get_ncells(Ndomain::NestedDomain)
-    n = 0
-    for dict in Ndomain.active
-        for (pos, v) in dict
-            if dict[pos]
-                n += 1
-            end
-        end
-    end
-    return n
+    return sum(count -> count[2], Iterators.flatten(Ndomain.active))
 end
 
+# Enumerate all positions across all levels
 function enum_pos(Ndomain::NestedDomain)
-    L = []
-    for (l, dom) in enumerate(Ndomain.domains)
-        push!(L, (enum_pos(dom)))
-    end
-    return L
+    return flatten([enum_pos(dom) for dom in Ndomain.domains])
 end
 
+# Plotting recipe
 @recipe function f(nd::NestedDomain)
-    for l in 1:(nd.levels)
+    for l in 1:get_levels(nd)
+        grid = get_grid(nd, l)
         for (pos, v) in nd.active[l]
             if v
-                grid = get_grid(nd, l)
                 @series begin
                     return grid, pos
                 end
@@ -152,3 +160,159 @@ end
         end
     end
 end
+
+# mutable struct NestedDomain{N}
+#     domains::Vector{PeriodicDomainList}
+#     active::Vector{Dict{NTuple{N, Int}, Any}}
+#     levels::Int
+# end
+
+# function NestedDomain(dom::GeneralDomainList{N}) where {N}
+#     dict = Dict{NTuple{N, Int}, Any}()
+#     for pos in enum_pos(dom)
+#         dict[pos] = true
+#     end
+#     return NestedDomain(GeneralDomainList[dom], [dict], 1)
+# end
+
+# function get_levels(Ndomain::NestedDomain)
+#     return Ndomain.levels
+# end
+
+# function is_active(Ndomain::NestedDomain, pos, l)
+#     if l > Ndomain.levels
+#         return false
+#     end
+#     return Ndomain.active[l][pos]
+# end
+
+# function get_pos_by_coord(Ndomain::NestedDomain, l, x)
+#     return get_pos_by_coord(Ndomain.domains[l], x)
+# end
+
+# function get_coord_by_pos(Ndomain::NestedDomain, l, xpos)
+#     return get_coord_by_pos(Ndomain.domains[l].grid, xpos)
+# end
+
+# function get_depth(Ndomain::NestedDomain, x)
+#     for l in 1:(Ndomain.levels)
+#         pos = get_pos_by_coord(Ndomain, l, x)
+#         if is_pos(Ndomain, pos, l)
+#             if is_active(Ndomain, pos, l)
+#                 return l
+#             end
+#         else
+#             return 0
+#         end
+#     end
+#     return 0
+# end
+
+# function add_dom!(Ndomain::NestedDomain, dom::GeneralDomainList)
+#     push!(Ndomain.domains, dom)
+#     return Ndomain.levels += 1
+# end
+
+# function get_grid(Ndomain::NestedDomain, l::Int)
+#     return get_grid(Ndomain.domains[l])
+# end
+
+# function get_grid(Ndomain::NestedDomain, x::SVector)
+#     return get_grid(Ndomain, get_depth(Ndomain, x))
+# end
+
+# #add a domain fitting inside the previous one
+# function add_sub_dom!(Ndomain::NestedDomain{N}) where {N}
+#     l = Ndomain.levels
+#     dom = Ndomain.domains[l]
+#     hx = get_h(dom.grid) / 2.0
+#     subdom = GeneralDomainList(
+#         hx;
+#         elems = dom.elemsCoord,
+#         periodic = dom.periodic,
+#         periods = dom.periods,
+#         T0 = dom.T0,
+#         fit = dom.fit,
+#     )
+#     push!(Ndomain.domains, subdom)
+#     push!(Ndomain.active, Dict{NTuple{N, Int}, Any}())
+#     return Ndomain.levels += 1
+# end
+
+# function get_subpos(pos)
+#     lbI = Tuple([p * 2 for p in pos])
+#     ubI = Tuple([p * 2 + 1 for p in pos])
+#     rectI = UT.HyperRectangle(lbI, ubI)
+#     return rectI
+# end
+
+# function cut_pos!(Ndomain, pos, l)
+#     if l == Ndomain.levels
+#         add_sub_dom!(Ndomain)
+#     end
+#     dict = Ndomain.active[l + 1]
+#     Ndomain.active[l][pos] = false
+#     subpos = Iterators.product(_ranges(get_subpos(pos))...)
+#     for spos in subpos
+#         dict[spos] = true
+#     end
+#     return subpos
+# end
+
+# function Base.empty!(Ndomain::NestedDomain)
+#     for dom in Ndomain.domains
+#         empty!(dom)
+#     end
+# end
+
+# function is_pos(Ndomain::NestedDomain, pos, l)
+#     return in(pos, Ndomain.domains[l])
+# end
+
+# function get_pos_by_coord(Ndomain::NestedDomain, x)
+#     l = get_depth(Ndomain, x)
+#     return (get_pos_by_coord(Ndomain, l, x), l)
+# end
+
+# function Base.isempty(Ndomain::NestedDomain)
+#     for dom in Ndomain.domains
+#         if isempty(dom)
+#             return true
+#         end
+#     end
+#     return false
+# end
+
+# function get_ncells(Ndomain::NestedDomain)
+#     n = 0
+#     for dict in Ndomain.active
+#         for (pos, v) in dict
+#             if dict[pos]
+#                 n += 1
+#             end
+#         end
+#     end
+#     return n
+# end
+
+# function enum_pos(Ndomain::NestedDomain)
+#     L = []
+#     for (l, dom) in enumerate(Ndomain.domains)
+#         push!(L, (enum_pos(dom)))
+#     end
+#     return L
+# end
+
+# @recipe function f(nd::NestedDomain)
+#     for l in 1:(nd.levels)
+#         for (pos, v) in nd.active[l]
+#             if v
+#                 grid = get_grid(nd, l)
+#                 @series begin
+#                     return grid, pos
+#                 end
+#             end
+#         end
+#     end
+# end
+

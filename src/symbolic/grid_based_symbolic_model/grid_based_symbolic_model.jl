@@ -77,6 +77,18 @@ end
 
 function get_states_from_sets(
     symmodel::GridBasedSymbolicModel,
+    subsets::UT.LazyUnionSetArray,
+    incl_mode::DO.INCL_MODE,
+)
+    states = []
+    for subset in subsets.sets
+        append!(states, get_states_from_set(symmodel, subset, incl_mode))
+    end
+    return states
+end
+
+function get_states_from_sets(
+    symmodel::GridBasedSymbolicModel,
     subsets,
     incl_mode::DO.INCL_MODE,
 )
@@ -170,8 +182,6 @@ function compute_abstract_transitions_from_rectangle!(
     translist,
 )
     Xdom = get_state_domain(symmodel)
-    # rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), reachable_set)
-    # ypos_iter = Iterators.product(DO._ranges(rectI)...)
     ypos_iter = DO.get_subset_pos_in_grid(Xdom, reachable_set, DO.OUTER)
     allin = true
     for ypos in ypos_iter

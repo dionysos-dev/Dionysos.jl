@@ -1,4 +1,3 @@
-using Test     #src
 # # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
@@ -124,8 +123,6 @@ println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
-@test length(abstract_controller.data) == 19400 #src
-
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
@@ -145,7 +142,6 @@ control_trajectory = Dionysos.System.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    periodic_wrapper = ST.get_periodic_wrapper(periodic_dims, periods),
 )
 
 using Plots

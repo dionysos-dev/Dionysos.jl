@@ -164,6 +164,30 @@ function PeriodicDomainList(grid::S) where {N, T, S <: Grid{N, T}}
     return PeriodicDomainList(SVector{0, Int}(), SVector{0, T}(), SVector{0, T}(), grid)
 end
 
+function rescale_domain(domain::PeriodicDomainList, scale::Float64)
+    periodic_dims = get_periodic_dims(domain)
+    periods = get_periods(domain)
+    start = get_periodic_starts(domain)
+
+    old_h = get_h(get_grid(domain))
+    old_orig = get_origin(get_grid(domain))
+    N = length(old_orig)
+
+    new_h = old_h * scale
+    new_orig = SVector(ntuple(d -> begin
+        i = findfirst(isequal(d), periodic_dims)
+        if i !== nothing
+            start[i] + new_h[d] / 2
+        else
+            div = 1/scale
+            old_orig[d] - new_h[d] * (div-1) / 2
+        end
+    end, N))
+
+    new_grid = GridFree(new_orig, new_h)
+    return PeriodicDomainList(periodic_dims, periods, start, new_grid)
+end
+
 # ----------------------------
 # Periodic Wrapping Logic
 # ----------------------------

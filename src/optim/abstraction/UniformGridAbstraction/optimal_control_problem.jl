@@ -27,7 +27,7 @@ This solver takes as input a concrete problem (typically an instance of [`Optima
 
 #### Optional user-tunable parameters
 
-- `early_stop` (optional, default = `true`):  
+- `early_stop` (optional, default = `false`):  
   If `true`, the fixpoint algorithm stops early when the initial set is fully contained in the controllable set.  
   If `false`, it computes the entire maximal controllable set.
 
@@ -102,7 +102,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             0.0,
-            true,
+            false,
             false,
             nothing,
             nothing,

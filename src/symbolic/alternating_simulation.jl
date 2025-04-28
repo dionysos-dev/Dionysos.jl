@@ -16,12 +16,12 @@ end
 
 function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     Xdom = symmodel.Xdom
-    grid = Xdom.grid
+    grid = DO.get_grid(Xdom)
     pos = get_xpos_by_state(symmodel, source)
     rec = DO.get_rec(grid, pos)
     reachable_set = compute_reachable_set(rec, sys, symmodel.Udom)
     reachable_sets =
-        DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
+        UT.set_in_period(reachable_set, Xdom.periodic_dims, Xdom.periods, Xdom.start)
     symbols = get_states_from_sets(symmodel, reachable_sets, DO.OUTER)
     return symbols
 end

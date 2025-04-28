@@ -86,12 +86,12 @@ function trial(dt, Usz, Wmax, contraction, initial_vol)
     K = cont.K
     ell = cont.ℓ
     sr = max(abs.(eigen(A + B * K).values)...)
-    println("Has transition: $(has_transition)")
-    if has_transition
-        println("K:\t $(K)\nell:\t $(ell)")
-        println("cost:\t $(cost)")
-        println("s.r.:\t $(sr)")
-    end
+    # println("Has transition: $(has_transition)")
+    # if has_transition
+    #     println("K:\t $(K)\nell:\t $(ell)")
+    #     println("cost:\t $(cost)")
+    #     println("s.r.:\t $(sr)")
+    # end
     return has_transition, cost, sr
 end
 

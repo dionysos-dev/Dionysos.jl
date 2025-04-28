@@ -57,7 +57,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 @testset "UniformGridAbstraction reachability" begin
-    @test length(abstract_controller.data) == 19400 #src
+    @test length(abstract_controller.data) == 19563 #src
 end
 
 # ### Trajectory display
@@ -110,6 +110,3 @@ no_plot = false
     plot!(control_trajectory; ms = 0.5)
 end
 end
-# ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.

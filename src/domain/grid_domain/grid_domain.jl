@@ -21,6 +21,8 @@ function Base.union!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.setdiff!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.empty!(domain::GridDomainType) end
 function remove_pos!(domain::GridDomainType, pos) end
+# Create a new domain based on `domain`, but replacing the grid step size `h` with `new_h`.
+function rescale_domain(domain::GridDomainType, scale::Float64) end
 
 # ----------------------------
 # Derived Utility Methods
@@ -122,15 +124,14 @@ function remove_set!(
 end
 
 function remove_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
-    rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
-    pos_iter = Iterators.product(_ranges(rectI)...)
-    if length(pos_iter) < get_ncells(domain)
-        for pos in pos_iter
+    posL = get_subset_pos(domain, rect, incl_mode)
+    if length(posL) < get_ncells(domain)
+        for pos in posL
             remove_pos!(domain, pos)
         end
     else
         for pos in enum_pos(domain)
-            if pos ∈ rectI
+            if pos ∈ posL
                 remove_pos!(domain, pos)
             end
         end
