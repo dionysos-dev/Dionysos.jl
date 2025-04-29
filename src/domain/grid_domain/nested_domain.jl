@@ -1,7 +1,7 @@
 """
     NestedDomain{N, T}
 
-A multiresolution **hierarchical domain** structure that stores a **stack of grid-based domains** (`GridDomainType`), allowing dynamic **refinement** of the domain in space.
+A multiresolution **hierarchical domain** structure that stores a **hierarchy of nested grid-based domains** (`GridDomainType`), allowing dynamic **refinement** of the domain in space.
 
 Each level represents a **grid discretization** of the state space, where finer grids can be added progressively.
 
