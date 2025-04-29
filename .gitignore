@@ -7,12 +7,11 @@ docs/src/generated
 BipedRobot/ZMPBipedRobot/docs
 BipedRobot/ZMPBipedRobot/testbench
 
-problems/Biped_robot/S0/Controller_step_1.jld2
-problems/Biped_robot/S0/Controller_step_2.jld2
-problems/Biped_robot/Simplified_problem/Controller_step_1.jld2
-problems/Biped_robot/Simplified_problem/Controller_step_2.jld2
-problems/Biped_robot/S0_controller_validation/Controller_step_2.jld2
-problems/Biped_robot/S0_controller_validation/Controller_step_1.jld2
+problems/Biped_robot/Julia_Controller_validation/First_step.jld2
+problems/Biped_robot/Julia_Controller_validation/Second_step.jld2
+problems/Biped_robot/Julia_Trajectory_obtention/Abstraction.jld2
+problems/Biped_robot/Robotran_Trajectory_validation/Abstraction.jld2
+problems/Biped_robot/Robotran_Trajectory_validation/Abstraction2.jld2
 
 bench/benchmark.csv
 
