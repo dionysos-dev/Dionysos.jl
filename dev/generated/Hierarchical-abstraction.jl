@@ -15,18 +15,17 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "simple_problem
 # specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
     Xdom = abstract_system.Xdom
-    x = DO.get_coord_by_pos(Xdom.grid, xpos)
+    x = DO.get_coord_by_pos(Xdom, xpos)
     Fx = concrete_system.f_eval(x, u)
-    r = Xdom.grid.h / 2.0 + concrete_system.measnoise
+    r = DO.get_grid(Xdom).h / 2.0 + concrete_system.measnoise
     Fr = r
 
-    rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
+    rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(DO._ranges(rectI)...)
     over_approx = []
     allin = true
     for ypos in ypos_iter
-        ypos = DO.set_in_period_pos(Xdom, ypos)
-        if !(ypos in Xdom)
+        if !(ypos in abstract_system)
             allin = false
             break
         end
@@ -37,17 +36,16 @@ function post_image(abstract_system, concrete_system, xpos, u)
 end
 
 function pre_image(abstract_system, concrete_system, xpos, u)
-    grid = abstract_system.Xdom.grid
-    x = DO.get_coord_by_pos(grid, xpos)
+    Xdom = abstract_system.Xdom
+    x = DO.get_coord_by_pos(Xdom, xpos)
     potential = Int[]
     x_prev = concrete_system.f_backward(x, u)
-    xpos_cell = DO.get_pos_by_coord(grid, x_prev)
+    xpos_cell = DO.get_pos_by_coord(Xdom, x_prev)
     n = 2
     for i in (-n):n
         for j in (-n):n
             x_n = (xpos_cell[1] + i, xpos_cell[2] + j)
-            x_n = DO.set_in_period_pos(abstract_system.Xdom, x_n)
-            if x_n in abstract_system.Xdom
+            if x_n in abstract_system
                 cell = SY.get_state_by_xpos(abstract_system, x_n)[1]
                 if !(cell in potential)
                     push!(potential, cell)
@@ -80,9 +78,9 @@ minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 concrete_problem = SimpleProblem.problem(;
     rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(60.0, 60.0)),
     obstacles = [UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))],
-    periodic = Int[],
-    periods = [30.0, 30.0],
-    T0 = [0.0, 0.0],
+    periodic = SVector{0, Int}(),
+    periods = SVector{0, Float64}(),
+    T0 = SVector{0, Float64}(),
     rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
     Uobstacles = [UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))],
     _I_ = UT.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5)),
@@ -95,8 +93,8 @@ concrete_problem = SimpleProblem.problem(;
 
 concrete_system = concrete_problem.system;
 
-hx_local = [0.5, 0.5]
-hx_heuristic = [1.0, 1.0]
+hx_local = SVector(0.5, 0.5)
+hx_heuristic = SVector(1.0, 1.0)
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
@@ -115,7 +113,7 @@ AB.LazyAbstraction.set_optimizer_parameters!(
     γ = 10.0,
 )
 
-hx_global = [10.0, 10.0]
+hx_global = SVector(10.0, 10.0)
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
@@ -155,7 +153,7 @@ println(
 )
 println("Cost:\t $(cost)")
 
-fig = plot(; aspect_ratio = :equal);
+fig1 = plot(; aspect_ratio = :equal);
 
 #We display the concrete domain
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
@@ -170,7 +168,7 @@ plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.8);
 #We display the concrete trajectory
 plot!(cost_control_trajectory; ms = 0.5)
 
-fig = plot(; aspect_ratio = :equal);
+fig2 = plot(; aspect_ratio = :equal);
 
 plot!(
     optimizer.hierarchical_problem;

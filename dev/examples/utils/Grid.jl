@@ -67,16 +67,6 @@ function plot_deformed_grid_with_DomainList(f, fi)
     return plot!(dom; show = true, color = :grey, efficient = false)
 end
 
-function plot_deformed_grid_with_GeneralDomain(f, fi)
-    X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 10.0))
-    obstacle = UT.HyperRectangle(SVector(10.0, 10.0), SVector(15.0, 15.0))
-    hx = [2.5, 2.5]
-    d = DO.RectangularObstacles(X, [obstacle])
-    dom = DO.GeneralDomainList(hx; elems = d, f = f, fi = fi, fit = true)
-    plot(; aspect_ratio = :equal)
-    return plot!(dom; show = true, color = :grey, efficient = false)
-end
-
 rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(2.0, 2.0))
 shape = UT.DeformedRectangle(rect, f2)
 plot(; aspect_ratio = :equal)
@@ -85,53 +75,66 @@ plot!(shape; color = :red, efficient = false, label = "Deformed")
 
 # Display some deformed Grids
 plot_deformed_grid_with_DomainList(f1, fi1)
-plot_deformed_grid_with_GeneralDomain(f1, fi1)
 
 plot_deformed_grid_with_DomainList(f2, fi2)
-plot_deformed_grid_with_GeneralDomain(f2, fi2)
 
 plot_deformed_grid_with_DomainList(f3, fi3)
-plot_deformed_grid_with_GeneralDomain(f3, fi3)
 
 plot_deformed_grid_with_DomainList(f4, fi4)
-plot_deformed_grid_with_GeneralDomain(f4, fi4)
 
 f, fi = build_f_rotation(π / 3.0)
 plot_deformed_grid_with_DomainList(f, fi)
 
-# ### Nested classical grid
+# ### Nested domain
+# --- Base domain and obstacle ---
 X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
 obstacle = UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
-hx = [3.0, 1.0] * 2.0
-periodic = Int[1]
-periods = [30.0, 30.0]
-T0 = [0.0, 0.0]
-d = DO.RectangularObstacles(X, [obstacle])
-dom = DO.GeneralDomainList(
-    hx;
-    elems = d,
-    periodic = periodic,
-    periods = periods,
-    T0 = T0,
-    fit = true,
-)
-Ndomain = DO.NestedDomain(dom)
-DO.cut_pos!(Ndomain, (2, 2), 1)
-DO.cut_pos!(Ndomain, (2, 3), 1)
-DO.cut_pos!(Ndomain, (4, 4), 2)
 
-fig = plot(; aspect_ratio = :equal, legend = false);
+# Grid settings
+hx = SVector(6.0, 2.0)
+periodic_dims = SVector(1)
+periods = SVector(30.0)
+start = SVector(0.0)
+
+# Create a LazySetMinus: free space = X minus obstacle
+free_space = UT.LazySetMinus(X, UT.LazyUnionSetArray([obstacle]))
+
+# Create periodic grid domain
+domain = DO.PeriodicDomainList(periodic_dims, periods, start, hx)
+# domain = DO.DomainList(hx)
+
+DO.add_set!(domain, free_space, DO.INNER)
+
+# Create the NestedDomain
+Ndomain = DO.NestedDomain(domain)
+
+# --- Refinement ---
+# Refine certain cells
+div = 3
+DO.cut_pos!(Ndomain, (2, 2), 1; div = div)
+DO.cut_pos!(Ndomain, (2, 3), 1; div = div)
+DO.cut_pos!(Ndomain, (4, 4), 2; div = div)
+
+# --- Plotting ---
+fig = plot(; aspect_ratio = :equal, legend = false)
+plot!(free_space; color = :blue, label = "Base domain", efficient = false)
 plot!(Ndomain; color = :grey, efficient = false)
 
-# ### Ellipsoidal partition based on a grid
+# ----------------------------------------------------------------------
+# 2D Example: Ellipsoidal partition using a grid
+
 x0 = SVector(0.0, 0.0)
 n_step = 2
 h = SVector(1.0 / n_step, 1.0 / n_step)
 P = 0.5 * diagm((h ./ 2) .^ (-2))
-rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2))
 
-grid = DO.GridEllipsoidalRectangular(x0, h, P)
-domain = DO.DomainList(grid)
-DO.add_set!(domain, rectX, DO.OUTER)
-plot(; aspect_ratio = :equal);
-plot!(domain; color = :grey, opacity = 0.5, efficient = false)
+rectX = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+
+# Create an ellipsoidal grid domain
+ellip_grid = DO.GridEllipsoidalRectangular(x0, h, P)
+ellip_domain = DO.DomainList(ellip_grid)
+DO.add_set!(ellip_domain, rectX, DO.OUTER)
+
+# Plot
+fig2 = plot(; aspect_ratio = :equal)
+plot!(ellip_domain; color = :grey, opacity = 0.5, efficient = false)

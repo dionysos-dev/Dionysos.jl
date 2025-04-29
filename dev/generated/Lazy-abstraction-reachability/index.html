@@ -14,18 +14,17 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), &quot;problems&quot;, &quot
 # specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
     Xdom = abstract_system.Xdom
-    x = DO.get_coord_by_pos(Xdom.grid, xpos)
+    x = DO.get_coord_by_pos(Xdom, xpos)
     Fx = concrete_system.f_eval(x, u)
-    r = Xdom.grid.h / 2.0 + concrete_system.measnoise
+    r = DO.get_grid(Xdom).h / 2.0 + concrete_system.measnoise
     Fr = r
 
-    rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
+    rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(DO._ranges(rectI)...)
     over_approx = []
     allin = true
     for ypos in ypos_iter
-        ypos = DO.set_in_period_pos(Xdom, ypos)
-        if !(ypos in Xdom)
+        if !(ypos in abstract_system)
             allin = false
             break
         end
@@ -36,17 +35,16 @@ function post_image(abstract_system, concrete_system, xpos, u)
 end
 
 function pre_image(abstract_system, concrete_system, xpos, u)
-    grid = abstract_system.Xdom.grid
-    x = DO.get_coord_by_pos(grid, xpos)
+    Xdom = abstract_system.Xdom
+    x = DO.get_coord_by_pos(Xdom, xpos)
     potential = Int[]
     x_prev = concrete_system.f_backward(x, u)
-    xpos_cell = DO.get_pos_by_coord(grid, x_prev)
+    xpos_cell = DO.get_pos_by_coord(Xdom, x_prev)
     n = 2
     for i in (-n):n
         for j in (-n):n
             x_n = (xpos_cell[1] + i, xpos_cell[2] + j)
-            x_n = DO.set_in_period_pos(abstract_system.Xdom, x_n)
-            if x_n in abstract_system.Xdom
+            if x_n in abstract_system
                 cell = SY.get_state_by_xpos(abstract_system, x_n)[1]
                 if !(cell in potential)
                     push!(potential, cell)
@@ -78,11 +76,11 @@ minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 concrete_problem = SimpleProblem.problem()
 concrete_system = concrete_problem.system
 
-hx = [0.5, 0.5]
+hx = SVector(0.5, 0.5)
 u0 = SVector(0.0, 0.0)
 hu = SVector(0.5, 0.5)
 Ugrid = DO.GridFree(u0, hu)
-hx_heuristic = [1.0, 1.0] * 1.5
+hx_heuristic = SVector(1.5, 1.5)
 maxIter = 100
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
@@ -145,14 +143,14 @@ plot!(
 );
 
 #We display the concrete trajectory
-plot!(cost_control_trajectory; ms = 0.5)</code></pre><img src="fa54ff0d.svg" alt="Example block output"/><h1 id="Display-the-abstraction-and-Lyapunov-like-function"><a class="docs-heading-anchor" href="#Display-the-abstraction-and-Lyapunov-like-function">Display the abstraction and Lyapunov-like function</a><a id="Display-the-abstraction-and-Lyapunov-like-function-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction-and-Lyapunov-like-function" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal);
+plot!(cost_control_trajectory; ms = 0.5)</code></pre><img src="2802bea1.svg" alt="Example block output"/><h1 id="Display-the-abstraction-and-Lyapunov-like-function"><a class="docs-heading-anchor" href="#Display-the-abstraction-and-Lyapunov-like-function">Display the abstraction and Lyapunov-like function</a><a id="Display-the-abstraction-and-Lyapunov-like-function-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction-and-Lyapunov-like-function" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal);
 plot!(
     abstract_system;
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.lyap_fun,
     label = false,
-)</code></pre><img src="2d2fc8f4.svg" alt="Example block output"/><h1 id="Display-the-Bellman-like-value-function-(heuristic)"><a class="docs-heading-anchor" href="#Display-the-Bellman-like-value-function-(heuristic)">Display the Bellman-like value function (heuristic)</a><a id="Display-the-Bellman-like-value-function-(heuristic)-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Bellman-like-value-function-(heuristic)" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal)
+)</code></pre><img src="beee298b.svg" alt="Example block output"/><h1 id="Display-the-Bellman-like-value-function-(heuristic)"><a class="docs-heading-anchor" href="#Display-the-Bellman-like-value-function-(heuristic)">Display the Bellman-like value function (heuristic)</a><a id="Display-the-Bellman-like-value-function-(heuristic)-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Bellman-like-value-function-(heuristic)" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal)
 plot!(
     optimizer.abstract_system_heuristic;
     arrowsB = false,
@@ -161,6 +159,6 @@ plot!(
     lyap_fun = optimizer.bell_fun,
     label = &quot;&quot;,
     efficient = false,
-)</code></pre><img src="c1e0eaf2.svg" alt="Example block output"/><h1 id="Display-the-results-of-the-A*-algorithm"><a class="docs-heading-anchor" href="#Display-the-results-of-the-A*-algorithm">Display the results of the A* algorithm</a><a id="Display-the-results-of-the-A*-algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results-of-the-A*-algorithm" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal)
+)</code></pre><img src="78f1794b.svg" alt="Example block output"/><h1 id="Display-the-results-of-the-A*-algorithm"><a class="docs-heading-anchor" href="#Display-the-results-of-the-A*-algorithm">Display the results of the A* algorithm</a><a id="Display-the-results-of-the-A*-algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results-of-the-A*-algorithm" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(; aspect_ratio = :equal)
 plot!(optimizer.lazy_search_problem)
-plot!(cost_control_trajectory; color = :black)</code></pre><img src="d6c7c65b.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-Ellipsoids-Abstraction/">« Lazy-Ellipsoids-Abstraction</a><a class="docs-footer-nextpage" href="../Path planning/">Path planning »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.2 on <span class="colophon-date" title="Tuesday 29 April 2025 14:10">Tuesday 29 April 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(cost_control_trajectory; color = :black)</code></pre><img src="62ce1a48.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-Ellipsoids-Abstraction/">« Lazy-Ellipsoids-Abstraction</a><a class="docs-footer-nextpage" href="../Path planning/">Path planning »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.2 on <span class="colophon-date" title="Tuesday 29 April 2025 16:25">Tuesday 29 April 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

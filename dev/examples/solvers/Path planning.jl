@@ -1,4 +1,3 @@
-using Test     #src
 # # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 #md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
@@ -97,13 +96,13 @@ set_attribute(
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+hx = SVector(0.2, 0.2, 0.2);
+set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, hx))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
-h = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+hu = SVector(0.3, 0.3);
+set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, hu))
 
 optimize!(model);
 
@@ -123,8 +122,6 @@ abstract_problem_time =
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
-
-@test length(abstract_controller.data) == 19400 #src
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`

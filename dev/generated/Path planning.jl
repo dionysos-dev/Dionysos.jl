@@ -48,12 +48,12 @@ set_attribute(
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+hx = SVector(0.2, 0.2, 0.2);
+set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, hx))
 
 u0 = SVector(0.0, 0.0);
-h = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+hu = SVector(0.3, 0.3);
+set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, hu))
 
 optimize!(model);
 
