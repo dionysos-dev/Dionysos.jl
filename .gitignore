@@ -12,6 +12,8 @@ problems/Biped_robot/Julia_Controller_validation/Second_step.jld2
 problems/Biped_robot/Julia_Trajectory_obtention/Abstraction.jld2
 problems/Biped_robot/Robotran_Trajectory_validation/Abstraction.jld2
 problems/Biped_robot/Robotran_Trajectory_validation/Abstraction2.jld2
+problems/Biped_robot/Robotran_Controller_validation/First_step.jld2
+problems/Biped_robot/Robotran_Controller_validation/Second_step.jld2
 
 bench/benchmark.csv
 

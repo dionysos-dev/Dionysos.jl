@@ -98,6 +98,7 @@ do_empty_optim = false
 verify_save = false
 First_part = true
 Second_part = true
+save_optimizers = true
 
 #######################################################
 #################### C FILES INITS ####################
@@ -260,6 +261,12 @@ else
         #println(concrete_control_trajectory)
 
         println()
+
+        if(save_optimizers)
+            jldopen(joinpath(@__DIR__, "..", "Robotran_Controller_validation", "First_step.jld2"), "w") do file
+                file["optimizer"] = optimizer
+            end 
+        end
     end
     if(Second_part)
         println("Second Part")
@@ -313,7 +320,7 @@ else
                 return false
             end
         end
-
+        """
         #######################################################
         ################# Abstract Trajectory #################
         #######################################################
@@ -334,7 +341,7 @@ else
         println(concrete_control_trajectory)
 
         println()
-
+        """
         
         function reached(x)
             if x ∈ concrete_problem.target_set
@@ -364,6 +371,12 @@ else
 
         println(concrete_control_trajectory)
         println()
+
+        if(save_optimizers)
+            jldopen(joinpath(@__DIR__, "..", "Robotran_Controller_validation", "Second_step.jld2"), "w") do file
+                file["optimizer"] = optimizer
+            end 
+        end
         
     end
 end
