@@ -88,21 +88,14 @@ end
 
 function set_abstract_system(concrete_system, hx, Udom; Xdom = nothing)
     if Xdom === nothing
-        X = concrete_system.X.A
-        obstacles = concrete_system.X.B.sets
-        d = DO.RectangularObstacles(X, obstacles)
-        Xdom = DO.GeneralDomainList(
-            hx;
-            elems = d,
-            periodic = concrete_system.periodic,
-            periods = concrete_system.periods,
-            T0 = concrete_system.T0,
+        Xdom = DO.PeriodicDomainList(
+            concrete_system.periodic,
+            concrete_system.periods,
+            concrete_system.T0,
+            hx,
         )
     end
-
-    # Udom = DO.DomainList(Ugrid)
-    # DO.add_set!(Udom, concrete_system.U, DO.OUTER)
-    abstract_system = SY.LazySymbolicModelList(Xdom, Udom)
+    abstract_system = SY.LazySymbolicModelList(Xdom, Udom, concrete_system.X)
     return abstract_system
 end
 
@@ -137,11 +130,11 @@ function build_abstract_system_heuristic(
     end
     if Xdom === nothing
         X = concrete_system.X.A
-        Xdom = DO.GeneralDomainList(
-            hx_heuristic;
-            periodic = concrete_system.periodic,
-            periods = concrete_system.periods,
-            T0 = concrete_system.T0,
+        Xdom = DO.PeriodicDomainList(
+            concrete_system.periodic,
+            concrete_system.periods,
+            concrete_system.T0,
+            hx_heuristic,
         )
         DO.add_set!(Xdom, X, DO.OUTER)
     end
@@ -162,11 +155,11 @@ function h_abstract(node::UT.Node, problem)
     source = node.state.source
     abstract_system = problem.abstract_system
     xpos = SY.get_xpos_by_state(abstract_system, source)
-    x = DO.get_coord_by_pos(abstract_system.Xdom.grid, xpos)
+    x = DO.get_coord_by_pos(abstract_system.Xdom, xpos)
 
     heuristic = problem.heuristic_data
     symmodel2 = heuristic.symmodel
-    xpos2 = DO.get_pos_by_coord(symmodel2.Xdom.grid, x)
+    xpos2 = DO.get_pos_by_coord(symmodel2.Xdom, x)
     source2 = SY.get_state_by_xpos(symmodel2, xpos2)
     return heuristic.dists[source2]
 end
@@ -313,9 +306,8 @@ end
 
 function get_concrete_controller(abstract_system, abstract_controller)
     function concrete_controller(x)
-        x = DO.set_in_period_coord(abstract_system.Xdom, x)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom.grid, x)
-        if !(xpos ∈ abstract_system.Xdom)
+        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
+        if !(xpos ∈ abstract_system)
             @warn("Trajectory out of domain")
             return
         end
@@ -374,6 +366,7 @@ function MOI.optimize!(optimizer::Optimizer)
     # Build the Bellman-like value funtion
     heuristic_data =
         build_heuristic(optimizer.abstract_system_heuristic, concrete_problem.initial_set)
+
     optimizer.heuristic_data = heuristic_data
     optimizer.bell_fun =
         Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
@@ -536,7 +529,7 @@ end
 function UT.path_cost(problem::LazySearchProblem, c, state1::State, action, state2::State)
     source = state2.source
     pos = SY.get_xpos_by_state(problem.abstract_system, source)
-    x = DO.get_coord_by_pos(problem.abstract_system.Xdom.grid, pos)
+    x = DO.get_coord_by_pos(problem.abstract_system.Xdom, pos)
     u = SY.get_concrete_input(problem.abstract_system, action)
 
     problem.costs[source] += problem.transition_cost(x, u)
@@ -628,7 +621,7 @@ end
     contr = problem.contr
     abstract_system = problem.abstract_system
     domain = abstract_system.Xdom
-    grid = domain.grid
+    grid = DO.get_grid(domain)
     legend := false
     # states for which transisitons have been computed for at least one input
     dict = Dict{NTuple{2, Int}, Any}()

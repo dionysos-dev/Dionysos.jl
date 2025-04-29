@@ -66,9 +66,9 @@ end
 function problem(;
     rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0)),
     obstacles = [UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))],
-    periodic = Int[],
-    periods = [30.0, 30.0],
-    T0 = [0.0, 0.0],
+    periodic = SVector{0, Int}(),
+    periods = SVector{0, Float64}(),
+    T0 = SVector{0, Float64}(),
     rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
     Uobstacles = [UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))],
     _I_ = UT.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0)),

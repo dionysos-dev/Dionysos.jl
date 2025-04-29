@@ -5,6 +5,7 @@ module UniformGridAbstraction
 import Dionysos
 ST = Dionysos.System
 SY = Dionysos.Symbolic
+DO = Dionysos.Domain
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
@@ -213,7 +214,7 @@ NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
 function solve_concrete_problem(abstract_system, abstract_controller)
     function concrete_controller(x; param = false)
         # Getting the position of the state in the abstract system
-        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom.grid, x)
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain: $x")
             return nothing
