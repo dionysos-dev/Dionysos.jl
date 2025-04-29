@@ -61,8 +61,7 @@ end
 #######################################################
 filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
 do_empty_optim = false
-verify_save = false
-First_part = false
+First_part = true
 Second_part = true
 
 #######################################################
@@ -170,17 +169,11 @@ else
             end
         end
 
-        filename_controller_1 = joinpath(@__DIR__, "Controller_step_1.jld2")
-        # Open the file in write mode and save the data
-        jldopen(filename_controller_1, "w") do file
-            file["optimizer"] = optimizer
-        end  # This block ensures the file is closed after writing
-
         #######################################################
         ################# Concrete Trajectory #################
         #######################################################
         control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+            concrete_system,
             concrete_controller,
             x0,
             nstep;
@@ -233,14 +226,10 @@ else
         concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
         controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
         uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-
-        filename_controller_2 = joinpath(@__DIR__, "Controller_step_2.jld2")
-        # Open the file in write mode and save the data
-        jldopen(filename_controller_2, "w") do file
-            file["optimizer"] = optimizer
-        end  # This block ensures the file is closed after writing
         
         nstep = 300 # correspond to 30 sec
+
+        """
         function reached_abstract(x)
             if x ∈ abstract_problem.target_set
                 return true
@@ -249,7 +238,7 @@ else
             end
         end
 
-        """
+        
         #######################################################
         ################# Abstract Trajectory #################
         #######################################################
@@ -289,7 +278,7 @@ else
         state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
         concrete_control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+            concrete_system,
             concrete_controller,
             p0,
             nstep;

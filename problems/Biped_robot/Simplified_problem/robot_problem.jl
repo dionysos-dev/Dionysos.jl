@@ -162,6 +162,7 @@ function system(;
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
         x_next = SVector{length(x)}(qs[end][3:5]..., vs[end][3:5]...)
+        
         # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
         # Only the final states are useful in our case
 

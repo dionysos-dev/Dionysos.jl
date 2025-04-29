@@ -15,7 +15,7 @@ const AB = OP.Abstraction
 include(
     joinpath(
         dirname(dirname(pathof(Dionysos))),
-        "problems/Biped_robot/S0",
+        "problems/Biped_robot/S0_controller_validation",
         "robot_problem.jl",
     ),
 )
@@ -24,7 +24,7 @@ include(
 ################### File Parameters ###################
 #######################################################
 First_part = false
-Second_part = true
+Second_part = !First_part
 
 #######################################################
 ################### Optim Parameters ##################

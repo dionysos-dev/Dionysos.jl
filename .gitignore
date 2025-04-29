@@ -11,6 +11,8 @@ problems/Biped_robot/S0/Controller_step_1.jld2
 problems/Biped_robot/S0/Controller_step_2.jld2
 problems/Biped_robot/Simplified_problem/Controller_step_1.jld2
 problems/Biped_robot/Simplified_problem/Controller_step_2.jld2
+problems/Biped_robot/S0_controller_validation/Controller_step_2.jld2
+problems/Biped_robot/S0_controller_validation/Controller_step_1.jld2
 
 bench/benchmark.csv
 

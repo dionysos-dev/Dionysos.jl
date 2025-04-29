@@ -153,7 +153,7 @@ function solve_concrete_problem(abstract_system, abstract_controller, handle_out
                 # Handle_out_of_domain == 2: same as handle_out_of_domain == 1, but modifies also the x (done in trajectory.jl)
                 xnew = argmin(p -> norm(collect(p) - collect(xpos)), abstract_system.Xdom.elems)
                 if(handle_out_of_domain == 1)
-                    @warn("State out of domain: $x, abstract state: $xpos, new abstract state: $xnew")
+                    @warn("State out of domain: $x, abstract state: $xpos, nearest abstract state: $xnew")
                 end
                 xpos = xnew
             end
