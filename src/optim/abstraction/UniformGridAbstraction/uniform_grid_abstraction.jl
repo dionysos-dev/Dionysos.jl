@@ -297,4 +297,97 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
+
+using DataFrames, CSV
+
+function export_controller_csv(optimizer::UniformGridAbstraction.Optimizer, filename::String)
+    abstract_system = optimizer.abstraction_solver.abstract_system
+    abstract_controller = optimizer.control_solver.abstract_controller
+    abstract_controller === nothing && error("Controller not available")
+
+    export_controller_csv(abstract_system, abstract_controller, filename)
+end
+
+function export_controller_csv(abstract_system, abstract_controller, basename::String)
+    grid = SY.get_state_grid(abstract_system)
+
+    CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim=';')
+    CSV.write(basename * "_StateMap.csv", build_state_map_df(abstract_system, grid); delim=';')
+    CSV.write(basename * "_ControllerMap.csv", build_controller_map_df(abstract_system, abstract_controller); delim=';')
+    CSV.write(basename * "_InputMap.csv", build_input_map_df(abstract_system); delim=';')
+end
+
+function build_grid_df(grid)
+    origin = DO.get_origin(grid)
+    h = DO.get_h(grid)
+    ndims = length(origin)
+
+    header = ["key"; ["x$(j)" for j in 1:ndims]]
+    rows = [["origin"; origin], ["h"; h]]
+    
+    df = DataFrame()
+    for j in 1:length(header)
+        df[!, Symbol(header[j])] = getindex.(rows, j)
+    end
+    return df
+end
+
+function build_state_map_df(abstract_system, grid)
+    ndims = length(DO.get_h(grid))
+    headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
+    states = SY.enum_states(abstract_system)
+    rows = [(string(s), SY.get_xpos_by_state(abstract_system, s)...) for s in states]
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
+
+function build_controller_map_df(abstract_system, abstract_controller)
+    states = SY.enum_states(abstract_system)
+    rows = [(string(s), string(get_input_symbol(abstract_controller, s))) for s in states]
+    return DataFrame(["abstract_state" => getindex.(rows, 1),
+                      "abstract_input" => getindex.(rows, 2)])
+end
+
+function get_input_symbol(controller, state)
+    syms = Dionysos.Utils.fix_and_eliminate_first(controller, state)
+    return isempty(syms) ? "-1" : first(syms)[1]
+end
+
+function build_input_map_df(abstract_system)
+    inputs = SY.enum_inputs(abstract_system)
+    ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
+    headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
+    rows = [(string(i), SY.get_concrete_input(abstract_system, i)...) for i in inputs]
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
+
+
+function load_controller_data_csv(basename::String)
+    grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim=';')
+    state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim=';')
+    ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim=';')
+    input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim=';')
+    return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+end
+
+function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+    origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
+    h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
+
+    pos2state = Dict{Vector{Int}, Int}()
+    for row in eachrow(state_df)
+        pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df)-1)]
+        pos2state[pos] = row.abstract_state
+    end
+
+    state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
+
+    input2u = Dict{Int, Vector{Float64}}()
+    for row in eachrow(input_df)
+        u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df)-1)]
+        input2u[row.abstract_input] = u
+    end
+
+    return origin, h, pos2state, state2input, input2u
+end
+
 end

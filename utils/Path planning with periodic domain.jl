@@ -71,6 +71,11 @@ println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
+## Export in csv file the controller, and reload it
+# filename = "concrete_controller"
+# AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
+# AB.UniformGridAbstraction.load_controller_data_csv(filename)
+
 target_set = concrete_problem.target_set
 target_set_in_periodic = UT.set_in_period(target_set, periodic_dims, periods, start)
 
