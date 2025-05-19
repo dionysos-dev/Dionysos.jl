@@ -85,6 +85,11 @@ plot!(invariant_set_complement; color = :red, linecolor = :red)
 plot!(control_trajectory)
 display(fig)
 
+## Export in csv file the controller, and reload it
+# filename = "concrete_controller"
+# AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
+# AB.UniformGridAbstraction.load_controller_data_csv(filename)
+
 ### Solve a reachability problem
 _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
 
