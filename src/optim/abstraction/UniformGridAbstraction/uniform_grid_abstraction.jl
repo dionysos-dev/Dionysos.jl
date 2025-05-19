@@ -350,13 +350,13 @@ function build_state_map_df(abstract_system, grid)
     ndims = length(DO.get_h(grid))
     headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
     states = SY.enum_states(abstract_system)
-    rows = [(string(s), SY.get_xpos_by_state(abstract_system, s)...) for s in states]
+    rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
 end
 
 function build_controller_map_df(abstract_system, abstract_controller)
     states = SY.enum_states(abstract_system)
-    rows = [(string(s), string(get_input_symbol(abstract_controller, s))) for s in states]
+    rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
     return DataFrame([
         "abstract_state" => getindex.(rows, 1),
         "abstract_input" => getindex.(rows, 2),
@@ -365,14 +365,14 @@ end
 
 function get_input_symbol(controller, state)
     syms = Dionysos.Utils.fix_and_eliminate_first(controller, state)
-    return isempty(syms) ? "-1" : first(syms)[1]
+    return isempty(syms) ? -1 : first(syms)[1]
 end
 
 function build_input_map_df(abstract_system)
     inputs = SY.enum_inputs(abstract_system)
     ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
     headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
-    rows = [(string(i), SY.get_concrete_input(abstract_system, i)...) for i in inputs]
+    rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
 end
 
