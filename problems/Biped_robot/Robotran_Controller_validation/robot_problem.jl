@@ -15,19 +15,42 @@ const SY = DI.Symbolic
 
 using Libdl
 # Load library
-lib = Libdl.dlopen(joinpath(@__DIR__, "../../../../philippides_J2C/workR/build/libProject_user.so"))
+lib = Libdl.dlopen(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build/libProject_user.so"))
 philippides_func = Libdl.dlsym(lib, :philippides)
 get_res_func    = Libdl.dlsym(lib, :get_philippides_results)
 function call_philippides(x::Vector{Float64})
     ccall(philippides_func, Cvoid, (Ptr{Float64},), x)
 end
 function get_results()
-    res = Vector{Float64}(undef, 8)
+    res = Vector{Float64}(undef, 16)
     ccall(get_res_func, Cvoid, (Ptr{Float64},), res)
     return res
 end
 
-# include the tools for the simulator from src
+
+First_step = false
+Second_step = !First_step
+
+if(First_step)
+    global _q_memory = MVector{8, Float64}(zeros(8))
+    global _̇q_memory = MVector{8, Float64}(zeros(8))
+end
+
+if(Second_step)
+    global _q_memory = MVector{8, Float64}([-0.01730926359126497,-0.004517640818232981,-0.18370427366813052,0.15027721581326403,0.1611209036620258,0.0020794157907381254,0.021612285886330667,-0.15567308105004135])
+    global _̇q_memory = MVector{8, Float64}([-0.019830171914243352,-0.0010378702234037553,-0.16076003270628988,-0.151994649614482,0.2700225581239414,0.15897247248545224,-0.039497500568681954,1.105828878839276])
+end
+
+function remember(value1, value2)
+    global _q_memory
+    global _̇q_memory
+    _q_memory .= value1
+    _̇q_memory .= value2
+end
+
+function recall()
+    return _q_memory, _̇q_memory
+end
 
 function system(;
     tstep = 5e-1,
@@ -93,17 +116,17 @@ function system(;
         # NB: to move the knee forward, a negative angle is needed!
 
         # First step: fill state: from the n state variables -> 8 positions and 8 speeds
-        q, q̇ = fill_state!(x)
+        q, q̇ = recall()
         q_ref = SVector{1,Float64}(0.0)
         results = []
-        cd(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build")) do
+        cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
             x = [q...,q̇...,u...,q_ref...]
             call_philippides(x)
             res = get_results()
             push!(results,res...)
         end        
-
-        x_next = SVector{6}(results[1:3]...,results[5:7]...)
+        x_next = SVector{6}(results[3:5]...,results[11:13]...)
+        remember(results[1:8], results[9:16])
         return x_next
     end
     # Define state space (bounds should be set according to your robot's joint limits)

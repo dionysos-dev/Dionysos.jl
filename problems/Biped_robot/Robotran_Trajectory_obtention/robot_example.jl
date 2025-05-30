@@ -19,13 +19,9 @@ include(
     ),
 )
 
-#######################################################
-################ Robotran's functions #################
-#######################################################
-
 using Libdl
 # Load library
-lib = Libdl.dlopen(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build/libProject_user.so"))
+lib = Libdl.dlopen(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build/libProject_user.so"))
 init_func       = Libdl.dlsym(lib, :init)
 free_func       = Libdl.dlsym(lib, :free_resources)
 
@@ -35,30 +31,6 @@ end
 function call_free_resources()
     ccall(free_func, Cvoid, ())
 end
-
-# Now call with function pointers
-
-function call_init()
-    ccall(init_func, Cvoid, ())
-end
-
-function call_philippides(x::Vector{Float64})
-    ccall(philippides_func, Cvoid, (Ptr{Float64},), x)
-end
-
-function call_free_resources()
-    ccall(free_func, Cvoid, ())
-end
-
-function get_results()
-    res = Vector{Float64}(undef, 8)
-    ccall(get_res_func, Cvoid, (Ptr{Float64},), res)
-    return res
-end
-
-#######################################################
-#################### New functions ####################
-#######################################################
 
 function get_abstract_closed_loop_trajectory(abstract_system, abstract_controller, source, nstep; stopping = (s)->false)
     state_traj, input_traj = [source], []
@@ -104,13 +76,13 @@ filename_save = joinpath(@__DIR__, "Abstraction2.jld2")
 #        Abstraction2.jld2 is for larger ranges -> 29h abstraction
 do_empty_optim = false
 First_part = true
-Second_part = false
+Second_part = true
 save_optimizers = false
 
 #######################################################
 #################### C FILES INITS ####################
 #######################################################
-cd(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build")) do
+cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
     call_init()
 end
 
@@ -153,7 +125,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 ### Optimize
 if(do_empty_optim)
-    # Abstraction computation
     MOI.optimize!(optimizer)
 
     # Save the abstraction solver
@@ -170,10 +141,9 @@ if(do_empty_optim)
     @info("Time elapsed to save : $save_time")
 else
     if(First_part)
-        # First step
         println("First part : ")
         println()
-        # Reload the abstraction result
+        # Reload the result
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
@@ -225,7 +195,7 @@ else
         ################# Concrete Trajectory #################
         #######################################################
         control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+            concrete_system,
             concrete_controller,
             x0,
             nstep;
@@ -268,9 +238,9 @@ else
 
         #concrete_control_trajectory = get_concrete_trajectory(abstract_system, control_trajectory)
         #println(concrete_control_trajectory)
-        """
-        println()
 
+        println()
+        """
         if(save_optimizers)
             jldopen(joinpath(@__DIR__, "..", "Robotran_Controller_validation", "First_step.jld2"), "w") do file
                 file["optimizer"] = optimizer
@@ -284,18 +254,16 @@ else
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
-        optimizer.handle_out_of_domain = 1 
-        # 0: Don't handle out of domain, 1: Applies the nearest input,  2: Moves the state to the nearest boundary
+        optimizer.handle_out_of_domain = 1
 
         #######################################################
         ################# Problem definition ##################
         #######################################################
-        # Ending point of the first_step
         p0 = SVector{n_state,Float64}([-0.13973903349563527, 0.12465164214506708, 0.18272715732388645, 0.0, 0.0, 0.0])
         _I_ = UT.HyperRectangle(p0, p0)
 
-        t_low = SVector{n_state,Float64}([-1.1*π/180.0, -1.1*π/180.0, -1.1*π/180.0, -0.75, -0.3, -0.3])
-        t_high = SVector{n_state,Float64}([1.1*π/180.0, 1.1*π/180.0, 1.1*π/180.0, 0.3, 0.75, 0.75])
+        t_low = SVector{n_state,Float64}([-1.5*π/180.0, -1.5*π/180.0, -1.5*π/180.0, -0.75, -0.3, -0.3])
+        t_high = SVector{n_state,Float64}([1.5*π/180.0, 1.5*π/180.0, 1.5*π/180.0, 0.3, 0.75, 0.75])
         _T_ = UT.HyperRectangle(t_low, t_high)
         
         concrete_problem = Dionysos.Problem.OptimalControlProblem(
@@ -369,9 +337,8 @@ else
         state_upper_bounds = [0, 12*π/180, 14*π/180, 0.15, 0.6, 0.6] .+ half_step
 
         state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
-
-        concrete_control_trajectory = ST.get_closed_loop_trajectory(
-            MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+            concrete_control_trajectory = ST.get_closed_loop_trajectory(
+            concrete_system,
             concrete_controller,
             p0,
             nstep;
@@ -392,6 +359,6 @@ else
     end
 end
 
-cd(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build")) do
+cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
     call_free_resources()
 end

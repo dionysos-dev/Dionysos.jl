@@ -15,14 +15,14 @@ const SY = DI.Symbolic
 
 using Libdl
 # Load library
-lib = Libdl.dlopen(joinpath(@__DIR__, "../../../../philippides_J2C/workR/build/libProject_user.so"))
+lib = Libdl.dlopen(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build/libProject_user.so"))
 philippides_func = Libdl.dlsym(lib, :philippides)
 get_res_func    = Libdl.dlsym(lib, :get_philippides_results)
 function call_philippides(x::Vector{Float64})
     ccall(philippides_func, Cvoid, (Ptr{Float64},), x)
 end
 function get_results()
-    res = Vector{Float64}(undef, 8)
+    res = Vector{Float64}(undef, 16)
     ccall(get_res_func, Cvoid, (Ptr{Float64},), res)
     return res
 end
@@ -96,21 +96,25 @@ function system(;
         q, q̇ = fill_state!(x)
         q_ref = SVector{1,Float64}(0.0)
         results = []
-        cd(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build")) do
+        cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
             x = [q...,q̇...,u...,q_ref...]
             call_philippides(x)
             res = get_results()
             push!(results,res...)
         end        
-
-        x_next = SVector{6}(results[1:3]...,results[5:7]...)
+        x_next = SVector{6}(results[3:5]...,results[11:13]...)
+        """
+        open(joinpath(@__DIR__, "memory.txt"), "a") do file
+            write(file, join(results, " ") * "\n")
+        end
+        """
         return x_next
     end
     # Define state space (bounds should be set according to your robot's joint limits)
     # Note : We need to add the discretisation step at each of the borns if the ones we chose are supposed to be centroids
     disc_steps = [fill(π/180, 3)..., fill(0.075, 3)...]
-    state_lower_bounds = [-12*π/180, 0, 0, -0.6, -0.3, -0.6] .- disc_steps
-    state_upper_bounds = [0, 12*π/180, 14*π/180, 0.3, 0.6, 0.6] .+ disc_steps
+    state_lower_bounds = [-12*π/180, 0, 0, -0.6, -0.15, -0.15] .- disc_steps
+    state_upper_bounds = [0, 12*π/180, 14*π/180, 0.15, 0.6, 0.6] .+ disc_steps
 
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
