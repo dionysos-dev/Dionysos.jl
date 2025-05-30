@@ -20,12 +20,16 @@ import .RS_tools
 First_step = false
 Second_step = !First_step
 
+# Memory
 if(First_step)
+    # Starting point of the first step
     global _q_memory = MVector{8, Float64}(zeros(8))
     global _̇q_memory = MVector{8, Float64}(zeros(8))
 end
 
 if(Second_step)
+    # Ending point of the first_step = start point of the second step
+    # requires to solve the first step first of course
     global _q_memory = MVector{8, Float64}([0.049058604856456675, -0.003932170125478732, -0.18042316250653628, 0.13622830985740686, 0.206712192483932, 0.002029860330582976, -0.022494885911054616, -0.1387064802449647])
     global _̇q_memory = MVector{8, Float64}([0.1134335693380015, -0.021190509505154363, -0.007679917690689772, 0.33468327982982954, 0.27985467499008787, -0.05511265455459322, -0.4435231613211813, -0.3601744988743658])
 end

@@ -19,6 +19,10 @@ include(
     ),
 )
 
+#######################################################
+################ Robotran's functions #################
+#######################################################
+
 using Libdl
 # Load library
 lib = Libdl.dlopen(joinpath(@__DIR__,"../../../../philippides_J2C/workR/build/libProject_user.so"))
@@ -51,6 +55,10 @@ function get_results()
     ccall(get_res_func, Cvoid, (Ptr{Float64},), res)
     return res
 end
+
+#######################################################
+#################### New functions ####################
+#######################################################
 
 function get_abstract_closed_loop_trajectory(abstract_system, abstract_controller, source, nstep; stopping = (s)->false)
     state_traj, input_traj = [source], []
@@ -95,10 +103,9 @@ filename_save = joinpath(@__DIR__, "Abstraction2.jld2")
 # Note : Abstraction.jld2 is for the same ranges as Julia -> 14h abstraction
 #        Abstraction2.jld2 is for larger ranges -> 29h abstraction
 do_empty_optim = false
-verify_save = false
 First_part = true
-Second_part = true
-save_optimizers = true
+Second_part = false
+save_optimizers = false
 
 #######################################################
 #################### C FILES INITS ####################
@@ -146,6 +153,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 ### Optimize
 if(do_empty_optim)
+    # Abstraction computation
     MOI.optimize!(optimizer)
 
     # Save the abstraction solver
@@ -162,9 +170,10 @@ if(do_empty_optim)
     @info("Time elapsed to save : $save_time")
 else
     if(First_part)
+        # First step
         println("First part : ")
         println()
-        # Reload the result
+        # Reload the abstraction result
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
@@ -240,7 +249,7 @@ else
                 return false
             end
         end
-
+        """
         #######################################################
         ############### Closed-loop Trajectory ################
         #######################################################
@@ -259,7 +268,7 @@ else
 
         #concrete_control_trajectory = get_concrete_trajectory(abstract_system, control_trajectory)
         #println(concrete_control_trajectory)
-
+        """
         println()
 
         if(save_optimizers)
@@ -275,11 +284,13 @@ else
         file = jldopen(filename_save, "r")
         reloaded_solver = file["my_abstraction_solver"]
         MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
-        optimizer.handle_out_of_domain = 1
+        optimizer.handle_out_of_domain = 1 
+        # 0: Don't handle out of domain, 1: Applies the nearest input,  2: Moves the state to the nearest boundary
 
         #######################################################
         ################# Problem definition ##################
         #######################################################
+        # Ending point of the first_step
         p0 = SVector{n_state,Float64}([-0.13973903349563527, 0.12465164214506708, 0.18272715732388645, 0.0, 0.0, 0.0])
         _I_ = UT.HyperRectangle(p0, p0)
 
