@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>State-feedback Abstraction PWA System · Dionysos</title><meta name="title" content="State-feedback Abstraction PWA System · Dionysos"/><meta property="og:title" content="State-feedback Abstraction PWA System · Dionysos"/><meta property="twitter:title" content="State-feedback Abstraction PWA System · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Index</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/manual/">Overview</a></li></ul></li><li><a class="tocitem" href="../Getting Started/">Getting Started</a></li><li><span class="tocitem">Solvers</span><ul><li><a class="tocitem" href="../DC-DC converter/">DC-DC converter</a></li><li><a class="tocitem" href="../Gol, Lazar &amp; Belta (2013)/">Gol, Lazar &amp; Belta (2013)</a></li><li><a class="tocitem" href="../Hierarchical-abstraction/">Hierarchical-abstraction</a></li><li><a class="tocitem" href="../Lazy-Ellipsoids-Abstraction/">Lazy-Ellipsoids-Abstraction</a></li><li><a class="tocitem" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability</a></li><li><a class="tocitem" href="../Path planning/">Path planning</a></li><li><a class="tocitem" href="../Single pendulum/">Single pendulum</a></li><li class="is-active"><a class="tocitem" href>State-feedback Abstraction PWA System</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Problem-parameters"><span>Problem parameters</span></a></li><li class="toplevel"><a class="tocitem" href="#Abstraction-parameters"><span>Abstraction parameters</span></a></li><li><a class="tocitem" href="#Define-the-mapping-function"><span>Define the mapping function</span></a></li><li><a class="tocitem" href="#Display-the-specifications-and-domains"><span>Display the specifications and domains</span></a></li><li><a class="tocitem" href="#Display-the-abstraction"><span>Display the abstraction</span></a></li><li><a class="tocitem" href="#Display-the-Lyapunov-function-and-the-trajectory"><span>Display the Lyapunov function and the trajectory</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../Unicycle robot/">Unicycle robot</a></li></ul></li><li><span class="tocitem">Utils</span><ul><li><a class="tocitem" href="../Ellipsoids/">Ellipsoids</a></li><li><a class="tocitem" href="../Grid/">Grid</a></li><li><a class="tocitem" href="../Tree/">Tree</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Domain/">Domain</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li><li><a class="tocitem" href="../../bibliography/">Bibliography</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Solvers</a></li><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>State-feedback Abstraction PWA System</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/solvers/State-feedback Abstraction PWA System.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-solved-by-[Ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers)."><a class="docs-heading-anchor" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-solved-by-[Ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).">Example: Optimal control of a PWA System by State-feedback Abstractions solved by <a href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers">Ellipsoid abstraction</a>.</a><a id="Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-solved-by-[Ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).-1"></a><a class="docs-heading-anchor-permalink" href="#Example:-Optimal-control-of-a-PWA-System-by-State-feedback-Abstractions-solved-by-[Ellipsoid-abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers)." title="Permalink"></a></h1><p><a href="https://mybinder.org/v2/gh/dionysos-dev/Dionysos.jl/gh-pages?filepath=previews/PR422/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"/></a> <a href="https://nbviewer.jupyter.org/github/dionysos-dev/Dionysos.jl/blob/gh-pages/previews/PR422/generated/State-feedback Abstraction: PWA System.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-579ACA.svg" alt="nbviewer"/></a></p><p>This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems. Consider a system <span>$\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$</span> with the transition function</p><p class="math-container">\[\begin{equation}
+    \{A_{\psi(x)}x+B_{\psi(x)}u+g_{\psi(x)}\}\oplus\Omega_{\psi(x)}
+\end{equation}\]</p><p>where <span>$\psi:\mathcal{X}\rightarrow\{1,\dots,N_p\}$</span> selects one of the <span>$N_p$</span> subsystems defined by the matrices</p><p class="math-container">\[\begin{equation}
+	A_1=\begin{bmatrix}
+    1.01 &amp; 0.3\\
+    -0.1 &amp; 1.01
+\end{bmatrix}, ~B_1=\begin{bmatrix}
+    1&amp;0\\ 0 &amp; 1
+\end{bmatrix},~g_1=\begin{bmatrix}
+-0.1\\-0.1
+\end{bmatrix},
+\end{equation}\]</p><p class="math-container">\[A_2=A_1^\top,~ A_3=A_1,~B_2=B_3=B_1,~g_2=0\]</p><p>and <span>$g_3=-g_1$</span>. These systems are three spiral sources with unstable equilibria at <span>$x_{e1}=[-0.9635~~0.3654]^\top,~x_{e2}=0,$</span> and <span>$x_{e3}=-x_{e1}$</span>. We also define the additive-noise sets <span>$\Omega_1=\Omega_2=\Omega_3=[-0.05,0.05]^2$</span>, the control-input set <span>$\mathcal{U}=[-0.5,0.5]^2$</span> and the state space <span>$\mathcal{X}=[-2,2]^2$</span>. The <span>$N_p=3$</span> partitions of <span>$\mathcal{X}$</span> are <span>$\mathcal{X}_1= \{x\in\mathcal{X}~:~x_1\leq-1 \},~\mathcal{X}_3= \{x\in\mathcal{X}~:~x_1&gt;1 \},$</span> and <span>$\mathcal{X}_2=\mathcal{X}\setminus(\mathcal{X}_1\cup\mathcal{X}_3)$</span>. The goal is to bring the state <span>$x$</span> from the initial set <span>$\mathcal{X}_0$</span> to a final set <span>$\mathcal{X}_*$</span>, while avoiding the obstacle <span>$\mathcal{O}$</span>, which are to be defined.</p><p>First, let us import <a href="https://github.com/JuliaArrays/StaticArrays.jl">StaticArrays</a>, <a href="https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/">LinearAlgebra</a>, <a href="https://github.com/JuliaPolyhedra/CDDLib.jl">CDDLib</a>, <a href="https://github.com/oxfordcontrol/Clarabel.jl">Clarabel</a>, <a href="https://jump.dev/JuMP.jl/stable/">JuMP</a>. We also instantiate our optimizers and CDDLib.</p><pre><code class="language-julia hljs">using StaticArrays, LinearAlgebra, Plots
+using JuMP, Clarabel
+import CDDLib
+
+import Random
+Random.seed!(0)
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const DO = DI.Domain
+const ST = DI.System
+const SY = DI.Symbolic
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
+
+lib = CDDLib.Library() # polyhedron lib
+
+include(joinpath(dirname(dirname(pathof(Dionysos))), &quot;problems&quot;, &quot;pwa_sys.jl&quot;))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Main.var&quot;Main&quot;.PWAsys</code></pre><h1 id="Problem-parameters"><a class="docs-heading-anchor" href="#Problem-parameters">Problem parameters</a><a id="Problem-parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-parameters" title="Permalink"></a></h1><p>Notice that in [1] it was used <code>Wsz = 5</code> and <code>Usz = 50</code>. These, and other values were changed here to speed up the build time of the documentation.</p><pre><code class="language-julia hljs">Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
+Wsz = 3 # `Wsz = 5` in [1]
+dt = 0.01; # discretization step
+
+concrete_problem =
+    PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
+concrete_system = concrete_problem.system</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Hybrid System with automaton HybridSystems.GraphAutomaton{Graphs.SimpleGraphs.SimpleDiGraph{Int64}, Graphs.SimpleGraphs.SimpleEdge{Int64}}(Graphs.SimpleGraphs.SimpleDiGraph{Int64}(7, [[1, 2], [1, 2, 3], [2, 3]], [[1, 2], [1, 2, 3], [2, 3]]), Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Dict{Int64, Int64}}(Edge 3 =&gt; 2 =&gt; Dict(4 =&gt; 2), Edge 1 =&gt; 2 =&gt; Dict(1 =&gt; 2), Edge 1 =&gt; 1 =&gt; Dict(3 =&gt; 1), Edge 3 =&gt; 3 =&gt; Dict(7 =&gt; 3), Edge 2 =&gt; 2 =&gt; Dict(5 =&gt; 2), Edge 2 =&gt; 1 =&gt; Dict(2 =&gt; 1), Edge 2 =&gt; 3 =&gt; Dict(6 =&gt; 3)), 7, 7)</code></pre><h1 id="Abstraction-parameters"><a class="docs-heading-anchor" href="#Abstraction-parameters">Abstraction parameters</a><a id="Abstraction-parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Abstraction-parameters" title="Permalink"></a></h1><p>This is state-space is defined by the <code>HyperRectangle rectX</code>. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells <span>$\mathcal{X}_d$</span>, given it&#39;s determinism. To build this deterministic state-feedback abstraction in alternating simulation relation  with the system as described in [1, Lemma 1], a set of balls of radius 0.2 covering the state space is adopted as cells <span>$\xi\in\mathcal{X}_d$</span>. We assume that inside cells intersecting the boundary of partitions of <span>$\mathcal{X}$</span> the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center. An alternative to this are discussed in [1]. Let us define the corresponding grid:</p><pre><code class="language-julia hljs">n_step = 3
+X_origin = SVector(0.0, 0.0);
+X_step = SVector(1.0 / n_step, 1.0 / n_step)
+nx = size(concrete_system.resetmaps[1].A, 1)
+P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P);
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() =&gt; true)
+
+optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_problem&quot;), concrete_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;state_grid&quot;), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;sdp_solver&quot;), opt_sdp)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MathOptInterface.OptimizerWithAttributes(Clarabel.MOIwrapper.Optimizer, Pair{MathOptInterface.AbstractOptimizerAttribute, Any}[MathOptInterface.Silent() =&gt; true])</code></pre><p>Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra&#39;s algorithm [2, p.86].</p><pre><code class="language-julia hljs">MOI.optimize!(optimizer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">compute_symmodel_from_hybridcontrolsystem! started
+Computing symbolic control system:   6%|█               |  ETA: 0:00:19Computing symbolic control system:  13%|██▏             |  ETA: 0:00:17Computing symbolic control system:  18%|██▉             |  ETA: 0:00:16Computing symbolic control system:  24%|███▉            |  ETA: 0:00:15Computing symbolic control system:  30%|████▉           |  ETA: 0:00:14Computing symbolic control system:  36%|█████▉          |  ETA: 0:00:12Computing symbolic control system:  42%|██████▊         |  ETA: 0:00:11Computing symbolic control system:  48%|███████▊        |  ETA: 0:00:10Computing symbolic control system:  55%|████████▊       |  ETA: 0:00:09Computing symbolic control system:  61%|█████████▊      |  ETA: 0:00:08Computing symbolic control system:  67%|██████████▋     |  ETA: 0:00:06Computing symbolic control system:  73%|███████████▋    |  ETA: 0:00:05Computing symbolic control system:  78%|████████████▌   |  ETA: 0:00:04Computing symbolic control system:  83%|█████████████▎  |  ETA: 0:00:03Computing symbolic control system:  90%|██████████████▍ |  ETA: 0:00:02Computing symbolic control system:  96%|███████████████▍|  ETA: 0:00:01Computing symbolic control system: 100%|████████████████| Time: 0:00:19
+compute_symmodel_from_controlsystem! terminated with success: 1012 transitions created
+Abstraction created in 19.202641888 seconds with 1012 transitions
+Abstract controller computed with: succes</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_problem&quot;))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_controller&quot;))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_controller&quot;))
+abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_lyap_fun&quot;))
+concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_lyap_fun&quot;))
+transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionCont&quot;))
+transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionCost&quot;));</code></pre><h2 id="Define-the-mapping-function"><a class="docs-heading-anchor" href="#Define-the-mapping-function">Define the mapping function</a><a id="Define-the-mapping-function-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-mapping-function" title="Permalink"></a></h2><pre><code class="language-julia hljs">#Return pwa mode for a given x
+get_mode(x) = findfirst(m -&gt; (x ∈ m.X), concrete_system.resetmaps)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">get_mode (generic function with 1 method)</code></pre><p>To simplify : &quot;We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center.&quot;</p><pre><code class="language-julia hljs">function f_eval1(x, u)
+    currState = SY.get_states_by_xpos(
+        abstract_system,
+        DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
+    )
+    next_action = nothing
+    for action in abstract_controller.data
+        if (action[1] ∩ currState) ≠ []
+            next_action = action
+        end
+    end
+    c = DO.get_coord_by_pos(
+        state_grid,
+        SY.get_xpos_by_state(abstract_system, next_action[1]),
+    )
+    m = get_mode(c)
+    W = concrete_system.ext[:W]
+    w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
+    return concrete_system.resetmaps[m].A * x +
+           concrete_system.resetmaps[m].B * u +
+           concrete_system.resetmaps[m].c +
+           w
+end
+
+cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">cost_eval (generic function with 1 method)</code></pre><h3 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h3><p>We define the stopping criteria for a simulation</p><pre><code class="language-julia hljs">nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
+function reached(x)
+    currState = SY.get_states_by_xpos(
+        abstract_system,
+        DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
+    )
+    if !isempty(currState ∩ abstract_problem.target_set)
+        return true
+    else
+        return false
+    end
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">reached (generic function with 1 method)</code></pre><p>We simulate the closed loop trajectory</p><pre><code class="language-julia hljs">x0 = concrete_problem.initial_set
+cost_control_trajectory = ST.get_closed_loop_trajectory(
+    f_eval1,
+    concrete_controller,
+    cost_eval,
+    x0,
+    nstep;
+    stopping = reached,
+)
+cost_bound = concrete_lyap_fun(x0)
+cost_true = sum(cost_control_trajectory.costs.seq);
+println(&quot;Goal set reached&quot;)
+println(&quot;Guaranteed cost:\t $(cost_bound)&quot;)
+println(&quot;True cost:\t\t $(cost_true)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Goal set reached
+Guaranteed cost:	 2.4407918199375933
+True cost:		 1.756527500234811</code></pre><h3 id="Visualize-the-results."><a class="docs-heading-anchor" href="#Visualize-the-results.">Visualize the results.</a><a id="Visualize-the-results.-1"></a><a class="docs-heading-anchor-permalink" href="#Visualize-the-results." title="Permalink"></a></h3><pre><code class="language-julia hljs">rectX = concrete_system.ext[:X];</code></pre><h2 id="Display-the-specifications-and-domains"><a class="docs-heading-anchor" href="#Display-the-specifications-and-domains">Display the specifications and domains</a><a id="Display-the-specifications-and-domains-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-specifications-and-domains" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
+ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
+xlabel!(&quot;\$x_1\$&quot;);
+ylabel!(&quot;\$x_2\$&quot;);
+title!(&quot;Specifictions and domains&quot;);
+#We display the concrete domain
+plot!(rectX; color = :grey, opacity = 1.0, label = &quot;&quot;);
+#We display the abstract domain
+plot!(abstract_system.Xdom; color = :blue, efficient = false, opacity = 0.5);
+#We display the abstract specifications
+plot!(
+    SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    color = :green,
+    efficient = false,
+    opacity = 0.5,
+);
+plot!(
+    SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    color = :red,
+    efficient = false,
+    opacity = 0.5,
+);
+#We display the concrete specifications
+plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
+plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)</code></pre><img src="c4c71169.svg" alt="Example block output"/><h2 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
+ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
+title!(&quot;Abstractions&quot;);
+plot!(abstract_system; arrowsB = true, efficient = false, cost = false)</code></pre><img src="bf83e11d.svg" alt="Example block output"/><h2 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
+    aspect_ratio = :equal,
+    xtickfontsize = 10,
+    ytickfontsize = 10,
+    guidefontsize = 16,
+    titlefontsize = 14,
+);
+xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
+ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
+xlabel!(&quot;\$x_1\$&quot;);
+ylabel!(&quot;\$x_2\$&quot;);
+title!(&quot;Trajectory and Lyapunov-like Fun.&quot;);
+plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun);
+plot!(cost_control_trajectory; color = :black)</code></pre><img src="5eb34cfd.svg" alt="Example block output"/><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Single pendulum/">« Single pendulum</a><a class="docs-footer-nextpage" href="../Unicycle robot/">Unicycle robot »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Monday 16 June 2025 07:45">Monday 16 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
