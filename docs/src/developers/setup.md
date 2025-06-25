@@ -1,6 +1,7 @@
 # Set up
 
 This guide shows you what to do when you start developing for Dionysos.
+If you are now to Julia, start by reading [Modern Julia Workflows](https://modernjuliaworkflows.org/).
 
 ## Installations
 
