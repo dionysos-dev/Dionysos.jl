@@ -228,9 +228,9 @@ function build_abstract_problem(
 end
 
 function compute_largest_controllable_set(
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
+    abstract_system,
     target_set;
-    initial_set = Dionysos.Symbolic.enum_cells(abstract_system),
+    initial_set = Dionysos.Symbolic.enum_states(abstract_system),
     sparse_input = false,
 )
     abstract_controller = NewControllerList()
