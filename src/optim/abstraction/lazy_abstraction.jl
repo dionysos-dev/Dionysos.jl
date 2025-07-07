@@ -473,8 +473,11 @@ function LazySearchProblem(
     concrete_system = concrete_problem.system
 
     transition_cost(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
-    transitions_added =
-        MutableMatrix(false, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
+    transitions_added = MutableMatrix(
+        false,
+        SY.get_n_input(abstract_system),
+        SY.get_n_state(abstract_system),
+    )
     num_targets_unreachable =
         MutableMatrix(0, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
     controllable = falses(SY.get_n_state(abstract_system))
@@ -486,8 +489,11 @@ function LazySearchProblem(
         MutableMatrix(0.0, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
     costs = zeros(Float64, SY.get_n_state(abstract_system))
     if transitions_previously_added === nothing
-        transitions_previously_added =
-            MutableMatrix(-1, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
+        transitions_previously_added = MutableMatrix(
+            -1,
+            SY.get_n_input(abstract_system),
+            SY.get_n_state(abstract_system),
+        )
     end
 
     closed = nothing

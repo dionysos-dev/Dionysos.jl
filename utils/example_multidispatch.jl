@@ -99,7 +99,7 @@ concrete_problem_reachability = Dionysos.Problem.OptimalControlProblem(
     _I_,
     _T_,
     nothing,
-    nothing,  
+    nothing,
     Dionysos.Problem.Infinity(),
 )
 MOI.set(

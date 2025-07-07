@@ -8,7 +8,7 @@ mutable struct LazySymbolicModelList{
     M,
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
-    A <: AbstractAutomatonList{3,3},
+    A <: AbstractAutomatonList{3, 3},
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
@@ -64,7 +64,7 @@ function LazySymbolicModelList(
     Xdom::DO.DomainType{N, T1},
     Udom::DO.DomainType{M, T2},
     state_space,
-    AutomatonConstructor::Function = SortedAutomatonListFactory,
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
 ) where {N, M, T1, T2}
     customDomainList = DO.convert_to_custom_domain(Udom)
     nu = DO.get_ncells(customDomainList)
@@ -104,11 +104,13 @@ enum_inputs(symmodel::LazySymbolicModelList) = 1:get_n_input(symmodel)
 get_state_domain(symmodel::LazySymbolicModelList) = symmodel.Xdom
 get_input_domain(symmodel::LazySymbolicModelList) = symmodel.Udom
 pre(symmodel::LazySymbolicModelList, target::Int) = pre(symmodel.autom, target)
-post(symmodel::LazySymbolicModelList, source::Int, input::Int) = post(symmodel.autom, source, input)
+post(symmodel::LazySymbolicModelList, source::Int, input::Int) =
+    post(symmodel.autom, source, input)
 enum_transitions(symmodel::LazySymbolicModelList) = enum_transitions(symmodel.autom)
-add_transition!(symmodel::LazySymbolicModelList, q::Int, q′::Int, u::Int) = add_transition!(symmodel.autom, q, q′, u)
-add_transitions!(symmodel::LazySymbolicModelList, translist) = add_transitions!(symmodel.autom, translist)
-
+add_transition!(symmodel::LazySymbolicModelList, q::Int, q′::Int, u::Int) =
+    add_transition!(symmodel.autom, q, q′, u)
+add_transitions!(symmodel::LazySymbolicModelList, translist) =
+    add_transitions!(symmodel.autom, translist)
 
 get_xpos_by_state(symmodel::LazySymbolicModelList, state) = symmodel.xint2pos[state]
 function get_state_by_xpos(symmodel::LazySymbolicModelList, pos)
@@ -175,7 +177,7 @@ add_transitions!(symmodel::LazySymbolicModelList, translist) =
     end
     # Display the arrows
     if arrowsB
-        for (target, source, symbol) in SY.enum_transitions(symmodel)
+        for (target, source, symbol) in enum_transitions(symmodel)
             if source == target
                 @series begin
                     p1 = DO.get_coord_by_pos(grid, get_xpos_by_state(symmodel, source))

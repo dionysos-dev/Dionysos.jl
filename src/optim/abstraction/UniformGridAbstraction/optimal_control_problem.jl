@@ -221,7 +221,7 @@ function build_abstract_problem(
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
     @warn("The `state_cost` is not yet fully implemented")
-   
+
     return Dionysos.Problem.OptimalControlProblem(
         abstract_system,
         Dionysos.Symbolic.get_states_from_set(

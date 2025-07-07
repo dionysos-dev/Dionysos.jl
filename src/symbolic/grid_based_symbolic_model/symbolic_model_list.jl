@@ -8,7 +8,7 @@ mutable struct SymbolicModelList{
     M,
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
-    A
+    A,
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
@@ -25,7 +25,7 @@ end
 function NewSymbolicModelListList(
     Xdom,
     Udom,
-    AutomatonConstructor::Function = SortedAutomatonListFactory,
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
 )
     nx = DO.get_ncells(Xdom)
     xint2pos = [pos for pos in DO.enum_pos(Xdom)]
@@ -77,10 +77,13 @@ get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
 is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
 pre(symmodel::SymbolicModelList, target::Int) = pre(symmodel.autom, target)
-post(symmodel::SymbolicModelList, source::Int, input::Int) = post(symmodel.autom, source, input)
+post(symmodel::SymbolicModelList, source::Int, input::Int) =
+    post(symmodel.autom, source, input)
 enum_transitions(symmodel::SymbolicModelList) = enum_transitions(symmodel.autom)
-add_transition!(symmodel::SymbolicModelList, q::Int, q′::Int, u::Int) = add_transition!(symmodel.autom, q, q′, u)
-add_transitions!(symmodel::SymbolicModelList, translist) = add_transitions!(symmodel.autom, translist)
+add_transition!(symmodel::SymbolicModelList, q::Int, q′::Int, u::Int) =
+    add_transition!(symmodel.autom, q, q′, u)
+add_transitions!(symmodel::SymbolicModelList, translist) =
+    add_transitions!(symmodel.autom, translist)
 
 function get_concrete_input(symmodel::SymbolicModelList, input)
     if !symmodel.determinized
@@ -99,7 +102,6 @@ function get_abstract_input(symmodel::SymbolicModelList, u)
         return get_abstract_input(symmodel.metadata[:original_symmodel], u)
     end
 end
-
 
 """
     is_deterministic(symmodel::SymbolicModelList) -> Bool
@@ -136,7 +138,10 @@ det_symmodel = determinize_symbolic_model(symmodel)
 is_deterministic(det_symmodel) == true
 ```
 """
-function determinize_symbolic_model(symmodel::SymbolicModelList; AutomatonConstructor::Function = SortedAutomatonListFactory)
+function determinize_symbolic_model(
+    symmodel::SymbolicModelList;
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+)
     transitions = enum_transitions(symmodel)
 
     new_ucoord2int = Dict{Tuple{Any, Int}, Int}() # New input mapping (int -> (symbol, target))

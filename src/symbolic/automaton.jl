@@ -1,30 +1,35 @@
 abstract type AbstractAutomatonList{N, M} <: HybridSystems.AbstractAutomaton end
 
 # === Required Interface ===
-function get_n_state(autom::AbstractAutomatonList{N,M}) where {N,M} end
-function get_n_input(autom::AbstractAutomatonList{N,M}) where {N,M} end
-function enum_transitions(autom::AbstractAutomatonList{N,M}) where {N,M} end
-function add_transition!(autom::AbstractAutomatonList{N,M}, source::Int, target::Int, symbol::Int) where {N,M} end
-function pre(autom::AbstractAutomatonList{N,M}, target::Int) where {N,M} end
-function post(autom::AbstractAutomatonList{N,M}, source::Int, symbol::Int) where {N,M} end
-function empty!(autom::AbstractAutomatonList{N,M}) where {N,M} end
-function add_state!(autom::AbstractAutomatonList{N,M}) where {N,M} end
+function get_n_state(autom::AbstractAutomatonList{N, M}) where {N, M} end
+function get_n_input(autom::AbstractAutomatonList{N, M}) where {N, M} end
+function enum_transitions(autom::AbstractAutomatonList{N, M}) where {N, M} end
+function add_transition!(
+    autom::AbstractAutomatonList{N, M},
+    source::Int,
+    target::Int,
+    symbol::Int,
+) where {N, M} end
+function pre(autom::AbstractAutomatonList{N, M}, target::Int) where {N, M} end
+function post(autom::AbstractAutomatonList{N, M}, source::Int, symbol::Int) where {N, M} end
+function empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
+function add_state!(autom::AbstractAutomatonList{N, M}) where {N, M} end
 
 # === Common Default Implementations ===
 enum_states(autom::AbstractAutomatonList) = 1:get_n_state(autom)
 enum_inputs(autom::AbstractAutomatonList) = 1:get_n_input(autom)
 
-function HybridSystems.ntransitions(autom::AbstractAutomatonList{N,M}) where {N,M}
+function HybridSystems.ntransitions(autom::AbstractAutomatonList{N, M}) where {N, M}
     return length(enum_transitions(autom))
 end
 
-function add_transitions!(autom::AbstractAutomatonList{N,M}, translist) where {N,M}
+function add_transitions!(autom::AbstractAutomatonList{N, M}, translist) where {N, M}
     for (q′, q, u) in translist
         add_transition!(autom, q, q′, u)
     end
 end
 
-function is_deterministic(autom::AbstractAutomatonList{N,M}) where {N,M}
+function is_deterministic(autom::AbstractAutomatonList{N, M}) where {N, M}
     seen = Dict{Tuple{Int, Int}, Int}()
     for (q′, q, u) in enum_transitions(autom)
         key = (q, u)
@@ -36,10 +41,10 @@ function is_deterministic(autom::AbstractAutomatonList{N,M}) where {N,M}
     return true
 end
 
-
 # === Implementation: SortedAutomatonList ===
 
-mutable struct SortedAutomatonList{S <: AbstractSet{NTuple{3, Int}}} <: AbstractAutomatonList{3,3}
+mutable struct SortedAutomatonList{S <: AbstractSet{NTuple{3, Int}}} <:
+               AbstractAutomatonList{3, 3}
     nstates::Int
     nsymbols::Int
     transitions::S
@@ -49,18 +54,17 @@ function SortedAutomatonList{S}(nstates, nsymbols) where {S}
     return SortedAutomatonList(nstates, nsymbols, S())
 end
 
-function SortedAutomatonListFactory(nstates, nsymbols)
+function NewSortedAutomatonList(nstates, nsymbols)
     return SortedAutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
 end
-
-NewSortedAutomatonList(nstates, nsymbols) =
-    SortedAutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
 
 get_n_state(a::SortedAutomatonList) = a.nstates
 get_n_input(a::SortedAutomatonList) = a.nsymbols
 enum_transitions(a::SortedAutomatonList) = UT.get_data(a.transitions)
-add_transition!(a::SortedAutomatonList, q::Int, q′::Int, u::Int) = UT.push_new!(a.transitions, (q′, q, u))
-add_transitions!(autom::SortedAutomatonList, translist) = UT.append_new!(autom.transitions, translist)
+add_transition!(a::SortedAutomatonList, q::Int, q′::Int, u::Int) =
+    UT.push_new!(a.transitions, (q′, q, u))
+add_transitions!(autom::SortedAutomatonList, translist) =
+    UT.append_new!(autom.transitions, translist)
 pre(a::SortedAutomatonList, target::Int) = UT.fix_and_eliminate_first(a.transitions, target)
 
 function post(a::SortedAutomatonList, source::Int, symbol::Int)
@@ -77,7 +81,7 @@ end
 
 # === Implementation: IndexedAutomatonList ===
 
-mutable struct IndexedAutomatonList <: AbstractAutomatonList{3,3}
+mutable struct IndexedAutomatonList <: AbstractAutomatonList{3, 3}
     nstates::Int
     nsymbols::Int
     transitions::Vector{NTuple{3, Int}}
@@ -85,11 +89,9 @@ mutable struct IndexedAutomatonList <: AbstractAutomatonList{3,3}
     premap::Dict{Int, Vector{Tuple{Int, Int}}}
 end
 
-function IndexedAutomatonList(nstates, nsymbols)
-    return IndexedAutomatonList(nstates, nsymbols, NTuple{3,Int}[], Dict(), Dict())
+function NewIndexedAutomatonList(nstates, nsymbols)
+    return IndexedAutomatonList(nstates, nsymbols, NTuple{3, Int}[], Dict(), Dict())
 end
-
-const IndexedAutomatonListFactory = IndexedAutomatonList
 
 get_n_state(a::IndexedAutomatonList) = a.nstates
 get_n_input(a::IndexedAutomatonList) = a.nsymbols
@@ -98,7 +100,7 @@ enum_transitions(a::IndexedAutomatonList) = a.transitions
 function add_transition!(a::IndexedAutomatonList, q::Int, q′::Int, u::Int)
     push!(a.transitions, (q′, q, u))
     push!(get!(a.postmap, (q, u), Int[]), q′)
-    push!(get!(a.premap, q′, Tuple{Int, Int}[]), (q, u))
+    return push!(get!(a.premap, q′, Tuple{Int, Int}[]), (q, u))
 end
 
 function add_transitions!(autom::IndexedAutomatonList, translist)

@@ -5,49 +5,52 @@ using Dionysos
 const DI = Dionysos
 const SY = DI.Symbolic
 
-sleep(0.1) # used for good printing
-println("Started test")
+sleep(0.1)
+println("Started tests for automata")
 
-sleep(0.1) # used for good printing
-println("Started test")
+function run_automaton_tests(AutomatonConstructor::Function)
+    @testset "Automaton (impl = $(AutomatonConstructor))" begin
+        nstates = 10
+        nsymbols = 11
+        autom = AutomatonConstructor(nstates, nsymbols)
 
-@testset "Automaton" begin
-    nstates = 10
-    nsymbols = 11
-    autom = SY.NewAutomatonList(nstates, nsymbols)
+        # Single transition per (state, input)
+        SY.add_transition!(autom, 5, 9, 6)
+        @test SY.is_deterministic(autom) == true
 
-    SY.add_transition!(autom, 5, 9, 6)
-    @test SY.is_deterministic(autom) == true
-    SY.add_transition!(autom, 5, 8, 6)
-    @test SY.is_deterministic(autom) == false
-    SY.add_transition!(autom, 5, 3, 7)
-    SY.add_transition!(autom, 8, 3, 6)
-    SY.add_transition!(autom, 5, 5, 6)
-    SY.add_transition!(autom, 8, 3, 7)
-    @test SY.ntransitions(autom) == 6
-    SY.add_transitions!(autom, [(1, 2, 5), (1, 3, 4)])
-    @test SY.ntransitions(autom) == 8
+        # Now insert conflict on (5, 6)
+        SY.add_transition!(autom, 5, 8, 6)
+        @test SY.is_deterministic(autom) == false
 
-    targetlist = Int[]
+        SY.add_transition!(autom, 5, 3, 7)
+        SY.add_transition!(autom, 8, 3, 6)
+        SY.add_transition!(autom, 5, 5, 6)
+        SY.add_transition!(autom, 8, 3, 7)
 
-    SY.compute_post!(targetlist, autom, 5, 6)
-    @test length(targetlist) == 3
-    SY.compute_post!(targetlist, autom, 8, 6)
-    SY.compute_post!(targetlist, autom, 8, 5)
-    @test length(targetlist) == 4
+        @test SY.ntransitions(autom) == 6
 
-    soursymblist = SY.pre(autom, 3)
-    @test length(soursymblist) == 3
-    @test collect(soursymblist) == [(5, 7), (8, 6), (8, 7)]
-    soursymblist = SY.pre(autom, 4)
-    @test length(soursymblist) == 0
-    soursymblist = SY.pre(autom, 8)
-    @test length(soursymblist) == 1
-    @test collect(soursymblist)[1] == (5, 6)
+        SY.add_transitions!(autom, [(1, 2, 5), (1, 3, 4)])
+        @test SY.ntransitions(autom) == 8
 
-    @test SY.is_deterministic(autom) == false
+        targetlist = SY.post(autom, 5, 6)
+        @test length(targetlist) == 3
+
+        soursymblist = SY.pre(autom, 3)
+        @test length(soursymblist) == 3
+        @test collect(soursymblist) == [(5, 7), (8, 6), (8, 7)]
+
+        @test length(SY.pre(autom, 4)) == 0
+        @test collect(SY.pre(autom, 8)) == [(5, 6)]
+
+        @test SY.is_deterministic(autom) == false
+    end
 end
 
-println("End test")
+# === Run tests for all known implementations ===
 
-end  # module TestMain
+run_automaton_tests((n, m) -> SY.NewSortedAutomatonList(n, m))
+run_automaton_tests((n, m) -> SY.NewIndexedAutomatonList(n, m))
+
+println("End of tests")
+
+end # module
