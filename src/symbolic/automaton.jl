@@ -67,7 +67,8 @@ add_transitions!(autom::SortedAutomatonList, translist) =
     UT.append_new!(autom.transitions, translist)
 pre(a::SortedAutomatonList, target::Int) = UT.fix_and_eliminate_first(a.transitions, target)
 
-compute_post!(targetlist, a::SortedAutomatonList, source, symbol) = UT.fix_and_eliminate_tail!(targetlist, a.transitions, (source, symbol))
+compute_post!(targetlist, a::SortedAutomatonList, source, symbol) =
+    UT.fix_and_eliminate_tail!(targetlist, a.transitions, (source, symbol))
 function post(a::SortedAutomatonList, source::Int, symbol::Int)
     targets = Int[]
     UT.fix_and_eliminate_tail!(targets, a.transitions, (source, symbol))

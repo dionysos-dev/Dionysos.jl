@@ -44,7 +44,11 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("automaton_constructor"), (n, m) -> SY.NewIndexedAutomatonList(n, m))
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+)
 
 MOI.optimize!(optimizer)
 

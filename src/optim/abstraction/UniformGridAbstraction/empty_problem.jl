@@ -178,7 +178,6 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     print_level::Int
 
-
     function OptimizerEmptyProblem{T}() where {T}
         optimizer = new{T}(
             nothing,
