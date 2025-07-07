@@ -166,11 +166,12 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     abstract_controller,
     controllable_set_symbols,
     uncontrollable_set_symbols,
-    value_fun_tab = compute_largest_controllable_set(
-        optimizer.abstract_problem.system,
+    value_fun_tab = compute_worst_case_cost_controller(
+        optimizer.abstract_problem.system.autom,
         optimizer.abstract_problem.target_set;
         initial_set = init_set,
         sparse_input = optimizer.sparse_input,
+        cost_function = optimizer.abstract_problem.transition_cost,
     )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(
@@ -203,12 +204,24 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     return
 end
 
+function get_abstract_transition_cost(abstract_system, concrete_transition_cost)
+    if concrete_transition_cost === nothing
+        return nothing
+    end
+    function abstract_transition_cost(q, s)
+        x = SY.get_concrete_state(abstract_system, q)  # center of cell
+        u = SY.get_concrete_input(abstract_system, s)
+        return concrete_transition_cost(x, u)
+    end
+    return abstract_transition_cost
+end
+
 function build_abstract_problem(
     concrete_problem::Dionysos.Problem.OptimalControlProblem,
     abstract_system::Dionysos.Symbolic.SymbolicModelList,
 )
-    @warn("The `state_cost` and `transition_cost` are not yet fully implemented")
-
+    @warn("The `state_cost` is not yet fully implemented")
+   
     return Dionysos.Problem.OptimalControlProblem(
         abstract_system,
         Dionysos.Symbolic.get_states_from_set(
@@ -222,15 +235,45 @@ function build_abstract_problem(
             Dionysos.Domain.INNER,
         ),
         concrete_problem.state_cost,       # TODO: Transform continuous cost into discrete abstraction
-        concrete_problem.transition_cost,  # TODO: Transform continuous cost into discrete abstraction
+        get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
         concrete_problem.time,              # TODO: Translate continuous time into discrete steps
     )
 end
 
-function compute_largest_controllable_set(
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
+# Computes a controller to reach a target set in a non-deterministic automaton with a worst-case cost model.
+# Assumes that states and inputs of the automaton are [1, 2, ..., nstates] and [1, 2, ..., nsymbols]
+function compute_worst_case_cost_controller(
+    autom::Dionysos.Symbolic.AbstractAutomatonList,
     target_set;
-    initial_set = Dionysos.Symbolic.enum_cells(abstract_system),
+    initial_set = SY.enum_states(autom),
+    sparse_input = false,
+    cost_function = nothing,
+)
+    if cost_function === nothing
+        abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
+            compute_worst_case_uniform_cost_controller(
+                autom,
+                target_set;
+                initial_set = initial_set,
+                sparse_input = sparse_input,
+            )
+    else
+        abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
+            compute_worst_case_non_uniform_cost_controller(
+                autom,
+                target_set;
+                initial_set = initial_set,
+                sparse_input = sparse_input,
+                cost_function = cost_function,
+            )
+    end
+
+    return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
+end
+function compute_worst_case_uniform_cost_controller(
+    autom::Dionysos.Symbolic.AbstractAutomatonList,
+    target_set;
+    initial_set = 1:SY.enum_states(autom),
     sparse_input = false,
 )
     abstract_controller = NewControllerList()
@@ -240,11 +283,11 @@ function compute_largest_controllable_set(
     num_targets_unreachable,
     current_targets,
     next_targets,
-    value_fun_tab = _data(abstract_system.autom, initial_set, target_set, sparse_input)
+    value_fun_tab = _data(autom, initial_set, target_set, sparse_input)
 
     success, value_fun_tab = _compute_controller_reach!(
         abstract_controller,
-        abstract_system.autom,
+        autom,
         initset,
         controllable_set,
         num_targets_unreachable,
@@ -277,7 +320,7 @@ function decrease_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, sym
 end
 
 function _compute_num_targets_unreachable(counter, autom)
-    for target in 1:(autom.nstates)
+    for target in SY.enum_states(autom)
         for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
             increase_counter!(counter, source, symbol)
         end
@@ -288,17 +331,17 @@ function _data(autom, initlist, targetlist, sparse_input::Bool)
     if sparse_input
         num_targets_unreachable = Dict{Tuple{Int, Int}, Int}()
     else
-        num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols)
+        num_targets_unreachable = zeros(Int, SY.get_n_state(autom), SY.get_n_input(autom))
     end
 
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
 
-    stateset = BitSet(1:(autom.nstates))
+    stateset = BitSet(SY.enum_states(autom))
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
     current_targets = copy(targetlist)
     next_targets = Int[]
-    value_fun_tab = fill(Inf, autom.nstates) # Inf = uncontrollable by default
+    value_fun_tab = fill(Inf, SY.get_n_state(autom)) # Inf = uncontrollable by default
 
     return stateset,
     initset,
@@ -350,4 +393,63 @@ function _compute_controller_reach!(
     end
 
     return iszero(num_init_unreachable), value_fun_tab
+end
+
+function compute_worst_case_non_uniform_cost_controller(
+    autom::Dionysos.Symbolic.AbstractAutomatonList,
+    target_set;
+    initial_set = SY.enum_states(autom),
+    sparse_input = false,
+    cost_function = (q, u) -> 1.0,
+)
+    abstract_controller = NewControllerList()
+    stateset, initset, targetset, counter, current_targets, next_targets, value_fun_tab =
+        _data(autom, initial_set, target_set, sparse_input)
+
+    num_init_unreachable = length(initset)
+
+    # Set initial costs to 0
+    for s in current_targets
+        value_fun_tab[s] = 0.0
+    end
+
+    while !isempty(current_targets) && num_init_unreachable > 0
+        empty!(next_targets)
+
+        for target in current_targets
+            for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
+                if source in targetset
+                    continue
+                end
+
+                if decrease_counter!(counter, source, symbol) == 0
+                    # All successors of (source, symbol) are in target set now
+                    # Compute worst-case cost
+                    successors = Dionysos.Symbolic.post(autom, source, symbol)
+
+                    if isempty(successors)
+                        continue
+                    end
+                    worst = maximum(value_fun_tab[q′] for q′ in successors)
+                    total_cost = cost_function(source, symbol) + worst
+
+                    if total_cost < value_fun_tab[source]
+                        value_fun_tab[source] = total_cost
+                        Dionysos.Utils.push_new!(abstract_controller, (source, symbol))
+                        push!(targetset, source)
+                        push!(next_targets, source)
+
+                        if source in initset
+                            num_init_unreachable -= 1
+                        end
+                    end
+                end
+            end
+        end
+
+        current_targets, next_targets = next_targets, current_targets
+    end
+
+    uncontrollable_set = setdiff(stateset, targetset)
+    return abstract_controller, targetset, uncontrollable_set, value_fun_tab
 end

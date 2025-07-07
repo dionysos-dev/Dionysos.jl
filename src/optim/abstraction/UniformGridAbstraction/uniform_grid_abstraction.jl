@@ -3,6 +3,7 @@ export UniformGridAbstraction
 module UniformGridAbstraction
 
 import Dionysos
+UT = Dionysos.Utils
 ST = Dionysos.System
 SY = Dionysos.Symbolic
 DO = Dionysos.Domain
