@@ -151,6 +151,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     periodic_start::Union{Nothing, Any}
     periodic_periods::Union{Nothing, Any}
 
+    automaton_constructor::Function
     ### USER_DEFINED
     overapproximation_map::Union{Nothing, Function}
 
@@ -177,6 +178,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     print_level::Int
 
+
     function OptimizerEmptyProblem{T}() where {T}
         optimizer = new{T}(
             nothing,
@@ -192,6 +194,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            (n, m) -> SY.NewSortedAutomatonList(n, m),
             nothing, #USER_DEFINED
             nothing,
             nothing,
@@ -407,6 +410,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(
         build_state_domain(optimizer),
         build_input_domain(optimizer),
+        optimizer.automaton_constructor,
     )
 
     if optimizer.print_level >= 2

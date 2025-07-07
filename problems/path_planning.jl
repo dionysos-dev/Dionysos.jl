@@ -113,6 +113,8 @@ function problem(; simple = false)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
     sys = system(_X_)
+    transition_cost(x, u) = 1 + 1 / (1e-2 + x[3]^2)
+
     problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     return problem
 end

@@ -12,7 +12,7 @@ function add_transition!(
 ) where {N, M} end
 function pre(autom::AbstractAutomatonList{N, M}, target::Int) where {N, M} end
 function post(autom::AbstractAutomatonList{N, M}, source::Int, symbol::Int) where {N, M} end
-function empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
+function Base.empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
 function add_state!(autom::AbstractAutomatonList{N, M}) where {N, M} end
 
 # === Common Default Implementations ===
@@ -67,13 +67,14 @@ add_transitions!(autom::SortedAutomatonList, translist) =
     UT.append_new!(autom.transitions, translist)
 pre(a::SortedAutomatonList, target::Int) = UT.fix_and_eliminate_first(a.transitions, target)
 
+compute_post!(targetlist, a::SortedAutomatonList, source, symbol) = UT.fix_and_eliminate_tail!(targetlist, a.transitions, (source, symbol))
 function post(a::SortedAutomatonList, source::Int, symbol::Int)
     targets = Int[]
     UT.fix_and_eliminate_tail!(targets, a.transitions, (source, symbol))
     return targets
 end
 
-Base.empty!(a::SortedAutomatonList) = empty!(a.transitions)
+Base.empty!(a::SortedAutomatonList) = Base.empty!(a.transitions)
 function HybridSystems.add_state!(a::SortedAutomatonList)
     a.nstates += 1
     return a.nstates
