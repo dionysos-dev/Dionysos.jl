@@ -77,13 +77,13 @@ println("Started test")
     end
 
     contr, controllable_set, uncontrollable_set, value_fun_tab =
-        AB.UniformGridAbstraction.compute_worst_case_cost_controller(
+        SY.compute_worst_case_cost_controller(
             symmodel.autom,
             targetlist;
             initial_set = initlist,
         )
 
-    @test length(contr) == 412
+    @test length(ST.domain(contr)) == 412
 end
 
 sleep(0.1) # used for good printing

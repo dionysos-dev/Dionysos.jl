@@ -1,59 +1,101 @@
 abstract type Controller end
 
-function get_c_eval(cont)
-    return cont.c_eval
+# Returns all admissible controls at `state`, if multiple exist.
+function get_all_controls(controller::Controller, state) end
+# Returns a control input for the given state.
+function get_control(controller::Controller, state) end
+# Returns `true` if the controller is defined at the given state.
+function is_defined(controller::Controller, state) end
+# Returns the set of all states for which the controller is defined.
+function domain(controller::Controller) end
+
+abstract type SymbolicController <: Controller end
+
+function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
+
+#################################################
+############ Symbolic implementations ###########
+#################################################
+abstract type SymbolicController <: Controller end
+function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
+get_control(controller::SymbolicController, state::Int) =
+    first(get_all_controls(controller, state))
+
+struct SymbolicControllerList <: SymbolicController
+    transitions::UT.SortedTupleSet{2, NTuple{2, Int}}  # (state, symbol)
 end
 
-# Constant state-dependent controller of the form: κ(x) = c 
-"""
-    ConstantController{T, VT}
+SymbolicControllerList() = SymbolicControllerList(UT.SortedTupleSet{2, NTuple{2, Int}}())
 
-encodes a constant state-dependent controller of the κ(x) = c.
-"""
-struct ConstantController{T <: Real, VT <: AbstractVector{T}} <: Controller
+get_all_controls(controller::SymbolicControllerList, state::Int) = collect(
+    UT.fix_and_eliminate_first(controller.transitions, state; drop = UT.drop_first_int),
+)
+is_defined(controller::SymbolicControllerList, state::Int) =
+    !isempty(get_all_controls(controller, state))
+domain(controller::SymbolicControllerList) =
+    unique(map(first, UT.get_data(controller.transitions)))
+add_control!(controller::SymbolicControllerList, state::Int, symbol::Int) =
+    UT.push_new!(controller.transitions, (state, symbol))
+
+struct SymbolicControllerDict <: SymbolicController
+    control_map::Dict{Int, Vector{Int}}  # state => list of symbols
+end
+
+SymbolicControllerDict() = SymbolicControllerDict(Dict{Int, Vector{Int}}())
+
+get_all_controls(controller::SymbolicControllerDict, state::Int) =
+    controller.control_map[state]
+is_defined(controller::SymbolicControllerDict, state::Int) =
+    haskey(controller.control_map, state)
+domain(controller::SymbolicControllerDict) = keys(controller.control_map)
+add_control!(controller::SymbolicControllerDict, state::Int, symbol::Int) =
+    push!(get!(controller.control_map, state, Int[]), symbol)
+
+##########################################################
+########## Continuous Concrete implementations ###########
+##########################################################
+abstract type ContinuousController <: Controller end
+
+struct BlackBoxContinuousController{F, G} <: ContinuousController
+    f::F
+    is_defined::G
+end
+BlackBoxContinuousController(f::F) where {F} = BlackBoxContinuousController(f, x -> true)
+
+get_control(controller::BlackBoxContinuousController, x::AbstractVector) = controller.f(x)
+get_all_controls(controller::BlackBoxContinuousController, x::AbstractVector) =
+    [get_control(controller, x)]
+is_defined(controller::BlackBoxContinuousController, x::AbstractVector) =
+    controller.is_defined(x)
+domain(controller::BlackBoxContinuousController) = nothing
+
+struct ConstantController{VT} <: ContinuousController
     c::VT
-    c_eval::Any
-
-    function ConstantController(c::VT) where {T <: Real, VT <: AbstractVector{T}}
-        c_eval_fun(x) = c
-        return new{T, VT}(c, c_eval_fun)
-    end
 end
+get_control(controller::ConstantController, x::AbstractVector) = controller.c
+get_all_controls(controller::ConstantController, x::AbstractVector) =
+    [get_control(controller, x)]
+is_defined(controller::ConstantController, x::AbstractVector) = true
+domain(controller::ConstantController) = nothing
 
-# Affine state-dependent controller of the form: κ(x) = K*(x-c)+ℓ
-"""
-    AffineController{T, MT, VT1, VT2}
-
-encodes an affine state-dependent controller of the κ(x) = K*(x-c)+ℓ.
-"""
-struct AffineController{
-    T <: Real,
-    MT <: AbstractMatrix{T},
-    VT1 <: AbstractVector{T},
-    VT2 <: AbstractVector{T},
-} <: Controller
+struct AffineController{MT, VT1, VT2} <: ContinuousController
     K::MT
     c::VT1
     ℓ::VT2
-    c_eval::Any
-
-    function AffineController(
-        K::MT,
-        c::VT1,
-        ℓ::VT2,
-    ) where {
-        T <: Real,
-        MT <: AbstractMatrix{T},
-        VT1 <: AbstractVector{T},
-        VT2 <: AbstractVector{T},
-    }
-        c_eval_fun(x) = K * (x - c) + ℓ
-        return new{T, MT, VT1, VT2}(K, c, ℓ, c_eval_fun)
-    end
 end
+get_control(controller::AffineController, x::AbstractVector) =
+    controller.K * (x - controller.c) + controller.ℓ
+get_all_controls(controller::AffineController, x::AbstractVector) =
+    [get_control(controller, x)]
+is_defined(controller::AffineController, x::AbstractVector) = true
+domain(controller::AffineController) = nothing
 
-struct ControllerAnalysis{C, F, W, S1, S2, CE}
-    c_eval::C
+##########################################################
+############## Sub-routine for debugging #################
+##########################################################
+
+struct ControllerAnalysis{C <: Controller, F, W, S1, S2, CE}
+    controller::C
     f_eval::F
     Wset::W
     domain_set::S1
@@ -64,7 +106,7 @@ struct ControllerAnalysis{C, F, W, S1, S2, CE}
 end
 
 function ControllerAnalysis(
-    c_eval,
+    controller::C,
     f_eval,
     Wset,
     domain_set;
@@ -72,9 +114,9 @@ function ControllerAnalysis(
     cost_eval = nothing,
     dims = [1, 2],
     N = 100,
-)
+) where {C <: Controller}
     return ControllerAnalysis(
-        c_eval,
+        controller,
         f_eval,
         Wset,
         domain_set,
@@ -94,7 +136,7 @@ end
     dims = analysis.dims
     samples = UT.sample(analysis.domain_set; N = analysis.N)
 
-    c_eval = analysis.c_eval
+    controller = analysis.controller
     nx = UT.get_dims(analysis.domain_set)
     # Show domain and target sets
     @series begin
@@ -113,7 +155,7 @@ end
     if cost && analysis.cost_eval !== nothing
         costs = Float64[]
         for x in samples
-            u = c_eval(x)
+            u = get_control(controller, x)
             push!(costs, analysis.cost_eval(x, u))
         end
         vmin, vmax = extrema(costs)
@@ -136,7 +178,7 @@ end
 
     if arrowsB
         for x in samples
-            u = c_eval(x)
+            u = get_control(controller, x)
             w = UT.sample(analysis.Wset)
             x2 = analysis.f_eval(x, u, w)
 
@@ -153,7 +195,7 @@ function check_feasibility(
     ell1,
     ell2,
     f_eval,
-    c_eval,
+    controller::Controller,
     Uset,
     Wset;
     N = 500,
@@ -163,7 +205,7 @@ function check_feasibility(
     samples = UT.sample(ell1; N = N)
     nw = UT.get_dims(Wset)
     for x in samples
-        unew = c_eval(x)
+        unew = get_control(controller, x)
         if input_check && !(unew ∈ Uset)
             println("Not feasible input")
             return false

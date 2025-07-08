@@ -81,20 +81,18 @@ transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute("transitionCost"))
 # return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 function f_eval1(x, u)
-    currState = SY.get_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    next_action = nothing
-    for action in abstract_controller.data
-        if (action[1] ∩ currState) ≠ []
-            next_action = action
+    from = nothing
+    for s in states
+        if ST.is_defined(abstract_controller, s)
+            from = s
+            break
         end
     end
-    c = DO.get_coord_by_pos(
-        state_grid,
-        SY.get_xpos_by_state(abstract_system, next_action[1]),
-    )
+    c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, from))
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]

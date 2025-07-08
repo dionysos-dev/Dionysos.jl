@@ -25,8 +25,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Union{Nothing, Any}
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -305,23 +305,38 @@ function build_abstraction(optimizer::Optimizer)
 end
 
 function get_concrete_controller(abstract_system, abstract_controller)
-    function concrete_controller(x)
+    function is_defined(x)
         xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system)
-            @warn("Trajectory out of domain")
-            return
+        if !(xpos ∈ abstract_system.Xdom)
+            return false
         end
         source = SY.get_state_by_xpos(abstract_system, xpos)
-        symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
-        if isempty(symbollist)
-            @warn("Uncontrollable state")
-            return
+        if !ST.is_defined(abstract_controller, source)
+            return false
         end
-        symbol = first(symbollist)[1]
-        u = SY.get_concrete_input(abstract_system, symbol)
-        return u
+        return true
     end
-    return concrete_controller
+    function f(x; randomize = false)
+        # 1. Abstract the concrete state
+        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
+        if !(xpos ∈ abstract_system)
+            @warn("State out of domain: $x")
+            return nothing
+        end
+        # 2. Get abstract state index
+        source = SY.get_state_by_xpos(abstract_system, xpos)
+        # 3. Check if controller is defined there
+        if !ST.is_defined(abstract_controller, source)
+            @warn "Uncontrollable state: $x"
+            return nothing
+        end
+        # 4. Select a symbol from the admissible inputs
+        inputs = ST.get_all_controls(abstract_controller, source)
+        symbol = randomize ? rand(inputs) : first(inputs)
+        # 5. Map to concrete input
+        return u = SY.get_concrete_input(abstract_system, symbol)
+    end
+    return ST.BlackBoxContinuousController(f, is_defined)
 end
 
 function build_abstract_lyap_fun(lyap)
@@ -497,7 +512,7 @@ function LazySearchProblem(
     end
 
     closed = nothing
-    contr = UT.SortedTupleSet{2, NTuple{2, Int}}()
+    contr = ST.SymbolicControllerList()
     return LazySearchProblem(
         initial,
         goal,
@@ -607,7 +622,7 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
                         problem.costs[cell] = problem.costs_temp[cell, symbol]
                         problem.controllable[cell] = true
                         push!(successors, (symbol, State(cell)))
-                        UT.push_new!(problem.contr, (cell, symbol))
+                        ST.add_control!(problem.contr, cell, symbol)
                     end
                 end
             end
@@ -647,7 +662,7 @@ end
 
     # controllable state
     dict = Dict{NTuple{2, Int}, Any}()
-    for (cell, symbol) in contr.data
+    for cell in ST.domain(contr)
         pos = SY.get_xpos_by_state(abstract_system, cell)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true

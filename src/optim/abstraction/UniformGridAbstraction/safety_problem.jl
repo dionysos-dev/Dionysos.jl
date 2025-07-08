@@ -69,7 +69,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
 
     # Constructed parameters
     abstract_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
-    abstract_controller::Union{Nothing, Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}}
+    abstract_controller::Union{Nothing, Dionysos.System.SymbolicController}
     abstract_problem_time_sec::T
 
     # Problem/Solver-Specific parameters
@@ -114,8 +114,8 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
     # Compute the largest invariant set
     abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
-        compute_largest_invariant_set(
-            optimizer.abstract_problem.system,
+        SY.compute_largest_invariant_set(
+            optimizer.abstract_problem.system.autom,
             optimizer.abstract_problem.safe_set,
         )
 
@@ -160,78 +160,4 @@ function build_abstract_problem(
         ),
         concrete_problem.time, # TODO: This is continuous time, not the number of transitions
     )
-end
-
-function compute_largest_invariant_set(
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
-    safelist,
-)
-    autom = abstract_system.autom
-    contr = NewControllerList()
-    nstates = autom.nstates
-    nsymbols = autom.nsymbols
-    pairstable = [false for i in 1:nstates, j in 1:nsymbols]
-
-    _compute_pairstable(pairstable, autom)
-    nsymbolslist = sum(pairstable; dims = 2)
-
-    # Remove unsafe states
-    safeset = Set(safelist)
-    for source in safeset
-        if nsymbolslist[source] == 0
-            delete!(safeset, source)
-        end
-    end
-
-    unsafeset = Set(1:nstates)
-    setdiff!(unsafeset, safeset)
-
-    for source in unsafeset
-        for symbol in 1:nsymbols
-            pairstable[source, symbol] = false
-        end
-    end
-    nextunsafeset = Set{Int}()
-
-    # Iterate until convergence
-    while true
-        for target in unsafeset
-            for soursymb in Dionysos.Symbolic.pre(autom, target)
-                if pairstable[soursymb[1], soursymb[2]]
-                    pairstable[soursymb[1], soursymb[2]] = false
-                    nsymbolslist[soursymb[1]] -= 1
-                    if nsymbolslist[soursymb[1]] == 0
-                        push!(nextunsafeset, soursymb[1])
-                    end
-                end
-            end
-        end
-
-        if isempty(nextunsafeset)
-            break
-        end
-
-        setdiff!(safeset, nextunsafeset)
-        unsafeset, nextunsafeset = nextunsafeset, unsafeset
-        empty!(nextunsafeset)
-    end
-
-    # Populate controller
-    for source in safeset
-        for symbol in 1:nsymbols
-            if pairstable[source, symbol]
-                Dionysos.Utils.push_new!(contr, (source, symbol))
-            end
-        end
-    end
-    unsafeset = setdiff(Set(safelist), safeset)
-    return contr, safeset, unsafeset
-end
-
-function _compute_pairstable(pairstable, autom)
-    for target in 1:(autom.nstates)
-        for soursymb in Dionysos.Symbolic.pre(autom, target)
-            pairstable[soursymb[1], soursymb[2]] = true
-        end
-    end
 end

@@ -28,8 +28,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
     abstract_system_full::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Union{Nothing, Any}
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
 
@@ -186,15 +186,14 @@ end
 
 function build_concrete_controller(abstract_system)
     compare(E, x) = x ∈ E
-    function concrete_controller(x)
+    function f(x)
         nodes = UT.get_nodes(abstract_system, x, compare)
         sorted_nodes = sort(nodes; by = UT.compare)
         isempty(sorted_nodes) && return nothing
-        cont = UT.get_action(sorted_nodes[1])
-        c_eval = ST.get_c_eval(cont)
-        return c_eval(x)
+        local_controller = UT.get_action(sorted_nodes[1])
+        return ST.get_control(local_controller, x)
     end
-    return concrete_controller
+    return ST.BlackBoxContinuousController(f, nothing)
 end
 function build_abstract_lyap_fun()
     return abstract_lyap_fun(node) = UT.get_path_cost(node)

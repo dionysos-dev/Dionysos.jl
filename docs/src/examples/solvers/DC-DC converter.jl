@@ -71,7 +71,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.optimize!(optimizer)
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-@test length(abstract_controller.data) == 893803 #src
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))

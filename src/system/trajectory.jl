@@ -154,7 +154,7 @@ end
 
 function get_closed_loop_trajectory(
     system::MS.ConstrainedBlackBoxControlDiscreteSystem,
-    controller,
+    controller::ContinuousController,
     x0,
     nstep;
     stopping = (x) -> false,
@@ -165,7 +165,7 @@ function get_closed_loop_trajectory(
 
     for _ in 1:nstep
         stopping(x) && break
-        u = controller(x)
+        u = get_control(controller, x)
         u === nothing && break
         x = MS.mapping(system)(x, u)
         x = periodic_wrapper(x)
@@ -196,7 +196,7 @@ end
 
 function get_closed_loop_trajectory(
     f_eval,
-    c_eval,
+    controller::ContinuousController,
     cost_eval,
     x0,
     nstep;
@@ -209,7 +209,7 @@ function get_closed_loop_trajectory(
     cost_traj = []
     i = 0
     while !stopping(x) && i ≤ nstep
-        u = c_eval(x)
+        u = get_control(controller, x)
         if u === nothing
             break
         end
