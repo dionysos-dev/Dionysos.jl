@@ -53,6 +53,7 @@ function compute_worst_case_cost_controller(
     initial_set = enum_states(autom),
     sparse_input = false,
     cost_function = nothing,
+    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
 )
     if cost_function === nothing
         abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
@@ -61,6 +62,7 @@ function compute_worst_case_cost_controller(
                 target_set;
                 initial_set = initial_set,
                 sparse_input = sparse_input,
+                ControllerConstructor = ControllerConstructor,
             )
     else
         abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
@@ -70,6 +72,7 @@ function compute_worst_case_cost_controller(
                 initial_set = initial_set,
                 sparse_input = sparse_input,
                 cost_function = cost_function,
+                ControllerConstructor = ControllerConstructor,
             )
     end
 

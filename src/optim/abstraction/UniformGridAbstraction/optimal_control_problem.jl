@@ -84,6 +84,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     abstract_problem_time_sec::T
 
     # Specific parameters
+    controller_constructor::Union{Nothing, Any}
     early_stop::Union{Nothing, Bool}
     sparse_input::Bool
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
@@ -102,6 +103,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             0.0,
+            () -> ST.SymbolicControllerList(),
             false,
             false,
             nothing,
@@ -172,6 +174,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         initial_set = init_set,
         sparse_input = optimizer.sparse_input,
         cost_function = optimizer.abstract_problem.transition_cost,
+        ControllerConstructor = optimizer.controller_constructor,
     )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(

@@ -49,6 +49,11 @@ MOI.set(
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> SY.NewIndexedAutomatonList(n, m),
 )
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("controller_constructor"),
+    () -> ST.SymbolicControllerDict(),
+)
 
 MOI.optimize!(optimizer)
 
