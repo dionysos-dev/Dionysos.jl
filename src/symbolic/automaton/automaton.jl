@@ -65,15 +65,26 @@ function compute_worst_case_cost_controller(
                 ControllerConstructor = ControllerConstructor,
             )
     else
-        abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
-            compute_worst_case_non_uniform_cost_controller(
-                autom,
-                target_set;
-                initial_set = initial_set,
-                sparse_input = sparse_input,
-                cost_function = cost_function,
-                ControllerConstructor = ControllerConstructor,
-            )
+        if is_deterministic(autom)
+            abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
+                compute_dijkstra_controller(
+                    autom,
+                    target_set;
+                    initial_set = initial_set,
+                    cost_function = cost_function,
+                    ControllerConstructor = ControllerConstructor,
+                )
+        else
+            abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
+                compute_worst_case_non_uniform_cost_controller(
+                    autom,
+                    target_set;
+                    initial_set = initial_set,
+                    sparse_input = sparse_input,
+                    cost_function = cost_function,
+                    ControllerConstructor = ControllerConstructor,
+                )
+        end
     end
 
     return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
@@ -245,7 +256,7 @@ function compute_worst_case_non_uniform_cost_controller(
 
                     if total_cost < value_fun_tab[source]
                         value_fun_tab[source] = total_cost
-                        ST.add_control!(abstract_controller, source, symbol)
+                        ST.set_control!(abstract_controller, source, symbol)
                         push!(targetset, source)
                         push!(next_targets, source)
 
@@ -262,6 +273,49 @@ function compute_worst_case_non_uniform_cost_controller(
 
     uncontrollable_set = setdiff(stateset, targetset)
     return abstract_controller, targetset, uncontrollable_set, value_fun_tab
+end
+
+using DataStructures  # For PriorityQueue
+
+function compute_dijkstra_controller(
+    autom::AbstractAutomatonList,
+    target_set;
+    initial_set = enum_states(autom),
+    cost_function = (q, u) -> 1.0,
+    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
+)
+    abstract_controller = ControllerConstructor()
+    stateset = enum_states(autom)
+
+    # Initialize value function: ∞ for all, 0 for target states
+    value_fun_tab = Dict(q => Inf for q in stateset)
+    for q in target_set
+        value_fun_tab[q] = 0.0
+    end
+
+    # Priority queue keyed by value (cost)
+    pq = PriorityQueue{Int, Float64}()
+    for q in target_set
+        enqueue!(pq, q, 0.0)
+    end
+
+    while !isempty(pq)
+        (target, cost_to_target) = dequeue_pair!(pq)
+        for (source, symbol) in pre(autom, target)
+            new_cost = cost_function(source, symbol) + cost_to_target
+
+            if new_cost < value_fun_tab[source]
+                value_fun_tab[source] = new_cost
+                enqueue!(pq, source, new_cost)
+                ST.set_control!(abstract_controller, source, symbol)
+            end
+        end
+    end
+
+    reachable = Set(k for (k, v) in value_fun_tab if isfinite(v))
+    uncontrollable = setdiff(initial_set, reachable)
+
+    return abstract_controller, reachable, uncontrollable, value_fun_tab
 end
 
 ###################################################

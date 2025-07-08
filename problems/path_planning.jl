@@ -98,7 +98,7 @@ Then, we define initial and target domains for the state of the system.
 Finally, we instantiate our Reachability Problem as an OptimalControlProblem 
 with the system, the initial and target domains, and null cost functions.
 """
-function problem(; simple = false)
+function problem(; simple = false, transition_cost = nothing)
     if simple
         _X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
         _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
@@ -113,9 +113,9 @@ function problem(; simple = false)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
     sys = system(_X_)
-    transition_cost(x, u) = 1 + 1 / (1e-2 + x[3]^2)
 
-    problem = PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    problem =
+        PB.OptimalControlProblem(sys, _I_, _T_, nothing, transition_cost, PB.Infinity())
     return problem
 end
 

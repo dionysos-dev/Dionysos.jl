@@ -12,6 +12,8 @@ function domain(controller::Controller) end
 abstract type SymbolicController <: Controller end
 
 function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
+# Delete previous control law for 'state' and 'symbol'
+function set_control!(controller::SymbolicController, state::Int, symbol::Int) end
 
 #################################################
 ############ Symbolic implementations ###########
@@ -37,6 +39,11 @@ domain(controller::SymbolicControllerList) =
 add_control!(controller::SymbolicControllerList, state::Int, symbol::Int) =
     UT.push_new!(controller.transitions, (state, symbol))
 
+function set_control!(controller::SymbolicControllerList, state::Int, symbol::Int)
+    delete!(controller.transitions, (state,), (a, b) -> a[1] == b[1])
+    return add_control!(controller, state, symbol)
+end
+
 struct SymbolicControllerDict <: SymbolicController
     control_map::Dict{Int, Vector{Int}}  # state => list of symbols
 end
@@ -51,6 +58,9 @@ domain(controller::SymbolicControllerDict) = keys(controller.control_map)
 add_control!(controller::SymbolicControllerDict, state::Int, symbol::Int) =
     push!(get!(controller.control_map, state, Int[]), symbol)
 
+function set_control!(controller::SymbolicControllerDict, state::Int, symbol::Int)
+    return controller.control_map[state] = [symbol]
+end
 ##########################################################
 ########## Continuous Concrete implementations ###########
 ##########################################################
