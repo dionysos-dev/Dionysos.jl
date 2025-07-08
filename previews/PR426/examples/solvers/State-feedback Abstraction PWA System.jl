@@ -100,20 +100,18 @@ get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 # To simplify : "We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode
 # defined at its center."
 function f_eval1(x, u)
-    currState = SY.get_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    next_action = nothing
-    for action in abstract_controller.data
-        if (action[1] ∩ currState) ≠ []
-            next_action = action
+    from = nothing
+    for s in states
+        if ST.is_defined(abstract_controller, s)
+            from = s
+            break
         end
     end
-    c = DO.get_coord_by_pos(
-        state_grid,
-        SY.get_xpos_by_state(abstract_system, next_action[1]),
-    )
+    c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, from))
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
@@ -130,11 +128,11 @@ cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u
 # We define the stopping criteria for a simulation
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
 function reached(x)
-    currState = SY.get_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    if !isempty(currState ∩ abstract_problem.target_set)
+    if !isempty(states ∩ abstract_problem.target_set)
         return true
     else
         return false
