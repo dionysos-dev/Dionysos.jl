@@ -104,14 +104,6 @@ Dionysos.System.DiscreteTimeLinearized
 Dionysos.System.ContinuousTimeLinearized
 ```
 
-## Controller 
-So far, the abstraction-based methods that we use define either piecewise-constant or piecewise-affine controllers.
-
-```@docs
-Dionysos.System.ConstantController
-Dionysos.System.AffineController
-```
-
 ## Trajectories 
 ```@docs
 Dionysos.System.wrap_coord

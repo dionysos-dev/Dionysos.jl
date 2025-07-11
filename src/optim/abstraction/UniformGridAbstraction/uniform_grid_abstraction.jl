@@ -3,6 +3,7 @@ export UniformGridAbstraction
 module UniformGridAbstraction
 
 import Dionysos
+UT = Dionysos.Utils
 ST = Dionysos.System
 SY = Dionysos.Symbolic
 DO = Dionysos.Domain
@@ -89,7 +90,7 @@ controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller")
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerEmptyProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
-    concrete_controller::Any
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     solve_time_sec::T
     print_level::Int
 
@@ -209,37 +210,44 @@ function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time_sec
 end
 
-NewControllerList() = Dionysos.Utils.SortedTupleSet{2, NTuple{2, Int}}()
-
-function solve_concrete_problem(abstract_system, abstract_controller)
-    function concrete_controller(x; param = false)
-        # Getting the position of the state in the abstract system
+function solve_concrete_problem(
+    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
+    abstract_controller::Dionysos.System.SymbolicController,
+)
+    function is_defined(x)
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
+        if !(xpos ∈ abstract_system.Xdom)
+            return false
+        end
+        source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+        if !Dionysos.System.is_defined(abstract_controller, source)
+            return false
+        end
+        return true
+    end
+    function f(x; randomize::Bool = false)
+        # 1. Abstract the concrete state
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
         if !(xpos ∈ abstract_system.Xdom)
             @warn("State out of domain: $x")
             return nothing
         end
-
-        # Getting the corresponding abstract state
+        # 2. Get abstract state index
         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
-        symbollist = Dionysos.Utils.fix_and_eliminate_first(abstract_controller, source)
-        if isempty(symbollist)
-            @warn("Uncontrollable state: $x")
+        # 3. Check if controller is defined there
+        if !Dionysos.System.is_defined(abstract_controller, source)
+            @warn "Uncontrollable state: $x"
             return nothing
         end
-
-        # Choosing a random symbol or the first one
-        if param
-            symbol = rand(collect(symbollist))[1]
-        else
-            symbol = first(symbollist)[1]
-        end
-
-        # Getting and return the control points
+        # 4. Select a symbol from the admissible inputs
+        inputs = Dionysos.System.get_all_controls(abstract_controller, source)
+        symbol = randomize ? rand(inputs) : first(inputs)
+        # 5. Map to concrete input
         u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
 
         return u
     end
+    return ST.BlackBoxContinuousController(f, is_defined)
 end
 
 function is_abstraction_computed(optimizer::Optimizer)

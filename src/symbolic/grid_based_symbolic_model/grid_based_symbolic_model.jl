@@ -19,11 +19,14 @@ function get_concrete_input(symmodel::SymbolicModel, input) end
 function get_abstract_state(symmodel::SymbolicModel, x) end
 function get_abstract_input(symmodel::SymbolicModel, u) end
 
-function get_transitions(symmodel::SymbolicModel) end
+function enum_transitions(symmodel::SymbolicModel) end
+function add_transition!(symmodel::SymbolicModel, q::Int, q′::Int, u::Int) end
 function add_transitions!(symmodel::SymbolicModel, translist) end
+function pre(symmodel::SymbolicModel, target::Int) end
+function post(symmodel::SymbolicModel, source::Int, input::Int) end
 function is_deterministic(symmodel::SymbolicModel) end
 
-get_n_transitions(symmodel::SymbolicModel) = length(get_transitions(symmodel))
+get_n_transitions(symmodel::SymbolicModel) = length(enum_transitions(symmodel))
 
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
@@ -157,7 +160,7 @@ end
     end
     # Display the arrows
     if arrowsB
-        for t in get_transitions(symmodel)
+        for t in enum_transitions(symmodel)
             color = RGB(
                 abs(0.6 * sin(t[1])),
                 abs(0.6 * sin(t[1] + 2π / 3)),
@@ -276,7 +279,7 @@ function compute_abstract_system_from_concrete_system!(
             concrete_state = get_concrete_state(abstract_system, abstract_state)
             Fx = system_map(concrete_state, concrete_input)
             reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
-            empty!(translist)
+            Base.empty!(translist)
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
                 reachable_set,
@@ -328,7 +331,7 @@ function compute_abstract_system_from_concrete_system!(
             rad = abs.(DFx) * _ONE_ .+ Fe
             reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
 
-            empty!(translist)
+            Base.empty!(translist)
 
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,

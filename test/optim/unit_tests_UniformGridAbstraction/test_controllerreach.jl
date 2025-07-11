@@ -76,14 +76,14 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr, controllable_set, uncontrollable_set =
-        AB.UniformGridAbstraction.compute_largest_controllable_set(
-            symmodel,
+    contr, controllable_set, uncontrollable_set, value_fun_tab =
+        SY.compute_worst_case_cost_controller(
+            symmodel.autom,
             targetlist;
             initial_set = initlist,
         )
 
-    @test length(contr) == 412
+    @test length(ST.domain(contr)) == 412
 end
 
 sleep(0.1) # used for good printing

@@ -17,7 +17,7 @@ Random.seed!(0)
     c = [0.1; 0.2]
     cont = ST.ConstantController(c)
     @test cont.c === c
-    @test (cont.c_eval)(1.0) === c
+    @test ST.get_control(cont, [1.0]) === c
 end
 
 include("../../problems/non_linear.jl")
@@ -77,7 +77,7 @@ function trial(E2, c, μ, U, W, λ)
             E1,
             E2,
             sys.f_eval,
-            cont.c_eval,
+            cont,
             sys.U,
             sys.W;
             N = 500,
@@ -95,7 +95,7 @@ function trial(E2, c, μ, U, W, λ)
     end
     cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
     analysis = ST.ControllerAnalysis(
-        cont.c_eval,
+        cont,
         sys.f_eval,
         sys.W,
         E1;

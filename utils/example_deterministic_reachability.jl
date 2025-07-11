@@ -16,7 +16,8 @@ include("../problems/path_planning.jl")
 ########### PART 1 : Construct the classical abstraction using any mode: ###########
 ##### USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION  ##########
 ####################################################################################
-concrete_problem = PathPlanning.problem(; simple = true)
+transition_cost(x, u) = 1 + 1 / (1e-2 + x[3]^2) # penalize x[3] frm being close to 0
+concrete_problem = PathPlanning.problem(; simple = true, transition_cost = transition_cost)
 concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0, 0.0)
@@ -44,6 +45,16 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("controller_constructor"),
+    () -> ST.SymbolicControllerDict(),
+)
 
 MOI.optimize!(optimizer)
 
@@ -116,6 +127,8 @@ println(
 println(SY.get_n_transitions(abstract_system))
 println(SY.get_n_transitions(determinized_abstract_system))
 
+concrete_problem = PathPlanning.problem(; simple = true)
+
 using JuMP
 new_optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(
@@ -131,6 +144,11 @@ MOI.set(
 MOI.set(new_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(new_optimizer, MOI.RawOptimizerAttribute("sparse_input"), true)
 MOI.set(new_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+)
 
 MOI.optimize!(new_optimizer)
 

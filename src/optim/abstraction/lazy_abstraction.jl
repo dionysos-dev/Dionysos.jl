@@ -25,8 +25,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Union{Nothing, Any}
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -294,7 +294,7 @@ function build_abstraction(optimizer::Optimizer)
     node, nb = UT.astar_graph_search(lazy_search_problem, lazy_search_problem.h)
     println(
         "\nnumber of transitions created: ",
-        length(lazy_search_problem.abstract_system.autom.transitions),
+        length(SY.get_n_transitions(lazy_search_problem.abstract_system)),
     )
     if node === nothing
         println("compute_controller_reach! terminated without covering init set")
@@ -305,23 +305,38 @@ function build_abstraction(optimizer::Optimizer)
 end
 
 function get_concrete_controller(abstract_system, abstract_controller)
-    function concrete_controller(x)
+    function is_defined(x)
         xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system)
-            @warn("Trajectory out of domain")
-            return
+        if !(xpos ∈ abstract_system.Xdom)
+            return false
         end
         source = SY.get_state_by_xpos(abstract_system, xpos)
-        symbollist = UT.fix_and_eliminate_first(abstract_controller, source)
-        if isempty(symbollist)
-            @warn("Uncontrollable state")
-            return
+        if !ST.is_defined(abstract_controller, source)
+            return false
         end
-        symbol = first(symbollist)[1]
-        u = SY.get_concrete_input(abstract_system, symbol)
-        return u
+        return true
     end
-    return concrete_controller
+    function f(x; randomize = false)
+        # 1. Abstract the concrete state
+        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
+        if !(xpos ∈ abstract_system)
+            @warn("State out of domain: $x")
+            return nothing
+        end
+        # 2. Get abstract state index
+        source = SY.get_state_by_xpos(abstract_system, xpos)
+        # 3. Check if controller is defined there
+        if !ST.is_defined(abstract_controller, source)
+            @warn "Uncontrollable state: $x"
+            return nothing
+        end
+        # 4. Select a symbol from the admissible inputs
+        inputs = ST.get_all_controls(abstract_controller, source)
+        symbol = randomize ? rand(inputs) : first(inputs)
+        # 5. Map to concrete input
+        return u = SY.get_concrete_input(abstract_system, symbol)
+    end
+    return ST.BlackBoxContinuousController(f, is_defined)
 end
 
 function build_abstract_lyap_fun(lyap)
@@ -473,25 +488,31 @@ function LazySearchProblem(
     concrete_system = concrete_problem.system
 
     transition_cost(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
-    transitions_added =
-        MutableMatrix(false, abstract_system.autom.nsymbols, abstract_system.autom.nstates)
+    transitions_added = MutableMatrix(
+        false,
+        SY.get_n_input(abstract_system),
+        SY.get_n_state(abstract_system),
+    )
     num_targets_unreachable =
-        MutableMatrix(0, abstract_system.autom.nsymbols, abstract_system.autom.nstates)
-    controllable = falses(abstract_system.autom.nstates)
+        MutableMatrix(0, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
+    controllable = falses(SY.get_n_state(abstract_system))
     for init in initial
         controllable[init.source] = true
     end
     num_init_unreachable = length(goal)
     costs_temp =
-        MutableMatrix(0.0, abstract_system.autom.nsymbols, abstract_system.autom.nstates)
-    costs = zeros(Float64, abstract_system.autom.nstates)
+        MutableMatrix(0.0, SY.get_n_input(abstract_system), SY.get_n_state(abstract_system))
+    costs = zeros(Float64, SY.get_n_state(abstract_system))
     if transitions_previously_added === nothing
-        transitions_previously_added =
-            MutableMatrix(-1, abstract_system.autom.nsymbols, abstract_system.autom.nstates)
+        transitions_previously_added = MutableMatrix(
+            -1,
+            SY.get_n_input(abstract_system),
+            SY.get_n_state(abstract_system),
+        )
     end
 
     closed = nothing
-    contr = UT.SortedTupleSet{2, NTuple{2, Int}}()
+    contr = ST.SymbolicControllerList()
     return LazySearchProblem(
         initial,
         goal,
@@ -540,7 +561,7 @@ function transitions!(source, symbol, u, abstract_system, concrete_system, post_
     xpos = SY.get_xpos_by_state(abstract_system, source)
     over_approx = post_image(abstract_system, concrete_system, xpos, u)
     translist = [(cell, source, symbol) for cell in over_approx]
-    SY.add_transitions!(abstract_system.autom, translist)
+    SY.add_transitions!(abstract_system, translist)
     return length(over_approx)
 end
 
@@ -563,14 +584,14 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
     abstract_system = problem.abstract_system
     concrete_system = problem.concrete_system
     Udom = abstract_system.Udom
-    nsym = abstract_system.autom.nsymbols
+    nsym = SY.get_n_input(abstract_system)
 
     xpos = SY.get_xpos_by_state(abstract_system, source)
     for symbol in SY.enum_inputs(abstract_system)
         u = SY.get_concrete_input(abstract_system, symbol)
-        ns1 = abstract_system.autom.nstates
+        ns1 = SY.get_n_state(abstract_system)
         cells = problem.pre_image(abstract_system, concrete_system, xpos, u)
-        _update_cache!(problem, ns1, abstract_system.autom.nstates, nsym)
+        _update_cache!(problem, ns1, SY.get_n_state(abstract_system), nsym)
         for cell in cells
             if !problem.controllable[cell]
                 if !problem.transitions_added[cell, symbol]
@@ -578,7 +599,7 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
                     if problem.transitions_previously_added[cell, symbol] != -1
                         n_trans = problem.transitions_previously_added[cell, symbol]
                     else
-                        ns1 = abstract_system.autom.nstates
+                        ns1 = SY.get_n_state(abstract_system)
                         n_trans = transitions!(
                             cell,
                             symbol,
@@ -587,21 +608,21 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
                             concrete_system,
                             problem.post_image,
                         )
-                        _update_cache!(problem, ns1, abstract_system.autom.nstates, nsym)
+                        _update_cache!(problem, ns1, SY.get_n_state(abstract_system), nsym)
                         problem.transitions_previously_added[cell, symbol] = n_trans
                     end
                     problem.num_targets_unreachable[cell, symbol] = n_trans
                     problem.transitions_added[cell, symbol] = true
                 end
                 # check if the cell is really in the pre-image
-                if (source, cell, symbol) in abstract_system.autom.transitions
+                if (source, cell, symbol) in SY.enum_transitions(abstract_system)
                     problem.costs_temp[cell, symbol] =
                         max(problem.costs_temp[cell, symbol], problem.costs[source])
                     if iszero(problem.num_targets_unreachable[cell, symbol] -= 1)
                         problem.costs[cell] = problem.costs_temp[cell, symbol]
                         problem.controllable[cell] = true
                         push!(successors, (symbol, State(cell)))
-                        UT.push_new!(problem.contr, (cell, symbol))
+                        ST.add_control!(problem.contr, cell, symbol)
                     end
                 end
             end
@@ -625,7 +646,7 @@ end
     legend := false
     # states for which transisitons have been computed for at least one input
     dict = Dict{NTuple{2, Int}, Any}()
-    for k in 1:(abstract_system.autom.nstates)
+    for k in SY.enum_states(abstract_system)
         if any(u -> problem.transitions_added[k, u], 1:(problem.transitions_added.num_rows))
             pos = SY.get_xpos_by_state(abstract_system, k)
             if !haskey(dict, pos[dims])
@@ -641,7 +662,7 @@ end
 
     # controllable state
     dict = Dict{NTuple{2, Int}, Any}()
-    for (cell, symbol) in contr.data
+    for cell in ST.domain(contr)
         pos = SY.get_xpos_by_state(abstract_system, cell)
         if !haskey(dict, pos[dims])
             dict[pos[dims]] = true

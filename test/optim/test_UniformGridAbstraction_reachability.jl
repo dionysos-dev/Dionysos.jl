@@ -57,7 +57,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 @testset "UniformGridAbstraction reachability" begin
-    @test length(abstract_controller.data) == 19563 #src
+    @test length(ST.domain(abstract_controller)) == 19563 #src
 end
 
 # ### Trajectory display

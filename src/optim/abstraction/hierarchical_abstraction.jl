@@ -28,8 +28,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Union{Nothing, Any}
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}

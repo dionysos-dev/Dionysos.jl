@@ -41,6 +41,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
 MOI.set(optimizer, MOI.Silent(), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+# MOI.set(
+#     optimizer,
+#     MOI.RawOptimizerAttribute("automaton_constructor"),
+#     (n, m) -> SY.NewIndexedAutomatonList(n, m),
+# )
 
 # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
@@ -57,6 +62,12 @@ _S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
 concrete_problem_safety =
     Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
+# MOI.set(
+#     optimizer,
+#     MOI.RawOptimizerAttribute("controller_constructor"),
+#     () -> ST.SymbolicControllerDict(),
+# )
+
 MOI.optimize!(optimizer)
 abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))

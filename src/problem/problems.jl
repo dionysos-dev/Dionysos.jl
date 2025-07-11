@@ -16,7 +16,7 @@ A problem type used to construct an **abstraction** of a dynamical system.
 
 This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
-struct EmptyProblem{S, X} <: ProblemType
+mutable struct EmptyProblem{S, X} <: ProblemType
     system::S
     region::X
 end
@@ -35,7 +35,7 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
-struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
+mutable struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
@@ -56,7 +56,7 @@ Encodes a **safety control problem** over a finite horizon.
 
 This problem aims to synthesize a controller that ensures the system remains within the safe set for the entire duration of the time horizon.
 """
-struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
+mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     safe_set::XS
