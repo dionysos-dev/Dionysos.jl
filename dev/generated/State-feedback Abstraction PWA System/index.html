@@ -47,9 +47,9 @@ optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_problem&quot;), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;state_grid&quot;), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute(&quot;sdp_solver&quot;), opt_sdp)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">MathOptInterface.OptimizerWithAttributes(Clarabel.MOIwrapper.Optimizer, Pair{MathOptInterface.AbstractOptimizerAttribute, Any}[MathOptInterface.Silent() =&gt; true])</code></pre><p>Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra&#39;s algorithm [2, p.86].</p><pre><code class="language-julia hljs">MOI.optimize!(optimizer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">compute_symmodel_from_hybridcontrolsystem! started
-Computing symbolic control system:   6%|█               |  ETA: 0:00:18Computing symbolic control system:  14%|██▎             |  ETA: 0:00:16Computing symbolic control system:  20%|███▎            |  ETA: 0:00:15Computing symbolic control system:  25%|████            |  ETA: 0:00:14Computing symbolic control system:  31%|█████           |  ETA: 0:00:13Computing symbolic control system:  37%|██████          |  ETA: 0:00:12Computing symbolic control system:  43%|███████         |  ETA: 0:00:10Computing symbolic control system:  49%|███████▉        |  ETA: 0:00:09Computing symbolic control system:  55%|████████▊       |  ETA: 0:00:08Computing symbolic control system:  61%|█████████▊      |  ETA: 0:00:07Computing symbolic control system:  67%|██████████▋     |  ETA: 0:00:06Computing symbolic control system:  73%|███████████▋    |  ETA: 0:00:05Computing symbolic control system:  78%|████████████▌   |  ETA: 0:00:04Computing symbolic control system:  83%|█████████████▎  |  ETA: 0:00:03Computing symbolic control system:  90%|██████████████▍ |  ETA: 0:00:02Computing symbolic control system:  96%|███████████████▍|  ETA: 0:00:01Computing symbolic control system: 100%|████████████████| Time: 0:00:18
+Computing symbolic control system:   6%|█               |  ETA: 0:00:18Computing symbolic control system:  14%|██▎             |  ETA: 0:00:16Computing symbolic control system:  19%|███▏            |  ETA: 0:00:15Computing symbolic control system:  25%|████            |  ETA: 0:00:14Computing symbolic control system:  31%|█████           |  ETA: 0:00:13Computing symbolic control system:  37%|██████          |  ETA: 0:00:12Computing symbolic control system:  43%|███████         |  ETA: 0:00:11Computing symbolic control system:  49%|███████▉        |  ETA: 0:00:09Computing symbolic control system:  55%|████████▊       |  ETA: 0:00:08Computing symbolic control system:  61%|█████████▊      |  ETA: 0:00:07Computing symbolic control system:  67%|██████████▋     |  ETA: 0:00:06Computing symbolic control system:  73%|███████████▋    |  ETA: 0:00:05Computing symbolic control system:  79%|████████████▋   |  ETA: 0:00:04Computing symbolic control system:  84%|█████████████▍  |  ETA: 0:00:03Computing symbolic control system:  91%|██████████████▌ |  ETA: 0:00:02Computing symbolic control system:  97%|███████████████▌|  ETA: 0:00:01Computing symbolic control system: 100%|████████████████| Time: 0:00:18
 compute_symmodel_from_controlsystem! terminated with success: 1012 transitions created
-Abstraction created in 18.434397214 seconds with 1012 transitions
+Abstraction created in 18.738623876 seconds with 1012 transitions
 Abstract controller computed with: succes</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_problem&quot;))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_controller&quot;))
@@ -59,20 +59,18 @@ concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_
 transitionCont = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionCont&quot;))
 transitionCost = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;transitionCost&quot;));</code></pre><h2 id="Define-the-mapping-function"><a class="docs-heading-anchor" href="#Define-the-mapping-function">Define the mapping function</a><a id="Define-the-mapping-function-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-mapping-function" title="Permalink"></a></h2><pre><code class="language-julia hljs">#Return pwa mode for a given x
 get_mode(x) = findfirst(m -&gt; (x ∈ m.X), concrete_system.resetmaps)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">get_mode (generic function with 1 method)</code></pre><p>To simplify : &quot;We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center.&quot;</p><pre><code class="language-julia hljs">function f_eval1(x, u)
-    currState = SY.get_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    next_action = nothing
-    for action in abstract_controller.data
-        if (action[1] ∩ currState) ≠ []
-            next_action = action
+    from = nothing
+    for s in states
+        if ST.is_defined(abstract_controller, s)
+            from = s
+            break
         end
     end
-    c = DO.get_coord_by_pos(
-        state_grid,
-        SY.get_xpos_by_state(abstract_system, next_action[1]),
-    )
+    c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, from))
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
@@ -84,11 +82,11 @@ end
 
 cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">cost_eval (generic function with 1 method)</code></pre><h3 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h3><p>We define the stopping criteria for a simulation</p><pre><code class="language-julia hljs">nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
 function reached(x)
-    currState = SY.get_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    if !isempty(currState ∩ abstract_problem.target_set)
+    if !isempty(states ∩ abstract_problem.target_set)
         return true
     else
         return false
@@ -139,7 +137,7 @@ plot!(
 );
 #We display the concrete specifications
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
-plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)</code></pre><img src="579f65d5.svg" alt="Example block output"/><h2 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
+plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)</code></pre><img src="bd0e7b36.svg" alt="Example block output"/><h2 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -149,7 +147,7 @@ plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)</c
 xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
 ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 title!(&quot;Abstractions&quot;);
-plot!(abstract_system; arrowsB = true, efficient = false, cost = false)</code></pre><img src="edd54f69.svg" alt="Example block output"/><h2 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
+plot!(abstract_system; arrowsB = true, efficient = false, cost = false)</code></pre><img src="1e7edc10.svg" alt="Example block output"/><h2 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h2><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -162,4 +160,4 @@ xlabel!(&quot;\$x_1\$&quot;);
 ylabel!(&quot;\$x_2\$&quot;);
 title!(&quot;Trajectory and Lyapunov-like Fun.&quot;);
 plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun);
-plot!(cost_control_trajectory; color = :black)</code></pre><img src="1989e7a4.svg" alt="Example block output"/><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Single pendulum/">« Single pendulum</a><a class="docs-footer-nextpage" href="../Unicycle robot/">Unicycle robot »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Friday 27 June 2025 12:52">Friday 27 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(cost_control_trajectory; color = :black)</code></pre><img src="50f66dae.svg" alt="Example block output"/><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>L. N. Egidio, T. Alves Lima, R. M. Jungers, &quot;State-feedback Abstractions for Optimal Control of Piecewise-affine Systems&quot;, IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.</li><li>D. Bertsekas, &quot;Dynamic programming and optimal control&quot;. Volume I, Athena scientific, 2012.</li></ol><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Single pendulum/">« Single pendulum</a><a class="docs-footer-nextpage" href="../Unicycle robot/">Unicycle robot »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Friday 11 July 2025 08:57">Friday 11 July 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
