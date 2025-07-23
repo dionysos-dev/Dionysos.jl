@@ -5,7 +5,7 @@ import RecipesBase: @recipe, @series
 import ProgressMeter
 
 using LinearAlgebra, Colors
-using HybridSystems
+using HybridSystems, MathematicalSystems
 
 using Graphs, SimpleWeightedGraphs
 
@@ -17,6 +17,13 @@ const DO = Domain
 
 using ..System
 const ST = System
+
+using ..Problem
+const PR = Problem
+
+using ..Optim
+const OP = Optim
+const AB = OP.Abstraction
 
 include("automaton/automaton.jl")
 include("automaton/sorted_automaton_list.jl")
@@ -35,4 +42,10 @@ using ProgressMeter, IntervalArithmetic, LazySets
 using JuMP
 include("ellipsoidal_transitions.jl")
 
+# nouveau code disparaitra à terme
+include("HybridTimedAutomata/VectorContinuousSystem.jl")
+
+include("HybridTimedAutomata/TimeSymbolicModel.jl")
+
+include("HybridTimedAutomata/TimedHybridAutomata.jl")
 end  # module Symbolic
