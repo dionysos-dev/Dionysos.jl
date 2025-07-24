@@ -29,14 +29,19 @@ If the system is time-frozen (A = 0), only one time step (0.0) is used.
 # Returns
 - `TimeSymbolicModel`: The symbolic time model
 """
-function BuildTimeSymbolicModel(sys::MathematicalSystems.ConstrainedLinearContinuousSystem, tstep::Float64)
+function BuildTimeSymbolicModel(
+    sys::MathematicalSystems.ConstrainedLinearContinuousSystem,
+    tstep::Float64,
+)
     A = sys.A
     X = sys.X
     # Extract time domain bounds (assumes X has .lb and .ub fields)
     tmin, tmax = try
         X.lb[1], X.ub[1]
     catch
-        error("Time domain X must have .lb and .ub fields (e.g., UT.HyperRectangle from Dionysos).")
+        error(
+            "Time domain X must have .lb and .ub fields (e.g., UT.HyperRectangle from Dionysos).",
+        )
     end
     if A == ones(size(A))  # Identity matrix: time evolves
         tsteps = collect(tmin:tstep:tmax)
@@ -64,7 +69,6 @@ function time2int(tm::TimeSymbolicModel, t::Real)
     end
 end
 
-
 """
     int2time(tm::TimeSymbolicModel, idx::Int)
 
@@ -78,7 +82,6 @@ function int2time(tm::TimeSymbolicModel, idx::Int)
         return 0.0
     end
 end
-
 
 """
     ceil_time2int(tm::TimeSymbolicModel, t::Real)
@@ -94,7 +97,6 @@ function ceil_time2int(tm::TimeSymbolicModel, t::Real)
         return 1
     end
 end
-
 
 """
     floor_time2int(tm::TimeSymbolicModel, t::Real)

@@ -6,8 +6,6 @@ using HybridSystems, MathematicalSystems, StaticArrays, JuMP
 
 import Dionysos
 
-
-
 # ================================================================
 # Symbolic temporal hybrid model structure
 # ================================================================
@@ -33,7 +31,6 @@ mutable struct TemporalHybridSymbolicModel{S1, A, N, T, G}
     autom::A
     global_input_map::G
 end
-
 
 # ================================================================
 # Structure for matching global abstract inputs
@@ -115,7 +112,7 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
         switching_to_global,
         global_to_switching,
         continuous_range,
-        switching_range
+        switching_range,
     )
 end
 
@@ -213,7 +210,6 @@ function is_switching_input(gim::GlobalInputMap, global_id::Int)
     return global_id in gim.switching_range
 end
 
-
 # ================================================================
 # Symbolic model creation
 # ================================================================
@@ -238,7 +234,7 @@ Build a symbolic abstraction of a continuous system using uniform grid discretiz
 - Symbolic abstraction of the system
 """
 function build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
-    
+
     # Build the symbolic model for the dynamics
     problem = Dionysos.Problem.EmptyProblem(system, system.X)
     dx, du, tstep = param_discretisation
@@ -258,7 +254,11 @@ function build_dynamical_symbolic_model(system, growth_bound, param_discretisati
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("approx_mode"),
+        Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), my_jacobian_bound)
     MOI.optimize!(optimizer)
     return MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -277,20 +277,28 @@ Build a list of symbolic models (dynamics and time) for each mode of a hybrid sy
 # Returns
 - Vector of (symbolic_dynamics, symbolic_time) tuples per mode
 """
-function build_initial_symmodel_by_mode(hs::HybridSystem, growth_bounds::SVector{}, param_discretisation)
+function build_initial_symmodel_by_mode(
+    hs::HybridSystem,
+    growth_bounds::SVector{},
+    param_discretisation,
+)
     # Build a list of symbolic models for each mode of the hybrid system
     abstract_systems = []
     for (i, mode_id) in enumerate(HybridSystems.states(hs.automaton))
         mode_system = HybridSystems.mode(hs, mode_id)
         dyn_sys = mode_system.systems[1]    # physical dynamics
         time_sys = mode_system.systems[2]   # time dynamics
-        symmodel_dynam = build_dynamical_symbolic_model(dyn_sys, growth_bounds[i], param_discretisation[i])
-        symmodel_time = Dionysos.Symbolic.BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
+        symmodel_dynam = build_dynamical_symbolic_model(
+            dyn_sys,
+            growth_bounds[i],
+            param_discretisation[i],
+        )
+        symmodel_time =
+            Dionysos.Symbolic.BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
         push!(abstract_systems, (symmodel_dynam, symmodel_time))
     end
     return abstract_systems
 end
-
 
 # ================================================================
 # Functions to add transitions
@@ -311,15 +319,22 @@ function add_mode_transitions!(translist, abstract_systems, input_mapping::Globa
     for (mode_id, (symmodel_dynam, symmodel_time)) in enumerate(abstract_systems)
         tm = symmodel_time
         abstract_system = symmodel_dynam
-        for (target, source, local_input_id) in Dionysos.Symbolic.enum_transitions(abstract_system)
+        for (target, source, local_input_id) in
+            Dionysos.Symbolic.enum_transitions(abstract_system)
             global_input_id = get_global_input_id(input_mapping, mode_id, local_input_id)
             if length(tm.tsteps) == 1
                 # Time-frozen: only one transition (t=1 symbolically)
-                push!(translist, ((target, 1, mode_id), (source, 1, mode_id), global_input_id))
+                push!(
+                    translist,
+                    ((target, 1, mode_id), (source, 1, mode_id), global_input_id),
+                )
             else
-                for k in 1:length(tm.tsteps) - 1
+                for k in 1:(length(tm.tsteps) - 1)
                     # For each time step, add a transition ((target, k+1, mode_id), (source, k, mode_id), global_input_id) with k being the time index of the source state
-                    push!(translist, ((target, k + 1, mode_id), (source, k, mode_id), global_input_id))
+                    push!(
+                        translist,
+                        ((target, k + 1, mode_id), (source, k, mode_id), global_input_id),
+                    )
                 end
             end
         end
@@ -342,7 +357,12 @@ Add switching transitions (between modes) to the transition list, using guards a
 - `abstract_systems`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
 - `input_mapping::GlobalInputMap`: The global input mapping
 """
-function add_switching_transitions!(translist, hs::HybridSystem, abstract_systems, input_mapping::GlobalInputMap)
+function add_switching_transitions!(
+    translist,
+    hs::HybridSystem,
+    abstract_systems,
+    input_mapping::GlobalInputMap,
+)
     for (transition_id, transition) in enumerate(HybridSystems.transitions(hs.automaton))
         # Get the global input id for this switching transition
         global_input_id = get_switching_global_id(input_mapping, transition_id)
@@ -364,20 +384,25 @@ function add_switching_transitions!(translist, hs::HybridSystem, abstract_system
         guard_temporal = extract_temporal_part(guard)
 
         # Get all source states that intersect with the spatial guard
-        source_states = Dionysos.Symbolic.get_states_from_set(source_symmodel_dynam, guard_spatial, Dionysos.Domain.INNER)
+        source_states = Dionysos.Symbolic.get_states_from_set(
+            source_symmodel_dynam,
+            guard_spatial,
+            Dionysos.Domain.INNER,
+        )
         # Get all time indices that intersect with the temporal guard
         time_indices = get_time_indices_from_interval(source_tm, guard_temporal)
 
         # For each combination of (state, time) in the guard
         for source_state in source_states, source_time_idx in time_indices
             # Build the augmented source state [x1, x2, ..., xn, t]
-            source_continuous_state = Dionysos.Symbolic.get_concrete_state(source_symmodel_dynam, source_state)
+            source_continuous_state =
+                Dionysos.Symbolic.get_concrete_state(source_symmodel_dynam, source_state)
             source_time_value = source_tm.tsteps[source_time_idx]
             augmented_source_state = vcat(source_continuous_state, source_time_value)
 
             # Apply the reset map to the augmented state
             reset_result = MathematicalSystems.apply(reset_map, augmented_source_state)
-            reset_continuous_part = reset_result[1:end-1]
+            reset_continuous_part = reset_result[1:(end - 1)]
             reset_time_value = reset_result[end]
 
             # Find the corresponding target symbolic state and time index
@@ -386,11 +411,14 @@ function add_switching_transitions!(translist, hs::HybridSystem, abstract_system
 
             # Add the transition if both target state and time are valid
             if target_state > 0 && target_time_idx > 0
-                push!(translist, (
-                    (target_state, target_time_idx, target_mode),
-                    (source_state, source_time_idx, source_mode),
-                    global_input_id
-                ))
+                push!(
+                    translist,
+                    (
+                        (target_state, target_time_idx, target_mode),
+                        (source_state, source_time_idx, source_mode),
+                        global_input_id,
+                    ),
+                )
             end
         end
     end
@@ -445,8 +473,8 @@ end
 # Temporal hybrid symbolic model constructor
 # ================================================================
 
-# C'est la fonction que l'utilisateur doit appeler pour construire le modèle symbolique hybride temporel complet.
-# A terme comme précisé ci dessus, on devrait permettre à l'utilisateur de fournir ses propres méthodes d'abstraction et les optimizers qu'il souhaite utiliser pour chaque mode.
+# This is the function that the user should call to construct the complete temporal hybrid symbolic model.
+# In the future, as mentioned above, we should allow the user to provide their own abstraction methods and optimizers for each mode.
 
 """
     Build_Timed_Hybrid_Automaton(hs::HybridSystem, growth_bounds::SVector{}, param_discretisation)
@@ -461,9 +489,14 @@ Construct the full temporal hybrid symbolic model for a given hybrid system.
 # Returns
 - `TemporalHybridSymbolicModel`: The constructed symbolic model
 """
-function Build_Timed_Hybrid_Automaton(hs::HybridSystem, growth_bounds::SVector{}, param_discretisation)
+function Build_Timed_Hybrid_Automaton(
+    hs::HybridSystem,
+    growth_bounds::SVector{},
+    param_discretisation,
+)
     # 1) Build symbolic models per mode
-    abstract_systems = build_initial_symmodel_by_mode(hs, growth_bounds, param_discretisation)
+    abstract_systems =
+        build_initial_symmodel_by_mode(hs, growth_bounds, param_discretisation)
     # 2) Build the global input map
     global_input_map = GlobalInputMap(abstract_systems, hs)
     # 3) Add intra-mode transitions
@@ -483,10 +516,9 @@ function Build_Timed_Hybrid_Automaton(hs::HybridSystem, growth_bounds::SVector{}
         int2aug_state,
         aug_state2int,
         autom,
-        global_input_map
+        global_input_map,
     )
 end
-
 
 # ================================================================
 # Utility functions for transitions
@@ -548,7 +580,7 @@ function find_time_index(time_model, time_value)
     return best_idx
 end
 
-# Pour le moment seul les guards basés sur des HyperRectangles sont supportés (à changer à terme).
+# Currently, only guards based on HyperRectangles are supported (this should be changed in the future).
 """
     extract_spatial_part(guard)
 
@@ -562,7 +594,7 @@ Extract the spatial part (all but last dimension) from a guard (assumed to be a 
 """
 function extract_spatial_part(guard)
     if isa(guard, Dionysos.Utils.HyperRectangle)
-        return Dionysos.Utils.HyperRectangle(guard.lb[1:end-1], guard.ub[1:end-1])
+        return Dionysos.Utils.HyperRectangle(guard.lb[1:(end - 1)], guard.ub[1:(end - 1)])
     else
         error("Unsupported guard type: $(typeof(guard))")
     end
@@ -609,6 +641,5 @@ function get_time_indices_from_interval(time_model, temporal_interval)
     end
     return indices
 end
-
 
 end

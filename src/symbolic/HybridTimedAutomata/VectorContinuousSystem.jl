@@ -1,5 +1,5 @@
 
-@warn "Ce type de système mathématique est nécessaire pour réaliser le produit cartésien entre le système dynamique et le temps. À terme, ce code devrait être intégré à MathematicalSystems.jl et ne devrait plus se trouver dans le code de Dionysos, ou du moins pas dans la partie symbolic."
+@warn "This type of mathematical system is necessary to perform the Cartesian product between the dynamical system and time. Eventually, this code should be integrated into MathematicalSystems.jl and should no longer be present in the Dionysos codebase, or at least not in the symbolic part."
 
 """
     VectorContinuousSystem(systems::Vector{<:AbstractContinuousSystem})
@@ -10,8 +10,12 @@ struct VectorContinuousSystem <: AbstractContinuousSystem
     systems::Vector{AbstractContinuousSystem}
 end
 
-#pas défini pour les ConstrainedBlackBoxControlContinuousSystem et pas particulièrement utile pour le moment 
-stateset(sys::VectorContinuousSystem) = tuple((MathematicalSystems.stateset(s) for s in sys.systems)...)
-inputset(sys::VectorContinuousSystem) = tuple((MathematicalSystems.inputset(s) for s in sys.systems)...)
-statedim(sys::VectorContinuousSystem) = sum(MathematicalSystems.statedim(s) for s in sys.systems)
-inputdim(sys::VectorContinuousSystem) = sum(MathematicalSystems.inputdim(s) for s in sys.systems)
+# Not defined for ConstrainedBlackBoxControlContinuousSystem and not particularly useful at the moment
+stateset(sys::VectorContinuousSystem) =
+    tuple((MathematicalSystems.stateset(s) for s in sys.systems)...)
+inputset(sys::VectorContinuousSystem) =
+    tuple((MathematicalSystems.inputset(s) for s in sys.systems)...)
+statedim(sys::VectorContinuousSystem) =
+    sum(MathematicalSystems.statedim(s) for s in sys.systems)
+inputdim(sys::VectorContinuousSystem) =
+    sum(MathematicalSystems.inputdim(s) for s in sys.systems)

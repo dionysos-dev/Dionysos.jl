@@ -9,7 +9,6 @@ sleep(0.1) # used for good printing
 println("Started test")
 
 @testset "VectorContinuousSystem - basic usage" begin
-    # Création de deux systèmes simples
     A1 = [1.0;;]
     B1 = [1.0;;]
     c1 = [0.0]
@@ -26,13 +25,17 @@ println("Started test")
 
     v_sys = SY.VectorContinuousSystem([sys1, sys2])
 
-    # Test statedim et inputdim
     @test SY.statedim(v_sys) == 2
     @test SY.inputdim(v_sys) == 2
 
-    # Test stateset et inputset
-    @test SY.stateset(v_sys) == (Dionysos.Utils.HyperRectangle([0.0], [1.0]), Dionysos.Utils.HyperRectangle([1.0], [2.0]))
-    @test SY.inputset(v_sys) == (Dionysos.Utils.HyperRectangle([-1.0], [1.0]), Dionysos.Utils.HyperRectangle([0.0], [2.0]))
+    @test SY.stateset(v_sys) == (
+        Dionysos.Utils.HyperRectangle([0.0], [1.0]),
+        Dionysos.Utils.HyperRectangle([1.0], [2.0]),
+    )
+    @test SY.inputset(v_sys) == (
+        Dionysos.Utils.HyperRectangle([-1.0], [1.0]),
+        Dionysos.Utils.HyperRectangle([0.0], [2.0]),
+    )
 end
 
 sleep(0.1) # used for good printing

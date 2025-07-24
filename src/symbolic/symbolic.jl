@@ -18,7 +18,6 @@ const DO = Domain
 using ..System
 const ST = System
 
-
 include("automaton/automaton.jl")
 include("automaton/sorted_automaton_list.jl")
 include("automaton/indexed_automaton_list.jl")
@@ -42,6 +41,5 @@ include("HybridTimedAutomata/VectorContinuousSystem.jl")
 include("HybridTimedAutomata/TimeSymbolicModel.jl")
 
 include("HybridTimedAutomata/TimedHybridAutomata.jl")
-
 
 end  # module Symbolic
