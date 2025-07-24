@@ -20,6 +20,7 @@ include("./symbolic/test_lazy_symbolic.jl")
 include("./symbolic/test_ellipsoidal_transitions.jl")
 include("./symbolic/test_TimeSymbolicModel.jl")
 include("./symbolic/test_VectorContinuousSystem_basic.jl")
+include("./symbolic/test_TimedHybridAutomata.jl")
 
 include("./problem/test_problems.jl")
 

@@ -2,16 +2,10 @@ export TimedHybridAutomata
 
 module TimedHybridAutomata
 
-using HybridSystems, MathematicalSystems, Dionysos, StaticArrays
+using HybridSystems, MathematicalSystems, StaticArrays, JuMP
 
-# actuellement un problème de dépendance circulaire -> LoadError: UndefVarError: `Problem` not defined in `Dionysos`
-# Actuellement j'utilise la fonction `Build_Timed_Hybrid_Automaton` pour construire le modèle symbolique hybride temporel complet.
-# A terme, on devrait permettre à l'utilisateur de fournir ses propres méthodes d'abstraction et les optimizers qu'il souhaite utiliser pour chaque mode.
-# Cependant, cela créé un problème de dépendance circulaire entre les modules `HybridTimedAutomata`, 'optim' et `Problem`.
 import Dionysos
-#PR = Dionysos.Problem
-#OP = Dionysos.Optim
-#AB = OP.Abstraction
+
 
 
 # ================================================================
@@ -91,7 +85,7 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
     global_to_continuous = Dict{Int, Tuple{Int, Int}}()
     continuous_count = 0
     for (mode_id, (symmodel_dynam, _)) in enumerate(abstract_systems)
-        input_count = SY.get_n_input(symmodel_dynam)
+        input_count = Dionysos.Symbolic.get_n_input(symmodel_dynam)
         for local_input_id in 1:input_count
             global_id = continuous_count + local_input_id
             continuous_to_global[(mode_id, local_input_id)] = global_id
@@ -246,25 +240,25 @@ Build a symbolic abstraction of a continuous system using uniform grid discretiz
 function build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
     
     # Build the symbolic model for the dynamics
-    problem = PR.EmptyProblem(system, system.X)
+    problem = Dionysos.Problem.EmptyProblem(system, system.X)
     dx, du, tstep = param_discretisation
     nx = system.statedim
     nu = system.inputdim
     x0 = SVector{nx, Float64}(zeros(nx))
     hx = SVector{nx, Float64}(fill(dx, nx))
-    state_grid = DO.GridFree(x0, hx)
+    state_grid = Dionysos.Domain.GridFree(x0, hx)
     u0 = SVector{nu, Float64}(zeros(nu))
     hu = SVector{nu, Float64}(fill(du, nu))
-    input_grid = DO.GridFree(u0, hu)
+    input_grid = Dionysos.Domain.GridFree(u0, hu)
     function my_jacobian_bound(u)
         return growth_bound
     end
-    optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+    optimizer = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), AB.UniformGridAbstraction.GROWTH)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), my_jacobian_bound)
     MOI.optimize!(optimizer)
     return MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
@@ -291,7 +285,7 @@ function build_initial_symmodel_by_mode(hs::HybridSystem, growth_bounds::SVector
         dyn_sys = mode_system.systems[1]    # physical dynamics
         time_sys = mode_system.systems[2]   # time dynamics
         symmodel_dynam = build_dynamical_symbolic_model(dyn_sys, growth_bounds[i], param_discretisation[i])
-        symmodel_time = BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
+        symmodel_time = Dionysos.Symbolic.BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
         push!(abstract_systems, (symmodel_dynam, symmodel_time))
     end
     return abstract_systems
@@ -317,7 +311,7 @@ function add_mode_transitions!(translist, abstract_systems, input_mapping::Globa
     for (mode_id, (symmodel_dynam, symmodel_time)) in enumerate(abstract_systems)
         tm = symmodel_time
         abstract_system = symmodel_dynam
-        for (target, source, local_input_id) in SY.enum_transitions(abstract_system)
+        for (target, source, local_input_id) in Dionysos.Symbolic.enum_transitions(abstract_system)
             global_input_id = get_global_input_id(input_mapping, mode_id, local_input_id)
             if length(tm.tsteps) == 1
                 # Time-frozen: only one transition (t=1 symbolically)
@@ -370,14 +364,14 @@ function add_switching_transitions!(translist, hs::HybridSystem, abstract_system
         guard_temporal = extract_temporal_part(guard)
 
         # Get all source states that intersect with the spatial guard
-        source_states = SY.get_states_from_set(source_symmodel_dynam, guard_spatial, DO.INNER)
+        source_states = Dionysos.Symbolic.get_states_from_set(source_symmodel_dynam, guard_spatial, Dionysos.Domain.INNER)
         # Get all time indices that intersect with the temporal guard
         time_indices = get_time_indices_from_interval(source_tm, guard_temporal)
 
         # For each combination of (state, time) in the guard
         for source_state in source_states, source_time_idx in time_indices
             # Build the augmented source state [x1, x2, ..., xn, t]
-            source_continuous_state = SY.get_concrete_state(source_symmodel_dynam, source_state)
+            source_continuous_state = Dionysos.Symbolic.get_concrete_state(source_symmodel_dynam, source_state)
             source_time_value = source_tm.tsteps[source_time_idx]
             augmented_source_state = vcat(source_continuous_state, source_time_value)
 
@@ -438,11 +432,11 @@ function build_automaton(translist)
         push!(inputs_set, input)
     end
     ninputs = length(inputs_set)
-    autom = SY.NewIndexedAutomatonList(nstates, ninputs)
+    autom = Dionysos.Symbolic.NewIndexedAutomatonList(nstates, ninputs)
     for (target, source, abstract_input) in translist
         target_int = aug_state2int[target]
         source_int = aug_state2int[source]
-        SY.add_transition!(autom, source_int, target_int, abstract_input)
+        Dionysos.Symbolic.add_transition!(autom, source_int, target_int, abstract_input)
     end
     return int2aug_state, aug_state2int, autom
 end
@@ -511,11 +505,15 @@ Find the symbolic state index corresponding to a given continuous state.
 - `Int`: The symbolic state index (0 if not found)
 """
 function find_symbolic_state(symmodel, continuous_state)
-    state_idx = SY.get_abstract_state(symmodel, continuous_state)
-    if isnothing(state_idx)
+    try
+        state_idx = Dionysos.Symbolic.get_abstract_state(symmodel, continuous_state)
+        if isnothing(state_idx)
+            return 0
+        else
+            return state_idx
+        end
+    catch
         return 0
-    else
-        return state_idx
     end
 end
 
@@ -563,8 +561,8 @@ Extract the spatial part (all but last dimension) from a guard (assumed to be a 
 - `HyperRectangle`: The spatial part of the guard
 """
 function extract_spatial_part(guard)
-    if isa(guard, UT.HyperRectangle)
-        return UT.HyperRectangle(guard.lb[1:end-1], guard.ub[1:end-1])
+    if isa(guard, Dionysos.Utils.HyperRectangle)
+        return Dionysos.Utils.HyperRectangle(guard.lb[1:end-1], guard.ub[1:end-1])
     else
         error("Unsupported guard type: $(typeof(guard))")
     end
@@ -582,7 +580,7 @@ Extract the temporal part (last dimension) from a guard (assumed to be a HyperRe
 - `Vector{Float64}`: The temporal interval [t_min, t_max]
 """
 function extract_temporal_part(guard)
-    if isa(guard, UT.HyperRectangle)
+    if isa(guard, Dionysos.Utils.HyperRectangle)
         return [guard.lb[end], guard.ub[end]]
     else
         error("Unsupported guard type: $(typeof(guard))")
