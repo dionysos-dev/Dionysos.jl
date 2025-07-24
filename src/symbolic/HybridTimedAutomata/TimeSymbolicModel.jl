@@ -29,7 +29,7 @@ If the system is time-frozen (A = 0), only one time step (0.0) is used.
 # Returns
 - `TimeSymbolicModel`: The symbolic time model
 """
-function TimeSymbolicModel(sys::MathematicalSystems.ConstrainedLinearContinuousSystem, tstep::Float64)
+function BuildTimeSymbolicModel(sys::MathematicalSystems.ConstrainedLinearContinuousSystem, tstep::Float64)
     A = sys.A
     X = sys.X
     # Extract time domain bounds (assumes X has .lb and .ub fields)
@@ -48,7 +48,6 @@ function TimeSymbolicModel(sys::MathematicalSystems.ConstrainedLinearContinuousS
         error("Matrix A must be 0 or 1 for time handling.")
     end
 end
-
 
 """
     time2int(tm::TimeSymbolicModel, t::Real)

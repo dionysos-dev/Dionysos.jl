@@ -1,3 +1,15 @@
+export TimedHybridAutomata
+
+module TimedHybridAutomata
+
+using HybridSystems, MathematicalSystems, Dionysos, StaticArrays
+
+# actuellement un problème de dépendance circulaire -> LoadError: UndefVarError: `Problem` not defined in `Dionysos`
+import Dionysos
+#PR = Dionysos.Problem
+#OP = Dionysos.Optim
+#AB = OP.Abstraction
+
 
 # ================================================================
 # Symbolic temporal hybrid model structure
@@ -276,7 +288,7 @@ function build_initial_symmodel_by_mode(hs::HybridSystem, growth_bounds::SVector
         dyn_sys = mode_system.systems[1]    # physical dynamics
         time_sys = mode_system.systems[2]   # time dynamics
         symmodel_dynam = build_dynamical_symbolic_model(dyn_sys, growth_bounds[i], param_discretisation[i])
-        symmodel_time = TimeSymbolicModelModule.TimeSymbolicModel(time_sys, param_discretisation[i][3])
+        symmodel_time = BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
         push!(abstract_systems, (symmodel_dynam, symmodel_time))
     end
     return abstract_systems
@@ -595,4 +607,7 @@ function get_time_indices_from_interval(time_model, temporal_interval)
         end
     end
     return indices
+end
+
+
 end

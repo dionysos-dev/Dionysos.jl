@@ -10,7 +10,8 @@ struct VectorContinuousSystem <: AbstractContinuousSystem
     systems::Vector{AbstractContinuousSystem}
 end
 
-stateset(sys::VectorContinuousSystem) = tuple((stateset(s) for s in sys.systems)...)
-inputset(sys::VectorContinuousSystem) = tuple((inputset(s) for s in sys.systems)...)
-statedim(sys::VectorContinuousSystem) = sum(statedim(s) for s in sys.systems)
-inputdim(sys::VectorContinuousSystem) = sum(inputdim(s) for s in sys.systems)
+#pas défini pour les ConstrainedBlackBoxControlContinuousSystem et pas particulièrement utile pour le moment 
+stateset(sys::VectorContinuousSystem) = tuple((MathematicalSystems.stateset(s) for s in sys.systems)...)
+inputset(sys::VectorContinuousSystem) = tuple((MathematicalSystems.inputset(s) for s in sys.systems)...)
+statedim(sys::VectorContinuousSystem) = sum(MathematicalSystems.statedim(s) for s in sys.systems)
+inputdim(sys::VectorContinuousSystem) = sum(MathematicalSystems.inputdim(s) for s in sys.systems)

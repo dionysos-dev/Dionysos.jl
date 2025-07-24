@@ -18,12 +18,6 @@ const DO = Domain
 using ..System
 const ST = System
 
-using ..Problem
-const PR = Problem
-
-using ..Optim
-const OP = Optim
-const AB = OP.Abstraction
 
 include("automaton/automaton.jl")
 include("automaton/sorted_automaton_list.jl")
@@ -48,4 +42,6 @@ include("HybridTimedAutomata/VectorContinuousSystem.jl")
 include("HybridTimedAutomata/TimeSymbolicModel.jl")
 
 include("HybridTimedAutomata/TimedHybridAutomata.jl")
+
+
 end  # module Symbolic
