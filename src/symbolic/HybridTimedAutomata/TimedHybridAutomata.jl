@@ -5,6 +5,9 @@ module TimedHybridAutomata
 using HybridSystems, MathematicalSystems, Dionysos, StaticArrays
 
 # actuellement un problème de dépendance circulaire -> LoadError: UndefVarError: `Problem` not defined in `Dionysos`
+# Actuellement j'utilise la fonction `Build_Timed_Hybrid_Automaton` pour construire le modèle symbolique hybride temporel complet.
+# A terme, on devrait permettre à l'utilisateur de fournir ses propres méthodes d'abstraction et les optimizers qu'il souhaite utiliser pour chaque mode.
+# Cependant, cela créé un problème de dépendance circulaire entre les modules `HybridTimedAutomata`, 'optim' et `Problem`.
 import Dionysos
 #PR = Dionysos.Problem
 #OP = Dionysos.Optim
