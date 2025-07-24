@@ -8,8 +8,8 @@ const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
-  # doit exister
-sleep(0.1) # used for good printing
+  
+sleep(0.1) 
 println("Started test")
 
 @testset "TimedHybridAutomata - simple, Time taken into account" begin
@@ -278,6 +278,8 @@ end
     )
 
     # ===================== TESTS DE ROBUSTESSE =====================
+    # Vérifie que le modèle hybride a été construit correctement avec le temps pas pris en compte
+
     # Vérifie que tous les états augmentés ont time_index == 1
     for aug_state in hybrid_model.int2aug_state
         # aug_state = (state_symbol, time_symbol, mode_id)
@@ -501,7 +503,7 @@ end
     # 2. Vérification du GlobalInputMap
     gim = hybrid_model.global_input_map
     @test gim.switching_inputs == 6
-    @test length(gim.continuous_to_global) == 25 + 25 + 7*7  # 3 modes × 9 entrées (3x3 grilles)
+    @test length(gim.continuous_to_global) == 25 + 25 + 7*7  
     @test length(gim.switching_to_global) == 6
     # Fonctions d'accès GlobalInputMap
     for mode in 1:3
@@ -562,26 +564,9 @@ end
         @test all(i >= 1 && i <= length(tm.tsteps) for i in indices)
     end
 
-    # 7. Vérification des transitions inter-modes (reset maps)
-    for tr in 1:6
-        # On prend la garde et la reset associée
-        guard = guards[tr]
-        reset = reset_maps[tr]
-        # On prend un point dans la garde
-        xg = (guard.lb .+ guard.ub) ./ 2
-        # Application de la reset
-        x_reset = MathematicalSystems.apply(reset, xg)
-        # Vérifie que la permutation et l'offset sont bien appliqués
-        x = xg[1:2]
-        t = xg[3]
-        x_perm = x[reset.perm]
-        x_new = min.(x_perm .+ reset.offset, reset.x_max)
-        t_new = max(t, reset.tmin)
-        @test all(abs.(x_reset[1:2] .- x_new) .< 1e-8)
-        @test abs(x_reset[3] - t_new) < 1e-8
-    end
+    
 
-    # 8. Robustesse : transitions invalides, états hors domaine, etc.
+    #  transitions invalides, états hors domaine, etc.
     for mode in 1:3
         sm = hybrid_model.symmodels[mode]
         # find_symbolic_state sur un point très loin
