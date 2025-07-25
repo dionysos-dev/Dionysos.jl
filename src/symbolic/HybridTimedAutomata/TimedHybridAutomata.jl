@@ -294,7 +294,7 @@ function build_initial_symmodel_by_mode(
             param_discretisation[i],
         )
         symmodel_time =
-            Dionysos.Symbolic.BuildTimeSymbolicModel(time_sys, param_discretisation[i][3])
+            Dionysos.Symbolic.TimeSymbolicModel(time_sys, param_discretisation[i][3])
         push!(abstract_systems, (symmodel_dynam, symmodel_time))
     end
     return abstract_systems

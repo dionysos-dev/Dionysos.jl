@@ -17,7 +17,7 @@ println("Started test")
     X = UT.HyperRectangle([0.0], [2.0])
     sys_time = MathematicalSystems.ConstrainedLinearContinuousSystem(A, X)
     tstep = 0.5
-    tm = SY.BuildTimeSymbolicModel(sys_time, tstep)
+    tm = SY.TimeSymbolicModel(sys_time, tstep)
     @test tm.tsteps == [0.0, 0.5, 1.0, 1.5, 2.0]
     @test tm.is_active == true
     @test SY.time2int(tm, 0.75) == 2
@@ -33,7 +33,7 @@ end
     X = UT.HyperRectangle([0.0], [2.0])
     sys_time = MathematicalSystems.ConstrainedLinearContinuousSystem(A, X)
     tstep = 0.5
-    tm = SY.BuildTimeSymbolicModel(sys_time, tstep)
+    tm = SY.TimeSymbolicModel(sys_time, tstep)
     @test tm.tsteps == [0.0]
     @test tm.is_active == false
     @test SY.time2int(tm, 1.5) == 1

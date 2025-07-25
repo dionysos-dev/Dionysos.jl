@@ -9,9 +9,9 @@ Structure representing the symbolic abstraction of time for a mode in a hybrid s
 - `time_domain::Any`: The time domain (e.g., a HyperRectangle)
 - `is_active::Bool`: True if time evolves, false if time is frozen
 """
-struct TimeSymbolicModel
-    tsteps::Vector{Float64}
-    time_domain::Any
+struct TimeSymbolicModel{N, T}
+    tsteps::SVector{N, Float64}
+    time_domain::T
     is_active::Bool
 end
 
@@ -29,7 +29,7 @@ If the system is time-frozen (A = 0), only one time step (0.0) is used.
 # Returns
 - `TimeSymbolicModel`: The symbolic time model
 """
-function BuildTimeSymbolicModel(
+function TimeSymbolicModel(
     sys::MathematicalSystems.ConstrainedLinearContinuousSystem,
     tstep::Float64,
 )
@@ -44,11 +44,13 @@ function BuildTimeSymbolicModel(
         )
     end
     if A == ones(size(A))  # Identity matrix: time evolves
-        tsteps = collect(tmin:tstep:tmax)
-        return TimeSymbolicModel(tsteps, X, true)
+        tsteps_vec = collect(tmin:tstep:tmax)
+        N = length(tsteps_vec)
+        tsteps = SVector{N, Float64}(tsteps_vec)
+        return TimeSymbolicModel{N, typeof(X)}(tsteps, X, true)
     elseif A == zeros(size(A))  # Zero matrix: time is frozen
-        tsteps = [0.0]
-        return TimeSymbolicModel(tsteps, X, false)
+        tsteps = SVector{1, Float64}(0.0)
+        return TimeSymbolicModel{1, typeof(X)}(tsteps, X, false)
     else
         error("Matrix A must be 0 or 1 for time handling.")
     end
