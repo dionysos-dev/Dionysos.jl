@@ -23,7 +23,7 @@ Main structure representing the symbolic abstraction of a temporal hybrid system
 - `autom::A`: Final symbolic automaton
 - `global_input_map::G`: Unified global input system
 """
-mutable struct TemporalHybridSymbolicModel{S1, A, N, T, G}
+struct TemporalHybridSymbolicModel{S1, A, N, T, G}
     symmodels::Vector{S1}
     time_symbolic_models::Vector{T}
     int2aug_state::Vector{NTuple{N, Int}}
