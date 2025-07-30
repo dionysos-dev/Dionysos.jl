@@ -199,7 +199,7 @@ end
 # =================================
 
 """Computes the next augmented state"""
-function get_next_aug_state(hs::HybridSystem, aug_state, u, tm, map_sys)
+function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tstep, map_sys)
     (x, t, k) = aug_state
 
     if isa(u, AbstractString) && occursin("SWITCH", u)
@@ -231,8 +231,8 @@ function get_next_aug_state(hs::HybridSystem, aug_state, u, tm, map_sys)
         next_k = target_mode
         return (next_x, next_t, next_k)
     else
-        next_t = tm.is_active ? t + tm.tstep : 0.0
-        next_x = map_sys(x, u, tm.tstep)
+        next_t = time_is_active ? t + tstep : 0.0
+        next_x = map_sys(x, u, tstep)
         return (next_x, next_t, k)
     end
 end
@@ -252,7 +252,7 @@ Generates a closed-loop trajectory.
 Tuple (state_trajectory, control_trajectory)
 """
 function get_closed_loop_trajectory(
-    symmodel::Dionysos.Symbolic.TimedHybridAutomata.TemporalHybridSymbolicModel,
+    discretization_parameters::Vector{Tuple{Float64, Float64, Float64}},
     hs::HybridSystem,
     problem_specs::ProblemSpecs,
     controller,
@@ -266,6 +266,9 @@ function get_closed_loop_trajectory(
     nmodes = HybridSystems.nmodes(hs.automaton)
     dynamics = [HybridSystems.mode(hs, k).systems[1].f for k in 1:nmodes]
     maps_sys = [Dionysos.System.simulate_control_map(dynamics[i]) for i in 1:nmodes]
+    tsteps = [discretization_parameters[i][3] for i in 1:nmodes]
+    times_is_active =
+        [([1.0;;]==HybridSystems.mode(hs, k).systems[2].A) ? true : false for k in 1:nmodes]
 
     for _ in 1:nstep
         stopping(problem_specs, aug_state) && break
@@ -274,13 +277,8 @@ function get_closed_loop_trajectory(
 
         u === nothing && break
         (_, _, k) = aug_state
-        aug_state = get_next_aug_state(
-            hs,
-            aug_state,
-            u,
-            symmodel.time_symbolic_models[k],
-            maps_sys[k],
-        )
+        aug_state =
+            get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
 
         push!(aug_state_traj, aug_state)
         push!(u_traj, u)

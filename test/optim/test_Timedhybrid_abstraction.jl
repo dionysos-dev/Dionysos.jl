@@ -187,7 +187,8 @@ const AB = OP.Abstraction
         hs,
         aug_state,
         u_cont,
-        tm,
+        true,
+        0.1,
         map_sys,
     )
     @test length(next_aug_state) == 3
@@ -196,14 +197,15 @@ const AB = OP.Abstraction
         hs,
         aug_state,
         u_switch,
-        tm,
+        true,
+        0.1,
         map_sys,
     )
     @test next_aug_state_switch[3] == 2
 
     # Test closed-loop trajectory
     traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
-        hybrid_symmodel,
+        param_discretization,
         hs,
         concret_specs,
         concrete_controller,
@@ -406,7 +408,8 @@ end
         hs,
         aug_state,
         u_cont,
-        tm,
+        false,
+        0.1,
         map_sys,
     )
     @test length(next_aug_state) == 3
@@ -415,14 +418,15 @@ end
         hs,
         aug_state,
         u_switch,
-        tm,
+        false,
+        0.1,
         map_sys,
     )
     @test next_aug_state_switch[3] == 2
 
     # Test closed-loop trajectory
     traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
-        hybrid_symmodel,
+        param_discretization,
         hs,
         concret_specs,
         concrete_controller,
