@@ -13,6 +13,7 @@ struct TimeSymbolicModel{N, T}
     tsteps::SVector{N, Float64}
     time_domain::T
     is_active::Bool
+    tstep::Float64
 end
 
 """
@@ -47,10 +48,10 @@ function TimeSymbolicModel(
         tsteps_vec = collect(tmin:tstep:tmax)
         N = length(tsteps_vec)
         tsteps = SVector{N, Float64}(tsteps_vec)
-        return TimeSymbolicModel{N, typeof(X)}(tsteps, X, true)
+        return TimeSymbolicModel{N, typeof(X)}(tsteps, X, true, tstep)
     elseif A == zeros(size(A))  # Zero matrix: time is frozen
         tsteps = SVector{1, Float64}(0.0)
-        return TimeSymbolicModel{1, typeof(X)}(tsteps, X, false)
+        return TimeSymbolicModel{1, typeof(X)}(tsteps, X, false, tstep)
     else
         error("Matrix A must be 0 or 1 for time handling.")
     end

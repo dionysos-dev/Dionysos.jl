@@ -1,5 +1,4 @@
-
-@warn "This type of mathematical system is necessary to perform the Cartesian product between the dynamical system and time. Eventually, this code should be integrated into MathematicalSystems.jl and should no longer be present in the Dionysos codebase, or at least not in the symbolic part."
+# "This type of mathematical system is necessary to perform the Cartesian product between the dynamical system and time. Eventually, this code should be integrated into MathematicalSystems.jl and should no longer be present in the Dionysos codebase, or at least not in the symbolic part."
 
 """
     VectorContinuousSystem(systems::Vector{<:AbstractContinuousSystem})

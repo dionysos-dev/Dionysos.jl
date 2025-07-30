@@ -27,6 +27,7 @@ println("Started test")
     @test SY.floor_time2int(tm, 1.1) == 3
     @test SY.floor_time2int(tm, 1.3) == 3
     @test SY.floor_time2int(tm, 1.9) == 4
+    @test tm.tstep == tstep
 end
 @testset "SymbolicModel_frozen" begin
     A = reshape([0.0], 1, 1)
@@ -40,6 +41,7 @@ end
     @test SY.int2time(tm, 1) == 0.0
     @test SY.ceil_time2int(tm, 1.5) == 1
     @test SY.floor_time2int(tm, 1.5) == 1
+    @test tm.tstep == tstep
 end
 sleep(0.1) # used for good printing
 println("End test")

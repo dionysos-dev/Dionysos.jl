@@ -147,6 +147,48 @@ println("Started test")
     @test all(i >= 1 && i <= length(tm.tsteps) for i in indices)
     idx_bad = SY.TimedHybridAutomata.find_symbolic_state(sm, [100.0])
     @test idx_bad == 0
+
+    @test SY.TimedHybridAutomata.get_n_state(hybrid_model) == 48
+
+    @test SY.TimedHybridAutomata.get_n_input(hybrid_model) == 7
+
+    @test collect(SY.TimedHybridAutomata.enum_states(hybrid_model)) ==
+          collect(1:SY.TimedHybridAutomata.get_n_state(hybrid_model))
+
+    @test collect(SY.TimedHybridAutomata.enum_inputs(hybrid_model, 1)) == collect(1:3)
+    @test collect(SY.TimedHybridAutomata.enum_inputs(hybrid_model, 2)) == collect(4:6) .- 3
+
+    for state in 1:SY.TimedHybridAutomata.get_n_state(hybrid_model)
+        aug = hybrid_model.int2aug_state[state]
+        concrete = SY.TimedHybridAutomata.get_concrete_state(hybrid_model, state)
+        idx = SY.TimedHybridAutomata.get_abstract_state(hybrid_model, concrete)
+        @test idx == state
+    end
+
+    Xs = [UT.HyperRectangle([-1.0], [1.0]), UT.HyperRectangle([-2.0], [2.0])]
+    Ts = [UT.HyperRectangle([0.0], [2.0]), UT.HyperRectangle([3.0], [5.0])]
+    Ns = [1]
+
+    # Appel de la fonction
+    indices = SY.TimedHybridAutomata.get_states_from_set(hybrid_model, Xs, Ts, Ns)
+
+    all_mode1 = [
+        i for i in 1:SY.TimedHybridAutomata.get_n_state(hybrid_model) if
+        hybrid_model.int2aug_state[i][3] == 1
+    ]
+    @test sort(indices) == sort(all_mode1)
+
+    Xs2 = [UT.HyperRectangle([0.0], [0.5]), UT.HyperRectangle([-2.0], [2.0])]
+    Ts2 = [UT.HyperRectangle([0.0], [1.0]), UT.HyperRectangle([3.0], [5.0])]
+    indices2 = SY.TimedHybridAutomata.get_states_from_set(hybrid_model, Xs2, Ts2, Ns)
+    for idx in indices2
+        aug = hybrid_model.int2aug_state[idx]
+        @test aug[3] == 1
+        tval = hybrid_model.time_symbolic_models[1].tsteps[aug[2]]
+        @test 0.0 <= tval <= 1.0
+        xval = SY.TimedHybridAutomata.get_concrete_state(hybrid_model, idx)[1][1]
+        @test 0.0 <= xval <= 0.5
+    end
 end
 
 @testset "TimedHybridAutomata - simple, Time not taken into account" begin
@@ -257,6 +299,60 @@ end
     for tm in hybrid_model.time_symbolic_models
         tmin, tmax = tm.tsteps[1], tm.tsteps[1]
         @test SY.TimedHybridAutomata.get_time_indices_from_interval(tm, [tmin, tmax]) == [1]
+    end
+
+    @test SY.TimedHybridAutomata.get_n_state(hybrid_model) ==
+          length(hybrid_model.int2aug_state)
+    @test collect(SY.TimedHybridAutomata.enum_states(hybrid_model)) ==
+          collect(1:SY.TimedHybridAutomata.get_n_state(hybrid_model))
+
+    @test SY.TimedHybridAutomata.get_n_input(hybrid_model) ==
+          hybrid_model.global_input_map.total_inputs
+
+    for k in 1:length(hybrid_model.symmodels)
+        expected = collect(
+            1:SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(
+                hybrid_model.symmodels[k],
+            ),
+        )
+        actual = collect(SY.TimedHybridAutomata.enum_inputs(hybrid_model, k))
+        @test actual == expected
+    end
+
+    for state in 1:SY.TimedHybridAutomata.get_n_state(hybrid_model)
+        aug = hybrid_model.int2aug_state[state]
+        concrete = SY.TimedHybridAutomata.get_concrete_state(hybrid_model, state)
+        idx = SY.TimedHybridAutomata.get_abstract_state(hybrid_model, concrete)
+        @test idx == state
+    end
+
+    gim = hybrid_model.global_input_map
+    for k in 1:length(hybrid_model.symmodels)
+        n_inputs =
+            SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(hybrid_model.symmodels[k])
+        for local_input_id in 1:n_inputs
+            global_input_id =
+                SY.TimedHybridAutomata.get_global_input_id(gim, k, local_input_id)
+
+            u_concrete =
+                SY.TimedHybridAutomata.get_concrete_input(hybrid_model, global_input_id, k)
+            global_input_id2 =
+                SY.TimedHybridAutomata.get_abstract_input(hybrid_model, u_concrete, k)
+            @test global_input_id == global_input_id2
+        end
+    end
+
+    for tr in 1:gim.switching_inputs
+        gid = SY.TimedHybridAutomata.get_switching_global_id(gim, tr)
+        @test isnothing(SY.TimedHybridAutomata.get_concrete_input(hybrid_model, gid, 1))
+    end
+
+    if hasproperty(gim, :switch_labels)
+        @test length(gim.switch_labels) == gim.switching_inputs
+        for label in gim.switch_labels
+            @test occursin("SWITCH", label)
+            @test occursin("->", label)
+        end
     end
 end
 
@@ -505,6 +601,70 @@ end
         t_idx = aug[2]
         @test 1 <= mode <= 3
         @test 1 <= t_idx <= length(hybrid_model.time_symbolic_models[mode].tsteps)
+    end
+
+    # --- Tests des accessors et des labels de commutation ---
+
+    @test SY.TimedHybridAutomata.get_n_state(hybrid_model) ==
+          length(hybrid_model.int2aug_state)
+    @test SY.TimedHybridAutomata.get_n_input(hybrid_model) ==
+          hybrid_model.global_input_map.total_inputs
+
+    @test collect(SY.TimedHybridAutomata.enum_states(hybrid_model)) ==
+          collect(1:SY.TimedHybridAutomata.get_n_state(hybrid_model))
+
+    for k in 1:length(hybrid_model.symmodels)
+        expected = collect(
+            1:SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(
+                hybrid_model.symmodels[k],
+            ),
+        )
+        actual = collect(SY.TimedHybridAutomata.enum_inputs(hybrid_model, k))
+        @test actual == expected
+    end
+
+    for state in 1:SY.TimedHybridAutomata.get_n_state(hybrid_model)
+        aug = hybrid_model.int2aug_state[state]
+        concrete = SY.TimedHybridAutomata.get_concrete_state(hybrid_model, state)
+        idx = SY.TimedHybridAutomata.get_abstract_state(hybrid_model, concrete)
+        @test idx == state
+    end
+
+    gim = hybrid_model.global_input_map
+    for k in 1:length(hybrid_model.symmodels)
+        n_inputs =
+            SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(hybrid_model.symmodels[k])
+        for local_input_id in 1:n_inputs
+            global_input_id =
+                SY.TimedHybridAutomata.get_global_input_id(gim, k, local_input_id)
+            u_concrete =
+                SY.TimedHybridAutomata.get_concrete_input(hybrid_model, global_input_id, k)
+            global_input_id2 =
+                SY.TimedHybridAutomata.get_abstract_input(hybrid_model, u_concrete, k)
+            @test global_input_id == global_input_id2
+        end
+    end
+
+    for tr in 1:gim.switching_inputs
+        gid = SY.TimedHybridAutomata.get_switching_global_id(gim, tr)
+        @test isnothing(SY.TimedHybridAutomata.get_concrete_input(hybrid_model, gid, 1))
+    end
+
+    expected_labels = [
+        "SWITCH 1 -> 2",
+        "SWITCH 2 -> 1",
+        "SWITCH 1 -> 3",
+        "SWITCH 3 -> 1",
+        "SWITCH 2 -> 3",
+        "SWITCH 3 -> 2",
+    ]
+    @test length(gim.switch_labels) == length(expected_labels)
+    for label in expected_labels
+        @test label in gim.switch_labels
+    end
+    for label in gim.switch_labels
+        @test occursin("SWITCH", label)
+        @test occursin("->", label)
     end
 end
 end
