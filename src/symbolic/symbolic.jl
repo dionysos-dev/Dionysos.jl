@@ -5,7 +5,7 @@ import RecipesBase: @recipe, @series
 import ProgressMeter
 
 using LinearAlgebra, Colors
-using HybridSystems
+using HybridSystems, MathematicalSystems
 
 using Graphs, SimpleWeightedGraphs
 
@@ -34,5 +34,12 @@ using Polyhedra
 using ProgressMeter, IntervalArithmetic, LazySets
 using JuMP
 include("ellipsoidal_transitions.jl")
+
+# nouveau code disparaitra à terme
+include("HybridTimedAutomata/VectorContinuousSystem.jl")
+
+include("HybridTimedAutomata/TimeSymbolicModel.jl")
+
+include("HybridTimedAutomata/TimedHybridAutomata.jl")
 
 end  # module Symbolic
