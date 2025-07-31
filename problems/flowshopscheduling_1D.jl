@@ -30,12 +30,12 @@ MathematicalSystems.stateset(reset::FlowShopResetMap) = reset.domain
 """
     make_cost_function(mode_weights::Vector{Float64}, t_nexttask_starts::Vector{Float64}; switch_penalty=100.0, base_switch_cost=10.0)
 
-Construit une fonction coût personnalisée pour le flowshop 1D.
+Constructs a custom cost function for the 1D flowshop.
 
-- `mode_weights` : poids par mode (ex : [3.0, 2.0, ...])
-- `t_nexttask_starts` : temps de début de chaque tâche (ex : [1.0, 7.0, ...])
-- `switch_penalty` : coefficient de pénalisation du switch (par défaut 100.0)
-- `base_switch_cost` : coût de base lors d'un switch (par défaut 10.0)
+- `mode_weights`: weights per mode (e.g., [3.0, 2.0, ...])
+- `t_nexttask_starts`: start time of each task (e.g., [1.0, 7.0, ...])
+- `switch_penalty`: penalty coefficient for switching (default 100.0)
+- `base_switch_cost`: base cost when switching (default 10.0)
 """
 function make_cost_function(mode_weights::Vector{Float64}, t_nexttask_starts::Vector{Float64}; switch_penalty=100.0, base_switch_cost=1.0)
     return function (aug_state, u)
@@ -44,12 +44,10 @@ function make_cost_function(mode_weights::Vector{Float64}, t_nexttask_starts::Ve
         if isa(u, String) && occursin("SWITCH", u)
             t_next = t_nexttask_starts[k]
             idle_penalty = (1+max(t_next - t, 0))^2
-            println("\n \n Switching at time $t, next task starts at $t_next, idle penalty: $idle_penalty")
-            println("global cost : ", w * (base_switch_cost + switch_penalty * idle_penalty))
-            return 0.0#w * (base_switch_cost + switch_penalty * idle_penalty)
+            return  w * (base_switch_cost + switch_penalty * idle_penalty)
         end
         input_cost = (isa(u, Number) ? abs(u) : norm(u))
-        return w * (1.0 + input_cost^10)
+        return w * (1.0 + input_cost^2)
         
     end
 end

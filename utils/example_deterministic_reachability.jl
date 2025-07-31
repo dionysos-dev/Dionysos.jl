@@ -16,7 +16,9 @@ include("../problems/path_planning.jl")
 ########### PART 1 : Construct the classical abstraction using any mode: ###########
 ##### USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION  ##########
 ####################################################################################
-transition_cost(x, u) = 1 + 1 / (1e-2 + x[3]^2) # penalize x[3] frm being close to 0
+transition_cost(x, u) = 1.0 + 1 / (1e-4 + (x[3] - π/2)^6) + 1 / (1e-4 + (x[3] + π/2)^6)
+# penalize x[3] from being close to π/2 and -π/2, i.e., going up and down
+
 concrete_problem = PathPlanning.problem(; simple = true, transition_cost = transition_cost)
 concrete_system = concrete_problem.system
 
@@ -127,7 +129,7 @@ println(
 println(SY.get_n_transitions(abstract_system))
 println(SY.get_n_transitions(determinized_abstract_system))
 
-concrete_problem = PathPlanning.problem(; simple = true)
+concrete_problem = PathPlanning.problem(; simple = true, transition_cost = transition_cost)
 
 using JuMP
 new_optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)

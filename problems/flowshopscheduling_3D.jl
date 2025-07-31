@@ -58,7 +58,7 @@ function generate_system_and_problem()
         (0.5, 0.5, 0.2), 
     ]
 
-    # ------- Dynamic matrices inspired by a simplified 3D drone -------
+    # ------- Dynamic matrices -------
     A1 = SMatrix{3,3}(0.95, 0.01, 0.003,
                       0.0,  0.98, 0.01,
                       -0.3,  0.0,  0.99)

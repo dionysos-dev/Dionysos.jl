@@ -572,14 +572,20 @@ Find the time index in the symbolic time model corresponding to a given time val
 - `Int`: The time index (closest if not exact)
 """
 function find_time_index(time_model, time_value)
+    # Utilise la structure TimeSymbolicModel et gère le cas is_active
+    tol = 1e-7
+    if hasproperty(time_model, :is_active) && !time_model.is_active
+        return 1
+    end
+    # Recherche d'un temps approché (évite les erreurs d'arrondi)
     for (idx, tstep) in enumerate(time_model.tsteps)
-        if abs(time_value - tstep) < 1e-10
+        if isapprox(time_value, tstep; atol=tol)
             return idx
         end
     end
-    # If no exact match, take the closest
+    # Si pas d'égalité approchée, prend l'indice du temps le plus proche
     min_distance = Inf
-    best_idx = 0
+    best_idx = 1
     for (idx, tstep) in enumerate(time_model.tsteps)
         distance = abs(time_value - tstep)
         if distance < min_distance

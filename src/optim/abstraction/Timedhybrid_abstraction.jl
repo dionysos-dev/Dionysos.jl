@@ -229,9 +229,13 @@ function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tste
         next_x = reset_result[1:(end - 1)]
         next_t = reset_result[end]
         next_k = target_mode
+        # Correction : arrondi explicite du temps à 10 décimales pour éviter la propagation d'erreurs
+        next_t = round(next_t, digits=10)
         return (next_x, next_t, next_k)
     else
         next_t = time_is_active ? t + tstep : 0.0
+        # Correction : arrondi explicite du temps à 10 décimales pour éviter la propagation d'erreurs
+        next_t = round(next_t, digits=10)
         next_x = map_sys(x, u, tstep)
         return (next_x, next_t, k)
     end
