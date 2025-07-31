@@ -72,20 +72,17 @@ struct BlackBoxContinuousController{F, G} <: ContinuousController
 end
 BlackBoxContinuousController(f::F) where {F} = BlackBoxContinuousController(f, x -> true)
 
-get_control(controller::BlackBoxContinuousController, x::AbstractVector) = controller.f(x)
-get_all_controls(controller::BlackBoxContinuousController, x::AbstractVector) =
-    [get_control(controller, x)]
-is_defined(controller::BlackBoxContinuousController, x::AbstractVector) =
-    controller.is_defined(x)
+get_control(controller::BlackBoxContinuousController, x) = controller.f(x)
+get_all_controls(controller::BlackBoxContinuousController, x) = [get_control(controller, x)]
+is_defined(controller::BlackBoxContinuousController, x) = controller.is_defined(x)
 domain(controller::BlackBoxContinuousController) = nothing
 
 struct ConstantController{VT} <: ContinuousController
     c::VT
 end
-get_control(controller::ConstantController, x::AbstractVector) = controller.c
-get_all_controls(controller::ConstantController, x::AbstractVector) =
-    [get_control(controller, x)]
-is_defined(controller::ConstantController, x::AbstractVector) = true
+get_control(controller::ConstantController, x) = controller.c
+get_all_controls(controller::ConstantController, x) = [get_control(controller, x)]
+is_defined(controller::ConstantController, x) = true
 domain(controller::ConstantController) = nothing
 
 struct AffineController{MT, VT1, VT2} <: ContinuousController
