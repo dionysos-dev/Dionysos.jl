@@ -16,14 +16,17 @@ include(
 );
 
 # generate the concrete hybrid system and the problem specifications
-HybridSystem_automaton, growth_bounds, discretization_parameters, problem_specs =
+HybridSystem_automaton, optimizer_factory_list, optimizer_kwargs_dict, problem_specs =
     FlowShopScheduling3D.generate_system_and_problem()
+
+# Keep discretization parameters for compatibility with get_closed_loop_trajectory
+discretization_parameters = [(0.5, 0.5, 0.2), (0.5, 0.5, 0.2), (0.5, 0.5, 0.2)]
 
 # get the concrete_controller using Dionysos
 concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
     HybridSystem_automaton,
-    growth_bounds,
-    discretization_parameters,
+    optimizer_factory_list,
+    optimizer_kwargs_dict,
     problem_specs,
 )
 

@@ -5,7 +5,9 @@ using StaticArrays, Plots, HybridSystems, MathematicalSystems
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos
+using MathOptInterface
 const DI = Dionysos
+const MOI = MathOptInterface
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
@@ -56,13 +58,44 @@ const AB = OP.Abstraction
     switchings = [HybridSystems.AutonomousSwitching()]
     hs = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
-    # Abstraction parameters
-    growth_bounds = SVector(SMatrix{1, 1}(0.5), SMatrix{1, 1}(0.8))
+    # Abstraction parameters - Updated to new interface
+    # Create optimizer factories for each mode
+    optimizer_factory_list = [
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+    ]
+
+    # Create state and input grids
+    state_grid_1 = DO.GridFree(SVector(0.0), SVector(0.1))
+    input_grid_1 = DO.GridFree(SVector(0.0), SVector(0.1))
+    state_grid_2 = DO.GridFree(SVector(0.0), SVector(0.1))
+    input_grid_2 = DO.GridFree(SVector(0.0), SVector(0.1))
+
+    # Create optimizer parameters
+    optimizer_kwargs_dict = [
+        Dict(
+            "state_grid" => state_grid_1,
+            "input_grid" => input_grid_1,
+            "time_step" => 0.1,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.5),
+        ),
+        Dict(
+            "state_grid" => state_grid_2,
+            "input_grid" => input_grid_2,
+            "time_step" => 0.1,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.8),
+        ),
+    ]
+
+    # Keep param_discretization for compatibility with get_closed_loop_trajectory
     param_discretization = [(0.1, 0.1, 0.1), (0.1, 0.1, 0.1)]
+
     hybrid_symmodel = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
     )
 
     # Problem specification
@@ -225,8 +258,8 @@ const AB = OP.Abstraction
     # Test solve shortcut
     controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
         concret_specs,
     )
     for state in traj[1:(end - 1)]
@@ -277,13 +310,44 @@ end
     switchings = [HybridSystems.AutonomousSwitching()]
     hs = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
-    # Abstraction parameters
-    growth_bounds = SVector(SMatrix{1, 1}(0.5), SMatrix{1, 1}(0.8))
+    # Abstraction parameters - Updated to new interface
+    # Create optimizer factories for each mode
+    optimizer_factory_list = [
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+    ]
+
+    # Create state and input grids
+    state_grid_1 = DO.GridFree(SVector(0.0), SVector(0.1))
+    input_grid_1 = DO.GridFree(SVector(0.0), SVector(0.1))
+    state_grid_2 = DO.GridFree(SVector(0.0), SVector(0.1))
+    input_grid_2 = DO.GridFree(SVector(0.0), SVector(0.1))
+
+    # Create optimizer parameters
+    optimizer_kwargs_dict = [
+        Dict(
+            "state_grid" => state_grid_1,
+            "input_grid" => input_grid_1,
+            "time_step" => 0.1,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.5),
+        ),
+        Dict(
+            "state_grid" => state_grid_2,
+            "input_grid" => input_grid_2,
+            "time_step" => 0.1,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.8),
+        ),
+    ]
+
+    # Keep param_discretization for compatibility with get_closed_loop_trajectory
     param_discretization = [(0.1, 0.1, 0.1), (0.1, 0.1, 0.1)]
+
     hybrid_symmodel = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
     )
 
     # Problem specification
@@ -450,8 +514,8 @@ end
     # Test solve shortcut
     controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
         concret_specs,
     )
     for state in traj[1:(end - 1)]

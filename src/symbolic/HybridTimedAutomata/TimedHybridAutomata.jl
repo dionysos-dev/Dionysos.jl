@@ -104,7 +104,6 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
         global_id = continuous_count + switching_count + 1
         switching_to_global[transition_id] = global_id
         global_to_switching[global_id] = transition_id
-        # Construction du label
         source_id = HybridSystems.source(hs.automaton, transition)
         target_id = HybridSystems.target(hs.automaton, transition)
         push!(switch_labels, "SWITCH $(source_id) -> $(target_id)")
@@ -243,54 +242,52 @@ Build a symbolic abstraction of a continuous system using uniform grid discretiz
 # Returns
 - Symbolic abstraction of the system
 """
-function build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
+function build_dynamical_symbolic_model(
+    system;
+    optimizer_factory = nothing,
+    optimizer = nothing,
+    optimizer_kwargs = Dict(),
+)
+    if optimizer !== nothing
+        # Use the provided optimizer directly
+        opt = optimizer
+    elseif optimizer_factory !== nothing
+        # Use the factory function
+        opt = optimizer_factory()
+    else
+        # Default optimizer
+        opt = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
+    end
 
     # Build the symbolic model for the dynamics
-    problem = Dionysos.Problem.EmptyProblem(system, system.X)
-    dx, du, tstep = param_discretisation
-    nx = system.statedim
-    nu = system.inputdim
-    x0 = SVector{nx, Float64}(zeros(nx))
-    hx = SVector{nx, Float64}(fill(dx, nx))
-    state_grid = Dionysos.Domain.GridFree(x0, hx)
-    u0 = SVector{nu, Float64}(zeros(nu))
-    hu = SVector{nu, Float64}(fill(du, nu))
-    input_grid = Dionysos.Domain.GridFree(u0, hu)
-    function my_jacobian_bound(u)
-        return growth_bound
+    problem = Dionysos.Problem.EmptyProblem(system, system.X) #(j'hésite pour ça)
+    MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)
+
+    for (k, v) in optimizer_kwargs
+        MOI.set(opt, MOI.RawOptimizerAttribute(k), v)
     end
-    optimizer = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("approx_mode"),
-        Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
-    )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), my_jacobian_bound)
-    MOI.optimize!(optimizer)
-    return MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+
+    MOI.optimize!(opt)
+    return MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 end
 
 """
-    build_initial_symmodel_by_mode(hs::HybridSystem, growth_bounds::SVector{}, param_discretisation)
+    build_initial_symmodel_by_mode(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 
 Build a list of symbolic models (dynamics and time) for each mode of a hybrid system.
 
 # Arguments
 - `hs::HybridSystem`: The hybrid system
-- `growth_bounds::SVector{}`: Growth bounds per mode
-- `param_discretisation`: Discretization parameters per mode
+- `optimizer_list`: Vector of optimizer factory functions, one per mode
+- `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
 
 # Returns
 - Vector of (symbolic_dynamics, symbolic_time) tuples per mode
 """
 function build_initial_symmodel_by_mode(
     hs::HybridSystem,
-    growth_bounds::SVector{},
-    param_discretisation,
+    optimizer_list::AbstractVector{Function},
+    optimizer_kwargs_dict::AbstractVector{<:Dict},
 )
     # Build a list of symbolic models for each mode of the hybrid system
     abstract_systems = []
@@ -299,12 +296,14 @@ function build_initial_symmodel_by_mode(
         dyn_sys = mode_system.systems[1]    # physical dynamics
         time_sys = mode_system.systems[2]   # time dynamics
         symmodel_dynam = build_dynamical_symbolic_model(
-            dyn_sys,
-            growth_bounds[i],
-            param_discretisation[i],
+            dyn_sys;
+            optimizer_factory = optimizer_list[i],
+            optimizer_kwargs = optimizer_kwargs_dict[i],
         )
-        symmodel_time =
-            Dionysos.Symbolic.TimeSymbolicModel(time_sys, param_discretisation[i][3])
+        symmodel_time = Dionysos.Symbolic.TimeSymbolicModel(
+            time_sys,
+            get(optimizer_kwargs_dict[i], "time_step", nothing),
+        )
         push!(abstract_systems, (symmodel_dynam, symmodel_time))
     end
     return abstract_systems
@@ -417,7 +416,7 @@ function add_switching_transitions!(
 
             # Find the corresponding target symbolic state and time index
             target_state = find_symbolic_state(target_symmodel_dynam, reset_continuous_part)
-            target_time_idx = find_time_index(target_tm, reset_time_value)
+            target_time_idx = Dionysos.Symbolic.ceil_time2int(target_tm, reset_time_value)
 
             # Add the transition if both target state and time are valid
             if target_state > 0 && target_time_idx > 0
@@ -487,26 +486,26 @@ end
 # In the future, as mentioned above, we should allow the user to provide their own abstraction methods and optimizers for each mode.
 
 """
-    Build_Timed_Hybrid_Automaton(hs::HybridSystem, growth_bounds::SVector{}, param_discretisation)
+    Build_Timed_Hybrid_Automaton(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 
 Construct the full temporal hybrid symbolic model for a given hybrid system.
 
 # Arguments
 - `hs::HybridSystem`: The hybrid system
-- `growth_bounds::SVector{}`: Growth bounds per mode
-- `param_discretisation`: Discretization parameters per mode
+- `optimizer_list`: Vector of optimizer factory functions, one per mode
+- `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
 
 # Returns
 - `TemporalHybridSymbolicModel`: The constructed symbolic model
 """
 function Build_Timed_Hybrid_Automaton(
     hs::HybridSystem,
-    growth_bounds::SVector{},
-    param_discretisation,
+    optimizer_list::AbstractVector{Function},
+    optimizer_kwargs_dict::AbstractVector{<:Dict},
 )
     # 1) Build symbolic models per mode
     abstract_systems =
-        build_initial_symmodel_by_mode(hs, growth_bounds, param_discretisation)
+        build_initial_symmodel_by_mode(hs, optimizer_list, optimizer_kwargs_dict)
     # 2) Build the global input map
     global_input_map = GlobalInputMap(abstract_systems, hs)
     # 3) Add intra-mode transitions
@@ -557,43 +556,6 @@ function find_symbolic_state(symmodel, continuous_state)
     catch
         return 0
     end
-end
-
-"""
-    find_time_index(time_model, time_value)
-
-Find the time index in the symbolic time model corresponding to a given time value.
-
-# Arguments
-- `time_model`: The symbolic time model
-- `time_value`: The time value
-
-# Returns
-- `Int`: The time index (closest if not exact)
-"""
-function find_time_index(time_model, time_value)
-    # Utilise la structure TimeSymbolicModel et gère le cas is_active
-    tol = 1e-7
-    if hasproperty(time_model, :is_active) && !time_model.is_active
-        return 1
-    end
-    # Recherche d'un temps approché (évite les erreurs d'arrondi)
-    for (idx, tstep) in enumerate(time_model.tsteps)
-        if isapprox(time_value, tstep; atol=tol)
-            return idx
-        end
-    end
-    # Si pas d'égalité approchée, prend l'indice du temps le plus proche
-    min_distance = Inf
-    best_idx = 1
-    for (idx, tstep) in enumerate(time_model.tsteps)
-        distance = abs(time_value - tstep)
-        if distance < min_distance
-            min_distance = distance
-            best_idx = idx
-        end
-    end
-    return best_idx
 end
 
 # Currently, only guards based on HyperRectangles are supported (this should be changed in the future).
@@ -649,13 +611,7 @@ Get all time indices in the symbolic time model that fall within a given interva
 """
 function get_time_indices_from_interval(time_model, temporal_interval)
     t_min, t_max = temporal_interval
-    indices = Int[]
-    for (idx, tstep) in enumerate(time_model.tsteps)
-        if t_min <= tstep <= t_max
-            push!(indices, idx)
-        end
-    end
-    return indices
+    return findall(t -> t_min <= t <= t_max, time_model.tsteps)
 end
 
 # ================================================================

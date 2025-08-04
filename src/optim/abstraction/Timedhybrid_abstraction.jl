@@ -8,7 +8,7 @@ import MathematicalSystems
 import StaticArrays: SVector
 import Dionysos
 
-struct ProblemSpecs{F}
+struct ProblemSpecs{F} # ajouter le type de problème
     initial_state::Tuple{AbstractVector{Float64}, Float64, Int} # aug_state initial ([x], t, mode_id)
     Xs_target::Vector{<:Dionysos.Utils.HyperRectangle} # must be changed to admit more complex target sets
     Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}
@@ -30,7 +30,7 @@ function build_concrete_problem(Concret_specifications::ProblemSpecs)
     )
     concret_cost_fun = Concret_specifications.concret_cost_fun
 
-    return Dionysos.Problem.OptimalControlProblem(
+    return Dionysos.Problem.OptimalControlProblem( # safety potentially
         Concret_specifications,
         concrete_initial_set,
         concrete_target_set,
@@ -56,7 +56,7 @@ function build_abstract_problem(
         target_set[3],
     )
 
-    return Dionysos.Problem.OptimalControlProblem(
+    return Dionysos.Problem.OptimalControlProblem( # safety potentially
         symmodel,
         abstract_initial_set,
         abstract_target_set,
@@ -66,7 +66,7 @@ function build_abstract_problem(
     )
 end
 """Solves the abstract problem and computes the controllable set"""
-function solve_abstract_problem(abstract_problem)
+function solve_abstract_problem(abstract_problem) # à voir si il faut changer 
     abstract_controller, controllable_set_symbols, _, value_per_node =
         Dionysos.Symbolic.compute_worst_case_cost_controller(
             abstract_problem.system.autom,
@@ -164,7 +164,7 @@ end
 Solves the complete temporal hybrid control problem.
 
 # Arguments
-- `tasks`: List of tasks
+- `tasks`: List of tasks 
 - `symmodel`: Base symbolic model
 - `tstep`: Time discretization step
 
@@ -173,14 +173,14 @@ Concrete controller for augmented states
 """
 function solve(
     hs::HybridSystem,
-    growth_bounds::SVector{},
-    param_discretization,
+    optimizer_factory_list,
+    optimizer_kwargs_dict,
     concret_specs::ProblemSpecs,
 )
     hybrid_symmodel = Dionysos.Symbolic.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
     )
 
     concrete_problem = build_concrete_problem(concret_specs)
@@ -229,13 +229,13 @@ function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tste
         next_x = reset_result[1:(end - 1)]
         next_t = reset_result[end]
         next_k = target_mode
-        # Correction : arrondi explicite du temps à 10 décimales pour éviter la propagation d'erreurs
-        next_t = round(next_t, digits=10)
+        # Explicit rounding of time to 10 decimals to avoid error propagation
+        next_t = round(next_t; digits = 10)
         return (next_x, next_t, next_k)
     else
         next_t = time_is_active ? t + tstep : 0.0
-        # Correction : arrondi explicite du temps à 10 décimales pour éviter la propagation d'erreurs
-        next_t = round(next_t, digits=10)
+        # Explicit rounding of time to 10 decimals to avoid error propagation
+        next_t = round(next_t; digits = 10)
         next_x = map_sys(x, u, tstep)
         return (next_x, next_t, k)
     end

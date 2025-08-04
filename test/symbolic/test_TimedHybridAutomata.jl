@@ -9,6 +9,9 @@ const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 
+using MathOptInterface
+const MOI = MathOptInterface
+
 sleep(0.1)
 println("Started test")
 
@@ -88,13 +91,36 @@ println("Started test")
 
     hs = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
-    growth_bounds = SVector(SMatrix{1, 1}(0.5), SMatrix{1, 1}(0.8))
+    state_grid_1 = DO.GridFree(SVector(0.0), SVector(0.5))
+    state_grid_2 = DO.GridFree(SVector(0.0), SVector(0.5))
+    input_grid_1 = DO.GridFree(SVector(0.0), SVector(0.5))
+    input_grid_2 = DO.GridFree(SVector(0.0), SVector(0.3))
 
-    param_discretization = [(0.5, 0.5, 0.5), (0.5, 0.3, 0.5)]
+    optimizer_factory_list = [
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+    ]
+    optimizer_kwargs_dict = [
+        Dict(
+            "state_grid" => state_grid_1,
+            "input_grid" => input_grid_1,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.5),
+        ),
+        Dict(
+            "state_grid" => state_grid_2,
+            "input_grid" => input_grid_2,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.8),
+        ),
+    ]
+    println(typeof(optimizer_factory_list[1]))
     hybrid_model = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretization,
+        optimizer_factory_list,
+        optimizer_kwargs_dict,
     )
 
     # ===================== TESTS =====================
@@ -135,9 +161,6 @@ println("Started test")
     x0 = [0.0]
     idx = SY.TimedHybridAutomata.find_symbolic_state(sm, x0)
     @test idx > 0
-    t0 = tm.tsteps[1]
-    tidx = SY.TimedHybridAutomata.find_time_index(tm, t0)
-    @test tidx == 1
     guard = guard_1
     sp = SY.TimedHybridAutomata.extract_spatial_part(guard)
     tp = SY.TimedHybridAutomata.extract_temporal_part(guard)
@@ -264,17 +287,37 @@ end
 
     hs = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
-    growth_bounds = SVector(SMatrix{1, 1}(0.5), SMatrix{1, 1}(0.8))
+    # Configuration des grilles et optimizers pour chaque mode
+    state_grid_1 = DO.GridFree(SVector(0.0), SVector(0.5))
+    state_grid_2 = DO.GridFree(SVector(0.0), SVector(0.5))
+    input_grid_1 = DO.GridFree(SVector(0.0), SVector(0.5))
+    input_grid_2 = DO.GridFree(SVector(0.0), SVector(0.3))
 
-    param_discretisation = [
-        (0.5, 0.5, 0.5),  # mode 1
-        (0.5, 0.3, 0.5),   # mode 2
+    optimizer_list = [
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+    ]
+    optimizer_kwargs_dict = [
+        Dict(
+            "state_grid" => state_grid_1,
+            "input_grid" => input_grid_1,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.5),
+        ),
+        Dict(
+            "state_grid" => state_grid_2,
+            "input_grid" => input_grid_2,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{1, 1}(0.8),
+        ),
     ]
 
     hybrid_model = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretisation,
+        optimizer_list,
+        optimizer_kwargs_dict,
     )
 
     # ===================== TESTS =====================
@@ -287,13 +330,6 @@ end
     for tm in hybrid_model.time_symbolic_models
         @test length(tm.tsteps) == 1
         @test tm.is_active == false
-    end
-
-    for tm in hybrid_model.time_symbolic_models
-        tmin, tmax = tm.tsteps[1], tm.tsteps[1]
-        for tval in [tmin, tmax, (tmin + tmax)/2]
-            @test SY.TimedHybridAutomata.find_time_index(tm, tval) == 1
-        end
     end
 
     for tm in hybrid_model.time_symbolic_models
@@ -499,21 +535,47 @@ end
 
     hs = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
-    growth_bounds = SVector(
-        SMatrix{2, 2}(abs.(A_A)),
-        SMatrix{2, 2}(abs.(A_B)),
-        SMatrix{2, 2}(abs.(A_C)),
-    )
-    param_discretisation = [
-        (0.5, 0.5, 0.5),  # mode A
-        (0.5, 0.5, 0.5),  # mode B
-        (0.5, 0.5, 0.5),   # mode C
+    # Configuration des grilles et optimizers pour chaque mode (3 modes)
+    state_grid_A = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+    state_grid_B = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+    state_grid_C = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+    input_grid_A = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+    input_grid_B = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+    input_grid_C = DO.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
+
+    optimizer_list = [
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
+    ]
+    optimizer_kwargs_dict = [
+        Dict(
+            "state_grid" => state_grid_A,
+            "input_grid" => input_grid_A,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{2, 2}(abs.(A_A)),
+        ),
+        Dict(
+            "state_grid" => state_grid_B,
+            "input_grid" => input_grid_B,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{2, 2}(abs.(A_B)),
+        ),
+        Dict(
+            "state_grid" => state_grid_C,
+            "input_grid" => input_grid_C,
+            "time_step" => 0.5,
+            "approx_mode" => Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+            "jacobian_bound" => u -> SMatrix{2, 2}(abs.(A_C)),
+        ),
     ]
 
     hybrid_model = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
         hs,
-        growth_bounds,
-        param_discretisation,
+        optimizer_list,
+        optimizer_kwargs_dict,
     )
     # ===================== TESTS =====================
 
@@ -523,11 +585,18 @@ end
 
     gim = hybrid_model.global_input_map
     @test gim.switching_inputs == 6
-    @test length(gim.continuous_to_global) == 25 + 25 + 7*7
+    @test length(gim.continuous_to_global) == 25 + 49 + 25  # Updated: mode A: 25, mode B: 49, mode C: 25
     @test length(gim.switching_to_global) == 6
 
     for mode in 1:3
-        for local_input in 1:3
+        for local_input in
+            1:min(
+            5,
+            SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(
+                hybrid_model.symmodels[mode],
+            ),
+        )  # Test with first few inputs
+
             gid = SY.TimedHybridAutomata.get_global_input_id(gim, mode, local_input)
             @test gid > 0
             typ, info = SY.TimedHybridAutomata.get_local_input_info(gim, gid)
@@ -543,7 +612,7 @@ end
         @test info == tr
     end
 
-    mode_n_input = [25, 7*7, 25]
+    mode_n_input = [25, 49, 25]  # Updated based on new uniform grids
     for (idxsm, sm) in enumerate(hybrid_model.symmodels)
         @test SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_state(sm) > 0
         @test SY.TimedHybridAutomata.Dionysos.Symbolic.get_n_input(sm) ==
@@ -564,9 +633,7 @@ end
         x0 = [0.0, 0.0]
         idx = SY.TimedHybridAutomata.find_symbolic_state(sm, x0)
         @test idx > 0
-        t0 = tm.tsteps[1]
-        tidx = SY.TimedHybridAutomata.find_time_index(tm, t0)
-        @test tidx == 1
+
         idx_bad = SY.TimedHybridAutomata.find_symbolic_state(sm, [100.0, 100.0])
         @test idx_bad == 0
         guard = guards[mode]
@@ -586,8 +653,8 @@ end
     for gid in 1:gim.total_inputs
         typ, info = SY.TimedHybridAutomata.get_local_input_info(gim, gid)
         if typ == :continuous
-            @test 1 <= info[1] <= 27
-            @test 1 <= info[2] <= 99
+            @test 1 <= info[1] <= 3  # mode_id should be 1, 2, or 3
+            @test 1 <= info[2] <= 49  # local_input_id should be within valid range (max 49 for mode B)
         elseif typ == :switching
             @test 1 <= info <= 6
         else
