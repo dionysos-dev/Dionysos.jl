@@ -270,7 +270,7 @@ function generate_system_and_problem()
     t_nexttask_starts = [1.0, 7.0, 8.0, 10.0]
     cost_function = make_cost_function(mode_weights, t_nexttask_starts)
 
-    problem_specs = AB.TemporalHybridSymbolicModelAbstraction.ProblemSpecs(
+    problem_specs = AB.TemporalHybridSymbolicModelAbstraction.OptimalControlProblemSpecs(
         initial_state,
         Xs_target,
         Ts_target,

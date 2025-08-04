@@ -8,80 +8,193 @@ import MathematicalSystems
 import StaticArrays: SVector
 import Dionysos
 
-struct ProblemSpecs{F} # ajouter le type de problème
+struct ProblemSpecs{F}
     initial_state::Tuple{AbstractVector{Float64}, Float64, Int} # aug_state initial ([x], t, mode_id)
-    Xs_target::Vector{<:Dionysos.Utils.HyperRectangle} # must be changed to admit more complex target sets
+    Xs_target::Vector{<:Dionysos.Utils.HyperRectangle} # target sets or safe sets depending on problem type
     Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}
     Ns_target::Vector{Int}
     concret_cost_fun::F
+    problem_type::Symbol # :optimal_control or :safety
+    time_horizon::Union{Real, Dionysos.Problem.Infinity} # User-specified time horizon
+end
+
+# Constructor for optimal control problems
+function OptimalControlProblemSpecs(
+    initial_state,
+    Xs_target,
+    Ts_target,
+    Ns_target,
+    concret_cost_fun,
+    time_horizon = Dionysos.Problem.Infinity(),
+)
+    return ProblemSpecs(
+        initial_state,
+        Xs_target,
+        Ts_target,
+        Ns_target,
+        concret_cost_fun,
+        :optimal_control,
+        time_horizon,
+    )
+end
+
+# Constructor for safety problems  
+function SafetyProblemSpecs(
+    initial_state,
+    Xs_safe,
+    Ts_safe,
+    Ns_safe,
+    time_horizon = Dionysos.Problem.Infinity(),
+)
+    # For safety problems, we use a dummy cost function
+    dummy_cost = (aug_state, u) -> 1.0
+    return ProblemSpecs(
+        initial_state,
+        Xs_safe,
+        Ts_safe,
+        Ns_safe,
+        dummy_cost,
+        :safety,
+        time_horizon,
+    )
 end
 
 # =================================
 # CONTROLLER SYNTHESIS
 # =================================
 
-"""Builds the concrete control problem"""
+"""Builds the concrete problem (optimal control or safety)"""
 function build_concrete_problem(Concret_specifications::ProblemSpecs)
     concrete_initial_set = Concret_specifications.initial_state
-    concrete_target_set = (
-        Concret_specifications.Xs_target,
-        Concret_specifications.Ts_target,
-        Concret_specifications.Ns_target,
-    )
-    concret_cost_fun = Concret_specifications.concret_cost_fun
 
-    return Dionysos.Problem.OptimalControlProblem( # safety potentially
-        Concret_specifications,
-        concrete_initial_set,
-        concrete_target_set,
-        nothing,
-        concret_cost_fun,
-        Dionysos.Problem.Infinity(),
-    )
+    if Concret_specifications.problem_type == :optimal_control
+        concrete_target_set = (
+            Concret_specifications.Xs_target,
+            Concret_specifications.Ts_target,
+            Concret_specifications.Ns_target,
+        )
+        concret_cost_fun = Concret_specifications.concret_cost_fun
+
+        return Dionysos.Problem.OptimalControlProblem(
+            Concret_specifications,  # system will be set in abstract problem
+            concrete_initial_set,
+            concrete_target_set,
+            nothing,  # state_cost
+            concret_cost_fun,  # transition_cost
+            Concret_specifications.time_horizon,
+        )
+    elseif Concret_specifications.problem_type == :safety
+        concrete_safe_set = (
+            Concret_specifications.Xs_target, # For safety, Xs_target are the safe sets
+            Concret_specifications.Ts_target,
+            Concret_specifications.Ns_target,
+        )
+
+        return Dionysos.Problem.SafetyProblem(
+            Concret_specifications,  # system will be set in abstract problem
+            concrete_initial_set,
+            concrete_safe_set,
+            Concret_specifications.time_horizon,
+        )
+    else
+        error("Unknown problem type: $(Concret_specifications.problem_type)")
+    end
 end
 
-"""Builds the abstract control problem"""
+"""Builds the abstract problem (optimal control or safety)"""
 function build_abstract_problem(
-    concrete_problem::Dionysos.Problem.OptimalControlProblem,
+    concrete_problem::Union{
+        Dionysos.Problem.OptimalControlProblem,
+        Dionysos.Problem.SafetyProblem,
+    },
     symmodel::Dionysos.Symbolic.TimedHybridAutomata.TemporalHybridSymbolicModel,
 )
     aug_state = concrete_problem.initial_set
     abstract_initial_set =
         [Dionysos.Symbolic.TimedHybridAutomata.get_abstract_state(symmodel, aug_state)]
-    target_set = concrete_problem.target_set
-    abstract_target_set = Dionysos.Symbolic.TimedHybridAutomata.get_states_from_set(
-        symmodel,
-        target_set[1],
-        target_set[2],
-        target_set[3],
-    )
 
-    return Dionysos.Problem.OptimalControlProblem( # safety potentially
-        symmodel,
-        abstract_initial_set,
-        abstract_target_set,
-        concrete_problem.state_cost,
-        build_abstract_transition_cost(symmodel, concrete_problem.transition_cost),
-        concrete_problem.time,
-    )
-end
-"""Solves the abstract problem and computes the controllable set"""
-function solve_abstract_problem(abstract_problem) # à voir si il faut changer 
-    abstract_controller, controllable_set_symbols, _, value_per_node =
-        Dionysos.Symbolic.compute_worst_case_cost_controller(
-            abstract_problem.system.autom,
-            abstract_problem.target_set;
-            initial_set = abstract_problem.initial_set,
-            sparse_input = false,
-            cost_function = abstract_problem.transition_cost,
+    if isa(concrete_problem, Dionysos.Problem.OptimalControlProblem)
+        target_set = concrete_problem.target_set
+        abstract_target_set = Dionysos.Symbolic.TimedHybridAutomata.get_states_from_set(
+            symmodel,
+            target_set[1],
+            target_set[2],
+            target_set[3],
         )
 
-    println("value init_state : ", value_per_node[abstract_problem.initial_set[1]])
+        return Dionysos.Problem.OptimalControlProblem(
+            symmodel,
+            abstract_initial_set,
+            abstract_target_set,
+            concrete_problem.state_cost,
+            build_abstract_transition_cost(symmodel, concrete_problem.transition_cost),
+            concrete_problem.time,
+        )
+    else # SafetyProblem
+        safe_set = concrete_problem.safe_set
+        # Use OUTER approximation for safe set to be more permissive
+        abstract_safe_set = Dionysos.Symbolic.TimedHybridAutomata.get_states_from_set(
+            symmodel,
+            safe_set[1],
+            safe_set[2],
+            safe_set[3];
+            domain = Dionysos.Domain.OUTER,
+        )
 
-    if ⊆(abstract_problem.initial_set, controllable_set_symbols)
-        println("✅ Problem is solvable: initial set is controllable")
-    else
-        println("⚠️ Warning: initial set is only partially controllable")
+        return Dionysos.Problem.SafetyProblem(
+            symmodel,
+            abstract_initial_set,
+            abstract_safe_set,
+            concrete_problem.time,
+        )
+    end
+end
+"""Solves the abstract problem (optimal control or safety)"""
+function solve_abstract_problem(
+    abstract_problem::Union{
+        Dionysos.Problem.OptimalControlProblem,
+        Dionysos.Problem.SafetyProblem,
+    },
+)
+    if isa(abstract_problem, Dionysos.Problem.OptimalControlProblem)
+        abstract_controller, controllable_set_symbols, _, value_per_node =
+            Dionysos.Symbolic.compute_worst_case_cost_controller(
+                abstract_problem.system.autom,
+                abstract_problem.target_set;
+                initial_set = abstract_problem.initial_set,
+                sparse_input = false,
+                cost_function = abstract_problem.transition_cost,
+            )
+
+        println("value init_state : ", value_per_node[abstract_problem.initial_set[1]])
+
+        if ⊆(abstract_problem.initial_set, controllable_set_symbols)
+            println("✅ Optimal control problem is solvable: initial set is controllable")
+        else
+            println("⚠️ Warning: initial set is only partially controllable")
+        end
+    else # SafetyProblem
+
+        # Original function call for comparison (corrected variable names)
+        abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
+            Dionysos.Symbolic.compute_largest_invariant_set(
+                abstract_problem.system.autom,
+                abstract_problem.safe_set;
+                ControllerConstructor = () -> Dionysos.System.SymbolicControllerList(),
+            )
+        #println("Controllable: $(collect(invariant_set_symbols))")
+
+        # println("   - Uncontrollable set computed: $(collect(invariant_set_complement_symbols))")
+        # println("   - Invariant set symbols: $(collect(invariant_set_symbols))")
+
+        if ⊆(abstract_problem.initial_set, invariant_set_symbols)
+            println("✅ Safety problem is solvable: initial set is safe-controllable")
+        else
+            println("⚠️ Warning: initial set is only partially safe-controllable")
+        end
+
+        # For safety problems, the controllable set is the invariant set
+        controllable_set_symbols = invariant_set_symbols
     end
 
     return abstract_controller, controllable_set_symbols
@@ -291,20 +404,20 @@ function get_closed_loop_trajectory(
     return aug_state_traj, u_traj
 end
 
-"""Checks if the final goal is reached
-"""
+"""Checks if the goal is reached (for optimal control) or if safety is maintained"""
 function reached(specs::ProblemSpecs, aug_state)
     (x, t, k) = aug_state
-    # Checks if the current mode is part of the target modes
+    # Checks if the current mode is part of the target/safe modes
     idx = findfirst(==(k), specs.Ns_target)
     if isnothing(idx)
-        return false
+        return specs.problem_type == :safety ? false : false  # For safety: not in safe mode is bad, for optimal: not in target mode means not reached
     end
     # Checks spatial and temporal inclusion
-    X_target = specs.Xs_target[idx]
-    T_target = specs.Ts_target[idx]
-    in_X = x ∈ X_target
-    in_T = t ≥ T_target.lb[1] && t ≤ T_target.ub[1]
+    X_set = specs.Xs_target[idx]  # Target set for optimal control, safe set for safety
+    T_set = specs.Ts_target[idx]
+    in_X = x ∈ X_set
+    in_T = t ≥ T_set.lb[1] && t ≤ T_set.ub[1]
+
     return in_X && in_T
 end
 

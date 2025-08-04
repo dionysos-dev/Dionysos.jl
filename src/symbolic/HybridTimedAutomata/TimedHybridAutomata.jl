@@ -284,7 +284,7 @@ Build a list of symbolic models (dynamics and time) for each mode of a hybrid sy
 # Returns
 - Vector of (symbolic_dynamics, symbolic_time) tuples per mode
 """
-function build_initial_symmodel_by_mode(
+function build_initial_symmodel_by_mode( # changer ça pour qu'à terme l'utilisateur fournisse une liste d'optimizers déjà paramétrés (à discuter)
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
     optimizer_kwargs_dict::AbstractVector{<:Dict},
@@ -671,13 +671,19 @@ end
     # Returns
     - `Vector{Int}`: corresponding abstract state indices
 """
-function get_states_from_set(symmodel::TemporalHybridSymbolicModel, Xs, Ts, Ns)
+function get_states_from_set(
+    symmodel::TemporalHybridSymbolicModel,
+    Xs,
+    Ts,
+    Ns;
+    domain = Dionysos.Domain.INNER,
+)
     SymbolicStates = Vector{Int}()
     for (idx, k) in enumerate(Ns)
         sm = symmodel.symmodels[k]
         tm = symmodel.time_symbolic_models[k]
         # Abstract states in X
-        qset = Dionysos.Symbolic.get_states_from_set(sm, Xs[idx], Dionysos.Domain.INNER)
+        qset = Dionysos.Symbolic.get_states_from_set(sm, Xs[idx], domain)
         # Time indices in the interval T (assumed HyperRectangle or [tmin, tmax])
         tset = collect(
             Dionysos.Symbolic.ceil_time2int(
