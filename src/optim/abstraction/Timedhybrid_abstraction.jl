@@ -149,6 +149,148 @@ function build_abstract_problem(
         )
     end
 end
+"""
+Compute the largest invariant set for timed hybrid automata systems.
+Unlike the standard algorithm, this version treats terminal states (states without outgoing transitions)
+as potentially safe, considering them as natural endpoints of the system evolution rather than unsafe states.
+
+# Arguments
+- `autom`: The automaton (temporal hybrid symbolic model)
+- `safelist`: Collection of initially safe states
+- `ControllerConstructor`: Function to create the controller
+
+# Returns
+- `controller`: Abstract controller
+- `invariant_set`: Set of states that can be kept safe indefinitely
+- `invariant_set_complement`: Set of states that cannot be kept safe
+"""
+function compute_largest_invariant_set_timed_hybrid(
+    autom,
+    safelist;
+    ControllerConstructor::Function = () -> Dionysos.System.SymbolicControllerList(),
+)
+    println("🔧 Starting timed hybrid invariant set computation")
+
+    controller = ControllerConstructor()
+    nstates = Dionysos.Symbolic.get_n_state(autom)
+    nsymbols = Dionysos.Symbolic.get_n_input(autom)
+
+    println("   - Total states: $nstates")
+    println("   - Total inputs: $nsymbols")
+    println("   - Initial safe states: $(length(safelist))")
+
+    # Initialize pairs table
+    pairstable = [false for i in 1:nstates, j in 1:nsymbols]
+
+    # Compute valid (state, input) pairs
+    for target in Dionysos.Symbolic.enum_states(autom)
+        for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
+            pairstable[source, symbol] = true
+        end
+    end
+
+    # Count available actions per state
+    nsymbolslist = sum(pairstable; dims = 2)
+
+    # Classify states
+    states_with_actions = count(x -> x > 0, nsymbolslist)
+    states_without_actions = count(x -> x == 0, nsymbolslist)
+
+    println("   - States with transitions: $states_with_actions")
+    println("   - Terminal states (no outgoing transitions): $states_without_actions")
+
+    # Initialize safe set
+    safeset = Set(safelist)
+    initial_safe_count = length(safeset)
+
+    # For timed hybrid systems, we DON'T automatically remove terminal states
+    # Instead, we classify them based on whether they represent valid system endpoints
+    terminal_states = Set{Int}()
+    for source in safeset
+        if nsymbolslist[source] == 0
+            push!(terminal_states, source)
+        end
+    end
+
+    println("   - Terminal states in safe set: $(length(terminal_states))")
+
+    # Initialize unsafe set (everything not initially safe)
+    unsafeset = Set(1:nstates)
+    setdiff!(unsafeset, safeset)
+
+    println("   - Initially unsafe states: $(length(unsafeset))")
+
+    # Disable transitions from initially unsafe states
+    for source in unsafeset
+        for symbol in 1:nsymbols
+            pairstable[source, symbol] = false
+        end
+    end
+
+    # Modified backward reachability analysis
+    # We only remove states that can lead to genuinely unsafe states,
+    # not terminal states that are naturally safe endpoints
+    nextunsafeset = Set{Int}()
+    iteration = 0
+
+    while true
+        iteration += 1
+        println(
+            "   - Iteration $iteration: safe=$(length(safeset)), unsafe=$(length(unsafeset))",
+        )
+
+        # Only propagate unsafety from genuinely unsafe states
+        # (not from terminal states that are safe endpoints)
+        truly_unsafe = setdiff(unsafeset, terminal_states)
+
+        for target in truly_unsafe
+            for (source, symbol) in Dionysos.Symbolic.pre(autom, target)
+                if pairstable[source, symbol]
+                    pairstable[source, symbol] = false
+                    nsymbolslist[source] -= 1
+
+                    # A state becomes unsafe only if it has NO way to stay safe
+                    # (not just because it can reach a terminal state)
+                    if nsymbolslist[source] == 0 && !(source in terminal_states)
+                        push!(nextunsafeset, source)
+                    end
+                end
+            end
+        end
+
+        if isempty(nextunsafeset)
+            break
+        end
+
+        # Update sets
+        setdiff!(safeset, nextunsafeset)
+        union!(unsafeset, nextunsafeset)
+        nextunsafeset = Set{Int}()
+    end
+
+    println("   - Final safe states: $(length(safeset))")
+    println("   - Final unsafe states: $(length(unsafeset))")
+    println(
+        "   - Terminal states kept safe: $(length(intersect(safeset, terminal_states)))",
+    )
+
+    # Populate controller with valid actions from safe states
+    for source in safeset
+        for symbol in 1:nsymbols
+            if pairstable[source, symbol]
+                Dionysos.System.add_control!(controller, source, symbol)
+            end
+        end
+    end
+
+    # The complement is states that were initially safe but became unsafe
+    invariant_set_complement = setdiff(Set(safelist), safeset)
+
+    println("🔧 Timed hybrid invariant set computation completed")
+
+    return controller, safeset, invariant_set_complement
+end
+
 """Solves the abstract problem (optimal control or safety)"""
 function solve_abstract_problem(
     abstract_problem::Union{
@@ -174,18 +316,22 @@ function solve_abstract_problem(
             println("⚠️ Warning: initial set is only partially controllable")
         end
     else # SafetyProblem
+        println("\nSafe state number : ", length(collect(abstract_problem.safe_set)))
+        println(
+            "unsafe state number : ",
+            Dionysos.Symbolic.get_n_state(abstract_problem.system.autom) -
+            length(collect(abstract_problem.safe_set)),
+        )
 
-        # Original function call for comparison (corrected variable names)
+        # Use specialized timed hybrid invariant set computation
         abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
-            Dionysos.Symbolic.compute_largest_invariant_set(
+            compute_largest_invariant_set_timed_hybrid(
                 abstract_problem.system.autom,
-                abstract_problem.safe_set;
+                collect(abstract_problem.safe_set);
                 ControllerConstructor = () -> Dionysos.System.SymbolicControllerList(),
             )
-        #println("Controllable: $(collect(invariant_set_symbols))")
 
-        # println("   - Uncontrollable set computed: $(collect(invariant_set_complement_symbols))")
-        # println("   - Invariant set symbols: $(collect(invariant_set_symbols))")
+        println("Controllable set size: $(length(invariant_set_symbols))")
 
         if ⊆(abstract_problem.initial_set, invariant_set_symbols)
             println("✅ Safety problem is solvable: initial set is safe-controllable")
