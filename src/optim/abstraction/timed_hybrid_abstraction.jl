@@ -33,14 +33,14 @@ Specification for timed hybrid control problems (optimal control or safety).
 - `problem_type::Symbol`: `:optimal_control` or `:safety`
 - `time_horizon::Union{Real, Dionysos.Problem.Infinity}`: Time horizon constraint
 """
-struct TimedHybridProblemSpecs{F}
+struct TimedHybridProblemSpecs{F} # Need to add initial region for safety problems (?)
     initial_state::Tuple{AbstractVector{Float64}, Float64, Int} # aug_state initial ([x], t, mode_id)
     Xs_target::Vector{<:Dionysos.Utils.HyperRectangle} # target sets or safe sets depending on problem type
     Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}
     Ns_target::Vector{Int}
     concret_cost_fun::F
     problem_type::Symbol # :optimal_control or :safety
-    time_horizon::Union{Real, Dionysos.Problem.Infinity} # User-specified time horizon
+    time_horizon::Union{Float64, Dionysos.Problem.Infinity} # User-specified time horizon
 end
 
 """
@@ -100,7 +100,7 @@ function TimedHybridSafetyProblem(
     Ns_safe,
     time_horizon = Dionysos.Problem.Infinity(),
 )
-    # For safety problems, we use a dummy cost function
+    # For safety problems, we use a dummy cost function 
     dummy_cost = (aug_state, u) -> 1.0
     return TimedHybridProblemSpecs(
         initial_state,
@@ -246,7 +246,7 @@ as potentially safe, considering them as natural endpoints of the system evoluti
 - `invariant_set`: Set of states that can be kept safe indefinitely
 - `invariant_set_complement`: Set of states that cannot be kept safe
 """
-function compute_largest_invariant_set_timed_hybrid(
+function compute_largest_invariant_set_timed_hybrid( # (?) Will be changed, need to be discussed
     autom,
     safelist;
     ControllerConstructor::Function = () -> Dionysos.System.SymbolicControllerList(),
@@ -268,13 +268,8 @@ function compute_largest_invariant_set_timed_hybrid(
     # Count available actions per state
     nsymbolslist = sum(pairstable; dims = 2)
 
-    # Classify states
-    states_with_actions = count(x -> x > 0, nsymbolslist)
-    states_without_actions = count(x -> x == 0, nsymbolslist)
-
     # Initialize safe set
     safeset = Set(safelist)
-    initial_safe_count = length(safeset)
 
     # For timed hybrid systems, we DON'T automatically remove terminal states
     # Instead, we classify them based on whether they represent valid system endpoints
@@ -355,8 +350,6 @@ function compute_largest_invariant_set_timed_hybrid(
     # The complement is states that were initially safe but became unsafe
     invariant_set_complement = setdiff(Set(safelist), safeset)
 
-    # println("🔧 Timed hybrid invariant set computation completed")
-
     return controller, safeset, invariant_set_complement
 end
 
@@ -407,7 +400,7 @@ function solve_abstract_problem(
         )
 
         # Use specialized timed hybrid invariant set computation
-        abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
+        abstract_controller, invariant_set_symbols, _ =
             compute_largest_invariant_set_timed_hybrid(
                 abstract_problem.system.symbolic_automaton,
                 collect(abstract_problem.safe_set);
@@ -627,7 +620,7 @@ function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tste
         return (next_x, next_t, next_k)
     else
         next_t = time_is_active ? t + tstep : 0.0
-        # Explicit rounding of time to 10 decimals to avoid error propagation
+        # Explicit rounding of time to 10 decimals to avoid error propagation (?) ok or not 
         next_t = round(next_t; digits = 10)
         next_x = map_sys(x, u, tstep)
         return (next_x, next_t, k)

@@ -1,7 +1,7 @@
 module TestMain
 using Test     #src
 
-using StaticArrays, Plots, HybridSystems, MathematicalSystems
+using StaticArrays, HybridSystems, MathematicalSystems
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos
@@ -268,6 +268,7 @@ end
         domain::UT.HyperRectangle
         target::Vector{Float64}
     end
+
     MathematicalSystems.apply(reset::FixedPointResetMap, state::AbstractVector) =
         reset.target
     MathematicalSystems.stateset(reset::FixedPointResetMap) = reset.domain

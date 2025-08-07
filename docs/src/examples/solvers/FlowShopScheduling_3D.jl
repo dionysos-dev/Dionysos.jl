@@ -21,21 +21,21 @@ HybridSystem_automaton, optimizer_factory_list, optimizer_kwargs_dict, problem_s
 # Keep discretization parameters for compatibility with get_closed_loop_trajectory
 discretization_parameters = [(0.5, 0.5, 0.2), (0.5, 0.5, 0.2), (0.5, 0.5, 0.2)]
 
-concrete_controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
+concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
     HybridSystem_automaton,
     optimizer_factory_list,
     optimizer_kwargs_dict,
     problem_specs,
 )
 
-traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
+traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
     discretization_parameters,
     HybridSystem_automaton,
     problem_specs,
     concrete_controller,
     problem_specs.initial_state,
     1000000;
-    stopping = AB.TimedHybridAbstraction.reached,
+    stopping = AB.TemporalHybridSymbolicModelAbstraction.reached,
 )
 
 # Display trajectory and controls 

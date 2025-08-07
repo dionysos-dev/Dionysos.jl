@@ -13,6 +13,7 @@ import Dionysos
 # Type definitions for type stability
 # ================================================================
 
+# (?) Is it usefull to delete type unstability
 """
 Concrete type alias for augmented states: (state_id, time_id, mode_id)
 """
@@ -257,8 +258,11 @@ function build_dynamical_symbolic_model(
     optimizer = nothing,
     optimizer_kwargs = Dict(),
 )
+    # (?) will be changed, need some discussion
     if optimizer !== nothing
         opt = optimizer
+    elseif optimizer_factory !== nothing
+        opt = optimizer_factory()
     else
         opt = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
     end
@@ -278,7 +282,6 @@ end
     build_mode_symbolic_abstractions(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 
 Build symbolic models (dynamics and time) for each mode of a hybrid system.
-Improved version with better naming and error handling.
 
 # Arguments
 - `hs::HybridSystem`: The hybrid system
@@ -297,7 +300,7 @@ function build_mode_symbolic_abstractions(
     optimizer_list::AbstractVector{Function},
     optimizer_kwargs_dict::AbstractVector{<:Dict},
 )
-    # Input validation
+    # Input validation (?) may changed to allow same optimizer for many modes
     n_modes = length(HybridSystems.states(hs.automaton))
     @assert length(optimizer_list) == n_modes "Optimizer list length mismatch"
     @assert length(optimizer_kwargs_dict) == n_modes "Optimizer kwargs length mismatch"
@@ -365,6 +368,7 @@ function build_all_transitions(
         for abs_pair in mode_abstractions
     )
 
+    # (?) This is a bottleneck, another solution ? 
     transition_list = Vector{TransitionTuple}()
     sizehint!(transition_list, intra_mode_transitions)
 
