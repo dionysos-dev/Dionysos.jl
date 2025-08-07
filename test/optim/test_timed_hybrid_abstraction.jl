@@ -92,7 +92,7 @@ const AB = OP.Abstraction
     # Keep param_discretization for compatibility with get_closed_loop_trajectory
     param_discretization = [(0.1, 0.1, 0.1), (0.1, 0.1, 0.1)]
 
-    hybrid_symmodel = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
+    hybrid_symmodel = SY.SymbolicTimedHybridSystems.build_timed_hybrid_symbolic_model(
         hs,
         optimizer_factory_list,
         optimizer_kwargs_dict,
@@ -104,7 +104,7 @@ const AB = OP.Abstraction
     Ts_target = [UT.HyperRectangle([1.0], [2.0])]
     Ns_target = [2]
     cost_fun = (aug_state, u) -> 1.0
-    concret_specs = AB.TemporalHybridSymbolicModelAbstraction.OptimalControlProblemSpecs(
+    concret_specs = AB.TimedHybridAbstraction.TimedHybridOptimalControlProblem(
         initial_state,
         Xs_target,
         Ts_target,
@@ -114,20 +114,19 @@ const AB = OP.Abstraction
     )
 
     # Concrete problem
-    concrete_problem =
-        AB.TemporalHybridSymbolicModelAbstraction.build_concrete_problem(concret_specs)
+    concrete_problem = AB.TimedHybridAbstraction.build_concrete_problem(concret_specs)
     @test concrete_problem.initial_set == initial_state
     @test concrete_problem.transition_cost == cost_fun
 
     # Abstract target set
-    abstract_target_set = SY.TimedHybridAutomata.get_states_from_set(
+    abstract_target_set = SY.SymbolicTimedHybridSystems.get_states_from_set(
         hybrid_symmodel,
         Xs_target,
         Ts_target,
         Ns_target,
     )
     for q in abstract_target_set
-        (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+        (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
         idx = findfirst(==(k), Ns_target)
         @test !isnothing(idx)
         @test x ∈ Xs_target[idx]
@@ -135,12 +134,10 @@ const AB = OP.Abstraction
     end
 
     # Abstract problem
-    abstract_problem = AB.TemporalHybridSymbolicModelAbstraction.build_abstract_problem(
-        concrete_problem,
-        hybrid_symmodel,
-    )
+    abstract_problem =
+        AB.TimedHybridAbstraction.build_abstract_problem(concrete_problem, hybrid_symmodel)
     @test abstract_problem.initial_set == [
-        SY.TimedHybridAutomata.get_abstract_state(
+        SY.SymbolicTimedHybridSystems.get_abstract_state(
             hybrid_symmodel,
             concrete_problem.initial_set,
         ),
@@ -149,24 +146,24 @@ const AB = OP.Abstraction
     @test abstract_problem.state_cost == concrete_problem.state_cost
     @test abstract_problem.time == concrete_problem.time
 
-    for state in 1:SY.TimedHybridAutomata.get_n_state(hybrid_symmodel)
-        for input in 1:hybrid_symmodel.global_input_map.total_inputs
+    for state in 1:SY.SymbolicTimedHybridSystems.get_n_state(hybrid_symmodel)
+        for input in 1:hybrid_symmodel.input_mapping.total_inputs
             @test abstract_problem.transition_cost(state, input) == 1.0
         end
     end
 
     # Solve abstract and concrete problems
     abstract_controller, controllable_set_symbols =
-        AB.TemporalHybridSymbolicModelAbstraction.solve_abstract_problem(abstract_problem)
+        AB.TimedHybridAbstraction.solve_abstract_problem(abstract_problem)
     @test !isnothing(abstract_controller)
     @test !isempty(controllable_set_symbols)
 
-    concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve_concrete_problem(
+    concrete_controller = AB.TimedHybridAbstraction.solve_concrete_problem(
         hybrid_symmodel,
         abstract_controller,
     )
     for q in controllable_set_symbols
-        (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+        (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
         aug_state = (x, t, k)
         idx = findfirst(==(k), Ns_target)
         in_target =
@@ -181,42 +178,21 @@ const AB = OP.Abstraction
 
     # Test reached function
     make_aug_state(xval, tval, kval) = ([xval], tval, kval)
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.5, 1.5, 2),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.5, 1.5, 1),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(2.0, 1.5, 2),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.0, 0.5, 2),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.0, 2.5, 2),
-    )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(-1.0, 1.0, 2),
-    )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(1.0, 2.0, 2),
-    )
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.5, 1.5, 2))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.5, 1.5, 1))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(2.0, 1.5, 2))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.0, 0.5, 2))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.0, 2.5, 2))
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(-1.0, 1.0, 2))
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(1.0, 2.0, 2))
 
     # Test get_next_aug_state
     aug_state = ([0.0], 0.0, 1)
     u_cont = [0.5]
     k = aug_state[3]
-    tm = hybrid_symmodel.time_symbolic_models[k]
+    tm = hybrid_symmodel.time_abstractions[k]
     map_sys = ST.simulate_control_map(HybridSystems.mode(hs, k).systems[1].f)
-    next_aug_state = AB.TemporalHybridSymbolicModelAbstraction.get_next_aug_state(
+    next_aug_state = AB.TimedHybridAbstraction.get_next_aug_state(
         hs,
         aug_state,
         u_cont,
@@ -226,7 +202,7 @@ const AB = OP.Abstraction
     )
     @test length(next_aug_state) == 3
     u_switch = "SWITCH 1 -> 2"
-    next_aug_state_switch = AB.TemporalHybridSymbolicModelAbstraction.get_next_aug_state(
+    next_aug_state_switch = AB.TimedHybridAbstraction.get_next_aug_state(
         hs,
         aug_state,
         u_switch,
@@ -237,26 +213,26 @@ const AB = OP.Abstraction
     @test next_aug_state_switch[3] == 2
 
     # Test closed-loop trajectory
-    traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+    traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
         param_discretization,
         hs,
         concret_specs,
         concrete_controller,
         initial_state,
         20,
-        stopping = AB.TemporalHybridSymbolicModelAbstraction.reached,
+        stopping = AB.TimedHybridAbstraction.reached,
     )
     @test !isempty(traj)
     @test traj[1] == initial_state
     @test length(traj) ≤ 21
     @test length(ctrls) ≤ 20
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(concret_specs, traj[end])
+    @test AB.TimedHybridAbstraction.reached(concret_specs, traj[end])
     @test length(traj) == length(ctrls) + 1
     @test all(x -> length(x) == 3, traj)
     @test all(!isnothing, ctrls)
 
     # Test solve shortcut
-    controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
+    controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
         hs,
         optimizer_factory_list,
         optimizer_kwargs_dict,
@@ -344,7 +320,7 @@ end
     # Keep param_discretization for compatibility with get_closed_loop_trajectory
     param_discretization = [(0.1, 0.1, 0.1), (0.1, 0.1, 0.1)]
 
-    hybrid_symmodel = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
+    hybrid_symmodel = SY.SymbolicTimedHybridSystems.build_timed_hybrid_symbolic_model(
         hs,
         optimizer_factory_list,
         optimizer_kwargs_dict,
@@ -356,7 +332,7 @@ end
     Ts_target = [UT.HyperRectangle([0.0], [3.0])] # Time is not taken into account
     Ns_target = [2]
     cost_fun = (aug_state, u) -> 1.0
-    concret_specs = AB.TemporalHybridSymbolicModelAbstraction.OptimalControlProblemSpecs(
+    concret_specs = AB.TimedHybridAbstraction.TimedHybridOptimalControlProblem(
         initial_state,
         Xs_target,
         Ts_target,
@@ -366,20 +342,19 @@ end
     )
 
     # Concrete problem
-    concrete_problem =
-        AB.TemporalHybridSymbolicModelAbstraction.build_concrete_problem(concret_specs)
+    concrete_problem = AB.TimedHybridAbstraction.build_concrete_problem(concret_specs)
     @test concrete_problem.initial_set == initial_state
     @test concrete_problem.transition_cost == cost_fun
 
     # Abstract target set
-    abstract_target_set = SY.TimedHybridAutomata.get_states_from_set(
+    abstract_target_set = SY.SymbolicTimedHybridSystems.get_states_from_set(
         hybrid_symmodel,
         Xs_target,
         Ts_target,
         Ns_target,
     )
     for q in abstract_target_set
-        (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+        (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
         idx = findfirst(==(k), Ns_target)
         @test !isnothing(idx)
         @test x ∈ Xs_target[idx]
@@ -387,12 +362,10 @@ end
     end
 
     # Abstract problem
-    abstract_problem = AB.TemporalHybridSymbolicModelAbstraction.build_abstract_problem(
-        concrete_problem,
-        hybrid_symmodel,
-    )
+    abstract_problem =
+        AB.TimedHybridAbstraction.build_abstract_problem(concrete_problem, hybrid_symmodel)
     @test abstract_problem.initial_set == [
-        SY.TimedHybridAutomata.get_abstract_state(
+        SY.SymbolicTimedHybridSystems.get_abstract_state(
             hybrid_symmodel,
             concrete_problem.initial_set,
         ),
@@ -401,24 +374,24 @@ end
     @test abstract_problem.state_cost == concrete_problem.state_cost
     @test abstract_problem.time == concrete_problem.time
 
-    for state in 1:SY.TimedHybridAutomata.get_n_state(hybrid_symmodel)
-        for input in 1:hybrid_symmodel.global_input_map.total_inputs
+    for state in 1:SY.SymbolicTimedHybridSystems.get_n_state(hybrid_symmodel)
+        for input in 1:hybrid_symmodel.input_mapping.total_inputs
             @test abstract_problem.transition_cost(state, input) == 1.0
         end
     end
 
     # Solve abstract and concrete problems
     abstract_controller, controllable_set_symbols =
-        AB.TemporalHybridSymbolicModelAbstraction.solve_abstract_problem(abstract_problem)
+        AB.TimedHybridAbstraction.solve_abstract_problem(abstract_problem)
     @test !isnothing(abstract_controller)
     @test !isempty(controllable_set_symbols)
 
-    concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve_concrete_problem(
+    concrete_controller = AB.TimedHybridAbstraction.solve_concrete_problem(
         hybrid_symmodel,
         abstract_controller,
     )
     for q in controllable_set_symbols
-        (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+        (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
         aug_state = (x, t, k)
         idx = findfirst(==(k), Ns_target)
         in_target =
@@ -433,42 +406,21 @@ end
 
     # Test reached function
     make_aug_state(xval, tval, kval) = ([xval], tval, kval)
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.5, 0.0, 2),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.5, 0.0, 1),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(2.0, 0.0, 2),
-    )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.0, 0.5, 2),
-    )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(0.0, 2.5, 2),
-    )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(-1.0, 1.0, 2),
-    )
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
-        concret_specs,
-        make_aug_state(1.1, 2.0, 2),
-    )
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.5, 0.0, 2))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.5, 0.0, 1))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(2.0, 0.0, 2))
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.0, 0.5, 2))
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(0.0, 2.5, 2))
+    @test AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(-1.0, 1.0, 2))
+    @test !AB.TimedHybridAbstraction.reached(concret_specs, make_aug_state(1.1, 2.0, 2))
 
     # Test get_next_aug_state
     aug_state = ([0.0], 0.0, 1)
     u_cont = [0.5]
     k = aug_state[3]
-    tm = hybrid_symmodel.time_symbolic_models[k]
+    tm = hybrid_symmodel.time_abstractions[k]
     map_sys = ST.simulate_control_map(HybridSystems.mode(hs, k).systems[1].f)
-    next_aug_state = AB.TemporalHybridSymbolicModelAbstraction.get_next_aug_state(
+    next_aug_state = AB.TimedHybridAbstraction.get_next_aug_state(
         hs,
         aug_state,
         u_cont,
@@ -478,7 +430,7 @@ end
     )
     @test length(next_aug_state) == 3
     u_switch = "SWITCH 1 -> 2"
-    next_aug_state_switch = AB.TemporalHybridSymbolicModelAbstraction.get_next_aug_state(
+    next_aug_state_switch = AB.TimedHybridAbstraction.get_next_aug_state(
         hs,
         aug_state,
         u_switch,
@@ -489,14 +441,14 @@ end
     @test next_aug_state_switch[3] == 2
 
     # Test closed-loop trajectory
-    traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+    traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
         param_discretization,
         hs,
         concret_specs,
         concrete_controller,
         initial_state,
         20,
-        stopping = AB.TemporalHybridSymbolicModelAbstraction.reached,
+        stopping = AB.TimedHybridAbstraction.reached,
     )
 
     println("Trajectory: ", traj)
@@ -506,13 +458,13 @@ end
     @test traj[1] == initial_state
     @test length(traj) ≤ 4
     @test length(ctrls) ≤ 3
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(concret_specs, traj[end])
+    @test AB.TimedHybridAbstraction.reached(concret_specs, traj[end])
     @test length(traj) == length(ctrls) + 1
     @test all(x -> length(x) == 3, traj)
     @test all(!isnothing, ctrls)
 
     # Test solve shortcut
-    controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
+    controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
         hs,
         optimizer_factory_list,
         optimizer_kwargs_dict,
@@ -599,7 +551,7 @@ end
     # Keep param_discretization for compatibility
     param_discretization = [(0.1, 0.1, 0.1), (0.1, 0.1, 0.1)]
 
-    hybrid_symmodel = SY.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
+    hybrid_symmodel = SY.SymbolicTimedHybridSystems.build_timed_hybrid_symbolic_model(
         hs,
         optimizer_factory_list,
         optimizer_kwargs_dict,
@@ -611,7 +563,7 @@ end
     Ts_safe = [UT.HyperRectangle([0.0], [2.0]), UT.HyperRectangle([1.0], [5.0])] # All time is safe
     Ns_safe = [1, 2] # Both modes are safe
 
-    safety_specs = AB.TemporalHybridSymbolicModelAbstraction.SafetyProblemSpecs(
+    safety_specs = AB.TimedHybridAbstraction.TimedHybridSafetyProblem(
         initial_state,
         Xs_safe,
         Ts_safe,
@@ -623,14 +575,13 @@ end
     @test safety_specs.problem_type == :safety
 
     # Concrete problem
-    concrete_problem =
-        AB.TemporalHybridSymbolicModelAbstraction.build_concrete_problem(safety_specs)
+    concrete_problem = AB.TimedHybridAbstraction.build_concrete_problem(safety_specs)
     @test concrete_problem.initial_set == initial_state
     @test concrete_problem.time == 10.0
     @test isa(concrete_problem, Dionysos.Problem.SafetyProblem)
 
     # Abstract safe set
-    abstract_safe_set = SY.TimedHybridAutomata.get_states_from_set(
+    abstract_safe_set = SY.SymbolicTimedHybridSystems.get_states_from_set(
         hybrid_symmodel,
         Xs_safe,
         Ts_safe,
@@ -638,7 +589,7 @@ end
         domain = Dionysos.Domain.OUTER,
     )
     for q in abstract_safe_set
-        (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+        (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
         idx = findfirst(==(k), Ns_safe)
         @test !isnothing(idx)
         @test x ∈ Xs_safe[idx]
@@ -646,12 +597,10 @@ end
     end
 
     # Abstract problem
-    abstract_problem = AB.TemporalHybridSymbolicModelAbstraction.build_abstract_problem(
-        concrete_problem,
-        hybrid_symmodel,
-    )
+    abstract_problem =
+        AB.TimedHybridAbstraction.build_abstract_problem(concrete_problem, hybrid_symmodel)
     @test abstract_problem.initial_set == [
-        SY.TimedHybridAutomata.get_abstract_state(
+        SY.SymbolicTimedHybridSystems.get_abstract_state(
             hybrid_symmodel,
             concrete_problem.initial_set,
         ),
@@ -662,7 +611,7 @@ end
 
     # Solve abstract and concrete problems
     abstract_controller, controllable_set_symbols =
-        AB.TemporalHybridSymbolicModelAbstraction.solve_abstract_problem(abstract_problem)
+        AB.TimedHybridAbstraction.solve_abstract_problem(abstract_problem)
     @test !isnothing(abstract_controller)
 
     # For safety problems, the controllable set may be empty due to algorithmic limitations
@@ -672,15 +621,14 @@ end
             "✅ Safety problem found controllable states: $(length(controllable_set_symbols))",
         )
 
-        concrete_controller =
-            AB.TemporalHybridSymbolicModelAbstraction.solve_concrete_problem(
-                hybrid_symmodel,
-                abstract_controller,
-            )
+        concrete_controller = AB.TimedHybridAbstraction.solve_concrete_problem(
+            hybrid_symmodel,
+            abstract_controller,
+        )
 
         # Test that the controller is defined for controllable states (except terminal states)
         for q in controllable_set_symbols
-            (x, t, k) = SY.TimedHybridAutomata.get_concrete_state(hybrid_symmodel, q)
+            (x, t, k) = SY.SymbolicTimedHybridSystems.get_concrete_state(hybrid_symmodel, q)
             aug_state = (x, t, k)
 
             # Skip terminal states (t = 5.0) - they are valid safe endpoints but don't need control actions
@@ -692,7 +640,7 @@ end
         end
 
         # Test closed-loop trajectory for safety
-        traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+        traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
             param_discretization,
             hs,
             safety_specs,
@@ -700,7 +648,7 @@ end
             initial_state,
             100000,
             stopping = (specs, state) ->
-                !AB.TemporalHybridSymbolicModelAbstraction.reached(specs, state), # Stop if unsafe
+                !AB.TimedHybridAbstraction.reached(specs, state), # Stop if unsafe
         )
 
         @test !isempty(traj)
@@ -710,21 +658,20 @@ end
 
         # All states in trajectory should be safe
         for state in traj
-            @test AB.TemporalHybridSymbolicModelAbstraction.reached(safety_specs, state)
+            @test AB.TimedHybridAbstraction.reached(safety_specs, state)
         end
 
         println("Safety test completed: trajectory remained safe for $(length(traj)) steps")
 
         # Still test the basic infrastructure
-        concrete_controller =
-            AB.TemporalHybridSymbolicModelAbstraction.solve_concrete_problem(
-                hybrid_symmodel,
-                abstract_controller,
-            )
+        concrete_controller = AB.TimedHybridAbstraction.solve_concrete_problem(
+            hybrid_symmodel,
+            abstract_controller,
+        )
         @test !isnothing(concrete_controller)
 
         # Test minimal trajectory (will likely stay at initial state)
-        traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+        traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
             param_discretization,
             hs,
             safety_specs,
@@ -732,7 +679,7 @@ end
             initial_state,
             1,
             stopping = (specs, state) ->
-                !AB.TemporalHybridSymbolicModelAbstraction.reached(specs, state), # devrait disparaitre dans le cas d'un safety problem
+                !AB.TimedHybridAbstraction.reached(specs, state), # devrait disparaitre dans le cas d'un safety problem
         )
 
         @test !isempty(traj)
@@ -743,21 +690,21 @@ end
     # Test safety checking function
     make_aug_state(xval, tval, kval) = ([xval], tval, kval)
     # These should be safe (within safe set)
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
+    @test AB.TimedHybridAbstraction.reached(
         safety_specs,
         make_aug_state(0.0, 1.0, 1),  # x = 0.0 ∈ [-3.0, 3.0] for mode 1
     )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
+    @test AB.TimedHybridAbstraction.reached(
         safety_specs,
         make_aug_state(2.0, 3.0, 2),  # x = 2.0 ∈ [-3.0, 3.0] for mode 2
     )
 
     # These should be unsafe (outside safe set)
-    @test !AB.TemporalHybridSymbolicModelAbstraction.reached(
+    @test !AB.TimedHybridAbstraction.reached(
         safety_specs,
         make_aug_state(4.0, 1.0, 1),  # x = 4.0 > 3.0 (unsafe in mode 1)
     )
-    @test AB.TemporalHybridSymbolicModelAbstraction.reached(
+    @test AB.TimedHybridAbstraction.reached(
         safety_specs,
         make_aug_state(-0.9, 2.0, 2),  # x = -0.9 < -0.8 (unsafe in mode 2)
     )

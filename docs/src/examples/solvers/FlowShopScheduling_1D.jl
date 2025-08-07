@@ -1,5 +1,4 @@
 using StaticArrays, Plots, HybridSystems
-
 ## Import Dionysos sub-modules
 using Dionysos
 const DI = Dionysos
@@ -29,7 +28,7 @@ discretization_parameters = [
 ]
 
 ## Synthesize the controller
-concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
+concrete_controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
     HybridSystem_automaton,
     optimizer_factory_list,
     optimizer_kwargs_dict,
@@ -37,14 +36,14 @@ concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
 )
 
 ## Simulate closed-loop trajectory
-traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
     discretization_parameters,
     HybridSystem_automaton,
     problem_specs,
     concrete_controller,
     problem_specs.initial_state,
     10000;
-    stopping = AB.TemporalHybridSymbolicModelAbstraction.reached,
+    stopping = AB.TimedHybridAbstraction.reached,
 )
 
 for (idx, (t, u)) in enumerate(zip(traj, ctrls))

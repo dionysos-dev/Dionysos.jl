@@ -14,7 +14,6 @@ const AB = OP.Abstraction
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "flowshopscheduling_3D.jl"),
 );
-
 # generate the concrete hybrid system and the problem specifications
 HybridSystem_automaton, optimizer_factory_list, optimizer_kwargs_dict, problem_specs =
     FlowShopScheduling3D.generate_system_and_problem()
@@ -22,23 +21,21 @@ HybridSystem_automaton, optimizer_factory_list, optimizer_kwargs_dict, problem_s
 # Keep discretization parameters for compatibility with get_closed_loop_trajectory
 discretization_parameters = [(0.5, 0.5, 0.2), (0.5, 0.5, 0.2), (0.5, 0.5, 0.2)]
 
-# get the concrete_controller using Dionysos
-concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
+concrete_controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
     HybridSystem_automaton,
     optimizer_factory_list,
     optimizer_kwargs_dict,
     problem_specs,
 )
 
-# get closed loop trajectory using the concrete_controller
-traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
     discretization_parameters,
     HybridSystem_automaton,
     problem_specs,
     concrete_controller,
     problem_specs.initial_state,
     1000000;
-    stopping = AB.TemporalHybridSymbolicModelAbstraction.reached,
+    stopping = AB.TimedHybridAbstraction.reached,
 )
 
 # Display trajectory and controls 

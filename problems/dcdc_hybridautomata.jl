@@ -1,12 +1,10 @@
 module DCDC
 using Test
-# First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl).
 
 using StaticArrays, JuMP
 using MathematicalSystems
 using HybridSystems
 
-# At this point, we import the useful Dionysos sub-module for this problem:
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -70,7 +68,7 @@ MathematicalSystems.stateset(reset::DCDCResetMap) = reset.domain
 
 function generate_safety_system_and_problem()
     """
-    Génère un problème de sécurité DC-DC converter utilisant la structure TimedHybridAutomata.
+    Génère un problème de sécurité DC-DC converter utilisant la structure SymbolicTimedHybridSystems.
 
     Objectif : maintenir le système dans une région de sécurité définie par les contraintes
     physiques du convertisseur (courant max, tension max, etc.)
@@ -218,7 +216,7 @@ function generate_safety_system_and_problem()
     Ns_safe = [1, 2]  # Les deux modes sont sûrs
 
     # Spécifications du problème de sécurité
-    safety_specs = AB.TemporalHybridSymbolicModelAbstraction.SafetyProblemSpecs(
+    safety_specs = AB.TimedHybridAbstraction.TimedHybridSafetyProblem(
         initial_state,
         Xs_safe,
         Ts_safe,

@@ -1,6 +1,13 @@
-export TemporalHybridSymbolicModelAbstraction
+"""
+Module for timed hybrid system abstraction and controller synthesis.
 
-module TemporalHybridSymbolicModelAbstraction
+Provides tools for:
+- Optimal control problems on timed hybrid systems
+- Safety problems with invariant set computation  
+- Concrete controller synthesis from abstract controllers
+- Closed-loop trajectory simulation
+"""
+module TimedHybridAbstraction
 
 import HybridSystems
 import HybridSystems: HybridSystem
@@ -8,7 +15,25 @@ import MathematicalSystems
 import StaticArrays: SVector
 import Dionysos
 
-struct ProblemSpecs{F}
+# ================================================================
+# Problem specification structures
+# ================================================================
+
+"""
+    TimedHybridProblemSpecs{F}
+
+Specification for timed hybrid control problems (optimal control or safety).
+
+# Fields
+- `initial_state::Tuple{AbstractVector{Float64}, Float64, Int}`: Initial augmented state ([x], t, mode_id)
+- `Xs_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (spatial component)
+- `Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (temporal component)  
+- `Ns_target::Vector{Int}`: Target/safe mode indices
+- `concret_cost_fun::F`: Concrete cost function for optimal control
+- `problem_type::Symbol`: `:optimal_control` or `:safety`
+- `time_horizon::Union{Real, Dionysos.Problem.Infinity}`: Time horizon constraint
+"""
+struct TimedHybridProblemSpecs{F}
     initial_state::Tuple{AbstractVector{Float64}, Float64, Int} # aug_state initial ([x], t, mode_id)
     Xs_target::Vector{<:Dionysos.Utils.HyperRectangle} # target sets or safe sets depending on problem type
     Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}
@@ -18,28 +43,57 @@ struct ProblemSpecs{F}
     time_horizon::Union{Real, Dionysos.Problem.Infinity} # User-specified time horizon
 end
 
-# Constructor for optimal control problems
-function OptimalControlProblemSpecs(
+"""
+    TimedHybridOptimalControlProblem(initial_state, Xs_target, Ts_target, Ns_target, cost_function, time_horizon)
+
+Constructor for optimal control problems on timed hybrid systems.
+
+# Arguments
+- `initial_state`: Initial augmented state ([x], t, mode_id)
+- `Xs_target`: Vector of spatial target sets (one per target mode)
+- `Ts_target`: Vector of temporal target sets (one per target mode)  
+- `Ns_target`: Vector of target mode indices
+- `cost_function`: Cost function for transitions (aug_state, input) → cost
+- `time_horizon`: Maximum time horizon (default: infinite)
+
+# Returns
+- `TimedHybridProblemSpecs`: Problem specification for optimal control
+"""
+function TimedHybridOptimalControlProblem(
     initial_state,
     Xs_target,
     Ts_target,
     Ns_target,
-    concret_cost_fun,
+    cost_function,
     time_horizon = Dionysos.Problem.Infinity(),
 )
-    return ProblemSpecs(
+    return TimedHybridProblemSpecs(
         initial_state,
         Xs_target,
         Ts_target,
         Ns_target,
-        concret_cost_fun,
+        cost_function,
         :optimal_control,
         time_horizon,
     )
 end
 
-# Constructor for safety problems  
-function SafetyProblemSpecs(
+"""
+    TimedHybridSafetyProblem(initial_state, Xs_safe, Ts_safe, Ns_safe, time_horizon)
+
+Constructor for safety problems on timed hybrid systems.
+
+# Arguments  
+- `initial_state`: Initial augmented state ([x], t, mode_id)
+- `Xs_safe`: Vector of spatial safe sets (one per safe mode)
+- `Ts_safe`: Vector of temporal safe sets (one per safe mode)
+- `Ns_safe`: Vector of safe mode indices  
+- `time_horizon`: Maximum time horizon (default: infinite)
+
+# Returns
+- `TimedHybridProblemSpecs`: Problem specification for safety
+"""
+function TimedHybridSafetyProblem(
     initial_state,
     Xs_safe,
     Ts_safe,
@@ -48,7 +102,7 @@ function SafetyProblemSpecs(
 )
     # For safety problems, we use a dummy cost function
     dummy_cost = (aug_state, u) -> 1.0
-    return ProblemSpecs(
+    return TimedHybridProblemSpecs(
         initial_state,
         Xs_safe,
         Ts_safe,
@@ -59,68 +113,91 @@ function SafetyProblemSpecs(
     )
 end
 
-# =================================
-# CONTROLLER SYNTHESIS
-# =================================
+# ================================================================
+# Problem construction functions  
+# ================================================================
 
-"""Builds the concrete problem (optimal control or safety)"""
-function build_concrete_problem(Concret_specifications::ProblemSpecs)
-    concrete_initial_set = Concret_specifications.initial_state
+"""
+    build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
 
-    if Concret_specifications.problem_type == :optimal_control
-        concrete_target_set = (
-            Concret_specifications.Xs_target,
-            Concret_specifications.Ts_target,
-            Concret_specifications.Ns_target,
-        )
-        concret_cost_fun = Concret_specifications.concret_cost_fun
+Build concrete problem instance from problem specifications.
+
+# Arguments
+- `problem_specs`: Timed hybrid problem specifications
+
+# Returns  
+- `Dionysos.Problem.OptimalControlProblem` or `Dionysos.Problem.SafetyProblem`
+"""
+function build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
+    concrete_initial_set = problem_specs.initial_state
+
+    if problem_specs.problem_type == :optimal_control
+        concrete_target_set =
+            (problem_specs.Xs_target, problem_specs.Ts_target, problem_specs.Ns_target)
+        concrete_cost_fun = problem_specs.concret_cost_fun
 
         return Dionysos.Problem.OptimalControlProblem(
-            Concret_specifications,  # system will be set in abstract problem
+            problem_specs,  # system will be set in abstract problem
             concrete_initial_set,
             concrete_target_set,
             nothing,  # state_cost
-            concret_cost_fun,  # transition_cost
-            Concret_specifications.time_horizon,
+            concrete_cost_fun,  # transition_cost
+            problem_specs.time_horizon,
         )
-    elseif Concret_specifications.problem_type == :safety
+    elseif problem_specs.problem_type == :safety
         concrete_safe_set = (
-            Concret_specifications.Xs_target, # For safety, Xs_target are the safe sets
-            Concret_specifications.Ts_target,
-            Concret_specifications.Ns_target,
+            problem_specs.Xs_target, # For safety, Xs_target are the safe sets
+            problem_specs.Ts_target,
+            problem_specs.Ns_target,
         )
 
         return Dionysos.Problem.SafetyProblem(
-            Concret_specifications,  # system will be set in abstract problem
+            problem_specs,  # system will be set in abstract problem
             concrete_initial_set,
             concrete_safe_set,
-            Concret_specifications.time_horizon,
+            problem_specs.time_horizon,
         )
     else
-        error("Unknown problem type: $(Concret_specifications.problem_type)")
+        error("Unknown problem type: $(problem_specs.problem_type)")
     end
 end
 
-"""Builds the abstract problem (optimal control or safety)"""
+"""
+    build_abstract_problem(concrete_problem, symmodel)
+
+Build abstract problem from concrete problem and symbolic model.
+
+# Arguments
+- `concrete_problem`: Concrete optimal control or safety problem
+- `symmodel`: Timed hybrid symbolic model
+
+# Returns
+- Abstract version of the problem with discrete state and input spaces
+"""
 function build_abstract_problem(
     concrete_problem::Union{
         Dionysos.Problem.OptimalControlProblem,
         Dionysos.Problem.SafetyProblem,
     },
-    symmodel::Dionysos.Symbolic.TimedHybridAutomata.TemporalHybridSymbolicModel,
+    symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
 )
     aug_state = concrete_problem.initial_set
-    abstract_initial_set =
-        [Dionysos.Symbolic.TimedHybridAutomata.get_abstract_state(symmodel, aug_state)]
+    abstract_initial_set = [
+        Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state(
+            symmodel,
+            aug_state,
+        ),
+    ]
 
     if isa(concrete_problem, Dionysos.Problem.OptimalControlProblem)
         target_set = concrete_problem.target_set
-        abstract_target_set = Dionysos.Symbolic.TimedHybridAutomata.get_states_from_set(
-            symmodel,
-            target_set[1],
-            target_set[2],
-            target_set[3],
-        )
+        abstract_target_set =
+            Dionysos.Symbolic.SymbolicTimedHybridSystems.get_states_from_set(
+                symmodel,
+                target_set[1],
+                target_set[2],
+                target_set[3],
+            )
 
         return Dionysos.Problem.OptimalControlProblem(
             symmodel,
@@ -133,13 +210,14 @@ function build_abstract_problem(
     else # SafetyProblem
         safe_set = concrete_problem.safe_set
         # Use OUTER approximation for safe set to be more permissive
-        abstract_safe_set = Dionysos.Symbolic.TimedHybridAutomata.get_states_from_set(
-            symmodel,
-            safe_set[1],
-            safe_set[2],
-            safe_set[3];
-            domain = Dionysos.Domain.OUTER,
-        )
+        abstract_safe_set =
+            Dionysos.Symbolic.SymbolicTimedHybridSystems.get_states_from_set(
+                symmodel,
+                safe_set[1],
+                safe_set[2],
+                safe_set[3];
+                domain = Dionysos.Domain.OUTER,
+            )
 
         return Dionysos.Problem.SafetyProblem(
             symmodel,
@@ -149,6 +227,10 @@ function build_abstract_problem(
         )
     end
 end
+# ================================================================  
+# Specialized invariant set computation for timed hybrid systems
+# ================================================================
+
 """
 Compute the largest invariant set for timed hybrid automata systems.
 Unlike the standard algorithm, this version treats terminal states (states without outgoing transitions)
@@ -169,15 +251,9 @@ function compute_largest_invariant_set_timed_hybrid(
     safelist;
     ControllerConstructor::Function = () -> Dionysos.System.SymbolicControllerList(),
 )
-    println("🔧 Starting timed hybrid invariant set computation")
-
     controller = ControllerConstructor()
     nstates = Dionysos.Symbolic.get_n_state(autom)
     nsymbols = Dionysos.Symbolic.get_n_input(autom)
-
-    println("   - Total states: $nstates")
-    println("   - Total inputs: $nsymbols")
-    println("   - Initial safe states: $(length(safelist))")
 
     # Initialize pairs table
     pairstable = [false for i in 1:nstates, j in 1:nsymbols]
@@ -196,9 +272,6 @@ function compute_largest_invariant_set_timed_hybrid(
     states_with_actions = count(x -> x > 0, nsymbolslist)
     states_without_actions = count(x -> x == 0, nsymbolslist)
 
-    println("   - States with transitions: $states_with_actions")
-    println("   - Terminal states (no outgoing transitions): $states_without_actions")
-
     # Initialize safe set
     safeset = Set(safelist)
     initial_safe_count = length(safeset)
@@ -212,13 +285,9 @@ function compute_largest_invariant_set_timed_hybrid(
         end
     end
 
-    println("   - Terminal states in safe set: $(length(terminal_states))")
-
     # Initialize unsafe set (everything not initially safe)
     unsafeset = Set(1:nstates)
     setdiff!(unsafeset, safeset)
-
-    println("   - Initially unsafe states: $(length(unsafeset))")
 
     # Disable transitions from initially unsafe states
     for source in unsafeset
@@ -235,9 +304,9 @@ function compute_largest_invariant_set_timed_hybrid(
 
     while true
         iteration += 1
-        println(
-            "   - Iteration $iteration: safe=$(length(safeset)), unsafe=$(length(unsafeset))",
-        )
+        # println(
+        #     "   - Iteration $iteration: safe=$(length(safeset)), unsafe=$(length(unsafeset))",
+        # )
 
         # Only propagate unsafety from genuinely unsafe states
         # (not from terminal states that are safe endpoints)
@@ -268,11 +337,11 @@ function compute_largest_invariant_set_timed_hybrid(
         nextunsafeset = Set{Int}()
     end
 
-    println("   - Final safe states: $(length(safeset))")
-    println("   - Final unsafe states: $(length(unsafeset))")
-    println(
-        "   - Terminal states kept safe: $(length(intersect(safeset, terminal_states)))",
-    )
+    # println("   - Final safe states: $(length(safeset))")
+    # println("   - Final unsafe states: $(length(unsafeset))")
+    # println(
+    #     "   - Terminal states kept safe: $(length(intersect(safeset, terminal_states)))",
+    # )
 
     # Populate controller with valid actions from safe states
     for source in safeset
@@ -286,12 +355,26 @@ function compute_largest_invariant_set_timed_hybrid(
     # The complement is states that were initially safe but became unsafe
     invariant_set_complement = setdiff(Set(safelist), safeset)
 
-    println("🔧 Timed hybrid invariant set computation completed")
+    # println("🔧 Timed hybrid invariant set computation completed")
 
     return controller, safeset, invariant_set_complement
 end
 
-"""Solves the abstract problem (optimal control or safety)"""
+# ================================================================
+# Abstract problem solving
+# ================================================================
+
+"""
+    solve_abstract_problem(abstract_problem)
+
+Solve the abstract optimal control or safety problem.
+
+# Arguments
+- `abstract_problem`: Abstract problem instance  
+
+# Returns
+- `(abstract_controller, controllable_set)`: Controller and controllable states
+"""
 function solve_abstract_problem(
     abstract_problem::Union{
         Dionysos.Problem.OptimalControlProblem,
@@ -301,7 +384,7 @@ function solve_abstract_problem(
     if isa(abstract_problem, Dionysos.Problem.OptimalControlProblem)
         abstract_controller, controllable_set_symbols, _, value_per_node =
             Dionysos.Symbolic.compute_worst_case_cost_controller(
-                abstract_problem.system.autom,
+                abstract_problem.system.symbolic_automaton,
                 abstract_problem.target_set;
                 initial_set = abstract_problem.initial_set,
                 sparse_input = false,
@@ -319,14 +402,14 @@ function solve_abstract_problem(
         println("\nSafe state number : ", length(collect(abstract_problem.safe_set)))
         println(
             "unsafe state number : ",
-            Dionysos.Symbolic.get_n_state(abstract_problem.system.autom) -
+            Dionysos.Symbolic.get_n_state(abstract_problem.system.symbolic_automaton) -
             length(collect(abstract_problem.safe_set)),
         )
 
         # Use specialized timed hybrid invariant set computation
         abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
             compute_largest_invariant_set_timed_hybrid(
-                abstract_problem.system.autom,
+                abstract_problem.system.symbolic_automaton,
                 collect(abstract_problem.safe_set);
                 ControllerConstructor = () -> Dionysos.System.SymbolicControllerList(),
             )
@@ -346,15 +429,33 @@ function solve_abstract_problem(
     return abstract_controller, controllable_set_symbols
 end
 
-"""Generates the concrete controller from the abstract controller"""
+# ================================================================  
+# Concrete controller synthesis
+# ================================================================
+
+"""
+    solve_concrete_problem(symmodel, abstract_controller)
+
+Generate concrete controller from abstract controller.
+
+# Arguments
+- `symmodel`: Timed hybrid symbolic model
+- `abstract_controller`: Abstract controller
+
+# Returns
+- `Dionysos.System.BlackBoxContinuousController`: Concrete controller function
+"""
 function solve_concrete_problem(
-    symmodel::Dionysos.Symbolic.TimedHybridAutomata.TemporalHybridSymbolicModel,
+    symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
     abstract_controller,
 )
     function concrete_controller(aug_state)
         (x, t, k) = aug_state
         abstract_aug_state =
-            Dionysos.Symbolic.TimedHybridAutomata.get_abstract_state(symmodel, aug_state)
+            Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state(
+                symmodel,
+                aug_state,
+            )
 
         if Dionysos.System.is_defined(abstract_controller, abstract_aug_state) == false
             println("⚠️ No action available for state $aug_state")
@@ -364,15 +465,15 @@ function solve_concrete_problem(
         abstract_input =
             Dionysos.System.get_control(abstract_controller, abstract_aug_state)
 
-        if Dionysos.Symbolic.TimedHybridAutomata.is_switching_input(
-            symmodel.global_input_map,
+        if Dionysos.Symbolic.SymbolicTimedHybridSystems.is_switching_input(
+            symmodel.input_mapping,
             abstract_input,
         )
-            transition_id = symmodel.global_input_map.global_to_switching[abstract_input]
-            label = symmodel.global_input_map.switch_labels[transition_id] # eg. "SWITCH source_mode_id -> target_mode_id"
+            transition_id = symmodel.input_mapping.global_to_switching[abstract_input]
+            label = symmodel.input_mapping.switch_labels[transition_id] # eg. "SWITCH source_mode_id -> target_mode_id"
             return label
         else
-            return Dionysos.Symbolic.TimedHybridAutomata.get_concrete_input(
+            return Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_input(
                 symmodel,
                 abstract_input,
                 k,
@@ -384,27 +485,41 @@ function solve_concrete_problem(
     return Dionysos.System.BlackBoxContinuousController(concrete_controller, isdef)
 end
 
-# =================================
-# ABSTRACT COST FUNCTIONS
-# =================================
+# ================================================================
+# Abstract cost function construction
+# ================================================================
 
+"""
+    build_abstract_transition_cost(symmodel, concrete_cost_fun)
+
+Build abstract transition cost function from concrete cost function.
+
+# Arguments
+- `symmodel`: Timed hybrid symbolic model
+- `concrete_cost_fun`: Concrete cost function (aug_state, input) → cost
+
+# Returns  
+- Abstract cost function (state_int, input_int) → cost
+"""
 function build_abstract_transition_cost(
-    symmodel::Dionysos.Symbolic.TimedHybridAutomata.TemporalHybridSymbolicModel,
+    symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
     concrete_cost_fun,
 )
     function abstract_transition_cost(state_int, input_int)
-        (x, t, k) =
-            Dionysos.Symbolic.TimedHybridAutomata.get_concrete_state(symmodel, state_int)
+        (x, t, k) = Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_state(
+            symmodel,
+            state_int,
+        )
         aug_state = (x, t, k)
-        if Dionysos.Symbolic.TimedHybridAutomata.is_switching_input(
-            symmodel.global_input_map,
+        if Dionysos.Symbolic.SymbolicTimedHybridSystems.is_switching_input(
+            symmodel.input_mapping,
             input_int,
         )
-            transition_id = symmodel.global_input_map.global_to_switching[input_int]
-            label = symmodel.global_input_map.switch_labels[transition_id] # eg. "SWITCH source_mode_id -> target_mode_id"
+            transition_id = symmodel.input_mapping.global_to_switching[input_int]
+            label = symmodel.input_mapping.switch_labels[transition_id] # eg. "SWITCH source_mode_id -> target_mode_id"
             u = label
         else
-            u = Dionysos.Symbolic.TimedHybridAutomata.get_concrete_input(
+            u = Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_input(
                 symmodel,
                 input_int,
                 k,
@@ -415,34 +530,38 @@ function build_abstract_transition_cost(
     return abstract_transition_cost
 end
 
-# =================================
-# MAIN SOLVING FUNCTION
-# =================================
+# ================================================================
+# Main solving function
+# ================================================================
 
 """
-Solves the complete temporal hybrid control problem.
+    solve_timed_hybrid_problem(hs, optimizer_factory_list, optimizer_kwargs_dict, problem_specs)
+
+Solve a complete timed hybrid control problem (optimal control or safety).
 
 # Arguments
-- `tasks`: List of tasks 
-- `symmodel`: Base symbolic model
-- `tstep`: Time discretization step
+- `hs::HybridSystem`: The hybrid system
+- `optimizer_factory_list`: List of optimizer factories for each mode
+- `optimizer_kwargs_dict`: Optimizer parameters for each mode  
+- `problem_specs::TimedHybridProblemSpecs`: Problem specifications
 
 # Returns
-Concrete controller for augmented states
+- Concrete controller for augmented states (x, t, mode)
 """
-function solve(
+function solve_timed_hybrid_problem(
     hs::HybridSystem,
     optimizer_factory_list,
     optimizer_kwargs_dict,
-    concret_specs::ProblemSpecs,
+    problem_specs::TimedHybridProblemSpecs,
 )
-    hybrid_symmodel = Dionysos.Symbolic.TimedHybridAutomata.Build_Timed_Hybrid_Automaton(
-        hs,
-        optimizer_factory_list,
-        optimizer_kwargs_dict,
-    )
+    hybrid_symmodel =
+        Dionysos.Symbolic.SymbolicTimedHybridSystems.build_timed_hybrid_symbolic_model(
+            hs,
+            optimizer_factory_list,
+            optimizer_kwargs_dict,
+        )
 
-    concrete_problem = build_concrete_problem(concret_specs)
+    concrete_problem = build_concrete_problem(problem_specs)
 
     abstract_problem = build_abstract_problem(concrete_problem, hybrid_symmodel)
 
@@ -453,11 +572,26 @@ function solve(
     return concrete_controller
 end
 
-# =================================
-# CLOSED-LOOP SIMULATION
-# =================================
+# ================================================================
+# Closed-loop simulation utilities  
+# ================================================================
 
-"""Computes the next augmented state"""
+"""
+    get_next_aug_state(hs, aug_state, u, time_is_active, tstep, map_sys)
+
+Compute the next augmented state given current state and control input.
+
+# Arguments
+- `hs::HybridSystem`: The hybrid system
+- `aug_state`: Current augmented state (x, t, mode)
+- `u`: Control input (continuous or switching)
+- `time_is_active`: Whether time progresses in current mode
+- `tstep`: Time discretization step
+- `map_sys`: Discrete-time map for current mode
+
+# Returns
+- Next augmented state (x, t, mode)
+"""
 function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tstep, map_sys)
     (x, t, k) = aug_state
 
@@ -501,23 +635,26 @@ function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tste
 end
 
 """
-Generates a closed-loop trajectory.
+    get_closed_loop_trajectory(discretization_parameters, hs, problem_specs, controller, aug_state_0, nstep; stopping)
+
+Generate a closed-loop trajectory using the synthesized controller.
 
 # Arguments
-- `tasks`: List of tasks
-- `continuous_time_system`: Continuous-time dynamic system
-- `controller`: Synthesized controller
+- `discretization_parameters`: Time discretization parameters per mode  
+- `hs::HybridSystem`: The hybrid system
+- `problem_specs::TimedHybridProblemSpecs`: Problem specifications
+- `controller`: Synthesized concrete controller
 - `aug_state_0`: Initial augmented state
-- `nstep`: Maximum number of steps
-- `stopping`: Stopping function
+- `nstep`: Maximum number of simulation steps
+- `stopping`: Stopping criterion function (default: never stop)
 
 # Returns
-Tuple (state_trajectory, control_trajectory)
+- `(state_trajectory, control_trajectory)`: Trajectory and control sequence
 """
 function get_closed_loop_trajectory(
     discretization_parameters::Vector{Tuple{Float64, Float64, Float64}},
     hs::HybridSystem,
-    problem_specs::ProblemSpecs,
+    problem_specs::TimedHybridProblemSpecs,
     controller,
     aug_state_0,
     nstep;
@@ -550,13 +687,24 @@ function get_closed_loop_trajectory(
     return aug_state_traj, u_traj
 end
 
-"""Checks if the goal is reached (for optimal control) or if safety is maintained"""
-function reached(specs::ProblemSpecs, aug_state)
+"""
+    reached(specs, aug_state)
+
+Check if target is reached (optimal control) or safety is maintained (safety problems).
+
+# Arguments
+- `specs::TimedHybridProblemSpecs`: Problem specifications
+- `aug_state`: Current augmented state (x, t, mode)
+
+# Returns
+- `Bool`: True if goal is reached or safety is maintained
+"""
+function reached(specs::TimedHybridProblemSpecs, aug_state)
     (x, t, k) = aug_state
     # Checks if the current mode is part of the target/safe modes
     idx = findfirst(==(k), specs.Ns_target)
     if isnothing(idx)
-        return specs.problem_type == :safety ? false : false  # For safety: not in safe mode is bad, for optimal: not in target mode means not reached
+        return false
     end
     # Checks spatial and temporal inclusion
     X_set = specs.Xs_target[idx]  # Target set for optimal control, safe set for safety

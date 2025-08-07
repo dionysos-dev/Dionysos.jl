@@ -96,7 +96,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
     x0,
     nstep,
 );
-println("Control trajectory: ", control_trajectory)
+
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");

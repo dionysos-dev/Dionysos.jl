@@ -219,7 +219,7 @@ function generate_system_and_problem()
     Ts_target = [timewindow_task3]
     Ns_target = [3]
     cost_function = (x, u) -> 1.0
-    problem_specs = AB.TemporalHybridSymbolicModelAbstraction.OptimalControlProblemSpecs(
+    problem_specs = AB.TimedHybridAbstraction.TimedHybridOptimalControlProblem(
         initial_state,
         Xs_target,
         Ts_target,

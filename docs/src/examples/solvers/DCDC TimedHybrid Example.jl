@@ -1,5 +1,7 @@
 using StaticArrays, Plots, HybridSystems
 
+# unfixed
+
 ## Import Dionysos sub-modules
 using Dionysos
 const DI = Dionysos
@@ -15,7 +17,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_hybridaut
 # optimal control problem
 hybrid_system, optimizer_factory_list, optimizer_kwargs_dict, safety_specs =
     DCDC.generate_safety_system_and_problem()
-concrete_controller = AB.TemporalHybridSymbolicModelAbstraction.solve(
+concrete_controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
     hybrid_system,
     optimizer_factory_list,
     optimizer_kwargs_dict,
@@ -27,15 +29,14 @@ discretization_parameters = [
     (0.0005, 0.5, 0.5),  # Mode 1: doit correspondre au module DCDC
     (0.0005, 0.5, 0.5),  # Mode 2: doit correspondre au module DCDC
 ]  # Same as in DCDC module
-traj, ctrls = AB.TemporalHybridSymbolicModelAbstraction.get_closed_loop_trajectory(
+traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
     discretization_parameters,
     hybrid_system,
     safety_specs,
     concrete_controller,
     safety_specs.initial_state,
     1000;  # Reduced number of steps for testing
-    stopping = (specs, state) ->
-        !AB.TemporalHybridSymbolicModelAbstraction.reached(specs, state), # Stop if unsafe
+    stopping = (specs, state) -> !AB.TimedHybridAbstraction.reached(specs, state), # Stop if unsafe
 )
 
 println("Closed-loop trajectory:")

@@ -35,11 +35,10 @@ using ProgressMeter, IntervalArithmetic, LazySets
 using JuMP
 include("ellipsoidal_transitions.jl")
 
-# nouveau code disparaitra à terme
-include("HybridTimedAutomata/VectorContinuousSystem.jl")
+include("timed_hybrid_automaton/vector_continuous_system.jl")
 
-include("HybridTimedAutomata/TimeSymbolicModel.jl")
+include("timed_hybrid_automaton/time_symbolic_model.jl")
 
-include("HybridTimedAutomata/TimedHybridAutomata.jl")
+include("timed_hybrid_automaton/symbolic_timed_hybrid_systems.jl")
 
 end  # module Symbolic
