@@ -232,7 +232,10 @@ function compute_abstract_system_from_concrete_system!(
         translist = Tuple{Int, Int, Int}[]
         compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
         total_iterations = max(
-            div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+            div(
+                get_n_input(abstract_system) * get_n_state(abstract_system),
+                update_interval,
+            ),
             1,
         )
         progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
@@ -264,32 +267,34 @@ function compute_abstract_system_from_concrete_system!(
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
     Xdom = get_state_domain(abstract_system)
-    
+
     nthreads = Threads.nthreads()
-    
+
     total_work = length(inputs) * length(states)
-    
+
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    
-    progress = verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) : nothing
+
+    progress =
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
+        nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
         local_transitions = transitions_by_thread[tid]
-        
+
         input_idx = ((linear_idx - 1) ÷ length(states)) + 1
         state_idx = ((linear_idx - 1) % length(states)) + 1
-        
+
         @inbounds begin
             abstract_input = inputs[input_idx]
             abstract_state = states[state_idx]
-            
+
             concrete_input = get_concrete_input(abstract_system, abstract_input)
             concrete_elem = get_concrete_elem(abstract_system, abstract_state)
-            
+
             reachable_set = compute_reachable_set(concrete_elem, concrete_input)
-            
+
             temp_translist = Tuple{Int, Int, Int}[]
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
@@ -298,12 +303,12 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 temp_translist,
             )
-            
+
             if allin
                 append!(local_transitions, temp_translist)
             end
         end
-        
+
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
             if count_val % max(1, update_interval ÷ 100) == 0
@@ -311,13 +316,13 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
     end
-    
+
     for (_, local_transitions) in enumerate(transitions_by_thread)
         if !isempty(local_transitions)
             add_transitions!(abstract_system, local_transitions)
         end
     end
-    
+
     verbose && ProgressMeter.finish!(progress)
     return
 end
@@ -336,7 +341,10 @@ function compute_abstract_system_from_concrete_system!(
         system_map = ST.get_system_map(concrete_system_approx)
         r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
         total_iterations = max(
-            div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+            div(
+                get_n_input(abstract_system) * get_n_state(abstract_system),
+                update_interval,
+            ),
             1,
         )
         progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
@@ -369,44 +377,46 @@ function compute_abstract_system_from_concrete_system!(
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
     r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
-    
+
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
     Xdom = get_state_domain(abstract_system)
-    
+
     input_data = Dict{Int, Tuple{Any, Any}}()
     for abstract_input in inputs
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         Fr = growthbound_map(r, concrete_input)
         input_data[abstract_input] = (concrete_input, Fr)
     end
-    
+
     nthreads = Threads.nthreads()
-    
+
     total_work = length(inputs) * length(states)
-    
+
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    
-    progress = verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) : nothing
+
+    progress =
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
+        nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
         local_transitions = transitions_by_thread[tid]
-        
+
         input_idx = ((linear_idx - 1) ÷ length(states)) + 1
         state_idx = ((linear_idx - 1) % length(states)) + 1
-        
+
         @inbounds begin
             abstract_input = inputs[input_idx]
             abstract_state = states[state_idx]
-            
+
             concrete_input, Fr = input_data[abstract_input]
             concrete_state = get_concrete_state(abstract_system, abstract_state)
-            
+
             Fx = system_map(concrete_state, concrete_input)
             reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
-            
+
             temp_translist = Tuple{Int, Int, Int}[]
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
@@ -415,12 +425,12 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 temp_translist,
             )
-            
+
             if allin
                 append!(local_transitions, temp_translist)
             end
         end
-        
+
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
             if count_val % max(1, update_interval ÷ 100) == 0
@@ -428,13 +438,13 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
     end
-    
+
     for (_, local_transitions) in enumerate(transitions_by_thread)
         if !isempty(local_transitions)
             add_transitions!(abstract_system, local_transitions)
         end
     end
-    
+
     verbose && ProgressMeter.finish!(progress)
     return
 end
@@ -458,7 +468,10 @@ function compute_abstract_system_from_concrete_system!(
         error_map = concrete_system_approx.error_map
         linsys_map = concrete_system_approx.linsys_map
         total_iterations = max(
-            div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+            div(
+                get_n_input(abstract_system) * get_n_state(abstract_system),
+                update_interval,
+            ),
             1,
         )
         progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
@@ -517,10 +530,10 @@ function compute_abstract_system_from_concrete_system!(
     e = norm(r, Inf)
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
-    
+
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
-    
+
     input_data = Dict{Int, Tuple{Any, Any, Any}}()
     for abstract_input in inputs
         concrete_input = get_concrete_input(abstract_system, abstract_input)
@@ -528,30 +541,32 @@ function compute_abstract_system_from_concrete_system!(
         Fr = r .+ Fe
         input_data[abstract_input] = (concrete_input, Fe, Fr)
     end
-    
+
     nthreads = Threads.nthreads()
-    
+
     total_work = length(inputs) * length(states)
-    
+
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    
-    progress = verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) : nothing
+
+    progress =
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
+        nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
         local_transitions = transitions_by_thread[tid]
-        
+
         input_idx = ((linear_idx - 1) ÷ length(states)) + 1
         state_idx = ((linear_idx - 1) % length(states)) + 1
-        
+
         @inbounds begin
             abstract_input = inputs[input_idx]
             abstract_state = states[state_idx]
-            
+
             concrete_input, Fe, Fr = input_data[abstract_input]
             concrete_state = get_concrete_state(abstract_system, abstract_state)
-            
+
             Fx, DFx = linsys_map(concrete_state, _H_, concrete_input)
             A = inv(DFx)
             b = abs.(A) * Fr .+ 1.0
@@ -559,7 +574,7 @@ function compute_abstract_system_from_concrete_system!(
             # TODO: can we improve abs.(DFx)*_ONE_?
             rad = abs.(DFx) * _ONE_ .+ Fe
             reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
-            
+
             temp_translist = Tuple{Int, Int, Int}[]
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
@@ -568,12 +583,12 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 temp_translist,
             )
-            
+
             if allin
                 append!(local_transitions, temp_translist)
             end
         end
-        
+
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
             if count_val % max(1, update_interval ÷ 100) == 0
@@ -581,13 +596,13 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
     end
-    
+
     for (_, local_transitions) in enumerate(transitions_by_thread)
         if !isempty(local_transitions)
             add_transitions!(abstract_system, local_transitions)
         end
     end
-    
+
     verbose && ProgressMeter.finish!(progress)
     return
 end
@@ -604,7 +619,10 @@ function compute_abstract_system_from_concrete_system!(
         translist = Tuple{Int, Int, Int}[]
         under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
         total_iterations = max(
-            div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+            div(
+                get_n_input(abstract_system) * get_n_state(abstract_system),
+                update_interval,
+            ),
             1,
         )
         progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
@@ -636,32 +654,34 @@ function compute_abstract_system_from_concrete_system!(
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
     Xdom = get_state_domain(abstract_system)
-    
+
     nthreads = Threads.nthreads()
-    
+
     total_work = length(inputs) * length(states)
-    
+
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    
-    progress = verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) : nothing
+
+    progress =
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
+        nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
         local_transitions = transitions_by_thread[tid]
-        
+
         input_idx = ((linear_idx - 1) ÷ length(states)) + 1
         state_idx = ((linear_idx - 1) % length(states)) + 1
-        
+
         @inbounds begin
             abstract_input = inputs[input_idx]
             abstract_state = states[state_idx]
-            
+
             concrete_input = get_concrete_input(abstract_system, abstract_input)
             concrete_elem = get_concrete_elem(abstract_system, abstract_state)
-            
+
             reachable_points = under_approximation_map(concrete_elem, concrete_input)
-            
+
             temp_translist = Tuple{Int, Int, Int}[]
             allin = compute_abstract_transitions_from_points!(
                 abstract_system,
@@ -670,12 +690,12 @@ function compute_abstract_system_from_concrete_system!(
                 abstract_input,
                 temp_translist,
             )
-            
+
             if allin
                 append!(local_transitions, temp_translist)
             end
         end
-        
+
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
             if count_val % max(1, update_interval ÷ 100) == 0
@@ -683,18 +703,18 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
     end
-    
+
     for (_, local_transitions) in enumerate(transitions_by_thread)
         if !isempty(local_transitions)
             add_transitions!(abstract_system, local_transitions)
         end
     end
-    
+
     verbose && ProgressMeter.finish!(progress)
     return
 end
 
-function compute_abstract_system_from_concrete_system!( 
+function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
     verbose = false,
@@ -706,7 +726,10 @@ function compute_abstract_system_from_concrete_system!(
         translist = Tuple{Int, Int, Int}[]
         system_map = ST.get_system_map(concrete_system_approx)
         total_iterations = max(
-            div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
+            div(
+                get_n_input(abstract_system) * get_n_state(abstract_system),
+                update_interval,
+            ),
             1,
         )
         progress = verbose ? ProgressMeter.Progress(total_iterations) : nothing
@@ -738,39 +761,41 @@ function compute_abstract_system_from_concrete_system!(
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
     Xdom = get_state_domain(abstract_system)
-    
+
     nthreads = Threads.nthreads()
-    
+
     total_work = length(inputs) * length(states)
-    
+
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    
-    progress = verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) : nothing
+
+    progress =
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
+        nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
         local_transitions = transitions_by_thread[tid]
-        
+
         input_idx = ((linear_idx - 1) ÷ length(states)) + 1
         state_idx = ((linear_idx - 1) % length(states)) + 1
-        
+
         @inbounds begin
             abstract_input = inputs[input_idx]
             abstract_state = states[state_idx]
-            
+
             concrete_input = get_concrete_input(abstract_system, abstract_input)
             concrete_state = get_concrete_state(abstract_system, abstract_state)
-            
+
             y = system_map(concrete_state, concrete_input)
             ypos = DO.get_pos_by_coord(Xdom, y)
-            
+
             if ypos in Xdom
                 target = get_state_by_xpos(abstract_system, ypos)
                 push!(local_transitions, (target, abstract_state, abstract_input))
             end
         end
-        
+
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
             if count_val % max(1, update_interval ÷ 100) == 0
@@ -778,7 +803,7 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
     end
-    
+
     total_found_transitions = 0
     for (_, local_transitions) in enumerate(transitions_by_thread)
         if !isempty(local_transitions)
@@ -786,7 +811,7 @@ function compute_abstract_system_from_concrete_system!(
             total_found_transitions += length(local_transitions)
         end
     end
-    
+
     verbose && ProgressMeter.finish!(progress)
     return
 end
