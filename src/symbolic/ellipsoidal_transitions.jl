@@ -1,14 +1,6 @@
 # functions to compute transitions between ellipsoids 
 # (forward vs backward, PWA vs non-linear, fixed shape vs optimized shape)
 
-using StaticArrays, LinearAlgebra, Polyhedra, SpecialFunctions
-using HybridSystems, ProgressMeter, IntervalArithmetic, LazySets
-using JuMP
-
-using ..Domain
-using ..Utils
-const UT = Utils
-
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,
     HybridSystems.ConstrainedAffineControlDiscreteSystem,
@@ -664,7 +656,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
     println("compute_symmodel_from_hybridcontrolsystem! started")
     Xdom = symmodel.Xdom
 
-    r = Xdom.grid.h / 2.0
+    r = DO.get_h(DO.get_grid(Xdom)) / 2.0
 
     n_sys = length(r)
     if Xdom.grid isa Domain.GridEllipsoidalRectangular
@@ -711,7 +703,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
             xpost = _compute_xpost(A, x, B, Upoly, c, R)
             rectI = Domain.get_pos_lims_outer(
                 Xdom.grid,
-                Xdom.grid.rect.A ∩ UT.HyperRectangle(xpost[1], xpost[2]),
+                hybridsys.ext[:X].A ∩ UT.HyperRectangle(xpost[1], xpost[2]),
             )
 
             xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
@@ -731,7 +723,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
                     if (ans)
                         trans_count += 1
                         target = get_state_by_xpos(symmodel, xmpos)
-                        symbol = get_symbol_by_upos(symmodel, xmpos)
+                        symbol = target
                         add_transition!(symmodel.autom, source, target, symbol)
                         transitionCost[(source, target)] = cost
                         transitionCont[(source, target)] = cont

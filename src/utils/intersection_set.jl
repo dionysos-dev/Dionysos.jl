@@ -8,7 +8,6 @@ end
 
 compare_sets(set1, set2) = get_volume(set1) < get_volume(set2)
 
-# Redefine the Base.sort! function for IntersectionSet
 function Base.sort!(iset::IntersectionSet, cmp::Function = compare_sets)
     return sort!(iset.sets, cmp)
 end

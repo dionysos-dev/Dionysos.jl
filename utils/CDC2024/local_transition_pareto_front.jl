@@ -1,5 +1,5 @@
 using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
-using JuMP, Mosek, MosekTools
+using JuMP, Clarabel
 using Plots, Colors
 Random.seed!(0)
 
@@ -14,8 +14,6 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
-
-const FALLBACK_URL = "mosek://solve.mosek.com:30080"
 
 function trial(E2, c, ρ, Ubound, Wbound, λ)
     U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
@@ -45,8 +43,7 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     # Solve the control problem
 
     S = UT.get_full_psd_matrix(problem.transition_cost)
-    sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-    MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+    sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
     E1, cont, max_cost = SY.transition_backward(

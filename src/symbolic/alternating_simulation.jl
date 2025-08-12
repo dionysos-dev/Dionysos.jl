@@ -1,10 +1,8 @@
-using Graphs, SimpleWeightedGraphs
-
 function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_transitions)
     symmodel = NewSymbolicModelListList(Xdom, Udom)
     ncells = DO.get_ncells(Xdom)
     digraph = SimpleWeightedDiGraph(ncells)
-    for source in enum_cells(symmodel)
+    for source in enum_states(symmodel)
         for neighbor in get_possible_transitions(symmodel, sys, source)
             cost = minimum_transition_cost(symmodel, sys, source, neighbor)
             if cost < Inf
@@ -18,13 +16,13 @@ end
 
 function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     Xdom = symmodel.Xdom
-    grid = Xdom.grid
+    grid = DO.get_grid(Xdom)
     pos = get_xpos_by_state(symmodel, source)
     rec = DO.get_rec(grid, pos)
     reachable_set = compute_reachable_set(rec, sys, symmodel.Udom)
     reachable_sets =
-        DO.set_rec_in_period(Xdom.periodic, Xdom.periods, Xdom.T0, reachable_set)
-    symbols = get_symbols(symmodel, reachable_sets, DO.OUTER)
+        UT.set_in_period(reachable_set, Xdom.periodic_dims, Xdom.periods, Xdom.start)
+    symbols = get_states_from_sets(symmodel, reachable_sets, DO.OUTER)
     return symbols
 end
 

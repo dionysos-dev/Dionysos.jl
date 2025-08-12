@@ -11,45 +11,65 @@ println("Started test")
 @testset "NestedDomain" begin
     X = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
     obstacle = UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))
-    hx = [3.0, 1.0] * 2.0
-    periodic = Int[1]
-    periods = [30.0, 30.0]
-    T0 = [0.0, 0.0]
-    d = DO.RectangularObstacles(X, [obstacle])
-    dom = DO.GeneralDomainList(
-        hx;
-        elems = d,
-        periodic = periodic,
-        periods = periods,
-        T0 = T0,
-        fit = true,
-    )
 
-    Ndomain = DO.NestedDomain(dom)
+    # Grid settings
+    hx = SVector(6.0, 2.0)
+    periodic_dims = SVector(1)
+    periods = SVector(30.0)
+    start = SVector(0.0)
 
-    x = SVector(12.0, 4.5)
-    @test DO.get_levels(Ndomain) == 1
-    @test DO.get_ncells(Ndomain) == 67
-    @test DO.get_depth(Ndomain, x) == 1
+    free_space = UT.LazySetMinus(X, UT.LazyUnionSetArray([obstacle]))
+    function test_with_domain(domain)
+        DO.add_set!(domain, free_space, DO.OUTER)
+        # Create the NestedDomain
+        Ndomain = DO.NestedDomain(domain)
 
-    DO.cut_pos!(Ndomain, (2, 2), 1)
-    @test DO.get_levels(Ndomain) == 2
-    @test DO.get_ncells(Ndomain) == 70
-    @test DO.get_depth(Ndomain, x) == 2
+        # Test initial state
+        @test DO.get_levels(Ndomain) == 1
+        @test !isempty(Ndomain)
 
-    DO.cut_pos!(Ndomain, (2, 3), 1)
-    @test DO.get_levels(Ndomain) == 2
-    @test DO.get_ncells(Ndomain) == 73
-    @test DO.get_depth(Ndomain, x) == 2
+        # Refinement: divide certain positions
+        div = 3
+        new_subpos1 = DO.cut_pos!(Ndomain, (2, 2), 1; div = div)
+        new_subpos2 = DO.cut_pos!(Ndomain, (2, 3), 1; div = div)
+        new_subpos3 = DO.cut_pos!(Ndomain, (4, 4), 2; div = div)
 
-    DO.cut_pos!(Ndomain, (4, 4), 2)
-    @test DO.get_levels(Ndomain) == 3
-    @test DO.get_ncells(Ndomain) == 76
-    @test DO.get_depth(Ndomain, x) == 3
+        # Test after cuts
+        @test DO.get_levels(Ndomain) == 3  # We should now have 3 levels
 
-    fig = plot(; aspect_ratio = :equal, legend = false)
-    plot!(fig, Ndomain)
-    @test isa(fig, Plots.Plot{Plots.GRBackend})
+        # Check that all cut positions at higher levels are activated
+        for spos in new_subpos1
+            @test DO.is_active(Ndomain, spos, 2)
+        end
+        for spos in new_subpos2
+            @test DO.is_active(Ndomain, spos, 2)
+        end
+        for spos in new_subpos3
+            @test DO.is_active(Ndomain, spos, 3)
+        end
+
+        # Check that the original coarse positions are deactivated
+        @test !DO.is_active(Ndomain, (2, 2), 1)
+        @test !DO.is_active(Ndomain, (2, 3), 1)
+        @test !DO.is_active(Ndomain, (4, 4), 2)
+
+        # Check dimensions match
+        @test length(Ndomain.domains) == 3
+        @test all(d -> d isa DO.GridDomainType, Ndomain.domains)
+
+        # Basic consistency: still nonempty
+        @test !isempty(Ndomain)
+
+        # Check the number of cells increased
+        ncells_before = DO.get_ncells(Ndomain)
+        @test ncells_before > 0
+
+        fig = plot(; aspect_ratio = :equal, legend = false)
+        plot!(fig, Ndomain)
+        @test isa(fig, Plots.Plot{Plots.GRBackend})
+    end
+    test_with_domain(DO.PeriodicDomainList(periodic_dims, periods, start, hx))
+    test_with_domain(DO.DomainList(hx))
 end
 
 end

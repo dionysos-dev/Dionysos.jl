@@ -1,5 +1,6 @@
 module BranchAndBound
 using DataStructures, JuMP
+using Printf
 
 export Abstract_BB_Problem
 
@@ -150,7 +151,6 @@ function MOI.optimize!(optimizer::Optimizer)
     end
 end
 
-using Printf
 const NUM_NODES = ["#nodes", "#pruned", "#infeas", "#queued"]
 
 function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queued)

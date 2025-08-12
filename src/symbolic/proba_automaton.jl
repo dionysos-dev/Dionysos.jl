@@ -1,5 +1,3 @@
-using HybridSystems
-
 mutable struct ProbaAutomaton{S <: AbstractSet{Tuple{Int, Int, Int, Float64}}} <:
                HybridSystems.AbstractAutomaton
     nstates::Int
@@ -24,6 +22,10 @@ function HybridSystems.add_transition!(autom::ProbaAutomaton, source, symbol, ta
     return UT.push_new!(autom.transitions, (target, source, symbol, proba))
 end
 
+function add_transition!(autom::ProbaAutomaton, source, symbol, target, proba)
+    return UT.push_new!(autom.transitions, (target, source, symbol, proba))
+end
+
 function comparison(t1::Tuple{Int, Int, Int, Float64}, t2::Tuple{Int, Int})
     return t1[2:3] == t2
 end
@@ -36,7 +38,7 @@ function add_transitions!(autom::ProbaAutomaton, translist)
     return UT.append_new!(autom.transitions, translist)
 end
 
-Base.empty!(autom::ProbaAutomaton) = empty!(autom.transitions)
+Base.empty!(autom::ProbaAutomaton) = Base.empty!(autom.transitions)
 
 function compute_post!(targetlist, autom::ProbaAutomaton, source, symbol)
     return UT.fix_and_eliminate_tail!(targetlist, autom.transitions, (source, symbol))

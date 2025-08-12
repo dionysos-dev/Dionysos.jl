@@ -1,8 +1,10 @@
 export HierarchicalAbstraction
 
 module HierarchicalAbstraction
-using JuMP
-using StaticArrays, LinearAlgebra, IntervalArithmetic, Plots, Graphs, SimpleWeightedGraphs
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
+using LinearAlgebra, JuMP, Graphs, SimpleWeightedGraphs, IntervalArithmetic
 using Base.Threads
 
 import Dionysos
@@ -26,8 +28,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Union{Nothing, Any}
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -102,18 +104,16 @@ function build_abstract_system(
     function get_transitions(symmodel, sys, source)
         return SY.get_transitions_1(symmodel, sys, source, compute_reachable_set)
     end
-    X = concrete_system.X.A
-    obstacles = concrete_system.X.B.sets
 
-    d = DO.RectangularObstacles(X, obstacles)
-    Xdom = DO.GeneralDomainList(
-        hx;
-        elems = d,
-        periodic = concrete_system.periodic,
-        periods = concrete_system.periods,
-        T0 = concrete_system.T0,
-        fit = true,
+    grid = DO.GridFree(SVector(0.0, 0.0) + hx / 2.0, hx)
+    Xdom = DO.PeriodicDomainList(
+        concrete_system.periodic,
+        concrete_system.periods,
+        concrete_system.T0,
+        grid,
     )
+    DO.add_set!(Xdom, UT.HyperRectangle(SVector(0.5, 0.5), SVector(55.0, 55.0)), DO.OUTER) #TODO
+    DO.remove_set!(Xdom, concrete_system.X.B.sets[1], DO.OUTER)
 
     Udom = DO.DomainList(Ugrid)
     DO.add_set!(Udom, concrete_system.U, DO.OUTER)
@@ -188,7 +188,6 @@ end
 
 function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
-
     # Co-design the abstract system and the abstract controller
     hierarchical_problem = HierarchicalProblem(
         optimizer.concrete_problem,
@@ -249,7 +248,7 @@ end
 function compute_reachable_sets(concrete_system, abstract_system, compute_reachable_set)
     reachable_set_sets = Dict()
     symmodel = abstract_system.symmodel
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         rec = DO.get_rec(DO.get_grid(symmodel.Xdom), pos)
         reachable_set = compute_reachable_set(rec, concrete_system, symmodel.Udom)
@@ -269,13 +268,16 @@ function compute_local_sets!(cells, q0, _I_, qT, _T_, periodic, periods, T0)
             cell.local_target_set[i] = []
         end
     end
-    push!(cells[q0].local_init_set[-2], DO.set_rec_in_period(periodic, periods, T0, _I_)...)
+    push!(
+        cells[q0].local_init_set[-2],
+        UT.set_in_period(_I_, periodic, periods, T0).sets...,
+    )
     push!(
         cells[qT].local_target_set[-1],
-        DO.set_rec_in_period(periodic, periods, T0, _T_)...,
+        UT.set_in_period(_T_, periodic, periods, T0).sets...,
     )
     for (state, cell) in cells
-        RL = DO.set_rec_in_period(periodic, periods, T0, cell.reachable_set)
+        RL = UT.set_in_period(cell.reachable_set, periodic, periods, T0).sets
         for rec in RL
             for i in cell.outneighbors
                 neigh = cells[i]
@@ -304,7 +306,7 @@ function build_cells(
     heuristic = SY.build_heuristic(abstract_system.symmodel, [q0])
     symmodel = abstract_system.symmodel
     cells = Dict()
-    for state in SY.enum_cells(abstract_system)
+    for state in SY.enum_states(abstract_system)
         pos = SY.get_xpos_by_state(abstract_system, state)
         outneighbors = SimpleWeightedGraphs.outneighbors(symmodel.autom, state)
         inneighbors = SimpleWeightedGraphs.inneighbors(symmodel.autom, state)
@@ -312,7 +314,7 @@ function build_cells(
         heuristics = Dict{Int, Any}()
         lower_bound = heuristic.dists[state]
         upper_bound = Inf
-        rec = DO.get_rec(symmodel.Xdom.grid, pos)
+        rec = DO.get_rec(DO.get_grid(symmodel.Xdom), pos)
         reachable_set = reachable_set_sets[state]
         local_target_set = Dict{Int, Vector{typeof(_I_)}}()
         local_init_set = Dict{Int, Vector{typeof(_I_)}}()
@@ -402,19 +404,20 @@ function build_heuristic_abstraction!(prob::HierarchicalProblem, cell::Cell)
     compute_reachable_set = prob.reference_local_optimizer.param[:compute_reachable_set]
     minimum_transition_cost = prob.reference_local_optimizer.param[:minimum_transition_cost]
     # Build Xdom
-    Xdom = DO.GeneralDomainList(
-        hx_heuristic;
-        periodic = concrete_system.periodic,
-        periods = concrete_system.periods,
-        T0 = concrete_system.T0,
+    Xdom = DO.PeriodicDomainList(
+        concrete_system.periodic,
+        concrete_system.periods,
+        concrete_system.T0,
+        hx_heuristic,
     )
+
     DO.add_set!(Xdom, cell.rec, DO.OUTER)
     for i in cell.outneighbors
         for rec in cell.local_target_set[i]
             DO.add_set!(Xdom, rec, DO.OUTER)
         end
     end
-    v = 2.0
+    v = 3.0
     rec = UT.HyperRectangle(
         cell.reachable_set.lb - SVector(v, v),
         cell.reachable_set.ub + SVector(v, v),
@@ -477,7 +480,6 @@ function BB.compute_lower_bound!(prob::HierarchicalProblem, node::BB.Node)
         if !haskey(prev_cell.heuristics, from_from)
             build_heuristic!(prev_cell, from_from)
         end
-
         heuristic = prev_cell.heuristics[from_from]
         _T_L = prev_cell.local_target_set[path[end]]
         cost = node.parent.lower_bound + get_min_value_heurisitic(heuristic, _T_L)
@@ -514,14 +516,14 @@ function set_local_optimizer!(
         cell.reachable_set.lb - SVector(v, v),
         cell.reachable_set.ub + SVector(v, v),
     )
-    d = DO.RectangularObstacles(rec, [])
-    Xdom = DO.GeneralDomainList(
-        reference_local_optimizer.param[:hx];
-        elems = d,
-        periodic = concrete_system.periodic,
-        periods = concrete_system.periods,
-        T0 = concrete_system.T0,
-        fit = true,
+
+    hx = reference_local_optimizer.param[:hx]
+    grid = DO.GridFree(SVector(0.0, 0.0) + hx/2.0, hx)
+    Xdom = DO.PeriodicDomainList(
+        concrete_system.periodic,
+        concrete_system.periods,
+        concrete_system.T0,
+        grid,
     )
 
     for (prev_state, _I_L) in cell.local_init_set
@@ -538,7 +540,7 @@ function set_local_optimizer!(
             LazyAbstraction.set_optimizer!(
                 local_optimizer,
                 local_concrete_problem,
-                DO.get_grid(abstract_system.symmodel.Udom);
+                abstract_system.symmodel.Udom;
                 Xdom = Xdom,
             )
             local_optimizer.abstract_system_heuristic = cell.heuristic_abstraction
@@ -687,14 +689,14 @@ function f3(i, prob)
         get_shortest_path_abstract_system(prob.abstract_system, prob.abstract_problem)...,
         28,
     ]
-    new_path = [1, 2, 3, 4, 5, 11, 16, 21, 27, 28]
-    new_path = [1, 2, 9, 15, 21, 27, 28]
+    new_path = [26, 29, 16, 12, 14, 25, 28]
     return new_path[i]
 end
 
 @recipe function f(prob::HierarchicalProblem; path = [], heuristic = false, fine = true)
     @series begin
         color := :blue
+        opacity := 0.2
         return prob.abstract_system.symmodel.Xdom
     end
     if heuristic

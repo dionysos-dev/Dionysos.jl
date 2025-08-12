@@ -57,7 +57,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 @testset "UniformGridAbstraction reachability" begin
-    @test length(abstract_controller.data) == 19400 #src
+    @test length(ST.domain(abstract_controller)) == 19563 #src
 end
 
 # ### Trajectory display
@@ -73,7 +73,7 @@ function reached(x)
 end
 x0 = SVector(0.4, 0.4, 0.0)
 control_trajectory = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discretized_system")),
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;
@@ -98,11 +98,11 @@ no_plot = false
 
     # We display the abstract specifications
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
         color = :green,
     )
     plot!(
-        SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+        SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
         color = :red,
     )
 
@@ -110,6 +110,3 @@ no_plot = false
     plot!(control_trajectory; ms = 0.5)
 end
 end
-# ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.

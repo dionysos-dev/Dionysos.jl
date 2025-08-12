@@ -1,6 +1,6 @@
 struct Colormap
     range::Vector{Float64}
-    colormap::Vector{RGB{Float64}}
+    colormap::Vector{Colors.RGB{Float64}}
     function Colormap(range, mycolor)
         v1 = minimum(range)
         v2 = maximum(range)
@@ -26,7 +26,7 @@ end
 @recipe function f(colorMap::Colormap)
     marker_z --> colorMap.range
     colorbar --> true
-    color --> palette(colorMap.colormap)
+    color --> PlotUtils.palette(colorMap.colormap)
     label --> ""
     return [], []
 end
