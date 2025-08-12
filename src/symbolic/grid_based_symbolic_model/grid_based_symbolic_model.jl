@@ -295,17 +295,17 @@ function compute_abstract_system_from_concrete_system!(
 
             reachable_set = compute_reachable_set(concrete_elem, concrete_input)
 
-            temp_translist = Tuple{Int, Int, Int}[]
+            prev_length = length(local_transitions)
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
                 reachable_set,
                 abstract_state,
                 abstract_input,
-                temp_translist,
+                local_transitions,
             )
 
-            if allin
-                append!(local_transitions, temp_translist)
+            if !allin
+                resize!(local_transitions, prev_length)
             end
         end
 
@@ -417,17 +417,17 @@ function compute_abstract_system_from_concrete_system!(
             Fx = system_map(concrete_state, concrete_input)
             reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
 
-            temp_translist = Tuple{Int, Int, Int}[]
+            prev_length = length(local_transitions)
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
                 reachable_set,
                 abstract_state,
                 abstract_input,
-                temp_translist,
+                local_transitions,
             )
 
-            if allin
-                append!(local_transitions, temp_translist)
+            if !allin
+                resize!(local_transitions, prev_length)
             end
         end
 
@@ -575,17 +575,17 @@ function compute_abstract_system_from_concrete_system!(
             rad = abs.(DFx) * _ONE_ .+ Fe
             reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
 
-            temp_translist = Tuple{Int, Int, Int}[]
+            prev_length = length(local_transitions)
             allin = compute_abstract_transitions_from_rectangle!(
                 abstract_system,
                 reachable_set,
                 abstract_state,
                 abstract_input,
-                temp_translist,
+                local_transitions,
             )
 
-            if allin
-                append!(local_transitions, temp_translist)
+            if !allin
+                resize!(local_transitions, prev_length)
             end
         end
 
@@ -682,17 +682,17 @@ function compute_abstract_system_from_concrete_system!(
 
             reachable_points = under_approximation_map(concrete_elem, concrete_input)
 
-            temp_translist = Tuple{Int, Int, Int}[]
+            prev_length = length(local_transitions)
             allin = compute_abstract_transitions_from_points!(
                 abstract_system,
                 reachable_points,
                 abstract_state,
                 abstract_input,
-                temp_translist,
+                local_transitions,
             )
 
-            if allin
-                append!(local_transitions, temp_translist)
+            if !allin
+                resize!(local_transitions, prev_length)
             end
         end
 
