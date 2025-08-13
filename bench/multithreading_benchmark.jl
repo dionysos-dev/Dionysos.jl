@@ -52,9 +52,6 @@ function parse_args()
     return trials, resolutions, dt, du, threads_list
 end
 
-#############################
-# System & grid construction
-#############################
 const SY = Dionysos.Symbolic
 const MS = MathematicalSystems
 
@@ -95,14 +92,11 @@ end
 
 """Build three discrete-time approximations: Centered, OverApprox, GrowthBound."""
 function build_approximations(continuous_system, tstep)
-    # Centered simulation (discretized)
     cont_center = ST.ContinuousTimeCenteredSimulation(continuous_system)
     centered = ST.discretize(cont_center, tstep)
 
-    # Discretize system for other methods
     discrete_system = ST.discretize_continuous_system(continuous_system, tstep)
 
-    # Simple over-approximation map (inflates radius)
     function simple_over_approx(elem, u)
         center = UT.get_center(elem)
         radius = UT.get_r(elem)
@@ -112,7 +106,6 @@ function build_approximations(continuous_system, tstep)
     end
     over = ST.DiscreteTimeOverApproximationMap(discrete_system, simple_over_approx)
 
-    # Growth bound map
     growth_bound_map(r, u) = @inbounds (r * (1.0 + 0.1 * LinearAlgebra.norm(u)) .+ 0.01)
     growth = ST.DiscreteTimeGrowthBound(discrete_system, growth_bound_map)
 
@@ -149,8 +142,8 @@ function benchmark_method(
         )
     end
 
-    # Sequential measurements
-    seq_results = Vector{Tuple{Float64, Int, Float64}}(undef, trials)
+    seq_results = Vector{NTuple{4, Any}}(undef, trials)
+    first_seq_pool = missing
     for i in 1:trials
         symmodel = symmodel_builder()
         result = @timed SY.compute_abstract_system_from_concrete_system!(
@@ -159,11 +152,16 @@ function benchmark_method(
             verbose = false,
             threaded = false,
         )
-        seq_results[i] = (result.time, result.bytes, result.gctime)
+        pool = hasproperty(result, :gcstats) ? result.gcstats.poolalloc : missing
+        if i == 1
+            ;
+            first_seq_pool = pool;
+        end
+        seq_results[i] = (result.time, result.bytes, result.gctime, pool)
     end
 
-    # Multithreaded measurements
-    mt_results = Vector{Tuple{Float64, Int, Float64}}(undef, trials)
+    mt_results = Vector{NTuple{4, Any}}(undef, trials)
+    first_mt_pool = missing
     for i in 1:trials
         symmodel = symmodel_builder()
         result = @timed SY.compute_abstract_system_from_concrete_system!(
@@ -172,13 +170,20 @@ function benchmark_method(
             verbose = false,
             threaded = true,
         )
-        mt_results[i] = (result.time, result.bytes, result.gctime)
+        pool = hasproperty(result, :gcstats) ? result.gcstats.poolalloc : missing
+        if i == 1
+            ;
+            first_mt_pool = pool;
+        end
+        mt_results[i] = (result.time, result.bytes, result.gctime, pool)
     end
 
-    seq_times = first.(seq_results)
-    mt_times = first.(mt_results)
+    seq_times = getindex.(seq_results, 1)
+    mt_times = getindex.(mt_results, 1)
     seq_allocs = getindex.(seq_results, 2)
     mt_allocs = getindex.(mt_results, 2)
+    seq_pool = [r[4] for r in seq_results if r[4] !== missing]
+    mt_pool = [r[4] for r in mt_results if r[4] !== missing]
 
     seq_mean_time = mean(seq_times);
     mt_mean_time = mean(mt_times)
@@ -197,6 +202,9 @@ function benchmark_method(
     alloc_ratio_mean = mt_mean_alloc / seq_mean_alloc
     alloc_ratio_best = mt_min_alloc / seq_min_alloc
 
+    seq_pool_mean = isempty(seq_pool) ? missing : mean(seq_pool)
+    mt_pool_mean = isempty(mt_pool) ? missing : mean(mt_pool)
+
     return Dict(
         "method" => method_name,
         "seq_mean_time" => seq_mean_time,
@@ -213,12 +221,15 @@ function benchmark_method(
         "mt_min_alloc" => mt_min_alloc,
         "alloc_ratio_mean" => alloc_ratio_mean,
         "alloc_ratio_best" => alloc_ratio_best,
+        "seq_pool_mean" => seq_pool_mean,
+        "mt_pool_mean" => mt_pool_mean,
+        "seq_first_pool" => first_seq_pool,
+        "mt_first_pool" => first_mt_pool,
         "trials" => trials,
         "warmups" => warmups,
     )
 end
 
-# Format bytes (accept Int or Float)
 function format_bytes(bytes::Real)
     units = ("B", "KB", "MB", "GB", "TB")
     value = float(bytes)
@@ -230,7 +241,6 @@ function format_bytes(bytes::Real)
     return @sprintf("%.2f %s", value, units[i])
 end
 
-# Print results table
 function print_results_table(
     all_results,
     nthreads::Int,
@@ -254,7 +264,6 @@ function print_results_table(
         )
     )
     println(repeat("-", 108))
-    # Headers with μ (mean) and σ (std dev) and explicit allocation ratio meaning
     @printf(
         "%-18s %11s %9s %11s %9s %9s %13s %13s %12s\n",
         "Method",
@@ -282,15 +291,21 @@ function print_results_table(
             r["alloc_ratio_mean"]
         )
     end
-    return println(repeat("=", 108))
+    println(repeat("-", 108))
+    println("Pool allocation counts (first measured run per method):")
+    for r in all_results
+        seqp = r["seq_first_pool"] === missing ? "-" : string(r["seq_first_pool"])
+        mtp = r["mt_first_pool"] === missing ? "-" : string(r["mt_first_pool"])
+        println(@sprintf("  %-18s seq=%s  mt=%s", r["method"], seqp, mtp))
+    end
+    println(repeat("=", 108))
+    return nothing
 end
 
-# Main benchmark function
 function run_single_config(trials, n_per_dim, dt, du)
     nthreads = Threads.nthreads()
     Xfull, Ufull, csys = build_test_system(; n_per_dim = n_per_dim, input_step = du)
     approximations = build_approximations(csys, dt)
-    # Fresh symbolic model builder each repetition
     symmodel_builder = () -> SY.NewSymbolicModelListList(Xfull, Ufull)
     all_results = Dict{String, Any}[]
     for (method_name, approx_obj) in sort(collect(approximations); by = x->x[1])
@@ -311,25 +326,24 @@ function run_single_config(trials, n_per_dim, dt, du)
 end
 
 function orchestrate(trials, resolutions, dt, du, threads_list)
-    if length(threads_list) > 1 || threads_list[1] != Threads.nthreads()
-        println("Thread orchestration: $(join(threads_list, ","))")
-        for t in threads_list
-            println("\n== Threads = $t ==")
-            for ncell in resolutions
-                println("-- Resolution per dim = $ncell --")
-                cmd =
-                    `julia -t $t --project=. $(abspath(PROGRAM_FILE)) $trials $ncell $dt $du $t`
-                try
-                    println(read(cmd, String))
-                catch e
-                    @warn "Subprocess failed" threads=t grid=ncell error=e
-                end
-            end
-        end
-        return nothing
-    else
+    current_threads = Threads.nthreads()
+    if length(threads_list) == 1 && threads_list[1] == current_threads
         for ncell in resolutions
             run_single_config(trials, ncell, dt, du)
+        end
+        return nothing
+    end
+    script = abspath(@__FILE__)
+    for t in threads_list
+        if t == current_threads
+            println("\n[orchestrate] Using existing process with $t threads")
+            for ncell in resolutions
+                run_single_config(trials, ncell, dt, du)
+            end
+        else
+            println("\n[orchestrate] Spawning process with $t threads")
+            cmd = `julia -t $t --project=. $script $trials $(join(resolutions,",")) $dt $du`
+            run(cmd)
         end
     end
     return nothing
@@ -337,7 +351,6 @@ end
 
 run_comprehensive_benchmark() = orchestrate(parse_args()...)
 
-# Run benchmark if this script is executed directly
 if abspath(PROGRAM_FILE) == @__FILE__
     ts = time()
     try
