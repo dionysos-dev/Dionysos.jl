@@ -31,7 +31,7 @@ function LazySymbolicModelList(
     uint2coord,
     state_space,
     state_space_pos,
-) where {N, M, T1, T2, S1 <: DO.GridDomainType{N}, S2 <: DO.CustomList{M}, A}
+) where {N, M, T1, S1 <: DO.GridDomainType{N}, S2 <: DO.CustomList{M}, A}
     return LazySymbolicModelList{N, M, S1, S2, A}(
         Xdom,
         Udom,

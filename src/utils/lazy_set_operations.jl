@@ -57,7 +57,7 @@ function set_in_period(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-) where {N, T, P}
+) where {T, P}
     wrapped_sets = LazyUnionSetArray([])
     for set in A.sets
         wrapped_set = set_in_period(set, periodic_dims, periods, start)
