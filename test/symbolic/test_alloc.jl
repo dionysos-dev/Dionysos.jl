@@ -1,3 +1,5 @@
+module TestAlloc
+
 using Test
 using StaticArrays, MathematicalSystems
 using Dionysos
@@ -81,6 +83,8 @@ function test_alloc()
     return test_alloc(sym_serial, discrete_system)
 end
 
+end
+
 @testset "Test alloc" begin
-    test_alloc()
+    TestAlloc.test_alloc()
 end
