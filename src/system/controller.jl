@@ -9,17 +9,13 @@ function is_defined(controller::Controller, state) end
 # Returns the set of all states for which the controller is defined.
 function domain(controller::Controller) end
 
-abstract type SymbolicController <: Controller end
-
-function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
-# Delete previous control law for 'state' and 'symbol'
-function set_control!(controller::SymbolicController, state::Int, symbol::Int) end
-
 #################################################
 ############ Symbolic implementations ###########
 #################################################
 abstract type SymbolicController <: Controller end
 function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
+# Delete previous control law for 'state' and 'symbol'
+function set_control!(controller::SymbolicController, state::Int, symbol::Int) end
 get_control(controller::SymbolicController, state::Int) =
     first(get_all_controls(controller, state))
 
