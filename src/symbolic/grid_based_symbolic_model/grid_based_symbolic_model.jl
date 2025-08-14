@@ -420,7 +420,10 @@ function compute_abstract_system_from_concrete_system!(
             if ypos in Xdom
                 target = get_state_by_xpos(abstract_system, ypos)
                 # TODO use `add_transition!`
-                add_transitions!(abstract_system, ((target, abstract_state, abstract_input),))
+                add_transitions!(
+                    abstract_system,
+                    ((target, abstract_state, abstract_input),),
+                )
             end
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
