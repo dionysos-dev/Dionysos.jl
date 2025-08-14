@@ -1,5 +1,5 @@
 """
-    SymbolicModelList{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
+    SymbolicModelList{N, M, S1, S2, A, U} <: GridBasedSymbolicModel{N, M}
 
 A classical symbolic model where the entire domain is partitioned into grid cells.
 """
