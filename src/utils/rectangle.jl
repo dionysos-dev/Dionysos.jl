@@ -114,7 +114,7 @@ function set_in_period(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-) where {N, T, P}
+) where {T, P}
     L = typeof(rect)[]
     recursive(L, rect, rect.lb, rect.ub, periodic_dims, periods, start, 1)
     return LazyUnionSetArray(L)
