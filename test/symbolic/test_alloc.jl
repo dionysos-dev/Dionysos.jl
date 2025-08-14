@@ -57,9 +57,13 @@ function test_alloc(abstract_system, concrete_system_approx)
     abstract_input = @inferred first(inputs)
     # FIXME `symmodel.metadata[:original_symmodel]` is type-unstable since `metadata` value type is `Any`
     #concrete_input = @infered Dionysos.Symbolic.get_concrete_input(abstract_system, abstract_input)
-    concrete_input = Dionysos.Symbolic.get_concrete_input(abstract_system, abstract_input)::SVector{3,Float64}
+    concrete_input = Dionysos.Symbolic.get_concrete_input(
+        abstract_system,
+        abstract_input,
+    )::SVector{3, Float64}
     abstract_state = @inferred first(Dionysos.Symbolic.enum_states(abstract_system))
-    concrete_state = @inferred Dionysos.Symbolic.get_concrete_state(abstract_system, abstract_state)
+    concrete_state =
+        @inferred Dionysos.Symbolic.get_concrete_state(abstract_system, abstract_state)
     system_map = @inferred ST.get_system_map(concrete_system_approx)
     # Compilation
     system_map(concrete_state, concrete_input)
@@ -73,9 +77,8 @@ function test_alloc()
     cont_center = ST.ContinuousTimeCenteredSimulation(concrete_system)
     discrete_system = ST.discretize(cont_center, 1.0)
 
-
     sym_serial = SY.NewSymbolicModelListList(Xfull, Ufull)
-    test_alloc(sym_serial, discrete_system)
+    return test_alloc(sym_serial, discrete_system)
 end
 
 @testset "Test alloc" begin

@@ -17,7 +17,8 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector) -> Vector{SVector}`
 which returns a singleton list with the propagated center point.
 """
-struct DiscreteTimeCenteredSimulation{S<:MS.ConstrainedBlackBoxControlDiscreteSystem} <: DiscreteTimeSystemUnderApproximation
+struct DiscreteTimeCenteredSimulation{S <: MS.ConstrainedBlackBoxControlDiscreteSystem} <:
+       DiscreteTimeSystemUnderApproximation
     system::Union{Nothing, S}
 end
 

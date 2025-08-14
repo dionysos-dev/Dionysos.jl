@@ -16,7 +16,7 @@ mutable struct SymbolicModelList{
     autom::A
     xpos2int::Dict{NTuple{N, Int}, Int}
     xint2pos::Vector{NTuple{N, Int}}
-    ucoord2int::Dict{U,Int}
+    ucoord2int::Dict{U, Int}
     uint2coord::Vector{U}
     determinized::Bool
     # Field to store algorithm-specific data
