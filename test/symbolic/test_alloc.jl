@@ -54,7 +54,7 @@ function build_test_system(; n_per_dim = 20, tstep = 1.0, input_step = 1.0)
     return Xfull, Ufull, concrete_system
 end
 
-function test_alloc(abstract_system, concrete_system_approx)
+function _test_alloc(abstract_system, concrete_system_approx)
     inputs = @inferred Dionysos.Symbolic.enum_inputs(abstract_system)
     abstract_input = @inferred first(inputs)
     # FIXME `symmodel.metadata[:original_symmodel]` is type-unstable since `metadata` value type is `Any`
@@ -80,11 +80,19 @@ function test_alloc()
     discrete_system = ST.discretize(cont_center, 1.0)
 
     sym_serial = SY.NewSymbolicModelListList(Xfull, Ufull)
-    return test_alloc(sym_serial, discrete_system)
+    return _test_alloc(sym_serial, discrete_system)
+end
+
+function runtests()
+    for name in names(@__MODULE__; all = true)
+        if startswith("$name", "test_")
+            @testset "$(name)" begin
+                getfield(@__MODULE__, name)()
+            end
+        end
+    end
 end
 
 end
 
-@testset "Test alloc" begin
-    TestAlloc.test_alloc()
-end
+TestAlloc.runtests()
