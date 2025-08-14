@@ -134,8 +134,6 @@ is_xpos(symmodel::LazySymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
 get_concrete_input(symmodel::LazySymbolicModelList, input) = symmodel.uint2coord[input]
 get_abstract_input(symmodel::LazySymbolicModelList, u) = symmodel.ucoord2int[u]
-add_transitions!(symmodel::LazySymbolicModelList, translist) =
-    add_transitions!(symmodel.autom, translist)
 
 @recipe function f(
     symmodel::LazySymbolicModelList;
