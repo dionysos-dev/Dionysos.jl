@@ -381,7 +381,6 @@ function compute_abstract_system_from_concrete_system!(
         for abstract_state in enum_states(abstract_system)
             concrete_elem = get_concrete_elem(abstract_system, abstract_state)
             reachable_points = under_approximation_map(concrete_elem, concrete_input)
-            empty!(translist)
             allin = compute_abstract_transitions_from_points!(
                 abstract_system,
                 reachable_points,
@@ -404,7 +403,6 @@ function compute_abstract_system_from_concrete_system!(
     verbose = false,
     update_interval = Int(1e5),
 )
-    translist = Tuple{Int, Int, Int}[]
     system_map = ST.get_system_map(concrete_system_approx)
     total_iterations = max(
         div(get_n_input(abstract_system) * get_n_state(abstract_system), update_interval),
@@ -416,16 +414,14 @@ function compute_abstract_system_from_concrete_system!(
         concrete_input = get_concrete_input(abstract_system, abstract_input)
         for abstract_state in enum_states(abstract_system)
             concrete_state = get_concrete_state(abstract_system, abstract_state)
-            reachable_points = [system_map(concrete_state, concrete_input)]
-            empty!(translist)
-            allin = compute_abstract_transitions_from_points!(
-                abstract_system,
-                reachable_points,
-                abstract_state,
-                abstract_input,
-                translist,
-            )
-            allin && add_transitions!(abstract_system, translist)
+            y = system_map(concrete_state, concrete_input)
+            Xdom = get_state_domain(abstract_system)
+            ypos = DO.get_pos_by_coord(Xdom, y)
+            if ypos in Xdom
+                target = get_state_by_xpos(abstract_system, ypos)
+                # TODO use `add_transition!`
+                add_transitions!(abstract_system, ((target, abstract_state, abstract_input),))
+            end
             count += 1
             verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
         end
