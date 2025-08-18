@@ -1,5 +1,5 @@
 """
-    SymbolicModelList{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
+    SymbolicModelList{N, M, S1, S2, A, U} <: GridBasedSymbolicModel{N, M}
 
 A classical symbolic model where the entire domain is partitioned into grid cells.
 """
@@ -9,14 +9,15 @@ mutable struct SymbolicModelList{
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
     A,
+    U,
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
     xpos2int::Dict{NTuple{N, Int}, Int}
     xint2pos::Vector{NTuple{N, Int}}
-    ucoord2int::Any
-    uint2coord::Any
+    ucoord2int::Dict{U, Int}
+    uint2coord::Vector{U}
     determinized::Bool
     # Field to store algorithm-specific data
     metadata::Dict{Symbol, Any}
