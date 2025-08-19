@@ -79,7 +79,7 @@ function test_alloc()
     cont_center = ST.ContinuousTimeCenteredSimulation(concrete_system)
     discrete_system = ST.discretize(cont_center, 1.0)
 
-    sym_serial = SY.NewSymbolicModelListList(Xfull, Ufull)
+    sym_serial = SY.NewSymbolicModelList(Xfull, Ufull)
     return _test_alloc(sym_serial, discrete_system)
 end
 

@@ -26,7 +26,7 @@ println("Started test")
     Ufull = DO.DomainList(Ugrid)
     DO.add_pos!(Ufull, (0,))
 
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+    symmodel = SY.NewSymbolicModelList(Xfull, Ufull)
 
     @test SY.is_xpos(symmodel, (1, 1)) == true
     @test SY.is_xpos(symmodel, (2, 2)) == true

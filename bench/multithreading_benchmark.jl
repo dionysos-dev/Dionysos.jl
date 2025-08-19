@@ -306,7 +306,7 @@ function run_single_config(trials, n_per_dim, dt, du)
     nthreads = Threads.nthreads()
     Xfull, Ufull, csys = build_test_system(; n_per_dim = n_per_dim, input_step = du)
     approximations = build_approximations(csys, dt)
-    symmodel_builder = () -> SY.NewSymbolicModelListList(Xfull, Ufull)
+    symmodel_builder = () -> SY.NewSymbolicModelList(Xfull, Ufull)
     all_results = Dict{String, Any}[]
     for (method_name, approx_obj) in sort(collect(approximations); by = x->x[1])
         try

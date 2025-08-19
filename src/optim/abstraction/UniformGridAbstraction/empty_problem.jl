@@ -406,7 +406,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     build_system_approximation!(optimizer)
 
     # Create abstract system
-    abstract_system = Dionysos.Symbolic.NewSymbolicModelListList(
+    abstract_system = Dionysos.Symbolic.NewSymbolicModelList(
         build_state_domain(optimizer),
         build_input_domain(optimizer),
         optimizer.automaton_constructor,
