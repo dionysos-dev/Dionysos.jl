@@ -27,13 +27,9 @@ end
 
 Constructor for a fresh (non-determinized) SymbolicModelList.
 """
-function NewSymbolicModelList(Xdom, Udom, AutomatonConstructor::Function)
-    return NewSymbolicModelList(Xdom, Udom; AutomatonConstructor = AutomatonConstructor)
-end
-
 function NewSymbolicModelList(
     Xdom,
-    Udom;
+    Udom,
     AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
 )
     nx = DO.get_ncells(Xdom)
