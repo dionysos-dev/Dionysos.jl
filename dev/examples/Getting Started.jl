@@ -86,7 +86,7 @@ continuous_approx =
     ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
-symmodel = SY.NewSymbolicModelList(domainX, domainU)
+symmodel = SY.SymbolicModelList(domainX, domainU)
 SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
 # Let us now explore what transitions have been created considering, for instance, the state `x`=[1.1  1.3] and the input `u`=-1. First, let us pin point the cell in the grid

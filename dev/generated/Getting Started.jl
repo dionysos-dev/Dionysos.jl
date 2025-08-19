@@ -51,7 +51,7 @@ continuous_approx =
     ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
-symmodel = SY.NewSymbolicModelList(domainX, domainU)
+symmodel = SY.SymbolicModelList(domainX, domainU)
 SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
 xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
