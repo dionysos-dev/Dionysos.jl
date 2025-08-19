@@ -23,11 +23,11 @@ mutable struct SymbolicModelList{
 end
 
 """
-    NewSymbolicModelList(Xdom, Udom; AutomatonConstructor)
+    SymbolicModelList(Xdom, Udom; AutomatonConstructor)
 
 Constructor for a fresh (non-determinized) SymbolicModelList.
 """
-function NewSymbolicModelList(
+function SymbolicModelList(
     Xdom,
     Udom,
     AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),

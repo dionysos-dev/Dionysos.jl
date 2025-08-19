@@ -11,7 +11,6 @@ Dionysos.Symbolic.GridBasedSymbolicModel
 Dionysos.Symbolic.SymbolicModelList
 Dionysos.Symbolic.LazySymbolicModelList
 Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
-Dionysos.Symbolic.NewSymbolicModelList
 ```
 
 ```@docs
