@@ -60,7 +60,7 @@ end
 # Test function to verify consistency between serial and threaded execution
 function test_multithreading_consistency(method_name, concrete_system, Xfull, Ufull)
     # Serial execution
-    sym_serial = SY.NewSymbolicModelList(Xfull, Ufull)
+    sym_serial = SY.SymbolicModelList(Xfull, Ufull)
     SY.compute_abstract_system_from_concrete_system!(
         sym_serial,
         concrete_system;
@@ -72,7 +72,7 @@ function test_multithreading_consistency(method_name, concrete_system, Xfull, Uf
 
     # Threaded execution (if available)
     if Threads.nthreads() > 1
-        sym_threaded = SY.NewSymbolicModelList(Xfull, Ufull)
+        sym_threaded = SY.SymbolicModelList(Xfull, Ufull)
         SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,
             concrete_system;
@@ -109,7 +109,7 @@ function measure_speedup(method_name, concrete_system, Xfull, Ufull; repeats = 3
 
     for _ in 1:repeats
         # Serial measurement
-        sym_serial = SY.NewSymbolicModelList(Xfull, Ufull)
+        sym_serial = SY.SymbolicModelList(Xfull, Ufull)
         GC.gc()
         t_serial = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_serial,
@@ -120,7 +120,7 @@ function measure_speedup(method_name, concrete_system, Xfull, Ufull; repeats = 3
         push!(serial_times, t_serial)
 
         # Threaded measurement
-        sym_threaded = SY.NewSymbolicModelList(Xfull, Ufull)
+        sym_threaded = SY.SymbolicModelList(Xfull, Ufull)
         GC.gc()
         t_threaded = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,

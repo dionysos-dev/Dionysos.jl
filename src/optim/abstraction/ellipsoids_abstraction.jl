@@ -86,7 +86,7 @@ function build_abstraction(
     DO.add_set!(domainU, X, DO.INNER)
 
     # The symbolic model for the state-feedback abstraction
-    abstract_system = SY.NewSymbolicModelList(domainX, domainU)
+    abstract_system = SY.SymbolicModelList(domainX, domainU)
     empty!(abstract_system.autom)
 
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$

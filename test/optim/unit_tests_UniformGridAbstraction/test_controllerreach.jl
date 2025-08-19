@@ -56,7 +56,7 @@ println("Started test")
         ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
-    symmodel = SY.NewSymbolicModelList(Xfull, Ufull)
+    symmodel = SY.SymbolicModelList(Xfull, Ufull)
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     Xinit = DO.DomainList(Xgrid)
