@@ -50,7 +50,7 @@ println("Started test")
         ST.ContinuousTimeLinearized(concrete_system, DF_sys, bound_DF, bound_DDF)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+    symmodel = SY.NewSymbolicModelList(Xfull, Ufull)
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     @test SY.ntransitions(symmodel.autom) == 2175
