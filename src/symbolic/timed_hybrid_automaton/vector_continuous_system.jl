@@ -1,23 +1,23 @@
-"""
-    VectorContinuousSystem{T<:AbstractContinuousSystem}
+# """
+#     VectorContinuousSystem{T<:AbstractContinuousSystem}
 
-Container for a vector of mathematical systems, allowing joint manipulation as a single system.
-This type performs the Cartesian product between dynamical systems and time components.
+# Container for a vector of mathematical systems, allowing joint manipulation as a single system.
+# This type performs the Cartesian product between dynamical systems and time components.
 
-# Note
-Eventually, this code should be integrated into MathematicalSystems.jl and should no longer 
-be present in the Dionysos codebase.
+# # Note
+# Eventually, this code should be integrated into MathematicalSystems.jl and should no longer 
+# be present in the Dionysos codebase.
 
-# Fields
-- `systems::Vector{T}`: Vector of continuous systems to be composed
+# # Fields
+# - `systems::Vector{T}`: Vector of continuous systems to be composed
 
-# Example
-```julia
-dyn_sys = ConstrainedBlackBoxControlContinuousSystem(...)
-time_sys = ConstrainedLinearContinuousSystem(...)
-composed = VectorContinuousSystem([dyn_sys, time_sys])
-```
-"""
+# # Example
+# ```julia
+# dyn_sys = ConstrainedBlackBoxControlContinuousSystem(...)
+# time_sys = ConstrainedLinearContinuousSystem(...)
+# composed = VectorContinuousSystem([dyn_sys, time_sys])
+# ```
+# """
 struct VectorContinuousSystem{T <: AbstractContinuousSystem} <: AbstractContinuousSystem
     systems::Vector{T}
 end

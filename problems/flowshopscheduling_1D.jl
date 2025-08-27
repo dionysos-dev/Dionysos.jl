@@ -24,16 +24,16 @@ MathematicalSystems.apply(reset::FlowShopResetMap, state::AbstractVector) =
     vcat(reset.x_init, max(reset.t_min, state[end]))
 MathematicalSystems.stateset(reset::FlowShopResetMap) = reset.domain
 
-"""
-    make_cost_function(mode_weights::Vector{Float64}, t_nexttask_starts::Vector{Float64}; switch_penalty=100.0, base_switch_cost=1.0)
+# """
+#     make_cost_function(mode_weights::Vector{Float64}, t_nexttask_starts::Vector{Float64}; switch_penalty=100.0, base_switch_cost=1.0)
 
-Constructs a custom cost function for the 1D flowshop.
+# Constructs a custom cost function for the 1D flowshop.
 
-- `mode_weights`: weights per mode (e.g., [3.0, 2.0, ...])
-- `t_nexttask_starts`: start time of each task (e.g., [1.0, 7.0, ...])
-- `switch_penalty`: penalty coefficient for switching (default 100.0)
-- `base_switch_cost`: base cost when switching (default 1.0)
-"""
+# - `mode_weights`: weights per mode (e.g., [3.0, 2.0, ...])
+# - `t_nexttask_starts`: start time of each task (e.g., [1.0, 7.0, ...])
+# - `switch_penalty`: penalty coefficient for switching (default 100.0)
+# - `base_switch_cost`: base cost when switching (default 1.0)
+# """
 function make_cost_function(
     mode_weights::Vector{Float64},
     t_nexttask_starts::Vector{Float64};
@@ -53,28 +53,28 @@ function make_cost_function(
     end
 end
 
-"""
-    generate_system_and_problem()
+# """
+#     generate_system_and_problem()
 
-    Generate a 1D flowshop scheduling hybrid control problem with 5 sequential tasks.
+#     Generate a 1D flowshop scheduling hybrid control problem with 5 sequential tasks.
 
-    - State: (x, t, k) where x ∈ ℝ¹ (system state), t ∈ ℝ (time), k ∈ {1,2,3,4,5} (mode/task index)
-    - Each mode/task has its own continuous dynamics, state/input/time constraints, and guard (acceptance region).
-    - Guards: Each guard is a rectangle in (x, t) defining the acceptance region for switching to the next task.
-    - Reset maps: When a guard is reached, the state is reset (x, t) → (x_init, max(t_min, t)).
-    - The automaton encodes the allowed sequence of tasks (1→2→3→4→5).
-    - The final target is a region in (x, t) for the last mode.
-    - The cost function is mode-dependent, penalizes input effort, and strongly penalizes switching before the end of the time window (to encourage waiting as long as possible before switching).
+#     - State: (x, t, k) where x ∈ ℝ¹ (system state), t ∈ ℝ (time), k ∈ {1,2,3,4,5} (mode/task index)
+#     - Each mode/task has its own continuous dynamics, state/input/time constraints, and guard (acceptance region).
+#     - Guards: Each guard is a rectangle in (x, t) defining the acceptance region for switching to the next task.
+#     - Reset maps: When a guard is reached, the state is reset (x, t) → (x_init, max(t_min, t)).
+#     - The automaton encodes the allowed sequence of tasks (1→2→3→4→5).
+#     - The final target is a region in (x, t) for the last mode.
+#     - The cost function is mode-dependent, penalizes input effort, and strongly penalizes switching before the end of the time window (to encourage waiting as long as possible before switching).
 
-    Guards (acceptance regions):
-        - Task 1: x ∈ [6,10], t ∈ [0,3]
-        - Task 2: x ∈ [8,12], t ∈ [1,5]
-        - Task 3: x ∈ [10,11], t ∈ [7,9]
-        - Task 4: x ∈ [7,10], t ∈ [8,11]
-        - Task 5 (target): x ∈ [8,10], t ∈ [10,13]
+#     Guards (acceptance regions):
+#         - Task 1: x ∈ [6,10], t ∈ [0,3]
+#         - Task 2: x ∈ [8,12], t ∈ [1,5]
+#         - Task 3: x ∈ [10,11], t ∈ [7,9]
+#         - Task 4: x ∈ [7,10], t ∈ [8,11]
+#         - Task 5 (target): x ∈ [8,10], t ∈ [10,13]
 
-    The problem is designed to test temporal logic, switching, and optimal control in a simple 1D setting.
-"""
+#     The problem is designed to test temporal logic, switching, and optimal control in a simple 1D setting.
+# """
 function generate_system_and_problem()
 
     # Discretization parameters (dx, du, dt) for each task

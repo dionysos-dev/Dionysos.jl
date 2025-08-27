@@ -13,15 +13,10 @@ import Dionysos
 # Type definitions for type stability
 # ================================================================
 
-# (?) Is it usefull to delete type unstability
-"""
-Concrete type alias for augmented states: (state_id, time_id, mode_id)
-"""
+
 const AugmentedState = Tuple{Int, Int, Int}
 
-"""
-Concrete type alias for transitions: (target_state, source_state, input_id)
-"""
+
 const TransitionTuple = Tuple{AugmentedState, AugmentedState, Int}
 
 # ================================================================
@@ -54,22 +49,22 @@ end
 # Structure for matching global abstract inputs
 # ================================================================
 
-"""
-    GlobalInputMap
+# """
+#     GlobalInputMap
 
-Structure for managing the mapping between local (per-mode) and global input indices, for both continuous and switching inputs.
+# Structure for managing the mapping between local (per-mode) and global input indices, for both continuous and switching inputs.
 
-# Fields
-- `total_inputs::Int`: Total number of global inputs
-- `continuous_inputs::Int`: Number of continuous global inputs
-- `switching_inputs::Int`: Number of switching global inputs
-- `continuous_to_global::Dict{Tuple{Int, Int}, Int}`: (mode_id, local_input_id) → global_input_id
-- `global_to_continuous::Dict{Int, Tuple{Int, Int}}`: global_input_id → (mode_id, local_input_id)
-- `switching_to_global::Dict{Int, Int}`: transition_id → global_input_id
-- `global_to_switching::Dict{Int, Int}`: global_input_id → transition_id
-- `continuous_range::UnitRange{Int}`: Range of continuous global input ids
-- `switching_range::UnitRange{Int}`: Range of switching global input ids
-"""
+# # Fields
+# - `total_inputs::Int`: Total number of global inputs
+# - `continuous_inputs::Int`: Number of continuous global inputs
+# - `switching_inputs::Int`: Number of switching global inputs
+# - `continuous_to_global::Dict{Tuple{Int, Int}, Int}`: (mode_id, local_input_id) → global_input_id
+# - `global_to_continuous::Dict{Int, Tuple{Int, Int}}`: global_input_id → (mode_id, local_input_id)
+# - `switching_to_global::Dict{Int, Int}`: transition_id → global_input_id
+# - `global_to_switching::Dict{Int, Int}`: global_input_id → transition_id
+# - `continuous_range::UnitRange{Int}`: Range of continuous global input ids
+# - `switching_range::UnitRange{Int}`: Range of switching global input ids
+# """
 struct GlobalInputMap
     total_inputs::Int
     continuous_inputs::Int
@@ -83,18 +78,18 @@ struct GlobalInputMap
     switch_labels::Vector{String} # labels  for switching inputs (e.g., "SWITCH source_mode_id -> target_mode_id")
 end
 
-"""
-    GlobalInputMap(abstract_systems, hs::HybridSystem)
 
-Construct a GlobalInputMap for a given hybrid system and its symbolic abstractions.
+#     GlobalInputMap(abstract_systems, hs::HybridSystem)
 
-# Arguments
-- `abstract_systems`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
-- `hs::HybridSystem`: The hybrid system
+# Construct a GlobalInputMap for a given hybrid system and its symbolic abstractions.
 
-# Returns
-- `GlobalInputMap`: The constructed mapping structure
-"""
+# # Arguments
+# - `abstract_systems`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
+# - `hs::HybridSystem`: The hybrid system
+
+# # Returns
+# - `GlobalInputMap`: The constructed mapping structure
+
 function GlobalInputMap(abstract_systems, hs::HybridSystem)
     # Phase 1: Allocate continuous inputs
     continuous_to_global = Dict{Tuple{Int, Int}, Int}()
@@ -143,56 +138,56 @@ end
 
 # === Accessor functions ===
 
-"""
-    get_global_input_id(gim::GlobalInputMap, mode_id::Int, local_input_id::Int) -> Int
+# """
+#     get_global_input_id(gim::GlobalInputMap, mode_id::Int, local_input_id::Int) -> Int
 
-Get the global input id for a local continuous input.
+# Get the global input id for a local continuous input.
 
-# Arguments
-- `gim::GlobalInputMap`: the global input map
-- `mode_id::Int`: mode id (1, 2, 3, ...)
-- `local_input_id::Int`: local input id in this mode (1, 2, 3, ...)
+# # Arguments
+# - `gim::GlobalInputMap`: the global input map
+# - `mode_id::Int`: mode id (1, 2, 3, ...)
+# - `local_input_id::Int`: local input id in this mode (1, 2, 3, ...)
 
-# Returns
-- `Int`: the global input id (0 if not found)
-"""
+# # Returns
+# - `Int`: the global input id (0 if not found)
+# """
 function get_global_input_id(gim::GlobalInputMap, mode_id::Int, local_input_id::Int)
     return get(gim.continuous_to_global, (mode_id, local_input_id), 0)
 end
 
-"""
-    get_switching_global_id(gim::GlobalInputMap, transition_id::Int) -> Int
+# """
+#     get_switching_global_id(gim::GlobalInputMap, transition_id::Int) -> Int
 
-Get the global input id for a switching input.
+# Get the global input id for a switching input.
 
-# Arguments
-- `gim::GlobalInputMap`: the global input map
-- `transition_id::Int`: transition id in the hybrid automaton
+# # Arguments
+# - `gim::GlobalInputMap`: the global input map
+# - `transition_id::Int`: transition id in the hybrid automaton
 
-# Returns
-- `Int`: the global input id for switching (0 if not found)
-"""
+# # Returns
+# - `Int`: the global input id for switching (0 if not found)
+# """
 function get_switching_global_id(gim::GlobalInputMap, transition_id::Int)
     return get(gim.switching_to_global, transition_id, 0)
 end
 
-"""
-    get_local_input_info(gim::GlobalInputMap, global_id::Int) -> (Symbol, Union{Tuple{Int,Int}, Int, Nothing})
+# """
+#     get_local_input_info(gim::GlobalInputMap, global_id::Int) -> (Symbol, Union{Tuple{Int,Int}, Int, Nothing})
 
-Determine the type and local info of a global input id.
+# Determine the type and local info of a global input id.
 
-# Arguments
-- `gim::GlobalInputMap`: the global input map
-- `global_id::Int`: the global input id
+# # Arguments
+# - `gim::GlobalInputMap`: the global input map
+# - `global_id::Int`: the global input id
 
-# Returns
-- Tuple:
-  - `Symbol`: `:continuous`, `:switching`, or `:invalid`
-  - `Union{Tuple{Int,Int}, Int, Nothing}`:
-    - if `:continuous`: `(mode_id, local_input_id)`
-    - if `:switching`: `transition_id`
-    - if `:invalid`: `nothing`
-"""
+# # Returns
+# - Tuple:
+#   - `Symbol`: `:continuous`, `:switching`, or `:invalid`
+#   - `Union{Tuple{Int,Int}, Int, Nothing}`:
+#     - if `:continuous`: `(mode_id, local_input_id)`
+#     - if `:switching`: `transition_id`
+#     - if `:invalid`: `nothing`
+# """
 function get_local_input_info(gim::GlobalInputMap, global_id::Int)
     if global_id in gim.continuous_range
         return :continuous, gim.global_to_continuous[global_id]
@@ -203,34 +198,34 @@ function get_local_input_info(gim::GlobalInputMap, global_id::Int)
     end
 end
 
-"""
-    is_continuous_input(gim::GlobalInputMap, global_id::Int) -> Bool
+# """
+#     is_continuous_input(gim::GlobalInputMap, global_id::Int) -> Bool
 
-Check if a global input id is a continuous input.
+# Check if a global input id is a continuous input.
 
-# Arguments
-- `gim::GlobalInputMap`: the global input map
-- `global_id::Int`: the global input id
+# # Arguments
+# - `gim::GlobalInputMap`: the global input map
+# - `global_id::Int`: the global input id
 
-# Returns
-- `Bool`: `true` if continuous, `false` otherwise
-"""
+# # Returns
+# - `Bool`: `true` if continuous, `false` otherwise
+# """
 function is_continuous_input(gim::GlobalInputMap, global_id::Int)
     return global_id in gim.continuous_range
 end
 
-"""
-    is_switching_input(gim::GlobalInputMap, global_id::Int) -> Bool
+# """
+#     is_switching_input(gim::GlobalInputMap, global_id::Int) -> Bool
 
-Check if a global input id is a switching input.
+# Check if a global input id is a switching input.
 
-# Arguments
-- `gim::GlobalInputMap`: the global input map
-- `global_id::Int`: the global input id
+# # Arguments
+# - `gim::GlobalInputMap`: the global input map
+# - `global_id::Int`: the global input id
 
-# Returns
-- `Bool`: `true` if switching, `false` otherwise
-"""
+# # Returns
+# - `Bool`: `true` if switching, `false` otherwise
+# """
 function is_switching_input(gim::GlobalInputMap, global_id::Int)
     return global_id in gim.switching_range
 end
@@ -244,14 +239,14 @@ end
 # methods and greater flexibility in how the symbolic model is constructed.
 #
 
-"""
-    build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
+# """
+#     build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
 
-Build a symbolic abstraction of a continuous system using uniform grid discretization.
+# Build a symbolic abstraction of a continuous system using uniform grid discretization.
 
-# Returns
-- Symbolic abstraction of the system
-"""
+# # Returns
+# - Symbolic abstraction of the system
+# """
 function build_dynamical_symbolic_model(
     system;
     optimizer_factory = nothing,
@@ -278,23 +273,23 @@ function build_dynamical_symbolic_model(
     return MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 end
 
-"""
-    build_mode_symbolic_abstractions(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
+# """
+#     build_mode_symbolic_abstractions(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 
-Build symbolic models (dynamics and time) for each mode of a hybrid system.
+# Build symbolic models (dynamics and time) for each mode of a hybrid system.
 
-# Arguments
-- `hs::HybridSystem`: The hybrid system
-- `optimizer_list`: Vector of optimizer factory functions, one per mode
-- `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
+# # Arguments
+# - `hs::HybridSystem`: The hybrid system
+# - `optimizer_list`: Vector of optimizer factory functions, one per mode
+# - `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
 
-# Returns
-- Vector of (symbolic_dynamics, symbolic_time) tuples per mode
+# # Returns
+# - Vector of (symbolic_dynamics, symbolic_time) tuples per mode
 
-# Safety Features
-- Validates optimizer list length matches number of modes
-- Error handling for mode construction failures
-"""
+# # Safety Features
+# - Validates optimizer list length matches number of modes
+# - Error handling for mode construction failures
+# """
 function build_mode_symbolic_abstractions(
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
@@ -338,25 +333,25 @@ function build_mode_symbolic_abstractions(
     return mode_abstractions
 end
 
-"""
-    build_all_transitions(hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
+# """
+#     build_all_transitions(hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
 
-Build all transitions (intra-mode and inter-mode) for the timed hybrid system.
-Centralized function that coordinates transition building with better organization.
+# Build all transitions (intra-mode and inter-mode) for the timed hybrid system.
+# Centralized function that coordinates transition building with better organization.
 
-# Arguments
-- `hs::HybridSystem`: The hybrid system
-- `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode  
-- `input_mapping::GlobalInputMap`: The global input mapping
+# # Arguments
+# - `hs::HybridSystem`: The hybrid system
+# - `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode  
+# - `input_mapping::GlobalInputMap`: The global input mapping
 
-# Returns
-- Vector of transitions (tuples of (target, source, input))
+# # Returns
+# - Vector of transitions (tuples of (target, source, input))
 
-# Performance Notes
-- Pre-allocates transition list based on exact count of intra-mode transitions
-- Inter-mode transitions grow the vector dynamically to avoid over-allocation (better solution (?))
-- Coordinates both intra-mode and inter-mode transition building
-"""
+# # Performance Notes
+# - Pre-allocates transition list based on exact count of intra-mode transitions
+# - Inter-mode transitions grow the vector dynamically to avoid over-allocation (better solution (?))
+# - Coordinates both intra-mode and inter-mode transition building
+# """
 function build_all_transitions(
     hs::HybridSystem,
     mode_abstractions,
@@ -385,24 +380,22 @@ end
 # Functions to add transitions
 # ================================================================
 
-# (1) bottleneck 
+# """
+#     add_intra_mode_transitions!(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
 
-"""
-    add_intra_mode_transitions!(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
+# Add intra-mode transitions to the transition list with optimized performance.
+# Handles both time-frozen and multi-step time cases efficiently.
 
-Add intra-mode transitions to the transition list with optimized performance.
-Handles both time-frozen and multi-step time cases efficiently.
+# # Arguments  
+# - `transition_list`: The list to which transitions are appended
+# - `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
+# - `input_mapping::GlobalInputMap`: The global input mapping
 
-# Arguments  
-- `transition_list`: The list to which transitions are appended
-- `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
-- `input_mapping::GlobalInputMap`: The global input mapping
-
-# Performance Notes (Was one of our bottlenecks)
-- Pre-allocates space to avoid vector reallocations
-- Uses @inbounds in critical loops after bounds checking
-- Caches frequently accessed values
-"""
+# # Performance Notes (Was one of our bottlenecks)
+# - Pre-allocates space to avoid vector reallocations
+# - Uses @inbounds in critical loops after bounds checking
+# - Caches frequently accessed values
+# """
 function add_intra_mode_transitions!(
     transition_list,
     mode_abstractions,
@@ -454,22 +447,22 @@ function add_intra_mode_transitions!(
     end
 end
 
-"""
-    add_inter_mode_transitions!(transition_list, hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
+# """
+#     add_inter_mode_transitions!(transition_list, hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
 
-Add inter-mode transitions (mode switches) to the transition list using guards and reset maps.
+# Add inter-mode transitions (mode switches) to the transition list using guards and reset maps.
 
-# Arguments
-- `transition_list`: The list to which transitions are appended
-- `hs::HybridSystem`: The hybrid system
-- `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
-- `input_mapping::GlobalInputMap`: The global input mapping
+# # Arguments
+# - `transition_list`: The list to which transitions are appended
+# - `hs::HybridSystem`: The hybrid system
+# - `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
+# - `input_mapping::GlobalInputMap`: The global input mapping
 
-# Safety Notes
-- Includes bounds checking for all state and time indices
-- Handles cases where reset maps produce invalid states
-- Validates guard intersections before processing
-"""
+# # Safety Notes
+# - Includes bounds checking for all state and time indices
+# - Handles cases where reset maps produce invalid states
+# - Validates guard intersections before processing
+# """
 function add_inter_mode_transitions!(
     transition_list,
     hs::HybridSystem,
@@ -585,31 +578,30 @@ end
 # Build the final automaton from the transition list
 # ================================================================
 
-# (2) bottleneck 
 
-"""
-    build_symbolic_automaton(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
+# """
+#     build_symbolic_automaton(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
 
-Build the symbolic automaton from the list of temporal transitions with optimized performance.
-Uses pre-allocation with exact estimates, efficient state enumeration, and bounds checking for safety.
+# Build the symbolic automaton from the list of temporal transitions with optimized performance.
+# Uses pre-allocation with exact estimates, efficient state enumeration, and bounds checking for safety.
 
-# Arguments
-- `transition_list`: List of temporal transitions (tuples of (target, source, input))
-- `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
-- `input_mapping::GlobalInputMap`: The global input mapping for exact input count
+# # Arguments
+# - `transition_list`: List of temporal transitions (tuples of (target, source, input))
+# - `mode_abstractions`: Vector of (symbolic_dynamics, symbolic_time) tuples per mode
+# - `input_mapping::GlobalInputMap`: The global input mapping for exact input count
 
-# Returns
-- Tuple (state_index_to_augmented, augmented_to_state_index, automaton):
-    - `state_index_to_augmented`: Vector mapping integer indices to augmented states
-    - `augmented_to_state_index`: Dict mapping augmented states to integer indices  
-    - `automaton`: The constructed symbolic automaton
+# # Returns
+# - Tuple (state_index_to_augmented, augmented_to_state_index, automaton):
+#     - `state_index_to_augmented`: Vector mapping integer indices to augmented states
+#     - `augmented_to_state_index`: Dict mapping augmented states to integer indices  
+#     - `automaton`: The constructed symbolic automaton
 
-# Performance Notes
-- Uses exact state count estimation instead of heuristics
-- Pre-allocates all data structures to avoid reallocations
-- Uses @inbounds in critical loops after bounds checking
-- Single-pass collection with optimal memory usage
-"""
+# # Performance Notes
+# - Uses exact state count estimation instead of heuristics
+# - Pre-allocates all data structures to avoid reallocations
+# - Uses @inbounds in critical loops after bounds checking
+# - Single-pass collection with optimal memory usage
+# """
 function build_symbolic_automaton(
     transition_list,
     mode_abstractions,
@@ -682,16 +674,6 @@ This is the main function users should call to build symbolic abstractions.
 
 # Returns
 - `TimedHybridSymbolicModel`: The constructed symbolic model with optimized performance
-
-# Safety Features
-- Validates input dimensions and consistency
-- Bounds checking for all array accesses
-- Error handling for invalid states and transitions
-
-# Performance Features  
-- Pre-allocates data structures to minimize memory allocations
-- Uses efficient algorithms for transition building
-- Optimized automaton construction with @inbounds where safe
 """
 function build_timed_hybrid_symbolic_model(
     hs::HybridSystem,
@@ -775,17 +757,17 @@ function find_symbolic_state(symmodel, continuous_state)
     end
 end
 
-"""
-    extract_spatial_part(guard)
+# """
+#     extract_spatial_part(guard)
 
-Extract the spatial part (all but last dimension) from a guard (assumed to be a HyperRectangle).
+# Extract the spatial part (all but last dimension) from a guard (assumed to be a HyperRectangle).
 
-# Arguments
-- `guard`: The guard set (should be a HyperRectangle)
+# # Arguments
+# - `guard`: The guard set (should be a HyperRectangle)
 
-# Returns
-- `HyperRectangle`: The spatial part of the guard
-"""
+# # Returns
+# - `HyperRectangle`: The spatial part of the guard
+# """
 function extract_spatial_part(guard)
     if isa(guard, Dionysos.Utils.HyperRectangle)
         return Dionysos.Utils.HyperRectangle(guard.lb[1:(end - 1)], guard.ub[1:(end - 1)])
@@ -794,17 +776,17 @@ function extract_spatial_part(guard)
     end
 end
 
-"""
-    extract_temporal_part(guard)
+# """
+#     extract_temporal_part(guard)
 
-Extract the temporal part (last dimension) from a guard (assumed to be a HyperRectangle).
+# Extract the temporal part (last dimension) from a guard (assumed to be a HyperRectangle).
 
-# Arguments
-- `guard`: The guard set (should be a HyperRectangle)
+# # Arguments
+# - `guard`: The guard set (should be a HyperRectangle)
 
-# Returns
-- `Vector{Float64}`: The temporal interval [t_min, t_max]
-"""
+# # Returns
+# - `Vector{Float64}`: The temporal interval [t_min, t_max]
+# """
 function extract_temporal_part(guard)
     if isa(guard, Dionysos.Utils.HyperRectangle)
         return [guard.lb[end], guard.ub[end]]
@@ -813,18 +795,18 @@ function extract_temporal_part(guard)
     end
 end
 
-"""
-    get_time_indices_from_interval(time_model, temporal_interval)
+# """
+#     get_time_indices_from_interval(time_model, temporal_interval)
 
-Get all time indices in the symbolic time model that fall within a given interval.
+# Get all time indices in the symbolic time model that fall within a given interval.
 
-# Arguments
-- `time_model`: The symbolic time model
-- `temporal_interval`: The interval [t_min, t_max]
+# # Arguments
+# - `time_model`: The symbolic time model
+# - `temporal_interval`: The interval [t_min, t_max]
 
-# Returns
-- `Vector{Int}`: Indices of time steps within the interval
-"""
+# # Returns
+# - `Vector{Int}`: Indices of time steps within the interval
+# """
 function get_time_indices_from_interval(time_model, temporal_interval)
     t_min, t_max = temporal_interval
     return findall(t -> t_min <= t <= t_max, time_model.tsteps)

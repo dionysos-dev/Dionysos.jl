@@ -36,10 +36,10 @@ function A2_abs(; xL = 3.0, xC = 70.0, r0 = 1.0, rL = 0.05, rC = 0.005)
     )
 end
 
-"""
-Reset map for DC-DC converter mode transitions.
-Applies one step of the target mode dynamics during transition.
-"""
+# """
+# Reset map for DC-DC converter mode transitions.
+# Applies one step of the target mode dynamics during transition.
+# """
 struct DCDCResetMap <: MathematicalSystems.AbstractMap
     domain::UT.HyperRectangle
     target_mode::Int  # Mode vers lequel on transite
@@ -67,18 +67,18 @@ end
 MathematicalSystems.stateset(reset::DCDCResetMap) = reset.domain
 
 function generate_safety_system_and_problem()
-    """
-    Génère un problème de sécurité DC-DC converter utilisant la structure SymbolicTimedHybridSystems.
+    # """
+    # Génère un problème de sécurité DC-DC converter utilisant la structure SymbolicTimedHybridSystems.
 
-    Objectif : maintenir le système dans une région de sécurité définie par les contraintes
-    physiques du convertisseur (courant max, tension max, etc.)
+    # Objectif : maintenir le système dans une région de sécurité définie par les contraintes
+    # physiques du convertisseur (courant max, tension max, etc.)
 
-    Caractéristiques :
-    - Le temps n'est pas pris en compte comme contrainte de sécurité
-    - Transitions libres entre modes depuis n'importe quel point
-    - Reset map applique la dynamique du mode de destination
-    - Evolution du système assurée par les reset maps lors des transitions
-    """
+    # Caractéristiques :
+    # - Le temps n'est pas pris en compte comme contrainte de sécurité
+    # - Transitions libres entre modes depuis n'importe quel point
+    # - Reset map applique la dynamique du mode de destination
+    # - Evolution du système assurée par les reset maps lors des transitions
+    # """
 
     # ========== PARAMÈTRES DU SYSTÈME DC-DC ==========
     xL = 3.0;

@@ -42,12 +42,12 @@ function create_jacobian(A_matrix)
     return L
 end
 
-"""
-    This function generates a 3-task flowshop scheduling problem with 3D linear dynamics.
-    Each task has its own state and input constraints, time window, and reset map.
-    The final target is a region in (x, y, z) at a given time window.
-    This is a template for more advanced flowshop scheduling problems with richer dynamics.
-"""
+# """
+#     This function generates a 3-task flowshop scheduling problem with 3D linear dynamics.
+#     Each task has its own state and input constraints, time window, and reset map.
+#     The final target is a region in (x, y, z) at a given time window.
+#     This is a template for more advanced flowshop scheduling problems with richer dynamics.
+# """
 function generate_system_and_problem()
 
     # ------- Discretization parameters ------
