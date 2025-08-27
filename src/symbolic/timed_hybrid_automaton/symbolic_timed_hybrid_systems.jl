@@ -13,9 +13,7 @@ import Dionysos
 # Type definitions for type stability
 # ================================================================
 
-
 const AugmentedState = Tuple{Int, Int, Int}
-
 
 const TransitionTuple = Tuple{AugmentedState, AugmentedState, Int}
 
@@ -77,7 +75,6 @@ struct GlobalInputMap
     switching_range::UnitRange{Int}
     switch_labels::Vector{String} # labels  for switching inputs (e.g., "SWITCH source_mode_id -> target_mode_id")
 end
-
 
 #     GlobalInputMap(abstract_systems, hs::HybridSystem)
 
@@ -577,7 +574,6 @@ end
 # ================================================================
 # Build the final automaton from the transition list
 # ================================================================
-
 
 # """
 #     build_symbolic_automaton(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
