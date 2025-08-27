@@ -21,6 +21,8 @@ include("./symbolic/test_ellipsoidal_transitions.jl")
 include("./symbolic/test_time_symbolic_model.jl")
 include("./symbolic/test_vector_continuous_system.jl")
 include("./symbolic/test_symbolic_timed_hybrid_systems.jl")
+include("./symbolic/test_multithreading.jl")
+include("./symbolic/test_alloc.jl")
 
 include("./problem/test_problems.jl")
 

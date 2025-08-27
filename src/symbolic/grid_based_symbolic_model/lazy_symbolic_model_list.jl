@@ -31,7 +31,7 @@ function LazySymbolicModelList(
     uint2coord,
     state_space,
     state_space_pos,
-) where {N, M, T1, T2, S1 <: DO.GridDomainType{N}, S2 <: DO.CustomList{M}, A}
+) where {N, M, T1, S1 <: DO.GridDomainType{N}, S2 <: DO.CustomList{M}, A}
     return LazySymbolicModelList{N, M, S1, S2, A}(
         Xdom,
         Udom,
@@ -134,8 +134,6 @@ is_xpos(symmodel::LazySymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
 get_concrete_input(symmodel::LazySymbolicModelList, input) = symmodel.uint2coord[input]
 get_abstract_input(symmodel::LazySymbolicModelList, u) = symmodel.ucoord2int[u]
-add_transitions!(symmodel::LazySymbolicModelList, translist) =
-    add_transitions!(symmodel.autom, translist)
 
 @recipe function f(
     symmodel::LazySymbolicModelList;

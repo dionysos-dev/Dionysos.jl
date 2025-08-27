@@ -1,5 +1,5 @@
 """
-    SymbolicModelList{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
+    SymbolicModelList{N, M, S1, S2, A, U, OS} <: GridBasedSymbolicModel{N, M}
 
 A classical symbolic model where the entire domain is partitioned into grid cells.
 """
@@ -9,20 +9,25 @@ mutable struct SymbolicModelList{
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
     A,
+    U,
+    OS,
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
     xpos2int::Dict{NTuple{N, Int}, Int}
     xint2pos::Vector{NTuple{N, Int}}
-    ucoord2int::Any
-    uint2coord::Any
-    determinized::Bool
-    # Field to store algorithm-specific data
-    metadata::Dict{Symbol, Any}
+    ucoord2int::Dict{U, Int}
+    uint2coord::Vector{U}
+    original_symmodel::OS
 end
 
-function NewSymbolicModelListList(
+"""
+    SymbolicModelList(Xdom, Udom; AutomatonConstructor)
+
+Constructor for a fresh (non-determinized) SymbolicModelList.
+"""
+function SymbolicModelList(
     Xdom,
     Udom,
     AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
@@ -46,8 +51,7 @@ function NewSymbolicModelListList(
         xint2pos,
         ucoord2int,
         uint2coord,
-        false,
-        Dict{Symbol, Any}(),
+        nothing, # OS = Nothing for base models
     )
 end
 
@@ -60,8 +64,7 @@ function with_automaton(symmodel::SymbolicModelList, autom)
         symmodel.xint2pos,
         symmodel.ucoord2int,
         symmodel.uint2coord,
-        symmodel.determinized,
-        symmodel.metadata,
+        symmodel.original_symmodel,
     )
 end
 
@@ -85,58 +88,48 @@ add_transition!(symmodel::SymbolicModelList, q::Int, q′::Int, u::Int) =
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
 
-function get_concrete_input(symmodel::SymbolicModelList, input)
-    if !symmodel.determinized
-        return symmodel.uint2coord[input]
-    else
-        return get_concrete_input(
-            symmodel.metadata[:original_symmodel],
-            symmodel.uint2coord[input][1],
-        )
-    end
-end
-function get_abstract_input(symmodel::SymbolicModelList, u)
-    if !symmodel.determinized
-        return symmodel.ucoord2int[u]
-    else
-        return get_abstract_input(symmodel.metadata[:original_symmodel], u)
-    end
-end
+is_determinized(symmodel::SymbolicModelList) = !(symmodel.original_symmodel === nothing)
 
 """
     is_deterministic(symmodel::SymbolicModelList) -> Bool
 
 Returns `true` if the symbolic model is deterministic.
-
-A symbolic model is deterministic if, for every (state, input) pair, there is **at most one successor**.  
 """
 is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
+
+function get_concrete_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, U, Nothing},
+    input::Int,
+) where {N, M, S1, S2, A, U}
+    return symmodel.uint2coord[input]
+end
+
+function get_abstract_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, U, Nothing},
+    u::U,
+) where {N, M, S1, S2, A, U}
+    return symmodel.ucoord2int[u]
+end
+
+function get_concrete_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, Tuple{Uprev, Int}, OS},
+    input::Int,
+) where {N, M, S1, S2, A, Uprev, OS}
+    u, _ = symmodel.uint2coord[input]
+    return get_concrete_input(symmodel.original_symmodel, u)
+end
+
+function get_abstract_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, Tuple{Uprev, Int}, OS},
+    u,
+) where {N, M, S1, S2, A, Uprev, OS}
+    return get_abstract_input(symmodel.original_symmodel, u)
+end
 
 """
     determinize_symbolic_model(symmodel::SymbolicModelList) -> SymbolicModelList
 
-Returns a **determinized version** of the given symbolic model by encoding each transition input as a pair `(input_symbol, target_state)`.
-
-This transformation removes nondeterminism by lifting the input space: each original input is paired with its intended target, making transitions unique.  
-
-# Arguments
-- `symmodel`: A [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList) that may contain nondeterministic transitions.
-
-# Returns
-- A new [`SymbolicModelList`](@ref) that is deterministic, with:
-    - New unique inputs: `(symbol, target)` pairs.
-    - Transitions remapped to be deterministic.
-    - `metadata[:original_symmodel]` containing a reference to the original model.
-
-# Notes
-- The determinized model will have more inputs than the original.
-
-# Example
-
-```julia
-det_symmodel = determinize_symbolic_model(symmodel)
-is_deterministic(det_symmodel) == true
-```
+Returns a determinized version of the given symbolic model by encoding each transition input as a pair `(input_symbol, target_state)`.
 """
 function determinize_symbolic_model(
     symmodel::SymbolicModelList;
@@ -144,19 +137,17 @@ function determinize_symbolic_model(
 )
     transitions = enum_transitions(symmodel)
 
-    new_ucoord2int = Dict{Tuple{Any, Int}, Int}() # New input mapping (int -> (symbol, target))
-    new_uint2coord = Dict{Int, Tuple{Any, Int}}() # Reverse (symbol, target) -> int
+    U = eltype(symmodel.uint2coord)
+    new_ucoord2int = Dict{Tuple{U, Int}, Int}()
+    new_uint2coord = Tuple{U, Int}[]
 
-    input_counter = 1
     transition_buffer = Vector{NTuple{3, Int}}()
     for (target, source, symbol) in transitions
         new_input = (symbol, target)
 
-        # Get or assign a new input ID
         input_id = get!(new_ucoord2int, new_input) do
-            new_uint2coord[input_counter] = new_input
-            input_counter += 1
-            return input_counter - 1
+            push!(new_uint2coord, new_input)
+            return length(new_uint2coord)
         end
 
         push!(transition_buffer, (target, source, input_id))
@@ -164,7 +155,6 @@ function determinize_symbolic_model(
     new_autom = AutomatonConstructor(get_n_state(symmodel), length(new_uint2coord))
     add_transitions!(new_autom, transition_buffer)
 
-    # Build new symbolic model
     new_symmodel = SymbolicModelList(
         symmodel.Xdom,
         symmodel.Udom,
@@ -173,11 +163,8 @@ function determinize_symbolic_model(
         symmodel.xint2pos,
         new_ucoord2int,
         new_uint2coord,
-        true,  # mark as determinized
-        Dict{Symbol, Any}(),
+        symmodel,
     )
-
-    new_symmodel.metadata[:original_symmodel] = symmodel
 
     return new_symmodel
 end

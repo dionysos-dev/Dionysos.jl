@@ -3,10 +3,10 @@ export UniformGridAbstraction
 module UniformGridAbstraction
 
 import Dionysos
-UT = Dionysos.Utils
-ST = Dionysos.System
-SY = Dionysos.Symbolic
-DO = Dionysos.Domain
+const UT = Dionysos.Utils
+const ST = Dionysos.System
+const SY = Dionysos.Symbolic
+const DO = Dionysos.Domain
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
