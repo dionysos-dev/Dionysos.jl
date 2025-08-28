@@ -1,4 +1,4 @@
-using StaticArrays, Plots, HybridSystems
+#using StaticArrays, Plots, HybridSystems
 ## Import Dionysos sub-modules
 using Dionysos
 const DI = Dionysos
