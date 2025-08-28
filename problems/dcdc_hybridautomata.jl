@@ -1,5 +1,4 @@
 module DCDC
-using Test
 
 using StaticArrays, JuMP
 using MathematicalSystems
