@@ -30,5 +30,5 @@ Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_state
 Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state
 Dionysos.Symbolic.SymbolicTimedHybridSystems.get_states_from_set
 Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_input
-Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_inputs
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_input
 ```
