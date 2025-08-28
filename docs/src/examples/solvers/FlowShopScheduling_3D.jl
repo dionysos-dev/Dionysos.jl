@@ -21,7 +21,7 @@ HybridSystem_automaton, optimizer_factory_list, optimizer_kwargs_dict, problem_s
 # Keep discretization parameters for compatibility with get_closed_loop_trajectory
 discretization_parameters = [(0.5, 0.5, 0.2), (0.5, 0.5, 0.2), (0.5, 0.5, 0.2)]
 
-concrete_controller = AB.TimedHybridAbstraction.solve(
+concrete_controller = AB.TimedHybridAbstraction.solve_timed_hybrid_problem(
     HybridSystem_automaton,
     optimizer_factory_list,
     optimizer_kwargs_dict,
