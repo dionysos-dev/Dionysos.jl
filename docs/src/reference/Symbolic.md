@@ -20,15 +20,15 @@ Dionysos.Symbolic.determinize_symbolic_model
 
 ```@docs
 Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel
-Dionysos.Symbolic.SymbolicTimedHybridSystemsbuild_timed_hybrid_symbolic_model
-Dionysos.Symbolic.find_symbolic_state
-Dionysos.Symbolic.get_n_state
-Dionysos.Symbolic.get_n_input
-Dionysos.Symbolic.enum_states
-Dionysos.Symbolic.enum_inputs
-Dionysos.Symbolic.get_concrete_state
-Dionysos.Symbolic.get_abstract_state
-Dionysos.Symbolic.get_states_from_set
-Dionysos.Symbolic.get_concrete_input
-Dionysos.Symbolic.get_abstract_inputs
+Dionysos.Symbolic.SymbolicTimedHybridSystems.build_timed_hybrid_symbolic_model
+Dionysos.Symbolic.SymbolicTimedHybridSystems.find_symbolic_state
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_n_state
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_n_input
+Dionysos.Symbolic.SymbolicTimedHybridSystems.enum_states
+Dionysos.Symbolic.SymbolicTimedHybridSystems.enum_inputs
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_state
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_states_from_set
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_input
+Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_inputs
 ```

@@ -46,10 +46,10 @@ traj, ctrls = AB.TimedHybridAbstraction.get_closed_loop_trajectory(
     stopping = AB.TimedHybridAbstraction.reached,
 )
 
-for (idx, (t, u)) in enumerate(zip(traj, ctrls))
-    println("[", idx, "] state: ", t, " - control applied: ", u)
-end
-println("Final state: ", traj[end])
+# for (idx, (t, u)) in enumerate(zip(traj, ctrls))
+#     println("[", idx, "] state: ", t, " - control applied: ", u)
+# end
+# println("Final state: ", traj[end])
 
 ## Plot the trajectory
 

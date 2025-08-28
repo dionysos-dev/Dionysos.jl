@@ -45,71 +45,71 @@ for (idx, (t, u)) in enumerate(zip(traj, ctrls))
 end
 println("Final state: ", traj[end])
 
-# ========== PLOT SIMPLE DE LA TRAJECTOIRE ==========
-# Région de sécurité du système
-iL_min, iL_max = 1.15, 1.55    # Courant inductance sûr [A]
-vC_min, vC_max = 5.45, 5.85    # Tension condensateur sûre [V]
-X_region = UT.HyperRectangle(SVector(iL_min, vC_min), SVector(iL_max, vC_max))
+# # ========== PLOT SIMPLE DE LA TRAJECTOIRE ==========
+# # Région de sécurité du système
+# iL_min, iL_max = 1.15, 1.55    # Courant inductance sûr [A]
+# vC_min, vC_max = 5.45, 5.85    # Tension condensateur sûre [V]
+# X_region = UT.HyperRectangle(SVector(iL_min, vC_min), SVector(iL_max, vC_max))
 
-# Extraire les positions de la trajectoire
-positions = [SVector(state[1][1], state[1][2]) for state in traj]
+# # Extraire les positions de la trajectoire
+# positions = [SVector(state[1][1], state[1][2]) for state in traj]
 
-# Extraire les coordonnées x et y séparément
-x_coords = [pos[1] for pos in positions]  # iL (courant)
-y_coords = [pos[2] for pos in positions]  # vC (tension)
-modes = [state[3] for state in traj]      # Modes
+# # Extraire les coordonnées x et y séparément
+# x_coords = [pos[1] for pos in positions]  # iL (courant)
+# y_coords = [pos[2] for pos in positions]  # vC (tension)
+# modes = [state[3] for state in traj]      # Modes
 
-println("Premier point: (", x_coords[1], ", ", y_coords[1], ") Mode: ", modes[1])
-println("Dernier point: (", x_coords[end], ", ", y_coords[end], ") Mode: ", modes[end])
+# println("Premier point: (", x_coords[1], ", ", y_coords[1], ") Mode: ", modes[1])
+# println("Dernier point: (", x_coords[end], ", ", y_coords[end], ") Mode: ", modes[end])
 
-# Séparer les points par mode
-mode1_indices = findall(m -> m == 1, modes)
-mode2_indices = findall(m -> m == 2, modes)
+# # Séparer les points par mode
+# mode1_indices = findall(m -> m == 1, modes)
+# mode2_indices = findall(m -> m == 2, modes)
 
-# Plot classique avec couleurs par mode
-fig = plot(; aspect_ratio = :equal)
-plot!(fig, X_region; label = "Safe region", color = :grey, alpha = 0.3)
+# # Plot classique avec couleurs par mode
+# fig = plot(; aspect_ratio = :equal)
+# plot!(fig, X_region; label = "Safe region", color = :grey, alpha = 0.3)
 
-# Mode 1 en rouge
-if !isempty(mode1_indices)
-    plot!(
-        fig,
-        x_coords[mode1_indices],
-        y_coords[mode1_indices];
-        line = false,
-        marker = :circle,
-        markersize = 3,
-        color = :red,
-        label = "Mode 1",
-    )
-end
+# # Mode 1 en rouge
+# if !isempty(mode1_indices)
+#     plot!(
+#         fig,
+#         x_coords[mode1_indices],
+#         y_coords[mode1_indices];
+#         line = false,
+#         marker = :circle,
+#         markersize = 3,
+#         color = :red,
+#         label = "Mode 1",
+#     )
+# end
 
-# Mode 2 en bleu
-if !isempty(mode2_indices)
-    plot!(
-        fig,
-        x_coords[mode2_indices],
-        y_coords[mode2_indices];
-        line = false,
-        marker = :circle,
-        markersize = 3,
-        color = :blue,
-        label = "Mode 2",
-    )
-end
+# # Mode 2 en bleu
+# if !isempty(mode2_indices)
+#     plot!(
+#         fig,
+#         x_coords[mode2_indices],
+#         y_coords[mode2_indices];
+#         line = false,
+#         marker = :circle,
+#         markersize = 3,
+#         color = :blue,
+#         label = "Mode 2",
+#     )
+# end
 
-# Ajouter une ligne pour voir la trajectoire
-plot!(
-    fig,
-    x_coords,
-    y_coords;
-    line = true,
-    linewidth = 1,
-    color = :black,
-    alpha = 0.5,
-    label = "Trajectory",
-    xlabel = "iL [A]",
-    ylabel = "vC [V]",
-)
+# # Ajouter une ligne pour voir la trajectoire
+# plot!(
+#     fig,
+#     x_coords,
+#     y_coords;
+#     line = true,
+#     linewidth = 1,
+#     color = :black,
+#     alpha = 0.5,
+#     label = "Trajectory",
+#     xlabel = "iL [A]",
+#     ylabel = "vC [V]",
+# )
 
-display(fig)
+# display(fig)

@@ -31,5 +31,5 @@ Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridProblemSpecs
 Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridOptimalControlProblem
 Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridSafetyProblem
 Dionysos.Optim.Abstraction.TimedHybridAbstraction.solve_timed_hybrid_problem
-Dionysos.Optim.Abstraction.get_closed_loop_trajectory
+Dionysos.Optim.Abstraction.TimedHybridAbstraction.get_closed_loop_trajectory
 ```
