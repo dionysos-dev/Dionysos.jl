@@ -1,6 +1,5 @@
 module FlowShopScheduling1D
 
-using Test
 using StaticArrays, MathematicalSystems, HybridSystems
 using LinearAlgebra
 

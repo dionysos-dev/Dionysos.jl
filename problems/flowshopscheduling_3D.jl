@@ -5,8 +5,6 @@ module FlowShopScheduling3D
 
 using LinearAlgebra
 using StaticArrays
-
-using Test
 using StaticArrays, MathematicalSystems, HybridSystems
 
 using Dionysos
