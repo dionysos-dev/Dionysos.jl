@@ -24,3 +24,12 @@ Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
 Dionysos.Optim.BemporadMorari.Optimizer
 Dionysos.Optim.BranchAndBound.Optimizer
 ```
+
+## Timed Hybrid Abstraction
+```@docs
+Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridProblemSpecs
+Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridOptimalControlProblem
+Dionysos.Optim.Abstraction.TimedHybridAbstraction.TimedHybridSafetyProblem
+Dionysos.Optim.Abstraction.TimedHybridAbstraction.solve_timed_hybrid_problem
+Dionysos.Optim.Abstraction.get_closed_loop_trajectory
+```

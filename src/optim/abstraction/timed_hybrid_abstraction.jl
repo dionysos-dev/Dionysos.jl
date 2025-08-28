@@ -1,12 +1,12 @@
-"""
-Module for timed hybrid system abstraction and controller synthesis.
+# """
+# Module for timed hybrid system abstraction and controller synthesis.
 
-Provides tools for:
-- Optimal control problems on timed hybrid systems
-- Safety problems with invariant set computation  
-- Concrete controller synthesis from abstract controllers
-- Closed-loop trajectory simulation
-"""
+# Provides tools for:
+# - Optimal control problems on timed hybrid systems
+# - Safety problems with invariant set computation  
+# - Concrete controller synthesis from abstract controllers
+# - Closed-loop trajectory simulation
+# """
 module TimedHybridAbstraction
 
 import HybridSystems
@@ -117,17 +117,17 @@ end
 # Problem construction functions  
 # ================================================================
 
-"""
-    build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
+# """
+#     build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
 
-Build concrete problem instance from problem specifications.
+# Build concrete problem instance from problem specifications.
 
-# Arguments
-- `problem_specs`: Timed hybrid problem specifications
+# # Arguments
+# - `problem_specs`: Timed hybrid problem specifications
 
-# Returns  
-- `Dionysos.Problem.OptimalControlProblem` or `Dionysos.Problem.SafetyProblem`
-"""
+# # Returns  
+# - `Dionysos.Problem.OptimalControlProblem` or `Dionysos.Problem.SafetyProblem`
+# """
 function build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
     concrete_initial_set = problem_specs.initial_state
 
@@ -162,18 +162,18 @@ function build_concrete_problem(problem_specs::TimedHybridProblemSpecs)
     end
 end
 
-"""
-    build_abstract_problem(concrete_problem, symmodel)
+# """
+#     build_abstract_problem(concrete_problem, symmodel)
 
-Build abstract problem from concrete problem and symbolic model.
+# Build abstract problem from concrete problem and symbolic model.
 
-# Arguments
-- `concrete_problem`: Concrete optimal control or safety problem
-- `symmodel`: Timed hybrid symbolic model
+# # Arguments
+# - `concrete_problem`: Concrete optimal control or safety problem
+# - `symmodel`: Timed hybrid symbolic model
 
-# Returns
-- Abstract version of the problem with discrete state and input spaces
-"""
+# # Returns
+# - Abstract version of the problem with discrete state and input spaces
+# """
 function build_abstract_problem(
     concrete_problem::Union{
         Dionysos.Problem.OptimalControlProblem,
@@ -231,21 +231,21 @@ end
 # Specialized invariant set computation for timed hybrid systems
 # ================================================================
 
-"""
-Compute the largest invariant set for timed hybrid automata systems.
-Unlike the standard algorithm, this version treats terminal states (states without outgoing transitions)
-as potentially safe, considering them as natural endpoints of the system evolution rather than unsafe states.
+# """
+# Compute the largest invariant set for timed hybrid automata systems.
+# Unlike the standard algorithm, this version treats terminal states (states without outgoing transitions)
+# as potentially safe, considering them as natural endpoints of the system evolution rather than unsafe states.
 
-# Arguments
-- `autom`: The automaton (temporal hybrid symbolic model)
-- `safelist`: Collection of initially safe states
-- `ControllerConstructor`: Function to create the controller
+# # Arguments
+# - `autom`: The automaton (temporal hybrid symbolic model)
+# - `safelist`: Collection of initially safe states
+# - `ControllerConstructor`: Function to create the controller
 
-# Returns
-- `controller`: Abstract controller
-- `invariant_set`: Set of states that can be kept safe indefinitely
-- `invariant_set_complement`: Set of states that cannot be kept safe
-"""
+# # Returns
+# - `controller`: Abstract controller
+# - `invariant_set`: Set of states that can be kept safe indefinitely
+# - `invariant_set_complement`: Set of states that cannot be kept safe
+# """
 function compute_largest_invariant_set_timed_hybrid( # (?) Will be changed, need to be discussed
     autom,
     safelist;
@@ -357,17 +357,17 @@ end
 # Abstract problem solving
 # ================================================================
 
-"""
-    solve_abstract_problem(abstract_problem)
+# """
+#     solve_abstract_problem(abstract_problem)
 
-Solve the abstract optimal control or safety problem.
+# Solve the abstract optimal control or safety problem.
 
-# Arguments
-- `abstract_problem`: Abstract problem instance  
+# # Arguments
+# - `abstract_problem`: Abstract problem instance  
 
-# Returns
-- `(abstract_controller, controllable_set)`: Controller and controllable states
-"""
+# # Returns
+# - `(abstract_controller, controllable_set)`: Controller and controllable states
+# """
 function solve_abstract_problem(
     abstract_problem::Union{
         Dionysos.Problem.OptimalControlProblem,
@@ -426,18 +426,18 @@ end
 # Concrete controller synthesis
 # ================================================================
 
-"""
-    solve_concrete_problem(symmodel, abstract_controller)
+# """
+#     solve_concrete_problem(symmodel, abstract_controller)
 
-Generate concrete controller from abstract controller.
+# Generate concrete controller from abstract controller.
 
-# Arguments
-- `symmodel`: Timed hybrid symbolic model
-- `abstract_controller`: Abstract controller
+# # Arguments
+# - `symmodel`: Timed hybrid symbolic model
+# - `abstract_controller`: Abstract controller
 
-# Returns
-- `Dionysos.System.BlackBoxContinuousController`: Concrete controller function
-"""
+# # Returns
+# - `Dionysos.System.BlackBoxContinuousController`: Concrete controller function
+# """
 function solve_concrete_problem(
     symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
     abstract_controller,
@@ -482,18 +482,18 @@ end
 # Abstract cost function construction
 # ================================================================
 
-"""
-    build_abstract_transition_cost(symmodel, concrete_cost_fun)
+# """
+#     build_abstract_transition_cost(symmodel, concrete_cost_fun)
 
-Build abstract transition cost function from concrete cost function.
+# Build abstract transition cost function from concrete cost function.
 
-# Arguments
-- `symmodel`: Timed hybrid symbolic model
-- `concrete_cost_fun`: Concrete cost function (aug_state, input) → cost
+# # Arguments
+# - `symmodel`: Timed hybrid symbolic model
+# - `concrete_cost_fun`: Concrete cost function (aug_state, input) → cost
 
-# Returns  
-- Abstract cost function (state_int, input_int) → cost
-"""
+# # Returns  
+# - Abstract cost function (state_int, input_int) → cost
+# """
 function build_abstract_transition_cost(
     symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
     concrete_cost_fun,
@@ -569,22 +569,22 @@ end
 # Closed-loop simulation utilities  
 # ================================================================
 
-"""
-    get_next_aug_state(hs, aug_state, u, time_is_active, tstep, map_sys)
+# """
+#     get_next_aug_state(hs, aug_state, u, time_is_active, tstep, map_sys)
 
-Compute the next augmented state given current state and control input.
+# Compute the next augmented state given current state and control input.
 
-# Arguments
-- `hs::HybridSystem`: The hybrid system
-- `aug_state`: Current augmented state (x, t, mode)
-- `u`: Control input (continuous or switching)
-- `time_is_active`: Whether time progresses in current mode
-- `tstep`: Time discretization step
-- `map_sys`: Discrete-time map for current mode
+# # Arguments
+# - `hs::HybridSystem`: The hybrid system
+# - `aug_state`: Current augmented state (x, t, mode)
+# - `u`: Control input (continuous or switching)
+# - `time_is_active`: Whether time progresses in current mode
+# - `tstep`: Time discretization step
+# - `map_sys`: Discrete-time map for current mode
 
-# Returns
-- Next augmented state (x, t, mode)
-"""
+# # Returns
+# - Next augmented state (x, t, mode)
+# """
 function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tstep, map_sys)
     (x, t, k) = aug_state
 
@@ -680,18 +680,18 @@ function get_closed_loop_trajectory(
     return aug_state_traj, u_traj
 end
 
-"""
-    reached(specs, aug_state)
+# """
+#     reached(specs, aug_state)
 
-Check if target is reached (optimal control) or safety is maintained (safety problems).
+# Check if target is reached (optimal control) or safety is maintained (safety problems).
 
-# Arguments
-- `specs::TimedHybridProblemSpecs`: Problem specifications
-- `aug_state`: Current augmented state (x, t, mode)
+# # Arguments
+# - `specs::TimedHybridProblemSpecs`: Problem specifications
+# - `aug_state`: Current augmented state (x, t, mode)
 
-# Returns
-- `Bool`: True if goal is reached or safety is maintained
-"""
+# # Returns
+# - `Bool`: True if goal is reached or safety is maintained
+# """
 function reached(specs::TimedHybridProblemSpecs, aug_state)
     (x, t, k) = aug_state
     # Checks if the current mode is part of the target/safe modes
