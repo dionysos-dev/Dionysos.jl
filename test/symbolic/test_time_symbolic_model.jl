@@ -26,7 +26,7 @@ println("Started tests")
     @test tm.time_domain === X
 
     # Test time conversion functions
-    @test SY.time2int(tm, 0.75) == 2
+    @test SY.floor_time2int(tm, 0.75) == 2
     @test SY.int2time(tm, 3) == 1.0
     @test SY.ceil_time2int(tm, 1.25) == 4
     @test SY.ceil_time2int(tm, 2.5) == 5  # Beyond domain
@@ -49,7 +49,7 @@ end
     @test tm.time_domain === X
 
     # Test time conversion functions (all should return 1 for frozen time)
-    @test SY.time2int(tm, 1.5) == 1
+    @test SY.floor_time2int(tm, 1.5) == 1
     @test SY.int2time(tm, 1) == 0.0
     @test SY.ceil_time2int(tm, 1.5) == 1
     @test SY.floor_time2int(tm, 1.5) == 1
@@ -62,11 +62,11 @@ end
     tstep = 0.5
     tm = SY.TimeSymbolicModel(sys_time, tstep)
 
-    # Test exact time values (floor behavior for time2int)
-    @test SY.time2int(tm, 0.0) == 1    # Exact start
-    @test SY.time2int(tm, 0.5) == 2    # Exact step (0.5 <= 0.5, so index 2)
-    @test SY.time2int(tm, 1.0) == 3    # Exact step (1.0 <= 1.0, so index 3)
-    @test SY.time2int(tm, 2.0) == 5    # Exact end (2.0 <= 2.0, so index 5)
+    # Test exact time values (floor behavior for floor_time2int)
+    @test SY.floor_time2int(tm, 0.0) == 1    # Exact start
+    @test SY.floor_time2int(tm, 0.5) == 2    # Exact step (0.5 <= 0.5, so index 2)
+    @test SY.floor_time2int(tm, 1.0) == 3    # Exact step (1.0 <= 1.0, so index 3)
+    @test SY.floor_time2int(tm, 2.0) == 5    # Exact end (2.0 <= 2.0, so index 5)
 
     # Test ceil function at boundaries
     @test SY.ceil_time2int(tm, 0.0) == 1
@@ -74,7 +74,7 @@ end
     @test SY.ceil_time2int(tm, 1.0) == 3
     @test SY.ceil_time2int(tm, 2.0) == 5
 
-    # Test floor function at boundaries (should be same as time2int)
+    # Test floor function at boundaries (should be same as floor_time2int)
     @test SY.floor_time2int(tm, 0.0) == 1
     @test SY.floor_time2int(tm, 0.5) == 2    # floor(0.5) means largest index with value <= 0.5
     @test SY.floor_time2int(tm, 1.0) == 3    # floor(1.0) means largest index with value <= 1.0
@@ -134,7 +134,7 @@ end
     # Test conversion functions with negative times
     @test SY.int2time(tm, 1) == -1.0
     @test SY.int2time(tm, 3) == 0.0
-    @test SY.time2int(tm, -0.25) == 2  # Between -0.5 and 0.0
+    @test SY.floor_time2int(tm, -0.25) == 2  # Between -0.5 and 0.0
 end
 
 @testset "TimeSymbolicModel Error Cases" begin
@@ -155,7 +155,7 @@ end
     tm = SY.TimeSymbolicModel(sys_time, tstep)
 
     # Test return types
-    @test SY.time2int(tm, 1.0) isa Int
+    @test SY.floor_time2int(tm, 1.0) isa Int
     @test SY.int2time(tm, 2) isa Float64
     @test SY.ceil_time2int(tm, 1.0) isa Int
     @test SY.floor_time2int(tm, 1.0) isa Int
