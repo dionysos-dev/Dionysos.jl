@@ -17,20 +17,20 @@ const PR = DI.Problem
 # Problem specification structures
 # ================================================================
 
-"""
-    TimedHybridProblemSpecs{F}
+# """
+#     TimedHybridProblemSpecs{F}
 
-Specification for timed hybrid control problems (optimal control or safety).
+# Specification for timed hybrid control problems (optimal control or safety).
 
-# Fields
-- `initial_state::Tuple{AbstractVector{Float64}, Float64, Int}`: Initial augmented state ([x], t, mode_id)
-- `Xs_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (spatial component)
-- `Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (temporal component)  
-- `Ns_target::Vector{Int}`: Target/safe mode indices
-- `concrete_cost_fun::F`: Concrete cost function for optimal control
-- `problem_type::Symbol`: `:optimal_control` or `:safety`
-- `time_horizon::Union{Real, Dionysos.Problem.Infinity}`: Time horizon constraint
-"""
+# # Fields
+# - `initial_state::Tuple{AbstractVector{Float64}, Float64, Int}`: Initial augmented state ([x], t, mode_id)
+# - `Xs_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (spatial component)
+# - `Ts_target::Vector{<:Dionysos.Utils.HyperRectangle}`: Target/safe sets (temporal component)  
+# - `Ns_target::Vector{Int}`: Target/safe mode indices
+# - `concrete_cost_fun::F`: Concrete cost function for optimal control
+# - `problem_type::Symbol`: `:optimal_control` or `:safety`
+# - `time_horizon::Union{Real, Dionysos.Problem.Infinity}`: Time horizon constraint
+# """
 struct TimedHybridProblemSpecs{F}
     initial_state::Tuple{AbstractVector{Float64}, Float64, Int}
     Xs_target::Vector{<:Dionysos.Utils.HyperRectangle}
@@ -41,22 +41,22 @@ struct TimedHybridProblemSpecs{F}
     time_horizon::Union{Float64, Dionysos.Problem.Infinity}
 end
 
-"""
-    TimedHybridOptimalControlProblem(initial_state, Xs_target, Ts_target, Ns_target, cost_function, time_horizon)
+# """
+#     TimedHybridOptimalControlProblem(initial_state, Xs_target, Ts_target, Ns_target, cost_function, time_horizon)
 
-Constructor for optimal control problems on timed hybrid systems.
+# Constructor for optimal control problems on timed hybrid systems.
 
-# Arguments
-- `initial_state`: Initial augmented state ([x], t, mode_id)
-- `Xs_target`: Vector of spatial target sets (one per target mode)
-- `Ts_target`: Vector of temporal target sets (one per target mode)  
-- `Ns_target`: Vector of target mode indices
-- `cost_function`: Cost function for transitions (aug_state, input) → cost
-- `time_horizon`: Maximum time horizon (default: infinite)
+# # Arguments
+# - `initial_state`: Initial augmented state ([x], t, mode_id)
+# - `Xs_target`: Vector of spatial target sets (one per target mode)
+# - `Ts_target`: Vector of temporal target sets (one per target mode)  
+# - `Ns_target`: Vector of target mode indices
+# - `cost_function`: Cost function for transitions (aug_state, input) → cost
+# - `time_horizon`: Maximum time horizon (default: infinite)
 
-# Returns
-- `TimedHybridProblemSpecs`: Problem specification for optimal control
-"""
+# # Returns
+# - `TimedHybridProblemSpecs`: Problem specification for optimal control
+# """
 function TimedHybridOptimalControlProblem(
     initial_state,
     Xs_target,
@@ -76,21 +76,21 @@ function TimedHybridOptimalControlProblem(
     )
 end
 
-"""
-    TimedHybridSafetyProblem(initial_state, Xs_safe, Ts_safe, Ns_safe, time_horizon)
+# """
+#     TimedHybridSafetyProblem(initial_state, Xs_safe, Ts_safe, Ns_safe, time_horizon)
 
-Constructor for safety problems on timed hybrid systems.
+# Constructor for safety problems on timed hybrid systems.
 
-# Arguments  
-- `initial_state`: Initial augmented state ([x], t, mode_id)
-- `Xs_safe`: Vector of spatial safe sets (one per safe mode)
-- `Ts_safe`: Vector of temporal safe sets (one per safe mode)
-- `Ns_safe`: Vector of safe mode indices  
-- `time_horizon`: Maximum time horizon (default: infinite)
+# # Arguments  
+# - `initial_state`: Initial augmented state ([x], t, mode_id)
+# - `Xs_safe`: Vector of spatial safe sets (one per safe mode)
+# - `Ts_safe`: Vector of temporal safe sets (one per safe mode)
+# - `Ns_safe`: Vector of safe mode indices  
+# - `time_horizon`: Maximum time horizon (default: infinite)
 
-# Returns
-- `TimedHybridProblemSpecs`: Problem specification for safety
-"""
+# # Returns
+# - `TimedHybridProblemSpecs`: Problem specification for safety
+# """
 function TimedHybridSafetyProblem(
     initial_state,
     Xs_safe,
@@ -114,24 +114,24 @@ end
 # Optimizer struct
 # ================================================================
 
-"""
-    Optimizer{T} <: MOI.AbstractOptimizer
+# """
+#     Optimizer{T} <: MOI.AbstractOptimizer
 
-Abstraction-based solver for timed hybrid control problems using MathOptInterface.
+# Abstraction-based solver for timed hybrid control problems using MathOptInterface.
 
-# Fields
-- `problem_specs`: Timed hybrid problem specifications
-- `concrete_problem`: Concrete optimal control or safety problem
-- `abstract_problem`: Abstract problem with discrete state/input spaces
-- `hybrid_system`: The hybrid system
-- `symbolic_model`: Timed hybrid symbolic model
-- `abstract_controller`: Abstract controller
-- `concrete_controller`: Concrete controller for augmented states
-- `optimizer_factory_list`: List of optimizer factories for each mode
-- `optimizer_kwargs_dict`: Optimizer parameters for each mode
-- `max_iterations`: Maximum number of iterations for solver
-- `solve_time_sec`: Time taken to solve the problem
-"""
+# # Fields
+# - `problem_specs`: Timed hybrid problem specifications
+# - `concrete_problem`: Concrete optimal control or safety problem
+# - `abstract_problem`: Abstract problem with discrete state/input spaces
+# - `hybrid_system`: The hybrid system
+# - `symbolic_model`: Timed hybrid symbolic model
+# - `abstract_controller`: Abstract controller
+# - `concrete_controller`: Concrete controller for augmented states
+# - `optimizer_factory_list`: List of optimizer factories for each mode
+# - `optimizer_kwargs_dict`: Optimizer parameters for each mode
+# - `max_iterations`: Maximum number of iterations for solver
+# - `solve_time_sec`: Time taken to solve the problem
+# """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     problem_specs::Union{Nothing, TimedHybridProblemSpecs}
     concrete_problem::Union{Nothing, Union{PR.OptimalControlProblem, PR.SafetyProblem}}
@@ -562,21 +562,21 @@ end
 # Main solving function
 # ================================================================
 
-"""
-    solve_timed_hybrid_problem(hs, optimizer_factory_list, optimizer_kwargs_dict, problem_specs; max_iterations)
+# """
+#     solve_timed_hybrid_problem(hs, optimizer_factory_list, optimizer_kwargs_dict, problem_specs; max_iterations)
 
-Solve a complete timed hybrid control problem using the MOI optimizer.
+# Solve a complete timed hybrid control problem using the MOI optimizer.
 
-# Arguments
-- `hs::HybridSystem`: The hybrid system
-- `optimizer_factory_list`: List of optimizer factories for each mode
-- `optimizer_kwargs_dict`: Optimizer parameters for each mode  
-- `problem_specs::TimedHybridProblemSpecs`: Problem specifications
-- `max_iterations`: Maximum number of iterations (default: 1000)
+# # Arguments
+# - `hs::HybridSystem`: The hybrid system
+# - `optimizer_factory_list`: List of optimizer factories for each mode
+# - `optimizer_kwargs_dict`: Optimizer parameters for each mode  
+# - `problem_specs::TimedHybridProblemSpecs`: Problem specifications
+# - `max_iterations`: Maximum number of iterations (default: 1000)
 
-# Returns
-- `Dionysos.System.BlackBoxContinuousController`: Concrete controller
-"""
+# # Returns
+# - `Dionysos.System.BlackBoxContinuousController`: Concrete controller
+# """
 function solve_timed_hybrid_problem(
     hs::HybridSystem,
     optimizer_factory_list,

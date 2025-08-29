@@ -21,19 +21,19 @@ const TransitionTuple = Tuple{AugmentedState, AugmentedState, Int}
 # Symbolic temporal hybrid model structure
 # ================================================================
 
-"""
-    TimedHybridSymbolicModel{S1, A, T, G}
+# """
+#     TimedHybridSymbolicModel{S1, A, T, G}
 
-Main structure representing the symbolic abstraction of a timed hybrid system.
+# Main structure representing the symbolic abstraction of a timed hybrid system.
 
-# Fields
-- `mode_abstractions::Vector{S1}`: Symbolic models of the dynamics per mode
-- `time_abstractions::Vector{T}`: Symbolic models of time per mode  
-- `state_index_to_augmented::Vector{AugmentedState}`: Maps integer indices to augmented states (state_id, time_id, mode_id)
-- `augmented_to_state_index::Dict{AugmentedState, Int}`: Maps augmented states to integer indices
-- `symbolic_automaton::A`: Final symbolic automaton representing the timed hybrid system
-- `input_mapping::G`: Global input mapping system for unified input handling
-"""
+# # Fields
+# - `mode_abstractions::Vector{S1}`: Symbolic models of the dynamics per mode
+# - `time_abstractions::Vector{T}`: Symbolic models of time per mode  
+# - `state_index_to_augmented::Vector{AugmentedState}`: Maps integer indices to augmented states (state_id, time_id, mode_id)
+# - `augmented_to_state_index::Dict{AugmentedState, Int}`: Maps augmented states to integer indices
+# - `symbolic_automaton::A`: Final symbolic automaton representing the timed hybrid system
+# - `input_mapping::G`: Global input mapping system for unified input handling
+# """
 struct TimedHybridSymbolicModel{S1, A, T, G}
     mode_abstractions::Vector{S1}
     time_abstractions::Vector{T}
@@ -516,20 +516,20 @@ end
 # Main constructor for timed hybrid symbolic models
 # ================================================================
 
-"""
-    build_timed_hybrid_symbolic_model(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
+# """
+#     build_timed_hybrid_symbolic_model(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 
-Construct a complete timed hybrid symbolic model for a given hybrid system.
-This is the main function users should call to build symbolic abstractions.
+# Construct a complete timed hybrid symbolic model for a given hybrid system.
+# This is the main function users should call to build symbolic abstractions.
 
-# Arguments
-- `hs::HybridSystem`: The hybrid system to abstract
-- `optimizer_list`: Vector of optimizer factory functions, one per mode
-- `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
+# # Arguments
+# - `hs::HybridSystem`: The hybrid system to abstract
+# - `optimizer_list`: Vector of optimizer factory functions, one per mode
+# - `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
 
-# Returns
-- `TimedHybridSymbolicModel`: The constructed symbolic model with optimized performance
-"""
+# # Returns
+# - `TimedHybridSymbolicModel`: The constructed symbolic model with optimized performance
+# """
 function build_timed_hybrid_symbolic_model(
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
@@ -573,24 +573,24 @@ end
 # Utility functions for safe and robust symbolic state operations
 # ================================================================
 
-"""
-    find_symbolic_state(symmodel, continuous_state)
+# """
+#     find_symbolic_state(symmodel, continuous_state)
 
-Find the symbolic state index corresponding to a given continuous state with enhanced safety.
-Improved version with better error handling and logging.
+# Find the symbolic state index corresponding to a given continuous state with enhanced safety.
+# Improved version with better error handling and logging.
 
-# Arguments
-- `symmodel`: The symbolic model
-- `continuous_state`: The continuous state vector
+# # Arguments
+# - `symmodel`: The symbolic model
+# - `continuous_state`: The continuous state vector
 
-# Returns
-- `Int`: The symbolic state index (0 if not found)
+# # Returns
+# - `Int`: The symbolic state index (0 if not found)
 
-# Safety Features
-- Comprehensive error handling for edge cases
-- Validates input dimensions
-- Provides informative warnings for debugging
-"""
+# # Safety Features
+# - Comprehensive error handling for edge cases
+# - Validates input dimensions
+# - Provides informative warnings for debugging
+# """
 function find_symbolic_state(symmodel, continuous_state)
     # Input validation
     if isnothing(continuous_state) || isempty(continuous_state)
@@ -642,33 +642,33 @@ end
 # Accessor functions for TimedHybridSymbolicModel
 # ================================================================
 
-"""Get the number of states in the timed hybrid symbolic model"""
+# """Get the number of states in the timed hybrid symbolic model"""
 get_n_state(model::TimedHybridSymbolicModel) = length(model.state_index_to_augmented)
 
-"""Get the total number of inputs (continuous + switching)"""
+# """Get the total number of inputs (continuous + switching)"""
 function get_n_input(model::TimedHybridSymbolicModel)
     return model.input_mapping.total_inputs
 end
 
-"""Enumerate all state indices in the model"""
+# """Enumerate all state indices in the model"""
 enum_states(model::TimedHybridSymbolicModel) = 1:get_n_state(model)
 
-"""Enumerate input indices for a given mode with bounds checking"""
+# """Enumerate input indices for a given mode with bounds checking"""
 function enum_inputs(model::TimedHybridSymbolicModel, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
     return Dionysos.Symbolic.enum_inputs(model.mode_abstractions[mode_id])
 end
 
-"""
-    get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
+# """
+#     get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
 
-Convert an abstract state index to its concrete augmented state representation.
-Returns (continuous_state, time, mode_id).
+# Convert an abstract state index to its concrete augmented state representation.
+# Returns (continuous_state, time, mode_id).
 
-# Safety Features
-- Bounds checking for state index
-- Proper error handling for invalid states
-"""
+# # Safety Features
+# - Bounds checking for state index
+# - Proper error handling for invalid states
+# """
 function get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
     @assert 1 <= state_index <= length(model.state_index_to_augmented) "State index $state_index out of bounds"
 
@@ -685,15 +685,15 @@ function get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
     return (continuous_state, time_value, mode_id)
 end
 
-"""
-    get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
+# """
+#     get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
 
-Convert an augmented concrete state (continuous_state, time, mode_id) to its abstract state index.
+# Convert an augmented concrete state (continuous_state, time, mode_id) to its abstract state index.
 
-# Safety Features  
-- Validates mode_id bounds
-- Handles cases where no valid abstract state exists
-"""
+# # Safety Features  
+# - Validates mode_id bounds
+# - Handles cases where no valid abstract state exists
+# """
 function get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
     (continuous_state, time_value, mode_id) = augmented_state
 
@@ -714,27 +714,27 @@ function get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
     return get(model.augmented_to_state_index, augmented_key, 0)
 end
 
-"""
-    get_states_from_set(model::TimedHybridSymbolicModel, state_sets, time_sets, mode_indices; domain=Dionysos.Domain.INNER)
+# """
+#     get_states_from_set(model::TimedHybridSymbolicModel, state_sets, time_sets, mode_indices; domain=Dionysos.Domain.INNER)
 
-For each mode k in mode_indices, returns all abstract state indices (state_id, time_id, k)
-such that state_id is in the abstraction of state_sets[k] and time_id corresponds to time in time_sets[k].
+# For each mode k in mode_indices, returns all abstract state indices (state_id, time_id, k)
+# such that state_id is in the abstraction of state_sets[k] and time_id corresponds to time in time_sets[k].
 
-# Arguments
-- `model::TimedHybridSymbolicModel`: The timed hybrid symbolic model
-- `state_sets`: Vector of HyperRectangle (or state set) per mode
-- `time_sets`: Vector of HyperRectangle (or time interval) per mode
-- `mode_indices`: List or set of mode indices
-- `domain`: Domain type for state set intersection (default: INNER)
+# # Arguments
+# - `model::TimedHybridSymbolicModel`: The timed hybrid symbolic model
+# - `state_sets`: Vector of HyperRectangle (or state set) per mode
+# - `time_sets`: Vector of HyperRectangle (or time interval) per mode
+# - `mode_indices`: List or set of mode indices
+# - `domain`: Domain type for state set intersection (default: INNER)
 
-# Returns
-- `Vector{Int}`: Corresponding abstract state indices
+# # Returns
+# - `Vector{Int}`: Corresponding abstract state indices
 
-# Safety Features
-- Bounds checking for mode indices
-- Validation of set dimensions
-- Handles empty intersections gracefully
-"""
+# # Safety Features
+# - Bounds checking for mode indices
+# - Validation of set dimensions
+# - Handles empty intersections gracefully
+# """
 function get_states_from_set(
     model::TimedHybridSymbolicModel,
     state_sets,
@@ -789,17 +789,17 @@ function get_states_from_set(
     return abstract_states
 end
 
-"""
-    get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
+# """
+#     get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
 
-Convert an abstract input ID to its concrete input representation.
-Handles both continuous and switching inputs with proper safety checks.
+# Convert an abstract input ID to its concrete input representation.
+# Handles both continuous and switching inputs with proper safety checks.
 
-# Safety Features
-- Validates input and mode IDs
-- Handles switching inputs appropriately
-- Returns nothing for invalid inputs
-"""
+# # Safety Features
+# - Validates input and mode IDs
+# - Handles switching inputs appropriately
+# - Returns nothing for invalid inputs
+# """
 function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
 
@@ -819,16 +819,16 @@ function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode
     end
 end
 
-"""
-    get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mode_id::Int)
+# """
+#     get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mode_id::Int)
 
-Convert a concrete continuous input to its abstract input ID.
-Only works for continuous inputs within the specified mode.
+# Convert a concrete continuous input to its abstract input ID.
+# Only works for continuous inputs within the specified mode.
 
-# Safety Features
-- Validates mode ID bounds
-- Handles cases where no valid abstract input exists
-"""
+# # Safety Features
+# - Validates mode ID bounds
+# - Handles cases where no valid abstract input exists
+# """
 function get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
 
