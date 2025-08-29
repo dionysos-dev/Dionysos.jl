@@ -18,6 +18,9 @@ include("./symbolic/test_proba_automaton.jl")
 include("./symbolic/test_symbolicmodel.jl")
 include("./symbolic/test_lazy_symbolic.jl")
 include("./symbolic/test_ellipsoidal_transitions.jl")
+include("./symbolic/test_time_symbolic_model.jl")
+include("./symbolic/test_vector_continuous_system.jl")
+include("./symbolic/test_symbolic_timed_hybrid_systems.jl")
 include("./symbolic/test_multithreading.jl")
 include("./symbolic/test_alloc.jl")
 
@@ -34,6 +37,7 @@ include("./optim/test_lazy_abstraction.jl")
 include("./optim/test_ellipsoids_abstraction.jl")
 include("./optim/test_lazy_ellipsoids_abstraction.jl")
 include("./optim/test_hierarchical_abstraction.jl")
+include("./optim/test_timed_hybrid_abstraction.jl")
 
 include("./mapping/test_mapping_continuous.jl")
 
