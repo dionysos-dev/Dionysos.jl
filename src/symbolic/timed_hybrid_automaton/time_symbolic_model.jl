@@ -46,7 +46,6 @@ function floor_time2int(tm::TimeSymbolicModel, t::Float64)::Int
     end
 end
 
-
 # int2time(tm::TimeSymbolicModel, idx::Int) -> Float64
 # Return the time value corresponding to index idx.
 # If time is frozen, always returns 0.0.

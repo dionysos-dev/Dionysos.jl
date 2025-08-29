@@ -47,7 +47,6 @@ end
 # Structure for matching global abstract inputs
 # ================================================================
 
-
 #     GlobalInputMap
 # Structure for managing the mapping between local (per-mode) and global input indices, for both continuous and switching inputs.
 #
@@ -133,7 +132,6 @@ end
 
 # === Accessor functions ===
 
-
 # get_global_input_id(gim::GlobalInputMap, mode_id::Int, local_input_id::Int) -> Int
 #
 # Get the global input id for a local continuous input.
@@ -141,14 +139,12 @@ function get_global_input_id(gim::GlobalInputMap, mode_id::Int, local_input_id::
     return get(gim.continuous_to_global, (mode_id, local_input_id), 0)
 end
 
-
 # get_switching_global_id(gim::GlobalInputMap, transition_id::Int) -> Int
 #
 # Get the global input id for a switching input.
 function get_switching_global_id(gim::GlobalInputMap, transition_id::Int)
     return get(gim.switching_to_global, transition_id, 0)
 end
-
 
 # get_local_input_info(gim::GlobalInputMap, global_id::Int) -> (Symbol, Union{Tuple{Int,Int}, Int, Nothing})
 # Determine the type and local info of a global input id.
@@ -180,7 +176,6 @@ function is_continuous_input(gim::GlobalInputMap, global_id::Int)
     return global_id in gim.continuous_range
 end
 
-
 # is_switching_input(gim::GlobalInputMap, global_id::Int) -> Bool
 # Check if a global input id is a switching input.
 function is_switching_input(gim::GlobalInputMap, global_id::Int)
@@ -189,7 +184,6 @@ end
 # ================================================================
 # Symbolic model creation
 # ================================================================
-
 
 # build_dynamical_symbolic_model(system, growth_bound, param_discretisation)
 # Build a symbolic abstraction of a continuous system using uniform grid discretization.
@@ -217,7 +211,6 @@ function build_dynamical_symbolic_model(
     MOI.optimize!(opt)
     return MOI.get(opt, MOI.RawOptimizerAttribute("abstract_system"))
 end
-
 
 # build_mode_symbolic_abstractions(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
 # Build symbolic models (dynamics and time) for each mode of a hybrid system.
@@ -263,7 +256,6 @@ function build_mode_symbolic_abstractions(
     return mode_abstractions
 end
 
-
 # build_all_transitions(hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
 # Build all transitions (intra-mode and inter-mode) for the timed hybrid system.
 # Centralized function that coordinates transition building with better organization.
@@ -293,7 +285,6 @@ end
 # ================================================================
 # Functions to add transitions
 # ================================================================
-
 
 # add_intra_mode_transitions!(transition_list, mode_abstractions, input_mapping::GlobalInputMap)
 # Add intra-mode transitions to the transition list with optimized performance.
@@ -345,7 +336,6 @@ function add_intra_mode_transitions!(
         end
     end
 end
-
 
 # add_inter_mode_transitions!(transition_list, hs::HybridSystem, mode_abstractions, input_mapping::GlobalInputMap)
 # Add inter-mode transitions (mode switches) to the transition list using guards and reset maps.
@@ -630,7 +620,6 @@ function extract_spatial_part(guard)
         error("Unsupported guard type: $(typeof(guard))")
     end
 end
-
 
 # extract_temporal_part(guard)
 # Extract the temporal part (last dimension) from a guard (assumed to be a HyperRectangle).
