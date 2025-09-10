@@ -143,8 +143,8 @@ function determinize_symbolic_model(
 
     transition_buffer = Vector{NTuple{3, Int}}()
     for (target, source, symbol) in transitions
-        new_input = (symbol, target)
-
+        u_coord = symmodel.uint2coord[symbol]  # Get symbolic input
+        new_input = (u_coord, target)          # Determinize with symbolic input and target state
         input_id = get!(new_ucoord2int, new_input) do
             push!(new_uint2coord, new_input)
             return length(new_uint2coord)
