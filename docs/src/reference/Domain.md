@@ -23,14 +23,32 @@ Dionysos.Domain.get_volume
 ```@docs
 Dionysos.Domain.DomainType
 Dionysos.Domain.GridDomainType
+```
+
+```@docs
 Dionysos.Domain.merge_to_hyperrectangles_pos
 Dionysos.Domain.merge_to_hyperrectangles_real
+```
+
+## Concrete domains 
+
+### Classical domains
+```@docs
 Dionysos.Domain.DomainList
+Dionysos.Domain.CustomList
+```
+
+### Periodic domain 
+```@docs
 Dionysos.Domain.PeriodicDomainList
+Dionysos.Domain.is_periodic
 Dionysos.Domain.has_same_periodicity
 Dionysos.Domain.wrap_pos
 Dionysos.Domain.wrap_coord
-Dionysos.Domain.GeneralDomainList
-Dionysos.Domain.RectangularObstacles
-Dionysos.Domain.CustomList
+Dionysos.Domain._make_periodic_index_map
+```
+
+### Nested domain 
+```@docs
+Dionysos.Domain.NestedDomain
 ```

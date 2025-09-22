@@ -48,7 +48,7 @@ println("Started test")
         ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+    symmodel = SY.SymbolicModelList(Xfull, Ufull)
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     @test SY.ntransitions(symmodel.autom) == 60787
@@ -75,13 +75,13 @@ println("Started test")
         push!(safelist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr, invariant_set_symbols, uninvariant_set_symbols =
-        AB.UniformGridAbstraction.compute_largest_invariant_set(symmodel, safelist)
-    @test length(contr) == 15045
+    contr, invariant_set_symbols, invariant_set_complement_symbols =
+        SY.compute_largest_invariant_set(symmodel.autom, safelist)
+    @test length(ST.domain(contr)) == 1008
 
     invlist = Int[]
     for source in 1:(symmodel.autom.nstates)
-        if !isempty(UT.fix_and_eliminate_first(contr, source))
+        if ST.is_defined(contr, source)
             push!(invlist, source)
         end
     end
@@ -94,7 +94,7 @@ println("Started test")
             break
         end
         targetlist = Int[]
-        for symbol in UT.fix_and_eliminate_first(contr, source)
+        for symbol in ST.get_all_controls(contr, source)
             SY.compute_post!(targetlist, symmodel.autom, source, symbol)
         end
         for target in targetlist

@@ -4,21 +4,24 @@ mutable struct HierarchicalSymbolicSystem # <: SymbolicModel
     sub_symmodels::Any # Dictionnary: (Int, symmodel)
 end
 
-function get_sub_symmodel(hierarchical_symmodel::HierarchicalSymbolicSystem, state)
-    return hierarchical_symmodel.sub_symmodels[state]
-end
+get_n_state(hierarchical_symmodel::HierarchicalSymbolicSystem) =
+    get_n_state(hierarchical_symmodel.symmodel)
+get_n_input(hierarchical_symmodel::HierarchicalSymbolicSystem) =
+    get_n_input(hierarchical_symmodel.symmodel)
+enum_states(hierarchical_symmodel::HierarchicalSymbolicSystem) =
+    enum_states(hierarchical_symmodel.symmodel)
+enum_inputs(hierarchical_symmodel::HierarchicalSymbolicSystem) =
+    enum_inputs(hierarchical_symmodel.symmodel)
 
-function get_xpos_by_state(hierarchical_symmodel::HierarchicalSymbolicSystem, state)
-    return get_xpos_by_state(hierarchical_symmodel.symmodel, state)
-end
+get_xpos_by_state(hierarchical_symmodel::HierarchicalSymbolicSystem, state) =
+    get_xpos_by_state(hierarchical_symmodel.symmodel, state)
+get_state_by_xpos(hierarchical_symmodel::HierarchicalSymbolicSystem, pos) =
+    get_state_by_xpos(hierarchical_symmodel.symmodel, pos)
+get_state_by_coord(hierarchical_symmodel::HierarchicalSymbolicSystem, coord) =
+    get_state_by_coord(hierarchical_symmodel.symmodel, coord)
 
-function get_state_by_xpos(hierarchical_symmodel::HierarchicalSymbolicSystem, pos)
-    return get_state_by_xpos(hierarchical_symmodel.symmodel, pos)
-end
-
-function get_state_by_coord(hierarchical_symmodel::HierarchicalSymbolicSystem, coord)
-    return get_state_by_coord(hierarchical_symmodel.symmodel, coord)
-end
+get_sub_symmodel(hierarchical_symmodel::HierarchicalSymbolicSystem, state) =
+    hierarchical_symmodel.sub_symmodels[state]
 
 function get_symbol(
     hierarchical_symmodel::HierarchicalSymbolicSystem,
@@ -34,14 +37,6 @@ function get_symbols(
     incl_mode::DO.INCL_MODE,
 )
     return get_states_from_sets(hierarchical_symmodel.symmodel, subsetList, incl_mode)
-end
-
-function get_ncells(hierarchical_symmodel::HierarchicalSymbolicSystem)
-    return get_ncells(hierarchical_symmodel.symmodel)
-end
-
-function enum_states(hierarchical_symmodel::HierarchicalSymbolicSystem)
-    return enum_states(hierarchical_symmodel.symmodel)
 end
 
 @recipe function f(

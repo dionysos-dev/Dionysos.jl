@@ -30,11 +30,12 @@ to_LazySets(rect::HyperRectangle) =
     LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
 affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
+get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
     vertices = zeros(n, 2^n)
-    for i in 0:(2^n - 1)
+    for i in 0:(2 ^ n - 1)
         vertex = zeros(n)
         for j in 1:n
             vertex[j] = i & (1 << (j - 1)) > 0 ? rect.ub[j] : rect.lb[j]
@@ -57,13 +58,6 @@ function samples(rect::HyperRectangle, N::Int)
     return [sample(rect) for _ in 1:N]
 end
 
-function rectangle(c, r)
-    return Shape(
-        c[1] .- r[1] .+ [0, 2 * r[1], 2 * r[1], 0],
-        c[2] .- r[2] .+ [0, 0, 2 * r[2], 2 * r[2]],
-    )
-end
-
 @recipe function f(rect::HyperRectangle; dims = [1, 2])
     center = get_center(rect)[dims]
     r = get_h(rect)[dims] ./ 2  # Half-width
@@ -76,43 +70,96 @@ end
     end
 end
 
-"""
-    DeformedRectangleDraw(rect, f, N, shape)
-
-A helper struct for drawing a deformed rectangle.
-"""
-struct DeformedRectangleDraw
-    rect::HyperRectangle
-    f::Function
-    N::Integer # used for precision
-    shape::Any
+function one_direction(lb, ub, T, T0)
+    if ub - lb >= T
+        return [(T0, T0 + T)]
+    else
+        lb = T0 + mod(lb - T0, T)
+        ub = T0 + mod(ub - T0, T)
+        if lb <= ub
+            return [(lb, ub)]
+        else
+            return [(T0, ub), (lb, T0 + T)]
+        end
+    end
+end
+function recursive(L, rect, lb, ub, periodic, periods, start, i)
+    N = length(lb)
+    if i > length(periodic)
+        push!(L, HyperRectangle(SVector(lb), SVector(ub)))
+        return
+    end
+    dim = periodic[i]
+    intervals = one_direction(rect.lb[dim], rect.ub[dim], periods[i], start[i])
+    for interval in intervals
+        l = ntuple(i -> i == dim ? interval[1] : lb[i], Val(N))
+        u = ntuple(i -> i == dim ? interval[2] : ub[i], Val(N))
+        recursive(L, rect, l, u, periodic, periods, start, i + 1)
+    end
 end
 
-function DeformedRectangleDraw(rect::HyperRectangle, f::Function; N = 10, dims = [1, 2])
+"""
+    set_in_period(
+        rect::HyperRectangle,
+        start::SVector{P, T},
+        periods::SVector{P, T},
+        periodic_dims::SVector{P, Int}
+    ) -> LazyUnionSetArray{HyperRectangle}
+
+Split a rectangle along periodic boundaries (if it crosses any) and return
+a LazyUnionSetArray of wrapped rectangles.
+"""
+function set_in_period(
+    rect::HyperRectangle,
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
+) where {T, P}
+    L = typeof(rect)[]
+    recursive(L, rect, rect.lb, rect.ub, periodic_dims, periods, start, 1)
+    return LazyUnionSetArray(L)
+end
+
+"""
+    DeformedRectangle(rect, f, N, shape)
+
+A deformed rectangle.
+"""
+struct DeformedRectangle
+    rect::HyperRectangle
+    f::Function
+end
+
+function SampleBoundaryDeformedRectangle(drect::DeformedRectangle; N = 50, dims = [1, 2])
+    rect = drect.rect
+    f = drect.f
     lb = rect.lb[dims]
     ub = rect.ub[dims]
     points = SVector[]
+
+    # Compute images of the rectangle boundary points
     for x in LinRange(lb[1], ub[1], N)
         push!(points, f(SVector(x, lb[2])))
     end
-    for x in LinRange(lb[2], ub[2], N)
-        push!(points, f(SVector(ub[1], x)))
+    for y in LinRange(lb[2], ub[2], N)
+        push!(points, f(SVector(ub[1], y)))
     end
     for x in LinRange(ub[1], lb[1], N)
         push!(points, f(SVector(x, ub[2])))
     end
-    for x in LinRange(ub[2], lb[2], N)
-        push!(points, f(SVector(lb[1], x)))
+    for y in LinRange(ub[2], lb[2], N)
+        push!(points, f(SVector(lb[1], y)))
     end
-    unique!(points)
-    x = [point[1] for point in points]
-    y = [point[2] for point in points]
 
-    return DeformedRectangleDraw(rect, f, N, Shape(x, y))
+    return points
 end
 
-@recipe function f(deformed_rect::DeformedRectangleDraw; dims = [1, 2])
+@recipe function f(drect::DeformedRectangle; dims = [1, 2], N = 50, dims = [1, 2])
+    points = SampleBoundaryDeformedRectangle(drect; N = N, dims = dims)
+    x = [point[1] for point in points]
+    y = [point[2] for point in points]
     @series begin
-        return deformed_rect.shape
+        seriestype := :polygon
+        return (x, y)
     end
 end

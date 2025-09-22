@@ -1,6 +1,6 @@
 using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
 using MathematicalSystems, HybridSystems
-using JuMP, Mosek, MosekTools
+using JuMP, Clarabel
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -20,10 +20,7 @@ include("../../../problems/non_linear.jl")
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
-# Optimizer's parameters, see https://github.com/MOSEK/Mosek.jl/issues/206
-const FALLBACK_URL = "mosek://solve.mosek.com:30080"
-sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 maxδx = 100
 maxδu = 10 * 2
@@ -77,7 +74,7 @@ cost_control_trajectory = ST.get_closed_loop_trajectory(
     noise = true,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_control_trajectory.costs.seq);
+cost_true = ST.get_cost(cost_control_trajectory)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")

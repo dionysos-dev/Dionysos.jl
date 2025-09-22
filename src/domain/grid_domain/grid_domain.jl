@@ -21,6 +21,8 @@ function Base.union!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.setdiff!(domain1::GridDomainType, domain2::GridDomainType) end
 function Base.empty!(domain::GridDomainType) end
 function remove_pos!(domain::GridDomainType, pos) end
+# Create a new domain based on `domain`, but replacing the grid step size `h` with `new_h`.
+function rescale_domain(domain::GridDomainType, scale::Float64) end
 
 # ----------------------------
 # Derived Utility Methods
@@ -29,6 +31,8 @@ function remove_pos!(domain::GridDomainType, pos) end
 get_pos_by_coord(domain::GridDomainType, coord) = get_pos_by_coord(get_grid(domain), coord)
 get_coord_by_pos(domain::GridDomainType, pos) = get_coord_by_pos(get_grid(domain), pos)
 get_elem_by_pos(domain::GridDomainType, pos) = get_elem_by_pos(get_grid(domain), pos)
+get_elem_by_coord(domain::GridDomainType, coord) =
+    get_elem_by_pos(domain, get_pos_by_coord(domain, coord))
 
 get_dim(domain::GridDomainType) = get_dim(get_grid(domain))
 enum_coords(domain::GridDomainType) =
@@ -46,6 +50,15 @@ function get_subset_pos(
 )
     rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
     return [pos for pos in Iterators.product(_ranges(rectI)...) if pos ∈ domain]
+end
+
+function get_subset_pos_in_grid(
+    domain::GridDomainType,
+    rect::UT.HyperRectangle,
+    incl_mode::INCL_MODE,
+)
+    rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
+    return Iterators.product(_ranges(rectI)...)
 end
 
 function add_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
@@ -111,15 +124,14 @@ function remove_set!(
 end
 
 function remove_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
-    rectI = get_pos_lims(domain.grid, rect, incl_mode)
-    pos_iter = Iterators.product(_ranges(rectI)...)
-    if length(pos_iter) < get_ncells(domain)
-        for pos in pos_iter
+    posL = get_subset_pos(domain, rect, incl_mode)
+    if length(posL) < get_ncells(domain)
+        for pos in posL
             remove_pos!(domain, pos)
         end
     else
         for pos in enum_pos(domain)
-            if pos ∈ rectI
+            if pos ∈ posL
                 remove_pos!(domain, pos)
             end
         end

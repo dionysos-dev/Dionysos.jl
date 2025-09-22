@@ -56,7 +56,7 @@ println("Started test")
         ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
+    symmodel = SY.SymbolicModelList(Xfull, Ufull)
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     Xinit = DO.DomainList(Xgrid)
@@ -76,40 +76,14 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr, controllable_set, uncontrollable_set =
-        AB.UniformGridAbstraction.compute_largest_controllable_set(
-            symmodel,
+    contr, controllable_set, uncontrollable_set, value_fun_tab =
+        SY.compute_worst_case_cost_controller(
+            symmodel.autom,
             targetlist;
             initial_set = initlist,
         )
 
-    @test length(contr) == 412
-    if VERSION >= v"1.5"
-        function f(autom, initlist, targetlist)
-            contr = AB.UniformGridAbstraction.NewControllerList()
-            initset,
-            targetset,
-            controllableset,
-            num_targets_unreachable,
-            current_targets,
-            next_targets = AB.UniformGridAbstraction._data(autom, initlist, targetlist)
-            # Preallocates to make sure `_compute_controller_reach` does not need to allocate
-            sizehint!(contr.data, 600)
-            sizehint!(current_targets, 50)
-            sizehint!(next_targets, 200)
-            @allocated AB.UniformGridAbstraction._compute_controller_reach!(
-                contr,
-                autom,
-                initset,
-                controllableset,
-                num_targets_unreachable,
-                current_targets,
-                next_targets,
-            )
-        end
-
-        @test f(symmodel.autom, initlist, targetlist) == 0
-    end
+    @test length(ST.domain(contr)) == 412
 end
 
 sleep(0.1) # used for good printing

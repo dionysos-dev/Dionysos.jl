@@ -41,7 +41,8 @@ const AB = OP.Abstraction
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
+
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
@@ -70,7 +71,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.optimize!(optimizer)
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-@test length(abstract_controller.data) == 893803 #src
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
@@ -82,7 +82,8 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-uninvariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uninvariant_set"))
+invariant_set_complement =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"));
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -104,14 +105,14 @@ plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
 
 origin = SVector(0.0, 0.0)
-η = (2 / 4.0) * 10^(-3)
+η = (2 / 4.0) * 10^(-3);
 
 # Note: In the following, `P` and `ϵ` are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
 ϵ = 0.1 * 0.01
@@ -133,7 +134,7 @@ MOI.set(
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
@@ -160,6 +161,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
+plot!(invariant_set_complement; color = :black, label = "Invariant set complement")
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
 

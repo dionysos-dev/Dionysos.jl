@@ -1,5 +1,5 @@
 """
-    SymbolicModelList{N, M, S1, S2, A} <: GridBasedSymbolicModel{N, M}
+    SymbolicModelList{N, M, S1, S2, A, U, OS} <: GridBasedSymbolicModel{N, M}
 
 A classical symbolic model where the entire domain is partitioned into grid cells.
 """
@@ -9,21 +9,29 @@ mutable struct SymbolicModelList{
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
     A,
+    U,
+    OS,
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2
     autom::A
     xpos2int::Dict{NTuple{N, Int}, Int}
     xint2pos::Vector{NTuple{N, Int}}
-    ucoord2int::Any
-    uint2coord::Any
+    ucoord2int::Dict{U, Int}
+    uint2coord::Vector{U}
+    original_symmodel::OS
 end
 
-function NewSymbolicModelListList(
+"""
+    SymbolicModelList(Xdom, Udom; AutomatonConstructor)
+
+Constructor for a fresh (non-determinized) SymbolicModelList.
+"""
+function SymbolicModelList(
     Xdom,
     Udom,
-    ::Type{S} = UT.SortedTupleSet{3, NTuple{3, Int}},
-) where {S}
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+)
     nx = DO.get_ncells(Xdom)
     xint2pos = [pos for pos in DO.enum_pos(Xdom)]
     xpos2int = Dict((pos, i) for (i, pos) in enumerate(DO.enum_pos(Xdom)))
@@ -33,7 +41,7 @@ function NewSymbolicModelListList(
     uint2coord = [coord for coord in DO.enum_elems(customDomainList)]
     ucoord2int =
         Dict((coord, i) for (i, coord) in enumerate(DO.enum_elems(customDomainList)))
-    autom = AutomatonList{S}(nx, nu)
+    autom = AutomatonConstructor(nx, nu)
 
     return SymbolicModelList(
         Xdom,
@@ -43,6 +51,7 @@ function NewSymbolicModelListList(
         xint2pos,
         ucoord2int,
         uint2coord,
+        nothing, # OS = Nothing for base models
     )
 end
 
@@ -55,6 +64,7 @@ function with_automaton(symmodel::SymbolicModelList, autom)
         symmodel.xint2pos,
         symmodel.ucoord2int,
         symmodel.uint2coord,
+        symmodel.original_symmodel,
     )
 end
 
@@ -69,62 +79,92 @@ get_xpos_by_state(symmodel::SymbolicModelList, state) = symmodel.xint2pos[state]
 get_state_by_xpos(symmodel::SymbolicModelList, xpos) = symmodel.xpos2int[xpos]
 is_xpos(symmodel::SymbolicModelList, xpos) = haskey(symmodel.xpos2int, xpos)
 
-get_concrete_input(symmodel::SymbolicModelList, input) = symmodel.uint2coord[input]
-get_abstract_input(symmodel::SymbolicModelList, u) = symmodel.ucoord2int[u]
-
+pre(symmodel::SymbolicModelList, target::Int) = pre(symmodel.autom, target)
+post(symmodel::SymbolicModelList, source::Int, input::Int) =
+    post(symmodel.autom, source, input)
+enum_transitions(symmodel::SymbolicModelList) = enum_transitions(symmodel.autom)
+add_transition!(symmodel::SymbolicModelList, q::Int, q′::Int, u::Int) =
+    add_transition!(symmodel.autom, q, q′, u)
 add_transitions!(symmodel::SymbolicModelList, translist) =
     add_transitions!(symmodel.autom, translist)
 
-@recipe function f(symmodel::SymbolicModel; arrowsB = false, cost = false, lyap_fun = [])
-    # Display the cells
-    state_grid = symmodel.Xdom.grid
-    if cost
-        LyapMax = max(filter(isfinite, getfield.([lyap_fun...], :second))...)
-        colormap = Colors.colormap("Blues")
-        mycolorMap = UT.Colormap([0.0, LyapMax], colormap)
-        cost_ordered =
-            reverse(sort(hcat([(lyap, state) for (state, lyap) in lyap_fun]...); dims = 2))
-        for (lyap, state) in cost_ordered
-            pos = get_xpos_by_state(symmodel, state)
-            elli = DO.get_elem_by_pos(state_grid, pos)
-            @series begin
-                lyap ≠ Inf ? color := UT.get_color(mycolorMap, lyap) : color := :yellow
-                return elli
-            end
+is_determinized(symmodel::SymbolicModelList) = !(symmodel.original_symmodel === nothing)
+
+"""
+    is_deterministic(symmodel::SymbolicModelList) -> Bool
+
+Returns `true` if the symbolic model is deterministic.
+"""
+is_deterministic(symmodel::SymbolicModelList) = is_deterministic(symmodel.autom)
+
+function get_concrete_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, U, Nothing},
+    input::Int,
+) where {N, M, S1, S2, A, U}
+    return symmodel.uint2coord[input]
+end
+
+function get_abstract_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, U, Nothing},
+    u::U,
+) where {N, M, S1, S2, A, U}
+    return symmodel.ucoord2int[u]
+end
+
+function get_concrete_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, Tuple{Uprev, Int}, OS},
+    input::Int,
+) where {N, M, S1, S2, A, Uprev, OS}
+    u, _ = symmodel.uint2coord[input]
+    return get_concrete_input(symmodel.original_symmodel, u)
+end
+
+function get_abstract_input(
+    symmodel::SymbolicModelList{N, M, S1, S2, A, Tuple{Uprev, Int}, OS},
+    u,
+) where {N, M, S1, S2, A, Uprev, OS}
+    return get_abstract_input(symmodel.original_symmodel, u)
+end
+
+"""
+    determinize_symbolic_model(symmodel::SymbolicModelList) -> SymbolicModelList
+
+Returns a determinized version of the given symbolic model by encoding each transition input as a pair `(input_symbol, target_state)`.
+"""
+function determinize_symbolic_model(
+    symmodel::SymbolicModelList;
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+)
+    transitions = enum_transitions(symmodel)
+
+    U = eltype(symmodel.uint2coord)
+    new_ucoord2int = Dict{Tuple{U, Int}, Int}()
+    new_uint2coord = Tuple{U, Int}[]
+
+    transition_buffer = Vector{NTuple{3, Int}}()
+    for (target, source, symbol) in transitions
+        new_input = (symbol, target)
+
+        input_id = get!(new_ucoord2int, new_input) do
+            push!(new_uint2coord, new_input)
+            return length(new_uint2coord)
         end
-        @series begin
-            mycolorMap
-        end
-    else
-        @series begin
-            symmodel.Xdom
-        end
+
+        push!(transition_buffer, (target, source, input_id))
     end
-    # Display the arrows
-    if arrowsB
-        for t in symmodel.autom.transitions.data
-            if t[1] == t[2]
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    return UT.DrawPoint(p1)
-                end
-            else
-                @series begin
-                    color = RGB(
-                        abs(0.6 * sin(t[1])),
-                        abs(0.6 * sin(t[1] + 2π / 3)),
-                        abs(0.6 * sin(t[1] - 2π / 3)),
-                    )
-                    p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-                    p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
-                    return UT.DrawArrow(p1, p2)
-                end
-            end
-        end
-    end
+    new_autom = AutomatonConstructor(get_n_state(symmodel), length(new_uint2coord))
+    add_transitions!(new_autom, transition_buffer)
+
+    new_symmodel = SymbolicModelList(
+        symmodel.Xdom,
+        symmodel.Udom,
+        new_autom,
+        symmodel.xpos2int,
+        symmodel.xint2pos,
+        new_ucoord2int,
+        new_uint2coord,
+        symmodel,
+    )
+
+    return new_symmodel
 end

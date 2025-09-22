@@ -95,6 +95,16 @@ using Polyhedra
 using HybridSystems
 using Suppressor
 
+# Auxiliary function for annotation
+function text_in_set_plot!(fig, po::Polyhedra.Rep, t)
+    ##solve finding center (HiGHS is currently the best open source LP solver)
+    solver = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    if t !== nothing
+        c, r = Polyhedra.hchebyshevcenter(Polyhedra.hrep(po), solver; verbose = 0)
+        annotate!(fig, c[1], c[2], t)
+    end
+end
+
 #Initialize our canvas
 fig = plot(;
     aspect_ratio = :equal,
@@ -119,14 +129,14 @@ for mode in states(problem.system)
         )
     set = stateset(problem.system, mode)
     plot!(set; color = :white)
-    UT.text_in_set_plot!(fig, set, t)
+    text_in_set_plot!(fig, set, t)
 end
 
 #Plot obstacles
 for i in eachindex(problem.system.ext[:obstacles])
     set = problem.system.ext[:obstacles][i]
     plot!(set; color = :black, opacity = 0.5)
-    UT.text_in_set_plot!(fig, set, "O$i")
+    text_in_set_plot!(fig, set, "O$i")
 end
 
 #Plot trajectory

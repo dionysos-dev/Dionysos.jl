@@ -46,7 +46,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
 @testset "UniformGridAbstraction safety" begin
-    @test length(abstract_controller.data) == 893803 #src
+    @test length(ST.domain(abstract_controller)) == 593089 #src
 end
 
 no_plot = false

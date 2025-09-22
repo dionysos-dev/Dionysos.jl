@@ -2,9 +2,10 @@ module Symbolic
 
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
+import ProgressMeter
 
 using LinearAlgebra, Colors
-using HybridSystems
+using HybridSystems, MathematicalSystems
 
 using Graphs, SimpleWeightedGraphs
 
@@ -17,7 +18,9 @@ const DO = Domain
 using ..System
 const ST = System
 
-include("automaton.jl")
+include("automaton/automaton.jl")
+include("automaton/sorted_automaton_list.jl")
+include("automaton/indexed_automaton_list.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
 include("grid_based_symbolic_model/symbolic_model_list.jl")
@@ -31,5 +34,11 @@ using Polyhedra
 using ProgressMeter, IntervalArithmetic, LazySets
 using JuMP
 include("ellipsoidal_transitions.jl")
+
+include("timed_hybrid_automaton/vector_continuous_system.jl")
+
+include("timed_hybrid_automaton/time_symbolic_model.jl")
+
+include("timed_hybrid_automaton/symbolic_timed_hybrid_systems.jl")
 
 end  # module Symbolic

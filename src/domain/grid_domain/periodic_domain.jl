@@ -1,103 +1,191 @@
 """
-    PeriodicDomainList{N, T, S} <: GridDomainType{N, T}
+    PeriodicDomainList{N, T, S, P} <: GridDomainType{N, T}
 
-A periodic extension of `DomainList`, where specified dimensions wrap around at given periods.
+A periodic extension of `DomainList`, where specified dimensions wrap around with specified periods.
 
 # Fields
-- `domain::DomainList{N, T, S}` : The underlying domain structure.
-- `periodic_dims::Vector{Bool}` : Boolean vector indicating which dimensions are periodic.
-- `periods::SVector{N, T}` : The length of the period in each dimension.
-- `start::SVector{N, T}` : The start of the periodic cycle in each dimension.
-
-# Features
-- Uses `DomainList` for element management.
-- Implements periodic boundary conditions for wrapping elements.
+- `periodic_dims::SVector{P, Int}`: Indices of the periodic dimensions.
+- `periods::SVector{P, T}`: Period length in each periodic dimension.
+- `start::SVector{P, T}`: Start value for each periodic dimension.
+- `underlying_domain::DomainList{N, T, S}`: The wrapped domain over all `N` dimensions.
 """
-struct PeriodicDomainList{N, T, S <: Grid{N, T}} <: GridDomainType{N, T}
+struct PeriodicDomainList{N, T, S <: Grid{N, T}, P} <: GridDomainType{N, T}
+    periodic_dims::SVector{P, Int}
+    periods::SVector{P, T}
+    start::SVector{P, T}
     underlying_domain::DomainList{N, T, S}
-    periodic_dims::Vector{Bool}
-    periods::SVector{N, T}
-    start::SVector{N, T}
+    periodic_index_map::NTuple{N, Union{Nothing, Int}}
 end
 
 """
-    PeriodicDomainList(grid::S, periodic_dims::Vector{Bool}, periods::SVector{N, T}, start::SVector{N, T}) where {N, T, S <: Grid{N, T}}
+    _make_periodic_index_map(periodic_dims::SVector{P, Int}, N::Int)
 
-Creates a periodic domain list using an **existing grid**.
+Returns an `NTuple{N, Union{Nothing, Int}}` where each entry is either:
+- `nothing` if dimension `d` is not periodic
+- `i` such that `periodic_dims[i] == d`
+"""
+function _make_periodic_index_map(periodic_dims::SVector{P, Int}, N::Int) where {P}
+    return ntuple(d -> begin
+        i = findfirst(isequal(d), periodic_dims)
+        isnothing(i) ? nothing : i
+    end, N)
+end
 
-Ensures that:
-1. The grid origin (`orig`) aligns with periodicity (`start + h/2` for periodic dimensions).
-2. The grid step `h` is a multiple of the period in periodic dimensions.
+"""
+    PeriodicDomainList(
+        periodic_dims::SVector{P, Int},
+        periods::SVector{P, T},
+        start::SVector{P, T},
+        grid::S
+    ) where {N, T, S <: Grid{N, T}, P}
 
-Throws an error if misalignment occurs.
+Constructs a `PeriodicDomainList` from an existing grid.
+
+# Requirements
+For each periodic dimension `d = periodic_dims[i]`:
+- The grid origin must satisfy `origin[d] == start[i] + h[d] / 2`
+- The grid step `h[d]` must divide the period `periods[i]`
+
+Throws an error if constraints are not met.
 """
 function PeriodicDomainList(
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
     grid::S,
-    periodic_dims::Vector{Bool},
-    periods::SVector{N, T},
-    start::SVector{N, T},
-) where {N, T, S <: Grid{N, T}}
+) where {N, T, S <: Grid{N, T}, P}
     orig = get_origin(grid)
     h = get_h(grid)
 
-    for d in 1:N
-        if periodic_dims[d]
-            expected_orig = start[d] + h[d] / 2.0  # Expected alignment for periodic dimension
+    for i in 1:P
+        d = periodic_dims[i]
+        expected_orig = start[i] + h[d] / 2.0
 
-            # Ensure the grid origin aligns correctly
-            if !isapprox(orig[d], expected_orig; atol = 1e-9)
-                error(
-                    "Grid origin orig[$d] = $(orig[d]) must be at start[$d] + h[$d]/2 = $(expected_orig) in periodic dimension $d.",
-                )
-            end
+        if !isapprox(orig[d], expected_orig; atol = 1e-9)
+            error(
+                "Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).",
+            )
+        end
 
-            # Ensure the period is a multiple of the grid step size
-            if !isapprox(mod(periods[d], h[d]), 0.0; atol = 1e-9)
-                error(
-                    "Grid step size h[$d] = $(h[d]) must be a multiple of the period[$d] = $(periods[d]) in periodic dimension $d.",
-                )
-            end
+        q = periods[i] / h[d]
+        if !isapprox(q, round(q); atol = 1e-9)
+            error("Grid step h[$d] = $(h[d]) must divide period[$i] = $(periods[i]).")
         end
     end
+    domain = DomainList(grid)
+    map = _make_periodic_index_map(periodic_dims, N)
+    return PeriodicDomainList{N, T, S, P}(periodic_dims, periods, start, domain, map)
+end
 
-    # Create the domain list and return the periodic domain
-    underlying_domain = DomainList(grid)
-    return PeriodicDomainList(underlying_domain, periodic_dims, periods, start)
+function PeriodicDomainList(
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    grid::S,
+) where {N, T, S <: Grid{N, T}, P}
+    start = zeros(SVector{P, T})
+    return PeriodicDomainList(periodic_dims, periods, start, grid)
 end
 
 """
-    PeriodicDomainList(periodic_dims::Vector{Bool}, periods::SVector{N, T}, start::SVector{N, T}, h::SVector{N, T}) where {N, T}
+    PeriodicDomainList(
+        periodic_dims::SVector{P, Int},
+        periods::SVector{P, T},
+        start::SVector{P, T},
+        h::SVector{N, T}
+    ) where {N, T, P}
 
-Creates a periodic domain list by automatically defining a grid with:
-1. The origin aligns correctly with periodicity (`start + h/2` for periodic dimensions).
-2. The grid step `h` is a multiple of `periods` in periodic dimensions.
+Constructs a periodic domain list by generating a grid whose origin aligns with the periodic structure:
+- In each periodic dimension `d = periodic_dims[i]`, the origin is set to `start[i] + h[d]/2`
+- All other dimensions default to origin = 0.0
 
-Ensures that the **origin aligns with `start` and `periods`** in periodic dimensions.
-Throws an error if misalignment occurs.
+Throws an error if the period is not divisible by the grid step.
 """
 function PeriodicDomainList(
-    periodic_dims::Vector{Bool},
-    periods::SVector{N, T},
-    start::SVector{N, T},
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
     h::SVector{N, T},
-) where {N, T}
-    # Compute origin based on periodicity
-    orig = SVector{N, T}([periodic_dims[d] ? start[d] + h[d] / 2.0 : start[d] for d in 1:N])
+) where {N, T, P}
+    orig = zeros(N)
+    for i in 1:P
+        d = periodic_dims[i]
+        orig[d] = start[i] + h[d] / 2.0
+    end
 
-    # Ensure grid alignment with start and periods
-    for d in 1:N
-        if periodic_dims[d]
-            if !isapprox(mod(periods[d], h[d]), 0.0; atol = 1e-9)
-                error(
-                    "Grid step size h[$d] = $(h[d]) must be a multiple of the period[$d] = $(periods[d]) in periodic dimension $d.",
-                )
-            end
+    for i in 1:P
+        d = periodic_dims[i]
+        q = periods[i] / h[d]
+        if !isapprox(q, round(q); atol = 1e-9)
+            error("Grid step h[$d] = $(h[d]) must divide period[$i] = $(periods[i]).")
         end
     end
 
-    # Create the grid and return the periodic domain list
-    grid = GridFree(orig, h)
-    return PeriodicDomainList(grid, periodic_dims, periods, start)
+    grid = GridFree(SVector{N}(orig), h)
+    return PeriodicDomainList(periodic_dims, periods, start, grid)
+end
+
+"""
+    PeriodicDomainList(
+        periodic_dims::SVector{P, Int},
+        periods::SVector{P, T},
+        h::SVector{N, T}
+    ) where {N, T, P}
+
+Constructs a periodic domain list with `start = 0` in all periodic dimensions.
+"""
+function PeriodicDomainList(
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    h::SVector{N, T},
+) where {N, T, P}
+    start = zeros(SVector{P, T})
+    return PeriodicDomainList(periodic_dims, periods, start, h)
+end
+
+"""
+    PeriodicDomainList(h::SVector{N, T}) where {N, T}
+
+Creates a non-periodic `PeriodicDomainList` by wrapping a grid with uniform spacing `h`.
+
+This is equivalent to a regular `DomainList` with periodicity disabled.
+"""
+function PeriodicDomainList(h::SVector{N, T}) where {N, T}
+    return PeriodicDomainList(SVector{0, Int}(), SVector{0, T}(), h)
+end
+
+"""
+    PeriodicDomainList(grid::Grid) -> PeriodicDomainList
+
+Wraps a given `Grid` in a non-periodic `PeriodicDomainList`.
+
+This is equivalent to a regular domain list with no periodic behavior applied.
+"""
+function PeriodicDomainList(grid::S) where {N, T, S <: Grid{N, T}}
+    return PeriodicDomainList(SVector{0, Int}(), SVector{0, T}(), SVector{0, T}(), grid)
+end
+
+function rescale_domain(domain::PeriodicDomainList, scale::Float64)
+    periodic_dims = get_periodic_dims(domain)
+    periods = get_periods(domain)
+    start = get_periodic_starts(domain)
+
+    old_h = get_h(get_grid(domain))
+    old_orig = get_origin(get_grid(domain))
+    N = length(old_orig)
+
+    new_h = old_h * scale
+    new_orig = SVector(ntuple(d -> begin
+        i = findfirst(isequal(d), periodic_dims)
+        if i !== nothing
+            start[i] + new_h[d] / 2
+        else
+            div = 1/scale
+            old_orig[d] - new_h[d] * (div-1) / 2
+        end
+    end, N))
+
+    new_grid = GridFree(new_orig, new_h)
+    return PeriodicDomainList(periodic_dims, periods, start, new_grid)
 end
 
 # ----------------------------
@@ -105,8 +193,26 @@ end
 # ----------------------------
 
 get_periodic_dims(domain::PeriodicDomainList) = domain.periodic_dims
-get_period_lengths(domain::PeriodicDomainList) = domain.periods
-get_period_start(domain::PeriodicDomainList) = domain.start
+get_periods(domain::PeriodicDomainList) = domain.periods
+get_periodic_starts(domain::PeriodicDomainList) = domain.start
+
+"""
+    is_periodic(domain::PeriodicDomainList, d::Int) -> Bool
+
+Returns `true` if dimension `d` is periodic in the given domain.
+"""
+is_periodic(domain::PeriodicDomainList, d::Int) = domain.periodic_index_map[d] !== nothing
+
+"""
+    is_periodic(domain::PeriodicDomainList) -> Bool
+
+Returns `true` if **any** dimension in the domain is periodic.
+Uses `is_periodic(domain, d)` internally.
+"""
+function is_periodic(domain::PeriodicDomainList)
+    N = length(domain.periodic_index_map)
+    return any(d -> is_periodic(domain, d), 1:N)
+end
 
 """
     has_same_periodicity(domain1::PeriodicDomainList, domain2::PeriodicDomainList) -> Bool
@@ -114,47 +220,71 @@ get_period_start(domain::PeriodicDomainList) = domain.start
 Returns `true` if both domains have the same periodic settings.
 """
 function has_same_periodicity(domain1::PeriodicDomainList, domain2::PeriodicDomainList)
-    return domain1.periodic_dims == domain2.periodic_dims &&
-           domain1.periods == domain2.periods &&
-           domain1.start == domain2.start
+    return get_periodic_dims(domain1) == get_periodic_dims(domain2) &&
+           get_periods(domain1) == get_periods(domain2) &&
+           get_periods(domain1) == get_periods(domain2)
 end
 
 """
-    wrap_pos(domain::PeriodicDomainList, pos::NTuple{N, Int}) -> NTuple{N, Int}
+    wrap_pos(domain::PeriodicDomainList{N, T}, pos::NTuple{N, Int}) -> NTuple{N, Int}
 
-Wraps a grid position `pos` into its equivalent within periodic boundaries.
+Wraps a grid position `pos` into its equivalent within the periodic boundaries defined by `domain`.
 
-**Handles periodicity correctly based on how the grid is defined.**
+Only the periodic dimensions (as defined in `domain.periodic_dims`) are wrapped.  
+Non-periodic dimensions are returned as-is.
+
+# Returns
+- An `NTuple{N, Int}` where periodic dimensions are wrapped modulo the number of cells in the period.
 """
 function wrap_pos(domain::PeriodicDomainList{N, T}, pos::NTuple{N, Int}) where {N, T}
-    h = get_h(get_grid(domain))
-    start = domain.start
-    periods = domain.periods
+    if !is_periodic(domain)
+        return pos
+    end
 
-    return Tuple(
-        domain.periodic_dims[d] ?
-        mod(
-            pos[d] - round(Int, (start[d] + h[d] / 2) / h[d]),
-            round(Int, periods[d] / h[d]),
-        ) + round(Int, (start[d] + h[d] / 2) / h[d]) : pos[d] for d in 1:N
-    )
+    h = get_h(get_grid(domain))
+    start = get_periodic_starts(domain)
+    periods = get_periods(domain)
+    pmap = domain.periodic_index_map
+
+    return ntuple(d -> begin
+        i = pmap[d]
+        if i === nothing
+            pos[d]
+        else
+            span = round(Int, periods[i] / h[d])
+            mod(pos[d], span)
+        end
+    end, N)
 end
 
 """
-    wrap_coord(domain::PeriodicDomainList, coord::SVector{N, Float64}) -> SVector{N, Float64}
+    wrap_coord(domain::PeriodicDomainList{N, T}, coord::SVector{N, T}) -> SVector{N, T}
 
-Transforms a coordinate into its wrapped equivalent within the periodic boundaries.
+Wraps a real-valued coordinate `coord` into its periodic equivalent, based on the periodic
+dimensions defined in the `domain`.
+
+Non-periodic dimensions are returned unchanged.
 """
-function wrap_coord(domain::PeriodicDomainList, coord::SVector{N, Float64}) where {N}
-    return SVector(
-        domain.periodic_dims[d] ?
-        mod(coord[d] - domain.start[d], domain.periods[d]) + domain.start[d] : coord[d] for
-        d in 1:N
-    )
+function wrap_coord(domain::PeriodicDomainList{N, T}, coord::SVector{N, T}) where {N, T}
+    if !is_periodic(domain)
+        return coord
+    end
+
+    pmap = domain.periodic_index_map
+    return SVector{N, T}(ntuple(d -> begin
+        i = pmap[d]
+        if i === nothing
+            coord[d]
+        else
+            s = domain.start[i]
+            p = domain.periods[i]
+            mod(coord[d] - s, p) + s
+        end
+    end, N))
 end
 
 # ----------------------------
-#  Overriding DomainList Methods for Periodicity
+#  Overriding GridDomainType Methods for Periodicity
 # ----------------------------
 
 get_grid(domain::PeriodicDomainList) = get_grid(domain.underlying_domain)
@@ -177,8 +307,18 @@ function get_subset_pos(
     rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
     return [
         wrap_pos(domain, pos) for
-        pos in Iterators.product(_ranges(rectI)...) if pos ∈ domain
+        pos in Iterators.product(_ranges(rectI)...) if in(pos, domain)
     ]
+end
+
+function get_subset_pos_in_grid(
+    domain::PeriodicDomainList,
+    rect::UT.HyperRectangle,
+    incl_mode::INCL_MODE,
+)
+    rectI = get_pos_lims(get_grid(domain), rect, incl_mode)
+    raw_iter = Iterators.product(_ranges(rectI)...)
+    return (wrap_pos(domain, pos) for pos in raw_iter)
 end
 
 function Base.issubset(domain1::PeriodicDomainList, domain2::PeriodicDomainList)

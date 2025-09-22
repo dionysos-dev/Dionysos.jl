@@ -11,29 +11,6 @@ const ST = DI.System
 
 const TOL = 1e-6
 
-@testset "get_f_eval" begin
-    struct SystemExample{N, T, F <: Function} <: ST.ControlSystem{N, T}
-        X::Any
-        U::Any
-        f_eval::F
-    end
-    function SystemExample(f::F) where {F <: Function}
-        return SystemExample{1, Float64, F}((-Inf, Inf), (-Inf, Inf), f)
-    end
-    f(x, u) = 2 * x + u
-    sys = SystemExample(f)
-    x = 0.1
-    u = 0.3
-    @test (ST.get_f_eval)(sys)(x, u) === f(x, u)
-end
-
-@testset "BoundSecondOrder (a ≈ 0)" begin
-    a = 0
-    b = 1
-    tstep = 0.1
-    @test ST.BoundSecondOrder(a, b, tstep) === b * tstep
-end
-
 @testset "buildAffineApproximation" begin
     Symbolics.@variables xi, ui, wi
     x = [xi]

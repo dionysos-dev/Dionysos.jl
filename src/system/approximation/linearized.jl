@@ -2,6 +2,23 @@
 #  LINEARIZED OVERAPPROXIMATION IMPLEMENTATION
 # --------------------------------------------------
 
+"""
+    DiscreteTimeLinearized <: DiscreteTimeSystemOverApproximation
+
+A discrete-time overapproximation based on **linearization** of the system dynamics.
+
+This model approximates system behavior by propagating the linearized dynamics around the center of the state set and bounding the resulting error.
+
+# Fields
+- `system`: A `ConstrainedBlackBoxControlDiscreteSystem` from `MathematicalSystems.jl`.
+- `linsys_map`: A function `(x, dx, u) -> (Fx, DFx)` returning the linearized next state `Fx` and its Jacobian `DFx` around perturbation `dx`.
+- `error_map`: A function `(radius, u) -> Δ` returning a bound on the linearization error based on the set radius.
+
+# Overapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
+It evaluates the system at the center, adds linearized spread based on Jacobian, and inflates with the error bound.
+"""
 struct DiscreteTimeLinearized <: DiscreteTimeSystemOverApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     linsys_map::Function
@@ -30,6 +47,23 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
     end
 end
 
+"""
+    ContinuousTimeLinearized <: ContinuousTimeSystemOverApproximation
+
+A continuous-time overapproximation based on **Runge-Kutta linearization** of the system dynamics.
+
+The method propagates both the nominal trajectory and its linearized sensitivity over a time step using a 4th-order Runge-Kutta scheme, while bounding the second-order remainder error.
+
+# Fields
+- `system`: A `ConstrainedBlackBoxControlContinuousSystem` from `MathematicalSystems.jl`.
+- `linsys_map`: A function `(x, dx, u, tstep) -> (Fx, DFx)` simulating a linearized trajectory and its Jacobian.
+- `error_map`: A function `(r, u, tstep) -> Δ` computing a bound on the nonlinearity-induced error over time.
+
+# Overapproximation Map
+Returns a function of the form:
+    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
+The result is a conservative reachable set from the center using linearization + second-order error correction.
+"""
 struct ContinuousTimeLinearized <: ContinuousTimeSystemOverApproximation
     system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
     linsys_map::Function

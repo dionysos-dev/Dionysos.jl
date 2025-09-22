@@ -117,8 +117,8 @@ struct GridFree{N, T} <: Grid{N, T}
     h::SVector{N, T}
 end
 
-get_origin(grid::Grid) = grid.orig
-get_h(grid::Grid) = grid.h
+get_origin(grid::GridFree) = grid.orig
+get_h(grid::GridFree) = grid.h
 
 """
     GridEllipsoidalRectangular{N,T} <: Grid{N,T}
@@ -181,15 +181,16 @@ function DeformedGrid(
     return DeformedGrid{N, T}(grid, f, fi, A)
 end
 
-get_origin(grid::DeformedGrid) = get_origin(grid.underlying_grid)
+get_origin(grid::DeformedGrid) = grid.f(get_origin(grid.underlying_grid))
 get_h(grid::DeformedGrid) = get_h(grid.underlying_grid)
 
 get_pos_by_coord(grid::DeformedGrid, x) = get_pos_by_coord(grid.underlying_grid, grid.fi(x))
 get_coord_by_pos(grid::DeformedGrid, pos) =
     grid.f(get_coord_by_pos(grid.underlying_grid, pos))
-function get_elem_by_pos(grid::DeformedGrid, pos; N = 10)
-    return UT.DeformedRectangleDraw(get_rec(grid, pos), grid.f; N = N)
-end
+get_elem_by_pos(grid::DeformedGrid, pos) =
+    UT.DeformedRectangle(get_rec(grid.underlying_grid, pos), grid.f)
+get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
+    get_pos_lims(grid.underlying_grid, rect, incl_mode)
 
 """
     get_volume(Dgrid::DeformedGrid) -> T
