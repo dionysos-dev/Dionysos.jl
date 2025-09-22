@@ -1,5 +1,5 @@
 function symmodelAS(Xdom, Udom, sys, minimum_transition_cost, get_possible_transitions)
-    symmodel = NewSymbolicModelListList(Xdom, Udom)
+    symmodel = SymbolicModelList(Xdom, Udom)
     ncells = DO.get_ncells(Xdom)
     digraph = SimpleWeightedDiGraph(ncells)
     for source in enum_states(symmodel)
