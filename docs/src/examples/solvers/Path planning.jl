@@ -56,15 +56,22 @@ concrete_system = concrete_problem.system;
 
 # ### Definition of the abstraction
 
+m = 1 #5.0 / 3.0
+
+hx_param = 0.2 # 0.2
+
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
-h = SVector(0.2, 0.2, 0.2);
+h = SVector(hx_param, hx_param, 0.2);
 state_grid = DO.GridFree(x0, h);
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
-h = SVector(0.3, 0.3);
+h = SVector(0.3 * m, 0.3 );
 input_grid = DO.GridFree(u0, h);
+
+# print all inputs
+println("Inputs: ", input_grid);
 
 # We now solve the optimal control problem with the `Abstraction.UniformGridAbstraction.Optimizer`.
 
@@ -90,7 +97,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
-nstep = 100
+nstep = 10000
 function reached(x)
     if x ∈ concrete_problem.target_set
         return true
@@ -103,17 +110,17 @@ x0_state  = SY.get_state_by_coord(abstract_system, x0)
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 println("worst case cost: ", value_function[x0_state])
 
-println("save")
-jldsave("PP_big_0.1-0.5_eta0.1.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
-println("saved")
-
-control_trajectory = ST.get_closed_loop_trajectory(
+control_trajectory, cost, success = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
     nstep;
     stopping = reached,
 )
+
+println("save")
+jldsave("save/final/smart_abstractions/PP_big_time_etax_0.2_np_3_m1_tmin_0.01_etat_0.001.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+println("saved")
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);

@@ -14,6 +14,8 @@ using JuMP
 using DataStructures
 using Profile
 
+global value_function = nothing
+
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
@@ -99,9 +101,10 @@ function build_abstract_problem(
     )
 end
 
-function solve_abstract_problem(abstract_problem::PR.OptimalControlProblem)
+function solve_abstract_problem(abstract_system, abstract_problem::PR.OptimalControlProblem)
     abstract_controller = NewControllerList()
     @time compute_controller_reach!(
+        abstract_system,
         abstract_controller,
         abstract_problem.system.autom,
         abstract_problem.initial_set,
@@ -178,14 +181,14 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.abstract_problem = abstract_problem
 
     # Solve the abstract problem
-    abstract_controller = solve_abstract_problem(abstract_problem)
+    abstract_controller = solve_abstract_problem(abstract_system, abstract_problem)
     optimizer.abstract_controller = abstract_controller
     
     # Solve the concrete problem
     optimizer.concrete_controller =
         solve_concrete_problem(abstract_system, abstract_controller)
 
-    value_function = solve_value_function(abstract_controller, abstract_system, abstract_problem)
+    # value_function = solve_value_function(abstract_controller, abstract_system, abstract_problem)
     optimizer.value_function = value_function
 
     optimizer.solve_time_sec = time() - t_ref
@@ -196,7 +199,7 @@ NewControllerList() = UT.SortedTupleSet{3, NTuple{3, Int}}() # pour chaque sourc
 
 function compute_value_function!(g, contr, abstract_system, autom, initlist, targetlist::Vector{Int})
     # data
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,100)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols,1000)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     init_set = BitSet(initlist)
     target_set = BitSet(targetlist)
@@ -230,9 +233,9 @@ function compute_value_function!(g, contr, abstract_system, autom, initlist, tar
                         SY.compute_post!(post, autom, source, symbol, p)
                         gmax = maximum(g[q] for q in post)
                         time = 0.1 + p * 0.1
-                        # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
-                        # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
-                        cost = time
+                        u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
+                        true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
+                        cost = time * true_u[1]^2 + 1e-9
                         g[source] = cost + gmax
                     end
                 end
@@ -260,6 +263,7 @@ function _compute_controller_reach!(
     current_targets,
     next_targets,
 )
+    reachab = 0
     num_init_unreachable = length(init_set)
     while !isempty(current_targets) && !iszero(num_init_unreachable)
         empty!(next_targets)
@@ -277,13 +281,15 @@ function _compute_controller_reach!(
                 end
             end
         end
+        reachab += length(next_targets)
         current_targets, next_targets = next_targets, current_targets
     end
+    println("reachable states: $reachab")
     return iszero(num_init_unreachable)
 end
 
 function _data(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 100)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 1000)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
@@ -293,6 +299,7 @@ function _data(contr, autom, initlist, targetlist)
 end
 
 function _compute_controller_reach_with_cost!(
+    abstract_system,
     contr,
     autom,
     init_set,                # set of initial states
@@ -334,10 +341,10 @@ function _compute_controller_reach_with_cost!(
                     empty!(post)
                     SY.compute_post!(post, autom, qminus, symbol, p)
                     gmax = maximum(g[qprime] for qprime in post)
-                    time = 0.1 + p * 0.1
-                    # u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
-                    # true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
-                    cost = time #* true_u[1]^2
+                    time = 0.2 + p * 0.1
+                    u_symb = SY.get_upos_by_symbol(abstract_system, symbol)
+                    true_u = DO.get_coord_by_pos(abstract_system.Udom.grid, u_symb)
+                    cost = time #* true_u[1]^2 + 1e-9
                     f[qminus, (symbol,p)] = cost + gmax
                     enqueue!(N, (qminus, (symbol,p)), f[qminus, (symbol,p)])
                 end
@@ -348,11 +355,12 @@ function _compute_controller_reach_with_cost!(
     for q in keys(controlDict)
         UT.push_new!(contr, (q, controlDict[q][1], controlDict[q][2]))
     end
+    global value_function = g
     return iszero(num_init_unreachable)
 end
 
 function _data_cost(contr, autom, initlist, targetlist)
-    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 100)
+    num_targets_unreachable = zeros(Int, autom.nstates, autom.nsymbols, 10)
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
     initset = BitSet(initlist)
     targetset = BitSet(targetlist)
@@ -362,13 +370,14 @@ function _data_cost(contr, autom, initlist, targetlist)
     return initset, targetset, num_targets_unreachable, N, g, f
 end
 
-function compute_controller_reach!(contr, autom, initlist, targetlist::Vector{Int})
+function compute_controller_reach!(abstract_system, contr, autom, initlist, targetlist::Vector{Int})
     println("compute_controller_reach! started")
     # TODO: try to infer whether num_targets_unreachable is sparse or not,
     # and if sparse, use a dictionary instead
     cost = true
     if cost 
         if !_compute_controller_reach_with_cost!(
+            abstract_system,
             contr,
             autom,
             _data_cost(contr, autom, initlist, targetlist)...,

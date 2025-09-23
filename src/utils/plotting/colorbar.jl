@@ -7,12 +7,12 @@ struct Colormap
         if abs(v2 - v1) <= 10e-8
             v2 += 10e-2
         end
-        return new([v1, v2], mycolor)
+        return new(range, mycolor)
     end
 end
 
 function Colormap(range)
-    return Colormap(range, Colors.colormap("Blues"))
+    return Colormap(range, Colors.colormap("Reds"))
 end
 
 function get_color(colorMap::Colormap, val::Float64)
@@ -25,6 +25,7 @@ end
 
 @recipe function f(colorMap::Colormap)
     marker_z --> colorMap.range
+    colorbar_ticks --> (colorMap.range, string.(round.(colorMap.range, digits=2)))
     colorbar --> true
     color --> palette(colorMap.colormap)
     label --> ""

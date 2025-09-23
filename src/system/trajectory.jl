@@ -108,6 +108,7 @@ get_input(traj::Cost_control_trajectory, n::Int) = get_input(traj.control_trajec
 get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
 get_elem(traj::Cost_control_trajectory, n::Int) =
     (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
+get_total_cost(traj::Cost_control_trajectory) = sum(traj.costs.seq)
 
 @recipe function f(traj::Cost_control_trajectory)
     return traj.control_trajectory.states, traj.costs
@@ -119,29 +120,40 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
     u_traj = []
     u_traj2 = []
     t_traj = []
+    effort_traj = []
     i = 0
     total_time = 0.0
-    control_effort = 0.0    
+    eta_t = 0.1
     while !stopping(x) && i ≤ nstep
-        u, p = controller(x) 
-        timestep = contsys.tstep + p * 0.1
-        if u === nothing
+        if nothing === controller(x)
             break
         end
-        println("u = $u, p = $p, timestep = $timestep")
-        control_effort += sum(u[i]^2 * timestep for i in 1:length(u))
-        push!(t_traj, timestep)
+        u, p = controller(x) 
+        timestep = contsys.tstep + eta_t * p
+        # println(u, " ", p, " ", contsys.tstep + eta_t * p)
+        # timestep = contsys.tstep * 1.1 ^ p
+        # println("u = $u, p = $p, timestep = $timestep")
+        control_effort = sum(u[i]^2 * timestep for i in 1:length(u))
+        push!(effort_traj, control_effort)
         total_time += timestep
-        x = contsys.sys_map(x, u, timestep)
+        push!(t_traj, timestep)
+        # for i in 1:p
+        #     # println(p)
+        #     # println("p = $p, i = $i, timestep = $timestep")
+        #     # println("i = $i, timestep = $timestep")
+        #     x = contsys.sys_map(x, u, eta_t)
+        # end
+        x = contsys.sys_map(x, u, contsys.tstep+p*eta_t) # +p*eta_t
         push!(x_traj, x)
         push!(u_traj, u)
         push!(u_traj2, u[1])
         i = i + 1
     end
-    println("Total time: $total_time")
-    println("Control effort: $control_effort")
+    # println("Total time: $total_time")
+    # println("Control effort: $(sum(effort_traj))")
     control_traj = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj)) #, Trajectory(t_traj)
-    return Cost_control_trajectory(control_traj, Trajectory(t_traj))
+    # return Cost_control_trajectory(control_traj, Trajectory(t_traj)), sum(effort_traj), stopping(x)
+    return Cost_control_trajectory(control_traj, Trajectory(t_traj)), total_time, stopping(x)
     #return control_traj
 end
 
@@ -179,6 +191,54 @@ function get_closed_loop_trajectory_smooth(contsys, controller, x0, nstep; stopp
     return Cost_control_trajectory(control_traj, Trajectory(t_traj))
     #return control_traj
 end
+
+function write_closed_loop_trajectory_smooth(file, contsys, controller, x0, nstep; stopping = (x) -> false)
+    x = x0
+    
+    x_traj = [x]
+    u_traj = []
+    t_traj = []
+    i = 0
+    total_time = 0.0
+    control_effort = []
+    eta_t = 0.05
+    base_step = eta_t / 5.0
+    println(contsys.tstep)
+    println("Base step: $base_step")
+    while !stopping(x) && i ≤ nstep
+        if nothing === controller(x)
+            break
+        end
+        u, p = controller(x) 
+        if u === nothing
+            break
+        end
+        timestep = contsys.tstep + p * eta_t
+        total_time += timestep
+        println(timestep)
+        dt = 0.0
+        while abs(dt - timestep) > base_step / 10.0
+            x = contsys.sys_map(x, u, base_step)
+            dt += base_step
+            println("\t", dt)
+            push!(x_traj, x)
+            push!(u_traj, u)
+            push!(t_traj, base_step)
+            ce = isempty(control_effort) ? 0.0 : control_effort[end]
+            push!(control_effort, ce + sum(u[i]^2 * base_step for i in 1:length(u)))
+        end
+        i = i + 1
+    end
+    open(file, "w") do f
+        println(f, "$(x_traj[1])")
+        for i in 1:(length(x_traj) - 1)
+            println(f, "$(x_traj[i+1]), $(u_traj[i]), $(t_traj[i]), $(control_effort[i])")
+        end
+    end
+    # control_traj = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj)) #, Trajectory(t_traj)
+    return 
+end
+
 
 function get_closed_loop_trajectory(
     f_eval,

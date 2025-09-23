@@ -98,7 +98,7 @@ end
 function compute_symmodel_from_data!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
-    n_samples = 50,
+    n_samples = 200,
     ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
@@ -107,8 +107,12 @@ function compute_symmodel_from_data!(
     Udom = symmodel.Udom
     tstep = contsys.tstep
     γ = 1.1                 # growth factor of timestep
-    tstep_max = 0.5
+    tstep_max = 0.1
     count = 0
+
+    println("base time step: $tstep")
+    println("max time step: $tstep_max")
+    println("growth factor: $γ")
 
     Random.seed!(1234)
     transdict = Dict{Tuple{Int, Int, Int, Int}, Float64}() # {(target, source, symbol): prob}
@@ -197,18 +201,18 @@ end
 function compute_symmodel_from_data2!(
     symmodel::SymbolicModel{N},
     contsys::ST.ControlSystemGrowth{N};
-    n_samples = 500,
+    n_samples = 200,
     ε = 0.0
 ) where {N}
     println("compute_symmodel_from_data! started")
     println("\tsamples per cell: $n_samples")
-    println("\ttotal samples: $(n_samples * (symmodel.autom.nstates))")
+    println("\ttotal samples: $(n_samples * (symmodel.autom.nstates) * (symmodel.autom.nsymbols))")
     Xdom = symmodel.Xdom
     dim = length(Xdom.grid.orig)
     Udom = symmodel.Udom
     tstep = contsys.tstep
     eta_t = .1         
-    steps_considered = [0,1,2,3,4]
+    steps_considered = [0,3,6]
     println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
     n_steps = maximum(steps_considered)
 
@@ -263,6 +267,91 @@ function compute_symmodel_from_data2!(
     )
 end
 
+function compute_symmodel_from_data3!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N};
+    n_samples = 50,
+    ε = 0.0
+) where {N}
+    println("compute_symmodel_from_data! started")
+    println("\tsamples per cell: $n_samples")
+    println("\ttotal samples: $(n_samples * (symmodel.autom.nstates) * (symmodel.autom.nsymbols))")
+    Xdom = symmodel.Xdom
+    dim = length(Xdom.grid.orig)
+    Udom = symmodel.Udom
+    tstep = contsys.tstep
+    eta_t = .1         
+    steps_considered = [0,1,2,3,4]
+    println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
+    n_steps = maximum(steps_considered)
+
+    println("$(symmodel.autom.nstates) states")
+    println("$(symmodel.autom.nsymbols) symbols and $(length(steps_considered)) timesteps")
+    println("\tin total : $(symmodel.autom.nsymbols * length(steps_considered)) inputs")
+
+    Random.seed!(1234)
+    transdict = Dict{Tuple{Int, Int, Int, Int}, Float64}() # {(target, source, symbol, timestep): prob}
+    
+    enum_u = DO.enum_pos(Udom)
+    for (i, upos) in enumerate(enum_u)
+        println("$i / $(length(enum_u))")
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        enum_x = DO.enum_pos(Xdom)
+        for (j, xpos) in enumerate(DO.enum_pos(Xdom))
+            source = get_state_by_xpos(symmodel, xpos)
+            rec = DO.get_rec(Xdom.grid, xpos)
+            x_sampled  = [SVector(rec.lb .+ (rec.ub .- rec.lb) .* rand(dim)) for _ in 1:n_samples]
+            Fx_sampled = [contsys.sys_map(x, u, tstep) for x ∈ x_sampled]
+            pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+            pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+            !all(pos_contained_sampled) && continue # if we get out of state space, we stop and do not consider longer timesteps
+            target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
+            # source in target_sampled && continue # if we get a self-loop, we go for longer timesteps
+            if 0 in steps_considered && !(source in target_sampled)
+                for target in target_sampled # enumère les cellules images
+                    if (target, source, symbol, p) ∈ keys(transdict)
+                        transdict[target, source, symbol, p] += 1
+                    else
+                        transdict[target, source, symbol, p] = 1
+                    end
+                end
+            end
+            x_sampled  = Fx_sampled
+            for p in 1:n_steps
+                Fx_sampled = [contsys.sys_map(x, u, eta_t) for x ∈ x_sampled]
+                pos_sampled = [DO.get_pos_by_coord(Xdom.grid, Fx) for Fx ∈ Fx_sampled]
+                pos_contained_sampled = [ypos ∈ Xdom for ypos in pos_sampled]
+                x_sampled = Fx_sampled
+                !all(pos_contained_sampled) && break # if we get out of state space, we stop and do not consider longer timesteps
+                target_sampled = [get_state_by_xpos(symmodel, pos) for pos ∈ pos_sampled]
+                source in target_sampled && continue # if we get a self-loop, we go for longer timesteps
+                if p in steps_considered
+                    for target in target_sampled # enumère les cellules images
+                        if (target, source, symbol, p) ∈ keys(transdict)
+                            transdict[target, source, symbol, p] += 1
+                        else
+                            transdict[target, source, symbol, p] = 1
+                        end
+                    end
+                end
+                
+            end 
+        end
+    end
+    translist = Tuple{Int, Int, Int, Int}[]
+    for (t, s, sym, p) ∈ keys(transdict)
+        if transdict[(t, s, sym, p)] / n_samples >= ε
+            push!(translist, (t, s, sym, p))
+        end
+    end
+    add_transitions!(symmodel.autom, translist)
+    return println(
+        "compute_symmodel_from_data! terminated with success: ",
+        "$(length(translist)) transitions created",
+    )
+end
+
 # Assumes that automaton is "empty"
 # Compare to OLD implementation (see below), we do not make a first check before:
 # we go through the list only once; this requires to store the transitions in a
@@ -276,8 +365,12 @@ function compute_symmodel_from_controlsystem!(
     Xdom = symmodel.Xdom
     Udom = symmodel.Udom
     tstep = contsys.tstep
-    eta_t = .1         
-    steps_considered = [0,1,2,3,4]
+    eta_t = 0.2
+    steps_considered = [0]
+    
+    println("$(symmodel.autom.nstates) states")
+    println("$(symmodel.autom.nsymbols) symbols and $(length(steps_considered)) timesteps")
+    println("\tin total : $(symmodel.autom.nsymbols * length(steps_considered)) inputs")
     println("\tsteps considered: $(tstep .+ steps_considered.*eta_t)")
     n_steps = maximum(steps_considered)
     r = Xdom.grid.h / 2.0 + contsys.measnoise
@@ -291,14 +384,241 @@ function compute_symmodel_from_controlsystem!(
     for upos in DO.enum_pos(Udom)
         symbol = get_symbol_by_upos(symmodel, upos)
         u = DO.get_coord_by_pos(Udom.grid, upos)
-        Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
+        # Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
         for xpos in DO.enum_pos(Xdom)
             source = get_state_by_xpos(symmodel, xpos)
+            # println(source)
             x = DO.get_coord_by_pos(Xdom.grid, xpos)
             for p in 0:n_steps 
                 empty!(translist)
-                tstep_cur = tstep + eta_t * p
+                tstep_cur = (p == 0) ? tstep : eta_t
                 Fx = contsys.sys_map(x, u, tstep_cur)
+                Fr = contsys.growthbound_map(r, u, contsys.tstep + p * eta_t) + contsys.measnoise
+                # println("$(p), $(Fr)")
+                x  = Fx
+                rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - Fr, Fx + Fr))
+                ypos_iter = Iterators.product(DO._ranges(rectI)...)
+                pos_contained = [ypos ∈ Xdom for ypos in ypos_iter]
+                !all(pos_contained) && break # if we get out of state space, we stop and do not consider longer timesteps
+                targets = [get_state_by_xpos(symmodel, ypos) for ypos in ypos_iter]
+                source in targets && continue # if we get a self-loop, we go for longer timesteps
+                if p in steps_considered
+                    for target in targets # enumère les cellules images
+                        push!(translist, (target, source, symbol, p))
+                    end
+                    add_transitions!(symmodel.autom, translist)
+                    ntrans += length(translist)
+                end
+            end
+        end
+    end
+    # )
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+# for ypos in ypos_iter
+#     if !(ypos in Xdom)
+#         allin = false
+#         break
+#     end
+#     target = get_state_by_xpos(symmodel, ypos)
+#     if target == source
+#         self_loop = true
+#         break
+#     end
+#     push!(translist, (target, source, symbol, p))
+# end
+# if allin && !self_loop && p in steps_considered
+#     add_transitions!(symmodel.autom, translist)
+#     ntrans += length(translist)
+# elseif allin && self_loop
+#     continue
+# else 
+#     break
+# end
+
+function compute_symmodel_from_controlsystem_2!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N},
+) where {N}
+    println("compute_symmodel_from_controlsystem! started")
+    Xdom = symmodel.Xdom
+    Udom = symmodel.Udom
+    tstep = contsys.tstep      # pour simple pendulu : tjrs 0.01
+    eta_t = .001  
+    tmax  = 1.0   # parfait pour path_planning : 1.0
+    fact  = 1     #                        PP  : 1 voir tester +
+    n_steps = 3   #                        PP  : 3 fonctionne 5 aussi
+    println("base time step: $tstep")
+    println("\tnumber of steps considered: $(n_steps), m=$(fact)")
+    println("number of inputs: $(length(DO.enum_pos(Udom)))")
+    println("$(symmodel.autom.nstates) states")
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
+    eta_x = Xdom.grid.h
+    ntrans = 0
+    # Vector to store transitions
+    translist = Tuple{Int, Int, Int, Int}[]
+
+    # Updates every 1 seconds
+    # Commented because it changes the number of allocations
+    # @showprogress 1 "Computing symbolic control system: " (
+    for upos in DO.enum_pos(Udom)
+        println(ntrans)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        # Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
+        println("symbol: $symbol, input: $u")
+        for xpos in DO.enum_pos(Xdom)
+            source = get_state_by_xpos(symmodel, xpos)
+            x    = DO.get_coord_by_pos(Xdom.grid, xpos)
+            x_or = DO.get_coord_by_pos(Xdom.grid, xpos)
+            p = 0
+            p1 = 1
+            while (tstep + p*eta_t < tmax) && p1 <= n_steps
+                empty!(translist)
+                tstep_cur = (p == 0) ? tstep : eta_t
+                Fx = contsys.sys_map(        x, u, tstep + p * eta_t)
+                # Fx = contsys.sys_map(x, u, tstep_cur)
+                Fr = contsys.growthbound_map(r, u, tstep + p * eta_t) + contsys.measnoise
+                # x  = Fx
+                p += 1
+                HrectI  = UT.HyperRectangle(Fx - Fr, Fx + Fr)
+                rectI = DO.get_pos_lims_outer(Xdom.grid, HrectI)
+                ypos_iter = Iterators.product(DO._ranges(rectI)...)
+                pos_contained = [ypos ∈ Xdom for ypos in ypos_iter]
+                !all(pos_contained) && break                    # if we get out of state space, we stop and do not consider longer timesteps
+                HrectNo = UT.HyperRectangle(x_or - (fact * p1 - 1.0/2) * eta_x,  x_or + (fact * p1 - 1.0/2) * eta_x)
+                UT.is_intersection(HrectI, HrectNo) && continue # if we have intersection, we go for longer timesteps
+                # println("tstep+p*eta_t = $(tstep + p * eta_t), p1 = $p1")
+                p1 += 1
+                targets = [get_state_by_xpos(symmodel, ypos) for ypos in ypos_iter]
+                for target in targets # enumère les cellules images
+                    push!(translist, (target, source, symbol, p))
+                end
+                add_transitions!(symmodel.autom, translist)
+                ntrans += length(translist)
+            end
+        end
+    end
+    # )
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+
+function compute_symmodel_from_controlsystem_3!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N},
+) where {N}
+    println("compute_symmodel_from_controlsystem! started")
+    Xdom = symmodel.Xdom
+    Udom = symmodel.Udom
+    tstep = contsys.tstep
+    eta_t = .001      
+    tmax  = 0.3
+    fact  = 1   # 1 ou autre
+    n_steps = 5  # 5
+    println("\tnumber of steps considered: $(n_steps)")
+    println("number of inputs: $(length(DO.enum_pos(Udom)))")
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
+    ntrans = 0
+    # Vector to store transitions
+    translist = Tuple{Int, Int, Int, Int}[]
+
+    # Updates every 1 seconds
+    # Commented because it changes the number of allocations
+    # @showprogress 1 "Computing symbolic control system: " (
+    for upos in DO.enum_pos(Udom)
+        println(ntrans)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        # Fr = contsys.growthbound_map(r, u, contsys.tstep) + contsys.measnoise
+        println("symbol: $symbol, input: $u")
+        for xpos in DO.enum_pos(Xdom)
+            xpos2 = SVector(xpos[1] + 1, xpos[2])
+            source = get_state_by_xpos(symmodel, xpos)
+            x = DO.get_coord_by_pos(Xdom.grid, xpos)
+            x_or = DO.get_coord_by_pos(Xdom.grid, xpos)
+            p = 0
+            p1 = 1
+            HrectI_prec = nothing
+            while (tstep + p*eta_t < tmax) && p1 <= n_steps
+                empty!(translist)
+                tstep_cur = (p == 0) ? tstep : eta_t
+                Fx = contsys.sys_map(x, u, tstep_cur)
+                Fr = contsys.growthbound_map(r, u, tstep + p * eta_t)
+                x  = Fx
+                p += 1
+                HrectI  = UT.HyperRectangle(Fx - Fr, Fx + Fr)
+                if p == 0
+                    HrectI_prec = HrectI
+                end
+                rectI = DO.get_pos_lims_outer(Xdom.grid, HrectI_prec)
+                ypos_iter = Iterators.product(DO._ranges(rectI)...)
+                pos_contained = [ypos ∈ Xdom for ypos in ypos_iter]
+                !all(pos_contained) && break                    # if we get out of state space, we stop and do not consider longer timesteps
+                HrectYes = UT.HyperRectangle(x_or - fact * p1 * r,  x_or + fact * p1 * r)
+                if !(UT.in(HrectI, HrectYes))  # if we have no inclusion, we add the precedent timestep
+                    p1 += 1
+                    targets = [get_state_by_xpos(symmodel, ypos) for ypos in ypos_iter]
+                    for target in targets # enumère les cellules images
+                        push!(translist, (target, source, symbol, p))
+                    end
+                    add_transitions!(symmodel.autom, translist)
+                    ntrans += length(translist)
+                end
+            end
+        end
+    end
+    # )
+    return println(
+        "compute_symmodel_from_controlsystem! terminated with success: ",
+        "$(ntrans) transitions created",
+    )
+end
+
+
+function compute_symmodel_from_controlsystem_adapt!(
+    symmodel::SymbolicModel{N},
+    contsys::ST.ControlSystemGrowth{N},
+) where {N}
+    println("compute_symmodel_from_controlsystem! started")
+    Xdom = symmodel.Xdom
+    Udom = symmodel.Udom
+    tstep = contsys.tstep
+    γ = 1.05
+    η = 0.01
+    tstep_max = 1.0
+    println("\tsteps considered: $(tstep) to $(tstep_max) with growth factor $(γ)")
+    r = Xdom.grid.h / 2.0 + contsys.measnoise
+    ntrans = 0
+    # Vector to store transitions
+    translist = Tuple{Int, Int, Int, Int}[]
+
+    # Updates every 1 seconds
+    # Commented because it changes the number of allocations
+    # @showprogress 1 "Computing symbolic control system: " (
+    c = 0
+    for upos in DO.enum_pos(Udom)
+        symbol = get_symbol_by_upos(symmodel, upos)
+        u = DO.get_coord_by_pos(Udom.grid, upos)
+        c += 1
+        println("input number $c out of $(DO.get_ncells(Udom))")
+        for xpos in DO.enum_pos(Xdom)
+            source = get_state_by_xpos(symmodel, xpos)
+            x = DO.get_coord_by_pos(Xdom.grid, xpos)
+            tstep_cur = tstep
+            p         = 0
+            while tstep_cur <= tstep_max
+                empty!(translist)
+                tstep_cur = tstep + η * p
+                Fx = contsys.sys_map(x, u, tstep_cur)
+                Fr = contsys.growthbound_map(r, u, tstep_cur) + contsys.measnoise
                 rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx - Fr, Fx + Fr))
                 ypos_iter = Iterators.product(DO._ranges(rectI)...)
                 allin = true
@@ -315,10 +635,12 @@ function compute_symmodel_from_controlsystem!(
                     end
                     push!(translist, (target, source, symbol, p))
                 end
-                if allin && !self_loop && p in steps_considered
+                if allin && !self_loop
                     add_transitions!(symmodel.autom, translist)
                     ntrans += length(translist)
+                    break
                 elseif allin && self_loop
+                    p += 1
                     continue
                 else 
                     break
@@ -332,6 +654,7 @@ function compute_symmodel_from_controlsystem!(
         "$(ntrans) transitions created",
     )
 end
+
 
 function compute_deterministic_symmodel_from_controlsystem!(
     symmodel::SymbolicModel{N},

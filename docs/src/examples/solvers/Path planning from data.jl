@@ -83,7 +83,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
 println("save")
-jldsave("PP_big_data_0.1-1.3_eta0.3.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+jldsave("save/final/smart_abstractions/PP_data_big_time_etax_0.2_tbase_0.2_etat_0.1.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
 println("saved")    
 
 automaton = abstract_system.autom
@@ -107,15 +107,13 @@ end
 x0 = SVector(0.4, 0.4, 0.0)
 x0_state  = SY.get_state_by_coord(abstract_system, x0)
 println("worst case cost: ", value_function[x0_state])
-control_trajectory = ST.get_closed_loop_trajectory(
+control_trajectory, cost, success = ST.get_closed_loop_trajectory(
     concrete_system.f,
     concrete_controller,
     x0,
     nstep;
     stopping = reached,
 )
-
-
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);

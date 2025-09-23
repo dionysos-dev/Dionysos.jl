@@ -79,7 +79,7 @@ function system(
     udim = 2,
     sysnoise = SVector(0.0, 0.0, 0.0),
     measnoise = SVector(0.0, 0.0, 0.0),
-    tstep = 0.1,
+    tstep = 0.2,
     nsys = 5,
     approx_mode::ApproxMode = GROWTH,
 )

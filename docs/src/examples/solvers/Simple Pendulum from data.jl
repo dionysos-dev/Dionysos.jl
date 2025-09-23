@@ -16,12 +16,14 @@ concrete_problem = Pendulum.problem(; approx_mode = "growth")
 concrete_system = concrete_problem.system
 x0 = SVector(0.0, 0.0)
 
-hx_param = 0.2
+hx_param = 0.1
+
+m = 5
 
 hx = SVector(hx_param, hx_param)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(0.3);
+h = SVector(0.3 * m);
 input_grid = DO.GridFree(u0, h);
 
 using JuMP
@@ -46,42 +48,46 @@ automaton = abstract_system.autom
 # n_sl = UT.analyze_self_loops(automaton)
 # println("Number of self loops: $n_sl")
 
-println("saving")
-println("modif")
-jldsave("simple_pendulum_data.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
-println("saved")
-
-# ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
-# as well as the true initial state `x0` which is contained in the initial state-space defined previously.
-nstep = 10000
-function reached(x)
-    if x ∈ concrete_problem.target_set    #target_set
-        return true
-    else
-        return false
-    end
-end
-
-x0 = SVector(0.0,0.0)
-x0_state  = SY.get_state_by_coord(abstract_system, x0)
-
-println("worst case cost: ", value_function[x0_state])
-
-control_trajectory =
+control_trajectory, cost, success =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
     stopping = reached)
-fig = plot(; aspect_ratio = :equal);
-# plot!(concrete_system.X);
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.1);
-plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
-    color = :green,
-    opacity= 1.0
-);
-plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set); #target_set
-    color = :red,
-    opacity= 1.0
-);
-plot!(control_trajectory; markersize=1,arrows=true)
+
+# println("saving")
+# println("modif")
+jldsave("save/final/abstractions/SP_data_effort_etax0.1_t0.1-0.5_eta0.1_partialU.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+# println("saved")
+
+# # ### Trajectory display
+# # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
+# nstep = 10000
+# function reached(x)
+#     if x ∈ concrete_problem.target_set    #target_set
+#         return true
+#     else
+#         return false
+#     end
+# end
+
+# x0 = SVector(0.0,0.0)
+# x0_state  = SY.get_state_by_coord(abstract_system, x0)
+
+# println("worst case cost: ", value_function[x0_state])
+
+# control_trajectory, cost, success =
+#     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
+#     stopping = reached)
+# fig = plot(; aspect_ratio = :equal);
+# # plot!(concrete_system.X);
+# plot!(abstract_system.Xdom; color = :blue, opacity = 0.1);
+# plot!(
+#     SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+#     color = :green,
+#     opacity= 1.0
+# );
+# plot!(
+#     SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set); #target_set
+#     color = :red,
+#     opacity= 1.0
+# );
+# plot!(control_trajectory; markersize=1,arrows=true)

@@ -10,6 +10,9 @@ const ST = DI.System
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+
+m = 1 # number of timesteps
+
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems/simple_pendulum.jl")) 
 # and we can instantiate the DC system with the provided system
 concrete_problem = Pendulum.problem(; approx_mode = "growth")
@@ -18,11 +21,12 @@ x0 = SVector(0.0, 0.0)
 
 hx_param = 0.2
 
-hx = SVector(hx_param, hx_param)
+hx = SVector(0.15, 0.15)
 state_grid = DO.GridFree(x0, hx)
 u0 = SVector(0.0);
-h = SVector(0.3);
+h = SVector(0.3 * m);
 input_grid = DO.GridFree(u0, h);
+println("number of steps: ", m)
 
 using JuMP
 
@@ -41,12 +45,11 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_con
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_function"))
 
-# automaton = abstract_system.autom
+automaton = abstract_system.autom
 # UT.analyze_non_determinism(automaton, abstract_system)
 # n_sl = UT.analyze_self_loops(automaton)
 # println("Number of self loops: $n_sl")
 
-jldsave("simple_pendulum_GB.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
 
 # ### Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -65,9 +68,11 @@ x0_state  = SY.get_state_by_coord(abstract_system, x0)
 
 println("worst case cost: ", value_function[x0_state])
 
-control_trajectory =
+control_trajectory, cost, success =
     ST.get_closed_loop_trajectory(concrete_system.f, concrete_controller, x0, nstep;
     stopping = reached)
+jldsave("save/final/smart_abstractions2/SP_GB_effort_etax0.15_np5_m2.jld2"; abstract_system, abstract_problem, abstract_controller, value_function)
+
 fig = plot(; aspect_ratio = :equal);
 # plot!(concrete_system.X);
 plot!(abstract_system.Xdom; color = :blue, opacity = 0.1);

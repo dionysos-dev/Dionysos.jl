@@ -73,7 +73,6 @@ struct DrawTrajectory{
 end
 
 @recipe function f(t::DrawTrajectory)
-    println("we are in but wrong")
     for i in 1:(length(t.vp) - 1)
         @series begin
             t.vp[i + 1]
@@ -121,11 +120,14 @@ end
 
 @recipe function f(traj::DrawCostTrajectory)
     min_cost, max_cost = extrema(traj.costs) 
-    colormap = reverse(cgrad(:viridis))
+    println(sort(unique(traj.costs)))
+    colormap = Colors.colormap("Oranges") #reverse(cgrad(:blues))
+    println("$min_cost, $max_cost")
 
     for i in 1:(length(traj.vp) - 1)
         normalized_cost = (traj.costs[i] - min_cost) / (max_cost - min_cost + eps())  
-        color = colormap[normalized_cost]  
+        normalized_cost = round(Int, normalized_cost * 100)
+        color = colormap[min(100, max(1, normalized_cost))]
         @series begin
             seriescolor --> color
             DrawArrow(traj.vp[i], traj.vp[i + 1])

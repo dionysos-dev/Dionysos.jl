@@ -29,17 +29,17 @@ end
 function system(;
     sysnoise = SVector(0.0, 0.0),
     measnoise = SVector(0.0, 0.0),
-    tstep = 0.1, #0.5
-    nsys = 5,
-    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π+pi, 5.0)), 
-    _U_ = UT.HyperRectangle(SVector(-6.0), SVector(6.0)),#11 #8 #6
+    tstep = 0.15, #0.5
+    nsys = 10,
+    _X_ = UT.HyperRectangle(SVector(-π, -6.0), SVector(π+pi, 6.0)), 
+    _U_ = UT.HyperRectangle(SVector(-6.0), SVector(6.0)),# 6 
     xdim = 2,
     udim = 1,
     approx_mode = "growth",
 )
     # Definition of the dynamics functions $f_p$ of the system:
     F_sys, L_growthbound = dynamicofsystem()
-    ngrowthbound = 5
+    ngrowthbound = 10
     contsys = ST.NewControlSystemGrowthRK4(
             tstep,
             F_sys,
@@ -59,12 +59,11 @@ function system(;
 end
 function problem(; approx_mode = "growth")
     sys = system(; approx_mode = approx_mode)
-    ## stable equilibrium
-    _I_ = UT.HyperRectangle(SVector(-5.0*pi/180.0, -0.5), SVector(5.0*pi/180.0, 0.5))
-    _S_ = UT.HyperRectangle(SVector(-30.0*pi/180.0, -1.0), SVector(30.0*pi/180.0, 1.0))
-    _T_ = UT.HyperRectangle(SVector(pi-30.0*pi/180.0, -1.0), SVector(pi+30.0*pi/180.0, 1.0))
-    ## unstable equilibrium
+    _I_ = UT.HyperRectangle(SVector(-5.0*pi/180.0, -0.5), SVector(5.0*pi/180.0, 0.5)) ## stable equilibrium
+    _S_ = UT.HyperRectangle(SVector(-20.0*pi/180.0, -1.0), SVector(20.0*pi/180.0, 1.0))
+    # _T_ = UT.HyperRectangle(SVector(pi-17.5*pi/180.0, -2.), SVector(pi+17.5*pi/180.0, 2.)) ## unstable equilibrium
+    _T_ = UT.HyperRectangle(SVector(pi-30.0*pi/180.0, -1.), SVector(pi+30.0*pi/180.0, 1.)) ## unstable equilibrium
     return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
     #return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
 end
-end
+end 
