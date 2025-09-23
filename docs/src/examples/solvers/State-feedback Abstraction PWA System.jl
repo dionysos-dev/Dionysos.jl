@@ -31,15 +31,13 @@ using Test     #src
 # [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
 # [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
 # [Clarabel](https://github.com/oxfordcontrol/Clarabel.jl),
-# [Ipopt](https://github.com/jump-dev/Ipopt.jl), and
 # [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
 
-using StaticArrays, LinearAlgebra, Polyhedra, Random
-using MathematicalSystems, HybridSystems
+using StaticArrays, LinearAlgebra, Plots
 using JuMP, Clarabel
-using SemialgebraicSets, CDDLib
-using Plots, Colors
-using Test
+import CDDLib
+
+import Random
 Random.seed!(0)
 
 using Dionysos
@@ -75,7 +73,7 @@ X_origin = SVector(0.0, 0.0);
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
 P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
-state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P, concrete_system.ext[:X]);
+state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P);
 opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)
@@ -102,20 +100,18 @@ get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 # To simplify : "We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode
 # defined at its center."
 function f_eval1(x, u)
-    currState = SY.get_all_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    next_action = nothing
-    for action in abstract_controller.data
-        if (action[1] ∩ currState) ≠ []
-            next_action = action
+    from = nothing
+    for s in states
+        if ST.is_defined(abstract_controller, s)
+            from = s
+            break
         end
     end
-    c = DO.get_coord_by_pos(
-        state_grid,
-        SY.get_xpos_by_state(abstract_system, next_action[1]),
-    )
+    c = DO.get_coord_by_pos(state_grid, SY.get_xpos_by_state(abstract_system, from))
     m = get_mode(c)
     W = concrete_system.ext[:W]
     w = (2 * (rand(2) .^ (1 / 4)) .- 1) .* W[:, 1]
@@ -132,11 +128,11 @@ cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u
 # We define the stopping criteria for a simulation
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; #max num of steps
 function reached(x)
-    currState = SY.get_all_states_by_xpos(
+    states = SY.get_states_by_xpos(
         abstract_system,
         DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
     )
-    if !isempty(currState ∩ abstract_problem.target_set)
+    if !isempty(states ∩ abstract_problem.target_set)
         return true
     else
         return false
@@ -176,18 +172,20 @@ xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 #We display the concrete domain
-plot!(rectX; color = :yellow, opacity = 0.5);
+plot!(rectX; color = :grey, opacity = 1.0, label = "");
 #We display the abstract domain
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system.Xdom; color = :blue, efficient = false, opacity = 0.5);
 #We display the abstract specifications
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.initial_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.initial_set);
     color = :green,
+    efficient = false,
     opacity = 0.5,
 );
 plot!(
-    SY.get_domain_from_symbols(abstract_system, abstract_problem.target_set);
+    SY.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
+    efficient = false,
     opacity = 0.5,
 );
 #We display the concrete specifications
@@ -205,7 +203,7 @@ fig = plot(;
 xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
 ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true, cost = false)
+plot!(abstract_system; arrowsB = true, efficient = false, cost = false)
 
 # ## Display the Lyapunov function and the trajectory
 fig = plot(;
@@ -220,11 +218,8 @@ ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
-plot!(abstract_system; arrowsB = false, cost = true, lyap_fun = optimizer.lyap);
+plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun);
 plot!(cost_control_trajectory; color = :black)
-
-@test cost_bound ≈ 2.35825 rtol = 1e-3    #src
-@test cost_true <= cost_bound             #src
 
 # ## References
 #

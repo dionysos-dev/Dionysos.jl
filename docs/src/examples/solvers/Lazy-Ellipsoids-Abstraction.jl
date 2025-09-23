@@ -1,11 +1,10 @@
 # # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
-using MathematicalSystems, HybridSystems
-using JuMP, Mosek, MosekTools
-using Plots, Colors
-using Test
+using StaticArrays, LinearAlgebra, Plots
+using JuMP, Clarabel
+
+import Random
 Random.seed!(0)
 
 using Dionysos
@@ -26,9 +25,7 @@ concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
 
 # Optimizer's parameters
-const FALLBACK_URL = "mosek://solve.mosek.com:30080"
-sdp_opt = optimizer_with_attributes(Mosek.Optimizer, MOI.Silent() => true)
-MOI.set(sdp_opt, MOI.RawOptimizerAttribute("fallback"), FALLBACK_URL)
+sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 maxδx = 100
 maxδu = 10 * 2
@@ -82,7 +79,7 @@ cost_control_trajectory = ST.get_closed_loop_trajectory(
     noise = true,
 )
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_control_trajectory.costs.seq);
+cost_true = ST.get_cost(cost_control_trajectory);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -102,7 +99,7 @@ ylabel!("\$x_2\$");
 title!("Specifictions and domains");
 
 #Display the concrete domain
-plot!(concrete_system.X; color = :yellow, opacity = 0.5, label = false);
+plot!(concrete_system.X; color = :grey, opacity = 0.5, label = false);
 
 #Display the abstract domain
 plot!(abstract_system; arrowsB = false, cost = false, label = false);
@@ -120,7 +117,7 @@ fig = plot(;
     titlefontsize = 14,
 );
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true, cost = false)
+plot!(abstract_system; arrowsB = true)
 
 # # Display the Lyapunov function and the trajectory
 fig = plot(;
@@ -139,5 +136,3 @@ for obs in concrete_system.obstacles
 end
 plot!(abstract_system; arrowsB = false, cost = true);
 plot!(cost_control_trajectory; color = :black)
-
-@test cost_true <= cost_bound             #src

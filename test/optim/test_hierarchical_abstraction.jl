@@ -1,5 +1,6 @@
 module TestMain
-include("../../utils/example_hierarchical_abstraction.jl")
+using Test
+include("../../docs/src/examples/solvers/Hierarchical-abstraction.jl")
 @testset "hierarchical-abstraction" begin
     @test ST.get_state(cost_control_trajectory, ST.length(cost_control_trajectory)) ∈
           concrete_problem.target_set

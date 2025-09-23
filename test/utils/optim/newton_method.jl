@@ -1,3 +1,5 @@
+module TestMain
+
 using Test
 using Dionysos
 newton_method = Dionysos.Utils.newton_method
@@ -38,4 +40,5 @@ newton_method = Dionysos.Utils.newton_method
         stopIfNegative = false,
     )
     @test isapprox(result[1], -4.0; atol = ϵ) && 0 ≤ result[2] ≤ 4
+end
 end

@@ -1,6 +1,6 @@
 import MathOptInterface as MOI
-import StaticArrays as SA
-import MathematicalSystems, HybridSystems
+import StaticArrays: SVector
+import MathematicalSystems
 import JuMP
 import MathOptSymbolicAD
 import Symbolics
@@ -663,9 +663,9 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
     return MOI.Utilities.default_copy_to(model, src)
 end
 
-_svec(vec, idx) = SA.SVector([vec[i] for i in idx]...)
-_svec_lower(vec, idx) = SA.SVector([vec[i].lower for i in idx]...)
-_svec_upper(vec, idx) = SA.SVector([vec[i].upper for i in idx]...)
+_svec(vec, idx) = SVector([vec[i] for i in idx]...)
+_svec_lower(vec, idx) = SVector([vec[i].lower for i in idx]...)
+_svec_upper(vec, idx) = SVector([vec[i].upper for i in idx]...)
 
 function _full(model, def, vars, vals)
     v = fill(def, length(model.variables))
@@ -839,8 +839,8 @@ function system(
     model,
     x_idx,
     u_idx;
-    sysnoise = SA.SVector(0.0, 0.0, 0.0),
-    measnoise = SA.SVector(0.0, 0.0, 0.0),
+    sysnoise = SVector(0.0, 0.0, 0.0),
+    measnoise = SVector(0.0, 0.0, 0.0),
     tstep = 0.3,
     nsys = 5,
 )
@@ -873,7 +873,7 @@ function system(
         # like so:
         dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
-            (x, u, _) -> dyn(x, u),
+            (x, u) -> dyn(x, u),
             Dionysos.Utils.get_dims(_X_),
             Dionysos.Utils.get_dims(_U_),
             _X_,

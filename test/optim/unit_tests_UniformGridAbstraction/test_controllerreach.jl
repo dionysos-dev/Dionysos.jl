@@ -2,7 +2,7 @@ module Test
 
 # using TestAbstraction
 using Test
-using StaticArrays
+using StaticArrays, MathematicalSystems
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -43,20 +43,21 @@ println("Started test")
     F_sys(x, u) = SVector(1.0, u[1])
     sysnoise = SVector(1.0, 1.0) * 0.001
     measnoise = SVector(1.0, 1.0) * 0.001
-    L_growthbound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
 
-    contsys = ST.discretize_system_with_growth_bound(
-        tstep,
+    concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
-        L_growthbound,
-        sysnoise,
-        measnoise,
-        nsys,
-        ngrowthbound,
+        1,
+        1,
+        nothing,
+        nothing,
     )
-    symmodel = SY.NewSymbolicModelListList(Xfull, Ufull)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
-    SY.compute_symmodel_from_controlsystem!(symmodel, contsys)
+    continuous_approx =
+        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    discrete_approx = ST.discretize(continuous_approx, tstep)
+
+    symmodel = SY.SymbolicModelList(Xfull, Ufull)
+    SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     Xinit = DO.DomainList(Xgrid)
     DO.add_set!(
@@ -75,60 +76,14 @@ println("Started test")
         push!(targetlist, SY.get_state_by_xpos(symmodel, pos))
     end
 
-    contr = AB.UniformGridAbstraction.NewControllerList()
-    AB.UniformGridAbstraction.compute_controller_reach!(
-        contr,
-        symmodel.autom,
-        initlist,
-        targetlist,
-    )
-    @test length(contr) == 412
-    if VERSION >= v"1.5"
-        function f(autom, initlist, targetlist)
-            contr = AB.UniformGridAbstraction.NewControllerList()
-            initset, targetset, num_targets_unreachable, current_targets, next_targets =
-                AB.UniformGridAbstraction._data(contr, autom, initlist, targetlist)
-            # Preallocates to make sure `_compute_controller_reach` does not need to allocate
-            sizehint!(contr.data, 500)
-            sizehint!(current_targets, 50)
-            sizehint!(next_targets, 200)
-            @allocated AB.UniformGridAbstraction._compute_controller_reach!(
-                contr,
-                autom,
-                initset,
-                targetset,
-                num_targets_unreachable,
-                current_targets,
-                next_targets,
-            )
-        end
-        @test f(symmodel.autom, initlist, targetlist) == 0
-    end
+    contr, controllable_set, uncontrollable_set, value_fun_tab =
+        SY.compute_worst_case_cost_controller(
+            symmodel.autom,
+            targetlist;
+            initial_set = initlist,
+        )
 
-    xpos = DO.get_somepos(Xinit)
-    x0 = DO.get_coord_by_pos(Xgrid, xpos)
-    Xsimple = DO.DomainList(Xgrid)
-    XUYsimple_ = Any[]
-
-    for i in 1:6
-        source = SY.get_state_by_xpos(symmodel, xpos)
-        Xs = DO.DomainList(Xgrid)
-        Ys = DO.DomainList(Xgrid)
-        Us = DO.DomainList(Ugrid)
-        DO.add_pos!(Xs, xpos)
-        targetlist = Int[]
-        for (symbol,) in UT.fix_and_eliminate_first(contr, source)
-            SY.compute_post!(targetlist, symmodel.autom, source, symbol)
-            DO.add_pos!(Us, SY.get_upos_by_symbol(symmodel, symbol))
-        end
-        for target in targetlist
-            DO.add_pos!(Ys, SY.get_xpos_by_state(symmodel, target))
-        end
-        push!(XUYsimple_, (Xs, Us, Ys))
-        if !isempty(Ys)
-            xpos = DO.get_somepos(Ys)
-        end
-    end
+    @test length(ST.domain(contr)) == 412
 end
 
 sleep(0.1) # used for good printing

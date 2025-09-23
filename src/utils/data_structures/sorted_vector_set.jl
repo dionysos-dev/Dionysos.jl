@@ -1,6 +1,3 @@
-import Base.append!
-import Base.delete!
-
 mutable struct SortedTupleSet{N, T} <: AbstractSet{T}
     data::Vector{T}
     is_sorted::Bool
@@ -9,13 +6,15 @@ mutable struct SortedTupleSet{N, T} <: AbstractSet{T}
     end
 end
 
+get_data(set::SortedTupleSet) = set.data
+
 function push_new!(set::SortedTupleSet, x::Tuple)
     push!(set.data, x)
     set.is_sorted = false
     return set
 end
 function append_new!(set::SortedTupleSet, xs)
-    append!(set.data, xs)
+    Base.append!(set.data, xs)
     set.is_sorted = false
     return set
 end
@@ -31,7 +30,7 @@ end
 #    return set
 #end
 
-function delete!(set::SortedTupleSet, x, comparison)
+function Base.delete!(set::SortedTupleSet, x, comparison)
     filter!(e -> !comparison(e, x), set.data)
     return set
 end
@@ -50,14 +49,15 @@ function ensure_sorted!(set::SortedTupleSet)
     end
 end
 
+drop_first_int(x::NTuple{2}) = x[2]
 drop_first(x::NTuple{2}) = (x[2],)
 drop_first(x::NTuple{3}) = (x[2], x[3])
 drop_first(x::Tuple{Int, Int, Int, Float64}) = (x[2], x[3], x[4])
 
-function fix_and_eliminate_first(set::SortedTupleSet, value)
+function fix_and_eliminate_first(set::SortedTupleSet, value; drop = drop_first)
     ensure_sorted!(set)
     idxlist = searchsorted(set.data, (value,); by = x -> x[1])
-    return Base.Generator(drop_first, view(set.data, idxlist))
+    return Base.Generator(drop, view(set.data, idxlist))
 end
 
 function fix_and_eliminate_tail!(output, set::SortedTupleSet, values)
@@ -92,7 +92,7 @@ end
 #     return set
 # end
 # function append_new!(set::SortedTupleSet, xs)
-#     append!(set.data, xs)
+#     Base.append!(set.data, xs)
 #     set.is_sorted = false
 #     return set
 # end

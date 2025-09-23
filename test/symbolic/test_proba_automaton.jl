@@ -31,7 +31,7 @@ println("Started test")
     soursymblist = SY.pre(autom, 8)
     @test length(soursymblist) == 0
 
-    SY.empty!(autom)
+    Base.empty!(autom)
     @test SY.ntransitions(autom) == 0
 end
 

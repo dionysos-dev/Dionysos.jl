@@ -17,18 +17,17 @@ include("../../problems/simple_problem.jl")
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
     Xdom = abstract_system.Xdom
-    x = DO.get_coord_by_pos(Xdom.grid, xpos)
+    x = DO.get_coord_by_pos(Xdom, xpos)
     Fx = concrete_system.f_eval(x, u)
-    r = Xdom.grid.h / 2.0 + concrete_system.measnoise
+    r = DO.get_grid(Xdom).h / 2.0 + concrete_system.measnoise
     Fr = r
 
-    rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
+    rectI = DO.get_pos_lims_outer(DO.get_grid(Xdom), UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
     ypos_iter = Iterators.product(DO._ranges(rectI)...)
     over_approx = []
     allin = true
     for ypos in ypos_iter
-        ypos = DO.set_in_period_pos(Xdom, ypos)
-        if !(ypos in Xdom)
+        if !(ypos in abstract_system)
             allin = false
             break
         end
@@ -39,17 +38,16 @@ function post_image(abstract_system, concrete_system, xpos, u)
 end
 
 function pre_image(abstract_system, concrete_system, xpos, u)
-    grid = abstract_system.Xdom.grid
-    x = DO.get_coord_by_pos(grid, xpos)
+    Xdom = abstract_system.Xdom
+    x = DO.get_coord_by_pos(Xdom, xpos)
     potential = Int[]
     x_prev = concrete_system.f_backward(x, u)
-    xpos_cell = DO.get_pos_by_coord(grid, x_prev)
+    xpos_cell = DO.get_pos_by_coord(Xdom, x_prev)
     n = 2
     for i in (-n):n
         for j in (-n):n
             x_n = (xpos_cell[1] + i, xpos_cell[2] + j)
-            x_n = DO.set_in_period_pos(abstract_system.Xdom, x_n)
-            if x_n in abstract_system.Xdom
+            if x_n in abstract_system
                 cell = SY.get_state_by_xpos(abstract_system, x_n)[1]
                 if !(cell in potential)
                     push!(potential, cell)
@@ -67,8 +65,7 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     n = UT.get_dims(rect)
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
-    for upos in DO.enum_pos(Udom)
-        u = DO.get_coord_by_pos(Udom.grid, upos)
+    for u in DO.enum_elems(Udom)
         Fx = concrete_system.f_eval(x, u)
         lb = min.(lb, Fx .- Fr)
         ub = max.(ub, Fx .+ Fr)
@@ -77,22 +74,24 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     ub = SVector{n}(ub)
     return UT.HyperRectangle(lb, ub)
 end
-
 minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 
 # setup for the tests
 if !isdefined(@__MODULE__, :hx)
-    hx = [0.5, 0.5]
+    hx = SVector(0.5, 0.5)
     u0 = SVector(0.0, 0.0)
     hu = SVector(0.5, 0.5)
     Ugrid = DO.GridFree(u0, hu)
-    hx_heuristic = [1.0, 1.0] * 1.5
+    hx_heuristic = SVector(1.5, 1.5)
     maxIter = 100
     no_plot = true
 end
 
 concrete_problem = SimpleProblem.problem()
 concrete_system = concrete_problem.system
+
+Udom = DO.DomainList(Ugrid)
+DO.add_set!(Udom, concrete_system.U, DO.OUTER)
 
 optimizer = MOI.instantiate(AB.LazyAbstraction.Optimizer)
 
@@ -106,7 +105,7 @@ AB.LazyAbstraction.set_optimizer!(
     minimum_transition_cost,
     hx_heuristic,
     hx,
-    Ugrid,
+    Udom,
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using A* algorithm
@@ -187,8 +186,4 @@ plot!(fig4, optimizer.lazy_search_problem)
     @test isa(fig3, Plots.Plot{Plots.GRBackend})
     @test isa(fig4, Plots.Plot{Plots.GRBackend})
 end
-
-# ### References
-# 1. G. Reissig, A. Weber and M. Rungger, "Feedback Refinement Relations for the Synthesis of Symbolic Controllers," in IEEE Transactions on Automatic Control, vol. 62, no. 4, pp. 1781-1796.
-# 2. K. J. Aström and R. M. Murray, Feedback systems. Princeton University Press, Princeton, NJ, 2008.
 end

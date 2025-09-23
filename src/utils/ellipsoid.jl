@@ -1,11 +1,3 @@
-using SpecialFunctions
-using Plots
-using LazySets
-using LinearAlgebra
-using Polyhedra
-using IntervalArithmetic
-using JuMP
-
 struct Ellipsoid{T <: Real, MT <: AbstractMatrix{T}, VT <: AbstractVector{T}}
     P::MT
     c::VT

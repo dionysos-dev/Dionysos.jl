@@ -1,10 +1,10 @@
 module NonLinear
 
-using StaticArrays, LinearAlgebra, Symbolics, IntervalArithmetic
-using MathematicalSystems, HybridSystems
+using StaticArrays, LinearAlgebra
+import Symbolics
+using IntervalArithmetic
 
 import Dionysos
-using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -35,7 +35,7 @@ end
 function system(X, U, W, obstacles, Ts, noise, μ)
     f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
 
-    fsymbolicT = eval(build_function(f, x, u, w, T)[1])
+    fsymbolicT = eval(ST.build_function(f, x, u, w, T)[1])
     #### PWA approximation description #####
     fsymbolic = Symbolics.substitute(f, Dict([T => Ts]))
     ΔX = IntervalBox(-1.0 .. 1.0, 2)
@@ -100,13 +100,12 @@ function problem(;
     ),
     W = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0)),
     Ts = 1.0,
-    N = Infinity(),
+    N = PR.Infinity(),
     noise = false,
     μ = 0.00005,
 )
     sys = system(X, U, W, obstacles, Ts, noise, μ)
-    problem = OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
-    return problem
+    return PR.OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
 end
 
 end

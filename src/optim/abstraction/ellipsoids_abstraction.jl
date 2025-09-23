@@ -1,9 +1,7 @@
 export EllipsoidsAbstraction
 
 module EllipsoidsAbstraction
-
-using LinearAlgebra
-using JuMP
+using LinearAlgebra, JuMP
 
 import Dionysos
 const DI = Dionysos
@@ -22,8 +20,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Any
+    abstract_controller::Union{Nothing, ST.SymbolicController}
+    concrete_controller::Union{Nothing, ST.ContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
@@ -80,14 +78,15 @@ function build_abstraction(
     # The state space
     domainX = DO.DomainList(state_grid) # state space
     X = concrete_system.ext[:X]
+
     DO.add_set!(domainX, X, DO.INNER)
 
     # The input space 
     domainU = domainX
-    DO.add_set!(domainU, state_grid.rect, DO.INNER)
+    DO.add_set!(domainU, X, DO.INNER)
 
     # The symbolic model for the state-feedback abstraction
-    abstract_system = SY.NewSymbolicModelListList(domainX, domainU)
+    abstract_system = SY.SymbolicModelList(domainX, domainU)
     empty!(abstract_system.autom)
 
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
@@ -160,10 +159,9 @@ function solve_abstract_problem(abstract_problem, transitionCost)
     t = @elapsed rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src) # gets optimal path
     path = reverse(rev_path)
     # println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
-    abstract_controller = UT.SortedTupleSet{2, NTuple{2, Int}}()
+    abstract_controller = ST.SymbolicControllerList()
     for l in 1:(length(path) - 1)
-        new_action = (path[l], path[l + 1])
-        UT.push_new!(abstract_controller, new_action)
+        ST.add_control!(abstract_controller, path[l], path[l + 1])
     end
     println("Abstract controller computed with: ", path[end] == dst ? "succes" : "failure")
     return abstract_controller, lyap_fun
@@ -171,21 +169,26 @@ end
 
 function solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
     state_grid = abstract_system.Xdom.grid
-    function concrete_controller(x)
-        currState = SY.get_all_states_by_xpos(
+    prev = 0  # kind of memory for the controller
+    function f(x)
+        states = SY.get_states_by_xpos(
             abstract_system,
             DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )
-        next_action = nothing
-        for action in abstract_controller.data
-            if (action[1] ∩ currState) ≠ []
-                next_action = action
+        from = nothing
+        to = nothing
+        for s in states
+            if s !== prev && ST.is_defined(abstract_controller, s)
+                from = s
+                to = ST.get_control(abstract_controller, s)
+                break
             end
         end
-        c_eval = ST.get_c_eval(transitionCont[next_action])
-        return c_eval(x)
+        prev = from
+        local_controller = transitionCont[(from, to)]
+        return ST.get_control(local_controller, x)
     end
-    return concrete_controller
+    return ST.BlackBoxContinuousController(f, nothing)
 end
 
 function build_abstract_lyap_fun(lyap)
@@ -195,7 +198,7 @@ end
 function build_concrete_lyap_fun(abstract_system, abstract_lyap_fun)
     state_grid = abstract_system.Xdom.grid
     function concrete_lyap_fun(x)
-        l_state = SY.get_all_states_by_xpos(
+        l_state = SY.get_states_by_xpos(
             abstract_system,
             DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )

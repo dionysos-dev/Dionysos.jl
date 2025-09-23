@@ -1,16 +1,20 @@
 module Utils
 
-using StaticArrays
-using LinearAlgebra
-using Polyhedra
-using GLPK, Suppressor
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+import Colors
+import Polyhedra
+import DataStructures
+import LazySets
+import IntervalArithmetic: IntervalBox
+import SpecialFunctions: gamma
+using LinearAlgebra, JuMP
+import PlotUtils
 
 include("files/files_management.jl")
-##### PLOTS
-using Plots, Colors
+
 include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
-#####
 
 include("scalar_functions.jl")
 include("data_structures/sorted_vector_set.jl")
@@ -24,13 +28,12 @@ include("optim/branch_and_bound.jl")
 include("optim/bisection.jl")
 include("optim/newton_method.jl")
 
+include("lazy_set_operations.jl")
 include("rectangle.jl")
 include("box.jl")
 include("ellipsoid.jl")
 include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
 include("intersection_set.jl")
-
-include("lazy_set_operations.jl")
 
 end  # module Utils
