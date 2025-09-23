@@ -16,6 +16,11 @@ jobs:
       with:
         # Build documentation on the latest Julia 1.x
         version: '1'
+    - name: Clean Julia cache
+      run: |
+        rm -rf ~/.julia/compiled
+        rm -rf ~/.julia/packages
+        rm -rf /tmp/jl_*
     - name: Install dependencies
       shell: julia --project=docs/ {0}
       run: |
