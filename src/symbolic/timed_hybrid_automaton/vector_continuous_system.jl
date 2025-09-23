@@ -5,9 +5,6 @@ struct VectorContinuousSystem{T <: AbstractContinuousSystem} <: AbstractContinuo
     systems::Vector{T}
 end
 
-VectorContinuousSystem(systems::Vector{<:AbstractContinuousSystem}) =
-    VectorContinuousSystem{AbstractContinuousSystem}(systems)
-
 MathematicalSystems.stateset(sys::VectorContinuousSystem) =
     Tuple(MathematicalSystems.stateset(s) for s in sys.systems)
 
