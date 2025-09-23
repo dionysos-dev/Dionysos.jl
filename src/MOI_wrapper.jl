@@ -4,7 +4,6 @@ import MathematicalSystems
 import JuMP
 import MathOptSymbolicAD
 import Symbolics
-import OSQP, HiGHS, Ipopt, Pavito, CDDLib
 using Polyhedra
 using FillArrays
 
