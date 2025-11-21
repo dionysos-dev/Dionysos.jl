@@ -275,8 +275,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -397,8 +396,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -550,8 +548,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -663,8 +660,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -770,8 +766,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work

@@ -436,14 +436,14 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
                 optimizer.discrete_time_system_approximation,
             );
             verbose = optimizer.print_level >= 2,
-            threaded = optimizer.threaded
+            threaded = optimizer.threaded,
         )
     else
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
             optimizer.discrete_time_system_approximation;
             verbose = optimizer.print_level >= 2,
-            threaded = optimizer.threaded
+            threaded = optimizer.threaded,
         )
     end
     optimizer.print_level >= 1 && println(

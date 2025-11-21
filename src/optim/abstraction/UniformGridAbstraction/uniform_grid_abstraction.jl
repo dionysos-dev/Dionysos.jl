@@ -372,8 +372,8 @@ function build_controller_map_df(abstract_system, abstract_controller)
 end
 
 function get_input_symbol(controller, state)
-    syms = ST.get_all_controls(controller, state)
-    return isempty(syms) ? -1 : first(syms)[1]
+    return Dionysos.System.is_defined(controller, state) ?
+           Dionysos.System.get_control(controller, state) : -1
 end
 
 function build_input_map_df(abstract_system)
