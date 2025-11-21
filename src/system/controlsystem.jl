@@ -30,9 +30,9 @@ function _getLipschitzConstants(J, xi, rules)
         # mat = Base.invokelatest(f_aux)
         mat = Symbolics.value.(Hg)
         #println(mat)
-        if any(x -> isa(x, IntervalArithmetic.Interval), mat)
-            mat = IntervalArithmetic.Interval.(mat)
-            eigenbox = IntervalLinearAlgebra.eigenbox(mat)
+        if any(x -> isa(x, IA.Interval), mat)
+            mat = IA.Interval.(mat)
+            eigenbox = IL.eigenbox(mat)
             L[i] = abs(eigenbox).hi
         else
             L[i] = max(abs.(eigen(mat).values)...)
