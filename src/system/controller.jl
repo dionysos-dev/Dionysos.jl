@@ -163,7 +163,7 @@ end
         end
         vmin, vmax = extrema(costs)
         mycolorMap = UT.Colormap([vmin, vmax], Colors.colormap("Blues"))
-        P = (1.0 / sphere_radius) * Matrix{Float64}(I(2))  # small ellipsoid
+        P = (1.0 / sphere_radius) * Matrix{Float64}(LA.I(2))  # small ellipsoid
 
         for (i, x) in enumerate(samples)
             color = UT.get_color(mycolorMap, costs[i])
