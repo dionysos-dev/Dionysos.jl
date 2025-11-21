@@ -174,6 +174,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     ### System Approximation Settings
     approx_mode::ApproxMode
+    threaded::Bool
     efficient::Bool
 
     print_level::Int
@@ -205,6 +206,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             5,
             GROWTH,
+            false,
             true,
             1,
         )
@@ -434,12 +436,14 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
                 optimizer.discrete_time_system_approximation,
             );
             verbose = optimizer.print_level >= 2,
+            threaded = optimizer.threaded
         )
     else
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
             optimizer.discrete_time_system_approximation;
             verbose = optimizer.print_level >= 2,
+            threaded = optimizer.threaded
         )
     end
     optimizer.print_level >= 1 && println(

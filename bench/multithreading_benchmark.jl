@@ -350,11 +350,14 @@ function orchestrate(trials, resolutions, dt, du, threads_list)
 end
 
 run_comprehensive_benchmark() = orchestrate(parse_args()...)
-
+println("jjjjjjjjjjjjjjj")
+run_comprehensive_benchmark()
 if abspath(PROGRAM_FILE) == @__FILE__
     ts = time()
     try
         run_comprehensive_benchmark()
+        println("jjjjjjjjjjjjjjj")
+
     catch e
         println("❌ Benchmark failed: $e")
         showerror(stdout, e, catch_backtrace());
