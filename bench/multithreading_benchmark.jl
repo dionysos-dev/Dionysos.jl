@@ -345,8 +345,6 @@ function orchestrate(trials, resolutions, dt, du, threads_list)
             cmd = `julia -t $t --project=. $script $trials $(join(resolutions,",")) $dt $du`
             run(cmd)
         end
-
-        
     end
     return nothing
 end
