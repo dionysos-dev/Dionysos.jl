@@ -35,7 +35,7 @@ function _getLipschitzConstants(J, xi, rules)
             eigenbox = IL.eigenbox(mat)
             L[i] = abs(eigenbox).hi
         else
-            L[i] = max(abs.(eigen(mat).values)...)
+            L[i] = max(abs.(LA.eigen(mat).values)...)
         end
     end
     return L

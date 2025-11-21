@@ -8,6 +8,7 @@ import MathematicalSystems as MS
 using Symbolics
 import IntervalArithmetic as IA
 import IntervalLinearAlgebra as IL
+import LinearAlgebra as LA
 
 import JuMP: MOI
 
