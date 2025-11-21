@@ -47,7 +47,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     p = Base.length(w)
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
-    Xi = X × U × W
+    Xi = vcat(collect(X), collect(U), collect(W))
     sub_rules_Xi = Dict(xi[i] => Xi[i] for i in 1:(n + m + p))
 
     Jx = Symbolics.jacobian(f, x)
