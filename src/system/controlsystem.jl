@@ -20,7 +20,7 @@ struct EllipsoidalAffineApproximatedSystem{}
     L::Dict{UT.Ellipsoid, Float64} # smoothness constant to bound error
 end
 
-function interval_matrix_max_eig(mat)
+function interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
     n, m = size(mat)
     @assert n == m "Matrix must be square"
 
@@ -41,6 +41,8 @@ function interval_matrix_max_eig(mat)
     return sqrt(norm1 * normInf)
 end
 
+to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
+
 function _getLipschitzConstants(J, xi, rules)
     L = zeros(Base.length(xi))
     for (i, g) in enumerate(eachrow(J))
@@ -49,7 +51,8 @@ function _getLipschitzConstants(J, xi, rules)
         mat = Symbolics.value.(Hg)
 
         if any(x -> isa(x, IA.Interval), mat)
-            matI = IA.Interval.(mat)
+            # mixed Real / Interval => normalize to Interval
+            matI = map(to_interval, mat)
             # conservative but safe Lipschitz bound
             L[i] = interval_matrix_max_eig(matI)
             # L[i] = abs(IntervalLinearAlgebra.eigenbox(mat)).hi if we import the package IntervalLinearAlgebra 
