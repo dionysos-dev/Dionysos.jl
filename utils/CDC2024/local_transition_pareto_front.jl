@@ -1,4 +1,5 @@
-using StaticArrays, LinearAlgebra, IntervalArithmetic, Random
+using StaticArrays, Random
+import IntervalArithmetic as IA
 using JuMP, Clarabel
 using Plots, Colors
 Random.seed!(0)
@@ -24,9 +25,9 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = IntervalBox(c .+ sys.ΔX)
-    Ū = IntervalBox(unew .+ sys.ΔU)
-    W̄ = IntervalBox(wnew .+ sys.ΔW)
+    X̄ = IA.IntervalBox(c .+ sys.ΔX)
+    Ū = IA.IntervalBox(unew .+ sys.ΔU)
+    W̄ = IA.IntervalBox(wnew .+ sys.ΔW)
     (affineSys, L) = ST.buildAffineApproximation(
         sys.fsymbolic,
         sys.x,

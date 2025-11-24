@@ -1,4 +1,4 @@
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
+using StaticArrays, Random
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
 using Plots, Colors

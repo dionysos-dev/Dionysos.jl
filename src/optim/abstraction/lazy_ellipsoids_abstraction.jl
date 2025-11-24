@@ -1,7 +1,10 @@
 export LazyEllipsoidsAbstraction
 
 module LazyEllipsoidsAbstraction
-using LinearAlgebra, JuMP, IntervalArithmetic, Random
+using JuMP, Random
+
+import LinearAlgebra as LA
+import IntervalArithmetic as IA
 
 Random.seed!(0)
 
@@ -252,7 +255,7 @@ end
 
 function get_candidate(
     tree::UT.Tree,
-    X::IntervalBox,
+    X::IA.IntervalBox,
     E0::UT.Ellipsoid;
     probSkew = 0.0,
     probE0 = 0.05,
@@ -266,7 +269,7 @@ function get_candidate(
         return E0.c
     else
         closestNode, dist =
-            UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(I(nx)), E0))
+            UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(nx)), E0))
         l = randVal / probSkew
         r = dist / intialDist
         return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) +
@@ -283,7 +286,7 @@ function rand_state(
 )
     concrete_problem = optimizer.concrete_problem
     xrand = get_candidate(tree, concrete_problem.system.X, EI)
-    return UT.Ellipsoid(Matrix{Float64}(I(length(xrand))), xrand)
+    return UT.Ellipsoid(Matrix{Float64}(LA.I(length(xrand))), xrand)
 end
 
 # data-driven technique on nominal system (without noise)
@@ -298,12 +301,12 @@ function get_closest_reachable_point(
     unew = UT.sample(U)
     wnew = zeros(concrete_system.nw)
     xnew = concrete_system.f_backward_eval(xinit, unew, wnew)
-    uBestDist = norm(xnew - xtarget)
+    uBestDist = LA.norm(xnew - xtarget)
     for i in 1:nSamples
         ucandnew = UT.sample(U) * 0.002 * i
         xcandnew = concrete_system.f_backward_eval(xinit, ucandnew, wnew)
-        if norm(xcandnew - xtarget) < uBestDist
-            uBestDist = norm(xcandnew - xtarget)
+        if LA.norm(xcandnew - xtarget) < uBestDist
+            uBestDist = LA.norm(xcandnew - xtarget)
             xnew = xcandnew
             unew = ucandnew
         end
@@ -327,9 +330,9 @@ function new_conf(
         concrete_system.Uformat,
     )
     wnew = zeros(concrete_system.nw)
-    X̄ = IntervalBox(xnew .+ concrete_system.ΔX)
-    Ū = IntervalBox(unew .+ concrete_system.ΔU)
-    W̄ = IntervalBox(wnew .+ concrete_system.ΔW)
+    X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
+    Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
+    W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
         concrete_system.x,
@@ -380,10 +383,10 @@ function keep(
         elseif EI ∈ Enew
             iMin = i
             break
-        elseif minDist > norm(EI.c - Enew.c) # minPathCost > cost + Eclosest.path_cost
-            if Nnear == abstract_system.root || eigmin(EI.P * 0.5 - Enew.P) > 0 # E ⊂ E0 => P-P0>0
+        elseif minDist > LA.norm(EI.c - Enew.c) # minPathCost > cost + Eclosest.path_cost
+            if Nnear == abstract_system.root || LA.eigmin(EI.P * 0.5 - Enew.P) > 0 # E ⊂ E0 => P-P0>0
                 iMin = i
-                minDist = norm(EI.c - Enew.c)
+                minDist = LA.norm(EI.c - Enew.c)
             else
             end
         else
@@ -418,9 +421,9 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optim
     xnew = E1.c
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
-    X̄ = IntervalBox(xnew .+ concrete_system.ΔX)
-    Ū = IntervalBox(unew .+ concrete_system.ΔU)
-    W̄ = IntervalBox(wnew .+ concrete_system.ΔW)
+    X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
+    Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
+    W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
         concrete_system.x,

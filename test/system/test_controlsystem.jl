@@ -2,7 +2,7 @@ module TestMain
 using Test
 
 using Symbolics
-using IntervalArithmetic
+import IntervalArithmetic as IA
 using MathematicalSystems
 
 using Dionysos
@@ -21,9 +21,10 @@ const TOL = 1e-6
     ū = [0.0]
     w̄ = [0.0]
 
-    X = IntervalBox(-10.0 .. 10.0)
-    U = IntervalBox(-10.0 .. 10.0)
-    W = IntervalBox(-10.0 .. 10.0)
+    v = 10.0
+    X = IA.IntervalBox(IA.interval(-v, v))
+    U = IA.IntervalBox(IA.interval(-v, v))
+    W = IA.IntervalBox(IA.interval(-v, v))
     approx_sys, L = ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
 
     @test isapprox(L, [2.0, 0.0, 0.0], atol = TOL)

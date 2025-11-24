@@ -10,7 +10,7 @@ const ST = DI.System
 const PR = DI.Problem
 
 using HybridSystems
-using Polyhedra
+import Polyhedra
 using JuMP
 
 export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
@@ -30,11 +30,11 @@ function minimum_transition_cost(
     MOI.Bridges.add_bridge(model, Polyhedra.PolyhedraToLPBridge{T})
     x0, c0 = MOI.add_constrained_variables(
         model,
-        Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, from))),
+        Polyhedra.PolyhedraOptSet(Polyhedra.hrep(stateset(prob.system, from))),
     )
     x1, c1 = MOI.add_constrained_variables(
         model,
-        Polyhedra.PolyhedraOptSet(hrep(stateset(prob.system, to))),
+        Polyhedra.PolyhedraOptSet(Polyhedra.hrep(stateset(prob.system, to))),
     )
     u = MOI.add_variables(model, inputdim(resetmap(prob.system, transition)))
     algo = MOI.instantiate(
@@ -173,7 +173,7 @@ end
 function _full_domains(time, modes, d, ::Type{T}) where {T}
     return JuMP.Containers.@container(
         [0:time, modes],
-        hrep(HalfSpace{T, Vector{T}}[], d = d)
+        Polyhedra.hrep(Polyhedra.HalfSpace{T, Vector{T}}[], d = d)
     )
 end
 function instantiate(
@@ -188,7 +188,8 @@ end
 function q_merge(a::DiscreteLowerBound, b::HybridDualDynamicProgramming{T}) where {T}
     d = a.discrete_lb
     cuts = _no_cuts(axes(d, 1).stop, axes(d, 2), T)
-    domains = _full_domains(axes(d, 1).stop, axes(d, 2), fulldim(first(b.domains)), T)
+    domains =
+        _full_domains(axes(d, 1).stop, axes(d, 2), Polyhedra.fulldim(first(b.domains)), T)
     return q_merge(HybridDualDynamicProgramming(cuts, domains, a), b)
 end
 function q_merge(a::HybridDualDynamicProgramming, b::HybridDualDynamicProgramming)
@@ -199,7 +200,7 @@ function q_merge(a::HybridDualDynamicProgramming, b::HybridDualDynamicProgrammin
     )
 end
 function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) where {T}
-    d = fulldim(Q.domains[left, mode])
+    d = Polyhedra.fulldim(Q.domains[left, mode])
     time = axes(Q.cuts, 1).stop
     return UT.PolyhedralFunction(
         Q.discrete.discrete_lb[left, mode],
@@ -212,17 +213,19 @@ function value_function(Q::HybridDualDynamicProgramming{T}, left::Int, mode) whe
         reduce(
             intersect,
             (Q.domains[i, mode] for i in left:time);
-            init = hrep(HalfSpace{T, Vector{T}}[]; d = d),
+            init = Polyhedra.hrep(Polyhedra.HalfSpace{T, Vector{T}}[]; d = d),
         ),
     )
 end
 function vertices(f::UT.PolyhedralFunction{T}, X, lib) where {T}
-    h = (hrep(X) ∩ f.domain) * intersect(HalfSpace([-one(T)], -f.lower_bound))
-    cuts = [HalfSpace([p.a; -one(T)], -p.β) for p in f.pieces]
-    h_cut = h ∩ hrep(cuts; d = fulldim(h))
-    p = polyhedron(h_cut, lib)
-    removehredundancy!(p)
-    return collect(points(vrep(p)))
+    h =
+        (Polyhedra.hrep(X) ∩ f.domain) *
+        intersect(Polyhedra.HalfSpace([-one(T)], -f.lower_bound))
+    cuts = [Polyhedra.HalfSpace([p.a; -one(T)], -p.β) for p in f.pieces]
+    h_cut = h ∩ Polyhedra.hrep(cuts; d = Polyhedra.fulldim(h))
+    p = Polyhedra.polyhedron(h_cut, lib)
+    Polyhedra.removehredundancy!(p)
+    return collect(Polyhedra.points(Polyhedra.vrep(p)))
 end
 function vertices(Q::HybridDualDynamicProgramming, prob, left, mode, lib)
     return vertices(value_function(Q, left, mode), stateset(prob.system, mode), lib)
@@ -257,9 +260,10 @@ function learn(
         # FIXME assume they are all the same
         r = resetmap(prob.system, first(trans))
         U = inputset(r)
-        hashyperplanes(U) && error("TODO: Q-learning with input set with hyperplanes")
-        u = MOI.add_variables(model, fulldim(U))
-        U_h = collect(halfspaces(U))
+        Polyhedra.hashyperplanes(U) &&
+            error("TODO: Q-learning with input set with hyperplanes")
+        u = MOI.add_variables(model, Polyhedra.fulldim(U))
+        U_h = collect(Polyhedra.halfspaces(U))
         u_con = [MOI.add_constraint(model, u ⋅ hs.a, MOI.LessThan(hs.β)) for hs in U_h]
         λ = Dict(
             (t, v) => MOI.add_constrained_variable(model, MOI.GreaterThan(zero(T)))[1]
@@ -408,35 +412,35 @@ function learn(
         end
 
         pv = [zeros(length(u))]
-        lv = Line{T, Vector{T}}[]
-        rv = Ray{T, Vector{T}}[]
+        lv = Polyhedra.Line{T, Vector{T}}[]
+        rv = Polyhedra.Ray{T, Vector{T}}[]
         U_v = Polyhedra.Hull(Polyhedra.FullDim_rec(pv, lv, rv), pv, lv, rv)
 
         for i in eachindex(U_h)
             α = u_value ⋅ U_h[i].a
             if α >= U_h[i].β - (max(abs(α), abs(U_h[i].β)) + 1) * algo.tight_tol
                 # TODO Use `convexhull!` once it is implemented in Polyhedra
-                convexhull!(U_v, Ray(U_h.a))
+                Polyhedra.convexhull!(U_v, Ray(U_h.a))
             end
         end
-        U_p = polyhedron(U_v, algo.polyhedra_library)
-        removehredundancy!(U_p)
-        U_h = hrep(U_p)
+        U_p = Polyhedra.polyhedron(U_v, algo.polyhedra_library)
+        Polyhedra.removehredundancy!(U_p)
+        U_h = Polyhedra.hrep(U_p)
         @constraint(dual_model, u_cons in U_h)
 
-        h = hrep(dual_model)
-        names = dimension_names(h)
-        p = polyhedron(h, algo.polyhedra_library)
-        removevredundancy!(p)
+        h = Polyhedra.hrep(dual_model)
+        names = Polyhedra.dimension_names(h)
+        p = Polyhedra.polyhedron(h, algo.polyhedra_library)
+        Polyhedra.removevredundancy!(p)
         P = zeros(size(r.A, 2), size(r.A, 1) + 1)
         for i in eachindex(y)
             j = findfirst(isequal("y[$i]"), names)
             P[:, j] = r.A[i, :]
         end
         #cuts = -P * removevredundancy(vrep(p), Polyhedra.default_solver(p))
-        cuts = -P * vrep(p)
+        cuts = -P * Polyhedra.vrep(p)
 
-        for a in points(cuts)
+        for a in Polyhedra.points(cuts)
             β = after - a ⋅ x
             cut = UT.AffineFunction{T}(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
@@ -445,9 +449,9 @@ function learn(
             end
             push!(Q.cuts[left + 1, mode], cut)
         end
-        for r in rays(cuts)
-            a = normalize(coord(r))
-            cut = HalfSpace(a, a ⋅ x)
+        for r in Polyhedra.rays(cuts)
+            a = normalize(Polyhedra.coord(r))
+            cut = Polyhedra.HalfSpace(a, a ⋅ x)
             if algo.log_level >= 2
                 @info("Cut added: $cut, $after > $before.")
             end

@@ -2,8 +2,7 @@ module TestMain
 
 using Test
 using Dionysos
-using LinearAlgebra
-using IntervalArithmetic
+import LinearAlgebra as LA
 const DI = Dionysos
 const UT = DI.Utils
 
@@ -17,14 +16,14 @@ end
 @testset "Tree" begin
     n_x = 2
     Ellispoids = [
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 8.0, [-10.0; -10.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 5.0, [0.0; -10.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 1.0, [-10.0; 0.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 3.0, [20.0; -10.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 3.0, [-1.0; 0.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 3.0, [1.0; -8.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 3.0, [-1.0; 5.0]),
-        UT.Ellipsoid(Matrix{Float64}(I(n_x)) * 3.0, [3.0; 0.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 8.0, [-10.0; -10.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 5.0, [0.0; -10.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 1.0, [-10.0; 0.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 3.0, [20.0; -10.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 3.0, [-1.0; 0.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 3.0, [1.0; -8.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 3.0, [-1.0; 5.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(n_x)) * 3.0, [3.0; 0.0]),
     ]
     tree = UT.Tree(Ellispoids[1])
 

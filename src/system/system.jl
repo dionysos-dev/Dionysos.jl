@@ -6,9 +6,8 @@ import Colors
 import MathematicalSystems as MS
 
 using Symbolics
-using IntervalArithmetic
-using IntervalLinearAlgebra
-
+import IntervalArithmetic as IA
+import LinearAlgebra as LA
 import JuMP: MOI
 
 using ..Utils

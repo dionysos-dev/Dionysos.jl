@@ -29,6 +29,7 @@ qp_solver = optimizer_with_attributes(
         "DualReductions" => 0,
     )
 end
+
 import Ipopt
 cont_solver = optimizer_with_attributes(Ipopt.Optimizer, MOI.Silent() => true)
 import Pavito

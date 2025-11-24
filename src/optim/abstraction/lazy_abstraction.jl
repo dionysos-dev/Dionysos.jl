@@ -3,7 +3,7 @@ export LazyAbstraction
 module LazyAbstraction
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
-using LinearAlgebra, JuMP, IntervalArithmetic, Random
+using JuMP, Random
 
 Random.seed!(0)
 

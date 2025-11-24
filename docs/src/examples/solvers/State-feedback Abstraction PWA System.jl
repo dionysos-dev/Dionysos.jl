@@ -29,7 +29,6 @@ using Test     #src
 # First, let us import 
 # [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
 # [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
-# [CDDLib](https://github.com/JuliaPolyhedra/CDDLib.jl), 
 # [Clarabel](https://github.com/oxfordcontrol/Clarabel.jl),
 # [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
 

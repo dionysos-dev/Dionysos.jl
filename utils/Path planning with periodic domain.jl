@@ -1,5 +1,5 @@
 using StaticArrays, JuMP, Plots
-using Dionysos
+import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
@@ -21,7 +21,7 @@ u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
 periodic_dims = SVector(2); # SVector(1, 2);
 periods = SVector(10.0); # SVector(4.0, 10.0);
-start = SVector(0.0); # SVector(1.0);
+periodic_start = SVector(0.0); # SVector(1.0);
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -47,7 +47,7 @@ MOI.set(
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), start)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false) # true
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 
@@ -77,7 +77,8 @@ println("Total time: $(total_time)")
 # AB.UniformGridAbstraction.load_controller_data_csv(filename)
 
 target_set = concrete_problem.target_set
-target_set_in_periodic = UT.set_in_period(target_set, periodic_dims, periods, start)
+target_set_in_periodic =
+    UT.set_in_period(target_set, periodic_dims, periods, periodic_start)
 
 nstep = 100
 function reached(x)
@@ -95,14 +96,19 @@ control_trajectory = Dionysos.System.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    periodic_wrapper = ST.get_periodic_wrapper(periodic_dims, periods; start = start),
+    periodic_wrapper = ST.get_periodic_wrapper(
+        periodic_dims,
+        periods;
+        start = periodic_start,
+    ),
 )
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal, legend = false);
 # We display the concrete domain
 state_space = concrete_system.X
-system_domain_in_periodic = UT.set_in_period(state_space, periodic_dims, periods, start)
+system_domain_in_periodic =
+    UT.set_in_period(state_space, periodic_dims, periods, periodic_start)
 plot!(system_domain_in_periodic; color = :grey, opacity = 1.0, label = "");
 
 # We display the abstract domain with worst-case cost

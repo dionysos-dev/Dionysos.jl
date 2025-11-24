@@ -275,8 +275,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -311,7 +310,7 @@ function compute_abstract_system_from_concrete_system!(
 
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval ÷ 100) == 0
+            if count_val % max(1, update_interval) == 0
                 ProgressMeter.next!(progress)
             end
         end
@@ -334,6 +333,7 @@ function compute_abstract_system_from_concrete_system!(
     update_interval = Int(1e5),
     threaded::Bool = false,
 )
+
     # If multithreading is not requested or only one thread is available -> sequential execution
     if !threaded || Threads.nthreads() == 1
         translist = Tuple{Int, Int, Int}[]
@@ -396,8 +396,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -433,7 +432,7 @@ function compute_abstract_system_from_concrete_system!(
 
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval ÷ 100) == 0
+            if count_val % max(1, update_interval) == 0
                 ProgressMeter.next!(progress)
             end
         end
@@ -461,9 +460,9 @@ function compute_abstract_system_from_concrete_system!(
         Xdom = get_state_domain(abstract_system)
         N = DO.get_dim(Xdom)
         r = DO.get_h(DO.get_grid(Xdom)) / 2.0
-        _H_ = SMatrix{N, N}(I) .* r
+        _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
-        e = norm(r, Inf)
+        e = LA.norm(r, Inf)
         translist = Tuple{Int, Int, Int}[]
         error_map = concrete_system_approx.error_map
         linsys_map = concrete_system_approx.linsys_map
@@ -525,9 +524,9 @@ function compute_abstract_system_from_concrete_system!(
     Xdom = get_state_domain(abstract_system)
     N = DO.get_dim(Xdom)
     r = DO.get_h(DO.get_grid(Xdom)) / 2.0
-    _H_ = SMatrix{N, N}(I) .* r
+    _H_ = SMatrix{N, N}(LA.I) .* r
     _ONE_ = ones(SVector{N})
-    e = norm(r, Inf)
+    e = LA.norm(r, Inf)
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
 
@@ -549,8 +548,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -591,7 +589,7 @@ function compute_abstract_system_from_concrete_system!(
 
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval ÷ 100) == 0
+            if count_val % max(1, update_interval) == 0
                 ProgressMeter.next!(progress)
             end
         end
@@ -662,8 +660,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -698,7 +695,7 @@ function compute_abstract_system_from_concrete_system!(
 
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval ÷ 100) == 0
+            if count_val % max(1, update_interval) == 0
                 ProgressMeter.next!(progress)
             end
         end
@@ -743,7 +740,6 @@ function compute_abstract_system_from_concrete_system!(
                 ypos = DO.get_pos_by_coord(Xdom, y)
                 if ypos in Xdom
                     target = get_state_by_xpos(abstract_system, ypos)
-                    # TODO use `add_transition!`
                     add_transitions!(
                         abstract_system,
                         ((target, abstract_state, abstract_input),),
@@ -770,8 +766,7 @@ function compute_abstract_system_from_concrete_system!(
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
 
     progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval ÷ 100)) :
-        nothing
+        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
     progress_count = Threads.Atomic{Int}(0)
 
     Threads.@threads for linear_idx in 1:total_work
@@ -799,7 +794,7 @@ function compute_abstract_system_from_concrete_system!(
 
         if verbose
             count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval ÷ 100) == 0
+            if count_val % max(1, update_interval) == 0
                 ProgressMeter.next!(progress)
             end
         end
@@ -814,5 +809,6 @@ function compute_abstract_system_from_concrete_system!(
     end
 
     verbose && ProgressMeter.finish!(progress)
+
     return
 end

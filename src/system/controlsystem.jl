@@ -20,22 +20,44 @@ struct EllipsoidalAffineApproximatedSystem{}
     L::Dict{UT.Ellipsoid, Float64} # smoothness constant to bound error
 end
 
+function interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
+    n, m = size(mat)
+    @assert n == m "Matrix must be square"
+
+    # Worst-case absolute matrix |A|
+    M = Array{Float64}(undef, n, n)
+    for j in 1:n, i in 1:n
+        a = mat[i, j]
+        lo = IA.inf(a)
+        hi = IA.sup(a)
+        M[i, j] = max(abs(lo), abs(hi))
+    end
+
+    # 1-norm (max column sum)
+    norm1 = maximum(sum(abs, M; dims = 1))[]
+    # ∞-norm (max row sum)
+    normInf = maximum(sum(abs, M; dims = 2))[]
+
+    return sqrt(norm1 * normInf)
+end
+
+to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
+
 function _getLipschitzConstants(J, xi, rules)
     L = zeros(Base.length(xi))
     for (i, g) in enumerate(eachrow(J))
         Hg_s = Symbolics.jacobian(g, xi) #gets symbolic hessian of the i-th component of f(x,u,w)
         Hg = Symbolics.substitute(Hg_s, rules)
-
-        # f_aux = eval(build_function(Hg)[1]);
-        # mat = Base.invokelatest(f_aux)
         mat = Symbolics.value.(Hg)
-        #println(mat)
-        if any(x -> isa(x, IntervalArithmetic.Interval), mat)
-            mat = IntervalArithmetic.Interval.(mat)
-            eigenbox = IntervalLinearAlgebra.eigenbox(mat)
-            L[i] = abs(eigenbox).hi
+
+        if any(x -> isa(x, IA.Interval), mat)
+            # mixed Real / Interval => normalize to Interval
+            matI = map(to_interval, mat)
+            # conservative but safe Lipschitz bound
+            L[i] = interval_matrix_max_eig(matI)
+            # L[i] = abs(IntervalLinearAlgebra.eigenbox(mat)).hi if we import the package IntervalLinearAlgebra 
         else
-            L[i] = max(abs.(eigen(mat).values)...)
+            L[i] = max(abs.(LA.eigen(mat).values)...)
         end
     end
     return L
@@ -47,7 +69,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     p = Base.length(w)
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
-    Xi = X × U × W
+    Xi = vcat(collect(X), collect(U), collect(W))
     sub_rules_Xi = Dict(xi[i] => Xi[i] for i in 1:(n + m + p))
 
     Jx = Symbolics.jacobian(f, x)

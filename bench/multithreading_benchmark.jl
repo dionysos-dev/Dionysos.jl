@@ -351,10 +351,12 @@ end
 
 run_comprehensive_benchmark() = orchestrate(parse_args()...)
 
+run_comprehensive_benchmark()
 if abspath(PROGRAM_FILE) == @__FILE__
     ts = time()
     try
         run_comprehensive_benchmark()
+
     catch e
         println("❌ Benchmark failed: $e")
         showerror(stdout, e, catch_backtrace());

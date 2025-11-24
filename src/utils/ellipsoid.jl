@@ -198,7 +198,7 @@ function get_min_bounding_box(elli::Ellipsoid; optimizer = nothing)
             R[i] = get_farthest_point(elli, ei)[i]
         end
     end
-    box = IntervalBox(elli.c .- R, elli.c .+ R)
+    box = IA.IntervalBox(elli.c .- R, elli.c .+ R)
     return box
 end
 
