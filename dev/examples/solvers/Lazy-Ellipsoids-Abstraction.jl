@@ -1,7 +1,7 @@
 # # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 
-using StaticArrays, LinearAlgebra, Plots
+using StaticArrays, Plots
 using JuMP, Clarabel
 
 import Random

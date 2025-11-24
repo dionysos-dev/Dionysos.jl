@@ -7,7 +7,8 @@
 # In this simple example, the states are two-dimensional ellipsoids.
 # 
 # First, let us import a few packages that are necessary to run this example.
-using LinearAlgebra, Plots
+using Plots
+import LinearAlgebra as LA
 
 # The main package [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) provides most important data structures that we will need.
 using Dionysos
@@ -21,14 +22,14 @@ get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = (1.0, 1.0);
 
 # We define the ellipsoids that will make up our tree states
 Ellipsoids = [
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 8.0, [-10.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 5.0, [0.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [-10.0; 0.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [20.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 0.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [1.0; -8.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 5.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [3.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 8.0, [-10.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 5.0, [0.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1.0, [-10.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [20.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [-1.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [1.0; -8.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [-1.0; 5.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [3.0; 0.0]),
 ];
 
 # We define the root of the tree

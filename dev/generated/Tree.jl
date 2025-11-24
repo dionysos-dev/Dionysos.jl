@@ -1,4 +1,5 @@
-using LinearAlgebra, Plots
+using Plots
+import LinearAlgebra as LA
 
 using Dionysos
 const UT = Dionysos.Utils;
@@ -8,14 +9,14 @@ distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = UT.pointCenterDistance(E1, E2.c);
 get_action(E1::UT.Ellipsoid, E2::UT.Ellipsoid) = (1.0, 1.0);
 
 Ellipsoids = [
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 8.0, [-10.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 5.0, [0.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [-10.0; 0.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [20.0; -10.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 0.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [1.0; -8.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [-1.0; 5.0]),
-    UT.Ellipsoid(Matrix{Float64}(I(2)) * 3.0, [3.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 8.0, [-10.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 5.0, [0.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1.0, [-10.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [20.0; -10.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [-1.0; 0.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [1.0; -8.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [-1.0; 5.0]),
+    UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 3.0, [3.0; 0.0]),
 ];
 
 tree = UT.Tree(Ellipsoids[1]);

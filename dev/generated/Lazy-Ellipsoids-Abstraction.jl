@@ -1,4 +1,4 @@
-using StaticArrays, LinearAlgebra, Plots
+using StaticArrays, Plots
 using JuMP, Clarabel
 
 import Random

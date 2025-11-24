@@ -56,7 +56,7 @@ objective_value = MOI.get(optimizer, MOI.ObjectiveValue())
 xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
 
 using Plots
-using Polyhedra
+import Polyhedra
 using HybridSystems
 using Suppressor
 
