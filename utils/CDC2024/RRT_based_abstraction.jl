@@ -1,4 +1,6 @@
-using StaticArrays, LinearAlgebra, Random, IntervalArithmetic
+using StaticArrays, Random
+import LinearAlgebra as LA
+import IntervalArithmetic as IA
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
 using Plots, Colors
@@ -24,19 +26,19 @@ Wbound = 0.0
 λ = 0.01
 
 concrete_problem = NonLinear.problem(;
-    X = IntervalBox(-20.0 .. 20.0, 2),
+    X = IA.IntervalBox(-20.0 .. 20.0, 2),
     obstacles = [
-        UT.Ellipsoid(Matrix{Float64}(I(2)) * 1 / 50, [0.0; 0.0]),
+        UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1 / 50, [0.0; 0.0]),
         UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),
         UT.Ellipsoid([2.0 0.2; 0.2 0.5] * 0.2, [20.0; 0.0]),
     ],
     U = U,
-    E0 = UT.Ellipsoid(Matrix{Float64}(I(2)) * 10.0, [-10.0; -10.0]),
-    Ef = UT.Ellipsoid(Matrix{Float64}(I(2)) * 1.0, [10.0; 10.0]),
+    E0 = UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 10.0, [-10.0; -10.0]),
+    Ef = UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1.0, [10.0; 10.0]),
     state_cost = UT.ZeroFunction(),
     transition_cost = UT.QuadraticStateControlFunction(
-        Matrix{Float64}(I(2)),
-        Matrix{Float64}(I(2)),
+        Matrix{Float64}(LA.I(2)),
+        Matrix{Float64}(LA.I(2)),
         zeros(2, 2),
         zeros(2),
         zeros(2),

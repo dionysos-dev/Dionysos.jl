@@ -31,7 +31,7 @@ function TimeSymbolicModel(
     end
 end
 
-_is_identity_matrix(A::AbstractMatrix)::Bool = A ≈ I(size(A, 1))
+_is_identity_matrix(A::AbstractMatrix)::Bool = A ≈ LA.I(size(A, 1))
 _is_zero_matrix(A::AbstractMatrix)::Bool = all(iszero, A)
 
 # floor_time2int(tm::TimeSymbolicModel, t::Float64) -> Int

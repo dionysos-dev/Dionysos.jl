@@ -6,7 +6,7 @@ import Colors
 import Polyhedra
 import DataStructures
 import LazySets
-import IntervalArithmetic: IntervalBox
+import IntervalArithmetic as IA
 import SpecialFunctions: gamma
 using LinearAlgebra, JuMP
 import PlotUtils

@@ -4,7 +4,8 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import ProgressMeter
 
-using LinearAlgebra, Colors
+import LinearAlgebra as LA
+using Colors
 using HybridSystems, MathematicalSystems
 
 using Graphs, SimpleWeightedGraphs
@@ -31,7 +32,8 @@ include("alternating_simulation.jl")
 include("proba_automaton.jl")
 
 using Polyhedra
-using ProgressMeter, IntervalArithmetic, LazySets
+import IntervalArithmetic as IA
+using ProgressMeter, LazySets
 using JuMP
 include("ellipsoidal_transitions.jl")
 

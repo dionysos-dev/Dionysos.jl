@@ -1,6 +1,6 @@
 module SimpleProblem
 
-using StaticArrays, LinearAlgebra, Symbolics, IntervalArithmetic
+using StaticArrays
 using MathematicalSystems, HybridSystems
 
 import Dionysos

@@ -9,7 +9,7 @@ AffineSys = Union{
 
 function format_input_set(rec::UT.HyperRectangle)
     n = UT.get_dims(rec)
-    Uaux = diagm(1:n)
+    Uaux = LA.diagm(1:n)
     U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
     return U
 end
@@ -39,8 +39,8 @@ end
 function _getμν(L, subsys::AffineSys)
     n_x = length(subsys.c)
     return (
-        vertices_list(IntervalBox((-x) .. x for x in L[1:n_x])),
-        vertices_list(IntervalBox(subsys.D * subsys.W...)),
+        vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:n_x])),
+        vertices_list(IA.IntervalBox(subsys.D * subsys.W...)),
     )
 end
 
@@ -60,7 +60,7 @@ function hasTransition(
     Pp = Ep.P
     cp = Ep.c
 
-    eye(n) = diagm(ones(n))
+    eye(n) = LA.diagm(ones(n))
     A = subsys.A
     B = subsys.B
     g = subsys.c
@@ -191,7 +191,7 @@ end
 # This implements the optimization problem presented in Corollary 1 of the following paper 
 # https://arxiv.org/pdf/2204.00315.pdf
 function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
-    eye(n) = diagm(ones(n))
+    eye(n) = LA.diagm(ones(n))
     n = length(c)
     m = size(U[1], 2)
     N = size(W, 2)
@@ -245,9 +245,9 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
     @constraint(
         model,
         [
-            gamma*P z [I t(K) z]*t(L)
+            gamma*P z [LA.I t(K) z]*t(L)
             t(z) J-gamma [t(c) t(ell) 1]*t(L)
-            t([I t(K) z] * t(L)) t([t(c) t(ell) 1] * t(L)) eye(n_S)
+            t([LA.I t(K) z] * t(L)) t([t(c) t(ell) 1] * t(L)) eye(n_S)
         ] >= eye(n + n_S + 1) * 1e-4,
         PSDCone()
     )
@@ -313,7 +313,7 @@ end
 # of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
 
 function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
-    eye(n) = diagm(ones(n))
+    eye(n) = LA.diagm(ones(n))
     A = subsys.A
     B = subsys.B
     n = size(A, 1)
@@ -352,7 +352,7 @@ end
 # W[:,i] = vertex i of the polytop
 function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
     W = D * W
-    eye(n) = diagm(ones(n))
+    eye(n) = LA.diagm(ones(n))
     nx = length(c) # dimension of the state
     nu = size(U[1], 2) # dimension of the input
     nw = size(W, 1) # dimension of the noise (not use for now, we could add matrix of the noise)
@@ -405,9 +405,9 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
     @constraint(
         model,
         [
-            γ*P1 z [I t(K) z]*t(S)
+            γ*P1 z [LA.I t(K) z]*t(S)
             t(z) J-γ [t(c1) t(ell) 1]*t(S)
-            S*t([I t(K) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
+            S*t([LA.I t(K) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
         ] >= eye(nx + n_S + 1) * 1e-4,
         PSDCone()
     )
@@ -454,7 +454,10 @@ end
 function _getμν(L, nx, D, W)
     vertices_matrix = D * W
     noise_vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
-    return (vertices_list(IntervalBox((-x) .. x for x in L[1:nx])), noise_vertices)
+    return (
+        vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:nx])),
+        noise_vertices,
+    )
 end
 
 # the dynamic: Ax+Bu+c+Dw
@@ -480,7 +483,7 @@ function transition_backward(
     maxδu = maxδu,
     λ = 0.01,
 )
-    eye(n) = diagm(ones(n))
+    eye(n) = LA.diagm(ones(n))
     nx = length(c) #dimension of the state
     nu = size(U[1], 2) #dimension of the input
     μ, ν = _getμν(Lip, nx, D, W)
@@ -665,7 +668,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
         box = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(n_sys)); optimizer = opt_qp)
         R = [interval.hi for interval in box]
     else
-        Pm = (1 / n_sys) * diagm(inv.(r .^ 2))
+        Pm = (1 / n_sys) * LA.diagm(inv.(r .^ 2))
         P = Pm
         R = r
     end

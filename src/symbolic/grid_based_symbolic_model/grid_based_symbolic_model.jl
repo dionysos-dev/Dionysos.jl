@@ -460,9 +460,9 @@ function compute_abstract_system_from_concrete_system!(
         Xdom = get_state_domain(abstract_system)
         N = DO.get_dim(Xdom)
         r = DO.get_h(DO.get_grid(Xdom)) / 2.0
-        _H_ = SMatrix{N, N}(I) .* r
+        _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
-        e = norm(r, Inf)
+        e = LA.norm(r, Inf)
         translist = Tuple{Int, Int, Int}[]
         error_map = concrete_system_approx.error_map
         linsys_map = concrete_system_approx.linsys_map
@@ -524,9 +524,9 @@ function compute_abstract_system_from_concrete_system!(
     Xdom = get_state_domain(abstract_system)
     N = DO.get_dim(Xdom)
     r = DO.get_h(DO.get_grid(Xdom)) / 2.0
-    _H_ = SMatrix{N, N}(I) .* r
+    _H_ = SMatrix{N, N}(LA.I) .* r
     _ONE_ = ones(SVector{N})
-    e = norm(r, Inf)
+    e = LA.norm(r, Inf)
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
 

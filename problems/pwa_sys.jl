@@ -1,6 +1,7 @@
 module PWAsys
 
-using StaticArrays, LinearAlgebra, Polyhedra
+using StaticArrays, Polyhedra
+import LinearAlgebra as LA
 using MathematicalSystems, HybridSystems
 using FillArrays, CDDLib
 
@@ -14,7 +15,7 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 
 function system(lib, dt, Usz, Wsz; simple = false)
-    eye(n) = diagm(ones(n)) # I matrix
+    eye(n) = LA.diagm(ones(n)) # I matrix
     # Define system
     N_region = 3
     n_sys = 2
@@ -82,7 +83,7 @@ function system(lib, dt, Usz, Wsz; simple = false)
         UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)),
         UT.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)),
     ]
-    Uaux = diagm(1:n_u)
+    Uaux = LA.diagm(1:n_u)
     U = [(Uaux .== i) ./ Usz for i in 1:n_u] # matrices U_i
     W = Wsz * [
         -1 -1 1 1
@@ -131,8 +132,8 @@ function problem(;
     state_cost = UT.ZeroFunction()
     transition_cost = Fill(
         UT.QuadraticStateControlFunction(
-            Matrix{Float64}(I(n_sys) * (dt^2)),
-            Matrix{Float64}(I(n_u) * (dt^2)),
+            Matrix{Float64}(LA.I(n_sys) * (dt^2)),
+            Matrix{Float64}(LA.I(n_u) * (dt^2)),
             zeros(n_sys, n_u),
             zeros(n_sys),
             zeros(n_u),

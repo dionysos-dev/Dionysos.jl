@@ -125,20 +125,20 @@ function plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h; eps = 1e-10)
     annotate!(
         xlimits[1] + 0.04 * (xlimits[2] - xlimits[1]),
         -1 + 0.04 * (ylimits[2] - ylimits[1]),
-        text("-1", :right; color = :red, 14),
+        text("-1", :right, 14; color = :red),
     )
 
     hline!([-gstar]; linestyle = :dash, linewidth = 2, color = :green, label = "")
     annotate!(
         xlimits[1] - 0.01 * (xlimits[2] - xlimits[1]),
         -gstar,
-        text("ℓ*", :right; color = :green, 14),
+        text("ℓ*", :right, 14; color = :green),
     )
     vline!([βstar]; linestyle = :dash, linewidth = 2, color = :green, label = "")
     annotate!(
         βstar,
         ylimits[1] - 0.05 * (ylimits[2] - ylimits[1]),
-        text("β*", :upper; color = :green, 14),
+        text("β*", :upper, 14; color = :green),
     )
     scatter!([βstar], [-gstar]; markersize = 4, color = :green, label = "")
 
@@ -147,14 +147,14 @@ function plotSecularFunction(El0, El, intervalx, intervalfx, ϵ, h; eps = 1e-10)
         annotate!(
             ub,
             ylimits[1] - 0.05 * (ylimits[2] - ylimits[1]),
-            text("ub", :upper; color = :black, 14),
+            text("ub", :upper, 14; color = :black),
         )
     end
     return display(p)
 end
 
 # CASE 1: Intersection but no inclusion
-function fig1()
+function figure1()
     a = 1.0
     c0 = [1.6 + a; 1.4 + a]
     P0 = [
@@ -184,13 +184,13 @@ function fig1()
         p,
         3.0,
         3.0,
-        text(latexstring("\$\\mathcal{E}_0\$"), :upper; color = myorangeN, 30),
+        text(latexstring("\$\\mathcal{E}_0\$"), :upper, 30; color = myorangeN),
     )
     annotate!(
         p,
         1.5,
         1.5,
-        text(latexstring("\$\\mathcal{E}\$"), :upper; color = myblueN, 30),
+        text(latexstring("\$\\mathcal{E}\$"), :upper, 30; color = myblueN),
     )
     display(p)
     #########################################
@@ -198,7 +198,7 @@ function fig1()
 end
 
 # CASE 2: Inclusion with contact point
-function fig2()
+function figure2()
     a = 0.89
     c0 = [1.6 + a; 1.4 + a]
     P0 = [
@@ -227,13 +227,13 @@ function fig2()
         p,
         3.0,
         3.0,
-        text(latexstring("\$\\mathcal{E}_0\$"), :upper; color = myorangeN, 30),
+        text(latexstring("\$\\mathcal{E}_0\$"), :upper, 30; color = myorangeN),
     )
     annotate!(
         p,
         1.5,
         1.5,
-        text(latexstring("\$\\mathcal{E}\$"), :upper; color = myblueN, 30),
+        text(latexstring("\$\\mathcal{E}\$"), :upper, 30; color = myblueN),
     )
     display(p)
     #########################################
@@ -241,7 +241,7 @@ function fig2()
 end
 
 # CASE 3: Strict inclusion
-function fig3()
+function figure3()
     a = 0.6
     c0 = [1.6 + a; 1.4 + a]
     P0 = [
@@ -270,13 +270,13 @@ function fig3()
         p,
         3.0,
         3.0,
-        text(latexstring("\$\\mathcal{E}_0\$"), :upper; color = myorangeN, 30),
+        text(latexstring("\$\\mathcal{E}_0\$"), :upper, 30; color = myorangeN),
     )
     annotate!(
         p,
         1.5,
         1.5,
-        text(latexstring("\$\\mathcal{E}\$"), :upper; color = myblueN, 30),
+        text(latexstring("\$\\mathcal{E}\$"), :upper, 30; color = myblueN),
     )
     display(p)
     #########################################
@@ -312,19 +312,19 @@ function fig4()
         p,
         4.9,
         4.4,
-        text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper; color = myredN, 30),
+        text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper, 30; color = myredN),
     )
     annotate!(
         p,
         3.0,
         3.0,
-        text(latexstring("\$\\mathcal{E}_0\$"), :upper; color = myorangeN, 30),
+        text(latexstring("\$\\mathcal{E}_0\$"), :upper, 30; color = myorangeN),
     )
     annotate!(
         p,
         1.5,
         1.5,
-        text(latexstring("\$\\mathcal{E}\$"), :upper; color = myblueN, 30),
+        text(latexstring("\$\\mathcal{E}\$"), :upper, 30; color = myblueN),
     )
     display(p)
     #########################################
@@ -380,31 +380,31 @@ function particularCase()
     annotate!(
         El0.c[1],
         El0.c[2],
-        text(latexstring("\$\\mathcal{E}_0\$"), :upper; color = myorangeN, 25),
+        text(latexstring("\$\\mathcal{E}_0\$"), :upper, 25; color = myorangeN),
     )
     annotate!(
         El1.c[1],
         El1.c[2],
-        text(latexstring("\$\\mathcal{E}\$"), :upper; color = myblueN, 25),
+        text(latexstring("\$\\mathcal{E}\$"), :upper, 25; color = myblueN),
     )
     annotate!(
         El02.c[1],
         El02.c[2],
-        text(latexstring("\$\\tilde{\\mathcal{E}}_0\$"), :upper; color = myorangeN, 20),
+        text(latexstring("\$\\tilde{\\mathcal{E}}_0\$"), :upper, 20; color = myorangeN),
     )
     annotate!(
         El2.c[1],
         El2.c[2],
-        text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper; color = myblueN, 20),
+        text(latexstring("\$\\tilde{\\mathcal{E}}\$"), :upper, 20; color = myblueN),
     )
     annotate!(
         El3.c[1],
         El3.c[2],
         text(
             latexstring("\$\\tilde{\\tilde{\\mathcal{E}}}\$"),
-            :upper;
+            :upper,
+            15;
             color = myblueN,
-            15,
         ),
     )
 
@@ -507,22 +507,22 @@ function test1()
         text(latexstring("\$\\bar{\\mathcal{E}}\$"); color = myblueN, r),
     )
 
-    annotate!(-0.25, -0.25, text(latexstring("\$0\$"); color = :black, 12))
-    annotate!(El.c[1] - 0.15, El.c[2] - 0.3, text(latexstring("\$c\$"); color = :black, 13))
+    annotate!(-0.25, -0.25, text(latexstring("\$0\$"), 12; color = :black))
+    annotate!(El.c[1] - 0.15, El.c[2] - 0.3, text(latexstring("\$c\$"), 13; color = :black))
     annotate!(
         El0.c[1] - 0.081,
         El0.c[2] - 0.4,
-        text(latexstring("\$c_0\$"); color = :black, 13),
+        text(latexstring("\$c_0\$"), 13; color = :black),
     )
     annotate!(
         El_1.c[1] - 0.08,
         El_1.c[2] - 0.4,
-        text(latexstring("\$\\tilde{c}\$"); color = :black, 13),
+        text(latexstring("\$\\tilde{c}\$"), 13; color = :black),
     )
     annotate!(
         El_2.c[1] - 0.25,
         El_2.c[2] - 0.3,
-        text(latexstring("\$\\bar{c}\$"); color = :black, 13),
+        text(latexstring("\$\\bar{c}\$"), 13; color = :black),
     )
     display(p)
     #########################################
@@ -577,22 +577,22 @@ function test2()
         text(latexstring("\$\\bar{\\mathcal{E}}\$"); color = myblueN, r),
     )
 
-    annotate!(-0.25, -0.25, text(latexstring("\$0\$"); color = :black, 12))
-    annotate!(El.c[1] - 0.15, El.c[2] - 0.3, text(latexstring("\$c\$"); color = :black, 13))
+    annotate!(-0.25, -0.25, text(latexstring("\$0\$"), 12; color = :black))
+    annotate!(El.c[1] - 0.15, El.c[2] - 0.3, text(latexstring("\$c\$"), 13; color = :black))
     annotate!(
         El0.c[1] - 0.081,
         El0.c[2] - 0.4,
-        text(latexstring("\$c_0\$"); color = :black, 13),
+        text(latexstring("\$c_0\$"), 13; color = :black),
     )
     annotate!(
         El_1.c[1] - 0.08,
         El_1.c[2] - 0.4,
-        text(latexstring("\$\\tilde{c}\$"); color = :black, 13),
+        text(latexstring("\$\\tilde{c}\$"), 13; color = :black),
     )
     annotate!(
         El_2.c[1] - 0.25,
         El_2.c[2] - 0.3,
-        text(latexstring("\$\\bar{c}\$"); color = :black, 13),
+        text(latexstring("\$\\bar{c}\$"), 13; color = :black),
     )
     display(p)
     #########################################
@@ -606,4 +606,4 @@ end
 # tansformations()
 # fig3()
 # particularCase()
-fig1()
+figure1()
