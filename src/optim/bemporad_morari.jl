@@ -14,7 +14,8 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets, Polyhedra
+using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets
+import Polyhedra
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
@@ -149,7 +150,7 @@ indicator_constraint(model::JuMP.Model, δ, func, set) =
 
 function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimizer, δ)
     set = first(sets)
-    add_constraint(model, x, Polyhedra.PolyhedraOptSet(hrep(set)))
+    add_constraint(model, x, Polyhedra.PolyhedraOptSet(Polyhedra.hrep(set)))
     return δ
 end
 
@@ -163,15 +164,15 @@ function hybrid_constraints(
     δs = indicator_variables(model, δs, T)
     for (δ, set) in zip(δs, sets)
         # TODO implement indicator with Polyhedra in Polyhedra.jl
-        for h in halfspaces(hrep(set))
+        for h in Polyhedra.halfspaces(Polyhedra.hrep(set))
             if algo.indicator
                 indicator_constraint(model, δ, x ⋅ h.a, MOI.LessThan(h.β))
             else
-                M = maximum([support_function(h.a, set) for set in sets])
+                M = maximum([Polyhedra.support_function(h.a, set) for set in sets])
                 add_constraint(model, x ⋅ h.a + (M - h.β) * δ, MOI.LessThan(M))
             end
         end
-        for h in hyperplanes(hrep(set))
+        for h in Polyhedra.hyperplanes(Polyhedra.hrep(set))
             indicator_constraint(model, δ, x ⋅ h.a, MOI.EqualTo(h.β))
         end
     end

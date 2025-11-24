@@ -8,6 +8,12 @@ import MathematicalSystems as MS
 using Symbolics
 import IntervalArithmetic as IA
 import IntervalLinearAlgebra as IL
+# Workaround for IntervalLinearAlgebra not having `Interval` bound
+if !isdefined(IntervalLinearAlgebra, :Interval)
+    # bind IntervalLinearAlgebra.Interval to IntervalArithmetic.Interval
+    IntervalLinearAlgebra.Interval = IA.Interval
+end
+
 import LinearAlgebra as LA
 
 import JuMP: MOI

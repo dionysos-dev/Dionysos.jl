@@ -11,7 +11,7 @@ const OP = DI.Optim
 
 using LinearAlgebra, Test
 import CDDLib
-using Polyhedra
+import Polyhedra
 using HybridSystems
 
 _name(o::MOI.OptimizerWithAttributes) = split(string(o.optimizer_constructor), ".")[2]
@@ -73,18 +73,19 @@ function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
     Q_function = OP.instantiate(prob, algo)
     OP.learn(Q_function, prob, dtraj, ctraj, algo)
     @test isempty(Q_function.cuts[0, 15])
-    @test !hasallhalfspaces(Q_function.domains[0, 15])
+    @test !Polyhedra.hasallhalfspaces(Q_function.domains[0, 15])
     @test length(Q_function.cuts[1, 15]) == 1
     @test first(Q_function.cuts[1, 15]) ≈
           UT.AffineFunction([0.0, 2.583334480953581], -2.960071516682004) rtol = 1e-6
-    @test !hashyperplanes(Q_function.domains[1, 15]) == 1
-    @test nhalfspaces(Q_function.domains[1, 15]) == 1
+    @test !Polyhedra.hashyperplanes(Q_function.domains[1, 15]) == 1
+    @test Polyhedra.nhalfspaces(Q_function.domains[1, 15]) == 1
     a = normalize(-[2, 1])
-    @test first(halfspaces(Q_function.domains[1, 15])) ≈ HalfSpace(a, a ⋅ x0)
+    @test first(Polyhedra.halfspaces(Q_function.domains[1, 15])) ≈
+          Polyhedra.HalfSpace(a, a ⋅ x0)
     @test isempty(Q_function.cuts[0, 20])
-    @test !hasallhalfspaces(Q_function.domains[0, 20])
+    @test !Polyhedra.hasallhalfspaces(Q_function.domains[0, 20])
     @test isempty(Q_function.cuts[1, 20])
-    @test !hasallhalfspaces(Q_function.domains[1, 20])
+    @test !Polyhedra.hasallhalfspaces(Q_function.domains[1, 20])
 end
 const x_expected_9 = [
     [-0.925, -2.35],
