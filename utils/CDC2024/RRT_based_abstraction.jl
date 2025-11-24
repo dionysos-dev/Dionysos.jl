@@ -26,7 +26,7 @@ Wbound = 0.0
 λ = 0.01
 
 concrete_problem = NonLinear.problem(;
-    X = IA.IntervalBox(-20.0 .. 20.0, 2),
+    X = IA.IntervalBox(IA.interval(-20.0, 20.0), 2),
     obstacles = [
         UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1 / 50, [0.0; 0.0]),
         UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),

@@ -1,7 +1,8 @@
 export EllipsoidsAbstraction
 
 module EllipsoidsAbstraction
-using LinearAlgebra, JuMP
+using JuMP
+import LinearAlgebra as LA
 
 import Dionysos
 const DI = Dionysos
@@ -91,7 +92,7 @@ function build_abstraction(
 
     # Now let us define the L matrix defining the stage cost $\mathcal{J}(x,u) = ||L \cdot [x; u ; 1]||^2_2$
     Q_aug = UT.get_full_psd_matrix(concrete_problem.transition_cost[1][1])
-    eigen_Q = eigen(Q_aug)
+    eigen_Q = LA.eigen(Q_aug)
     L = (sqrt.(eigen_Q.values) .* (eigen_Q.vectors'))'
 
     # ## Building the abstraction

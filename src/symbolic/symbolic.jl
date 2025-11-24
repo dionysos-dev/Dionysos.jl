@@ -31,9 +31,10 @@ include("grid_based_symbolic_model/hierarchical_symbolic.jl")
 include("alternating_simulation.jl")
 include("proba_automaton.jl")
 
-using Polyhedra
+import Polyhedra
 import IntervalArithmetic as IA
-using ProgressMeter, LazySets
+import LazySets
+using ProgressMeter
 using JuMP
 include("ellipsoidal_transitions.jl")
 

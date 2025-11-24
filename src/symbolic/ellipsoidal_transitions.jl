@@ -39,8 +39,8 @@ end
 function _getμν(L, subsys::AffineSys)
     n_x = length(subsys.c)
     return (
-        vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:n_x])),
-        vertices_list(IA.IntervalBox(subsys.D * subsys.W...)),
+        LazySets.vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:n_x])),
+        LazySets.vertices_list(IA.IntervalBox(subsys.D * subsys.W...)),
     )
 end
 
@@ -300,9 +300,12 @@ function _compute_base_cell(r::SVector{S}) where {S}
     baseCellList = []
     for i in 1:S
         vec = SVector{S}(1:S .== i)
-        append!(baseCellList, [HalfSpace(-vec, r[i]) ∩ HalfSpace(vec, r[i])])
+        append!(
+            baseCellList,
+            [Polyhedra.HalfSpace(-vec, r[i]) ∩ Polyhedra.HalfSpace(vec, r[i])],
+        )
     end
-    return polyhedron(intersect(baseCellList...))
+    return Polyhedra.polyhedron(intersect(baseCellList...))
 end
 
 #
@@ -455,7 +458,7 @@ function _getμν(L, nx, D, W)
     vertices_matrix = D * W
     noise_vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
     return (
-        vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:nx])),
+        LazySets.vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:nx])),
         noise_vertices,
     )
 end
@@ -683,7 +686,7 @@ function compute_symmodel_from_hybridcontrolsystem!(
     function _compute_xpost(A, x, B, U, c, R)
         Axcell = A * bds2rectverts(x - R, x + R)
 
-        Bu = B * hcat(points(U)...)
+        Bu = B * hcat(Polyhedra.points(U)...)
 
         return [
             min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c - R, #

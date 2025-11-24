@@ -9,6 +9,7 @@ const ST = DI.System
 const PR = DI.Problem
 
 using JuMP
+using LinearAlgebra
 
 import MutableArithmetics
 const MA = MutableArithmetics
@@ -152,7 +153,6 @@ function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimiz
     return δ
 end
 
-using LinearAlgebra
 function hybrid_constraints(
     model,
     sets::AbstractVector{<:Polyhedra.Rep},

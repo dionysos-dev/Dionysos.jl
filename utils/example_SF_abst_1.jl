@@ -1,4 +1,5 @@
-using StaticArrays, LinearAlgebra, Polyhedra
+using StaticArrays
+import LinearAlgebra as LA
 using Plots
 using JuMP, Clarabel
 using MathematicalSystems, HybridSystems, SemialgebraicSets, CDDLib
@@ -17,7 +18,7 @@ const SY = DI.Symbolic
 
 lib = CDDLib.Library() #polyhedron lib
 # aux functions
-eye(n) = diagm(ones(n)) # I matrix
+eye(n) = LA.diagm(ones(n)) # I matrix
 sm(M) = SMatrix{size(M, 1), size(M, 2)}(M)
 sv(M) = SVector{size(M, 1)}(M)
 
@@ -47,7 +48,7 @@ function trial(dt, Usz, Wmax, contraction, initial_vol)
     B = M_aux[1:n_sys, n_sys .+ (1:n_u)]
     g = M_aux[1:n_sys, n_sys + n_u + 1]
 
-    Uaux = diagm(1:n_u)
+    Uaux = LA.diagm(1:n_u)
     U = [(Uaux .== i) ./ Usz for i in 1:n_u]
 
     W =

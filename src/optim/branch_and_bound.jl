@@ -10,7 +10,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 
 using DataStructures # for BinaryMinHeap
-using JuMP, Polyhedra
+using JuMP
 using HybridSystems
 
 """

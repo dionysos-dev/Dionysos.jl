@@ -1,6 +1,7 @@
 module PWAsys
 
-using StaticArrays, Polyhedra
+using StaticArrays
+import Polyhedra
 import LinearAlgebra as LA
 using MathematicalSystems, HybridSystems
 using FillArrays, CDDLib
@@ -21,25 +22,29 @@ function system(lib, dt, Usz, Wsz; simple = false)
     n_sys = 2
     n_u = 2
     #PWA partitions
-    repX1 = intersect(HalfSpace(SVector{2}([1, 0]), -1))
-    pX1 = polyhedron(repX1, lib)
-    repX2 = HalfSpace(SVector{2}([-1, 0]), 1) ∩ HalfSpace(SVector{2}([1, 0]), 1)
-    pX2 = polyhedron(repX2, lib)
-    repX3 = intersect(HalfSpace(SVector{2}([-1, 0]), -1))
-    pX3 = polyhedron(repX3, lib)
+    repX1 = intersect(Polyhedra.HalfSpace(SVector{2}([1, 0]), -1))
+    pX1 = Polyhedra.polyhedron(repX1, lib)
+    repX2 =
+        Polyhedra.HalfSpace(SVector{2}([-1, 0]), 1) ∩
+        Polyhedra.HalfSpace(SVector{2}([1, 0]), 1)
+    pX2 = Polyhedra.polyhedron(repX2, lib)
+    repX3 = intersect(Polyhedra.HalfSpace(SVector{2}([-1, 0]), -1))
+    pX3 = Polyhedra.polyhedron(repX3, lib)
 
     #control input bounded region
     if n_u > 1
         repU = intersect(
             [
-                HalfSpace(SVector{n_u}(-(1:n_u .== i)), Usz) ∩
-                HalfSpace(SVector{n_u}((1:n_u .== i)), Usz) for i in 1:n_u
+                Polyhedra.HalfSpace(SVector{n_u}(-(1:n_u .== i)), Usz) ∩
+                Polyhedra.HalfSpace(SVector{n_u}((1:n_u .== i)), Usz) for i in 1:n_u
             ]...,
         )
     else
-        repU = HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩ HalfSpace(SVector{n_u}([1.0]), Usz)
+        repU =
+            Polyhedra.HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩
+            HalfSpace(SVector{n_u}([1.0]), Usz)
     end
-    pU = polyhedron(repU, lib)
+    pU = Polyhedra.polyhedron(repU, lib)
     pX = [pX1 pX2 pX3]
 
     A = Vector{SMatrix{n_sys, n_sys, Float64}}(undef, N_region)
