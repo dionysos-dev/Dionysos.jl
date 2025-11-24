@@ -41,11 +41,11 @@ function system(X, U, W, obstacles, Ts, noise, μ)
 
     #### PWA approximation description #####
     # symmetric box [-1,1]^2
-    ΔX = IA.IntervalBox(IA.Interval(-1.0, 1.0), 2)
+    ΔX = IA.IntervalBox(IA.interval(-1.0, 1.0), 2)
     # symmetric box [-20,20]^2
-    ΔU = IA.IntervalBox(IA.Interval(-20.0, 20.0), 2)
+    ΔU = IA.IntervalBox(IA.interval(-20.0, 20.0), 2)
     # zero noise
-    ΔW = IA.IntervalBox(IA.Interval(0.0, 0.0), 1)
+    ΔW = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
@@ -94,7 +94,7 @@ end
 
 function problem(;
     # global state domain: [-20, 20]^2
-    X = IA.IntervalBox(IA.Interval(-20.0, 20.0), 2),
+    X = IA.IntervalBox(IA.interval(-20.0, 20.0), 2),
 
     # obstacle: ellipsoid with covariance (I/50) at [0,0]
     obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 50), [0.0; 0.0])],

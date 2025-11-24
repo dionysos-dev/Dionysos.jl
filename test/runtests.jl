@@ -1,3 +1,4 @@
+include("./optim/test_lazy_ellipsoids_abstraction.jl")
 include("./utils/data_structures/test_queue.jl")
 include("./utils/data_structures/test_digraph.jl")
 include("./utils/data_structures/tree.jl")
@@ -37,7 +38,7 @@ include("./optim/test_UniformGridAbstraction_safety.jl")
 include("./optim/test_UniformGridAbstraction_reachability.jl")
 include("./optim/test_lazy_abstraction.jl")
 include("./optim/test_ellipsoids_abstraction.jl")
-include("./optim/test_lazy_ellipsoids_abstraction.jl")
+
 include("./optim/test_hierarchical_abstraction.jl")
 include("./optim/test_timed_hybrid_abstraction.jl")
 
