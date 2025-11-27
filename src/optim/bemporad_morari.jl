@@ -229,6 +229,24 @@ function hybrid_constraints(
     return hybrid_constraints(model, inner_vector(system -> system.U, systems), u, algo, δ)
 end
 
+function hybrid_constraints(
+    model,
+    systems::Fill{<:ConstrainedAffineControlContinuousSystem},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    system = first(systems)
+    add_constraint.(
+        model,
+        x - system.A * x_prev - system.B * u - system.c,
+        MOI.EqualTo(zero(T)),
+    )
+    return δ
+end
+
 # TODO move to MA
 #Base.zero(::Type{MA.Zero}) = MA.Zero()
 
