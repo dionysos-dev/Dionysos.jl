@@ -2,14 +2,14 @@
 #  UTILITIES
 # ------------------------------
 
-function runge_kutta4(dynamics, x, u, tstep, num_substeps::Int)
+function runge_kutta4(dynamics, x::SVector, u, tstep, num_substeps::Int)
     τ = tstep / num_substeps
     for _ in 1:num_substeps
         k1 = dynamics(x, u)
-        k2 = dynamics(x + k1 * (τ / 2), u)
-        k3 = dynamics(x + k2 * (τ / 2), u)
-        k4 = dynamics(x + k3 * τ, u)
-        x = x + (k1 + 2 * k2 + 2 * k3 + k4) * (τ / 6)
+        k2 = dynamics(x .+ (τ/2) .* k1, u)
+        k3 = dynamics(x .+ (τ/2) .* k2, u)
+        k4 = dynamics(x .+ τ .* k3, u)
+        x = x .+ (τ/6) .* (k1 .+ 2k2 .+ 2k3 .+ k4)
     end
     return x
 end

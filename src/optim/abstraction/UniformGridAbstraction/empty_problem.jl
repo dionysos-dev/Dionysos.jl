@@ -129,16 +129,17 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     discrete_time_system::Union{
         Nothing,
         MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
+        Vector{MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem},
     }
-    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList, Dionysos.Symbolic.TemporalSymbolicModelList}
     abstraction_construction_time_sec::T
 
     ## System Approximation
     continuous_time_system_approximation::Union{
         Nothing,
         ST.ContinuousTimeSystemApproximation,
-    }
-    discrete_time_system_approximation::Union{Nothing, ST.DiscreteTimeSystemApproximation}
+    } 
+    discrete_time_system_approximation::Union{Nothing, ST.DiscreteTimeSystemApproximation, Vector{<:ST.DiscreteTimeSystemApproximation}}
 
     ## User Settings
     empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
@@ -169,7 +170,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     n_samples::Union{Nothing, Int}
 
     ### Continuous-Time System Settings
-    time_step::Union{Nothing, T}
+    time_step::Union{Nothing, T, Vector{T}} # a vector if multiple time steps
     nsystem::Int
 
     ### System Approximation Settings
@@ -270,7 +271,6 @@ function build_continuous_approximation(optimizer::OptimizerEmptyProblem, system
     elseif mode == RANDOM_SIMULATION
         _validate_model(optimizer, [:n_samples])
         return ST.ContinuousTimeRandomSimulation(system, optimizer.n_samples)
-
     else
         error("Unsupported approximation mode: $mode")
     end
@@ -308,21 +308,30 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
 
     system = optimizer.empty_problem.system
     if isa(system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
-        _validate_model(optimizer, [:time_step])  # Ensure time step is provided
+        _validate_model(optimizer, [:time_step])  # Ensure time step(s) is/are provided
         optimizer.continuous_time_system_approximation =
-            build_continuous_approximation(optimizer, system)
-        optimizer.discrete_time_system_approximation = ST.discretize(
-            optimizer.continuous_time_system_approximation,
-            optimizer.time_step,
-        )
+                build_continuous_approximation(optimizer, system)
+        if isa(optimizer.time_step, AbstractVector)
+            optimizer.time_step = sort(optimizer.time_step) # Ensure time steps are sorted --> better for when constructing abstraction
+            optimizer.discrete_time_system_approximation = [ST.discretize(optimizer.continuous_time_system_approximation, ts) for ts in optimizer.time_step]
+        else
+            optimizer.discrete_time_system_approximation = ST.discretize(optimizer.continuous_time_system_approximation, optimizer.time_step)
+        end
     elseif isa(system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
         optimizer.discrete_time_system_approximation =
             build_discrete_approximation(optimizer, system)
     else
         error("Unknown system type: $(typeof(system))")
     end
-    return optimizer.discrete_time_system =
-        ST.get_system(optimizer.discrete_time_system_approximation)
+    if optimizer.discrete_time_system_approximation isa AbstractVector 
+        optimizer.discrete_time_system = Vector{MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem}(undef, length(optimizer.discrete_time_system_approximation))
+        for (i, approx) in enumerate(optimizer.discrete_time_system_approximation)
+            optimizer.discrete_time_system[i] = ST.get_system(approx)
+        end
+    else
+        optimizer.discrete_time_system = ST.get_system(optimizer.discrete_time_system_approximation)
+    end
+    return optimizer.discrete_time_system 
 end
 
 function build_state_domain(optimizer::OptimizerEmptyProblem)
@@ -404,17 +413,27 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     # Create over-approximation method
     build_system_approximation!(optimizer)
-
+    
     # Create abstract system
-    abstract_system = Dionysos.Symbolic.SymbolicModelList(
-        build_state_domain(optimizer),
-        build_input_domain(optimizer),
-        optimizer.automaton_constructor,
-    )
+    if optimizer.time_step isa AbstractVector 
+        abstract_system = Dionysos.Symbolic.TemporalSymbolicModelList(
+            build_state_domain(optimizer),
+            build_input_domain(optimizer),
+            optimizer.time_step,
+            optimizer.automaton_constructor,
+        )
+    else # time_step is a scalar
+         abstract_system = Dionysos.Symbolic.SymbolicModelList(
+            build_state_domain(optimizer),
+            build_input_domain(optimizer),
+            optimizer.automaton_constructor,
+        )
+    end
 
     if optimizer.print_level >= 2
         @info("Number of states: $(SY.get_n_state(abstract_system))")
         @info("Number of inputs: $(SY.get_n_input(abstract_system))")
+        @info("Number of timesteps: $(optimizer.time_step isa AbstractVector ? length(optimizer.time_step) : 1)")
         @info(
             "Number of forward images: $(SY.get_n_input(abstract_system)*SY.get_n_state(abstract_system))"
         )
@@ -435,7 +454,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
             );
             verbose = optimizer.print_level >= 2,
         )
-    else
+    else #if efficient
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
             abstract_system,
             optimizer.discrete_time_system_approximation;

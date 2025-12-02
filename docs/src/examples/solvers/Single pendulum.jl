@@ -38,12 +38,12 @@ using Dionysos, JuMP
 model = Model(Dionysos.Optimizer)
 
 # Define the discretization step
-hx = 0.05
+hx = 0.1
 l = 1.0
 g = 9.81
 
 # Define the state variables: x1(t), x2(t)
-x_low, x_upp = [-π, -10.0], [π + pi, 10.0]
+x_low, x_upp = [-pi, -10.0], [2pi, 10.0]
 @variable(model, x_low[i] <= x[i = 1:2] <= x_upp[i])
 nothing #hide
 
@@ -56,13 +56,19 @@ nothing #hide
 
 # Define the initial and target sets
 x1_initial, x2_initial = (5.0 * pi / 180.0) .* [-1, 1], 0.5 .* [-1, 1]
-x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
+x1_target, x2_target = pi .+ (30.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 
 @constraint(model, start(x[1]) in MOI.Interval(x1_initial...))
 @constraint(model, start(x[2]) in MOI.Interval(x2_initial...))
 
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
+
+# # define cost variable
+# @variable(model, total_cost >= 0.0)
+# @constraint(model, start(total_cost) == 0.0)
+# @constraint(model, ∂(total_cost)     == u^2)
+# @objective(model, Min, total_cost)
 
 # ### Definition of the abstraction
 
@@ -74,7 +80,8 @@ function jacobian_bound(u)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound)
 
-set_attribute(model, "time_step", 0.1)
+set_attribute(model, "time_step", collect(0.1:0.1:0.5))
+# set_attribute(model, "time_step", 0.1);
 
 x0 = SVector(0.0, 0.0);
 h = SVector(hx, hx);
@@ -82,7 +89,7 @@ set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0);
-h = SVector(0.3);
+h = SVector(0.3 * 5); # because five timesteps
 set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
 
 # Solving the problem
@@ -96,8 +103,13 @@ concrete_controller = get_attribute(model, "concrete_controller")
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system;
 abstract_value_function = get_attribute(model, "abstract_value_function");
+concrete_value_function = get_attribute(model, "concrete_value_function");
 
-# ### Trajectory display
+tstep = get_attribute(model, "time_step");
+println("Time step used for simulation: $tstep")
+
+println(typeof(concrete_system))
+
 nstep = 100
 function reached(x)
     if x ∈ concrete_problem.target_set
@@ -107,8 +119,13 @@ function reached(x)
     end
 end
 x0 = SVector(Dionysos.Utils.sample(concrete_problem.initial_set)...)
+abstract_x0 = SY.get_abstract_state(abstract_system, x0)
+println("Value at initial state: ", abstract_value_function(abstract_x0))
+
+println("Value at initial state (concrete): ", concrete_value_function(x0))
+
 control_trajectory = Dionysos.System.get_closed_loop_trajectory(
-    get_attribute(model, "discrete_time_system"),
+    concrete_system, #continuous time
     concrete_controller,
     x0,
     nstep;

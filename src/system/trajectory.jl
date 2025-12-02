@@ -152,22 +152,36 @@ function get_periodic_wrapper(
     return x -> wrap_coord(x, periodic_dims, periods; start = start)
 end
 
+function integrate(system::MS.ConstrainedBlackBoxControlContinuousSystem, x, u, tstep; num_substeps::Int=3)
+    dynamics = MS.mapping(system)
+    τ = tstep / num_substeps
+    for _ in 1:num_substeps
+        k1 = dynamics(x, u)
+        k2 = dynamics(x + (τ / 2) * k1, u)
+        k3 = dynamics(x + (τ / 2) * k2, u)
+        k4 = dynamics(x + τ * k3, u)
+        x = x + (τ / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+    end
+    return x
+end
+
 function get_closed_loop_trajectory(
-    system::MS.ConstrainedBlackBoxControlDiscreteSystem,
+    system::MS.ConstrainedBlackBoxControlContinuousSystem, 
     controller::ContinuousController,
     x0,
     nstep;
     stopping = (x) -> false,
     periodic_wrapper = x -> x,
+    tstep = nothing,
 )
     x = periodic_wrapper(x0)
     x_traj, u_traj = [x], []
-
+    
     for _ in 1:nstep
         stopping(x) && break
         u = get_control(controller, x)
         u === nothing && break
-        x = MS.mapping(system)(x, u)
+        u isa Tuple ? x = integrate(system, x, u[1], u[2]) : x = integrate(system, x, u, tstep) # we assume the system is continuous time ?
         x = periodic_wrapper(x)
         push!(x_traj, x)
         push!(u_traj, u)
@@ -176,6 +190,57 @@ function get_closed_loop_trajectory(
     return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
 end
 
+# function get_closed_loop_trajectory(
+#     system::Union{MS.ConstrainedBlackBoxControlDiscreteSystem, Vector{<:MS.ConstrainedBlackBoxControlDiscreteSystem}},
+#     controller::ContinuousController,
+#     x0,
+#     nstep;
+#     stopping = (x) -> false,
+#     periodic_wrapper = x -> x,
+# )
+#     x = periodic_wrapper(x0)
+#     x_traj, u_traj = [x], []
+
+#     for _ in 1:nstep
+#         stopping(x) && break
+#         u = get_control(controller, x)
+#         u === nothing && break
+#         u isa Tuple ? x = MS.mapping(system[u[2][2]])(x,u[1]) : x = MS.mapping(system)(x, u)
+#         x = periodic_wrapper(x)
+#         push!(x_traj, x)
+#         push!(u_traj, u)
+#     end
+
+#     return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
+# end
+
+function get_closed_loop_trajectory(
+    system::Union{MS.ConstrainedBlackBoxControlContinuousSystem, Vector{<:MS.ConstrainedBlackBoxControlContinuousSystem}},
+    controller::ContinuousController,
+    cost_eval,
+    x0,
+    nstep;
+    stopping = (x) -> false,
+    periodic_wrapper = x -> x,
+)
+    x = periodic_wrapper(x0)
+    x_traj, u_traj, cost_traj = [x], [], []
+
+    for _ in 1:nstep
+        stopping(x) && break
+        u = get_control(controller, x)
+        u === nothing && break
+        push!(u_traj, u)
+        push!(cost_traj, cost_eval(x, u))
+        u isa Tuple ? x = MS.mapping(system[u[2][2]])(x,u[1]) : x = MS.mapping(system)(x, u)
+        x = periodic_wrapper(x)
+        push!(x_traj, x)
+    end
+    control_trajectory = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
+    return Cost_control_trajectory(control_trajectory, Trajectory(cost_traj))
+end
+
+# old version
 function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
     x = x0
     x_traj = [x]
@@ -186,7 +251,7 @@ function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (
         if u === nothing
             break
         end
-        x = contsys.sys_map(x, u, contsys.tstep)
+        u isa Tuple ? x = contsys.sys_map(x, u[1], u[2]) : x = contsys.sys_map(x, u, contsys.tstep)
         push!(x_traj, x)
         push!(u_traj, u)
         i = i + 1

@@ -76,7 +76,7 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Inputs
     concrete_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
-    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList, Dionysos.Symbolic.TemporalSymbolicModelList}
 
     # Common parameters
     abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
@@ -150,6 +150,8 @@ end
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t_ref = time()
 
+    println("Building abstract problem for OptimalControlProblem...")
+
     # Ensure abstract system is set before proceeding
     if optimizer.abstract_system === nothing
         error("Abstract system is not defined. Ensure abstraction is computed first.")
@@ -221,7 +223,7 @@ end
 
 function build_abstract_problem(
     concrete_problem::Dionysos.Problem.OptimalControlProblem,
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
+    abstract_system::Union{Dionysos.Symbolic.SymbolicModelList, Dionysos.Symbolic.TemporalSymbolicModelList},
 )
     @warn("The `state_cost` is not yet fully implemented")
 

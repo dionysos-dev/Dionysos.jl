@@ -169,7 +169,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     end
 
     # Try setting it in the sub-solvers
-    for solver in (model.abstraction_solver, model.control_solver)
+    for solver in (model.abstraction_solver, model.control_solver)        
         if solver !== nothing && hasfield(typeof(solver), param_symbol)
             return setproperty!(solver, param_symbol, value)
         end
