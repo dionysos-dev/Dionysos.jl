@@ -6,7 +6,7 @@ const UT = DI.Utils
 const PR = DI.Problem
 
 using FillArrays
-using Polyhedra
+import Polyhedra
 using MathematicalSystems, HybridSystems
 using SemialgebraicSets
 
@@ -14,8 +14,8 @@ import CDDLib
 
 # function to get vertices of polygon in the good cw order (for plotting)
 function get_ordered_vertices(po)
-    center = center_of_mass(po)
-    p = [points(po)...]
+    center = Polyhedra.center_of_mass(po)
+    p = [Polyhedra.points(po)...]
     sort!(p; lt = (a, b) -> begin
         a_ang = atan((a - center)...) % 2pi
         b_ang = atan((b - center)...) % 2pi
@@ -26,14 +26,14 @@ end
 
 function system(lib, T::Type)
     function rect(x_l, x_u)
-        r = HalfSpace([-1], -T(x_l)) ∩ HalfSpace([1], T(x_u))
-        return polyhedron(r, lib)
+        r = Polyhedra.HalfSpace([-1], -T(x_l)) ∩ Polyhedra.HalfSpace([1], T(x_u))
+        return Polyhedra.polyhedron(r, lib)
     end
     function rect(x_l, x_u, y_l, y_u)
         r =
-            HalfSpace([-1, 0], -T(x_l)) ∩ HalfSpace([1, 0], T(x_u)) ∩
-            HalfSpace([0, -1], -T(y_l)) ∩ HalfSpace([0, 1], T(y_u))
-        return polyhedron(r, lib)
+            Polyhedra.HalfSpace([-1, 0], -T(x_l)) ∩ Polyhedra.HalfSpace([1, 0], T(x_u)) ∩
+            Polyhedra.HalfSpace([0, -1], -T(y_l)) ∩ Polyhedra.HalfSpace([0, 1], T(y_u))
+        return Polyhedra.polyhedron(r, lib)
     end
 
     pX = rect(-10, 1.85, -10, 2)
@@ -90,14 +90,24 @@ function system(lib, T::Type)
     B = reshape(T[0.5, 1], 2, 1)
 
     #ResetMaps = Vector{ConstrainedLinearControlDiscreteSystem}(undef, length(domains)^2)
-    cU = polyhedron(HalfSpace(T[0, 0, -1], 2) ∩ HalfSpace(T[0, 0, 1], 2), lib)
+    cU = Polyhedra.polyhedron(
+        Polyhedra.HalfSpace(T[0, 0, -1], 2) ∩ Polyhedra.HalfSpace(T[0, 0, 1], 2),
+        lib,
+    )
 
     function back(from, to)
         # The `hrep` and `polyhedron` are workaround for an issue similar to
         # https://github.com/JuliaPolyhedra/Polyhedra.jl/issues/216
-        return polyhedron(
-            hrep(project(polyhedron([A B] \ hrep(domains[to]) ∩ hrep(cU), lib), 1:2)) ∩
-            hrep(domains[from]),
+        return Polyhedra.polyhedron(
+            Polyhedra.hrep(
+                Polyhedra.project(
+                    Polyhedra.polyhedron(
+                        [A B] \ Polyhedra.hrep(domains[to]) ∩ Polyhedra.hrep(cU),
+                        lib,
+                    ),
+                    1:2,
+                ),
+            ) ∩ Polyhedra.hrep(domains[from]),
             lib,
         )
     end

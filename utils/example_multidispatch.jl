@@ -11,6 +11,10 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+# This des not really set the number of threads to 4: 
+# Threads.nthreads() = 4
+# You have to launch julia -t 4
+
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 concrete_system = DCDC.system()
 
@@ -37,8 +41,10 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH,
 )
+MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
+
 MOI.set(optimizer, MOI.Silent(), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 # MOI.set(

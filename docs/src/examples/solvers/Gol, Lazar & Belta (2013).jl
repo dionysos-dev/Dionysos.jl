@@ -91,7 +91,7 @@ xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute());
 # ## A little bit of data visualization now:
 
 using Plots
-using Polyhedra
+import Polyhedra
 using HybridSystems
 using Suppressor
 

@@ -1,7 +1,8 @@
 module TestMain
 using Test
 
-using StaticArrays, LinearAlgebra, Polyhedra, Random
+using StaticArrays, Random
+import LinearAlgebra as LA
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
 using SemialgebraicSets, CDDLib
@@ -57,7 +58,7 @@ concrete_system = concrete_problem.system
 X_origin = SVector(0.0, 0.0)
 X_step = SVector(1.0 / n_step, 1.0 / n_step)
 nx = size(concrete_system.resetmaps[1].A, 1)
-P = (1 / nx) * diagm((X_step ./ 2) .^ (-2))
+P = (1 / nx) * LA.diagm((X_step ./ 2) .^ (-2))
 state_grid = DO.GridEllipsoidalRectangular(X_origin, X_step, P)
 
 optimizer = MOI.instantiate(AB.EllipsoidsAbstraction.Optimizer)

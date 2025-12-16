@@ -2,8 +2,8 @@ module TestMain
 
 using Test
 using Dionysos
-using LinearAlgebra
-using IntervalArithmetic
+import LinearAlgebra as LA
+import IntervalArithmetic as IA
 const DI = Dionysos
 const UT = DI.Utils
 
@@ -41,9 +41,9 @@ const UT = DI.Utils
     @test UT.get_farthest_point(E3, [0.0; 1.0]) == [0.0; 1.0]
     @test UT.get_farthest_point(E3, [1.0; 0.0]) == [2.0; 0.0]
     @test UT.get_min_bounding_box(E2) ==
-          IntervalBox(UT.get_center(E2) .- [1.0; 1.0], UT.get_center(E2) .+ [1.0; 1.0])
+          IA.IntervalBox(UT.get_center(E2) .- [1.0; 1.0], UT.get_center(E2) .+ [1.0; 1.0])
     @test UT.get_min_bounding_box(E3) ==
-          IntervalBox(UT.get_center(E3) .- [2.0; 1.0], UT.get_center(E3) .+ [2.0; 1.0])
+          IA.IntervalBox(UT.get_center(E3) .- [2.0; 1.0], UT.get_center(E3) .+ [2.0; 1.0])
     @test UT.get_shape(E4) == [0.4 -0.1; -0.1 0.5]
     @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.expand(E1, 2.0))
     @test UT.get_axis_points(E2, 1) == ([3.0, 1.0], [5.0, 1.0])
@@ -81,14 +81,18 @@ end
     @test UT.is_intersected(E1, E)
     @test UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
-    err = norm(E1scaled.c - [2.4; 2.2]) + norm(E1scaled.P - [2.388 -0.597; -0.597 2.985])
+    err =
+        LA.norm(E1scaled.c - [2.4; 2.2]) +
+        LA.norm(E1scaled.P - [2.388 -0.597; -0.597 2.985])
     @test err <= 10e-4
     @test Base.in(E1, E) == false
     @test Base.in(E, E1) == true
     @test Base.in(E, E1scaled) == false
     @test Base.in(E1scaled, E) == false
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E)
-    err = norm(E1scaled2.c - [2.4; 2.2]) + norm(E1scaled2.P - [0.466 -0.116; -0.116 0.582])
+    err =
+        LA.norm(E1scaled2.c - [2.4; 2.2]) +
+        LA.norm(E1scaled2.P - [0.466 -0.116; -0.116 0.582])
     @test err <= 10e-2
     @test Base.in(E, UT.Ellipsoid(E1scaled2.P * 0.99, E1scaled2.c)) == true
     ############################################
@@ -98,7 +102,9 @@ end
     @test UT.is_intersected(E1, E)
     @test UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
-    err = norm(E1scaled.c - [2.8; 2.599]) + norm(E1scaled.P - [0.725 -0.181; -0.181 0.906])
+    err =
+        LA.norm(E1scaled.c - [2.8; 2.599]) +
+        LA.norm(E1scaled.P - [0.725 -0.181; -0.181 0.906])
     @test err <= 1e-2
     @test Base.in(E1, E) == false
     @test Base.in(E, E1) == false
@@ -106,7 +112,8 @@ end
     @test Base.in(E1scaled, E) == false
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E)
     err =
-        norm(E1scaled2.c - [2.8; 2.599]) + norm(E1scaled2.P - [0.254 -0.063; -0.063 0.318])
+        LA.norm(E1scaled2.c - [2.8; 2.599]) +
+        LA.norm(E1scaled2.P - [0.254 -0.063; -0.063 0.318])
     @test err <= 10e-2
     @test Base.in(E, UT.Ellipsoid(E1scaled2.P * 0.99, E1scaled2.c)) == true
     ############################################
@@ -117,8 +124,8 @@ end
     @test !UT.is_intersected(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err =
-        norm(E1scaled.c - [4.1; 3.9]) +
-        norm(E1scaled.P - [0.1195 -0.02989; -0.029897 0.14948])
+        LA.norm(E1scaled.c - [4.1; 3.9]) +
+        LA.norm(E1scaled.P - [0.1195 -0.02989; -0.029897 0.14948])
     @test err <= 10e-4
     @test Base.in(E1, E) == false
     @test Base.in(E, E1) == false
@@ -126,8 +133,8 @@ end
     @test Base.in(E1scaled, E) == false
     E1scaled2 = UT.scale_for_inclusion_contact_point(E1, E)
     err =
-        norm(E1scaled2.c - [4.1; 3.9]) +
-        norm(E1scaled2.P - [0.073295 -0.018323; -0.01832382 0.0916196])
+        LA.norm(E1scaled2.c - [4.1; 3.9]) +
+        LA.norm(E1scaled2.P - [0.073295 -0.018323; -0.01832382 0.0916196])
     @test err <= 10e-4
     @test Base.in(E, UT.Ellipsoid(E1scaled2.P * 0.99, E1scaled2.c)) == true
 

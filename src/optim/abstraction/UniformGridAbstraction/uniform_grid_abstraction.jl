@@ -372,8 +372,8 @@ function build_controller_map_df(abstract_system, abstract_controller)
 end
 
 function get_input_symbol(controller, state)
-    syms = Dionysos.Utils.fix_and_eliminate_first(controller, state)
-    return isempty(syms) ? -1 : first(syms)[1]
+    return Dionysos.System.is_defined(controller, state) ?
+           Dionysos.System.get_control(controller, state) : -1
 end
 
 function build_input_map_df(abstract_system)

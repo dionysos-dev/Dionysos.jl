@@ -1,6 +1,8 @@
 module PWAsys
 
-using StaticArrays, LinearAlgebra, Polyhedra
+using StaticArrays
+import Polyhedra
+import LinearAlgebra as LA
 using MathematicalSystems, HybridSystems
 using FillArrays, CDDLib
 
@@ -14,31 +16,35 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 
 function system(lib, dt, Usz, Wsz; simple = false)
-    eye(n) = diagm(ones(n)) # I matrix
+    eye(n) = LA.diagm(ones(n)) # I matrix
     # Define system
     N_region = 3
     n_sys = 2
     n_u = 2
     #PWA partitions
-    repX1 = intersect(HalfSpace(SVector{2}([1, 0]), -1))
-    pX1 = polyhedron(repX1, lib)
-    repX2 = HalfSpace(SVector{2}([-1, 0]), 1) ∩ HalfSpace(SVector{2}([1, 0]), 1)
-    pX2 = polyhedron(repX2, lib)
-    repX3 = intersect(HalfSpace(SVector{2}([-1, 0]), -1))
-    pX3 = polyhedron(repX3, lib)
+    repX1 = intersect(Polyhedra.HalfSpace(SVector{2}([1, 0]), -1))
+    pX1 = Polyhedra.polyhedron(repX1, lib)
+    repX2 =
+        Polyhedra.HalfSpace(SVector{2}([-1, 0]), 1) ∩
+        Polyhedra.HalfSpace(SVector{2}([1, 0]), 1)
+    pX2 = Polyhedra.polyhedron(repX2, lib)
+    repX3 = intersect(Polyhedra.HalfSpace(SVector{2}([-1, 0]), -1))
+    pX3 = Polyhedra.polyhedron(repX3, lib)
 
     #control input bounded region
     if n_u > 1
         repU = intersect(
             [
-                HalfSpace(SVector{n_u}(-(1:n_u .== i)), Usz) ∩
-                HalfSpace(SVector{n_u}((1:n_u .== i)), Usz) for i in 1:n_u
+                Polyhedra.HalfSpace(SVector{n_u}(-(1:n_u .== i)), Usz) ∩
+                Polyhedra.HalfSpace(SVector{n_u}((1:n_u .== i)), Usz) for i in 1:n_u
             ]...,
         )
     else
-        repU = HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩ HalfSpace(SVector{n_u}([1.0]), Usz)
+        repU =
+            Polyhedra.HalfSpace(SVector{n_u}(-[1.0]), Usz) ∩
+            HalfSpace(SVector{n_u}([1.0]), Usz)
     end
-    pU = polyhedron(repU, lib)
+    pU = Polyhedra.polyhedron(repU, lib)
     pX = [pX1 pX2 pX3]
 
     A = Vector{SMatrix{n_sys, n_sys, Float64}}(undef, N_region)
@@ -82,7 +88,7 @@ function system(lib, dt, Usz, Wsz; simple = false)
         UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)),
         UT.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)),
     ]
-    Uaux = diagm(1:n_u)
+    Uaux = LA.diagm(1:n_u)
     U = [(Uaux .== i) ./ Usz for i in 1:n_u] # matrices U_i
     W = Wsz * [
         -1 -1 1 1
@@ -131,8 +137,8 @@ function problem(;
     state_cost = UT.ZeroFunction()
     transition_cost = Fill(
         UT.QuadraticStateControlFunction(
-            Matrix{Float64}(I(n_sys) * (dt^2)),
-            Matrix{Float64}(I(n_u) * (dt^2)),
+            Matrix{Float64}(LA.I(n_sys) * (dt^2)),
+            Matrix{Float64}(LA.I(n_u) * (dt^2)),
             zeros(n_sys, n_u),
             zeros(n_sys),
             zeros(n_u),

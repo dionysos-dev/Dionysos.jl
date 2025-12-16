@@ -4,7 +4,7 @@ module HierarchicalAbstraction
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 
-using LinearAlgebra, JuMP, Graphs, SimpleWeightedGraphs, IntervalArithmetic
+using JuMP, Graphs, SimpleWeightedGraphs
 using Base.Threads
 
 import Dionysos
