@@ -224,6 +224,7 @@ end
                 @series begin
                     label := first_series ? label : ""
                     first_series = false
+                    dims := dims
                     return grid, pos
                 end
             end
