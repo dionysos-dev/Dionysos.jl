@@ -10,37 +10,28 @@ const AB = OP.Abstraction
 using JuMP
 import MathOptInterface as MOI
 
-function get_abstraction_based_controller(concrete_system)
+
+function build_uniform_grid_abstraction(
+    concrete_system, Δt, hx, Udom, jacobian_bound;
+    approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
+    with_period = false,
+    periodic_dims = SVector{0,Int}(),
+    periodic_periods = SVector{0,Float64}(),
+    periodic_start = SVector{0,Float64}(),
+)
     empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
-
-    # --- State grid ---
-    x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    hx = SVector(0.4, 0.4, 10*(pi/180.0), 3*(pi/180.0))   # grid steps (θ,ϕ steps in radians) 0.4 0.15
-
-    # --- Input grid ---
-    u0 = SVector(0.0, 0.0)
-    hu = SVector(1.0, 0.5)
-    input_grid = DO.GridFree(u0, hu)
-
-    with_period = true
-    periodic_dims = SVector(3, 4)
-    periodic_periods = SVector(2pi, 2pi)
-    periodic_start   = SVector(-pi, -pi)
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
-    # MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), AV.jacobian_bound(params))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.2)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), AB.UniformGridAbstraction.GROWTH) #GROWTH CENTER_SIMULATION
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("Udom"), Udom)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), approx_mode)
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
-
     MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
@@ -52,16 +43,10 @@ function get_abstraction_based_controller(concrete_system)
     end
 
     MOI.optimize!(optimizer)
-    println("Abstraction time = ",
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
-    )
+    return optimizer
+end
 
-    # Reachability
-    _I_ = UT.HyperRectangle(SVector(-2.0, -2.0, -0.4, -0.4), SVector(2.0, 2.0, 0.4, 0.4))
-    # _T_ = UT.HyperRectangle(SVector( 6.0,  6.0, -0.4, -0.4), SVector(9.0, 9.0, 0.4, 0.4))
-    # _T_ = UT.HyperRectangle(SVector( 6.0,  12.0, pi/2-20*(pi/180), -pi), SVector(10.0, 15.0, pi/2+20*(pi/180), pi))
-    _T_ = UT.HyperRectangle(SVector( 2.0,  6.0, pi-20*(pi/180), -10*(pi/180)), SVector(4.0, 8.0, pi+20*(pi/180), 10*(pi/180)))
-
+function build_uniform_grid_controller!(optimizer, concrete_system, _I_, _T_)
     concrete_problem = DI.Problem.OptimalControlProblem(
         concrete_system, _I_, _T_, nothing, nothing, DI.Problem.Infinity(),
     )
@@ -69,132 +54,205 @@ function get_abstraction_based_controller(concrete_system)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
 
     MOI.optimize!(optimizer)
-    println("Abstract solve time = ",
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-    )
 
-    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-
-    dims = [3, 4]
-    plot_domain(concrete_problem, abstract_problem, periodic_dims, periodic_periods, periodic_start, dims)
     concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    return concrete_controller, concrete_problem.target_set
+    target_set = concrete_problem.target_set
+    return concrete_controller, target_set
 end
 
-function xy_obstacles()
-    return [
-        UT.HyperRectangle(SVector(-5.0, -2.0), SVector(-2.0,  2.0)),
-        UT.HyperRectangle(SVector( 3.0,  3.0), SVector( 6.0,  6.0)),
-    ]
+function simulate_closed_loop(
+    concrete_system, concrete_controller, Δt, x0, target_set;
+    nstep = 700,
+    with_period = false,
+    periodic_dims = SVector{0,Int}(),
+    periodic_periods = SVector{0,Float64}(),
+    periodic_start = SVector{0,Float64}(),
+)
+    disc = ST.discretize_continuous_system(concrete_system, Δt; num_substeps=5)
+
+    periodic_wrapper = with_period ?
+        ST.get_periodic_wrapper(periodic_dims, periodic_periods; start=periodic_start) :
+        (x -> x)
+
+    reached(x) = (periodic_wrapper(x) ∈ target_set)
+
+    traj = ST.get_closed_loop_trajectory(
+        disc,
+        concrete_controller,
+        x0,
+        nstep;
+        stopping = reached,
+        periodic_wrapper = periodic_wrapper,
+    )
+    return traj
 end
 
-function plot_domain(concrete_problem, abstract_problem, periodic_dims, periodic_periods, periodic_start, dims)
-    concrete_system = concrete_problem.system
+function plot_state_space!(
+    optimizer, concrete_system, _I_, _T_, traj;
+    dims = [1,2],
+    with_period = false,
+    periodic_dims = SVector{0,Int}(),
+    periodic_periods = SVector{0,Float64}(),
+    periodic_start = SVector{0,Float64}(),
+)
+    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
     abstract_system = abstract_problem.system
-    fig = plot(; aspect_ratio = :equal, legend = false)
-    state_space = concrete_system.X
-    system_domain_in_periodic = UT.set_in_period(state_space, periodic_dims, periodic_periods, periodic_start)
-    initial_set_in_periodic = UT.set_in_period(concrete_problem.initial_set, periodic_dims, periodic_periods, periodic_start)
-    target_set_in_periodic =UT.set_in_period(concrete_problem.target_set, periodic_dims, periodic_periods, periodic_start)
-    plot!(system_domain_in_periodic; dims = dims, color = :grey, opacity = 1.0, label = "")
-    plot!(abstract_system.Xdom; dims=dims, color=:blue, efficient = false)
-    plot!(initial_set_in_periodic; dims = dims, color = :green, opacity = 0.2, label = "Initial set")
-    plot!(target_set_in_periodic; dims = dims, color = :red, opacity = 0.5, label = "Target set")
-    plot!(
-        Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
-        dims = dims, 
-        color = :green,
-        efficient = false
-    )
-    plot!(
-        Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
-        dims = dims, 
-        color = :red,
-        efficient = false
-    )
 
-    # Closed-loop simulate
-    Δt = 0.2
-    discrete_time_system = ST.discretize_continuous_system(
-        concrete_system,
-        Δt;
-        num_substeps = 5,
-    )
-    nstep = 700
-    x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    periodic_wrapper = ST.get_periodic_wrapper(SVector(3,4), SVector(2pi,2pi); start=SVector(-pi,-pi))
-    reached(x) = (x ∈ target_set_in_periodic)
-    traj = ST.get_closed_loop_trajectory(
-        discrete_time_system,
-        controller,
-        x0,
-        nstep;
-        stopping = reached,
-        periodic_wrapper = periodic_wrapper
-    )
-    plot!(traj; dims = dims, ms = 2.0, arrows = false)
-    display(fig)
-end 
+    X = concrete_system.X
+    Xp = with_period ? UT.set_in_period(X, periodic_dims, periodic_periods, periodic_start) : X
+    Ip = with_period ? UT.set_in_period(_I_, periodic_dims, periodic_periods, periodic_start) : _I_
+    Tp = with_period ? UT.set_in_period(_T_, periodic_dims, periodic_periods, periodic_start) : _T_
+
+    plot!(Xp; dims=dims, color=:grey, opacity=1.0, label="")
+    plot!(abstract_system.Xdom; dims=dims, color=:blue, opacity=0.2, efficient=false)
+    plot!(Ip; dims=dims, color=:green, opacity=0.2, label="I")
+    plot!(Tp; dims=dims, color=:red, opacity=0.5, label="T")
+    
+    plot!(traj; dims=dims, ms=2.0, arrows=false)
+end
 
 
-function simulate(concrete_system, controller, target_set)
-    Δt = 0.2
-    discrete_time_system = ST.discretize_continuous_system(
-        concrete_system,
-        Δt;
-        num_substeps = 5,
-    )
-    # Closed-loop simulate
-    nstep = 700
-    x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    periodic_wrapper = ST.get_periodic_wrapper(SVector(3,4), SVector(2pi,2pi); start=SVector(-pi,-pi))
-    target_set_in_periodic = UT.set_in_period(target_set, SVector(3,4), SVector(2pi,2pi), SVector(-pi,-pi))
-    reached(x) = (x ∈ target_set_in_periodic)
-    traj = ST.get_closed_loop_trajectory(
-        discrete_time_system,
-        controller,
-        x0,
-        nstep;
-        stopping = reached,
-        periodic_wrapper = periodic_wrapper
-    )
-
+function plot_articulated_vehicle!(
+    concrete_system, params, traj;
+    domain=concrete_system.X,
+    giffile=nothing,
+    fps=20,
+    every=1,
+    dt=0.2,
+)
     gr()
     xl = (-20.0, 20.0)
     yl = (-20.0, 20.0)
-    # AV.live_vehicle_progression!(params, traj, xl, yl; every=1, dt=0.008)
-    dp = AV.DrawParams(params)           # derived from L1,L2,Lc
-    dp2 = AV.DrawParams(params; tractor_width=1.8)  # override if you want
-    domain = concrete_system.X
-    AV.live_vehicle_progression_pretty(params, dp, traj, xl, yl; domain=domain, every=1, dt=0.2)
+    dp = AV.DrawParams(params)
+
+    return AV.live_vehicle_progression(
+        params, dp, traj, xl, yl;
+        domain=domain,
+        every=every,
+        dt=dt,
+        giffile=giffile,
+        fps=fps,
+    )
+end
+
+function get_Udom(_U_, hu)
+    u0 = zeros(SVector{2,Float64})
+    input_grid = DO.GridFree(u0, hu)
+    Udom = Dionysos.Domain.DomainList(input_grid)
+    Dionysos.Domain.add_set!(
+        Udom,
+        _U_,
+        Dionysos.Domain.CENTER,
+    )
+    return Udom
+end 
+
+
+function script()
+    ### System ###
+    _X_ = UT.HyperRectangle(
+        SVector(-1.0, -1.0, -pi, -pi), # x1, x2, θ1, ϕ
+        SVector( 10.0,  9.0,  pi,  pi),
+    )
+    _X_ = AV.with_phi_limit(_X_; phi_max=50*(pi/180.0))
+    obs = [
+        UT.HyperRectangle(SVector( 4.0,  -1.0),
+                          SVector( 10.0,  4.7)),
+        UT.HyperRectangle(SVector(4.0, 6.0), 
+                          SVector(10.0,  9.0)),
+    ]
+    _X_ = AV.with_xy_obstacles(_X_; obstacles2d=obs)
+
+    _U_ = UT.HyperRectangle(
+        SVector(-2.0, -0.6), # v1, δ
+        SVector( 2.0,  0.6),
+    )
+
+    #CustomList([SVector(),])
+    params = AV.Params(L1=1.0, L2=1.0, Lc=0.5)
+    concrete_system = AV.system(_X_; _U_=_U_, params=params)
+
+    ### Abstraction params ###
+    Δt = 0.2
+    hx = SVector(0.4, 0.2, 5*(pi/180), 3*(pi/180))
+    periodic_dims    = SVector(3,4)
+    periodic_periods = SVector(2pi,2pi)
+    periodic_start   = SVector(-pi,-pi)
+
+    # Udom = get_Udom(_U_,  SVector(1.0, 0.5))
+
+    inputs = [
+        [ 2.0,  0.0],
+        [ 0.0,  0.0],
+        [-2.0,  0.0],
+        [ 2.0, -0.25],
+        [ 2.0, 0.25],
+        [-2.0,  0.25],
+        [-2.0,  -0.25],
+    ]
+    Udom = Dionysos.Domain.CustomList(inputs)
+
+    ### Control problem###
+    x0 = SVector(0.0, 0.0, 0.0, 0.0)
+    _I_ = UT.HyperRectangle(SVector(-1.0,-1.0,-0.4,-0.4), SVector(1.0,1.0,0.4,0.4))
+    _T_ = UT.HyperRectangle(SVector(9.0,5.0, -5*(pi/180), -5*(pi/180)),
+                            SVector(10.0,6.0, 5*(pi/180),  5*(pi/180))) # forward
+    # _T_ = UT.HyperRectangle(SVector(9.0,5.0, pi-5*(pi/180), -5*(pi/180)),
+    #                         SVector(10.0,6.0, pi+5*(pi/180),  5*(pi/180))) # backward
+
+    opt = build_uniform_grid_abstraction(
+        concrete_system, Δt, hx, Udom, AV.jacobian_bound(params);
+        with_period=true,
+        periodic_dims=periodic_dims,
+        periodic_periods=periodic_periods,
+        periodic_start=periodic_start,
+    )
+
+    controller, target_set = build_uniform_grid_controller!(opt, concrete_system, _I_, _T_)
+    traj = simulate_closed_loop(
+        concrete_system, controller, Δt, x0, target_set;
+        with_period=true,
+        periodic_dims=periodic_dims,
+        periodic_periods=periodic_periods,
+        periodic_start=periodic_start,
+        nstep=700,
+    )
+
+    dims=[1,2]
+    fig = plot(; aspect_ratio=:equal, legend=false)
+    plot_state_space!(
+        opt, concrete_system, _I_, _T_, traj;
+        dims=dims,
+        with_period=true,
+        periodic_dims=periodic_dims,
+        periodic_periods=periodic_periods,
+        periodic_start=periodic_start,
+    )
+    savefig(fig, "state_space_12.pdf")
+    display(fig)
+    dims=[3,4]
+    fig = plot(; aspect_ratio=:equal, legend=false)
+    plot_state_space!(
+        opt, concrete_system, _I_, _T_, traj;
+        dims=dims,
+        with_period=true,
+        periodic_dims=periodic_dims,
+        periodic_periods=periodic_periods,
+        periodic_start=periodic_start,
+    )
+    savefig(fig, "state_space_34.pdf")
+    display(fig)
+    plot_articulated_vehicle!(concrete_system, params, traj; every=1, dt=0.09)
+    #plot_articulated_vehicle!(concrete_system, params, traj; giffile="articulated_vehicle.gif",fps=5,every=3) 
 end
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "articulated_vehicle.jl"))
 AV = ArticulatedVehicle
 
-# --- Domains (example; tune to your benchmark) ---
-# _X_ = UT.HyperRectangle(
-#     SVector(-1.0, -1.0, -pi, -pi),   # x1, x2, θ1, ϕ
-#     SVector( 15.0,  15.0,  pi,  pi),
-# )
+script()
 
-_X_ = UT.HyperRectangle(
-    SVector(-1.0, -1.0, -pi, -pi),   # x1, x2, θ1, ϕ
-    SVector( 10.0,  9.0,  pi,  pi),
-)
-_X_ = AV.with_phi_limit(_X_; phi_max=90*(pi/180.0))   # e.g. 34°
-# _X_ = with_xy_obstacles(_X_; obstacles2d=xy_obstacles())
 
-_U_ = UT.HyperRectangle(
-    SVector(-2.0, -0.6),               # v1, δ
-    SVector( 2.0,  0.6),
-)
-
-params = AV.Params(L1=1.0, L2=1.0, Lc=0.5)
-concrete_system = AV.system(_X_; _U_=_U_, params=params)
 
 # controller = AV.get_constant_controller(SVector(1.0, 0.15))
 # controller = AV.get_goal_seeking_controller(-5.0, 10; v=1.0, δmax=0.5, k=1.2)
-controller, target_set = get_abstraction_based_controller(concrete_system)
 
-simulate(concrete_system, controller, target_set)

@@ -3,6 +3,7 @@ module ArticulatedVehicle
 using StaticArrays
 using MathematicalSystems
 using Dionysos
+using Plots
 
 const UT = Dionysos.Utils
 const ST = Dionysos.System
@@ -49,11 +50,7 @@ function jacobian(p::Params = Params())
         δ  = u[2]
         tδ = tan(δ)
 
-        # ∂f4/∂ϕ
-        # f4 = -(v/(L1 L2))*(L1 sinϕ + (Lc cosϕ + L2) tδ)
-        # d/dϕ = -(v/(L1 L2))*(L1 cosϕ + (-Lc sinϕ) tδ)
         d4dϕ = -(v / (p.L1 * p.L2)) * (p.L1 * cos(ϕ) - p.Lc * sin(ϕ) * tδ)
-
         return SMatrix{4,4}(
             0.0, 0.0, -v*sin(θ), 0.0,
             0.0, 0.0,  v*cos(θ), 0.0,
@@ -139,8 +136,8 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
     return UT.HyperRectangle(lb, ub)
 end
 function with_xy_obstacles(_X_::UT.HyperRectangle; obstacles2d=xy_obstacles())
-    obs4d = [extrude_xy_obstacle_to_4d(ob, _X4d) for ob in obstacles2d]
-    return UT.LazySetMinus(_X4d, UT.LazyUnionSetArray(obs4d))
+    obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
+    return UT.LazySetMinus(_X_, UT.LazyUnionSetArray(obs4d))
 end
 
 # ----------------------------
@@ -193,13 +190,9 @@ function get_goal_seeking_controller(xg, yg; v=1.0, δmax=0.5, k=1.2)
     return ST.BlackBoxContinuousController(f)
 end
 
-
-
-
 ################################################
 ########## Visualization tools #################
 ################################################
-using Plots
 Base.@kwdef struct DrawParams{T}
     tractor_length::T
     tractor_width::T
@@ -228,8 +221,6 @@ function DrawParams(p::Params{T};
         axle_halfwidth,
     )
 end
-
-import StaticArrays: SVector
 
 rot2(θ) = @SMatrix [cos(θ) -sin(θ); sin(θ) cos(θ)]
 
@@ -370,33 +361,58 @@ function plot_xy_obstacles!(plt, obs2d; alpha=0.25)
     return plt
 end
 
-
-function live_vehicle_progression_pretty(
+function live_vehicle_progression(
     p, dp, traj::ST.Control_trajectory, xl, yl;
     domain=nothing,
     obstacles2d=nothing,
-    every=1, dt=0.05,
+    every=1,
+    dt=0.05,
+    giffile::Union{Nothing,String}=nothing,
+    fps::Int=20,
 )
     states = traj.states.seq
-    inputs = traj.inputs.seq   # controls aligned with steps (length N-1 typically)
+    inputs = traj.inputs.seq
 
     xs = [x[1] for x in states]
     ys = [x[2] for x in states]
 
+    # --- GIF MODE ---
+    if giffile !== nothing
+        anim = @animate for k in 1:every:length(states)
+            plt = plot(; aspect_ratio=:equal, xlims=xl, ylims=yl, legend=false, size=(700,700))
+            if domain !== nothing
+                plot!(plt, domain; color=:grey, opacity=0.1)
+            end
+            if obstacles2d !== nothing
+                plot_xy_obstacles!(plt, obstacles2d, color=:black)
+            end
+            plot!(plt, xs, ys; lw=1)
+            uk = (k <= length(inputs)) ? inputs[k] : inputs[end]
+            draw_articulated!(plt, p, dp, states[k], uk)
+        end
+
+        gif(anim, giffile; fps=fps)
+        return anim
+    end
+
+    # --- LIVE MODE ---
     for k in 1:every:length(states)
         plt = plot(; aspect_ratio=:equal, xlims=xl, ylims=yl, legend=false, size=(700,700))
         if domain !== nothing
-            plot!(plt, domain)
+            plot!(plt, domain; color=:grey, opacity=0.1)
         end
         if obstacles2d !== nothing
             plot_xy_obstacles!(plt, obstacles2d, color=:black)
         end
-        plot!(plt, xs, ys; lw=1)  # full path
-        uk = (k <= length(inputs)) ? inputs[k] : inputs[end]  # handle last
+        plot!(plt, xs, ys; lw=1)
+        uk = (k <= length(inputs)) ? inputs[k] : inputs[end]
         draw_articulated!(plt, p, dp, states[k], uk)
         display(plt)
         sleep(dt)
     end
+
+    return nothing
 end
+
 
 end # module
