@@ -382,7 +382,7 @@ function build_state_domain(optimizer::OptimizerEmptyProblem)
 end
 
 function build_input_domain(optimizer::OptimizerEmptyProblem)
-    if optimizer.Udom !== nothing 
+    if optimizer.Udom !== nothing
         return optimizer.Udom
     end
     domain_list = Dionysos.Domain.DomainList(optimizer.input_grid)

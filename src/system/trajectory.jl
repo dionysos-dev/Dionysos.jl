@@ -62,7 +62,7 @@ end
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
 
-@recipe function f(traj::Trajectory; dims=[1,2])
+@recipe function f(traj::Trajectory; dims = [1, 2])
     @series begin
         dims := dims
         UT.DrawTrajectory(traj.seq)
@@ -84,13 +84,12 @@ get_state(traj::Control_trajectory, n::Int) = get_elem(traj.states, n)
 get_input(traj::Control_trajectory, n::Int) = get_elem(traj.inputs, n)
 get_elem(traj::Control_trajectory, n::Int) = (get_state(traj, n), get_input(traj, n))
 
-@recipe function f(traj::Control_trajectory; dims=[1,2])
+@recipe function f(traj::Control_trajectory; dims = [1, 2])
     @series begin
         dims := dims
         traj.states
     end
 end
-
 
 """
     Cost_control_trajectory{T1, T2, T3}
@@ -114,7 +113,7 @@ function get_cost(traj::Cost_control_trajectory)
     return sum(traj.costs.seq)
 end
 
-@recipe function f(traj::Cost_control_trajectory; dims=[1,2])
+@recipe function f(traj::Cost_control_trajectory; dims = [1, 2])
     @series begin
         dims := dims
         traj.control_trajectory

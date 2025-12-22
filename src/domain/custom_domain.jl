@@ -10,13 +10,13 @@ end
 
 function CustomList(points::AbstractVector{<:AbstractVector{T}}) where {T}
     N = length(points[1])
-    elems = [SVector{N,T}(p) for p in points]
-    return CustomList{N,T}(elems)
+    elems = [SVector{N, T}(p) for p in points]
+    return CustomList{N, T}(elems)
 end
 
-function CustomList(points::AbstractVector{<:NTuple{N,T}}) where {N,T}
-    elems = [SVector{N,T}(p) for p in points]
-    return CustomList{N,T}(elems)
+function CustomList(points::AbstractVector{<:NTuple{N, T}}) where {N, T}
+    elems = [SVector{N, T}(p) for p in points]
+    return CustomList{N, T}(elems)
 end
 
 enum_elems(domain::CustomList) = domain.elems
