@@ -299,4 +299,3 @@ script()
 
 # controller = AV.get_constant_controller(SVector(1.0, 0.15))
 # controller = AV.get_goal_seeking_controller(-5.0, 10; v=1.0, δmax=0.5, k=1.2)
-
