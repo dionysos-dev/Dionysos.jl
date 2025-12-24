@@ -1,13 +1,19 @@
 
+_normalize_dims(dims) =
+    dims isa Tuple{Int, Int} ? dims :
+    dims isa AbstractVector{<:Integer} ? (Int(dims[1]), Int(dims[2])) :
+    throw(ArgumentError("dims must be (i,j) or [i,j], got $(typeof(dims))"))
+
 struct DrawPoint{T <: Real, VT <: AbstractVector{T}}
     p::VT
 end
-@recipe function f(p::DrawPoint)
+@recipe function f(p::DrawPoint; dims = [1, 2])
+    i, j = _normalize_dims(dims)
     color --> :black
     marker --> :circle
     linetype --> :scatter
     label := ""
-    return [p.p[1]], [p.p[2]]
+    return [p.p[i]], [p.p[j]]
 end
 
 struct DrawArrow{T <: Real, VT <: AbstractVector{T}}
@@ -23,13 +29,14 @@ struct DrawArrow{T <: Real, VT <: AbstractVector{T}}
         return new{T, VT}(DrawPoint(p1), DrawPoint(p2))
     end
 end
-@recipe function f(a::DrawArrow)
+@recipe function f(a::DrawArrow; dims = [1, 2])
+    i, j = _normalize_dims(dims)
     marker --> :circle
     markeralpha --> 0.0
     color --> :black
     arrow --> (:closed, 2.0)
     label := ""
-    return [a.p1.p[1], a.p2.p[1]], [a.p1.p[2], a.p2.p[2]]
+    return [a.p1.p[i], a.p2.p[i]], [a.p1.p[j], a.p2.p[j]]
 end
 
 struct DrawSegment{T <: Real, VT <: AbstractVector{T}}
@@ -45,11 +52,12 @@ struct DrawSegment{T <: Real, VT <: AbstractVector{T}}
         return new{T, VT}(DrawPoint(p1), DrawPoint(p2))
     end
 end
-@recipe function f(s::DrawSegment)
+@recipe function f(s::DrawSegment, dims = [1, 2])
+    i, j = _normalize_dims(dims)
     linestyle --> :dash
     color --> :black
     label := ""
-    return [s.p1.p[1], s.p2.p[1]], [s.p1.p[2], s.p2.p[2]]
+    return [s.p1.p[i], s.p2.p[i]], [s.p1.p[j], s.p2.p[j]]
 end
 
 struct DrawTrajectory{
@@ -72,14 +80,19 @@ struct DrawTrajectory{
     end
 end
 
-@recipe function f(t::DrawTrajectory)
+@recipe function f(t::DrawTrajectory; dims = [1, 2])
     for i in 1:(length(t.vp) - 1)
         @series begin
+            dims := dims
             t.vp[i + 1]
         end
         @series begin
+            dims := dims
             DrawArrow(t.vp[i], t.vp[i + 1])
         end
     end
-    return t.vp[1]
+    @series begin
+        dims := dims
+        t.vp[1]
+    end
 end

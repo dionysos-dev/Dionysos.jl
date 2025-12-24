@@ -143,8 +143,9 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     ## User Settings
     empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
     state_grid::Union{Nothing, Dionysos.Domain.Grid}
-    input_grid::Union{Nothing, Dionysos.Domain.Grid}
     h::Union{Nothing, Any}
+    input_grid::Union{Nothing, Dionysos.Domain.Grid}
+    Udom::Union{Nothing, Dionysos.Domain.DomainType}
 
     use_periodic_domain::Bool
     periodic_dims::Union{Nothing, Any}
@@ -190,7 +191,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            false,
+            nothing,
+            false, # use periodic domain
             nothing,
             nothing,
             nothing,
@@ -380,6 +382,9 @@ function build_state_domain(optimizer::OptimizerEmptyProblem)
 end
 
 function build_input_domain(optimizer::OptimizerEmptyProblem)
+    if optimizer.Udom !== nothing
+        return optimizer.Udom
+    end
     domain_list = Dionysos.Domain.DomainList(optimizer.input_grid)
     Dionysos.Domain.add_set!(
         domain_list,
@@ -401,7 +406,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     t_ref = time()
 
     # Ensure necessary parameters are set
-    _validate_model(optimizer, [:input_grid, :empty_problem])
+    _validate_model(optimizer, [:empty_problem])
     @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
 
     # Create over-approximation method
