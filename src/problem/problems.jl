@@ -63,6 +63,19 @@ mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     time::T
 end
 
+mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
+    system::S
+    initial_set::XI
+    spec::SPEC
+
+    # unified labeling container:
+    labeling::Dict{Symbol, LAB}   # Symbol => LazySet (concrete) or Vector{Int} (abstract)
+
+    ap_semantics::Dict{Symbol, Any}  # Symbol => DO.INNER / DO.OUTER
+    strict_spot::Bool
+end
+
+
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
 

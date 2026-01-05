@@ -16,9 +16,9 @@ abstract type SymbolicController <: Controller end
 function add_control!(controller::SymbolicController, state::Int, symbol::Int) end
 # Delete previous control law for 'state' and 'symbol'
 function set_control!(controller::SymbolicController, state::Int, symbol::Int) end
-get_control(controller::SymbolicController, state::Int) =
-    first(get_all_controls(controller, state))
-
+function get_control(controller::SymbolicController, state::Int)
+   return is_defined(controller, state)  ? first(get_all_controls(controller, state)) : nothing
+end
 struct SymbolicControllerList <: SymbolicController
     transitions::UT.SortedTupleSet{2, NTuple{2, Int}}  # (state, symbol)
 end

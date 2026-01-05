@@ -4,6 +4,7 @@ module UniformGridAbstraction
 
 import Dionysos
 const UT = Dionysos.Utils
+const PR = Dionysos.Problem
 const ST = Dionysos.System
 const SY = Dionysos.Symbolic
 const DO = Dionysos.Domain
@@ -16,6 +17,7 @@ using JuMP
 include("empty_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
+include("cosafe_LTL_problem.jl")
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
@@ -144,6 +146,13 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             MOI.set(
                 model.control_solver,
                 MOI.RawOptimizerAttribute("concrete_problem"),
+                value,
+            )
+        elseif isa(value, Dionysos.Problem.CoSafeLTLProblem)
+            model.control_solver = OptimizerCoSafeLTLProblem()
+            MOI.set(
+                model.control_solver, 
+                MOI.RawOptimizerAttribute("concrete_problem"), 
                 value,
             )
         else

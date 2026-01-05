@@ -26,3 +26,4 @@ for v in vals
     q1 = Spot.nextstate(dra, q0, v)
     println("  δ($q0, $v) = $q1")
 end
+
