@@ -70,7 +70,7 @@ time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec")
 controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
 abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
 concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 ```
 """
 mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
@@ -80,11 +80,10 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
 
     # Common parameters
     abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
-    abstract_controller::Union{Nothing, Dionysos.System.SymbolicController}
+    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
     abstract_problem_time_sec::T
 
     # Specific parameters
-    controller_constructor::Union{Nothing, Any}
     early_stop::Union{Nothing, Bool}
     sparse_input::Bool
     controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
@@ -103,7 +102,6 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             0.0,
-            () -> ST.SymbolicControllerList(),
             false,
             false,
             nothing,
@@ -173,9 +171,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         optimizer.abstract_problem.target_set;
         initial_set = init_set,
         sparse_input = optimizer.sparse_input,
-        cost_function = optimizer.abstract_problem.transition_cost,
-        ControllerConstructor = optimizer.controller_constructor,
-    )
+        cost_function = optimizer.abstract_problem.transition_cost    )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,

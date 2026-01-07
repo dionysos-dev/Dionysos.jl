@@ -9,6 +9,38 @@ function is_defined(controller::Controller, state) end
 # Returns the set of all states for which the controller is defined.
 function domain(controller::Controller) end
 
+# ----------------------------
+# Optional finite-memory hooks
+# ----------------------------
+# Reset controller internal memory (no-op by default).
+reset!(::Controller) = nothing
+# Update controller memory after observing a transition (no-op by default).
+update!(::Controller, x_prev, u, x_next) = nothing
+
+##########################################################
+########## Finite memory controller ###########
+##########################################################
+
+mutable struct FiniteMemoryController{C, STEP, OBS} <: Controller
+    base::C
+    spec::STEP
+    observer::OBS
+    qa::Int
+    qa0::Int
+end
+
+reset!(c::FiniteMemoryController) = (c.qa = c.qa0; nothing)
+
+function update!(c::FiniteMemoryController, x, u, x_next)
+    obs = c.observer(x_next)
+    c.qa = step(c.spec, c.qa, obs)
+end
+
+get_control(c::FiniteMemoryController, x) = get_control(c.base, (x, c.qa))
+
+is_defined(c::FiniteMemoryController, x) = is_defined(c.base, (x, c.qa))
+
+
 #################################################
 ############ Symbolic implementations ###########
 #################################################

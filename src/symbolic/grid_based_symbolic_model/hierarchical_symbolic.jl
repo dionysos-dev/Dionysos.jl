@@ -36,7 +36,7 @@ function get_symbols(
     subsetList,
     incl_mode::DO.INCL_MODE,
 )
-    return get_states_from_sets(hierarchical_symmodel.symmodel, subsetList, incl_mode)
+    return get_states_from_set(hierarchical_symmodel.symmodel, subsetList, incl_mode)
 end
 
 @recipe function f(

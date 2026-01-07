@@ -1,11 +1,3 @@
-# import Dionysos
-# const SY = Dionysos.Symbolic
-# const ST = Dionysos.System
-# const PR = Dionysos.Problem
-# const DO = Dionysos.Domain
-
-using Spot
-
 # ============================================================
 # Optimizer
 # ============================================================
@@ -18,8 +10,10 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     # outputs / internals
     abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
     product_system::Any
-    abstract_controller_product::Union{Nothing, ST.SymbolicController}
-    abstract_controller::Any
+    abstract_controller_product::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    abstract_controller::Union{Nothing, MS.SystemWithOutput}
+    qa0::Any # abstract/concrete controller initial state
+    update_on_next::Bool
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
@@ -33,7 +27,8 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
             nothing, nothing,
             nothing,
             nothing,
-            nothing, nothing,
+            nothing, nothing, nothing,
+            true,
             nothing, nothing,
             nothing,
             0.0,
@@ -180,15 +175,15 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     init_states = abstract_problem.initial_set
     init_prod = [P.pid[(qs, init_state(spec))] for qs in init_states]
 
-    contrP, controllableP, uncontrollableP, V =
+    controller_product_automaton, controllableP, uncontrollableP, V =
         SY.compute_worst_case_uniform_cost_controller(P, target_set; initial_set = init_prod)
 
     # (7) Wrap product controller into finite-memory controller on abstract system
-    # NOTE: you must implement this type in Dionysos.System (or adapt to your existing one).
-    ctrl_abs = FiniteMemorySymbolicController(abstract_problem.labeling, spec, contrP, P.pid)
+    abstract_controller, qa0 = build_abstract_fm_controller_ms(abstract_problem.labeling, spec, controller_product_automaton, P.pid)
 
-    optimizer.abstract_controller_product = contrP
-    optimizer.abstract_controller = ctrl_abs
+    optimizer.abstract_controller_product = controller_product_automaton
+    optimizer.abstract_controller = abstract_controller
+    optimizer.qa0 = qa0
     optimizer.controllable_set = controllableP
     optimizer.uncontrollable_set = uncontrollableP
     optimizer.value_fun_tab = V
@@ -435,77 +430,28 @@ function build_product_automaton(sys::SY.AbstractAutomatonList, spec::AbstractSp
     return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
 end
 
-# ------------------------------------------------------------
-# Finite-memory symbolic controller (abstract level)
-# ------------------------------------------------------------
-
-struct FiniteMemorySymbolicController{STEP, CP} <: ST.SymbolicController
-    labeling::Dict{Symbol, Vector{Int}}
-    spec::STEP                    # AbstractSpecStepper
-    contrP::CP                    # controller on product automaton
-    pid::Dict{Tuple{Int,Int},Int} # (qs, qa) -> product state
-end
-
-# struct FiniteMemorySymbolicController{LAB, STEP, CP}
-#     # labeling is not strictly required here, but useful for debugging/export
-#     labeling::Dict{Symbol, Vector{Int}}
-
-#     spec::STEP                       # AbstractSpecStepper
-#     contrP::CP                       # controller on product automaton
-#     pid::Dict{Tuple{Int,Int},Int}    # (qs, qa) -> product state
-# end
-
-function ST.is_defined(ctrl::FiniteMemorySymbolicController, qs::Int, qa::Int)
-    p = get(ctrl.pid, (qs, qa), nothing)
-    p === nothing && return false
-    return ST.is_defined(ctrl.contrP, p)
-end
-
-function ST.get_all_controls(ctrl::FiniteMemorySymbolicController, qs::Int, qa::Int)
-    p = get(ctrl.pid, (qs, qa), nothing)
-    p === nothing && return Int[]
-    return ST.get_all_controls(ctrl.contrP, p)
-end
-
-function ST.get_control(ctrl::FiniteMemorySymbolicController, qs::Int, qa::Int)
-    p = get(ctrl.pid, (qs, qa), nothing)
-    p === nothing && return nothing
-    return ST.get_control(ctrl.contrP, p)
-end
-
-function ST.domain(ctrl::FiniteMemorySymbolicController)
-    dom = Tuple{Int,Int}[]
-    for ((qs, qa), p) in ctrl.pid
-        ST.is_defined(ctrl.contrP, p) && push!(dom, (qs, qa))
-    end
-    return dom
-end
-
-@inline function update_memory(
-    ctrl::FiniteMemorySymbolicController,
-    qa::Int,
-    qs_next::Int,
-)
-    ap = Tuple(Symbol(k) for (k, states) in ctrl.labeling if qs_next in states)
-    return step(ctrl.spec, qa, ap)
-end
-
-
 """
-Build a concrete (continuous) controller from a finite-memory symbolic controller.
+Build abstract finite-memory controller as MS.SystemWithOutput.
 
-Returns:
-- ctrl_concrete :: ST.BlackBoxContinuousController
-- qa_ref       :: Base.RefValue{Int}     (the spec/memory state)
-- reset_memory!()                       (sets qa_ref back to init_state)
-- update_memory!(x_next)                (updates qa_ref using the abstract label of x_next)
+Inputs:
+- lab_abs :: Dict{Symbol, Vector{Int}}   (abstract labeling as state sets)
+- spec    :: AbstractSpecStepper         (your step(spec, qa, ap_tuple))
+- contrP  :: MS.AbstractMap              (controller on product states p -> u_sym or Vector{Int})
+- pid     :: Dict{Tuple{Int,Int},Int}    ((qs,qa) -> p)
+
+Output:
+- Cabs :: MS.SystemWithOutput where:
+    outputmap: (qa, qs) -> u_sym (or Vector{Int}) or nothing
+    memsys:    (qa, qs_for_update) -> qa_next
+- qa0  :: Int (initial abstract control state)
 """
-function solve_concrete_problem_fm(
-    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
-    fm_ctrl::FiniteMemorySymbolicController;
-    randomize::Bool = false,
+function build_abstract_fm_controller_ms(
+    lab_abs::Dict{Symbol, Vector{Int}},
+    spec::AbstractSpecStepper,
+    contrP::MS.AbstractMap,
+    pid::Dict{Tuple{Int,Int},Int},
 )
-    lab_abs = fm_ctrl.labeling
+    # fast labeling_qs(qs) -> Tuple{Symbol,...}
     lab_bits = Dict{Symbol, BitSet}((ap => BitSet(states)) for (ap, states) in lab_abs)
     aps = collect(keys(lab_bits))
 
@@ -517,96 +463,42 @@ function solve_concrete_problem_fm(
         return Tuple(trues)
     end
 
-    qa_ref = Ref(init_state(fm_ctrl.spec))
-    reset_memory! = () -> (qa_ref[] = init_state(fm_ctrl.spec); nothing)
+    qa0 = init_state(spec)
 
-    update_memory! = function (x_next)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x_next)
-        xpos ∈ abstract_system.Xdom || return nothing
-        qs_next = SY.get_state_by_xpos(abstract_system, xpos)
-        qa_ref[] = step(fm_ctrl.spec, qa_ref[], labeling_qs(qs_next))
-        return qa_ref[]
+    kP = contrP.h
+
+    # output map: (qa, qs) -> u_sym (or Vector) or nothing
+    h = function (qa::Int, qs::Int)
+        p = get(pid, (qs, qa), nothing)
+        p === nothing && return nothing
+        return kP(p)
     end
 
-    is_defined_x = function (x)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        xpos ∈ abstract_system.Xdom || return false
-        qs = SY.get_state_by_xpos(abstract_system, xpos)
-        return ST.is_defined(fm_ctrl, qs, qa_ref[])
+    # memory update: (qa, qs_for_update) -> qa_next
+    g = function (qa::Int, qs_for_update::Int)
+        return step(spec, qa, labeling_qs(qs_for_update))
     end
 
-    f = function (x; randomize::Bool = randomize)
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        xpos ∈ abstract_system.Xdom || return nothing
-        qs = SY.get_state_by_xpos(abstract_system, xpos)
-
-        ST.is_defined(fm_ctrl, qs, qa_ref[]) || return nothing
-
-        u_sym = if randomize
-            us = ST.get_all_controls(fm_ctrl, qs, qa_ref[])
-            isempty(us) ? nothing : rand(us)
-        else
-            ST.get_control(fm_ctrl, qs, qa_ref[])
-        end
-        u_sym === nothing && return nothing
-
-        return SY.get_concrete_input(abstract_system, u_sym)
+    # Domain for output map: defined iff pid exists and product-controller defined
+    isdef_qaqs = function (qaqs)
+        qa, qs = qaqs
+        p = get(pid, (qs, qa), nothing)
+        p === nothing && return false
+        out = kP(p)
+        out === nothing && return false
+        (out isa AbstractVector) && return !isempty(out)
+        return true
     end
+    X_qaqs = PredicateDomain(isdef_qaqs)
 
-    ctrl_concrete = ST.BlackBoxContinuousController(f, is_defined_x)
-    return ctrl_concrete, qa_ref, reset_memory!, update_memory!
+    # Build MS objects
+    # outputmap expects input (qa,qs); we pack into a 2-tuple input for ConstrainedBlackBoxMap
+    outmap = MS.ConstrainedBlackBoxMap(2, 1, qaqs -> begin
+        qa, qs = qaqs
+        h(qa, qs)
+    end, X_qaqs)
+
+    memsys = MS.BlackBoxDiscreteSystem((qa, qs_for_update) -> g(qa, qs_for_update), 1)
+
+    return MS.SystemWithOutput(memsys, outmap), qa0
 end
-
-"""
-Closed-loop simulation for a finite-memory controller.
-
-Arguments:
-- sys_dt         : discrete-time system (from abstraction)
-- abs_sys        : abstract system (for state re-abstraction)
-- ctrl           : ST.BlackBoxContinuousController
-- update_memory! : function x_next -> new qa
-- x0             : initial continuous state
-- nstep          : number of steps
-
-Keyword:
-- stopping       : optional stopping predicate on x
-
-Returns:
-- ST.Control_trajectory
-"""
-function get_closed_loop_trajectory_fm(
-    sys_dt,
-    abs_sys,            # (not used here, but ok to keep)
-    ctrl::ST.ContinuousController,
-    update_memory!,
-    x0,
-    nstep;
-    stopping = x -> false,
-)
-    xs = Vector{typeof(x0)}()
-    us = Vector{Any}()
-
-    x = x0
-    push!(xs, x)
-
-    for k in 1:nstep
-        stopping(x) && break
-        ST.is_defined(ctrl, x) || break
-
-        u = ST.get_control(ctrl, x)
-        u === nothing && break
-
-        x_next = MathematicalSystems.mapping(sys_dt)(x, u)
-
-        update_memory!(x_next)
-
-        push!(us, u)
-        push!(xs, x_next)
-
-        x = x_next
-    end
-
-    return ST.Control_trajectory(ST.Trajectory(xs), ST.Trajectory(us))
-end
-
-

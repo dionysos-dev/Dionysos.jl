@@ -13,6 +13,8 @@ function enum_states(symmodel::SymbolicModel) end
 function enum_inputs(symmodel::SymbolicModel) end
 function get_state_domain(symmodel::SymbolicModel) end
 function get_input_domain(symmodel::SymbolicModel) end
+function get_concrete_state_dim(symmodel::SymbolicModel) end
+function get_concrete_input_dim(symmodel::SymbolicModel) end
 
 function get_concrete_state(symmodel::SymbolicModel, state) end
 function get_concrete_input(symmodel::SymbolicModel, input) end
@@ -28,6 +30,46 @@ function is_deterministic(symmodel::SymbolicModel) end
 
 get_n_transitions(symmodel::SymbolicModel) = length(enum_transitions(symmodel))
 
+function get_states_from_set(
+    symmodel::SymbolicModel,
+    set::UT.LazySetMinus,
+    incl_mode::DO.INCL_MODE,
+)
+    # A uses the given inclusion mode
+    states_A = get_states_from_set(symmodel, set.A, incl_mode)
+    # B uses the opposite inclusion mode
+    states_B = get_states_from_set(symmodel, set.B, DO._invInclMode(incl_mode))
+    return setdiff(states_A, states_B)
+end
+
+function get_states_from_set(
+    symmodel::SymbolicModel,
+    subsets::UT.LazyUnionSetArray,
+    incl_mode::DO.INCL_MODE,
+)
+    acc = Int[]
+    for subset in subsets.sets
+        append!(acc, get_states_from_set(symmodel, subset, incl_mode))
+    end
+    unique!(acc)
+    return acc
+end
+
+function get_states_from_set(
+    symmodel::SymbolicModel,
+    subsets,
+    incl_mode::DO.INCL_MODE,
+)
+    acc = Int[]
+    for subset in subsets.sets
+        append!(acc, get_states_from_set(symmodel, subset, incl_mode))
+    end
+    unique!(acc)
+    return acc
+end
+
+
+
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
 
@@ -42,6 +84,8 @@ function get_state_by_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 function is_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 
 get_state_grid(symmodel::GridBasedSymbolicModel) = DO.get_grid(get_state_domain(symmodel))
+get_concrete_state_dim(symmodel::GridBasedSymbolicModel) = DO.get_dim(get_state_domain(symmodel))
+get_concrete_input_dim(symmodel::GridBasedSymbolicModel) = DO.get_dim(get_input_domain(symmodel))
 function get_concrete_state(symmodel::GridBasedSymbolicModel, state)
     xpos = get_xpos_by_state(symmodel, state)
     return DO.get_coord_by_pos(get_state_domain(symmodel), xpos)
@@ -75,32 +119,10 @@ function get_states_from_set(
 )
     Xdom = get_state_domain(symmodel)
     posL = DO.get_subset_pos(Xdom, subset, incl_mode)
-    return [get_state_by_xpos(symmodel, pos) for pos in posL]
+    return Int[get_state_by_xpos(symmodel, pos) for pos in posL]
 end
 
-function get_states_from_sets(
-    symmodel::GridBasedSymbolicModel,
-    subsets::UT.LazyUnionSetArray,
-    incl_mode::DO.INCL_MODE,
-)
-    states = []
-    for subset in subsets.sets
-        append!(states, get_states_from_set(symmodel, subset, incl_mode))
-    end
-    return states
-end
 
-function get_states_from_sets(
-    symmodel::GridBasedSymbolicModel,
-    subsets,
-    incl_mode::DO.INCL_MODE,
-)
-    states = []
-    for subset in subsets
-        append!(states, get_states_from_set(symmodel, subset, incl_mode))
-    end
-    return states
-end
 
 @recipe function f(
     symmodel::GridBasedSymbolicModel;

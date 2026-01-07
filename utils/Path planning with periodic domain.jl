@@ -90,13 +90,13 @@ function reached(x)
 end
 
 x0 = SVector(0.4, 0.4, 0.0)
-control_trajectory = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;
     stopping = reached,
-    periodic_wrapper = ST.get_periodic_wrapper(
+    wrap = ST.get_periodic_wrapper(
         periodic_dims,
         periods;
         start = periodic_start,
@@ -136,4 +136,4 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(control_trajectory; ms = 2.0, arrows = false)
+plot!(x_traj; ms = 2.0, arrows = false)

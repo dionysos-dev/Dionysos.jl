@@ -11,7 +11,9 @@ const DO = Dionysos.Domain
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
+MS = MathematicalSystems
 import HybridSystems
+import Spot
 using JuMP
 
 include("empty_problem.jl")
@@ -92,7 +94,7 @@ controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller")
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerEmptyProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
-    concrete_controller::Union{Nothing, ST.ContinuousController}
+    concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
     solve_time_sec::T
     print_level::Int
 
@@ -219,45 +221,45 @@ function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time_sec
 end
 
-function solve_concrete_problem(
-    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
-    abstract_controller::Dionysos.System.SymbolicController,
-)
-    function is_defined(x)
-        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system.Xdom)
-            return false
-        end
-        source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
-        if !Dionysos.System.is_defined(abstract_controller, source)
-            return false
-        end
-        return true
-    end
-    function f(x; randomize::Bool = false)
-        # 1. Abstract the concrete state
-        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system.Xdom)
-            @warn("State out of domain: $x")
-            return nothing
-        end
-        # 2. Get abstract state index
-        source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
-        # 3. Check if controller is defined there
-        if !Dionysos.System.is_defined(abstract_controller, source)
-            @warn "Uncontrollable state: $x"
-            return nothing
-        end
-        # 4. Select a symbol from the admissible inputs
-        inputs = Dionysos.System.get_all_controls(abstract_controller, source)
-        symbol = randomize ? rand(inputs) : first(inputs)
-        # 5. Map to concrete input
-        u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
+# function solve_concrete_problem(
+#     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
+#     abstract_controller::Dionysos.System.SymbolicController,
+# )
+#     function is_defined(x)
+#         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
+#         if !(xpos ∈ abstract_system.Xdom)
+#             return false
+#         end
+#         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+#         if !Dionysos.System.is_defined(abstract_controller, source)
+#             return false
+#         end
+#         return true
+#     end
+#     function f(x; randomize::Bool = false)
+#         # 1. Abstract the concrete state
+#         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
+#         if !(xpos ∈ abstract_system.Xdom)
+#             @warn("State out of domain: $x")
+#             return nothing
+#         end
+#         # 2. Get abstract state index
+#         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+#         # 3. Check if controller is defined there
+#         if !Dionysos.System.is_defined(abstract_controller, source)
+#             @warn "Uncontrollable state: $x"
+#             return nothing
+#         end
+#         # 4. Select a symbol from the admissible inputs
+#         inputs = Dionysos.System.get_all_controls(abstract_controller, source)
+#         symbol = randomize ? rand(inputs) : first(inputs)
+#         # 5. Map to concrete input
+#         u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
 
-        return u
-    end
-    return ST.BlackBoxContinuousController(f, is_defined)
-end
+#         return u
+#     end
+#     return ST.BlackBoxContinuousController(f, is_defined)
+# end
 
 function is_abstraction_computed(optimizer::Optimizer)
     return optimizer.abstraction_solver !== nothing &&
@@ -421,5 +423,144 @@ function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
 
     return origin, h, pos2state, state2input, input2u
 end
+
+
+
+# Domain object whose membership is a predicate
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+function solve_concrete_problem(
+    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
+    abstract_controller::MS.AbstractMap;
+    randomize::Bool = false
+)
+    k_abs = abstract_controller.h
+
+    # concrete-state -> abstract-state (or nothing)
+    x_to_qs = function (x)
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
+        (xpos ∈ abstract_system.Xdom) || return nothing
+        return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+    end
+
+    # implicit domain predicate on x
+    is_defined = function (x)
+        qs = x_to_qs(x)
+        qs === nothing && return false
+        us = k_abs(qs)
+        return us !== nothing && !(us isa AbstractVector && isempty(us))
+    end
+
+    # output map x -> u (or nothing)
+    f = function (x)
+        qs = x_to_qs(x)
+        qs === nothing && return nothing
+
+        us = k_abs(qs)
+        us === nothing && return nothing
+
+        u_sym = if us isa AbstractVector
+            isempty(us) ? nothing : (randomize ? rand(us) : first(us))
+        else
+            us
+        end
+        u_sym === nothing && return nothing
+
+        return Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym)
+    end
+
+    X = PredicateDomain(is_defined)
+    nx::Int = Dionysos.Symbolic.get_concrete_state_dim(abstract_system)
+    nu::Int = Dionysos.Symbolic.get_concrete_input_dim(abstract_system)
+    return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
+end
+
+"""
+    solve_concrete_problem(abstract_system, abstract_controller::MS.SystemWithOutput; randomize=false)
+
+Concretizes an abstract finite-memory controller (on (qa,qs)) into a concrete
+finite-memory controller (on (qa,x)).
+
+Assumptions on `abstract_controller`:
+- output:  u_sym = h_abs(qa, qs)  (may be Int, Vector{Int}, or nothing)
+- update:  qa_next = g_abs(qa, qs_for_update)
+
+Returns:
+- concrete_controller :: MS.SystemWithOutput
+- qa0 is NOT stored here; you keep passing q0 to closed_loop_trajectory.
+"""
+function solve_concrete_problem(
+    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
+    abstract_controller::MS.SystemWithOutput;
+    randomize::Bool = false,
+)
+    # MS callables qa == abstract controller state
+    h_abs = abstract_controller.outputmap.h   # (qa, qs) -> u_sym (or Vector) or nothing
+    g_abs = MS.mapping(abstract_controller.s)         # (qa, qs) -> qa_next
+
+    # concrete-state -> abstract-state (or nothing)
+    x_to_qs = function (x)
+        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
+        (xpos ∈ abstract_system.Xdom) || return nothing
+        return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+    end
+
+    # output map for concrete controller: (qa, x) -> u_conc (or nothing)
+    h_conc = function (qa, x)
+        qs = x_to_qs(x)
+        qs === nothing && return nothing
+
+        us = h_abs((qa, qs))
+        us === nothing && return nothing
+
+        u_sym = if us isa AbstractVector
+            isempty(us) ? nothing : (randomize ? rand(us) : first(us))
+        else
+            us
+        end
+        u_sym === nothing && return nothing
+
+        return Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym)
+    end
+
+    # state update for concrete controller: (qa, x_for_update) -> qa_next
+    # (your rollout can choose x or x_next via update_on_next flag)
+    g_conc = function (qa, x_for_update)
+        qs = x_to_qs(x_for_update)
+        qs === nothing && return qa     # or a dead-state if you prefer
+        return g_abs(qa, qs)
+    end
+
+    # Domain predicate on (qa, x) for the outputmap
+    is_defined_qax = function (qax)
+        qa, x = qax
+        qs = x_to_qs(x)
+        qs === nothing && return false
+        us = h_abs(qa, qs)
+        return us !== nothing && !(us isa AbstractVector && isempty(us))
+    end
+    X_qax = PredicateDomain(is_defined_qax)
+
+    # Build MS objects
+    nx = Dionysos.Symbolic.get_concrete_state_dim(abstract_system)
+    nu = Dionysos.Symbolic.get_concrete_input_dim(abstract_system)
+
+    outmap = MS.ConstrainedBlackBoxMap(2, nu, qax -> begin
+        qa, x = qax
+        h_conc(qa, x)
+    end, X_qax)
+
+    memsys = MS.BlackBoxControlDiscreteSystem(
+        (qa, x_for_update) -> g_conc(qa, x_for_update),
+        1,
+        nx,
+    )
+
+    return MS.SystemWithOutput(memsys, outmap)
+end
+
 
 end

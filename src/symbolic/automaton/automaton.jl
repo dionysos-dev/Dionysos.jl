@@ -41,6 +41,38 @@ function is_deterministic(autom::AbstractAutomatonList{N, M}) where {N, M}
     return true
 end
 
+###########################################
+################# Control #################
+###########################################
+
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+
+mutable struct SymbolicControlTable
+    U::Vector{Vector{Int}}   # U[q] = admissible symbols
+end
+
+SymbolicControlTable(nstates::Int) = SymbolicControlTable([Int[] for _ in 1:nstates])
+
+add_control!(C::SymbolicControlTable, q::Int, u::Int) = push!(C.U[q], u)
+
+function set_control!(C::SymbolicControlTable, q::Int, u::Int)
+    empty!(C.U[q])
+    push!(C.U[q], u)
+    return u
+end
+
+is_defined(C::SymbolicControlTable, q::Int) = !isempty(C.U[q])
+function to_ms_controller(C::SymbolicControlTable)
+    qfun = (qs::Int) -> C.U[qs]                       # set-valued output
+    X    = PredicateDomain((qs::Int) -> is_defined(C, qs))
+    return MathematicalSystems.ConstrainedBlackBoxMap(1, 1, qfun, X)
+end
+
+
 ###################################################
 ################# Optimal control #################
 ###################################################
@@ -49,9 +81,8 @@ function compute_worst_case_cost_controller(
     target_set;
     initial_set = enum_states(autom),
     cost_function = nothing,
-    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
     sparse_input::Bool = false,
-)
+)   
     if cost_function === nothing
         abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
             compute_worst_case_uniform_cost_controller(
@@ -59,7 +90,6 @@ function compute_worst_case_cost_controller(
                 target_set;
                 initial_set = initial_set,
                 sparse_input = sparse_input,
-                ControllerConstructor = ControllerConstructor,
             )
     else
         abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
@@ -68,7 +98,6 @@ function compute_worst_case_cost_controller(
                 target_set;
                 initial_set = initial_set,
                 sparse_input = sparse_input,
-                ControllerConstructor = ControllerConstructor,
                 cost_function = cost_function,
             )
     end
@@ -80,13 +109,13 @@ function compute_optimal_controller(
     target_set;
     initial_set = enum_states(autom),
     cost_function = nothing,
-    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
     sparse_input::Bool = false,
-)
+)   
+    contr_tab = SymbolicControlTable(get_n_state(autom))
+
     is_det = is_deterministic(autom)
     uniform_cost = cost_function === nothing
     effective_cost_function = uniform_cost ? ((q, u) -> 1.0) : cost_function
-    abstract_controller = ControllerConstructor()
     state_set = enum_states(autom)
     value_fun_tab = fill(Inf, get_n_state(autom))
     for q in target_set
@@ -113,7 +142,7 @@ function compute_optimal_controller(
                 total_cost = effective_cost_function(source, symbol) + cost_to_target
                 if total_cost < value_fun_tab[source]
                     value_fun_tab[source] = total_cost
-                    ST.set_control!(abstract_controller, source, symbol)
+                    add_control!(contr_tab, source, symbol)
                     pq[source] = total_cost
                 end
             else
@@ -131,7 +160,7 @@ function compute_optimal_controller(
                     total_cost = effective_cost_function(source, symbol) + worst
                     if total_cost < value_fun_tab[source]
                         value_fun_tab[source] = total_cost
-                        ST.set_control!(abstract_controller, source, symbol)
+                        add_control!(contr_tab, source, symbol)
                         pq[source] = total_cost
                     end
                 end
@@ -141,6 +170,7 @@ function compute_optimal_controller(
 
     controllable_set = Set(i for (i, v) in pairs(value_fun_tab) if isfinite(v))
     uncontrollable_set = setdiff(state_set, controllable_set)
+    abstract_controller = to_ms_controller(contr_tab)
 
     return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
 end
@@ -188,9 +218,9 @@ function compute_worst_case_uniform_cost_controller(
     target_set;
     initial_set = enum_states(autom),
     sparse_input = false,
-    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
 )
-    abstract_controller = ControllerConstructor()
+    contr_tab = SymbolicControlTable(get_n_state(autom))
+
     stateset,
     initset,
     controllable_set,
@@ -200,7 +230,7 @@ function compute_worst_case_uniform_cost_controller(
     value_fun_tab = _data(autom, initial_set, target_set, sparse_input)
 
     success, value_fun_tab = _compute_controller_reach!(
-        abstract_controller,
+        contr_tab,
         autom,
         initset,
         controllable_set,
@@ -211,6 +241,7 @@ function compute_worst_case_uniform_cost_controller(
     )
 
     uncontrollable_set = setdiff(stateset, controllable_set)
+    abstract_controller = to_ms_controller(contr_tab)
 
     return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
 end
@@ -241,7 +272,7 @@ function _data(autom, initlist, targetlist, sparse_input::Bool)
 end
 
 function _compute_controller_reach!(
-    contr,
+    contr_tab,
     autom,
     init_set,
     target_set,
@@ -267,7 +298,7 @@ function _compute_controller_reach!(
                    iszero(decrease_counter!(counter, source, symbol))
                     push!(target_set, source)
                     push!(next_targets, source)
-                    ST.add_control!(contr, source, symbol)
+                    add_control!(contr_tab, source, symbol)
                     value_fun_tab[source] = step
 
                     if source in init_set
@@ -276,7 +307,6 @@ function _compute_controller_reach!(
                 end
             end
         end
-
         current_targets, next_targets = next_targets, current_targets
     end
 
@@ -290,9 +320,8 @@ end
 function compute_largest_invariant_set(
     autom::AbstractAutomatonList,
     safelist;
-    ControllerConstructor::Function = () -> ST.SymbolicControllerList(),
 )
-    contr = ControllerConstructor()
+    contr_tab = SymbolicControlTable(get_n_state(autom))
     nstates = get_n_state(autom)
     nsymbols = get_n_input(autom)
     pairstable = [false for i in 1:nstates, j in 1:nsymbols]
@@ -345,12 +374,13 @@ function compute_largest_invariant_set(
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                ST.add_control!(contr, source, symbol)
+                set_control!(contr_tab, source, symbol)
             end
         end
     end
     unsafeset = setdiff(Set(safelist), safeset)
-    return contr, safeset, unsafeset
+    abstract_controller = to_ms_controller(contr_tab)
+    return abstract_controller, safeset, unsafeset
 end
 
 function _compute_pairstable(pairstable, autom)

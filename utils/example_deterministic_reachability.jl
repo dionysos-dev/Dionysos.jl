@@ -52,11 +52,6 @@ MOI.set(
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> SY.NewIndexedAutomatonList(n, m),
 )
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("controller_constructor"),
-    () -> ST.SymbolicControllerDict(),
-)
 
 MOI.optimize!(optimizer)
 
@@ -82,7 +77,7 @@ println(
     "Worst-case (upper bound) value for the initial point: ",
     concrete_value_function(x0),
 )
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -109,7 +104,7 @@ plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
 )
-plot!(control_trajectory; ms = 2.0, arrows = false)
+plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
 ####################################################################################
@@ -167,7 +162,7 @@ println(
     concrete_value_function(x0),
 )
 
-new_control_trajectory = ST.get_closed_loop_trajectory(
+new_x_traj, new_u_traj = ST.get_closed_loop_trajectory(
     MOI.get(new_optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -194,6 +189,6 @@ plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
 )
-plot!(control_trajectory; ms = 2.0, arrows = false, color = :blue)
-plot!(new_control_trajectory; ms = 2.0, arrows = false, color = :red)
+plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
+plot!(new_x_traj; ms = 2.0, arrows = false, color = :red)
 display(fig)

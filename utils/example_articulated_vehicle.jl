@@ -90,15 +90,15 @@ function simulate_closed_loop(
 
     reached(x) = (periodic_wrapper(x) ∈ target_set)
 
-    traj = ST.get_closed_loop_trajectory(
+    x_traj, u_traj = ST.get_closed_loop_trajectory(
         disc,
         concrete_controller,
         x0,
         nstep;
         stopping = reached,
-        periodic_wrapper = periodic_wrapper,
+        wrap = periodic_wrapper,
     )
-    return traj
+    return x_traj, u_traj
 end
 
 function plot_state_space!(
@@ -106,7 +106,7 @@ function plot_state_space!(
     concrete_system,
     _I_,
     _T_,
-    traj;
+    x_traj;
     dims = [1, 2],
     with_period = false,
     periodic_dims = SVector{0, Int}(),
@@ -138,13 +138,14 @@ function plot_state_space!(
     plot!(Ip; dims = dims, color = :green, opacity = 0.2, label = "I")
     plot!(Tp; dims = dims, color = :red, opacity = 0.5, label = "T")
 
-    return plot!(traj; dims = dims, ms = 2.0, arrows = false)
+    return plot!(x_traj; dims = dims, ms = 2.0, arrows = false)
 end
 
 function plot_articulated_vehicle!(
     concrete_system,
     params,
-    traj;
+    x_traj,
+    u_traj;
     domain = concrete_system.X,
     giffile = nothing,
     fps = 20,
@@ -159,7 +160,8 @@ function plot_articulated_vehicle!(
     return AV.live_vehicle_progression(
         params,
         dp,
-        traj,
+        x_traj,
+        u_traj,
         xl,
         yl;
         domain = domain,
@@ -243,7 +245,7 @@ function script()
     )
 
     controller, target_set = build_uniform_grid_controller!(opt, concrete_system, _I_, _T_)
-    traj = simulate_closed_loop(
+    x_traj, u_traj = simulate_closed_loop(
         concrete_system,
         controller,
         Δt,
@@ -263,7 +265,7 @@ function script()
         concrete_system,
         _I_,
         _T_,
-        traj;
+        x_traj;
         dims = dims,
         with_period = true,
         periodic_dims = periodic_dims,
@@ -279,7 +281,7 @@ function script()
         concrete_system,
         _I_,
         _T_,
-        traj;
+        x_traj;
         dims = dims,
         with_period = true,
         periodic_dims = periodic_dims,
@@ -288,7 +290,7 @@ function script()
     )
     savefig(fig, "state_space_34.pdf")
     display(fig)
-    return plot_articulated_vehicle!(concrete_system, params, traj; every = 1, dt = 0.09)
+    return plot_articulated_vehicle!(concrete_system, params, x_traj, u_traj; every = 1, dt = 0.09)
     #plot_articulated_vehicle!(concrete_system, params, traj; giffile="articulated_vehicle.gif",fps=5,every=3) 
 end
 

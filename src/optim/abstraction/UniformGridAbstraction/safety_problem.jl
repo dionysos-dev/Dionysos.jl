@@ -66,11 +66,10 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     # Inputs
     concrete_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
     abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
-    controller_constructor::Union{Nothing, Any}
 
     # Constructed parameters
     abstract_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
-    abstract_controller::Union{Nothing, Dionysos.System.SymbolicController}
+    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
     abstract_problem_time_sec::T
 
     # Problem/Solver-Specific parameters
@@ -83,7 +82,6 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
         return new{T}(
             nothing,
             nothing,
-            () -> ST.SymbolicControllerList(),
             nothing,
             nothing,
             0.0,
@@ -128,9 +126,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
         SY.compute_largest_invariant_set(
             optimizer.abstract_problem.system.autom,
-            optimizer.abstract_problem.safe_set;
-            ControllerConstructor = optimizer.controller_constructor,
-        )
+            optimizer.abstract_problem.safe_set        )
 
     invariant_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,

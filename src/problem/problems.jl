@@ -138,6 +138,39 @@ end
     end
 end
 
+@recipe function f(
+    problem::CoSafeLTLProblem;
+    domain_color = :gray,
+    initial_set_color = :green,
+    ap_colors = Dict{Symbol,Any}(),
+    obs_color = :red,
+)
+    # --------------------
+    # Domain
+    # --------------------
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+
+
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+
+    for (ap, setX) in problem.labeling
+        color_ap = haskey(ap_colors, ap) ? ap_colors[ap] : :blue
+        @series begin
+            label := String(ap)
+            color := color_ap
+            setX
+        end
+    end
+end
+
 export OptimalControlProblem
 export SafetyProblem
 export Infinity
