@@ -67,7 +67,7 @@ end
 
 is_defined(C::SymbolicControlTable, q::Int) = !isempty(C.U[q])
 function to_ms_controller(C::SymbolicControlTable)
-    qfun = (qs::Int) -> C.U[qs]                       # set-valued output
+    qfun = (qs::Int) -> C.U[qs] # set-valued output
     X    = PredicateDomain((qs::Int) -> is_defined(C, qs))
     return MathematicalSystems.ConstrainedBlackBoxMap(1, 1, qfun, X)
 end

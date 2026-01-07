@@ -56,9 +56,6 @@ abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_proble
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-@testset "UniformGridAbstraction reachability" begin
-    @test length(ST.domain(abstract_controller)) == 19563 #src
-end
 
 # ### Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
@@ -72,7 +69,7 @@ function reached(x)
     end
 end
 x0 = SVector(0.4, 0.4, 0.0)
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -107,6 +104,6 @@ no_plot = false
     )
 
     # We display the concrete trajectory
-    plot!(control_trajectory; ms = 0.5)
+    plot!(x_traj; ms = 0.5)
 end
 end

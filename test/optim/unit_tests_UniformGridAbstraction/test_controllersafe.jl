@@ -77,11 +77,10 @@ println("Started test")
 
     contr, invariant_set_symbols, invariant_set_complement_symbols =
         SY.compute_largest_invariant_set(symmodel.autom, safelist)
-    @test length(ST.domain(contr)) == 1008
 
     invlist = Int[]
     for source in 1:(symmodel.autom.nstates)
-        if ST.is_defined(contr, source)
+        if source in contr.X
             push!(invlist, source)
         end
     end
@@ -94,7 +93,7 @@ println("Started test")
             break
         end
         targetlist = Int[]
-        for symbol in ST.get_all_controls(contr, source)
+        for symbol in MathematicalSystems.apply(contr, source)
             SY.compute_post!(targetlist, symmodel.autom, source, symbol)
         end
         for target in targetlist

@@ -221,210 +221,10 @@ function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time_sec
 end
 
-# function solve_concrete_problem(
-#     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
-#     abstract_controller::Dionysos.System.SymbolicController,
-# )
-#     function is_defined(x)
-#         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-#         if !(xpos ∈ abstract_system.Xdom)
-#             return false
-#         end
-#         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
-#         if !Dionysos.System.is_defined(abstract_controller, source)
-#             return false
-#         end
-#         return true
-#     end
-#     function f(x; randomize::Bool = false)
-#         # 1. Abstract the concrete state
-#         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-#         if !(xpos ∈ abstract_system.Xdom)
-#             @warn("State out of domain: $x")
-#             return nothing
-#         end
-#         # 2. Get abstract state index
-#         source = Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
-#         # 3. Check if controller is defined there
-#         if !Dionysos.System.is_defined(abstract_controller, source)
-#             @warn "Uncontrollable state: $x"
-#             return nothing
-#         end
-#         # 4. Select a symbol from the admissible inputs
-#         inputs = Dionysos.System.get_all_controls(abstract_controller, source)
-#         symbol = randomize ? rand(inputs) : first(inputs)
-#         # 5. Map to concrete input
-#         u = Dionysos.Symbolic.get_concrete_input(abstract_system, symbol)
-
-#         return u
-#     end
-#     return ST.BlackBoxContinuousController(f, is_defined)
-# end
-
 function is_abstraction_computed(optimizer::Optimizer)
     return optimizer.abstraction_solver !== nothing &&
            optimizer.abstraction_solver.abstract_system !== nothing
 end
-
-function MOI.optimize!(optimizer::Optimizer)
-    t_ref = time()
-
-    # Ensure the concrete problem is defined
-    if optimizer.abstraction_solver === nothing
-        error("The concrete problem is not defined.")
-    end
-
-    # Compute abstraction if not already done
-    if !is_abstraction_computed(optimizer)
-        MOI.set(
-            optimizer.abstraction_solver,
-            MOI.RawOptimizerAttribute("print_level"),
-            optimizer.print_level,
-        )
-        MOI.optimize!(optimizer.abstraction_solver)
-    end
-
-    # If there's a control solver, optimize it
-    if optimizer.control_solver !== nothing
-        MOI.set(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("print_level"),
-            optimizer.print_level,
-        )
-        abstract_system = MOI.get(
-            optimizer.abstraction_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-        )
-        MOI.set(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-            abstract_system,
-        )
-        MOI.optimize!(optimizer.control_solver)
-        abstract_controller = MOI.get(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("abstract_controller"),
-        )
-        optimizer.concrete_controller = solve_concrete_problem(
-            optimizer.abstraction_solver.abstract_system,
-            abstract_controller,
-        )
-    end
-
-    # Time elapsed
-    optimizer.solve_time_sec = time() - t_ref
-    return
-end
-
-using DataFrames, CSV
-
-function export_controller_csv(
-    optimizer::UniformGridAbstraction.Optimizer,
-    filename::String,
-)
-    abstract_system = optimizer.abstraction_solver.abstract_system
-    abstract_controller = optimizer.control_solver.abstract_controller
-    abstract_controller === nothing && error("Controller not available")
-
-    return export_controller_csv(abstract_system, abstract_controller, filename)
-end
-
-function export_controller_csv(abstract_system, abstract_controller, basename::String)
-    grid = SY.get_state_grid(abstract_system)
-
-    CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim = ';')
-    CSV.write(
-        basename * "_StateMap.csv",
-        build_state_map_df(abstract_system, grid);
-        delim = ';',
-    )
-    CSV.write(
-        basename * "_ControllerMap.csv",
-        build_controller_map_df(abstract_system, abstract_controller);
-        delim = ';',
-    )
-    return CSV.write(
-        basename * "_InputMap.csv",
-        build_input_map_df(abstract_system);
-        delim = ';',
-    )
-end
-
-function build_grid_df(grid)
-    origin = DO.get_origin(grid)
-    h = DO.get_h(grid)
-    ndims = length(origin)
-
-    header = ["key"; ["x$(j)" for j in 1:ndims]]
-    rows = [["origin"; origin], ["h"; h]]
-
-    df = DataFrame()
-    for j in 1:length(header)
-        df[!, Symbol(header[j])] = getindex.(rows, j)
-    end
-    return df
-end
-
-function build_state_map_df(abstract_system, grid)
-    ndims = length(DO.get_h(grid))
-    headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
-    states = SY.enum_states(abstract_system)
-    rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-end
-
-function build_controller_map_df(abstract_system, abstract_controller)
-    states = SY.enum_states(abstract_system)
-    rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
-    return DataFrame([
-        "abstract_state" => getindex.(rows, 1),
-        "abstract_input" => getindex.(rows, 2),
-    ])
-end
-
-function get_input_symbol(controller, state)
-    return Dionysos.System.is_defined(controller, state) ?
-           Dionysos.System.get_control(controller, state) : -1
-end
-
-function build_input_map_df(abstract_system)
-    inputs = SY.enum_inputs(abstract_system)
-    ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
-    headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
-    rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-end
-
-function load_controller_data_csv(basename::String)
-    grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim = ';')
-    state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim = ';')
-    ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim = ';')
-    input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim = ';')
-    return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-end
-
-function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-    origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
-    h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
-
-    pos2state = Dict{Vector{Int}, Int}()
-    for row in eachrow(state_df)
-        pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df) - 1)]
-        pos2state[pos] = row.abstract_state
-    end
-
-    state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
-
-    input2u = Dict{Int, Vector{Float64}}()
-    for row in eachrow(input_df)
-        u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df) - 1)]
-        input2u[row.abstract_input] = u
-    end
-
-    return origin, h, pos2state, state2input, input2u
-end
-
-
 
 # Domain object whose membership is a predicate
 struct PredicateDomain{F}
@@ -562,5 +362,168 @@ function solve_concrete_problem(
     return MS.SystemWithOutput(memsys, outmap)
 end
 
+function MOI.optimize!(optimizer::Optimizer)
+    t_ref = time()
+
+    # Ensure the concrete problem is defined
+    if optimizer.abstraction_solver === nothing
+        error("The concrete problem is not defined.")
+    end
+
+    # Compute abstraction if not already done
+    if !is_abstraction_computed(optimizer)
+        MOI.set(
+            optimizer.abstraction_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            optimizer.print_level,
+        )
+        MOI.optimize!(optimizer.abstraction_solver)
+    end
+
+    # If there's a control solver, optimize it
+    if optimizer.control_solver !== nothing
+        MOI.set(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            optimizer.print_level,
+        )
+        abstract_system = MOI.get(
+            optimizer.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+        )
+        MOI.set(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abstract_system,
+        )
+        MOI.optimize!(optimizer.control_solver)
+        abstract_controller = MOI.get(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("abstract_controller"),
+        )
+        optimizer.concrete_controller = solve_concrete_problem(
+            optimizer.abstraction_solver.abstract_system,
+            abstract_controller,
+        )
+    end
+
+    # Time elapsed
+    optimizer.solve_time_sec = time() - t_ref
+    return
+end
+
+using DataFrames, CSV
+
+function export_controller_csv(
+    optimizer::UniformGridAbstraction.Optimizer,
+    filename::String,
+)
+    abstract_system = optimizer.abstraction_solver.abstract_system
+    abstract_controller = optimizer.control_solver.abstract_controller
+    abstract_controller === nothing && error("Controller not available")
+
+    return export_controller_csv(abstract_system, abstract_controller, filename)
+end
+
+function export_controller_csv(abstract_system, abstract_controller, basename::String)
+    grid = SY.get_state_grid(abstract_system)
+
+    CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim = ';')
+    CSV.write(
+        basename * "_StateMap.csv",
+        build_state_map_df(abstract_system, grid);
+        delim = ';',
+    )
+    CSV.write(
+        basename * "_ControllerMap.csv",
+        build_controller_map_df(abstract_system, abstract_controller);
+        delim = ';',
+    )
+    return CSV.write(
+        basename * "_InputMap.csv",
+        build_input_map_df(abstract_system);
+        delim = ';',
+    )
+end
+
+function build_grid_df(grid)
+    origin = DO.get_origin(grid)
+    h = DO.get_h(grid)
+    ndims = length(origin)
+
+    header = ["key"; ["x$(j)" for j in 1:ndims]]
+    rows = [["origin"; origin], ["h"; h]]
+
+    df = DataFrame()
+    for j in 1:length(header)
+        df[!, Symbol(header[j])] = getindex.(rows, j)
+    end
+    return df
+end
+
+function build_state_map_df(abstract_system, grid)
+    ndims = length(DO.get_h(grid))
+    headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
+    states = SY.enum_states(abstract_system)
+    rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
+
+function build_controller_map_df(abstract_system, abstract_controller)
+    states = SY.enum_states(abstract_system)
+    rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
+    return DataFrame([
+        "abstract_state" => getindex.(rows, 1),
+        "abstract_input" => getindex.(rows, 2),
+    ])
+end
+
+function get_input_symbol(controller, state; randomize=false)
+    !(state in controller.X) && return -1
+
+    u = controller.h(state)
+
+    u === nothing && return -1
+    (u isa AbstractVector && isempty(u)) && return -1
+
+    return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
+end
+
+function build_input_map_df(abstract_system)
+    inputs = SY.enum_inputs(abstract_system)
+    ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
+    headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
+    rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
+
+function load_controller_data_csv(basename::String)
+    grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim = ';')
+    state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim = ';')
+    ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim = ';')
+    input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim = ';')
+    return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+end
+
+function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+    origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
+    h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
+
+    pos2state = Dict{Vector{Int}, Int}()
+    for row in eachrow(state_df)
+        pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df) - 1)]
+        pos2state[pos] = row.abstract_state
+    end
+
+    state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
+
+    input2u = Dict{Int, Vector{Float64}}()
+    for row in eachrow(input_df)
+        u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df) - 1)]
+        input2u[row.abstract_input] = u
+    end
+
+    return origin, h, pos2state, state2input, input2u
+end
 
 end

@@ -33,7 +33,7 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
 
 # For x' = u, ∂f/∂x = 0, so bound is the zero matrix (independent of u)
 jacobian_bound = u -> @SMatrix [0.0 0.0;
-                               0.0 0.0]
+                                0.0 0.0]
 
 # ------------------------------------------------------------
 # 2) Abstraction construction (EmptyProblem), same as you do

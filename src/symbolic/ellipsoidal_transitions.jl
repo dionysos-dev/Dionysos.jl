@@ -1,5 +1,7 @@
 # functions to compute transitions between ellipsoids 
 # (forward vs backward, PWA vs non-linear, fixed shape vs optimized shape)
+import MathematicalSystems
+MS = MathematicalSystems
 
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,
@@ -286,7 +288,7 @@ function _has_transition(
         optimizer,
     )
     K, ℓ = get_controller_matrices(kappa)
-    cont = ST.AffineController(K, E1.c, ℓ)
+    cont = MS.AffineMap(K, ℓ-K*E1.c)
     return ans, cont, cost
 end
 
@@ -450,7 +452,7 @@ function transition_fixed(
         optimizer,
     )
     K, ℓ = get_controller_matrices(kappa)
-    cont = ST.AffineController(K, E1.c, ℓ)
+    cont = MS.AffineMap(K, ℓ-K*E1.c)
     return ans, cont, cost
 end
 
@@ -631,7 +633,7 @@ function transition_backward(
     )
     if P1 !== nothing
         K, ℓ = get_controller_matrices(kappa)
-        cont = ST.AffineController(K, c1, ℓ)
+        cont = MS.AffineMap(K, ℓ-K*c1)
         return UT.Ellipsoid(P1, c1), cont, cost
     else
         return nothing, nothing, nothing

@@ -17,8 +17,6 @@ include("controlsystem.jl")
 
 using Colors
 import HybridSystems
-include("controller.jl")
 include("trajectory.jl")
-
 include("approximation/approximation.jl")
 end

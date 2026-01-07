@@ -5,6 +5,9 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 using JuMP, Random
 
+import MathematicalSystems
+MS = MathematicalSystems
+
 Random.seed!(0)
 
 import Dionysos
@@ -14,6 +17,8 @@ const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
+
+
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
@@ -25,8 +30,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, ST.SymbolicController}
-    concrete_controller::Union{Nothing, ST.ContinuousController}
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap} 
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -40,6 +45,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     solved::Union{Nothing, Bool}
     param::Union{Nothing, Any}
     solve_time_sec::T
+
+    periodic_dims::Union{Nothing, Any}
+    periodic_periods::Union{Nothing, Any}
+    periodic_start::Union{Nothing, Any}
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -61,6 +70,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             false,
             nothing,
             0.0,
+            SVector{0, Int}(),
+            SVector{0, Float64}(),
+            SVector{0, Float64}(),
         )
     end
 end
@@ -86,12 +98,12 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
-function set_abstract_system(concrete_system, hx, Udom; Xdom = nothing)
+function set_abstract_system(optimizer, concrete_system, hx, Udom; Xdom = nothing)
     if Xdom === nothing
         Xdom = DO.PeriodicDomainList(
-            concrete_system.periodic,
-            concrete_system.periods,
-            concrete_system.T0,
+            optimizer.periodic_dims,
+            optimizer.periodic_start,
+            optimizer.periodic_periods,
             hx,
         )
     end
@@ -118,6 +130,7 @@ end
 
 # Construct the heuristic to guide the A* exploration
 function build_abstract_system_heuristic(
+    optimizer,
     concrete_system,
     Udom,
     compute_reachable_set,
@@ -131,9 +144,9 @@ function build_abstract_system_heuristic(
     if Xdom === nothing
         X = concrete_system.X.A
         Xdom = DO.PeriodicDomainList(
-            concrete_system.periodic,
-            concrete_system.periods,
-            concrete_system.T0,
+            optimizer.periodic_dims,
+            optimizer.periodic_periods,
+            optimizer.periodic_start,
             hx_heuristic,
         )
         DO.add_set!(Xdom, X, DO.OUTER)
@@ -176,6 +189,9 @@ function set_optimizer_parameters!(
     γ = 1.0,
     h_user = (node, prob) -> 0.0,
     transitions_previously_added = nothing,
+    periodic_dims = SVector{0, Int}(),
+    periodic_periods = SVector{0, Float64}(),
+    periodic_start = SVector{0, Float64}(),
 )
     optimizer.param = Dict()
     optimizer.param[:maxIter] = maxIter
@@ -187,6 +203,9 @@ function set_optimizer_parameters!(
     optimizer.param[:hx_heuristic] = hx_heuristic
     optimizer.param[:γ] = γ
     optimizer.param[:h_user] = h_user
+    optimizer.param[:periodic_dims] = periodic_dims
+    optimizer.param[:periodic_periods] = periodic_periods
+    optimizer.param[:periodic_start] = periodic_start
     return optimizer.param[:transitions_previously_added] = transitions_previously_added
 end
 
@@ -206,6 +225,9 @@ function set_optimizer!(
     h_user = (node, prob) -> 0.0,
     transitions_previously_added = nothing,
     Xdom = nothing,
+    periodic_dims = SVector{0, Int}(),
+    periodic_periods = SVector{0, Float64}(),
+    periodic_start = SVector{0, Float64}(),
 )
     set_optimizer_parameters!(
         optimizer,
@@ -219,6 +241,9 @@ function set_optimizer!(
         γ = γ,
         h_user = h_user,
         transitions_previously_added = transitions_previously_added,
+        periodic_dims = periodic_dims,
+        periodic_periods = periodic_periods,
+        periodic_start = periodic_start,
     )
 
     optimizer.concrete_problem = concrete_problem
@@ -226,7 +251,7 @@ function set_optimizer!(
     optimizer.concrete_system = concrete_system
 
     # Initialize the abstract system
-    abstract_system = set_abstract_system(concrete_system, hx, Udom; Xdom = Xdom)
+    abstract_system = set_abstract_system(optimizer, concrete_system, hx, Udom; Xdom = Xdom)
     optimizer.abstract_system = abstract_system
 
     # Build the abstract specifications
@@ -292,10 +317,6 @@ function build_abstraction(optimizer::Optimizer)
     optimizer.lazy_search_problem = lazy_search_problem
 
     node, nb = UT.astar_graph_search(lazy_search_problem, lazy_search_problem.h)
-    println(
-        "\nnumber of transitions created: ",
-        length(SY.get_n_transitions(lazy_search_problem.abstract_system)),
-    )
     if node === nothing
         println("compute_controller_reach! terminated without covering init set")
         return optimizer, false
@@ -304,39 +325,50 @@ function build_abstraction(optimizer::Optimizer)
     return
 end
 
-function get_concrete_controller(abstract_system, abstract_controller)
-    function is_defined(x)
+function get_concrete_controller(
+    abstract_system,
+    abstract_controller::MS.AbstractMap;
+    randomize::Bool = false,
+)
+    k_abs = abstract_controller.h  # qs -> Vector{Int} (or nothing/empty)
+
+    x_to_qs = function (x)
         xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system.Xdom)
-            return false
-        end
-        source = SY.get_state_by_xpos(abstract_system, xpos)
-        if !ST.is_defined(abstract_controller, source)
-            return false
-        end
+        # (xpos ∈ abstract_system.Xdom) || return nothing
+        return SY.get_state_by_xpos(abstract_system, xpos)
+    end
+
+    isdef = function (x)
+        qs = x_to_qs(x)
+        qs === nothing && return false
+        us = k_abs(qs)
+        us === nothing && return false
+        (us isa AbstractVector) && return !isempty(us)
         return true
     end
-    function f(x; randomize = false)
-        # 1. Abstract the concrete state
-        xpos = DO.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system)
-            @warn("State out of domain: $x")
-            return nothing
+
+    f = function (x)
+        qs = x_to_qs(x)
+        qs === nothing && return nothing
+
+        us = k_abs(qs)
+        us === nothing && return nothing
+        if us isa AbstractVector
+            isempty(us) && return nothing
+            u_sym = randomize ? rand(us) : first(us)
+        else
+            u_sym = us
         end
-        # 2. Get abstract state index
-        source = SY.get_state_by_xpos(abstract_system, xpos)
-        # 3. Check if controller is defined there
-        if !ST.is_defined(abstract_controller, source)
-            @warn "Uncontrollable state: $x"
-            return nothing
-        end
-        # 4. Select a symbol from the admissible inputs
-        inputs = ST.get_all_controls(abstract_controller, source)
-        symbol = randomize ? rand(inputs) : first(inputs)
-        # 5. Map to concrete input
-        return u = SY.get_concrete_input(abstract_system, symbol)
+
+        return SY.get_concrete_input(abstract_system, u_sym)
     end
-    return ST.BlackBoxContinuousController(f, is_defined)
+
+    X = PredicateDomain(isdef)
+
+    nx = Dionysos.Symbolic.get_concrete_state_dim(abstract_system)
+    nu = Dionysos.Symbolic.get_concrete_input_dim(abstract_system)
+
+    return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
 function build_abstract_lyap_fun(lyap)
@@ -370,6 +402,7 @@ function MOI.optimize!(optimizer::Optimizer)
     # Build the abstraction-based heuristic
     if optimizer.abstract_system_heuristic === nothing
         abstract_system_heuristic = build_abstract_system_heuristic(
+            optimizer,
             concrete_problem.system,
             optimizer.abstract_system.Udom,
             optimizer.param[:compute_reachable_set],
@@ -390,7 +423,8 @@ function MOI.optimize!(optimizer::Optimizer)
     build_abstraction(optimizer)
     lazy_search_problem = optimizer.lazy_search_problem
     abstract_system = optimizer.abstract_system
-    abstract_controller = lazy_search_problem.contr
+    contr_tab = lazy_search_problem.contr
+    abstract_controller = to_ms_abstract_controller(contr_tab)
     optimizer.abstract_controller = abstract_controller
     optimizer.concrete_controller =
         get_concrete_controller(abstract_system, abstract_controller)
@@ -412,6 +446,38 @@ function MOI.optimize!(optimizer::Optimizer)
 
     optimizer.solve_time_sec = time() - t_ref
     return
+end
+
+
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+mutable struct SymbolicControlTable
+    U::Vector{Vector{Int}}   # U[qs] = admissible symbols
+end
+SymbolicControlTable(nstates::Int) = SymbolicControlTable([Int[] for _ in 1:nstates])
+
+function add_control!(C::SymbolicControlTable, qs::Int, u::Int)
+    ensure_states!(C, qs)
+    push!(C.U[qs], u)
+end
+is_defined(C::SymbolicControlTable, qs::Int) = !isempty(C.U[qs])
+domain(C::SymbolicControlTable) = findall(u -> !isempty(u), C.U)
+function ensure_states!(C::SymbolicControlTable, nstates::Int)
+    n = length(C.U)
+    nstates <= n && return
+    resize!(C.U, nstates)
+    for i in (n + 1):nstates
+        C.U[i] = Int[]
+    end
+end
+
+function to_ms_abstract_controller(C::SymbolicControlTable)
+    qfun = (qs::Int) -> C.U[qs] # Vector{Int} or empty
+    X    = PredicateDomain((qs::Int) -> is_defined(C, qs))
+    return MS.ConstrainedBlackBoxMap(1, 1, qfun, X)
 end
 
 struct State
@@ -512,7 +578,7 @@ function LazySearchProblem(
     end
 
     closed = nothing
-    contr = ST.SymbolicControllerList()
+    contr = SymbolicControlTable(SY.get_n_state(abstract_system))
     return LazySearchProblem(
         initial,
         goal,
@@ -578,6 +644,8 @@ function _update_cache!(problem::LazySearchProblem, ns1, ns2, nsym)
         problem.costs[i] = Inf
         problem.controllable[i] = false
     end
+    ensure_states!(problem.contr, ns2)
+    return
 end
 
 function update_abstraction!(successors, problem::LazySearchProblem, source)
@@ -590,7 +658,7 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
     for symbol in SY.enum_inputs(abstract_system)
         u = SY.get_concrete_input(abstract_system, symbol)
         ns1 = SY.get_n_state(abstract_system)
-        cells = problem.pre_image(abstract_system, concrete_system, xpos, u)
+        cells = problem.pre_image(abstract_system, xpos, u)
         _update_cache!(problem, ns1, SY.get_n_state(abstract_system), nsym)
         for cell in cells
             if !problem.controllable[cell]
@@ -622,7 +690,7 @@ function update_abstraction!(successors, problem::LazySearchProblem, source)
                         problem.costs[cell] = problem.costs_temp[cell, symbol]
                         problem.controllable[cell] = true
                         push!(successors, (symbol, State(cell)))
-                        ST.add_control!(problem.contr, cell, symbol)
+                        add_control!(problem.contr, cell, symbol)
                     end
                 end
             end
@@ -656,20 +724,6 @@ end
                     color := :yellow
                     return grid, pos
                 end
-            end
-        end
-    end
-
-    # controllable state
-    dict = Dict{NTuple{2, Int}, Any}()
-    for cell in ST.domain(contr)
-        pos = SY.get_xpos_by_state(abstract_system, cell)
-        if !haskey(dict, pos[dims])
-            dict[pos[dims]] = true
-            @series begin
-                opacity := 0.3
-                color := :blue
-                return grid, pos
             end
         end
     end

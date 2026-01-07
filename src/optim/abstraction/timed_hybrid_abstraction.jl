@@ -138,8 +138,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, Union{PR.OptimalControlProblem, PR.SafetyProblem}}
     hybrid_system::Union{Nothing, HybridSystem}
     symbolic_model::Union{Nothing, SY.SymbolicTimedHybridSystems.TimedHybridSymbolicModel}
-    abstract_controller::Union{Nothing, ST.SymbolicController}
-    concrete_controller::Union{Nothing, ST.BlackBoxContinuousController}
+    abstract_controller::Any
+    concrete_controller::Any
     optimizer_factory_list::Union{Nothing, Any}
     optimizer_kwargs_dict::Union{Nothing, Any}
     max_iterations::Union{Nothing, Int}
