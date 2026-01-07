@@ -18,7 +18,7 @@ vals = [
     (),              # nothing true
     (:unsafe,),      # unsafe true
     (:goal,),        # goal true
-    (:goal, :unsafe) # both true
+    (:goal, :unsafe), # both true
 ]
 
 println("\nNext-state tests:")

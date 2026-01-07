@@ -32,8 +32,10 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
 )
 
 # For x' = u, ∂f/∂x = 0, so bound is the zero matrix (independent of u)
-jacobian_bound = u -> @SMatrix [0.0 0.0;
-                                0.0 0.0]
+jacobian_bound = u -> @SMatrix [
+    0.0 0.0;
+    0.0 0.0
+]
 
 # ------------------------------------------------------------
 # 2) Abstraction construction (EmptyProblem), same as you do
@@ -58,7 +60,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
 
 # choose an approx mode that exists in your setup
-MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), AB.UniformGridAbstraction.GROWTH) # GROWTH CENTER_SIMULATION
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    AB.UniformGridAbstraction.GROWTH,
+) # GROWTH CENTER_SIMULATION
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
@@ -79,20 +85,20 @@ println("Abstraction built.")
 # 3) Define co-safe LTL problem with LazySets-style labeling
 # ------------------------------------------------------------
 
-_I_  = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+_I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
-g11   = UT.HyperRectangle(SVector( -1.0,  1.0), SVector( -0.3,  1.7))
-g12   = UT.HyperRectangle(SVector( 1.0,  1.0), SVector( 1.7,  1.7))
+g11 = UT.HyperRectangle(SVector(-1.0, 1.0), SVector(-0.3, 1.7))
+g12 = UT.HyperRectangle(SVector(1.0, 1.0), SVector(1.7, 1.7))
 g1 = UT.LazyUnionSetArray([g11, g12])
 
-g2_big  = UT.HyperRectangle(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
+g2_big = UT.HyperRectangle(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
 g2_hole = UT.HyperRectangle(SVector(-1.2, -1.0), SVector(-0.9, -0.8))
-g2 = UT.LazySetMinus(g2_big, g2_hole) 
+g2 = UT.LazySetMinus(g2_big, g2_hole)
 
-g3  = UT.HyperRectangle(SVector(1.0, -1.8), SVector(1.5, -1.1))
+g3 = UT.HyperRectangle(SVector(1.0, -1.8), SVector(1.5, -1.1))
 
-obs1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5,  0.5))
-obs2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0,  0.5))
+obs1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+obs2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
 obs = UT.LazyUnionSetArray([obs1, obs2])
 
 # co-safe formula
@@ -103,9 +109,9 @@ struct MonitorG1G2G3G1NoObs end
 
 @inline function mon_next(::MonitorG1G2G3G1NoObs, q::Int, ap::Tuple{Vararg{Symbol}})
     obs = (:obs in ap)
-    g1  = (:g1 in ap)
-    g2  = (:g2 in ap)
-    g3  = (:g3 in ap)
+    g1 = (:g1 in ap)
+    g2 = (:g2 in ap)
+    g3 = (:g3 in ap)
 
     obs && return 0        # safety violation -> dead
     q == 0 && return 0     # dead sink
@@ -134,20 +140,11 @@ mon = AB.UniformGridAbstraction.FunctionMonitor(
 )
 
 # labeling dictionary: AP => concrete set (LazySet / HyperRectangle)
-labeling = Dict{Symbol, Any}(
-    :g1  => g1,
-    :g2  => g2,
-    :g3 => g3,
-    :obs => obs,
-)
+labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)
 
 # semantics per AP
-ap_semantics = Dict{Symbol, Any}(
-    :g1  => DO.INNER,
-    :g2  => DO.INNER,
-    :g3  => DO.INNER,
-    :obs => DO.OUTER,
-)
+ap_semantics =
+    Dict{Symbol, Any}(:g1 => DO.INNER, :g2 => DO.INNER, :g3 => DO.INNER, :obs => DO.OUTER)
 
 # This assumes your PR.CoSafeLTLProblem signature:
 # CoSafeLTLProblem(system, initial_set, spec; labeling=..., ap_semantics=..., strict_spot=...)
@@ -201,16 +198,12 @@ println("Trajectory length: ", length(x_traj.seq))
 # 6) Plot
 # ------------------------------------------------------------
 using Plots
-fig = plot(; aspect_ratio=:equal)
+φ_str = string(φ)
+fig = plot(; aspect_ratio = :equal, title = "$φ_str")
 plot!(
     concrete_problem;
-    ap_colors = Dict(
-        :g1 => :red,
-        :g2 => :cyan,
-        :g3 => :orange,
-        :obs => :black,
-    ),
+    ap_colors = Dict(:g1 => :red, :g2 => :cyan, :g3 => :orange, :obs => :black),
     aspect_ratio = :equal,
 )
-plot!(fig, x_traj; color=:blue, dims=[1,2])
+plot!(fig, x_traj; color = :blue, dims = [1, 2])
 display(fig)

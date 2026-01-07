@@ -50,7 +50,6 @@ struct PredicateDomain{F}
 end
 Base.in(x, X::PredicateDomain) = X.pred(x)
 
-
 mutable struct SymbolicControlTable
     U::Vector{Vector{Int}}   # U[q] = admissible symbols
 end
@@ -68,10 +67,9 @@ end
 is_defined(C::SymbolicControlTable, q::Int) = !isempty(C.U[q])
 function to_ms_controller(C::SymbolicControlTable)
     qfun = (qs::Int) -> C.U[qs] # set-valued output
-    X    = PredicateDomain((qs::Int) -> is_defined(C, qs))
+    X = PredicateDomain((qs::Int) -> is_defined(C, qs))
     return MathematicalSystems.ConstrainedBlackBoxMap(1, 1, qfun, X)
 end
-
 
 ###################################################
 ################# Optimal control #################
@@ -82,7 +80,7 @@ function compute_worst_case_cost_controller(
     initial_set = enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
-)   
+)
     if cost_function === nothing
         abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
             compute_worst_case_uniform_cost_controller(
@@ -110,7 +108,7 @@ function compute_optimal_controller(
     initial_set = enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
-)   
+)
     contr_tab = SymbolicControlTable(get_n_state(autom))
 
     is_det = is_deterministic(autom)
@@ -317,10 +315,7 @@ end
 ################# Safety control ##################
 ###################################################
 
-function compute_largest_invariant_set(
-    autom::AbstractAutomatonList,
-    safelist;
-)
+function compute_largest_invariant_set(autom::AbstractAutomatonList, safelist;)
     contr_tab = SymbolicControlTable(get_n_state(autom))
     nstates = get_n_state(autom)
     nsymbols = get_n_input(autom)

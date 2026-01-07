@@ -79,17 +79,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     success::Bool
     print_level::Int
     function OptimizerSafetyProblem{T}() where {T}
-        return new{T}(
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            0.0,
-            nothing,
-            nothing,
-            false,
-            1,
-        )
+        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing, false, 1)
     end
 end
 
@@ -126,7 +116,8 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
         SY.compute_largest_invariant_set(
             optimizer.abstract_problem.system.autom,
-            optimizer.abstract_problem.safe_set        )
+            optimizer.abstract_problem.safe_set,
+        )
 
     invariant_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,

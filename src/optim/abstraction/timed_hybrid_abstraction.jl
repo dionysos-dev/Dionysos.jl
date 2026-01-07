@@ -1,7 +1,8 @@
 module TimedHybridAbstraction
 using MathOptInterface
 using HybridSystems
-using MathematicalSystems
+import MathematicalSystems
+MS = MathematicalSystems
 using StaticArrays: SVector
 using Dionysos
 
@@ -138,8 +139,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, Union{PR.OptimalControlProblem, PR.SafetyProblem}}
     hybrid_system::Union{Nothing, HybridSystem}
     symbolic_model::Union{Nothing, SY.SymbolicTimedHybridSystems.TimedHybridSymbolicModel}
-    abstract_controller::Any
-    concrete_controller::Any
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     optimizer_factory_list::Union{Nothing, Any}
     optimizer_kwargs_dict::Union{Nothing, Any}
     max_iterations::Union{Nothing, Int}
@@ -347,13 +348,37 @@ end
 # ================================================================
 # Specialized invariant set computation for timed hybrid systems
 # ================================================================
+mutable struct SymbolicControlTable
+    U::Vector{Vector{Int}}
+end
+SymbolicControlTable(nstates::Int) = SymbolicControlTable([Int[] for _ in 1:nstates])
 
-function compute_largest_invariant_set_timed_hybrid(
-    autom,
-    safelist;
-    ControllerConstructor::Function = () -> Dionysos.System.SymbolicControllerList(),
-)
-    controller = ControllerConstructor()
+function ensure_states!(C::SymbolicControlTable, nstates::Int)
+    n = length(C.U)
+    nstates <= n && return
+    resize!(C.U, nstates)
+    for i in (n + 1):nstates
+        C.U[i] = Int[]
+    end
+end
+
+add_control!(C::SymbolicControlTable, qs::Int, u::Int) =
+    (ensure_states!(C, qs); push!(C.U[qs], u))
+is_defined(C::SymbolicControlTable, qs::Int) = !isempty(C.U[qs])
+
+struct PredicateDomain{F}
+    ;
+    pred::F;
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+function to_ms_abstract_controller(C::SymbolicControlTable)
+    qfun = (qs::Int) -> C.U[qs]
+    X = PredicateDomain((qs::Int) -> is_defined(C, qs))
+    return MS.ConstrainedBlackBoxMap(1, 1, qfun, X)  # (qs)->Vector{Int}
+end
+
+function compute_largest_invariant_set_timed_hybrid(autom, safelist)
     nstates = Dionysos.Symbolic.get_n_state(autom)
     nsymbols = Dionysos.Symbolic.get_n_input(autom)
 
@@ -386,6 +411,7 @@ function compute_largest_invariant_set_timed_hybrid(
 
     nextunsafeset = Set{Int}()
     iteration = 0
+    controller = SymbolicControlTable(nstates)
 
     while true
         iteration += 1
@@ -416,13 +442,13 @@ function compute_largest_invariant_set_timed_hybrid(
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                Dionysos.System.add_control!(controller, source, symbol)
+                add_control!(controller, source, symbol)
             end
         end
     end
 
     invariant_set_complement = setdiff(Set(safelist), safeset)
-    return controller, safeset, invariant_set_complement
+    return to_ms_abstract_controller(controller), safeset, invariant_set_complement
 end
 
 # ================================================================
@@ -463,8 +489,7 @@ function solve_abstract_problem(
         abstract_controller, invariant_set_symbols, _ =
             compute_largest_invariant_set_timed_hybrid(
                 abstract_problem.system.symbolic_automaton,
-                collect(abstract_problem.safe_set);
-                ControllerConstructor = () -> Dionysos.System.SymbolicControllerList(),
+                collect(abstract_problem.safe_set),
             )
 
         println("Controllable set size: $(length(invariant_set_symbols))")
@@ -487,42 +512,42 @@ end
 
 function solve_concrete_problem(
     symmodel::Dionysos.Symbolic.SymbolicTimedHybridSystems.TimedHybridSymbolicModel,
-    abstract_controller,
+    abstract_controller::MS.AbstractMap,
 )
-    function concrete_controller(aug_state)
-        (x, t, k) = aug_state
-        abstract_aug_state =
-            Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state(
-                symmodel,
-                aug_state,
-            )
+    k_abs = abstract_controller.h  # q -> Vector{Int} or Int or nothing
 
-        if Dionysos.System.is_defined(abstract_controller, abstract_aug_state) == false
-            println("⚠️ No action available for state $aug_state")
-            return nothing
-        end
+    function f(aug_state)
+        q = Dionysos.Symbolic.SymbolicTimedHybridSystems.get_abstract_state(
+            symmodel,
+            aug_state,
+        )
 
-        abstract_input =
-            Dionysos.System.get_control(abstract_controller, abstract_aug_state)
+        us = k_abs(q)
+        us === nothing && return nothing
+        (us isa AbstractVector && isempty(us)) && return nothing
 
+        u_abs = us isa AbstractVector ? first(us) : us
+
+        (_, _, k) = aug_state
         if Dionysos.Symbolic.SymbolicTimedHybridSystems.is_switching_input(
             symmodel.input_mapping,
-            abstract_input,
+            u_abs,
         )
-            transition_id = symmodel.input_mapping.global_to_switching[abstract_input]
-            label = symmodel.input_mapping.switch_labels[transition_id]
-            return label
+            transition_id = symmodel.input_mapping.global_to_switching[u_abs]
+            return symmodel.input_mapping.switch_labels[transition_id]  # string label
         else
             return Dionysos.Symbolic.SymbolicTimedHybridSystems.get_concrete_input(
                 symmodel,
-                abstract_input,
+                u_abs,
                 k,
             )
         end
     end
 
-    isdef = (aug_state) -> true
-    return Dionysos.System.BlackBoxContinuousController(concrete_controller, isdef)
+    X = PredicateDomain(_ -> true)  # or add a real domain check if you want
+    nx = 1  # “dimension” is not super meaningful for tuples; keep consistent with MS expectations in your codebase
+    nu = 1
+    return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
 # ================================================================
@@ -649,6 +674,7 @@ function get_closed_loop_trajectory(
     nstep;
     stopping = (x) -> false,
 )
+    kmap = controller.h
     aug_state_traj, u_traj = [aug_state_0], []
     aug_state = aug_state_0
 
@@ -661,10 +687,9 @@ function get_closed_loop_trajectory(
 
     for _ in 1:nstep
         stopping(problem_specs, aug_state) && break
-
-        u = controller.f(aug_state)
-
+        u = kmap(aug_state)
         u === nothing && break
+
         (_, _, k) = aug_state
         aug_state =
             get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])

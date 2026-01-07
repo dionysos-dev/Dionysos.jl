@@ -171,7 +171,8 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         optimizer.abstract_problem.target_set;
         initial_set = init_set,
         sparse_input = optimizer.sparse_input,
-        cost_function = optimizer.abstract_problem.transition_cost    )
+        cost_function = optimizer.abstract_problem.transition_cost,
+    )
 
     controllable_set = Dionysos.Symbolic.get_domain_from_states(
         optimizer.abstract_system,

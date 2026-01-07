@@ -241,7 +241,7 @@ const AB = OP.Abstraction
         concret_specs,
     )
     for state in traj[1:(end - 1)]
-        @test controller.f(state) == concrete_controller.f(state)
+        @test controller.h(state) == concrete_controller.h(state)
     end
 end
 
@@ -406,7 +406,7 @@ end
             (t ≥ Ts_target[idx].lb[1]) &&
             (t ≤ Ts_target[idx].ub[1])
         if !in_target
-            @test concrete_controller.f(aug_state) !== nothing
+            @test concrete_controller.h(aug_state) !== nothing
         end
     end
 
@@ -475,7 +475,7 @@ end
         concret_specs,
     )
     for state in traj[1:(end - 1)]
-        @test controller.f(state) == concrete_controller.f(state)
+        @test controller.h(state) == concrete_controller.h(state)
     end
 end
 
@@ -673,7 +673,7 @@ end
         safety_specs,
     )
     for state in traj[1:(end - 1)]
-        @test controller.f(state) == concrete_controller.f(state)
+        @test controller.h(state) == concrete_controller.h(state)
     end
 end
 

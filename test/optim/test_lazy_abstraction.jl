@@ -13,9 +13,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-
 rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
-obsX  = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))])
+obsX = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))])
 _X_ = UT.LazySetMinus(rectX, obsX)
 
 rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
@@ -24,13 +23,18 @@ _U_ = UT.LazySetMinus(rectU, obsU)
 
 dt = 0.8
 fd = (x, u) -> x + dt*u
-concrete_system = MS.ConstrainedBlackBoxControlDiscreteSystem(
-    fd, 2, 2, _X_, _U_
-)
+concrete_system = MS.ConstrainedBlackBoxControlDiscreteSystem(fd, 2, 2, _X_, _U_)
 
 _I_ = UT.HyperRectangle(SVector(5.0, 5.0), SVector(6.0, 6.0))
 _T_ = UT.HyperRectangle(SVector(25.0, 25.0), SVector(28.0, 28.0))
-concrete_problem = PR.OptimalControlProblem(concrete_system, _I_, _T_, UT.ZeroFunction(), UT.ConstantControlFunction(0.5), PR.Infinity())
+concrete_problem = PR.OptimalControlProblem(
+    concrete_system,
+    _I_,
+    _T_,
+    UT.ZeroFunction(),
+    UT.ConstantControlFunction(0.5),
+    PR.Infinity(),
+)
 
 function post_image(abstract_system, concrete_system, xpos, u)
     f = MS.mapping(concrete_system)   # (x,u) -> xnext
@@ -55,7 +59,6 @@ function post_image(abstract_system, concrete_system, xpos, u)
     end
     return allin ? over_approx : []
 end
-
 
 ## specific functions
 backward_map = (x, u) -> x - dt*u
@@ -83,10 +86,10 @@ end
 function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     f = MS.mapping(concrete_system)   # (x,u) -> xnext
 
-    r  = (rect.ub - rect.lb) / 2.0
+    r = (rect.ub - rect.lb) / 2.0
     Fr = r
-    x  = UT.get_center(rect)
-    n  = UT.get_dims(rect)
+    x = UT.get_center(rect)
+    n = UT.get_dims(rect)
 
     lb = fill(Inf, n)
     ub = fill(-Inf, n)

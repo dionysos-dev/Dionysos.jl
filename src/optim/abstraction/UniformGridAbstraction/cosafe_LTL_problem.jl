@@ -24,12 +24,16 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
 
     function OptimizerCoSafeLTLProblem{T}() where {T}
         return new{T}(
-            nothing, nothing,
             nothing,
             nothing,
-            nothing, nothing, nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
             true,
-            nothing, nothing,
+            nothing,
+            nothing,
             nothing,
             0.0,
             false,
@@ -83,11 +87,8 @@ function build_abstract_problem(
     _check_ap_coverage(concrete_problem)
 
     # lift initial set (conservative for initial condition is usually OUTER)
-    init_states = SY.get_states_from_set(
-        abstract_system,
-        concrete_problem.initial_set,
-        DO.OUTER,
-    )
+    init_states =
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, DO.OUTER)
 
     # lift each AP set to a set of symbolic states
     lab_abs = Dict{Symbol, Vector{Int}}()
@@ -107,7 +108,7 @@ function build_abstract_problem(
     )
 end
 
-function labeling_function_from_state_sets(lab_abs::Dict{Symbol,<:AbstractVector{Int}})
+function labeling_function_from_state_sets(lab_abs::Dict{Symbol, <:AbstractVector{Int}})
     # speed: BitSet membership is cheap
     lab_bits = Dict{Symbol, BitSet}()
     for (ap, states) in lab_abs
@@ -123,7 +124,6 @@ function labeling_function_from_state_sets(lab_abs::Dict{Symbol,<:AbstractVector
         return Tuple(true_aps)
     end
 end
-
 
 # ============================================================
 # optimize!
@@ -176,10 +176,19 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     init_prod = [P.pid[(qs, init_state(spec))] for qs in init_states]
 
     controller_product_automaton, controllableP, uncontrollableP, V =
-        SY.compute_worst_case_uniform_cost_controller(P, target_set; initial_set = init_prod)
+        SY.compute_worst_case_uniform_cost_controller(
+            P,
+            target_set;
+            initial_set = init_prod,
+        )
 
     # (7) Wrap product controller into finite-memory controller on abstract system
-    abstract_controller, qa0 = build_abstract_fm_controller_ms(abstract_problem.labeling, spec, controller_product_automaton, P.pid)
+    abstract_controller, qa0 = build_abstract_fm_controller_ms(
+        abstract_problem.labeling,
+        spec,
+        controller_product_automaton,
+        P.pid,
+    )
 
     optimizer.abstract_controller_product = controller_product_automaton
     optimizer.abstract_controller = abstract_controller
@@ -192,7 +201,6 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     optimizer.abstract_problem_time_sec = time() - t0
     return
 end
-
 
 # ============================================================
 # Everything below is your SpecStepper + ProductAutomaton code
@@ -224,7 +232,6 @@ If not provided, we will attempt to compute it (Spot) or require the user to pro
 """
 accepting_states(::AbstractSpecStepper) = error("accepting_states not implemented")
 
-
 # --------------------------
 # User-defined deterministic monitor
 # --------------------------
@@ -238,13 +245,12 @@ step(M::FunctionMonitor, qa::Int, ap::Tuple{Vararg{Symbol}}) = M.stepfun(qa, ap)
 init_state(M::FunctionMonitor) = M.qa0
 accepting_states(M::FunctionMonitor) = M.acc
 
-
 # --------------------------
 # Spot-based stepper (DRA used as a monitor)
 # --------------------------
 struct SpotDRAstepper <: AbstractSpecStepper
     φ::Spot.SpotFormula
-    dra
+    dra::Any
     qa0::Int
     qa_dead::Int
     aps::Vector{Symbol}  # AP universe used for done-state detection
@@ -271,19 +277,19 @@ This is a practical criterion that works well for many co-safe task specs.
 function _all_valuations(aps::Vector{Symbol})
     n = length(aps)
     vals = Vector{Tuple{Vararg{Symbol}}}(undef, 1 << n)
-    for mask in 0:(1<<n)-1
+    for mask in 0:((1 << n) - 1)
         trues = Symbol[]
         for (i, a) in enumerate(aps)
             if (mask >> (i-1)) & 1 == 1
                 push!(trues, a)
             end
         end
-        vals[mask+1] = Tuple(trues)
+        vals[mask + 1] = Tuple(trues)
     end
     return vals
 end
 
-function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int=1)
+function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int = 1)
     vals = _all_valuations(aps)
 
     # reachable spec states (ignore `nothing`)
@@ -317,42 +323,48 @@ function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int=1)
 end
 
 accepting_states(S::SpotDRAstepper) = begin
-    doneQ, _ = _cosafe_done_states_dra(S.dra; aps=S.aps, q0=S.qa0)
+    doneQ, _ = _cosafe_done_states_dra(S.dra; aps = S.aps, q0 = S.qa0)
     isempty(doneQ) && error(
         "Could not find any 'done' spec states with the co-safe heuristic. " *
         "The formula may not be co-safe for this pipeline, or the AP set is mismatched. " *
-        "Try providing a FunctionMonitor with explicit accepting states."
+        "Try providing a FunctionMonitor with explicit accepting states.",
     )
     doneQ
 end
 
 collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in atomic_prop_collect(φ)]
 
-function spot_stepper(φ::Spot.SpotFormula; qa0::Int=1, qa_dead::Int=0, aps::Union{Nothing,Vector{Symbol}}=nothing)
+function spot_stepper(
+    φ::Spot.SpotFormula;
+    qa0::Int = 1,
+    qa_dead::Int = 0,
+    aps::Union{Nothing, Vector{Symbol}} = nothing,
+)
     aps_use = aps === nothing ? collect_aps(φ) : aps
     try
         dra = DeterministicRabinAutomata(φ)
         return SpotDRAstepper(φ, dra, qa0, qa_dead, aps_use)
     catch
-        error("Spot could not provide a DeterministicRabinAutomata with nextstate(). " *
-              "Provide a FunctionMonitor wrapper.")
+        error(
+            "Spot could not provide a DeterministicRabinAutomata with nextstate(). " *
+            "Provide a FunctionMonitor wrapper.",
+        )
     end
 end
-
 
 # ============================================================
 # Product automaton (System × SpecStepper)
 # ============================================================
 
-struct ProductAutomaton{SYS,LAB,STEP} <: SY.AbstractAutomatonList{0,0}
+struct ProductAutomaton{SYS, LAB, STEP} <: SY.AbstractAutomatonList{0, 0}
     sys::SYS
     labeling::LAB
     spec::STEP
 
-    pid::Dict{Tuple{Int,Int},Int}
-    rev::Vector{Tuple{Int,Int}}
+    pid::Dict{Tuple{Int, Int}, Int}
+    rev::Vector{Tuple{Int, Int}}
     post_tab::Vector{Vector{Vector{Int}}}
-    pre_tab::Vector{Vector{Tuple{Int,Int}}}
+    pre_tab::Vector{Vector{Tuple{Int, Int}}}
     ninput::Int
 end
 
@@ -362,7 +374,7 @@ SY.pre(P::ProductAutomaton, t::Int) = P.pre_tab[t]
 SY.post(P::ProductAutomaton, s::Int, u::Int) = P.post_tab[s][u]
 
 function SY.enum_transitions(P::ProductAutomaton)
-    trans = Tuple{Int,Int,Int}[]
+    trans = Tuple{Int, Int, Int}[]
     for q in 1:SY.get_n_state(P), u in 1:SY.get_n_input(P)
         for q2 in SY.post(P, q, u)
             push!(trans, (q2, q, u))
@@ -371,39 +383,46 @@ function SY.enum_transitions(P::ProductAutomaton)
     return trans
 end
 
-function build_product_automaton(sys::SY.AbstractAutomatonList, spec::AbstractSpecStepper, labeling;
+function build_product_automaton(
+    sys::SY.AbstractAutomatonList,
+    spec::AbstractSpecStepper,
+    labeling;
     initial_set = 1:SY.get_n_state(sys),
 )
     nU = SY.get_n_input(sys)
     qa0 = init_state(spec)
 
-    pid = Dict{Tuple{Int,Int},Int}()
-    rev = Tuple{Int,Int}[]
+    pid = Dict{Tuple{Int, Int}, Int}()
+    rev = Tuple{Int, Int}[]
 
-    getpid(qs::Int, qa::Int) = get!(pid, (qs, qa)) do
-        push!(rev, (qs, qa))
-        length(rev)
-    end
+    getpid(qs::Int, qa::Int) =
+        get!(pid, (qs, qa)) do
+            push!(rev, (qs, qa))
+            return length(rev)
+        end
 
     # BFS
     work = Int[]
     inqueue = BitSet()
     for qs in initial_set
         p0 = getpid(qs, qa0)
-        push!(work, p0); push!(inqueue, p0)
+        push!(work, p0);
+        push!(inqueue, p0)
     end
 
     i = 1
     while i <= length(work)
-        p = work[i]; i += 1
+        p = work[i];
+        i += 1
         (qs, qa) = rev[p]
         for u in 1:nU
             for qs2 in SY.post(sys, qs, u)
-                ap  = labeling(qs2)
+                ap = labeling(qs2)
                 qa2 = step(spec, qa, ap)
-                p2  = getpid(qs2, qa2)
+                p2 = getpid(qs2, qa2)
                 if !(p2 in inqueue)
-                    push!(work, p2); push!(inqueue, p2)
+                    push!(work, p2);
+                    push!(inqueue, p2)
                 end
             end
         end
@@ -411,16 +430,16 @@ function build_product_automaton(sys::SY.AbstractAutomatonList, spec::AbstractSp
 
     nP = length(rev)
     post_tab = [[Int[] for _ in 1:nU] for _ in 1:nP]
-    pre_tab  = [Tuple{Int,Int}[] for _ in 1:nP]
+    pre_tab = [Tuple{Int, Int}[] for _ in 1:nP]
 
     for p in 1:nP
         (qs, qa) = rev[p]
         for u in 1:nU
             succs = Int[]
             for qs2 in SY.post(sys, qs, u)
-                ap  = labeling(qs2)
+                ap = labeling(qs2)
                 qa2 = step(spec, qa, ap)
-                p2  = pid[(qs2, qa2)]
+                p2 = pid[(qs2, qa2)]
                 push!(succs, p2)
                 push!(pre_tab[p2], (p, u))
             end
@@ -449,7 +468,7 @@ function build_abstract_fm_controller_ms(
     lab_abs::Dict{Symbol, Vector{Int}},
     spec::AbstractSpecStepper,
     contrP::MS.AbstractMap,
-    pid::Dict{Tuple{Int,Int},Int},
+    pid::Dict{Tuple{Int, Int}, Int},
 )
     # fast labeling_qs(qs) -> Tuple{Symbol,...}
     lab_bits = Dict{Symbol, BitSet}((ap => BitSet(states)) for (ap, states) in lab_abs)

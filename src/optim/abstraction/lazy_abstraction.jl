@@ -18,8 +18,6 @@ const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 
-
-
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
@@ -31,7 +29,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
     abstract_controller::Union{Nothing, MS.AbstractMap}
-    concrete_controller::Union{Nothing, MS.AbstractMap} 
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -448,7 +446,6 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-
 struct PredicateDomain{F}
     pred::F
 end
@@ -461,7 +458,7 @@ SymbolicControlTable(nstates::Int) = SymbolicControlTable([Int[] for _ in 1:nsta
 
 function add_control!(C::SymbolicControlTable, qs::Int, u::Int)
     ensure_states!(C, qs)
-    push!(C.U[qs], u)
+    return push!(C.U[qs], u)
 end
 is_defined(C::SymbolicControlTable, qs::Int) = !isempty(C.U[qs])
 domain(C::SymbolicControlTable) = findall(u -> !isempty(u), C.U)
@@ -476,7 +473,7 @@ end
 
 function to_ms_abstract_controller(C::SymbolicControlTable)
     qfun = (qs::Int) -> C.U[qs] # Vector{Int} or empty
-    X    = PredicateDomain((qs::Int) -> is_defined(C, qs))
+    X = PredicateDomain((qs::Int) -> is_defined(C, qs))
     return MS.ConstrainedBlackBoxMap(1, 1, qfun, X)
 end
 

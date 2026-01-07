@@ -153,8 +153,8 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         elseif isa(value, Dionysos.Problem.CoSafeLTLProblem)
             model.control_solver = OptimizerCoSafeLTLProblem()
             MOI.set(
-                model.control_solver, 
-                MOI.RawOptimizerAttribute("concrete_problem"), 
+                model.control_solver,
+                MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
         else
@@ -235,7 +235,7 @@ Base.in(x, X::PredicateDomain) = X.pred(x)
 function solve_concrete_problem(
     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
     abstract_controller::MS.AbstractMap;
-    randomize::Bool = false
+    randomize::Bool = false,
 )
     k_abs = abstract_controller.h
 
@@ -478,7 +478,7 @@ function build_controller_map_df(abstract_system, abstract_controller)
     ])
 end
 
-function get_input_symbol(controller, state; randomize=false)
+function get_input_symbol(controller, state; randomize = false)
     !(state in controller.X) && return -1
 
     u = controller.h(state)

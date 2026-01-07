@@ -75,7 +75,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    f_map_override = (x,u) -> concrete_system.f_eval(x, u, [0, 0])
+    f_map_override = (x, u) -> concrete_system.f_eval(x, u, [0, 0]),
 )
 c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
 cost_bound = concrete_lyap_fun(x0);

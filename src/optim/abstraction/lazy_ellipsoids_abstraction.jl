@@ -34,8 +34,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
     abstract_system_full::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, MS.AbstractMap} 
-    concrete_controller::Union{Nothing, MS.AbstractMap}  
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
 

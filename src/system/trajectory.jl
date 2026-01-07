@@ -69,11 +69,7 @@ get_elem(traj::Trajectory, n::Int) = traj.seq[n]
     end
 end
 
-function get_cost_trajectory(
-    x_traj::Trajectory,
-    u_traj::Trajectory,
-    c,
-)
+function get_cost_trajectory(x_traj::Trajectory, u_traj::Trajectory, c)
     @assert length(x_traj) == length(u_traj) + 1
 
     cs = Float64[]
@@ -129,7 +125,6 @@ function get_periodic_wrapper(
     return x -> wrap_coord(x, periodic_dims, periods; start = start)
 end
 
-
 function get_closed_loop_trajectory(
     system,
     controller::MS.AbstractMap,
@@ -143,7 +138,8 @@ function get_closed_loop_trajectory(
     k = controller.h  # expects (x)
 
     x = wrap(x0)
-    xs = Vector{typeof(x)}(undef, 0); push!(xs, x)
+    xs = Vector{typeof(x)}(undef, 0);
+    push!(xs, x)
     us = Any[]  # could be typed if you know u type
 
     for _ in 1:nstep
@@ -161,7 +157,6 @@ function get_closed_loop_trajectory(
     return (x = Trajectory(xs), u = Trajectory(us))
 end
 
-
 # u = h(q, x)
 # x^+ = f(x, u)
 # q^+ = g(q, x) ou g(q, x^+) if update_on_next == true (it depends of the controller)
@@ -176,15 +171,17 @@ function get_closed_loop_trajectory(
     wrap = identity,
     update_on_next::Bool = false,
 )
-    f  = MS.mapping(system)              # (x,u) -> xnext
+    f = MS.mapping(system)              # (x,u) -> xnext
     gc = MS.mapping(controller.s)        # (q,y) -> qnext
     hc = controller.outputmap.h # (q,y) -> u
 
     x = wrap(x0)
     q = q0
 
-    xs = Vector{typeof(x)}(undef, 0); push!(xs, x)
-    qs = Vector{typeof(q)}(undef, 0); push!(qs, q)
+    xs = Vector{typeof(x)}(undef, 0);
+    push!(xs, x)
+    qs = Vector{typeof(q)}(undef, 0);
+    push!(qs, q)
     us = Any[]
 
     for _ in 1:nstep
@@ -209,7 +206,4 @@ function get_closed_loop_trajectory(
 
     return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
 end
-
-
-
 

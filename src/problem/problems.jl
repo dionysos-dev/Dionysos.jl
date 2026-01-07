@@ -75,7 +75,6 @@ mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
     strict_spot::Bool
 end
 
-
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
 
@@ -142,7 +141,7 @@ end
     problem::CoSafeLTLProblem;
     domain_color = :gray,
     initial_set_color = :green,
-    ap_colors = Dict{Symbol,Any}(),
+    ap_colors = Dict{Symbol, Any}(),
     obs_color = :red,
 )
     # --------------------
@@ -153,7 +152,6 @@ end
         color := domain_color
         problem.system.X
     end
-
 
     @series begin
         label := "Initial set"

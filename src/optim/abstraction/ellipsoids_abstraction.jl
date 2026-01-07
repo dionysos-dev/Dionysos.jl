@@ -170,19 +170,18 @@ function solve_abstract_problem(abstract_problem, transitionCost)
     println("Abstract controller computed with: ", path[end] == dst ? "succes" : "failure")
 
     # Build deterministic controller next[q] = qnext
-    next = Dict{Int,Int}()
-    for k in 1:(length(path)-1)
-        next[path[k]] = path[k+1]
+    next = Dict{Int, Int}()
+    for k in 1:(length(path) - 1)
+        next[path[k]] = path[k + 1]
     end
 
     # MS controller: q -> qnext (or nothing)
     qfun = (q::Int) -> get(next, q, nothing)
-    X    = PredicateDomain((q::Int) -> haskey(next, q))
+    X = PredicateDomain((q::Int) -> haskey(next, q))
 
     Kabs = MS.ConstrainedBlackBoxMap(1, 1, qfun, X)
     return Kabs, lyap_fun
 end
-
 
 function solve_concrete_problem(
     abstract_system::SY.SymbolicModelList,
@@ -208,7 +207,7 @@ function solve_concrete_problem(
         )
 
         from = nothing
-        to   = nothing
+        to = nothing
 
         # pick a symbolic state where the abstract controller is defined
         for s in states
@@ -216,7 +215,7 @@ function solve_concrete_problem(
                 to_candidate = k_abs(s)   # qnext (or nothing)
                 to_candidate === nothing && continue
                 from = s
-                to   = to_candidate
+                to = to_candidate
                 break
             end
         end
@@ -225,7 +224,7 @@ function solve_concrete_problem(
         prev = from
 
         local_controller = transitionCont[(from, to)]
-        return MS.apply(local_controller, x)    
+        return MS.apply(local_controller, x)
     end
 
     Xx = PredicateDomain(x -> true)
@@ -233,7 +232,6 @@ function solve_concrete_problem(
     nu = SY.get_concrete_input_dim(abstract_system)
     return MS.ConstrainedBlackBoxMap(nx, nu, f, Xx)
 end
-
 
 function build_abstract_lyap_fun(lyap)
     return abstract_lyap_fun(state) = lyap[state]

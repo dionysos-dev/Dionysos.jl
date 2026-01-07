@@ -2,9 +2,8 @@
 @inline function _invInclMode(mode::INCL_MODE)
     mode === INNER && return OUTER
     mode === OUTER && return INNER
-    error("Invalid inclusion mode $mode")
+    return error("Invalid inclusion mode $mode")
 end
-
 
 """
     abstract type Grid{N, T} end

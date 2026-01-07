@@ -22,7 +22,13 @@ function set_in_period(
     return LazySetMinus(A_wrapped, B_wrapped)
 end
 
-@recipe function f(set::LazySetMinus; dims=[1,2], hole_color=:gray, hole_alpha=1.0, label="Set")
+@recipe function f(
+    set::LazySetMinus;
+    dims = [1, 2],
+    hole_color = :gray,
+    hole_alpha = 1.0,
+    label = "Set",
+)
     dims := dims
     @series begin
         label := label

@@ -55,11 +55,7 @@ function get_states_from_set(
     return acc
 end
 
-function get_states_from_set(
-    symmodel::SymbolicModel,
-    subsets,
-    incl_mode::DO.INCL_MODE,
-)
+function get_states_from_set(symmodel::SymbolicModel, subsets, incl_mode::DO.INCL_MODE)
     acc = Int[]
     for subset in subsets.sets
         append!(acc, get_states_from_set(symmodel, subset, incl_mode))
@@ -67,8 +63,6 @@ function get_states_from_set(
     unique!(acc)
     return acc
 end
-
-
 
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
@@ -84,8 +78,10 @@ function get_state_by_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 function is_xpos(symmodel::GridBasedSymbolicModel, xpos) end
 
 get_state_grid(symmodel::GridBasedSymbolicModel) = DO.get_grid(get_state_domain(symmodel))
-get_concrete_state_dim(symmodel::GridBasedSymbolicModel) = DO.get_dim(get_state_domain(symmodel))
-get_concrete_input_dim(symmodel::GridBasedSymbolicModel) = DO.get_dim(get_input_domain(symmodel))
+get_concrete_state_dim(symmodel::GridBasedSymbolicModel) =
+    DO.get_dim(get_state_domain(symmodel))
+get_concrete_input_dim(symmodel::GridBasedSymbolicModel) =
+    DO.get_dim(get_input_domain(symmodel))
 function get_concrete_state(symmodel::GridBasedSymbolicModel, state)
     xpos = get_xpos_by_state(symmodel, state)
     return DO.get_coord_by_pos(get_state_domain(symmodel), xpos)
@@ -121,8 +117,6 @@ function get_states_from_set(
     posL = DO.get_subset_pos(Xdom, subset, incl_mode)
     return Int[get_state_by_xpos(symmodel, pos) for pos in posL]
 end
-
-
 
 @recipe function f(
     symmodel::GridBasedSymbolicModel;

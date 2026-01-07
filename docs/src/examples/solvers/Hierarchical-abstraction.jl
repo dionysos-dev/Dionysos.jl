@@ -19,9 +19,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-
 rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(60.0, 60.0))
-obsX  = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))])
+obsX = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))])
 _X_ = UT.LazySetMinus(rectX, obsX)
 
 rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
@@ -30,13 +29,18 @@ _U_ = UT.LazySetMinus(rectU, obsU)
 
 dt = 0.8
 fd = (x, u) -> x + dt*u
-concrete_system = MS.ConstrainedBlackBoxControlDiscreteSystem(
-    fd, 2, 2, _X_, _U_
-)
+concrete_system = MS.ConstrainedBlackBoxControlDiscreteSystem(fd, 2, 2, _X_, _U_)
 
 _I_ = UT.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5))
 _T_ = UT.HyperRectangle(SVector(44.0, 43.0), SVector(49.0, 48.0))
-concrete_problem = PR.OptimalControlProblem(concrete_system, _I_, _T_, UT.ZeroFunction(), UT.ConstantControlFunction(1.0), PR.Infinity())
+concrete_problem = PR.OptimalControlProblem(
+    concrete_system,
+    _I_,
+    _T_,
+    UT.ZeroFunction(),
+    UT.ConstantControlFunction(1.0),
+    PR.Infinity(),
+)
 
 ## specific functions
 function post_image(abstract_system, concrete_system, xpos, u)
@@ -62,7 +66,6 @@ function post_image(abstract_system, concrete_system, xpos, u)
     end
     return allin ? over_approx : []
 end
-
 
 ## specific functions
 backward_map = (x, u) -> x - dt*u
@@ -90,10 +93,10 @@ end
 function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     f = MS.mapping(concrete_system)   # (x,u) -> xnext
 
-    r  = (rect.ub - rect.lb) / 2.0
+    r = (rect.ub - rect.lb) / 2.0
     Fr = r
-    x  = UT.get_center(rect)
-    n  = UT.get_dims(rect)
+    x = UT.get_center(rect)
+    n = UT.get_dims(rect)
 
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
@@ -173,11 +176,10 @@ println("Solved : ", optimizer.solved)
 
 # ## Simulation
 x0 = UT.get_center(concrete_problem.initial_set)
-x_traj, u_traj, c_traj = AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
+x_traj, u_traj, c_traj =
+    AB.HierarchicalAbstraction.get_closed_loop_trajectory(optimizer, x0)
 cost = sum(c_traj.seq);
-println(
-    "Goal set reached: $(x_traj.seq[end]∈concrete_problem.target_set)",
-)
+println("Goal set reached: $(x_traj.seq[end]∈concrete_problem.target_set)")
 println("Cost:\t $(cost)")
 
 # ## Display the results

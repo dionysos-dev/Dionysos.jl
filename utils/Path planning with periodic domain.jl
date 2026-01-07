@@ -96,11 +96,7 @@ x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    wrap = ST.get_periodic_wrapper(
-        periodic_dims,
-        periods;
-        start = periodic_start,
-    ),
+    wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.

@@ -10,7 +10,6 @@ using Base.Threads
 import MathematicalSystems
 MS = MathematicalSystems
 
-
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -366,7 +365,6 @@ function build_cells(
     return cells
 end
 
-
 function HierarchicalProblem(
     concrete_problem,
     abstract_problem,
@@ -653,7 +651,7 @@ function simulate_trajectory(prob::HierarchicalProblem, path, x0)
         reached(x) = x ∈ concrete_problem.target_set
         cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
         nstep = 100
-        x_traj, u_traj  = ST.get_closed_loop_trajectory(
+        x_traj, u_traj = ST.get_closed_loop_trajectory(
             concrete_system,
             concrete_controller,
             x0,
