@@ -2,7 +2,7 @@
     ProblemType
 
 An abstract type that represents a generic control problem.  
-All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref)) should subtype `ProblemType`.
+All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref), [`CoSafeLTLProblem`](@ref)) should subtype `ProblemType`.
 """
 abstract type ProblemType end
 

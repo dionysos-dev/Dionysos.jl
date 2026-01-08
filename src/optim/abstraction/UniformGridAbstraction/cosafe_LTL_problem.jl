@@ -77,7 +77,6 @@ MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_probl
 # abstract_problem.labeling  :: Dict{Symbol, Vector{Int}}
 # ============================================================
 
-
 # Small check: if the spec is a Spot formula, ensure all APs mentioned in the formula
 # have a set provided in `concrete_problem.labeling`.
 # Extra keys in the dict are fine.)
@@ -229,7 +228,6 @@ step(::AbstractSpecStepper, ::Int, ::Tuple{Vararg{Symbol}}) = error("step not im
 
 # Optional: return the initial spec state qa0.
 init_state(::AbstractSpecStepper) = 1
-
 
 # Optional: return the set of "done/accepting" spec states for co-safe reduction.
 # If not provided, we will attempt to compute it (Spot) or require the user to provide.
@@ -447,7 +445,6 @@ function build_product_automaton(
     end
     return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
 end
-
 
 # Build abstract finite-memory controller as MS.SystemWithOutput.
 # Inputs:

@@ -16,6 +16,8 @@ import HybridSystems
 import Spot
 using JuMP
 
+export Optimizer
+
 include("empty_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
@@ -278,20 +280,14 @@ function solve_concrete_problem(
     return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
-"""
-    solve_concrete_problem(abstract_system, abstract_controller::MS.SystemWithOutput; randomize=false)
-
-Concretizes an abstract finite-memory controller (on (qa,qs)) into a concrete
-finite-memory controller (on (qa,x)).
-
-Assumptions on `abstract_controller`:
-- output:  u_sym = h_abs(qa, qs)  (may be Int, Vector{Int}, or nothing)
-- update:  qa_next = g_abs(qa, qs_for_update)
-
-Returns:
-- concrete_controller :: MS.SystemWithOutput
-- qa0 is NOT stored here; you keep passing q0 to closed_loop_trajectory.
-"""
+# Concretizes an abstract finite-memory controller (on (qa,qs)) into a concrete
+# finite-memory controller (on (qa,x)).
+# Assumptions on `abstract_controller`:
+# - output:  u_sym = h_abs(qa, qs)  (may be Int, Vector{Int}, or nothing)
+# - update:  qa_next = g_abs(qa, qs_for_update)
+# Returns:
+# - concrete_controller :: MS.SystemWithOutput
+# - qa0 is NOT stored here; you keep passing q0 to closed_loop_trajectory.
 function solve_concrete_problem(
     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
     abstract_controller::MS.SystemWithOutput;
