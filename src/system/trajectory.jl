@@ -206,4 +206,3 @@ function get_closed_loop_trajectory(
 
     return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
 end
-

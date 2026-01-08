@@ -38,14 +38,14 @@ jacobian_bound = u -> @SMatrix [
 ]
 
 # ------------------------------------------------------------
-# 2) Abstraction construction (EmptyProblem), same as you do
+# 2) Abstraction construction (EmptyProblem)
 # ------------------------------------------------------------
 
 empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 
 # grid resolution
 x0 = SVector(-2.0, -2.0)
-hx = SVector(0.2, 0.2)                 # coarse so it runs fast
+hx = SVector(0.2, 0.2)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector(-1.0, -1.0)
@@ -104,7 +104,6 @@ obs = UT.LazyUnionSetArray([obs1, obs2])
 # co-safe formula
 φ = ltl"G(!obs) & F(g1 & F(g2 & F(g3  & F(g1))))"
 
-# Spec: G(!obs) & F(g1 & F(g2 & F(g3 & F(g1))))
 struct MonitorG1G2G3G1NoObs end
 
 @inline function mon_next(::MonitorG1G2G3G1NoObs, q::Int, ap::Tuple{Vararg{Symbol}})
@@ -146,8 +145,6 @@ labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)
 ap_semantics =
     Dict{Symbol, Any}(:g1 => DO.INNER, :g2 => DO.INNER, :g3 => DO.INNER, :obs => DO.OUTER)
 
-# This assumes your PR.CoSafeLTLProblem signature:
-# CoSafeLTLProblem(system, initial_set, spec; labeling=..., ap_semantics=..., strict_spot=...)
 concrete_problem = DI.Problem.CoSafeLTLProblem(
     concrete_system,
     _I_,
@@ -167,24 +164,20 @@ MOI.optimize!(optimizer)
 success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
 println("Co-safe LTL success: $success")
 
+# ------------------------------------------------------------
+# 5) Collect results
+# ------------------------------------------------------------
+
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-
-# ------------------------------------------------------------
-# 5) Build concrete controller + memory updater and simulate
-# ------------------------------------------------------------
-# ctrl_concrete, qa_ref, reset_memory!, update_memory! =
-#     AB.UniformGridAbstraction.solve_concrete_problem_fm(abstract_system, abstract_controller; randomize=false)
-
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 q0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
+
 x0 = SVector(-1.65, -1.65)
 nstep = 60
 
 x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
-    # abstract_system,
     concrete_controller,
-    # update_memory!,
     x0,
     q0,
     nstep;

@@ -9,6 +9,7 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
+Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem
 ```
 
 ### Other abstraction-based solvers

@@ -1,7 +1,23 @@
-# ============================================================
-# Optimizer
-# ============================================================
+"""
+    OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
 
+Abstraction-based solver for **co-safe LTL control problems**.
+
+This optimizer takes as input a concrete problem (an instance of [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)), and
+1. converts the co-safe LTL specification into a **finite monitor / automaton**,
+2. forms a product between the abstraction and the monitor (implicitly or explicitly),
+4. synthesizes an abstract controller (policy) on the product,
+5. constructs a concrete controller.
+
+# Typical workflow
+```julia
+opt = OptimizerCoSafeLTLProblem()
+MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+# plus other parameters (grid, images, translators, ...)
+MOI.optimize!(opt)
+ctrl = opt.concrete_controller
+```
+"""
 mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
@@ -61,11 +77,10 @@ MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_probl
 # abstract_problem.labeling  :: Dict{Symbol, Vector{Int}}
 # ============================================================
 
-"""
-Small check: if the spec is a Spot formula, ensure all APs mentioned in the formula
-have a set provided in `concrete_problem.labeling`.
-(Extra keys in the dict are fine.)
-"""
+
+# Small check: if the spec is a Spot formula, ensure all APs mentioned in the formula
+# have a set provided in `concrete_problem.labeling`.
+# Extra keys in the dict are fine.)
 collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in atomic_prop_collect(φ)]
 
 function _check_ap_coverage(concrete_problem)
@@ -203,33 +218,21 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 end
 
 # ============================================================
-# Everything below is your SpecStepper + ProductAutomaton code
-# (kept as-is, only tiny fixes if needed)
-# ============================================================
-
-# ============================================================
 # Spec interface (either Spot DRA or user-defined monitor)
 # ============================================================
 
 abstract type AbstractSpecStepper end
 
-"""
-Step a spec automaton/monitor:
-  qa_next = step(spec, qa, ap_tuple)
-
-Must return an Int state id.
-"""
+# Step a spec automaton/monitor: qa_next = step(spec, qa, ap_tuple)
+# Must return an Int state id.
 step(::AbstractSpecStepper, ::Int, ::Tuple{Vararg{Symbol}}) = error("step not implemented")
 
-"""
-Optional: return the initial spec state qa0.
-"""
+# Optional: return the initial spec state qa0.
 init_state(::AbstractSpecStepper) = 1
 
-"""
-Optional: return the set of "done/accepting" spec states for co-safe reduction.
-If not provided, we will attempt to compute it (Spot) or require the user to provide.
-"""
+
+# Optional: return the set of "done/accepting" spec states for co-safe reduction.
+# If not provided, we will attempt to compute it (Spot) or require the user to provide.
 accepting_states(::AbstractSpecStepper) = error("accepting_states not implemented")
 
 # --------------------------
@@ -266,14 +269,10 @@ end
 step(S::SpotDRAstepper, qa::Int, ap::Tuple{Vararg{Symbol}}) =
     (qa == S.qa_dead) ? S.qa_dead : _nextstate_int(S.dra, qa, ap, S.qa_dead)
 
-"""
-Heuristic done-state detector for Spot DRA used as a co-safe monitor.
-
-A state q is considered "done" if for all valuations v:
-  nextstate(dra, q, v) is either q OR nothing.
-
-This is a practical criterion that works well for many co-safe task specs.
-"""
+# Heuristic done-state detector for Spot DRA used as a co-safe monitor.
+# A state q is considered "done" if for all valuations v:
+#   nextstate(dra, q, v) is either q OR nothing.
+# This is a practical criterion that works well for many co-safe task specs.
 function _all_valuations(aps::Vector{Symbol})
     n = length(aps)
     vals = Vector{Tuple{Vararg{Symbol}}}(undef, 1 << n)
@@ -449,21 +448,19 @@ function build_product_automaton(
     return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
 end
 
-"""
-Build abstract finite-memory controller as MS.SystemWithOutput.
 
-Inputs:
-- lab_abs :: Dict{Symbol, Vector{Int}}   (abstract labeling as state sets)
-- spec    :: AbstractSpecStepper         (your step(spec, qa, ap_tuple))
-- contrP  :: MS.AbstractMap              (controller on product states p -> u_sym or Vector{Int})
-- pid     :: Dict{Tuple{Int,Int},Int}    ((qs,qa) -> p)
+# Build abstract finite-memory controller as MS.SystemWithOutput.
+# Inputs:
+# - lab_abs :: Dict{Symbol, Vector{Int}}   (abstract labeling as state sets)
+# - spec    :: AbstractSpecStepper         (your step(spec, qa, ap_tuple))
+# - contrP  :: MS.AbstractMap              (controller on product states p -> u_sym or Vector{Int})
+# - pid     :: Dict{Tuple{Int,Int},Int}    ((qs,qa) -> p)
 
-Output:
-- Cabs :: MS.SystemWithOutput where:
-    outputmap: (qa, qs) -> u_sym (or Vector{Int}) or nothing
-    memsys:    (qa, qs_for_update) -> qa_next
-- qa0  :: Int (initial abstract control state)
-"""
+# Output:
+# - Cabs :: MS.SystemWithOutput where:
+#     outputmap: (qa, qs) -> u_sym (or Vector{Int}) or nothing
+#     memsys:    (qa, qs_for_update) -> qa_next
+# - qa0  :: Int (initial abstract control state)
 function build_abstract_fm_controller_ms(
     lab_abs::Dict{Symbol, Vector{Int}},
     spec::AbstractSpecStepper,

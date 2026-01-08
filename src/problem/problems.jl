@@ -63,6 +63,43 @@ mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     time::T
 end
 
+"""
+    CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
+
+Encodes a **co-safe LTL control problem**.
+
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `SPEC`: The co-safe LTL specification object (e.g. a Spot/LTL formula or an automaton/monitor wrapper).
+- `LAB`: The labeling payload type used in `labeling` (typically a concrete set type such as a LazySet,
+         or an abstract labeling such as `Vector{Int}` / bitset / etc.).
+
+# Fields
+- `system::S`:
+  The (concrete or abstract) system to control.
+
+- `initial_set::XI`:
+  Initial set of states (or initial abstract states).
+
+- `spec::SPEC`:
+  The co-safe LTL specification.
+
+- `labeling::Dict{Symbol, LAB}`:
+  Unified container mapping each atomic proposition (AP) `:ap` to its labeling object.
+  In a **concrete** problem, values are typically sets (e.g. LazySets / Dionysos sets) over the state space.
+  In an **abstract** problem, values are typically collections of abstract states (e.g. `Vector{Int}`).
+
+- `ap_semantics::Dict{Symbol, Any}`:
+  Per-AP semantics used when converting set labels to abstract labels.
+  Values: `Dionysos.Domain.INNER` or `Dionysos.Domain.OUTER`.
+
+- `strict_spot::Bool`:
+  If `true`, enforce Spot-style strict AP semantics / alphabet handling (useful to catch missing APs).
+  If `false`, be permissive (e.g. treat missing APs as false / ignore absent labels depending on your pipeline).
+
+This problem aims to synthesize a controller such that the generated trajectory satisfies the co-safe LTL
+formula, i.e. it reaches an accepting condition in finite time.
+"""
 mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
     system::S
     initial_set::XI

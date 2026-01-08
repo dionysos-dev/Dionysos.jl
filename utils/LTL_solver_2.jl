@@ -38,14 +38,14 @@ jacobian_bound = u -> @SMatrix [
 ]
 
 # ------------------------------------------------------------
-# 2) Abstraction construction (EmptyProblem), same as you do
+# 2) Abstraction construction (EmptyProblem)
 # ------------------------------------------------------------
 
 empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 
 # grid resolution
 x0 = SVector(-2.0, -2.0)
-hx = SVector(0.2, 0.2)                 # coarse so it runs fast
+hx = SVector(0.2, 0.2)
 state_grid = DO.GridFree(x0, hx)
 
 u0 = SVector(-1.0, -1.0)
@@ -139,7 +139,6 @@ mon = AB.UniformGridAbstraction.FunctionMonitor(
     (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),
 )
 
-# labeling dictionary: AP => concrete set (LazySet / HyperRectangle)
 labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :danger => danger, :obs => obs)
 
 # semantics per AP
@@ -169,14 +168,11 @@ MOI.optimize!(optimizer)
 success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
 println("Co-safe LTL success: $success")
 
+# ------------------------------------------------------------
+# 5) Collect results
+# ------------------------------------------------------------
+
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-
-# ------------------------------------------------------------
-# 5) Build concrete controller + memory updater and simulate
-# ------------------------------------------------------------
-# ctrl_concrete, qa_ref, reset_memory!, update_memory! =
-#     AB.UniformGridAbstraction.solve_concrete_problem_fm(abstract_system, abstract_controller; randomize=false)
-
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 q0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
 x0 = SVector(-1.65, -1.65)
@@ -184,9 +180,7 @@ nstep = 60
 
 x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
-    # abstract_system,
     concrete_controller,
-    # update_memory!,
     x0,
     q0,
     nstep;
@@ -209,55 +203,3 @@ plot!(
 )
 plot!(fig, x_traj; color = :blue, dims = [1, 2])
 display(fig)
-
-# struct ToyAutomatonDanger <: SY.AbstractAutomatonList{5,2}
-#     post_tab::Vector{Vector{Vector{Int}}}
-#     pre_tab::Vector{Vector{Tuple{Int,Int}}}
-# end
-
-# function ToyAutomatonDanger()
-#     nS, nU = 5, 2
-#     post_tab = [[Int[] for _ in 1:nU] for _ in 1:nS]
-#     pre_tab  = [Tuple{Int,Int}[] for _ in 1:nS]
-
-#     add!(q, u, q2) = (push!(post_tab[q][u], q2); push!(pre_tab[q2], (q, u)))
-
-#     # Same base structure:
-#     add!(1, 1, 2); add!(1, 2, 4);
-#     add!(2, 1, 3); add!(2, 2, 1)
-
-#     # Key change: from g1 (state 3), input 2 can go to danger (2) or obstacle (5)
-#     add!(3, 1, 5)
-#     add!(3, 2, 2); 
-
-#     add!(4, 1, 4); add!(4, 2, 4)
-#     add!(5, 1, 1); # add!(5, 1, 2)
-
-#     return ToyAutomatonDanger(post_tab, pre_tab)
-# end
-
-# SY.get_n_state(::ToyAutomatonDanger) = 5
-# SY.get_n_input(::ToyAutomatonDanger) = 2
-# SY.post(A::ToyAutomatonDanger, q::Int, u::Int) = A.post_tab[q][u]
-# SY.pre(A::ToyAutomatonDanger, q::Int) = A.pre_tab[q]
-# SY.enum_transitions(A::ToyAutomatonDanger) =
-#     [(q2, q, u) for q in 1:5, u in 1:2 for q2 in SY.post(A, q, u)]
-
-##  Example monitor: accepting state is 3, initial is 1
-# function labeling_toy_danger(qs::Int)
-#     ap = Symbol[]
-#     qs == 3 && push!(ap, :g1)
-#     qs == 1 && push!(ap, :g2)
-#     qs == 4 && push!(ap, :obs)
-#     qs == 2 && push!(ap, :danger)   # <-- danger region
-#     return Tuple(ap)
-# end
-# mon = FunctionMonitor(
-#     1,                      # qa0
-#     Set([3]),               # accepting spec states
-#     (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),
-# )
-
-# P, contrP, ctrl, V = solve_cosafe_ltl(sys, mon, labeling_toy_danger; initial_set=[1])
-# rollout_original(sys, ctrl; qs0=1, horizon=10)
-
