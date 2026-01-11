@@ -14,6 +14,8 @@ include("./domain/test_griddomain.jl")
 include("./domain/test_nested_domain.jl")
 include("./domain/test_periodic_domain.jl")
 include("./domain/test_custom_domain.jl")
+include("./domain/test_custom_domain_sz.jl")
+include("./domain/test_continuous_domain_sz.jl")
 
 include("./symbolic/test_automaton.jl")
 include("./symbolic/test_proba_automaton.jl")
