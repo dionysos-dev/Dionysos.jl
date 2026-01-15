@@ -126,8 +126,6 @@ function get_concrete_input(
     input::Int,
 ) where {N, M, S1, S2, T, A, U}
     concrete_input = symmodel.augmented_uint2coord[input]
-    # abstract_timestep = symmodel.tstep2int[concrete_input[2]]
-    # return (concrete_input[1], (concrete_input[2], abstract_timestep))
     return concrete_input
 end
 
