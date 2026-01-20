@@ -120,7 +120,7 @@ function reached(x)
     end
 end
 
-control_trajectory = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
@@ -156,6 +156,6 @@ plot!(
     efficient = false,
 );
 
-plot!(control_trajectory; ms = 2.0, arrows = false, lw = 2)
+plot!(x_traj; ms = 2.0, arrows = false, lw = 2)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

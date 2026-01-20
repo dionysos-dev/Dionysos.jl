@@ -69,10 +69,10 @@ x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
 # We define the growth bound function of $f$:
-function jacobian_bound(u)
+function jacobian_bound_function(u)
     return SMatrix{2, 2}(0.0, 1.0, (g / l), 0)
 end
-set_attribute(model, "jacobian_bound", jacobian_bound)
+set_attribute(model, "jacobian_bound", jacobian_bound_function)
 
 set_attribute(model, "time_step", 0.1)
 
@@ -107,7 +107,7 @@ function reached(x)
     end
 end
 x0 = SVector(Dionysos.Utils.sample(concrete_problem.initial_set)...)
-control_trajectory = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
@@ -124,6 +124,5 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; color = :grey, label = "");
 
 # We display the specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 1.0, label = "Initial set");
-plot!(concrete_problem.target_set; color = :red, opacity = 1.0, label = "Target set");
-plot!(control_trajectory; markersize = 1, arrows = false)
+plot!(concrete_problem);
+plot!(x_traj; markersize = 1, arrows = false)
