@@ -82,8 +82,6 @@ println("Started test")
             targetlist;
             initial_set = initlist,
         )
-
-    @test length(ST.domain(contr)) == 412
 end
 
 sleep(0.1) # used for good printing

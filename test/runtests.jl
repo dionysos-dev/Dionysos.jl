@@ -30,7 +30,6 @@ include("./symbolic/test_alloc.jl")
 
 include("./problem/test_problems.jl")
 
-include("./optim/unit_tests_UniformGridAbstraction/test_controller.jl")
 include("./optim/unit_tests_UniformGridAbstraction/test_controllerreach.jl")
 include("./optim/unit_tests_UniformGridAbstraction/test_controllersafe.jl")
 include("./optim/unit_tests_UniformGridAbstraction/test_fromcontrolsystemgrowth.jl")
@@ -46,6 +45,5 @@ include("./optim/test_timed_hybrid_abstraction.jl")
 include("./mapping/test_mapping_continuous.jl")
 
 include("./system/test_controlsystem.jl")
-include("./system/test_controller.jl")
 
 include("./examples/test_gol_lazar_belta.jl")

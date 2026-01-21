@@ -1,5 +1,9 @@
 @enum INCL_MODE INNER OUTER CENTER
-_invInclMode(incl_mode::INCL_MODE) = incl_mode == OUTER ? INNER : OUTER
+@inline function _invInclMode(mode::INCL_MODE)
+    mode === INNER && return OUTER
+    mode === OUTER && return INNER
+    return error("Invalid inclusion mode $mode")
+end
 
 """
     abstract type Grid{N, T} end

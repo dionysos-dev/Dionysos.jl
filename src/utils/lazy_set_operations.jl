@@ -22,13 +22,23 @@ function set_in_period(
     return LazySetMinus(A_wrapped, B_wrapped)
 end
 
-@recipe function f(set::LazySetMinus; dims = [1, 2], colorMinus = :black)
+@recipe function f(
+    set::LazySetMinus;
+    dims = [1, 2],
+    hole_color = :gray,
+    hole_alpha = 1.0,
+    label = "Set",
+)
     dims := dims
     @series begin
+        label := label
         return set.A
     end
     @series begin
-        color := colorMinus
+        label := ""
+        seriestype := :shape
+        fillcolor := hole_color
+        fillalpha := hole_alpha
         return set.B
     end
 end
@@ -83,10 +93,18 @@ function Base.intersect(A, B::LazyUnionSetArray)
     return B ∩ A
 end
 
-@recipe function f(set::LazyUnionSetArray; dims = [1, 2])
+@recipe function f(set::LazyUnionSetArray; dims = [1, 2], label = "set")
     dims := dims
+
+    first_series = true
     for elem in set.sets
         @series begin
+            if first_series
+                label := label
+                first_series = false
+            else
+                label := ""
+            end
             return elem
         end
     end

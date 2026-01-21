@@ -7,6 +7,9 @@ import RecipesBase: @recipe, @series
 using JuMP, Graphs, SimpleWeightedGraphs
 using Base.Threads
 
+import MathematicalSystems
+MS = MathematicalSystems
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -20,7 +23,6 @@ using ..LazyAbstraction
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
-    
 Abstraction-based solver for which the domain is initially partioned into coarse hyper-rectangular cells, which are iteratively locally smartly refined with respect to the control task.
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
@@ -28,8 +30,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, ST.SymbolicController}
-    concrete_controller::Union{Nothing, ST.ContinuousController}
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     abstract_bell_fun::Union{Nothing, Any}
@@ -46,6 +48,10 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     solved::Union{Nothing, Bool}
     param::Union{Nothing, Any}
     solve_time_sec::T
+
+    periodic_dims::Union{Nothing, Any}
+    periodic_periods::Union{Nothing, Any}
+    periodic_start::Union{Nothing, Any}
 
     function Optimizer{T}() where {T}
         return new{T}(
@@ -70,6 +76,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             false,
             nothing,
             0.0,
+            SVector{0, Int}(),
+            SVector{0, Float64}(),
+            SVector{0, Float64}(),
         )
     end
 end
@@ -95,6 +104,7 @@ function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
 end
 
 function build_abstract_system(
+    optimizer,
     concrete_system,
     hx,
     Ugrid,
@@ -107,9 +117,9 @@ function build_abstract_system(
 
     grid = DO.GridFree(SVector(0.0, 0.0) + hx / 2.0, hx)
     Xdom = DO.PeriodicDomainList(
-        concrete_system.periodic,
-        concrete_system.periods,
-        concrete_system.T0,
+        optimizer.periodic_dims,
+        optimizer.periodic_periods,
+        optimizer.periodic_start,
         grid,
     )
     DO.add_set!(Xdom, UT.HyperRectangle(SVector(0.5, 0.5), SVector(55.0, 55.0)), DO.OUTER) #TODO
@@ -149,6 +159,9 @@ function set_optimizer!(
     max_iter,
     max_time;
     option = false,
+    periodic_dims = SVector{0, Int}(),
+    periodic_periods = SVector{0, Float64}(),
+    periodic_start = SVector{0, Float64}(),
 )
     # Set the algorithm parameters
     optimizer.param = Dict()
@@ -162,8 +175,12 @@ function set_optimizer!(
     concrete_system = concrete_problem.system
     optimizer.concrete_system = concrete_system
     optimizer.reference_local_optimizer = reference_local_optimizer
+    optimizer.periodic_dims = periodic_dims
+    optimizer.periodic_periods = periodic_periods
+    optimizer.periodic_start = periodic_start
 
     abstract_system = build_abstract_system(
+        optimizer,
         concrete_system,
         hx_global,
         Ugrid,
@@ -182,8 +199,7 @@ end
 
 function get_closed_loop_trajectory(optimizer::Optimizer, x0)
     x_traj, u_traj, c_traj = simulate_trajectory(optimizer, x0)
-    control_trajectory = ST.Control_trajectory(ST.Trajectory(x_traj), ST.Trajectory(u_traj))
-    return ST.Cost_control_trajectory(control_trajectory, ST.Trajectory(c_traj))
+    return (ST.Trajectory(x_traj), ST.Trajectory(u_traj), ST.Trajectory(c_traj))
 end
 
 function MOI.optimize!(optimizer::Optimizer)
@@ -342,9 +358,9 @@ function build_cells(
         _I_,
         qT,
         _T_,
-        concrete_system.periodic,
-        concrete_system.periods,
-        concrete_system.T0,
+        reference_local_optimizer.periodic_dims,
+        reference_local_optimizer.periodic_periods,
+        reference_local_optimizer.periodic_start,
     )
     return cells
 end
@@ -400,14 +416,15 @@ end
 
 function build_heuristic_abstraction!(prob::HierarchicalProblem, cell::Cell)
     concrete_system = prob.concrete_system
-    hx_heuristic = prob.reference_local_optimizer.param[:hx_heuristic]
-    compute_reachable_set = prob.reference_local_optimizer.param[:compute_reachable_set]
-    minimum_transition_cost = prob.reference_local_optimizer.param[:minimum_transition_cost]
+    reference_local_optimizer = prob.reference_local_optimizer
+    hx_heuristic = reference_local_optimizer.param[:hx_heuristic]
+    compute_reachable_set = reference_local_optimizer.param[:compute_reachable_set]
+    minimum_transition_cost = reference_local_optimizer.param[:minimum_transition_cost]
     # Build Xdom
     Xdom = DO.PeriodicDomainList(
-        concrete_system.periodic,
-        concrete_system.periods,
-        concrete_system.T0,
+        reference_local_optimizer.periodic_dims,
+        reference_local_optimizer.periodic_periods,
+        reference_local_optimizer.periodic_start,
         hx_heuristic,
     )
 
@@ -424,6 +441,7 @@ function build_heuristic_abstraction!(prob::HierarchicalProblem, cell::Cell)
     )
     DO.add_set!(Xdom, rec, DO.OUTER)
     abstract_heuristic_system = LazyAbstraction.build_abstract_system_heuristic(
+        reference_local_optimizer,
         concrete_system,
         prob.abstract_system.symmodel.Udom,
         compute_reachable_set,
@@ -520,9 +538,9 @@ function set_local_optimizer!(
     hx = reference_local_optimizer.param[:hx]
     grid = DO.GridFree(SVector(0.0, 0.0) + hx/2.0, hx)
     Xdom = DO.PeriodicDomainList(
-        concrete_system.periodic,
-        concrete_system.periods,
-        concrete_system.T0,
+        reference_local_optimizer.periodic_dims,
+        reference_local_optimizer.periodic_periods,
+        reference_local_optimizer.periodic_start,
         grid,
     )
 
@@ -633,22 +651,18 @@ function simulate_trajectory(prob::HierarchicalProblem, path, x0)
         reached(x) = x ∈ concrete_problem.target_set
         cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
         nstep = 100
-        cost_control_trajectory = ST.get_closed_loop_trajectory(
-            concrete_system.f_eval,
+        x_traj, u_traj = ST.get_closed_loop_trajectory(
+            concrete_system,
             concrete_controller,
-            cost_eval,
             x0,
             nstep;
             stopping = reached,
-            noise = false,
         )
-        x_traj = cost_control_trajectory.control_trajectory.states.seq
-        u_traj = cost_control_trajectory.control_trajectory.inputs.seq
-        cost_traj = cost_control_trajectory.costs.seq
-        append!(full_x_traj, x_traj[2:end])
-        append!(full_u_traj, u_traj)
-        append!(full_cost_traj, cost_traj)
-        x0 = x_traj[end]
+        c_traj, c_total = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+        append!(full_x_traj, x_traj.seq[2:end])
+        append!(full_u_traj, u_traj.seq)
+        append!(full_cost_traj, c_traj.seq)
+        x0 = x_traj.seq[end]
     end
     return (full_x_traj, full_u_traj, full_cost_traj)
 end

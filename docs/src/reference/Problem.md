@@ -15,6 +15,9 @@ All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Pro
 - [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem):  
     A safety specification problem requiring the system to remain within a safe set for the entire time horizon.
 
+- [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem):  
+    A co-safe LTL specification problem requiring the system to satisfy a co-safe LTL formula, i.e. to reach an accepting condition in finite time (equivalently: achieve a “good prefix” after which the specification is permanently satisfied).
+
 Each of these problem types is detailed below:
 
 ```@docs
@@ -22,4 +25,5 @@ Dionysos.Problem.ProblemType
 Dionysos.Problem.EmptyProblem
 Dionysos.Problem.OptimalControlProblem
 Dionysos.Problem.SafetyProblem
+Dionysos.Problem.CoSafeLTLProblem
 ```

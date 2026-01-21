@@ -2,7 +2,7 @@
     ProblemType
 
 An abstract type that represents a generic control problem.  
-All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref)) should subtype `ProblemType`.
+All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref), [`CoSafeLTLProblem`](@ref)) should subtype `ProblemType`.
 """
 abstract type ProblemType end
 
@@ -61,6 +61,55 @@ mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
     initial_set::XI
     safe_set::XS
     time::T
+end
+
+"""
+    CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
+
+Encodes a **co-safe LTL control problem**.
+
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `SPEC`: The co-safe LTL specification object (e.g. a Spot/LTL formula or an automaton/monitor wrapper).
+- `LAB`: The labeling payload type used in `labeling` (typically a concrete set type such as a LazySet,
+         or an abstract labeling such as `Vector{Int}` / bitset / etc.).
+
+# Fields
+- `system::S`:
+  The (concrete or abstract) system to control.
+
+- `initial_set::XI`:
+  Initial set of states (or initial abstract states).
+
+- `spec::SPEC`:
+  The co-safe LTL specification.
+
+- `labeling::Dict{Symbol, LAB}`:
+  Unified container mapping each atomic proposition (AP) `:ap` to its labeling object.
+  In a **concrete** problem, values are typically sets (e.g. LazySets / Dionysos sets) over the state space.
+  In an **abstract** problem, values are typically collections of abstract states (e.g. `Vector{Int}`).
+
+- `ap_semantics::Dict{Symbol, Any}`:
+  Per-AP semantics used when converting set labels to abstract labels.
+  Values: `Dionysos.Domain.INNER` or `Dionysos.Domain.OUTER`.
+
+- `strict_spot::Bool`:
+  If `true`, enforce Spot-style strict AP semantics / alphabet handling (useful to catch missing APs).
+  If `false`, be permissive (e.g. treat missing APs as false / ignore absent labels depending on your pipeline).
+
+This problem aims to synthesize a controller such that the generated trajectory satisfies the co-safe LTL
+formula, i.e. it reaches an accepting condition in finite time.
+"""
+mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
+    system::S
+    initial_set::XI
+    spec::SPEC
+
+    # unified labeling container:
+    labeling::Dict{Symbol, LAB}   # Symbol => LazySet (concrete) or Vector{Int} (abstract)
+
+    ap_semantics::Dict{Symbol, Any}  # Symbol => DO.INNER / DO.OUTER
+    strict_spot::Bool
 end
 
 struct Infinity <: Real end
@@ -122,6 +171,38 @@ end
         label := "Initial set"
         color := initial_set_color
         problem.initial_set
+    end
+end
+
+@recipe function f(
+    problem::CoSafeLTLProblem;
+    domain_color = :gray,
+    initial_set_color = :green,
+    ap_colors = Dict{Symbol, Any}(),
+    obs_color = :red,
+)
+    # --------------------
+    # Domain
+    # --------------------
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+
+    for (ap, setX) in problem.labeling
+        color_ap = haskey(ap_colors, ap) ? ap_colors[ap] : :blue
+        @series begin
+            label := String(ap)
+            color := color_ap
+            setX
+        end
     end
 end
 

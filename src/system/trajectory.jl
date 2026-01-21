@@ -69,55 +69,19 @@ get_elem(traj::Trajectory, n::Int) = traj.seq[n]
     end
 end
 
-"""
-    Control_trajectory{T1, T2}
+function get_cost_trajectory(x_traj::Trajectory, u_traj::Trajectory, c)
+    @assert length(x_traj) == length(u_traj) + 1
 
-provides the sequence of states and inputs of a trajectory.
-"""
-struct Control_trajectory{T1, T2}
-    states::Trajectory{T1}
-    inputs::Trajectory{T2}
-end
+    cs = Float64[]
+    total_cost = 0.0
 
-Base.length(traj::Control_trajectory) = length(traj.states)
-get_state(traj::Control_trajectory, n::Int) = get_elem(traj.states, n)
-get_input(traj::Control_trajectory, n::Int) = get_elem(traj.inputs, n)
-get_elem(traj::Control_trajectory, n::Int) = (get_state(traj, n), get_input(traj, n))
-
-@recipe function f(traj::Control_trajectory; dims = [1, 2])
-    @series begin
-        dims := dims
-        traj.states
+    for i in 1:length(u_traj)
+        ci = c(x_traj.seq[i], u_traj.seq[i])
+        total_cost += ci
+        push!(cs, ci)
     end
-end
 
-"""
-    Cost_control_trajectory{T1, T2, T3}
-
-provides the sequence of states, inputs (via `Control_trajectory`) and costs of a trajectory.
-"""
-struct Cost_control_trajectory{T1, T2, T3}
-    control_trajectory::Control_trajectory{T1, T2}
-    costs::Trajectory{T3}
-end
-
-Base.length(traj::Cost_control_trajectory) = length(traj.control_trajectory)
-get_state(traj::Cost_control_trajectory, n::Int) = get_state(traj.control_trajectory, n)
-get_input(traj::Cost_control_trajectory, n::Int) = get_input(traj.control_trajectory, n)
-get_cost(traj::Cost_control_trajectory, n::Int) = get_elem(traj.costs, n)
-get_elem(traj::Cost_control_trajectory, n::Int) =
-    (get_state(traj, n), get_input(traj, n), get_cost(traj, n))
-
-function get_cost(traj::Cost_control_trajectory)
-    isempty(traj.costs.seq) && return 0.0
-    return sum(traj.costs.seq)
-end
-
-@recipe function f(traj::Cost_control_trajectory; dims = [1, 2])
-    @series begin
-        dims := dims
-        traj.control_trajectory
-    end
+    return (c = Trajectory(cs), total_cost)
 end
 
 """
@@ -162,77 +126,83 @@ function get_periodic_wrapper(
 end
 
 function get_closed_loop_trajectory(
-    system::MS.ConstrainedBlackBoxControlDiscreteSystem,
-    controller::ContinuousController,
+    system,
+    controller::MS.AbstractMap,
     x0,
-    nstep;
-    stopping = (x) -> false,
-    periodic_wrapper = x -> x,
+    nstep::Integer;
+    stopping = x -> false,
+    wrap = identity,
+    f_map_override = nothing,
 )
-    x = periodic_wrapper(x0)
-    x_traj, u_traj = [x], []
+    f = f_map_override == nothing ? MS.mapping(system) : f_map_override # expects (x,u)
+    k = controller.h  # expects (x)
+
+    x = wrap(x0)
+    xs = Vector{typeof(x)}(undef, 0);
+    push!(xs, x)
+    us = Any[]  # could be typed if you know u type
 
     for _ in 1:nstep
         stopping(x) && break
-        u = get_control(controller, x)
+
+        u = k(x)
         u === nothing && break
-        x = MS.mapping(system)(x, u)
-        x = periodic_wrapper(x)
-        push!(x_traj, x)
-        push!(u_traj, u)
+
+        x = wrap(f(x, u))
+
+        push!(us, u)
+        push!(xs, x)
     end
 
-    return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
+    return (x = Trajectory(xs), u = Trajectory(us))
 end
 
-function get_closed_loop_trajectory(contsys, controller, x0, nstep; stopping = (x) -> false)
-    x = x0
-    x_traj = [x]
-    u_traj = []
-    i = 0
-    while !stopping(x) && i ≤ nstep
-        u = controller(x)
-        if u === nothing
-            break
-        end
-        x = contsys.sys_map(x, u, contsys.tstep)
-        push!(x_traj, x)
-        push!(u_traj, u)
-        i = i + 1
-    end
-    return Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
-end
-
+# u = h(q, x)
+# x^+ = f(x, u)
+# q^+ = g(q, x) ou g(q, x^+) if update_on_next == true (it depends of the controller)
 function get_closed_loop_trajectory(
-    f_eval,
-    controller::ContinuousController,
-    cost_eval,
+    system,
+    controller::MS.SystemWithOutput,
     x0,
-    nstep;
-    stopping = (x) -> false,
-    noise = false,
+    q0,
+    nstep::Integer;
+    meas = identity,
+    stopping = x -> false,
+    wrap = identity,
+    update_on_next::Bool = false,
 )
-    x = x0
-    x_traj = [x]
-    u_traj = []
-    cost_traj = []
-    i = 0
-    while !stopping(x) && i ≤ nstep
-        u = get_control(controller, x)
-        if u === nothing
-            break
-        end
-        push!(u_traj, u)
-        push!(cost_traj, cost_eval(x, u))
-        if noise
-            w = zeros(2)
-            x = f_eval(x, u, w)
-        else
-            x = f_eval(x, u)
-        end
-        push!(x_traj, x)
-        i = i + 1
+    f = MS.mapping(system)              # (x,u) -> xnext
+    gc = MS.mapping(controller.s)        # (q,y) -> qnext
+    hc = controller.outputmap.h # (q,y) -> u
+
+    x = wrap(x0)
+    q = q0
+
+    xs = Vector{typeof(x)}(undef, 0);
+    push!(xs, x)
+    qs = Vector{typeof(q)}(undef, 0);
+    push!(qs, q)
+    us = Any[]
+
+    for _ in 1:nstep
+        stopping(x) && break
+
+        y = meas(x)
+        u = hc((q, y))
+        u === nothing && break
+
+        xnext = f(x, u)
+        xnext = wrap(xnext)
+
+        y_for_update = update_on_next ? meas(xnext) : y
+        qnext = gc(q, y_for_update)
+
+        x, q = xnext, qnext
+
+        push!(us, u)
+        push!(xs, x)
+        push!(qs, q)
     end
-    control_trajectory = Control_trajectory(Trajectory(x_traj), Trajectory(u_traj))
-    return Cost_control_trajectory(control_trajectory, Trajectory(cost_traj))
+
+    return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
 end

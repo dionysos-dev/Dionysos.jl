@@ -27,5 +27,6 @@ Base.union!(domain1::CustomList, domain2::CustomList) = union!(domain1.elems, do
 Base.setdiff!(domain1::CustomList, domain2::CustomList) =
     setdiff!(domain1.elems, domain2.elems)
 Base.empty!(domain::CustomList) = empty!(domain.elems)
+get_dim(::CustomList{N, T}) where {N, T} = N
 
 convert_to_custom_domain(domain::CustomList) = domain

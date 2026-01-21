@@ -3,6 +3,8 @@ export EllipsoidsAbstraction
 module EllipsoidsAbstraction
 using JuMP
 import LinearAlgebra as LA
+import MathematicalSystems
+MS = MathematicalSystems
 
 import Dionysos
 const DI = Dionysos
@@ -21,8 +23,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, ST.SymbolicController}
-    concrete_controller::Union{Nothing, ST.ContinuousController}
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
     state_grid::Union{Nothing, DO.GridEllipsoidalRectangular}
@@ -149,47 +151,86 @@ function transFdict(transitionCost)
     return testgraph
 end
 
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
 # We perform the synthesis of the discrete controller through Dijkstra's algorithm to the reversed graph associated to the abstraction
 function solve_abstract_problem(abstract_problem, transitionCost)
-    testgraph = transFdict(transitionCost) # uses said function
+    testgraph = transFdict(transitionCost)
     src, dst = abstract_problem.initial_set[1], abstract_problem.target_set[1]
 
-    rev_graph = [(t[2], t[1], t[3]) for t in testgraph] # we applied dijkstra to the reversed graph
-
+    rev_graph = [(t[2], t[1], t[3]) for t in testgraph]
     gc = UT.Digraph(rev_graph)
-    t = @elapsed rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src) # gets optimal path
+
+    rev_path, lyap_fun = UT.dijkstrapath(gc, dst, src)
     path = reverse(rev_path)
-    # println("Shortest path from $src to $dst found in $t seconds:\n ", isempty(path) ? "no possible path" : join(path, " → "), " (cost $(cost[dst]))")
-    abstract_controller = ST.SymbolicControllerList()
-    for l in 1:(length(path) - 1)
-        ST.add_control!(abstract_controller, path[l], path[l + 1])
-    end
+
     println("Abstract controller computed with: ", path[end] == dst ? "succes" : "failure")
-    return abstract_controller, lyap_fun
+
+    # Build deterministic controller next[q] = qnext
+    next = Dict{Int, Int}()
+    for k in 1:(length(path) - 1)
+        next[path[k]] = path[k + 1]
+    end
+
+    # MS controller: q -> qnext (or nothing)
+    qfun = (q::Int) -> get(next, q, nothing)
+    X = PredicateDomain((q::Int) -> haskey(next, q))
+
+    Kabs = MS.ConstrainedBlackBoxMap(1, 1, qfun, X)
+    return Kabs, lyap_fun
 end
 
-function solve_concrete_problem(abstract_system, abstract_controller, transitionCont)
+function solve_concrete_problem(
+    abstract_system::SY.SymbolicModelList,
+    abstract_controller::MS.AbstractMap,
+    transitionCont;
+    randomize::Bool = false,
+)
     state_grid = abstract_system.Xdom.grid
-    prev = 0  # kind of memory for the controller
-    function f(x)
+    prev = 0  # memory (last used state)
+
+    # robust access to "q -> qnext" map function
+    k_abs = abstract_controller.h
+
+    # domain predicate "is controller defined at q?"
+    is_defined_q = q -> q ∈ abstract_controller.X
+
+    # The actual concrete controller: x -> u
+    f = function (x)
+        # candidate symbolic states for this continuous x
         states = SY.get_states_by_xpos(
             abstract_system,
             DO.crop_to_domain(abstract_system.Xdom, DO.get_all_pos_by_coord(state_grid, x)),
         )
+
         from = nothing
         to = nothing
+
+        # pick a symbolic state where the abstract controller is defined
         for s in states
-            if s !== prev && ST.is_defined(abstract_controller, s)
+            if s != prev && is_defined_q(s)
+                to_candidate = k_abs(s)   # qnext (or nothing)
+                to_candidate === nothing && continue
                 from = s
-                to = ST.get_control(abstract_controller, s)
+                to = to_candidate
                 break
             end
         end
+
+        from === nothing && return nothing
         prev = from
+
         local_controller = transitionCont[(from, to)]
-        return ST.get_control(local_controller, x)
+        return MS.apply(local_controller, x)
     end
-    return ST.BlackBoxContinuousController(f, nothing)
+
+    Xx = PredicateDomain(x -> true)
+    nx = SY.get_concrete_state_dim(abstract_system)
+    nu = SY.get_concrete_input_dim(abstract_system)
+    return MS.ConstrainedBlackBoxMap(nx, nu, f, Xx)
 end
 
 function build_abstract_lyap_fun(lyap)

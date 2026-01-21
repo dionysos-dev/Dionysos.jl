@@ -88,7 +88,7 @@ function f_eval1(x, u)
     )
     from = nothing
     for s in states
-        if ST.is_defined(abstract_controller, s)
+        if s in abstract_controller.X
             from = s
             break
         end
@@ -122,16 +122,16 @@ end
 
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set
-cost_control_trajectory = ST.get_closed_loop_trajectory(
-    f_eval1,
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    concrete_system,
     concrete_controller,
-    cost_eval,
     x0,
     nstep;
     stopping = reached,
+    f_map_override = f_eval1,
 )
+c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
 cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_control_trajectory.costs.seq)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -202,7 +202,7 @@ println("True cost:\t\t $(cost_true)")
     xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2)
     ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2)
     plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun)
-    plot!(cost_control_trajectory; color = :black)
+    plot!(x_traj; color = :black)
     xlabel!("\$x_1\$")
     ylabel!("\$x_2\$")
     title!("Trajectory and Lyapunov-like Fun.")

@@ -6,6 +6,9 @@ using JuMP, Random
 import LinearAlgebra as LA
 import IntervalArithmetic as IA
 
+import MathematicalSystems
+MS = MathematicalSystems
+
 Random.seed!(0)
 
 import Dionysos
@@ -31,8 +34,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
     abstract_system_full::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, ST.SymbolicController}
-    concrete_controller::Union{Nothing, ST.ContinuousController}
+    abstract_controller::Union{Nothing, MS.AbstractMap}
+    concrete_controller::Union{Nothing, MS.AbstractMap}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
 
@@ -187,17 +190,42 @@ function set_optimizer!(
     )
 end
 
-function build_concrete_controller(abstract_system)
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+function build_concrete_controller(abstract_tree::UT.Tree)
     compare(E, x) = x ∈ E
-    function f(x)
-        nodes = UT.get_nodes(abstract_system, x, compare)
+
+    # is_defined(x): there is at least one ellipsoid node containing x AND action returns something
+    isdef = function (x)
+        nodes = UT.get_nodes(abstract_tree, x, compare)
+        isempty(nodes) && return false
+        sorted_nodes = sort(nodes; by = UT.compare)
+        isempty(sorted_nodes) && return false
+        local_map = UT.get_action(sorted_nodes[1])  # expect MS map
+        local_map === nothing && return false
+        u = local_map.h(x)
+        return u !== nothing
+    end
+
+    f = function (x)
+        nodes = UT.get_nodes(abstract_tree, x, compare)
+        isempty(nodes) && return nothing
         sorted_nodes = sort(nodes; by = UT.compare)
         isempty(sorted_nodes) && return nothing
-        local_controller = UT.get_action(sorted_nodes[1])
-        return ST.get_control(local_controller, x)
+
+        local_map = UT.get_action(sorted_nodes[1])
+        local_map === nothing && return nothing
+
+        return MS.apply(local_map, x)
     end
-    return ST.BlackBoxContinuousController(f, nothing)
+
+    X = PredicateDomain(isdef)
+    return MS.ConstrainedBlackBoxMap(0, 0, f, X)
 end
+
 function build_abstract_lyap_fun()
     return abstract_lyap_fun(node) = UT.get_path_cost(node)
 end

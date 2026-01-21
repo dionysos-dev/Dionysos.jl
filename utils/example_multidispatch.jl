@@ -88,7 +88,7 @@ invariant_set_complement =
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -99,7 +99,7 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_safety; opacity = 1.0);
 plot!(invariant_set; color = :blue, linecolor = :blue)
 plot!(invariant_set_complement; color = :red, linecolor = :red)
-plot!(control_trajectory)
+plot!(x_traj)
 display(fig)
 
 ## Export in csv file the controller, and reload it
@@ -145,7 +145,7 @@ function reached(x)
     end
 end
 
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -157,5 +157,5 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_reachability);
 plot!(controllable_set; color = :yellow, linecolor = :yellow, label = "Controllable set")
 plot!(uncontrollable_set; color = :black, linecolor = :black, label = "Uncontrollable set")
-plot!(control_trajectory)
+plot!(x_traj)
 display(fig)

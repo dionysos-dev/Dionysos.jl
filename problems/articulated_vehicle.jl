@@ -400,7 +400,8 @@ end
 function live_vehicle_progression(
     p,
     dp,
-    traj::ST.Control_trajectory,
+    x_traj::ST.Trajectory,
+    u_traj::ST.Trajectory,
     xl,
     yl;
     domain = nothing,
@@ -410,8 +411,8 @@ function live_vehicle_progression(
     giffile::Union{Nothing, String} = nothing,
     fps::Int = 20,
 )
-    states = traj.states.seq
-    inputs = traj.inputs.seq
+    states = x_traj.seq
+    inputs = u_traj.seq
 
     xs = [x[1] for x in states]
     ys = [x[2] for x in states]

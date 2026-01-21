@@ -22,7 +22,7 @@ function get_transitions_1(symmodel, sys, source::Int, compute_reachable_set)
     reachable_set = compute_reachable_set(rec, sys, symmodel.Udom)
     reachable_sets =
         UT.set_in_period(reachable_set, Xdom.periodic_dims, Xdom.periods, Xdom.start)
-    symbols = get_states_from_sets(symmodel, reachable_sets, DO.OUTER)
+    symbols = get_states_from_set(symmodel, reachable_sets, DO.OUTER)
     return symbols
 end
 
