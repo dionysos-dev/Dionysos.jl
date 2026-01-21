@@ -94,17 +94,16 @@ abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_
 concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_lyap_fun&quot;));</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We define the cost and stopping criteria for a simulation</p><pre><code class="language-julia hljs">cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
 reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps</code></pre><p>We simulate the closed loop trajectory</p><pre><code class="language-julia hljs">x0 = concrete_problem.initial_set.c
-cost_control_trajectory = ST.get_closed_loop_trajectory(
-    concrete_system.f_eval,
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    concrete_system,
     concrete_controller,
-    cost_eval,
     x0,
     nstep;
     stopping = reached,
-    noise = true,
+    f_map_override = (x, u) -&gt; concrete_system.f_eval(x, u, [0, 0]),
 )
-cost_bound = concrete_lyap_fun(x0)
-cost_true = ST.get_cost(cost_control_trajectory);
+c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+cost_bound = concrete_lyap_fun(x0);
 println(&quot;Goal set reached&quot;)
 println(&quot;Guaranteed cost:\t $(cost_bound)&quot;)
 println(&quot;True cost:\t\t $(cost_true)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Goal set reached
@@ -129,7 +128,7 @@ plot!(abstract_system; arrowsB = false, cost = false, label = false);
 
 #Display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, label = false);
-plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img src="fdadbccb.svg" alt="Example block output"/><h1 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img src="558dce0a.svg" alt="Example block output"/><h1 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -137,7 +136,7 @@ plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img
     titlefontsize = 14,
 );
 title!(&quot;Abstractions&quot;);
-plot!(abstract_system; arrowsB = true)</code></pre><img src="f33c65a6.svg" alt="Example block output"/><h1 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+plot!(abstract_system; arrowsB = true)</code></pre><img src="c2ee302c.svg" alt="Example block output"/><h1 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -152,4 +151,4 @@ for obs in concrete_system.obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; arrowsB = false, cost = true);
-plot!(cost_control_trajectory; color = :black)</code></pre><img src="c8526697.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Hierarchical-abstraction/">« Hierarchical-abstraction</a><a class="docs-footer-nextpage" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 24 December 2025 12:09">Wednesday 24 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(x_traj; color = :black)</code></pre><img src="2dfdc4f1.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Hierarchical-abstraction/">« Hierarchical-abstraction</a><a class="docs-footer-nextpage" href="../Lazy-abstraction-reachability/">Lazy-abstraction-reachability »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 21 January 2026 13:20">Wednesday 21 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

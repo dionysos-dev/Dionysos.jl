@@ -19,11 +19,11 @@ x2_ub = [9.0, 5.0, 10.0];</code></pre><p>Function to add rectangular obstacle av
         model,
         x[1:2] ∉ MOI.HyperRectangle([x1_lb[i], x2_lb[i]], [x1_ub[i], x2_ub[i]])
     )
-end</code></pre><h3 id="Definition-of-the-abstraction"><a class="docs-heading-anchor" href="#Definition-of-the-abstraction">Definition of the abstraction</a><a id="Definition-of-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-abstraction" title="Permalink"></a></h3><p>Definition of the grid of the state-space on which the abstraction is based (origin <code>x0</code> and state-space discretization <code>h</code>):</p><p>We define the growth bound function of <span>$f$</span>:</p><pre><code class="language-julia hljs">function jacobian_bound(u)
+end</code></pre><h3 id="Definition-of-the-abstraction"><a class="docs-heading-anchor" href="#Definition-of-the-abstraction">Definition of the abstraction</a><a id="Definition-of-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-abstraction" title="Permalink"></a></h3><p>Definition of the grid of the state-space on which the abstraction is based (origin <code>x0</code> and state-space discretization <code>h</code>):</p><p>We define the growth bound function of <span>$f$</span>:</p><pre><code class="language-julia hljs">function jacobian_bound_function(u)
     β = abs(u[1] / cos(atan(tan(u[2]) / 2)))
     return StaticArrays.SMatrix{3, 3}(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, β, β, 0.0)
 end
-set_attribute(model, &quot;jacobian_bound&quot;, jacobian_bound)
+set_attribute(model, &quot;jacobian_bound&quot;, jacobian_bound_function)
 set_attribute(model, &quot;time_step&quot;, 0.3)
 set_attribute(
     model,
@@ -41,11 +41,11 @@ set_attribute(model, &quot;input_grid&quot;, Dionysos.Domain.GridFree(u0, hu))
 optimize!(model);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&gt;&gt;Setting up the model
 &gt;&gt;Model setup complete
 ┌ Warning: Noise is not yet accounted for in system abstraction.
-└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/VtJzb/src/optim/abstraction/UniformGridAbstraction/empty_problem.jl:400
+└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/BIdJ2/src/optim/abstraction/UniformGridAbstraction/empty_problem.jl:400
 compute_abstract_system_from_concrete_system!: started with Dionysos.System.DiscreteTimeGrowthBound
 compute_abstract_system_from_concrete_system! terminated with success: 9705631 transitions created
 ┌ Warning: The `state_cost` is not yet fully implemented
-└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/VtJzb/src/optim/abstraction/UniformGridAbstraction/optimal_control_problem.jl:226
+└ @ Dionysos.Optim.Abstraction.UniformGridAbstraction ~/.julia/packages/Dionysos/BIdJ2/src/optim/abstraction/UniformGridAbstraction/optimal_control_problem.jl:223
 compute_controller_reachability! started
 
  Reachability: terminated with true</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = get_attribute(model, &quot;abstract_system&quot;);
@@ -62,9 +62,9 @@ abstract_problem_time =
     MOI.get(model, MOI.RawOptimizerAttribute(&quot;abstract_problem_time_sec&quot;))
 println(&quot;Time to solve the abstract problem: $(abstract_problem_time)&quot;)
 total_time = MOI.get(model, MOI.RawOptimizerAttribute(&quot;solve_time_sec&quot;))
-println(&quot;Total time: $(total_time)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Time to construct the abstraction: 2.4347450733184814
-Time to solve the abstract problem: 1.1081089973449707
-Total time: 3.542896032333374</code></pre><h3 id="Trajectory-display"><a class="docs-heading-anchor" href="#Trajectory-display">Trajectory display</a><a id="Trajectory-display-1"></a><a class="docs-heading-anchor-permalink" href="#Trajectory-display" title="Permalink"></a></h3><p>We choose a stopping criterion <code>reached</code> and the maximal number of steps <code>nsteps</code> for the sampled system, i.e. the total elapsed time: <code>nstep</code>*<code>tstep</code> as well as the true initial state <code>x0</code> which is contained in the initial state-space <code>_I_</code> defined previously.</p><pre><code class="language-julia hljs">nstep = 100
+println(&quot;Total time: $(total_time)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Time to construct the abstraction: 2.4790232181549072
+Time to solve the abstract problem: 1.1094820499420166
+Total time: 3.588560104370117</code></pre><h3 id="Trajectory-display"><a class="docs-heading-anchor" href="#Trajectory-display">Trajectory display</a><a id="Trajectory-display-1"></a><a class="docs-heading-anchor-permalink" href="#Trajectory-display" title="Permalink"></a></h3><p>We choose a stopping criterion <code>reached</code> and the maximal number of steps <code>nsteps</code> for the sampled system, i.e. the total elapsed time: <code>nstep</code>*<code>tstep</code> as well as the true initial state <code>x0</code> which is contained in the initial state-space <code>_I_</code> defined previously.</p><pre><code class="language-julia hljs">nstep = 100
 function reached(x)
     if x ∈ concrete_problem.target_set
         return true
@@ -74,7 +74,7 @@ function reached(x)
 end
 
 x0 = SVector(0.4, 0.4, 0.0)
-control_trajectory = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     get_attribute(model, &quot;discrete_time_system&quot;),
     concrete_controller,
     x0,
@@ -96,4 +96,4 @@ plot!(
 plot!(
     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
     color = :red,
-);</code></pre><p>We display the concrete trajectory</p><pre><code class="language-julia hljs">plot!(control_trajectory; ms = 2.0, arrows = false)</code></pre><img src="a4ac4a50.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-abstraction-reachability/">« Lazy-abstraction-reachability</a><a class="docs-footer-nextpage" href="../Single pendulum/">Single pendulum »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 24 December 2025 12:09">Wednesday 24 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+);</code></pre><p>We display the concrete trajectory</p><pre><code class="language-julia hljs">plot!(x_traj; ms = 2.0, arrows = false)</code></pre><img src="5642aaff.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Lazy-abstraction-reachability/">« Lazy-abstraction-reachability</a><a class="docs-footer-nextpage" href="../Single pendulum/">Single pendulum »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 21 January 2026 13:20">Wednesday 21 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

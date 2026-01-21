@@ -54,7 +54,7 @@ invariant_set_complement =
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -64,7 +64,7 @@ control_trajectory = ST.get_closed_loop_trajectory(
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
-plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
+plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
 
@@ -108,7 +108,7 @@ println("Total time: $(total_time)")
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-control_trajectory = ST.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -119,6 +119,6 @@ fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
 plot!(invariant_set_complement; color = :black, label = "Invariant set complement")
 plot!(concrete_problem.initial_set; color = :green, label = "");
-plot!(control_trajectory; arrows = false, ms = 2.0, color = :blue)
+plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
