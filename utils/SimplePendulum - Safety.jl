@@ -100,6 +100,9 @@ display(fig)
 
 # ### For Visualization
 
+using RigidBodyDynamics
+using MeshCat, MeshCatMechanisms
+
 # --- build mechanism/state from your URDF ---
 urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
 mechanism = parse_urdf(urdf)

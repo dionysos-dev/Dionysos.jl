@@ -82,6 +82,10 @@ function optimal_control_problem(;
         SVector(pi - 15.0 * pi / 180.0, -1.0),
         SVector(pi + 15.0 * pi / 180.0, 1.0),
     ),
+    _O_ = UT.HyperRectangle(
+        SVector(-pi + 16.0 * pi / 180.0, -7.0),
+        SVector(-pi + 38.0 * pi / 180.0, 7.0),
+    ),
     objective = "reachability_up_low_power",
 )
     if objective == "reachability_up_high_power"
@@ -95,8 +99,8 @@ function optimal_control_problem(;
             SVector(5.0 * pi / 180.0, 0.2),
         )
         _T_ = UT.HyperRectangle(
-            SVector(pi - 8.0 * pi / 180.0, -1.0),
-            SVector(pi + 8.0 * pi / 180.0, 1.0),
+            SVector(pi - 15.0 * pi / 180.0, -1.0),
+            SVector(pi + 15.0 * pi / 180.0, 1.0),
         )
     elseif objective == "reachability_up_medium_power"
         _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0))
@@ -127,6 +131,7 @@ function optimal_control_problem(;
             SVector(pi + 15.0 * pi / 180.0, 1.0),
         )
     end
+    _X_ = _O_ !== nothing ? UT.LazySetMinus(_X_, _O_) : _X_
     sys = system(; l = l, g = g, _X_ = _X_, _U_ = _U_)
     return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
 end

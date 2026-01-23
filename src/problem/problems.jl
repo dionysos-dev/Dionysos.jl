@@ -35,12 +35,12 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
-mutable struct OptimalControlProblem{S, XI, XT, XC, TC, T <: Real} <: ProblemType
+mutable struct OptimalControlProblem{S, XI, XT, XC, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
     state_cost::XC
-    transition_cost::TC
+    transition_cost::Any
     time::T
 end
 

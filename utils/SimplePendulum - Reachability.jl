@@ -12,7 +12,9 @@ const AB = OP.Abstraction
 include("../problems/simple_pendulum.jl");
 
 concrete_problem =
-    SimplePendulum.optimal_control_problem(; objective = "reachability_up_medium_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power
+    SimplePendulum.optimal_control_problem(; objective = "reachability_up_low_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power, _O_ = nothing
+transition_cost(x, u) = exp(10*abs(u[1]))
+# concrete_problem.transition_cost = transition_cost
 
 hx = SVector(3*(pi/180.0), 0.05)
 
@@ -45,7 +47,12 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true) # true
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
@@ -54,10 +61,10 @@ MOI.optimize!(optimizer);
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"));
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"));
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"));
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 concrete_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"));
-# abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
+abstract_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
 
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
@@ -95,6 +102,7 @@ concrete_system = concrete_problem.system
 plot!(
     UT.set_in_period(concrete_system.X, periodic_dims, periods, periodic_start);
     color = :grey,
+    hole_color = :black,
     opacity = 1.0,
     label = "",
 );
@@ -110,6 +118,9 @@ plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ### For Visualization
+
+using RigidBodyDynamics
+using MeshCat, MeshCatMechanisms
 
 # --- build mechanism/state from your URDF ---
 urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
