@@ -41,7 +41,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH,
+    AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
@@ -129,7 +129,6 @@ state = MechanismState(mechanism)
 joint = first(joints(mechanism))
 
 # --- build trajectory data ---
-tstep = 0.1
 state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
 ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
 

@@ -110,7 +110,6 @@ state = MechanismState(mechanism)
 joint = first(joints(mechanism))
 
 # --- build trajectory data ---
-tstep = 0.1
 state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
 ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
 
