@@ -2,6 +2,7 @@
 @inline function _invInclMode(mode::INCL_MODE)
     mode === INNER && return OUTER
     mode === OUTER && return INNER
+    mode === CENTER && return OUTER
     return error("Invalid inclusion mode $mode")
 end
 
