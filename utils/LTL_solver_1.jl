@@ -148,7 +148,7 @@ ap_semantics =
 concrete_problem = DI.Problem.CoSafeLTLProblem(
     concrete_system,
     _I_,
-    mon, # φ, mon
+    φ, # φ, mon
     labeling,
     ap_semantics,
     false,

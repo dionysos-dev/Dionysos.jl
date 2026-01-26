@@ -97,7 +97,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 )
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
-fig = plot(; aspect_ratio = :equal, legend = false);
+fig = plot(; aspect_ratio = :equal);
 concrete_system = concrete_problem.system
 plot!(
     UT.set_in_period(concrete_system.X, periodic_dims, periods, periodic_start);

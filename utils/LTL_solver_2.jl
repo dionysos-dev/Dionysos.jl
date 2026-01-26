@@ -1,9 +1,10 @@
 using StaticArrays
 using MathematicalSystems
 using Dionysos
-using Spot
 using JuMP
 import MathOptInterface as MOI
+
+using Spot
 
 const DI = Dionysos
 const UT = DI.Utils

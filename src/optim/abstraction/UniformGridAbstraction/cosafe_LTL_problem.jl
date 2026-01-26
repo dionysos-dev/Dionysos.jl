@@ -80,7 +80,7 @@ MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_probl
 # Small check: if the spec is a Spot formula, ensure all APs mentioned in the formula
 # have a set provided in `concrete_problem.labeling`.
 # Extra keys in the dict are fine.)
-collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in atomic_prop_collect(φ)]
+collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in Spot.atomic_prop_collect(φ)]
 
 function _check_ap_coverage(concrete_problem)
     if concrete_problem.spec isa Spot.SpotFormula
@@ -260,7 +260,7 @@ end
 init_state(S::SpotDRAstepper) = S.qa0
 
 @inline function _nextstate_int(dra, qa::Int, ap::Tuple, qa_dead::Int)
-    qa2 = nextstate(dra, qa, ap)
+    qa2 = Spot.nextstate(dra, qa, ap)
     return qa2 === nothing ? qa_dead : qa2
 end
 
@@ -295,7 +295,7 @@ function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int = 1)
     while !isempty(queue)
         q = popfirst!(queue)
         for v in vals
-            q2 = nextstate(dra, q, v)
+            q2 = Spot.nextstate(dra, q, v)
             q2 === nothing && continue
             if !(q2 in reachable)
                 push!(reachable, q2)
@@ -308,7 +308,7 @@ function _cosafe_done_states_dra(dra; aps::Vector{Symbol}, q0::Int = 1)
     for q in reachable
         ok = true
         for v in vals
-            q2 = nextstate(dra, q, v)
+            q2 = Spot.nextstate(dra, q, v)
             if !(q2 === nothing || q2 == q)
                 ok = false
                 break
@@ -339,7 +339,7 @@ function spot_stepper(
 )
     aps_use = aps === nothing ? collect_aps(φ) : aps
     try
-        dra = DeterministicRabinAutomata(φ)
+        dra = Spot.DeterministicRabinAutomata(φ)
         return SpotDRAstepper(φ, dra, qa0, qa_dead, aps_use)
     catch
         error(
