@@ -59,6 +59,8 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     end
 end
 
+using Spot
+
 OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.concrete_problem === nothing
@@ -329,7 +331,7 @@ accepting_states(S::SpotDRAstepper) = begin
     doneQ
 end
 
-collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in atomic_prop_collect(φ)]
+collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in Spot.atomic_prop_collect(φ)]
 
 function spot_stepper(
     φ::Spot.SpotFormula;
