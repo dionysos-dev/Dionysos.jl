@@ -378,7 +378,7 @@ function build_state_domain(optimizer::OptimizerEmptyProblem)
     end
     # Fill the domain with relevant set
     DO.add_set!(state_domain, system_X, DO.INNER)
-    return state_domain
+        return state_domain
 end
 
 function build_input_domain(optimizer::OptimizerEmptyProblem)
@@ -404,7 +404,6 @@ end
 
 function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     t_ref = time()
-
     # Ensure necessary parameters are set
     _validate_model(optimizer, [:empty_problem])
     @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
@@ -431,7 +430,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     noise = build_noise(optimizer)
 
     optimizer.print_level >= 1 && println(
-        "compute_abstract_system_from_concrete_system!: started with $(typeof(optimizer.discrete_time_system_approximation))",
+        "compute_abstract_system_from_concrete_system!: started"
     )
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
