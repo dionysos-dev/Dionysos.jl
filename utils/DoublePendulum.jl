@@ -53,7 +53,6 @@ MOI.set(
     (n, m) -> SY.NewIndexedAutomatonList(n, m),
 )
 
-
 MOI.optimize!(optimizer);
 
 # Get the results
@@ -68,7 +67,8 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 nstep = 100
-target_set = UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
+target_set =
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 nstep = 100
 function reached(x)
     if x ∈ target_set
@@ -88,8 +88,6 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
     wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
-
-
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
@@ -119,7 +117,11 @@ display(fig)
 using RigidBodyDynamics
 using MeshCat, MeshCatMechanisms
 
-urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "DoublePendulum.urdf")
+urdf = joinpath(
+    dirname(dirname(pathof(Dionysos))),
+    "problems/pendulum/",
+    "DoublePendulum.urdf",
+)
 mechanism = parse_urdf(urdf)
 state = MechanismState(mechanism)
 
@@ -152,7 +154,7 @@ for k in eachindex(ts)
     set_configuration!(state, j2, q2)
 
     MeshCat.atframe(anim, k) do
-        MeshCatMechanisms.set_configuration!(mvis, configuration(state))
+        return MeshCatMechanisms.set_configuration!(mvis, configuration(state))
     end
 end
 

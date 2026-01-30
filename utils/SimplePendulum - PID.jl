@@ -54,7 +54,8 @@ pid_controller = ST.PIDControllers.pid_map(pid; nx = 2, nu = 1, silent = false)
 
 nstep = 200
 x0 = SVector(0.0, 0.0)
-x_traj, u_traj = ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
+x_traj, u_traj =
+    ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
 
 # ------------------------------------------------------------
 # Plots

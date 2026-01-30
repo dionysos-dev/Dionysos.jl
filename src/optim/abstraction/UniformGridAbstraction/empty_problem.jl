@@ -378,7 +378,7 @@ function build_state_domain(optimizer::OptimizerEmptyProblem)
     end
     # Fill the domain with relevant set
     DO.add_set!(state_domain, system_X, DO.INNER)
-        return state_domain
+    return state_domain
 end
 
 function build_input_domain(optimizer::OptimizerEmptyProblem)
@@ -429,9 +429,8 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     # TODO: Consider adding noise handling
     noise = build_noise(optimizer)
 
-    optimizer.print_level >= 1 && println(
-        "compute_abstract_system_from_concrete_system!: started"
-    )
+    optimizer.print_level >= 1 &&
+        println("compute_abstract_system_from_concrete_system!: started")
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
