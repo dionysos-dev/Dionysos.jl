@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<robot name="DoublePendulum">
+
+  <!-- Base -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.16 0.16 0.16"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- First link -->
+  <link name="link1">
+    <visual>
+      <!-- cylinder of length 1, centered at z=-0.5 so the top is at the joint -->
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.05"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Second link -->
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.045"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Joint 1: base -> link1 -->
+  <joint name="joint1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <!-- rotate in the same plane as your simple pendulum -->
+    <axis xyz="0 1 0"/>
+    <!-- optional limits -->
+    <limit lower="-3.1416" upper="3.1416" effort="100" velocity="20"/>
+  </joint>
+
+  <!-- Joint 2: link1 -> link2
+       place it at the end of link1: since link1 extends to z=-1, joint2 is at z=-1 in link1 frame -->
+  <joint name="joint2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.1416" upper="3.1416" effort="100" velocity="20"/>
+  </joint>
+
+</robot>

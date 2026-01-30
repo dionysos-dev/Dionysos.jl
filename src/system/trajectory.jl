@@ -146,7 +146,7 @@ function get_closed_loop_trajectory(
         stopping(x) && break
 
         u = k(x)
-        u === nothing && break
+        u === nothing && println("No input") & break
 
         x = wrap(f(x, u))
 

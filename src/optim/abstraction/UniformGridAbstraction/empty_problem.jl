@@ -404,7 +404,6 @@ end
 
 function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     t_ref = time()
-
     # Ensure necessary parameters are set
     _validate_model(optimizer, [:empty_problem])
     @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
@@ -430,9 +429,8 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     # TODO: Consider adding noise handling
     noise = build_noise(optimizer)
 
-    optimizer.print_level >= 1 && println(
-        "compute_abstract_system_from_concrete_system!: started with $(typeof(optimizer.discrete_time_system_approximation))",
-    )
+    optimizer.print_level >= 1 &&
+        println("compute_abstract_system_from_concrete_system!: started")
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
         Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(

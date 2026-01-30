@@ -22,13 +22,18 @@ system = SimplePendulum.system(;
 )
 
 tstep = 0.1
+discrete_time_system = ST.discretize_continuous_system(system, tstep)
+
+# ------------------------------------------------------------
+# PID Controller on Position
+# ------------------------------------------------------------
+
 wrap_angle(e) = mod(e + π, 2π) - π
 error = (x, r, _) -> begin
     eθ = wrap_angle(r[1] - x[1])
     eω = r[2] - x[2]
     return SVector(eθ, eω)
 end
-
 input_set = MS.inputset(system)
 pid = ST.PIDControllers.PIDControllerVector(;
     Kp = SVector(15.0, 5.0), # SVector(20.0, 5.0)
@@ -43,39 +48,42 @@ pid = ST.PIDControllers.PIDControllerVector(;
 )
 pid_controller = ST.PIDControllers.pid_map(pid; nx = 2, nu = 1, silent = false)
 
-discrete_time_system = ST.discretize_continuous_system(system, tstep)
+# ------------------------------------------------------------
+# Closed-loop simulation
+# ------------------------------------------------------------
 
 nstep = 200
 x0 = SVector(0.0, 0.0)
 x_traj, u_traj =
-    ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep;)
+    ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
+
+# ------------------------------------------------------------
+# Plots
+# ------------------------------------------------------------
 
 fig = plot(; aspect_ratio = :equal);
 plot!(system.X; color = :grey, hole_color = :black, opacity = 1.0, label = "");
 plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
-# ### For Visualization
+# ------------------------------------------------------------
+# Visualization
+# ------------------------------------------------------------
 
 using RigidBodyDynamics
 using MeshCat, MeshCatMechanisms
 
-# --- build mechanism/state from your URDF ---
 urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
 mechanism = parse_urdf(urdf)
 state = MechanismState(mechanism)
 joint = first(joints(mechanism))
 
-# --- build trajectory data ---
 state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
 ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
-
-# --- visualizer ---
 mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
 vis = mvis.visualizer
 open(vis)
 
-# --- animation (no Interpolations) ---
 fps = round(Int, 1 / tstep)
 anim = MeshCat.Animation(vis; fps = fps)
 
