@@ -5,7 +5,7 @@ using .ControllerRuntime
 using .LVServerTransport
 
 ControllerRuntime.Server.ControllerServer.load_controller!(;
-    path = joinpath(@__DIR__, "..", "pid_cfg.jld2")
+    path = joinpath(@__DIR__, "..", "pid_cfg.jld2"),
 )
 
-LVServerTransport.start_lvserver(; initOK=true)
+LVServerTransport.start_lvserver(; initOK = true)

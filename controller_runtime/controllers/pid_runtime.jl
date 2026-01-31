@@ -2,7 +2,7 @@ module PIDRuntime
 
 using StaticArrays
 import Dionysos
-const ST  = Dionysos.System
+const ST = Dionysos.System
 const PID = ST.PIDControllers
 
 import ..Artifacts: Artifact
@@ -16,7 +16,7 @@ mutable struct PIDRuntimeController <: AbstractRuntimeController
 end
 
 wrap_angle(e) = mod(e + π, 2π) - π
-_to_svec2(x) = x isa SVector{2} ? x : SVector{2,Float64}(x)
+_to_svec2(x) = x isa SVector{2} ? x : SVector{2, Float64}(x)
 
 function build_error()
     return (x, r, _) -> begin
@@ -49,24 +49,24 @@ function build_runtime(art::Artifact)::PIDRuntimeController
     pid.st.I = p["I0"]
     pid.st.initialized = false
 
-    pid_map = PID.pid_map(pid; nx=2, nu=1, silent=true)
+    pid_map = PID.pid_map(pid; nx = 2, nu = 1, silent = true)
     return PIDRuntimeController(pid, pid_map)
 end
 
-function step!(ctrl::PIDRuntimeController; x, t=0.0, ref=nothing)
+function step!(ctrl::PIDRuntimeController; x, t = 0.0, ref = nothing)
     xs = _to_svec2(x)
     if ref !== nothing
         ctrl.pid_obj.ref = _to_svec2(ref)
     end
     u = ctrl.pid_map.h(xs)
-    return (; ok=true, u=u)
+    return (; ok = true, u = u)
 end
 
-function reset!(ctrl::PIDRuntimeController; e0=SVector(0.0,0.0))
+function reset!(ctrl::PIDRuntimeController; e0 = SVector(0.0, 0.0))
     ctrl.pid_obj.st.e_prev = e0
     ctrl.pid_obj.st.I = zero(e0)
     ctrl.pid_obj.st.initialized = false
-    return (; ok=true)
+    return (; ok = true)
 end
 
 end # module

@@ -14,19 +14,19 @@ function make_pid_artifact(;
     umin = nothing,
     umax = nothing,
     antiwindup::Bool = true,
-    meta::Dict{String,Any} = Dict{String,Any}(),
+    meta::Dict{String, Any} = Dict{String, Any}(),
 )
-    payload = Dict{String,Any}(
+    payload = Dict{String, Any}(
         "tstep" => tstep,
-        "Kp"    => Kp,
-        "Ki"    => Ki,
-        "Kd"    => Kd,
-        "ref"   => ref,
-        "umin"  => umin,
-        "umax"  => umax,
+        "Kp" => Kp,
+        "Ki" => Ki,
+        "Kd" => Kd,
+        "ref" => ref,
+        "umin" => umin,
+        "umax" => umax,
         "antiwindup" => antiwindup,
-        "e0"    => SVector(0.0, 0.0),
-        "I0"    => SVector(0.0, 0.0),
+        "e0" => SVector(0.0, 0.0),
+        "I0" => SVector(0.0, 0.0),
     )
 
     meta2 = copy(meta)
