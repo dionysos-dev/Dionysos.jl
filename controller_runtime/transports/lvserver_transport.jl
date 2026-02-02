@@ -1,5 +1,3 @@
-###############  LVServerTransport.jl  ###############
-
 module LVServerTransport
 
 # ---------------------------
