@@ -21,7 +21,7 @@ module ApproachA_LVServer
 
     """
     Start an LVServer-protocol ZMQ server (whatever LVServer.server_0mq4lv expects on wire).
-    
+
     LabVIEW must use a matching LVServer client/protocol.
     """
     function start_lvserver(; initOK::Bool = true)
@@ -62,17 +62,17 @@ module ApproachB_JSON
 
     """
     Simple JSON protocol over ZMQ REQ/REP.
-    
+
     Client sends a JSON string:
-    
+
       {"cmd":"load_controller","args":{"path":"..."}}
       {"cmd":"reset_controller","args":{"seed":1}}
       {"cmd":"step_controller","args":{"x":[...], "t":0.01}}
       {"cmd":"unload_controller","args":{}}
       {"cmd":"shutdown","args":{}}
-    
+
     Server replies:
-    
+
       {"ok":true, "result": ...}
     or
       {"ok":false, "error":"...", "stack":"..."}
