@@ -12,27 +12,30 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(
-    joinpath(
-        @__DIR__,
-        "robot_problem.jl",
-    ),
-)
+include(joinpath(@__DIR__, "robot_problem.jl"))
 
 using Libdl
 # Load library
-lib = Libdl.dlopen(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build/libProject_user.so"))
-init_func       = Libdl.dlsym(lib, :init)
-free_func       = Libdl.dlsym(lib, :free_resources)
+lib = Libdl.dlopen(
+    joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build/libProject_user.so"),
+)
+init_func = Libdl.dlsym(lib, :init)
+free_func = Libdl.dlsym(lib, :free_resources)
 
 function call_init()
-    ccall(init_func, Cvoid, ())
+    return ccall(init_func, Cvoid, ())
 end
 function call_free_resources()
-    ccall(free_func, Cvoid, ())
+    return ccall(free_func, Cvoid, ())
 end
 
-function get_abstract_closed_loop_trajectory(abstract_system, abstract_controller, source, nstep; stopping = (s)->false)
+function get_abstract_closed_loop_trajectory(
+    abstract_system,
+    abstract_controller,
+    source,
+    nstep;
+    stopping = (s)->false,
+)
     state_traj, input_traj = [source], []
 
     for _ in 1:nstep
@@ -44,7 +47,11 @@ function get_abstract_closed_loop_trajectory(abstract_system, abstract_controlle
         end
         input = first(abstract_inputs)[1]
         targets = []
-        UT.fix_and_eliminate_tail!(targets, abstract_system.autom.transitions, (source, input))
+        UT.fix_and_eliminate_tail!(
+            targets,
+            abstract_system.autom.transitions,
+            (source, input),
+        )
         source = first(targets)
         push!(state_traj, source)
         push!(input_traj, input)
@@ -52,7 +59,10 @@ function get_abstract_closed_loop_trajectory(abstract_system, abstract_controlle
     return ST.Control_trajectory(ST.Trajectory(state_traj), ST.Trajectory(input_traj))
 end
 
-function get_concrete_trajectory(abstract_system, abstract_trajectory::ST.Control_trajectory)
+function get_concrete_trajectory(
+    abstract_system,
+    abstract_trajectory::ST.Control_trajectory,
+)
     concrete_state_traj, concrete_input_traj = [], []
     for k in 1:ST.length(abstract_trajectory)
         abstarct_state = ST.get_state(abstract_trajectory, k)
@@ -65,7 +75,10 @@ function get_concrete_trajectory(abstract_system, abstract_trajectory::ST.Contro
             push!(concrete_input_traj, concrete_input)
         end
     end
-    return ST.Control_trajectory(ST.Trajectory(concrete_state_traj), ST.Trajectory(concrete_input_traj))
+    return ST.Control_trajectory(
+        ST.Trajectory(concrete_state_traj),
+        ST.Trajectory(concrete_input_traj),
+    )
 end
 
 #######################################################
@@ -81,8 +94,8 @@ save_optimizers = false
 #######################################################
 #################### C FILES INITS ####################
 #######################################################
-cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
-    call_init()
+cd(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build")) do
+    return call_init()
 end
 
 #######################################################
@@ -118,10 +131,10 @@ MOI.set(
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-MOI.set(optimizer, MOI.Silent(), true)  
+MOI.set(optimizer, MOI.Silent(), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
-if(First_part)
+if (First_part)
     println("First part : ")
     println()
     # Reload the result
@@ -135,10 +148,11 @@ if(First_part)
     #######################################################
     _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
 
-    t_low = SVector{n_state,Float64}([-12*π/180.0, 7*π/180.0, 8*π/180.0, -0.75, -0.3, -0.3])
-    t_high = SVector{n_state,Float64}([-8*π/180.0, 9*π/180.0, 12*π/180.0, 0.3, 0.75, 0.75])
+    t_low =
+        SVector{n_state, Float64}([-12*π/180.0, 7*π/180.0, 8*π/180.0, -0.75, -0.3, -0.3])
+    t_high = SVector{n_state, Float64}([-8*π/180.0, 9*π/180.0, 12*π/180.0, 0.3, 0.75, 0.75])
     _T_ = UT.HyperRectangle(t_low, t_high)
-    
+
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
         _I_,
@@ -147,23 +161,21 @@ if(First_part)
         nothing,
         Dionysos.Problem.Infinity(),
     )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("concrete_problem"),
-        concrete_problem,
-    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     MOI.optimize!(optimizer)
     abstract_problem_time =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
     println("Time to solve the abstract problem: $(abstract_problem_time)")
-    
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-    
+
     nstep = 300 # correspond to 30 sec
     function reached(x)
         if x ∈ concrete_problem.target_set
@@ -185,7 +197,7 @@ if(First_part)
         nstep;
         stopping = reached,
         handle_out_of_domain = optimizer.handle_out_of_domain,
-        state_space = state_space
+        state_space = state_space,
     );
     println(control_trajectory)
     println()
@@ -228,13 +240,13 @@ if(First_part)
 
     println()
     """
-    if(save_optimizers)
+    if (save_optimizers)
         jldopen(joinpath(@__DIR__, "First_step.jld2"), "w") do file
-            file["optimizer"] = optimizer
-        end 
+            return file["optimizer"] = optimizer
+        end
     end
 end
-if(Second_part)
+if (Second_part)
     println("Second Part")
     println()
     # Reload the result
@@ -246,14 +258,29 @@ if(Second_part)
     #######################################################
     ################# Problem definition ##################
     #######################################################
-    p0 = SVector{n_state,Float64}([-0.13973903349563527, 0.12465164214506708, 0.18272715732388645, 0.0, 0.0, 0.0]) 
+    p0 = SVector{n_state, Float64}([
+        -0.13973903349563527,
+        0.12465164214506708,
+        0.18272715732388645,
+        0.0,
+        0.0,
+        0.0,
+    ])
     # note : p0 is bypassed in this case. only q_memory and dq_memory are used
     _I_ = UT.HyperRectangle(p0, p0)
 
-    t_low = SVector{n_state,Float64}([-1.5*π/180.0, -1.5*π/180.0, -1.5*π/180.0, -0.75, -0.3, -0.3])
-    t_high = SVector{n_state,Float64}([1.5*π/180.0, 1.5*π/180.0, 1.5*π/180.0, 0.3, 0.75, 0.75])
+    t_low = SVector{n_state, Float64}([
+        -1.5*π/180.0,
+        -1.5*π/180.0,
+        -1.5*π/180.0,
+        -0.75,
+        -0.3,
+        -0.3,
+    ])
+    t_high =
+        SVector{n_state, Float64}([1.5*π/180.0, 1.5*π/180.0, 1.5*π/180.0, 0.3, 0.75, 0.75])
     _T_ = UT.HyperRectangle(t_low, t_high)
-    
+
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
         _I_,
@@ -262,23 +289,21 @@ if(Second_part)
         nothing,
         Dionysos.Problem.Infinity(),
     )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("concrete_problem"),
-        concrete_problem,
-    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     MOI.optimize!(optimizer)
     abstract_problem_time =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
     println("Time to solve the abstract problem: $(abstract_problem_time)")
-    
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-    
+
     nstep = 300 # correspond to 30 sec
     function reached_abstract(x)
         if x ∈ abstract_problem.target_set
@@ -309,7 +334,7 @@ if(Second_part)
 
     println()
     """
-    
+
     function reached(x)
         if x ∈ concrete_problem.target_set
             return true
@@ -332,21 +357,19 @@ if(Second_part)
         nstep;
         stopping = reached,
         handle_out_of_domain = optimizer.handle_out_of_domain,
-        state_space = state_space
+        state_space = state_space,
     );
 
     println(concrete_control_trajectory)
     println()
 
-    if(save_optimizers)
+    if (save_optimizers)
         jldopen(joinpath(@__DIR__, "Second_step.jld2"), "w") do file
-            file["optimizer"] = optimizer
-        end 
+            return file["optimizer"] = optimizer
+        end
     end
-    
 end
 
-
-cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
-    call_free_resources()
+cd(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build")) do
+    return call_free_resources()
 end

@@ -97,7 +97,7 @@ function system(;
         # Write the maximum height to q[2]
         # (adding the distance from the hip joint to hip body and the height of the foot)
         # The most extended leg is in contact with the ground
-        
+
         # The height of the boom is set at 0 ! # Note: there is a slight error in the URDF and the robot is flying => Init_offset
         q[2] = max(zl, zr) - Lthigh - Lleg + Init_offset
 
@@ -137,7 +137,7 @@ function system(;
 
         # First step: fill state: from the n state variables -> 8 positions and 8 speeds
         q, q̇ = fill_state!(x)
-        
+
         # Second step: set the mechanism in that configuration
         set_configuration!(state, q)
         set_velocity!(state, q̇)
@@ -146,7 +146,7 @@ function system(;
         controller! = voltage_controller!(u)
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
-        x_next = SVector{length(x)}(qs[end][3:6]..., vs[end][3:6]...) 
+        x_next = SVector{length(x)}(qs[end][3:6]..., vs[end][3:6]...)
         # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
         # Only the final states are useful in our case
 
@@ -155,7 +155,7 @@ function system(;
 
     # Define state space (bounds should be set according to your robot's joint limits)
     state_lower_bounds = [-0.5, -0.5, -0.2, -0.2, -0.8, -0.8, -0.8, -0.8]  # W350 -> max 30rpm, W210 -> max 50rpm
-    state_upper_bounds = [0.5 ,  0.5,  0.8,  0.8,  0.8,  0.8,  0.8,  0.8]
+    state_upper_bounds = [0.5, 0.5, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
 
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
@@ -197,7 +197,8 @@ function deep_equal(a, b)
 
     # Handle arrays element-wise
     if isa(a, AbstractArray)
-        return length(a) == length(b) && all(deep_equal(a[i], b[i]) for i in eachindex(a, b))
+        return length(a) == length(b) &&
+               all(deep_equal(a[i], b[i]) for i in eachindex(a, b))
     end
 
     # Handle dictionaries by comparing keys and values

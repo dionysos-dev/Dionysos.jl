@@ -289,7 +289,6 @@ function solve_concrete_problem(
     return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
-
 # Concretizes an abstract finite-memory controller (on (qa,qs)) into a concrete
 # finite-memory controller (on (qa,x)).
 # Assumptions on `abstract_controller`:
@@ -417,7 +416,7 @@ function MOI.optimize!(optimizer::Optimizer)
             optimizer.abstraction_solver.abstract_system,
             abstract_controller;
             randomize = optimizer.randomize,
-            handle_out_of_domain = optimizer.handle_out_of_domain
+            handle_out_of_domain = optimizer.handle_out_of_domain,
         )
     end
 
@@ -425,7 +424,6 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.solve_time_sec = time() - t_ref
     return
 end
-
 
 # Make an out-of-domain handler.
 # mode = 0: return nothing (stop)
@@ -444,7 +442,9 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
             # Find nearest abstract element (this assumes Xdom has elems as positions)
             xnew_pos = argmin(p -> norm(collect(p) - collect(xpos)), Xdom.elems)
 
-            warn && @warn("State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)")
+            warn && @warn(
+                "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"
+            )
 
             # Convert abstract position back to a representative concrete point.
             # If your Domain uses grid cells, you may want the cell center coordinate here.
@@ -467,7 +467,7 @@ function save_abstraction(opt::UniformGridAbstraction.Optimizer, filename::Abstr
         # versioning for forward compatibility
         f["format_version"] = 1
         f["abstract_system"] = abs_sys
-        f["params"] = (time_step = opt.abstraction_solver.time_step,)
+        return f["params"] = (time_step = opt.abstraction_solver.time_step,)
     end
     return nothing
 end
@@ -491,12 +491,15 @@ function load_abstraction!(
         v == 1 || error("Unsupported abstraction file format_version=$v")
 
         abs_sys = f["abstract_system"]
-        MOI.set(opt.abstraction_solver, MOI.RawOptimizerAttribute("abstract_system"), abs_sys)
+        return MOI.set(
+            opt.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abs_sys,
+        )
     end
 
     return opt
 end
-
 
 using DataFrames, CSV
 

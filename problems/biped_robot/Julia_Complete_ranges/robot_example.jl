@@ -41,7 +41,7 @@ input_space = MathematicalSystems.inputset(concrete_system)
 println("n_state: ", n_state)
 println("n_input: ", n_input)
 
-x0 = SVector{n_state, Float64}(ones(n_state).*(0)) # x0 in our case is a cell center !
+x0 = SVector{n_state, Float64}(ones(n_state) .* (0)) # x0 in our case is a cell center !
 hx = SVector{n_state, Float64}(fill(0.3, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
 state_grid = DO.GridFree(x0, hx)
 
@@ -59,25 +59,25 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)   
-MOI.set(optimizer, MOI.Silent(), true)  
+MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+MOI.set(optimizer, MOI.Silent(), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
-
 ### Optimize
-if(do_empty_optim)
+if (do_empty_optim)
     #######################################################
     ################# Empty Optimisations #################
     #######################################################
     MOI.optimize!(optimizer)
 
     # Save the abstraction solver
-    my_abstraction_solver = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
+    my_abstraction_solver =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
     start_time = time()
 
     # Open the file in write mode and save the data
     jldopen(filename_save, "w") do file
-        file["my_abstraction_solver"] = my_abstraction_solver
+        return file["my_abstraction_solver"] = my_abstraction_solver
     end  # This block ensures the file is closed after writing
 
     end_time = time()
@@ -87,7 +87,7 @@ if(do_empty_optim)
     #######################################################
     ######### Verify no info is lost in the save ##########
     #######################################################
-    if(verify_save)
+    if (verify_save)
         # In the abtgsraction_solver, we have in the results : discrete_time_system, abstract_system and abstraction_construction_time_sec
         # We don't care about the last one. discrete_time_system is the function x[k+1] = f(x[k], u[k])
         # So we only need to compare the abstract_system
@@ -96,7 +96,10 @@ if(do_empty_optim)
             # Perform the equality check within the read block to keep it scoped
             equal_test = RobotProblem.deep_equal(
                 MOI.get(reloaded_solver, MOI.RawOptimizerAttribute("abstract_system")),
-                MOI.get(my_abstraction_solver, MOI.RawOptimizerAttribute("abstract_system"))
+                MOI.get(
+                    my_abstraction_solver,
+                    MOI.RawOptimizerAttribute("abstract_system"),
+                ),
             )
 
             @assert equal_test "Both abstract systems are not equal. See the print to see which field is the source."
@@ -113,10 +116,10 @@ else
     #######################################################
     _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
 
-    t_low = SVector{n_state,Float64}([0.1, 0.1, -0.1, -0.1, -0.8, -0.8, -0.8, -0.8])
-    t_high = SVector{n_state,Float64}([0.5, 0.5, -0.5, -0.5, 0.8, 0.8, 0.8, 0.8])
+    t_low = SVector{n_state, Float64}([0.1, 0.1, -0.1, -0.1, -0.8, -0.8, -0.8, -0.8])
+    t_high = SVector{n_state, Float64}([0.5, 0.5, -0.5, -0.5, 0.8, 0.8, 0.8, 0.8])
     _T_ = UT.HyperRectangle(t_low, t_high) # TODO
-      
+
     concrete_problem = Dionysos.Problem.OptimalControlProblem(
         concrete_system,
         _I_,
@@ -125,22 +128,20 @@ else
         nothing,
         Dionysos.Problem.Infinity(),
     )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("concrete_problem"),
-        concrete_problem,
-    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     MOI.optimize!(optimizer)
     abstract_problem_time =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
     println("Time to solve the abstract problem: $(abstract_problem_time)")
-    
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
     uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-    
+
     nstep = 30 # correspond to 3sec
     function reached(x)
         if x ∈ concrete_problem.target_set
@@ -157,8 +158,5 @@ else
         nstep;
         stopping = reached,
     );
-    
 end
-
-
 

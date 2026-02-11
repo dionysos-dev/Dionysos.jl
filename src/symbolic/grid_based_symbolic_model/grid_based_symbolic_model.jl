@@ -776,6 +776,7 @@ function compute_abstract_system_from_concrete_system!(
     Xdom = get_state_domain(abstract_system)
 
     nthreads = Threads.nthreads()
+    println(nthreads)
 
     total_work = length(inputs) * length(states)
 

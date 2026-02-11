@@ -12,7 +12,13 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-function get_abstract_closed_loop_trajectory(abstract_system, abstract_controller, source, nstep; stopping = (s)->false)
+function get_abstract_closed_loop_trajectory(
+    abstract_system,
+    abstract_controller,
+    source,
+    nstep;
+    stopping = (s)->false,
+)
     state_traj, input_traj = [source], []
 
     for _ in 1:nstep
@@ -24,7 +30,11 @@ function get_abstract_closed_loop_trajectory(abstract_system, abstract_controlle
         end
         input = first(abstract_inputs)[1]
         targets = []
-        UT.fix_and_eliminate_tail!(targets, abstract_system.autom.transitions, (source, input))
+        UT.fix_and_eliminate_tail!(
+            targets,
+            abstract_system.autom.transitions,
+            (source, input),
+        )
         source = first(targets)
         push!(state_traj, source)
         push!(input_traj, input)
@@ -32,7 +42,11 @@ function get_abstract_closed_loop_trajectory(abstract_system, abstract_controlle
     return (ST.Trajectory(state_traj), ST.Trajectory(input_traj))
 end
 
-function get_concrete_trajectory(abstract_system, abstract_state_trajectory::ST.Trajectory, abstract_input_trajectory::ST.Trajectory)
+function get_concrete_trajectory_from_abstract(
+    abstract_system,
+    abstract_state_trajectory::ST.Trajectory,
+    abstract_input_trajectory::ST.Trajectory,
+)
     concrete_state_traj, concrete_input_traj = [], []
     for k in 1:ST.length(abstract_state_trajectory)
         abstract_state = ST.get_elem(abstract_state_trajectory, k)

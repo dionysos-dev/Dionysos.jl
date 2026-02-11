@@ -12,12 +12,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(
-    joinpath(
-        @__DIR__,
-        "robot_problem.jl",
-    ),
-)
+include(joinpath(@__DIR__, "robot_problem.jl"))
 
 #######################################################
 ################### File Parameters ###################
@@ -40,16 +35,17 @@ println("n_state: ", n_state)
 println("n_input: ", n_input)
 x0 = SVector{n_state, Float64}(zeros(n_state))
 
-if(First_part)
+if (First_part)
     println("First part : ")
     println()
-    
+
     filename_controller_1 = joinpath(@__DIR__, "First_step.jld2")
     file = jldopen(filename_controller_1, "r")
     reloaded_optimizer_1 = file["optimizer"]
 
-    concrete_problem = MOI.get(reloaded_optimizer_1,  MOI.RawOptimizerAttribute("concrete_problem"))
-    
+    concrete_problem =
+        MOI.get(reloaded_optimizer_1, MOI.RawOptimizerAttribute("concrete_problem"))
+
     nstep = 300 # correspond to 30 sec
     function reached(x)
         if x ∈ concrete_problem.target_set
@@ -72,26 +68,33 @@ if(First_part)
     );
     println(control_trajectory)
     println()
-
 end
-if(Second_part)
+if (Second_part)
     println("Second Part")
     println()
 
     #######################################################
     ################# Problem definition ##################
     #######################################################
-    p0 = SVector{n_state,Float64}([-0.18042316250653628, 0.13622830985740686, 0.206712192483932, 0.0, 0.0, 0.0])
+    p0 = SVector{n_state, Float64}([
+        -0.18042316250653628,
+        0.13622830985740686,
+        0.206712192483932,
+        0.0,
+        0.0,
+        0.0,
+    ])
 
     filename_controller_2 = joinpath(@__DIR__, "Second_step.jld2")
     file2 = jldopen(filename_controller_2, "r")
     reloaded_optimizer_2 = file2["optimizer"]
     reloaded_optimizer_2.handle_out_of_domain = 0
 
-    concrete_problem = MOI.get(reloaded_optimizer_2,  MOI.RawOptimizerAttribute("concrete_problem"))
-    
+    concrete_problem =
+        MOI.get(reloaded_optimizer_2, MOI.RawOptimizerAttribute("concrete_problem"))
+
     nstep = 300 # correspond to 30 sec
-    
+
     function reached(x)
         if x ∈ concrete_problem.target_set
             return true
@@ -115,10 +118,9 @@ if(Second_part)
         nstep;
         stopping = reached,
         handle_out_of_domain = reloaded_optimizer_2.handle_out_of_domain,
-        state_space = state_space
+        state_space = state_space,
     );
 
     println(concrete_control_trajectory)
     println()
-    
 end

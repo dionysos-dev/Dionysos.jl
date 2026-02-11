@@ -15,11 +15,13 @@ const SY = DI.Symbolic
 
 using Libdl
 # Load library
-lib = Libdl.dlopen(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build/libProject_user.so"))
+lib = Libdl.dlopen(
+    joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build/libProject_user.so"),
+)
 philippides_func = Libdl.dlsym(lib, :philippides)
-get_res_func    = Libdl.dlsym(lib, :get_philippides_results)
+get_res_func = Libdl.dlsym(lib, :get_philippides_results)
 function call_philippides(x::Vector{Float64})
-    ccall(philippides_func, Cvoid, (Ptr{Float64},), x)
+    return ccall(philippides_func, Cvoid, (Ptr{Float64},), x)
 end
 function get_results()
     res = Vector{Float64}(undef, 16)
@@ -94,15 +96,15 @@ function system(;
 
         # First step: fill state: from the n state variables -> 8 positions and 8 speeds
         q, q̇ = fill_state!(x)
-        q_ref = SVector{1,Float64}(0.0)
+        q_ref = SVector{1, Float64}(0.0)
         results = []
-        cd(joinpath(@__DIR__,"../../../../Robotran_J2C/workR/build")) do
-            x = [q...,q̇...,u...,q_ref...]
+        cd(joinpath(@__DIR__, "../../../../Robotran_J2C/workR/build")) do
+            x = [q..., q̇..., u..., q_ref...]
             call_philippides(x)
             res = get_results()
-            push!(results,res...)
-        end        
-        x_next = SVector{6}(results[3:5]...,results[11:13]...)
+            return push!(results, res...)
+        end
+        x_next = SVector{6}(results[3:5]..., results[11:13]...)
         """
         open(joinpath(@__DIR__, "memory.txt"), "a") do file
             write(file, join(results, " ") * "\n")

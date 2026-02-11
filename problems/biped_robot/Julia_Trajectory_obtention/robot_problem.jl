@@ -3,6 +3,7 @@ module RobotProblem
 using MathematicalSystems
 using LinearAlgebra, StaticArrays
 using RigidBodyDynamics
+using Base.Threads
 
 # include Dionysos
 using Dionysos
@@ -20,13 +21,12 @@ import .RS_tools
 function get_visualization_tool(;
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
 )
-    # Construct the robot in the simulation engine 
     rs = RS_tools.RobotSimulator(;
         fileName = robot_urdf,
         symbolic = false,
         add_contact_points = true,
         add_gravity = true,
-        add_flat_ground = true, # TODO ->true
+        add_flat_ground = true,
     )
     vis = RS_tools.set_visulalizer(; mechanism = rs.mechanism, fileName = robot_urdf)
     return rs, vis
@@ -45,148 +45,145 @@ function system(;
     )
 
     mechanism = rs.mechanism
-    state = MechanismState(mechanism)
-    n_pos = num_positions(state)
-    n_vel = num_velocities(state)
-    Δt_simu = 1e-4       # Simulation step 
-    Δt_dionysos = tstep      # Dinoysos time discretisation, nominal 50Hz (control freq of the material robot)
+    tmp_state = MechanismState(mechanism) # just to inspect dimensions
+    n_pos = num_positions(tmp_state)
+    n_vel = num_velocities(tmp_state)
+    Δt_simu = 1e-4           # Simulation step
+    Δt_dionysos = tstep      # Time step used by Dionysos
 
     println("n_pos: ", n_pos)
     println("n_vel: ", n_vel)
 
-    ## MOTOR Parameters ##
-    HGR = 353.5                 # Hip gear-ratio
-    KGR = 212.6                 # Knee gear-ratio
-    ktp  = 0.395/HGR            # Torque constant with respect to the voltage [Nm/V] 
-    Kvp  = 1.589/(HGR*HGR)      # Viscous friction constant [Nm*s/rad] (linked to motor speed)
-    τc_u  = 0.065/HGR           # Dry friction torque [Nm]
-    GR = [HGR, HGR, KGR, KGR]   # Gear ratios
-    Kp = 900.0 / 128.0          # DXL controller gain
-    τ_m = [0.0,0.0,0.0,0.0]
-    # Discrete time using Rigibodydynamics simulator -> returns (X[i], U[i]) -> X[i+1]
-    function voltage_controller!(
-        u::SVector,
-        q_ref::SVector
-    )
-        ddl = 2
-        function controller!(τ, t, state)
-            τ .= 0
-            current_q = configuration(state)[(end - 3 - ddl):(end - ddl)]
-            current_̇q = velocity(state)[(end - 3 - ddl):(end - ddl)]
-            ω = current_̇q .* GR
+     # --- One MechanismState per thread (thread-local mutable state) ---
+    states_per_thread = [MechanismState(mechanism) for _ in 1:Threads.nthreads()]
 
-            # DXL controller on the right knee
-            PWM = (q_ref .- current_q[4]) .* (4095.0/(2π)* Kp) # Only true because profile acceleration and profile velocity are null
-            PWM_sat = clamp.(PWM, -885.0, 885.0)# Apply_saturation
-            u_K = PWM_sat .* (12.0 / 885.0)
+    ## Motor parameters ##
+    HGR = 353.5                   # Hip gear-ratio
+    KGR = 212.6                   # Knee gear-ratio
+    ktp  = 0.395 / HGR            # Torque constant with respect to the voltage [Nm/V] 
+    Kvp  = 1.589 / (HGR * HGR)    # Viscous friction constant [Nm*s/rad] (linked to motor speed)
+    τc_u  = 0.065 / HGR           # Dry friction torque [Nm]
+    GR = SVector{4,Float64}(HGR, HGR, KGR, KGR)  # Gear ratios
+    Kp = 900.0 / 128.0            # DXL controller gain
+    ddl  = 2                      # constant used in indexing
 
-            # The remaining motors are controlled in voltage for the simulation
-            U_tot = [u..., u_K...]
-
-            τ_0 = U_tot .* GR .* ktp .- ω .* GR .* Kvp
-            τ_m .= τ_0 .- sign.(ω) .* GR .* τc_u
-            τ[(end - 3 - ddl):(end - ddl)] .= τ_m
-            return nothing
-        end
-    end
-
-    ## Robots Parameters ##
+    ## Robots geometry parameters ##
     Lthigh = 0.20125
     Lleg = 0.172
     Hip_offset = 0.04025
     Foot_height = 0.009
     Init_offset = -0.0006559432
 
-    function fill_state!(x)
-        # Create q
-        q = vcat(zeros(2), x[1:3], zeros(3))
-        q̇ = vcat(zeros(2), x[4:6], zeros(3))
+    # --- Controller factory: all locals, no shared scratch ---
+    function voltage_controller!(u::SVector{3,Float64}, q_ref::SVector{1,Float64})
+        function controller!(τ, t, state)
+            τ .= 0.0
 
-        # Compute the heights of the two legs (double pendulums)
+            # indices: last 4 actuated joints plus offset ddl
+            q  = configuration(state)
+            qd = velocity(state)
+            idx_lo = length(q) - 3 - ddl
+            idx_hi = length(q) - ddl
+
+            current_q  = @view q[idx_lo:idx_hi]
+            current_qd  = @view qd[idx_lo:idx_hi]
+            ω = current_qd .* GR
+
+            # DXL controller on the right knee
+            # (q_ref is 1x1 here, you might adapt if needed)
+            PWM = (q_ref .- current_q[4]) .* (4095.0 / (2π) * Kp) # Only true because profile acceleration and profile velocity are null
+            PWM_sat = clamp.(PWM, -885.0, 885.0) # Apply_saturation
+            u_K = PWM_sat .* (12.0 / 885.0)
+
+            # Total motor commands for 4 actuators
+            U_tot = SVector{4,Float64}(u[1], u[2], u[3], u_K[1])
+
+            τ_m = U_tot .* GR .* ktp .- ω .* GR .* Kvp .- sign.(ω) .* GR .* τc_u
+            
+            τ[idx_lo:idx_hi] .= τ_m
+            return nothing
+        end
+    end
+
+    # --- Fill state (pure) ---
+    function fill_state!(x)
+        # x = [LH RH LK RK LA RA] / [position, velocity] for 3 actuated joints
+        q  = @SVector [0.0, 0.0, x[1], x[2], x[3], 0.0, 0.0, 0.0]
+        qd = @SVector [0.0, 0.0, x[4], x[5], x[6], 0.0, 0.0, 0.0]
+
+        # heights of the two legs (double pendulum)
         zl = Lthigh * cos(q[3]) + Lleg * cos(q[5] + q[3])
         zr = Lthigh * cos(q[4]) + Lleg * cos(q[6] + q[4])
 
-        # FILL THE POSITIONS
+        # boom z position: most extended leg is in contact
+        q2 = max(zl, zr) - Lthigh - Lleg + Init_offset
+        q  = SVector{8,Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
 
-        # Write the maximum height to q[2]
-        # (adding the distance from the hip joint to hip body and the height of the foot)
-        # The most extended leg is in contact with the ground
+        # identify contact leg
+        i1 = zl > zr ? 3 : 4
+        i2 = zl > zr ? 5 : 6
 
-        # The height of the boom is set at 0 ! # Note: there is a slight error in the URDF and the robot is flying => Init_offset
-        q[2] = max(zl, zr) - Lthigh - Lleg + Init_offset
-
-        # Set additional constraints
-        # The x position is set to 0
-        # The feet are kept // to the ground 
-
-        q[7] = -(q[3] + q[5])
-        q[8] = -(q[4] + q[6])
-
-        # FILL THE SPEEDS
-        # identify the contact leg
-        i1 = 0
-        i2 = 0
-        if (zl > zr)
-            i1, i2 = 3, 5
-        else
-            i1, i2 = 4, 6
-        end
         # speed equations of the double pendulum
-        x = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
-        ẋ = Lthigh * q̇[i1] * cos(q[i1]) + Lleg * (q̇[i1] + q̇[i2]) * cos(q[i1] + q[i2])
-        ż = -(Lthigh * q̇[i1] * sin(q[i1]) + Lleg * (q̇[i1] + q̇[i2]) * sin(q[i1] + q[i2]))
-        q[1] = x
-        q̇[1] = ẋ
-        q̇[2] = ż
+        xboom = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
+        ẋboom = Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
+        żboom = -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
+
+        q1  = xboom
+        qd1 = ẋboom
+        qd2 = żboom
 
         # adjust the angular speed of the feet to remain mostly horizontal
-        q̇[7] = -(q̇[3] + q̇[5])
-        q̇[8] = -(q̇[4] + q̇[6])
-        return q, q̇
+        qd7 = -(qd[3] + qd[5])
+        qd8 = -(qd[4] + qd[6])
+
+        # The x position is set to 0, the feet are kept to the ground 
+        q  = SVector{8,Float64}(q1, q2, q[3], q[4], q[5], q[6], -(q[3] + q[5]), -(q[4] + q[6]))
+        qd = SVector{8,Float64}(qd1, qd2, qd[3], qd[4], qd[5], qd[6], qd7, qd8)
+
+        return q, qd
     end
 
+    # --- Thread-safe vector field: one MechanismState per thread ---
     function vectorFieldBipedRobot(x, u)
-        # Variables: [x z LH RH LK RK LA RA]
-        # NB: to move the knee forward, a negative angle is needed!
+        tid = Threads.threadid()
+        state = states_per_thread[tid]
 
-        # First step: fill state: from the n state variables -> 8 positions and 8 speeds
+        # Step 1: build full state
         q, q̇ = fill_state!(x)
-        q_ref = SVector{1}(0.0)
 
-        # Second step: set the mechanism in that configuration
+        # Step 2: set mechanism state
         set_configuration!(state, q)
         set_velocity!(state, q̇)
 
-        # Third step: get next state
+        # Step 3: simulate
+        q_ref = SVector{1}(0.0)
         controller! = voltage_controller!(u, q_ref)
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
-        x_next = SVector{length(x)}(qs[end][3:5]..., vs[end][3:5]...)
-        
-        # Note: qs and vs are vectors of speed and position for every step of the simulation (i.e. every Δt = 1e-4)
-        # Only the final states are useful in our case
 
+        # Only final joint states are used
+        q_end = qs[end]
+        v_end = vs[end]
+
+        x_next = SVector{6,Float64}(q_end[3], q_end[4], q_end[5],
+                                    v_end[3], v_end[4], v_end[5])
         return x_next
     end
-    # Define state space (bounds should be set according to your robot's joint limits)
-    # Note : We need to add the discretisation step at each of the borns if the ones we chose are supposed to be centroids
+
+    # --- State and input spaces ---
     disc_steps = [fill(π/180, 3)..., fill(0.075, 3)...]
     state_lower_bounds = [-12*π/180, 0, 0, -0.6, -0.15, -0.15] .- disc_steps
     state_upper_bounds = [0, 12*π/180, 14*π/180, 0.15, 0.6, 0.6] .+ disc_steps
-
     state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
 
-    # Define input space (bounds should be set according to actuator limits)
-    # Note : We con't need for the inputs to add something if the born are centroids
-    input_lower_bounds = [-3, -3, -3]   # Example: torque or force limits
+    input_lower_bounds = [-3, -3, -3]
     input_upper_bounds = [3, 2, 3]
-
     input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,
-        3 + 3, # state space : the 3 actuators in position and speed (right knee not included)
-        3,     # input space : the volatge on 3 actuators (right knee not included)
+        6, # state dimension (right knee not included)
+        3, # input dimension (right knee not included)
         state_space,
         input_space,
     )
@@ -202,4 +199,4 @@ function problem(;
     return PB.EmptyProblem(sys, nothing)
 end
 
-end
+end # module

@@ -21,24 +21,42 @@ First_step = false
 Second_step = !First_step
 
 # Memory
-if(First_step)
+if (First_step)
     # Starting point of the first step
     global _q_memory = MVector{8, Float64}(zeros(8))
     global _̇q_memory = MVector{8, Float64}(zeros(8))
 end
 
-if(Second_step)
+if (Second_step)
     # Ending point of the first_step = start point of the second step
     # requires to solve the first step first of course
-    global _q_memory = MVector{8, Float64}([0.049058604856456675, -0.003932170125478732, -0.18042316250653628, 0.13622830985740686, 0.206712192483932, 0.002029860330582976, -0.022494885911054616, -0.1387064802449647])
-    global _̇q_memory = MVector{8, Float64}([0.1134335693380015, -0.021190509505154363, -0.007679917690689772, 0.33468327982982954, 0.27985467499008787, -0.05511265455459322, -0.4435231613211813, -0.3601744988743658])
+    global _q_memory = MVector{8, Float64}([
+        0.049058604856456675,
+        -0.003932170125478732,
+        -0.18042316250653628,
+        0.13622830985740686,
+        0.206712192483932,
+        0.002029860330582976,
+        -0.022494885911054616,
+        -0.1387064802449647,
+    ])
+    global _̇q_memory = MVector{8, Float64}([
+        0.1134335693380015,
+        -0.021190509505154363,
+        -0.007679917690689772,
+        0.33468327982982954,
+        0.27985467499008787,
+        -0.05511265455459322,
+        -0.4435231613211813,
+        -0.3601744988743658,
+    ])
 end
 
 function remember(value1, value2)
     global _q_memory
     global _̇q_memory
     _q_memory .= value1
-    _̇q_memory .= value2
+    return _̇q_memory .= value2
 end
 
 function recall()
@@ -70,17 +88,14 @@ function system(;
     ## MOTOR Parameters ##
     HGR = 353.5                 # Hip gear-ratio
     KGR = 212.6                 # Knee gear-ratio
-    ktp  = 0.395/HGR            # Torque constant with respect to the voltage [Nm/V] 
-    Kvp  = 1.589/(HGR*HGR)      # Viscous friction constant [Nm*s/rad] (linked to motor speed)
-    τc_u  = 0.065/HGR           # Dry friction torque [Nm]
+    ktp = 0.395/HGR            # Torque constant with respect to the voltage [Nm/V] 
+    Kvp = 1.589/(HGR*HGR)      # Viscous friction constant [Nm*s/rad] (linked to motor speed)
+    τc_u = 0.065/HGR           # Dry friction torque [Nm]
     GR = [HGR, HGR, KGR, KGR]   # Gear ratios
     Kp = 900.0 / 128.0          # DXL controller gain
-    τ_m = [0.0,0.0,0.0,0.0]
+    τ_m = [0.0, 0.0, 0.0, 0.0]
     # Discrete time using Rigibodydynamics simulator -> returns (X[i], U[i]) -> X[i+1]
-    function voltage_controller!(
-        u::SVector,
-        q_ref::SVector
-    )
+    function voltage_controller!(u::SVector, q_ref::SVector)
         ddl = 2
         function controller!(τ, t, state)
             τ .= 0
@@ -89,7 +104,7 @@ function system(;
             ω = current_̇q .* GR
 
             # DXL controller on the right knee
-            PWM = (q_ref .- current_q[4]) .* (4095.0/(2π)* Kp) # Only true because profile acceleration and profile velocity are null
+            PWM = (q_ref .- current_q[4]) .* (4095.0/(2π) * Kp) # Only true because profile acceleration and profile velocity are null
             PWM_sat = clamp.(PWM, -885.0, 885.0)# Apply_saturation
             u_K = PWM_sat .* (12.0 / 885.0)
 
@@ -169,7 +184,6 @@ function system(;
         # Second step: set the mechanism in that configuration
         set_configuration!(state, _q_memory)
         set_velocity!(state, _̇q_memory)
-
 
         # Third step: get next state
         controller! = voltage_controller!(u, q_ref)
