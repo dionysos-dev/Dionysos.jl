@@ -15,6 +15,7 @@ using MeshCat, MeshCatMechanisms, Blink
 using MechanismGeometries
 using LightXML
 using GeometryTypes
+using StaticArrays
 
 export RobotSimulator,
     getMechanism, set_nominal!, set_initialbody!, update_visulizer!, show_frame!, simulate
@@ -28,7 +29,7 @@ end
 Constructor 
 """
 function RobotSimulator(;
-    fileName::String = "ZMP_2DBipedRobot.urdf",
+    fileName::String = "",
     symbolic::Bool = false,
     use_urdf::Bool = !symbolic,
     T::Type = symbolic ? Num : Float64,
@@ -48,7 +49,7 @@ function RobotSimulator(;
         contactmodel,
     )
     state = MechanismState(robot)
-    return RobotSimulator(robot, state)#, Array[], Array[], Array[])
+    return RobotSimulator(robot, state)
 end
 
 """
@@ -67,7 +68,7 @@ Return the URDF  `mechanism` of the robot.
 Describe the simulation environement as well. 
 """
 function getMechanism(;
-    fileName::String = "ZMP_bipedalRobot.urdf",
+    fileName::String = "",
     symbolic::Bool = false,
     use_urdf::Bool = !symbolic,
     T::Type = symbolic ? Num : Float64,
@@ -137,6 +138,20 @@ function getMechanism(;
     return mechanism
 end
 
+function get_visualization_tool(;
+    robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
+)
+    rs = RS_tools.RobotSimulator(;
+        fileName = robot_urdf,
+        symbolic = false,
+        add_contact_points = true,
+        add_gravity = true,
+        add_flat_ground = true,
+    )
+    vis = RS_tools.set_visulalizer(; mechanism = rs.mechanism, fileName = robot_urdf)
+    return rs, vis
+end
+
 """
 Set the actual robot `mechansim` to his nominal state 
 """
@@ -193,6 +208,62 @@ function show_frame!(rs::RobotSimulator, vis::MechanismVisualizer)
         frame = RigidBodyDynamics.default_frame(body)
         setelement!(vis, frame)
     end
+end
+
+function x_to_mechanism_state(x::SVector{6, <:Real})
+    # Same constants as in `system()`
+    Lthigh = 0.20125
+    Lleg = 0.172
+    Init_offset = -0.0006559432
+
+    # Build the “partial” joint vectors (8 DoFs here)
+    q = SVector{8, Float64}(0.0, 0.0, x[1], x[2], x[3], 0.0, 0.0, 0.0)
+    qd = SVector{8, Float64}(0.0, 0.0, x[4], x[5], x[6], 0.0, 0.0, 0.0)
+
+    # Heights (double pendulum)
+    zl = Lthigh * cos(q[3]) + Lleg * cos(q[5] + q[3])
+    zr = Lthigh * cos(q[4]) + Lleg * cos(q[6] + q[4])
+
+    # Boom z
+    q2 = max(zl, zr) - Lthigh - Lleg + Init_offset
+    q = SVector{8, Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
+
+    # Identify contact leg for boom x velocity terms
+    i1 = zl > zr ? 3 : 4
+    i2 = zl > zr ? 5 : 6
+
+    xboom = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
+    ẋboom = Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
+    żboom = -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
+
+    q1 = xboom
+    qd1 = ẋboom
+    qd2 = żboom
+
+    # Keep feet mostly horizontal
+    qd7 = -(qd[3] + qd[5])
+    qd8 = -(qd[4] + qd[6])
+
+    # Final full configuration and velocity (8D)
+    q = SVector{8, Float64}(q1, q2, q[3], q[4], q[5], q[6], -(q[3] + q[5]), -(q[4] + q[6]))
+    qd = SVector{8, Float64}(qd1, qd2, qd[3], qd[4], qd[5], qd[6], qd7, qd8)
+
+    return q, qd
+end
+
+function animate_trajectory!(vis::MechanismVisualizer, x_traj; dt = 0.1)
+    fps = max(1, round(Int, 1 / dt))
+    anim = MeshCat.Animation(vis.visualizer; fps = fps)
+
+    for (k, x) in enumerate(x_traj)
+        q, _ = x_to_mechanism_state(x)
+        atframe(anim, k) do
+            return set_configuration!(vis, q)
+        end
+    end
+
+    setanimation!(vis, anim)
+    return nothing
 end
 
 end

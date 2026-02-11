@@ -18,20 +18,6 @@ const SY = DI.Symbolic
 include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
 import .RS_tools
 
-function get_visualization_tool(;
-    robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
-)
-    rs = RS_tools.RobotSimulator(;
-        fileName = robot_urdf,
-        symbolic = false,
-        add_contact_points = true,
-        add_gravity = true,
-        add_flat_ground = true,
-    )
-    vis = RS_tools.set_visulalizer(; mechanism = rs.mechanism, fileName = robot_urdf)
-    return rs, vis
-end
-
 function system(;
     tstep = 5e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),

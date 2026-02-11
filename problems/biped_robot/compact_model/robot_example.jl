@@ -17,6 +17,9 @@ const ST = DI.System
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
+import .RS_tools
+
 include(joinpath(@__DIR__, "robot_problem.jl"))
 include(joinpath(@__DIR__, "utils.jl"))
 
@@ -25,12 +28,15 @@ include(joinpath(@__DIR__, "utils.jl"))
 # ==============================================================================
 const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
 
-const COMPUTE_ABSTRACTION = true
+const COMPUTE_ABSTRACTION = false
 const SAVE_ABSTRACTION = true
 const LOAD_ABSTRACTION = false
 
-const SIMULATE_FIRST_STEP = false
+const SIMULATE_FIRST_STEP = true
 const SIMULATE_SECOND_STEP = false
+
+robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
+tstep = 0.1
 
 # ==============================================================================
 # Helpers
@@ -53,7 +59,7 @@ function build_optimizer(; concrete_problem, state_grid, input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e2))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e3))
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)
 
     return optimizer
@@ -112,10 +118,32 @@ function solve_and_simulate!(
     return x_traj, u_traj
 end
 
+function make_test_trajectory(; N = 300, dt = 0.1)
+    seq = Vector{SVector{6, Float64}}(undef, N)
+
+    for k in 1:N
+        t = (k - 1) * dt
+
+        # Joint angles (rad)
+        q3 = 5π/180 * sin(0.5t)
+        q4 = 4π/180 * sin(0.5t + π/4)
+        q5 = 6π/180 * sin(0.5t + π/2)
+
+        # Joint velocities (rad/s)
+        v3 = 5π/180 * 0.5 * cos(0.5t)
+        v4 = 4π/180 * 0.5 * cos(0.5t + π/4)
+        v5 = 6π/180 * 0.5 * cos(0.5t + π/2)
+
+        seq[k] = @SVector [q3, q4, q5, v3, v4, v5]
+    end
+
+    return ST.Trajectory(seq)
+end
+
 # ==============================================================================
 # System setup
 # ==============================================================================
-concrete_problem = RobotProblem.problem(; tstep = 1e-1)  # EmptyProblem if desired
+concrete_problem = RobotProblem.problem(; robot_urdf = robot_urdf, tstep = tstep)
 concrete_system = concrete_problem.system
 
 n_state = MathematicalSystems.statedim(concrete_system)
@@ -168,9 +196,12 @@ if SIMULATE_FIRST_STEP
 
     x_traj, u_traj =
         solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
+    # x_traj = make_test_trajectory()
 
     println(x_traj, "\n")
     println(u_traj, "\n")
+    rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
+    RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end
 
 if SIMULATE_SECOND_STEP
