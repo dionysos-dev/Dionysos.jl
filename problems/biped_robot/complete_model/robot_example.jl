@@ -1,162 +1,211 @@
-using MathematicalSystems, StaticArrays, Plots
+# ==============================================================================
+#  Runner script for abstraction + optimal-control simulations
+# ==============================================================================
+
+using MathematicalSystems
+using StaticArrays
+using LinearAlgebra
+using Plots
 using JuMP
 using JLD2
 
-# include Dionysos
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(
-    joinpath(
-        dirname(dirname(pathof(Dionysos))),
-        "problems/bipedal_robot/Complete_problem",
-        "robot_problem.jl",
-    ),
+include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
+import .RS_tools
+
+include(joinpath(@__DIR__, "robot_problem.jl"))
+
+# ==============================================================================
+# Script parameters
+# ==============================================================================
+const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
+
+const COMPUTE_ABSTRACTION = true
+const SAVE_ABSTRACTION = true
+const LOAD_ABSTRACTION = false
+
+const SIMULATE = true
+
+robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
+tstep = 0.1
+
+# ==============================================================================
+# Helpers
+# ==============================================================================
+reached_target(problem) = (x -> (x ∈ problem.target_set))
+
+function build_optimizer(; concrete_problem, state_grid, input_grid)
+    optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("approx_mode"),
+        AB.UniformGridAbstraction.CENTER_SIMULATION,
+    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+    MOI.set(optimizer, MOI.Silent(), true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e3))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)
+
+    return optimizer
+end
+
+function solve_and_simulate!(
+    optimizer,
+    concrete_system,
+    xstart::SVector,
+    target_low::SVector,
+    target_high::SVector;
+    nstep::Int = 300,
+    out_of_domain_handler = nothing,
 )
+    # Problem
+    I = UT.HyperRectangle(xstart, xstart)   # start forced in cell of xstart
+    T = UT.HyperRectangle(target_low, target_high)
 
-#######################################################
-################### File Parameters ###################
-#######################################################
-filename_save = joinpath(@__DIR__, "Abstraction_solver.jld2")
-do_empty_optim = false
-verify_save = false
+    problem = DI.Problem.OptimalControlProblem(
+        concrete_system,
+        I,
+        T,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
+    )
 
-#######################################################
-################### Optim Parameters ##################
-#######################################################
-concrete_problem = RobotProblem.problem(; tstep = 1e-1)
+    # Solve abstract problem
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+    if out_of_domain_handler !== nothing
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("handle_out_of_domain"),
+            out_of_domain_handler,
+        )
+    end
+
+    MOI.optimize!(optimizer)
+
+    t_abs = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+    println("Time to solve the abstract problem: $(t_abs) sec")
+
+    controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+
+    # Simulate closed-loop
+    stopfun = reached_target(problem)
+    x_traj, u_traj = ST.get_closed_loop_trajectory(
+        concrete_system,
+        controller,
+        xstart,
+        nstep;
+        stopping = stopfun,
+    )
+
+    return x_traj, u_traj
+end
+
+function make_test_trajectory_8d(; N::Int = 300, dt::Real = 0.1)
+    seq = Vector{SVector{8, Float64}}(undef, N)
+
+    # amplitudes (rad) and a common frequency (rad/s)
+    A = @SVector [5π/180, 4π/180, 6π/180, 3π/180]  # LH, RH, LK, RK
+    ω = 0.5
+    ϕ = @SVector [0.0, π/4, π/2, 3π/4]
+
+    for k in 1:N
+        t = (k - 1) * dt
+
+        # positions
+        LH = A[1] * sin(ω*t + ϕ[1])
+        RH = A[2] * sin(ω*t + ϕ[2])
+        LK = A[3] * sin(ω*t + ϕ[3])
+        RK = A[4] * sin(ω*t + ϕ[4])
+
+        # velocities (derivative)
+        dLH = A[1] * ω * cos(ω*t + ϕ[1])
+        dRH = A[2] * ω * cos(ω*t + ϕ[2])
+        dLK = A[3] * ω * cos(ω*t + ϕ[3])
+        dRK = A[4] * ω * cos(ω*t + ϕ[4])
+
+        seq[k] = @SVector [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
+    end
+
+    return ST.Trajectory(seq)
+end
+
+# ==============================================================================
+# System setup
+# ==============================================================================
+concrete_problem = RobotProblem.problem(; robot_urdf = robot_urdf, tstep = tstep)
 concrete_system = concrete_problem.system
 
-### Set the optimizer
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
-state_space = MathematicalSystems.stateset(concrete_system)
-input_space = MathematicalSystems.inputset(concrete_system)
 println("n_state: ", n_state)
 println("n_input: ", n_input)
 
-x0 = SVector{n_state, Float64}(ones(n_state) .* (0)) # x0 in our case is a cell center !
-hx = SVector{n_state, Float64}(fill(0.3, n_state)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
-state_grid = DO.GridFree(x0, hx)
+# ==============================================================================
+# Abstraction (compute / save / load)
+# ==============================================================================
+optimizer = nothing
 
-u0 = SVector{n_input, Float64}(zeros(n_input))
-hu = SVector{n_input, Float64}(fill(3.0, n_input)) # Intentional big discretization step (otherwise way too many values and infinite optimize!)
-input_grid = DO.GridFree(u0, hu)
+if COMPUTE_ABSTRACTION
+    x0 = SVector{n_state, Float64}(zeros(n_state))
+    hx = SVector{n_state, Float64}(fill(0.3, n_state))
+    state_grid = DO.GridFree(x0, hx)
 
-using JuMP
-optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.CENTER_SIMULATION,
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-MOI.set(optimizer, MOI.Silent(), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+    u0 = SVector{n_input, Float64}(zeros(n_input))
+    hu = SVector{n_input, Float64}(fill(3.0, n_input))
+    input_grid = DO.GridFree(u0, hu)
 
-### Optimize
-if (do_empty_optim)
-    #######################################################
-    ################# Empty Optimisations #################
-    #######################################################
+    optimizer = build_optimizer(;
+        concrete_problem = concrete_problem,
+        state_grid = state_grid,
+        input_grid = input_grid,
+    )
+
     MOI.optimize!(optimizer)
 
-    # Save the abstraction solver
-    my_abstraction_solver =
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"))
-    start_time = time()
-
-    # Open the file in write mode and save the data
-    jldopen(filename_save, "w") do file
-        return file["my_abstraction_solver"] = my_abstraction_solver
-    end  # This block ensures the file is closed after writing
-
-    end_time = time()
-    save_time = end_time - start_time
-    @info("Time elapsed to save : $save_time")
-
-    #######################################################
-    ######### Verify no info is lost in the save ##########
-    #######################################################
-    if (verify_save)
-        # In the abtgsraction_solver, we have in the results : discrete_time_system, abstract_system and abstraction_construction_time_sec
-        # We don't care about the last one. discrete_time_system is the function x[k+1] = f(x[k], u[k])
-        # So we only need to compare the abstract_system
-        jldopen(filename_save, "r") do file
-            reloaded_solver = file["my_abstraction_solver"]
-            # Perform the equality check within the read block to keep it scoped
-            equal_test = RobotProblem.deep_equal(
-                MOI.get(reloaded_solver, MOI.RawOptimizerAttribute("abstract_system")),
-                MOI.get(
-                    my_abstraction_solver,
-                    MOI.RawOptimizerAttribute("abstract_system"),
-                ),
-            )
-
-            @assert equal_test "Both abstract systems are not equal. See the print to see which field is the source."
-        end
+    if SAVE_ABSTRACTION
+        AB.UniformGridAbstraction.save_abstraction(optimizer, FILENAME)
+        println("Saved abstraction to: ", FILENAME)
     end
-else
-    # Reload the result
-    file = jldopen(filename_save, "r")
-    reloaded_solver = file["my_abstraction_solver"]
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_solver"), reloaded_solver)
+end
 
-    #######################################################
-    ################# Problem definition ##################
-    #######################################################
-    _I_ = UT.HyperRectangle(x0, x0) # We force the system to start in the cell in which x_0 is
+if LOAD_ABSTRACTION
+    optimizer = AB.UniformGridAbstraction.load_abstraction!(FILENAME)
+    println("Loaded abstraction from: ", FILENAME)
+end
+
+# ==============================================================================
+# Simulations
+# ==============================================================================
+if SIMULATE
+    println("\nFirst step:\n")
+    x0 = SVector{n_state, Float64}(zeros(n_state))
 
     t_low = SVector{n_state, Float64}([0.1, 0.1, -0.1, -0.1, -0.8, -0.8, -0.8, -0.8])
     t_high = SVector{n_state, Float64}([0.5, 0.5, -0.5, -0.5, 0.8, 0.8, 0.8, 0.8])
-    _T_ = UT.HyperRectangle(t_low, t_high) # TODO
 
-    concrete_problem = Dionysos.Problem.OptimalControlProblem(
-        concrete_system,
-        _I_,
-        _T_,
-        nothing,
-        nothing,
-        Dionysos.Problem.Infinity(),
-    )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    MOI.optimize!(optimizer)
-    abstract_problem_time =
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-    println("Time to solve the abstract problem: $(abstract_problem_time)")
+    x_traj, u_traj =
+        solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
+    # x_traj = make_test_trajectory()
 
-    abstract_controller =
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller =
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-    uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-
-    nstep = 30 # correspond to 3sec
-    function reached(x)
-        if x ∈ concrete_problem.target_set
-            return true
-        else
-            return false
-        end
-    end
-
-    control_trajectory = ST.get_closed_loop_trajectory(
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-        concrete_controller,
-        x0,
-        nstep;
-        stopping = reached,
-    );
+    println(x_traj, "\n")
+    println(u_traj, "\n")
+    rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
+    RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end
 
