@@ -10,6 +10,8 @@ const AB = OP.Abstraction
 using JuMP
 import MathOptInterface as MOI
 
+using JLD2
+
 function build_uniform_grid_abstraction(
     concrete_system,
     Δt,
@@ -37,6 +39,8 @@ function build_uniform_grid_abstraction(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 0.5)
 
     if with_period
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
@@ -58,8 +62,14 @@ function build_uniform_grid_controller!(optimizer, concrete_system, _I_, _T_)
         nothing,
         DI.Problem.Infinity(),
     )
+
+    # --- set problem + options
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+
+    # --- set out-of-domain handler (mode=0 or 1)
+    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 0, warn = true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
 
     MOI.optimize!(optimizer)
 
@@ -181,7 +191,12 @@ function get_Udom(_U_, hu)
 end
 
 function script()
-    ### System ###
+    compute_abstraction = true
+    save = false
+    load = false
+    filename = joinpath(@__DIR__, "Abstraction.jld2")
+
+    #----- System -----
     _X_ = UT.HyperRectangle(
         SVector(-1.0, -1.0, -pi, -pi), # x1, x2, θ1, ϕ
         SVector(10.0, 9.0, pi, pi),
@@ -198,31 +213,10 @@ function script()
         SVector(2.0, 0.6),
     )
 
-    #CustomList([SVector(),])
     params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
     concrete_system = AV.system(_X_; _U_ = _U_, params = params)
 
-    ### Abstraction params ###
-    Δt = 0.2
-    hx = SVector(0.4, 0.2, 5*(pi/180), 3*(pi/180))
-    periodic_dims = SVector(3, 4)
-    periodic_periods = SVector(2pi, 2pi)
-    periodic_start = SVector(-pi, -pi)
-
-    # Udom = get_Udom(_U_,  SVector(1.0, 0.5))
-
-    inputs = [
-        [2.0, 0.0],
-        [0.0, 0.0],
-        [-2.0, 0.0],
-        [2.0, -0.25],
-        [2.0, 0.25],
-        [-2.0, 0.25],
-        [-2.0, -0.25],
-    ]
-    Udom = Dionysos.Domain.CustomList(inputs)
-
-    ### Control problem###
+    #----- Control Problem -----
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
     _I_ = UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     _T_ = UT.HyperRectangle(
@@ -232,19 +226,46 @@ function script()
     # _T_ = UT.HyperRectangle(SVector(9.0,5.0, pi-5*(pi/180), -5*(pi/180)),
     #                         SVector(10.0,6.0, pi+5*(pi/180),  5*(pi/180))) # backward
 
-    opt = build_uniform_grid_abstraction(
-        concrete_system,
-        Δt,
-        hx,
-        Udom,
-        AV.jacobian_bound(params);
-        with_period = true,
-        periodic_dims = periodic_dims,
-        periodic_periods = periodic_periods,
-        periodic_start = periodic_start,
-    )
+    if (compute_abstraction)
+        #----- Abstraction settings -----
+        Δt = 0.2
+        hx = SVector(0.4, 0.2, 5*(pi/180), 3*(pi/180))
+        periodic_dims = SVector(3, 4)
+        periodic_periods = SVector(2pi, 2pi)
+        periodic_start = SVector(-pi, -pi)
 
-    controller, target_set = build_uniform_grid_controller!(opt, concrete_system, _I_, _T_)
+        inputs = [
+            [2.0, 0.0],
+            [0.0, 0.0],
+            [-2.0, 0.0],
+            [2.0, -0.25],
+            [2.0, 0.25],
+            [-2.0, 0.25],
+            [-2.0, -0.25],
+        ]
+        Udom = Dionysos.Domain.CustomList(inputs)
+
+        optimizer = build_uniform_grid_abstraction(
+            concrete_system,
+            Δt,
+            hx,
+            Udom,
+            AV.jacobian_bound(params);
+            with_period = true,
+            periodic_dims = periodic_dims,
+            periodic_periods = periodic_periods,
+            periodic_start = periodic_start,
+        )
+        if (save)
+            AB.UniformGridAbstraction.save_abstraction(optimizer, filename)
+        end
+    end
+    if (load)
+        optimizer = AB.UniformGridAbstraction.load_abstraction!(filename)
+    end
+
+    controller, target_set =
+        build_uniform_grid_controller!(optimizer, concrete_system, _I_, _T_)
     x_traj, u_traj = simulate_closed_loop(
         concrete_system,
         controller,
@@ -261,7 +282,7 @@ function script()
     dims=[1, 2]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
-        opt,
+        optimizer,
         concrete_system,
         _I_,
         _T_,
@@ -272,12 +293,12 @@ function script()
         periodic_periods = periodic_periods,
         periodic_start = periodic_start,
     )
-    savefig(fig, "state_space_12.pdf")
+    # savefig(fig, "state_space_12.pdf")
     display(fig)
     dims=[3, 4]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
-        opt,
+        optimizer,
         concrete_system,
         _I_,
         _T_,
@@ -288,7 +309,7 @@ function script()
         periodic_periods = periodic_periods,
         periodic_start = periodic_start,
     )
-    savefig(fig, "state_space_34.pdf")
+    # savefig(fig, "state_space_34.pdf")
     display(fig)
     return plot_articulated_vehicle!(
         concrete_system,

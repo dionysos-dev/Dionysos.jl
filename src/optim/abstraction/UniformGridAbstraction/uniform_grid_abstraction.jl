@@ -99,9 +99,12 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
     solve_time_sec::T
     print_level::Int
+    randomize::Bool
+    handle_out_of_domain::Function
 
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, 0.0, 1)
+        default_handler = (x, abs_sys) -> nothing  # stop if out of domain
+        return new{T}(nothing, nothing, nothing, 0.0, 1, false, default_handler)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -238,17 +241,23 @@ function solve_concrete_problem(
     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
     abstract_controller::MS.AbstractMap;
     randomize::Bool = false,
+    handle_out_of_domain::Function = (x, abs_sys) -> nothing,  # default: stop
 )
     k_abs = abstract_controller.h
 
-    # concrete-state -> abstract-state (or nothing)
+    # map concrete x -> abstract state (or nothing)
     x_to_qs = function (x)
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        (xpos ∈ abstract_system.Xdom) || return nothing
+        if !(xpos ∈ abstract_system.Xdom)
+            x2 = handle_out_of_domain(x, abstract_system)
+            x2 === nothing && return nothing
+            xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x2)
+            (xpos ∈ abstract_system.Xdom) || return nothing
+        end
         return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
     end
 
-    # implicit domain predicate on x
+    # domain predicate on x (controller defined?)
     is_defined = function (x)
         qs = x_to_qs(x)
         qs === nothing && return false
@@ -256,7 +265,7 @@ function solve_concrete_problem(
         return us !== nothing && !(us isa AbstractVector && isempty(us))
     end
 
-    # output map x -> u (or nothing)
+    # output map x -> concrete u (or nothing)
     f = function (x)
         qs = x_to_qs(x)
         qs === nothing && return nothing
@@ -292,6 +301,7 @@ function solve_concrete_problem(
     abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
     abstract_controller::MS.SystemWithOutput;
     randomize::Bool = false,
+    handle_out_of_domain::Function = (x, abs_sys) -> nothing,
 )
     # MS callables qa == abstract controller state
     h_abs = abstract_controller.outputmap.h   # (qa, qs) -> u_sym (or Vector) or nothing
@@ -300,7 +310,12 @@ function solve_concrete_problem(
     # concrete-state -> abstract-state (or nothing)
     x_to_qs = function (x)
         xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        (xpos ∈ abstract_system.Xdom) || return nothing
+        if !(xpos ∈ abstract_system.Xdom)
+            x2 = handle_out_of_domain(x, abstract_system)
+            x2 === nothing && return nothing
+            xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x2)
+            (xpos ∈ abstract_system.Xdom) || return nothing
+        end
         return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
     end
 
@@ -399,13 +414,91 @@ function MOI.optimize!(optimizer::Optimizer)
         )
         optimizer.concrete_controller = solve_concrete_problem(
             optimizer.abstraction_solver.abstract_system,
-            abstract_controller,
+            abstract_controller;
+            randomize = optimizer.randomize,
+            handle_out_of_domain = optimizer.handle_out_of_domain,
         )
     end
 
     # Time elapsed
     optimizer.solve_time_sec = time() - t_ref
     return
+end
+
+# Make an out-of-domain handler.
+# mode = 0: return nothing (stop)
+# mode = 1: project to nearest abstract cell (no mutation warning)
+function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
+    if mode == 0
+        return (x, abs_sys) -> begin
+            warn && @warn("State out of domain: $x")
+            return nothing
+        end
+    elseif mode == 1
+        return (x, abs_sys) -> begin
+            Xdom = abs_sys.Xdom
+            xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
+
+            # Find nearest abstract element (this assumes Xdom has elems as positions)
+            xnew_pos = argmin(p -> norm(collect(p) - collect(xpos)), Xdom.elems)
+
+            warn && @warn(
+                "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"
+            )
+
+            # Convert abstract position back to a representative concrete point.
+            # If your Domain uses grid cells, you may want the cell center coordinate here.
+            return Dionysos.Domain.get_coord_by_pos(Xdom, xnew_pos)
+        end
+    else
+        error("Unknown mode=$mode")
+    end
+end
+
+using JLD2
+
+function save_abstraction(opt::UniformGridAbstraction.Optimizer, filename::AbstractString)
+    abs_opt = opt.abstraction_solver
+    abs_opt === nothing && error("No abstraction_solver in optimizer.")
+    abs_sys = abs_opt.abstract_system
+    abs_sys === nothing && error("No abstract_system computed yet.")
+
+    jldopen(filename, "w") do f
+        # versioning for forward compatibility
+        f["format_version"] = 1
+        f["abstract_system"] = abs_sys
+        return f["params"] = (time_step = opt.abstraction_solver.time_step,)
+    end
+    return nothing
+end
+
+function load_abstraction!(
+    filename::AbstractString;
+    opt::Union{Nothing, UniformGridAbstraction.Optimizer} = nothing,
+)
+    # If user didn't pass an optimizer, create one
+    if opt === nothing
+        opt = MOI.instantiate(UniformGridAbstraction.Optimizer)
+    end
+
+    # Ensure abstraction solver exists
+    if opt.abstraction_solver === nothing
+        opt.abstraction_solver = OptimizerEmptyProblem()
+    end
+
+    jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported abstraction file format_version=$v")
+
+        abs_sys = f["abstract_system"]
+        return MOI.set(
+            opt.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abs_sys,
+        )
+    end
+
+    return opt
 end
 
 using DataFrames, CSV

@@ -241,6 +241,7 @@ function compute_abstract_system_from_concrete_system!(
     concrete_system_approx::ST.DiscreteTimeSystemOverApproximation;
     verbose = false,
     update_interval = Int(1e5),
+    progress_dt = 0.2,
     threaded::Bool = false,
 )
     # If multithreading is not requested or only one thread is available -> sequential execution
@@ -347,6 +348,7 @@ function compute_abstract_system_from_concrete_system!(
     concrete_system_approx::ST.DiscreteTimeGrowthBound;
     verbose = false,
     update_interval = Int(1e5),
+    progress_dt = 0.2,
     threaded::Bool = false,
 )
 
@@ -405,15 +407,18 @@ function compute_abstract_system_from_concrete_system!(
         input_data[abstract_input] = (concrete_input, Fr)
     end
 
-    nthreads = Threads.nthreads()
+    # ---- Progress bar parameters ----
+    progress_dt_ns = Int(round(progress_dt * 1e9))
 
     total_work = length(inputs) * length(states)
+    prog = verbose ? ProgressMeter.Progress(total_work) : nothing # absolute-progress bar
+    global_done = Threads.Atomic{Int}(0) # global counter (updated rarely)
+    last_t = time_ns() # only used by thread 1
+    # ---------------------------------
 
+    nthreads = Threads.nthreads()
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-
-    progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
-    progress_count = Threads.Atomic{Int}(0)
+    local_done = fill(0, nthreads)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
@@ -446,12 +451,34 @@ function compute_abstract_system_from_concrete_system!(
             end
         end
 
-        if verbose
-            count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval) == 0
-                ProgressMeter.next!(progress)
+        local_done[tid] += 1
+        if local_done[tid] ≥ update_interval
+            Threads.atomic_add!(global_done, local_done[tid])
+            local_done[tid] = 0
+        end
+
+        # UI refresh only from thread 1 and time-limited
+        if verbose && tid == 1
+            t = time_ns()
+            if (t - last_t) ≥ progress_dt_ns
+                ProgressMeter.update!(prog, global_done[] + local_done[1])
+                last_t = t
             end
         end
+    end
+
+    # flush leftovers
+    for tid in 1:nthreads
+        v = local_done[tid]
+        if v > 0
+            Threads.atomic_add!(global_done, v)
+            local_done[tid] = 0
+        end
+    end
+
+    if verbose
+        ProgressMeter.update!(prog, global_done[])
+        ProgressMeter.finish!(prog)
     end
 
     for (_, local_transitions) in enumerate(transitions_by_thread)
@@ -460,7 +487,6 @@ function compute_abstract_system_from_concrete_system!(
         end
     end
 
-    verbose && ProgressMeter.finish!(progress)
     return
 end
 
@@ -469,6 +495,7 @@ function compute_abstract_system_from_concrete_system!(
     concrete_system_approx::ST.DiscreteTimeLinearized;
     verbose = false,
     update_interval = Int(1e5),
+    progress_dt = 0.2,
     threaded::Bool = false,
 )
     # If multithreading is not requested or only one thread is available -> sequential execution
@@ -626,6 +653,7 @@ function compute_abstract_system_from_concrete_system!(
     concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation;
     verbose = false,
     update_interval = Int(1e5),
+    progress_dt = 0.2,
     threaded::Bool = false,
 )
     # If multithreading is not requested or only one thread is available -> sequential execution
@@ -731,12 +759,12 @@ function compute_abstract_system_from_concrete_system!(
     abstract_system::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
     verbose = false,
-    update_interval = Int(1e5),
+    update_interval = Int(1e5), # flush local by thread
+    progress_dt = 0.2, # seconds between UI refresh
     threaded::Bool = false,
 )
     # If multithreading is not requested or only one thread is available -> sequential execution
     if !threaded || Threads.nthreads() == 1
-        translist = Tuple{Int, Int, Int}[]
         system_map = ST.get_system_map(concrete_system_approx)
         total_iterations = max(
             div(
@@ -770,20 +798,24 @@ function compute_abstract_system_from_concrete_system!(
     end
 
     # ---- Multithreaded implementation ----
+
     system_map = ST.get_system_map(concrete_system_approx)
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
     Xdom = get_state_domain(abstract_system)
 
-    nthreads = Threads.nthreads()
+    # ---- Progress bar parameters ----
+    progress_dt_ns = Int(round(progress_dt * 1e9))
 
     total_work = length(inputs) * length(states)
+    prog = verbose ? ProgressMeter.Progress(total_work) : nothing # absolute-progress bar
+    global_done = Threads.Atomic{Int}(0) # global counter (updated rarely)
+    last_t = time_ns() # only used by thread 1
+    # ---------------------------------
 
+    nthreads = Threads.nthreads()
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-
-    progress =
-        verbose ? ProgressMeter.Progress(total_work ÷ max(1, update_interval)) : nothing
-    progress_count = Threads.Atomic{Int}(0)
+    local_done = fill(0, nthreads)
 
     Threads.@threads for linear_idx in 1:total_work
         tid = Threads.threadid()
@@ -807,13 +839,34 @@ function compute_abstract_system_from_concrete_system!(
                 push!(local_transitions, (target, abstract_state, abstract_input))
             end
         end
+        local_done[tid] += 1
+        if local_done[tid] ≥ update_interval
+            Threads.atomic_add!(global_done, local_done[tid])
+            local_done[tid] = 0
+        end
 
-        if verbose
-            count_val = Threads.atomic_add!(progress_count, 1)
-            if count_val % max(1, update_interval) == 0
-                ProgressMeter.next!(progress)
+        # UI refresh only from thread 1 and time-limited
+        if verbose && tid == 1
+            t = time_ns()
+            if (t - last_t) ≥ progress_dt_ns
+                ProgressMeter.update!(prog, global_done[] + local_done[1])
+                last_t = t
             end
         end
+    end
+
+    # flush leftovers
+    for tid in 1:nthreads
+        v = local_done[tid]
+        if v > 0
+            Threads.atomic_add!(global_done, v)
+            local_done[tid] = 0
+        end
+    end
+
+    if verbose
+        ProgressMeter.update!(prog, global_done[])
+        ProgressMeter.finish!(prog)
     end
 
     total_found_transitions = 0
@@ -823,8 +876,6 @@ function compute_abstract_system_from_concrete_system!(
             total_found_transitions += length(local_transitions)
         end
     end
-
-    verbose && ProgressMeter.finish!(progress)
 
     return
 end

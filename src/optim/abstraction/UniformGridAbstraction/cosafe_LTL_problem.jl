@@ -331,8 +331,6 @@ accepting_states(S::SpotDRAstepper) = begin
     doneQ
 end
 
-collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in Spot.atomic_prop_collect(φ)]
-
 function spot_stepper(
     φ::Spot.SpotFormula;
     qa0::Int = 1,
