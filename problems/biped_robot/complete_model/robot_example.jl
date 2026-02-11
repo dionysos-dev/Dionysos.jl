@@ -208,4 +208,3 @@ if SIMULATE
     rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
     RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end
-
