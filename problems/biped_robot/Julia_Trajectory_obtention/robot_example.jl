@@ -25,12 +25,12 @@ include(joinpath(@__DIR__, "utils.jl"))
 # ==============================================================================
 const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
 
-const COMPUTE_ABSTRACTION   = true
-const SAVE_ABSTRACTION      = true
-const LOAD_ABSTRACTION      = false
+const COMPUTE_ABSTRACTION = true
+const SAVE_ABSTRACTION = true
+const LOAD_ABSTRACTION = false
 
-const SIMULATE_FIRST_STEP   = false
-const SIMULATE_SECOND_STEP  = false
+const SIMULATE_FIRST_STEP = false
+const SIMULATE_SECOND_STEP = false
 
 # ==============================================================================
 # Helpers
@@ -54,6 +54,7 @@ function build_optimizer(; concrete_problem, state_grid, input_grid)
     MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e2))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)
 
     return optimizer
 end
@@ -84,7 +85,11 @@ function solve_and_simulate!(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     if out_of_domain_handler !== nothing
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), out_of_domain_handler)
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("handle_out_of_domain"),
+            out_of_domain_handler,
+        )
     end
 
     MOI.optimize!(optimizer)
@@ -111,13 +116,12 @@ end
 # System setup
 # ==============================================================================
 concrete_problem = RobotProblem.problem(; tstep = 1e-1)  # EmptyProblem if desired
-concrete_system  = concrete_problem.system
+concrete_system = concrete_problem.system
 
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
 println("n_state: ", n_state)
 println("n_input: ", n_input)
-
 
 # ==============================================================================
 # Abstraction (compute / save / load)
@@ -133,7 +137,7 @@ if COMPUTE_ABSTRACTION
     hu = SVector{n_input, Float64}(fill(1.0, n_input))
     input_grid = DO.GridFree(u0, hu)
 
-    optimizer = build_optimizer(
+    optimizer = build_optimizer(;
         concrete_problem = concrete_problem,
         state_grid = state_grid,
         input_grid = input_grid,
@@ -159,17 +163,11 @@ if SIMULATE_FIRST_STEP
     println("\nFirst step:\n")
     x0 = SVector{n_state, Float64}(zeros(n_state))
 
-    t_low  = SVector{n_state, Float64}([-12π/180,  7π/180,  8π/180, -0.75, -0.30, -0.30])
-    t_high = SVector{n_state, Float64}([ -8π/180,  9π/180, 12π/180,  0.30,  0.75,  0.75])
+    t_low = SVector{n_state, Float64}([-12π/180, 7π/180, 8π/180, -0.75, -0.30, -0.30])
+    t_high = SVector{n_state, Float64}([-8π/180, 9π/180, 12π/180, 0.30, 0.75, 0.75])
 
-    x_traj, u_traj = solve_and_simulate!(
-        optimizer,
-        concrete_system,
-        x0,
-        t_low,
-        t_high;
-        nstep = 300,
-    )
+    x_traj, u_traj =
+        solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
 
     println(x_traj, "\n")
     println(u_traj, "\n")
@@ -180,29 +178,16 @@ if SIMULATE_SECOND_STEP
 
     x0 = SVector{n_state, Float64}([
         -0.15352800685754736,
-         0.11944498327439435,
-         0.21311298746900986,
-         0.0,
-         0.0,
-         0.0,
+        0.11944498327439435,
+        0.21311298746900986,
+        0.0,
+        0.0,
+        0.0,
     ])
 
-    t_low = SVector{n_state, Float64}([
-        -1.1π/180,
-        -1.1π/180,
-        -1.1π/180,
-        -0.75,
-        -0.30,
-        -0.30,
-    ])
-    t_high = SVector{n_state, Float64}([
-         1.1π/180,
-         1.1π/180,
-         1.1π/180,
-         0.30,
-         0.75,
-         0.75,
-    ])
+    t_low =
+        SVector{n_state, Float64}([-1.1π/180, -1.1π/180, -1.1π/180, -0.75, -0.30, -0.30])
+    t_high = SVector{n_state, Float64}([1.1π/180, 1.1π/180, 1.1π/180, 0.30, 0.75, 0.75])
 
     handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 1, warn = true)
 

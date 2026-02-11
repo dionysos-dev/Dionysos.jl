@@ -180,6 +180,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     print_level::Int
     progress_update_interval::Int
+    progress_dt::Float64
 
     function OptimizerEmptyProblem{T}() where {T}
         optimizer = new{T}(
@@ -213,6 +214,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             true,
             1,
             Int(1e5),
+            0.2,
         )
         return optimizer
     end
@@ -442,6 +444,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
             );
             verbose = optimizer.print_level >= 2,
             update_interval = optimizer.progress_update_interval,
+            progress_dt = optimizer.progress_dt,
             threaded = optimizer.threaded,
         )
     else
@@ -450,6 +453,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
             optimizer.discrete_time_system_approximation;
             verbose = optimizer.print_level >= 2,
             update_interval = optimizer.progress_update_interval,
+            progress_dt = optimizer.progress_dt,
             threaded = optimizer.threaded,
         )
     end

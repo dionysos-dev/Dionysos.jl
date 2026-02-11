@@ -40,6 +40,7 @@ function build_uniform_grid_abstraction(
     MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 0.5)
 
     if with_period
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)

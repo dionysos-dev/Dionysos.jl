@@ -54,18 +54,18 @@ function system(;
     println("n_pos: ", n_pos)
     println("n_vel: ", n_vel)
 
-     # --- One MechanismState per thread (thread-local mutable state) ---
+    # --- One MechanismState per thread (thread-local mutable state) ---
     states_per_thread = [MechanismState(mechanism) for _ in 1:Threads.nthreads()]
 
     ## Motor parameters ##
     HGR = 353.5                   # Hip gear-ratio
     KGR = 212.6                   # Knee gear-ratio
-    ktp  = 0.395 / HGR            # Torque constant with respect to the voltage [Nm/V] 
-    Kvp  = 1.589 / (HGR * HGR)    # Viscous friction constant [Nm*s/rad] (linked to motor speed)
-    τc_u  = 0.065 / HGR           # Dry friction torque [Nm]
-    GR = SVector{4,Float64}(HGR, HGR, KGR, KGR)  # Gear ratios
+    ktp = 0.395 / HGR            # Torque constant with respect to the voltage [Nm/V] 
+    Kvp = 1.589 / (HGR * HGR)    # Viscous friction constant [Nm*s/rad] (linked to motor speed)
+    τc_u = 0.065 / HGR           # Dry friction torque [Nm]
+    GR = SVector{4, Float64}(HGR, HGR, KGR, KGR)  # Gear ratios
     Kp = 900.0 / 128.0            # DXL controller gain
-    ddl  = 2                      # constant used in indexing
+    ddl = 2                      # constant used in indexing
 
     ## Robots geometry parameters ##
     Lthigh = 0.20125
@@ -75,18 +75,18 @@ function system(;
     Init_offset = -0.0006559432
 
     # --- Controller factory: all locals, no shared scratch ---
-    function voltage_controller!(u::SVector{3,Float64}, q_ref::SVector{1,Float64})
+    function voltage_controller!(u::SVector{3, Float64}, q_ref::SVector{1, Float64})
         function controller!(τ, t, state)
             τ .= 0.0
 
             # indices: last 4 actuated joints plus offset ddl
-            q  = configuration(state)
+            q = configuration(state)
             qd = velocity(state)
             idx_lo = length(q) - 3 - ddl
             idx_hi = length(q) - ddl
 
-            current_q  = @view q[idx_lo:idx_hi]
-            current_qd  = @view qd[idx_lo:idx_hi]
+            current_q = @view q[idx_lo:idx_hi]
+            current_qd = @view qd[idx_lo:idx_hi]
             ω = current_qd .* GR
 
             # DXL controller on the right knee
@@ -96,10 +96,10 @@ function system(;
             u_K = PWM_sat .* (12.0 / 885.0)
 
             # Total motor commands for 4 actuators
-            U_tot = SVector{4,Float64}(u[1], u[2], u[3], u_K[1])
+            U_tot = SVector{4, Float64}(u[1], u[2], u[3], u_K[1])
 
             τ_m = U_tot .* GR .* ktp .- ω .* GR .* Kvp .- sign.(ω) .* GR .* τc_u
-            
+
             τ[idx_lo:idx_hi] .= τ_m
             return nothing
         end
@@ -108,7 +108,7 @@ function system(;
     # --- Fill state (pure) ---
     function fill_state!(x)
         # x = [LH RH LK RK LA RA] / [position, velocity] for 3 actuated joints
-        q  = @SVector [0.0, 0.0, x[1], x[2], x[3], 0.0, 0.0, 0.0]
+        q = @SVector [0.0, 0.0, x[1], x[2], x[3], 0.0, 0.0, 0.0]
         qd = @SVector [0.0, 0.0, x[4], x[5], x[6], 0.0, 0.0, 0.0]
 
         # heights of the two legs (double pendulum)
@@ -117,7 +117,7 @@ function system(;
 
         # boom z position: most extended leg is in contact
         q2 = max(zl, zr) - Lthigh - Lleg + Init_offset
-        q  = SVector{8,Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
+        q = SVector{8, Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
 
         # identify contact leg
         i1 = zl > zr ? 3 : 4
@@ -125,10 +125,12 @@ function system(;
 
         # speed equations of the double pendulum
         xboom = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
-        ẋboom = Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
-        żboom = -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
+        ẋboom =
+            Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
+        żboom =
+            -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
 
-        q1  = xboom
+        q1 = xboom
         qd1 = ẋboom
         qd2 = żboom
 
@@ -137,8 +139,17 @@ function system(;
         qd8 = -(qd[4] + qd[6])
 
         # The x position is set to 0, the feet are kept to the ground 
-        q  = SVector{8,Float64}(q1, q2, q[3], q[4], q[5], q[6], -(q[3] + q[5]), -(q[4] + q[6]))
-        qd = SVector{8,Float64}(qd1, qd2, qd[3], qd[4], qd[5], qd[6], qd7, qd8)
+        q = SVector{8, Float64}(
+            q1,
+            q2,
+            q[3],
+            q[4],
+            q[5],
+            q[6],
+            -(q[3] + q[5]),
+            -(q[4] + q[6]),
+        )
+        qd = SVector{8, Float64}(qd1, qd2, qd[3], qd[4], qd[5], qd[6], qd7, qd8)
 
         return q, qd
     end
@@ -165,8 +176,8 @@ function system(;
         q_end = qs[end]
         v_end = vs[end]
 
-        x_next = SVector{6,Float64}(q_end[3], q_end[4], q_end[5],
-                                    v_end[3], v_end[4], v_end[5])
+        x_next =
+            SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
         return x_next
     end
 
