@@ -33,9 +33,14 @@ function jacobian_bound(u)
         )
 end
 
-timesteps = collect(0.1:0.1:0.3) # try also 0.3, 0.5
+t_start = 0.1
+t_step  = 0.1
+t_end   = 0.5
+
+timesteps = collect(t_start:t_step:t_end) # try also 0.3, 0.5
 m = length(timesteps)
-# m = 5
+println(timesteps)
+
 ####################################################################################
 
 function transition_cost(q, u::Tuple{SVector{1, T}, T}) where {T}
@@ -47,7 +52,7 @@ concrete_problem = SinglePendulum.problem(transition_cost = transition_cost)
 concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0)
-hx = 0.15
+hx = 0.1
 state_grid = DO.GridFree(x0, SVector(hx, hx))
 
 u0 = SVector(0.0)
