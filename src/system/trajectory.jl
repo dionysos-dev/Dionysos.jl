@@ -61,6 +61,7 @@ end
 
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
+enum_elems(traj::Trajectory) = traj.seq
 
 @recipe function f(traj::Trajectory; dims = [1, 2])
     @series begin
@@ -206,19 +207,3 @@ function get_closed_loop_trajectory(
 
     return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
 end
-
-
-"""
-Candidate trajectory for plan-then-certify.
-- x: Dionysos/System Trajectory of states
-- u: Dionysos/System Trajectory of inputs (optional)
-- t: optional time vector
-"""
-struct CandidateTrajectory{XT, UT, TT}
-    x::XT
-    u::UT
-    t::TT
-end
-
-CandidateTrajectory(x::XT; u=nothing, t=nothing) where {XT} =
-    CandidateTrajectory{XT, typeof(u), typeof(t)}(x, u, t)

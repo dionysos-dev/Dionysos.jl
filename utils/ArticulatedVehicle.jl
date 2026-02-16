@@ -272,7 +272,7 @@ function script()
         periodic_periods = periodic_periods,
         periodic_start = periodic_start,
     )
-    savefig(fig, "state_space_12.pdf")
+    # savefig(fig, "state_space_12.pdf")
     display(fig)
     dims=[3, 4]
     fig = plot(; aspect_ratio = :equal, legend = false)
@@ -288,7 +288,7 @@ function script()
         periodic_periods = periodic_periods,
         periodic_start = periodic_start,
     )
-    savefig(fig, "state_space_34.pdf")
+    # savefig(fig, "state_space_34.pdf")
     display(fig)
     return plot_articulated_vehicle!(
         concrete_system,

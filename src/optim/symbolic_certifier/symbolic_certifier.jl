@@ -31,25 +31,6 @@ get_controller(cert::AbstractSymbolicCertifier) = nothing
 get_success(cert::AbstractSymbolicCertifier) = false
 get_solve_time(cert::AbstractSymbolicCertifier) = NaN
 
-# To be set latter as an optimizer in abstraction folder
-# Plan-then-certify pipeline:
-# 1) generator produces a trajectory
-# 2) certifier attempts to certify it
-# Returns (traj, certifier)
-function plan_then_certify!(gen::AbstractHeuristicGenerator,
-                            cert::AbstractSymbolicCertifier,
-                            concrete_problem::PR.ProblemType)
-    set_problem!(gen, concrete_problem)
-    generate!(gen)
-    traj = get_trajectory(gen)
-
-    set_problem!(cert, concrete_problem)
-    set_trajectory!(cert, traj)
-    certify!(cert)
-
-    return traj, cert
-end
-
-include("uniform_grid_local_tube_certifier.jl")
+include("uniform_grid_local_tube.jl")
 
 end # SymbolicCertifier module
