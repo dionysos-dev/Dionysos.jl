@@ -76,17 +76,6 @@ function set_in_period(
     return wrapped_sets
 end
 
-# (⋃Ai) ∩ B = ⋃(Ai ∩ B)
-function Base.intersect(A::LazyUnionSetArray, B::HyperRectangle)
-    sets = Any[]
-    sizehint!(sets, length(A.sets))
-    for ai in A.sets
-        push!(sets, intersect(ai, B))
-    end
-    return LazyUnionSetArray(sets)
-end
-Base.intersect(B::HyperRectangle, A::LazyUnionSetArray) = intersect(A, B)
-
 function Base.intersect(A::LazyUnionSetArray, S::LazySetMinus)
     # (⋃Ai) ∩ (B \ C)  =  ⋃(Ai ∩ (B \ C))
     sets = Any[]
