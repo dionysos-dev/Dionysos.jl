@@ -178,4 +178,3 @@ function build_tube(
     tube = X_domain !== nothing ? tube ∩ X_domain : tube
     return tube
 end
-
