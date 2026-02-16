@@ -64,12 +64,6 @@ x1_target, x2_target = pi .+ (30.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
 
-# # define cost variable
-# @variable(model, total_cost >= 0.0)
-# @constraint(model, start(total_cost) == 0.0)
-# @constraint(model, ∂(total_cost)     == u^2)
-# @objective(model, Min, total_cost)
-
 # ### Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):

@@ -53,9 +53,7 @@ function get_concrete_elem(symmodel::GridBasedSymbolicModel, state)
 end
 
 function get_abstract_state(symmodel::GridBasedSymbolicModel, x)
-    println("Getting abstract state for x = $x")
     xpos = DO.get_pos_by_coord(get_state_domain(symmodel), x)
-    println("xpos = $xpos")
     return get_state_by_xpos(symmodel, xpos)
 end
 
@@ -336,7 +334,7 @@ function compute_abstract_system_from_concrete_system!(
     update_interval = Int(1e5),
     threaded::Bool = false,
 )
--    # If multithreading is not requested or only one thread is available -> sequential execution
+    # If multithreading is not requested or only one thread is available -> sequential execution
     if !threaded || Threads.nthreads() == 1
         translist = Tuple{Int, Int, Int}[]
         growthbound_map = concrete_system_approx.growthbound_map
