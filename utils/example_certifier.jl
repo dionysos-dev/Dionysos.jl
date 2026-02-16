@@ -13,10 +13,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-# Certifier module path inside Dionysos
 const SC = OP.SymbolicCertifier
 
-# --- Toy problem definition ---
 include("../problems/toy_problem.jl")
 
 # ------------------------------------------------------------
@@ -117,4 +115,3 @@ plot!(
 plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
 plot!(x_traj; color = :blue, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
 display(fig)
-
