@@ -227,6 +227,18 @@ function is_abstraction_computed(optimizer::Optimizer)
            optimizer.abstraction_solver.abstract_system !== nothing
 end
 
+function reset!(optimizer::Optimizer)
+    optimizer.concrete_controller = nothing
+    optimizer.solve_time_sec = 0.0
+    if optimizer.control_solver !== nothing
+        reset!(optimizer.control_solver)
+    end
+    if optimizer.abstraction_solver !== nothing
+        reset!(optimizer.abstraction_solver)
+    end
+    return optimizer
+end
+
 # Domain object whose membership is a predicate
 struct PredicateDomain{F}
     pred::F

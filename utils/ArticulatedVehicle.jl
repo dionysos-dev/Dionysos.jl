@@ -290,15 +290,9 @@ function script()
     )
     # savefig(fig, "state_space_34.pdf")
     display(fig)
-    return plot_articulated_vehicle!(
-        concrete_system,
-        params,
-        x_traj,
-        u_traj;
-        every = 1,
-        dt = 0.09,
-    )
+    plot_articulated_vehicle!(concrete_system, params, x_traj, u_traj; every = 1, dt = 0.09)
     #plot_articulated_vehicle!(concrete_system, params, traj; giffile="articulated_vehicle.gif",fps=5,every=3) 
+    return
 end
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "articulated_vehicle.jl"))

@@ -236,6 +236,15 @@ function MOI.get(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
 end
 
+function reset!(model::OptimizerEmptyProblem)
+    model.discrete_time_system = nothing
+    model.abstract_system = nothing
+    model.abstraction_construction_time_sec = 0.0
+    model.continuous_time_system_approximation = nothing
+    model.discrete_time_system_approximation = nothing
+    return model
+end
+
 function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
     for field in required_fields
         if isnothing(getfield(model, field))
