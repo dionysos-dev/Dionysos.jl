@@ -133,6 +133,23 @@ function MOI.get(model::OptimizerOptimalControlProblem, param::MOI.RawOptimizerA
     return getproperty(model, Symbol(param.name))
 end
 
+function reset!(model::OptimizerOptimalControlProblem)
+    model.abstract_problem = nothing
+    model.abstract_system = nothing
+    model.abstract_controller = nothing
+    model.abstract_problem_time_sec = 0.0
+
+    model.controllable_set = nothing
+    model.uncontrollable_set = nothing
+
+    model.value_fun_tab = nothing
+    model.abstract_value_function = nothing
+    model.concrete_value_function = nothing
+
+    model.success = false
+    return model
+end
+
 function build_abstract_value_function(value_fun_tab)
     return abstract_value_function(state) = value_fun_tab[state]
 end

@@ -16,26 +16,13 @@ const AB = OP.Abstraction
 # ------------------------------------------------------------
 # 1) Define a simple 2D continuous-time system: x' = u
 # ------------------------------------------------------------
+include("../problems/toy_problem.jl")
 
-# Domain (like your examples)
 _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
-dynamic = (x, u) -> SVector(u[1], u[2])
-
-concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-    dynamic,
-    2,  # nx
-    2,  # nu
-    _X_,
-    _U_,
-)
-
-# For x' = u, ∂f/∂x = 0, so bound is the zero matrix (independent of u)
-jacobian_bound = u -> @SMatrix [
-    0.0 0.0;
-    0.0 0.0
-]
+concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
+jacobian_bound = ToyProblem.jacobian_bound()
 
 # ------------------------------------------------------------
 # 2) Abstraction construction (EmptyProblem)

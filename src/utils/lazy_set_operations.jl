@@ -76,22 +76,24 @@ function set_in_period(
     return wrapped_sets
 end
 
-# Computes (A1 ∪ A2 ∪ ... ∪ An) ∩ B = (A1 ∩ B) ∪ (A2 ∩ B) ∪ ... ∪ (An ∩ B)
-function Base.intersect(A::LazyUnionSetArray, B)
-    if isempty(A)
-        return LazyUnionSetArray([])
-    end
-    sets = typeof(A.sets[1])[]
-    for set in A.sets
-        push!(sets, B ∩ set)
+function Base.intersect(A::LazyUnionSetArray, S::LazySetMinus)
+    # (⋃Ai) ∩ (B \ C)  =  ⋃(Ai ∩ (B \ C))
+    sets = Any[]
+    sizehint!(sets, length(A.sets))
+    for ai in get_sets(A)
+        push!(sets, intersect(ai, S))
     end
     return LazyUnionSetArray(sets)
 end
+Base.intersect(S::LazySetMinus, A::LazyUnionSetArray) = intersect(A, S)
 
-# Computes A ∩ (B1 ∪ B2 ∪ ... ∪ Bn) = (A ∩ B1) ∪ (A ∩ B2) ∪ ... ∪ (A ∩ Bn)
-function Base.intersect(A, B::LazyUnionSetArray)
-    return B ∩ A
+# (A \ B) ∩ C  =  (A ∩ C) \ B
+function Base.intersect(S::LazySetMinus, C)
+    return LazySetMinus(intersect(S.A, C), S.B)
 end
+
+# C ∩ (A \ B)  =  (A ∩ C) \ B
+Base.intersect(C, S::LazySetMinus) = intersect(S, C)
 
 @recipe function f(set::LazyUnionSetArray; dims = [1, 2], label = "set")
     dims := dims

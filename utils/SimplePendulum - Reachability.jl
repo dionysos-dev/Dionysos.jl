@@ -75,6 +75,10 @@ println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
+# ------------------------------------------------------------
+# Closed loop simulation
+# ------------------------------------------------------------
+
 target_set =
     UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 nstep = 100
@@ -96,7 +100,10 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
-# Here we display the coordinate projection on the two first components of the state space along the trajectory.
+# ------------------------------------------------------------
+# Plots
+# ------------------------------------------------------------
+
 fig = plot(; aspect_ratio = :equal);
 concrete_system = concrete_problem.system
 plot!(
@@ -106,7 +113,6 @@ plot!(
     opacity = 1.0,
     label = "",
 );
-# plot!(abstract_system; value_function = abstract_value_function);
 plot!(
     UT.set_in_period(concrete_problem.initial_set, periodic_dims, periods, periodic_start);
     color = :green,
@@ -117,7 +123,9 @@ plot!(target_set; color = :red, opacity = 0.8, label = "Target set");
 plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
-# ### For Visualization
+# ------------------------------------------------------------
+# Vizualization
+# ------------------------------------------------------------
 
 using RigidBodyDynamics
 using MeshCat, MeshCatMechanisms
@@ -151,3 +159,52 @@ for k in eachindex(ts)
 end
 
 MeshCat.setanimation!(vis, anim; play = true)
+
+# ------------------------------------------------------------
+# Call local tube certifier
+# ------------------------------------------------------------
+
+AB.UniformGridAbstraction.reset!(optimizer)
+hx = SVector(3*(pi/180.0), 0.05)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
+
+cert = SC.UniformGridLocalTubeCertifier()
+candidate_x_traj = x_traj
+SC.set_optimizer!(cert, optimizer)
+SC.set_trajectory!(cert, candidate_x_traj)
+cert.radius = 0.4
+cert.incl_mode = DO.OUTER
+
+SC.certify!(cert)
+
+println("\n=== Local Certification Result ===")
+println("success:    ", SC.get_success(cert))
+println("time (sec): ", SC.get_solve_time(cert))
+controller = SC.get_controller(cert)
+
+nstep = 300
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+    controller,
+    x0,
+    nstep;
+    stopping = reached,
+);
+
+# ------------------------------------------------------------
+# Plot 
+# ------------------------------------------------------------
+
+fig = plot(; aspect_ratio = :equal, title = "ToyExample: candidate traj + sets")
+plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
+plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
+plot!(
+    cert.optimizer.abstraction_solver.abstraction_region;
+    color = :blue,
+    opacity = 0.35,
+    label = "Tube",
+)
+plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
+plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
+display(fig)

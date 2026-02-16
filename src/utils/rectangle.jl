@@ -32,6 +32,17 @@ affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
 get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 
+# (⋃Ai) ∩ B = ⋃(Ai ∩ B)
+function Base.intersect(A::LazyUnionSetArray, B::HyperRectangle)
+    sets = Any[]
+    sizehint!(sets, length(A.sets))
+    for ai in A.sets
+        push!(sets, intersect(ai, B))
+    end
+    return LazyUnionSetArray(sets)
+end
+Base.intersect(B::HyperRectangle, A::LazyUnionSetArray) = intersect(A, B)
+
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
     vertices = zeros(n, 2^n)

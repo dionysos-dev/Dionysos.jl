@@ -142,6 +142,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     ## User Settings
     empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
+    abstraction_region::Any
+    incl_mode::DO.INCL_MODE
     state_grid::Union{Nothing, Dionysos.Domain.Grid}
     h::Union{Nothing, Any}
     input_grid::Union{Nothing, Dionysos.Domain.Grid}
@@ -191,6 +193,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            DO.INNER,
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -234,6 +238,15 @@ end
 
 function MOI.get(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
+end
+
+function reset!(model::OptimizerEmptyProblem)
+    model.discrete_time_system = nothing
+    model.abstract_system = nothing
+    model.abstraction_construction_time_sec = 0.0
+    model.continuous_time_system_approximation = nothing
+    model.discrete_time_system_approximation = nothing
+    return model
 end
 
 function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
@@ -334,8 +347,16 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
 end
 
 function build_state_domain(optimizer::OptimizerEmptyProblem)
+    # pick region with clear precedence
+    system_X = optimizer.abstraction_region
+    if system_X === nothing
+        system_X = optimizer.empty_problem.region
+        if system_X === nothing
+            system_X = optimizer.empty_problem.system.X
+        end
+    end
+
     state_domain = nothing
-    system_X = optimizer.empty_problem.system.X
     if optimizer.use_periodic_domain
         _validate_model(optimizer, [:periodic_dims, :periodic_periods])
         if optimizer.state_grid !== nothing
@@ -381,7 +402,7 @@ function build_state_domain(optimizer::OptimizerEmptyProblem)
         end
     end
     # Fill the domain with relevant set
-    DO.add_set!(state_domain, system_X, DO.INNER)
+    DO.add_set!(state_domain, system_X, optimizer.incl_mode)
     return state_domain
 end
 

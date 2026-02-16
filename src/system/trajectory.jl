@@ -61,6 +61,7 @@ end
 
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
+enum_elems(traj::Trajectory) = traj.seq
 
 @recipe function f(traj::Trajectory; dims = [1, 2])
     @series begin

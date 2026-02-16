@@ -140,7 +140,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("empty_problem"),
                 value,
             )
-            model.control_solver = nothing  # Pas de solveur de contrôle
+            model.control_solver = nothing  # No control solver
         elseif isa(value, Dionysos.Problem.OptimalControlProblem)
             model.control_solver = OptimizerOptimalControlProblem()
             MOI.set(
@@ -168,14 +168,13 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
 
         # Instantiate an abstraction_solver if it has not already been created
         if model.abstraction_solver.empty_problem === nothing
-            empty_problem = Dionysos.Problem.EmptyProblem(value.system, value.system.X)
+            empty_problem = Dionysos.Problem.EmptyProblem(value.system, nothing)
             MOI.set(
                 model.abstraction_solver,
                 MOI.RawOptimizerAttribute("empty_problem"),
                 empty_problem,
             )
         end
-
         return
     end
 
@@ -229,6 +228,18 @@ end
 function is_abstraction_computed(optimizer::Optimizer)
     return optimizer.abstraction_solver !== nothing &&
            optimizer.abstraction_solver.abstract_system !== nothing
+end
+
+function reset!(optimizer::Optimizer)
+    optimizer.concrete_controller = nothing
+    optimizer.solve_time_sec = 0.0
+    if optimizer.control_solver !== nothing
+        reset!(optimizer.control_solver)
+    end
+    if optimizer.abstraction_solver !== nothing
+        reset!(optimizer.abstraction_solver)
+    end
+    return optimizer
 end
 
 # Domain object whose membership is a predicate
