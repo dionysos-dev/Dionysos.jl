@@ -2,6 +2,7 @@ using StaticArrays
 using JuMP
 using Plots
 import MathOptInterface as MOI
+using Ipopt
 
 import Dionysos
 const DI = Dionysos
@@ -53,15 +54,25 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 # ------------------------------------------------------------
 # 2) Build a *candidate* trajectory (simple heuristic)
 # ------------------------------------------------------------
-candidate_x_traj = Dionysos.System.Trajectory{SVector{2, Float64}}(
-    SVector{2, Float64}[
-        [-1.5, -1.5],
-        [-1.5, -1.5],
-        [-0.31032202176824586, -0.31032202176824586],
-        [-0.2452650817125079, -0.2452650817125079],
-        [-0.13999059290084434, -0.13999059290084434],
-    ],
-)
+# candidate_x_traj = Dionysos.System.Trajectory{SVector{2, Float64}}(
+#     SVector{2, Float64}[
+#         [-1.5, -1.5],
+#         [-1.5, -1.5],
+#         [-0.31032202176824586, -0.31032202176824586],
+#         [-0.2452650817125079, -0.2452650817125079],
+#         [-0.13999059290084434, -0.13999059290084434],
+#     ],
+# )
+
+using Dionysos.Optim.heuristic
+
+println("\n=== Generating candidate trajectory with MPC heuristic ===")
+
+MPC_gen = OP.heuristic.MPCGenerator(concrete_problem, horizon = 10, dt = tstep, optimizer = Ipopt.Optimizer)
+generate!(MPC_gen)
+candidate_x_traj = get_trajectory(MPC_gen)
+
+println(candidate_x_traj)
 
 # ------------------------------------------------------------
 # 3) Call your local tube certifier
