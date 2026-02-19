@@ -452,7 +452,10 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
             xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
 
             # Find nearest abstract element (this assumes Xdom has elems as positions)
-            xnew_pos = argmin(p -> LinearAlgebra.norm(collect(p) - collect(xpos)), DO.enum_pos(Xdom))
+            xnew_pos = argmin(
+                p -> LinearAlgebra.norm(collect(p) - collect(xpos)),
+                DO.enum_pos(Xdom),
+            )
 
             warn && @warn(
                 "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"

@@ -138,12 +138,12 @@ function remove_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode:
     end
 end
 
-function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
-    isempty(pos2d) && return UT.HyperRectangle{NTuple{2,Int}}[]
+function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2, Int}})
+    isempty(pos2d) && return UT.HyperRectangle{NTuple{2, Int}}[]
 
     # Group by y (row) and collect x's
     rows = Dict{Int, Vector{Int}}()
-    for (x,y) in pos2d
+    for (x, y) in pos2d
         push!(get!(rows, y, Int[]), x)
     end
     for xs in values(rows)
@@ -151,7 +151,7 @@ function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
     end
 
     # Build horizontal intervals per row: (y, x1, x2)
-    intervals = Vector{Tuple{Int,Int,Int}}()
+    intervals = Vector{Tuple{Int, Int, Int}}()
     ys = sort!(collect(keys(rows)))
     for y in ys
         xs = rows[y]
@@ -159,7 +159,7 @@ function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
         while i <= length(xs)
             x1 = xs[i]
             x2 = x1
-            while i < length(xs) && xs[i+1] == x2 + 1
+            while i < length(xs) && xs[i + 1] == x2 + 1
                 i += 1
                 x2 = xs[i]
             end
@@ -170,7 +170,7 @@ function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
 
     # Merge identical intervals vertically
     sort!(intervals)  # sorts by y then x1 then x2
-    rects = UT.HyperRectangle{NTuple{2,Int}}[]
+    rects = UT.HyperRectangle{NTuple{2, Int}}[]
     i = 1
     while i <= length(intervals)
         y, x1, x2 = intervals[i]
@@ -192,9 +192,9 @@ function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
     return rects
 end
 
-function merge_to_hyperrectangles_pos_2d(domain::GridDomainType; dims=[1,2])
-    pos2d = NTuple{2,Int}[]
-    seen = Set{NTuple{2,Int}}()
+function merge_to_hyperrectangles_pos_2d(domain::GridDomainType; dims = [1, 2])
+    pos2d = NTuple{2, Int}[]
+    seen = Set{NTuple{2, Int}}()
     for p in enum_pos(domain)
         q = (p[dims[1]], p[dims[2]])
         if !(q in seen)
@@ -205,28 +205,27 @@ function merge_to_hyperrectangles_pos_2d(domain::GridDomainType; dims=[1,2])
     return merge_rectangles_2d(pos2d)
 end
 
-function merge_to_hyperrectangles_real_2d(domain::GridDomainType; dims=[1,2])
+function merge_to_hyperrectangles_real_2d(domain::GridDomainType; dims = [1, 2])
     grid = get_grid(domain)
-    rects_pos = merge_to_hyperrectangles_pos_2d(domain; dims=dims)
+    rects_pos = merge_to_hyperrectangles_pos_2d(domain; dims = dims)
 
     orig = get_origin(grid)
-    h    = get_h(grid)
+    h = get_h(grid)
     d1 = dims[1]
     d2 = dims[2]
     T = eltype(orig)
 
     return [
         UT.HyperRectangle(
-            SVector{2,T}(
+            SVector{2, T}(
                 orig[d1] + r.lb[1]*h[d1] - h[d1]/2,
                 orig[d2] + r.lb[2]*h[d2] - h[d2]/2,
             ),
-            SVector{2,T}(
+            SVector{2, T}(
                 orig[d1] + r.ub[1]*h[d1] + h[d1]/2,
                 orig[d2] + r.ub[2]*h[d2] + h[d2]/2,
             ),
-        )
-        for r in rects_pos
+        ) for r in rects_pos
     ]
 end
 
@@ -252,7 +251,7 @@ end
             end
         end
     else
-        for real_hyperrect in merge_to_hyperrectangles_real_2d(domain; dims=dims)
+        for real_hyperrect in merge_to_hyperrectangles_real_2d(domain; dims = dims)
             @series begin
                 label := first_series ? label : ""
                 first_series = false

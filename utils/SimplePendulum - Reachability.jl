@@ -193,7 +193,8 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 );
 
 controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-uncontrollable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+uncontrollable_set =
+    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
 
 # ------------------------------------------------------------
 # Plot 

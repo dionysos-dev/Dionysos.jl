@@ -155,14 +155,16 @@ function script()
     # ------------------------------------------------------------
     # Problem 
     # ------------------------------------------------------------
-    
+
     _I_ = UT.HyperRectangle(SVector(-0.2, -0.2, -0.2, -0.2), SVector(0.2, 0.2, 0.2, 0.2))
     _T_ = UT.HyperRectangle(
         SVector(9.0, 5.0, -5*(pi/180), -5*(pi/180)),
         SVector(10.0, 6.0, 5*(pi/180), 5*(pi/180)),
     ) # forward
-    _T_ = UT.HyperRectangle(SVector(9.0,5.0, pi-5*(pi/180), -5*(pi/180)),
-                            SVector(10.0,6.0, pi+5*(pi/180),  5*(pi/180))) # backward
+    _T_ = UT.HyperRectangle(
+        SVector(9.0, 5.0, pi-5*(pi/180), -5*(pi/180)),
+        SVector(10.0, 6.0, pi+5*(pi/180), 5*(pi/180)),
+    ) # backward
 
     concrete_problem = DI.Problem.OptimalControlProblem(
         concrete_system,
@@ -228,7 +230,8 @@ function script()
     # MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
     MOI.optimize!(optimizer)
 
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
     target_set = concrete_problem.target_set
 
     # ------------------------------------------------------------
@@ -236,7 +239,8 @@ function script()
     # ------------------------------------------------------------
 
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    discrete_time_system = ST.discretize_continuous_system(concrete_system, Δt; num_substeps = 5)
+    discrete_time_system =
+        ST.discretize_continuous_system(concrete_system, Δt; num_substeps = 5)
     periodic_wrapper =
         with_period ?
         ST.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start) :
@@ -301,27 +305,27 @@ function script()
     # --- Build Optimizer for certificaiton --- 
     hx = SVector(0.4, 0.2, 5*(pi/180), 3*(pi/180)) # SVector(2*(pi/180.0), 0.02)
     inputs = [
-            [2.0, 0.0],
-            [0.0, 0.0],
-            [-2.0, 0.0],
-            [2.0, -0.25],
-            [2.0, 0.25],
-            [-2.0, 0.25],
-            [-2.0, -0.25],
-        ]
+        [2.0, 0.0],
+        [0.0, 0.0],
+        [-2.0, 0.0],
+        [2.0, -0.25],
+        [2.0, 0.25],
+        [-2.0, 0.25],
+        [-2.0, -0.25],
+    ]
     Udom = Dionysos.Domain.CustomList(inputs)
     optimizer = build_optimizer(
-            concrete_system,
-            Δt,
-            hx,
-            Udom,
-            AV.jacobian_bound(params);
-            periodic_dims = periodic_dims,
-            periodic_periods = periodic_periods,
-            periodic_start = periodic_start,
-            with_period = with_period,
-            approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
-        )
+        concrete_system,
+        Δt,
+        hx,
+        Udom,
+        AV.jacobian_bound(params);
+        periodic_dims = periodic_dims,
+        periodic_periods = periodic_periods,
+        periodic_start = periodic_start,
+        with_period = with_period,
+        approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
+    )
     # _T_ = UT.HyperRectangle(
     #     SVector(8.0, 4.0, -10*(pi/180), -10*(pi/180)),
     #     SVector(10.0, 6.0, 10*(pi/180), 10*(pi/180)),
@@ -335,7 +339,11 @@ function script()
         DI.Problem.Infinity(),
     )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), AB.UniformGridAbstraction.CENTER_SIMULATION) # GROWTH, CENTER_SIMULATION
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("approx_mode"),
+        AB.UniformGridAbstraction.CENTER_SIMULATION,
+    ) # GROWTH, CENTER_SIMULATION
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
     handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 1, warn = true)
@@ -346,8 +354,6 @@ function script()
         MOI.RawOptimizerAttribute("automaton_constructor"),
         (n, m) -> SY.NewIndexedAutomatonList(n, m),
     )
-
-
 
     # --- Build Certifier --- 
     cert = SC.UniformGridLocalTubeCertifier()
@@ -381,23 +387,56 @@ function script()
 
     # --- Plots --- 
 
-    dims=[1,2]
-    fig = plot(; aspect_ratio = :equal, title = "Articulated Vehicle: candidate traj + sets")
-    plot!(concrete_problem.system.X; dims = dims, color = :grey, opacity = 0.15, label = "X")
-    plot!(concrete_problem.initial_set; dims = dims, color = :green, opacity = 0.25, label = "Initial set")
-    plot!(concrete_problem.target_set; dims = dims, color = :red, opacity = 0.35, label = "Target set")
-    tube = cert.optimizer.abstraction_solver.abstraction_region
+    dims=[1, 2]
+    fig =
+        plot(; aspect_ratio = :equal, title = "Articulated Vehicle: candidate traj + sets")
     plot!(
-        tube;
+        concrete_problem.system.X;
         dims = dims,
-        color = :blue,
-        opacity = 0.4,
-        label = "Tube",
+        color = :grey,
+        opacity = 0.15,
+        label = "X",
     )
-    plot!(controllable_set; dims = dims, color = :yellow, linecolor = :yellow, label = "Controllable set")
+    plot!(
+        concrete_problem.initial_set;
+        dims = dims,
+        color = :green,
+        opacity = 0.25,
+        label = "Initial set",
+    )
+    plot!(
+        concrete_problem.target_set;
+        dims = dims,
+        color = :red,
+        opacity = 0.35,
+        label = "Target set",
+    )
+    tube = cert.optimizer.abstraction_solver.abstraction_region
+    plot!(tube; dims = dims, color = :blue, opacity = 0.4, label = "Tube")
+    plot!(
+        controllable_set;
+        dims = dims,
+        color = :yellow,
+        linecolor = :yellow,
+        label = "Controllable set",
+    )
     # plot!(uncontrollable_set; dims = dims, color = :black, linecolor = :black, label = "Uncontrollable set")
-    plot!(x_traj; color = :blue, dims = dims, ms = 2.0, arrows = false, label = "Candidate Trajectory")
-    plot!(certified_x_traj; dims = dims, color = :red, ms = 2.0, arrows = false, label = "Certified Trajectory")
+    plot!(
+        x_traj;
+        color = :blue,
+        dims = dims,
+        ms = 2.0,
+        arrows = false,
+        label = "Candidate Trajectory",
+    )
+    plot!(
+        certified_x_traj;
+        dims = dims,
+        color = :red,
+        ms = 2.0,
+        arrows = false,
+        label = "Certified Trajectory",
+    )
     display(fig)
     # plot_articulated_vehicle!(concrete_system, params, certified_x_traj, certified_u_traj; every = 1, dt = 0.09)
     return

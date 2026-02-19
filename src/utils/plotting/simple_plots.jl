@@ -80,7 +80,7 @@ struct DrawTrajectory{
     end
 end
 
-@recipe function f(t::DrawTrajectory; dims=[1,2], arrows=true)
+@recipe function f(t::DrawTrajectory; dims = [1, 2], arrows = true)
     traj_label = get(plotattributes, :label, "")  # whatever user passed
 
     # first point gets the label
@@ -91,17 +91,17 @@ end
     end
 
     # remaining pieces get empty label
-    for k in 1:(length(t.vp)-1)
+    for k in 1:(length(t.vp) - 1)
         @series begin
             dims := dims
             label := ""
-            t.vp[k+1]
+            t.vp[k + 1]
         end
         if arrows
             @series begin
                 dims := dims
                 label := ""
-                DrawArrow(t.vp[k], t.vp[k+1])
+                DrawArrow(t.vp[k], t.vp[k + 1])
             end
         end
     end
