@@ -8,6 +8,7 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
+const SC = OP.SymbolicCertifier
 
 include("../problems/simple_pendulum.jl");
 
@@ -165,15 +166,15 @@ MeshCat.setanimation!(vis, anim; play = true)
 # ------------------------------------------------------------
 
 AB.UniformGridAbstraction.reset!(optimizer)
-hx = SVector(3*(pi/180.0), 0.05)
+hx = SVector(3*(pi/180.0), 0.05) # SVector(2*(pi/180.0), 0.02)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
 
 cert = SC.UniformGridLocalTubeCertifier()
 candidate_x_traj = x_traj
 SC.set_optimizer!(cert, optimizer)
 SC.set_trajectory!(cert, candidate_x_traj)
-cert.radius = 0.4
-cert.incl_mode = DO.OUTER
+cert.radius = 0.8
+cert.incl_mode = DO.INNER
 
 SC.certify!(cert)
 
@@ -191,6 +192,9 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 );
 
+controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+
 # ------------------------------------------------------------
 # Plot 
 # ------------------------------------------------------------
@@ -202,9 +206,11 @@ plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target
 plot!(
     cert.optimizer.abstraction_solver.abstraction_region;
     color = :blue,
-    opacity = 0.35,
+    opacity = 0.55,
     label = "Tube",
 )
+plot!(controllable_set; color = :yellow, linecolor = :yellow, label = "Controllable set")
+plot!(uncontrollable_set; color = :black, linecolor = :black, label = "Uncontrollable set")
 plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
 plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
 display(fig)

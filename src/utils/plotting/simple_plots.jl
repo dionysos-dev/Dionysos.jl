@@ -12,7 +12,7 @@ end
     color --> :black
     marker --> :circle
     linetype --> :scatter
-    label := ""
+    label --> ""
     return [p.p[i]], [p.p[j]]
 end
 
@@ -80,19 +80,29 @@ struct DrawTrajectory{
     end
 end
 
-@recipe function f(t::DrawTrajectory; dims = [1, 2])
-    for i in 1:(length(t.vp) - 1)
-        @series begin
-            dims := dims
-            t.vp[i + 1]
-        end
-        @series begin
-            dims := dims
-            DrawArrow(t.vp[i], t.vp[i + 1])
-        end
-    end
+@recipe function f(t::DrawTrajectory; dims=[1,2], arrows=true)
+    traj_label = get(plotattributes, :label, "")  # whatever user passed
+
+    # first point gets the label
     @series begin
         dims := dims
+        label := traj_label
         t.vp[1]
+    end
+
+    # remaining pieces get empty label
+    for k in 1:(length(t.vp)-1)
+        @series begin
+            dims := dims
+            label := ""
+            t.vp[k+1]
+        end
+        if arrows
+            @series begin
+                dims := dims
+                label := ""
+                DrawArrow(t.vp[k], t.vp[k+1])
+            end
+        end
     end
 end

@@ -22,6 +22,7 @@ mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
     n_between::Int # fixed densification: how many points to insert between each pair
     max_step::Union{Nothing, Float64}  # adaptative densification: insert enough points so ‖Δx‖∞ ≤ max_step
     enforce_safe_max_step::Bool
+    handle_system_domain::Bool
 
     # Injected solver (already configured by user)
     optimizer::Union{Nothing, AB.UniformGridAbstraction.Optimizer}
@@ -30,7 +31,7 @@ mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
     solve_time_sec::T
 
     function UniformGridLocalTubeCertifier{T}() where {T}
-        return new{T}(nothing, 0.1, 0.0, DO.OUTER, 0, nothing, true, nothing, 0.0)
+        return new{T}(nothing, 0.1, 0.0, DO.INNER, 0, nothing, true, true, nothing, 0.0)
     end
 end
 
@@ -62,7 +63,7 @@ function certify!(c::UniformGridLocalTubeCertifier)
         n_between = c.n_between,
         max_step = c.max_step,
         enforce_safe_max_step = c.enforce_safe_max_step,
-        X_domain = concrete_problem.system.X,
+        X_domain = c.handle_system_domain ? concrete_problem.system.X : nothing,
     )
 
     # Build abstracion & solve problem
@@ -173,7 +174,6 @@ function build_tube(
         push!(rects, UT.HyperRectangle(SVector(lb), SVector(ub)))
     end
 
-    println(X_domain)
     tube = UT.LazyUnionSetArray(rects)
     tube = X_domain !== nothing ? tube ∩ X_domain : tube
     return tube

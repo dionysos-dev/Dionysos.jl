@@ -25,11 +25,6 @@ Dionysos.Domain.DomainType
 Dionysos.Domain.GridDomainType
 ```
 
-```@docs
-Dionysos.Domain.merge_to_hyperrectangles_pos
-Dionysos.Domain.merge_to_hyperrectangles_real
-```
-
 ## Concrete domains 
 
 ### Classical domains
