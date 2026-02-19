@@ -15,6 +15,7 @@ MS = MathematicalSystems
 import HybridSystems
 import Spot
 using JuMP
+import LinearAlgebra
 
 export Optimizer
 
@@ -447,11 +448,14 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
         end
     elseif mode == 1
         return (x, abs_sys) -> begin
-            Xdom = abs_sys.Xdom
+            Xdom = SY.get_state_domain(abs_sys)
             xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
 
             # Find nearest abstract element (this assumes Xdom has elems as positions)
-            xnew_pos = argmin(p -> norm(collect(p) - collect(xpos)), Xdom.elems)
+            xnew_pos = argmin(
+                p -> LinearAlgebra.norm(collect(p) - collect(xpos)),
+                DO.enum_pos(Xdom),
+            )
 
             warn && @warn(
                 "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"

@@ -443,7 +443,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         optimizer.automaton_constructor,
     )
 
-    if optimizer.print_level >= 2
+    if optimizer.print_level >= 1
         @info("Number of states: $(SY.get_n_state(abstract_system))")
         @info("Number of inputs: $(SY.get_n_input(abstract_system))")
         @info(

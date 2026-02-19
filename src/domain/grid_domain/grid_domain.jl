@@ -138,76 +138,97 @@ function remove_set!(domain::GridDomainType, rect::UT.HyperRectangle, incl_mode:
     end
 end
 
-"""
-    merge_to_hyperrectangles_pos(domain::GridDomainType)
+function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2, Int}})
+    isempty(pos2d) && return UT.HyperRectangle{NTuple{2, Int}}[]
 
-Aggregates the grid elements in `GridDomainType` into the largest possible hyperrectangles.
-Returns a list of `HyperRectangle`s that efficiently represent the domain.
-"""
-function merge_to_hyperrectangles_pos(domain::GridDomainType)
-    elements = collect(enum_pos(domain))  # Convert set to sorted list
-    sort!(elements)
+    # Group by y (row) and collect x's
+    rows = Dict{Int, Vector{Int}}()
+    for (x, y) in pos2d
+        push!(get!(rows, y, Int[]), x)
+    end
+    for xs in values(rows)
+        sort!(xs)
+    end
 
-    N = get_dim(domain)  # Retrieve the number of dimensions
-
-    hyperrectangles = Vector{UT.HyperRectangle{NTuple{N, Int}}}()
-    visited = Dict(e => false for e in elements)  # Dict to track visited elements
-
-    for e in elements
-        if visited[e]
-            continue  # Skip already processed elements
+    # Build horizontal intervals per row: (y, x1, x2)
+    intervals = Vector{Tuple{Int, Int, Int}}()
+    ys = sort!(collect(keys(rows)))
+    for y in ys
+        xs = rows[y]
+        i = 1
+        while i <= length(xs)
+            x1 = xs[i]
+            x2 = x1
+            while i < length(xs) && xs[i + 1] == x2 + 1
+                i += 1
+                x2 = xs[i]
+            end
+            push!(intervals, (y, x1, x2))
+            i += 1
         end
+    end
 
-        # Initialize hyperrectangle bounds
-        lower_bound = Tuple(e)
-        upper_bound = Tuple(e)
-
-        # Try to grow the hyperrectangle along each dimension
-        for dim in 1:N
-            while true
-                next_upper = ntuple(i -> upper_bound[i] + (i == dim), N)
-
-                if haskey(visited, next_upper) &&
-                   !visited[next_upper] &&
-                   all(
-                       haskey(visited, ntuple(i -> next_upper[i] - (i == dim), N)) for
-                       i in 1:N
-                   )
-                    upper_bound = next_upper
-                    visited[next_upper] = true
-                else
-                    break
-                end
+    # Merge identical intervals vertically
+    sort!(intervals)  # sorts by y then x1 then x2
+    rects = UT.HyperRectangle{NTuple{2, Int}}[]
+    i = 1
+    while i <= length(intervals)
+        y, x1, x2 = intervals[i]
+        y1 = y
+        y2 = y
+        i += 1
+        while i <= length(intervals)
+            y_next, x1_next, x2_next = intervals[i]
+            if x1_next == x1 && x2_next == x2 && y_next == y2 + 1
+                y2 = y_next
+                i += 1
+            else
+                break
             end
         end
-
-        visited[e] = true
-        push!(hyperrectangles, UT.HyperRectangle(lower_bound, upper_bound))
+        push!(rects, UT.HyperRectangle((x1, y1), (x2, y2)))
     end
-    return hyperrectangles
+
+    return rects
 end
 
-"""
-    merge_hyperrectangles_real(domain_list::GridDomainType)
+function merge_to_hyperrectangles_pos_2d(domain::GridDomainType; dims = [1, 2])
+    pos2d = NTuple{2, Int}[]
+    seen = Set{NTuple{2, Int}}()
+    for p in enum_pos(domain)
+        q = (p[dims[1]], p[dims[2]])
+        if !(q in seen)
+            push!(seen, q)
+            push!(pos2d, q)
+        end
+    end
+    return merge_rectangles_2d(pos2d)
+end
 
-Uses the existing `merge_to_hyperrectangles(domain_list)` function to merge elements
-in grid positions, then converts the result into real-world `HyperRectangle`s using `get_rec(grid, pos)`.
-"""
-function merge_to_hyperrectangles_real(domain::GridDomainType)
+function merge_to_hyperrectangles_real_2d(domain::GridDomainType; dims = [1, 2])
     grid = get_grid(domain)
+    rects_pos = merge_to_hyperrectangles_pos_2d(domain; dims = dims)
 
-    # Step 1: Get merged hyperrectangles in terms of grid positions
-    merged_pos_rects = merge_to_hyperrectangles_pos(domain)
+    orig = get_origin(grid)
+    h = get_h(grid)
+    d1 = dims[1]
+    d2 = dims[2]
+    T = eltype(orig)
 
-    # Step 2: Convert grid-position-based hyperrectangles to real-world ones
-    real_hyperrects = [
-        UT.HyperRectangle(get_rec(grid, rect.lb).lb, get_rec(grid, rect.ub).ub) for
-        rect in merged_pos_rects
+    return [
+        UT.HyperRectangle(
+            SVector{2, T}(
+                orig[d1] + r.lb[1]*h[d1] - h[d1]/2,
+                orig[d2] + r.lb[2]*h[d2] - h[d2]/2,
+            ),
+            SVector{2, T}(
+                orig[d1] + r.ub[1]*h[d1] + h[d1]/2,
+                orig[d2] + r.ub[2]*h[d2] + h[d2]/2,
+            ),
+        ) for r in rects_pos
     ]
-    return real_hyperrects
 end
 
-# grid based domain
 @recipe function f(
     domain::GridDomainType{N, T};
     dims = [1, 2],
@@ -230,10 +251,11 @@ end
             end
         end
     else
-        for real_hyperrect in merge_to_hyperrectangles_real(domain)
+        for real_hyperrect in merge_to_hyperrectangles_real_2d(domain; dims = dims)
             @series begin
                 label := first_series ? label : ""
                 first_series = false
+                dims := [1, 2]   # IMPORTANT: rect is already 2D
                 return real_hyperrect
             end
         end

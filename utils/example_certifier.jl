@@ -12,7 +12,6 @@ const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
-
 const SC = OP.SymbolicCertifier
 
 include("../problems/toy_problem.jl")
