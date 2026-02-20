@@ -1,5 +1,7 @@
-module PCLF
+module PathCompleteFramework
 
+import Dionysos
+const UT = Dionysos.Utils
 import HybridSystems
 import JuMP
 import Clarabel
@@ -13,16 +15,15 @@ import LinearAlgebra
 Store a graph as an explicit list of edges (u, v, label),
 preserving parallel edges and arbitrary vertex types.
 """
-struct LabDigraph{T<:Real, U}
+struct LabDigraph{T <: Real, U}
     edges::Vector{Tuple{U, U, T}}
     verts::Set{U}
 end
 
-function edgeList_to_LabDigraph(edges::Vector{Tuple{U,U,T}}) where {T<:Real, U}
+function edgeList_to_LabDigraph(edges::Vector{Tuple{U, U, T}}) where {T <: Real, U}
     verts = Set{U}(v for e in edges for v in (e[1], e[2]))
-    return LabDigraph{T,U}(edges, verts)
+    return LabDigraph{T, U}(edges, verts)
 end
-
 
 abstract type AbstractPiece end
 
@@ -31,21 +32,23 @@ function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
 # Quadratic Lyapunov functions:
 mutable struct EllipsoidalPiece <: AbstractPiece
     P::Matrix{Float64}   # symmetric positive-definite matrix
-end 
+end
 
-function get_sublevel_set(piece:: EllipsoidalPiece, gamma::Float64)
-    return 
-end 
+function get_sublevel_set(piece::EllipsoidalPiece, gamma::Float64)
+    n = size(piece.P, 1)
+    center = zeros(n)
+    elli = UT.Ellipsoid(piece.P, center)
+    return UT.get_sublevel_set(elli, gamma)
+end
 
 # Polyhedral Lyapunov functions:
 mutable struct PolyhedralPiece <: AbstractPiece
-    h
-end 
+    h::Any
+end
 
-function get_sublevel_set(piece:: PolyhedralPiece, gamma::Float64)
-    return 
-end 
-
+function get_sublevel_set(piece::PolyhedralPiece, gamma::Float64)
+    return
+end
 
 """
     mutable struct PCLF
@@ -56,16 +59,16 @@ JSR approximation
 """
 mutable struct PCLF
     graph::LabDigraph
-    pieces::Dict{Any, AbstractPiece}    # keys are the original vertex ids
+    pieces::Dict{Any, AbstractPiece}
     JSRapprox::Float64
-end 
+end
 
-function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool=false)
+function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool = false)
     @assert M ≥ 1
     @assert k ≥ 0
 
     # Common Lyapunov function graph:
-    if k == 0    
+    if k == 0
         edges = Vector{Tuple{Int, Int, Int}}()
         v = (1)
         for s in 1:M
@@ -75,14 +78,14 @@ function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool=false)
     end
 
     # Otherwise: 
-    edges = Vector{Tuple{NTuple{k,Int}, NTuple{k,Int}, Int}}()
+    edges = Vector{Tuple{NTuple{k, Int}, NTuple{k, Int}, Int}}()
 
     iterables = ntuple(_ -> 1:M, k)
     nodes = collect(Iterators.product(iterables...))
 
     for node in nodes
         for state in nodes
-            if node[2:end] == state[1:end-1]
+            if node[2:end] == state[1:(end - 1)]
                 if !dual
                     push!(edges, (node, state, state[end]))
                 else
@@ -95,7 +98,14 @@ function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool=false)
     return edgeList_to_LabDigraph(edges)
 end
 
-function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigraph; tol=1e-8, maxiter=200, MLF=false, clarabel_params=Dict())
+function compute_quadratic_pieces_pclf(
+    f::HybridSystems.HybridSystem,
+    G::LabDigraph;
+    tol = 1e-8,
+    maxiter = 200,
+    MLF = false,
+    clarabel_params = Dict(),
+)
 
     # --- extract matrices from resetmaps ---
     RMs = f.resetmaps
@@ -111,7 +121,7 @@ function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigr
     end
 
     # --- vertices and indexing for P variables ---
-    verts = collect(G.verts)    # Vector of vertex identifiers
+    verts = collect(G.verts)
     l_s = length(verts)
     index_of = Dict{typeof(verts[1]), Int}()
     for (i, v) in enumerate(verts)
@@ -146,11 +156,12 @@ function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigr
         end
 
         # create P variables (anonymous) as matrix variables
-        P = [ JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s ]
-        
+        P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
+
         # add initial lower bound: P[i] >= 0.5*I
         for i in 1:l_s
             JuMP.@constraint(model, P[i] - 0.5 * I_n in JuMP.PSDCone())
+            JuMP.@constraint(model, 1000*I_n - P[i] in JuMP.PSDCone())
         end
 
         # add LMIs for each edge (u -> v with label)
@@ -187,7 +198,7 @@ function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigr
         end
 
         # create vars again for final solve
-        P = [ JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s ]
+        P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
         for i in 1:l_s
             JuMP.@constraint(model, P[i] - 0.5 * I_n in JuMP.PSDCone())
         end
@@ -222,7 +233,7 @@ function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigr
 end
 
 function compute_polyhedral_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigraph)
-    return 
-end 
+    return
+end
 
 end # module
