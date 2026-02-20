@@ -35,5 +35,6 @@ include("ellipsoid.jl")
 include("degenerate_ellipsoid.jl")
 include("polyhedron.jl")
 include("intersection_set.jl")
+include("pclf.jl")
 
 end  # module Utils

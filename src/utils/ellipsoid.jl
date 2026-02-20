@@ -62,6 +62,10 @@ function expand(elli::Ellipsoid, α)
     return Ellipsoid(elli.P * (1 / α), elli.c)
 end
 
+function get_sublevel_set(elli::Ellipsoid, α)
+    return Ellipsoid(elli.P * (1 / α), elli.c)
+end
+
 function transform(elli::Ellipsoid, A, b)
     return Ellipsoid(A' \ elli.P / A, A * elli.c + b)
 end

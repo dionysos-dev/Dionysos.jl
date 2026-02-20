@@ -50,3 +50,12 @@ Dionysos.Utils.set_in_period
 Dionysos.Utils.HyperRectangle
 Dionysos.Utils.DeformedRectangle
 ```
+
+
+## Path-Complete Framework
+
+```@docs
+Dionysos.Utils.PathCompleteFramework.LabDigraph
+Dionysos.Utils.PathCompleteFramework.PCLF
+```
+
