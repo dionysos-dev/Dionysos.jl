@@ -1,3 +1,5 @@
+module PCLF
+
 import HybridSystems
 import JuMP
 import Clarabel
@@ -11,35 +13,39 @@ import LinearAlgebra
 Store a graph as an explicit list of edges (u, v, label),
 preserving parallel edges and arbitrary vertex types.
 """
-struct LabDigraph{T <: Real, U}
+struct LabDigraph{T<:Real, U}
     edges::Vector{Tuple{U, U, T}}
     verts::Set{U}
 end
 
-function edgeList_to_LabDigraph(edges::Vector{Tuple{U, U, T}}) where {T <: Real, U}
+function edgeList_to_LabDigraph(edges::Vector{Tuple{U,U,T}}) where {T<:Real, U}
     verts = Set{U}(v for e in edges for v in (e[1], e[2]))
-    return LabDigraph{T, U}(edges, verts)
+    return LabDigraph{T,U}(edges, verts)
 end
+
 
 abstract type AbstractPiece end
 
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
 
+# Quadratic Lyapunov functions:
 mutable struct EllipsoidalPiece <: AbstractPiece
     P::Matrix{Float64}   # symmetric positive-definite matrix
-end
+end 
 
-function get_sublevel_set(piece::EllipsoidalPiece, gamma::Float64)
-    return
-end
+function get_sublevel_set(piece:: EllipsoidalPiece, gamma::Float64)
+    return 
+end 
 
+# Polyhedral Lyapunov functions:
 mutable struct PolyhedralPiece <: AbstractPiece
-    h::Any
-end
+    h
+end 
 
-function get_sublevel_set(piece::PolyhedralPiece, gamma::Float64)
-    return
-end
+function get_sublevel_set(piece:: PolyhedralPiece, gamma::Float64)
+    return 
+end 
+
 
 """
     mutable struct PCLF
@@ -52,14 +58,14 @@ mutable struct PCLF
     graph::LabDigraph
     pieces::Dict{Any, AbstractPiece}    # keys are the original vertex ids
     JSRapprox::Float64
-end
+end 
 
-function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool = false)
+function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool=false)
     @assert M ≥ 1
     @assert k ≥ 0
 
     # Common Lyapunov function graph:
-    if k == 0
+    if k == 0    
         edges = Vector{Tuple{Int, Int, Int}}()
         v = (1)
         for s in 1:M
@@ -69,14 +75,14 @@ function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool = false)
     end
 
     # Otherwise: 
-    edges = Vector{Tuple{NTuple{k, Int}, NTuple{k, Int}, Int}}()
+    edges = Vector{Tuple{NTuple{k,Int}, NTuple{k,Int}, Int}}()
 
     iterables = ntuple(_ -> 1:M, k)
     nodes = collect(Iterators.product(iterables...))
 
     for node in nodes
         for state in nodes
-            if node[2:end] == state[1:(end - 1)]
+            if node[2:end] == state[1:end-1]
                 if !dual
                     push!(edges, (node, state, state[end]))
                 else
@@ -89,14 +95,7 @@ function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool = false)
     return edgeList_to_LabDigraph(edges)
 end
 
-function compute_quadratic_pieces_pclf(
-    f::HybridSystems.HybridSystem,
-    G::LabDigraph;
-    tol = 1e-8,
-    maxiter = 200,
-    MLF = false,
-    clarabel_params = Dict(),
-)
+function compute_quadratic_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigraph; tol=1e-8, maxiter=200, MLF=false, clarabel_params=Dict())
 
     # --- extract matrices from resetmaps ---
     RMs = f.resetmaps
@@ -147,8 +146,8 @@ function compute_quadratic_pieces_pclf(
         end
 
         # create P variables (anonymous) as matrix variables
-        P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
-
+        P = [ JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s ]
+        
         # add initial lower bound: P[i] >= 0.5*I
         for i in 1:l_s
             JuMP.@constraint(model, P[i] - 0.5 * I_n in JuMP.PSDCone())
@@ -188,7 +187,7 @@ function compute_quadratic_pieces_pclf(
         end
 
         # create vars again for final solve
-        P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
+        P = [ JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s ]
         for i in 1:l_s
             JuMP.@constraint(model, P[i] - 0.5 * I_n in JuMP.PSDCone())
         end
@@ -223,28 +222,7 @@ function compute_quadratic_pieces_pclf(
 end
 
 function compute_polyhedral_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigraph)
-    return
-end
+    return 
+end 
 
-#test
-function main()
-    A1 = [1.5519 0.4474; 7.6412 7.4716]
-    A2 = [0.4750 9.1755; 1.8955 0.1850]
-    f = HybridSystems.discreteswitchedsystem([A1, A2])
-    #G = generate_DeBruijn_edges(2, 1, dual=false)
-    #println(G)
-
-    G = edgeList_to_LabDigraph([
-        (1, 3, 2),
-        (1, 4, 2),
-        (2, 1, 1),
-        (2, 2, 1),
-        (3, 3, 2),
-        (3, 4, 2),
-        (4, 1, 1),
-        (4, 2, 1),
-    ])
-
-    pclf = compute_quadratic_pieces_pclf(f, G; MLF = true)
-    return print(pclf.JSRapprox)
-end
+end # module
