@@ -4,7 +4,6 @@ import Dionysos
 const UT = Dionysos.Utils
 import HybridSystems
 import JuMP
-import Clarabel
 import MathOptInterface
 const MOI = MathOptInterface
 import LinearAlgebra
@@ -100,11 +99,11 @@ end
 
 function compute_quadratic_pieces_pclf(
     f::HybridSystems.HybridSystem,
-    G::LabDigraph;
+    G::LabDigraph,
+    optimizer;
     tol = 1e-8,
     maxiter = 200,
     MLF = false,
-    clarabel_params = Dict(),
 )
 
     # --- extract matrices from resetmaps ---
@@ -150,10 +149,7 @@ function compute_quadratic_pieces_pclf(
         gamma = (a + b) / 2
         γ2 = gamma^2
 
-        model = JuMP.Model(Clarabel.Optimizer)
-        for (k, v) in clarabel_params
-            JuMP.set_optimizer_attribute(model, k, v)
-        end
+        model = JuMP.Model(optimizer)
 
         # create P variables (anonymous) as matrix variables
         P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
@@ -192,10 +188,7 @@ function compute_quadratic_pieces_pclf(
     pieces = Dict{typeof(verts[1]), AbstractPiece}()
 
     if MLF
-        model = JuMP.Model(Clarabel.Optimizer)
-        for (k, v) in clarabel_params
-            set_optimizer_attribute(model, k, v)
-        end
+        model = JuMP.Model(optimizer)
 
         # create vars again for final solve
         P = [JuMP.@variable(model, [1:n, 1:n], Symmetric) for i in 1:l_s]
@@ -212,7 +205,6 @@ function compute_quadratic_pieces_pclf(
             JuMP.@constraint(model, expr in JuMP.PSDCone())
         end
 
-        JuMP.set_silent(model)
         JuMP.optimize!(model)
         st = JuMP.termination_status(model)
         if st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT
@@ -224,7 +216,7 @@ function compute_quadratic_pieces_pclf(
                 pieces[v] = EllipsoidalPiece(Pnum)
             end
         else
-            @warn "Final Clarabel solve not feasible/optimal. status = $st"
+            @warn "Final solve not feasible/optimal. status = $st"
             pieces = Dict{typeof(verts[1]), AbstractPiece}()
         end
     end

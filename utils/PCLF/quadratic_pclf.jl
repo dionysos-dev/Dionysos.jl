@@ -4,6 +4,8 @@ const UT = DI.Utils
 const PCLF = UT.PathCompleteFramework
 
 import HybridSystems
+import JuMP
+import Clarabel
 using Plots
 
 function script()
@@ -24,7 +26,9 @@ function script()
         (4, 2, 1),
     ])
 
-    pclf = PCLF.compute_quadratic_pieces_pclf(f, G; MLF = true)
+    optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
+
+    pclf = PCLF.compute_quadratic_pieces_pclf(f, G, optimizer; MLF = true)
     println(pclf.JSRapprox)
 
     gamma = 100.0
