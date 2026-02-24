@@ -71,7 +71,7 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
     - `1`: standard  
     - `2`: verbose/debug
 
-- `use_periodic_domain` (optional, default = `false`):  
+- `use_periodic_mapping` (optional, default = `false`):  
   If `true`, uses a periodic domain structure when discretizing the state space.
 
   When enabled, the following fields are required:
@@ -143,13 +143,22 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     ## User Settings
     empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
     abstraction_region::Any
-    incl_mode::DO.INCL_MODE
-    state_grid::Union{Nothing, Dionysos.Domain.Grid}
-    h::Union{Nothing, Any}
-    input_grid::Union{Nothing, Dionysos.Domain.Grid}
-    Udom::Union{Nothing, Dionysos.Domain.DomainType}
+    incl_mode::MP.INCL_MODE
 
-    use_periodic_domain::Bool
+    ## XMapping & Xset
+    XMapping::Union{Nothing, MP.GridMapping}
+    state_grid::Union{Nothing, MP.Grid}
+    h::Union{Nothing, Any}
+
+    Xset::Union{Nothing, MP.AbstractStateSet}
+    Rset::Union{Nothing, MP.AbstractStateSet}
+
+    ## UMapping & Uset
+    UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
+    Uset::Union{Nothing, MP.AbstractStateSet}
+    
+
+    use_periodic_mapping::Bool
     periodic_dims::Union{Nothing, Any}
     periodic_start::Union{Nothing, Any}
     periodic_periods::Union{Nothing, Any}
@@ -193,7 +202,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            DO.INNER,
+            MP.INNER,
             nothing,
             nothing,
             nothing,
@@ -346,77 +355,96 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
         ST.get_system(optimizer.discrete_time_system_approximation)
 end
 
-function build_state_domain(optimizer::OptimizerEmptyProblem)
-    # pick region with clear precedence
-    system_X = optimizer.abstraction_region
-    if system_X === nothing
-        system_X = optimizer.empty_problem.region
-        if system_X === nothing
-            system_X = optimizer.empty_problem.system.X
-        end
-    end
 
-    state_domain = nothing
-    if optimizer.use_periodic_domain
-        _validate_model(optimizer, [:periodic_dims, :periodic_periods])
-        if optimizer.state_grid !== nothing
-            state_domain =
-                optimizer.periodic_start !== nothing ?
-                DO.PeriodicDomainList(
-                    optimizer.periodic_dims,
-                    optimizer.periodic_periods,
-                    optimizer.periodic_start,
-                    optimizer.state_grid,
-                ) :
-                DO.PeriodicDomainList(
-                    optimizer.periodic_dims,
-                    optimizer.periodic_periods,
-                    optimizer.state_grid,
-                )
-        elseif optimizer.h !== nothing
-            state_domain =
-                optimizer.periodic_start !== nothing ?
-                DO.PeriodicDomainList(
-                    optimizer.periodic_dims,
-                    optimizer.periodic_periods,
-                    optimizer.periodic_start,
-                    optimizer.h,
-                ) :
-                DO.PeriodicDomainList(
-                    optimizer.periodic_dims,
-                    optimizer.periodic_periods,
-                    optimizer.h,
-                )
-        else
-            error(
-                "To build periodic state domain, either `state_grid` or `h` must be provided.",
-            )
-        end
-    else
-        if optimizer.state_grid !== nothing
-            state_domain = DO.DomainList(optimizer.state_grid)
-        elseif optimizer.h !== nothing
-            state_domain = DO.DomainList(optimizer.h)
-        else
-            error("To build state domain, either `state_grid` or `h` must be provided.")
-        end
-    end
-    # Fill the domain with relevant set
-    DO.add_set!(state_domain, system_X, optimizer.incl_mode)
-    return state_domain
+function _pick_state_region(opt::OptimizerEmptyProblem)
+    X = opt.abstraction_region
+    X === nothing && (X = opt.empty_problem.region)
+    X === nothing && (X = opt.empty_problem.system.X)
+    return X
 end
 
-function build_input_domain(optimizer::OptimizerEmptyProblem)
-    if optimizer.Udom !== nothing
-        return optimizer.Udom
+function build_state_grid(opt::OptimizerEmptyProblem)
+    # If user already gave a Grid object, use it directly.
+    if opt.state_grid !== nothing
+        return opt.state_grid
     end
-    domain_list = Dionysos.Domain.DomainList(optimizer.input_grid)
-    Dionysos.Domain.add_set!(
-        domain_list,
-        optimizer.empty_problem.system.U,
-        Dionysos.Domain.CENTER,
+
+    # Else build it from h (required).
+    if opt.h === nothing
+        error("To build the state grid, set either `state_grid` or `h`.")
+    end
+
+    if opt.use_periodic_mapping
+        _validate_model(opt, [:periodic_dims, :periodic_periods])
+        if opt.periodic_start !== nothing
+            return MP.get_grid(opt.periodic_dims, opt.periodic_periods, opt.periodic_start, opt.h)
+        else
+            return MP.get_grid(opt.periodic_dims, opt.periodic_periods, opt.h)
+        end
+    else
+        return MP.GridFree(opt.h)
+    end
+end
+
+function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
+    if opt.XMapping !== nothing
+        return opt.XMapping
+    end
+
+    grid = build_state_grid(opt)
+    X = _pick_state_region(opt)
+
+    # default mapping: explicit enumeration restricted to X
+    # (positions from set, dedup by dict)
+    # N is state dimension; if you store it elsewhere, use that.
+    N = Dionysos.Utils.get_dims(X)  # or MP.get_dim(grid) if you have it
+    m = MP.ExplicitGridMapping{N,T}(grid, X, opt.incl_mode)
+
+    # wrap periodicity if requested
+    if opt.use_periodic_mapping
+        P = length(opt.periodic_dims)
+        start = opt.periodic_start === nothing ? SVector{P,T}(ntuple(_->zero(T), P)) : opt.periodic_start
+        m = MP.PeriodicGridMapping(opt.periodic_dims, opt.periodic_periods, start, m)
+    end
+
+    return m
+end
+
+function build_state_set(opt::OptimizerEmptyProblem)
+    if opt.Xset !== nothing
+        return opt.Xset
+    end
+    m = build_state_mapping(opt)
+    N = MP.get_dim(m)
+    return MP.MappingSet{N}()
+end
+
+function build_allowed_state_set(opt::OptimizerEmptyProblem)
+    if opt.Rset !== nothing
+        return opt.Rset
+    end
+    return build_state_set(opt)   # Rset === Xset
+end
+
+function build_input_mapping(opt::OptimizerEmptyProblem{T}) where {T}
+    if opt.UMapping !== nothing
+        return opt.UMapping
+    end
+    M = MP.get_dim(opt.input_grid)
+    return MP.ExplicitGridMapping{M,T}(
+        opt.input_grid,
+        opt.empty_problem.system.U,
+        MP.CENTER,
     )
-    return domain_list
+end
+
+function build_input_set(opt::OptimizerEmptyProblem{T}) where {T}
+    if opt.Uset !== nothing
+        return opt.Uset
+    end
+    umap = build_input_mapping(opt)
+    M = MP.get_dim(umap)
+    return MP.MappingSet{M}()
 end
 
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
@@ -438,9 +466,12 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     # Create abstract system
     abstract_system = Dionysos.Symbolic.SymbolicModelList(
-        build_state_domain(optimizer),
-        build_input_domain(optimizer),
-        optimizer.automaton_constructor,
+        build_state_mapping(optimizer),
+        build_input_mapping(optimizer);
+        Xset = build_state_set(optimizer),
+        Rset = build_allowed_state_set(optimizer),
+        Uset = build_input_set(optimizer),
+        automaton_constructor = optimizer.automaton_constructor,
     )
 
     if optimizer.print_level >= 1
@@ -487,3 +518,66 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     optimizer.abstraction_construction_time_sec = time() - t_ref
     return
 end
+
+
+# function build_state_mapping(optimizer::OptimizerEmptyProblem)
+#     # pick region with clear precedence
+#     system_X = optimizer.abstraction_region
+#     if system_X === nothing
+#         system_X = optimizer.empty_problem.region
+#         if system_X === nothing
+#             system_X = optimizer.empty_problem.system.X
+#         end
+#     end
+
+#     state_domain = nothing
+#     if optimizer.use_periodic_mapping
+#         _validate_model(optimizer, [:periodic_dims, :periodic_periods])
+#         if optimizer.XMapping !== nothing
+            
+#         elseif optimizer.state_grid !== nothing
+#             state_domain =
+#                 optimizer.periodic_start !== nothing ?
+#                 MP.PeriodicDomainList(
+#                     optimizer.periodic_dims,
+#                     optimizer.periodic_periods,
+#                     optimizer.periodic_start,
+#                     optimizer.state_grid,
+#                 ) :
+#                 MP.PeriodicDomainList(
+#                     optimizer.periodic_dims,
+#                     optimizer.periodic_periods,
+#                     optimizer.state_grid,
+#                 )
+#         elseif optimizer.h !== nothing
+#             state_domain =
+#                 optimizer.periodic_start !== nothing ?
+#                 MP.PeriodicDomainList(
+#                     optimizer.periodic_dims,
+#                     optimizer.periodic_periods,
+#                     optimizer.periodic_start,
+#                     optimizer.h,
+#                 ) :
+#                 MP.PeriodicDomainList(
+#                     optimizer.periodic_dims,
+#                     optimizer.periodic_periods,
+#                     optimizer.h,
+#                 )
+#         else
+#             error(
+#                 "To build periodic state domain, either `state_grid` or `h` must be provided.",
+#             )
+#         end
+#     else
+#         if optimizer.state_grid !== nothing
+#             state_domain = MP.DomainList(optimizer.state_grid)
+#         elseif optimizer.h !== nothing
+#             state_domain = MP.DomainList(optimizer.h)
+#         else
+#             error("To build state domain, either `state_grid` or `h` must be provided.")
+#         end
+#     end
+#     # Fill the domain with relevant set
+#     MP.add_set!(state_domain, system_X, optimizer.incl_mode)
+#     return state_domain
+# end

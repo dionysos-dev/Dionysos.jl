@@ -1,12 +1,13 @@
 """
-    HyperRectangle{VT}
+    HyperRectangle{N,T}
 
-Defines a hyper-rectangle using `lb` (lower bound) and `ub` (upper bound).
+Axis-aligned hyper-rectangle with lower bound `lb` and upper bound `ub`.
 """
-struct HyperRectangle{VT}
-    lb::VT # Lower bounds of the rectangle
-    ub::VT # Upper bounds of the rectangle
+struct HyperRectangle{N,T} <: AbstractSetNode{N,T}
+    lb::SVector{N,T}
+    ub::SVector{N,T}
 end
+HyperRectangle(lb::SVector{N,T}, ub::SVector{N,T}) where {N,T} = HyperRectangle{N,T}(lb, ub)
 
 Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
 Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
@@ -32,16 +33,20 @@ affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
 get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 
+# --------------------------
+# Intersections with LazyUnion
 # (⋃Ai) ∩ B = ⋃(Ai ∩ B)
-function Base.intersect(A::LazyUnionSetArray, B::HyperRectangle)
-    sets = Any[]
-    sizehint!(sets, length(A.sets))
-    for ai in A.sets
-        push!(sets, intersect(ai, B))
+# --------------------------
+
+function Base.intersect(U::LazyUnion{N,T}, B::HyperRectangle{N,T}) where {N,T}
+    out = LazyUnion{N,T}()
+    sizehint!(out.sets, length(U.sets))
+    for ai in U.sets
+        push!(out.sets, intersect(ai, B))
     end
-    return LazyUnionSetArray(sets)
+    return out
 end
-Base.intersect(B::HyperRectangle, A::LazyUnionSetArray) = intersect(A, B)
+Base.intersect(B::HyperRectangle{N,T}, U::LazyUnion{N,T}) where {N,T} = intersect(U, B)
 
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
@@ -81,54 +86,66 @@ end
     end
 end
 
-function one_direction(lb, ub, T, T0)
-    if ub - lb >= T
-        return [(T0, T0 + T)]
+# --------------------------
+# Periodic splitting
+# --------------------------
+
+function one_direction(lb, ub, Tper, T0)
+    if ub - lb >= Tper
+        return [(T0, T0 + Tper)]
     else
-        lb = T0 + mod(lb - T0, T)
-        ub = T0 + mod(ub - T0, T)
-        if lb <= ub
-            return [(lb, ub)]
+        lbw = T0 + mod(lb - T0, Tper)
+        ubw = T0 + mod(ub - T0, Tper)
+        if lbw <= ubw
+            return [(lbw, ubw)]
         else
-            return [(T0, ub), (lb, T0 + T)]
+            return [(T0, ubw), (lbw, T0 + Tper)]
         end
     end
 end
-function recursive(L, rect, lb, ub, periodic, periods, start, i)
-    N = length(lb)
-    if i > length(periodic)
-        push!(L, HyperRectangle(SVector(lb), SVector(ub)))
+
+function _recursive_period_split!(
+    out,
+    rect::HyperRectangle{N,T},
+    lb::NTuple{N,T},
+    ub::NTuple{N,T},
+    periodic_dims::SVector{P,Int},
+    periods::SVector{P,T},
+    start::SVector{P,T},
+    i::Int,
+) where {N,T,P}
+    if i > P
+        push!(out, HyperRectangle(SVector{N,T}(lb), SVector{N,T}(ub)))
         return
     end
-    dim = periodic[i]
+    dim = periodic_dims[i]
     intervals = one_direction(rect.lb[dim], rect.ub[dim], periods[i], start[i])
-    for interval in intervals
-        l = ntuple(i -> i == dim ? interval[1] : lb[i], Val(N))
-        u = ntuple(i -> i == dim ? interval[2] : ub[i], Val(N))
-        recursive(L, rect, l, u, periodic, periods, start, i + 1)
+    for (lI, uI) in intervals
+        l = ntuple(k -> k == dim ? lI : lb[k], Val(N))
+        u = ntuple(k -> k == dim ? uI : ub[k], Val(N))
+        _recursive_period_split!(out, rect, l, u, periodic_dims, periods, start, i + 1)
     end
 end
 
 """
-    set_in_period(
-        rect::HyperRectangle,
-        start::SVector{P, T},
-        periods::SVector{P, T},
-        periodic_dims::SVector{P, Int}
-    ) -> LazyUnionSetArray{HyperRectangle}
+    set_in_period(rect, periodic_dims, periods, start) -> LazyUnion{N,T}
 
-Split a rectangle along periodic boundaries (if it crosses any) and return
-a LazyUnionSetArray of wrapped rectangles.
+Split `rect` along periodic boundaries and return a `LazyUnion` of wrapped rectangles.
 """
 function set_in_period(
-    rect::HyperRectangle,
+    rect::HyperRectangle{N,T},
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-) where {T, P}
-    L = typeof(rect)[]
-    recursive(L, rect, rect.lb, rect.ub, periodic_dims, periods, start, 1)
-    return LazyUnionSetArray(L)
+) where {N,T,P}
+    L = HyperRectangle{N,T}[]
+    _recursive_period_split!(L, rect, Tuple(rect.lb), Tuple(rect.ub),
+                            periodic_dims, periods, start, 1)
+
+    # you need a constructor; otherwise build explicitly:
+    U = LazyUnion{N,T}()
+    append!(U.sets, L)
+    return U
 end
 
 """
@@ -136,41 +153,42 @@ end
 
 A deformed rectangle.
 """
-struct DeformedRectangle
-    rect::HyperRectangle
+struct DeformedRectangle{N,T} <: AbstractSetNode{N,T}
+    rect::HyperRectangle{N,T}
     f::Function
 end
 
-function SampleBoundaryDeformedRectangle(drect::DeformedRectangle; N = 50, dims = [1, 2])
+function SampleBoundaryDeformedRectangle(drect::DeformedRectangle{N,T}; K=50, dims=(1,2)) where {N,T}
     rect = drect.rect
     f = drect.f
-    lb = rect.lb[dims]
-    ub = rect.ub[dims]
-    points = SVector[]
+    d1, d2 = dims
+    lb = rect.lb[[d1,d2]]
+    ub = rect.ub[[d1,d2]]
 
-    # Compute images of the rectangle boundary points
-    for x in LinRange(lb[1], ub[1], N)
+    points = SVector{2,T}[]  # assumes dims=(1,2); generalize if needed
+
+    for x in LinRange(lb[1], ub[1], K)
         push!(points, f(SVector(x, lb[2])))
     end
-    for y in LinRange(lb[2], ub[2], N)
+    for y in LinRange(lb[2], ub[2], K)
         push!(points, f(SVector(ub[1], y)))
     end
-    for x in LinRange(ub[1], lb[1], N)
+    for x in LinRange(ub[1], lb[1], K)
         push!(points, f(SVector(x, ub[2])))
     end
-    for y in LinRange(ub[2], lb[2], N)
+    for y in LinRange(ub[2], lb[2], K)
         push!(points, f(SVector(lb[1], y)))
     end
 
     return points
 end
 
-@recipe function f(drect::DeformedRectangle; dims = [1, 2], N = 50, dims = [1, 2])
-    points = SampleBoundaryDeformedRectangle(drect; N = N, dims = dims)
-    x = [point[1] for point in points]
-    y = [point[2] for point in points]
+@recipe function f(drect::DeformedRectangle; dims=(1,2), K=50)
+    pts = SampleBoundaryDeformedRectangle(drect; K=K, dims=dims)
+    x = getindex.(pts, 1)
+    y = getindex.(pts, 2)
     @series begin
         seriestype := :polygon
-        return (x, y)
+        (x, y)
     end
 end

@@ -6,15 +6,13 @@ SymbolicModelList:
 - Uset: inputs considered
 """
 mutable struct SymbolicModelList{
-    N,
-    M,
-    XM <: Mappings.AbstractMapping{N,Any},
-    UM <: Mappings.AbstractMapping{M,Any},
-    XS <: AbstractIdSet,
-    RS <: AbstractIdSet,
-    US <: AbstractIdSet,
-    A,
-    OS,
+    N,M,
+    XM <: MP.AbstractMapping{N,Any},
+    UM <: MP.AbstractMapping{M,Any},
+    XS <: MP.AbstractStateSet{N},
+    RS <: MP.AbstractStateSet{N},
+    US <: MP.AbstractStateSet{M},
+    A, OS,
 } <: GridBasedSymbolicModel{N,M}
     XMapping::XM
     UMapping::UM
@@ -25,87 +23,62 @@ mutable struct SymbolicModelList{
     original_symmodel::OS
 end
 
-# -----------------------
-# State/Input enumeration
-# -----------------------
+# --- small helpers to build defaults ---
+_default_stateset(::MP.AbstractMapping{N,Any}) where {N} = MappingSet{N}()  # your MappingSet{N}
 
-get_n_state(sym::SymbolicModelList) = Mappings.get_n_state(sym.XMapping)
-get_n_input(sym::SymbolicModelList) = Mappings.get_n_state(sym.UMapping)
+"""
+    SymbolicModelList(XMapping, UMapping; Xset=nothing, Rset=nothing, Uset=nothing,
+                      automaton_constructor=(n,m)->NewSortedAutomatonList(n,m),
+                      original_symmodel=nothing)
 
-enum_states(sym) = enum_states(sym.Xset, sym.XMapping)
-enum_inputs(sym) = enum_states(sym.Uset, sym.UMapping)
+Defaults:
+- Xset = MappingSet{N}()  (all states in XMapping)
+- Rset = Xset             (alias)
+- Uset = MappingSet{M}()  (all inputs in UMapping)
+"""
+function SymbolicModelList(
+    XMapping::XM,
+    UMapping::UM;
+    Xset::Union{Nothing, MP.AbstractStateSet}=nothing,
+    Rset::Union{Nothing, MP.AbstractStateSet}=nothing,
+    Uset::Union{Nothing, MP.AbstractStateSet}=nothing,
+    automaton_constructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+    original_symmodel = nothing,
+) where {N,M,XM<:MP.AbstractMapping{N,Any},UM<:MP.AbstractMapping{M,Any}}
 
-is_active_state(sym,q) = contains_state(sym.Xset, sym.XMapping, q)
-is_allowed_state(sym,q) = contains_state(sym.Rset, sym.XMapping, q)
+    UMapping = MP.convert_to_list_mapping(UMapping) 
+    # defaults
+    Xset_final = Xset === nothing ? _default_stateset(XMapping) : Xset
+    Uset_final = Uset === nothing ? _default_stateset(UMapping) : Uset
 
-enum_all_states(sym::SymbolicModelList) = Mappings.enum_states(sym.XMapping)
-enum_all_inputs(sym::SymbolicModelList) = Mappings.enum_states(sym.UMapping)
+    # Rset defaults to the *same object* as Xset (what you requested)
+    Rset_final = Rset === nothing ? Xset_final : Rset
 
-enum_active_states(sym::SymbolicModelList) = enum_states(sym)
-enum_allowed_states(sym::SymbolicModelList) = enum_ids(sym.Rset)
+    autom = automaton_constructor(
+        MP.get_n_state(Xset_final, XMapping),
+        MP.get_n_state(Uset_final, UMapping),
+    )
 
-is_active_state(sym::SymbolicModelList, q::Int) = (q in sym.Xset)
-is_allowed_state(sym::SymbolicModelList, q::Int) = (q in sym.Rset)
+    return SymbolicModelList(
+        XMapping,
+        UMapping,
+        Xset_final,
+        Rset_final,
+        Uset_final,
+        autom,
+        original_symmodel,
+    )
+end
 
-# For now, "domain" getters return sets (not grids)
+# --- interface ---
+get_state_mapping(sym::SymbolicModelList) = sym.XMapping
+get_input_mapping(sym::SymbolicModelList) = sym.UMapping
+
 get_state_domain(sym::SymbolicModelList) = sym.Xset
+get_allowed_state_domain(sym::SymbolicModelList) = sym.Rset
 get_input_domain(sym::SymbolicModelList) = sym.Uset
 
-# -----------------------
-# Mapping-based conversions
-# -----------------------
-
-get_xpos_by_state(sym::SymbolicModelList, q::Int) =
-    Mappings.get_pos_by_state(sym.XMapping, q)
-
-get_state_by_xpos(sym::SymbolicModelList, pos) =
-    Mappings.get_state_by_pos(sym.XMapping, pos)
-
-is_xpos(sym::SymbolicModelList, pos) =
-    Mappings.is_valid_pos(sym.XMapping, pos)
-
-get_concrete_state(sym::SymbolicModelList, q::Int) =
-    Mappings.get_coord_by_state(sym.XMapping, q)
-
-get_abstract_state(sym::SymbolicModelList, x) =
-    Mappings.get_state_by_coord(sym.XMapping, x)
-
-get_concrete_input(sym::SymbolicModelList, u::Int) =
-    Mappings.get_coord_by_state(sym.UMapping, u)
-
-get_abstract_input(sym::SymbolicModelList, ucoord) =
-    Mappings.get_state_by_coord(sym.UMapping, ucoord)
-
-# -----------------------
-# Automaton passthrough
-# -----------------------
-
-pre(sym::SymbolicModelList, target::Int) = pre(sym.autom, target)
-post(sym::SymbolicModelList, source::Int, input::Int) = post(sym.autom, source, input)
-enum_transitions(sym::SymbolicModelList) = enum_transitions(sym.autom)
-add_transition!(sym::SymbolicModelList, q::Int, q′::Int, u::Int) = add_transition!(sym.autom, q, q′, u)
-add_transitions!(sym::SymbolicModelList, translist) = add_transitions!(sym.autom, translist)
-is_deterministic(sym::SymbolicModelList) = is_deterministic(sym.autom)
-
-# -----------------------
-# Transition filter logic you wanted
-# -----------------------
-
-"""
-should_keep_target(sym, q′; keep_outside=false)
-
-Keep if:
-- q′ ∈ Xset
-- OR (keep_outside && q′ ∈ Rset)
-"""
-should_keep_target(sym, q′; keep_outside=false) =
-    contains_state(sym.Xset, sym.XMapping, q′) ||
-    (keep_outside && contains_state(sym.Rset, sym.XMapping, q′))
-
-
-
-
-
+get_automaton(sym::SymbolicModelList) = sym.autom
 
 
 # """

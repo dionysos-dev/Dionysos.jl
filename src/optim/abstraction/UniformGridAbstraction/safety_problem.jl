@@ -48,7 +48,7 @@ These fields are automatically filled in by `MOI.optimize!`.
 ### Example
 
 ```julia
-using Dionysos, JuMP
+using Dionysos,
 optimizer = MOI.instantiate(Dionysos.Optim.OptimizerSafetyProblem.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), my_problem)

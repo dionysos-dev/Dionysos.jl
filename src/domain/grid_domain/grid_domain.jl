@@ -41,6 +41,7 @@ add_coord!(domain::GridDomainType, x) = add_pos!(domain, get_pos_by_coord(domain
 crop_to_domain(domain::GridDomainType, list_pos) = list_pos ∩ enum_pos(domain)
 convert_to_custom_domain(domain::GridDomainType) = CustomList(enum_coords(domain))
 
+
 function get_subset_pos(
     domain::GridDomainType,
     rect::UT.HyperRectangle,

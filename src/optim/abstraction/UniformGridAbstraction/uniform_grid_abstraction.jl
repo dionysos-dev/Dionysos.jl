@@ -6,8 +6,9 @@ import Dionysos
 const UT = Dionysos.Utils
 const PR = Dionysos.Problem
 const ST = Dionysos.System
+const MP = Dionysos.Mapping
 const SY = Dionysos.Symbolic
-const DO = Dionysos.Domain
+
 
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems
@@ -296,8 +297,8 @@ function solve_concrete_problem(
     end
 
     X = PredicateDomain(is_defined)
-    nx::Int = Dionysos.Symbolic.get_concrete_state_dim(abstract_system)
-    nu::Int = Dionysos.Symbolic.get_concrete_input_dim(abstract_system)
+    nx::Int = Dionysos.Symbolic.get_state_dim(abstract_system)
+    nu::Int = Dionysos.Symbolic.get_input_dim(abstract_system)
     return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
@@ -368,8 +369,8 @@ function solve_concrete_problem(
     X_qax = PredicateDomain(is_defined_qax)
 
     # Build MS objects
-    nx = Dionysos.Symbolic.get_concrete_state_dim(abstract_system)
-    nu = Dionysos.Symbolic.get_concrete_input_dim(abstract_system)
+    nx = Dionysos.Symbolic.get_state_dim(abstract_system)
+    nu = Dionysos.Symbolic.get_input_dim(abstract_system)
 
     outmap = MS.ConstrainedBlackBoxMap(2, nu, qax -> begin
         qa, x = qax
@@ -446,7 +447,7 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
             warn && @warn("State out of domain: $x")
             return nothing
         end
-    elseif mode == 1
+    """elseif mode == 1
         return (x, abs_sys) -> begin
             Xdom = SY.get_state_domain(abs_sys)
             xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
@@ -464,7 +465,7 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
             # Convert abstract position back to a representative concrete point.
             # If your Domain uses grid cells, you may want the cell center coordinate here.
             return Dionysos.Domain.get_coord_by_pos(Xdom, xnew_pos)
-        end
+        end"""
     else
         error("Unknown mode=$mode")
     end
@@ -518,7 +519,7 @@ end
 
 using DataFrames, CSV
 
-function export_controller_csv(
+"""function export_controller_csv(
     optimizer::UniformGridAbstraction.Optimizer,
     filename::String,
 )
@@ -628,6 +629,6 @@ function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
     end
 
     return origin, h, pos2state, state2input, input2u
-end
+end"""
 
 end

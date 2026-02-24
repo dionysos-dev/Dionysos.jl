@@ -1,25 +1,16 @@
-struct Ellipsoid{T <: Real, MT <: AbstractMatrix{T}, VT <: AbstractVector{T}}
+struct Ellipsoid{N,T,MT<:SMatrix{N,N,T},VT<:SVector{N,T}} <: AbstractSetNode{N,T}
     P::MT
     c::VT
-    function Ellipsoid(
-        P::MT,
-        c::VT,
-    ) where {T <: Real, MT <: AbstractMatrix{T}, VT <: AbstractVector{T}}
-        M = (P + P') ./ 2
-        if !isposdef(M) # see if delete this test
-            error("matrix must be positive definite")
-        end
-        return new{T, MT, VT}(M, c)
+    function Ellipsoid(P::MT, c::VT) where {N,T,MT<:SMatrix{N,N,T},VT<:SVector{N,T}}
+        M = (P + P')/2
+        isposdef(Matrix(M)) || error("matrix must be positive definite")
+        return new{N,T,MT,VT}(M, c)
     end
 end
 
-function get_center(elli::Ellipsoid)
-    return elli.c
-end
 
-function get_shape(elli::Ellipsoid)
-    return elli.P
-end
+get_center(e::Ellipsoid) = e.c
+get_shape(elli::Ellipsoid) = elli.P
 
 function get_dims(elli::Ellipsoid)
     return length(elli.c)

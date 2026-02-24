@@ -86,8 +86,8 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Specific parameters
     early_stop::Union{Nothing, Bool}
     sparse_input::Bool
-    controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
-    uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
+    controllable_set::Union{Nothing, MP.AbstractStateSet}   
+    uncontrollable_set::Union{Nothing, MP.AbstractStateSet} 
     value_fun_tab::Union{Nothing, Any} # Value function in tabular form, Inf means uncontrollable state
     abstract_value_function::Union{Nothing, Any}
     concrete_value_function::Union{Nothing, Any}
@@ -165,24 +165,28 @@ end
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t_ref = time()
 
-    # Ensure abstract system is set before proceeding
-    if optimizer.abstract_system === nothing
+    optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    end
+    optimizer.concrete_problem === nothing &&
+        error("Concrete problem is not defined.")
 
-    # Build the abstract problem from the concrete problem
+    # Build abstract problem
     optimizer.abstract_problem =
         build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
 
-    # Compute the largest controllable set
+    sym = optimizer.abstract_system
+    xm  = SY.get_state_mapping(sym)  # mapping for abstract state ids
+
+    # initial set for early stop
     init_set =
         optimizer.early_stop ? optimizer.abstract_problem.initial_set :
-        Dionysos.Symbolic.enum_states(optimizer.abstract_problem.system)
+        SY.enum_states(optimizer.abstract_problem.system)  # <- these are ids already
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
+
     abstract_controller,
-    controllable_set_symbols,
-    uncontrollable_set_symbols,
+    controllable_ids,
+    uncontrollable_ids,
     value_fun_tab = SY.compute_worst_case_cost_controller(
         optimizer.abstract_problem.system.autom,
         optimizer.abstract_problem.target_set;
@@ -191,32 +195,27 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         cost_function = optimizer.abstract_problem.transition_cost,
     )
 
-    controllable_set = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        controllable_set_symbols,
-    )
-    uncontrollable_set = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        uncontrollable_set_symbols,
-    )
+    # Store as AbstractStateSet (BitSet-backed)
+    controllable_set = MP.stateset_from_states(xm, controllable_ids)
+    uncontrollable_set = MP.stateset_from_states(xm, uncontrollable_ids)
 
     optimizer.abstract_controller = abstract_controller
-    optimizer.controllable_set = controllable_set
+    optimizer.controllable_set   = controllable_set
     optimizer.uncontrollable_set = uncontrollable_set
     optimizer.value_fun_tab = value_fun_tab
-    optimizer.abstract_value_function =
-        build_abstract_value_function(optimizer.value_fun_tab)
-    optimizer.concrete_value_function = build_concrete_value_function(
-        optimizer.abstract_system,
-        optimizer.abstract_value_function,
-    )
 
-    # Display results
-    if ⊆(optimizer.abstract_problem.initial_set, controllable_set_symbols)
-        optimizer.success = true
-    end
+    optimizer.abstract_value_function = build_abstract_value_function(value_fun_tab)
+    optimizer.concrete_value_function =
+        build_concrete_value_function(sym, optimizer.abstract_value_function)
+
+    # success check: "initial_set ⊆ controllable"
+    # If initial_set is a vector of ids, use all(contains_state(...)).
+    # If initial_set is already a state set, you can iterate its enum.
+    optimizer.success = all(q -> MP.contains_state(controllable_set, xm, q), init_set)
+
     optimizer.print_level >= 1 &&
         println("\n Reachability: terminated with $(optimizer.success)")
+
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end
