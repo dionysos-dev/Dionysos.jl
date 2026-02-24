@@ -31,9 +31,7 @@ function rescale_domain(domain::GridDomainType, scale::Float64) end
 get_pos_by_coord(domain::GridDomainType, coord) = get_pos_by_coord(get_grid(domain), coord)
 get_coord_by_pos(domain::GridDomainType, pos) = get_coord_by_pos(get_grid(domain), pos)
 get_elem_by_pos(domain::GridDomainType, pos) = get_elem_by_pos(get_grid(domain), pos)
-get_elem_by_coord(domain::GridDomainType, coord) =
-    get_elem_by_pos(domain, get_pos_by_coord(domain, coord))
-
+get_elem_by_coord(domain::GridDomainType, coord) = get_elem_by_pos(domain, get_pos_by_coord(domain, coord))
 get_dim(domain::GridDomainType) = get_dim(get_grid(domain))
 enum_coords(domain::GridDomainType) =
     [get_coord_by_pos(domain, pos) for pos in enum_pos(domain)]

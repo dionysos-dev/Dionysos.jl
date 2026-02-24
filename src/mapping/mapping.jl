@@ -1,5 +1,9 @@
 module Mapping
 
+using Base.Iterators
+import StaticArrays: SVector, SMatrix
+import RecipesBase: @recipe, @series
+
 using ..Domain
 const DO = Domain
 
