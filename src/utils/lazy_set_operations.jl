@@ -3,6 +3,9 @@
 # ----------------------------
 
 abstract type AbstractLazySet{N,T} end
+
+get_dims(::AbstractLazySet{N,T}) where {N,T} = N
+
 abstract type AbstractSetNode{N,T} <: AbstractLazySet{N,T} end
 
 # ----------------------------
@@ -14,6 +17,8 @@ struct LazyUnion{N,T} <: AbstractLazySet{N,T}
 end
 
 LazyUnion{N,T}() where {N,T} = LazyUnion{N,T}(AbstractSetNode{N,T}[])
+LazyUnion(v::Vector{<:AbstractSetNode{N,T}}) where {N,T} =
+    LazyUnion{N,T}(AbstractSetNode{N,T}[s for s in v])
 
 Base.isempty(U::LazyUnion) = isempty(U.sets)
 get_sets(U::LazyUnion) = U.sets
@@ -84,7 +89,7 @@ function add_set!(U::LazyUnion{N,T}, s) where {N,T}
     if s isa AbstractSetNode{N,T}
         push!(U.sets, s)
     elseif s isa LazyUnion{N,T}
-        append!(U.sets, s.sets)
+        Base.append!(U.sets, s.sets)
     else
         throw(ArgumentError("Invalid type $(typeof(s)) for LazyUnion{$N,$T}"))
     end
@@ -126,4 +131,40 @@ function set_in_period(S::LazySetMinus{N,T}, periodic_dims, periods, start) wher
     B2 = set_in_period(S.B, periodic_dims, periods, start)
     _assert_not_minus(A2); _assert_not_minus(B2)
     return LazySetMinus(A2, B2)
+end
+
+@recipe function f(U::LazyUnion; dims = [1,2], label = "set")
+    dims := dims
+
+    first_series = true
+    for s in U.sets
+        @series begin
+            label := first_series ? label : ""
+            first_series = false
+            return s
+        end
+    end
+end
+
+@recipe function f(
+    S::LazySetMinus;
+    dims = [1, 2],
+    hole_color = :gray,
+    hole_alpha = 1.0,
+    label = "Set",
+)
+    dims := dims
+
+    @series begin
+        label := label
+        return S.A
+    end
+
+    @series begin
+        label := ""
+        seriestype := :shape
+        fillcolor := hole_color
+        fillalpha := hole_alpha
+        return S.B
+    end
 end

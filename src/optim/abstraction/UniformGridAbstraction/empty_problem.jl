@@ -155,6 +155,9 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
     ## UMapping & Uset
     UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
+
+    input_grid::Union{Nothing, MP.Grid}
+
     Uset::Union{Nothing, MP.AbstractStateSet}
     
 
@@ -203,6 +206,10 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             MP.INNER,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -377,9 +384,9 @@ function build_state_grid(opt::OptimizerEmptyProblem)
     if opt.use_periodic_mapping
         _validate_model(opt, [:periodic_dims, :periodic_periods])
         if opt.periodic_start !== nothing
-            return MP.get_grid(opt.periodic_dims, opt.periodic_periods, opt.periodic_start, opt.h)
+            return MP.get_grid_in_periods(opt.periodic_dims, opt.periodic_periods, opt.periodic_start, opt.h)
         else
-            return MP.get_grid(opt.periodic_dims, opt.periodic_periods, opt.h)
+            return MP.get_grid_in_periods(opt.periodic_dims, opt.periodic_periods, opt.h)
         end
     else
         return MP.GridFree(opt.h)
@@ -395,10 +402,8 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     X = _pick_state_region(opt)
 
     # default mapping: explicit enumeration restricted to X
-    # (positions from set, dedup by dict)
-    # N is state dimension; if you store it elsewhere, use that.
-    N = Dionysos.Utils.get_dims(X)  # or MP.get_dim(grid) if you have it
-    m = MP.ExplicitGridMapping{N,T}(grid, X, opt.incl_mode)
+    N = MP.get_dim(grid)
+    m = MP.ExplicitGridMapping{N,T}(grid)
 
     # wrap periodicity if requested
     if opt.use_periodic_mapping
@@ -406,6 +411,8 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
         start = opt.periodic_start === nothing ? SVector{P,T}(ntuple(_->zero(T), P)) : opt.periodic_start
         m = MP.PeriodicGridMapping(opt.periodic_dims, opt.periodic_periods, start, m)
     end
+
+    MP.add_set!(m, X, opt.incl_mode)
 
     return m
 end

@@ -1,3 +1,5 @@
+import Base
+
 """
     HyperRectangle{N,T}
 
@@ -8,6 +10,8 @@ struct HyperRectangle{N,T} <: AbstractSetNode{N,T}
     ub::SVector{N,T}
 end
 HyperRectangle(lb::SVector{N,T}, ub::SVector{N,T}) where {N,T} = HyperRectangle{N,T}(lb, ub)
+HyperRectangle(lb::NTuple{N,Ti}, ub::NTuple{N,Ti}) where {N,Ti} = HyperRectangle(SVector{N,Ti}(lb), SVector{N,Ti}(ub))
+HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} = HyperRectangle(SVector{length(lb),Ti}(lb), SVector{length(ub),Ti}(ub))
 
 Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
 Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
@@ -144,7 +148,7 @@ function set_in_period(
 
     # you need a constructor; otherwise build explicitly:
     U = LazyUnion{N,T}()
-    append!(U.sets, L)
+    Base.append!(U.sets, L)
     return U
 end
 

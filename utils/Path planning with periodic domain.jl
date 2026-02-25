@@ -2,8 +2,8 @@ using StaticArrays, JuMP, Plots
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -19,19 +19,19 @@ x0 = SVector(0.0, 0.1, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-periodic_dims = SVector(2); # SVector(1, 2);
-periods = SVector(10.0); # SVector(4.0, 10.0);
-periodic_start = SVector(0.0); # SVector(1.0);
+periodic_dims =SVector(1, 2);
+periods = SVector(4.0, 10.0);
+periodic_start = SVector(0.0, 0.0); # SVector(1.0);
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), Dionysos.Domain.GridFree(x0, hx))
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), MP.GridFree(x0, hx))
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("input_grid"),
-    Dionysos.Domain.GridFree(u0, hu),
+    MP.GridFree(u0, hu),
 )
 MOI.set(
     optimizer,
@@ -44,12 +44,13 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false) # true
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 MOI.optimize!(optimizer);
 
@@ -103,12 +104,15 @@ x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
 fig = plot(; aspect_ratio = :equal, legend = false);
 # We display the concrete domain
 state_space = concrete_system.X
-system_domain_in_periodic =
-    UT.set_in_period(state_space, periodic_dims, periods, periodic_start)
+system_domain_in_periodic = UT.set_in_period(state_space, periodic_dims, periods, periodic_start)
 plot!(system_domain_in_periodic; color = :grey, opacity = 1.0, label = "");
 
 # We display the abstract domain with worst-case cost
-plot!(abstract_system; value_function = abstract_value_function);
+XMapping = SY.get_state_mapping(abstract_system)
+Xset = SY.get_state_domain(abstract_system)
+# plot!(abstract_system; value_function = abstract_value_function);
+plot!(XMapping; color = :grey)
+plot!((Xset, XMapping); color = :yellow)
 
 # We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
@@ -122,14 +126,14 @@ plot!(
 );
 
 # We display the abstract specifications
-plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
-    color = :green,
-);
-plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
-    color = :red,
-);
+# plot!(
+#     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+#     color = :green,
+# );
+# plot!(
+#     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+#     color = :red,
+# );
 
 # We display the concrete trajectory
 plot!(x_traj; ms = 2.0, arrows = false)

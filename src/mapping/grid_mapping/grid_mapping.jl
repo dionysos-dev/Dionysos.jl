@@ -25,20 +25,61 @@ get_coord_by_state(m::GridMapping{N,T}, q::Int) where {N,T} = get_coord_by_pos(g
 
 convert_to_list_mapping(m::GridMapping) = ListMapping(collect(enum_coords(m)))
 
-function get_states_from_set(
+# returns (states, allin) where allin=false if any covered grid-pos is invalid
+function get_states_from_set_strict(
     m::GridMapping{N},
     rect::UT.HyperRectangle,
     incl_mode::INCL_MODE,
 ) where {N}
     grid = get_grid(m)
     rectI = get_pos_lims(grid, rect, incl_mode)
+
     qs = Int[]
+    allin = true
+
     for pos in Iterators.product(_ranges(rectI)...)
         p = pos::NTuple{N,Int}
         if is_valid_pos(m, p)
             push!(qs, get_state_by_pos(m, p))
+        else
+            allin = false
         end
     end
+    return qs, allin
+end
+
+function get_states_from_set_strict(
+    m::GridMapping{N},
+    subsets::UT.LazyUnion,
+    incl_mode::INCL_MODE,
+) where {N}
+    acc = Int[]
+    allin = true
+    for subset in subsets.sets
+        qs, ok = get_states_from_set_strict(m, subset, incl_mode)
+        Base.append!(acc, qs)
+        allin &= ok
+    end
+    unique!(acc)
+    return acc, allin
+end
+
+function get_states_from_set_strict(
+    m::GridMapping{N},
+    set::UT.LazySetMinus,
+    incl_mode::INCL_MODE,
+) where {N}
+    states_A, okA = get_states_from_set_strict(m, set.A, incl_mode)
+    states_B, okB = get_states_from_set_strict(m, set.B, _invInclMode(incl_mode))
+    return setdiff(states_A, states_B), (okA && okB)
+end
+
+function get_states_from_set(
+    m::GridMapping{N},
+    rect::UT.HyperRectangle,
+    incl_mode::INCL_MODE,
+) where {N}
+    qs, _ = get_states_from_set_strict(m, rect, incl_mode)
     return qs
 end
 
@@ -47,12 +88,8 @@ function get_states_from_set(
     subsets::UT.LazyUnion,
     incl_mode::INCL_MODE,
 ) where {N}
-    acc = Int[]
-    for subset in subsets.sets
-        append!(acc, get_states_from_set(m, subset, incl_mode))
-    end
-    unique!(acc)
-    return acc
+    qs, _ = get_states_from_set_strict(m, subsets, incl_mode)
+    return qs
 end
 
 function get_states_from_set(
@@ -60,11 +97,130 @@ function get_states_from_set(
     set::UT.LazySetMinus,
     incl_mode::INCL_MODE,
 ) where {N}
-    # A uses incl_mode
-    states_A = get_states_from_set(m, set.A, incl_mode)
-    # B uses opposite incl mode
-    states_B = get_states_from_set(m, set.B, _invInclMode(incl_mode))
-    return setdiff(states_A, states_B)
+    qs, _ = get_states_from_set_strict(m, set, incl_mode)
+    return qs
+end
+
+# ----------------------------
+# Plotting
+# ----------------------------
+
+struct IntRect2
+    lb::NTuple{2,Int}
+    ub::NTuple{2,Int}
+end
+
+function merge_rectangles_2d(pos2d::AbstractVector{NTuple{2,Int}})
+    isempty(pos2d) && return IntRect2[]
+
+    rows = Dict{Int, Vector{Int}}()
+    for (x,y) in pos2d
+        push!(get!(rows, y, Int[]), x)
+    end
+    for xs in values(rows); sort!(xs) end
+
+    intervals = Tuple{Int,Int,Int}[]  # (y, x1, x2)
+    ys = sort!(collect(keys(rows)))
+    for y in ys
+        xs = rows[y]
+        i = 1
+        while i <= length(xs)
+            x1 = xs[i]; x2 = x1
+            while i < length(xs) && xs[i+1] == x2 + 1
+                i += 1; x2 = xs[i]
+            end
+            push!(intervals, (y, x1, x2))
+            i += 1
+        end
+    end
+
+    sort!(intervals)
+    rects = IntRect2[]
+    i = 1
+    while i <= length(intervals)
+        y, x1, x2 = intervals[i]
+        y1 = y; y2 = y
+        i += 1
+        while i <= length(intervals)
+            y_next, x1_next, x2_next = intervals[i]
+            if x1_next == x1 && x2_next == x2 && y_next == y2 + 1
+                y2 = y_next
+                i += 1
+            else
+                break
+            end
+        end
+        push!(rects, IntRect2((x1,y1), (x2,y2)))
+    end
+    return rects
+end
+
+function intrect2_to_real_rect(grid, r::IntRect2, d1::Int, d2::Int)
+    orig = get_origin(grid)
+    h    = get_h(grid)
+    T    = eltype(orig)
+
+    lb = SVector{2,T}(
+        orig[d1] + r.lb[1]*h[d1] - h[d1]/2,
+        orig[d2] + r.lb[2]*h[d2] - h[d2]/2,
+    )
+    ub = SVector{2,T}(
+        orig[d1] + r.ub[1]*h[d1] + h[d1]/2,
+        orig[d2] + r.ub[2]*h[d2] + h[d2]/2,
+    )
+    return UT.HyperRectangle(lb, ub)
+end
+
+function positions2d_from_states(m::GridMapping{N}, states; dims=[1,2]) where {N}
+    d1 = dims[1]
+    d2 = dims[2]
+    out = NTuple{2,Int}[]
+    seen = Set{NTuple{2,Int}}()
+    for q in states
+        p = get_pos_by_state(m, q)
+        xy = (p[d1], p[d2])
+        if !(xy in seen)
+            push!(seen, xy)
+            push!(out, xy)
+        end
+    end
+    return out
+end
+
+@recipe function f(
+    m::GridMapping{N,T};
+    dims = [1,2],
+    efficient = true,
+    label = "",
+) where {N,T}
+    grid = get_grid(m)
+    d1 = dims[1]
+    d2 = dims[2]
+
+    states = enum_states(m)
+    pos2d = positions2d_from_states(m, states; dims=dims)
+
+    first_series = true
+    if !efficient
+        # plot each cell (slow)
+        for (x,y) in pos2d
+            @series begin
+                label := first_series ? label : ""
+                first_series = false
+                return grid, (x,y)
+            end
+        end
+    else
+        rects = merge_rectangles_2d(pos2d)
+        for r in rects
+            @series begin
+                label := first_series ? label : ""
+                first_series = false
+                dims := [1,2]
+                return intrect2_to_real_rect(grid, r, d1, d2)
+            end
+        end
+    end
 end
 
 # ----------------------------
@@ -81,9 +237,24 @@ struct ExplicitGridMapping{N,T,G} <: GridMapping{N,T}
     id2pos::Vector{NTuple{N,Int}}
 end
 
+function ExplicitGridMapping(grid::G) where {N,T,G}
+    return ExplicitGridMapping{N,T,G}(
+        grid,
+        Dict{NTuple{N,Int},Int}(),
+        NTuple{N,Int}[],
+    )
+end
 
 function ExplicitGridMapping{N,T}(grid::G) where {N,T,G}
-    return ExplicitGridMapping{N,T,G}(grid, Dict{NTuple{N,Int},Int}(), NTuple{N,Int}[])
+    return ExplicitGridMapping{N,T,G}(
+        grid,
+        Dict{NTuple{N,Int},Int}(),
+        NTuple{N,Int}[],
+    )
+end
+
+function ExplicitGridMapping(grid::Grid{N,T}) where {N,T}
+    return ExplicitGridMapping{N,T}(grid)
 end
 
 function ExplicitGridMapping{N,T}(grid::G, positions) where {N,T,G}
@@ -106,7 +277,7 @@ get_n_state(m::ExplicitGridMapping) = length(m.id2pos)
 enum_states(m::ExplicitGridMapping) = 1:get_n_state(m)
 
 is_valid_pos(m::ExplicitGridMapping{N}, pos::NTuple{N,Int}) where {N} = haskey(m.pos2id, pos)
-get_state_by_pos(m::ExplicitGridMapping{N}, pos::NTuple{N,Int}) where {N} = m.pos2id[pos]
+get_state_by_pos(m::ExplicitGridMapping{N}, pos::NTuple{N,Int}) where {N} = is_valid_pos(m, pos) ? m.pos2id[pos] : nothing
 get_pos_by_state(m::ExplicitGridMapping{N}, q::Int) where {N} = m.id2pos[q]
 
 function add_pos!(m::ExplicitGridMapping{N,T}, pos::NTuple{N,Int}) where {N,T}
@@ -161,6 +332,17 @@ function ImplicitGridMapping(
 
     T = eltype(get_origin(grid))
     return ImplicitGridMapping{N,T,G}(grid, min_pos, max_pos, n_per_dim, strides)
+end
+
+function ImplicitGridMapping(
+    grid::G,
+    rect::UT.HyperRectangle{N,T};
+    incl_mode=OUTER
+) where {N,T,G}
+    rectI = get_pos_lims(grid, rect, incl_mode)
+    min_pos = rectI.lb isa NTuple{N,Int} ? rectI.lb : NTuple{N,Int}(rectI.lb)
+    max_pos = rectI.ub isa NTuple{N,Int} ? rectI.ub : NTuple{N,Int}(rectI.ub)
+    return ImplicitGridMapping(grid, min_pos, max_pos)
 end
 
 get_grid(m::ImplicitGridMapping) = m.grid
@@ -236,7 +418,7 @@ Constructs a grid whose origin aligns with the periodic structure:
 
 Throws an error if the period is not divisible by the grid step.
 """
-function get_grid(
+function get_grid_in_periods(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
@@ -258,13 +440,13 @@ function get_grid(
     return GridFree(SVector{N}(orig), h)
 end
 
-function get_grid(
+function get_grid_in_periods(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     h::SVector{N, T},
 ) where {N, T, P}
     start = zeros(SVector{P, T})
-    return get_grid(periodic_dims, periods, start, h)
+    return get_grid_in_periods(periodic_dims, periods, start, h)
 end
 
 
@@ -283,7 +465,7 @@ function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-    grid,
+    grid::Grid{N,T},
 ) where {N, T, M <: GridMapping{N,T}, P}
 
     orig = get_origin(grid)
@@ -304,6 +486,17 @@ function PeriodicGridMapping(
 
     pmap = _make_periodic_index_map(periodic_dims, N)
     return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, mapping, pmap)
+end
+
+function PeriodicGridMapping(
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
+    h::SVector{N, T},
+) where {N, T, P}
+
+    grid = get_grid_in_periods(periodic_dims, periods, start, h)
+    return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, grid)
 end
 
 
@@ -446,9 +639,18 @@ get_state_by_pos(m::PeriodicGridMapping{N}, pos::NTuple{N,Int}) where {N} =
     get_state_by_pos(m.underlying_mapping, wrap_pos(m, pos))
 
 # coord -> state: wrap coordinate first (like your domain wrap_coord), then do normal path
-get_state_by_coord(m::PeriodicGridMapping, x) =
-    get_state_by_pos(m, get_pos_by_coord(get_grid(m), wrap_coord(m, x)))
+get_state_by_coord(m::PeriodicGridMapping, x) = get_state_by_coord(m.underlying_mapping, wrap_coord(m, x))
 
 # coord by state can remain the base (it uses underlying pos by state)
 get_coord_by_state(m::PeriodicGridMapping, q::Int) =
     get_coord_by_pos(get_grid(m), get_pos_by_state(m, q))
+
+# Only valid when underlying mappig is Explicit
+add_pos!(m::PeriodicGridMapping, pos) = add_pos!(m.underlying_mapping, wrap_pos(m, pos))
+function add_set!(m::PeriodicGridMapping, set, incl_mode::INCL_MODE)
+    grid = get_grid(m)
+    for pos in get_pos_from_set(grid, set, incl_mode)
+        add_pos!(m, pos)
+    end
+    return m
+end

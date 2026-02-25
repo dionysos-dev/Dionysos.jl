@@ -35,9 +35,7 @@ function get_coord_by_pos(grid::Grid, pos)
     return get_origin(grid) + pos .* get_h(grid)
 end
 
-function _ranges(rect::UT.HyperRectangle{NTuple{N, T}}) where {N, T}
-    return ntuple(i -> UnitRange(rect.lb[i], rect.ub[i]), Val(N))
-end
+_ranges(rect::UT.HyperRectangle{N,T}) where {N,T} = ntuple(i -> (rect.lb[i]:rect.ub[i]), Val(N))
 
 function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)

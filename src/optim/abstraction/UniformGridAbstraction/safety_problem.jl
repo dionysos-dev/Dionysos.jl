@@ -73,8 +73,8 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     abstract_problem_time_sec::T
 
     # Problem/Solver-Specific parameters
-    invariant_set::Union{Nothing, Dionysos.Domain.DomainList}
-    invariant_set_complement::Union{Nothing, Dionysos.Domain.DomainList}
+    invariant_set::Union{Nothing, MP.AbstractStateSet}           
+    invariant_set_complement::Union{Nothing, MP.AbstractStateSet}
 
     success::Bool
     print_level::Int
@@ -102,42 +102,39 @@ end
 function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     t_ref = time()
 
-    # Ensure abstract system is set before proceeding
-    if optimizer.abstract_system === nothing
+    optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    end
+    optimizer.concrete_problem === nothing &&
+        error("Concrete problem is not defined.")
 
-    # Build the abstract problem from the concrete problem
     optimizer.abstract_problem =
         build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
 
+    sym = optimizer.abstract_system
+    xm  = SY.get_state_mapping(sym)
+
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
-    # Compute the largest invariant set
-    abstract_controller, invariant_set_symbols, invariant_set_complement_symbols =
+
+    abstract_controller, inv_ids, invc_ids =
         SY.compute_largest_invariant_set(
             optimizer.abstract_problem.system.autom,
             optimizer.abstract_problem.safe_set,
         )
 
-    invariant_set = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        invariant_set_symbols,
-    )
-    invariant_set_complement = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        invariant_set_complement_symbols,
-    )
+    inv_set  = MP.stateset_from_states(xm, inv_ids)
+    invc_set = MP.stateset_from_states(xm, invc_ids)
 
     optimizer.abstract_controller = abstract_controller
-    optimizer.invariant_set = invariant_set
-    optimizer.invariant_set_complement = invariant_set_complement
+    optimizer.invariant_set = inv_set
+    optimizer.invariant_set_complement = invc_set
 
-    # Display results
-    if ⊆(optimizer.abstract_problem.initial_set, invariant_set_symbols)
-        optimizer.success = true
-    end
+    # success check: initial_set ⊆ invariant_set
+    init_ids = optimizer.abstract_problem.initial_set
+    optimizer.success = all(q -> MP.contains_state(inv_set, xm, q), init_ids)
 
-    optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
+    optimizer.print_level >= 1 &&
+        println("\n Safety: terminated with $(optimizer.success)")
+
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end
@@ -151,12 +148,12 @@ function build_abstract_problem(
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.initial_set,
-            Dionysos.Domain.OUTER,
+            MP.OUTER,
         ),
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.safe_set,
-            Dionysos.Domain.INNER,
+            MP.INNER,
         ),
         concrete_problem.time, # TODO: This is continuous time, not the number of transitions
     )

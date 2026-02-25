@@ -6,9 +6,10 @@ SymbolicModelList:
 - Uset: inputs considered
 """
 mutable struct SymbolicModelList{
-    N,M,
-    XM <: MP.AbstractMapping{N,Any},
-    UM <: MP.AbstractMapping{M,Any},
+    N, M,
+    TX, TU,
+    XM <: MP.AbstractMapping{N,TX},
+    UM <: MP.AbstractMapping{M,TU},
     XS <: MP.AbstractStateSet{N},
     RS <: MP.AbstractStateSet{N},
     US <: MP.AbstractStateSet{M},
@@ -23,48 +24,36 @@ mutable struct SymbolicModelList{
     original_symmodel::OS
 end
 
-# --- small helpers to build defaults ---
-_default_stateset(::MP.AbstractMapping{N,Any}) where {N} = MappingSet{N}()  # your MappingSet{N}
+# default sets = "all states of mapping"
+_default_stateset(::MP.AbstractMapping{N,TX}) where {N,TX} = MP.MappingSet{N}()
 
-"""
-    SymbolicModelList(XMapping, UMapping; Xset=nothing, Rset=nothing, Uset=nothing,
-                      automaton_constructor=(n,m)->NewSortedAutomatonList(n,m),
-                      original_symmodel=nothing)
-
-Defaults:
-- Xset = MappingSet{N}()  (all states in XMapping)
-- Rset = Xset             (alias)
-- Uset = MappingSet{M}()  (all inputs in UMapping)
-"""
 function SymbolicModelList(
     XMapping::XM,
     UMapping::UM;
-    Xset::Union{Nothing, MP.AbstractStateSet}=nothing,
-    Rset::Union{Nothing, MP.AbstractStateSet}=nothing,
-    Uset::Union{Nothing, MP.AbstractStateSet}=nothing,
+    Xset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
+    Rset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
+    Uset::Union{Nothing, MP.AbstractStateSet{M}} = nothing,
     automaton_constructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
     original_symmodel = nothing,
-) where {N,M,XM<:MP.AbstractMapping{N,Any},UM<:MP.AbstractMapping{M,Any}}
+    convert_U_to_list::Bool = true,
+) where {N,M,TX,TU,
+         XM<:MP.AbstractMapping{N,TX},
+         UM<:MP.AbstractMapping{M,TU}}
 
-    UMapping = MP.convert_to_list_mapping(UMapping) 
-    # defaults
+    UMap = convert_U_to_list ? MP.convert_to_list_mapping(UMapping) : UMapping
+
     Xset_final = Xset === nothing ? _default_stateset(XMapping) : Xset
-    Uset_final = Uset === nothing ? _default_stateset(UMapping) : Uset
-
-    # Rset defaults to the *same object* as Xset (what you requested)
-    Rset_final = Rset === nothing ? Xset_final : Rset
+    Uset_final = Uset === nothing ? _default_stateset(UMap)     : Uset
+    Rset_final = Rset === nothing ? Xset_final                  : Rset
 
     autom = automaton_constructor(
         MP.get_n_state(Xset_final, XMapping),
-        MP.get_n_state(Uset_final, UMapping),
+        MP.get_n_state(Uset_final, UMap),
     )
 
     return SymbolicModelList(
-        XMapping,
-        UMapping,
-        Xset_final,
-        Rset_final,
-        Uset_final,
+        XMapping, UMap,
+        Xset_final, Rset_final, Uset_final,
         autom,
         original_symmodel,
     )

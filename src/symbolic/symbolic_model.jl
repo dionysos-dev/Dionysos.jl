@@ -59,6 +59,14 @@ function get_states_from_set(
     return MP.get_states_from_set(get_state_mapping(sym), set, incl_mode)
 end
 
+function get_states_from_set_strict(
+    sym::SymbolicModel,
+    set,
+    incl_mode::MP.INCL_MODE,
+)
+    return MP.get_states_from_set_strict(get_state_mapping(sym), set, incl_mode)
+end
+
 
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
@@ -76,16 +84,18 @@ function compute_abstract_transitions_from_rectangle!(
     abstract_input,
     translist,
 )
-    targets = get_states_from_set(symmodel, reachable_set, MP.OUTER)
-    allin = true
+    targets, allin = get_states_from_set_strict(symmodel, reachable_set, MP.OUTER)
+    allin || return false
     for target in targets
         if !is_allowed_state(symmodel, target)
-            allin = false
-            break
+            return false
         end
+    end
+    for target in targets
         push!(translist, (target, abstract_state, abstract_input))
     end
-    return allin
+
+    return true
 end
 
 function compute_abstract_transitions_from_points!(
@@ -98,7 +108,7 @@ function compute_abstract_transitions_from_points!(
     allin = true
     for y in reachable_points
         target = get_abstract_state(symmodel, y)
-        if !is_allowed_state(symmodel, target)
+        if target === nothing || !is_allowed_state(symmodel, target)
             allin = false
             break
         end
@@ -637,7 +647,7 @@ function compute_abstract_system_from_concrete_system!(
                 concrete_state = get_concrete_state(abstract_system, abstract_state)
                 y = system_map(concrete_state, concrete_input)
                 target = get_abstract_state(abstract_system, y)
-                if is_allowed_state(abstract_system, target)
+                if target !== nothing && is_allowed_state(abstract_system, target)
                     add_transitions!(
                         abstract_system,
                         ((target, abstract_state, abstract_input),),

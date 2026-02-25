@@ -27,7 +27,7 @@ end
 
 function stateset_from_states(::Type{S}, m::AbstractMapping{N}, states) where {N,S<:AbstractStateSet{N}}
     out = S()
-    add_states!(S, m, states)
+    add_states!(out, m, states)
     return out
 end
 
@@ -45,6 +45,43 @@ function remove_set!(
         remove_state!(S, m, q)
     end
     return collect(states)
+end
+
+@recipe function f(
+    tup::Tuple{AbstractStateSet{N}, GridMapping{N,T}};
+    dims = [1,2],
+    efficient = true,
+    label = "",
+) where {N,T}
+    S, m = tup
+    grid = get_grid(m)
+    d1 = dims[1]
+    d2 = dims[2]
+
+    states = enum_states(S, m)  # iterator
+    pos2d = positions2d_from_states(m, states; dims=dims)
+
+    first_series = true
+    if !efficient
+        # plot each cell (slow)
+        for (x,y) in pos2d
+            @series begin
+                label := first_series ? label : ""
+                first_series = false
+                return grid, (x,y)
+            end
+        end
+    else
+        rects = merge_rectangles_2d(pos2d)
+        for r in rects
+            @series begin
+                label := first_series ? label : ""
+                first_series = false
+                dims := [1,2]
+                return intrect2_to_real_rect(grid, r, d1, d2)
+            end
+        end
+    end
 end
 
 

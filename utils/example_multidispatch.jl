@@ -24,6 +24,8 @@ empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
 state_grid = MP.GridFree(x0, hx)
+XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode=MP.INNER)
+
 u0 = SVector(1)
 hu = SVector(1)
 input_grid = MP.GridFree(u0, hu)
@@ -32,8 +34,9 @@ using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)  # optional if you pass state_grid
+MOI.set(optimizer, MOI.RawOptimizerAttribute("XMapping"), XMapping)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)  # optional if you pass state_grid
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
@@ -56,59 +59,58 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
-# MOI.optimize!(optimizer)
-# abstraction_time =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
-# println("Time to construct the abstraction: $(abstraction_time)")
+MOI.optimize!(optimizer)
+abstraction_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+println("Time to construct the abstraction: $(abstraction_time)")
 
-# ### Solve a safety problem
+### Solve a safety problem
 
-# # concrete_system = concrete_problem.system
-# _I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
-# _S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
-# concrete_problem_safety =
-#     Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
-# # MOI.set(
-# #     optimizer,
-# #     MOI.RawOptimizerAttribute("controller_constructor"),
-# #     () -> ST.SymbolicControllerDict(),
-# # )
+# concrete_system = concrete_problem.system
+_I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
+_S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
+concrete_problem_safety =
+    Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
 
-# MOI.optimize!(optimizer)
-# abstract_problem_time =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-# println("Time to solve the abstract problem: $(abstract_problem_time)")
+MOI.optimize!(optimizer)
+abstract_problem_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+println("Time to solve the abstract problem: $(abstract_problem_time)")
 
-# abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-# # @test length(abstract_controller.data) == 893803 #src
-# concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-# invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-# invariant_set_complement =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
+invariant_set_complement = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
-# nstep = 300
-# x0 = SVector(1.2, 5.6)
-# x_traj, u_traj = ST.get_closed_loop_trajectory(
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-#     concrete_controller,
-#     x0,
-#     nstep,
-# );
+nstep = 300
+x0 = SVector(1.2, 5.6)
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+    concrete_controller,
+    x0,
+    nstep,
+);
 
-# fig = plot(; aspect_ratio = :equal);
-# plot!(concrete_problem_safety; opacity = 1.0);
-# plot!(invariant_set; color = :blue, linecolor = :blue)
-# plot!(invariant_set_complement; color = :red, linecolor = :red)
-# plot!(x_traj)
-# display(fig)
+XMapping = SY.get_state_mapping(abstract_system)
+Xset = SY.get_state_domain(abstract_system)
 
-# ## Export in csv file the controller, and reload it
-# # filename = "concrete_controller"
-# # AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
-# # AB.UniformGridAbstraction.load_controller_data_csv(filename)
+fig = plot(; aspect_ratio = :equal);
+plot!(concrete_problem_safety; opacity = 1.0);
+# plot!(XMapping; efficient=true, color=:grey)
+plot!((Xset, XMapping); efficient=true, color=:grey)
+plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
+plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
+plot!(x_traj)
+display(fig)
 
-# ### Solve a reachability problem
+## Export in csv file the controller, and reload it
+# filename = "concrete_controller"
+# AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
+# AB.UniformGridAbstraction.load_controller_data_csv(filename)
+
+### Solve a reachability problem
 # _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
 
 # # _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
@@ -131,6 +133,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 #     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 # println("Time to solve the abstract problem: $(abstract_problem_time)")
 
+# abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 # abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 # concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 # controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
@@ -154,9 +157,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 #     stopping = reached,
 # );
 
+# XMapping = SY.get_state_mapping(abstract_system)
+# Xset = SY.get_state_domain(abstract_system)
+
 # fig = plot(; aspect_ratio = :equal);
 # plot!(concrete_problem_reachability);
-# plot!(controllable_set; color = :yellow, linecolor = :yellow, label = "Controllable set")
-# plot!(uncontrollable_set; color = :black, linecolor = :black, label = "Uncontrollable set")
+# # plot!((Xset, XMapping); color = :grey, linecolor = :grey, label = "Domain")
+# plot!((controllable_set, XMapping); color = :yellow, linecolor = :yellow, label = "Controllable set")
+# plot!((uncontrollable_set, XMapping); color = :black, linecolor = :black, label = "Uncontrollable set")
 # plot!(x_traj)
 # display(fig)

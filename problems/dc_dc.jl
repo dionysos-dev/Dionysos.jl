@@ -9,7 +9,6 @@ using MathematicalSystems
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const PB = DI.Problem
 const ST = DI.System
 const SY = DI.Symbolic

@@ -4,9 +4,8 @@ using StaticArrays
 using MathematicalSystems, HybridSystems
 using Dionysos
 const UT = Dionysos.Utils
-const DO = Dionysos.Domain
-const PB = Dionysos.Problem
 const ST = Dionysos.System
+const PB = Dionysos.Problem
 
 # System eq x' = F_sys(x, u)
 function dynamic()
@@ -61,7 +60,7 @@ function filter_obstacles(_X_, _I_, _T_, obs)
             push!(obstacles, ob)
         end
     end
-    obstacles_LU = UT.LazyUnionSetArray(obstacles)
+    obstacles_LU = UT.LazyUnion(obstacles)
     return obstacles_LU
 end
 

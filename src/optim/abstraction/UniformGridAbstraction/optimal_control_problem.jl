@@ -243,12 +243,12 @@ function build_abstract_problem(
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.initial_set,
-            Dionysos.Domain.OUTER,
+            MP.OUTER,
         ),
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.target_set,
-            Dionysos.Domain.INNER,
+            MP.INNER,
         ),
         concrete_problem.state_cost,       # TODO: Transform continuous cost into discrete abstraction
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),

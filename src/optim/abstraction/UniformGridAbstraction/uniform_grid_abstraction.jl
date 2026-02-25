@@ -260,14 +260,15 @@ function solve_concrete_problem(
 
     # map concrete x -> abstract state (or nothing)
     x_to_qs = function (x)
-        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system.Xdom)
-            x2 = handle_out_of_domain(x, abstract_system)
-            x2 === nothing && return nothing
-            xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x2)
-            (xpos ∈ abstract_system.Xdom) || return nothing
+        state = SY.get_abstract_state(abstract_system, x)
+        if state===nothing || !SY.is_allowed_state(abstract_system, state)
+            xnew = handle_out_of_domain(x, abstract_system)
+            xnew === nothing && return nothing
+            statenew = SY.get_abstract_state(abstract_system, xnew)
+            !SY.is_allowed_state(abstract_system, statenew) || return nothing
+            return statenew
         end
-        return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+        return state
     end
 
     # domain predicate on x (controller defined?)
@@ -322,14 +323,15 @@ function solve_concrete_problem(
 
     # concrete-state -> abstract-state (or nothing)
     x_to_qs = function (x)
-        xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x)
-        if !(xpos ∈ abstract_system.Xdom)
-            x2 = handle_out_of_domain(x, abstract_system)
-            x2 === nothing && return nothing
-            xpos = Dionysos.Domain.get_pos_by_coord(abstract_system.Xdom, x2)
-            (xpos ∈ abstract_system.Xdom) || return nothing
+        state = SY.get_abstract_state(abstract_system, x)
+        if !SY.is_allowed_state(abstract_system, state)
+            xnew = handle_out_of_domain(x, abstract_system)
+            xnew === nothing && return nothing
+            statenew = SY.get_abstract_state(abstract_system, xnew)
+            !SY.is_allowed_state(abstract_system, statenew) || return nothing
+            return statenew
         end
-        return Dionysos.Symbolic.get_state_by_xpos(abstract_system, xpos)
+        return state
     end
 
     # output map for concrete controller: (qa, x) -> u_conc (or nothing)
@@ -447,25 +449,25 @@ function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
             warn && @warn("State out of domain: $x")
             return nothing
         end
-    """elseif mode == 1
-        return (x, abs_sys) -> begin
-            Xdom = SY.get_state_domain(abs_sys)
-            xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
+    # elseif mode == 1
+    #     return (x, abs_sys) -> begin
+    #         Xdom = SY.get_state_domain(abs_sys)
+    #         xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
 
-            # Find nearest abstract element (this assumes Xdom has elems as positions)
-            xnew_pos = argmin(
-                p -> LinearAlgebra.norm(collect(p) - collect(xpos)),
-                DO.enum_pos(Xdom),
-            )
+    #         # Find nearest abstract element (this assumes Xdom has elems as positions)
+    #         xnew_pos = argmin(
+    #             p -> LinearAlgebra.norm(collect(p) - collect(xpos)),
+    #             DO.enum_pos(Xdom),
+    #         )
 
-            warn && @warn(
-                "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"
-            )
+    #         warn && @warn(
+    #             "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"
+    #         )
 
-            # Convert abstract position back to a representative concrete point.
-            # If your Domain uses grid cells, you may want the cell center coordinate here.
-            return Dionysos.Domain.get_coord_by_pos(Xdom, xnew_pos)
-        end"""
+    #         # Convert abstract position back to a representative concrete point.
+    #         # If your Domain uses grid cells, you may want the cell center coordinate here.
+    #         return Dionysos.Domain.get_coord_by_pos(Xdom, xnew_pos)
+    #     end
     else
         error("Unknown mode=$mode")
     end
@@ -519,116 +521,116 @@ end
 
 using DataFrames, CSV
 
-"""function export_controller_csv(
-    optimizer::UniformGridAbstraction.Optimizer,
-    filename::String,
-)
-    abstract_system = optimizer.abstraction_solver.abstract_system
-    abstract_controller = optimizer.control_solver.abstract_controller
-    abstract_controller === nothing && error("Controller not available")
+# function export_controller_csv(
+#     optimizer::UniformGridAbstraction.Optimizer,
+#     filename::String,
+# )
+#     abstract_system = optimizer.abstraction_solver.abstract_system
+#     abstract_controller = optimizer.control_solver.abstract_controller
+#     abstract_controller === nothing && error("Controller not available")
 
-    return export_controller_csv(abstract_system, abstract_controller, filename)
-end
+#     return export_controller_csv(abstract_system, abstract_controller, filename)
+# end
 
-function export_controller_csv(abstract_system, abstract_controller, basename::String)
-    grid = SY.get_state_grid(abstract_system)
+# function export_controller_csv(abstract_system, abstract_controller, basename::String)
+#     grid = SY.get_state_grid(abstract_system)
 
-    CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim = ';')
-    CSV.write(
-        basename * "_StateMap.csv",
-        build_state_map_df(abstract_system, grid);
-        delim = ';',
-    )
-    CSV.write(
-        basename * "_ControllerMap.csv",
-        build_controller_map_df(abstract_system, abstract_controller);
-        delim = ';',
-    )
-    return CSV.write(
-        basename * "_InputMap.csv",
-        build_input_map_df(abstract_system);
-        delim = ';',
-    )
-end
+#     CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim = ';')
+#     CSV.write(
+#         basename * "_StateMap.csv",
+#         build_state_map_df(abstract_system, grid);
+#         delim = ';',
+#     )
+#     CSV.write(
+#         basename * "_ControllerMap.csv",
+#         build_controller_map_df(abstract_system, abstract_controller);
+#         delim = ';',
+#     )
+#     return CSV.write(
+#         basename * "_InputMap.csv",
+#         build_input_map_df(abstract_system);
+#         delim = ';',
+#     )
+# end
 
-function build_grid_df(grid)
-    origin = DO.get_origin(grid)
-    h = DO.get_h(grid)
-    ndims = length(origin)
+# function build_grid_df(grid)
+#     origin = DO.get_origin(grid)
+#     h = DO.get_h(grid)
+#     ndims = length(origin)
 
-    header = ["key"; ["x$(j)" for j in 1:ndims]]
-    rows = [["origin"; origin], ["h"; h]]
+#     header = ["key"; ["x$(j)" for j in 1:ndims]]
+#     rows = [["origin"; origin], ["h"; h]]
 
-    df = DataFrame()
-    for j in 1:length(header)
-        df[!, Symbol(header[j])] = getindex.(rows, j)
-    end
-    return df
-end
+#     df = DataFrame()
+#     for j in 1:length(header)
+#         df[!, Symbol(header[j])] = getindex.(rows, j)
+#     end
+#     return df
+# end
 
-function build_state_map_df(abstract_system, grid)
-    ndims = length(DO.get_h(grid))
-    headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
-    states = SY.enum_states(abstract_system)
-    rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-end
+# function build_state_map_df(abstract_system, grid)
+#     ndims = length(DO.get_h(grid))
+#     headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
+#     states = SY.enum_states(abstract_system)
+#     rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
+#     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+# end
 
-function build_controller_map_df(abstract_system, abstract_controller)
-    states = SY.enum_states(abstract_system)
-    rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
-    return DataFrame([
-        "abstract_state" => getindex.(rows, 1),
-        "abstract_input" => getindex.(rows, 2),
-    ])
-end
+# function build_controller_map_df(abstract_system, abstract_controller)
+#     states = SY.enum_states(abstract_system)
+#     rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
+#     return DataFrame([
+#         "abstract_state" => getindex.(rows, 1),
+#         "abstract_input" => getindex.(rows, 2),
+#     ])
+# end
 
-function get_input_symbol(controller, state; randomize = false)
-    !(state in controller.X) && return -1
+# function get_input_symbol(controller, state; randomize = false)
+#     !(state in controller.X) && return -1
 
-    u = controller.h(state)
+#     u = controller.h(state)
 
-    u === nothing && return -1
-    (u isa AbstractVector && isempty(u)) && return -1
+#     u === nothing && return -1
+#     (u isa AbstractVector && isempty(u)) && return -1
 
-    return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
-end
+#     return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
+# end
 
-function build_input_map_df(abstract_system)
-    inputs = SY.enum_inputs(abstract_system)
-    ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
-    headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
-    rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-end
+# function build_input_map_df(abstract_system)
+#     inputs = SY.enum_inputs(abstract_system)
+#     ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
+#     headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
+#     rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
+#     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+# end
 
-function load_controller_data_csv(basename::String)
-    grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim = ';')
-    state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim = ';')
-    ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim = ';')
-    input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim = ';')
-    return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-end
+# function load_controller_data_csv(basename::String)
+#     grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim = ';')
+#     state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim = ';')
+#     ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim = ';')
+#     input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim = ';')
+#     return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+# end
 
-function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-    origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
-    h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
+# function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+#     origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
+#     h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
 
-    pos2state = Dict{Vector{Int}, Int}()
-    for row in eachrow(state_df)
-        pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df) - 1)]
-        pos2state[pos] = row.abstract_state
-    end
+#     pos2state = Dict{Vector{Int}, Int}()
+#     for row in eachrow(state_df)
+#         pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df) - 1)]
+#         pos2state[pos] = row.abstract_state
+#     end
 
-    state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
+#     state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
 
-    input2u = Dict{Int, Vector{Float64}}()
-    for row in eachrow(input_df)
-        u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df) - 1)]
-        input2u[row.abstract_input] = u
-    end
+#     input2u = Dict{Int, Vector{Float64}}()
+#     for row in eachrow(input_df)
+#         u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df) - 1)]
+#         input2u[row.abstract_input] = u
+#     end
 
-    return origin, h, pos2state, state2input, input2u
-end"""
+#     return origin, h, pos2state, state2input, input2u
+# end
 
 end
