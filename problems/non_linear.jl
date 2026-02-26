@@ -9,7 +9,6 @@ import IntervalArithmetic as IA
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem

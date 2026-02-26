@@ -19,9 +19,9 @@ x0 = SVector(0.0, 0.1, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-periodic_dims =SVector(1, 2);
-periods = SVector(4.0, 10.0);
-periodic_start = SVector(0.0, 0.0); # SVector(1.0);
+periodic_dims = SVector(2); # SVector(1, 2);, 
+periods = SVector(10.0); # SVector(4.0, 10.0);
+periodic_start = SVector(0.0); # SVector(1.0);
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -110,9 +110,9 @@ plot!(system_domain_in_periodic; color = :grey, opacity = 1.0, label = "");
 # We display the abstract domain with worst-case cost
 XMapping = SY.get_state_mapping(abstract_system)
 Xset = SY.get_state_domain(abstract_system)
-# plot!(abstract_system; value_function = abstract_value_function);
-plot!(XMapping; color = :grey)
-plot!((Xset, XMapping); color = :yellow)
+plot!(abstract_system; efficient=false, value_function = abstract_value_function);
+# plot!(XMapping; value_function=abstract_value_function, efficient=false)
+# plot!((Xset, XMapping); efficient=true, color = :yellow)
 
 # We display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
@@ -126,14 +126,14 @@ plot!(
 );
 
 # We display the abstract specifications
-# plot!(
-#     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
-#     color = :green,
-# );
-# plot!(
-#     Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
-#     color = :red,
-# );
+plot!(
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), XMapping);
+    color = :green,
+);
+plot!(
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), XMapping);
+    color = :red, efficient=false
+);
 
 # We display the concrete trajectory
 plot!(x_traj; ms = 2.0, arrows = false)

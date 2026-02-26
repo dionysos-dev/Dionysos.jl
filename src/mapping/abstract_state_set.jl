@@ -48,30 +48,63 @@ function remove_set!(
 end
 
 @recipe function f(
-    tup::Tuple{AbstractStateSet{N}, GridMapping{N,T}};
+    tup::Tuple{<:AbstractStateSet{N}, <:GridMapping{N,T}};
     dims = [1,2],
     efficient = true,
     label = "",
+    value_function = nothing,     
+    reducer = min,
 ) where {N,T}
     S, m = tup
-    grid = get_grid(m)
-    d1 = dims[1]
-    d2 = dims[2]
+    d1, d2 = dims[1], dims[2]
 
-    states = enum_states(S, m)  # iterator
-    pos2d = positions2d_from_states(m, states; dims=dims)
+    grid = get_grid(m)
+
+    states = enum_states(S, m)
+    proj, posN = project_states_on_dims(
+        m, states;
+        dims = [d1,d2],
+        value_function = (value_function isa Function ? value_function : nothing),
+        reducer = reducer,
+    )
+
+    # If value_function is provided, build a colormap range
+    if proj !== nothing
+        vals = Float64[v for (v, _) in values(proj)]
+        finite_vals = filter(isfinite, vals)
+        vmax = isempty(finite_vals) ? 1.0 : maximum(finite_vals)
+    end
 
     first_series = true
-    if !efficient
-        # plot each cell (slow)
-        for (x,y) in pos2d
+    if !efficient || value_function !== nothing
+        # plot each cell (slow) - needs full N-dim pos
+        for p in posN
+            key = (p[d1], p[d2])
+            if proj !== nothing
+                v = proj[key][1]
+            end
+
             @series begin
                 label := first_series ? label : ""
                 first_series = false
-                return grid, (x,y)
+                dims := dims
+                if proj === nothing
+                    # nothing
+                else
+                    v = proj[key][1]
+                    vplot = isfinite(v) ? v : NaN
+                    colorbar := true
+                    clims := (0.0, vmax)
+                    fill_z := vplot
+                    seriestype := :shape
+                    fillalpha := 1.0
+                end
+
+                return grid, p
             end
         end
     else
+        pos2d = NTuple{2,Int}[(p[d1], p[d2]) for p in posN]
         rects = merge_rectangles_2d(pos2d)
         for r in rects
             @series begin

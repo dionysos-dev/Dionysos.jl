@@ -1,3 +1,5 @@
+import Base: intersect
+
 # ----------------------------
 # Core types / invariants
 # ----------------------------
@@ -113,7 +115,105 @@ function remove_set(S::LazySetMinus{N,T}, s) where {N,T}
 end
 
 # ----------------------------
-# Periodic wrapping (delegates to leaves)
+# Others
+# ----------------------------
+
+# LazyUnion is a container of nodes
+Base.length(U::LazyUnion) = length(U.sets)
+Base.eltype(::Type{LazyUnion{N,T}}) where {N,T} = AbstractSetNode{N,T}
+Base.iterate(U::LazyUnion, st::Int=1) = st > length(U.sets) ? nothing : (U.sets[st], st+1)
+
+# Let LazySetMinus behave like "its A part" for iteration/length
+Base.length(M::LazySetMinus{N,T}) where {N,T} = begin
+    A = M.A
+    A isa LazyUnion{N,T} ? length(A) : 1
+end
+Base.eltype(::Type{LazySetMinus{N,T}}) where {N,T} = AbstractSetNode{N,T}
+Base.iterate(M::LazySetMinus{N,T}, st::Int=1) where {N,T} = begin
+    A = M.A
+    A isa LazyUnion{N,T} ? iterate(A, st) : (st == 1 ? (A, 2) : nothing)
+end
+
+# ----------------------------
+# Intersection
+# ----------------------------
+
+function _push_nonempty!(out::LazyUnion{N,T}, s) where {N,T}
+    _assert_not_minus(s)
+    if s isa AbstractSetNode{N,T}
+        isempty(s) || push!(out.sets, s)
+    elseif s isa LazyUnion{N,T}
+        isempty(s) || append!(out.sets, s.sets)
+    else
+        throw(ArgumentError("Invalid type $(typeof(s)) for LazyUnion{$N,$T}"))
+    end
+    return out
+end
+
+function intersect(U::LazyUnion{N,T}, s::AbstractSetNode{N,T}) where {N,T}
+    out = LazyUnion{N,T}()
+    @inbounds for a in U.sets
+        _push_nonempty!(out, intersect(a, s))
+    end
+    return out
+end
+
+intersect(s::AbstractSetNode{N,T}, U::LazyUnion{N,T}) where {N,T} = intersect(U, s)
+
+# (A \ B) ∩ S = (A ∩ S) \ (B ∩ S)  [tighter than keeping B unchanged]
+function intersect(M::LazySetMinus{N,T}, s::AbstractSetNode{N,T}) where {N,T}
+    A2 = intersect(M.A, s)
+    B2 = intersect(M.B, s)
+    _assert_not_minus(A2); _assert_not_minus(B2)
+
+    # If A2 is empty => empty
+    isempty(A2) && return LazyUnion{N,T}()
+
+    return LazySetMinus(A2, B2)
+end
+
+intersect(s::AbstractSetNode{N,T}, M::LazySetMinus{N,T}) where {N,T} = intersect(M, s)
+
+# U ∩ V = ⋃_{a∈U} ⋃_{b∈V} (a ∩ b)
+function intersect(U::LazyUnion{N,T}, V::LazyUnion{N,T}) where {N,T}
+    out = LazyUnion{N,T}()
+    # iterate over smaller outer loop to reduce overhead a bit
+    A, B = length(U.sets) <= length(V.sets) ? (U, V) : (V, U)
+    @inbounds for a in A.sets, b in B.sets
+        _push_nonempty!(out, intersect(a, b))
+    end
+    return out
+end
+
+# U ∩ (A \ B) = (U ∩ A) \ (U ∩ B)
+function intersect(U::LazyUnion{N,T}, M::LazySetMinus{N,T}) where {N,T}
+    A2 = intersect(U, M.A)  # returns LazyUnion
+    B2 = intersect(U, M.B)  # returns LazyUnion
+    isempty(A2) && return LazyUnion{N,T}()
+    return LazySetMinus(A2, B2)
+end
+
+# (A \ B) ∩ U = (A ∩ U) \ (B ∩ U)
+function intersect(M::LazySetMinus{N,T}, U::LazyUnion{N,T}) where {N,T}
+    A2 = intersect(M.A, U)  # returns LazyUnion
+    B2 = intersect(M.B, U)  # returns LazyUnion
+    isempty(A2) && return LazyUnion{N,T}()
+    return LazySetMinus(A2, B2)
+end
+
+# (A \ B) ∩ (C \ D) = (A ∩ C) \ (B ∪ D)
+# (safe over-approx of hole union; exact for set difference algebra)
+function intersect(M1::LazySetMinus{N,T}, M2::LazySetMinus{N,T}) where {N,T}
+    A2 = intersect(M1.A, M2.A)                 # allowed: child ∩ child
+    isempty(A2) && return LazyUnion{N,T}()
+    Bunion = LazyUnion{N,T}()                  # build B ∪ D
+    add_set!(Bunion, M1.B)
+    add_set!(Bunion, M2.B)
+    return LazySetMinus(A2, Bunion)
+end
+
+# ----------------------------
+# Periodic wrapping
 # ----------------------------
 
 function set_in_period(U::LazyUnion{N,T}, periodic_dims, periods, start) where {N,T}
@@ -132,6 +232,10 @@ function set_in_period(S::LazySetMinus{N,T}, periodic_dims, periods, start) wher
     _assert_not_minus(A2); _assert_not_minus(B2)
     return LazySetMinus(A2, B2)
 end
+
+# ----------------------------
+# Plots
+# ----------------------------
 
 @recipe function f(U::LazyUnion; dims = [1,2], label = "set")
     dims := dims

@@ -98,7 +98,7 @@ Xset = SY.get_state_domain(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_safety; opacity = 1.0);
-# plot!(XMapping; efficient=true, color=:grey)
+plot!(XMapping; efficient=true, color=:grey)
 plot!((Xset, XMapping); efficient=true, color=:grey)
 plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)

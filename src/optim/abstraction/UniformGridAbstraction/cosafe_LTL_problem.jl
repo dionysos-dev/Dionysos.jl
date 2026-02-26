@@ -104,12 +104,12 @@ function build_abstract_problem(
 
     # lift initial set (conservative for initial condition is usually OUTER)
     init_states =
-        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, DO.OUTER)
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER)
 
     # lift each AP set to a set of symbolic states
     lab_abs = Dict{Symbol, Vector{Int}}()
     for (ap, setX) in concrete_problem.labeling
-        sem = get(concrete_problem.ap_semantics, ap, DO.INNER)
+        sem = get(concrete_problem.ap_semantics, ap, MP.INNER)
         lab_abs[ap] = SY.get_states_from_set(abstract_system, setX, sem)
     end
 

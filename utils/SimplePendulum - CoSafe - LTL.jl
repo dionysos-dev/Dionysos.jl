@@ -2,8 +2,8 @@ using StaticArrays, JuMP, Plots
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -47,7 +47,7 @@ obs = UT.HyperRectangle(
 
 labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :obs => obs)
 
-ap_semantics = Dict{Symbol, Any}(:g1 => DO.INNER, :g2 => DO.INNER, :obs => DO.OUTER)
+ap_semantics = Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :obs => MP.OUTER)
 
 concrete_problem =
     PR.CoSafeLTLProblem(concrete_system, _I_, φ, labeling, ap_semantics, false)
@@ -71,7 +71,7 @@ optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DO.GridFree(u0, hu))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
@@ -83,7 +83,7 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)

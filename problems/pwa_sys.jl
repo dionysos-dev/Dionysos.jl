@@ -10,9 +10,7 @@ import Dionysos
 using Dionysos.Problem
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
 const PR = DI.Problem
 
 function system(lib, dt, Usz, Wsz; simple = false)

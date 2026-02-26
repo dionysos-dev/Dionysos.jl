@@ -2,8 +2,8 @@ using StaticArrays, JuMP, Plots
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -32,7 +32,7 @@ optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DO.GridFree(u0, hu))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
@@ -44,7 +44,7 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_domain"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
@@ -174,7 +174,7 @@ candidate_x_traj = x_traj
 SC.set_optimizer!(cert, optimizer)
 SC.set_trajectory!(cert, candidate_x_traj)
 cert.radius = 0.8
-cert.incl_mode = DO.INNER
+cert.incl_mode = MP.INNER
 
 SC.certify!(cert)
 
@@ -192,9 +192,11 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 );
 
+abstract_system = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
 uncontrollable_set =
     MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+XMapping = SY.get_state_mapping(abstract_system)
 
 # ------------------------------------------------------------
 # Plot 
@@ -210,8 +212,8 @@ plot!(
     opacity = 0.55,
     label = "Tube",
 )
-plot!(controllable_set; color = :yellow, linecolor = :yellow, label = "Controllable set")
-plot!(uncontrollable_set; color = :black, linecolor = :black, label = "Uncontrollable set")
+plot!((controllable_set, XMapping); color = :yellow, linecolor = :yellow, label = "Controllable set")
+plot!((uncontrollable_set, XMapping); color = :black, linecolor = :black, label = "Uncontrollable set")
 plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
 plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
 display(fig)

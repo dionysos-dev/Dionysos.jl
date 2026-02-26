@@ -21,8 +21,10 @@ Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
 Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
 Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
 is_intersection(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
-Base.intersect(a::HyperRectangle, b::HyperRectangle) =
+import Base: intersect
+function intersect(a::HyperRectangle{N,T}, b::HyperRectangle{N,T}) where {N,T}
     HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
+end
 Base.issubset(a::HyperRectangle, b::HyperRectangle) =
     all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
 get_center(rect::HyperRectangle) = (rect.lb + rect.ub) / 2
@@ -36,21 +38,6 @@ to_LazySets(rect::HyperRectangle) =
 affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
 get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
-
-# --------------------------
-# Intersections with LazyUnion
-# (⋃Ai) ∩ B = ⋃(Ai ∩ B)
-# --------------------------
-
-function Base.intersect(U::LazyUnion{N,T}, B::HyperRectangle{N,T}) where {N,T}
-    out = LazyUnion{N,T}()
-    sizehint!(out.sets, length(U.sets))
-    for ai in U.sets
-        push!(out.sets, intersect(ai, B))
-    end
-    return out
-end
-Base.intersect(B::HyperRectangle{N,T}, U::LazyUnion{N,T}) where {N,T} = intersect(U, B)
 
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)

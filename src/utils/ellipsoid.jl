@@ -8,6 +8,16 @@ struct Ellipsoid{N,T,MT<:SMatrix{N,N,T},VT<:SVector{N,T}} <: AbstractSetNode{N,T
     end
 end
 
+function Ellipsoid(P::AbstractMatrix{T}, c::AbstractVector{T}) where {T<:Real}
+    n, m = size(P)
+    n == m || throw(ArgumentError("P must be square, got $(size(P))"))
+    length(c) == n || throw(ArgumentError("c must have length $n, got $(length(c))"))
+
+    PS = SMatrix{n,n,T}(P)
+    cS = SVector{n,T}(c)
+    return Ellipsoid(PS, cS)
+end
+
 
 get_center(e::Ellipsoid) = e.c
 get_shape(elli::Ellipsoid) = elli.P
@@ -135,7 +145,7 @@ function get_inscribed_ball(elli::Ellipsoid)
     return Ellipsoid((1 / (r * r)) * I_elli, elli.c)
 end
 
-@recipe function f(e::Ellipsoid; axis_plot = false, color1 = :black, color2 = :black)
+@recipe function f(e::Ellipsoid{N,T}; axis_plot=false, color1=:black, color2=:black) where {N,T}
     if axis_plot
         @series begin
             color := color1
@@ -153,7 +163,7 @@ end
         Pvar = get_shape(e)
         Qvar = inv(Pvar)
         Qvar = (Qvar + Qvar') ./ 2
-        return LazySets.Ellipsoid(collect(get_center(e)), Qvar)
+        return LazySets.Ellipsoid(Vector(get_center(e)), Matrix(Qvar))
     end
 end
 

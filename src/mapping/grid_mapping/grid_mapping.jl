@@ -14,13 +14,10 @@ is_valid_pos(m::GridMapping{N}, pos::NTuple{N,Int}) where {N} = true
 
 enum_pos(m::GridMapping{N,T}) where {N,T} = (get_pos_by_state(m, q) for q in enum_states(m))
 get_elem_by_pos(m::GridMapping{N,T}, pos::NTuple{N,Int}) where {N,T} = get_elem_by_pos(get_grid(m), pos)
+
 get_elem_by_state(m::GridMapping{N,T}, q::Int) where {N,T} = get_elem_by_pos(m, get_pos_by_state(m, q))
 get_elem_by_coord(m::GridMapping{N,T}, x) where {N,T} = get_elem_by_pos(m, get_pos_by_coord(get_grid(m), x))
-enum_elems(m::GridMapping{N,T}) where {N,T} = (get_elem_by_state(m, q) for q in enum_states(m))
-
-
 get_state_by_coord(m::GridMapping, x) = get_state_by_pos(m, get_pos_by_coord(get_grid(m), x))
-
 get_coord_by_state(m::GridMapping{N,T}, q::Int) where {N,T} = get_coord_by_pos(get_grid(m), get_pos_by_state(m, q))
 
 convert_to_list_mapping(m::GridMapping) = ListMapping(collect(enum_coords(m)))
@@ -171,55 +168,73 @@ function intrect2_to_real_rect(grid, r::IntRect2, d1::Int, d2::Int)
     return UT.HyperRectangle(lb, ub)
 end
 
-function positions2d_from_states(m::GridMapping{N}, states; dims=[1,2]) where {N}
-    d1 = dims[1]
-    d2 = dims[2]
-    out = NTuple{2,Int}[]
+"""function positions_from_states_unique_on_dims(
+    m::GridMapping{N},
+    states;
+    dims = [1, 2],
+) where {N}
+    d1, d2 = dims[1], dims[2]
+    out  = NTuple{N,Int}[]
     seen = Set{NTuple{2,Int}}()
+
     for q in states
-        p = get_pos_by_state(m, q)
-        xy = (p[d1], p[d2])
-        if !(xy in seen)
-            push!(seen, xy)
-            push!(out, xy)
+        p = get_pos_by_state(m, q) 
+        key = (p[d1], p[d2]) 
+        if !(key in seen)
+            push!(seen, key)
+            push!(out, p)
         end
     end
     return out
-end
+end"""
 
-@recipe function f(
-    m::GridMapping{N,T};
+"""
+Project states onto (d1,d2). For each 2D cell keep:
+- best value (min by default)
+- one representative full pos (NTuple{N,Int}) to plot the cell (slow branch),
+  or just to build pos2d list (fast branch).
+"""
+function project_states_on_dims(
+    m::GridMapping{N},
+    states;
     dims = [1,2],
-    efficient = true,
-    label = "",
-) where {N,T}
-    grid = get_grid(m)
-    d1 = dims[1]
-    d2 = dims[2]
+    value_function::Union{Nothing,Function} = nothing,
+    reducer::Function = min,
+) where {N}
+    d1, d2 = dims[1], dims[2]
 
-    states = enum_states(m)
-    pos2d = positions2d_from_states(m, states; dims=dims)
-
-    first_series = true
-    if !efficient
-        # plot each cell (slow)
-        for (x,y) in pos2d
-            @series begin
-                label := first_series ? label : ""
-                first_series = false
-                return grid, (x,y)
+    if value_function === nothing
+        # just dedup by (d1,d2), keep any representative full pos
+        seen = Set{NTuple{2,Int}}()
+        posN = NTuple{N,Int}[]
+        for q in states
+            p = get_pos_by_state(m, q)
+            key = (p[d1], p[d2])
+            if !(key in seen)
+                push!(seen, key)
+                push!(posN, p)
             end
         end
+        return nothing, posN
     else
-        rects = merge_rectangles_2d(pos2d)
-        for r in rects
-            @series begin
-                label := first_series ? label : ""
-                first_series = false
-                dims := [1,2]
-                return intrect2_to_real_rect(grid, r, d1, d2)
+        # map: key -> (best_value, representative_full_pos)
+        proj = Dict{NTuple{2,Int}, Tuple{Float64, NTuple{N,Int}}}()
+        for q in states
+            p = get_pos_by_state(m, q)
+            key = (p[d1], p[d2])
+            v = Float64(value_function(q))
+            if haskey(proj, key)
+                vbest, _ = proj[key]
+                newbest = reducer(vbest, v)
+                if newbest != vbest
+                    proj[key] = (newbest, p)
+                end
+            else
+                proj[key] = (v, p)
             end
         end
+        posN = [vp[2] for vp in values(proj)]
+        return proj, posN
     end
 end
 

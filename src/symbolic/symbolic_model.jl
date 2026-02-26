@@ -68,6 +68,106 @@ function get_states_from_set_strict(
 end
 
 
+function get_state_set_from_states(sym::SymbolicModel, states)
+    return MP.stateset_from_states(get_state_mapping(sym), states)
+end
+
+"""
+    determinize_symbolic_model(sym; AutomatonConstructor, convert_U_to_list)
+
+Return a deterministic symbolic model by refining the input alphabet:
+each original input `u` is replaced by a pair `(u_coord, target_state)`.
+
+This is useful to turn nondeterministic transitions into deterministic ones
+by making the target part of the symbol.
+"""
+function determinize_symbolic_model(
+    sym::SymbolicModel{N,M};
+    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+) where {N,M}
+
+    Umap  = get_input_mapping(sym)
+    Xmap  = get_state_mapping(sym)
+    Xset  = get_state_domain(sym)
+    Rset  = get_allowed_state_domain(sym)
+
+    trans = enum_transitions(sym)
+
+    # infer coordinate scalar type
+    u_any = first(enum_inputs(sym))
+    u1 = MP.get_coord_by_state(Umap, u_any)
+    T  = eltype(u1)
+
+    TU = SVector{M+1,T} # augmented coordinate type
+
+    new_ucoord2int = Dict{TU, Int}()
+    new_uint2coord = TU[]  
+
+    new_transitions = NTuple{3,Int}[]
+    sizehint!(new_transitions, length(trans))
+
+    for (q′, q, u) in trans
+        u_coord = MP.get_coord_by_state(Umap, u)
+
+        u_aug = TU(ntuple(i -> i <= M ? u_coord[i] : T(q′), M+1))
+
+        u_new_id = get!(new_ucoord2int, u_aug) do
+            push!(new_uint2coord, u_aug)
+            length(new_uint2coord)
+        end
+
+        push!(new_transitions, (q′, q, u_new_id))
+    end
+
+    new_autom = AutomatonConstructor(get_n_state(sym), length(new_uint2coord))
+    add_transitions!(new_autom, new_transitions)
+
+    new_Umap = MP.ListMapping(new_uint2coord)
+
+    new_sym = SymbolicModelList(
+        Xmap, new_Umap;
+        Xset = Xset,
+        Rset = Rset,
+        Uset = MP.MappingSet{M+1}(),
+        automaton_constructor = (n,m)->new_autom,
+        original_symmodel = sym,
+        convert_U_to_list = true,
+    )
+
+    return new_sym
+end
+@recipe function f(
+    sym::SymbolicModel;
+    with_arrows = false,
+    dims = [1, 2],
+    value_function = nothing, 
+)
+    @series begin
+        dims := dims
+        value_function := value_function
+        return ((get_state_domain(sym), get_state_mapping(sym)),)
+    end
+    if with_arrows
+        for t in enum_transitions(sym)
+            color = RGB(
+                abs(0.6 * sin(t[1])),
+                abs(0.6 * sin(t[1] + 2π / 3)),
+                abs(0.6 * sin(t[1] - 2π / 3)),
+            )
+            p1 = get_concrete_state(sym, t[2])
+            p2 = get_concrete_state(sym, t[1])
+
+            @series begin
+                dims := dims
+                color := color
+                return t[1] == t[2] ? UT.DrawPoint(p1) : UT.DrawArrow(p1, p2)
+            end
+        end
+    end
+end
+
+
+
 """
     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
 

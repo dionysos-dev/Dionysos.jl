@@ -1,13 +1,8 @@
-using StaticArrays, JuMP, LinearAlgebra, Plots
+using StaticArrays, LinearAlgebra, Plots
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 using MathematicalSystems
 MS = MathematicalSystems

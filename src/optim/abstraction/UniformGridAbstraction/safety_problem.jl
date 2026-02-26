@@ -107,30 +107,28 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     optimizer.concrete_problem === nothing &&
         error("Concrete problem is not defined.")
 
-    optimizer.abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
+    abstract_system = optimizer.abstract_system
 
-    sym = optimizer.abstract_system
-    xm  = SY.get_state_mapping(sym)
+    optimizer.abstract_problem =
+        build_abstract_problem(optimizer.concrete_problem, abstract_system)
 
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
 
     abstract_controller, inv_ids, invc_ids =
         SY.compute_largest_invariant_set(
-            optimizer.abstract_problem.system.autom,
+            SY.get_automaton(abstract_system),
             optimizer.abstract_problem.safe_set,
         )
 
-    inv_set  = MP.stateset_from_states(xm, inv_ids)
-    invc_set = MP.stateset_from_states(xm, invc_ids)
 
     optimizer.abstract_controller = abstract_controller
-    optimizer.invariant_set = inv_set
-    optimizer.invariant_set_complement = invc_set
+    optimizer.invariant_set = SY.get_state_set_from_states(abstract_system, inv_ids)
+    optimizer.invariant_set_complement = SY.get_state_set_from_states(abstract_system, invc_ids)
 
     # success check: initial_set ⊆ invariant_set
+    xm  = SY.get_state_mapping(abstract_system)
     init_ids = optimizer.abstract_problem.initial_set
-    optimizer.success = all(q -> MP.contains_state(inv_set, xm, q), init_ids)
+    optimizer.success = all(q -> MP.contains_state(optimizer.invariant_set, xm, q), init_ids)
 
     optimizer.print_level >= 1 &&
         println("\n Safety: terminated with $(optimizer.success)")

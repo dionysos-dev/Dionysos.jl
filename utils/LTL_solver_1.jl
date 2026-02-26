@@ -7,8 +7,8 @@ import MathOptInterface as MOI
 
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -33,11 +33,11 @@ empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 # grid resolution
 x0 = SVector(-2.0, -2.0)
 hx = SVector(0.2, 0.2)
-state_grid = DO.GridFree(x0, hx)
+state_grid = MP.GridFree(x0, hx)
 
 u0 = SVector(-1.0, -1.0)
 hu = SVector(0.5, 0.5)
-input_grid = DO.GridFree(u0, hu)
+input_grid = MP.GridFree(u0, hu)
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -76,7 +76,7 @@ _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
 g11 = UT.HyperRectangle(SVector(-1.0, 1.0), SVector(-0.3, 1.7))
 g12 = UT.HyperRectangle(SVector(1.0, 1.0), SVector(1.7, 1.7))
-g1 = UT.LazyUnionSetArray([g11, g12])
+g1 = UT.LazyUnion([g11, g12])
 
 g2_big = UT.HyperRectangle(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
 g2_hole = UT.HyperRectangle(SVector(-1.2, -1.0), SVector(-0.9, -0.8))
@@ -86,7 +86,7 @@ g3 = UT.HyperRectangle(SVector(1.0, -1.8), SVector(1.5, -1.1))
 
 obs1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 obs2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
-obs = UT.LazyUnionSetArray([obs1, obs2])
+obs = UT.LazyUnion([obs1, obs2])
 
 # co-safe formula
 φ = ltl"G(!obs) & F(g1 & F(g2 & F(g3  & F(g1))))"
@@ -130,7 +130,7 @@ labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)
 
 # semantics per AP
 ap_semantics =
-    Dict{Symbol, Any}(:g1 => DO.INNER, :g2 => DO.INNER, :g3 => DO.INNER, :obs => DO.OUTER)
+    Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :g3 => MP.INNER, :obs => MP.OUTER)
 
 concrete_problem = DI.Problem.CoSafeLTLProblem(
     concrete_system,

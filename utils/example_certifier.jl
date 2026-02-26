@@ -6,8 +6,8 @@ import MathOptInterface as MOI
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -33,7 +33,7 @@ optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), DO.GridFree(u0, hu))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), ToyProblem.jacobian_bound())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
 MOI.set(
@@ -71,7 +71,7 @@ SC.set_optimizer!(cert, optimizer)
 SC.set_trajectory!(cert, candidate_x_traj)
 cert.radius = SVector(0.25, 0.25)
 cert.margin = 0.0
-cert.incl_mode = DO.OUTER
+cert.incl_mode = MP.OUTER
 cert.enforce_safe_max_step = true
 
 SC.certify!(cert)

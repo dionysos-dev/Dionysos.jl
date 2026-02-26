@@ -170,17 +170,16 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     optimizer.concrete_problem === nothing &&
         error("Concrete problem is not defined.")
 
+    abstract_system = optimizer.abstract_system
+
     # Build abstract problem
     optimizer.abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
+        build_abstract_problem(optimizer.concrete_problem, abstract_system)
 
-    sym = optimizer.abstract_system
-    xm  = SY.get_state_mapping(sym)  # mapping for abstract state ids
-
-    # initial set for early stop
+    # Initial set for early stop
     init_set =
         optimizer.early_stop ? optimizer.abstract_problem.initial_set :
-        SY.enum_states(optimizer.abstract_problem.system)  # <- these are ids already
+        SY.enum_states(abstract_system)
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
 
@@ -188,30 +187,25 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     controllable_ids,
     uncontrollable_ids,
     value_fun_tab = SY.compute_worst_case_cost_controller(
-        optimizer.abstract_problem.system.autom,
+        SY.get_automaton(abstract_system),
         optimizer.abstract_problem.target_set;
         initial_set = init_set,
         sparse_input = optimizer.sparse_input,
         cost_function = optimizer.abstract_problem.transition_cost,
     )
 
-    # Store as AbstractStateSet (BitSet-backed)
-    controllable_set = MP.stateset_from_states(xm, controllable_ids)
-    uncontrollable_set = MP.stateset_from_states(xm, uncontrollable_ids)
-
     optimizer.abstract_controller = abstract_controller
-    optimizer.controllable_set   = controllable_set
-    optimizer.uncontrollable_set = uncontrollable_set
+    optimizer.controllable_set = SY.get_state_set_from_states(abstract_system, controllable_ids)
+    optimizer.uncontrollable_set = SY.get_state_set_from_states(abstract_system, uncontrollable_ids)
     optimizer.value_fun_tab = value_fun_tab
 
     optimizer.abstract_value_function = build_abstract_value_function(value_fun_tab)
     optimizer.concrete_value_function =
-        build_concrete_value_function(sym, optimizer.abstract_value_function)
+        build_concrete_value_function(abstract_system, optimizer.abstract_value_function)
 
     # success check: "initial_set ⊆ controllable"
-    # If initial_set is a vector of ids, use all(contains_state(...)).
-    # If initial_set is already a state set, you can iterate its enum.
-    optimizer.success = all(q -> MP.contains_state(controllable_set, xm, q), init_set)
+    xm  = SY.get_state_mapping(abstract_system)
+    optimizer.success = all(q -> MP.contains_state(optimizer.controllable_set, xm, q), init_set)
 
     optimizer.print_level >= 1 &&
         println("\n Reachability: terminated with $(optimizer.success)")

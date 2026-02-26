@@ -8,8 +8,8 @@ using Spot
 
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -35,11 +35,11 @@ empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 # grid resolution
 x0 = SVector(-2.0, -2.0)
 hx = SVector(0.2, 0.2)
-state_grid = DO.GridFree(x0, hx)
+state_grid = MP.GridFree(x0, hx)
 
 u0 = SVector(-1.0, -1.0)
 hu = SVector(0.5, 0.5)
-input_grid = DO.GridFree(u0, hu)
+input_grid = MP.GridFree(u0, hu)
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -83,7 +83,7 @@ obs = UT.HyperRectangle(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
 
 danger1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 danger2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
-danger = UT.LazyUnionSetArray([danger1, danger2])
+danger = UT.LazyUnion([danger1, danger2])
 
 # co-safe formula
 φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"
@@ -132,10 +132,10 @@ labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :danger => danger, :obs => ob
 
 # semantics per AP
 ap_semantics = Dict{Symbol, Any}(
-    :g1 => DO.INNER,
-    :g2 => DO.INNER,
-    :danger => DO.OUTER,
-    :obs => DO.OUTER,
+    :g1 => MP.INNER,
+    :g2 => MP.INNER,
+    :danger => MP.OUTER,
+    :obs => MP.OUTER,
 )
 
 concrete_problem = DI.Problem.CoSafeLTLProblem(

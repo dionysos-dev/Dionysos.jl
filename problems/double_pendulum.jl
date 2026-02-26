@@ -4,9 +4,8 @@ using StaticArrays
 using MathematicalSystems
 using Dionysos
 const UT = Dionysos.Utils
-const DO = Dionysos.Domain
-const PB = Dionysos.Problem
 const ST = Dionysos.System
+const PB = Dionysos.Problem
 
 function dynamic(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81)
     function f(x, u)
@@ -77,22 +76,22 @@ function safety_problem(;
 end
 
 function optimal_control_problem(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81)
-    _X_ = UT.HyperRectangle(
-        SVector(-π/4.0, -π/4.0, -5.0, -5.0),
-        SVector(π/4.0, π/4.0, 5.0, 5.0),
-    )
-    _U_ = UT.LazySetMinus(
-        UT.HyperRectangle(SVector(-5.5), SVector(5.5)),
-        UT.HyperRectangle(SVector(-1.5), SVector(1.5));
-        _I_ = UT.HyperRectangle(
-            SVector(-3.0*pi/180.0, -3.0*pi/180.0, -0.5, -0.5),
-            SVector(3.0*pi/180.0, 3.0*pi/180.0, 0.5, 0.5),
-        ),
-        _T_ = UT.HyperRectangle(
-            SVector(35.0*pi/180.0, -15.0*pi/180.0, -1.0, -1.0),
-            SVector(45.0*pi/180.0, 15.0*pi/180.0, 1.0, 1.0),
-        ),
-    )
+    # _X_ = UT.HyperRectangle(
+    #     SVector(-π/4.0, -π/4.0, -5.0, -5.0),
+    #     SVector(π/4.0, π/4.0, 5.0, 5.0),
+    # )
+    # _U_ = UT.LazySetMinus(
+    #     UT.HyperRectangle(SVector(-5.5), SVector(5.5)),
+    #     UT.HyperRectangle(SVector(-1.5), SVector(1.5)))
+    # _I_ = UT.HyperRectangle(
+    #     SVector(-3.0*pi/180.0, -3.0*pi/180.0, -0.5, -0.5),
+    #     SVector(3.0*pi/180.0, 3.0*pi/180.0, 0.5, 0.5),
+    # )
+    # _T_ = UT.HyperRectangle(
+    #     SVector(35.0*pi/180.0, -15.0*pi/180.0, -1.0, -1.0),
+    #     SVector(45.0*pi/180.0, 15.0*pi/180.0, 1.0, 1.0),
+    # )
+    
     _X_ = UT.HyperRectangle(SVector(-π/2.0, -π, -5.0, -5.0), SVector(π/2.0, π, 5.0, 5.0))
     _U_ = UT.LazySetMinus(
         UT.HyperRectangle(SVector(-5.5), SVector(5.5)),

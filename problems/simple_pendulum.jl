@@ -4,7 +4,6 @@ using StaticArrays
 using MathematicalSystems
 using Dionysos
 const UT = Dionysos.Utils
-const DO = Dionysos.Domain
 const PB = Dionysos.Problem
 const ST = Dionysos.System
 
