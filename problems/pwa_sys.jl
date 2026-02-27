@@ -81,19 +81,22 @@ function system(lib, dt, Usz, Wsz; simple = false)
 
     simple ? rectX = UT.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3)) :
     rectX = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-    simple ? obs = [] :
-    obs = [
-        UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)),
-        UT.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)),
-    ]
+
+    obs = UT.HyperRectangle{2,Float64}[]
+    if !simple
+        push!(obs, UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)))
+        push!(obs, UT.HyperRectangle(SVector(0.0,  1.25), SVector(1.0, 1.5)))
+    end
+
     Uaux = LA.diagm(1:n_u)
     U = [(Uaux .== i) ./ Usz for i in 1:n_u] # matrices U_i
     W = Wsz * [
         -1 -1 1 1
         -1 1 -1 1
     ] * dt # polytope of disturbances 
-    obs = UT.LazyUnionSetArray(obs)
-    rectX = UT.LazySetMinus(rectX, obs)
+    println(obs)
+    obs_union = UT.LazyUnion(obs)
+    rectX = UT.LazySetMinus(rectX, obs_union)
     system.ext[:X] = rectX
     system.ext[:U] = U
     system.ext[:W] = W

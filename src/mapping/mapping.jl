@@ -56,8 +56,6 @@ convert_to_list_mapping(m::AbstractMapping) =
     return ((S, m),) # delegates to the tuple recipe
 end
 
-# include("mapping_continuous.jl")
-
 include("list_mapping.jl")
 
 include("grid_mapping/grid.jl")

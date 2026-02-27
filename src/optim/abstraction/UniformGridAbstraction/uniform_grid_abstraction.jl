@@ -4,8 +4,8 @@ module UniformGridAbstraction
 
 import Dionysos
 const UT = Dionysos.Utils
-const PR = Dionysos.Problem
 const ST = Dionysos.System
+const PR = Dionysos.Problem
 const MP = Dionysos.Mapping
 const SY = Dionysos.Symbolic
 

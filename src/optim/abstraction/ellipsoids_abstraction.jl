@@ -9,8 +9,8 @@ MS = MathematicalSystems
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const DO = DI.Domain
 const SY = DI.Symbolic
 const PR = DI.Problem
 

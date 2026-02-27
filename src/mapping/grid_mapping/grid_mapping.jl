@@ -22,7 +22,17 @@ get_coord_by_state(m::GridMapping{N,T}, q::Int) where {N,T} = get_coord_by_pos(g
 
 convert_to_list_mapping(m::GridMapping) = ListMapping(collect(enum_coords(m)))
 
+
 # returns (states, allin) where allin=false if any covered grid-pos is invalid
+function get_states_from_set_strict(
+    m::AbstractMapping{N,T},
+    x::AbstractVector,
+    ::INCL_MODE,
+) where {N,T}
+    q = get_state_by_coord(m, x)
+    return q===nothing ? (nothing, false) : (Int[q], true)
+end
+
 function get_states_from_set_strict(
     m::GridMapping{N},
     rect::UT.HyperRectangle,
@@ -69,6 +79,15 @@ function get_states_from_set_strict(
     states_A, okA = get_states_from_set_strict(m, set.A, incl_mode)
     states_B, okB = get_states_from_set_strict(m, set.B, _invInclMode(incl_mode))
     return setdiff(states_A, states_B), (okA && okB)
+end
+
+function get_states_from_set(
+    m::AbstractMapping{N,T},
+    x::AbstractVector,
+    incl_mode::INCL_MODE,
+) where {N,T}
+    qs, _ = get_states_from_set_strict(m, x, incl_mode)
+    return qs
 end
 
 function get_states_from_set(

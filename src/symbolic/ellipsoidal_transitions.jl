@@ -243,7 +243,7 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
             PSDCone()
         )
     end
-    n_S = size(L, 1)
+    """n_S = size(L, 1)
     @constraint(
         model,
         [
@@ -252,6 +252,26 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
             t([LA.I t(K) z] * t(L)) t([t(c) t(ell) 1] * t(L)) eye(n_S)
         ] >= eye(n + n_S + 1) * 1e-4,
         PSDCone()
+    )"""
+    n  = length(c)
+    m  = size(U[1], 2)
+    nS = size(L, 1)
+
+    I_n = Matrix{Float64}(LA.I, n, n)
+    Z_n1 = zeros(n, 1)
+
+    # This is n × (n+m+1)
+    G = hcat(I_n, transpose(K), Z_n1)
+
+    # This is 1 × (n+m+1)
+    d = hcat(transpose(c), transpose(ell), 1.0)
+    @assert size(L, 2) == n + m + 1 "Expected L to have $(n+m+1) columns (for [x;u;1]), got size(L)=$(size(L))."
+    @constraint(model,
+        [
+            gamma * P                zeros(n,1)          G * transpose(L)
+            zeros(1,n)               J - gamma           d * transpose(L)
+            L * transpose(G)         L * transpose(d)    Matrix{Float64}(LA.I, nS, nS)
+        ] in PSDCone()
     )
 
     @objective(model, Min, J)
@@ -638,110 +658,4 @@ function transition_backward(
     else
         return nothing, nothing, nothing
     end
-end
-
-"""
-    compute_symmodel_from_hybridcontrolsystem!(symmodel::SymbolicModel{N}, transitionCost::AbstractDict, transitionCont::AbstractDict,
-    hybridsys::AbstractHybridSystem, W, L, U, opt_sdp, opt_qp)
-
-Builds an abstraction `symmodel` where the transitions have costs given in `transitionCost`
-and are parameterized by affine-feedback controllers in `transitionCont`. The concrete system 
-is `hybridsys` and `W`, `L` and `U` are defined as in `_has_transition`. An SDP optimizer `opt_sdp`
-and a QP optimizer `opt_qp` must be provided as JuMP optimizers.
-
-"""
-function compute_symmodel_from_hybridcontrolsystem!(
-    symmodel::SymbolicModel{N},
-    transitionCont::AbstractDict,
-    transitionCost::AbstractDict,
-    hybridsys::AbstractHybridSystem,
-    W,
-    L,
-    U,
-    opt_sdp;
-    opt_qp = nothing,
-) where {N}
-    println("compute_symmodel_from_hybridcontrolsystem! started")
-    Xdom = symmodel.Xdom
-
-    r = DO.get_h(DO.get_grid(Xdom)) / 2.0
-
-    n_sys = length(r)
-    if Xdom.grid isa Domain.GridEllipsoidalRectangular
-        Pm = Xdom.grid.P
-        P = Pm
-        box = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(n_sys)); optimizer = opt_qp)
-        R = [interval.hi for interval in box]
-    else
-        Pm = (1 / n_sys) * LA.diagm(inv.(r .^ 2))
-        P = Pm
-        R = r
-    end
-
-    # get affine mode number for a point x
-    get_mode(x) = findfirst(m -> (x ∈ m.X), hybridsys.resetmaps)
-
-    vec_list = collect(Iterators.product(eachcol(repeat(hcat([-1, 1]), 1, n_sys))...))[:] # list of vertices of a hypersquare centered at the origin and length 2
-
-    bds2rectverts(lb, ub) =
-        hcat([v .* ((ub - lb) / 2) + (ub + lb) / 2 for v in vec_list]...) #generate a matrix containing vertices of a hyperrectangle with lower vertice lb and upper one ub
-    function _compute_xpost(A, x, B, U, c, R)
-        Axcell = A * bds2rectverts(x - R, x + R)
-
-        Bu = B * hcat(Polyhedra.points(U)...)
-
-        return [
-            min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c - R, #
-            max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c + R,
-        ]
-    end
-
-    trans_count = 0
-    @showprogress 1 "Computing symbolic control system: " (
-        for xpos in Xdom.elems
-            source = get_state_by_xpos(symmodel, xpos)
-            x = Domain.get_coord_by_pos(Xdom.grid, xpos)
-            m = get_mode(x)
-
-            A = hybridsys.resetmaps[m].A
-            B = hybridsys.resetmaps[m].B
-            c = hybridsys.resetmaps[m].c
-            Upoly = hybridsys.resetmaps[m].U
-
-            xpost = _compute_xpost(A, x, B, Upoly, c, R)
-            rectI = Domain.get_pos_lims_outer(
-                Xdom.grid,
-                hybridsys.ext[:X].A ∩ UT.HyperRectangle(xpost[1], xpost[2]),
-            )
-
-            xmpos_iter = Iterators.product(Domain._ranges(rectI)...)
-            for xmpos in xmpos_iter
-                if xmpos ∈ Xdom
-                    xm = Domain.get_coord_by_pos(Xdom.grid, xmpos)
-                    ans, cont, cost = _has_transition(
-                        hybridsys.resetmaps[m],
-                        UT.Ellipsoid(P, x),
-                        UT.Ellipsoid(Pm, xm),
-                        U,
-                        W,
-                        L,
-                        opt_sdp,
-                    )
-
-                    if (ans)
-                        trans_count += 1
-                        target = get_state_by_xpos(symmodel, xmpos)
-                        symbol = target
-                        add_transition!(symmodel.autom, source, target, symbol)
-                        transitionCost[(source, target)] = cost
-                        transitionCont[(source, target)] = cont
-                    end
-                end
-            end
-        end
-    )
-    return println(
-        "compute_symmodel_from_controlsystem! terminated with success: ",
-        "$(trans_count) transitions created",
-    )
 end

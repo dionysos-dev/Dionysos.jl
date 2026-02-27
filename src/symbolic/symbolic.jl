@@ -32,12 +32,12 @@ include("grid_based_symbolic_model/symbolic_model_list.jl")
 # include("alternating_simulation.jl")
 # include("proba_automaton.jl")
 
-# import Polyhedra
-# import IntervalArithmetic as IA
-# import LazySets
-# using ProgressMeter
-# using JuMP
-# include("ellipsoidal_transitions.jl")
+import Polyhedra
+import IntervalArithmetic as IA
+import LazySets
+using ProgressMeter
+using JuMP
+include("ellipsoidal_transitions.jl")
 
 # include("timed_hybrid_automaton/vector_continuous_system.jl")
 

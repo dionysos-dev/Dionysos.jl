@@ -159,6 +159,7 @@ end
 
 get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
 get_h(grid::GridEllipsoidalRectangular) = get_h(grid.underlying_grid)
+get_P(grid::GridEllipsoidalRectangular) = grid.P
 
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
     return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
