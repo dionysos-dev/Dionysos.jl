@@ -174,13 +174,13 @@ if COMPUTE_ABSTRACTION
     MOI.optimize!(optimizer)
 
     if SAVE_ABSTRACTION
-        AB.UniformGridAbstraction.save_abstraction(optimizer, FILENAME)
+        AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, FILENAME)
         println("Saved abstraction to: ", FILENAME)
     end
 end
 
 if LOAD_ABSTRACTION
-    optimizer = AB.UniformGridAbstraction.load_abstraction!(FILENAME)
+    optimizer = AB.UniformGridAbstraction.load_abstraction_jld2(FILENAME)
     println("Loaded abstraction from: ", FILENAME)
 end
 

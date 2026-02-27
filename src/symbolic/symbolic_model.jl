@@ -42,14 +42,15 @@ get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapp
 get_concrete_elem(sym::SymbolicModel, q::Int) = MP.get_elem_by_state(get_state_mapping(sym), q)
 
 function get_automaton(::SymbolicModel) end
-
 pre(sym::SymbolicModel, target::Int) = pre(get_automaton(sym), target)
 post(sym::SymbolicModel, source::Int, input::Int) = post(get_automaton(sym), source, input)
 enum_transitions(sym::SymbolicModel) = enum_transitions(get_automaton(sym))
 add_transition!(sym::SymbolicModel, q::Int, q′::Int, u::Int) = add_transition!(get_automaton(sym), q, q′, u)
 add_transitions!(sym::SymbolicModel, translist) = add_transitions!(get_automaton(sym), translist)
-is_deterministic(sym::SymbolicModel) = is_deterministic(get_automaton(sym))
 get_n_transitions(sym::SymbolicModel) = length(enum_transitions(sym))
+is_deterministic(sym::SymbolicModel) = is_deterministic(get_automaton(sym))
+function is_determinized(sym::SymbolicModel) end
+
 
 function get_states_from_set(
     sym::SymbolicModel,

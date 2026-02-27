@@ -440,42 +440,69 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-# Make an out-of-domain handler.
-# mode = 0: return nothing (stop)
-# mode = 1: project to nearest abstract cell (no mutation warning)
+"""
+make_out_of_domain_handler(; mode=0, warn=true, dims=nothing)
+
+mode = 0: return nothing when x is not allowed (or outside mapping)
+mode = 1: project to nearest allowed abstract state (using mapping coords)
+"""
 function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
     if mode == 0
         return (x, abs_sys) -> begin
-            warn && @warn("State out of domain: $x")
-            return nothing
+            Xmap = SY.get_state_mapping(abs_sys)
+            Xset = SY.get_state_domain(abs_sys)
+            q = MP.get_state_by_coord(Xmap, x)
+            if q === nothing || !MP.contains_state(Xset, Xmap, q)
+                warn && @warn("State out of allowed domain: $x")
+                return nothing
+            end
+            return x
         end
-    # elseif mode == 1
-    #     return (x, abs_sys) -> begin
-    #         Xdom = SY.get_state_domain(abs_sys)
-    #         xpos = Dionysos.Domain.get_pos_by_coord(Xdom, x)
+    elseif mode == 1
+        return (x, abs_sys) -> begin
+            Xmap = SY.get_state_mapping(abs_sys)
+            Xset = SY.get_state_domain(abs_sys)
+            q = MP.get_state_by_coord(Xmap, x)
+            if q !== nothing && MP.contains_state(Xset, Xmap, q)
+                return x
+            end
+            # Otherwise: project to nearest allowed state (in coordinate space)
+            # NOTE: this can be expensive if Xset is large.
+            states = MP.enum_states(Xset, Xmap)
 
-    #         # Find nearest abstract element (this assumes Xdom has elems as positions)
-    #         xnew_pos = argmin(
-    #             p -> LinearAlgebra.norm(collect(p) - collect(xpos)),
-    #             DO.enum_pos(Xdom),
-    #         )
+            isempty(states) && begin
+                warn && @warn("Allowed state set is empty; cannot project $x")
+                return nothing
+            end
 
-    #         warn && @warn(
-    #             "State out of domain: $x, nearest abstract pos: $xnew_pos (mode=$mode)"
-    #         )
+            # Choose a distance in full space or in selected dims
+            function dist(qi::Int)
+                xi = MP.get_coord_by_state(Xmap, qi)
+                if dims === nothing
+                    return LinearAlgebra.norm(xi - x)
+                else
+                    return LinearAlgebra.norm(xi[dims] - x[dims])
+                end
+            end
 
-    #         # Convert abstract position back to a representative concrete point.
-    #         # If your Domain uses grid cells, you may want the cell center coordinate here.
-    #         return Dionysos.Domain.get_coord_by_pos(Xdom, xnew_pos)
-    #     end
+            qbest = argmin(dist, states)
+            xproj = MP.get_coord_by_state(Xmap, qbest)
+
+            warn && @warn("State out of allowed domain: $x -> projected to state $qbest at $xproj (mode=1)")
+            return xproj
+        end
     else
         error("Unknown mode=$mode")
     end
 end
 
+# --------------------------------------- #
+# --- JLD2 Abstraction Export/Import ---- #
+# --------------------------------------- #
+
 using JLD2
 
-function save_abstraction(opt::UniformGridAbstraction.Optimizer, filename::AbstractString)
+function export_abstraction_jld2(opt::UniformGridAbstraction.Optimizer, filename::AbstractString)
     abs_opt = opt.abstraction_solver
     abs_opt === nothing && error("No abstraction_solver in optimizer.")
     abs_sys = abs_opt.abstract_system
@@ -490,7 +517,7 @@ function save_abstraction(opt::UniformGridAbstraction.Optimizer, filename::Abstr
     return nothing
 end
 
-function load_abstraction!(
+function import_abstraction_jld2(
     filename::AbstractString;
     opt::Union{Nothing, UniformGridAbstraction.Optimizer} = nothing,
 )
@@ -519,118 +546,146 @@ function load_abstraction!(
     return opt
 end
 
+# --------------------------------------- #
+# ----- CSV Controller Export/Import ---- #
+# --------------------------------------- #
+
 using DataFrames, CSV
 
-# function export_controller_csv(
-#     optimizer::UniformGridAbstraction.Optimizer,
-#     filename::String,
-# )
-#     abstract_system = optimizer.abstraction_solver.abstract_system
-#     abstract_controller = optimizer.control_solver.abstract_controller
-#     abstract_controller === nothing && error("Controller not available")
+# --------------- Export ---------------- #
 
-#     return export_controller_csv(abstract_system, abstract_controller, filename)
-# end
+function export_controller_csv(
+    optimizer::UniformGridAbstraction.Optimizer,
+    basename::String;
+    delim = ';',
+    decimal=','
+)
+    abs_sys = optimizer.abstraction_solver.abstract_system
+    ctrl    = optimizer.control_solver.abstract_controller
+    ctrl === nothing && error("Controller not available")
+    return export_controller_csv(abs_sys, ctrl, basename; delim=delim, decimal=decimal)
+end
 
-# function export_controller_csv(abstract_system, abstract_controller, basename::String)
-#     grid = SY.get_state_grid(abstract_system)
+function export_controller_csv(sym::SY.SymbolicModel, controller, basename::String; delim=';', decimal=',')
+    # --- State mapping / optional grid ---
+    Xmap = SY.get_state_mapping(sym)
 
-#     CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim = ';')
-#     CSV.write(
-#         basename * "_StateMap.csv",
-#         build_state_map_df(abstract_system, grid);
-#         delim = ';',
-#     )
-#     CSV.write(
-#         basename * "_ControllerMap.csv",
-#         build_controller_map_df(abstract_system, abstract_controller);
-#         delim = ';',
-#     )
-#     return CSV.write(
-#         basename * "_InputMap.csv",
-#         build_input_map_df(abstract_system);
-#         delim = ';',
-#     )
-# end
+    if Xmap isa MP.GridMapping
+        grid = MP.get_grid(Xmap)
+        CSV.write(basename * "_Grid.csv", build_grid_df(grid); delim=delim, decimal=decimal)
+    end
 
-# function build_grid_df(grid)
-#     origin = DO.get_origin(grid)
-#     h = DO.get_h(grid)
-#     ndims = length(origin)
+    CSV.write(basename * "_StateMap.csv", build_state_map_df(sym); delim=delim, decimal=decimal)
+    CSV.write(basename * "_ControllerMap.csv", build_controller_map_df(sym, controller); delim=delim, decimal=decimal)
+    CSV.write(basename * "_InputMap.csv", build_input_map_df(sym); delim=delim, decimal=decimal)
 
-#     header = ["key"; ["x$(j)" for j in 1:ndims]]
-#     rows = [["origin"; origin], ["h"; h]]
+    return nothing
+end
 
-#     df = DataFrame()
-#     for j in 1:length(header)
-#         df[!, Symbol(header[j])] = getindex.(rows, j)
-#     end
-#     return df
-# end
+function build_grid_df(grid)
+    origin = MP.get_origin(grid)
+    h      = MP.get_h(grid)
+    ndims  = length(origin)
 
-# function build_state_map_df(abstract_system, grid)
-#     ndims = length(DO.get_h(grid))
-#     headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
-#     states = SY.enum_states(abstract_system)
-#     rows = [(s, SY.get_xpos_by_state(abstract_system, s)...) for s in states]
-#     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-# end
+    header = ["key"; ["x$(j)" for j in 1:ndims]]
+    rows   = [["origin"; origin], ["h"; h]]
 
-# function build_controller_map_df(abstract_system, abstract_controller)
-#     states = SY.enum_states(abstract_system)
-#     rows = [(s, get_input_symbol(abstract_controller, s)) for s in states]
-#     return DataFrame([
-#         "abstract_state" => getindex.(rows, 1),
-#         "abstract_input" => getindex.(rows, 2),
-#     ])
-# end
+    df = DataFrame()
+    for j in 1:length(header)
+        df[!, Symbol(header[j])] = getindex.(rows, j)
+    end
+    return df
+end
 
-# function get_input_symbol(controller, state; randomize = false)
-#     !(state in controller.X) && return -1
+function build_state_map_df(sym::SY.SymbolicModel)
+    states = SY.enum_states(sym)
+    x1 = SY.get_concrete_state(sym, first(states))
+    ndims = length(x1)
 
-#     u = controller.h(state)
+    headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
 
-#     u === nothing && return -1
-#     (u isa AbstractVector && isempty(u)) && return -1
+    rows = [(q, SY.get_concrete_state(sym, q)...) for q in states]
 
-#     return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
-# end
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
 
-# function build_input_map_df(abstract_system)
-#     inputs = SY.enum_inputs(abstract_system)
-#     ndims_u = length(SY.get_concrete_input(abstract_system, first(inputs)))
-#     headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
-#     rows = [(i, SY.get_concrete_input(abstract_system, i)...) for i in inputs]
-#     return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
-# end
+function build_controller_map_df(sym::SY.SymbolicModel, controller)
+    states = SY.enum_states(sym)
+    rows = [(q, get_input_symbol(controller, q)) for q in states]
+    return DataFrame([
+        "abstract_state" => getindex.(rows, 1),
+        "abstract_input" => getindex.(rows, 2),
+    ])
+end
 
-# function load_controller_data_csv(basename::String)
-#     grid_df = CSV.read(basename * "_Grid.csv", DataFrame; delim = ';')
-#     state_df = CSV.read(basename * "_StateMap.csv", DataFrame; delim = ';')
-#     ctrl_df = CSV.read(basename * "_ControllerMap.csv", DataFrame; delim = ';')
-#     input_df = CSV.read(basename * "_InputMap.csv", DataFrame; delim = ';')
-#     return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-# end
+function get_input_symbol(controller, state; randomize=false)
+    # keep your semantics
+    !(state in controller.X) && return -1
 
-# function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
-#     origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
-#     h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
+    u = controller.h(state)
 
-#     pos2state = Dict{Vector{Int}, Int}()
-#     for row in eachrow(state_df)
-#         pos = [Float64(row[Symbol("x$i")]) for i in 1:(ncol(state_df) - 1)]
-#         pos2state[pos] = row.abstract_state
-#     end
+    u === nothing && return -1
+    (u isa AbstractVector && isempty(u)) && return -1
 
-#     state2input = Dict(ctrl_df.abstract_state .=> ctrl_df.abstract_input)
+    return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
+end
 
-#     input2u = Dict{Int, Vector{Float64}}()
-#     for row in eachrow(input_df)
-#         u = [Float64(row[Symbol("u$i")]) for i in 1:(ncol(input_df) - 1)]
-#         input2u[row.abstract_input] = u
-#     end
+function build_input_map_df(sym::SY.SymbolicModel)
+    inputs = SY.enum_inputs(sym)
+    u1 = SY.get_concrete_input(sym, first(inputs))
+    ndims_u = length(u1)
 
-#     return origin, h, pos2state, state2input, input2u
-# end
+    headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
+    rows = [(i, SY.get_concrete_input(sym, i)...) for i in inputs]
+
+    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+end
+
+
+# -------------- Import --------------- #
+
+function import_controller_csv(basename::String; delim=';', decimal=',')
+    grid_path  = basename * "_Grid.csv"
+    state_path = basename * "_StateMap.csv"
+    ctrl_path  = basename * "_ControllerMap.csv"
+    input_path = basename * "_InputMap.csv"
+
+    grid_df  = isfile(grid_path) ? CSV.read(grid_path,  DataFrame; delim=delim, decimal=decimal) : nothing
+    state_df = CSV.read(state_path, DataFrame; delim=delim, decimal=decimal)
+    ctrl_df  = CSV.read(ctrl_path,  DataFrame; delim=delim, decimal=decimal)
+    input_df = CSV.read(input_path, DataFrame; delim=delim, decimal=decimal)
+
+    return parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+end
+
+function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
+    origin = nothing
+    h = nothing
+    if grid_df !== nothing
+        origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
+        h      = Vector{Float64}(grid_df[grid_df.key .== "h",      Not(:key)][1, :])
+    end
+
+    # coord -> state (tuple key, stable for Dict)
+    ndims_x = ncol(state_df) - 1
+    coord2state = Dict{NTuple{0,Float64},Int}()  # will be replaced immediately
+    coord2state = Dict{NTuple{ndims_x,Float64}, Int}()
+
+    for row in eachrow(state_df)
+        x = ntuple(i -> Float64(row[Symbol("x$i")]), ndims_x)
+        coord2state[x] = Int(row.abstract_state)
+    end
+
+    state2input = Dict(Int.(ctrl_df.abstract_state) .=> Int.(ctrl_df.abstract_input))
+
+    ndims_u = ncol(input_df) - 1
+    input2u = Dict{Int, NTuple{ndims_u,Float64}}()
+    for row in eachrow(input_df)
+        u = ntuple(i -> Float64(row[Symbol("u$i")]), ndims_u)
+        input2u[Int(row.abstract_input)] = u
+    end
+
+    return origin, h, coord2state, state2input, input2u
+end
 
 end

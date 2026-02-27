@@ -43,7 +43,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH,
+    AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
@@ -56,8 +56,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 #     MOI.RawOptimizerAttribute("automaton_constructor"),
 #     (n, m) -> SY.NewIndexedAutomatonList(n, m),
 # )
-
-# USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
 MOI.optimize!(optimizer)
 abstraction_time =
@@ -105,10 +103,10 @@ plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
 plot!(x_traj)
 display(fig)
 
-## Export in csv file the controller, and reload it
-# filename = "concrete_controller"
-# AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
-# AB.UniformGridAbstraction.load_controller_data_csv(filename)
+# Export in csv file the controller, and reload it
+filename = "concrete_controller"
+AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
+AB.UniformGridAbstraction.import_controller_csv(filename)
 
 ### Solve a reachability problem
 # _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
