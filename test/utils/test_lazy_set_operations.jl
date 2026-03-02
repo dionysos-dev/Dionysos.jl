@@ -18,19 +18,19 @@ const UT = DI.Utils
     @test UT.get_center(B) == c1
     @test UT.get_shape(B) == P
 
-    D = UT.LazyUnionSetArray([])
+    D = UT.LazySetUnionSetArray([])
     @test UT.isempty(D)
     @test UT.isempty(UT.get_sets(D))
 
     c2 = [1.0; 1.0]
     B2 = UT.Ellipsoid(P, c2)
-    C = UT.LazyUnionSetArray([B1, B2])
+    C = UT.LazySetUnionSetArray([B1, B2])
     Csets = UT.get_sets(C)
     @test Csets[1] == B1
     @test Csets[2] == B2
 
     A2 = UT.HyperRectangle([1.0 1.0], [2.0 2.0])
-    E = UT.LazyUnionSetArray([A1, A2])
+    E = UT.LazySetUnionSetArray([A1, A2])
     A3 = UT.HyperRectangle([0.5 0.5], [1.5 1.5])
     I = UT.get_sets(intersect(E, A3))
     @test I[1] == UT.HyperRectangle([0.5 0.5], [1.0 1.0])

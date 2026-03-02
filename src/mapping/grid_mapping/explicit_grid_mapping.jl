@@ -12,7 +12,7 @@ struct ExplicitGridMapping{N,T,G} <: GridMapping{N,T}
     id2pos::Vector{NTuple{N,Int}}
 end
 
-function ExplicitGridMapping(grid::G) where {N,T,G}
+function _explicit_mapping_ctor(::Val{N}, ::Type{T}, grid::G) where {N,T,G}
     return ExplicitGridMapping{N,T,G}(
         grid,
         Dict{NTuple{N,Int},Int}(),
@@ -20,16 +20,9 @@ function ExplicitGridMapping(grid::G) where {N,T,G}
     )
 end
 
-function ExplicitGridMapping{N,T}(grid::G) where {N,T,G}
-    return ExplicitGridMapping{N,T,G}(
-        grid,
-        Dict{NTuple{N,Int},Int}(),
-        NTuple{N,Int}[],
-    )
-end
-
+# Infer N,T from the grid type
 function ExplicitGridMapping(grid::Grid{N,T}) where {N,T}
-    return ExplicitGridMapping{N,T}(grid)
+    return _explicit_mapping_ctor(Val(N), T, grid)
 end
 
 function ExplicitGridMapping{N,T}(grid::G, positions) where {N,T,G}
@@ -44,6 +37,14 @@ function ExplicitGridMapping{N,T}(grid::G, set, incl_mode::INCL_MODE) where {N,T
     m = ExplicitGridMapping{N,T}(grid)
     add_set!(m, set, incl_mode)
     return m
+end
+
+function (::Type{ExplicitGridMapping{N,T}})(grid::G) where {N,T,G}
+    return ExplicitGridMapping{N,T,G}(
+        grid,
+        Dict{NTuple{N,Int},Int}(),
+        NTuple{N,Int}[],
+    )
 end
 
 

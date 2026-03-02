@@ -42,12 +42,12 @@ end
 @recipe function f(
     hierarchical_symmodel::HierarchicalSymbolicSystem;
     dims = [1, 2],
-    arrowsB = true,
+    with_arrows = true,
     cost = false,
     lyap_fun = [],
 )
     @series begin
-        arrowsB := false
+        with_arrows := false
         hierarchical_symmodel.symmodel
     end
     for (state, sub_symmodel) in hierarchical_symmodel.sub_symmodels

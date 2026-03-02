@@ -45,7 +45,7 @@ function test()
     hx = SVector(3.0, 0.3)
 
     # Create a LazySetMinus: free space = X minus obstacle
-    free_space = UT.LazySetMinus(X, UT.LazyUnionSetArray([obstacle]))
+    free_space = UT.LazySetMinus(X, UT.LazySetUnionSetArray([obstacle]))
 
     x0 = SVector(0.0, 0.0)
     nstep = 10
@@ -95,11 +95,11 @@ function test()
 
         fig = plot(; aspect_ratio = :equal)
         lyap_fun = Dict(state => 2.0 * state for state in SY.enum_states(symmodel))
-        plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
+        plot!(fig, symmodel; with_arrows = true, cost = true, lyap_fun = lyap_fun)
         @test isa(fig, Plots.Plot{Plots.GRBackend})
 
         fig = plot(; aspect_ratio = :equal)
-        plot!(fig, symmodel; arrowsB = true, cost = false)
+        plot!(fig, symmodel; with_arrows = true, cost = false)
         @test isa(fig, Plots.Plot{Plots.GRBackend})
     end
 end

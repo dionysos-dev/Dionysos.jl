@@ -176,7 +176,7 @@ function build_tube(
         push!(rects, UT.HyperRectangle(SVector(lb), SVector(ub)))
     end
 
-    tube = UT.LazyUnion(rects)
+    tube = UT.LazySetUnion(rects)
     tube = X_domain !== nothing ? tube ∩ X_domain : tube
     return tube
 end

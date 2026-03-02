@@ -60,7 +60,7 @@ function filter_obstacles(_X_, _I_, _T_, obs)
             push!(obstacles, ob)
         end
     end
-    obstacles_LU = UT.LazyUnion(obstacles)
+    obstacles_LU = UT.LazySetUnion(obstacles)
     return obstacles_LU
 end
 

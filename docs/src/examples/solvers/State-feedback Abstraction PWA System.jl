@@ -202,7 +202,7 @@ fig = plot(;
 xlims!(rectX.A.lb[1] - 0.2, rectX.A.ub[1] + 0.2);
 ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true, efficient = false, cost = false)
+plot!(abstract_system; with_arrows = true, efficient = false, cost = false)
 
 # ## Display the Lyapunov function and the trajectory
 fig = plot(;
@@ -217,7 +217,7 @@ ylims!(rectX.A.lb[2] - 0.2, rectX.A.ub[2] + 0.2);
 xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
-plot!(abstract_system; arrowsB = false, value_function = optimizer.abstract_lyap_fun);
+plot!(abstract_system; with_arrows = false, value_function = optimizer.abstract_lyap_fun);
 plot!(x_traj; color = :black)
 
 # ## References

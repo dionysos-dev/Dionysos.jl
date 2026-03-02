@@ -104,7 +104,7 @@ function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     return Iterators.product(_ranges(rectI)...)
 end
 
-function get_pos_from_set(grid, U::UT.LazyUnion, incl_mode::INCL_MODE)
+function get_pos_from_set(grid, U::UT.LazySetUnion, incl_mode::INCL_MODE)
     return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.sets)
 end
 

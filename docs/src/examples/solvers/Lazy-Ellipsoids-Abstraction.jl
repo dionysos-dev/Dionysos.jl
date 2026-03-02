@@ -10,9 +10,7 @@ Random.seed!(0)
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -101,7 +99,7 @@ title!("Specifictions and domains");
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = false);
 
 #Display the abstract domain
-plot!(abstract_system; arrowsB = false, cost = false, label = false);
+plot!(abstract_system; with_arrows = false, cost = false, label = false);
 
 #Display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, label = false);
@@ -116,7 +114,7 @@ fig = plot(;
     titlefontsize = 14,
 );
 title!("Abstractions");
-plot!(abstract_system; arrowsB = true)
+plot!(abstract_system; with_arrows = true)
 
 # # Display the Lyapunov function and the trajectory
 fig = plot(;
@@ -133,5 +131,5 @@ title!("Trajectory and Lyapunov-like Fun.");
 for obs in concrete_system.obstacles
     plot!(obs; color = :black)
 end
-plot!(abstract_system; arrowsB = false, cost = true);
+plot!(abstract_system; with_arrows = false, cost = true);
 plot!(x_traj; color = :black)

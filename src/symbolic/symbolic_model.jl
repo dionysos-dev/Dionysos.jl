@@ -38,7 +38,7 @@ get_concrete_state(sym::SymbolicModel, state) = MP.get_coord_by_state(get_state_
 get_concrete_input(sym::SymbolicModel, input) = MP.get_coord_by_state(get_input_mapping(sym), input)
 get_abstract_state(sym::SymbolicModel, x) = MP.get_state_by_coord(get_state_mapping(sym), x)
 get_abstract_states(sym::SymbolicModel, x) = MP.get_states_by_coord(get_state_mapping(sym), x)
-is_state_cover(m::SymbolicModel) = MP.is_state_cover(get_state_mapping(sym))
+is_state_cover(sym::SymbolicModel) = MP.is_state_cover(get_state_mapping(sym))
 
 get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapping(sym), u)
 

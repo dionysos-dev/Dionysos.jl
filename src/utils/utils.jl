@@ -31,7 +31,6 @@ include("sets/rectangle.jl")
 include("sets/ellipsoid.jl")
 include("sets/degenerate_ellipsoid.jl")
 include("sets/polyhedron.jl")
-include("sets/intersection_set.jl")
 
 include("box.jl")
 using JuMP

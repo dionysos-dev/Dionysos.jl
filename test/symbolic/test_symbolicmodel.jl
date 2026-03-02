@@ -63,11 +63,11 @@ println("Started test")
 
     fig = plot(; aspect_ratio = :equal)
     lyap_fun = Dict(state => 2.0 * state for state in SY.enum_states(symmodel))
-    plot!(fig, symmodel; arrowsB = true, cost = true, lyap_fun = lyap_fun)
+    plot!(fig, symmodel; with_arrows = true, cost = true, lyap_fun = lyap_fun)
     @test isa(fig, Plots.Plot{Plots.GRBackend})
 
     fig = plot(; aspect_ratio = :equal)
-    plot!(fig, symmodel; arrowsB = true, cost = false)
+    plot!(fig, symmodel; with_arrows = true, cost = false)
     @test isa(fig, Plots.Plot{Plots.GRBackend})
 end
 

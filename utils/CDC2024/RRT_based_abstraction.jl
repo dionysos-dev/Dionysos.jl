@@ -10,9 +10,7 @@ Random.seed!(0)
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -97,17 +95,16 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time;
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set.c
-cost_control_trajectory = ST.get_closed_loop_trajectory(
-    concrete_system.f_eval,
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    concrete_system,
     concrete_controller,
-    cost_eval,
     x0,
     nstep;
     stopping = reached,
-    noise = true,
+    f_map_override = (x, u) -> concrete_system.f_eval(x, u, [0, 0]),
 )
-cost_bound = concrete_lyap_fun(x0)
-cost_true = sum(cost_control_trajectory.costs.seq);
+c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+cost_bound = concrete_lyap_fun(x0);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
@@ -129,7 +126,7 @@ end
 
 #Display the abstract domain
 plot!(concrete_problem.target_set; color = :red)
-plot!(abstract_system; arrowsB = true, cost = true)
+plot!(abstract_system; with_arrows = true, cost = true)
 
 #Display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green)

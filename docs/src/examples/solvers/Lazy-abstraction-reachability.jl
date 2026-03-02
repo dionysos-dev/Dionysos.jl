@@ -32,11 +32,11 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(30.0, 30.0))
-obsX = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))])
+obsX = UT.LazySetUnionSetArray([UT.HyperRectangle(SVector(15.0, 15.0), SVector(20.0, 20.0))])
 _X_ = UT.LazySetMinus(rectX, obsX)
 
 rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-obsU = UT.LazyUnionSetArray([UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))])
+obsU = UT.LazySetUnionSetArray([UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))])
 _U_ = UT.LazySetMinus(rectU, obsU)
 
 dt = 0.8
@@ -221,7 +221,7 @@ plot!(
 fig = plot(; aspect_ratio = :equal)
 plot!(
     optimizer.abstract_system_heuristic;
-    arrowsB = false,
+    with_arrows = false,
     dims = [1, 2],
     cost = true,
     lyap_fun = optimizer.bell_fun,

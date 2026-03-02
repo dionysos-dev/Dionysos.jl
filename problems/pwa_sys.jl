@@ -94,7 +94,7 @@ function system(lib, dt, Usz, Wsz; simple = false)
         -1 -1 1 1
         -1 1 -1 1
     ] * dt # polytope of disturbances 
-    obs_union = UT.LazyUnion(obs)
+    obs_union = UT.LazySetUnion(obs)
     rectX = UT.LazySetMinus(rectX, obs_union)
     system.ext[:X] = rectX
     system.ext[:U] = U

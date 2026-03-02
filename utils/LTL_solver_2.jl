@@ -83,7 +83,7 @@ obs = UT.HyperRectangle(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
 
 danger1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 danger2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
-danger = UT.LazyUnion([danger1, danger2])
+danger = UT.LazySetUnion([danger1, danger2])
 
 # co-safe formula
 φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"

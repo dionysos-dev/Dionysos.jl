@@ -70,7 +70,7 @@ end
 
 function get_states_from_set_strict(
     m::GridMapping{N},
-    subsets::UT.LazyUnion,
+    subsets::UT.LazySetUnion,
     incl_mode::INCL_MODE,
 ) where {N}
     acc = Int[]
@@ -114,7 +114,7 @@ end
 
 function get_states_from_set(
     m::GridMapping{N},
-    subsets::UT.LazyUnion,
+    subsets::UT.LazySetUnion,
     incl_mode::INCL_MODE,
 ) where {N}
     qs, _ = get_states_from_set_strict(m, subsets, incl_mode)

@@ -721,7 +721,7 @@ end
             bell_fun =
                 Dict(state => bell for (state, bell) in enumerate(heuristic_data.dists))
             @series begin
-                arrowsB := false
+                with_arrows := false
                 dims := [1, 2]
                 cost := true
                 lyap_fun := bell_fun

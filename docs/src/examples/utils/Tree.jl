@@ -52,7 +52,7 @@ nNode8 = UT.add_closest_node!(tree, Ellipsoids[8], distance, get_action);
 # Plot the tree
 println(tree)
 fig = plot(; aspect_ratio = :equal)
-plot!(tree; arrowsB = true, cost = true)
+plot!(tree; with_arrows = true, cost = true)
 
 # We change the node's cost and update the tree accordingly
 nNode3.path_cost = 5.0

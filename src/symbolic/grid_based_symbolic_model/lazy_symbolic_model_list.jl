@@ -56,7 +56,7 @@ function get_state_space_pos(Xdom, elems::UT.LazySetMinus)
     grid = DO.get_grid(Xdom)
     fitted_A = DO.get_pos_lims_outer(grid, elems.A)
     fitted_B =
-        UT.LazyUnionSetArray([DO.get_pos_lims_outer(grid, Oi) for Oi in elems.B.sets])
+        UT.LazySetUnionSetArray([DO.get_pos_lims_outer(grid, Oi) for Oi in elems.B.sets])
     return UT.LazySetMinus(fitted_A, fitted_B)
 end
 
@@ -138,7 +138,7 @@ get_abstract_input(symmodel::LazySymbolicModelList, u) = symmodel.ucoord2int[u]
 @recipe function f(
     symmodel::LazySymbolicModelList;
     dims = [1, 2],
-    arrowsB = false,
+    with_arrows = false,
     cost = false,
     lyap_fun = [],
 )
@@ -174,7 +174,7 @@ get_abstract_input(symmodel::LazySymbolicModelList, u) = symmodel.ucoord2int[u]
         end
     end
     # Display the arrows
-    if arrowsB
+    if with_arrows
         for (target, source, symbol) in enum_transitions(symmodel)
             if source == target
                 @series begin

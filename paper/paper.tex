@@ -584,7 +584,7 @@ In \texttt{Dionysos.jl}, we can also generate visualizations thanks to the imple
 ]
 fig = plot(aspect_ratio=:equal)
 plot!(abstract_system; 
-      arrowsB = true, 
+      with_arrows = true, 
       cost = true)
 plot!(concrete_problem.target_set; 
       color = :red)

@@ -181,7 +181,7 @@ mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
 end
 
 ImplicitStateSet{N}() where {N} =
-    ImplicitStateSet{N}(UT.LazySetMinus(UT.LazyUnion([]), UT.LazyUnion([])))
+    ImplicitStateSet{N}(UT.LazySetMinus(UT.LazySetUnion([]), UT.LazySetUnion([])))
 
 
 # --------------------------
@@ -243,8 +243,8 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping, q::Int; incl_mod
     end
 end
 
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} = enum_states(S, m ; incl_mode=INNER)
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}; incl_mode=INNER) where {N} = get_states_from_set(m, S.set, incl_mode)
+enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} = enum_states(S, m, INNER)
+enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}, incl_mode::INCL_MODE) where {N} = get_states_from_set(m, S.set, incl_mode)
 
 function add_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
     S.set = UT.add_set(S.set, set)
@@ -257,7 +257,7 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    S.set = UT.LazySetMinus(UT.LazyUnion([]), UT.LazyUnion([]))
+    S.set = UT.LazySetMinus(UT.LazySetUnion([]), UT.LazySetUnion([]))
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =

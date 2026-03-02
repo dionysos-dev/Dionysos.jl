@@ -79,19 +79,12 @@ end
 # Constructors 
 # ----------------------------
 
-"""
-    PeriodicGridMapping(periodic_dims, periods, start, mapping)
-
-Checks:
-- origin[d] == start[i] + h[d]/2
-- h[d] divides periods[i]
-"""
 function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-    grid::Grid{N,T},
-) where {N, T, M <: GridMapping{N,T}, P}
+    grid::M,
+) where {N, T, M <: Grid{N,T}, P}
 
     orig = get_origin(grid)
     h = get_h(grid)
@@ -124,14 +117,6 @@ function PeriodicGridMapping(
     return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, grid)
 end
 
-
-"""
-    PeriodicGridMapping(periodic_dims, periods, start, mapping)
-
-Checks:
-- origin[d] == start[i] + h[d]/2
-- h[d] divides periods[i]
-"""
 function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
@@ -169,9 +154,7 @@ function PeriodicGridMapping(
     return PeriodicGridMapping(periodic_dims, periods, start, mapping)
 end
 
-"""
-Non-periodic wrapper (convenience), same as PeriodicDomainList(grid::Grid).
-"""
+# Non-periodic wrapper (convenience), same as PeriodicDomainList(grid::Grid).
 function PeriodicGridMapping(mapping::M) where {N, T, M <: GridMapping{N,T}}
     return PeriodicGridMapping(SVector{0, Int}(), SVector{0, T}(), zeros(SVector{0, T}), mapping)
 end

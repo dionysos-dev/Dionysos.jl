@@ -14,20 +14,13 @@ Random.seed!(0)
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
 const PR = DI.Problem
-
-# temp
-global myBool = true
-global myBool2 = false
-global NI = nothing
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer
 
-Abstraction-based solver using the lazy abstraction method with ellipsoidal cells.
+Abstraction-based solver using a lazy abstraction method with ellipsoidal cells (RRT-based).
 """
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
@@ -39,6 +32,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
 
+    # algorithm parameters
     distance::Union{Nothing, Any}
     rand_state::Union{Nothing, Any}
     new_conf::Union{Nothing, Any}
@@ -54,6 +48,11 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     k1::Union{Nothing, Int}
     k2::Union{Nothing, Int}
     continues::Union{Nothing, Bool}
+
+    _found_initial::Bool
+    _can_rewire::Bool
+    _initial_node::Union{Nothing, Any}
+
     solve_time_sec::T
 
     function Optimizer{T}() where {T}
@@ -81,6 +80,7 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            false, false, nothing,
             0.0,
         )
     end
@@ -108,7 +108,7 @@ function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
 end
 
 function set_optimizer!(
-    optimizer::Optimizer,
+    opt::Optimizer,
     concrete_problem,
     sdp_opt,
     maxδx,
@@ -120,35 +120,36 @@ function set_optimizer!(
     continues,
     maxIter,
 )
-    global myBool = true
-    global myBool2 = false
-    global NI = nothing
-    # User's paramaters
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_opt"), sdp_opt)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxδx"), maxδx)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxδu"), maxδu)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("λ"), λ)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("k1"), k1)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("k2"), k2)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("continues"), continues)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxIter"), maxIter)
-    # Defaults's algorihthm pararaters
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distance"), distance)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("rand_state"), rand_state)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("new_conf"), new_conf)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("keep"), keep)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("stop_crit"), stop_crit)
-    return MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("compute_transition"),
-        compute_transition,
-    )
+    # reset internal state
+    opt._found_initial = false
+    opt._can_rewire = false
+    opt._initial_node = nothing
+
+    # user params
+    MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(opt, MOI.RawOptimizerAttribute("sdp_opt"), sdp_opt)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxδx"), maxδx)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxδu"), maxδu)
+    MOI.set(opt, MOI.RawOptimizerAttribute("λ"), λ)
+    MOI.set(opt, MOI.RawOptimizerAttribute("k1"), k1)
+    MOI.set(opt, MOI.RawOptimizerAttribute("k2"), k2)
+    MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
+    MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+
+    # defaults (set here so your old call sites still work)
+    MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
+    MOI.set(opt, MOI.RawOptimizerAttribute("rand_state"), rand_state)
+    MOI.set(opt, MOI.RawOptimizerAttribute("new_conf"), new_conf)
+    MOI.set(opt, MOI.RawOptimizerAttribute("keep"), keep)
+    MOI.set(opt, MOI.RawOptimizerAttribute("stop_crit"), stop_crit)
+    MOI.set(opt, MOI.RawOptimizerAttribute("compute_transition"), compute_transition)
+
+    return
 end
 
 function set_optimizer!(
-    optimizer::Optimizer,
+    opt::Optimizer,
     concrete_problem,
     sdp_opt,
     maxδx,
@@ -166,29 +167,34 @@ function set_optimizer!(
     stop_crit,
     compute_transition,
 )
-    # User's paramaters
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_opt"), sdp_opt)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxδx"), maxδx)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxδu"), maxδu)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("λ"), λ)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("k1"), k1)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("k2"), k2)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("continues"), continues)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("maxIter"), maxIter)
-    # Defaults's algorihthm pararaters
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distance"), distance)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("rand_state"), rand_state)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("new_conf"), new_conf)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("keep"), keep)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("stop_crit"), stop_crit)
-    return MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("compute_transition"),
-        compute_transition,
-    )
+    opt._found_initial = false
+    opt._can_rewire = false
+    opt._initial_node = nothing
+
+    MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(opt, MOI.RawOptimizerAttribute("sdp_opt"), sdp_opt)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxδx"), maxδx)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxδu"), maxδu)
+    MOI.set(opt, MOI.RawOptimizerAttribute("λ"), λ)
+    MOI.set(opt, MOI.RawOptimizerAttribute("k1"), k1)
+    MOI.set(opt, MOI.RawOptimizerAttribute("k2"), k2)
+    MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
+    MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
+    MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+
+    MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
+    MOI.set(opt, MOI.RawOptimizerAttribute("rand_state"), rand_state)
+    MOI.set(opt, MOI.RawOptimizerAttribute("new_conf"), new_conf)
+    MOI.set(opt, MOI.RawOptimizerAttribute("keep"), keep)
+    MOI.set(opt, MOI.RawOptimizerAttribute("stop_crit"), stop_crit)
+    MOI.set(opt, MOI.RawOptimizerAttribute("compute_transition"), compute_transition)
+
+    return
 end
+
+# ----------------------------
+# Controller / Lyapunov helpers
+# ----------------------------
 
 struct PredicateDomain{F}
     pred::F
@@ -246,7 +252,8 @@ function MOI.optimize!(optimizer::Optimizer)
 
     concrete_problem = optimizer.concrete_problem
     optimizer.abstract_problem = concrete_problem
-    # Co-design the abstract system and the abstract controller
+
+    # Co-design abstract system and abstract controller
     abstract_system = UT.RRT(
         concrete_problem.target_set,
         concrete_problem.initial_set,
@@ -262,8 +269,10 @@ function MOI.optimize!(optimizer::Optimizer)
         k1 = optimizer.k1,
         k2 = optimizer.k2,
     )
+
     optimizer.abstract_system = abstract_system
-    # Build the concrete controller
+
+    # Build concrete controller and Lyapunov function
     optimizer.concrete_controller = build_concrete_controller(abstract_system)
     abstract_lyap_fun = build_abstract_lyap_fun()
     optimizer.abstract_lyap_fun = abstract_lyap_fun
@@ -274,9 +283,10 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-# ### Optimizer's parameters
+# ----------------------------
+# Default algorithm parameters
+# ----------------------------
 
-# SI, SF
 function distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid)
     return UT.centerDistance(E1, E2)
 end
@@ -291,17 +301,16 @@ function get_candidate(
 )
     guess = UT.sample(X)
     randVal = rand()
+
     if randVal > probSkew + probE0
         return guess
     elseif randVal > probSkew
         return E0.c
     else
-        closestNode, dist =
-            UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(nx)), E0))
+        closestNode, dist = UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(length(E0.c))), E0))
         l = randVal / probSkew
         r = dist / intialDist
-        return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) +
-               (0.3 * r) * guess
+        return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) + (0.3 * r) * guess
     end
 end
 
@@ -310,14 +319,13 @@ function rand_state(
     EF::UT.Ellipsoid,
     EI::UT.Ellipsoid,
     distance,
-    optimizer::Optimizer,
+    opt::Optimizer,
 )
-    concrete_problem = optimizer.concrete_problem
+    concrete_problem = opt.concrete_problem
     xrand = get_candidate(tree, concrete_problem.system.X, EI)
     return UT.Ellipsoid(Matrix{Float64}(LA.I(length(xrand))), xrand)
 end
 
-# data-driven technique on nominal system (without noise)
 function get_closest_reachable_point(
     concrete_system,
     xinit,
@@ -330,6 +338,7 @@ function get_closest_reachable_point(
     wnew = zeros(concrete_system.nw)
     xnew = concrete_system.f_backward_eval(xinit, unew, wnew)
     uBestDist = LA.norm(xnew - xtarget)
+
     for i in 1:nSamples
         ucandnew = UT.sample(U) * 0.002 * i
         xcandnew = concrete_system.f_backward_eval(xinit, ucandnew, wnew)
@@ -339,6 +348,7 @@ function get_closest_reachable_point(
             unew = ucandnew
         end
     end
+
     return (unew, xnew, uBestDist)
 end
 
@@ -346,10 +356,11 @@ function new_conf(
     abstract_system::UT.Tree,
     Nnear::UT.NodeT,
     Erand::UT.Ellipsoid,
-    optimizer::Optimizer,
+    opt::Optimizer,
 )
-    concrete_problem = optimizer.concrete_problem
+    concrete_problem = opt.concrete_problem
     concrete_system = concrete_problem.system
+
     (unew, xnew, uBestDist) = get_closest_reachable_point(
         concrete_system,
         Nnear.state.c,
@@ -357,10 +368,12 @@ function new_conf(
         concrete_system.U,
         concrete_system.Uformat,
     )
+
     wnew = zeros(concrete_system.nw)
     X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
     Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
     W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
+
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
         concrete_system.x,
@@ -373,8 +386,10 @@ function new_conf(
         Ū,
         W̄,
     )
+
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-    return SY.transition_backward(
+
+    return UT.transition_backward(
         affineSys,
         Nnear.state,
         xnew,
@@ -383,75 +398,77 @@ function new_conf(
         concrete_system.Wformat,
         S,
         L,
-        optimizer.sdp_opt;
-        λ = optimizer.λ,
-        maxδx = optimizer.maxδx,
-        maxδu = optimizer.maxδu,
+        opt.sdp_opt;
+        λ = opt.λ,
+        maxδx = opt.maxδx,
+        maxδu = opt.maxδu,
     )
 end
 
-# heuristic: keep only the closest ellipsoid to the initial ellipsoid
 function keep(
     abstract_system::UT.Tree,
     LSACnew,
     EF::UT.Ellipsoid,
     EI::UT.Ellipsoid,
     distance,
-    optimizer::Optimizer;
+    opt::Optimizer;
     scale_for_obstacle = true,
 )
-    concrete_problem = optimizer.concrete_problem
+    concrete_problem = opt.concrete_problem
     obstacles = concrete_problem.system.obstacles
+
     minDist = Inf
     iMin = 0
+
     for (i, data) in enumerate(LSACnew)
         Enew, cont, cost, Nnear = data
+
         if Enew === nothing
-            print("\tInfeasible")
+            # infeasible candidate
         elseif EI ∈ Enew
             iMin = i
             break
-        elseif minDist > LA.norm(EI.c - Enew.c) # minPathCost > cost + Eclosest.path_cost
-            if Nnear == abstract_system.root || LA.eigmin(EI.P * 0.5 - Enew.P) > 0 # E ⊂ E0 => P-P0>0
+        elseif minDist > LA.norm(EI.c - Enew.c)
+            if Nnear == abstract_system.root || LA.eigmin(EI.P * 0.5 - Enew.P) > 0
                 iMin = i
                 minDist = LA.norm(EI.c - Enew.c)
-            else
             end
-        else
         end
     end
-    if iMin == 0
-        return []
-    end
+
+    iMin == 0 && return []
+
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
+
     if ElMin !== nothing
         if all(O -> !UT.is_intersected(ElMin, O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles
                 ElMin = UT.compress_if_intersection(ElMin, O)
-                if ElMin === nothing
-                    return []
-                end
+                ElMin === nothing && return []
             end
             return [(ElMin, contMin, costMin, NnearMin)]
         else
             return []
         end
-    else
-        return []
     end
+
+    return []
 end
 
-function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optimizer)
-    concrete_problem = optimizer.concrete_problem
+function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
+    concrete_problem = opt.concrete_problem
     concrete_system = concrete_problem.system
+
     xnew = E1.c
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
+
     X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
     Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
     W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
+
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
         concrete_system.x,
@@ -464,16 +481,19 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, optimizer::Optim
         Ū,
         W̄,
     )
+
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-    ans, cont, cost = SY.transition_fixed(
+
+    ans, cont, cost = UT.transition_fixed(
         affineSys,
         E1,
         E2,
         concrete_system.Uformat,
         concrete_system.Wformat,
         S,
-        optimizer.sdp_opt,
+        opt.sdp_opt,
     )
+
     return ans, cont, cost
 end
 
@@ -483,34 +503,37 @@ function stop_crit(
     EF::UT.Ellipsoid,
     EI::UT.Ellipsoid,
     distance,
-    optimizer::Optimizer,
+    opt::Optimizer,
 )
-    continues = optimizer.continues
+    continues = opt.continues
     minDist = 10.0
+
     for Nnew in LNnew
         E = Nnew.state
         if distance(EI, E) <= minDist
-            ans, cont, cost = compute_transition(EI, E, optimizer)
+            ans, cont, cost = compute_transition(EI, E, opt)
             if ans
-                if myBool
-                    global NI = UT.add_node!(abstract_system, EI, Nnew, cont, cost)
-                    println("Path cost from EI : ", NI.path_cost)
-                    global myBool = false
+                if !opt._found_initial
+                    opt._initial_node = UT.add_node!(abstract_system, EI, Nnew, cont, cost)
+                    println("Path cost from EI : ", opt._initial_node.path_cost)
+                    opt._found_initial = true
                 end
+
                 if !continues
                     return true
                 else
-                    if myBool2 && cost + Nnew.path_cost < NI.path_cost
-                        UT.rewire(abstract_system, NI, Nnew, cont, cost)
-                        println("Path cost from EI : ", NI.path_cost)
+                    if opt._can_rewire && (cost + Nnew.path_cost < opt._initial_node.path_cost)
+                        UT.rewire(abstract_system, opt._initial_node, Nnew, cont, cost)
+                        println("Path cost from EI : ", opt._initial_node.path_cost)
                     end
                 end
-                global myBool2 = true
+                opt._can_rewire = true
             end
         end
     end
+
     newEllipsoids = [newNode.state for newNode in LNnew]
-    return any(map(E -> (EI ∈ E), newEllipsoids)) && !continues
+    return any(E -> (EI ∈ E), newEllipsoids) && !continues
 end
 
-end
+end # module

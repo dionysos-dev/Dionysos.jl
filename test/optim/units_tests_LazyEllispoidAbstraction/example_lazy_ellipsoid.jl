@@ -98,7 +98,7 @@ for obs in concrete_system.obstacles
 end
 
 #Display the abstract domain
-plot!(fig1, abstract_system; arrowsB = false, cost = false)
+plot!(fig1, abstract_system; with_arrows = false, cost = false)
 
 #Display the concrete specifications
 plot!(fig1, concrete_problem.initial_set; color = :green)
@@ -113,7 +113,7 @@ fig2 = plot(;
     titlefontsize = 14,
 )
 title!("Abstractions")
-plot!(fig2, abstract_system; arrowsB = true, cost = false)
+plot!(fig2, abstract_system; with_arrows = true, cost = false)
 
 # # Display the Lyapunov function and the trajectory
 fig3 = plot(;
@@ -130,5 +130,5 @@ title!("Trajectory and Lyapunov-like Fun.")
 for obs in concrete_system.obstacles
     plot!(fig3, obs; color = :black)
 end
-plot!(fig3, abstract_system; arrowsB = false, cost = true)
+plot!(fig3, abstract_system; with_arrows = false, cost = true)
 plot!(fig3, x_traj; color = :black)

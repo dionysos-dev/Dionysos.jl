@@ -10,7 +10,6 @@ import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const SY = DI.Symbolic
 const PR = DI.Problem
 
 function unstableSimple(; μ = 0.00005, noise = false)
@@ -49,8 +48,8 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
     #### Format of input and noise set #####
-    Uformat = SY.format_input_set(U)
-    Wformat = SY.format_noise_set(W)
+    Uformat = UT.format_input_set(U)
+    Wformat = UT.format_noise_set(W)
 
     #### Forward and backward dynamics #####
     function f_eval(x, u, w)

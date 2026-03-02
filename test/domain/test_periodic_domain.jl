@@ -281,10 +281,10 @@ end
     DO.remove_coord!(domain, pt)
     @test !((1, 0, 0) in domain)
 
-    # ---- Test: add_set! with LazyUnionSetArray
+    # ---- Test: add_set! with LazySetUnionSetArray
     r1 = UT.HyperRectangle(SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0))
     r2 = UT.HyperRectangle(SVector(1.0, -1.0, 1.0), SVector(3.0, 1.0, 3.0))
-    union = UT.LazyUnionSetArray([r1, r2])
+    union = UT.LazySetUnionSetArray([r1, r2])
     DO.add_set!(domain, union, DO.OUTER)
     @test (0, 0, 0) in domain
 end

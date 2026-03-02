@@ -9,8 +9,11 @@ struct HyperRectangle{N,T} <: AbstractSetNode{N,T}
     lb::SVector{N,T}
     ub::SVector{N,T}
 end
-HyperRectangle(lb::SVector{N,T}, ub::SVector{N,T}) where {N,T} = HyperRectangle{N,T}(lb, ub)
+
+# From tuples
 HyperRectangle(lb::NTuple{N,Ti}, ub::NTuple{N,Ti}) where {N,Ti} = HyperRectangle(SVector{N,Ti}(lb), SVector{N,Ti}(ub))
+
+# From vectors (runtime dimension)
 HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} = HyperRectangle(SVector{length(lb),Ti}(lb), SVector{length(ub),Ti}(ub))
 
 Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
@@ -119,9 +122,9 @@ function _recursive_period_split!(
 end
 
 """
-    set_in_period(rect, periodic_dims, periods, start) -> LazyUnion{N,T}
+    set_in_period(rect, periodic_dims, periods, start) -> LazySetUnion{N,T}
 
-Split `rect` along periodic boundaries and return a `LazyUnion` of wrapped rectangles.
+Split `rect` along periodic boundaries and return a `LazySetUnion` of wrapped rectangles.
 """
 function set_in_period(
     rect::HyperRectangle{N,T},
@@ -134,7 +137,7 @@ function set_in_period(
                             periodic_dims, periods, start, 1)
 
     # you need a constructor; otherwise build explicitly:
-    U = LazyUnion{N,T}()
+    U = LazySetUnion{N,T}()
     Base.append!(U.sets, L)
     return U
 end

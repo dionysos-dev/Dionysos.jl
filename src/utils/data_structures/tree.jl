@@ -262,7 +262,7 @@ end
     end
 end
 
-@recipe function f(tree::Tree; arrowsB = true, cost = true)
+@recipe function f(tree::Tree; with_arrows = true, cost = true)
     # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
@@ -281,7 +281,7 @@ end
             colorMap
         end
     end
-    if arrowsB
+    if with_arrows
         leaves = copy(tree.leaves)
         while !isempty(leaves)
             for leave in leaves

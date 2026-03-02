@@ -18,7 +18,7 @@ println("Started test")
     periods = SVector(30.0)
     start = SVector(0.0)
 
-    free_space = UT.LazySetMinus(X, UT.LazyUnionSetArray([obstacle]))
+    free_space = UT.LazySetMinus(X, UT.LazySetUnionSetArray([obstacle]))
     function test_with_domain(domain)
         DO.add_set!(domain, free_space, DO.OUTER)
         # Create the NestedDomain
