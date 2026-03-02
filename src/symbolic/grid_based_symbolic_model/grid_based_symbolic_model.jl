@@ -1,210 +1,11 @@
 """
-    Abstract Type: SymbolicModel{N, M}
+    GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
 
-Defines a generic symbolic model interface, where:
-- `N` is the state space dimension.
-- `M` is the input space dimension.
+An intermediate abstract type for symbolic models that rely on a grid-based discretization.
+- `N`: Dimension of the state space.
+- `M`: Dimension of the input space.
 """
-abstract type SymbolicModel{N, M} end
-
-# -----------------------
-# State/Input enumeration
-# -----------------------
-
-get_state_mapping(sym::SymbolicModel) = sym.XMapping
-get_input_mapping(sym::SymbolicModel) = sym.UMapping
-
-get_state_domain(sym::SymbolicModel) = sym.Xset
-get_allowed_state_domain(sym::SymbolicModel) = sym.Rset
-get_input_domain(sym::SymbolicModel) = sym.Uset
-
-get_n_state(sym::SymbolicModel) = get_n_state(get_state_domain(sym))
-get_n_allowed_state(sym::SymbolicModel) = get_n_state(get_allowed_state_domain(sym))
-get_n_input(sym::SymbolicModel) = get_n_state(get_input_domain(sym))
-
-enum_states(sym::SymbolicModel) = enum_states(get_state_domain(sym), get_state_mapping(sym))
-enum_allowed_states(sym::SymbolicModel) = enum_states(get_allowed_state_domain(sym))
-enum_inputs(sym::SymbolicModel) = enum_states(get_input_domain(sym), get_input_mapping(sym))
-
-is_state(sym::SymbolicModel, q::Int) = contains_state(get_state_domain(sym), get_state_mapping(sym), q)
-is_allowed_state(sym::SymbolicModel, q::Int) = contains_state(get_allowed_state_domain(sym), get_state_mapping(sym), q)
-is_input(sym::SymbolicModel, q::Int) = contains_state(get_input_domain(sym), get_input_mapping(sym), q)
-
-get_state_dim(sym::SymbolicModel) = MP.get_dim(get_state_mapping(sym))
-get_input_dim(sym::SymbolicModel) = MP.get_dim(get_input_mapping(sym))
-
-get_concrete_state(symmodel::SymbolicModel, state) = MP.get_coord_by_state(get_state_mapping(sym), state)
-get_concrete_input(symmodel::SymbolicModel, input) = MP.get_coord_by_state(get_input_mapping(sym), input)
-get_abstract_state(symmodel::SymbolicModel, x) = MP.get_state_by_coord(get_state_mapping(sym), x)
-get_abstract_input(symmodel::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapping(sym), u)
-
-function enum_transitions(symmodel::SymbolicModel) end
-function add_transition!(symmodel::SymbolicModel, q::Int, q′::Int, u::Int) end
-function add_transitions!(symmodel::SymbolicModel, translist) end
-function pre(symmodel::SymbolicModel, target::Int) end
-function post(symmodel::SymbolicModel, source::Int, input::Int) end
-function is_deterministic(symmodel::SymbolicModel) end
-
-get_n_transitions(symmodel::SymbolicModel) = length(enum_transitions(symmodel))
-
-# function get_states_from_set(
-#     symmodel::SymbolicModel,
-#     set::UT.LazySetMinus,
-#     incl_mode::DO.INCL_MODE,
-# )
-#     return MS.get_states_from_set(symmodel, set, incl_mode)
-# end
-
-# function get_states_from_set(
-#     symmodel::SymbolicModel,
-#     subsets::UT.LazyUnionSetArray,
-#     incl_mode::DO.INCL_MODE,
-# )
-#     acc = Int[]
-#     for subset in subsets.sets
-#         append!(acc, get_states_from_set(symmodel, subset, incl_mode))
-#     end
-#     unique!(acc)
-#     return acc
-# end
-
-# function get_states_from_set(symmodel::SymbolicModel, subsets, incl_mode::DO.INCL_MODE)
-#     acc = Int[]
-#     for subset in subsets.sets
-#         append!(acc, get_states_from_set(symmodel, subset, incl_mode))
-#     end
-#     unique!(acc)
-#     return acc
-# end
-
-# """
-#     GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M}
-
-# An intermediate abstract type for symbolic models that rely on a grid-based discretization.
-# - `N`: Dimension of the state space.
-# - `M`: Dimension of the input space.
-# """
-# abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
-
-# function get_xpos_by_state(symmodel::GridBasedSymbolicModel, state) end
-# function get_state_by_xpos(symmodel::GridBasedSymbolicModel, xpos) end
-# function is_xpos(symmodel::GridBasedSymbolicModel, xpos) end
-
-# get_state_grid(symmodel::GridBasedSymbolicModel) = DO.get_grid(get_state_domain(symmodel))
-# get_concrete_state_dim(symmodel::GridBasedSymbolicModel) =
-#     DO.get_dim(get_state_domain(symmodel))
-# get_concrete_input_dim(symmodel::GridBasedSymbolicModel) =
-#     DO.get_dim(get_input_domain(symmodel))
-# function get_concrete_state(symmodel::GridBasedSymbolicModel, state)
-#     xpos = get_xpos_by_state(symmodel, state)
-#     return DO.get_coord_by_pos(get_state_domain(symmodel), xpos)
-# end
-
-# function get_concrete_elem(symmodel::GridBasedSymbolicModel, state)
-#     xpos = get_xpos_by_state(symmodel, state)
-#     return DO.get_elem_by_pos(get_state_domain(symmodel), xpos)
-# end
-
-# function get_abstract_state(symmodel::GridBasedSymbolicModel, x)
-#     xpos = DO.get_pos_by_coord(get_state_domain(symmodel), x)
-#     return get_state_by_xpos(symmodel, xpos)
-# end
-
-# get_states_by_xpos(symmodel::GridBasedSymbolicModel, l_xpos) =
-#     [get_state_by_xpos(symmodel, xpos) for xpos in l_xpos]
-
-# function get_domain_from_states(symmodel::GridBasedSymbolicModel, states)
-#     newDomain = DO.DomainList(get_state_grid(symmodel))
-#     for state in states
-#         DO.add_pos!(newDomain, get_xpos_by_state(symmodel, state))
-#     end
-#     return newDomain
-# end
-
-# function get_states_from_set(
-#     symmodel::GridBasedSymbolicModel,
-#     subset::UT.HyperRectangle,
-#     incl_mode::DO.INCL_MODE,
-# )
-#     Xdom = get_state_domain(symmodel)
-#     posL = DO.get_subset_pos(Xdom, subset, incl_mode)
-#     return Int[get_state_by_xpos(symmodel, pos) for pos in posL]
-# end
-
-@recipe function f(
-    symmodel::GridBasedSymbolicModel;
-    arrowsB = false,
-    dims = [1, 2],
-    value_function = [], # Should be a function value_function(state::Int)::Float64 or left as []
-    colormap_name = "Blues",
-    default_color = :yellow,
-)
-    # Display the cells
-    state_grid = get_state_grid(symmodel)
-
-    if isa(value_function, Function)
-        # 1. Extract needed parts
-        projection_map = Dict{Tuple{Int, Int}, Tuple{Float64, Any}}() # value + elem
-        for state in enum_states(symmodel)
-            v = value_function(state)
-            elem = get_concrete_elem(symmodel, state)
-            pos = get_xpos_by_state(symmodel, state)
-            x1x2 = pos[dims]
-            # Only store if it's better (or first time)
-            if haskey(projection_map, x1x2)
-                if v < projection_map[x1x2][1]
-                    projection_map[x1x2] = (v, elem)
-                end
-            else
-                projection_map[x1x2] = (v, elem)
-            end
-        end
-        # 2. Determine maximum finite value (for color scaling)
-        finite_vals = filter(isfinite, getindex.(values(projection_map), 1))
-        ValueMax = isempty(finite_vals) ? 1.0 : maximum(finite_vals)
-        # 3. Setup colormap
-        cmap = Colors.colormap(colormap_name)
-        mycolorMap = UT.Colormap([0.0, ValueMax], cmap)
-        # 4. Order states by decreasing value (for proper layering in case of overlapping cells)
-        cost_ordered = sort(collect(projection_map); by = x -> -x[2][1])
-        # 5. Plot
-        @series begin
-            for (_, (value, elem)) in cost_ordered
-                color = isfinite(value) ? UT.get_color(mycolorMap, value) : default_color
-
-                @series begin
-                    color := color
-                    dims := dims
-                    label := ""
-                    return elem
-                end
-            end
-            mycolorMap
-        end
-    else
-        @series begin
-            dims := dims
-            get_state_domain(symmodel)
-        end
-    end
-    # Display the arrows
-    if arrowsB
-        for t in enum_transitions(symmodel)
-            color = RGB(
-                abs(0.6 * sin(t[1])),
-                abs(0.6 * sin(t[1] + 2π / 3)),
-                abs(0.6 * sin(t[1] - 2π / 3)),
-            )
-            p1 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[2]))
-            p2 = DO.get_coord_by_pos(state_grid, get_xpos_by_state(symmodel, t[1]))
-
-            @series begin
-                color := color
-                return t[1] == t[2] ? UT.DrawPoint(p1) : UT.DrawArrow(p1, p2)
-            end
-        end
-    end
-end
+abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
 
 function compute_abstract_transitions_from_rectangle!(
     symmodel::GridBasedSymbolicModel,
@@ -213,18 +14,18 @@ function compute_abstract_transitions_from_rectangle!(
     abstract_input,
     translist,
 )
-    Xdom = get_state_domain(symmodel)
-    ypos_iter = DO.get_subset_pos_in_grid(Xdom, reachable_set, DO.OUTER)
-    allin = true
-    for ypos in ypos_iter
-        if !(ypos in Xdom)
-            allin = false
-            break
+    targets, allin = get_states_from_set_strict(symmodel, reachable_set, MP.OUTER)
+    allin || return false
+    for target in targets
+        if !is_allowed_state(symmodel, target)
+            return false
         end
-        target = get_state_by_xpos(symmodel, ypos)
+    end
+    for target in targets
         push!(translist, (target, abstract_state, abstract_input))
     end
-    return allin
+
+    return true
 end
 
 function compute_abstract_transitions_from_points!(
@@ -234,15 +35,13 @@ function compute_abstract_transitions_from_points!(
     abstract_input,
     translist,
 )
-    Xdom = get_state_domain(symmodel)
     allin = true
     for y in reachable_points
-        ypos = DO.get_pos_by_coord(Xdom, y)
-        if !(ypos in Xdom)
+        target = get_abstract_state(symmodel, y)
+        if target === nothing || !is_allowed_state(symmodel, target)
             allin = false
             break
         end
-        target = get_state_by_xpos(symmodel, ypos)
         push!(translist, (target, abstract_state, abstract_input))
     end
     unique!(translist)
@@ -296,7 +95,6 @@ function compute_abstract_system_from_concrete_system!(
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
-    Xdom = get_state_domain(abstract_system)
 
     nthreads = Threads.nthreads()
 
@@ -370,7 +168,7 @@ function compute_abstract_system_from_concrete_system!(
         translist = Tuple{Int, Int, Int}[]
         growthbound_map = concrete_system_approx.growthbound_map
         system_map = ST.get_system_map(concrete_system_approx)
-        r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
+        r = MP.get_h(MP.get_grid(get_state_mapping(abstract_system))) / 2.0
         total_iterations = max(
             div(
                 get_n_input(abstract_system) * get_n_state(abstract_system),
@@ -407,11 +205,10 @@ function compute_abstract_system_from_concrete_system!(
     # ---- Multithreaded implementation ----
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
-    r = DO.get_h(DO.get_grid(get_state_domain(abstract_system))) / 2.0
+    r = MP.get_h(MP.get_grid(get_state_mapping(abstract_system))) / 2.0
 
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
-    Xdom = get_state_domain(abstract_system)
 
     input_data = Dict{Int, Tuple{Any, Any}}()
     for abstract_input in inputs
@@ -513,9 +310,9 @@ function compute_abstract_system_from_concrete_system!(
 )
     # If multithreading is not requested or only one thread is available -> sequential execution
     if !threaded || Threads.nthreads() == 1
-        Xdom = get_state_domain(abstract_system)
-        N = DO.get_dim(Xdom)
-        r = DO.get_h(DO.get_grid(Xdom)) / 2.0
+        XMapping = get_state_mapping(abstract_system)
+        N = MP.get_dim(XMapping)
+        r = MP.get_h(MP.get_grid(XMapping)) / 2.0
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
         e = LA.norm(r, Inf)
@@ -554,19 +351,6 @@ function compute_abstract_system_from_concrete_system!(
                     abstract_input,
                     translist,
                 )
-                # rectI = DO.get_pos_lims_outer(Xdom.grid, reachable_set)
-                # ypos_iter = Iterators.product(DO._ranges(rectI)...)
-                # allin = true
-                # for ypos in ypos_iter
-                #     y = DO.get_coord_by_pos(Xdom.grid, ypos) - Fx
-                #     !(y in HP) && continue
-                #     if !(ypos in Xdom)
-                #         allin = false
-                #         break
-                #     end
-                #     target = get_state_by_xpos(abstract_system, ypos)
-                #     push!(translist, (target, concrete_state, abstract_input))
-                # end
                 allin && add_transitions!(abstract_system, translist)
                 count += 1
                 verbose && count % update_interval == 0 && ProgressMeter.next!(progress)
@@ -577,9 +361,9 @@ function compute_abstract_system_from_concrete_system!(
     end
 
     # ---- Multithreaded implementation ----
-    Xdom = get_state_domain(abstract_system)
-    N = DO.get_dim(Xdom)
-    r = DO.get_h(DO.get_grid(Xdom)) / 2.0
+    XMapping = get_state_mapping(abstract_system)
+    N = MP.get_dim(XMapping)
+    r = MP.get_h(MP.get_grid(XMapping)) / 2.0
     _H_ = SMatrix{N, N}(LA.I) .* r
     _ONE_ = ones(SVector{N})
     e = LA.norm(r, Inf)
@@ -708,7 +492,6 @@ function compute_abstract_system_from_concrete_system!(
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
-    Xdom = get_state_domain(abstract_system)
 
     nthreads = Threads.nthreads()
 
@@ -793,10 +576,8 @@ function compute_abstract_system_from_concrete_system!(
             for abstract_state in enum_states(abstract_system)
                 concrete_state = get_concrete_state(abstract_system, abstract_state)
                 y = system_map(concrete_state, concrete_input)
-                Xdom = get_state_domain(abstract_system)
-                ypos = DO.get_pos_by_coord(Xdom, y)
-                if ypos in Xdom
-                    target = get_state_by_xpos(abstract_system, ypos)
+                target = get_abstract_state(abstract_system, y)
+                if target !== nothing && is_allowed_state(abstract_system, target)
                     add_transitions!(
                         abstract_system,
                         ((target, abstract_state, abstract_input),),
@@ -815,7 +596,6 @@ function compute_abstract_system_from_concrete_system!(
     system_map = ST.get_system_map(concrete_system_approx)
     inputs = collect(enum_inputs(abstract_system))
     states = collect(enum_states(abstract_system))
-    Xdom = get_state_domain(abstract_system)
 
     # ---- Progress bar parameters ----
     progress_dt_ns = Int(round(progress_dt * 1e9))
@@ -845,10 +625,8 @@ function compute_abstract_system_from_concrete_system!(
             concrete_state = get_concrete_state(abstract_system, abstract_state)
 
             y = system_map(concrete_state, concrete_input)
-            ypos = DO.get_pos_by_coord(Xdom, y)
-
-            if ypos in Xdom
-                target = get_state_by_xpos(abstract_system, ypos)
+            target = get_abstract_state(abstract_system, y)
+            if is_allowed_state(abstract_system, target)
                 push!(local_transitions, (target, abstract_state, abstract_input))
             end
         end

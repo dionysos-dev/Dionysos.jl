@@ -193,19 +193,101 @@ function MOI.optimize!(optimizer::Optimizer)
         )
 
         MOI.optimize!(optimizer.control_solver)
-        # abstract_controller = MOI.get(
-        #     optimizer.control_solver,
-        #     MOI.RawOptimizerAttribute("abstract_controller"),
-        # )
-        # optimizer.concrete_controller = solve_concrete_problem(
-        #     optimizer.abstraction_solver.abstract_system,
-        #     abstract_controller
-        # )
+        abstract_controller = MOI.get(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("abstract_controller"),
+        )
+        abstract_value_function = MOI.get(
+            optimizer.control_solver,
+            MOI.RawOptimizerAttribute("abstract_value_function"),
+        )
+        transitionCont = MOI.get(
+            optimizer.abstraction_solver,
+            MOI.RawOptimizerAttribute("transitionCont"),
+        )
+        optimizer.concrete_controller = solve_concrete_problem(
+            optimizer.abstraction_solver.abstract_system,
+            abstract_controller,
+            transitionCont,
+            abstract_value_function
+        )
     end
 
     # Time elapsed
     optimizer.solve_time_sec = time() - t_ref
     return
+end
+
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
+function solve_concrete_problem(
+    abstract_system::SY.SymbolicModelList,
+    abstract_controller::MS.AbstractMap,
+    transitionCont::Dict,
+    abstract_value_function::Function;
+    handle_out_of_domain::Function = (x, abs_sys) -> nothing,
+    randomize = false
+)
+    k_abs = abstract_controller.h
+    is_defined_q = q -> (q ∈ abstract_controller.X)
+
+    # choose a valid (from,to,cont) with minimal value
+    function pick_best_transition(x)
+        qs = SY.get_abstract_states(abstract_system, x)
+        if isempty(qs)
+            xnew = handle_out_of_domain(x, abstract_system)
+            xnew === nothing && return nothing
+            qs = SY.get_abstract_states(abstract_system, xnew)
+            isempty(qs) && return nothing
+            x = xnew
+        end
+
+        best_q = nothing
+        best_to = nothing
+        best_cont = nothing
+        best_val = Inf
+
+        for q in qs
+            is_defined_q(q) || continue
+            to_list = k_abs(q)
+            to_list === nothing && return nothing
+            to = isempty(to_list) ? nothing : (randomize ? rand(to_list) : first(to_list))
+            to === nothing && return nothing
+     
+            key = (q, to)
+            haskey(transitionCont, key) || continue
+
+            v = abstract_value_function(q)
+            if v < best_val
+                best_val = v
+                best_q = q
+                best_to = to
+                best_cont = transitionCont[key]
+            end
+        end
+
+        if best_q === nothing
+            return nothing
+        end
+        return (x = x, from = best_q, to = best_to, cont = best_cont, val = best_val)
+    end
+
+    # concrete controller x -> u
+    f = function (x)
+        tr = pick_best_transition(x)
+        tr === nothing && return nothing
+        return MS.apply(tr.cont, tr.x)
+    end
+
+    # domain predicate (controller defined at x)
+    Xx = PredicateDomain(x -> pick_best_transition(x) !== nothing)
+
+    nx = SY.get_state_dim(abstract_system)
+    nu = SY.get_input_dim(abstract_system)
+    return MS.ConstrainedBlackBoxMap(nx, nu, f, Xx)
 end
 
 # --------------------------------------- #

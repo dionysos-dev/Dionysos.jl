@@ -82,11 +82,24 @@ function build_abstract_value_function(value_fun_tab)
     return abstract_value_function(state) = value_fun_tab[state]
 end
 
-# TODO take the best among overlapping
-function build_concrete_value_function(abstract_system, abstract_value_function)
+function build_concrete_value_function(
+    abstract_system,
+    abstract_value_function;
+    default_value = Inf
+)
     function concrete_value_function(x)
-        state = SY.get_abstract_state(abstract_system, x)
-        return abstract_value_function(state)
+        # get all abstract states covering x
+        states = SY.get_abstract_states(abstract_system, x)
+        isempty(states) && return default_value
+        vals = Float64[]
+        for q in states
+            v = abstract_value_function(q)
+            isfinite(v) && push!(vals, v)
+        end
+
+        isempty(vals) && return default_value
+
+        return minimum(vals)
     end
     return concrete_value_function
 end

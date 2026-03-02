@@ -1,7 +1,9 @@
-# functions to compute transitions between ellipsoids 
-# (forward vs backward, PWA vs non-linear, fixed shape vs optimized shape)
 import MathematicalSystems
 MS = MathematicalSystems
+
+import LinearAlgebra as LA
+
+import HybridSystems
 
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,
@@ -9,18 +11,18 @@ AffineSys = Union{
     HybridSystems.HybridSystems.ConstrainedAffineControlMap,
 }
 
-function format_input_set(rec::UT.HyperRectangle)
-    n = UT.get_dims(rec)
+function format_input_set(rec::HyperRectangle)
+    n = get_dims(rec)
     Uaux = LA.diagm(1:n)
     U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
     return U
 end
 
-function format_input_set(elli::UT.Ellipsoid)
-    return [UT.get_root(elli)]
+function format_input_set(elli::Ellipsoid)
+    return [get_root(elli)]
 end
 
-function format_input_set(iset::UT.IntersectionSet)
+function format_input_set(iset::IntersectionSet)
     result = []
     for set in iset.sets
         append!(result, format_input_set(set))
@@ -28,8 +30,8 @@ function format_input_set(iset::UT.IntersectionSet)
     return result
 end
 
-function format_noise_set(rec::UT.HyperRectangle)
-    return UT.get_vertices(rec)
+function format_noise_set(rec::HyperRectangle)
+    return get_vertices(rec)
 end
 
 function get_controller_matrices(m)
@@ -49,7 +51,7 @@ end
 function hasTransition(
     c,
     u,
-    Ep::UT.Ellipsoid,
+    Ep::Ellipsoid,
     subsys::AffineSys,
     L,
     S,
@@ -166,7 +168,7 @@ function hasTransition(
     optimize!(model)
     if solution_summary(model).termination_status == MOI.OPTIMAL
         C = value.(C)
-        El = UT.Ellipsoid(transpose(C) \ eye(n) / C, c)
+        El = Ellipsoid(transpose(C) \ eye(n) / C, c)
         kappa = [value.(F) / (C) value.(ell)]
         cost = value(J)
     else
@@ -287,8 +289,8 @@ end
 
 function _has_transition(
     affsys::AffineSys,
-    E1::UT.Ellipsoid,
-    E2::UT.Ellipsoid,
+    E1::Ellipsoid,
+    E2::Ellipsoid,
     U,
     W,
     S,
@@ -450,8 +452,8 @@ end
 
 function transition_fixed(
     affsys::AffineSys,
-    E1::UT.Ellipsoid,
-    E2::UT.Ellipsoid,
+    E1::Ellipsoid,
+    E2::Ellipsoid,
     U,
     W,
     S,
@@ -621,7 +623,7 @@ end
 
 function transition_backward(
     affsys::AffineSys,
-    E2::UT.Ellipsoid,
+    E2::Ellipsoid,
     c1,
     u,
     U,
@@ -654,7 +656,7 @@ function transition_backward(
     if P1 !== nothing
         K, ℓ = get_controller_matrices(kappa)
         cont = MS.AffineMap(K, ℓ-K*c1)
-        return UT.Ellipsoid(P1, c1), cont, cost
+        return Ellipsoid(P1, c1), cont, cost
     else
         return nothing, nothing, nothing
     end

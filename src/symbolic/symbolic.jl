@@ -23,26 +23,21 @@ include("automaton/automaton.jl")
 include("automaton/sorted_automaton_list.jl")
 include("automaton/indexed_automaton_list.jl")
 
-# include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
 include("symbolic_model.jl")
+
+include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
 include("grid_based_symbolic_model/symbolic_model_list.jl")
 # include("grid_based_symbolic_model/lazy_symbolic_model_list.jl")
 # include("grid_based_symbolic_model/hierarchical_symbolic.jl")
-
 # include("alternating_simulation.jl")
-# include("proba_automaton.jl")
 
 import Polyhedra
 import IntervalArithmetic as IA
 import LazySets
 using ProgressMeter
-using JuMP
-include("ellipsoidal_transitions.jl")
 
 # include("timed_hybrid_automaton/vector_continuous_system.jl")
-
 # include("timed_hybrid_automaton/time_symbolic_model.jl")
-
 # include("timed_hybrid_automaton/symbolic_timed_hybrid_systems.jl")
 
 end  # module Symbolic

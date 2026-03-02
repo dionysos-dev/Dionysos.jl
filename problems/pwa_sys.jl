@@ -94,7 +94,6 @@ function system(lib, dt, Usz, Wsz; simple = false)
         -1 -1 1 1
         -1 1 -1 1
     ] * dt # polytope of disturbances 
-    println(obs)
     obs_union = UT.LazyUnion(obs)
     rectX = UT.LazySetMinus(rectX, obs_union)
     system.ext[:X] = rectX
@@ -107,15 +106,6 @@ end
 
 """"
     problem(lib, dt=0.01, Usz=50, x_0 = [2.0,-2.0], x_f = [-2.0, 1.0], N = -1)
-
-This function create the system with `PWAsys` and instantiates our OptimalControlProblem 
-by defining the transition costs.
-Notice that `state_cost` is defined to be zero for each mode/discrete state
-of the system and the `transition_cost` is defined to be a quadratic function
-of the state and the input.
-
-Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
-
 This problem was tackled in the paper [State-feedback Abstractions for Optimal Control of Piecewise-affine Systems](https://arxiv.org/abs/2204.00315).
 """
 function problem(;

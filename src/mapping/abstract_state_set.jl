@@ -78,6 +78,13 @@ end
     first_series = true
     if !efficient || value_function !== nothing
         # plot each cell (slow) - needs full N-dim pos
+        if proj !== nothing
+            posN = sort(posN; by = p -> begin
+                key = (p[d1], p[d2])
+                v = proj[key][1]
+                isfinite(v) ? v : -Inf
+            end, rev = true)
+        end
         for p in posN
             key = (p[d1], p[d2])
             if proj !== nothing

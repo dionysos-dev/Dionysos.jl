@@ -42,7 +42,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            MP.OUTER,
+            MP.INNER,
             nothing,
             nothing,
             nothing,
@@ -97,7 +97,7 @@ end
 function _pick_state_region(opt::OptimizerEmptyProblem)
     X = opt.abstraction_region
     X === nothing && (X = opt.empty_problem.region)
-    X === nothing && (X = opt.empty_problem.system.ext[:X])
+    X === nothing && (X = opt.empty_problem.system.ext[:X]) 
     return X
 end
 
@@ -172,9 +172,9 @@ function build_L(opt::OptimizerEmptyProblem, nx::Int, nu::Int)
         Q = opt.Q_aug
         # symmetry + PSD guard
         Qs = (Q + Q') / 2
-        F = LA.eigen(Symmetric(Qs))
+        F = LA.eigen(LA.Symmetric(Qs))
         any(F.values .< -1e-12) && error("Q_aug must be PSD")
-        Λsqrt = Diagonal(sqrt.(max.(F.values, 0.0)))
+        Λsqrt = LA.Diagonal(sqrt.(max.(F.values, 0.0)))
         # L such that L' * L = Q
         return Λsqrt * F.vectors'
     end
@@ -286,14 +286,14 @@ function compute_abstract_system_from_concrete_system!(
         # candidates from rectangle
         cand = MP.get_states_from_set(Xmap, post_rect, incl_mode)
 
-        # filter to allowed + inside X (robust even if intersection isn't supported)
+        # filter to allowed + inside X
         cand = filter(q′ -> MP.contains_state(Rset, Xmap, q′), cand)
-        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ X.A), cand)  # adapt membership
+        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ X.A), cand)
 
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)
 
-            ans, cont, cost = SY._has_transition(
+            ans, cont, cost = UT._has_transition(
                 hybridsys.resetmaps[m],
                 UT.Ellipsoid(P,  x),
                 UT.Ellipsoid(Pm, xm),
@@ -305,7 +305,7 @@ function compute_abstract_system_from_concrete_system!(
 
             if ans
                 trans_count += 1
-                symbol = q′  # your choice
+                symbol = q′
 
                 SY.add_transition!(sym, q, q′, symbol)
                 transitionCost[(q, q′)] = cost

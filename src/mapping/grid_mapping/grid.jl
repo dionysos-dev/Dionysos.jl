@@ -80,6 +80,7 @@ end
 get_elem_by_pos(grid::Grid, pos) = get_rec(grid, pos)
 get_elem_by_coord(grid::Grid, x) = get_elem_by_pos(grid, get_pos_by_coord(grid, x))
 get_all_pos_by_coord(grid::Grid, x) = [get_pos_by_coord(grid, x)]
+is_state_cover(grid) = false
 
 function get_volume(grid::Grid)
     r = get_h(grid) / 2.0
@@ -97,8 +98,6 @@ end
         get_elem_by_pos(grid, pos)
     end
 end
-
-
 
 function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     rectI = get_pos_lims(grid, rect, incl_mode)
@@ -160,6 +159,7 @@ end
 get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
 get_h(grid::GridEllipsoidalRectangular) = get_h(grid.underlying_grid)
 get_P(grid::GridEllipsoidalRectangular) = grid.P
+is_state_cover(grid::GridEllipsoidalRectangular) = true
 
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
     return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))

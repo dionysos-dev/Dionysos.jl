@@ -31,6 +31,9 @@ abstract type AbstractMapping{N,T} end
 get_n_state(m::AbstractMapping) = error("implement get_n_state")
 enum_states(m::AbstractMapping) = 1:get_n_state(m)
 get_state_by_coord(m::AbstractMapping, x) = error("implement get_state_by_coord")
+get_states_by_coord(m::AbstractMapping, x) = error("implement get_states_by_coord")
+is_state_cover(m::AbstractMapping) = error("implement is_state_cover")
+
 get_coord_by_state(m::AbstractMapping, q::Int) = error("implement get_coord_by_state")
 get_elem_by_state(m::AbstractMapping, q::Int) = error("implement get_elem_by_state")
 get_elem_by_coord(m::AbstractMapping, x) = error("implement get_elem_by_coord")
@@ -60,6 +63,8 @@ include("list_mapping.jl")
 
 include("grid_mapping/grid.jl")
 include("grid_mapping/grid_mapping.jl")
+include("grid_mapping/explicit_grid_mapping.jl")
+include("grid_mapping/implicit_grid_mapping.jl")
 include("grid_mapping/periodic_mapping.jl")
 
 include("abstract_state_set.jl")
