@@ -1,37 +1,53 @@
 module TestMain
 
 using Test
-using StaticArrays, MathematicalSystems
+using StaticArrays
+using MathematicalSystems
+using LinearAlgebra
 using Dionysos
+
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
-using LinearAlgebra
 
-sleep(0.1) # used for good printing
+sleep(0.1)
 println("Started multithreading test")
 
-# Test helper function to build example system
-function build_test_system(; n_per_dim = 20, tstep = 1.0, input_step = 1.0)
-    # 3D state domain
+# ----------------------------
+# Build finite mappings + system (Mapping-based)
+# ----------------------------
+function build_test_system(; n_per_dim::Int = 20, tstep::Float64 = 1.0, input_step::Float64 = 1.0)
+    # ---- X mapping: [0,1]^3 sampled with n_per_dim points each axis ----
     lb = SVector(0.0, 0.0, 0.0)
     ub = SVector(1.0, 1.0, 1.0)
-    h = (ub - lb) ./ (n_per_dim - 1)
-    Xgrid = DO.GridFree(lb, h)
-    Xfull = DO.DomainList(Xgrid)
-    DO.add_set!(Xfull, UT.HyperRectangle(lb, ub), DO.OUTER)
+    h  = (ub - lb) ./ (n_per_dim - 1)
 
-    # 3D input domain
+    Xgrid = MP.GridFree(lb, h)
+    Xmap  = MP.ExplicitGridMapping(Xgrid)
+
+    # positions 0:(n_per_dim-1) in each dim
+    for i in 0:(n_per_dim-1), j in 0:(n_per_dim-1), k in 0:(n_per_dim-1)
+        MP.add_pos!(Xmap, (i, j, k))
+    end
+
+    # ---- U mapping: [-1,1]^3 with step input_step ----
     lb_u = SVector(-1.0, -1.0, -1.0)
-    ub_u = SVector(1.0, 1.0, 1.0)
-    h_u = SVector(input_step, input_step, input_step)
-    Ugrid = DO.GridFree(lb_u, h_u)
-    Ufull = DO.DomainList(Ugrid)
-    DO.add_set!(Ufull, UT.HyperRectangle(lb_u, ub_u), DO.OUTER)
+    ub_u = SVector( 1.0,  1.0,  1.0)
+    h_u  = SVector(input_step, input_step, input_step)
 
-    # Linear dynamics: dx/dt = A*x + B*u
+    Ugrid = MP.GridFree(lb_u, h_u)
+    Umap  = MP.ExplicitGridMapping(Ugrid)
+
+    # positions that hit coords in [lb_u, ub_u] on this grid
+    # coord = lb_u + pos*h_u, so pos ranges 0..round((ub-lb)/h)
+    nu = ntuple(d -> Int(round((ub_u[d] - lb_u[d]) / h_u[d])), 3)
+    for i in 0:nu[1], j in 0:nu[2], k in 0:nu[3]
+        MP.add_pos!(Umap, (i, j, k))
+    end
+
+    # ---- Linear dynamics: dx/dt = A*x + B*u ----
     A = @SMatrix [
         0.0 1.0 0.0;
         0.0 0.0 1.0;
@@ -42,25 +58,21 @@ function build_test_system(; n_per_dim = 20, tstep = 1.0, input_step = 1.0)
         0.0 1.0 0.0;
         0.0 0.0 1.0
     ]
-    function F_sys(x, u)
-        return A * x + B * u
-    end
+    F_sys(x, u) = A * x + B * u
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        F_sys,
-        3,
-        3,
-        nothing,
-        nothing,
+        F_sys, 3, 3, nothing, nothing,
     )
 
-    return Xfull, Ufull, concrete_system
+    return Xmap, Umap, concrete_system
 end
 
-# Test function to verify consistency between serial and threaded execution
-function test_multithreading_consistency(method_name, concrete_system, Xfull, Ufull)
-    # Serial execution
-    sym_serial = SY.SymbolicModelList(Xfull, Ufull)
+# ----------------------------
+# Consistency check: serial vs threaded
+# ----------------------------
+function test_multithreading_consistency(method_name, concrete_system, Xmap, Umap)
+    # Serial
+    sym_serial = SY.SymbolicModelList(Xmap, Umap)
     SY.compute_abstract_system_from_concrete_system!(
         sym_serial,
         concrete_system;
@@ -68,11 +80,11 @@ function test_multithreading_consistency(method_name, concrete_system, Xfull, Uf
         threaded = false,
     )
     transitions_serial = Set(SY.enum_transitions(sym_serial.autom))
-    n_transitions_serial = length(transitions_serial)
+    n_serial = length(transitions_serial)
 
-    # Threaded execution (if available)
+    # Threaded (if available)
     if Threads.nthreads() > 1
-        sym_threaded = SY.SymbolicModelList(Xfull, Ufull)
+        sym_threaded = SY.SymbolicModelList(Xmap, Umap)
         SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,
             concrete_system;
@@ -80,36 +92,29 @@ function test_multithreading_consistency(method_name, concrete_system, Xfull, Uf
             threaded = true,
         )
         transitions_threaded = Set(SY.enum_transitions(sym_threaded.autom))
-        n_transitions_threaded = length(transitions_threaded)
+        n_threaded = length(transitions_threaded)
 
-        # Verify consistency
-        is_equal = transitions_serial == transitions_threaded
         return (
-            consistent = is_equal,
-            n_serial = n_transitions_serial,
-            n_threaded = n_transitions_threaded,
+            consistent = (transitions_serial == transitions_threaded),
+            n_serial = n_serial,
+            n_threaded = n_threaded,
         )
     else
-        return (
-            consistent = true,
-            n_serial = n_transitions_serial,
-            n_threaded = n_transitions_serial,
-        )
+        return (consistent = true, n_serial = n_serial, n_threaded = n_serial)
     end
 end
 
-# Test function to measure speedup for a specific method
-function measure_speedup(method_name, concrete_system, Xfull, Ufull; repeats = 3)
-    if Threads.nthreads() == 1
-        return 1.0  # No speedup possible with single thread
-    end
+# ----------------------------
+# Speed measurement
+# ----------------------------
+function measure_speedup(method_name, concrete_system, Xmap, Umap; repeats::Int = 3)
+    Threads.nthreads() == 1 && return 1.0
 
     serial_times = Float64[]
     threaded_times = Float64[]
 
     for _ in 1:repeats
-        # Serial measurement
-        sym_serial = SY.SymbolicModelList(Xfull, Ufull)
+        sym_serial = SY.SymbolicModelList(Xmap, Umap)
         GC.gc()
         t_serial = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_serial,
@@ -119,8 +124,7 @@ function measure_speedup(method_name, concrete_system, Xfull, Ufull; repeats = 3
         )
         push!(serial_times, t_serial)
 
-        # Threaded measurement
-        sym_threaded = SY.SymbolicModelList(Xfull, Ufull)
+        sym_threaded = SY.SymbolicModelList(Xmap, Umap)
         GC.gc()
         t_threaded = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,
@@ -137,19 +141,21 @@ function measure_speedup(method_name, concrete_system, Xfull, Ufull; repeats = 3
     return avg_serial / avg_threaded
 end
 
+# ----------------------------
+# Tests
+# ----------------------------
 @testset "Multithreading Consistency" begin
     @testset "DiscreteTimeCenteredSimulation" begin
-        Xfull, Ufull, concrete_system = build_test_system(; n_per_dim = 15)
+        Xmap, Umap, concrete_system = build_test_system(; n_per_dim = 15)
 
-        # Create discrete system
         cont_center = ST.ContinuousTimeCenteredSimulation(concrete_system)
         discrete_system = ST.discretize(cont_center, 1.0)
 
         result = test_multithreading_consistency(
             "CenteredSimulation",
             discrete_system,
-            Xfull,
-            Ufull,
+            Xmap,
+            Umap,
         )
 
         @test result.consistent == true
@@ -158,15 +164,13 @@ end
             @test result.n_serial == result.n_threaded
         end
 
-        # Measure and display speedup
-        speedup = measure_speedup("CenteredSimulation", discrete_system, Xfull, Ufull)
+        speedup = measure_speedup("CenteredSimulation", discrete_system, Xmap, Umap)
         println("CenteredSimulation: $(round(speedup, digits=2))× speedup")
     end
 
     @testset "DiscreteTimeSystemOverApproximation" begin
-        Xfull, Ufull, concrete_system = build_test_system(; n_per_dim = 15)
+        Xmap, Umap, concrete_system = build_test_system(; n_per_dim = 15)
 
-        # Create over-approximation system
         function simple_over_approx(elem, u)
             center = UT.get_center(elem)
             radius = UT.get_r(elem)
@@ -175,6 +179,7 @@ end
             new_center = F_sys(center, u)
             return UT.HyperRectangle(new_center - new_radius, new_center + new_radius)
         end
+
         discrete_system = ST.discretize_continuous_system(concrete_system, 1.0)
         over_approx_system =
             ST.DiscreteTimeOverApproximationMap(discrete_system, simple_over_approx)
@@ -182,8 +187,8 @@ end
         result = test_multithreading_consistency(
             "OverApproximation",
             over_approx_system,
-            Xfull,
-            Ufull,
+            Xmap,
+            Umap,
         )
 
         @test result.consistent == true
@@ -192,26 +197,23 @@ end
             @test result.n_serial == result.n_threaded
         end
 
-        # Measure and display speedup
-        speedup = measure_speedup("OverApproximation", over_approx_system, Xfull, Ufull)
+        speedup = measure_speedup("OverApproximation", over_approx_system, Xmap, Umap)
         println("OverApproximation: $(round(speedup, digits=2))× speedup")
     end
 
     @testset "DiscreteTimeGrowthBound" begin
-        Xfull, Ufull, concrete_system = build_test_system(; n_per_dim = 15)
+        Xmap, Umap, concrete_system = build_test_system(; n_per_dim = 15)
 
-        # Create growth bound system
-        function growth_bound_map(r, u)
-            return r * (1.0 + 0.1 * norm(u)) .+ 0.01
-        end
+        growth_bound_map(r, u) = r * (1.0 + 0.1 * norm(u)) .+ 0.01
+
         discrete_system = ST.discretize_continuous_system(concrete_system, 1.0)
         growth_bound_system = ST.DiscreteTimeGrowthBound(discrete_system, growth_bound_map)
 
         result = test_multithreading_consistency(
             "GrowthBound",
             growth_bound_system,
-            Xfull,
-            Ufull,
+            Xmap,
+            Umap,
         )
 
         @test result.consistent == true
@@ -220,13 +222,12 @@ end
             @test result.n_serial == result.n_threaded
         end
 
-        # Measure and display speedup
-        speedup = measure_speedup("GrowthBound", growth_bound_system, Xfull, Ufull)
+        speedup = measure_speedup("GrowthBound", growth_bound_system, Xmap, Umap)
         println("GrowthBound: $(round(speedup, digits=2))× speedup")
     end
 end
 
-sleep(0.1) # used for good printing
+sleep(0.1)
 println("End Test")
 
 end # module TestMain

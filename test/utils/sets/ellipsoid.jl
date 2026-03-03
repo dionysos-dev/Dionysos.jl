@@ -46,9 +46,8 @@ const UT = DI.Utils
           IA.IntervalBox(UT.get_center(E3) .- [2.0; 1.0], UT.get_center(E3) .+ [2.0; 1.0])
     @test UT.get_shape(E4) == [0.4 -0.1; -0.1 0.5]
     @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.expand(E1, 2.0))
-    @test UT.get_axis_points(E2, 1) == ([3.0, 1.0], [5.0, 1.0])
-    @test UT.get_axis_points(E2, 2) == ([4.0, 0.0], [4.0, 2.0])
-    @test UT.get_all_axis_points(E2) == [([3.0, 1.0], [5.0, 1.0]), ([4.0, 0.0], [4.0, 2.0])]
+    @test UT.get_axis_points(E2, 2) == ([3.0, 1.0], [5.0, 1.0])
+    @test UT.get_all_axis_points(E2) == [([4.0, 0.0], [4.0, 2.0]), ([3.0, 1.0], [5.0, 1.0])]
     @test UT.get_length_semiaxis_sorted(E2, 1) == 1.0
     @test UT.get_length_semiaxis_sorted(E2, 2) == 1.0
     @test UT.get_length_semiaxis(E3, 1) == 2.0

@@ -126,9 +126,29 @@ end
 
 
 # ---------- Helpers ----------
+# ---------- Helpers ----------
 struct UniqueStates{I}
     iter::I
 end
+
+Base.IteratorEltype(::Type{UniqueStates{I}}) where {I} = Base.HasEltype()
+Base.eltype(::Type{UniqueStates{I}}) where {I} = eltype(I)
+
+Base.IteratorSize(::Type{UniqueStates{I}}) where {I} = Base.SizeUnknown()
+
+function Base.length(U::UniqueStates)
+    # O(n) but makes Set(itr) work reliably
+    seen = BitSet()
+    n = 0
+    for v in U
+        if !(v in seen)
+            push!(seen, v)
+            n += 1
+        end
+    end
+    return n
+end
+
 function Base.iterate(U::UniqueStates, st=(iterate(U.iter), BitSet()))
     (it, seen) = st
     it === nothing && return nothing
@@ -141,6 +161,7 @@ function Base.iterate(U::UniqueStates, st=(iterate(U.iter), BitSet()))
     push!(seen, val)
     return (val, (iterate(U.iter, s2), seen))
 end
+
 unique_states(iter) = UniqueStates(iter)
 # ---------- Helpers ----------
 
@@ -181,7 +202,7 @@ mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
 end
 
 ImplicitStateSet{N}() where {N} =
-    ImplicitStateSet{N}(UT.LazySetMinus(UT.LazySetUnion([]), UT.LazySetUnion([])))
+    ImplicitStateSet{N}(UT.LazySetMinus(UT.LazySetUnion{N,Float64}(), UT.LazySetUnion{N,Float64}()))
 
 
 # --------------------------
@@ -215,24 +236,24 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping, q::Int; incl_mod
     set = S.set
     if incl_mode == CENTER
         c = _cell_center(m, q)
-        return UT._point_in_set(set, c)
+        return UT.point_in_set(set, c)
 
     elseif incl_mode == INNER
         # conservative: all corners must be in A and not in B
         for xcorner in _cell_corner_iter(m, q)
-            UT._point_in_set(set.A, xcorner) || return false
-            UT._point_in_set(set.B, xcorner) && return false
+            UT.point_in_set(set.A, xcorner) || return false
+            UT.point_in_set(set.B, xcorner) && return false
         end
         return true
 
     elseif incl_mode == OUTER
         # sufficient: some sample in A and not in B
         c = _cell_center(m, q)
-        if UT._point_in_set(set.A, c) && !UT._point_in_set(set.B, c)
+        if UT.point_in_set(set.A, c) && !UT.point_in_set(set.B, c)
             return true
         end
         for xcorner in _cell_corner_iter(m, q)
-            if UT._point_in_set(set.A, xcorner) && !UT._point_in_set(set.B, xcorner)
+            if UT.point_in_set(set.A, xcorner) && !UT.point_in_set(set.B, xcorner)
                 return true
             end
         end
@@ -257,7 +278,7 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    S.set = UT.LazySetMinus(UT.LazySetUnion([]), UT.LazySetUnion([]))
+    S.set = UT.LazySetMinus(UT.LazySetUnion{N,Float64}(), UT.LazySetUnion{N,Float64}())
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =
@@ -272,10 +293,12 @@ struct UnionStateSet{N,S1<:AbstractStateSet{N},S2<:AbstractStateSet{N}} <: Abstr
     A::S1
     B::S2
 end
-contains_state(S::UnionStateSet{N}, m, q::Int) where {N} =
+
+contains_state(S::UnionStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
     contains_state(S.A, m, q) || contains_state(S.B, m, q)
-enum_states(S::UnionStateSet{N}, m) where {N} =
-    unique_states(Iterators.flatten((enum_states(S.A,m), enum_states(S.B,m))))
+
+enum_states(S::UnionStateSet{N}, m::AbstractMapping{N}) where {N} =
+    unique_states(Iterators.flatten((enum_states(S.A, m), enum_states(S.B, m))))
 
 
     
@@ -285,10 +308,10 @@ struct SetMinusStateSet{N,S1<:AbstractStateSet{N},S2<:AbstractStateSet{N}} <: Ab
     A::S1
     B::S2
 end
-contains_state(S::SetMinusStateSet{N}, m, q::Int) where {N} =
+
+contains_state(S::SetMinusStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
     contains_state(S.A, m, q) && !contains_state(S.B, m, q)
-enum_states(S::SetMinusStateSet{N}, m) where {N} =
-    (q for q in enum_states(S.A,m) if !contains_state(S.B,m,q))
 
-
+enum_states(S::SetMinusStateSet{N}, m::AbstractMapping{N}) where {N} =
+    (q for q in enum_states(S.A, m) if !contains_state(S.B, m, q))
 # --------------------------

@@ -224,8 +224,6 @@ function wrap_coord(m::PeriodicGridMapping{N, T}, x::SVector{N, T}) where {N, T}
     end, N))
 end
 
-
-
 # ----------------------------
 # Override GridMapping methods by delegation + wrapping
 # ----------------------------
