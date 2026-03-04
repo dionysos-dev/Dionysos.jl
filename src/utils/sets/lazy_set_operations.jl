@@ -96,11 +96,6 @@ Base.in(x, I::LazySetIntersection{N,T}) where {N,T} = all(s -> (x in s), I.sets)
 # add_set! / remove_set!
 # ----------------------------
 
-"""
-    add_set!(U::LazySetUnion, s)
-
-Adds node(s) into union. Flattens unions. Rejects minus.
-"""
 function add_set!(U::LazySetUnion{N,T}, s) where {N,T}
     _assert_not_minus(s)
     if s isa AbstractSetNode{N,T}

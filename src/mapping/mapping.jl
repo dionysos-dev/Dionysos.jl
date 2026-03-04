@@ -66,7 +66,7 @@ include("grid_mapping/grid_mapping.jl")
 include("grid_mapping/explicit_grid_mapping.jl")
 include("grid_mapping/implicit_grid_mapping.jl")
 include("grid_mapping/periodic_mapping.jl")
-# include("grid_mapping/hierarchical_grid_mapping.jl")
+include("grid_mapping/hierarchical_grid_mapping.jl")
 
 include("abstract_state_set.jl")
 

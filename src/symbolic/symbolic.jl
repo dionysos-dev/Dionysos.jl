@@ -33,14 +33,4 @@ include("grid_based_symbolic_model/symbolic_model_list.jl")
 
 include("symbolic_hybrid_model/symbolic_hybrid_model.jl")
 
-
-import Polyhedra
-import IntervalArithmetic as IA
-import LazySets
-using ProgressMeter
-
-# include("timed_hybrid_automaton/vector_continuous_system.jl")
-# include("timed_hybrid_automaton/time_symbolic_model.jl")
-# include("timed_hybrid_automaton/symbolic_timed_hybrid_systems.jl")
-
 end  # module Symbolic

@@ -245,16 +245,6 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
             PSDCone()
         )
     end
-    """n_S = size(L, 1)
-    @constraint(
-        model,
-        [
-            gamma*P z [LA.I t(K) z]*t(L)
-            t(z) J-gamma [t(c) t(ell) 1]*t(L)
-            t([LA.I t(K) z] * t(L)) t([t(c) t(ell) 1] * t(L)) eye(n_S)
-        ] >= eye(n + n_S + 1) * 1e-4,
-        PSDCone()
-    )"""
     n  = length(c)
     m  = size(U[1], 2)
     nS = size(L, 1)

@@ -1,7 +1,3 @@
-# ----------------------------
-# Periodic wrapper (decorator)
-# ----------------------------
-
 """
     PeriodicGridMapping{N, T, M, P} <: GridMapping{N, T}
 
@@ -22,13 +18,6 @@ struct PeriodicGridMapping{N, T, M <: GridMapping{N,T}, P} <: GridMapping{N,T}
     periodic_index_map::NTuple{N, Union{Nothing, Int}}
 end
 
-"""
-    _make_periodic_index_map(periodic_dims::SVector{P, Int}, N::Int)
-
-Returns an `NTuple{N, Union{Nothing, Int}}` where each entry is either:
-- `nothing` if dimension `d` is not periodic
-- `i` such that `periodic_dims[i] == d`
-"""
 function _make_periodic_index_map(periodic_dims::SVector{P, Int}, N::Int) where {P}
     return ntuple(d -> begin
         i = findfirst(isequal(d), periodic_dims)
@@ -36,13 +25,6 @@ function _make_periodic_index_map(periodic_dims::SVector{P, Int}, N::Int) where 
     end, N)
 end
 
-"""
-Constructs a grid whose origin aligns with the periodic structure:
-- In each periodic dimension `d = periodic_dims[i]`, the origin is set to `start[i] + h[d]/2`
-- All other dimensions default to origin = 0.0
-
-Throws an error if the period is not divisible by the grid step.
-"""
 function get_grid_in_periods(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
@@ -180,16 +162,6 @@ end
 # Wrapping logic (pos + coord)
 # ----------------------------
 
-"""
-    wrap_pos(m, pos)
-
-Same convention as your PeriodicDomainList:
-span = round(Int, periods[i]/h[d])
-wrapped = mod(pos[d], span)
-
-If your grid pos are 1-based, replace with:
-    1 + mod(pos[d]-1, span)
-"""
 function wrap_pos(m::PeriodicGridMapping{N, T}, pos::NTuple{N, Int}) where {N, T}
     !is_periodic(m) && return pos
 

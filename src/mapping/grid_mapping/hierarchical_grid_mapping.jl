@@ -1,3 +1,8 @@
+"""
+HierarchicalGridMapping:
+- multiscale grid mapping with multiple levels of resolution
+- each level is a GridMapping (e.g. ImplicitGridMapping)
+"""
 mutable struct HierarchicalGridMapping{N,T,ML<:GridMapping{N,T}} <: GridMapping{N,T}
     levels::Vector{ML}
     offsets::Vector{Int}  # offsets[l] = sum_{k<l} n_k; offsets[1]=0

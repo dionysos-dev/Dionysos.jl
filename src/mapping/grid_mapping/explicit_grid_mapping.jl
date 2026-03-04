@@ -1,7 +1,3 @@
-# ----------------------------
-# Concrete grid mappings
-# ----------------------------
-
 """
 ExplicitGridMapping:
 explicit enumeration of positions -> ids (dict) and ids -> positions (vector)

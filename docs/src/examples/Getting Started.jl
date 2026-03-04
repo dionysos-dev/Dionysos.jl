@@ -120,4 +120,3 @@ display(fig)
 
 # In the previous picture, we have the state space lattice in grey, the chosen cell in blue and 
 # the corresponding Post domain in green.
-# 

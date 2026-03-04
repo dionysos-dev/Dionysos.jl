@@ -1,8 +1,3 @@
-# ----------------------------
-# Concrete grid mappings
-# ----------------------------
-
-
 """
 ImplicitGridMapping:
 - universe is a rectangular index box (min_pos..max_pos) possibly periodic

@@ -294,13 +294,6 @@ end
 # --- JLD2 Abstraction Export/Import ---- #
 # --------------------------------------- #
 
-"""
-export_abstraction_jld2(opt::UniformEllipsoidAbstraction.Optimizer, filename)
-
-Stores:
-- abstract_system
-- minimal metadata to reload and understand it
-"""
 function export_abstraction_jld2(opt::Optimizer, filename::AbstractString)
     abs_opt = opt.abstraction_solver
     abs_opt === nothing && error("No abstraction_solver in optimizer.")
@@ -322,12 +315,6 @@ function export_abstraction_jld2(opt::Optimizer, filename::AbstractString)
     return nothing
 end
 
-"""
-import_abstraction_jld2(filename; opt=nothing)
-
-Loads abstract_system into the optimizer's abstraction_solver.
-Returns the optimizer.
-"""
 function import_abstraction_jld2(filename::AbstractString; opt::Union{Nothing, Optimizer}=nothing)
     opt === nothing && (opt = MOI.instantiate(Optimizer))
     opt.abstraction_solver === nothing && (opt.abstraction_solver = OptimizerEmptyProblem())

@@ -10,13 +10,15 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem
+Dionysos.Optim.Abstraction.UniformGridAbstraction.make_out_of_domain_handler
 ```
+
+### Uniform ellipsoid abstraction solver
+
+### Hybrid system abstraction solver
 
 ### Other abstraction-based solvers
 ```@docs
-Dionysos.Optim.Abstraction.EllipsoidsAbstraction.Optimizer
-Dionysos.Optim.Abstraction.HierarchicalAbstraction.Optimizer
-Dionysos.Optim.Abstraction.LazyAbstraction.Optimizer
 Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
 ```
 

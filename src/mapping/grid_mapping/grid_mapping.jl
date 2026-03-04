@@ -200,12 +200,6 @@ function intrect2_to_real_rect(grid, r::IntRect2, d1::Int, d2::Int)
     return UT.HyperRectangle(lb, ub)
 end
 
-"""
-Project states onto (d1,d2). For each 2D cell keep:
-- best value (min by default)
-- one representative full pos (NTuple{N,Int}) to plot the cell (slow branch),
-  or just to build pos2d list (fast branch).
-"""
 function project_states_on_dims(
     m::GridMapping{N},
     states;

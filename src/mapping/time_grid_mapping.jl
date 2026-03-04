@@ -56,10 +56,6 @@ get_coord_by_state(m::TimeGridMapping, q::Int) = begin
     return SVector{1,Float64}(m.tsteps[q])
 end
 
-"""
-Default: floor abstraction (largest tgrid <= t).
-If time frozen => always return 1.
-"""
 function get_state_by_coord(m::TimeGridMapping, t)
     tt = t isa Number ? Float64(t) : Float64(t[1])
     return floor_time2int(m, tt)

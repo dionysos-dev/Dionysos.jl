@@ -13,9 +13,9 @@ Description of the core of the Dionysos.jl package, the [`src`](https://github.c
 | Subfolder        | Description |
 | :--------------- | :---------- |
 | [`utils`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/utils) | Contains useful functions, data structures, classic search algorithms, file management, ... |
-| [`domain`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/domain) | Contains structures defining the domain of a system |
 | [`system`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/system) | Contains a description of specific systems |
 | [`problem`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/problem) | Contains control problems that can be solved by Dionysos solvers |
+| [`mapping`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/mapping) | Contains structures defining the mapping between concrete and abstract systems |
 | [`symbolic`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/symbolic) | Contains the data structures needed to encode the abstractions |
 | [`optim`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/optim) | Contains the solvers |
 
@@ -76,8 +76,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_system::Union{Nothing, SY.SymbolicModelList}
     abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
     concrete_controller::Any
-    state_grid::Union{Nothing, DO.Grid}
-    input_grid::Union{Nothing, DO.Grid}
+    state_grid::Union{Nothing, MP.Grid}
+    input_grid::Union{Nothing, MP.Grid}
     function Optimizer{T}() where {T}
         return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing)
     end
@@ -130,10 +130,10 @@ Define the solver's meta-parameters
 ```julia
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
-state_grid = DO.GridFree(x0, hx);
+state_grid = MP.GridFree(x0, hx);
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-input_grid = DO.GridFree(u0, hu);
+input_grid = MP.GridFree(u0, hu);
 ```
 
 Set the solver's meta-parameters
@@ -163,10 +163,10 @@ For example
 using Plots
 
 plot!(concrete_system.X; color = :yellow, opacity = 0.5);
-plot!(abstract_system.Xdom; color = :blue, opacity = 0.5);
+plot!(abstract_system; color = :blue, opacity = 0.5);
 plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
 plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
-plot!(control_trajectory; ms = 0.5)
+plot!(trajectory; ms = 0.5)
 ```
 
 

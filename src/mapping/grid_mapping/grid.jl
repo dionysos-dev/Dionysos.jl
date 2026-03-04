@@ -215,13 +215,7 @@ get_elem_by_pos(grid::DeformedGrid, pos) =
 get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
     get_pos_lims(grid.underlying_grid, rect, incl_mode)
 
-"""
-    get_volume(Dgrid::DeformedGrid) -> T
 
-Computes the volume of a grid cell.
-- If `A` is provided (linear transformation), uses `det(A)`.
-- Otherwise, defaults to the volume of the base grid.
-"""
 function get_volume(grid::DeformedGrid)
     return grid.A !== nothing ? abs(det(grid.A)) * get_volume(grid.underlying_grid) :
            get_volume(grid.underlying_grid)

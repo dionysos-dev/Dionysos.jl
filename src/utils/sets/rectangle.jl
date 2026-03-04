@@ -159,7 +159,7 @@ function SampleBoundaryDeformedRectangle(drect::DeformedRectangle{N,T}; K=50, di
     lb = rect.lb[[d1,d2]]
     ub = rect.ub[[d1,d2]]
 
-    points = SVector{2,T}[]  # assumes dims=(1,2); generalize if needed
+    points = SVector{2,T}[]  # assumes dims=(1,2)
 
     for x in LinRange(lb[1], ub[1], K)
         push!(points, f(SVector(x, lb[2])))
