@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Single Pendulum solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Simple Pendulum solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 # A simple pendulum is a typical example of a nonlinear dynamical system.
 # The pendulum's state is represented by its angular position ($x_1$ in radians) and angular velocity ($x_2$ in radians per second), and it is influenced by
@@ -28,10 +28,13 @@ using Test     #src
 # ```
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
 
-# At this point, we import Dionysos and JuMP.
-using Dionysos, JuMP
+# At this point, we import Dionysos.
+using Dionysos
+const DI = Dionysos
+const ST = DI.System
+const MP = DI.Mapping
 
 # Define the problem using JuMP
 # We first create a JuMP model:
@@ -78,12 +81,12 @@ set_attribute(model, "time_step", 0.1)
 
 x0 = SVector(0.0, 0.0);
 h = SVector(hx, hx);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+set_attribute(model, "state_grid", MP.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0);
 h = SVector(0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+set_attribute(model, "input_grid", MP.GridFree(u0, h))
 
 # Solving the problem
 optimize!(model)
@@ -99,15 +102,10 @@ abstract_value_function = get_attribute(model, "abstract_value_function");
 
 # ### Trajectory display
 nstep = 100
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
-x0 = SVector(Dionysos.Utils.sample(concrete_problem.initial_set)...)
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+reached(x) = x ∈ concrete_problem.target_set
+
+x0 = SVector(UT.sample(concrete_problem.initial_set)...)
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,

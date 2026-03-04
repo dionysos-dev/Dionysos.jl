@@ -248,7 +248,8 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
     return MOI.Utilities.default_copy_to(model, src)
 end
 
-_svec(vec, idx) = SVector([vec[i] for i in idx]...)
+_svec(vec::AbstractVector{T}, idx::AbstractVector{Int}) where {T} =
+    SVector{length(idx), T}(ntuple(j -> vec[idx[j]], length(idx)))
 
 function _full(model, def, vars, vals)
     v = fill(def, length(model.variable_index))
@@ -258,13 +259,29 @@ function _full(model, def, vars, vals)
     return v
 end
 
-function obstacles(model, x_idx)
-    return [
-        Dionysos.Utils.HyperRectangle(
-            _svec(_full(model, -Inf, o[1], o[2].lower), x_idx),
-            _svec(_full(model, Inf, o[1], o[2].upper), x_idx),
-        ) for o in model.obstacles
-    ]
+
+function obstacles(model, x_idx::Vector{Int})
+    N = length(x_idx)
+    rects = Dionysos.Utils.HyperRectangle{N,Float64}[]
+
+    for (vars, box) in model.obstacles
+        lb_full = _full_vec(model.lower, vars, box.lower)
+        ub_full = _full_vec(model.upper, vars, box.upper)
+
+        lb = _svec(lb_full, x_idx)
+        ub = _svec(ub_full, x_idx)
+
+        push!(rects, Dionysos.Utils.HyperRectangle(lb, ub))
+    end
+    return rects
+end
+
+function _full_vec(def::Vector{Float64}, vars, vals)
+    v = copy(def)
+    for (var, val) in zip(vars, vals)
+        v[var.value] = Float64(val)
+    end
+    return v
 end
 
 function dynamic!(model)

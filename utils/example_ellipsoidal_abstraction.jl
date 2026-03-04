@@ -126,7 +126,7 @@ println("Time to solve the abstract problem: $(abstract_problem_time)")
 
 # # ### Simulation
 
-#Return pwa mode for a given x
+# Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
 # To simplify : "We assume that inside cells intersecting the boundary of partitions of X the selected piecewise-affine mode is the same all over its interior and given by the mode
 # defined at its center."

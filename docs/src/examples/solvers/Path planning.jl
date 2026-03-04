@@ -32,8 +32,13 @@
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, Plots
 
-# At this point, we import Dionysos and JuMP.
-using Dionysos, JuMP
+using Dionysos
+const DI = Dionysos
+const ST = DI.System
+const MP = DI.Mapping
+const SY = DI.Symbolic
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 # ### Definition of the problem
 
@@ -91,18 +96,18 @@ set_attribute(model, "time_step", 0.3)
 set_attribute(
     model,
     "approx_mode",
-    Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
+    AB.UniformGridAbstraction.GROWTH,
 )
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, hx))
+set_attribute(model, "state_grid", MP.GridFree(x0, hx))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, hu))
+set_attribute(model, "input_grid", MP.GridFree(u0, hu))
 
 optimize!(model);
 
@@ -127,16 +132,10 @@ println("Total time: $(total_time)")
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
 nstep = 100
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
 
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
@@ -165,13 +164,14 @@ plot!(
 );
 
 # We display the abstract specifications
+Xmapping = SY.get_state_mapping(abstract_system)
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmapping);
     color = :green,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
-    color = :red,
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
+    color = :red, efficient=false
 );
 
 # We display the concrete trajectory

@@ -139,13 +139,7 @@ uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollabl
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-function reached(x)
-    if x ∈ concrete_problem_reachability.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem_reachability.target_set
 
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),

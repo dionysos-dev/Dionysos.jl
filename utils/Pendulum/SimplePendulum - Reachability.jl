@@ -82,13 +82,7 @@ println("Total time: $(total_time)")
 target_set =
     UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 nstep = 100
-function reached(x)
-    if x ∈ target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ target_set
 
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
 x_traj, u_traj = ST.get_closed_loop_trajectory(

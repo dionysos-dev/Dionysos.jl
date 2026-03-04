@@ -65,13 +65,8 @@ concrete_value_function =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
 
 nstep = 300
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
+
 x0 = SVector(0.4, 0.4, 0.0)
 println(
     "Worst-case (upper bound) value for the initial point: ",

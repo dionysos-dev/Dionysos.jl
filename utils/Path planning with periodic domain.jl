@@ -82,13 +82,7 @@ target_set_in_periodic =
     UT.set_in_period(target_set, periodic_dims, periods, periodic_start)
 
 nstep = 100
-function reached(x)
-    if x ∈ target_set_in_periodic
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ target_set_in_periodic
 
 x0 = SVector(0.4, 0.4, 0.0)
 x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(

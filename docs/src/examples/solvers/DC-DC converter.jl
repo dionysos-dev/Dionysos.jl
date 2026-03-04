@@ -33,8 +33,8 @@ using StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
@@ -49,10 +49,10 @@ concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
-state_grid = DO.GridFree(x0, hx)
+state_grid = MP.GridFree(x0, hx)
 u0 = SVector(1)
 hu = SVector(1)
-input_grid = DO.GridFree(u0, hu)
+input_grid = MP.GridFree(u0, hu)
 
 using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -117,11 +117,11 @@ origin = SVector(0.0, 0.0)
 # Note: In the following, `P` and `ϵ` are computed by hand, but their computation is not crucial since they only affect the visualization of the abstraction. See https://github.com/dionysos-dev/Dionysos.jl/issues/345
 ϵ = 0.1 * 0.01
 P = SMatrix{2, 2}(1.0224, 0.0084, 0.0084, 1.0031)
-state_grid = DO.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ)
+state_grid = MP.GridEllipsoidalRectangular(origin, SVector(η, η), P / ϵ)
 
 u0 = SVector(1)
 hu = SVector(1)
-input_grid = DO.GridFree(u0, hu)
+input_grid = MP.GridFree(u0, hu)
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
@@ -136,6 +136,7 @@ MOI.set(
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.optimize!(optimizer);
 
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 abstraction_time =
@@ -159,9 +160,11 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     nstep,
 )
 
+Xmapping = SY.get_state_mapping(abstract_system)
+
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
-plot!(invariant_set_complement; color = :black, label = "Invariant set complement")
+plot!((invariant_set_complement, Xmapping); color = :black, label = "Invariant set complement")
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 

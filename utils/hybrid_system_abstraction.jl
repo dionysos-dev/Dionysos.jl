@@ -36,17 +36,17 @@ Tdom = UT.HyperRectangle(SVector(0.0), SVector(3.0))
 time_sys = MS.ConstrainedLinearContinuousSystem(SMatrix{1,1}(1.0), Tdom)
 
 # Guard and reset for switching (augmented state is [x; t] => 2D)
-guard_1 = UT.HyperRectangle(SVector(0.2, 0.0), SVector(1.0, 2.0))
+guard_1 = UT.HyperRectangle(SVector(0.2, 0.0), SVector(0.7, 0.9))
 
 struct FixedPointResetMap <: MS.AbstractMap
     domain::UT.HyperRectangle
     target::Vector{Float64}
 end
-MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
+
+MS.apply(reset::FixedPointResetMap, state::AbstractVector) = [reset.target[1], state[2]]
 MS.stateset(reset::FixedPointResetMap) = reset.domain
 
-reset_map = FixedPointResetMap(guard_1, SVector(0.0, 0.0))  # reset to (x,t)=(0,0)
-# note the reset map ALSO reset the time at 0.0 when switching
+reset_map = FixedPointResetMap(guard_1, SVector(0.0, 0.0))  # reset to (x,t)=(0, t)
 
 # Automaton + hybrid system
 automaton = HybridSystems.GraphAutomaton(2)
@@ -158,9 +158,18 @@ aug_x_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
 )
 
 # aug_state = (x, t, mode)
-x_traj = ST.Trajectory([aug_state[1][1] for aug_state in aug_x_traj])
-tx_traj = ST.Trajectory([SVector(aug[2], aug[1][1]) for aug in aug_x_traj])
+# x_traj = ST.Trajectory([aug_state[1][1] for aug_state in aug_x_traj])
+# tx_traj = ST.Trajectory([SVector(aug[2], aug[1][1]) for aug in aug_x_traj])
 
-fig = plot(; aspect_ratio = :equal);
-plot!(tx_traj)
+# fig = plot(; aspect_ratio = :equal);
+# plot!(tx_traj)
+# display(fig)
+
+# aug_state = (x, t, mode)
+tx_mode1 = ST.Trajectory([SVector(t, x[1]) for (x,t,k) in aug_x_traj if k == 1])
+tx_mode2 = ST.Trajectory([SVector(t, x[1]) for (x,t,k) in aug_x_traj if k == 2])
+
+fig = plot(; aspect_ratio=:equal)
+plot!(fig, tx_mode1; dims=[1,2], label="mode 1", color=:blue)
+plot!(fig, tx_mode2; dims=[1,2], label="mode 2", color=:red)
 display(fig)

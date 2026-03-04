@@ -69,13 +69,7 @@ nstep = 100
 target_set =
     UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 nstep = 100
-function reached(x)
-    if x ∈ target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ target_set
 
 zero_controller = MathematicalSystems.BlackBoxMap(4, 1, x -> SVector(0.0))
 x0 = SVector(0.0, 0.0, 0.0, 0.0)

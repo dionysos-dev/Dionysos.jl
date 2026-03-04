@@ -7,7 +7,7 @@ const ST = DI.System
 using MathematicalSystems
 MS = MathematicalSystems
 
-include("../problems/pendulum/simple_pendulum.jl");
+include("../../problems/pendulum/simple_pendulum.jl");
 
 system = SimplePendulum.system(;
     l = 1.0,
