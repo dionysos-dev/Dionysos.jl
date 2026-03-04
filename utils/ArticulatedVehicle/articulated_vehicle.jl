@@ -219,7 +219,7 @@ function script()
         end
     end
     if (load)
-        optimizer = AB.UniformGridAbstraction.load_abstraction_jld2(filename)
+        optimizer = AB.UniformGridAbstraction.import_abstraction_jld2(filename)
     end
 
     # ------------------------------------------------------------

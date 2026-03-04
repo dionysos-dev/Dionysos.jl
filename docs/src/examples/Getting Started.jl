@@ -119,4 +119,4 @@ plot!((post_set, Xmap); fc="green", dims=dims, label="Post", efficient=false)
 display(fig)
 
 # In the previous picture, we have the state space lattice in grey, the chosen cell in blue and 
-# the corresponding Post domain in green.
+# the corresponding Post image in green.

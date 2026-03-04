@@ -12,8 +12,8 @@ using JLD2
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -28,10 +28,10 @@ include(joinpath(@__DIR__, "robot_problem.jl"))
 const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
 
 const COMPUTE_ABSTRACTION = true
-const SAVE_ABSTRACTION = true
+const SAVE_ABSTRACTION = false
 const LOAD_ABSTRACTION = false
 
-const SIMULATE = true
+const SIMULATE = false
 
 robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
 tstep = 0.1
@@ -164,11 +164,11 @@ optimizer = nothing
 if COMPUTE_ABSTRACTION
     x0 = SVector{n_state, Float64}(zeros(n_state))
     hx = SVector{n_state, Float64}(fill(0.3, n_state))
-    state_grid = DO.GridFree(x0, hx)
+    state_grid = MP.GridFree(x0, hx)
 
     u0 = SVector{n_input, Float64}(zeros(n_input))
     hu = SVector{n_input, Float64}(fill(3.0, n_input))
-    input_grid = DO.GridFree(u0, hu)
+    input_grid = MP.GridFree(u0, hu)
 
     optimizer = build_optimizer(;
         concrete_problem = concrete_problem,
@@ -203,8 +203,6 @@ if SIMULATE
         solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
     # x_traj = make_test_trajectory()
 
-    println(x_traj, "\n")
-    println(u_traj, "\n")
     rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
     RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end

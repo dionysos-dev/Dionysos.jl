@@ -1,6 +1,5 @@
 using StaticArrays: SVector, SMatrix
-using MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
 
 using Plots
 

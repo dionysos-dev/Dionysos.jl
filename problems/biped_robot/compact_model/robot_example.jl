@@ -12,8 +12,8 @@ using JLD2
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -28,7 +28,7 @@ include(joinpath(@__DIR__, "utils.jl"))
 # ==============================================================================
 const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
 
-const COMPUTE_ABSTRACTION = false
+const COMPUTE_ABSTRACTION = true
 const SAVE_ABSTRACTION = true
 const LOAD_ABSTRACTION = false
 
@@ -159,11 +159,11 @@ optimizer = nothing
 if COMPUTE_ABSTRACTION
     x0 = SVector{n_state, Float64}(zeros(n_state))
     hx = SVector{n_state, Float64}([fill(2π/180, 3)..., fill(0.15, 3)...])
-    state_grid = DO.GridFree(x0, hx)
+    state_grid = MP.GridFree(x0, hx)
 
     u0 = SVector{n_input, Float64}(zeros(n_input))
     hu = SVector{n_input, Float64}(fill(1.0, n_input))
-    input_grid = DO.GridFree(u0, hu)
+    input_grid = MP.GridFree(u0, hu)
 
     optimizer = build_optimizer(;
         concrete_problem = concrete_problem,
@@ -180,7 +180,7 @@ if COMPUTE_ABSTRACTION
 end
 
 if LOAD_ABSTRACTION
-    optimizer = AB.UniformGridAbstraction.load_abstraction_jld2(FILENAME)
+    optimizer = AB.UniformGridAbstraction.import_abstraction_jld2(FILENAME)
     println("Loaded abstraction from: ", FILENAME)
 end
 
@@ -198,8 +198,6 @@ if SIMULATE_FIRST_STEP
         solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
     # x_traj = make_test_trajectory()
 
-    println(x_traj, "\n")
-    println(u_traj, "\n")
     rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
     RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end
