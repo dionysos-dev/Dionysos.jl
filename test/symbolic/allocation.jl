@@ -18,21 +18,21 @@ function build_test_mappings(; n_per_dim::Int = 2, input_step::Float64 = 1.0)
     # ---- X mapping: positions in a small 3D box ----
     lb = SVector(0.0, 0.0, 0.0)
     ub = SVector(1.0, 1.0, 1.0)
-    h  = (ub - lb) ./ (n_per_dim - 1)
+    h = (ub - lb) ./ (n_per_dim - 1)
 
     Xgrid = MP.GridFree(lb, h)
-    Xmap  = MP.ExplicitGridMapping(Xgrid)
+    Xmap = MP.ExplicitGridMapping(Xgrid)
 
     # enumerate positions 0:(n_per_dim-1) in each dimension
-    for i in 0:(n_per_dim-1), j in 0:(n_per_dim-1), k in 0:(n_per_dim-1)
+    for i in 0:(n_per_dim - 1), j in 0:(n_per_dim - 1), k in 0:(n_per_dim - 1)
         MP.add_pos!(Xmap, (i, j, k))
     end
 
     # ---- U mapping: small box [-1,1]^3 sampled with step input_step ----
     lb_u = SVector(-1.0, -1.0, -1.0)
-    h_u  = SVector(input_step, input_step, input_step)
+    h_u = SVector(input_step, input_step, input_step)
     Ugrid = MP.GridFree(lb_u, h_u)
-    Umap  = MP.ExplicitGridMapping(Ugrid)
+    Umap = MP.ExplicitGridMapping(Ugrid)
 
     # positions corresponding to coords -1, 0, 1 when step=1
     # (pos indices here depend on your GridFree convention; we just insert a few explicitly)
@@ -61,7 +61,11 @@ function build_test_system()
     F_sys(x, u) = A * x + B * u
 
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        F_sys, 3, 3, nothing, nothing,
+        F_sys,
+        3,
+        3,
+        nothing,
+        nothing,
     )
 end
 
@@ -70,7 +74,7 @@ function _test_alloc(symmodel, discrete_system)
     abstract_input = @inferred first(inputs)
 
     # Make the type stable explicitly (older code comment still applies sometimes)
-    concrete_input = SY.get_concrete_input(symmodel, abstract_input)::SVector{3,Float64}
+    concrete_input = SY.get_concrete_input(symmodel, abstract_input)::SVector{3, Float64}
 
     abstract_state = @inferred first(SY.enum_states(symmodel))
     concrete_state = @inferred SY.get_concrete_state(symmodel, abstract_state)

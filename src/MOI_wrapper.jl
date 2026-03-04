@@ -259,10 +259,9 @@ function _full(model, def, vars, vals)
     return v
 end
 
-
 function obstacles(model, x_idx::Vector{Int})
     N = length(x_idx)
-    rects = Dionysos.Utils.HyperRectangle{N,Float64}[]
+    rects = Dionysos.Utils.HyperRectangle{N, Float64}[]
 
     for (vars, box) in model.obstacles
         lb_full = _full_vec(model.lower, vars, box.lower)

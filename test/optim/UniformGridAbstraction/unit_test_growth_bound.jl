@@ -20,23 +20,23 @@ println("Started test")
     # ----------------------------
     lbX = SVector(0.0, 0.0)
     ubX = SVector(10.0, 11.0)
-    x0  = SVector(0.0, 0.0)
-    hx  = SVector(1.0, 2.0)
+    x0 = SVector(0.0, 0.0)
+    hx = SVector(1.0, 2.0)
 
     Xgrid = MP.GridFree(x0, hx)
-    Xmap  = MP.ExplicitGridMapping(Xgrid)
+    Xmap = MP.ExplicitGridMapping(Xgrid)
     MP.add_set!(Xmap, UT.HyperRectangle(lbX, ubX), MP.OUTER)
 
     # ----------------------------
     # U mapping
     # ----------------------------
     lbU = SVector(-1.0)
-    ubU = SVector( 1.0)
-    u0  = SVector(0.0)
-    hu  = SVector(0.5)
+    ubU = SVector(1.0)
+    u0 = SVector(0.0)
+    hu = SVector(0.5)
 
     Ugrid = MP.GridFree(u0, hu)
-    Umap  = MP.ExplicitGridMapping(Ugrid)
+    Umap = MP.ExplicitGridMapping(Ugrid)
     MP.add_set!(Umap, UT.HyperRectangle(lbU, ubU), MP.OUTER)
 
     # ----------------------------
@@ -45,7 +45,7 @@ println("Started test")
     tstep = 5.0
 
     F_sys(x, u) = SVector(u[1], -cos(x[1]))
-    jacobian_bound(u) = SMatrix{2,2}(0.0, 1.0, 0.0, 0.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 1.0, 0.0, 0.0)
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
@@ -59,7 +59,12 @@ println("Started test")
         ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
-    symmodel = SY.SymbolicModelList(Xmap, Umap; Xset=MP.MappingSet{2}(), Rset=MP.MappingSet{2}())
+    symmodel = SY.SymbolicModelList(
+        Xmap,
+        Umap;
+        Xset = MP.MappingSet{2}(),
+        Rset = MP.MappingSet{2}(),
+    )
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
     @test SY.ntransitions(symmodel.autom) == 1355

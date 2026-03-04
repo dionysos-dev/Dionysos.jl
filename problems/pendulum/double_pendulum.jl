@@ -91,7 +91,7 @@ function optimal_control_problem(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9
     #     SVector(35.0*pi/180.0, -15.0*pi/180.0, -1.0, -1.0),
     #     SVector(45.0*pi/180.0, 15.0*pi/180.0, 1.0, 1.0),
     # )
-    
+
     _X_ = UT.HyperRectangle(SVector(-π/2.0, -π, -5.0, -5.0), SVector(π/2.0, π, 5.0, 5.0))
     _U_ = UT.LazySetMinus(
         UT.HyperRectangle(SVector(-5.5), SVector(5.5)),

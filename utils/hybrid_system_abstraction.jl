@@ -32,7 +32,7 @@ mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U
 
 # Time system (1D time in [0,3], derivative 1)
 Tdom = UT.HyperRectangle(SVector(0.0), SVector(3.0))
-time_sys = MS.ConstrainedLinearContinuousSystem(SMatrix{1,1}(1.0), Tdom)
+time_sys = MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(1.0), Tdom)
 
 # Guard and reset for switching (augmented state is [x; t] => 2D)
 guard_1 = UT.HyperRectangle(SVector(0.2, 0.0), SVector(0.7, 0.9))
@@ -58,12 +58,8 @@ modes_systems = [
 reset_maps = [reset_map]
 switchings = [HybridSystems.AutonomousSwitching()]
 
-concrete_system = HybridSystems.HybridSystem(
-    automaton,
-    modes_systems,
-    reset_maps,
-    switchings,
-)
+concrete_system =
+    HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
 # ==============================
 # Define the Control Problem
@@ -74,7 +70,7 @@ initial_state = (SVector(0.0), 0.0, 1)
 
 # Target: in mode 2, x ∈ [-1,1], t ∈ [1,2]
 Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-Ts_target = [UT.HyperRectangle(SVector(1.0),  SVector(2.0))]
+Ts_target = [UT.HyperRectangle(SVector(1.0), SVector(2.0))]
 Ns_target = [2]
 target_set = (Xs_target, Ts_target, Ns_target)
 
@@ -106,19 +102,19 @@ state_grid_2 = MP.GridFree(SVector(0.0), SVector(0.1))
 input_grid_2 = MP.GridFree(SVector(0.0), SVector(0.1))
 
 optimizer_kwargs_dict = [
-    Dict{String,Any}(
-        "state_grid"      => state_grid_1,
-        "input_grid"      => input_grid_1,
-        "time_step"       => 0.1,
-        "approx_mode"     => AB.UniformGridAbstraction.GROWTH,
-        "jacobian_bound"  => (u) -> SMatrix{1,1,Float64}(0.5),
+    Dict{String, Any}(
+        "state_grid" => state_grid_1,
+        "input_grid" => input_grid_1,
+        "time_step" => 0.1,
+        "approx_mode" => AB.UniformGridAbstraction.GROWTH,
+        "jacobian_bound" => (u) -> SMatrix{1, 1, Float64}(0.5),
     ),
-    Dict{String,Any}(
-        "state_grid"      => state_grid_2,
-        "input_grid"      => input_grid_2,
-        "time_step"       => 0.1,
-        "approx_mode"     => AB.UniformGridAbstraction.GROWTH,
-        "jacobian_bound"  => (u) -> SMatrix{1,1,Float64}(0.8),
+    Dict{String, Any}(
+        "state_grid" => state_grid_2,
+        "input_grid" => input_grid_2,
+        "time_step" => 0.1,
+        "approx_mode" => AB.UniformGridAbstraction.GROWTH,
+        "jacobian_bound" => (u) -> SMatrix{1, 1, Float64}(0.8),
     ),
 ]
 
@@ -127,7 +123,11 @@ optimizer = MOI.instantiate(AB.HybridSystemAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_list"), optimizer_list)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_kwargs_dict"), optimizer_kwargs_dict)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
+    optimizer_kwargs_dict,
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 
 # Solve
@@ -152,7 +152,7 @@ aug_x_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
     concrete_controller,
     tsteps,
     initial_state,
-    max_steps,
+    max_steps;
     stopping = reached,
 )
 
@@ -165,10 +165,10 @@ aug_x_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
 # display(fig)
 
 # aug_state = (x, t, mode)
-tx_mode1 = ST.Trajectory([SVector(t, x[1]) for (x,t,k) in aug_x_traj if k == 1])
-tx_mode2 = ST.Trajectory([SVector(t, x[1]) for (x,t,k) in aug_x_traj if k == 2])
+tx_mode1 = ST.Trajectory([SVector(t, x[1]) for (x, t, k) in aug_x_traj if k == 1])
+tx_mode2 = ST.Trajectory([SVector(t, x[1]) for (x, t, k) in aug_x_traj if k == 2])
 
-fig = plot(; aspect_ratio=:equal)
-plot!(fig, tx_mode1; dims=[1,2], label="mode 1", color=:blue)
-plot!(fig, tx_mode2; dims=[1,2], label="mode 2", color=:red)
+fig = plot(; aspect_ratio = :equal)
+plot!(fig, tx_mode1; dims = [1, 2], label = "mode 1", color = :blue)
+plot!(fig, tx_mode2; dims = [1, 2], label = "mode 2", color = :red)
 display(fig)

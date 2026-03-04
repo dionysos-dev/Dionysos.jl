@@ -19,24 +19,24 @@ println("Started test")
     # Build finite X mapping
     # ----------------------------
     lbX = SVector(-5.0, -5.0)
-    ubX = SVector( 5.0,  5.0)
-    x0  = SVector(0.0, 0.0)
-    hx  = SVector(0.47, 0.23)
+    ubX = SVector(5.0, 5.0)
+    x0 = SVector(0.0, 0.0)
+    hx = SVector(0.47, 0.23)
 
     Xgrid = MP.GridFree(x0, hx)
-    Xmap  = MP.ExplicitGridMapping(Xgrid)
+    Xmap = MP.ExplicitGridMapping(Xgrid)
     MP.add_set!(Xmap, UT.HyperRectangle(lbX, ubX), MP.OUTER)
 
     # ----------------------------
     # Build finite U mapping
     # ----------------------------
     lbU = SVector(-4.0)
-    ubU = SVector( 4.0)
-    u0  = SVector(0.0)
-    hu  = SVector(0.5)
+    ubU = SVector(4.0)
+    u0 = SVector(0.0)
+    hu = SVector(0.5)
 
     Ugrid = MP.GridFree(u0, hu)
-    Umap  = MP.ExplicitGridMapping(Ugrid)
+    Umap = MP.ExplicitGridMapping(Ugrid)
     MP.add_set!(Umap, UT.HyperRectangle(lbU, ubU), MP.OUTER)
 
     # ----------------------------
@@ -45,7 +45,7 @@ println("Started test")
     tstep = 0.2
     F_sys(x, u) = SVector(u[1], -x[2] + u[1])
 
-    jacobian_bound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, -1.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, -1.0)
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,
@@ -116,7 +116,7 @@ println("Started test")
     # Pick one initial state and recover a concrete coordinate
     q0 = first(initlist)
     x0_concrete = MP.get_coord_by_state(Xmap, q0)
-    @test x0_concrete isa SVector{2,Float64}
+    @test x0_concrete isa SVector{2, Float64}
 end
 
 sleep(0.1)

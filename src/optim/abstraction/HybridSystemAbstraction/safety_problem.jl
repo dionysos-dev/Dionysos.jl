@@ -14,31 +14,16 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     abstract_problem_time_sec::T
     success::Bool
 
-
     function OptimizerSafetyProblem{T}() where {T}
-        return new{T}(
-            nothing,
-            nothing,
-            nothing,
-            1,
-            nothing,
-            nothing,
-            0.0,
-            false,
-        )
+        return new{T}(nothing, nothing, nothing, 1, nothing, nothing, 0.0, false)
     end
 end
 
 OptimizerSafetyProblem() = OptimizerSafetyProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerSafetyProblem) =
-    optimizer.concrete_problem === nothing
+MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.concrete_problem === nothing
 
-function MOI.set(
-    model::OptimizerSafetyProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
+function MOI.set(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute, value)
     return setproperty!(model, Symbol(param.name), value)
 end
 
@@ -64,8 +49,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
@@ -75,20 +59,25 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
 
-    abstract_controller, invariant_set_symbols, _ = compute_largest_invariant_set_timed_hybrid(
-        abstract_problem.system.symbolic_automaton,
-        collect(abstract_problem.safe_set),
-    )
+    abstract_controller, invariant_set_symbols, _ =
+        compute_largest_invariant_set_timed_hybrid(
+            abstract_problem.system.symbolic_automaton,
+            collect(abstract_problem.safe_set),
+        )
     optimizer.abstract_controller = abstract_controller
     optimizer.success = ⊆(abstract_problem.initial_set, invariant_set_symbols)
 
     if optimizer.success
-        optimizer.print_level >= 1 && println("✅ Safety problem is solvable: initial set is safe-controllable")
+        optimizer.print_level >= 1 &&
+            println("✅ Safety problem is solvable: initial set is safe-controllable")
     else
-        optimizer.print_level >= 1 && println("⚠️ Warning: initial set is only partially safe-controllable")
+        optimizer.print_level >= 1 &&
+            println("⚠️ Warning: initial set is only partially safe-controllable")
     end
-    optimizer.print_level >= 1 && println("\n Reachability: terminated with $(optimizer.success)")
-    optimizer.print_level >= 1 && println("Controllable set size: $(length(invariant_set_symbols))")
+    optimizer.print_level >= 1 &&
+        println("\n Reachability: terminated with $(optimizer.success)")
+    optimizer.print_level >= 1 &&
+        println("Controllable set size: $(length(invariant_set_symbols))")
 
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
@@ -99,12 +88,7 @@ function build_abstract_problem(
     abstract_system::SY.TimedHybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set
-    abstract_initial_set = [
-        SY.get_abstract_state(
-            abstract_system,
-            concrete_initial_state,
-        ),
-    ]
+    abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]
 
     concrete_safe_set = concrete_problem.safe_set
     abstract_safe_set = SY.get_states_from_set(

@@ -79,10 +79,7 @@ R = h ./ 2
 # Optional: same shape for source and target ellipsoids
 Pm = P
 # SDP solver
-opt_sdp = optimizer_with_attributes(
-    Clarabel.Optimizer,
-    MOI.Silent() => true
-)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 # # Instantiate abstraction optimizer
 
@@ -97,18 +94,25 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("R"), R)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 nx, nu = 2, 2
 naug = nx + nu + 1
-MOI.set(optimizer, MOI.RawOptimizerAttribute("Q_aug"), Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2));
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("Q_aug"),
+    Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2),
+);
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
 MOI.optimize!(optimizer)
 
 # Get the results
-abstract_problem_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+abstract_problem_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
-abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
+concrete_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
+abstract_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
 
 # # ### Simulation
 
@@ -166,10 +170,15 @@ plot!(X; color = :grey, opacity = 1.0, label = "")
 plot!(abstract_system; value_function = abstract_value_function)
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
-    color = :green, efficient=false, opacity = 0.6)
+    color = :green,
+    efficient = false,
+    opacity = 0.6,
+)
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
-    color = :red, efficient=false, opacity = 0.6
+    color = :red,
+    efficient = false,
+    opacity = 0.6,
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)

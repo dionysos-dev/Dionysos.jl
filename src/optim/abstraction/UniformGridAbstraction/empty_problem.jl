@@ -159,7 +159,6 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     input_grid::Union{Nothing, MP.Grid}
 
     Uset::Union{Nothing, MP.AbstractStateSet}
-    
 
     use_periodic_mapping::Bool
     periodic_dims::Union{Nothing, Any}
@@ -362,7 +361,6 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
         ST.get_system(optimizer.discrete_time_system_approximation)
 end
 
-
 function _pick_state_region(opt::OptimizerEmptyProblem)
     X = opt.abstraction_region
     X === nothing && (X = opt.empty_problem.region)
@@ -384,7 +382,12 @@ function build_state_grid(opt::OptimizerEmptyProblem)
     if opt.use_periodic_mapping
         _validate_model(opt, [:periodic_dims, :periodic_periods])
         if opt.periodic_start !== nothing
-            return MP.get_grid_in_periods(opt.periodic_dims, opt.periodic_periods, opt.periodic_start, opt.h)
+            return MP.get_grid_in_periods(
+                opt.periodic_dims,
+                opt.periodic_periods,
+                opt.periodic_start,
+                opt.h,
+            )
         else
             return MP.get_grid_in_periods(opt.periodic_dims, opt.periodic_periods, opt.h)
         end
@@ -403,12 +406,14 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
 
     # default mapping: explicit enumeration restricted to X
     N = MP.get_dim(grid)
-    m = MP.ExplicitGridMapping{N,T}(grid)
+    m = MP.ExplicitGridMapping{N, T}(grid)
 
     # wrap periodicity if requested
     if opt.use_periodic_mapping
         P = length(opt.periodic_dims)
-        start = opt.periodic_start === nothing ? SVector{P,T}(ntuple(_->zero(T), P)) : opt.periodic_start
+        start =
+            opt.periodic_start === nothing ? SVector{P, T}(ntuple(_->zero(T), P)) :
+            opt.periodic_start
         m = MP.PeriodicGridMapping(opt.periodic_dims, opt.periodic_periods, start, m)
     end
 
@@ -438,7 +443,7 @@ function build_input_mapping(opt::OptimizerEmptyProblem{T}) where {T}
         return opt.UMapping
     end
     M = MP.get_dim(opt.input_grid)
-    return MP.ExplicitGridMapping{M,T}(
+    return MP.ExplicitGridMapping{M, T}(
         opt.input_grid,
         opt.empty_problem.system.U,
         MP.CENTER,

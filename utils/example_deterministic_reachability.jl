@@ -94,11 +94,13 @@ plot!(
 )
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
-    color = :green, efficient=false
+    color = :green,
+    efficient = false,
 )
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
-    color = :red, efficient=false
+    color = :red,
+    efficient = false,
 )
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
 display(fig)
@@ -166,7 +168,6 @@ new_x_traj, new_u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 )
 
-
 Xmap = SY.get_state_mapping(determinized_abstract_system)
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "")
@@ -181,11 +182,13 @@ plot!(
 )
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
-    color = :green, efficient=false
+    color = :green,
+    efficient = false,
 )
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
-    color = :red, efficient=false
+    color = :red,
+    efficient = false,
 )
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
 plot!(new_x_traj; ms = 2.0, arrows = false, color = :red)

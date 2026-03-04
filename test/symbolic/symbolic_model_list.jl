@@ -54,7 +54,8 @@ println("Started test")
     # concrete ↔ abstract conversions
     @test SY.get_concrete_state(sym, 1) == MP.get_coord_by_state(Xmap, 1)
     @test SY.get_concrete_state(sym, 2) == MP.get_coord_by_state(Xmap, 2)
-    @test SY.get_concrete_input(sym, 1) == MP.get_coord_by_state(SY.get_input_mapping(sym), 1)
+    @test SY.get_concrete_input(sym, 1) ==
+          MP.get_coord_by_state(SY.get_input_mapping(sym), 1)
 
     @test SY.get_abstract_state(sym, SVector(1.0, 2.5)) == 1
     @test SY.get_abstract_state(sym, SVector(1.5, 3.0)) == 2
@@ -77,7 +78,8 @@ println("Started test")
     Uset_only1 = MP.stateset_from_states(SY.get_input_mapping(sym), [1])
 
     sym_restricted = SY.SymbolicModelList(
-        Xmap, Umap;
+        Xmap,
+        Umap;
         Xset = Xset_only1,
         Uset = Uset_only1,
         Rset = Xset_only1,

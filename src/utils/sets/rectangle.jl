@@ -5,16 +5,18 @@ import Base
 
 Axis-aligned hyper-rectangle with lower bound `lb` and upper bound `ub`.
 """
-struct HyperRectangle{N,T} <: AbstractSetNode{N,T}
-    lb::SVector{N,T}
-    ub::SVector{N,T}
+struct HyperRectangle{N, T} <: AbstractSetNode{N, T}
+    lb::SVector{N, T}
+    ub::SVector{N, T}
 end
 
 # From tuples
-HyperRectangle(lb::NTuple{N,Ti}, ub::NTuple{N,Ti}) where {N,Ti} = HyperRectangle(SVector{N,Ti}(lb), SVector{N,Ti}(ub))
+HyperRectangle(lb::NTuple{N, Ti}, ub::NTuple{N, Ti}) where {N, Ti} =
+    HyperRectangle(SVector{N, Ti}(lb), SVector{N, Ti}(ub))
 
 # From vectors (runtime dimension)
-HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} = HyperRectangle(SVector{length(lb),Ti}(lb), SVector{length(ub),Ti}(ub))
+HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} =
+    HyperRectangle(SVector{length(lb), Ti}(lb), SVector{length(ub), Ti}(ub))
 
 Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
 Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
@@ -25,8 +27,8 @@ Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
 Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
 is_intersection(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
 import Base: intersect
-function intersect(a::HyperRectangle{N,T}, b::HyperRectangle{N,T}) where {N,T}
-    HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
+function intersect(a::HyperRectangle{N, T}, b::HyperRectangle{N, T}) where {N, T}
+    return HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
 end
 Base.issubset(a::HyperRectangle, b::HyperRectangle) =
     all(a.lb .>= b.lb) && all(a.ub .<= b.ub)
@@ -100,16 +102,16 @@ end
 
 function _recursive_period_split!(
     out,
-    rect::HyperRectangle{N,T},
-    lb::NTuple{N,T},
-    ub::NTuple{N,T},
-    periodic_dims::SVector{P,Int},
-    periods::SVector{P,T},
-    start::SVector{P,T},
+    rect::HyperRectangle{N, T},
+    lb::NTuple{N, T},
+    ub::NTuple{N, T},
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
     i::Int,
-) where {N,T,P}
+) where {N, T, P}
     if i > P
-        push!(out, HyperRectangle(SVector{N,T}(lb), SVector{N,T}(ub)))
+        push!(out, HyperRectangle(SVector{N, T}(lb), SVector{N, T}(ub)))
         return
     end
     dim = periodic_dims[i]
@@ -127,17 +129,25 @@ end
 Split `rect` along periodic boundaries and return a `LazySetUnion` of wrapped rectangles.
 """
 function set_in_period(
-    rect::HyperRectangle{N,T},
+    rect::HyperRectangle{N, T},
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     start::SVector{P, T},
-) where {N,T,P}
-    L = HyperRectangle{N,T}[]
-    _recursive_period_split!(L, rect, Tuple(rect.lb), Tuple(rect.ub),
-                            periodic_dims, periods, start, 1)
+) where {N, T, P}
+    L = HyperRectangle{N, T}[]
+    _recursive_period_split!(
+        L,
+        rect,
+        Tuple(rect.lb),
+        Tuple(rect.ub),
+        periodic_dims,
+        periods,
+        start,
+        1,
+    )
 
     # you need a constructor; otherwise build explicitly:
-    U = LazySetUnion{N,T}()
+    U = LazySetUnion{N, T}()
     Base.append!(U.sets, L)
     return U
 end
@@ -147,19 +157,23 @@ end
 
 A deformed rectangle.
 """
-struct DeformedRectangle{N,T} <: AbstractSetNode{N,T}
-    rect::HyperRectangle{N,T}
+struct DeformedRectangle{N, T} <: AbstractSetNode{N, T}
+    rect::HyperRectangle{N, T}
     f::Function
 end
 
-function SampleBoundaryDeformedRectangle(drect::DeformedRectangle{N,T}; K=50, dims=(1,2)) where {N,T}
+function SampleBoundaryDeformedRectangle(
+    drect::DeformedRectangle{N, T};
+    K = 50,
+    dims = (1, 2),
+) where {N, T}
     rect = drect.rect
     f = drect.f
     d1, d2 = dims
-    lb = rect.lb[[d1,d2]]
-    ub = rect.ub[[d1,d2]]
+    lb = rect.lb[[d1, d2]]
+    ub = rect.ub[[d1, d2]]
 
-    points = SVector{2,T}[]  # assumes dims=(1,2)
+    points = SVector{2, T}[]  # assumes dims=(1,2)
 
     for x in LinRange(lb[1], ub[1], K)
         push!(points, f(SVector(x, lb[2])))
@@ -177,8 +191,8 @@ function SampleBoundaryDeformedRectangle(drect::DeformedRectangle{N,T}; K=50, di
     return points
 end
 
-@recipe function f(drect::DeformedRectangle; dims=(1,2), K=50)
-    pts = SampleBoundaryDeformedRectangle(drect; K=K, dims=dims)
+@recipe function f(drect::DeformedRectangle; dims = (1, 2), K = 50)
+    pts = SampleBoundaryDeformedRectangle(drect; K = K, dims = dims)
     x = getindex.(pts, 1)
     y = getindex.(pts, 2)
     @series begin

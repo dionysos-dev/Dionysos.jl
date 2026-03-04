@@ -18,27 +18,31 @@ println("Started multithreading test")
 # ----------------------------
 # Build finite mappings + system (Mapping-based)
 # ----------------------------
-function build_test_system(; n_per_dim::Int = 20, tstep::Float64 = 1.0, input_step::Float64 = 1.0)
+function build_test_system(;
+    n_per_dim::Int = 20,
+    tstep::Float64 = 1.0,
+    input_step::Float64 = 1.0,
+)
     # ---- X mapping: [0,1]^3 sampled with n_per_dim points each axis ----
     lb = SVector(0.0, 0.0, 0.0)
     ub = SVector(1.0, 1.0, 1.0)
-    h  = (ub - lb) ./ (n_per_dim - 1)
+    h = (ub - lb) ./ (n_per_dim - 1)
 
     Xgrid = MP.GridFree(lb, h)
-    Xmap  = MP.ExplicitGridMapping(Xgrid)
+    Xmap = MP.ExplicitGridMapping(Xgrid)
 
     # positions 0:(n_per_dim-1) in each dim
-    for i in 0:(n_per_dim-1), j in 0:(n_per_dim-1), k in 0:(n_per_dim-1)
+    for i in 0:(n_per_dim - 1), j in 0:(n_per_dim - 1), k in 0:(n_per_dim - 1)
         MP.add_pos!(Xmap, (i, j, k))
     end
 
     # ---- U mapping: [-1,1]^3 with step input_step ----
     lb_u = SVector(-1.0, -1.0, -1.0)
-    ub_u = SVector( 1.0,  1.0,  1.0)
-    h_u  = SVector(input_step, input_step, input_step)
+    ub_u = SVector(1.0, 1.0, 1.0)
+    h_u = SVector(input_step, input_step, input_step)
 
     Ugrid = MP.GridFree(lb_u, h_u)
-    Umap  = MP.ExplicitGridMapping(Ugrid)
+    Umap = MP.ExplicitGridMapping(Ugrid)
 
     # positions that hit coords in [lb_u, ub_u] on this grid
     # coord = lb_u + pos*h_u, so pos ranges 0..round((ub-lb)/h)
@@ -61,7 +65,11 @@ function build_test_system(; n_per_dim::Int = 20, tstep::Float64 = 1.0, input_st
     F_sys(x, u) = A * x + B * u
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        F_sys, 3, 3, nothing, nothing,
+        F_sys,
+        3,
+        3,
+        nothing,
+        nothing,
     )
 
     return Xmap, Umap, concrete_system
@@ -209,12 +217,8 @@ end
         discrete_system = ST.discretize_continuous_system(concrete_system, 1.0)
         growth_bound_system = ST.DiscreteTimeGrowthBound(discrete_system, growth_bound_map)
 
-        result = test_multithreading_consistency(
-            "GrowthBound",
-            growth_bound_system,
-            Xmap,
-            Umap,
-        )
+        result =
+            test_multithreading_consistency("GrowthBound", growth_bound_system, Xmap, Umap)
 
         @test result.consistent == true
         @test result.n_serial > 0

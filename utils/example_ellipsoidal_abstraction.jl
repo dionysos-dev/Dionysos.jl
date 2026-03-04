@@ -28,7 +28,8 @@ Usz = 70
 Wsz = 3
 dt = 0.01
 
-concrete_problem = PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
+concrete_problem =
+    PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
 
 concrete_system = concrete_problem.system
 
@@ -38,7 +39,7 @@ concrete_system = concrete_problem.system
 
 empty_problem = PR.EmptyProblem(
     concrete_system,
-    concrete_system.ext[:X]   # region = state constraint set
+    concrete_system.ext[:X],   # region = state constraint set
 )
 
 # ---------------------------------------------------------
@@ -64,10 +65,7 @@ R = h ./ 2
 Pm = P
 
 # SDP solver
-opt_sdp = optimizer_with_attributes(
-    Clarabel.Optimizer,
-    MOI.Silent() => true
-)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 # ---------------------------------------------------------
 # Instantiate abstraction optimizer
@@ -84,7 +82,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("R"), R)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sdp_solver"), opt_sdp)
 nx, nu = 2, 2
 naug = nx + nu + 1
-MOI.set(optimizer, MOI.RawOptimizerAttribute("Q_aug"), Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2))
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("Q_aug"),
+    Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2),
+)
 
 # ---------------------------------------------------------
 # Build abstraction
@@ -93,7 +95,8 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("Q_aug"), Matrix{Float64}(LinearAlg
 MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-abstraction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+abstraction_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
 
 println("Abstraction built.")
@@ -106,7 +109,7 @@ Xset = SY.get_state_domain(abstract_system)
 fig = plot(; aspect_ratio = :equal);
 # plot!(XMapping; efficient=true, color=:grey)
 # plot!((Xset, XMapping); efficient=false, color=:grey)
-plot!(abstract_system; efficient=false, with_arrows=true)
+plot!(abstract_system; efficient = false, with_arrows = true)
 display(fig)
 
 # ---------------------------------------------------------
@@ -116,12 +119,15 @@ display(fig)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 
 MOI.optimize!(optimizer)
-abstract_problem_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
+abstract_problem_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
-abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+concrete_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
+abstract_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 
 # # ### Simulation
@@ -180,14 +186,18 @@ plot!(X; color = :grey, opacity = 1.0, label = "")
 plot!(abstract_system; value_function = abstract_value_function)
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
-    color = :green, efficient=false, opacity = 0.6)
+    color = :green,
+    efficient = false,
+    opacity = 0.6,
+)
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
-    color = :red, efficient=false, opacity = 0.6
+    color = :red,
+    efficient = false,
+    opacity = 0.6,
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
 display(fig)
-
 

@@ -34,7 +34,6 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     L::Union{Nothing, AbstractMatrix{<:Real}}
     Q_aug::Union{Nothing, AbstractMatrix{<:Real}}   # optional if you want "compute L from Q"
 
-
     function OptimizerEmptyProblem{T}() where {T}
         return new{T}(
             nothing,
@@ -97,7 +96,7 @@ end
 function _pick_state_region(opt::OptimizerEmptyProblem)
     X = opt.abstraction_region
     X === nothing && (X = opt.empty_problem.region)
-    X === nothing && (X = opt.empty_problem.system.ext[:X]) 
+    X === nothing && (X = opt.empty_problem.system.ext[:X])
     return X
 end
 
@@ -128,7 +127,7 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     X = _pick_state_region(opt)
 
     N = MP.get_dim(grid)
-    m = MP.ExplicitGridMapping{N,T}(grid)
+    m = MP.ExplicitGridMapping{N, T}(grid)
     MP.add_set!(m, X, opt.incl_mode)
     return m
 end
@@ -150,7 +149,7 @@ function build_input_mapping(opt::OptimizerEmptyProblem)
 
     # Minimal "dummy" input universe: 1 element, or empty if you support it.
     # Safer: 1 dummy input so automaton has m>=1.
-    dummy = [SVector{1,Float64}(0.0)]
+    dummy = [SVector{1, Float64}(0.0)]
     return MP.ListMapping(dummy)
 end
 
@@ -223,7 +222,9 @@ function MOI.optimize!(opt::OptimizerEmptyProblem)
         hybridsys,
         opt.P,
         opt.Pm,
-        U, W, L,
+        U,
+        W,
+        L,
         opt.sdp_solver;
         R = opt.R,
         incl_mode = opt.incl_mode,
@@ -258,8 +259,11 @@ function compute_abstract_system_from_concrete_system!(
     transitionCont::Dict,
     transitionCost::Dict,
     hybridsys,
-    P, Pm,
-    U, W, L,
+    P,
+    Pm,
+    U,
+    W,
+    L,
     opt_sdp;
     R,
     incl_mode = MP.OUTER,
@@ -295,7 +299,7 @@ function compute_abstract_system_from_concrete_system!(
 
             ans, cont, cost = UT._has_transition(
                 hybridsys.resetmaps[m],
-                UT.Ellipsoid(P,  x),
+                UT.Ellipsoid(P, x),
                 UT.Ellipsoid(Pm, xm),
                 U,
                 W,
@@ -314,6 +318,8 @@ function compute_abstract_system_from_concrete_system!(
         end
     end
 
-    println("compute_abstract_system_from_concrete_system! terminated: $trans_count transitions created")
+    println(
+        "compute_abstract_system_from_concrete_system! terminated: $trans_count transitions created",
+    )
     return sym
 end

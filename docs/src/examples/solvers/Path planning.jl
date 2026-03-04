@@ -93,11 +93,7 @@ function jacobian_bound_function(u)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound_function)
 set_attribute(model, "time_step", 0.3)
-set_attribute(
-    model,
-    "approx_mode",
-    AB.UniformGridAbstraction.GROWTH,
-)
+set_attribute(model, "approx_mode", AB.UniformGridAbstraction.GROWTH)
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
@@ -171,7 +167,8 @@ plot!(
 );
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
-    color = :red, efficient=false
+    color = :red,
+    efficient = false,
 );
 
 # We display the concrete trajectory

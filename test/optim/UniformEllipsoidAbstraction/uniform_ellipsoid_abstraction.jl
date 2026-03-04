@@ -40,10 +40,11 @@ include("../../../problems/pwa_sys.jl")
 
     Usz = 70
     Wsz = 3
-    dt  = 0.01
+    dt = 0.01
 
-    concrete_problem = PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = true)
-    concrete_system  = concrete_problem.system
+    concrete_problem =
+        PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = true)
+    concrete_system = concrete_problem.system
 
     # ----------------------------
     # Build EmptyProblem (abstraction-only phase)
@@ -56,14 +57,14 @@ include("../../../problems/pwa_sys.jl")
     # ----------------------------
     n_step = 3
     origin = SVector(0.0, 0.0)
-    h      = SVector(1.0 / n_step, 1.0 / n_step)
+    h = SVector(1.0 / n_step, 1.0 / n_step)
 
     nx = size(concrete_system.resetmaps[1].A, 1)
     @test nx == 2  # this test is written for the 2D PWAsys instance
 
     P = (1 / nx) * diagm((h ./ 2) .^ (-2))
     Pm = P
-    R  = h ./ 2
+    R = h ./ 2
 
     state_grid = MP.GridEllipsoidalRectangular(origin, h, P)
 
@@ -110,11 +111,14 @@ include("../../../problems/pwa_sys.jl")
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.optimize!(optimizer)
 
-    abstract_problem        = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    abstract_system2        = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    concrete_controller     = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
-    abstract_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    abstract_system2 = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    concrete_value_function =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
+    abstract_value_function =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
 
     @test abstract_problem !== nothing
     @test abstract_system2 !== nothing
@@ -195,12 +199,25 @@ include("../../../problems/pwa_sys.jl")
         plot!(abstract_system2; value_function = abstract_value_function)
         Xmap = SY.get_state_mapping(abstract_system2)
         plot!(
-            (SY.get_state_set_from_states(abstract_system2, abstract_problem.initial_set), Xmap);
-            color = :green, efficient = false, opacity = 0.6,
+            (
+                SY.get_state_set_from_states(
+                    abstract_system2,
+                    abstract_problem.initial_set,
+                ),
+                Xmap,
+            );
+            color = :green,
+            efficient = false,
+            opacity = 0.6,
         )
         plot!(
-            (SY.get_state_set_from_states(abstract_system2, abstract_problem.target_set), Xmap);
-            color = :red, efficient = false, opacity = 0.6,
+            (
+                SY.get_state_set_from_states(abstract_system2, abstract_problem.target_set),
+                Xmap,
+            );
+            color = :red,
+            efficient = false,
+            opacity = 0.6,
         )
         plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0)
         plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)

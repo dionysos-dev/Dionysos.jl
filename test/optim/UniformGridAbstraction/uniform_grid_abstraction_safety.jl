@@ -18,7 +18,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
 @testset "UniformGridAbstraction DCDC (growth mode)" begin
     concrete_problem = DCDC.problem()
-    concrete_system  = concrete_problem.system
+    concrete_system = concrete_problem.system
 
     # grids
     x0_grid = SVector(0.0, 0.0)
@@ -44,11 +44,14 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
 
     MOI.optimize!(optimizer)
 
-    abstract_system      = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_problem     = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    abstract_controller  = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller  = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    discrete_time_system =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
 
     # --- core sanity checks ---
     @test abstract_system !== nothing
@@ -70,12 +73,8 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
     u0 = MathematicalSystems.apply(concrete_controller, x0)
     @test u0 !== nothing
 
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
-        discrete_time_system,
-        concrete_controller,
-        x0,
-        nstep,
-    )
+    x_traj, u_traj =
+        ST.get_closed_loop_trajectory(discrete_time_system, concrete_controller, x0, nstep)
 
     xs = collect(ST.enum_elems(x_traj))
     us = collect(ST.enum_elems(u_traj))

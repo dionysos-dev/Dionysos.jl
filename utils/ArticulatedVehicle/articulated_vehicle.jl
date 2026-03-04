@@ -82,13 +82,7 @@ function plot_state_space!(
         UT.set_in_period(_T_, periodic_dims, periodic_periods, periodic_start) : _T_
 
     plot!(Xp; dims = dims, color = :grey, opacity = 1.0, label = "")
-    plot!(
-        (Xset, XMapping);
-        dims = dims,
-        color = :blue,
-        opacity = 0.2,
-        efficient = false,
-    )
+    plot!((Xset, XMapping); dims = dims, color = :blue, opacity = 0.2, efficient = false)
     plot!(Ip; dims = dims, color = :green, opacity = 0.2, label = "I")
     plot!(Tp; dims = dims, color = :red, opacity = 0.5, label = "T")
 

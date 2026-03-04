@@ -19,7 +19,7 @@ include("../../../problems/path_planning.jl")
 
 @testset "UniformGridAbstraction PathPlanning (simple)" begin
     concrete_problem = PathPlanning.problem(; simple = true)
-    concrete_system  = concrete_problem.system
+    concrete_system = concrete_problem.system
 
     # grids
     x0_grid = SVector(0.0, 0.0, 0.0)
@@ -36,15 +36,22 @@ include("../../../problems/path_planning.jl")
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), PathPlanning.jacobian_bound())
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("jacobian_bound"),
+        PathPlanning.jacobian_bound(),
+    )
 
     MOI.optimize!(optimizer)
 
-    abstract_system      = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_problem     = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    abstract_controller  = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller  = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    discrete_time_system =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
 
     # --- core sanity checks ---
     @test abstract_system !== nothing
@@ -100,11 +107,17 @@ include("../../../problems/path_planning.jl")
         plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2)
 
         plot!(
-            (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
+            (
+                SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set),
+                Xmap,
+            );
             color = :green,
         )
         plot!(
-            (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
+            (
+                SY.get_state_set_from_states(abstract_system, abstract_problem.target_set),
+                Xmap,
+            );
             color = :red,
         )
         plot!(x_traj; ms = 0.5)

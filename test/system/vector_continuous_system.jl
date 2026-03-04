@@ -90,8 +90,7 @@ end
     c2 = [1.0]
     X2 = UT.HyperRectangle([1.0], [2.0])
     U2 = UT.HyperRectangle([0.0], [2.0])
-    affine_sys =
-        MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
+    affine_sys = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([linear_sys, affine_sys])
 

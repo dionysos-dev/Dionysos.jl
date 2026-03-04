@@ -20,7 +20,7 @@ println("Started test")
     ub = SVector(10.0, 11.0)
 
     x0 = SVector(0.0, 0.0)
-    h  = SVector(1.0, 2.0)
+    h = SVector(1.0, 2.0)
 
     Xgrid = MP.GridFree(x0, h)
     Xrect = UT.HyperRectangle(lb, ub)
@@ -33,7 +33,7 @@ println("Started test")
     # ----------------------------
     # Same as before: [-1, -0.5, 0, 0.5, 1]
     Uvals = [SVector(u) for u in (-1.0:0.5:1.0)]
-    Umap  = MP.ListMapping(Uvals)
+    Umap = MP.ListMapping(Uvals)
 
     # ----------------------------
     # Build symbolic model with default domains = "all states of mapping"
@@ -58,13 +58,17 @@ println("Started test")
     bound_DDF(u) = 1.0
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-        F_sys, 2, 1, nothing, nothing,
+        F_sys,
+        2,
+        1,
+        nothing,
+        nothing,
     )
-    continuous_approx = ST.ContinuousTimeLinearized(concrete_system, DF_sys, bound_DF, bound_DDF)
-    discrete_approx   = ST.discretize(continuous_approx, tstep)
+    continuous_approx =
+        ST.ContinuousTimeLinearized(concrete_system, DF_sys, bound_DF, bound_DDF)
+    discrete_approx = ST.discretize(continuous_approx, tstep)
 
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
-
 
     @test SY.ntransitions(symmodel.autom) == 2175
 
@@ -96,8 +100,8 @@ println("Started test")
     # concrete representative of the source state (center of cell, etc.)
     x = MP.get_coord_by_state(Xmap, source)
     u = SY.get_concrete_input(symmodel, symbol)
-    @test x isa SVector{2,Float64}
-    @test u isa SVector{1,Float64}
+    @test x isa SVector{2, Float64}
+    @test u isa SVector{1, Float64}
 
     # all targets should be valid mapping states
     for tgt in targetlist

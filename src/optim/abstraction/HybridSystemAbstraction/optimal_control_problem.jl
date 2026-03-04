@@ -15,16 +15,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     success::Bool
 
     function OptimizerOptimalControlProblem{T}() where {T}
-        return new{T}(
-            nothing,
-            nothing,
-            nothing,
-            1,
-            nothing,
-            nothing,
-            0.0,
-            false
-        )
+        return new{T}(nothing, nothing, nothing, 1, nothing, nothing, 0.0, false)
     end
 end
 
@@ -63,8 +54,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
@@ -72,26 +62,29 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
 
-
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
 
-    abstract_controller, controllable_set_symbols, _, value_per_node = SY.compute_worst_case_cost_controller(
-                abstract_problem.system.symbolic_automaton,
-                abstract_problem.target_set;
-                initial_set = abstract_problem.initial_set,
-                sparse_input = false,
-                cost_function = abstract_problem.transition_cost,
-    )
+    abstract_controller, controllable_set_symbols, _, value_per_node =
+        SY.compute_worst_case_cost_controller(
+            abstract_problem.system.symbolic_automaton,
+            abstract_problem.target_set;
+            initial_set = abstract_problem.initial_set,
+            sparse_input = false,
+            cost_function = abstract_problem.transition_cost,
+        )
 
     optimizer.abstract_controller = abstract_controller
     optimizer.success = ⊆(abstract_problem.initial_set, controllable_set_symbols)
 
     if optimizer.success
-        optimizer.print_level >= 1 && println("✅ Optimal control problem is solvable: initial set is controllable")
+        optimizer.print_level >= 1 &&
+            println("✅ Optimal control problem is solvable: initial set is controllable")
     else
-        optimizer.print_level >= 1 && println("⚠️ Warning: initial set is only partially controllable")
+        optimizer.print_level >= 1 &&
+            println("⚠️ Warning: initial set is only partially controllable")
     end
-    optimizer.print_level >= 1 && println("value init_state : ", value_per_node[abstract_problem.initial_set[1]])
+    optimizer.print_level >= 1 &&
+        println("value init_state : ", value_per_node[abstract_problem.initial_set[1]])
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end
@@ -101,12 +94,7 @@ function build_abstract_problem(
     abstract_system::SY.TimedHybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set # a unique augmented point
-    abstract_initial_set = [
-        SY.get_abstract_state(
-            abstract_system,
-            concrete_initial_state,
-        ),
-    ]
+    abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]
 
     concrete_target_set = concrete_problem.target_set
     abstract_target_set = SY.get_states_from_set(
@@ -131,24 +119,14 @@ function get_abstract_transition_cost(
     concrete_transition_cost,
 )
     function abstract_transition_cost(state, input)
-        (x, t, k) = SY.get_concrete_state(
-            abstract_system,
-            state,
-        )
+        (x, t, k) = SY.get_concrete_state(abstract_system, state)
         aug_concrete_state = (x, t, k)
-        if SY.is_switching_input(
-            abstract_system.input_mapping,
-            input,
-        )
+        if SY.is_switching_input(abstract_system.input_mapping, input)
             transition_id = abstract_system.input_mapping.global_to_switching[input]
             label = abstract_system.input_mapping.switch_labels[transition_id]
             u = label
         else
-            u = SY.get_concrete_input(
-                abstract_system,
-                input,
-                k,
-            )
+            u = SY.get_concrete_input(abstract_system, input, k)
         end
         return concrete_transition_cost(aug_concrete_state, u)
     end

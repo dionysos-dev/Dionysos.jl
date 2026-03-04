@@ -8,7 +8,7 @@ TimeGridMapping:
 - coord by state is the discrete time value tm.tsteps[q]
 - coord to state can be floor/ceil depending on how you want to abstract
 """
-struct TimeGridMapping{Tdom} <: AbstractMapping{1,Float64}
+struct TimeGridMapping{Tdom} <: AbstractMapping{1, Float64}
     tsteps::Vector{Float64}
     time_domain::Tdom
     is_time_active::Bool
@@ -53,7 +53,7 @@ enum_states(m::TimeGridMapping) = 1:get_n_state(m)
 
 get_coord_by_state(m::TimeGridMapping, q::Int) = begin
     (1 <= q <= get_n_state(m)) || throw(DomainError(q, "time state out of range"))
-    return SVector{1,Float64}(m.tsteps[q])
+    return SVector{1, Float64}(m.tsteps[q])
 end
 
 function get_state_by_coord(m::TimeGridMapping, t)

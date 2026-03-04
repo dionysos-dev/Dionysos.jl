@@ -263,8 +263,8 @@ function build_all_transitions(
 )
     # Pre-allocate transition list with exact count for intra-mode transitions
     intra_mode_transitions = sum(
-        get_n_transitions(abs_pair[1]) * length(abs_pair[2].tsteps)
-        for abs_pair in mode_abstractions
+        get_n_transitions(abs_pair[1]) * length(abs_pair[2].tsteps) for
+        abs_pair in mode_abstractions
     )
 
     transition_list = Vector{TransitionTuple}()
@@ -314,8 +314,7 @@ function add_intra_mode_transitions!(
                 end
             end
         else
-            transitions_cache =
-                collect(enum_transitions(symmodel_dynamics))
+            transitions_cache = collect(enum_transitions(symmodel_dynamics))
             @inbounds for k in 1:(n_time_steps - 1)
                 for (target, source, local_input_id) in transitions_cache
                     global_input_id =
@@ -380,11 +379,8 @@ function add_inter_mode_transitions!(
             guard_temporal = extract_temporal_part(guard)
 
             # Get all source states that intersect with the spatial guard
-            source_states = get_states_from_set(
-                source_symmodel_dynamics,
-                guard_spatial,
-                MP.INNER,
-            )
+            source_states =
+                get_states_from_set(source_symmodel_dynamics, guard_spatial, MP.INNER)
 
             # Get all time indices that intersect with the temporal guard
             time_indices = get_time_indices_from_interval(source_time_model, guard_temporal)
@@ -403,10 +399,8 @@ function add_inter_mode_transitions!(
                 end
 
                 # Build the augmented source state [x1, x2, ..., xn, t]
-                source_continuous_state = get_concrete_state(
-                    source_symmodel_dynamics,
-                    source_state,
-                )
+                source_continuous_state =
+                    get_concrete_state(source_symmodel_dynamics, source_state)
                 source_time_value = source_time_model.tsteps[source_time_idx]
                 augmented_source_state = vcat(source_continuous_state, source_time_value)
 
@@ -418,8 +412,7 @@ function add_inter_mode_transitions!(
                 # Find the corresponding target symbolic state and time index
                 target_state =
                     find_symbolic_state(target_symmodel_dynamics, reset_continuous_part)
-                target_time_idx =
-                    ceil_time2int(target_time_model, reset_time_value)
+                target_time_idx = ceil_time2int(target_time_model, reset_time_value)
 
                 # Add the transition if both target state and time are valid
                 if target_state > 0 &&
@@ -498,12 +491,7 @@ function build_symbolic_automaton(
         target_int = augmented_to_state_index[target]
         source_int = augmented_to_state_index[source]
 
-        add_transition!(
-            symbolic_automaton,
-            source_int,
-            target_int,
-            abstract_input,
-        )
+        add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
     end
 
     return state_index_to_augmented, augmented_to_state_index, symbolic_automaton
@@ -739,8 +727,7 @@ function get_states_from_set(
         time_model = model.time_abstractions[mode_id]
 
         # Get abstract states in the spatial set
-        spatial_states =
-            get_states_from_set(dynamics_model, state_sets[idx], domain)
+        spatial_states = get_states_from_set(dynamics_model, state_sets[idx], domain)
 
         # Get time indices in the temporal interval
         if hasfield(typeof(time_sets[idx]), :lb) && hasfield(typeof(time_sets[idx]), :ub)
@@ -751,12 +738,8 @@ function get_states_from_set(
             t_min, t_max = time_sets[idx][1], time_sets[idx][2]
         end
 
-        time_indices = collect(
-            ceil_time2int(
-                time_model,
-                t_min,
-            ):floor_time2int(time_model, t_max),
-        )
+        time_indices =
+            collect(ceil_time2int(time_model, t_min):floor_time2int(time_model, t_max))
 
         # Find valid combinations
         for state_id in spatial_states, time_id in time_indices
@@ -771,7 +754,6 @@ function get_states_from_set(
 
     return abstract_states
 end
-
 
 function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
@@ -806,11 +788,6 @@ function get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mod
         return 0  # Not found or invalid
     end
 end
-
-
-
-
-
 
 # Structure representing the symbolic abstraction of time for a mode in a hybrid system.
 struct TimeSymbolicModel{N, T}

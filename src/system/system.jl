@@ -13,7 +13,6 @@ import JuMP: MOI
 using ..Utils
 UT = Utils
 
-
 include("pid_controller.jl")
 include("controlsystem.jl")
 include("systems.jl")

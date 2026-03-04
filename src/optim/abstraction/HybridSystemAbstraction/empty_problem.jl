@@ -1,5 +1,4 @@
 
-
 mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     # Input 
     empty_problem::Union{Nothing, PR.EmptyProblem}
@@ -15,16 +14,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     abstraction_construction_time_sec::T
 
     function OptimizerEmptyProblem{T}() where {T}
-        optimizer = new{T}(
-            nothing, 
-            nothing,
-            nothing,
-            nothing,
-            1000,
-            1,
-            nothing,
-            0.0,            
-        )
+        optimizer = new{T}(nothing, nothing, nothing, nothing, 1000, 1, nothing, 0.0)
         return optimizer
     end
 end
@@ -66,7 +56,8 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     @assert optimizer.empty_problem.system !== nothing "System must be set to construct the abstraction."
 
     # Build symbolic model
-    optimizer.print_level >= 1 && println("compute_abstract_system_from_concrete_system!: started")
+    optimizer.print_level >= 1 &&
+        println("compute_abstract_system_from_concrete_system!: started")
     optimizer.abstract_system = SY.build_timed_hybrid_symbolic_model(
         optimizer.empty_problem.system,
         optimizer.optimizer_list,

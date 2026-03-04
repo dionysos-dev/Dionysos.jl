@@ -52,27 +52,29 @@ MP.add_set!(Umap, rectU, MP.INNER)
 Xset = MP.MappingSet{2}()  # default "all states"
 Uset = MP.MappingSet{1}()
 
-
 # Now we have to define our dynamical system. For the sake of simplicity, note that we consider a linear time-invariant dynamical system but the functions 
 # defining it allow the definition of a generic nonlinear and time-dependent system. We also define a step time `tstep` for discretizing the continuous-time dynamic.
 # The parameters
 tstep = 0.1
 
-A = SMatrix{2,2}(0.0, 1.0,
-                 -3.0, 1.0)
-B = SMatrix{2,1}(0.0,
-                 1.0)
+A = SMatrix{2, 2}(0.0, 1.0, -3.0, 1.0)
+B = SMatrix{2, 1}(0.0, 1.0)
 
 F_sys = (x, u) -> A*x + B*u
 
 jacobian_bound = u -> abs.(A)
 
 concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-    F_sys, 2, 1, nothing, nothing
+    F_sys,
+    2,
+    1,
+    nothing,
+    nothing,
 )
 
-continuous_approx = ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
-discrete_approx   = ST.discretize(continuous_approx, tstep)
+continuous_approx =
+    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+discrete_approx = ST.discretize(continuous_approx, tstep)
 
 concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
     F_sys,
@@ -86,13 +88,13 @@ continuous_approx =
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
 abstract_system = SY.SymbolicModelList(
-    Xmap, Umap;
+    Xmap,
+    Umap;
     Xset = Xset,
     Rset = Xset,  # allowed targets
     Uset = Uset,
 )
 SY.compute_abstract_system_from_concrete_system!(abstract_system, discrete_approx)
-
 
 xpos = MP.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
 x_center = MP.get_coord_by_pos(Xgrid, xpos)
@@ -108,13 +110,19 @@ SY.compute_post!(post, SY.get_automaton(abstract_system), q, abstract_input)
 post_set = SY.get_state_set_from_states(abstract_system, post)
 
 # Let us visualize this
-fig = plot(; aspect_ratio=:equal)
-dims = [1,2]
-xlims!(-2,2); ylims!(-2,2)
+fig = plot(; aspect_ratio = :equal)
+dims = [1, 2]
+xlims!(-2, 2);
+ylims!(-2, 2)
 
-plot!((Xset, Xmap); fc="grey", dims=dims, label="X", efficient=false)
-plot!((MP.stateset_from_states(Xmap, [q]), Xmap); fc="blue", dims=dims, label="x cell")
-plot!((post_set, Xmap); fc="green", dims=dims, label="Post", efficient=false)
+plot!((Xset, Xmap); fc = "grey", dims = dims, label = "X", efficient = false)
+plot!(
+    (MP.stateset_from_states(Xmap, [q]), Xmap);
+    fc = "blue",
+    dims = dims,
+    label = "x cell",
+)
+plot!((post_set, Xmap); fc = "green", dims = dims, label = "Post", efficient = false)
 
 display(fig)
 

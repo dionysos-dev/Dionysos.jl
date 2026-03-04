@@ -103,17 +103,17 @@ const MP = DI.Mapping
     MP.add_set!(I, m, UT.HyperRectangle(SVector(-0.4, -0.4), SVector(0.4, 0.4)))
     # The cell at pos (0,0) has center (0,0), corners (+/-0.5)
     # CENTER should be true (center in rect), INNER should be false (corners not all inside)
-    @test MP.contains_state(I, m, q11; incl_mode=MP.CENTER)
-    @test !MP.contains_state(I, m, q11; incl_mode=MP.INNER)
-    @test MP.contains_state(I, m, q11; incl_mode=MP.OUTER)
+    @test MP.contains_state(I, m, q11; incl_mode = MP.CENTER)
+    @test !MP.contains_state(I, m, q11; incl_mode = MP.INNER)
+    @test MP.contains_state(I, m, q11; incl_mode = MP.OUTER)
 
     # Now remove the center region as a hole: put same rect into B
     MP.remove_set!(I, m, UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2)))
-    @test !MP.contains_state(I, m, q11; incl_mode=MP.CENTER)
+    @test !MP.contains_state(I, m, q11; incl_mode = MP.CENTER)
 
     MP.empty_states!(I)
     # After empty, A and B are empty => no state contained
-    @test !MP.contains_state(I, m, q11; incl_mode=MP.OUTER)
+    @test !MP.contains_state(I, m, q11; incl_mode = MP.OUTER)
 end
 
 end # module

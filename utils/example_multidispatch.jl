@@ -24,7 +24,7 @@ empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
 state_grid = MP.GridFree(x0, hx)
-XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode=MP.INNER)
+XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode = MP.INNER)
 
 u0 = SVector(1)
 hu = SVector(1)
@@ -80,7 +80,8 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-invariant_set_complement = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
+invariant_set_complement =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
@@ -96,8 +97,8 @@ Xset = SY.get_state_domain(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_safety; opacity = 1.0);
-plot!(XMapping; efficient=true, color=:grey)
-plot!((Xset, XMapping); efficient=true, color=:grey)
+plot!(XMapping; efficient = true, color = :grey)
+plot!((Xset, XMapping); efficient = true, color = :grey)
 plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
 plot!(x_traj)
@@ -155,7 +156,17 @@ Xset = SY.get_state_domain(abstract_system)
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_reachability);
 # plot!((Xset, XMapping); color = :grey, linecolor = :grey, label = "Domain")
-plot!((controllable_set, XMapping); color = :yellow, linecolor = :yellow, label = "Controllable set")
-plot!((uncontrollable_set, XMapping); color = :black, linecolor = :black, label = "Uncontrollable set")
+plot!(
+    (controllable_set, XMapping);
+    color = :yellow,
+    linecolor = :yellow,
+    label = "Controllable set",
+)
+plot!(
+    (uncontrollable_set, XMapping);
+    color = :black,
+    linecolor = :black,
+    label = "Uncontrollable set",
+)
 plot!(x_traj)
 display(fig)

@@ -20,8 +20,8 @@ end
 @testset "PeriodicGridMapping metadata + wrapping (2D, dim 1 periodic)" begin
     periodic_dims = SVector(1)        # periodic in x
     periods = SVector(4.0)
-    start   = SVector(0.0)
-    h       = SVector(1.0, 1.0)
+    start = SVector(0.0)
+    h = SVector(1.0, 1.0)
 
     grid = _aligned_grid(periodic_dims, periods, start, h, 2)
 
@@ -49,19 +49,19 @@ end
     # wrap_coord
     x = SVector(4.1, 2.2)
     wx = MP.wrap_coord(pm, x)
-    @test isapprox(wx[1], 0.1; atol=1e-9)
-    @test isapprox(wx[2], 2.2; atol=1e-12)
+    @test isapprox(wx[1], 0.1; atol = 1e-9)
+    @test isapprox(wx[2], 2.2; atol = 1e-12)
 
     xneg = SVector(-1.0, 0.0)
     wxneg = MP.wrap_coord(pm, xneg)
-    @test isapprox(wxneg[1], 3.0; atol=1e-9)
+    @test isapprox(wxneg[1], 3.0; atol = 1e-9)
 end
 
 @testset "PeriodicGridMapping delegates get_state_by_pos / is_valid_pos / add_pos!" begin
     periodic_dims = SVector(1)
     periods = SVector(4.0)
-    start   = SVector(0.0)
-    h       = SVector(1.0, 1.0)
+    start = SVector(0.0)
+    h = SVector(1.0, 1.0)
     grid = _aligned_grid(periodic_dims, periods, start, h, 2)
 
     base = MP.ExplicitGridMapping(grid)
@@ -93,8 +93,8 @@ end
 @testset "PeriodicGridMapping coord<->state path" begin
     periodic_dims = SVector(1)
     periods = SVector(4.0)
-    start   = SVector(0.0)
-    h       = SVector(1.0, 1.0)
+    start = SVector(0.0)
+    h = SVector(1.0, 1.0)
     grid = _aligned_grid(periodic_dims, periods, start, h, 2)
 
     base = MP.ExplicitGridMapping(grid)
@@ -109,14 +109,14 @@ end
 
     # coord-by-state is computed via pos-by-state + grid coord
     xq = MP.get_coord_by_state(pm, q)
-    @test isapprox(xq[1], 0.5; atol=1e-9)
+    @test isapprox(xq[1], 0.5; atol = 1e-9)
 end
 
 @testset "PeriodicGridMapping add_set! (Explicit underlying only)" begin
     periodic_dims = SVector(1)
     periods = SVector(4.0)
-    start   = SVector(0.0)
-    h       = SVector(1.0, 1.0)
+    start = SVector(0.0)
+    h = SVector(1.0, 1.0)
     grid = _aligned_grid(periodic_dims, periods, start, h, 2)
 
     base = MP.ExplicitGridMapping(grid)
@@ -137,18 +137,28 @@ end
 @testset "PeriodicGridMapping constructor checks (origin alignment / divisibility)" begin
     periodic_dims = SVector(1)
     periods = SVector(4.0)
-    start   = SVector(0.0)
+    start = SVector(0.0)
 
     # bad origin (should be start + h/2 = 0.5 in dim1)
     bad_grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
     bad_base = MP.ExplicitGridMapping(bad_grid)
-    @test_throws ErrorException MP.PeriodicGridMapping(periodic_dims, periods, start, bad_base)
+    @test_throws ErrorException MP.PeriodicGridMapping(
+        periodic_dims,
+        periods,
+        start,
+        bad_base,
+    )
 
     # bad divisibility: period/h not integer
     hbad = SVector(3.0, 1.0)
     grid_bad_step = _aligned_grid(periodic_dims, periods, start, hbad, 2)
     base_bad_step = MP.ExplicitGridMapping(grid_bad_step)
-    @test_throws ErrorException MP.PeriodicGridMapping(periodic_dims, periods, start, base_bad_step)
+    @test_throws ErrorException MP.PeriodicGridMapping(
+        periodic_dims,
+        periods,
+        start,
+        base_bad_step,
+    )
 end
 
 end # module

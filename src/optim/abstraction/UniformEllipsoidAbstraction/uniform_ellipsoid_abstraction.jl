@@ -135,7 +135,8 @@ end
 MOI.get(opt::Optimizer, ::MOI.SolveTimeSec) = opt.solve_time_sec
 
 function is_abstraction_computed(opt::Optimizer)
-    return opt.abstraction_solver !== nothing && opt.abstraction_solver.abstract_system !== nothing
+    return opt.abstraction_solver !== nothing &&
+           opt.abstraction_solver.abstract_system !== nothing
 end
 
 function reset!(optimizer::Optimizer)
@@ -209,7 +210,7 @@ function MOI.optimize!(optimizer::Optimizer)
             optimizer.abstraction_solver.abstract_system,
             abstract_controller,
             transitionCont,
-            abstract_value_function
+            abstract_value_function,
         )
     end
 
@@ -229,7 +230,7 @@ function solve_concrete_problem(
     transitionCont::Dict,
     abstract_value_function::Function;
     handle_out_of_domain::Function = (x, abs_sys) -> nothing,
-    randomize = false
+    randomize = false,
 )
     k_abs = abstract_controller.h
     is_defined_q = q -> (q ∈ abstract_controller.X)
@@ -256,7 +257,7 @@ function solve_concrete_problem(
             to_list === nothing && return nothing
             to = isempty(to_list) ? nothing : (randomize ? rand(to_list) : first(to_list))
             to === nothing && return nothing
-     
+
             key = (q, to)
             haskey(transitionCont, key) || continue
 
@@ -305,17 +306,16 @@ function export_abstraction_jld2(opt::Optimizer, filename::AbstractString)
         f["abstract_system"] = abs_sys
 
         # store ellipsoid-abstraction-specific parameters that affect transitions
-        f["params"] = (
-            incl_mode = abs_opt.incl_mode,
-            P = abs_opt.P,
-            Pm = abs_opt.Pm,
-            R = abs_opt.R,
-        )
+        return f["params"] =
+            (incl_mode = abs_opt.incl_mode, P = abs_opt.P, Pm = abs_opt.Pm, R = abs_opt.R)
     end
     return nothing
 end
 
-function import_abstraction_jld2(filename::AbstractString; opt::Union{Nothing, Optimizer}=nothing)
+function import_abstraction_jld2(
+    filename::AbstractString;
+    opt::Union{Nothing, Optimizer} = nothing,
+)
     opt === nothing && (opt = MOI.instantiate(Optimizer))
     opt.abstraction_solver === nothing && (opt.abstraction_solver = OptimizerEmptyProblem())
 
@@ -330,10 +330,22 @@ function import_abstraction_jld2(filename::AbstractString; opt::Union{Nothing, O
         if haskey(f, "params")
             p = f["params"]
             # best-effort restore
-            try opt.abstraction_solver.incl_mode = p.incl_mode catch end
-            try opt.abstraction_solver.P = p.P catch end
-            try opt.abstraction_solver.Pm = p.Pm catch end
-            try opt.abstraction_solver.R = p.R catch end
+            try
+                opt.abstraction_solver.incl_mode = p.incl_mode
+            catch
+            end
+            try
+                opt.abstraction_solver.P = p.P
+            catch
+            end
+            try
+                opt.abstraction_solver.Pm = p.Pm
+            catch
+            end
+            try
+                opt.abstraction_solver.R = p.R
+            catch
+            end
         end
     end
 

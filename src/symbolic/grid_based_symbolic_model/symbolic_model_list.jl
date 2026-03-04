@@ -6,15 +6,18 @@ SymbolicModelList:
 - Uset: inputs considered
 """
 mutable struct SymbolicModelList{
-    N, M,
-    TX, TU,
-    XM <: MP.AbstractMapping{N,TX},
-    UM <: MP.AbstractMapping{M,TU},
+    N,
+    M,
+    TX,
+    TU,
+    XM <: MP.AbstractMapping{N, TX},
+    UM <: MP.AbstractMapping{M, TU},
     XS <: MP.AbstractStateSet{N},
     RS <: MP.AbstractStateSet{N},
     US <: MP.AbstractStateSet{M},
-    A, OS,
-} <: GridBasedSymbolicModel{N,M}
+    A,
+    OS,
+} <: GridBasedSymbolicModel{N, M}
     XMapping::XM
     UMapping::UM
     Xset::XS
@@ -25,7 +28,7 @@ mutable struct SymbolicModelList{
 end
 
 # default sets = "all states of mapping"
-_default_stateset(::MP.AbstractMapping{N,TX}) where {N,TX} = MP.MappingSet{N}()
+_default_stateset(::MP.AbstractMapping{N, TX}) where {N, TX} = MP.MappingSet{N}()
 
 function SymbolicModelList(
     XMapping::XM,
@@ -36,15 +39,12 @@ function SymbolicModelList(
     automaton_constructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
     original_symmodel = nothing,
     convert_U_to_list::Bool = true,
-) where {N,M,TX,TU,
-         XM<:MP.AbstractMapping{N,TX},
-         UM<:MP.AbstractMapping{M,TU}}
-
+) where {N, M, TX, TU, XM <: MP.AbstractMapping{N, TX}, UM <: MP.AbstractMapping{M, TU}}
     UMap = convert_U_to_list ? MP.convert_to_list_mapping(UMapping) : UMapping
 
     Xset_final = Xset === nothing ? _default_stateset(XMapping) : Xset
-    Uset_final = Uset === nothing ? _default_stateset(UMap)     : Uset
-    Rset_final = Rset === nothing ? Xset_final                  : Rset
+    Uset_final = Uset === nothing ? _default_stateset(UMap) : Uset
+    Rset_final = Rset === nothing ? Xset_final : Rset
 
     autom = automaton_constructor(
         MP.get_n_state(Xset_final, XMapping),
@@ -52,8 +52,11 @@ function SymbolicModelList(
     )
 
     return SymbolicModelList(
-        XMapping, UMap,
-        Xset_final, Rset_final, Uset_final,
+        XMapping,
+        UMap,
+        Xset_final,
+        Rset_final,
+        Uset_final,
         autom,
         original_symmodel,
     )

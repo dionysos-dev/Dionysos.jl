@@ -1,23 +1,25 @@
-struct Ellipsoid{N,T,MT<:SMatrix{N,N,T},VT<:SVector{N,T}} <: AbstractSetNode{N,T}
+struct Ellipsoid{N, T, MT <: SMatrix{N, N, T}, VT <: SVector{N, T}} <: AbstractSetNode{N, T}
     P::MT
     c::VT
-    function Ellipsoid(P::MT, c::VT) where {N,T,MT<:SMatrix{N,N,T},VT<:SVector{N,T}}
+    function Ellipsoid(
+        P::MT,
+        c::VT,
+    ) where {N, T, MT <: SMatrix{N, N, T}, VT <: SVector{N, T}}
         M = (P + P')/2
         isposdef(Matrix(M)) || error("matrix must be positive definite")
-        return new{N,T,MT,VT}(M, c)
+        return new{N, T, MT, VT}(M, c)
     end
 end
 
-function Ellipsoid(P::AbstractMatrix{T}, c::AbstractVector{T}) where {T<:Real}
+function Ellipsoid(P::AbstractMatrix{T}, c::AbstractVector{T}) where {T <: Real}
     n, m = size(P)
     n == m || throw(ArgumentError("P must be square, got $(size(P))"))
     length(c) == n || throw(ArgumentError("c must have length $n, got $(length(c))"))
 
-    PS = SMatrix{n,n,T}(P)
-    cS = SVector{n,T}(c)
+    PS = SMatrix{n, n, T}(P)
+    cS = SVector{n, T}(c)
     return Ellipsoid(PS, cS)
 end
-
 
 get_center(e::Ellipsoid) = e.c
 get_shape(elli::Ellipsoid) = elli.P
@@ -145,7 +147,12 @@ function get_inscribed_ball(elli::Ellipsoid)
     return Ellipsoid((1 / (r * r)) * I_elli, elli.c)
 end
 
-@recipe function f(e::Ellipsoid{N,T}; axis_plot=false, color1=:black, color2=:black) where {N,T}
+@recipe function f(
+    e::Ellipsoid{N, T};
+    axis_plot = false,
+    color1 = :black,
+    color2 = :black,
+) where {N, T}
     if axis_plot
         @series begin
             color := color1

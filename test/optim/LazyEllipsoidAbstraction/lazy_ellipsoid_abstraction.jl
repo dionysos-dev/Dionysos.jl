@@ -27,7 +27,7 @@ include("../../../problems/non_linear.jl")
     Random.seed!(0)
 
     concrete_problem = NonLinear.problem()
-    concrete_system  = concrete_problem.system
+    concrete_system = concrete_problem.system
 
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
@@ -59,11 +59,12 @@ include("../../../problems/non_linear.jl")
     # Build abstraction + solve
     MOI.optimize!(optimizer)
 
-    abstract_system      = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_problem     = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    concrete_controller  = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    abstract_lyap_fun    = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
-    concrete_lyap_fun    = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"))
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    abstract_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_lyap_fun"))
+    concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_fun"))
 
     @test abstract_system !== nothing
     @test abstract_problem !== nothing

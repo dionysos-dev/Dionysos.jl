@@ -63,8 +63,10 @@ end
     mB = MP.ListMapping([SVector(2.0, 3.0), SVector(4.0, 5.0)])
 
     # No union! method for mappings; emulate by building a new one from concatenated coords
-    pts = vcat([MP.get_coord_by_state(mA, q) for q in MP.enum_states(mA)],
-               [MP.get_coord_by_state(mB, q) for q in MP.enum_states(mB)])
+    pts = vcat(
+        [MP.get_coord_by_state(mA, q) for q in MP.enum_states(mA)],
+        [MP.get_coord_by_state(mB, q) for q in MP.enum_states(mB)],
+    )
 
     mU = MP.ListMapping(pts)
 

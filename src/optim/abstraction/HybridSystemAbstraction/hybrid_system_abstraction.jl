@@ -22,7 +22,6 @@ include("empty_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 
-
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerEmptyProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
@@ -210,7 +209,7 @@ function MOI.optimize!(optimizer::Optimizer)
         )
         optimizer.concrete_controller = solve_concrete_problem(
             optimizer.abstraction_solver.abstract_system,
-            abstract_controller
+            abstract_controller,
         )
     end
 
@@ -230,10 +229,7 @@ function solve_concrete_problem(
     k_abs = abstract_controller.h  # q -> Vector{Int} or Int or nothing
 
     function f(aug_state)
-        q = SY.get_abstract_state(
-            abstract_system,
-            aug_state,
-        )
+        q = SY.get_abstract_state(abstract_system, aug_state)
 
         us = k_abs(q)
         us === nothing && return nothing
@@ -242,18 +238,11 @@ function solve_concrete_problem(
         u_abs = us isa AbstractVector ? first(us) : us
 
         (_, _, k) = aug_state
-        if SY.is_switching_input(
-            abstract_system.input_mapping,
-            u_abs,
-        )
+        if SY.is_switching_input(abstract_system.input_mapping, u_abs)
             transition_id = abstract_system.input_mapping.global_to_switching[u_abs]
             return abstract_system.input_mapping.switch_labels[transition_id]  # string label
         else
-            return SY.get_concrete_input(
-                abstract_system,
-                u_abs,
-                k,
-            )
+            return SY.get_concrete_input(abstract_system, u_abs, k)
         end
     end
 
@@ -262,7 +251,6 @@ function solve_concrete_problem(
     nu = 1
     return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
-
 
 # ================================================================
 # Closed-loop simulation utilities
@@ -322,7 +310,8 @@ function get_closed_loop_trajectory(
     nmodes = HybridSystems.nmodes(hs.automaton)
     dynamics = [HybridSystems.mode(hs, k).systems[1].f for k in 1:nmodes]
     maps_sys = [ST.simulate_control_map(dynamics[i]) for i in 1:nmodes]
-    times_is_active = [([1.0;;]==HybridSystems.mode(hs, k).systems[2].A) ? true : false for k in 1:nmodes]
+    times_is_active =
+        [([1.0;;]==HybridSystems.mode(hs, k).systems[2].A) ? true : false for k in 1:nmodes]
 
     for _ in 1:nstep
         stopping(aug_state) && break
@@ -330,7 +319,8 @@ function get_closed_loop_trajectory(
         u === nothing && break
 
         (_, _, k) = aug_state
-        aug_state = get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
+        aug_state =
+            get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
 
         push!(aug_state_traj, aug_state)
         push!(u_traj, u)

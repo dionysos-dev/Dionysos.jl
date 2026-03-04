@@ -33,7 +33,8 @@ const AB = OP.Abstraction
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.HyperRectangle([0.0], [3.0]))
+    time_sys =
+        MS.ConstrainedLinearContinuousSystem([1.0;;], UT.HyperRectangle([0.0], [3.0]))
 
     guard_1 = UT.HyperRectangle([0.2, 0.0], [1.0, 2.0])
 
@@ -41,8 +42,7 @@ const AB = OP.Abstraction
         domain::UT.HyperRectangle
         target::Vector{Float64}
     end
-    MS.apply(reset::FixedPointResetMap, state::AbstractVector) =
-        reset.target
+    MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
     MS.stateset(reset::FixedPointResetMap) = reset.domain
     reset_map = FixedPointResetMap(guard_1, [0.0, 0.0])
 
@@ -55,7 +55,8 @@ const AB = OP.Abstraction
     ]
     reset_maps = [reset_map]
     switchings = [HybridSystems.AutonomousSwitching()]
-    concrete_system = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
+    concrete_system =
+        HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
     # ------------------------------
     # Define the Control Problem
@@ -63,17 +64,17 @@ const AB = OP.Abstraction
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
     Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.HyperRectangle(SVector(1.0),  SVector(2.0))]
+    Ts_target = [UT.HyperRectangle(SVector(1.0), SVector(2.0))]
     Ns_target = [2]
     target_set = (Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
     concrete_problem = PR.OptimalControlProblem(
-            concrete_system,
-            initial_state,
-            target_set,
-            nothing,
-            transition_cost,
-            PR.Infinity(),
+        concrete_system,
+        initial_state,
+        target_set,
+        nothing,
+        transition_cost,
+        PR.Infinity(),
     )
 
     # ------------------------------
@@ -112,9 +113,12 @@ const AB = OP.Abstraction
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_list"), optimizer_list)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_kwargs_dict"), optimizer_kwargs_dict)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
+        optimizer_kwargs_dict,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
-
 
     # Solve using optimizer
     MOI.optimize!(optimizer)
@@ -122,20 +126,18 @@ const AB = OP.Abstraction
     # Retrieve results
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
     # Validate concrete problem
     @test concrete_problem.initial_set == initial_state
     @test concrete_problem.transition_cost == transition_cost
-    
+
     # Validate abstract target set
-    abstract_target_set = SY.get_states_from_set(
-        abstract_system,
-        Xs_target,
-        Ts_target,
-        Ns_target,
-    )
+    abstract_target_set =
+        SY.get_states_from_set(abstract_system, Xs_target, Ts_target, Ns_target)
     for q in abstract_target_set
         (x, t, k) = SY.get_concrete_state(abstract_system, q)
         idx = findfirst(==(k), Ns_target)
@@ -145,12 +147,8 @@ const AB = OP.Abstraction
     end
 
     # Validate abstract problem
-    @test abstract_problem.initial_set == [
-        SY.get_abstract_state(
-            abstract_system,
-            concrete_problem.initial_set,
-        ),
-    ]
+    @test abstract_problem.initial_set ==
+          [SY.get_abstract_state(abstract_system, concrete_problem.initial_set)]
     @test abstract_problem.target_set == abstract_target_set
     @test abstract_problem.state_cost == concrete_problem.state_cost
     @test abstract_problem.time == concrete_problem.time
@@ -216,7 +214,6 @@ const AB = OP.Abstraction
         map_sys,
     )
     @test next_aug_state_switch[3] == 2
-    
 
     # Test closed-loop trajectory
     reached(aug_x) = AB.HybridSystemAbstraction.reached(concrete_problem, aug_x)
@@ -258,16 +255,16 @@ end
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system (no time evolution)
-    time_sys = MS.ConstrainedLinearContinuousSystem([0.0;;], UT.HyperRectangle([0.0], [3.0]))
+    time_sys =
+        MS.ConstrainedLinearContinuousSystem([0.0;;], UT.HyperRectangle([0.0], [3.0]))
 
     guard_1 = UT.HyperRectangle([0.2, 0.0], [1.0, 2.0])
-    
+
     struct FixedPointResetMap <: MS.AbstractMap
         domain::UT.HyperRectangle
         target::Vector{Float64}
     end
-    MS.apply(reset::FixedPointResetMap, state::AbstractVector) =
-        reset.target
+    MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
     MS.stateset(reset::FixedPointResetMap) = reset.domain
     reset_map = FixedPointResetMap(guard_1, [0.0, 0.0])
 
@@ -280,7 +277,8 @@ end
     ]
     reset_maps = [reset_map]
     switchings = [HybridSystems.AutonomousSwitching()]
-    concrete_system = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
+    concrete_system =
+        HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
     # ------------------------------
     # Define the Control Problem
@@ -288,17 +286,17 @@ end
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
     Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.HyperRectangle(SVector(0.0),  SVector(3.0))] 
+    Ts_target = [UT.HyperRectangle(SVector(0.0), SVector(3.0))]
     Ns_target = [2]
     target_set = (Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
     concrete_problem = PR.OptimalControlProblem(
-            concrete_system,
-            initial_state,
-            target_set,
-            nothing,
-            transition_cost,
-            PR.Infinity(),
+        concrete_system,
+        initial_state,
+        target_set,
+        nothing,
+        transition_cost,
+        PR.Infinity(),
     )
 
     # ------------------------------
@@ -337,9 +335,12 @@ end
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_list"), optimizer_list)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_kwargs_dict"), optimizer_kwargs_dict)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
+        optimizer_kwargs_dict,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
-
 
     # Solve using optimizer
     MOI.optimize!(optimizer)
@@ -347,20 +348,18 @@ end
     # Retrieve results
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
     # Validate concrete problem
     @test concrete_problem.initial_set == initial_state
     @test concrete_problem.transition_cost == transition_cost
 
     # Validate abstract target set
-    abstract_target_set = SY.get_states_from_set(
-        abstract_system,
-        Xs_target,
-        Ts_target,
-        Ns_target,
-    )
+    abstract_target_set =
+        SY.get_states_from_set(abstract_system, Xs_target, Ts_target, Ns_target)
     for q in abstract_target_set
         (x, t, k) = SY.get_concrete_state(abstract_system, q)
         idx = findfirst(==(k), Ns_target)
@@ -370,12 +369,8 @@ end
     end
 
     # Validate abstract problem
-    @test abstract_problem.initial_set == [
-        SY.get_abstract_state(
-            abstract_system,
-            concrete_problem.initial_set,
-        ),
-    ]
+    @test abstract_problem.initial_set ==
+          [SY.get_abstract_state(abstract_system, concrete_problem.initial_set)]
     @test abstract_problem.target_set == abstract_target_set
     @test abstract_problem.state_cost == concrete_problem.state_cost
     @test abstract_problem.time == concrete_problem.time
@@ -478,24 +473,19 @@ end
     mode1_f(x, u) = [-0.1 * x[1] + u[1]]
     mode2_f(x, u) = [0.4 * x[1] + u[1]]
 
-    mode1_system =
-        MS.ConstrainedBlackBoxControlContinuousSystem(mode1_f, 1, 1, X, U)
-    mode2_system =
-        MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
+    mode1_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode1_f, 1, 1, X, U)
+    mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys = MS.ConstrainedLinearContinuousSystem(
-        [1.0;;],
-        UT.HyperRectangle([0.0], [5.0]),
-    )
+    time_sys =
+        MS.ConstrainedLinearContinuousSystem([1.0;;], UT.HyperRectangle([0.0], [5.0]))
 
     # Reset map
     struct SafetyResetMap <: MS.AbstractMap
         domain::UT.HyperRectangle
         target::Vector{Float64}
     end
-    MS.apply(reset::SafetyResetMap, state::AbstractVector) =
-        [state[1], state[2]]
+    MS.apply(reset::SafetyResetMap, state::AbstractVector) = [state[1], state[2]]
     MS.stateset(reset::SafetyResetMap) = reset.domain
 
     guard_1 = UT.HyperRectangle([0.0, 0.0], [10.0, 5.0])
@@ -510,7 +500,8 @@ end
     ]
     reset_maps = [reset_map]
     switchings = [HybridSystems.AutonomousSwitching()]
-    concrete_system = HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
+    concrete_system =
+        HybridSystems.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 
     # ------------------------------
     # Define the Control Problem
@@ -521,12 +512,7 @@ end
     Ts_safe = [UT.HyperRectangle([0.0], [2.0]), UT.HyperRectangle([1.0], [5.0])]
     Ns_safe = [1, 2]
     safe_set = (Xs_safe, Ts_safe, Ns_safe)
-    concrete_problem = PR.SafetyProblem(
-            concrete_system,
-            initial_state,
-            safe_set,
-            10.0,
-    )
+    concrete_problem = PR.SafetyProblem(concrete_system, initial_state, safe_set, 10.0)
 
     # ------------------------------
     # Define the Solver parameters
@@ -564,9 +550,12 @@ end
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_list"), optimizer_list)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_kwargs_dict"), optimizer_kwargs_dict)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
+        optimizer_kwargs_dict,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
-
 
     # Solve using optimizer
     MOI.optimize!(optimizer)
@@ -574,8 +563,10 @@ end
     # Retrieve results
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
     # Validate concrete problem
     @test concrete_problem.initial_set == initial_state
@@ -599,12 +590,8 @@ end
     end
 
     # Validate abstract problem
-    @test abstract_problem.initial_set == [
-        SY.get_abstract_state(
-            abstract_system,
-            concrete_problem.initial_set,
-        ),
-    ]
+    @test abstract_problem.initial_set ==
+          [SY.get_abstract_state(abstract_system, concrete_problem.initial_set)]
     @test abstract_problem.safe_set == abstract_safe_set
     @test abstract_problem.time == concrete_problem.time
     @test isa(abstract_problem, PR.SafetyProblem)
@@ -638,10 +625,12 @@ end
     @test aug_x_traj[1] == initial_state
     @test length(aug_x_traj) == length(u_traj) + 1
     @test all(x -> length(x) == 3, aug_x_traj)
-    for state in aug_x_traj[1:end-1]
+    for state in aug_x_traj[1:(end - 1)]
         @test AB.HybridSystemAbstraction.safe(concrete_problem, state)
     end
-    println("Safety test completed: trajectory remained safe for $(length(aug_x_traj)) steps")
+    println(
+        "Safety test completed: trajectory remained safe for $(length(aug_x_traj)) steps",
+    )
 end
 
 end # module

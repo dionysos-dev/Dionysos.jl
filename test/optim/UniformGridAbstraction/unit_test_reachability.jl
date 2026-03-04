@@ -19,9 +19,9 @@ println("Started test")
     # X mapping = full grid box minus obstacle
     # ----------------------------
     lbX = SVector(-5.0, -5.0)
-    ubX = SVector( 5.0,  5.0)
-    x0  = SVector(0.0, 0.0)
-    hx  = SVector(0.47, 0.23)
+    ubX = SVector(5.0, 5.0)
+    x0 = SVector(0.0, 0.0)
+    hx = SVector(0.47, 0.23)
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
@@ -32,7 +32,7 @@ println("Started test")
     bad = Set(MP.get_states_from_set(Xmap_full, obstacle, MP.OUTER))
 
     # Build a filtered explicit mapping containing only "safe" positions
-    positions_ok = NTuple{2,Int}[]
+    positions_ok = NTuple{2, Int}[]
     for q in MP.enum_states(Xmap_full)
         if q in bad
             continue
@@ -40,18 +40,18 @@ println("Started test")
         push!(positions_ok, MP.get_pos_by_state(Xmap_full, q))
     end
 
-    Xmap = MP.ExplicitGridMapping{2,Float64}(Xgrid, positions_ok)
+    Xmap = MP.ExplicitGridMapping{2, Float64}(Xgrid, positions_ok)
 
     # ----------------------------
     # U mapping
     # ----------------------------
     lbU = SVector(-2.0)
-    ubU = SVector( 2.0)
-    u0  = SVector(0.0)
-    hu  = SVector(1.0)
+    ubU = SVector(2.0)
+    u0 = SVector(0.0)
+    hu = SVector(1.0)
 
     Ugrid = MP.GridFree(u0, hu)
-    Umap  = MP.ExplicitGridMapping(Ugrid)
+    Umap = MP.ExplicitGridMapping(Ugrid)
     MP.add_set!(Umap, UT.HyperRectangle(lbU, ubU), MP.OUTER)
 
     # ----------------------------
@@ -59,9 +59,8 @@ println("Started test")
     # ----------------------------
     tstep = 1.0
 
-
     F_sys(x, u) = SVector(1.0, u[1])
-    jacobian_bound(u) = SMatrix{2,2}(0.0, 0.0, 0.0, 0.0)
+    jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
 
     concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         F_sys,

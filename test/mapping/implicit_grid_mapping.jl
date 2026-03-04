@@ -31,10 +31,10 @@ const MP = DI.Mapping
     @test MP.get_state_by_pos(m, (2, 3)) == 12
 
     # --- inverse mapping ---
-    @test MP.get_pos_by_state(m, 1)  == (0, 0)
-    @test MP.get_pos_by_state(m, 2)  == (1, 0)
-    @test MP.get_pos_by_state(m, 3)  == (2, 0)
-    @test MP.get_pos_by_state(m, 4)  == (0, 1)
+    @test MP.get_pos_by_state(m, 1) == (0, 0)
+    @test MP.get_pos_by_state(m, 2) == (1, 0)
+    @test MP.get_pos_by_state(m, 3) == (2, 0)
+    @test MP.get_pos_by_state(m, 4) == (0, 1)
     @test MP.get_pos_by_state(m, 12) == (2, 3)
 
     # --- round-trip for all states ---

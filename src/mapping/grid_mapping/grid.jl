@@ -35,7 +35,8 @@ function get_coord_by_pos(grid::Grid, pos)
     return get_origin(grid) + pos .* get_h(grid)
 end
 
-_ranges(rect::UT.HyperRectangle{N,T}) where {N,T} = ntuple(i -> (rect.lb[i]:rect.ub[i]), Val(N))
+_ranges(rect::UT.HyperRectangle{N, T}) where {N, T} =
+    ntuple(i -> (rect.lb[i]:rect.ub[i]), Val(N))
 
 function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)
@@ -133,9 +134,9 @@ struct GridFree{N, T} <: Grid{N, T}
     h::SVector{N, T}
 end
 
-function GridFree(h::SVector{N,T}; zero_origin::Bool=true) where {N,T}
+function GridFree(h::SVector{N, T}; zero_origin::Bool = true) where {N, T}
     orig = zero_origin ? zero(h) : h ./ 2
-    GridFree(orig, h)
+    return GridFree(orig, h)
 end
 
 get_origin(grid::GridFree) = grid.orig
@@ -214,7 +215,6 @@ get_elem_by_pos(grid::DeformedGrid, pos) =
     UT.DeformedRectangle(get_rec(grid.underlying_grid, pos), grid.f)
 get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
     get_pos_lims(grid.underlying_grid, rect, incl_mode)
-
 
 function get_volume(grid::DeformedGrid)
     return grid.A !== nothing ? abs(det(grid.A)) * get_volume(grid.underlying_grid) :

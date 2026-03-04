@@ -205,8 +205,18 @@ plot!(
     opacity = 0.55,
     label = "Tube",
 )
-plot!((controllable_set, XMapping); color = :yellow, linecolor = :yellow, label = "Controllable set")
-plot!((uncontrollable_set, XMapping); color = :black, linecolor = :black, label = "Uncontrollable set")
+plot!(
+    (controllable_set, XMapping);
+    color = :yellow,
+    linecolor = :yellow,
+    label = "Controllable set",
+)
+plot!(
+    (uncontrollable_set, XMapping);
+    color = :black,
+    linecolor = :black,
+    label = "Uncontrollable set",
+)
 plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
 plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
 display(fig)

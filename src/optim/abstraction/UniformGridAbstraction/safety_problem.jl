@@ -73,7 +73,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     abstract_problem_time_sec::T
 
     # Problem/Solver-Specific parameters
-    invariant_set::Union{Nothing, MP.AbstractStateSet}           
+    invariant_set::Union{Nothing, MP.AbstractStateSet}
     invariant_set_complement::Union{Nothing, MP.AbstractStateSet}
 
     success::Bool
@@ -104,8 +104,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
@@ -114,24 +113,23 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
 
-    abstract_controller, inv_ids, invc_ids =
-        SY.compute_largest_invariant_set(
-            SY.get_automaton(abstract_system),
-            optimizer.abstract_problem.safe_set,
-        )
-
+    abstract_controller, inv_ids, invc_ids = SY.compute_largest_invariant_set(
+        SY.get_automaton(abstract_system),
+        optimizer.abstract_problem.safe_set,
+    )
 
     optimizer.abstract_controller = abstract_controller
     optimizer.invariant_set = SY.get_state_set_from_states(abstract_system, inv_ids)
-    optimizer.invariant_set_complement = SY.get_state_set_from_states(abstract_system, invc_ids)
+    optimizer.invariant_set_complement =
+        SY.get_state_set_from_states(abstract_system, invc_ids)
 
     # success check: initial_set ⊆ invariant_set
-    xm  = SY.get_state_mapping(abstract_system)
+    xm = SY.get_state_mapping(abstract_system)
     init_ids = optimizer.abstract_problem.initial_set
-    optimizer.success = all(q -> MP.contains_state(optimizer.invariant_set, xm, q), init_ids)
+    optimizer.success =
+        all(q -> MP.contains_state(optimizer.invariant_set, xm, q), init_ids)
 
-    optimizer.print_level >= 1 &&
-        println("\n Safety: terminated with $(optimizer.success)")
+    optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
 
     optimizer.abstract_problem_time_sec = time() - t_ref
     return

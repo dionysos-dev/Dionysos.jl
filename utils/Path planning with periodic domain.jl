@@ -28,11 +28,7 @@ optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), MP.GridFree(x0, hx))
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("input_grid"),
-    MP.GridFree(u0, hu),
-)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
@@ -98,13 +94,14 @@ x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
 fig = plot(; aspect_ratio = :equal, legend = false);
 # We display the concrete domain
 state_space = concrete_system.X
-system_domain_in_periodic = UT.set_in_period(state_space, periodic_dims, periods, periodic_start)
+system_domain_in_periodic =
+    UT.set_in_period(state_space, periodic_dims, periods, periodic_start)
 plot!(system_domain_in_periodic; color = :grey, opacity = 1.0, label = "");
 
 # We display the abstract domain with worst-case cost
 XMapping = SY.get_state_mapping(abstract_system)
 Xset = SY.get_state_domain(abstract_system)
-plot!(abstract_system; efficient=false, value_function = abstract_value_function);
+plot!(abstract_system; efficient = false, value_function = abstract_value_function);
 # plot!(XMapping; value_function=abstract_value_function, efficient=false)
 # plot!((Xset, XMapping); efficient=true, color = :yellow)
 
@@ -126,7 +123,8 @@ plot!(
 );
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), XMapping);
-    color = :red, efficient=false
+    color = :red,
+    efficient = false,
 );
 
 # We display the concrete trajectory

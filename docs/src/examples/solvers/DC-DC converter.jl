@@ -164,7 +164,11 @@ Xmapping = SY.get_state_mapping(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
-plot!((invariant_set_complement, Xmapping); color = :black, label = "Invariant set complement")
+plot!(
+    (invariant_set_complement, Xmapping);
+    color = :black,
+    label = "Invariant set complement",
+)
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 

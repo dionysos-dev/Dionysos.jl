@@ -245,8 +245,8 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
             PSDCone()
         )
     end
-    n  = length(c)
-    m  = size(U[1], 2)
+    n = length(c)
+    m = size(U[1], 2)
     nS = size(L, 1)
 
     I_n = Matrix{Float64}(LA.I, n, n)
@@ -258,11 +258,12 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
     # This is 1 × (n+m+1)
     d = hcat(transpose(c), transpose(ell), 1.0)
     @assert size(L, 2) == n + m + 1 "Expected L to have $(n+m+1) columns (for [x;u;1]), got size(L)=$(size(L))."
-    @constraint(model,
+    @constraint(
+        model,
         [
-            gamma * P                zeros(n,1)          G * transpose(L)
-            zeros(1,n)               J - gamma           d * transpose(L)
-            L * transpose(G)         L * transpose(d)    Matrix{Float64}(LA.I, nS, nS)
+            gamma * P zeros(n, 1) G * transpose(L)
+            zeros(1, n) J - gamma d * transpose(L)
+            L * transpose(G) L * transpose(d) Matrix{Float64}(LA.I, nS, nS)
         ] in PSDCone()
     )
 

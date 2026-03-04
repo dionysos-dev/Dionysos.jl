@@ -86,8 +86,8 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Specific parameters
     early_stop::Union{Nothing, Bool}
     sparse_input::Bool
-    controllable_set::Union{Nothing, MP.AbstractStateSet}   
-    uncontrollable_set::Union{Nothing, MP.AbstractStateSet} 
+    controllable_set::Union{Nothing, MP.AbstractStateSet}
+    uncontrollable_set::Union{Nothing, MP.AbstractStateSet}
     value_fun_tab::Union{Nothing, Any} # Value function in tabular form, Inf means uncontrollable state
     abstract_value_function::Union{Nothing, Any}
     concrete_value_function::Union{Nothing, Any}
@@ -167,8 +167,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
@@ -183,20 +182,20 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
 
-    abstract_controller,
-    controllable_ids,
-    uncontrollable_ids,
-    value_fun_tab = SY.compute_worst_case_cost_controller(
-        SY.get_automaton(abstract_system),
-        optimizer.abstract_problem.target_set;
-        initial_set = init_set,
-        sparse_input = optimizer.sparse_input,
-        cost_function = optimizer.abstract_problem.transition_cost,
-    )
+    abstract_controller, controllable_ids, uncontrollable_ids, value_fun_tab =
+        SY.compute_worst_case_cost_controller(
+            SY.get_automaton(abstract_system),
+            optimizer.abstract_problem.target_set;
+            initial_set = init_set,
+            sparse_input = optimizer.sparse_input,
+            cost_function = optimizer.abstract_problem.transition_cost,
+        )
 
     optimizer.abstract_controller = abstract_controller
-    optimizer.controllable_set = SY.get_state_set_from_states(abstract_system, controllable_ids)
-    optimizer.uncontrollable_set = SY.get_state_set_from_states(abstract_system, uncontrollable_ids)
+    optimizer.controllable_set =
+        SY.get_state_set_from_states(abstract_system, controllable_ids)
+    optimizer.uncontrollable_set =
+        SY.get_state_set_from_states(abstract_system, uncontrollable_ids)
     optimizer.value_fun_tab = value_fun_tab
 
     optimizer.abstract_value_function = build_abstract_value_function(value_fun_tab)
@@ -204,8 +203,9 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
         build_concrete_value_function(abstract_system, optimizer.abstract_value_function)
 
     # success check: "initial_set ⊆ controllable"
-    xm  = SY.get_state_mapping(abstract_system)
-    optimizer.success = all(q -> MP.contains_state(optimizer.controllable_set, xm, q), init_set)
+    xm = SY.get_state_mapping(abstract_system)
+    optimizer.success =
+        all(q -> MP.contains_state(optimizer.controllable_set, xm, q), init_set)
 
     optimizer.print_level >= 1 &&
         println("\n Reachability: terminated with $(optimizer.success)")

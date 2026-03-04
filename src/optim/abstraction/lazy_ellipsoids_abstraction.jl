@@ -80,7 +80,9 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            false, false, nothing,
+            false,
+            false,
+            nothing,
             0.0,
         )
     end
@@ -307,10 +309,12 @@ function get_candidate(
     elseif randVal > probSkew
         return E0.c
     else
-        closestNode, dist = UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(length(E0.c))), E0))
+        closestNode, dist =
+            UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(length(E0.c))), E0))
         l = randVal / probSkew
         r = dist / intialDist
-        return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) + (0.3 * r) * guess
+        return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) +
+               (0.3 * r) * guess
     end
 end
 
@@ -522,7 +526,8 @@ function stop_crit(
                 if !continues
                     return true
                 else
-                    if opt._can_rewire && (cost + Nnew.path_cost < opt._initial_node.path_cost)
+                    if opt._can_rewire &&
+                       (cost + Nnew.path_cost < opt._initial_node.path_cost)
                         UT.rewire(abstract_system, opt._initial_node, Nnew, cont, cost)
                         println("Path cost from EI : ", opt._initial_node.path_cost)
                     end

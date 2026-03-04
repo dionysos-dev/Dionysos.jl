@@ -10,7 +10,7 @@ Fields (mirrors PeriodicDomainList):
 - `underlying_mapping::M`
 - `periodic_index_map::NTuple{N, Union{Nothing, Int}}`
 """
-struct PeriodicGridMapping{N, T, M <: GridMapping{N,T}, P} <: GridMapping{N,T}
+struct PeriodicGridMapping{N, T, M <: GridMapping{N, T}, P} <: GridMapping{N, T}
     periodic_dims::SVector{P, Int}
     periods::SVector{P, T}
     start::SVector{P, T}
@@ -56,7 +56,6 @@ function get_grid_in_periods(
     return get_grid_in_periods(periodic_dims, periods, start, h)
 end
 
-
 # ----------------------------
 # Constructors 
 # ----------------------------
@@ -66,8 +65,7 @@ function PeriodicGridMapping(
     periods::SVector{P, T},
     start::SVector{P, T},
     grid::M,
-) where {N, T, M <: Grid{N,T}, P}
-
+) where {N, T, M <: Grid{N, T}, P}
     orig = get_origin(grid)
     h = get_h(grid)
 
@@ -75,7 +73,9 @@ function PeriodicGridMapping(
         d = periodic_dims[i]
         expected_orig = start[i] + h[d] / 2.0
         if !isapprox(orig[d], expected_orig; atol = 1e-9)
-            error("Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).")
+            error(
+                "Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).",
+            )
         end
 
         q = periods[i] / h[d]
@@ -94,7 +94,6 @@ function PeriodicGridMapping(
     start::SVector{P, T},
     h::SVector{N, T},
 ) where {N, T, P}
-
     grid = get_grid_in_periods(periodic_dims, periods, start, h)
     return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, grid)
 end
@@ -104,8 +103,7 @@ function PeriodicGridMapping(
     periods::SVector{P, T},
     start::SVector{P, T},
     mapping::M,
-) where {N, T, M <: GridMapping{N,T}, P}
-
+) where {N, T, M <: GridMapping{N, T}, P}
     grid = get_grid(mapping)
     orig = get_origin(grid)
     h = get_h(grid)
@@ -114,7 +112,9 @@ function PeriodicGridMapping(
         d = periodic_dims[i]
         expected_orig = start[i] + h[d] / 2.0
         if !isapprox(orig[d], expected_orig; atol = 1e-9)
-            error("Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).")
+            error(
+                "Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).",
+            )
         end
 
         q = periods[i] / h[d]
@@ -131,14 +131,19 @@ function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},
     mapping::M,
-) where {N, T, M <: GridMapping{N,T}, P}
+) where {N, T, M <: GridMapping{N, T}, P}
     start = zeros(SVector{P, T})
     return PeriodicGridMapping(periodic_dims, periods, start, mapping)
 end
 
 # Non-periodic wrapper (convenience), same as PeriodicDomainList(grid::Grid).
-function PeriodicGridMapping(mapping::M) where {N, T, M <: GridMapping{N,T}}
-    return PeriodicGridMapping(SVector{0, Int}(), SVector{0, T}(), zeros(SVector{0, T}), mapping)
+function PeriodicGridMapping(mapping::M) where {N, T, M <: GridMapping{N, T}}
+    return PeriodicGridMapping(
+        SVector{0, Int}(),
+        SVector{0, T}(),
+        zeros(SVector{0, T}),
+        mapping,
+    )
 end
 
 # ----------------------------
@@ -150,7 +155,8 @@ get_periods(m::PeriodicGridMapping) = m.periods
 get_periodic_starts(m::PeriodicGridMapping) = m.start
 
 is_periodic(m::PeriodicGridMapping, d::Int) = m.periodic_index_map[d] !== nothing
-is_periodic(m::PeriodicGridMapping) = any(d -> is_periodic(m, d), 1:length(m.periodic_index_map))
+is_periodic(m::PeriodicGridMapping) =
+    any(d -> is_periodic(m, d), 1:length(m.periodic_index_map))
 
 function has_same_periodicity(m1::PeriodicGridMapping, m2::PeriodicGridMapping)
     return get_periodic_dims(m1) == get_periodic_dims(m2) &&
@@ -209,15 +215,16 @@ get_pos_by_state(m::PeriodicGridMapping{N}, q::Int) where {N} =
     get_pos_by_state(m.underlying_mapping, q)
 
 # validity in pos-space: wrap first, then check underlying
-is_valid_pos(m::PeriodicGridMapping{N}, pos::NTuple{N,Int}) where {N} =
+is_valid_pos(m::PeriodicGridMapping{N}, pos::NTuple{N, Int}) where {N} =
     is_valid_pos(m.underlying_mapping, wrap_pos(m, pos))
 
 # pos -> state: wrap first, then delegate
-get_state_by_pos(m::PeriodicGridMapping{N}, pos::NTuple{N,Int}) where {N} =
+get_state_by_pos(m::PeriodicGridMapping{N}, pos::NTuple{N, Int}) where {N} =
     get_state_by_pos(m.underlying_mapping, wrap_pos(m, pos))
 
 # coord -> state: wrap coordinate first (like your domain wrap_coord), then do normal path
-get_state_by_coord(m::PeriodicGridMapping, x) = get_state_by_coord(m.underlying_mapping, wrap_coord(m, x))
+get_state_by_coord(m::PeriodicGridMapping, x) =
+    get_state_by_coord(m.underlying_mapping, wrap_coord(m, x))
 
 # coord by state can remain the base (it uses underlying pos by state)
 get_coord_by_state(m::PeriodicGridMapping, q::Int) =

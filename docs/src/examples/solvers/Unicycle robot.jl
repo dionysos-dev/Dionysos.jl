@@ -203,7 +203,8 @@ plot!(
 );
 plot!(
     (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
-    color = :red, efficient=false
+    color = :red,
+    efficient = false,
 );
 
 # We display the concrete trajectory

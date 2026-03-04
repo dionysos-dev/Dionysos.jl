@@ -55,8 +55,7 @@ end
 function get_state_space_pos(Xdom, elems::UT.LazySetMinus)
     grid = DO.get_grid(Xdom)
     fitted_A = DO.get_pos_lims_outer(grid, elems.A)
-    fitted_B =
-        UT.LazySetUnion([DO.get_pos_lims_outer(grid, Oi) for Oi in elems.B.sets])
+    fitted_B = UT.LazySetUnion([DO.get_pos_lims_outer(grid, Oi) for Oi in elems.B.sets])
     return UT.LazySetMinus(fitted_A, fitted_B)
 end
 

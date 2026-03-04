@@ -1,11 +1,16 @@
 abstract type AbstractStateSet{N} end
 
-contains_state(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} = error("not implemented")
-enum_states(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} = error("not implemented")
-get_n_state(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} = length(enum_states(S, m))
+contains_state(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
+    error("not implemented")
+enum_states(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
+    error("not implemented")
+get_n_state(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
+    length(enum_states(S, m))
 
-add_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} = error("not implemented")
-remove_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} = error("not implemented")
+add_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
+    error("not implemented")
+remove_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
+    error("not implemented")
 empty_states!(S::AbstractStateSet{N}) where {N} = error("not implemented")
 
 function add_states!(S::AbstractStateSet{N}, m::AbstractMapping{N}, states) where {N}
@@ -18,27 +23,32 @@ function add_set!(
     S::AbstractStateSet{N},
     m::AbstractMapping{N},
     set,
-    incl_mode::INCL_MODE
+    incl_mode::INCL_MODE,
 ) where {N}
     states = get_states_from_set(m, set, incl_mode)
     add_states!(S, m, states)
     return collect(states)
 end
 
-function stateset_from_states(::Type{S}, m::AbstractMapping{N}, states) where {N,S<:AbstractStateSet{N}}
+function stateset_from_states(
+    ::Type{S},
+    m::AbstractMapping{N},
+    states,
+) where {N, S <: AbstractStateSet{N}}
     out = S()
     add_states!(out, m, states)
     return out
 end
 
 # Convenient default: ExplicitIdSet (BitSet)
-stateset_from_states(m::AbstractMapping{N}, states) where {N} = stateset_from_states(ExplicitIdSet{N}, m, states)
+stateset_from_states(m::AbstractMapping{N}, states) where {N} =
+    stateset_from_states(ExplicitIdSet{N}, m, states)
 
 function remove_set!(
     S::AbstractStateSet{N},
     m::AbstractMapping{N},
     set,
-    incl_mode::INCL_MODE
+    incl_mode::INCL_MODE,
 ) where {N}
     states = get_states_from_set(m, set, incl_mode)
     for q in states
@@ -48,13 +58,13 @@ function remove_set!(
 end
 
 @recipe function f(
-    tup::Tuple{<:AbstractStateSet{N}, <:GridMapping{N,T}};
-    dims = [1,2],
+    tup::Tuple{<:AbstractStateSet{N}, <:GridMapping{N, T}};
+    dims = [1, 2],
     efficient = true,
     label = "",
-    value_function = nothing,     
+    value_function = nothing,
     reducer = min,
-) where {N,T}
+) where {N, T}
     S, m = tup
     d1, d2 = dims[1], dims[2]
 
@@ -62,8 +72,9 @@ end
 
     states = enum_states(S, m)
     proj, posN = project_states_on_dims(
-        m, states;
-        dims = [d1,d2],
+        m,
+        states;
+        dims = [d1, d2],
         value_function = (value_function isa Function ? value_function : nothing),
         reducer = reducer,
     )
@@ -111,19 +122,18 @@ end
             end
         end
     else
-        pos2d = NTuple{2,Int}[(p[d1], p[d2]) for p in posN]
+        pos2d = NTuple{2, Int}[(p[d1], p[d2]) for p in posN]
         rects = merge_rectangles_2d(pos2d)
         for r in rects
             @series begin
                 label := first_series ? label : ""
                 first_series = false
-                dims := [1,2]
+                dims := [1, 2]
                 return intrect2_to_real_rect(grid, r, d1, d2)
             end
         end
     end
 end
-
 
 # ---------- Helpers ----------
 # ---------- Helpers ----------
@@ -149,7 +159,7 @@ function Base.length(U::UniqueStates)
     return n
 end
 
-function Base.iterate(U::UniqueStates, st=(iterate(U.iter), BitSet()))
+function Base.iterate(U::UniqueStates, st = (iterate(U.iter), BitSet()))
     (it, seen) = st
     it === nothing && return nothing
     (val, s2) = it
@@ -165,7 +175,6 @@ end
 unique_states(iter) = UniqueStates(iter)
 # ---------- Helpers ----------
 
-
 mutable struct ExplicitIdSet{N} <: AbstractStateSet{N}
     bits::BitSet
 end
@@ -174,17 +183,16 @@ ExplicitIdSet{N}() where {N} = ExplicitIdSet{N}(BitSet())
 contains_state(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} = in(q, S.bits)
 enum_states(S::ExplicitIdSet{N}, m::AbstractMapping{N}) where {N} = S.bits
 add_state!(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} = push!(S.bits, q)
-remove_state!(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} = delete!(S.bits, q)
+remove_state!(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
+    delete!(S.bits, q)
 empty_states!(S::ExplicitIdSet{N}) where {N} = empty!(S.bits)
-
-
 
 # --------------------------
 
-
 struct MappingSet{N} <: AbstractStateSet{N} end
 
-contains_state(::MappingSet{N}, m::AbstractMapping{N}, q::Int) where {N} = is_valid_state(m, q)
+contains_state(::MappingSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
+    is_valid_state(m, q)
 enum_states(::MappingSet{N}, m::AbstractMapping{N}) where {N} = 1:get_n_state(m)
 get_n_state(::MappingSet{N}, m::AbstractMapping{N}) where {N} = get_n_state(m)
 
@@ -192,8 +200,7 @@ add_state!(::MappingSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
     error("MappingSet is read-only")
 remove_state!(::MappingSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
     error("MappingSet is read-only")
-empty_states!(::MappingSet{N}) where {N} =
-    error("MappingSet is read-only")
+empty_states!(::MappingSet{N}) where {N} = error("MappingSet is read-only")
 
 # -------------------------- 
 
@@ -201,35 +208,42 @@ mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
     set::UT.LazySetMinus
 end
 
-ImplicitStateSet{N}() where {N} =
-    ImplicitStateSet{N}(UT.LazySetMinus(UT.LazySetUnion{N,Float64}(), UT.LazySetUnion{N,Float64}()))
-
+ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(
+    UT.LazySetMinus(UT.LazySetUnion{N, Float64}(), UT.LazySetUnion{N, Float64}()),
+)
 
 # --------------------------
 # Grid helpers
 # --------------------------
 _cell_center(m::GridMapping, q::Int) = get_coord_by_state(m, q)
-struct CellCornerIter{N,T}
-    c::SVector{N,T}
-    r::SVector{N,T}
+struct CellCornerIter{N, T}
+    c::SVector{N, T}
+    r::SVector{N, T}
 end
-Base.iterate(it::CellCornerIter{N,T}, mask::Int=0) where {N,T} = _iterate_corners(it, mask)
-function _iterate_corners(it::CellCornerIter{N,T}, mask::Int) where {N,T}
+Base.iterate(it::CellCornerIter{N, T}, mask::Int = 0) where {N, T} =
+    _iterate_corners(it, mask)
+function _iterate_corners(it::CellCornerIter{N, T}, mask::Int) where {N, T}
     mask >= (1 << N) && return nothing
     c, r = it.c, it.r
-    x = SVector{N,T}(ntuple(i -> ((mask >> (i-1)) & 0x01) == 0 ? c[i]-r[i] : c[i]+r[i], N))
+    x = SVector{N, T}(ntuple(i -> ((mask >> (i-1)) & 0x01) == 0 ? c[i]-r[i] : c[i]+r[i], N))
     return (x, mask + 1)
 end
 function _cell_corner_iter(m::GridMapping, q::Int)
     grid = get_grid(m)
-    pos  = get_pos_by_state(m, q)
-    c    = get_coord_by_pos(grid, pos)
-    r    = get_h(grid) / 2
+    pos = get_pos_by_state(m, q)
+    c = get_coord_by_pos(grid, pos)
+    r = get_h(grid) / 2
     return CellCornerIter(c, r)
 end
 
-contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N} = contains_state(S, m, q; incl_mode=INNER)
-function contains_state(S::ImplicitStateSet{N}, m::GridMapping, q::Int; incl_mode=INNER) where {N}
+contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N} =
+    contains_state(S, m, q; incl_mode = INNER)
+function contains_state(
+    S::ImplicitStateSet{N},
+    m::GridMapping,
+    q::Int;
+    incl_mode = INNER,
+) where {N}
     if !is_valid_state(m, q)
         return false
     end
@@ -264,8 +278,10 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping, q::Int; incl_mod
     end
 end
 
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} = enum_states(S, m, INNER)
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}, incl_mode::INCL_MODE) where {N} = get_states_from_set(m, S.set, incl_mode)
+enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} =
+    enum_states(S, m, INNER)
+enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}, incl_mode::INCL_MODE) where {N} =
+    get_states_from_set(m, S.set, incl_mode)
 
 function add_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
     S.set = UT.add_set(S.set, set)
@@ -278,7 +294,8 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    S.set = UT.LazySetMinus(UT.LazySetUnion{N,Float64}(), UT.LazySetUnion{N,Float64}())
+    return S.set =
+        UT.LazySetMinus(UT.LazySetUnion{N, Float64}(), UT.LazySetUnion{N, Float64}())
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =
@@ -289,7 +306,8 @@ remove_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =
 
 # --------------------------
 
-struct UnionStateSet{N,S1<:AbstractStateSet{N},S2<:AbstractStateSet{N}} <: AbstractStateSet{N}
+struct UnionStateSet{N, S1 <: AbstractStateSet{N}, S2 <: AbstractStateSet{N}} <:
+       AbstractStateSet{N}
     A::S1
     B::S2
 end
@@ -300,11 +318,10 @@ contains_state(S::UnionStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
 enum_states(S::UnionStateSet{N}, m::AbstractMapping{N}) where {N} =
     unique_states(Iterators.flatten((enum_states(S.A, m), enum_states(S.B, m))))
 
-
-    
 # --------------------------
 
-struct SetMinusStateSet{N,S1<:AbstractStateSet{N},S2<:AbstractStateSet{N}} <: AbstractStateSet{N}
+struct SetMinusStateSet{N, S1 <: AbstractStateSet{N}, S2 <: AbstractStateSet{N}} <:
+       AbstractStateSet{N}
     A::S1
     B::S2
 end

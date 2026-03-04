@@ -12,7 +12,7 @@ println("Started test")
 
 @testset "ExplicitGridMapping" begin
     orig = SVector(0.0, 0.0)
-    h    = SVector(1.0, 2.0)
+    h = SVector(1.0, 2.0)
 
     grid = MP.GridFree(orig, h)
 
