@@ -1,13 +1,8 @@
-export SymbolicTimedHybridSystems
-
-module SymbolicTimedHybridSystems
-
 import HybridSystems: HybridSystem
 import StaticArrays: SVector
 import HybridSystems, MathematicalSystems
 import MathOptInterface as MOI
-
-import Dionysos
+import LinearAlgebra as LA
 
 # ================================================================
 # Type definitions for type stability
@@ -42,6 +37,8 @@ struct TimedHybridSymbolicModel{S1, A, T, G}
     symbolic_automaton::A
     input_mapping::G
 end
+
+get_automaton(sym::TimedHybridSymbolicModel) = sym.symbolic_automaton
 
 # ================================================================
 # Structure for matching global abstract inputs
@@ -90,7 +87,7 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
     global_to_continuous = Dict{Int, Tuple{Int, Int}}()
     continuous_count = 0
     for (mode_id, (symmodel_dynam, _)) in enumerate(abstract_systems)
-        input_count = Dionysos.Symbolic.get_n_input(symmodel_dynam)
+        input_count = get_n_input(symmodel_dynam)
         for local_input_id in 1:input_count
             global_id = continuous_count + local_input_id
             continuous_to_global[(mode_id, local_input_id)] = global_id
@@ -201,7 +198,7 @@ function build_dynamical_symbolic_model(
         opt = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
     end
 
-    problem = Dionysos.Problem.EmptyProblem(system, system.X)
+    problem = PR.EmptyProblem(system, system.X)
     MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)
 
     for (k, v) in optimizer_kwargs
@@ -241,7 +238,7 @@ function build_mode_symbolic_abstractions(
             )
 
             # Build symbolic model for time
-            symbolic_time = Dionysos.Symbolic.TimeSymbolicModel(
+            symbolic_time = TimeSymbolicModel(
                 time_system,
                 get(optimizer_kwargs_dict[i], "time_step", nothing),
             )
@@ -266,7 +263,7 @@ function build_all_transitions(
 )
     # Pre-allocate transition list with exact count for intra-mode transitions
     intra_mode_transitions = sum(
-        Dionysos.Symbolic.get_n_transitions(abs_pair[1]) * length(abs_pair[2].tsteps)
+        get_n_transitions(abs_pair[1]) * length(abs_pair[2].tsteps)
         for abs_pair in mode_abstractions
     )
 
@@ -304,7 +301,7 @@ function add_intra_mode_transitions!(
 
         if n_time_steps == 1
             @inbounds for (target, source, local_input_id) in
-                          Dionysos.Symbolic.enum_transitions(symmodel_dynamics)
+                          enum_transitions(symmodel_dynamics)
                 global_input_id =
                     get_global_input_id(input_mapping, mode_id, local_input_id)
                 if global_input_id > 0  # Safety check
@@ -318,7 +315,7 @@ function add_intra_mode_transitions!(
             end
         else
             transitions_cache =
-                collect(Dionysos.Symbolic.enum_transitions(symmodel_dynamics))
+                collect(enum_transitions(symmodel_dynamics))
             @inbounds for k in 1:(n_time_steps - 1)
                 for (target, source, local_input_id) in transitions_cache
                     global_input_id =
@@ -383,10 +380,10 @@ function add_inter_mode_transitions!(
             guard_temporal = extract_temporal_part(guard)
 
             # Get all source states that intersect with the spatial guard
-            source_states = Dionysos.Symbolic.get_states_from_set(
+            source_states = get_states_from_set(
                 source_symmodel_dynamics,
                 guard_spatial,
-                Dionysos.Domain.INNER,
+                MP.INNER,
             )
 
             # Get all time indices that intersect with the temporal guard
@@ -406,7 +403,7 @@ function add_inter_mode_transitions!(
                 end
 
                 # Build the augmented source state [x1, x2, ..., xn, t]
-                source_continuous_state = Dionysos.Symbolic.get_concrete_state(
+                source_continuous_state = get_concrete_state(
                     source_symmodel_dynamics,
                     source_state,
                 )
@@ -422,7 +419,7 @@ function add_inter_mode_transitions!(
                 target_state =
                     find_symbolic_state(target_symmodel_dynamics, reset_continuous_part)
                 target_time_idx =
-                    Dionysos.Symbolic.ceil_time2int(target_time_model, reset_time_value)
+                    ceil_time2int(target_time_model, reset_time_value)
 
                 # Add the transition if both target state and time are valid
                 if target_state > 0 &&
@@ -466,7 +463,7 @@ function build_symbolic_automaton(
     @assert !isempty(mode_abstractions) "Mode abstractions cannot be empty"
 
     estimated_states = sum(
-        Dionysos.Symbolic.get_n_state(abs_pair[1]) * length(abs_pair[2].tsteps) for
+        get_n_state(abs_pair[1]) * length(abs_pair[2].tsteps) for
         abs_pair in mode_abstractions
     )
 
@@ -495,13 +492,13 @@ function build_symbolic_automaton(
         augmented_to_state_index[aug_state] = i
     end
 
-    symbolic_automaton = Dionysos.Symbolic.NewIndexedAutomatonList(nstates, ninputs)
+    symbolic_automaton = NewIndexedAutomatonList(nstates, ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = augmented_to_state_index[target]
         source_int = augmented_to_state_index[source]
 
-        Dionysos.Symbolic.add_transition!(
+        add_transition!(
             symbolic_automaton,
             source_int,
             target_int,
@@ -516,20 +513,6 @@ end
 # Main constructor for timed hybrid symbolic models
 # ================================================================
 
-# """
-#     build_timed_hybrid_symbolic_model(hs::HybridSystem, optimizer_list, optimizer_kwargs_dict)
-
-# Construct a complete timed hybrid symbolic model for a given hybrid system.
-# This is the main function users should call to build symbolic abstractions.
-
-# # Arguments
-# - `hs::HybridSystem`: The hybrid system to abstract
-# - `optimizer_list`: Vector of optimizer factory functions, one per mode
-# - `optimizer_kwargs_dict`: Vector of dictionaries containing optimizer parameters per mode
-
-# # Returns
-# - `TimedHybridSymbolicModel`: The constructed symbolic model with optimized performance
-# """
 function build_timed_hybrid_symbolic_model(
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
@@ -599,7 +582,7 @@ function find_symbolic_state(symmodel, continuous_state)
     end
 
     try
-        state_idx = Dionysos.Symbolic.get_abstract_state(symmodel, continuous_state)
+        state_idx = get_abstract_state(symmodel, continuous_state)
         if isnothing(state_idx) || state_idx <= 0
             return 0
         else
@@ -614,8 +597,8 @@ end
 # extract_spatial_part(guard)
 # Extract the spatial part (all but last dimension) from a guard (assumed to be a HyperRectangle).
 function extract_spatial_part(guard)
-    if isa(guard, Dionysos.Utils.HyperRectangle)
-        return Dionysos.Utils.HyperRectangle(guard.lb[1:(end - 1)], guard.ub[1:(end - 1)])
+    if isa(guard, UT.HyperRectangle)
+        return UT.HyperRectangle(guard.lb[1:(end - 1)], guard.ub[1:(end - 1)])
     else
         error("Unsupported guard type: $(typeof(guard))")
     end
@@ -624,7 +607,7 @@ end
 # extract_temporal_part(guard)
 # Extract the temporal part (last dimension) from a guard (assumed to be a HyperRectangle).
 function extract_temporal_part(guard)
-    if isa(guard, Dionysos.Utils.HyperRectangle)
+    if isa(guard, UT.HyperRectangle)
         return [guard.lb[end], guard.ub[end]]
     else
         error("Unsupported guard type: $(typeof(guard))")
@@ -656,7 +639,7 @@ enum_states(model::TimedHybridSymbolicModel) = 1:get_n_state(model)
 # """Enumerate input indices for a given mode with bounds checking"""
 function enum_inputs(model::TimedHybridSymbolicModel, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
-    return Dionysos.Symbolic.enum_inputs(model.mode_abstractions[mode_id])
+    return enum_inputs(model.mode_abstractions[mode_id])
 end
 
 # """
@@ -679,8 +662,8 @@ function get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
     dynamics_model = model.mode_abstractions[mode_id]
     time_model = model.time_abstractions[mode_id]
 
-    continuous_state = Dionysos.Symbolic.get_concrete_state(dynamics_model, state_id)
-    time_value = Dionysos.Symbolic.int2time(time_model, time_id)
+    continuous_state = get_concrete_state(dynamics_model, state_id)
+    time_value = int2time(time_model, time_id)
 
     return (continuous_state, time_value, mode_id)
 end
@@ -703,8 +686,8 @@ function get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
     time_model = model.time_abstractions[mode_id]
 
     # Find abstract state and time indices
-    state_id = Dionysos.Symbolic.get_abstract_state(dynamics_model, continuous_state)
-    time_id = Dionysos.Symbolic.floor_time2int(time_model, time_value)
+    state_id = get_abstract_state(dynamics_model, continuous_state)
+    time_id = floor_time2int(time_model, time_value)
 
     if isnothing(state_id) || time_id <= 0
         error("No valid abstract state found for augmented_state $augmented_state")
@@ -715,7 +698,7 @@ function get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
 end
 
 # """
-#     get_states_from_set(model::TimedHybridSymbolicModel, state_sets, time_sets, mode_indices; domain=Dionysos.Domain.INNER)
+#     get_states_from_set(model::TimedHybridSymbolicModel, state_sets, time_sets, mode_indices; domain=MP.INNER)
 
 # For each mode k in mode_indices, returns all abstract state indices (state_id, time_id, k)
 # such that state_id is in the abstraction of state_sets[k] and time_id corresponds to time in time_sets[k].
@@ -740,7 +723,7 @@ function get_states_from_set(
     state_sets,
     time_sets,
     mode_indices;
-    domain = Dionysos.Domain.INNER,
+    domain = MP.INNER,
 )
     # Input validation
     @assert length(state_sets) >= length(mode_indices) "Not enough state sets provided"
@@ -757,7 +740,7 @@ function get_states_from_set(
 
         # Get abstract states in the spatial set
         spatial_states =
-            Dionysos.Symbolic.get_states_from_set(dynamics_model, state_sets[idx], domain)
+            get_states_from_set(dynamics_model, state_sets[idx], domain)
 
         # Get time indices in the temporal interval
         if hasfield(typeof(time_sets[idx]), :lb) && hasfield(typeof(time_sets[idx]), :ub)
@@ -769,10 +752,10 @@ function get_states_from_set(
         end
 
         time_indices = collect(
-            Dionysos.Symbolic.ceil_time2int(
+            ceil_time2int(
                 time_model,
                 t_min,
-            ):Dionysos.Symbolic.floor_time2int(time_model, t_max),
+            ):floor_time2int(time_model, t_max),
         )
 
         # Find valid combinations
@@ -789,17 +772,7 @@ function get_states_from_set(
     return abstract_states
 end
 
-# """
-#     get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
 
-# Convert an abstract input ID to its concrete input representation.
-# Handles both continuous and switching inputs with proper safety checks.
-
-# # Safety Features
-# - Validates input and mode IDs
-# - Handles switching inputs appropriately
-# - Returns nothing for invalid inputs
-# """
 function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
 
@@ -809,7 +782,7 @@ function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode
         dynamics_model = model.mode_abstractions[mode_id]
         # local_info = (mode_id, local_input_id)
         local_input_id = local_info[2]
-        return Dionysos.Symbolic.get_concrete_input(dynamics_model, local_input_id)
+        return get_concrete_input(dynamics_model, local_input_id)
     elseif input_type == :switching
         # For switching inputs, there is no continuous concrete representation
         return nothing
@@ -819,23 +792,13 @@ function get_concrete_input(model::TimedHybridSymbolicModel, input_id::Int, mode
     end
 end
 
-# """
-#     get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mode_id::Int)
-
-# Convert a concrete continuous input to its abstract input ID.
-# Only works for continuous inputs within the specified mode.
-
-# # Safety Features
-# - Validates mode ID bounds
-# - Handles cases where no valid abstract input exists
-# """
 function get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
 
     dynamics_model = model.mode_abstractions[mode_id]
 
     # Try to find the abstract input in the current mode
-    local_input_id = Dionysos.Symbolic.get_abstract_input(dynamics_model, concrete_input)
+    local_input_id = get_abstract_input(dynamics_model, concrete_input)
 
     if !isnothing(local_input_id) && local_input_id > 0
         return get_global_input_id(model.input_mapping, mode_id, local_input_id)
@@ -844,4 +807,82 @@ function get_abstract_input(model::TimedHybridSymbolicModel, concrete_input, mod
     end
 end
 
+
+
+
+
+
+# Structure representing the symbolic abstraction of time for a mode in a hybrid system.
+struct TimeSymbolicModel{N, T}
+    tsteps::SVector{N, Float64}
+    time_domain::T
+    is_time_active::Bool
 end
+
+function TimeSymbolicModel(
+    sys::MathematicalSystems.ConstrainedLinearContinuousSystem,
+    tstep::Float64,
+)
+    A = sys.A
+    X = sys.X
+
+    tmin, tmax = try
+        X.lb[1], X.ub[1]
+    catch
+        error("Time domain X must have .lb and .ub fields (e.g., UT.HyperRectangle)")
+    end
+
+    if _is_identity_matrix(A)  # Time evolves
+        tsteps_vec = collect(tmin:tstep:tmax)
+        N = length(tsteps_vec)
+        tsteps = SVector{N, Float64}(tsteps_vec)
+        return TimeSymbolicModel{N, typeof(X)}(tsteps, X, true)
+    elseif _is_zero_matrix(A)  # Time is frozen
+        tsteps = SVector{1, Float64}(0.0)
+        return TimeSymbolicModel{1, typeof(X)}(tsteps, X, false)
+    else
+        error("Matrix A must be identity (time active) or zero (time frozen). Got: $A")
+    end
+end
+
+_is_identity_matrix(A::AbstractMatrix)::Bool = A ≈ LA.I(size(A, 1))
+_is_zero_matrix(A::AbstractMatrix)::Bool = all(iszero, A)
+
+# floor_time2int(tm::TimeSymbolicModel, t::Float64) -> Int
+# Return the index of the largest time step ≤ t.
+# If time is frozen, always returns 1.
+function floor_time2int(tm::TimeSymbolicModel, t::Float64)::Int
+    if tm.is_time_active
+        idx = findlast(x -> x <= t, tm.tsteps)
+        return idx === nothing ? 1 : idx
+    else
+        return 1
+    end
+end
+
+# int2time(tm::TimeSymbolicModel, idx::Int) -> Float64
+# Return the time value corresponding to index idx.
+# If time is frozen, always returns 0.0.
+function int2time(tm::TimeSymbolicModel, idx::Int)::Float64
+    if tm.is_time_active
+        @inbounds return tm.tsteps[idx]
+    else
+        return 0.0
+    end
+end
+
+# """
+#     ceil_time2int(tm::TimeSymbolicModel, t::Float64) -> Int
+
+# Return the index of the smallest time step ≥ t.
+# If time is frozen, always returns 1.
+# """
+function ceil_time2int(tm::TimeSymbolicModel, t::Float64)::Int
+    if tm.is_time_active
+        idx = findfirst(x -> x >= t, tm.tsteps)
+        return idx === nothing ? length(tm.tsteps) : idx
+    else
+        return 1
+    end
+end
+

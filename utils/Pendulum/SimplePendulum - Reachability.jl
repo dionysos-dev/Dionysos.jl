@@ -5,67 +5,27 @@ const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
-const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
+const SC = OP.SymbolicCertifier
 
-using Spot
-
-# ------------------------------------------------------------
-# 1) Define System
-# ------------------------------------------------------------
-include("../problems/simple_pendulum.jl");
-_X_ = UT.HyperRectangle(SVector(-π, -5.5), SVector(π, 5.5))
-_U_ = UT.LazySetMinus(
-    UT.HyperRectangle(SVector(-4.5), SVector(4.5)),
-    UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
-)
-concrete_system = SimplePendulum.system(; l = 1.0, g = 9.81, _X_ = _X_, _U_ = _U_)
-
-# ------------------------------------------------------------
-# 2) Define co-safe LTL problem with LazySets-style labeling
-# ------------------------------------------------------------
-
-_I_ = UT.HyperRectangle(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
-
-g1 = UT.HyperRectangle(
-    SVector(pi - 10.0 * pi / 180.0, -1.0),
-    SVector(pi + 15.0 * pi / 180.0, 1.0),
-)
-
-g2 = UT.HyperRectangle(
-    SVector(pi/2.0-10.0 * pi / 180.0, -0.4),
-    SVector(pi/2.0+10.0 * pi / 180.0, 0.4),
-)
-
-obs = UT.HyperRectangle(
-    SVector(-pi + 16.0 * pi / 180.0, -5.5),
-    SVector(-pi + 38.0 * pi / 180.0, 5.5),
-)
-
-φ = ltl"G(!obs) & F(g1 & F(g2))"
-
-labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :obs => obs)
-
-ap_semantics = Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :obs => MP.OUTER)
+include("../../problems/pendulum/simple_pendulum.jl");
 
 concrete_problem =
-    PR.CoSafeLTLProblem(concrete_system, _I_, φ, labeling, ap_semantics, false)
-
-# ------------------------------------------------------------
-# 3) Define solver meta-parameters
-# ------------------------------------------------------------
+    SimplePendulum.optimal_control_problem(; objective = "reachability_up_low_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power, _O_ = nothing
+transition_cost(x, u) = exp(10*abs(u[1]))
+# concrete_problem.transition_cost = transition_cost
 
 hx = SVector(3*(pi/180.0), 0.05)
 
 u0 = SVector(0.0)
 hu = SVector(0.3)
 
-tstep = 0.1
-
 periodic_dims = SVector(1)
 periods = SVector(2*pi)
 periodic_start = SVector(-pi)
+
+tstep = 0.1
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -87,6 +47,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
@@ -95,19 +56,15 @@ MOI.set(
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
-# ------------------------------------------------------------
-# 4) Solve the problem
-# ------------------------------------------------------------
-
 MOI.optimize!(optimizer);
 
-# ------------------------------------------------------------
-# 5) Get the results
-# ------------------------------------------------------------
-success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
-println("Co-safe LTL success: $success")
-
+# Get the results
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"));
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"));
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+concrete_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"));
+abstract_value_function =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
 
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
@@ -119,31 +76,35 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 # ------------------------------------------------------------
-# 6) Visualization
+# Closed loop simulation
 # ------------------------------------------------------------
 
-x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-q0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
+target_set =
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 nstep = 100
+function reached(x)
+    if x ∈ target_set
+        return true
+    else
+        return false
+    end
+end
 
-x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
+x0 = SVector(UT.sample(concrete_problem.initial_set)...)
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
-    q0,
     nstep;
-    update_on_next = true,
-    stopping = x -> false,
+    stopping = reached,
     wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # ------------------------------------------------------------
-# 7) Plots
+# Plots
 # ------------------------------------------------------------
 
-using Plots
-φ_str = string(φ)
-fig = plot(; aspect_ratio = :equal, title = "$φ_str")
+fig = plot(; aspect_ratio = :equal);
 concrete_system = concrete_problem.system
 plot!(
     UT.set_in_period(concrete_system.X, periodic_dims, periods, periodic_start);
@@ -153,15 +114,17 @@ plot!(
     label = "",
 );
 plot!(
-    concrete_problem;
-    ap_colors = Dict(:g1 => :red, :g2 => :cyan, :obs => :black),
-    aspect_ratio = :equal,
-)
-plot!(fig, x_traj; color = :blue, dims = [1, 2])
+    UT.set_in_period(concrete_problem.initial_set, periodic_dims, periods, periodic_start);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+);
+plot!(target_set; color = :red, opacity = 0.8, label = "Target set");
+plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ------------------------------------------------------------
-# 8) Visualization
+# Vizualization
 # ------------------------------------------------------------
 
 using RigidBodyDynamics
@@ -196,3 +159,60 @@ for k in eachindex(ts)
 end
 
 MeshCat.setanimation!(vis, anim; play = true)
+
+# ------------------------------------------------------------
+# Call local tube certifier
+# ------------------------------------------------------------
+
+AB.UniformGridAbstraction.reset!(optimizer)
+hx = SVector(3*(pi/180.0), 0.05) # SVector(2*(pi/180.0), 0.02)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
+
+cert = SC.UniformGridLocalTubeCertifier()
+candidate_x_traj = x_traj
+SC.set_optimizer!(cert, optimizer)
+SC.set_trajectory!(cert, candidate_x_traj)
+cert.radius = 0.8
+cert.incl_mode = MP.INNER
+
+SC.certify!(cert)
+
+println("\n=== Local Certification Result ===")
+println("success:    ", SC.get_success(cert))
+println("time (sec): ", SC.get_solve_time(cert))
+controller = SC.get_controller(cert)
+
+nstep = 300
+x_traj, u_traj = ST.get_closed_loop_trajectory(
+    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
+    controller,
+    x0,
+    nstep;
+    stopping = reached,
+);
+
+abstract_system = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set =
+    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+XMapping = SY.get_state_mapping(abstract_system)
+
+# ------------------------------------------------------------
+# Plot 
+# ------------------------------------------------------------
+
+fig = plot(; aspect_ratio = :equal, title = "ToyExample: candidate traj + sets")
+plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
+plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
+plot!(
+    cert.optimizer.abstraction_solver.abstraction_region;
+    color = :blue,
+    opacity = 0.55,
+    label = "Tube",
+)
+plot!((controllable_set, XMapping); color = :yellow, linecolor = :yellow, label = "Controllable set")
+plot!((uncontrollable_set, XMapping); color = :black, linecolor = :black, label = "Uncontrollable set")
+plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
+plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
+display(fig)

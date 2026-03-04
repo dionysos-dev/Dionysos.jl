@@ -16,6 +16,9 @@ const UT = Utils
 using ..System
 const ST = System
 
+using ..Problem
+const PR = Problem
+
 using ..Mapping
 const MP = Mapping
 
@@ -27,9 +30,9 @@ include("symbolic_model.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
 include("grid_based_symbolic_model/symbolic_model_list.jl")
-# include("grid_based_symbolic_model/lazy_symbolic_model_list.jl")
-# include("grid_based_symbolic_model/hierarchical_symbolic.jl")
-# include("alternating_simulation.jl")
+
+include("symbolic_hybrid_model/symbolic_hybrid_model.jl")
+
 
 import Polyhedra
 import IntervalArithmetic as IA

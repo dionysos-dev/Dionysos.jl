@@ -5,11 +5,10 @@ const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
-const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../problems/simple_pendulum.jl");
+include("../../problems/pendulum/simple_pendulum.jl");
 
 concrete_problem = SimplePendulum.safety_problem(; objective = "safety_up") # safety_up, safety_down
 

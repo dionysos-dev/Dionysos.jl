@@ -447,7 +447,7 @@ function script()
     return
 end
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "articulated_vehicle.jl"))
+include("../../problems/articulated_vehicle.jl");
 AV = ArticulatedVehicle
 
 script()

@@ -20,11 +20,11 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(60.0, 60.0))
-obsX = UT.LazySetUnionSetArray([UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))])
+obsX = UT.LazySetUnion([UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))])
 _X_ = UT.LazySetMinus(rectX, obsX)
 
 rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-obsU = UT.LazySetUnionSetArray([UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))])
+obsU = UT.LazySetUnion([UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))])
 _U_ = UT.LazySetMinus(rectU, obsU)
 
 dt = 0.8

@@ -322,7 +322,7 @@ function system(
         Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
     _X_ = Dionysos.Utils.LazySetMinus(
         _X_,
-        Dionysos.Utils.LazySetUnionSetArray(obstacles(model, x_idx)),
+        Dionysos.Utils.LazySetUnion(obstacles(model, x_idx)),
     )
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))

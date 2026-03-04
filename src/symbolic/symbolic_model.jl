@@ -28,6 +28,7 @@ enum_allowed_states(sym::SymbolicModel) = MP.enum_states(get_allowed_state_domai
 enum_inputs(sym::SymbolicModel) = MP.enum_states(get_input_domain(sym), get_input_mapping(sym))
 
 is_state(sym::SymbolicModel, q::Int) = MP.contains_state(get_state_domain(sym), get_state_mapping(sym), q)
+is_allowed_state(::SymbolicModel, ::Nothing) = false
 is_allowed_state(sym::SymbolicModel, q::Int) = MP.contains_state(get_allowed_state_domain(sym), get_state_mapping(sym), q)
 is_input(sym::SymbolicModel, q::Int) = MP.contains_state(get_input_domain(sym), get_input_mapping(sym), q)
 

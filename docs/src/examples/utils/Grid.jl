@@ -97,7 +97,7 @@ periods = SVector(30.0)
 start = SVector(0.0)
 
 # Create a LazySetMinus: free space = X minus obstacle
-free_space = UT.LazySetMinus(X, UT.LazySetUnionSetArray([obstacle]))
+free_space = UT.LazySetMinus(X, UT.LazySetUnion([obstacle]))
 
 # Create periodic grid domain
 domain = DO.PeriodicDomainList(periodic_dims, periods, start, hx)

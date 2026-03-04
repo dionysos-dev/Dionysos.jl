@@ -246,6 +246,6 @@ function build_abstract_problem(
         ),
         concrete_problem.state_cost,       # TODO: Transform continuous cost into discrete abstraction
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time,              # TODO: Translate continuous time into discrete steps
+        concrete_problem.time,             # TODO: Translate continuous time into discrete steps
     )
 end
