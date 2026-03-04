@@ -116,4 +116,3 @@ function build_refined_level(m::ImplicitGridMapping{N, T, G}; div::Int = 2) wher
     max2 = ntuple(i -> (m.max_pos[i] + 1) * div - 1, N)
     return ImplicitGridMapping(g2, min2, max2)
 end
-

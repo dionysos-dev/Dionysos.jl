@@ -72,4 +72,3 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     optimizer.abstraction_construction_time_sec = time() - t_ref
     return
 end
-

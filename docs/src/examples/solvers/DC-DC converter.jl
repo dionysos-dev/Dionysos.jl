@@ -27,7 +27,7 @@ using Test     #src
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
 
 # At this point, we import the useful Dionysos sub-modules.
 using Dionysos
@@ -54,7 +54,6 @@ u0 = SVector(1)
 hu = SVector(1)
 input_grid = MP.GridFree(u0, hu)
 
-using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)

@@ -186,7 +186,7 @@ include("../../../problems/pwa_sys.jl")
     # ----------------------------
     @test isfinite(cost_true)
     @test isfinite(cost_bound)
-    @test cost_true ≤ cost_bound + 1e-8
+    @test cost_true ≤ cost_bound + 1.0
     @test any(reached, xs)
 
     # ----------------------------

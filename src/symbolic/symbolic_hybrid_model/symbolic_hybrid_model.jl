@@ -862,4 +862,3 @@ function ceil_time2int(tm::TimeSymbolicModel, t::Float64)::Int
         return 1
     end
 end
-

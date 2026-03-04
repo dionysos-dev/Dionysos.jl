@@ -30,7 +30,8 @@
 # of the target set.
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
+import MathOptInterface as MOI
 
 using Dionysos
 const DI = Dionysos
