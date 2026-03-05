@@ -2,6 +2,7 @@ module Mapping
 
 using Base.Iterators
 import StaticArrays: SVector, SMatrix
+import LinearAlgebra as LA
 import RecipesBase: @recipe, @series
 import Colors
 

@@ -31,10 +31,10 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
     return (rect::UT.HyperRectangle, u) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
-        e = norm(r, Inf)
+        e = LA.norm(r, Inf)
         N = UT.get_dims(rect)
 
-        _H_ = SMatrix{N, N}(I) .* r
+        _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u)
@@ -76,10 +76,10 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
     return (rect::UT.HyperRectangle, u, tstep) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
-        e = norm(r, Inf)
+        e = LA.norm(r, Inf)
         N = UT.get_dims(rect)
 
-        _H_ = SMatrix{N, N}(I) .* r
+        _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u, tstep)
