@@ -5,40 +5,50 @@ using Plots
 
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 
 rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
 rectU = UT.HyperRectangle(SVector(-5), SVector(5));
 
-x0 = SVector(0.0, 0.0);
-h = SVector(1.0 / 5, 1.0 / 5);
-Xgrid = DO.GridFree(x0, h);
+x0 = SVector(0.0, 0.0)
+hx = SVector(1.0/5, 1.0/5)
+Xgrid = MP.GridFree(x0, hx);
 
-domainX = DO.DomainList(Xgrid);
-DO.add_set!(domainX, rectX, DO.INNER)
+u0 = SVector(0.0)
+hu = SVector(1.0/5)
+Ugrid = MP.GridFree(u0, hu);
 
-u0 = SVector(0.0);
-h = SVector(1.0 / 5);
-Ugrid = DO.GridFree(u0, h);
-domainU = DO.DomainList(Ugrid);
-DO.add_set!(domainU, rectU, DO.INNER);
+Xmap = MP.ExplicitGridMapping(Xgrid)
+Umap = MP.ExplicitGridMapping(Ugrid)
 
-tstep = 0.1;
-nsys = 10; # Runge-Kutta pre-scaling
+MP.add_set!(Xmap, rectX, MP.INNER)
+MP.add_set!(Umap, rectU, MP.INNER)
 
-A = SMatrix{2, 2}(0.0, 1.0, -3.0, 1.0);
-B = SMatrix{2, 1}(0.0, 1.0);
+Xset = MP.MappingSet{2}()  # default "all states"
+Uset = MP.MappingSet{1}()
 
-F_sys = let A = A
-    (x, u) -> A * x + B * u
-end;
+tstep = 0.1
 
-ngrowthbound = 10; # Runge-Kutta pre-scaling
-A_diag = diagm(diag(A));
-A_abs = abs.(A) - abs.(A_diag) + A_diag
-jacobian_bound = x -> abs.(A)
+A = SMatrix{2, 2}(0.0, 1.0, -3.0, 1.0)
+B = SMatrix{2, 1}(0.0, 1.0)
+
+F_sys = (x, u) -> A*x + B*u
+
+jacobian_bound = u -> abs.(A)
+
+concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+    F_sys,
+    2,
+    1,
+    nothing,
+    nothing,
+)
+
+continuous_approx =
+    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+discrete_approx = ST.discretize(continuous_approx, tstep)
 
 concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
     F_sys,
@@ -51,37 +61,41 @@ continuous_approx =
     ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
-symmodel = SY.SymbolicModelList(domainX, domainU)
-SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
+abstract_system = SY.SymbolicModelList(
+    Xmap,
+    Umap;
+    Xset = Xset,
+    Rset = Xset,  # allowed targets
+    Uset = Uset,
+)
+SY.compute_abstract_system_from_concrete_system!(abstract_system, discrete_approx)
 
-xpos = DO.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
+xpos = MP.get_pos_by_coord(Xgrid, SVector(1.1, 1.3))
+x_center = MP.get_coord_by_pos(Xgrid, xpos)
 
-x = DO.get_coord_by_pos(Xgrid, xpos)
+q = MP.get_state_by_pos(Xmap, xpos)
 abstract_input = 1
-u = SY.get_concrete_input(symmodel, abstract_input)
+u = SY.get_concrete_input(abstract_system, abstract_input)
 
 post = Int[]
-SY.compute_post!(post, symmodel.autom, symmodel.xpos2int[xpos], abstract_input)
+SY.compute_post!(post, SY.get_automaton(abstract_system), q, abstract_input)
 
-domainPostx = DO.DomainList(Xgrid);
-for pos in symmodel.xint2pos[post]
-    DO.add_pos!(domainPostx, pos)
-end
+post_set = SY.get_state_set_from_states(abstract_system, post)
 
-fig = plot(;
-    aspect_ratio = :equal,
-    xtickfontsize = 10,
-    ytickfontsize = 10,
-    guidefontsize = 16,
-);
-xlims!(-2, 2)
-ylims!(-2, 2)
+fig = plot(; aspect_ratio = :equal)
 dims = [1, 2]
+xlims!(-2, 2);
+ylims!(-2, 2)
 
-plot!(domainX; fc = "white", dims = dims);
-domainx = DO.DomainList(Xgrid);
-DO.add_pos!(domainx, xpos)
-plot!(domainx; fc = "blue", dims = dims);
-plot!(domainPostx; fc = "green", dims = dims)
+plot!((Xset, Xmap); fc = "grey", dims = dims, label = "X", efficient = false)
+plot!(
+    (MP.stateset_from_states(Xmap, [q]), Xmap);
+    fc = "blue",
+    dims = dims,
+    label = "x cell",
+)
+plot!((post_set, Xmap); fc = "green", dims = dims, label = "Post", efficient = false)
+
+display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

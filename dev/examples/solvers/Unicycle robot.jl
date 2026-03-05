@@ -27,10 +27,14 @@ using Test     #src
 # The nonlinear constraints are handled as obstacles in the state-space.
 
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
 
 # At this point, we import Dionysos and JuMP.
-using Dionysos, JuMP
+using Dionysos
+const DI = Dionysos
+const ST = DI.System
+const MP = DI.Mapping
+const SY = DI.Symbolic
 
 # Define the problem using JuMP
 # We first create a JuMP model:
@@ -139,12 +143,12 @@ set_attribute(model, "growthbound_map", growth_bound)
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(hx, hx, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+set_attribute(model, "state_grid", MP.GridFree(x0, h))
 
 # Definition of the grid of the input-space on which the abstraction is based (origin `u0` and input-space discretization `h`):
 u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+set_attribute(model, "input_grid", MP.GridFree(u0, h))
 
 optimize!(model);
 
@@ -161,15 +165,9 @@ concrete_system = concrete_problem.system;
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
 nstep = 100
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
 
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
@@ -198,13 +196,13 @@ plot!(
 );
 
 # We display the abstract specifications
+Xmapping = SY.get_state_mapping(abstract_system)
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmapping);
     color = :green,
-    efficient = false,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
     color = :red,
     efficient = false,
 );
