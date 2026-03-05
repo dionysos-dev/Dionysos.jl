@@ -215,4 +215,3 @@ function get_volume(grid::DeformedGrid)
     return grid.A !== nothing ? abs(LA.det(grid.A)) * get_volume(grid.underlying_grid) :
            get_volume(grid.underlying_grid)
 end
-
