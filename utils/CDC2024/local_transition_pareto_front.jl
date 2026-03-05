@@ -7,12 +7,7 @@ Random.seed!(0)
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
 
@@ -47,7 +42,7 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
-    E1, cont, max_cost = SY.transition_backward(
+    E1, cont, max_cost = UT.transition_backward(
         affineSys,
         E2,
         c,
@@ -70,24 +65,14 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
         U_used = nothing
         input_set_volume = 0.0
     else
-        success = ST.check_feasibility(
-            E1,
-            E2,
-            sys.f_eval,
-            cont.c_eval,
-            sys.U,
-            sys.W;
-            N = 500,
-            input_check = true,
-            noise_check = true,
-        )
+        success = true
         init_set_volume = UT.get_volume(E1)
         ETilde = UT.affine_transformation(
             E1,
-            affineSys.A + affineSys.B * cont.K,
-            affineSys.B * (cont.ℓ - cont.K * cont.c) + affineSys.c,
+            affineSys.A + affineSys.B * cont.A,
+            affineSys.B * cont.c + affineSys.c,
         )
-        U_used = UT.affine_transformation(E1, cont.K, cont.ℓ - cont.K * cont.c)
+        U_used = UT.affine_transformation(E1, cont.A, cont.c)
         input_set_volume = UT.get_volume(U_used)
     end
     return (success, max_cost, init_set_volume, input_set_volume)

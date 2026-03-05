@@ -86,8 +86,8 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Specific parameters
     early_stop::Union{Nothing, Bool}
     sparse_input::Bool
-    controllable_set::Union{Nothing, Dionysos.Domain.DomainList}
-    uncontrollable_set::Union{Nothing, Dionysos.Domain.DomainList}
+    controllable_set::Union{Nothing, MP.AbstractStateSet}
+    uncontrollable_set::Union{Nothing, MP.AbstractStateSet}
     value_fun_tab::Union{Nothing, Any} # Value function in tabular form, Inf means uncontrollable state
     abstract_value_function::Union{Nothing, Any}
     concrete_value_function::Union{Nothing, Any}
@@ -165,58 +165,51 @@ end
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t_ref = time()
 
-    # Ensure abstract system is set before proceeding
-    if optimizer.abstract_system === nothing
+    optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    end
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
-    # Build the abstract problem from the concrete problem
+    abstract_system = optimizer.abstract_system
+
+    # Build abstract problem
     optimizer.abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
+        build_abstract_problem(optimizer.concrete_problem, abstract_system)
 
-    # Compute the largest controllable set
+    # Initial set for early stop
     init_set =
         optimizer.early_stop ? optimizer.abstract_problem.initial_set :
-        Dionysos.Symbolic.enum_states(optimizer.abstract_problem.system)
+        SY.enum_states(abstract_system)
 
     optimizer.print_level >= 1 && println("compute_controller_reachability! started")
-    abstract_controller,
-    controllable_set_symbols,
-    uncontrollable_set_symbols,
-    value_fun_tab = SY.compute_worst_case_cost_controller(
-        optimizer.abstract_problem.system.autom,
-        optimizer.abstract_problem.target_set;
-        initial_set = init_set,
-        sparse_input = optimizer.sparse_input,
-        cost_function = optimizer.abstract_problem.transition_cost,
-    )
 
-    controllable_set = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        controllable_set_symbols,
-    )
-    uncontrollable_set = Dionysos.Symbolic.get_domain_from_states(
-        optimizer.abstract_system,
-        uncontrollable_set_symbols,
-    )
+    abstract_controller, controllable_ids, uncontrollable_ids, value_fun_tab =
+        SY.compute_worst_case_cost_controller(
+            SY.get_automaton(abstract_system),
+            optimizer.abstract_problem.target_set;
+            initial_set = init_set,
+            sparse_input = optimizer.sparse_input,
+            cost_function = optimizer.abstract_problem.transition_cost,
+        )
 
     optimizer.abstract_controller = abstract_controller
-    optimizer.controllable_set = controllable_set
-    optimizer.uncontrollable_set = uncontrollable_set
+    optimizer.controllable_set =
+        SY.get_state_set_from_states(abstract_system, controllable_ids)
+    optimizer.uncontrollable_set =
+        SY.get_state_set_from_states(abstract_system, uncontrollable_ids)
     optimizer.value_fun_tab = value_fun_tab
-    optimizer.abstract_value_function =
-        build_abstract_value_function(optimizer.value_fun_tab)
-    optimizer.concrete_value_function = build_concrete_value_function(
-        optimizer.abstract_system,
-        optimizer.abstract_value_function,
-    )
 
-    # Display results
-    if ⊆(optimizer.abstract_problem.initial_set, controllable_set_symbols)
-        optimizer.success = true
-    end
+    optimizer.abstract_value_function = build_abstract_value_function(value_fun_tab)
+    optimizer.concrete_value_function =
+        build_concrete_value_function(abstract_system, optimizer.abstract_value_function)
+
+    # success check: "initial_set ⊆ controllable"
+    xm = SY.get_state_mapping(abstract_system)
+    optimizer.success =
+        all(q -> MP.contains_state(optimizer.controllable_set, xm, q), init_set)
+
     optimizer.print_level >= 1 &&
         println("\n Reachability: terminated with $(optimizer.success)")
+
     optimizer.abstract_problem_time_sec = time() - t_ref
     return
 end
@@ -244,15 +237,15 @@ function build_abstract_problem(
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.initial_set,
-            Dionysos.Domain.OUTER,
+            MP.OUTER,
         ),
         Dionysos.Symbolic.get_states_from_set(
             abstract_system,
             concrete_problem.target_set,
-            Dionysos.Domain.INNER,
+            MP.INNER,
         ),
         concrete_problem.state_cost,       # TODO: Transform continuous cost into discrete abstraction
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time,              # TODO: Translate continuous time into discrete steps
+        concrete_problem.time,             # TODO: Translate continuous time into discrete steps
     )
 end

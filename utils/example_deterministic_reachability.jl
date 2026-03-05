@@ -3,8 +3,8 @@ using StaticArrays, Plots
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -24,11 +24,11 @@ concrete_system = concrete_problem.system
 
 x0 = SVector(0.0, 0.0, 0.0)
 h = SVector(0.2, 0.2, 0.2)
-state_grid = DO.GridFree(x0, h)
+state_grid = MP.GridFree(x0, h)
 
 u0 = SVector(0.0, 0.0)
 h = SVector(0.3, 0.3)
-input_grid = DO.GridFree(u0, h)
+input_grid = MP.GridFree(u0, h)
 
 using JuMP
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -65,13 +65,8 @@ concrete_value_function =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
 
 nstep = 300
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
+
 x0 = SVector(0.4, 0.4, 0.0)
 println(
     "Worst-case (upper bound) value for the initial point: ",
@@ -85,6 +80,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 )
 
+Xmap = SY.get_state_mapping(abstract_system)
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "")
 plot!(abstract_system; value_function = abstract_value_function)
@@ -97,18 +93,20 @@ plot!(
     label = "Target set",
 )
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
     color = :green,
+    efficient = false,
 )
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
     color = :red,
+    efficient = false,
 )
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
 display(fig)
 
 ####################################################################################
-#### PART 2 : Construct the determiized abstraction and solve a concrete problem ###
+### PART 2 : Construct the determinized abstraction and solve a concrete problem ###
 ####################################################################################
 
 println(
@@ -170,6 +168,7 @@ new_x_traj, new_u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 )
 
+Xmap = SY.get_state_mapping(determinized_abstract_system)
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "")
 plot!(determinized_abstract_system; value_function = abstract_value_function)
@@ -182,12 +181,14 @@ plot!(
     label = "Target set",
 )
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmap);
     color = :green,
+    efficient = false,
 )
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmap);
     color = :red,
+    efficient = false,
 )
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
 plot!(new_x_traj; ms = 2.0, arrows = false, color = :red)

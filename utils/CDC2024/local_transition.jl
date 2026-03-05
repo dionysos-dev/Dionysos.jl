@@ -9,12 +9,7 @@ Random.seed!(0)
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
-const SY = DI.Symbolic
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 function example_box_ellipsoid()
     c = [-10.0; -10.0]
@@ -59,7 +54,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     maxδx = 100.0
     maxδu = 100.0
 
-    E1, cont, cost = SY.transition_backward(
+    E1, cont, cost = UT.transition_backward(
         affineSys,
         E2,
         xnew,
@@ -78,43 +73,18 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
     ETilde = UT.affine_transformation(
         E1,
-        affineSys.A + affineSys.B * cont.K,
-        affineSys.B * (cont.ℓ - cont.K * cont.c) + affineSys.c,
+        affineSys.A + affineSys.B * cont.A,
+        affineSys.B * cont.c + affineSys.c,
     )
-    U_used = UT.affine_transformation(E1, cont.K, cont.ℓ - cont.K * cont.c)
+    U_used = UT.affine_transformation(E1, cont.A, cont.c)
     # Display results
     println()
     println("Max cost : ", cost)
     println("Volume of initial ellipsoid : ", UT.get_volume(E1))
     println("Input set volume : ", UT.get_volume(U_used))
-    println(
-        "Controller feasible : ",
-        ST.check_feasibility(
-            E1,
-            E2,
-            sys.f_eval,
-            cont.c_eval,
-            sys.U,
-            sys.W;
-            N = 500,
-            input_check = true,
-            noise_check = true,
-        ),
-    )
-    analysis = ST.ControllerAnalysis(
-        cont.c_eval,
-        sys.f_eval,
-        sys.W,
-        E1;
-        target_set = E2,
-        cost_eval = cost_eval,
-        dims = [1, 2],
-        N = 3000,
-    )
 
     # Display the initial set, target set and the image of the initial ellipsoid under the linear model approximation
     fig1 = plot(; aspect_ratio = :equal)
-    plot!(analysis; arrowsB = true, cost = false)
     plot!(ETilde; color = :blue)
     display(fig1)
 
@@ -133,7 +103,6 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     yticks!(-1:1:6)
     xlabel!("\$x_1\$")
     ylabel!("\$x_2\$")
-    plot!(analysis; arrowsB = false, cost = true)
     col1 = parse(ColorTypes.RGB, "#ff756f")
     col2 = parse(ColorTypes.RGB, "#64bc60")
     plot!(E2; color = col1)
@@ -168,7 +137,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 end
 
 E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [4.0; 4.0])
-U = UT.IntersectionSet([
+U = UT.LazySetIntersection([
     UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]),
     UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
     UT.HyperRectangle(SVector(-4.0, -5.0), SVector(4.0, 5.0)),

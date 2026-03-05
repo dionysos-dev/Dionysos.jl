@@ -8,7 +8,7 @@ using Base.Threads
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const PB = DI.Problem
+const PR = DI.Problem
 
 include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
 import .RS_tools
@@ -180,7 +180,7 @@ function problem(;
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
 )
     sys = system(; tstep = tstep, robot_urdf = robot_urdf)
-    return PB.EmptyProblem(sys, nothing)
+    return PR.EmptyProblem(sys, nothing)
 end
 
 end # module

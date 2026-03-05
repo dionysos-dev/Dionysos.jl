@@ -11,8 +11,6 @@ import SpecialFunctions: gamma
 using LinearAlgebra, JuMP
 import PlotUtils
 
-include("files/files_management.jl")
-
 include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
 
@@ -28,13 +26,16 @@ include("optim/branch_and_bound.jl")
 include("optim/bisection.jl")
 include("optim/newton_method.jl")
 
-include("lazy_set_operations.jl")
-include("rectangle.jl")
+include("sets/lazy_set_operations.jl")
+include("sets/rectangle.jl")
+include("sets/ellipsoid.jl")
+include("sets/degenerate_ellipsoid.jl")
+include("sets/polyhedron.jl")
+
 include("box.jl")
-include("ellipsoid.jl")
-include("degenerate_ellipsoid.jl")
-include("polyhedron.jl")
-include("intersection_set.jl")
+using JuMP
+include("ellipsoidal_transitions.jl")
+
 include("pclf.jl")
 
 end  # module Utils

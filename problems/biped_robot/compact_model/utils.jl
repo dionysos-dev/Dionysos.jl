@@ -6,8 +6,8 @@ using JLD2
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction

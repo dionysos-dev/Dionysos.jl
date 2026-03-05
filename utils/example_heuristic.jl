@@ -3,8 +3,8 @@ using StaticArrays, JuMP
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
 const ST = DI.System
+const MP = DI.Mapping
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
@@ -12,13 +12,13 @@ const AB = OP.Abstraction
 
 function build_heuristic_controller(
     concrete_problem::Dionysos.Problem.OptimalControlProblem,
-    state_grid::DO.GridFree,
-    input_grid::DO.GridFree,
+    state_grid::MP.GridFree,
+    input_grid::MP.GridFree,
     time_step::Real,
     jacobian_bound;
-    approx_mode = AB.UniformGridAbstraction.GROWTH,
+    approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # CENTER_SIMULATION, GROWTH
     sparse_input = true,
-    print_level = 1,
+    print_level = 2,
     return_optimizer = false,
 )
     # Step 1: Abstraction
@@ -65,8 +65,8 @@ end
 include("../problems/path_planning.jl")
 
 concrete_problem = PathPlanning.problem(; simple = true)
-state_grid = DO.GridFree(SVector(0.0, 0.0, 0.0), SVector(0.2, 0.2, 0.2))
-input_grid = DO.GridFree(SVector(0.0, 0.0), SVector(0.3, 0.3))
+state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0), SVector(0.2, 0.2, 0.2))
+input_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.3, 0.3))
 
 value_fun = build_heuristic_controller(
     concrete_problem,

@@ -9,9 +9,9 @@ using Base.Threads
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
-const PB = DI.Problem
 const ST = DI.System
+const PR = DI.Problem
+const MP = DI.Mapping
 const SY = DI.Symbolic
 
 # include the tools for the simulator from src
@@ -193,7 +193,7 @@ function problem(;
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
 )
     sys = system(; tstep = tstep, robot_urdf = robot_urdf)
-    return PB.EmptyProblem(sys, nothing)
+    return PR.EmptyProblem(sys, nothing)
 end
 
 end # module

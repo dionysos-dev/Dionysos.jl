@@ -4,16 +4,13 @@ This folder contains the data structures needed to encode the different abstract
 
 ```@docs
 Dionysos.Symbolic.SymbolicModel
-```
-
-```@docs
 Dionysos.Symbolic.GridBasedSymbolicModel
-Dionysos.Symbolic.SymbolicModelList
-Dionysos.Symbolic.LazySymbolicModelList
-Dionysos.Symbolic.compute_symmodel_from_hybridcontrolsystem!
 ```
 
 ```@docs
-Dionysos.Symbolic.is_deterministic
+Dionysos.Symbolic.SymbolicModelList
+```
+
+```@docs
 Dionysos.Symbolic.determinize_symbolic_model
 ```

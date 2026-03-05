@@ -162,7 +162,7 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
 end
 function with_xy_obstacles(_X_::UT.HyperRectangle; obstacles2d = xy_obstacles())
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
-    return UT.LazySetMinus(_X_, UT.LazyUnionSetArray(obs4d))
+    return UT.LazySetMinus(_X_, UT.LazySetUnion(obs4d))
 end
 
 # ----------------------------

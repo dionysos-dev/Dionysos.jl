@@ -4,7 +4,7 @@ import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const DO = DI.Domain
+const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -18,7 +18,7 @@ mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
     # Tube params
     radius::Any # control-theoretic parameter
     margin::T # numerical safety buffer
-    incl_mode::DO.INCL_MODE
+    incl_mode::MP.INCL_MODE
     n_between::Int # fixed densification: how many points to insert between each pair
     max_step::Union{Nothing, Float64}  # adaptative densification: insert enough points so ‖Δx‖∞ ≤ max_step
     enforce_safe_max_step::Bool
@@ -31,7 +31,7 @@ mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
     solve_time_sec::T
 
     function UniformGridLocalTubeCertifier{T}() where {T}
-        return new{T}(nothing, 0.1, 0.0, DO.INNER, 0, nothing, true, true, nothing, 0.0)
+        return new{T}(nothing, 0.1, 0.0, MP.INNER, 0, nothing, true, true, nothing, 0.0)
     end
 end
 
@@ -164,7 +164,9 @@ function build_tube(
     end
 
     # 3) build union of rectangles
-    rects = Vector{UT.HyperRectangle}()
+    N = length(xs[1])
+    T = eltype(xs[1])
+    rects = UT.HyperRectangle{N, T}[]
     sizehint!(rects, length(xs))
 
     for x in xs
@@ -174,7 +176,7 @@ function build_tube(
         push!(rects, UT.HyperRectangle(SVector(lb), SVector(ub)))
     end
 
-    tube = UT.LazyUnionSetArray(rects)
+    tube = UT.LazySetUnion(rects)
     tube = X_domain !== nothing ? tube ∩ X_domain : tube
     return tube
 end
