@@ -24,7 +24,7 @@ _U_ = UT.LazySetMinus(
 concrete_system = SimplePendulum.system(; l = 1.0, g = 9.81, _X_ = _X_, _U_ = _U_)
 
 # ------------------------------------------------------------
-# 2) Define co-safe LTL problem with LazySets-style labeling
+# 2) Define co-safe LTL problem with sets labeling
 # ------------------------------------------------------------
 
 _I_ = UT.HyperRectangle(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
