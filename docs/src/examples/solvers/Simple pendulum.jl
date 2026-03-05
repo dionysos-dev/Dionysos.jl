@@ -33,6 +33,7 @@ using StaticArrays, JuMP, Plots
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 
