@@ -14,7 +14,7 @@ using ..Utils
 UT = Utils
 
 include("pid_controller.jl")
-include("controlsystem.jl")
+include("linearization.jl")
 include("systems.jl")
 
 using Colors

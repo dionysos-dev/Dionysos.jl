@@ -1,65 +1,100 @@
-abstract type ControlSystem{N, T} end
-
-struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
-    tstep::Float64
-    measnoise::SVector{N, T}
-    sys_map::F
-    f::F2
-end
-
-function NewSimpleSystem(tstep, F_sys, measnoise::SVector{N, T}, nsys) where {N, T}
-    sys_map = let nsys = nsys
-        (x::SVector{N, T}, u, tstep) ->
-            runge_kutta4(F_sys, x, u, tstep, nsys)::SVector{N, T}
-    end
-    return SimpleSystem(tstep, measnoise, sys_map, F_sys)
-end
+import IntervalLinearAlgebra as ILA
 
 struct EllipsoidalAffineApproximatedSystem{}
     dynamics::Dict{UT.Ellipsoid, MS.NoisyConstrainedAffineControlDiscreteSystem}
     L::Dict{UT.Ellipsoid, Float64} # smoothness constant to bound error
 end
 
+# --------------------------
+# Helperss
+# --------------------------
+to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
+
+# Force a matrix into a concretely typed interval matrix (avoids Matrix{Real}).
+function as_interval_matrix(A)
+    AI = map(to_interval, A)
+    return Matrix{IA.Interval{Float64}}(AI)
+end
+
+# Conservative symmetric-ification (useful for Hessians).
+symmetrize(A) = (A .+ transpose(A)) ./ 2
+
+# Max absolute value of an interval.
+absmax(a::IA.Interval) = max(abs(IA.inf(a)), abs(IA.sup(a)))
+
+# Complex interval magnitude upper bound
+# For z = a + i b with a,b intervals, |z| <= sqrt( max|a|^2 + max|b|^2 )
+function absmax(z::Complex{<:IA.Interval})
+    ar = absmax(real(z))
+    ai = absmax(imag(z))
+    return sqrt(ar^2 + ai^2)
+end
+
+# If eigenbox ever returns a plain complex number
+absmax(z::Complex{<:Real}) = abs(z)
+
+# --------------------------
+# Method 1: Always-safe bound (very conservative)
+# --------------------------
+
 function interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
     n, m = size(mat)
     @assert n == m "Matrix must be square"
 
-    # Worst-case absolute matrix |A|
-    M = Array{Float64}(undef, n, n)
-    for j in 1:n, i in 1:n
+    M = Matrix{Float64}(undef, n, n)
+    @inbounds for j in 1:n, i in 1:n
         a = mat[i, j]
-        lo = IA.inf(a)
-        hi = IA.sup(a)
-        M[i, j] = max(abs(lo), abs(hi))
+        M[i, j] = max(abs(IA.inf(a)), abs(IA.sup(a)))
     end
 
-    # 1-norm (max column sum)
     norm1 = maximum(sum(abs, M; dims = 1))[]
-    # ∞-norm (max row sum)
     normInf = maximum(sum(abs, M; dims = 2))[]
 
     return sqrt(norm1 * normInf)
 end
 
-to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
+# --------------------------
+# Method 2: Tighter bound using IntervalLinearAlgebra (when it works)
+# --------------------------
 
-function _getLipschitzConstants(J, xi, rules)
-    L = zeros(Base.length(xi))
+function interval_matrix_eigenbox_bound(mat::AbstractMatrix)
+    HI = Matrix{IA.Interval{Float64}}(
+        map(x -> x isa IA.Interval ? x : IA.interval(float(x), float(x)), mat),
+    )
+    HI = (HI .+ transpose(HI)) ./ 2  # encourage real eigenvalue enclosure
+
+    λ = ILA.eigenbox(HI)             # may be intervals OR complex intervals
+    return maximum(absmax, λ)        # absmax now supports both
+end
+
+# --------------------------
+# Unified Lipschitz constant computation
+# --------------------------
+
+function _getLipschitzConstants(J, xi, rules; use_eigenbox::Bool = true)
+    L = zeros(Float64, length(xi))
+
     for (i, g) in enumerate(eachrow(J))
-        Hg_s = Symbolics.jacobian(g, xi) #gets symbolic hessian of the i-th component of f(x,u,w)
-        Hg = Symbolics.substitute(Hg_s, rules)
+        Hg_s = Symbolics.jacobian(g, xi)          # Hessian (symbolic)
+        Hg = Symbolics.substitute(Hg_s, rules)  # substitute intervals
         mat = Symbolics.value.(Hg)
 
-        if any(x -> isa(x, IA.Interval), mat)
-            # mixed Real / Interval => normalize to Interval
-            matI = map(to_interval, mat)
-            # conservative but safe Lipschitz bound
-            L[i] = interval_matrix_max_eig(matI)
-            # L[i] = abs(IntervalLinearAlgebra.eigenbox(mat)).hi if we import the package IntervalLinearAlgebra 
+        if any(x -> x isa IA.Interval, mat)
+            # interval / mixed case
+            HI = as_interval_matrix(mat)
+
+            if use_eigenbox
+                L[i] = interval_matrix_eigenbox_bound(HI)
+            else
+                L[i] = interval_matrix_max_eig(HI)
+            end
         else
-            L[i] = max(abs.(LA.eigen(mat).values)...)
+            # pure real case
+            vals = LA.eigen(Matrix{Float64}(mat)).values
+            L[i] = maximum(abs.(vals))
         end
     end
+
     return L
 end
 
@@ -96,7 +131,7 @@ function buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     return (MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L)
 end
 
-struct AffineApproximationDiscreteSystem #<: ControlSystem
+struct AffineApproximationDiscreteSystem
     constrainedAffineSys::MS.NoisyConstrainedAffineControlDiscreteSystem
     L::Any
     f_eval::Any
