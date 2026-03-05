@@ -96,6 +96,4 @@ plot!(
 )
 plot!((post_set, Xmap); fc = "green", dims = dims, label = "Post", efficient = false)
 
-display(fig)
-
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

@@ -131,6 +131,5 @@ plot!(
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
-display(fig)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

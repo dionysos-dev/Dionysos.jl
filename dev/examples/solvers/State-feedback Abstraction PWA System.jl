@@ -114,7 +114,7 @@ concrete_value_function =
 abstract_value_function =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
 
-# # ### Simulation
+# # Simulation
 
 # Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
@@ -183,7 +183,6 @@ plot!(
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
-display(fig)
 
 # ## References
 #
