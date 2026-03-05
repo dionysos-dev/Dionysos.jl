@@ -14,4 +14,3 @@ function Base.in(x, H::CenteredPolyhedron)
     return all(abs.(H.A * x) .<= H.b)
 end
 # all(x .<= y) is (surprisingly) faster than all(i -> x[i] <= y[i], eachindex(x))
-# See also test_performances

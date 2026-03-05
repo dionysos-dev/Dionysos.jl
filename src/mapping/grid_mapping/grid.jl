@@ -88,11 +88,6 @@ function get_volume(grid::Grid)
     return UT.volume(UT.HyperRectangle(-r, r))
 end
 
-function sample_elem(grid::Grid, pos, N::Int)
-    rec = get_rec(grid, pos)
-    return UT.sample_from_rec(rec, N)
-end
-
 @recipe function f(grid::Grid, pos; dims = [1, 2])
     @series begin
         dims := dims
@@ -217,11 +212,7 @@ get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
     get_pos_lims(grid.underlying_grid, rect, incl_mode)
 
 function get_volume(grid::DeformedGrid)
-    return grid.A !== nothing ? abs(det(grid.A)) * get_volume(grid.underlying_grid) :
+    return grid.A !== nothing ? abs(LA.det(grid.A)) * get_volume(grid.underlying_grid) :
            get_volume(grid.underlying_grid)
 end
 
-function sample_elem(grid::DeformedGrid, pos, N::Int)
-    points = sample_elem(grid.underlying_grid, pos, N)
-    return [grid.f(x) for x in points]
-end
