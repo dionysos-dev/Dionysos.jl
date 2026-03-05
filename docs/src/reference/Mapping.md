@@ -22,7 +22,6 @@ Dionysos.Mapping.GridMapping
 ### Simple Mappings
 ```@docs
 Dionysos.Mapping.ListMapping
-Dionysos.Mapping.TimeGridMapping
 ```
 
 ### Grid Mappings
