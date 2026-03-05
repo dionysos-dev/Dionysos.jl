@@ -69,7 +69,7 @@ discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_ti
 println("Abstraction built.")
 
 # ------------------------------------------------------------
-# 3) Define co-safe LTL problem with LazySets-style labeling
+# 3) Define co-safe LTL problem with sets labeling
 # ------------------------------------------------------------
 
 _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))

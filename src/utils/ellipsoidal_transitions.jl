@@ -472,10 +472,12 @@ end
 function _getμν(L, nx, D, W)
     vertices_matrix = D * W
     noise_vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
-    return (
-        LazySets.vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:nx])),
-        noise_vertices,
-    )
+
+    r = collect(L[1:nx])                 # radii (half-widths)
+    c = zeros(eltype(r), nx)             # center at 0
+    X = LazySets.Hyperrectangle(c, r)    # represents [-r1,r1]×...×[-rnx,rnx]
+
+    return (LazySets.vertices_list(X), noise_vertices)
 end
 
 # the dynamic: Ax+Bu+c+Dw
