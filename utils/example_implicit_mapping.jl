@@ -29,12 +29,7 @@ periodic_start = SVector(0.5) # SVector(-pi)
 tstep = 0.1
 
 state_grid = MP.GridFree(x0, hx)
-state_grid = MP.get_grid_in_periods(
-    periodic_dims,
-    periods,
-    periodic_start,
-    hx,
-)
+state_grid = MP.get_grid_in_periods(periodic_dims, periods, periodic_start, hx)
 mapping_region = UT.HyperRectangle(SVector(-2pi, -8.0), SVector(2.5*pi, 8.0))
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -73,7 +68,7 @@ MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> SY.NewIndexedAutomatonList(n, m),
-) 
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("sparse_input"), true) ## 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)

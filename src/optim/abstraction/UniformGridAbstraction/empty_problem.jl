@@ -152,7 +152,6 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     use_implicit_mapping::Bool
     mapping_region::Union{Nothing, UT.HyperRectangle}
 
-
     Xset::Union{Nothing, MP.AbstractStateSet}
     Rset::Union{Nothing, MP.AbstractStateSet}
     use_implicit_stateset::Bool
@@ -415,14 +414,13 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
         m = MP.ImplicitGridMapping(grid, maprect; incl_mode = opt.incl_mode)
     else
         N = MP.get_dim(grid)
-        m = MP.ExplicitGridMapping{N,T}(grid)
+        m = MP.ExplicitGridMapping{N, T}(grid)
     end
 
     if opt.use_periodic_mapping
         P = length(opt.periodic_dims)
         start =
-            opt.periodic_start === nothing ?
-            SVector{P,T}(ntuple(_ -> zero(T), P)) :
+            opt.periodic_start === nothing ? SVector{P, T}(ntuple(_ -> zero(T), P)) :
             opt.periodic_start
         m = MP.PeriodicGridMapping(opt.periodic_dims, opt.periodic_periods, start, m)
     end
@@ -452,7 +450,6 @@ end
 function build_allowed_state_set(opt::OptimizerEmptyProblem)
     return opt.Rset === nothing ? copy(opt.Xset) : opt.Rset
 end
-
 
 function build_input_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     if opt.UMapping !== nothing

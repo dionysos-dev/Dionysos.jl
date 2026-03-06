@@ -213,57 +213,60 @@ mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
     incl_mode::INCL_MODE
 end
 
-
 # Helpers
-_to_minus(set::UT.LazySetMinus{N,T}) where {N,T} = set
+_to_minus(set::UT.LazySetMinus{N, T}) where {N, T} = set
 
-function _to_minus(set::UT.LazySetUnion{N,T}) where {N,T}
-    return UT.LazySetMinus(set, UT.LazySetUnion{N,T}())
+function _to_minus(set::UT.LazySetUnion{N, T}) where {N, T}
+    return UT.LazySetMinus(set, UT.LazySetUnion{N, T}())
 end
 
-function _to_minus(set::UT.AbstractSetNode{N,T}) where {N,T}
-    A = UT.LazySetUnion{N,T}()
+function _to_minus(set::UT.AbstractSetNode{N, T}) where {N, T}
+    A = UT.LazySetUnion{N, T}()
     UT.add_set!(A, set)
-    return UT.LazySetMinus(A, UT.LazySetUnion{N,T}())
+    return UT.LazySetMinus(A, UT.LazySetUnion{N, T}())
 end
 
-
-function ImplicitStateSet(set::UT.LazySetMinus{N,T}, incl_mode::INCL_MODE) where {N,T}
+function ImplicitStateSet(set::UT.LazySetMinus{N, T}, incl_mode::INCL_MODE) where {N, T}
     return ImplicitStateSet{N}(set, incl_mode)
 end
 
-function ImplicitStateSet(set::UT.LazySetUnion{N,T}, incl_mode::INCL_MODE) where {N,T}
+function ImplicitStateSet(set::UT.LazySetUnion{N, T}, incl_mode::INCL_MODE) where {N, T}
     return ImplicitStateSet{N}(_to_minus(set), incl_mode)
 end
 
-function ImplicitStateSet(set::UT.AbstractSetNode{N,T}, incl_mode::INCL_MODE) where {N,T}
+function ImplicitStateSet(set::UT.AbstractSetNode{N, T}, incl_mode::INCL_MODE) where {N, T}
     return ImplicitStateSet{N}(_to_minus(set), incl_mode)
 end
 
 function ImplicitStateSet(
     m::AbstractMapping{N},
-    set::UT.LazySetMinus{N,T},
+    set::UT.LazySetMinus{N, T},
     incl_mode::INCL_MODE,
-) where {N,T}
+) where {N, T}
     if is_periodic(m)
-        set = UT.set_in_period(set, get_periodic_dims(m), get_periods(m), get_periodic_starts(m))
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
     end
     return ImplicitStateSet{N}(set, incl_mode)
 end
 
 function ImplicitStateSet(
     m::AbstractMapping{N},
-    set::UT.LazySetUnion{N,T},
+    set::UT.LazySetUnion{N, T},
     incl_mode::INCL_MODE,
-) where {N,T}
+) where {N, T}
     return ImplicitStateSet(m, _to_minus(set), incl_mode)
 end
 
 function ImplicitStateSet(
     m::AbstractMapping{N},
-    set::UT.AbstractSetNode{N,T},
+    set::UT.AbstractSetNode{N, T},
     incl_mode::INCL_MODE,
-) where {N,T}
+) where {N, T}
     return ImplicitStateSet(m, _to_minus(set), incl_mode)
 end
 
@@ -298,7 +301,7 @@ function _cell_corner_iter(m::GridMapping, q::Int)
     return CellCornerIter(c, r)
 end
 
-function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N} 
+function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N}
     if !is_valid_state(m, q)
         return false
     end
@@ -333,11 +336,22 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where
     end
 end
 
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} = get_states_from_set(m, S.set, S.incl_mode)
+enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} =
+    get_states_from_set(m, S.set, S.incl_mode)
 
-function add_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set, incl_mode::INCL_MODE) where {N}
+function add_set!(
+    S::ImplicitStateSet{N},
+    m::AbstractMapping,
+    set,
+    incl_mode::INCL_MODE,
+) where {N}
     if is_periodic(m)
-        set = UT.set_in_period(set, get_periodic_dims(m), get_periods(m), get_periodic_starts(m))
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
     end
     S.set = UT.add_set(S.set, set)
     S.incl_mode = incl_mode
@@ -346,7 +360,12 @@ end
 
 function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
     if is_periodic(m)
-        set = UT.set_in_period(set, get_periodic_dims(m), get_periods(m), get_periodic_starts(m))
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
     end
     S.set = UT.remove_set(S.set, set)
     return
