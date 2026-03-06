@@ -1,6 +1,12 @@
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
 
-using Dionysos, JuMP
+using Dionysos
+const DI = Dionysos
+const ST = DI.System
+const MP = DI.Mapping
+const SY = DI.Symbolic
+const OP = DI.Optim
+const AB = OP.Abstraction
 
 model = Model(Dionysos.Optimizer);
 
@@ -40,20 +46,16 @@ function jacobian_bound_function(u)
 end
 set_attribute(model, "jacobian_bound", jacobian_bound_function)
 set_attribute(model, "time_step", 0.3)
-set_attribute(
-    model,
-    "approx_mode",
-    Dionysos.Optim.Abstraction.UniformGridAbstraction.GROWTH,
-)
+set_attribute(model, "approx_mode", AB.UniformGridAbstraction.GROWTH)
 set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, hx))
+set_attribute(model, "state_grid", MP.GridFree(x0, hx))
 
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, hu))
+set_attribute(model, "input_grid", MP.GridFree(u0, hu))
 
 optimize!(model);
 
@@ -74,16 +76,10 @@ total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 nstep = 100
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
 
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
@@ -108,13 +104,15 @@ plot!(
     label = "Target set",
 );
 
+Xmapping = SY.get_state_mapping(abstract_system)
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmapping);
     color = :green,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
     color = :red,
+    efficient = false,
 );
 
 plot!(x_traj; ms = 2.0, arrows = false)

@@ -1,6 +1,10 @@
-using StaticArrays, Plots
+using StaticArrays, JuMP, Plots
 
-using Dionysos, JuMP
+using Dionysos
+const DI = Dionysos
+const ST = DI.System
+const MP = DI.Mapping
+const SY = DI.Symbolic
 
 model = Model(Dionysos.Optimizer);
 
@@ -95,11 +99,11 @@ set_attribute(model, "growthbound_map", growth_bound)
 
 x0 = SVector(0.0, 0.0, 0.0);
 h = SVector(hx, hx, 0.2);
-set_attribute(model, "state_grid", Dionysos.Domain.GridFree(x0, h))
+set_attribute(model, "state_grid", MP.GridFree(x0, h))
 
 u0 = SVector(1.1, 0.0);
 h = SVector(0.3, 0.3);
-set_attribute(model, "input_grid", Dionysos.Domain.GridFree(u0, h))
+set_attribute(model, "input_grid", MP.GridFree(u0, h))
 
 optimize!(model);
 
@@ -112,15 +116,9 @@ concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system;
 
 nstep = 100
-function reached(x)
-    if x ∈ concrete_problem.target_set
-        return true
-    else
-        return false
-    end
-end
+reached(x) = x ∈ concrete_problem.target_set
 
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
@@ -145,13 +143,13 @@ plot!(
     label = "Target set",
 );
 
+Xmapping = SY.get_state_mapping(abstract_system)
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.initial_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.initial_set), Xmapping);
     color = :green,
-    efficient = false,
 );
 plot!(
-    Dionysos.Symbolic.get_domain_from_states(abstract_system, abstract_problem.target_set);
+    (SY.get_state_set_from_states(abstract_system, abstract_problem.target_set), Xmapping);
     color = :red,
     efficient = false,
 );
