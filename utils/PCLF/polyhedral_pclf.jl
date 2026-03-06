@@ -13,7 +13,7 @@ function script()
     A2 = [0.4750 9.1755; 1.8955 0.1850]
     f = HybridSystems.discreteswitchedsystem([A1, A2])
 
-    G = PCLF.generate_DeBruijn_edges(2, 2; dual = false)
+    G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
 
     optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 

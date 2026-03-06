@@ -307,6 +307,7 @@ function compute_polyhedral_pieces_pclf(
     a = 0.0
     b = 0.0
     for Ai in A
+        a = max(a, maximum(abs.(LinearAlgebra.eigvals(Ai))))
         b = max(b, LinearAlgebra.opnorm(Ai, Inf))   # infinity norm (max row sum)
     end
 
