@@ -62,12 +62,3 @@ function fix_and_eliminate_tail!(output, set::SortedTupleSet, values)
         end
     end
 end
-
-function fix_and_eliminate_tail2!(output, set::SortedTupleSet, values)
-    ensure_sorted!(set)
-    for el in set.data
-        if (el[2], el[3]) == values
-            push!(output, (first(el), el[4]))
-        end
-    end
-end
