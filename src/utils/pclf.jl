@@ -42,7 +42,8 @@ end
 
 # Polyhedral Lyapunov functions:
 mutable struct PolyhedralPiece <: AbstractPiece
-    h::Any
+    G::Matrix{Float64}      # m x n matrix of rank n
+    w::Vector{Float64}      # n-dimensional positive vector
 end
 
 function get_sublevel_set(piece::PolyhedralPiece, gamma::Float64)
@@ -224,8 +225,175 @@ function compute_quadratic_pieces_pclf(
     return PCLF(G, pieces, gamma)
 end
 
-function compute_polyhedral_pieces_pclf(f::HybridSystems.HybridSystem, G::LabDigraph)
-    return
+function compute_polyhedral_pieces_pclf(
+    f::HybridSystems.HybridSystem,
+    D::LabDigraph,
+    optimizer;
+    Gmats = :identity,
+    tol = 1e-8,
+    maxiter = 100,
+    MLF = false,
+    verbose = false,
+    min_w = 1e-3,
+)
+
+    # --- extract matrices from resetmaps ---
+    RMs = f.resetmaps
+    A = Vector{Matrix{Float64}}(undef, length(RMs))
+    for (i, rm) in enumerate(RMs)
+        if isa(rm, AbstractMatrix)
+            A[i] = Array(rm)
+        elseif :A in fieldnames(typeof(rm))
+            A[i] = Array(getfield(rm, :A))
+        else
+            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
+        end
+    end
+
+    # --- vertices and indexing for w variables ---
+    verts = collect(D.verts)
+    l_s = length(verts)
+    index_of = Dict{typeof(verts[1]), Int}()
+    for (i, v) in enumerate(verts)
+        index_of[v] = i
+    end
+
+    # Normalize Gmats input to a Vector indexed 1..l_s
+    # --- Build G_by_idx ---
+    n = size(A[1], 1)
+    G_by_idx = Vector{Matrix{Float64}}(undef, l_s)
+
+    if Gmats === :identity
+        # Default: all G_s = I
+        for i in 1:l_s
+            G_by_idx[i] = Matrix{Float64}(LinearAlgebra.I, n, n)
+        end
+
+    elseif isa(Gmats, Dict)
+        for (i, v) in enumerate(verts)
+            @assert haskey(Gmats, v) "Gmats missing vertex $v"
+            G_by_idx[i] = Array(Gmats[v])
+        end
+
+    elseif isa(Gmats, AbstractVector)
+        @assert length(Gmats) >= l_s "Gmats vector too short"
+        for i in 1:l_s
+            G_by_idx[i] = Array(Gmats[i])
+        end
+
+    else
+        error("Gmats must be :identity, Dict or Vector of matrices")
+    end
+
+    # sizes and inverses
+    n = size(G_by_idx[1], 1)
+    for i in 1:l_s
+        @assert size(G_by_idx[i], 1) == n && size(G_by_idx[i], 2) == n "All G matrices must be n×n"
+    end
+    Ginv = [inv(G_by_idx[i]) for i in 1:l_s]
+
+    # --- Precompute M matrices for each edge: M = |G_d * A_sigma * G_s^{-1}| ---
+    edge_list = D.edges  # expected iterable of (u,v,label)
+    Mlist = Vector{Tuple{Int, Int, Int, Matrix{Float64}}}()  # (ui,vi,sigma,M)
+    for (u, v, label) in edge_list
+        ui = index_of[u];
+        vi = index_of[v];
+        σ = Int(label)
+        M = abs.(G_by_idx[vi] * A[σ] * Ginv[ui])   # nonnegative n×n matrix
+        push!(Mlist, (ui, vi, σ, M))
+    end
+
+    # --- initial upper bound b: max row-sum among M matrices (finite) ---
+    a = 0.0
+    b = 0.0
+    for Ai in A
+        a = max(a, maximum(abs.(LinearAlgebra.eigvals(Ai))))
+        b = max(b, LinearAlgebra.opnorm(Ai, Inf))   # infinity norm (max row sum)
+    end
+
+    # --- bisection ---
+    iter = 0
+    feasible_at = false
+    while (b - a > tol) && (iter < maxiter)
+        iter += 1
+        gamma = (a + b) / 2
+
+        model = JuMP.Model(optimizer)
+        if !verbose
+            JuMP.set_silent(model)
+        end
+
+        # variables: w_i in R^n with strict positivity lower bound min_w
+        wvars = [JuMP.@variable(model, [1:n]) for i in 1:l_s]
+
+        # enforce strict positivity
+        for i in 1:l_s, k in 1:n
+            JuMP.@constraint(model, wvars[i][k] >= min_w)
+        end
+
+        # constraints: for every precomputed M (ui->vi): M * w_ui <= gamma * w_vi
+        for (ui, vi, σ, M) in Mlist
+            for k in 1:n
+                JuMP.@constraint(
+                    model,
+                    sum(M[k, p] * wvars[ui][p] for p in 1:n) <= gamma * wvars[vi][k]
+                )
+            end
+        end
+
+        # Feasibility check (no objective)
+        JuMP.optimize!(model)
+        st = JuMP.termination_status(model)
+        feasible_at = (st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT)
+
+        if feasible_at
+            b = gamma
+        else
+            a = gamma
+        end
+    end
+
+    gamma = b
+
+    # --- final solve to extract pieces (if requested) ---
+    pieces = Dict{Any, AbstractPiece}()
+    if MLF
+        model = JuMP.Model(optimizer)
+        if !verbose
+            JuMP.set_silent(model)
+        end
+
+        wvars = [JuMP.@variable(model, [1:n]) for i in 1:l_s]
+
+        # enforce strict positivity
+        for i in 1:l_s, k in 1:n
+            JuMP.@constraint(model, wvars[i][k] >= min_w)
+        end
+
+        for (ui, vi, σ, M) in Mlist
+            for k in 1:n
+                JuMP.@constraint(
+                    model,
+                    sum(M[k, p] * wvars[ui][p] for p in 1:n) <= gamma * wvars[vi][k]
+                )
+            end
+        end
+
+        JuMP.optimize!(model)
+        st = JuMP.termination_status(model)
+        if !(st == MOI.OPTIMAL || st == MOI.FEASIBLE_POINT)
+            @warn "Final polyhedral LP not feasible/optimal; status = $st"
+        else
+            for (i, v) in enumerate(verts)
+                wnum = JuMP.value.(wvars[i])
+                # numeric safety: enforce positivity
+                wnum .= max.(wnum, min_w)
+                pieces[v] = PolyhedralPiece(G_by_idx[i], Array(wnum))
+            end
+        end
+    end
+
+    return PCLF(D, pieces, gamma)
 end
 
 end # module
