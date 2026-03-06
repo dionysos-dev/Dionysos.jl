@@ -157,14 +157,6 @@ aug_x_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
 )
 
 # aug_state = (x, t, mode)
-# x_traj = ST.Trajectory([aug_state[1][1] for aug_state in aug_x_traj])
-# tx_traj = ST.Trajectory([SVector(aug[2], aug[1][1]) for aug in aug_x_traj])
-
-# fig = plot(; aspect_ratio = :equal);
-# plot!(tx_traj)
-# display(fig)
-
-# aug_state = (x, t, mode)
 tx_mode1 = ST.Trajectory([SVector(t, x[1]) for (x, t, k) in aug_x_traj if k == 1])
 tx_mode2 = ST.Trajectory([SVector(t, x[1]) for (x, t, k) in aug_x_traj if k == 2])
 
