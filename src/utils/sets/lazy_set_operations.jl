@@ -108,6 +108,18 @@ end
 add_set(U::LazySetUnion{N, T}, s) where {N, T} =
     (V = LazySetUnion{N, T}(copy(U.sets)); add_set!(V, s); V)
 
+function add_set(S::LazySetMinus{N,T}, s::LazySetMinus{N,T}) where {N,T}
+    if isempty(s.B) || isequal(S.B, s.B)
+        Aunion = _promote_copy(S.A)
+        add_set!(Aunion, s.A)
+        return LazySetMinus(Aunion, S.B)
+    else
+        throw(ArgumentError(
+            "Nested LazySetMinus forbidden: cannot canonically add $(typeof(s)) to LazySetMinus unless s.B is empty or S.B == s.B"
+        ))
+    end
+end
+
 function add_set(S::LazySetMinus{N, T}, s) where {N, T}
     _assert_not_minus(s)
     Aunion = _promote_copy(S.A)

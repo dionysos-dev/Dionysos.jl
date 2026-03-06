@@ -9,13 +9,14 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 const SC = OP.SymbolicCertifier
 
-include("../../problems/Pendulum/simple_pendulum.jl");
+include("../problems/Pendulum/simple_pendulum.jl");
 
 concrete_problem =
     SimplePendulum.optimal_control_problem(; objective = "reachability_up_low_power") # reachability_up_high_power, reachability_up_medium_power, reachability_up_low_power, _O_ = nothing
 transition_cost(x, u) = exp(10*abs(u[1]))
 # concrete_problem.transition_cost = transition_cost
 
+x0 = SVector(0.0, 0.0)
 hx = SVector(3*(pi/180.0), 0.05)
 
 u0 = SVector(0.0)
@@ -23,14 +24,38 @@ hu = SVector(0.3)
 
 periodic_dims = SVector(1)
 periods = SVector(2*pi)
-periodic_start = SVector(-pi)
+periodic_start = SVector(0.5) # SVector(-pi)
 
 tstep = 0.1
+
+state_grid = MP.GridFree(x0, hx)
+state_grid = MP.get_grid_in_periods(
+    periodic_dims,
+    periods,
+    periodic_start,
+    hx,
+)
+mapping_region = UT.HyperRectangle(SVector(-2pi, -8.0), SVector(2.5*pi, 8.0))
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("XMapping"), XMapping) or:
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("mapping_region"), mapping_region)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
+
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("Xset"), Xset) or:
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_stateset"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.OUTER)
+
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("Rset"), Rset)
+
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(
     optimizer,
@@ -43,16 +68,13 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> SY.NewIndexedAutomatonList(n, m),
-)
+) 
+MOI.set(optimizer, MOI.RawOptimizerAttribute("sparse_input"), true) ## 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
@@ -97,9 +119,15 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 # ------------------------------------------------------------
 # Plots
 # ------------------------------------------------------------
+Rset = MOI.get(optimizer, MOI.RawOptimizerAttribute("Rset"))
+Xset = MOI.get(optimizer, MOI.RawOptimizerAttribute("Xset"))
+XMapping = MOI.get(optimizer, MOI.RawOptimizerAttribute("XMapping"))
 
 fig = plot(; aspect_ratio = :equal);
 concrete_system = concrete_problem.system
+plot!(XMapping; color = :blue, opacity = 0.15, label = "Rset")
+# plot!((Rset, XMapping); color = :grey, opacity = 0.15, label = "Rset")
+# plot!((Xset, XMapping); color = :grey, opacity = 0.25, label = "Xset")
 plot!(
     UT.set_in_period(concrete_system.X, periodic_dims, periods, periodic_start);
     color = :grey,
@@ -115,108 +143,4 @@ plot!(
 );
 plot!(target_set; color = :red, opacity = 0.8, label = "Target set");
 plot!(x_traj; ms = 2.0, arrows = false)
-display(fig)
-
-# ------------------------------------------------------------
-# Vizualization
-# ------------------------------------------------------------
-
-using RigidBodyDynamics
-using MeshCat, MeshCatMechanisms
-
-# --- build mechanism/state from your URDF ---
-urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
-mechanism = parse_urdf(urdf)
-state = MechanismState(mechanism)
-joint = first(joints(mechanism))
-
-# --- build trajectory data ---
-state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
-ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
-
-# --- visualizer ---
-mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
-vis = mvis.visualizer
-open(vis)
-
-# --- animation (no Interpolations) ---
-fps = round(Int, 1 / tstep)
-anim = MeshCat.Animation(vis; fps = fps)
-
-for k in eachindex(ts)
-    θ = state_values[k][1]
-    set_configuration!(state, joint, θ)
-
-    MeshCat.atframe(anim, k) do
-        return MeshCatMechanisms.set_configuration!(mvis, configuration(state))
-    end
-end
-
-MeshCat.setanimation!(vis, anim; play = true)
-
-# ------------------------------------------------------------
-# Call local tube certifier
-# ------------------------------------------------------------
-
-AB.UniformGridAbstraction.reset!(optimizer)
-hx = SVector(3*(pi/180.0), 0.05) # SVector(2*(pi/180.0), 0.02)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-
-cert = SC.UniformGridLocalTubeCertifier()
-candidate_x_traj = x_traj
-SC.set_optimizer!(cert, optimizer)
-SC.set_trajectory!(cert, candidate_x_traj)
-cert.radius = 0.8
-cert.incl_mode = MP.INNER
-
-SC.certify!(cert)
-
-println("\n=== Local Certification Result ===")
-println("success:    ", SC.get_success(cert))
-println("time (sec): ", SC.get_solve_time(cert))
-controller = SC.get_controller(cert)
-
-nstep = 300
-x_traj, u_traj = ST.get_closed_loop_trajectory(
-    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-    controller,
-    x0,
-    nstep;
-    stopping = reached,
-);
-
-abstract_system = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-uncontrollable_set =
-    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-XMapping = SY.get_state_mapping(abstract_system)
-
-# ------------------------------------------------------------
-# Plot 
-# ------------------------------------------------------------
-
-fig = plot(; aspect_ratio = :equal, title = "ToyExample: candidate traj + sets")
-plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
-plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
-plot!(
-    cert.optimizer.abstraction_solver.abstraction_region;
-    color = :blue,
-    opacity = 0.55,
-    label = "Tube",
-)
-plot!(
-    (controllable_set, XMapping);
-    color = :yellow,
-    linecolor = :yellow,
-    label = "Controllable set",
-)
-plot!(
-    (uncontrollable_set, XMapping);
-    color = :black,
-    linecolor = :black,
-    label = "Uncontrollable set",
-)
-plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
-plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
 display(fig)

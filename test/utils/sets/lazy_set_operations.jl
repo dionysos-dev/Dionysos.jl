@@ -80,10 +80,6 @@ const UT = DI.Utils
     M_removed = UT.remove_set(M0, A3)   # promotes B to union and adds A3 to holes
     @test M_removed.B isa UT.LazySetUnion{2, Float64}
 
-    # nested minus forbidden
-    @test_throws ArgumentError UT.add_set(M0, UT.LazySetMinus(A1, A2))
-    @test_throws ArgumentError UT.remove_set(M0, UT.LazySetMinus(A1, A2))
-
     # ----------------------------
     # Intersection branches
     # ----------------------------

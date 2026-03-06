@@ -47,7 +47,7 @@ function SymbolicModelList(
     Rset_final = Rset === nothing ? Xset_final : Rset
 
     autom = automaton_constructor(
-        MP.get_n_state(Xset_final, XMapping),
+        maximum(MP.enum_states(Rset_final, XMapping)), #MP.get_n_state(Xset_final, XMapping),
         MP.get_n_state(Uset_final, UMap),
     )
 
