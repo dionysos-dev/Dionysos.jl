@@ -32,7 +32,6 @@ Dionysos.Utils.depth_first_tree_search
 Dionysos.Utils.MyPriorityQueue
 Dionysos.Utils.FIFOQueue
 Dionysos.Utils.SearchProblem
-Dionysos.Utils.BranchAndBound.Abstract_BB_Problem
 Dionysos.Utils.get_min_bounding_box
 Dionysos.Utils.NodeT
 Dionysos.Utils.collect_children
