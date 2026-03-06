@@ -13,7 +13,6 @@ import LinearAlgebra as LA
 import Clarabel
 
 @testset "PathCompleteFramework" begin
-
     @testset "edgeList_to_LabDigraph" begin
         edges = [(1, 2, 1.0), (2, 3, 2.0), (1, 3, 3.0)]
         G = PCLF.edgeList_to_LabDigraph(edges)
@@ -41,12 +40,8 @@ import Clarabel
         G = PCLF.generate_DeBruijn_edges(M, 1)
 
         expected_verts = Set([(1,), (2,)])
-        expected_edges = Set([
-            ((1,), (1,), 1),
-            ((1,), (2,), 2),
-            ((2,), (1,), 1),
-            ((2,), (2,), 2),
-        ])
+        expected_edges =
+            Set([((1,), (1,), 1), ((1,), (2,), 2), ((2,), (1,), 1), ((2,), (2,), 2)])
 
         @test G.verts == expected_verts
         @test Set(G.edges) == expected_edges
@@ -56,10 +51,7 @@ import Clarabel
         M = 2
         G = PCLF.generate_DeBruijn_edges(M, 2)
 
-        expected_verts = Set([
-            (1, 1), (1, 2),
-            (2, 1), (2, 2),
-        ])
+        expected_verts = Set([(1, 1), (1, 2), (2, 1), (2, 2)])
 
         expected_edges = Set([
             ((1, 1), (1, 1), 1),
@@ -143,7 +135,7 @@ import Clarabel
         optimizer = JuMP.optimizer_with_attributes(
             Clarabel.Optimizer,
             "max_iter" => 1000,
-            "verbose" => false
+            "verbose" => false,
         )
 
         pclf = PCLF.compute_quadratic_pieces_pclf(
@@ -182,7 +174,7 @@ import Clarabel
         optimizer = JuMP.optimizer_with_attributes(
             Clarabel.Optimizer,
             "max_iter" => 1000,
-            "verbose" => false
+            "verbose" => false,
         )
 
         pclf = PCLF.compute_polyhedral_pieces_pclf(

@@ -40,7 +40,7 @@ function script()
     plot(elli_1)
     plot!(elli_2)
     plot!(elli_3)
-    plot!(elli_4)
+    return plot!(elli_4)
 end
 
 script()

@@ -8,11 +8,11 @@ const UT = DI.Utils
 
 @testset "SortedTupleSet" begin
     @testset "constructor and basic push" begin
-        s = UT.SortedTupleSet{2,Tuple{Int,Int}}()
+        s = UT.SortedTupleSet{2, Tuple{Int, Int}}()
 
         @test length(s) == 0
         @test s.is_sorted == true
-        @test UT.get_data(s) == Tuple{Int,Int}[]
+        @test UT.get_data(s) == Tuple{Int, Int}[]
 
         UT.push_new!(s, (2, 20))
         @test length(s) == 1
@@ -25,7 +25,7 @@ const UT = DI.Utils
     end
 
     @testset "ensure_sorted!" begin
-        s = UT.SortedTupleSet{2,Tuple{Int,Int}}()
+        s = UT.SortedTupleSet{2, Tuple{Int, Int}}()
         UT.append_new!(s, [(3, 30), (1, 10), (2, 20)])
 
         @test s.is_sorted == false
@@ -37,7 +37,7 @@ const UT = DI.Utils
     end
 
     @testset "delete! with custom comparison" begin
-        s = UT.SortedTupleSet{2,Tuple{Int,Int}}()
+        s = UT.SortedTupleSet{2, Tuple{Int, Int}}()
         UT.append_new!(s, [(1, 10), (2, 20), (2, 99), (3, 30)])
 
         Base.delete!(s, (2, 0), (a, b) -> a[1] == b[1])
@@ -47,7 +47,7 @@ const UT = DI.Utils
     end
 
     @testset "empty!" begin
-        s = UT.SortedTupleSet{2,Tuple{Int,Int}}()
+        s = UT.SortedTupleSet{2, Tuple{Int, Int}}()
         UT.append_new!(s, [(1, 10), (2, 20)])
 
         out = empty!(s)
@@ -59,7 +59,7 @@ const UT = DI.Utils
     end
 
     @testset "fix_and_eliminate_first on pairs" begin
-        s = UT.SortedTupleSet{2,Tuple{Int,Int}}()
+        s = UT.SortedTupleSet{2, Tuple{Int, Int}}()
         UT.append_new!(s, [(2, 20), (1, 10), (1, 11), (3, 30)])
 
         vals = collect(UT.fix_and_eliminate_first(s, 1))
@@ -69,7 +69,7 @@ const UT = DI.Utils
     end
 
     @testset "fix_and_eliminate_first on triples" begin
-        s = UT.SortedTupleSet{3,Tuple{Int,Int,Int}}()
+        s = UT.SortedTupleSet{3, Tuple{Int, Int, Int}}()
         UT.append_new!(s, [(2, 20, 200), (1, 10, 100), (1, 11, 101), (3, 30, 300)])
 
         vals = collect(UT.fix_and_eliminate_first(s, 1))
@@ -78,7 +78,7 @@ const UT = DI.Utils
     end
 
     @testset "fix_and_eliminate_tail!" begin
-        s = UT.SortedTupleSet{3,Tuple{Int,Int,Int}}()
+        s = UT.SortedTupleSet{3, Tuple{Int, Int, Int}}()
         UT.append_new!(s, [(1, 4, 5), (2, 4, 5), (3, 7, 8), (9, 4, 5)])
 
         out = Int[]
@@ -94,6 +94,5 @@ const UT = DI.Utils
         @test s == Set([1, 2, 3, 4])
     end
 end
-
 
 end # module
