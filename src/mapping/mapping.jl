@@ -43,6 +43,8 @@ get_dim(::AbstractMapping{N, T}) where {N, T} = N
 is_valid_state(m::AbstractMapping, q::Int) = (1 <= q <= get_n_state(m))
 enum_coords(m::AbstractMapping) = (get_coord_by_state(m, q) for q in enum_states(m))
 
+is_periodic(m::AbstractMapping) = false
+
 Base.empty!(m::AbstractMapping) =
     error("empty!(::$(typeof(m))) not implemented (mapping is read-only or not finite)")
 

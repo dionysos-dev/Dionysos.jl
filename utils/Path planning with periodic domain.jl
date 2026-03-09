@@ -11,7 +11,6 @@ const AB = OP.Abstraction
 
 include("../problems/path_planning.jl");
 
-# and we can instantiate the DC system with the provided system
 concrete_problem = PathPlanning.problem(; simple = true)
 concrete_system = concrete_problem.system
 
@@ -19,31 +18,48 @@ x0 = SVector(0.0, 0.1, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
+tstep = 0.3;
 periodic_dims = SVector(2); # SVector(1, 2);, 
 periods = SVector(10.0); # SVector(4.0, 10.0);
-periodic_start = SVector(0.0); # SVector(1.0);
+periodic_start = SVector(0.0); # SVector(0.0, 0.0);
+mapping_region =
+    UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 11.0, pi + 0.4))
 
+# Intantiate the optimizer
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
+# Set the control problem
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), MP.GridFree(x0, hx))
+
+# State Mapping attributes
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("mapping_region"), mapping_region)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
+
+# State set attributes
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_stateset"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.INNER)
+
+# Input Mapping attributes
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
+# Time Mapping attributes
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+
+# Other attributes
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
     PathPlanning.jacobian_bound(),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false) # true
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)

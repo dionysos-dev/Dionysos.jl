@@ -44,6 +44,8 @@ affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
 get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 
+_outer_box(X::HyperRectangle) = X
+
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
     vertices = zeros(n, 2^n)

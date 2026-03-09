@@ -149,9 +149,12 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     XMapping::Union{Nothing, MP.GridMapping}
     state_grid::Union{Nothing, MP.Grid}
     h::Union{Nothing, Any}
+    use_implicit_mapping::Bool
+    mapping_region::Union{Nothing, UT.HyperRectangle}
 
     Xset::Union{Nothing, MP.AbstractStateSet}
     Rset::Union{Nothing, MP.AbstractStateSet}
+    use_implicit_stateset::Bool
 
     ## UMapping & Uset
     UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
@@ -208,8 +211,11 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
+            false, # use implicit mapping
             nothing,
             nothing,
+            nothing,
+            false, # use implicit stateset
             nothing,
             nothing,
             nothing,
@@ -361,7 +367,24 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
         ST.get_system(optimizer.discrete_time_system_approximation)
 end
 
-function _pick_state_region(opt::OptimizerEmptyProblem)
+function _validate_periodic_data(opt)
+    opt.use_periodic_mapping || return
+
+    pd = opt.periodic_dims
+    pp = opt.periodic_periods
+    ps = opt.periodic_start
+
+    P = length(pd)
+    length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
+    length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
+
+    N = UT.get_dims(opt.empty_problem.system.X)
+    if P > 0
+        all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
+    end
+end
+
+function build_abstraction_region(opt::OptimizerEmptyProblem)
     X = opt.abstraction_region
     X === nothing && (X = opt.empty_problem.region)
     X === nothing && (X = opt.empty_problem.system.X)
@@ -381,6 +404,7 @@ function build_state_grid(opt::OptimizerEmptyProblem)
 
     if opt.use_periodic_mapping
         _validate_model(opt, [:periodic_dims, :periodic_periods])
+        _validate_periodic_data(opt)
         if opt.periodic_start !== nothing
             return MP.get_grid_in_periods(
                 opt.periodic_dims,
@@ -396,28 +420,50 @@ function build_state_grid(opt::OptimizerEmptyProblem)
     end
 end
 
+function _validate_mapping_encloses_abstraction_region(opt)
+    opt.use_implicit_mapping || return
+
+    _validate_model(opt, [:mapping_region, :abstraction_region])
+
+    maprect = opt.mapping_region
+    absbox = UT._outer_box(opt.abstraction_region)
+
+    if !Base.issubset(absbox, maprect)
+        error(
+            "mapping_region must fully enclose abstraction_region.\n" *
+            "mapping_region = $maprect\n" *
+            "outer box of abstraction_region = $absbox",
+        )
+    end
+end
+
 function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     if opt.XMapping !== nothing
         return opt.XMapping
     end
 
     grid = build_state_grid(opt)
-    X = _pick_state_region(opt)
+    if opt.use_implicit_mapping
+        _validate_model(opt, [:mapping_region, :abstraction_region])
+        _validate_mapping_encloses_abstraction_region(opt)
+        maprect = opt.mapping_region
+        m = MP.ImplicitGridMapping(grid, maprect; incl_mode = opt.incl_mode)
+    else
+        N = MP.get_dim(grid)
+        m = MP.ExplicitGridMapping{N, T}(grid)
+    end
 
-    # default mapping: explicit enumeration restricted to X
-    N = MP.get_dim(grid)
-    m = MP.ExplicitGridMapping{N, T}(grid)
-
-    # wrap periodicity if requested
     if opt.use_periodic_mapping
         P = length(opt.periodic_dims)
         start =
-            opt.periodic_start === nothing ? SVector{P, T}(ntuple(_->zero(T), P)) :
+            opt.periodic_start === nothing ? SVector{P, T}(ntuple(_ -> zero(T), P)) :
             opt.periodic_start
         m = MP.PeriodicGridMapping(opt.periodic_dims, opt.periodic_periods, start, m)
     end
 
-    MP.add_set!(m, X, opt.incl_mode)
+    if !opt.use_implicit_mapping
+        MP.add_set!(m, opt.abstraction_region, opt.incl_mode)
+    end
 
     return m
 end
@@ -426,16 +472,19 @@ function build_state_set(opt::OptimizerEmptyProblem)
     if opt.Xset !== nothing
         return opt.Xset
     end
-    m = build_state_mapping(opt)
-    N = MP.get_dim(m)
-    return MP.MappingSet{N}()
+
+    XMapping = opt.XMapping
+    if opt.use_implicit_stateset
+        S = MP.ImplicitStateSet(XMapping, opt.abstraction_region, opt.incl_mode)
+    else
+        S = MP.ExplicitIdSet{MP.get_dim(XMapping)}()
+        MP.add_set!(S, XMapping, opt.abstraction_region, opt.incl_mode)
+    end
+    return S
 end
 
 function build_allowed_state_set(opt::OptimizerEmptyProblem)
-    if opt.Rset !== nothing
-        return opt.Rset
-    end
-    return build_state_set(opt)   # Rset === Xset
+    return opt.Rset === nothing ? copy(opt.Xset) : opt.Rset
 end
 
 function build_input_mapping(opt::OptimizerEmptyProblem{T}) where {T}
@@ -477,12 +526,18 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     build_system_approximation!(optimizer)
 
     # Create abstract system
+    optimizer.abstraction_region = build_abstraction_region(optimizer)
+    optimizer.XMapping = build_state_mapping(optimizer)
+    optimizer.UMapping = build_input_mapping(optimizer)
+    optimizer.Xset = build_state_set(optimizer)
+    optimizer.Rset = build_allowed_state_set(optimizer)
+    optimizer.Uset = build_input_set(optimizer)
     abstract_system = Dionysos.Symbolic.SymbolicModelList(
-        build_state_mapping(optimizer),
-        build_input_mapping(optimizer);
-        Xset = build_state_set(optimizer),
-        Rset = build_allowed_state_set(optimizer),
-        Uset = build_input_set(optimizer),
+        optimizer.XMapping,
+        optimizer.UMapping;
+        Xset = optimizer.Xset,
+        Rset = optimizer.Rset,
+        Uset = optimizer.Uset,
         automaton_constructor = optimizer.automaton_constructor,
     )
 

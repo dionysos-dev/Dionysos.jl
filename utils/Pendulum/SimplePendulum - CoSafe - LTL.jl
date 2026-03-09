@@ -14,7 +14,7 @@ using Spot
 # ------------------------------------------------------------
 # 1) Define System
 # ------------------------------------------------------------
-include("../../problems/pendulum/simple_pendulum.jl");
+include("../../problems/Pendulum/simple_pendulum.jl");
 
 _X_ = UT.HyperRectangle(SVector(-π, -5.5), SVector(π, 5.5))
 _U_ = UT.LazySetMinus(

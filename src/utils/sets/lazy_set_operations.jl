@@ -9,6 +9,7 @@ abstract type AbstractLazySet{N, T} end
 get_dims(::AbstractLazySet{N, T}) where {N, T} = N
 
 abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
+function _outer_box(X::AbstractSetNode) end
 
 # ----------------------------
 # LazySetUnion: contains ONLY nodes
@@ -24,6 +25,14 @@ LazySetUnion(v::Vector{<:AbstractSetNode{N, T}}) where {N, T} =
 
 Base.isempty(U::LazySetUnion) = isempty(U.sets)
 get_sets(U::LazySetUnion) = U.sets
+
+function _outer_box(U::LazySetUnion{N, T}) where {N, T}
+    isempty(U.sets) && error("Cannot compute outer box of empty LazySetUnion")
+    boxes = [_outer_box(s) for s in U.sets]
+    lb = reduce((a, b) -> min.(a, b), (B.lb for B in boxes))
+    ub = reduce((a, b) -> max.(a, b), (B.ub for B in boxes))
+    return HyperRectangle(lb, ub)
+end
 
 # ----------------------------
 # LazySetIntersection:
@@ -108,6 +117,20 @@ end
 add_set(U::LazySetUnion{N, T}, s) where {N, T} =
     (V = LazySetUnion{N, T}(copy(U.sets)); add_set!(V, s); V)
 
+function add_set(S::LazySetMinus{N, T}, s::LazySetMinus{N, T}) where {N, T}
+    if isempty(s.B) || isequal(S.B, s.B)
+        Aunion = _promote_copy(S.A)
+        add_set!(Aunion, s.A)
+        return LazySetMinus(Aunion, S.B)
+    else
+        throw(
+            ArgumentError(
+                "Nested LazySetMinus forbidden: cannot canonically add $(typeof(s)) to LazySetMinus unless s.B is empty or S.B == s.B",
+            ),
+        )
+    end
+end
+
 function add_set(S::LazySetMinus{N, T}, s) where {N, T}
     _assert_not_minus(s)
     Aunion = _promote_copy(S.A)
@@ -121,6 +144,8 @@ function remove_set(S::LazySetMinus{N, T}, s) where {N, T}
     add_set!(Bunion, s)
     return LazySetMinus(S.A, Bunion)
 end
+
+_outer_box(S::LazySetMinus) = _outer_box(S.A)
 
 # ----------------------------
 # Others

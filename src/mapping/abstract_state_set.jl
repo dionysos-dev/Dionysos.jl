@@ -180,6 +180,8 @@ mutable struct ExplicitIdSet{N} <: AbstractStateSet{N}
 end
 ExplicitIdSet{N}() where {N} = ExplicitIdSet{N}(BitSet())
 
+Base.copy(S::ExplicitIdSet{N}) where {N} = ExplicitIdSet{N}(copy(S.bits))
+
 contains_state(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} = in(q, S.bits)
 enum_states(S::ExplicitIdSet{N}, m::AbstractMapping{N}) where {N} = S.bits
 add_state!(S::ExplicitIdSet{N}, m::AbstractMapping{N}, q::Int) where {N} = push!(S.bits, q)
@@ -190,6 +192,8 @@ empty_states!(S::ExplicitIdSet{N}) where {N} = empty!(S.bits)
 # --------------------------
 
 struct MappingSet{N} <: AbstractStateSet{N} end
+
+Base.copy(::MappingSet{N}) where {N} = MappingSet{N}()
 
 contains_state(::MappingSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
     is_valid_state(m, q)
@@ -206,11 +210,72 @@ empty_states!(::MappingSet{N}) where {N} = error("MappingSet is read-only")
 
 mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
     set::UT.LazySetMinus
+    incl_mode::INCL_MODE
+end
+
+# Helpers
+_to_minus(set::UT.LazySetMinus{N, T}) where {N, T} = set
+
+function _to_minus(set::UT.LazySetUnion{N, T}) where {N, T}
+    return UT.LazySetMinus(set, UT.LazySetUnion{N, T}())
+end
+
+function _to_minus(set::UT.AbstractSetNode{N, T}) where {N, T}
+    A = UT.LazySetUnion{N, T}()
+    UT.add_set!(A, set)
+    return UT.LazySetMinus(A, UT.LazySetUnion{N, T}())
+end
+
+function ImplicitStateSet(set::UT.LazySetMinus{N, T}, incl_mode::INCL_MODE) where {N, T}
+    return ImplicitStateSet{N}(set, incl_mode)
+end
+
+function ImplicitStateSet(set::UT.LazySetUnion{N, T}, incl_mode::INCL_MODE) where {N, T}
+    return ImplicitStateSet{N}(_to_minus(set), incl_mode)
+end
+
+function ImplicitStateSet(set::UT.AbstractSetNode{N, T}, incl_mode::INCL_MODE) where {N, T}
+    return ImplicitStateSet{N}(_to_minus(set), incl_mode)
+end
+
+function ImplicitStateSet(
+    m::AbstractMapping{N},
+    set::UT.LazySetMinus{N, T},
+    incl_mode::INCL_MODE,
+) where {N, T}
+    if is_periodic(m)
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
+    end
+    return ImplicitStateSet{N}(set, incl_mode)
+end
+
+function ImplicitStateSet(
+    m::AbstractMapping{N},
+    set::UT.LazySetUnion{N, T},
+    incl_mode::INCL_MODE,
+) where {N, T}
+    return ImplicitStateSet(m, _to_minus(set), incl_mode)
+end
+
+function ImplicitStateSet(
+    m::AbstractMapping{N},
+    set::UT.AbstractSetNode{N, T},
+    incl_mode::INCL_MODE,
+) where {N, T}
+    return ImplicitStateSet(m, _to_minus(set), incl_mode)
 end
 
 ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(
     UT.LazySetMinus(UT.LazySetUnion{N, Float64}(), UT.LazySetUnion{N, Float64}()),
+    INNER,
 )
+
+Base.copy(S::ImplicitStateSet{N}) where {N} = ImplicitStateSet{N}(S.set, S.incl_mode)
 
 # --------------------------
 # Grid helpers
@@ -236,23 +301,16 @@ function _cell_corner_iter(m::GridMapping, q::Int)
     return CellCornerIter(c, r)
 end
 
-contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N} =
-    contains_state(S, m, q; incl_mode = INNER)
-function contains_state(
-    S::ImplicitStateSet{N},
-    m::GridMapping,
-    q::Int;
-    incl_mode = INNER,
-) where {N}
+function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where {N}
     if !is_valid_state(m, q)
         return false
     end
     set = S.set
-    if incl_mode == CENTER
+    if S.incl_mode == CENTER
         c = _cell_center(m, q)
         return UT.point_in_set(set, c)
 
-    elseif incl_mode == INNER
+    elseif S.incl_mode == INNER
         # conservative: all corners must be in A and not in B
         for xcorner in _cell_corner_iter(m, q)
             UT.point_in_set(set.A, xcorner) || return false
@@ -260,7 +318,7 @@ function contains_state(
         end
         return true
 
-    elseif incl_mode == OUTER
+    elseif S.incl_mode == OUTER
         # sufficient: some sample in A and not in B
         c = _cell_center(m, q)
         if UT.point_in_set(set.A, c) && !UT.point_in_set(set.B, c)
@@ -279,16 +337,36 @@ function contains_state(
 end
 
 enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}) where {N} =
-    enum_states(S, m, INNER)
-enum_states(S::ImplicitStateSet{N}, m::AbstractMapping{N}, incl_mode::INCL_MODE) where {N} =
-    get_states_from_set(m, S.set, incl_mode)
+    get_states_from_set(m, S.set, S.incl_mode)
 
-function add_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
+function add_set!(
+    S::ImplicitStateSet{N},
+    m::AbstractMapping,
+    set,
+    incl_mode::INCL_MODE,
+) where {N}
+    if is_periodic(m)
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
+    end
     S.set = UT.add_set(S.set, set)
+    S.incl_mode = incl_mode
     return
 end
 
 function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
+    if is_periodic(m)
+        set = UT.set_in_period(
+            set,
+            get_periodic_dims(m),
+            get_periods(m),
+            get_periodic_starts(m),
+        )
+    end
     S.set = UT.remove_set(S.set, set)
     return
 end

@@ -8,7 +8,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/pendulum/simple_pendulum.jl");
+include("../../problems/Pendulum/simple_pendulum.jl");
 
 concrete_problem = SimplePendulum.safety_problem(; objective = "safety_up") # safety_up, safety_down
 
