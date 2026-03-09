@@ -54,12 +54,18 @@ function compute_abstract_system_from_concrete_system!(
     concrete_system_approx;
     distributed::Bool = false,
     threaded::Bool = false,
+    procs = Distributed.workers(),
+    nparts::Int = max(length(procs), 1),
+    partition_strategy::Symbol = :roundrobin,
     kwargs...,
 )
     if distributed
         return compute_abstract_system_distributed!(
             symmodel,
             concrete_system_approx;
+            procs = procs,
+            nparts = nparts,
+            partition_strategy = partition_strategy,
             threaded_per_worker = threaded,
             kwargs...,
         )

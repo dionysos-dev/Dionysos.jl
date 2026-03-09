@@ -17,6 +17,8 @@ import Spot
 using JuMP
 import LinearAlgebra
 
+import Distributed
+
 export Optimizer
 
 include("empty_problem.jl")

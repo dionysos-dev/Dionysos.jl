@@ -1,5 +1,5 @@
 # ------------------------------------------------
-# Multiprocessing
+# Disibuted Abstraction
 # ------------------------------------------------
 import Distributed
 
@@ -25,6 +25,7 @@ get_state_mapping(sym::LocalGridBasedSymbolicModel) = get_state_mapping(sym.pare
 get_input_mapping(sym::LocalGridBasedSymbolicModel) = get_input_mapping(sym.parent)
 get_source_domain(sym::LocalGridBasedSymbolicModel) = sym.Xset_local
 get_retained_domain(sym::LocalGridBasedSymbolicModel) = get_retained_domain(sym.parent)
+get_input_domain(sym::LocalGridBasedSymbolicModel) = get_input_domain(sym.parent)
 
 # forward everything else to parent
 get_concrete_state(sym::LocalGridBasedSymbolicModel, q) = get_concrete_state(sym.parent, q)
@@ -66,12 +67,19 @@ function partition_source_states(
         error("Unknown partition strategy: $strategy")
     end
 
-    return [MP.ExplicitIdSet(p) for p in parts]
+    Xmap = get_state_mapping(symmodel)
+    return [MP.stateset_from_states(Xmap, p) for p in parts]
 end
 
 # ------------------------------------------------------------------
 # Local worker kernel
 # ------------------------------------------------------------------
+
+struct DistributedAbstractionResult
+    transitions::Vector{Tuple{Int,Int,Int}}
+    n_source_states::Int
+    n_transitions::Int
+end
 
 function _run_local_partition(
     local_symmodel::GridBasedSymbolicModel,
@@ -122,12 +130,8 @@ function compute_abstract_system_distributed!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
-    verbose && @info(
-        "Starting distributed abstraction",
-        nparts = nparts,
-        partition_strategy = partition_strategy,
-        threaded_per_worker = threaded_per_worker,
-    )
+    @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy = partition_strategy threaded_per_worker = threaded_per_worker
+
     transitions = collect_abstract_transitions_distributed(
         symmodel,
         concrete_system_approx;
@@ -148,31 +152,46 @@ function collect_abstract_transitions_distributed(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx;
     procs = Distributed.workers(),
-    nparts::Int = length(procs),
+    nparts::Int = max(length(procs), 1),
     partition_strategy::Symbol = :roundrobin,
     threaded_per_worker::Bool = false,
     verbose::Bool = true,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
-    isempty(procs) && error("No distributed workers available. Call Distributed.addprocs(...) first.")
     nparts >= 1 || error("nparts must be >= 1")
 
     parts = partition_source_states(symmodel, nparts; strategy = partition_strategy)
-    jobs = [(LocalGridBasedSymbolicModel(symmodel, Xset_local), concrete_system_approx) for Xset_local in parts]
+    jobs = [(LocalGridBasedSymbolicModel(symmodel, Xset_local), concrete_system_approx)
+            for Xset_local in parts]
 
-    # Keep worker-side verbosity off; otherwise outputs interleave badly.
-    results = Distributed.pmap(jobs) do job
-        local_symmodel, local_approx = job
-        _run_local_partition(
-            local_symmodel,
-            local_approx;
-            verbose = false,
-            update_interval = update_interval,
-            progress_dt = progress_dt,
-            threaded = threaded_per_worker,
-        )
-    end
+    results =
+        if isempty(procs)
+            map(jobs) do job
+                local_symmodel, local_approx = job
+                _run_local_partition(
+                    local_symmodel,
+                    local_approx;
+                    verbose = false,
+                    update_interval = update_interval,
+                    progress_dt = progress_dt,
+                    threaded = threaded_per_worker,
+                )
+            end
+        else
+            pool = Distributed.WorkerPool(procs)
+            Distributed.pmap(pool, jobs) do job
+                local_symmodel, local_approx = job
+                _run_local_partition(
+                    local_symmodel,
+                    local_approx;
+                    verbose = false,
+                    update_interval = update_interval,
+                    progress_dt = progress_dt,
+                    threaded = threaded_per_worker,
+                )
+            end
+        end
 
     transitions = Tuple{Int,Int,Int}[]
     total_sources = 0

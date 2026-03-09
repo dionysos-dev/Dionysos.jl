@@ -52,7 +52,7 @@ is_valid_pos(m::ImplicitGridMapping{N}, pos::NTuple{N, Int}) where {N} =
     all(d -> (m.min_pos[d] <= pos[d] <= m.max_pos[d]), 1:N)
 
 function get_state_by_pos(m::ImplicitGridMapping{N}, pos::NTuple{N, Int}) where {N}
-    is_valid_pos(m, pos) || throw(DomainError(pos, "pos out of implicit mapping"))
+    is_valid_pos(m, pos) || return nothing
     q = 1
     @inbounds for d in 1:N
         q += (pos[d] - m.min_pos[d]) * m.strides[d]

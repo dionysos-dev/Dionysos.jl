@@ -50,55 +50,6 @@ function collect_abstract_transitions(
 end
 
 # ------------------------------------------------
-# Low-level transition helpers
-# ------------------------------------------------
-
-function compute_abstract_transitions_from_rectangle!(
-    symmodel::GridBasedSymbolicModel,
-    reachable_set::UT.HyperRectangle,
-    abstract_state::Int,
-    abstract_input::Int,
-    translist::Vector{Tuple{Int,Int,Int}},
-)
-    targets, allin = get_states_from_set_strict(symmodel, reachable_set, MP.OUTER)
-    allin || return false
-
-    for target in targets
-        is_allowed_state(symmodel, target) || return false
-    end
-
-    for target in targets
-        push!(translist, (target, abstract_state, abstract_input))
-    end
-
-    return true
-end
-
-function compute_abstract_transitions_from_points!(
-    symmodel::GridBasedSymbolicModel,
-    reachable_points,
-    abstract_state::Int,
-    abstract_input::Int,
-    translist::Vector{Tuple{Int,Int,Int}},
-)
-    start_len = length(translist)
-
-    for y in reachable_points
-        target = get_abstract_state(symmodel, y)
-        if target === nothing || !is_allowed_state(symmodel, target)
-            resize!(translist, start_len)
-            return false
-        end
-        push!(translist, (target, abstract_state, abstract_input))
-    end
-
-    unique!(view(translist, start_len+1:length(translist)))
-    unique!(translist)  # simple first version
-    return true
-end
-
-
-# ------------------------------------------------
 # Generic helpers for sequential/threaded execution
 # ------------------------------------------------
 
@@ -177,10 +128,8 @@ function _collect_transitions_threaded!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
-    verbose && @info(
-        "Starting threaded abstraction",
-        nthreads = Threads.nthreads(),
-    )
+    verbose && (@info "Starting threaded abstraction" nthreads = Threads.nthreads())
+
     inputs = collect(enum_inputs(symmodel))
     states = collect(enum_source_states(symmodel))
 
@@ -239,6 +188,54 @@ function _collect_transitions_threaded!(
     end
 
     return out
+end
+
+# ------------------------------------------------
+# Low-level transition helpers
+# ------------------------------------------------
+
+function compute_abstract_transitions_from_rectangle!(
+    symmodel::GridBasedSymbolicModel,
+    reachable_set::UT.HyperRectangle,
+    abstract_state::Int,
+    abstract_input::Int,
+    translist::Vector{Tuple{Int,Int,Int}},
+)
+    targets, allin = get_states_from_set_strict(symmodel, reachable_set, MP.OUTER)
+    allin || return false
+
+    for target in targets
+        is_allowed_state(symmodel, target) || return false
+    end
+
+    for target in targets
+        push!(translist, (target, abstract_state, abstract_input))
+    end
+
+    return true
+end
+
+function compute_abstract_transitions_from_points!(
+    symmodel::GridBasedSymbolicModel,
+    reachable_points,
+    abstract_state::Int,
+    abstract_input::Int,
+    translist::Vector{Tuple{Int,Int,Int}},
+)
+    start_len = length(translist)
+
+    for y in reachable_points
+        target = get_abstract_state(symmodel, y)
+        if target === nothing || !is_allowed_state(symmodel, target)
+            resize!(translist, start_len)
+            return false
+        end
+        push!(translist, (target, abstract_state, abstract_input))
+    end
+
+    unique!(view(translist, start_len+1:length(translist)))
+    unique!(translist)  # simple first version
+    return true
 end
 
 # ------------------------------------------------
