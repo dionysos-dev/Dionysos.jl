@@ -9,6 +9,7 @@ abstract type AbstractLazySet{N, T} end
 get_dims(::AbstractLazySet{N, T}) where {N, T} = N
 
 abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
+function _outer_box(X::AbstractSetNode) end
 
 # ----------------------------
 # LazySetUnion: contains ONLY nodes
@@ -24,6 +25,14 @@ LazySetUnion(v::Vector{<:AbstractSetNode{N, T}}) where {N, T} =
 
 Base.isempty(U::LazySetUnion) = isempty(U.sets)
 get_sets(U::LazySetUnion) = U.sets
+
+function _outer_box(U::LazySetUnion{N, T}) where {N, T}
+    isempty(U.sets) && error("Cannot compute outer box of empty LazySetUnion")
+    boxes = [_outer_box(s) for s in U.sets]
+    lb = reduce((a, b) -> min.(a, b), (B.lb for B in boxes))
+    ub = reduce((a, b) -> max.(a, b), (B.ub for B in boxes))
+    return HyperRectangle(lb, ub)
+end
 
 # ----------------------------
 # LazySetIntersection:
@@ -135,6 +144,8 @@ function remove_set(S::LazySetMinus{N, T}, s) where {N, T}
     add_set!(Bunion, s)
     return LazySetMinus(S.A, Bunion)
 end
+
+_outer_box(S::LazySetMinus) = _outer_box(S.A)
 
 # ----------------------------
 # Others

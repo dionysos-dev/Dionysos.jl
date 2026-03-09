@@ -57,6 +57,8 @@ function Base.:/(elli::Ellipsoid, r::Real)
     return elli * (1 / r)
 end
 
+_outer_box(elli::Ellipsoid) = get_min_bounding_box(elli)
+
 function scale(elli::Ellipsoid, α)
     return Ellipsoid(elli.P * (1 / α), elli.c * α)
 end

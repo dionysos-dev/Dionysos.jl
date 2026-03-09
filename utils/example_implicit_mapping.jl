@@ -39,11 +39,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_probl
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("XMapping"), XMapping) or:
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("mapping_region"), mapping_region)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
 
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("Xset"), Xset) or:
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_stateset"), false)

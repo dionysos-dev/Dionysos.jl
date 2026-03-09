@@ -367,6 +367,23 @@ function build_system_approximation!(optimizer::OptimizerEmptyProblem)
         ST.get_system(optimizer.discrete_time_system_approximation)
 end
 
+function _validate_periodic_data(opt)
+    opt.use_periodic_mapping || return
+
+    pd = opt.periodic_dims
+    pp = opt.periodic_periods
+    ps = opt.periodic_start
+
+    P = length(pd)
+    length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
+    length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
+
+    N = UT.get_dims(opt.empty_problem.system.X)
+    if P > 0
+        all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
+    end
+end
+
 function build_abstraction_region(opt::OptimizerEmptyProblem)
     X = opt.abstraction_region
     X === nothing && (X = opt.empty_problem.region)
@@ -387,6 +404,7 @@ function build_state_grid(opt::OptimizerEmptyProblem)
 
     if opt.use_periodic_mapping
         _validate_model(opt, [:periodic_dims, :periodic_periods])
+        _validate_periodic_data(opt)
         if opt.periodic_start !== nothing
             return MP.get_grid_in_periods(
                 opt.periodic_dims,
@@ -402,6 +420,23 @@ function build_state_grid(opt::OptimizerEmptyProblem)
     end
 end
 
+function _validate_mapping_encloses_abstraction_region(opt)
+    opt.use_implicit_mapping || return
+
+    _validate_model(opt, [:mapping_region, :abstraction_region])
+
+    maprect = opt.mapping_region
+    absbox = UT._outer_box(opt.abstraction_region)
+
+    if !Base.issubset(absbox, maprect)
+        error(
+            "mapping_region must fully enclose abstraction_region.\n" *
+            "mapping_region = $maprect\n" *
+            "outer box of abstraction_region = $absbox",
+        )
+    end
+end
+
 function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     if opt.XMapping !== nothing
         return opt.XMapping
@@ -409,7 +444,8 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
 
     grid = build_state_grid(opt)
     if opt.use_implicit_mapping
-        _validate_model(opt, [:mapping_region])
+        _validate_model(opt, [:mapping_region, :abstraction_region])
+        _validate_mapping_encloses_abstraction_region(opt)
         maprect = opt.mapping_region
         m = MP.ImplicitGridMapping(grid, maprect; incl_mode = opt.incl_mode)
     else
