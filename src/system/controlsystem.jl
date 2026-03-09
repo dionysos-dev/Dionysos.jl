@@ -1,5 +1,9 @@
 abstract type ControlSystem{N, T} end
 
+# je supprime dès que j'ai un api stable
+get_control(kappa, x) = kappa(x)
+
+
 struct SimpleSystem{N, T, F <: Function, F2} <: ControlSystem{N, T}
     tstep::Float64
     measnoise::SVector{N, T}

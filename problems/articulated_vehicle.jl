@@ -4,10 +4,13 @@ using StaticArrays
 using MathematicalSystems
 using Dionysos
 using Plots
+import Symbolics
+import IntervalArithmetic as IA
 
 const UT = Dionysos.Utils
 const ST = Dionysos.System
 const PB = Dionysos.Problem
+const SY = Dionysos.Symbolic
 
 # ----------------------------
 # Parameters (edit as you want)
@@ -26,15 +29,16 @@ end
 function dynamic(p::Params = Params())
     return (x, u) -> begin
         v = u[1]
-        δ = u[2]
+        #δ = u[2]
+        σ̃ = u[2]
         θ = x[3]
         ϕ = x[4]
 
         return SVector{4}(
             v * cos(θ),
             v * sin(θ),
-            (v / p.L1) * tan(δ),
-            -(v / (p.L1 * p.L2)) * (p.L1 * sin(ϕ) + (p.Lc * cos(ϕ) + p.L2) * tan(δ)),
+            (v / p.L1) * σ̃,
+            -(v / (p.L1 * p.L2)) * (p.L1 * sin(ϕ) + (p.Lc * cos(ϕ) + p.L2) * σ̃),
         )
     end
 end
@@ -47,10 +51,10 @@ function jacobian(p::Params = Params())
         v = u[1]
         θ = x[3]
         ϕ = x[4]
-        δ = u[2]
-        tδ = tan(δ)
+        σ̃ = u[2]
+        #tδ = 1.0
 
-        d4dϕ = -(v / (p.L1 * p.L2)) * (p.L1 * cos(ϕ) - p.Lc * sin(ϕ) * tδ)
+        d4dϕ = -(v / (p.L1 * p.L2)) * (p.L1 * cos(ϕ) - p.Lc * sin(ϕ) * σ̃)
         return SMatrix{4, 4}(
             0.0,
             0.0,
@@ -79,8 +83,7 @@ end
 function jacobian_bound(p::Params = Params())
     return u -> begin
         v = abs(u[1])
-        δ = u[2]
-        tδ = abs(tan(δ))
+        tδ = abs(u[2])
 
         # Bounds:
         # |∂f1/∂θ| ≤ |v|, |∂f2/∂θ| ≤ |v|
@@ -114,7 +117,7 @@ end
 function bound_norm_jacobian(p::Params = Params())
     return u -> begin
         v = abs(u[1])
-        tδ = abs(tan(u[2]))
+        tδ = abs(u[2])
         bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
         # crude but monotone (you can replace by something tighter)
         return v + bϕ
@@ -125,7 +128,7 @@ end
 function bound_norm_hessian_tensor(p::Params = Params())
     return u -> begin
         v = abs(u[1])
-        tδ = abs(tan(u[2]))
+        tδ = abs(u[2])
         # |∂²f4/∂ϕ²| ≤ |v|/(L1 L2)*(L1 + |Lc|*|tanδ|)
         return v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
     end
@@ -145,6 +148,88 @@ function system(
         UT.get_dims(_U_),
         _X_,
         _U_,
+    )
+end
+
+"""
+    symbolic_system(_X_; _U_, params, Ts, ΔX, ΔU, ΔW)
+
+Version symbolique discrete pour la synthese LMI.
+Le systeme black-box reste utilise pour la simulation nominale.
+
+"""
+function symbolic_system(
+    _X_;
+    _U_ = UT.HyperRectangle(SVector(-1.0, -0.6), SVector(1.0, 0.6)),
+    params::Params = Params(),
+    Ts::Float64 = 0.001,
+    ΔX = IA.IntervalBox(IA.interval(-0.2, 0.2), 4),
+    ΔU = IA.IntervalBox(IA.interval(-0.15, 0.15), 2),
+    ΔW = IA.IntervalBox(IA.interval(0.0, 0.0), 1),
+    rk4_num_substeps::Int = 1,
+    obstacles = Any[],
+)
+    #Symbolics.@variables x1 x2 θ1 ϕ v1 δ w1 T
+    Symbolics.@variables x1 x2 θ1 ϕ v1 σ̃ w1 T
+    x = [x1; x2; θ1; ϕ]
+    #u = [v1; δ] je remplace δ par arctan(δ)
+    u = [v1; σ̃ ]
+    w = [w1]
+
+    f_cont_expr(xloc, uloc) = [
+        uloc[1] * cos(xloc[3])
+        uloc[1] * sin(xloc[3])
+        (uloc[1] / params.L1) * uloc[2]
+        -(uloc[1] / (params.L1 * params.L2)) *
+        (params.L1 * sin(xloc[4]) + (params.Lc * cos(xloc[4]) + params.L2) * uloc[2])
+    ]
+
+    # Discretisation symbolique choisie pour la linearisation LMI.
+    f_disc = ST.runge_kutta4(f_cont_expr, x, u, T,  rk4_num_substeps)
+
+    fsymbolicT = eval(ST.build_function(f_disc, x, u, w, T)[1])
+    fsymbolic = Symbolics.substitute(f_disc, Dict(T => Ts))
+    
+    # No additive noise in this model, but LMI API expects a noise format.
+    Wset = UT.HyperRectangle(SVector(0.0), SVector(0.0))
+    Uformat = SY.format_input_set(_U_)
+    Wformat = SY.format_noise_set(Wset)
+
+    f_cont_fun = dynamic(params)
+    function f_eval(xv, uv, _wv)
+        xsv = SVector{4, Float64}(xv)
+        usv = SVector{2, Float64}(uv)
+        xnext = ST.runge_kutta4(f_cont_fun, xsv, usv, Ts, rk4_num_substeps)
+        return collect(xnext)
+    end
+    function f_backward_eval(xv, uv, _wv)
+        xsv = SVector{4, Float64}(xv)
+        usv = SVector{2, Float64}(uv)
+        xprev = ST.runge_kutta4(f_cont_fun, xsv, usv, -Ts, rk4_num_substeps)
+        return collect(xprev)
+    end
+
+    return ST.SymbolicSystem(
+        fsymbolicT,
+        fsymbolic,
+        Ts,
+        length(x),
+        length(u),
+        length(w),
+        x,
+        u,
+        w,
+        ΔX,
+        ΔU,
+        ΔW,
+        _X_,
+        _U_,
+        Wset,
+        obstacles,
+        f_eval,
+        f_backward_eval,
+        Uformat,
+        Wformat,
     )
 end
 
@@ -205,7 +290,7 @@ function get_constant_controller(u_const)
     return ST.ConstantController(u_const)
 end
 
-function get_goal_seeking_controller(xg, yg; v = 1.0, δmax = 0.5, k = 1.2)
+function get_goal_seeking_controller(xg, yg; v = 1.0, δmax = 0.5, k = 1.2) # il faut changer vers un controller en tan -> σ̃
     f = x -> begin
         x1, x2, θ, ϕ = x
         desired = atan(yg - x2, xg - x1)
@@ -410,12 +495,15 @@ function live_vehicle_progression(
     dt = 0.05,
     giffile::Union{Nothing, String} = nothing,
     fps::Int = 20,
+    title::Union{Nothing, String} = nothing,
 )
     states = x_traj.seq
     inputs = u_traj.seq
 
     xs = [x[1] for x in states]
     ys = [x[2] for x in states]
+
+    plot_title = title === nothing ? "" : title
 
     # --- GIF MODE ---
     if giffile !== nothing
@@ -426,6 +514,7 @@ function live_vehicle_progression(
                 ylims = yl,
                 legend = false,
                 size = (700, 700),
+                title = plot_title,
             )
             if domain !== nothing
                 plot!(plt, domain; color = :grey, opacity = 0.1)
@@ -450,6 +539,7 @@ function live_vehicle_progression(
             ylims = yl,
             legend = false,
             size = (700, 700),
+            title = plot_title,
         )
         if domain !== nothing
             plot!(plt, domain; color = :grey, opacity = 0.1)

@@ -1,5 +1,9 @@
+include("candidate_trajectory.jl")
+
 export AbstractHeuristicGenerator,
     set_problem!, generate!, get_trajectory, get_success, get_solve_time
+export CandidateTrajectory, horizon, n_states
+export CenteredAbstractionConfig, CenteredAbstractionGenerator
 
 abstract type AbstractHeuristicGenerator end
 
@@ -21,3 +25,5 @@ end
 # Optional common getters
 get_success(gen::AbstractHeuristicGenerator) = false
 get_solve_time(gen::AbstractHeuristicGenerator) = NaN
+
+include("centered_abstraction_generator.jl")
