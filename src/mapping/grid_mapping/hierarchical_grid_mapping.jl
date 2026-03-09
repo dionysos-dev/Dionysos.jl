@@ -45,7 +45,7 @@ get_grid(h::HierarchicalGridMapping) = get_grid(h, 1)
 
 # Locate global id -> (level, local_id)
 function _locate(h::HierarchicalGridMapping, q::Int)
-    (1 <= q <= get_n_state(h)) || throw(DomainError(q, "state out of universe"))
+    (1 <= q <= get_n_state(h)) || return nothing
     for l in 1:length(h.levels)
         n = get_n_state(h.levels[l])
         if h.offsets[l] < q <= h.offsets[l] + n

@@ -9,6 +9,7 @@ Dionysos.Symbolic.GridBasedSymbolicModel
 
 ```@docs
 Dionysos.Symbolic.SymbolicModelList
+Dionysos.Symbolic.LocalGridBasedSymbolicModel
 ```
 
 ```@docs

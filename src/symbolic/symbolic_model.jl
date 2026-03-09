@@ -15,28 +15,28 @@ function get_state_mapping(::SymbolicModel) end
 function get_input_mapping(::SymbolicModel) end
 
 function get_state_domain(::SymbolicModel) end
-function get_allowed_state_domain(::SymbolicModel) end
+# function get_retained_domain(::SymbolicModel) end
 function get_input_domain(::SymbolicModel) end
 
 get_n_state(sym::SymbolicModel) =
     MP.get_n_state(get_state_domain(sym), get_state_mapping(sym))
 get_n_allowed_state(sym::SymbolicModel) =
-    MP.get_n_state(get_allowed_state_domain(sym), get_state_mapping(sym))
+    MP.get_n_state(get_retained_domain(sym), get_state_mapping(sym))
 get_n_input(sym::SymbolicModel) =
     MP.get_n_state(get_input_domain(sym), get_input_mapping(sym))
 
 enum_states(sym::SymbolicModel) =
     MP.enum_states(get_state_domain(sym), get_state_mapping(sym))
 enum_allowed_states(sym::SymbolicModel) =
-    MP.enum_states(get_allowed_state_domain(sym), get_state_mapping(sym))
+    MP.enum_states(get_retained_domain(sym), get_state_mapping(sym))
 enum_inputs(sym::SymbolicModel) =
     MP.enum_states(get_input_domain(sym), get_input_mapping(sym))
 
 is_state(sym::SymbolicModel, q::Int) =
     MP.contains_state(get_state_domain(sym), get_state_mapping(sym), q)
-is_allowed_state(::SymbolicModel, ::Nothing) = false
-is_allowed_state(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_allowed_state_domain(sym), get_state_mapping(sym), q)
+# is_allowed_state(::SymbolicModel, ::Nothing) = false
+# is_allowed_state(sym::SymbolicModel, q::Int) =
+#     MP.contains_state(get_retained_domain(sym), get_state_mapping(sym), q)
 is_input(sym::SymbolicModel, q::Int) =
     MP.contains_state(get_input_domain(sym), get_input_mapping(sym), q)
 
@@ -97,7 +97,7 @@ function determinize_symbolic_model(
     Umap = get_input_mapping(sym)
     Xmap = get_state_mapping(sym)
     Xset = get_state_domain(sym)
-    Rset = get_allowed_state_domain(sym)
+    Rset = get_retained_domain(sym)
 
     trans = enum_transitions(sym)
 

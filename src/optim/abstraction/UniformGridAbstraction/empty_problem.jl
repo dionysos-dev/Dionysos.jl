@@ -3,16 +3,44 @@
 """
     OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
 
-A solver responsible for constructing an **abstraction of the system dynamics**, independently of the control specification.
+A solver responsible for constructing a **symbolic abstraction of the system dynamics**,
+independently of any control specification.
 
-This optimizer wraps everything needed to solve an [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem), which is used to generate a symbolic model (abstraction) of either a continuous- or discrete-time system.
+This optimizer wraps everything needed to solve an [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem),
+which is used to generate a symbolic model (abstraction) of either a continuous- or discrete-time system.
+
+The optimizer supports several abstraction modes, optional implicit mappings/state sets,
+periodic mappings, multithreaded computation, and distributed partition-based abstraction.
 
 ---
 
 ### Purpose
 
-This optimizer builds a symbolic abstraction by simulating or approximating the behavior of the given system.  
-The abstraction method is chosen via the `approx_mode` field, and determines which parameters and approximation logic are used.
+This optimizer builds a symbolic abstraction by discretizing the state and input spaces,
+constructing a state/input mapping, defining a source-state domain, and computing the
+abstract transition relation from a system approximation.
+
+The abstraction method is selected via the `approx_mode` field. Depending on the chosen mode,
+the optimizer constructs either an over-approximation, an under-approximation, or a simulation-based abstraction.
+
+The resulting abstract model can then be reused by higher-level control solvers
+(safety, reachability, co-safe LTL, etc.).
+
+---
+
+### Abstraction semantics
+
+The constructed symbolic model distinguishes between:
+
+- `XMapping`: global mapping from concrete states to abstract states.
+- `Xset`: set of **source states** that are enumerated when building transitions.
+- `Rset`: set of **retained / allowed states** that may appear as transition targets.
+- `UMapping`: mapping from concrete inputs to abstract inputs.
+- `Uset`: admissible abstract-input set.
+
+In the standard non-distributed setting, `Xset` usually coincides with `Rset`.
+In distributed mode, the abstraction may be computed on local partitions of `Xset`,
+while retaining a common global `Rset`.
 
 ---
 
@@ -21,66 +49,145 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
 #### Mandatory fields set by the user
 
 - `empty_problem` (**required**):  
-  An instance of [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem) containing the system to abstract and the state region.
+  An instance of [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem) containing the system to abstract and the target abstraction region.
 
-- `state_grid` (**required**):  
-  The discretization grid for the state space.
+- State discretization (**required**):
+    - either `state_grid`
+    - or `h`, from which the state grid is built internally.
 
-- If `state_grid` is not provided, you must set:
-    - `h::SVector{N, T}`: Grid spacing vector (used to construct the grid internally).
-
-- `input_grid` (**required**):  
+- `input_grid` (**required**, unless `UMapping` is set directly):  
   The discretization grid for the input space.
 
-#### Optional user-tunable fields
+#### Optional mapping / set fields
 
-- `time_step` (optional, required if the system is continuous):  
-  Time step used for discretizing or simulating continuous-time systems.
+- `abstraction_region` (optional):  
+  Concrete region used to define the abstraction domain.  
+  If not provided, the optimizer uses:
+  1. `empty_problem.region`, if available,
+  2. otherwise `empty_problem.system.X`.
 
-- `nsystem` (optional, default = `5`):  
-  Number of substeps to use when simulating continuous-time systems (e.g., in Runge-Kutta integration).
+- `incl_mode` (optional, default = `MP.INNER`):  
+  Inclusion mode used when constructing mappings or state sets.
 
-- `approx_mode` (**required**):  
-  The abstraction technique to use. Supported modes:
+- `XMapping` (optional):  
+  Pre-built abstract-state mapping. If not provided, it is constructed from the state grid.
+
+- `Xset` (optional):  
+  Source abstract-state set. If not provided, it is built from `abstraction_region`.
+
+- `Rset` (optional):  
+  Retained / allowed target-state set. If not provided, it defaults to `copy(Xset)`.
+
+- `UMapping` (optional):  
+  Pre-built abstract-input mapping.
+
+- `Uset` (optional):  
+  Abstract-input set. If not provided, a default admissible set is built.
+
+#### Grid / implicit representation settings
+
+- `state_grid` (optional):  
+  Explicit state grid used for discretization.
+
+- `h` (optional):  
+  Grid spacing vector used to construct the state grid if `state_grid` is not provided.
+
+- `use_implicit_mapping` (optional, default = `false`):  
+  If `true`, constructs an implicit state mapping instead of an explicit one.
+
+- `mapping_region` (required if `use_implicit_mapping = true`):  
+  Hyper-rectangle used as ambient region for the implicit mapping.  
+  It must enclose `abstraction_region`.
+
+- `use_implicit_stateset` (optional, default = `false`):  
+  If `true`, builds `Xset` as an implicit state set rather than an explicit set of indices.
+
+#### Periodic mapping settings
+
+- `use_periodic_mapping` (optional, default = `false`):  
+  If `true`, wraps the state mapping as a periodic mapping.
+
+When enabled, the following fields are required:
+
+- `periodic_dims`: indices of periodic dimensions.
+- `periodic_periods`: period length for each periodic dimension.
+- `periodic_start` (optional): start point for each periodic dimension. Defaults to zero if not provided.
+
+#### System approximation settings
+
+- `approx_mode` (optional, default = `GROWTH`):  
+  Abstraction technique used to build the system approximation. Supported modes:
 
     - [`USER_DEFINED`](@ref Dionysos.System.DiscreteTimeOverApproximationMap):  
-      Use a custom overapproximation function.  
-      Set `overapproximation_map::Function`.
+      Use a custom over-approximation map.  
+      Set `overapproximation_map`.
 
     - [`GROWTH`](@ref Dionysos.System.DiscreteTimeGrowthBound):  
-      Use growth-bound based overapproximation.  
-      Set `jacobian_bound`, optionally `growthbound_map`, `ngrowthbound`.
+      Use growth-bound based approximation.  
+      Set `jacobian_bound`, or directly `growthbound_map`.  
+      `ngrowthbound` controls the internal growth-bound discretization parameter.
 
     - [`LINEARIZED`](@ref Dionysos.System.DiscreteTimeLinearized):  
-      Use linearization + Jacobian/Hessian.  
+      Use linearization and derivative bounds.  
       Set `DF_sys`, `bound_DF`, and `bound_DDF`.
 
     - [`CENTER_SIMULATION`](@ref Dionysos.System.DiscreteTimeCenteredSimulation):  
-      Simulate the center of each cell only.
+      Simulate the center of each abstract cell only.
 
     - [`RANDOM_SIMULATION`](@ref Dionysos.System.DiscreteTimeRandomSimulation):  
-      Sample and simulate random points in each cell.  
+      Simulate randomly sampled points in each abstract cell.  
       Set `n_samples`.
 
 - `efficient` (optional, default = `true`):  
-  Whether to use optimized internal routines based on `approx_mode`.
+  Whether to use the optimized approximation-specific abstraction kernel when available.
+
+#### Continuous-time settings
+
+- `time_step` (required for continuous-time systems):  
+  Sampling step used to discretize a continuous-time approximation.
+
+- `nsystem` (optional, default = `5`):  
+  Number of internal substeps used during continuous-time simulation/discretization routines.
+
+#### Execution settings
+
+- `threaded` (optional, default = `false`):  
+  If `true`, enables multithreaded abstraction on a single Julia process.
+
+- `distributed` (optional, default = `false`):  
+  If `true`, enables partition-based distributed abstraction across Julia worker processes.
+
+- `distributed_procs` (optional):  
+  Vector of Julia worker IDs used for distributed abstraction.  
+  If `nothing`, all available workers returned by `Distributed.workers()` are used.
+
+- `distributed_nparts` (optional):  
+  Number of source-state partitions used in distributed abstraction.  
+  If `nothing`, defaults to the number of selected worker processes.
+
+- `distributed_partition_strategy` (optional, default = `:roundrobin`):  
+  Strategy used to partition the source-state set `Xset`.  
+  Typical choices include `:roundrobin` and `:contiguous`.
+
+In distributed mode, each partition receives:
+- the same global `XMapping`,
+- the same global `Rset`,
+- a local subset of `Xset`,
+and computes transitions for its own source states. The final abstract transition relation is obtained by merging all locally computed transitions.
+
+#### Logging / progress settings
 
 - `print_level` (optional, default = `1`):  
   Verbosity level:
-    - `0`: silent  
-    - `1`: standard  
-    - `2`: verbose/debug
+    - `0`: silent
+    - `1`: summary information
+    - `2`: detailed progress output
 
-- `use_periodic_mapping` (optional, default = `false`):  
-  If `true`, uses a periodic domain structure when discretizing the state space.
+- `progress_update_interval` (optional, default = `Int(1e5)`):  
+  Number of source-state/input pairs processed between progress updates.
 
-  When enabled, the following fields are required:
-    - `periodic_dims::SVector{P, Int}`:  
-      Indices of the periodic dimensions.
-    - `periodic_periods::SVector{P, T}`:  
-      Period length for each periodic dimension.
-    - `periodic_start::SVector{P, T}` (optional):  
-      Start point of each periodic dimension. Defaults to `0.0` if not provided.
+- `progress_dt` (optional, default = `0.2`):  
+  Minimum wall-clock time between progress refreshes in threaded mode.
 
 ---
 
@@ -90,18 +197,33 @@ The abstraction method is chosen via the `approx_mode` field, and determines whi
   The resulting symbolic abstraction, of type [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList).
 
 - `discrete_time_system`:  
-  Internally constructed discrete-time version of the system used during abstraction.
+  Internally constructed discrete-time system used to generate the abstraction.
 
 - `abstraction_construction_time_sec`:  
-  Time (in seconds) spent constructing the abstraction.
+  Total abstraction-construction time in seconds.
 
-#### System approximation objects (derived from `approx_mode`)
+#### Approximation objects derived from `approx_mode`
 
 - `continuous_time_system_approximation`:  
-  A [`ContinuousTimeSystemApproximation`](@ref Dionysos.System.ContinuousTimeSystemApproximation), automatically created if the original system is continuous.
+  A [`ContinuousTimeSystemApproximation`](@ref Dionysos.System.ContinuousTimeSystemApproximation), built automatically if the original system is continuous.
 
 - `discrete_time_system_approximation`:  
-  A [`DiscreteTimeSystemApproximation`](@ref Dionysos.System.DiscreteTimeSystemApproximation), created in all cases.
+  A [`DiscreteTimeSystemApproximation`](@ref Dionysos.System.DiscreteTimeSystemApproximation), used by the abstraction kernel in all cases.
+
+---
+
+### Typical workflow
+
+1. Define the concrete empty problem and discretization parameters.
+2. Build or infer the state/input mappings and state sets.
+3. Construct the system approximation from `approx_mode`.
+4. Compute the abstract transition relation, either:
+    - sequentially,
+    - multithreaded,
+    - or distributed across source-state partitions.
+5. Store the resulting symbolic abstraction in `abstract_system`.
+
+---
 
 ### Example
 
@@ -189,9 +311,13 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     time_step::Union{Nothing, T}
     nsystem::Int
 
-    ### System Approximation Settings
-    approx_mode::ApproxMode
+    ### Execution settings
     threaded::Bool
+    distributed::Bool
+    distributed_procs::Union{Nothing, Vector{Int}}
+    distributed_nparts::Union{Nothing, Int}
+    distributed_partition_strategy::Symbol
+    approx_mode::ApproxMode
     efficient::Bool
 
     print_level::Int
@@ -234,9 +360,13 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             5, #RANDOM_SIMULATION
             nothing,
             5,
-            GROWTH,
-            false,
-            true,
+            false,         # threaded
+            false,         # distributed
+            nothing,       # distributed_procs
+            nothing,       # distributed_nparts
+            :roundrobin,   # distributed_partition_strategy
+            GROWTH,        # approx
+            true,          # efficient
             1,
             Int(1e5),
             0.2,
@@ -554,28 +684,44 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     optimizer.print_level >= 1 &&
         println("compute_abstract_system_from_concrete_system!: started")
+
+    local_procs =
+        optimizer.distributed_procs === nothing ? Distributed.workers() :
+        optimizer.distributed_procs
+
+    local_nparts =
+        optimizer.distributed_nparts === nothing ?
+        (optimizer.distributed ? max(length(local_procs), 1) : 1) :
+        optimizer.distributed_nparts
+
+    local_nparts >= 1 || error("distributed_nparts must be >= 1")
+
+    if optimizer.distributed && isempty(local_procs)
+        @warn "distributed=true but no worker processes are available; falling back to local partitioned execution"
+    end
+
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
-        Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
-            abstract_system,
-            ST.get_DiscreteTimeOverApproximationMap(
-                optimizer.discrete_time_system_approximation,
-            );
-            verbose = optimizer.print_level >= 2,
-            update_interval = optimizer.progress_update_interval,
-            progress_dt = optimizer.progress_dt,
-            threaded = optimizer.threaded,
+        system_approximation = ST.get_DiscreteTimeOverApproximationMap(
+            optimizer.discrete_time_system_approximation,
         )
     else
-        Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
-            abstract_system,
-            optimizer.discrete_time_system_approximation;
-            verbose = optimizer.print_level >= 2,
-            update_interval = optimizer.progress_update_interval,
-            progress_dt = optimizer.progress_dt,
-            threaded = optimizer.threaded,
-        )
+        system_approximation = optimizer.discrete_time_system_approximation
     end
+
+    Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
+        abstract_system,
+        system_approximation;
+        distributed = optimizer.distributed,
+        threaded = optimizer.threaded,
+        procs = local_procs,
+        nparts = local_nparts,
+        partition_strategy = optimizer.distributed_partition_strategy,
+        verbose = optimizer.print_level >= 2,
+        update_interval = optimizer.progress_update_interval,
+        progress_dt = optimizer.progress_dt,
+    )
+
     optimizer.print_level >= 1 && println(
         "compute_abstract_system_from_concrete_system! terminated with success: ",
         "$(HybridSystems.ntransitions(abstract_system.autom)) transitions created",

@@ -17,6 +17,8 @@ import Spot
 using JuMP
 import LinearAlgebra
 
+import Distributed
+
 export Optimizer
 
 include("empty_problem.jl")
@@ -263,8 +265,8 @@ function solve_concrete_problem(
         if state===nothing || !SY.is_allowed_state(abstract_system, state)
             xnew = handle_out_of_domain(x, abstract_system)
             xnew === nothing && return nothing
-            statenew = SY.get_abstract_state(abstract_system, xnew)
-            !SY.is_allowed_state(abstract_system, statenew) || return nothing
+            statenew === nothing && return nothing
+            SY.is_allowed_state(abstract_system, statenew) || return nothing
             return statenew
         end
         return state
@@ -445,7 +447,7 @@ make_out_of_domain_handler(; mode=0, warn=true, dims=nothing)
 mode = 0: return nothing when x is not allowed (or outside mapping)
 mode = 1: project to nearest allowed abstract state (using mapping coords)
 """
-function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true)
+function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true, dims = nothing)
     if mode == 0
         return (x, abs_sys) -> begin
             Xmap = SY.get_state_mapping(abs_sys)
