@@ -52,7 +52,7 @@ get_n_state(m::TimeGridMapping) = length(m.tsteps)
 enum_states(m::TimeGridMapping) = 1:get_n_state(m)
 
 get_coord_by_state(m::TimeGridMapping, q::Int) = begin
-    (1 <= q <= get_n_state(m)) || throw(DomainError(q, "time state out of range"))
+    (1 <= q <= get_n_state(m)) || return nothing
     return SVector{1, Float64}(m.tsteps[q])
 end
 
@@ -83,7 +83,7 @@ end
 
 function int2time(m::TimeGridMapping, q::Int)::Float64
     if m.is_time_active
-        (1 <= q <= get_n_state(m)) || throw(DomainError(q, "time state out of range"))
+        (1 <= q <= get_n_state(m)) || return nothing
         return m.tsteps[q]
     else
         return 0.0

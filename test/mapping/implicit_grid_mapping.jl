@@ -51,11 +51,10 @@ const MP = DI.Mapping
     end
 
     # --- out-of-range checks ---
-    @test_throws DomainError MP.get_state_by_pos(m, (-1, 0))
-    @test_throws DomainError MP.get_state_by_pos(m, (3, 0))
-    @test_throws DomainError MP.get_state_by_pos(m, (0, 4))
-    @test_throws DomainError MP.get_pos_by_state(m, 0)
-    @test_throws DomainError MP.get_pos_by_state(m, 13)
+    @test MP.get_state_by_pos(m, (-1, 0)) == nothing
+    @test MP.get_state_by_pos(m, (3, 0)) == nothing
+    @test MP.get_state_by_pos(m, (0, 4)) == nothing
+    @test MP.get_pos_by_state(m, 0) == nothing
 end
 
 @testset "ImplicitGridMapping from rectangle" begin

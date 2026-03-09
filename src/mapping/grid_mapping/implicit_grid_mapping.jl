@@ -61,7 +61,7 @@ function get_state_by_pos(m::ImplicitGridMapping{N}, pos::NTuple{N, Int}) where 
 end
 
 function get_pos_by_state(m::ImplicitGridMapping{N}, q::Int) where {N}
-    (1 <= q <= get_n_state(m)) || throw(DomainError(q, "state out of implicit universe"))
+    (1 <= q <= get_n_state(m)) || return nothing
     z = q - 1
     return ntuple(d -> begin
         span = m.n_per_dim[d]

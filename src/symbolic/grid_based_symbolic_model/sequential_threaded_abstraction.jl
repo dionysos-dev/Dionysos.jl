@@ -358,9 +358,9 @@ function collect_abstract_transitions!(
     XMapping = get_state_mapping(symmodel)
     N = MP.get_dim(XMapping)
     r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-    _H_ = SMatrix{N, N}(LinearAlgebra.I) .* r
+    _H_ = SMatrix{N, N}(LA.I) .* r
     _ONE_ = ones(SVector{N})
-    e = LinearAlgebra.norm(r, Inf)
+    e = LA.norm(r, Inf)
 
     error_map = concrete_system_approx.error_map
     linsys_map = concrete_system_approx.linsys_map
