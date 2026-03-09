@@ -66,9 +66,7 @@ end
 get_state_mapping(sym::SymbolicModelList) = sym.XMapping
 get_input_mapping(sym::SymbolicModelList) = sym.UMapping
 
-# get_state_domain(sym::SymbolicModelList) = sym.Xset
 get_source_domain(sym::SymbolicModelList) = sym.Xset
-# get_retained_domain(sym::SymbolicModelList) = sym.Rset
 get_retained_domain(sym::SymbolicModelList) = sym.Rset
 get_input_domain(sym::SymbolicModelList) = sym.Uset
 

@@ -130,7 +130,9 @@ function compute_abstract_system_distributed!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
-    @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy = partition_strategy threaded_per_worker = threaded_per_worker
+    if verbose
+        @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy = partition_strategy threaded_per_worker = threaded_per_worker master_nthreads = Threads.nthreads()
+    end
 
     transitions = collect_abstract_transitions_distributed(
         symmodel,

@@ -47,10 +47,11 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+
 MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 8)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_partition_strategy"), :roundrobin)
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)

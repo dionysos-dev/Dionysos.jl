@@ -29,9 +29,6 @@ get_retained_domain(symmodel::GridBasedSymbolicModel) =
 enum_source_states(symmodel::GridBasedSymbolicModel) =
     MP.enum_states(get_source_domain(symmodel), get_state_mapping(symmodel))
 
-# enum_inputs(symmodel::GridBasedSymbolicModel) =
-#     MP.enum_inputs(get_input_mapping(symmodel))
-
 is_allowed_state(symmodel::GridBasedSymbolicModel, q) =
     q !== nothing &&
     MP.contains_state(get_retained_domain(symmodel), get_state_mapping(symmodel), q)
