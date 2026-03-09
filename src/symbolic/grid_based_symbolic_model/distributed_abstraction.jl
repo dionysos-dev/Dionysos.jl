@@ -13,13 +13,18 @@ import Distributed
 Wrapper around a global symbolic model that overrides only the source-domain
 enumeration while keeping the same global state/input mappings and retained set.
 """
-struct LocalGridBasedSymbolicModel{N,M,SM,XS} <: GridBasedSymbolicModel{N,M}
+struct LocalGridBasedSymbolicModel{N, M, SM, XS} <: GridBasedSymbolicModel{N, M}
     parent::SM
     Xset_local::XS
 end
 
-LocalGridBasedSymbolicModel(symmodel::GridBasedSymbolicModel{N,M}, Xset_local) where {N,M} =
-    LocalGridBasedSymbolicModel{N,M,typeof(symmodel),typeof(Xset_local)}(symmodel, Xset_local)
+LocalGridBasedSymbolicModel(
+    symmodel::GridBasedSymbolicModel{N, M},
+    Xset_local,
+) where {N, M} = LocalGridBasedSymbolicModel{N, M, typeof(symmodel), typeof(Xset_local)}(
+    symmodel,
+    Xset_local,
+)
 
 get_state_mapping(sym::LocalGridBasedSymbolicModel) = get_state_mapping(sym.parent)
 get_input_mapping(sym::LocalGridBasedSymbolicModel) = get_input_mapping(sym.parent)
@@ -32,7 +37,8 @@ get_concrete_state(sym::LocalGridBasedSymbolicModel, q) = get_concrete_state(sym
 get_concrete_elem(sym::LocalGridBasedSymbolicModel, q) = get_concrete_elem(sym.parent, q)
 get_concrete_input(sym::LocalGridBasedSymbolicModel, u) = get_concrete_input(sym.parent, u)
 get_abstract_state(sym::LocalGridBasedSymbolicModel, x) = get_abstract_state(sym.parent, x)
-add_transitions!(sym::LocalGridBasedSymbolicModel, trans) = add_transitions!(sym.parent, trans)
+add_transitions!(sym::LocalGridBasedSymbolicModel, trans) =
+    add_transitions!(sym.parent, trans)
 
 # ------------------------------------------------------------------
 # Partitioning
@@ -76,7 +82,7 @@ end
 # ------------------------------------------------------------------
 
 struct DistributedAbstractionResult
-    transitions::Vector{Tuple{Int,Int,Int}}
+    transitions::Vector{Tuple{Int, Int, Int}}
     n_source_states::Int
     n_transitions::Int
 end
@@ -100,25 +106,13 @@ function _run_local_partition(
 
     n_source_states = length(collect(enum_source_states(local_symmodel)))
 
-    return DistributedAbstractionResult(
-        transitions,
-        n_source_states,
-        length(transitions),
-    )
+    return DistributedAbstractionResult(transitions, n_source_states, length(transitions))
 end
 
 # ------------------------------------------------------------------
 # Public distributed mutating API
 # ------------------------------------------------------------------
 
-"""
-    compute_abstract_system_distributed!(symmodel, concrete_system_approx; kwargs...)
-
-Distributed version of `compute_abstract_system!`.
-
-It computes transitions in parallel over process-local source partitions, then
-merges them into `symmodel`.
-"""
 function compute_abstract_system_distributed!(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx;
@@ -131,7 +125,9 @@ function compute_abstract_system_distributed!(
     progress_dt::Float64 = 0.2,
 )
     if verbose
-        @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy = partition_strategy threaded_per_worker = threaded_per_worker master_nthreads = Threads.nthreads()
+        @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy =
+            partition_strategy threaded_per_worker = threaded_per_worker master_nthreads =
+            Threads.nthreads()
     end
 
     transitions = collect_abstract_transitions_distributed(
@@ -164,38 +160,39 @@ function collect_abstract_transitions_distributed(
     nparts >= 1 || error("nparts must be >= 1")
 
     parts = partition_source_states(symmodel, nparts; strategy = partition_strategy)
-    jobs = [(LocalGridBasedSymbolicModel(symmodel, Xset_local), concrete_system_approx)
-            for Xset_local in parts]
+    jobs = [
+        (LocalGridBasedSymbolicModel(symmodel, Xset_local), concrete_system_approx) for
+        Xset_local in parts
+    ]
 
-    results =
-        if isempty(procs)
-            map(jobs) do job
-                local_symmodel, local_approx = job
-                _run_local_partition(
-                    local_symmodel,
-                    local_approx;
-                    verbose = false,
-                    update_interval = update_interval,
-                    progress_dt = progress_dt,
-                    threaded = threaded_per_worker,
-                )
-            end
-        else
-            pool = Distributed.WorkerPool(procs)
-            Distributed.pmap(pool, jobs) do job
-                local_symmodel, local_approx = job
-                _run_local_partition(
-                    local_symmodel,
-                    local_approx;
-                    verbose = false,
-                    update_interval = update_interval,
-                    progress_dt = progress_dt,
-                    threaded = threaded_per_worker,
-                )
-            end
+    results = if isempty(procs)
+        map(jobs) do job
+            local_symmodel, local_approx = job
+            return _run_local_partition(
+                local_symmodel,
+                local_approx;
+                verbose = false,
+                update_interval = update_interval,
+                progress_dt = progress_dt,
+                threaded = threaded_per_worker,
+            )
         end
+    else
+        pool = Distributed.WorkerPool(procs)
+        Distributed.pmap(pool, jobs) do job
+            local_symmodel, local_approx = job
+            return _run_local_partition(
+                local_symmodel,
+                local_approx;
+                verbose = false,
+                update_interval = update_interval,
+                progress_dt = progress_dt,
+                threaded = threaded_per_worker,
+            )
+        end
+    end
 
-    transitions = Tuple{Int,Int,Int}[]
+    transitions = Tuple{Int, Int, Int}[]
     total_sources = 0
     total_transitions = 0
 

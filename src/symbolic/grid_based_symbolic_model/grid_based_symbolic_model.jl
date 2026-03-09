@@ -10,7 +10,7 @@ Semantics:
 - source domain (`Xset`): states enumerated as sources
 - retained domain (`Rset`): states allowed as targets
 """
-abstract type GridBasedSymbolicModel{N,M} <: SymbolicModel{N,M} end
+abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
 
 # ------------------------------------------------------------------
 # Required interface for concrete subtypes
@@ -36,12 +36,10 @@ is_allowed_state(symmodel::GridBasedSymbolicModel, q) =
 get_n_state(symmodel::GridBasedSymbolicModel) =
     length(collect(enum_source_states(symmodel)))
 
-get_n_input(symmodel::GridBasedSymbolicModel) =
-    length(collect(enum_inputs(symmodel)))
+get_n_input(symmodel::GridBasedSymbolicModel) = length(collect(enum_inputs(symmodel)))
 
 get_state_domain(symmodel::GridBasedSymbolicModel) = get_source_domain(symmodel)
 enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
-
 
 include("sequential_threaded_abstraction.jl")
 include("distributed_abstraction.jl")

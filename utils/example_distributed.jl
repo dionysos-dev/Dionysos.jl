@@ -1,6 +1,10 @@
-using Dionysos
+using Distributed
+length(workers()) < 4 && addprocs(4 - length(workers()))
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+@everywhere using Dionysos
+
+dcdc_path = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl")
+@everywhere include($dcdc_path)
 
 using Dionysos
 const DI = Dionysos
@@ -44,6 +48,9 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
 
+MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_partition_strategy"), :roundrobin)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
@@ -101,72 +108,5 @@ plot!(XMapping; efficient = true, color = :grey)
 plot!((Xset, XMapping); efficient = true, color = :grey)
 plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
-plot!(x_traj)
-display(fig)
-
-# # Export in csv file the controller, and reload it
-# filename = "concrete_controller"
-# AB.UniformGridAbstraction.export_controller_csv(optimizer, filename)
-# AB.UniformGridAbstraction.import_controller_csv(filename)
-
-## Solve a reachability problem
-_T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
-
-# _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
-concrete_problem_reachability = Dionysos.Problem.OptimalControlProblem(
-    concrete_system,
-    _I_,
-    _T_,
-    nothing,
-    nothing,
-    Dionysos.Problem.Infinity(),
-)
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("concrete_problem"),
-    concrete_problem_reachability,
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-MOI.optimize!(optimizer)
-abstract_problem_time =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-println("Time to solve the abstract problem: $(abstract_problem_time)")
-
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-
-nstep = 300
-x0 = SVector(1.2, 5.6)
-reached(x) = x ∈ concrete_problem_reachability.target_set
-
-x_traj, u_traj = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-    concrete_controller,
-    x0,
-    nstep;
-    stopping = reached,
-);
-
-XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
-
-fig = plot(; aspect_ratio = :equal);
-plot!(concrete_problem_reachability);
-# plot!((Xset, XMapping); color = :grey, linecolor = :grey, label = "Domain")
-plot!(
-    (controllable_set, XMapping);
-    color = :yellow,
-    linecolor = :yellow,
-    label = "Controllable set",
-)
-plot!(
-    (uncontrollable_set, XMapping);
-    color = :black,
-    linecolor = :black,
-    label = "Uncontrollable set",
-)
 plot!(x_traj)
 display(fig)

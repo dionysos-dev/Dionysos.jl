@@ -36,7 +36,7 @@ function collect_abstract_transitions(
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
 )
-    trans = Tuple{Int,Int,Int}[]
+    trans = Tuple{Int, Int, Int}[]
     collect_abstract_transitions!(
         trans,
         symmodel,
@@ -55,7 +55,7 @@ end
 
 # Unified Dispatcher
 function _collect_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
     verbose::Bool = false,
@@ -85,7 +85,7 @@ end
 
 # Sequential double loop
 function _collect_transitions_sequential!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
     verbose::Bool = false,
@@ -99,7 +99,7 @@ function _collect_transitions_sequential!(
     total_updates = max(div(total_work, max(1, update_interval)), 1)
     progress = verbose ? ProgressMeter.Progress(total_updates) : nothing
 
-    localbuf = Tuple{Int,Int,Int}[]
+    localbuf = Tuple{Int, Int, Int}[]
     count = 0
 
     for abstract_input in inputs
@@ -121,7 +121,7 @@ end
 
 # Threaded double loop
 function _collect_transitions_threaded!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
     verbose::Bool = false,
@@ -136,7 +136,7 @@ function _collect_transitions_threaded!(
     total_work = length(inputs) * length(states)
     nthreads = Threads.nthreads()
 
-    transitions_by_thread = [Vector{Tuple{Int,Int,Int}}() for _ in 1:nthreads]
+    transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
     local_done = fill(0, nthreads)
 
     progress_dt_ns = Int(round(progress_dt * 1e9))
@@ -199,7 +199,7 @@ function compute_abstract_transitions_from_rectangle!(
     reachable_set::UT.HyperRectangle,
     abstract_state::Int,
     abstract_input::Int,
-    translist::Vector{Tuple{Int,Int,Int}},
+    translist::Vector{Tuple{Int, Int, Int}},
 )
     targets, allin = get_states_from_set_strict(symmodel, reachable_set, MP.OUTER)
     allin || return false
@@ -220,7 +220,7 @@ function compute_abstract_transitions_from_points!(
     reachable_points,
     abstract_state::Int,
     abstract_input::Int,
-    translist::Vector{Tuple{Int,Int,Int}},
+    translist::Vector{Tuple{Int, Int, Int}},
 )
     start_len = length(translist)
 
@@ -233,7 +233,7 @@ function compute_abstract_transitions_from_points!(
         push!(translist, (target, abstract_state, abstract_input))
     end
 
-    unique!(view(translist, start_len+1:length(translist)))
+    unique!(view(translist, (start_len + 1):length(translist)))
     unique!(translist)  # simple first version
     return true
 end
@@ -244,7 +244,7 @@ end
 
 # Kernel that computes transitions from a reachable set over-approximation
 function collect_abstract_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeSystemOverApproximation;
     verbose::Bool = false,
@@ -255,7 +255,7 @@ function collect_abstract_transitions!(
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
 
     workfun! = function (
-        transbuf::Vector{Tuple{Int,Int,Int}},
+        transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
     )
@@ -263,7 +263,7 @@ function collect_abstract_transitions!(
         concrete_elem = get_concrete_elem(symmodel, abstract_state)
         reachable_set = compute_reachable_set(concrete_elem, concrete_input)
 
-        localbuf = Tuple{Int,Int,Int}[]
+        localbuf = Tuple{Int, Int, Int}[]
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -289,7 +289,7 @@ end
 # Kernel that computes transitions from a reachable set over-approximation
 # using growth bound
 function collect_abstract_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeGrowthBound;
     verbose::Bool = false,
@@ -304,7 +304,7 @@ function collect_abstract_transitions!(
     r = MP.get_h(MP.get_grid(XMapping)) / 2.0
 
     inputs = collect(enum_inputs(symmodel))
-    input_data = Dict{Int,Tuple{Any,Any}}()
+    input_data = Dict{Int, Tuple{Any, Any}}()
     for abstract_input in inputs
         concrete_input = get_concrete_input(symmodel, abstract_input)
         Fr = growthbound_map(r, concrete_input)
@@ -312,7 +312,7 @@ function collect_abstract_transitions!(
     end
 
     workfun! = function (
-        transbuf::Vector{Tuple{Int,Int,Int}},
+        transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
     )
@@ -321,7 +321,7 @@ function collect_abstract_transitions!(
         Fx = system_map(concrete_state, concrete_input)
         reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
 
-        localbuf = Tuple{Int,Int,Int}[]
+        localbuf = Tuple{Int, Int, Int}[]
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -347,7 +347,7 @@ end
 # Kernel that computes transitions from a reachable set over-approximation
 # using linearization
 function collect_abstract_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeLinearized;
     verbose::Bool = false,
@@ -358,7 +358,7 @@ function collect_abstract_transitions!(
     XMapping = get_state_mapping(symmodel)
     N = MP.get_dim(XMapping)
     r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-    _H_ = SMatrix{N,N}(LinearAlgebra.I) .* r
+    _H_ = SMatrix{N, N}(LinearAlgebra.I) .* r
     _ONE_ = ones(SVector{N})
     e = LinearAlgebra.norm(r, Inf)
 
@@ -366,7 +366,7 @@ function collect_abstract_transitions!(
     linsys_map = concrete_system_approx.linsys_map
 
     inputs = collect(enum_inputs(symmodel))
-    input_data = Dict{Int,Tuple{Any,Any,Any}}()
+    input_data = Dict{Int, Tuple{Any, Any, Any}}()
     for abstract_input in inputs
         concrete_input = get_concrete_input(symmodel, abstract_input)
         Fe = error_map(e, concrete_input)
@@ -375,7 +375,7 @@ function collect_abstract_transitions!(
     end
 
     workfun! = function (
-        transbuf::Vector{Tuple{Int,Int,Int}},
+        transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
     )
@@ -391,7 +391,7 @@ function collect_abstract_transitions!(
         rad = abs.(DFx) * _ONE_ .+ Fe
         reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
 
-        localbuf = Tuple{Int,Int,Int}[]
+        localbuf = Tuple{Int, Int, Int}[]
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -416,7 +416,7 @@ end
 
 # Kernel that computes transitions from a reachable set under-approximation
 function collect_abstract_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation;
     verbose::Bool = false,
@@ -427,7 +427,7 @@ function collect_abstract_transitions!(
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
 
     workfun! = function (
-        transbuf::Vector{Tuple{Int,Int,Int}},
+        transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
     )
@@ -435,7 +435,7 @@ function collect_abstract_transitions!(
         concrete_elem = get_concrete_elem(symmodel, abstract_state)
         reachable_points = under_approximation_map(concrete_elem, concrete_input)
 
-        localbuf = Tuple{Int,Int,Int}[]
+        localbuf = Tuple{Int, Int, Int}[]
         allin = compute_abstract_transitions_from_points!(
             symmodel,
             reachable_points,
@@ -461,7 +461,7 @@ end
 # Kernel that computes transitions from a reachable set under-approximation
 # using center simulation
 function collect_abstract_transitions!(
-    out::Vector{Tuple{Int,Int,Int}},
+    out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
     verbose::Bool = false,
@@ -472,7 +472,7 @@ function collect_abstract_transitions!(
     system_map = ST.get_system_map(concrete_system_approx)
 
     workfun! = function (
-        transbuf::Vector{Tuple{Int,Int,Int}},
+        transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
     )

@@ -314,8 +314,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     ### Execution settings
     threaded::Bool
     distributed::Bool
-    distributed_procs::Union{Nothing,Vector{Int}}
-    distributed_nparts::Union{Nothing,Int}
+    distributed_procs::Union{Nothing, Vector{Int}}
+    distributed_nparts::Union{Nothing, Int}
     distributed_partition_strategy::Symbol
     approx_mode::ApproxMode
     efficient::Bool
@@ -682,7 +682,8 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     # TODO: Consider adding noise handling
     noise = build_noise(optimizer)
 
-    optimizer.print_level >= 1 && println("compute_abstract_system_from_concrete_system!: started")
+    optimizer.print_level >= 1 &&
+        println("compute_abstract_system_from_concrete_system!: started")
 
     local_procs =
         optimizer.distributed_procs === nothing ? Distributed.workers() :
@@ -700,7 +701,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     end
 
     if !optimizer.efficient &&
-    ST.is_over_approximation(optimizer.discrete_time_system_approximation)
+       ST.is_over_approximation(optimizer.discrete_time_system_approximation)
         system_approximation = ST.get_DiscreteTimeOverApproximationMap(
             optimizer.discrete_time_system_approximation,
         )
