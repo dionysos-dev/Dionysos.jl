@@ -130,7 +130,7 @@ function system(;
         tid = Threads.threadid()
         state = states_per_thread[tid]
 
-        xS = SVector{8, Float64}(x)                 # in case x is a Vector
+        xS = SVector{8, Float64}(x)
         uS = SVector{4, Float64}(u)
 
         q, qd = fill_state(xS)
