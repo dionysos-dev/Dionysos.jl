@@ -84,7 +84,6 @@ function test_multithreading_consistency(method_name, concrete_system, Xmap, Uma
     SY.compute_abstract_system_from_concrete_system!(
         sym_serial,
         concrete_system;
-        verbose = false,
         threaded = false,
     )
     transitions_serial = Set(SY.enum_transitions(sym_serial.autom))
@@ -96,7 +95,6 @@ function test_multithreading_consistency(method_name, concrete_system, Xmap, Uma
         SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,
             concrete_system;
-            verbose = false,
             threaded = true,
         )
         transitions_threaded = Set(SY.enum_transitions(sym_threaded.autom))
@@ -127,7 +125,6 @@ function measure_speedup(method_name, concrete_system, Xmap, Umap; repeats::Int 
         t_serial = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_serial,
             concrete_system;
-            verbose = false,
             threaded = false,
         )
         push!(serial_times, t_serial)
@@ -137,7 +134,6 @@ function measure_speedup(method_name, concrete_system, Xmap, Umap; repeats::Int 
         t_threaded = @elapsed SY.compute_abstract_system_from_concrete_system!(
             sym_threaded,
             concrete_system;
-            verbose = false,
             threaded = true,
         )
         push!(threaded_times, t_threaded)
