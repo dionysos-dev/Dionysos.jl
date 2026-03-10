@@ -41,6 +41,27 @@ get_n_input(symmodel::GridBasedSymbolicModel) = length(collect(enum_inputs(symmo
 get_state_domain(symmodel::GridBasedSymbolicModel) = get_source_domain(symmodel)
 enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
 
+@inline function _keep_state_input(
+    symmodel::GridBasedSymbolicModel,
+    abstract_state::Int,
+    abstract_input::Int,
+    state_input_filter::Union{Nothing,Function},
+)
+    state_input_filter === nothing && return true
+    x = get_concrete_state(symmodel, abstract_state)
+    u = get_concrete_input(symmodel, abstract_input)
+    return state_input_filter(x, u)
+end
+
+function filtered_source_states(
+    symmodel::GridBasedSymbolicModel,
+    state_filter::Union{Nothing,Function},
+)
+    states = collect(enum_source_states(symmodel))
+    state_filter === nothing && return states
+    return [q for q in states if state_filter(get_concrete_state(symmodel, q))]
+end
+
 include("sequential_threaded_abstraction.jl")
 include("distributed_abstraction.jl")
 

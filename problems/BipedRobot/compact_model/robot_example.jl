@@ -43,12 +43,14 @@ tstep = 0.1
 # ==============================================================================
 reached_target(problem) = (x -> (x ∈ problem.target_set))
 
-function build_optimizer(; concrete_problem, state_grid, input_grid)
+function build_optimizer(; concrete_problem, state_grid, input_grid, state_filter=nothing, state_input_filter=nothing)
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_filter"), state_filter)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_input_filter"), state_input_filter)
 
     MOI.set(
         optimizer,
@@ -148,6 +150,10 @@ concrete_system = concrete_problem.system
 
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
+
+state_filter = nothing # RobotProblem.in_gait_tube
+state_input_filter = nothing # RobotProblem.input_allowed
+
 println("n_state: ", n_state)
 println("n_input: ", n_input)
 
@@ -169,6 +175,8 @@ if COMPUTE_ABSTRACTION
         concrete_problem = concrete_problem,
         state_grid = state_grid,
         input_grid = input_grid,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 
     MOI.optimize!(optimizer)

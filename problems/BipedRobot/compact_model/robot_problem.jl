@@ -196,19 +196,6 @@ function problem(;
     return PR.EmptyProblem(sys, nothing)
 end
 
-
-#-----------------------------------------------------------
-# - Additional constraints for pruning the biped gait tube -
-#-----------------------------------------------------------
-
-# Robo state x = [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
-# - left hip angle,
-# - right hip angle,
-# - left knee angle,
-# - right knee angle,
-# - and the corresponding angular velocities.
-
-
 #-----------------------------------------------------------
 # - Additional pruning constraints for a biped gait tube   -
 #-----------------------------------------------------------

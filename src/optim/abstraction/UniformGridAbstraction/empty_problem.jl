@@ -278,6 +278,9 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     Rset::Union{Nothing, MP.AbstractStateSet}
     use_implicit_stateset::Bool
 
+    state_filter::Union{Nothing,Function}
+    state_input_filter::Union{Nothing,Function}
+
     ## UMapping & Uset
     UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
 
@@ -342,6 +345,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             false, # use implicit stateset
+            nothing, # state_filter 
+            nothing, # state_input_filter
             nothing,
             nothing,
             nothing,

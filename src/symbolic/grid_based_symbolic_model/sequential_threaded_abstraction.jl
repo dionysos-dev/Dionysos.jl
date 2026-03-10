@@ -15,6 +15,8 @@ function compute_abstract_system!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     trans = collect_abstract_transitions(
         abstract_system,
@@ -23,6 +25,8 @@ function compute_abstract_system!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
     isempty(trans) || add_transitions!(abstract_system, trans)
     return
@@ -35,6 +39,8 @@ function collect_abstract_transitions(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     trans = Tuple{Int, Int, Int}[]
     collect_abstract_transitions!(
@@ -45,6 +51,8 @@ function collect_abstract_transitions(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
     return trans
 end
@@ -62,6 +70,8 @@ function _collect_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     if !threaded || Threads.nthreads() == 1
         return _collect_transitions_sequential!(
@@ -70,6 +80,8 @@ function _collect_transitions!(
             workfun!;
             verbose = verbose,
             update_interval = update_interval,
+            state_filter = state_filter,
+            state_input_filter = state_input_filter,
         )
     else
         return _collect_transitions_threaded!(
@@ -79,6 +91,8 @@ function _collect_transitions!(
             verbose = verbose,
             update_interval = update_interval,
             progress_dt = progress_dt,
+            state_filter = state_filter,
+            state_input_filter = state_input_filter,
         )
     end
 end
@@ -90,10 +104,12 @@ function _collect_transitions_sequential!(
     workfun!;
     verbose::Bool = false,
     update_interval::Int = Int(1e5),
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     verbose && @info("Starting sequential abstraction")
     inputs = collect(enum_inputs(symmodel))
-    states = collect(enum_source_states(symmodel))
+    states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
     total_updates = max(div(total_work, max(1, update_interval)), 1)
@@ -105,8 +121,10 @@ function _collect_transitions_sequential!(
     for abstract_input in inputs
         for abstract_state in states
             empty!(localbuf)
-            workfun!(localbuf, abstract_state, abstract_input)
-            append!(out, localbuf)
+            if state_input_filter === nothing || _keep_state_input(symmodel, abstract_state, abstract_input, state_input_filter)
+                workfun!(localbuf, abstract_state, abstract_input)
+                append!(out, localbuf)
+            end
 
             count += 1
             if verbose && count % update_interval == 0
@@ -127,11 +145,13 @@ function _collect_transitions_threaded!(
     verbose::Bool = false,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     verbose && (@info "Starting threaded abstraction" nthreads = Threads.nthreads())
 
     inputs = collect(enum_inputs(symmodel))
-    states = collect(enum_source_states(symmodel))
+    states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
     nthreads = Threads.nthreads()
@@ -154,8 +174,9 @@ function _collect_transitions_threaded!(
         abstract_input = @inbounds inputs[input_idx]
         abstract_state = @inbounds states[state_idx]
 
-        prev_length = length(local_transitions)
-        workfun!(local_transitions, abstract_state, abstract_input)
+        if state_input_filter === nothing || _keep_state_input(symmodel, abstract_state, abstract_input, state_input_filter)
+            workfun!(local_transitions, abstract_state, abstract_input)
+        end
 
         local_done[tid] += 1
         if local_done[tid] >= update_interval
@@ -234,7 +255,7 @@ function compute_abstract_transitions_from_points!(
     end
 
     unique!(view(translist, (start_len + 1):length(translist)))
-    unique!(translist)  # simple first version
+    unique!(translist)
     return true
 end
 
@@ -251,6 +272,8 @@ function collect_abstract_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
 
@@ -258,7 +281,7 @@ function collect_abstract_transitions!(
         transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
-    )
+    )   
         concrete_input = get_concrete_input(symmodel, abstract_input)
         concrete_elem = get_concrete_elem(symmodel, abstract_state)
         reachable_set = compute_reachable_set(concrete_elem, concrete_input)
@@ -283,6 +306,8 @@ function collect_abstract_transitions!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -296,6 +321,8 @@ function collect_abstract_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
@@ -315,7 +342,7 @@ function collect_abstract_transitions!(
         transbuf::Vector{Tuple{Int, Int, Int}},
         abstract_state::Int,
         abstract_input::Int,
-    )
+    )   
         concrete_input, Fr = input_data[abstract_input]
         concrete_state = get_concrete_state(symmodel, abstract_state)
         Fx = system_map(concrete_state, concrete_input)
@@ -341,6 +368,8 @@ function collect_abstract_transitions!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -354,6 +383,8 @@ function collect_abstract_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     XMapping = get_state_mapping(symmodel)
     N = MP.get_dim(XMapping)
@@ -411,6 +442,8 @@ function collect_abstract_transitions!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -423,6 +456,8 @@ function collect_abstract_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
 
@@ -455,6 +490,8 @@ function collect_abstract_transitions!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -468,6 +505,8 @@ function collect_abstract_transitions!(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing,Function} = nothing,
+    state_input_filter::Union{Nothing,Function} = nothing,
 )
     system_map = ST.get_system_map(concrete_system_approx)
 
@@ -495,5 +534,7 @@ function collect_abstract_transitions!(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
