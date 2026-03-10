@@ -35,20 +35,25 @@ const LOAD_ABSTRACTION = false
 const SIMULATE_FIRST_STEP = true
 const SIMULATE_SECOND_STEP = false
 
-robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
-tstep = 0.1
-
 # ==============================================================================
 # Helpers
 # ==============================================================================
 reached_target(problem) = (x -> (x ∈ problem.target_set))
 
-function build_optimizer(; concrete_problem, state_grid, input_grid)
+function build_optimizer(;
+    concrete_problem,
+    state_grid,
+    input_grid,
+    state_filter = nothing,
+    state_input_filter = nothing,
+)
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_filter"), state_filter)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("state_input_filter"), state_input_filter)
 
     MOI.set(
         optimizer,
@@ -75,7 +80,7 @@ function solve_and_simulate!(
     out_of_domain_handler = nothing,
 )
     # Problem
-    I = UT.HyperRectangle(xstart, xstart)   # start forced in cell of xstart
+    I = UT.HyperRectangle(xstart, xstart)
     T = UT.HyperRectangle(target_low, target_high)
 
     problem = DI.Problem.OptimalControlProblem(
@@ -143,13 +148,20 @@ end
 # ==============================================================================
 # System setup
 # ==============================================================================
+robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
+tstep = 0.1
+
 concrete_problem = RobotProblem.problem(; robot_urdf = robot_urdf, tstep = tstep)
 concrete_system = concrete_problem.system
 
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
+
 println("n_state: ", n_state)
 println("n_input: ", n_input)
+
+state_filter = nothing # RobotProblem.in_gait_tube
+state_input_filter = nothing # RobotProblem.input_allowed
 
 # ==============================================================================
 # Abstraction (compute / save / load)
@@ -169,6 +181,8 @@ if COMPUTE_ABSTRACTION
         concrete_problem = concrete_problem,
         state_grid = state_grid,
         input_grid = input_grid,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 
     MOI.optimize!(optimizer)

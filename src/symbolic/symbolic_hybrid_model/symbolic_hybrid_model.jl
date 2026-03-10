@@ -519,7 +519,9 @@ function build_timed_hybrid_symbolic_model(
     input_mapping = GlobalInputMap(mode_abstractions, hs)
 
     # 3) Build transition list efficiently
+    println("Building augmented automata: started")
     transition_list = build_all_transitions(hs, mode_abstractions, input_mapping)
+    println("Building augmented automata: ended")
 
     # 4) Build the final automaton with optimized performance
     state_index_to_augmented, augmented_to_state_index, symbolic_automaton =

@@ -278,6 +278,9 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     Rset::Union{Nothing, MP.AbstractStateSet}
     use_implicit_stateset::Bool
 
+    state_filter::Union{Nothing, Function}
+    state_input_filter::Union{Nothing, Function}
+
     ## UMapping & Uset
     UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
 
@@ -342,6 +345,8 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             false, # use implicit stateset
+            nothing, # state_filter 
+            nothing, # state_input_filter
             nothing,
             nothing,
             nothing,
@@ -717,9 +722,11 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         procs = local_procs,
         nparts = local_nparts,
         partition_strategy = optimizer.distributed_partition_strategy,
-        verbose = optimizer.print_level >= 2,
+        print_level = optimizer.print_level,
         update_interval = optimizer.progress_update_interval,
         progress_dt = optimizer.progress_dt,
+        state_filter = optimizer.state_filter,
+        state_input_filter = optimizer.state_input_filter,
     )
 
     optimizer.print_level >= 1 && println(

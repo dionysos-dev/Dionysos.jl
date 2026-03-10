@@ -11,18 +11,22 @@ function compute_abstract_system!(
         ST.DiscreteTimeSystemUnderApproximation,
         ST.DiscreteTimeCenteredSimulation,
     };
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     trans = collect_abstract_transitions(
         abstract_system,
         concrete_system_approx;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
     isempty(trans) || add_transitions!(abstract_system, trans)
     return
@@ -31,20 +35,24 @@ end
 function collect_abstract_transitions(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     trans = Tuple{Int, Int, Int}[]
     collect_abstract_transitions!(
         trans,
         symmodel,
         concrete_system_approx;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
     return trans
 end
@@ -58,27 +66,33 @@ function _collect_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     if !threaded || Threads.nthreads() == 1
         return _collect_transitions_sequential!(
             out,
             symmodel,
             workfun!;
-            verbose = verbose,
+            print_level = print_level,
             update_interval = update_interval,
+            state_filter = state_filter,
+            state_input_filter = state_input_filter,
         )
     else
         return _collect_transitions_threaded!(
             out,
             symmodel,
             workfun!;
-            verbose = verbose,
+            print_level = print_level,
             update_interval = update_interval,
             progress_dt = progress_dt,
+            state_filter = state_filter,
+            state_input_filter = state_input_filter,
         )
     end
 end
@@ -88,16 +102,18 @@ function _collect_transitions_sequential!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
-    verbose && @info("Starting sequential abstraction")
+    print_level>=1 && @info("Starting sequential abstraction")
     inputs = collect(enum_inputs(symmodel))
-    states = collect(enum_source_states(symmodel))
+    states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
     total_updates = max(div(total_work, max(1, update_interval)), 1)
-    progress = verbose ? ProgressMeter.Progress(total_updates) : nothing
+    progress = print_level==2 ? ProgressMeter.Progress(total_updates) : nothing
 
     localbuf = Tuple{Int, Int, Int}[]
     count = 0
@@ -105,17 +121,31 @@ function _collect_transitions_sequential!(
     for abstract_input in inputs
         for abstract_state in states
             empty!(localbuf)
-            workfun!(localbuf, abstract_state, abstract_input)
-            append!(out, localbuf)
+            if state_input_filter === nothing || _keep_state_input(
+                symmodel,
+                abstract_state,
+                abstract_input,
+                state_input_filter,
+            )
+                workfun!(localbuf, abstract_state, abstract_input)
+                append!(out, localbuf)
+            end
 
             count += 1
-            if verbose && count % update_interval == 0
-                ProgressMeter.next!(progress)
+            if print_level>=1 && count % update_interval == 0
+                if print_level == 1
+                    @info "Sequential abstraction progress" done = count total = total_work
+                elseif print_level == 2
+                    ProgressMeter.next!(progress)
+                end
             end
         end
     end
 
-    verbose && ProgressMeter.finish!(progress)
+    print_level==2 && ProgressMeter.finish!(progress)
+    print_level>=1 &&
+        @info "Finished sequential abstraction" total_work = total_work ntransitions =
+            length(out)
     return out
 end
 
@@ -124,14 +154,16 @@ function _collect_transitions_threaded!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     workfun!;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
-    verbose && (@info "Starting threaded abstraction" nthreads = Threads.nthreads())
+    print_level>=1 && (@info "Starting threaded abstraction" nthreads = Threads.nthreads())
 
     inputs = collect(enum_inputs(symmodel))
-    states = collect(enum_source_states(symmodel))
+    states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
     nthreads = Threads.nthreads()
@@ -140,7 +172,7 @@ function _collect_transitions_threaded!(
     local_done = fill(0, nthreads)
 
     progress_dt_ns = Int(round(progress_dt * 1e9))
-    prog = verbose ? ProgressMeter.Progress(total_work) : nothing
+    prog = print_level==2 ? ProgressMeter.Progress(total_work) : nothing
     global_done = Threads.Atomic{Int}(0)
     last_t = time_ns()
 
@@ -154,8 +186,10 @@ function _collect_transitions_threaded!(
         abstract_input = @inbounds inputs[input_idx]
         abstract_state = @inbounds states[state_idx]
 
-        prev_length = length(local_transitions)
-        workfun!(local_transitions, abstract_state, abstract_input)
+        if state_input_filter === nothing ||
+           _keep_state_input(symmodel, abstract_state, abstract_input, state_input_filter)
+            workfun!(local_transitions, abstract_state, abstract_input)
+        end
 
         local_done[tid] += 1
         if local_done[tid] >= update_interval
@@ -163,11 +197,13 @@ function _collect_transitions_threaded!(
             local_done[tid] = 0
         end
 
-        if verbose && tid == 1
-            t = time_ns()
-            if t - last_t >= progress_dt_ns
-                ProgressMeter.update!(prog, global_done[] + local_done[1])
-                last_t = t
+        if print_level>=1 && tid == 1
+            if print_level == 2
+                t = time_ns()
+                if t - last_t >= progress_dt_ns
+                    ProgressMeter.update!(prog, global_done[] + local_done[1])
+                    last_t = t
+                end
             end
         end
     end
@@ -178,14 +214,17 @@ function _collect_transitions_threaded!(
         end
     end
 
-    if verbose
-        ProgressMeter.update!(prog, global_done[])
-        ProgressMeter.finish!(prog)
-    end
-
     for local_transitions in transitions_by_thread
         isempty(local_transitions) || append!(out, local_transitions)
     end
+
+    if print_level==2
+        ProgressMeter.update!(prog, global_done[])
+        ProgressMeter.finish!(prog)
+    end
+    print_level>=1 &&
+        @info "Finished threaded abstraction" total_work = total_work nthreads = nthreads ntransitions =
+            length(out)
 
     return out
 end
@@ -234,7 +273,7 @@ function compute_abstract_transitions_from_points!(
     end
 
     unique!(view(translist, (start_len + 1):length(translist)))
-    unique!(translist)  # simple first version
+    unique!(translist)
     return true
 end
 
@@ -247,10 +286,12 @@ function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeSystemOverApproximation;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
 
@@ -279,10 +320,12 @@ function collect_abstract_transitions!(
         out,
         symmodel,
         workfun!;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -292,10 +335,12 @@ function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeGrowthBound;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     growthbound_map = concrete_system_approx.growthbound_map
     system_map = ST.get_system_map(concrete_system_approx)
@@ -337,10 +382,12 @@ function collect_abstract_transitions!(
         out,
         symmodel,
         workfun!;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -350,10 +397,12 @@ function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeLinearized;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     XMapping = get_state_mapping(symmodel)
     N = MP.get_dim(XMapping)
@@ -407,10 +456,12 @@ function collect_abstract_transitions!(
         out,
         symmodel,
         workfun!;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -419,10 +470,12 @@ function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeSystemUnderApproximation;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
 
@@ -451,10 +504,12 @@ function collect_abstract_transitions!(
         out,
         symmodel,
         workfun!;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
 
@@ -464,10 +519,12 @@ function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx::ST.DiscreteTimeCenteredSimulation;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     system_map = ST.get_system_map(concrete_system_approx)
 
@@ -491,9 +548,11 @@ function collect_abstract_transitions!(
         out,
         symmodel,
         workfun!;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 end
