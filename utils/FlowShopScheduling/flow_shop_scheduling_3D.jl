@@ -86,6 +86,8 @@ input_grid_3 = MP.GridFree(
 # Jacobian bounds for each mode (used in abstraction growth)
 jacobian_bounds = FlowShopScheduling3D.jacobian_bounds()
 
+print_level = 2
+
 # Create optimizer parameters dictionary
 optimizer_kwargs_dict = [
     Dict(
@@ -94,6 +96,7 @@ optimizer_kwargs_dict = [
         "time_step" => discretization_parameters[1][3],
         "approx_mode" => AB.UniformGridAbstraction.GROWTH,
         "jacobian_bound" => jacobian_bounds[1],
+        "print_level" => print_level,
     ),
     Dict(
         "state_grid" => state_grid_2,
@@ -101,6 +104,7 @@ optimizer_kwargs_dict = [
         "time_step" => discretization_parameters[2][3],
         "approx_mode" => AB.UniformGridAbstraction.GROWTH,
         "jacobian_bound" => jacobian_bounds[2],
+        "print_level" => print_level,
     ),
     Dict(
         "state_grid" => state_grid_3,
@@ -108,6 +112,7 @@ optimizer_kwargs_dict = [
         "time_step" => discretization_parameters[3][3],
         "approx_mode" => AB.UniformGridAbstraction.GROWTH,
         "jacobian_bound" => jacobian_bounds[3],
+        "print_level" => print_level,
     ),
 ]
 

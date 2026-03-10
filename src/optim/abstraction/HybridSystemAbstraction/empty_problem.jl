@@ -57,7 +57,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
 
     # Build symbolic model
     optimizer.print_level >= 1 &&
-        println("compute_abstract_system_from_concrete_system!: started")
+        println("Construct the Hybrid System Abstraction: started")
     optimizer.abstract_system = SY.build_timed_hybrid_symbolic_model(
         optimizer.empty_problem.system,
         optimizer.optimizer_list,
@@ -65,7 +65,7 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
     )
 
     optimizer.print_level >= 1 && println(
-        "compute_abstract_system_from_concrete_system! terminated with success: ",
+        "Construct the Hybrid System Abstraction: terminated with success: ",
         "$(HybridSystems.ntransitions(SY.get_automaton(optimizer.abstract_system))) transitions created",
     )
 

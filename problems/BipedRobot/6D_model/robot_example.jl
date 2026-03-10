@@ -40,7 +40,13 @@ const SIMULATE_SECOND_STEP = false
 # ==============================================================================
 reached_target(problem) = (x -> (x ∈ problem.target_set))
 
-function build_optimizer(; concrete_problem, state_grid, input_grid, state_filter=nothing, state_input_filter=nothing)
+function build_optimizer(;
+    concrete_problem,
+    state_grid,
+    input_grid,
+    state_filter = nothing,
+    state_input_filter = nothing,
+)
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)

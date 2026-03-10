@@ -188,7 +188,7 @@ end
 #-----------------------------------------------------------
 
 const LTHIGH = 0.20125
-const LLEG   = 0.172
+const LLEG = 0.172
 
 deg2rad(d) = d * π / 180
 
@@ -210,7 +210,7 @@ Returns:
 - `:right` if the right foot is clearly lower,
 - `:ambiguous` if both feet have nearly equal height.
 """
-@inline function stance_foot(x::SVector{8,Float64}; tol=1e-9)
+@inline function stance_foot(x::SVector{8, Float64}; tol = 1e-9)
     LH, RH, LK, RK = x[1], x[2], x[3], x[4]
 
     zl = Lthigh * cos(LH) + Lleg * cos(LK + LH)
@@ -224,7 +224,6 @@ Returns:
         return :ambiguous
     end
 end
-
 
 """
     in_gait_tube(x)
@@ -255,35 +254,51 @@ Returns `true` if all constraints are satisfied.
 function in_gait_tube(x::AbstractVector{<:Real})
     LH, RH, LK, RK, dLH, dRH, dLK, dRK = x
 
-    hip_sum_tol  = deg2rad(10)
+    hip_sum_tol = deg2rad(10)
     dhip_sum_tol = 0.4
 
     stance_knee_max = deg2rad(12)
-    swing_knee_min  = deg2rad(10)
-    knee_gap_min    = deg2rad(8)
+    swing_knee_min = deg2rad(10)
+    knee_gap_min = deg2rad(8)
 
     stance_dk_max = 0.3
-    swing_dk_max  = 0.5
+    swing_dk_max = 0.5
 
     # Enforce approximate anti-symmetry of hips
-    if abs(LH + RH) > hip_sum_tol; return false; end
-    if abs(dLH + dRH) > dhip_sum_tol; return false; end
+    if abs(LH + RH) > hip_sum_tol
+        ;
+        return false;
+    end
+    if abs(dLH + dRH) > dhip_sum_tol
+        ;
+        return false;
+    end
 
     # Detect stance/swing configuration
-    left_stance  = (LK <= stance_knee_max) && (RK >= swing_knee_min) && ((RK - LK) >= knee_gap_min)
-    right_stance = (RK <= stance_knee_max) && (LK >= swing_knee_min) && ((LK - RK) >= knee_gap_min)
-    if !(left_stance || right_stance); return false; end
+    left_stance =
+        (LK <= stance_knee_max) && (RK >= swing_knee_min) && ((RK - LK) >= knee_gap_min)
+    right_stance =
+        (RK <= stance_knee_max) && (LK >= swing_knee_min) && ((LK - RK) >= knee_gap_min)
+    if !(left_stance || right_stance)
+        ;
+        return false;
+    end
 
     # Velocity limits on knees
     if left_stance
-        if abs(dLK) > stance_dk_max || abs(dRK) > swing_dk_max; return false; end
+        if abs(dLK) > stance_dk_max || abs(dRK) > swing_dk_max
+            ;
+            return false;
+        end
     else
-        if abs(dRK) > stance_dk_max || abs(dLK) > swing_dk_max; return false; end
+        if abs(dRK) > stance_dk_max || abs(dLK) > swing_dk_max
+            ;
+            return false;
+        end
     end
 
     return true
 end
-
 
 """
     input_allowed(x, u)
@@ -323,13 +338,31 @@ function input_allowed(x::AbstractVector{<:Real}, u::AbstractVector{<:Real})
     left_is_stance = LK < RK
 
     if left_is_stance
-        if abs(uLK) > 1; return false; end
-        if abs(uRK) < 1; return false; end
-        if abs(uRK) < abs(uLK); return false; end
+        if abs(uLK) > 1
+            ;
+            return false;
+        end
+        if abs(uRK) < 1
+            ;
+            return false;
+        end
+        if abs(uRK) < abs(uLK)
+            ;
+            return false;
+        end
     else
-        if abs(uRK) > 1; return false; end
-        if abs(uLK) < 1; return false; end
-        if abs(uLK) < abs(uRK); return false; end
+        if abs(uRK) > 1
+            ;
+            return false;
+        end
+        if abs(uLK) < 1
+            ;
+            return false;
+        end
+        if abs(uLK) < abs(uRK)
+            ;
+            return false;
+        end
     end
 
     return true

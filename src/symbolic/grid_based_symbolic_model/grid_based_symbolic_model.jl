@@ -45,7 +45,7 @@ enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
     symmodel::GridBasedSymbolicModel,
     abstract_state::Int,
     abstract_input::Int,
-    state_input_filter::Union{Nothing,Function},
+    state_input_filter::Union{Nothing, Function},
 )
     state_input_filter === nothing && return true
     x = get_concrete_state(symmodel, abstract_state)
@@ -55,7 +55,7 @@ end
 
 function filtered_source_states(
     symmodel::GridBasedSymbolicModel,
-    state_filter::Union{Nothing,Function},
+    state_filter::Union{Nothing, Function},
 )
     states = collect(enum_source_states(symmodel))
     state_filter === nothing && return states

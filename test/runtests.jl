@@ -30,6 +30,7 @@ include("./symbolic/automaton.jl")
 include("./symbolic/symbolic_model_list.jl")
 include("./symbolic/allocation.jl")
 include("./symbolic/multithreading.jl")
+include("./symbolic/multiprocessing.jl")
 
 include("./optim/UniformGridAbstraction/unit_test_reachability.jl")
 include("./optim/UniformGridAbstraction/unit_test_safety.jl")

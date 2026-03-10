@@ -205,16 +205,14 @@ function problem(;
     return PR.EmptyProblem(sys, nothing)
 end
 
-
 #-----------------------------------------------------------
 # - Additional pruning constraints for the reduced 6D model -
 #-----------------------------------------------------------
 
 const LTHIGH = 0.20125
-const LLEG   = 0.172
+const LLEG = 0.172
 
 deg2rad(d) = d * π / 180
-
 
 """
     stance_foot(x; tol = 1e-9)
@@ -237,7 +235,7 @@ Returns:
 - `:right` if the right foot is clearly lower,
 - `:ambiguous` otherwise.
 """
-@inline function stance_foot(x::SVector{6,Float64}; tol = 1e-9)
+@inline function stance_foot(x::SVector{6, Float64}; tol = 1e-9)
     LH, RH, LK = x[1], x[2], x[3]
 
     zl = LTHIGH * cos(LH) + LLEG * cos(LK + LH)
@@ -251,7 +249,6 @@ Returns:
         return :ambiguous
     end
 end
-
 
 """
     in_gait_tube(x)
@@ -281,7 +278,7 @@ This predicate is intended as a conservative pruning rule for abstraction.
 function in_gait_tube(x::AbstractVector{<:Real})
     LH, RH, LK, dLH, dRH, dLK = x
 
-    hip_sum_tol  = deg2rad(10)
+    hip_sum_tol = deg2rad(10)
     dhip_sum_tol = 0.4
 
     swing_knee_min = deg2rad(5)
@@ -310,7 +307,6 @@ function in_gait_tube(x::AbstractVector{<:Real})
 
     return true
 end
-
 
 """
     input_allowed(x, u)
