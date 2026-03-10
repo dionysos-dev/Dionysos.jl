@@ -35,9 +35,6 @@ const LOAD_ABSTRACTION = false
 const SIMULATE_FIRST_STEP = true
 const SIMULATE_SECOND_STEP = false
 
-robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
-tstep = 0.1
-
 # ==============================================================================
 # Helpers
 # ==============================================================================
@@ -77,7 +74,7 @@ function solve_and_simulate!(
     out_of_domain_handler = nothing,
 )
     # Problem
-    I = UT.HyperRectangle(xstart, xstart)   # start forced in cell of xstart
+    I = UT.HyperRectangle(xstart, xstart)
     T = UT.HyperRectangle(target_low, target_high)
 
     problem = DI.Problem.OptimalControlProblem(
@@ -145,17 +142,20 @@ end
 # ==============================================================================
 # System setup
 # ==============================================================================
+robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
+tstep = 0.1
+
 concrete_problem = RobotProblem.problem(; robot_urdf = robot_urdf, tstep = tstep)
 concrete_system = concrete_problem.system
 
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
 
-state_filter = nothing # RobotProblem.in_gait_tube
-state_input_filter = nothing # RobotProblem.input_allowed
-
 println("n_state: ", n_state)
 println("n_input: ", n_input)
+
+state_filter = nothing # RobotProblem.in_gait_tube
+state_input_filter = nothing # RobotProblem.input_allowed
 
 # ==============================================================================
 # Abstraction (compute / save / load)

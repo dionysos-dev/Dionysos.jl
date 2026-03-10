@@ -18,6 +18,15 @@ const SY = DI.Symbolic
 include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
 import .RS_tools
 
+# The robot state is
+#     x = [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
+# where:
+# - `LH`, `RH` are the hip angles,
+# - `LK`, `RK` are the knee angles,
+# - `dLH`, `dRH`, `dLK`, `dRK` are the corresponding angular velocities.
+# The control vector is
+#     u = [uLH, uRH, uLK, uRK]
+# where each component represents a torque applied at the corresponding joint.
 function system(;
     tstep = 5e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
@@ -44,13 +53,13 @@ function system(;
     states_per_thread = [MechanismState(mechanism) for _ in 1:Threads.nthreads()]
 
     ## Motor parameters ##
-    HGR = 353.5                   # Hip gear-ratio
-    KGR = 212.6                   # Knee gear-ratio
+    HGR = 353.5                  # Hip gear-ratio
+    KGR = 212.6                  # Knee gear-ratio
     ktp = 0.395 / HGR            # Torque constant with respect to the voltage [Nm/V] 
     Kvp = 1.589 / (HGR * HGR)    # Viscous friction constant [Nm*s/rad] (linked to motor speed)
     τc_u = 0.065 / HGR           # Dry friction torque [Nm]
     GR = SVector{4, Float64}(HGR, HGR, KGR, KGR)  # Gear ratios
-    Kp = 900.0 / 128.0            # DXL controller gain
+    Kp = 900.0 / 128.0           # DXL controller gain
     ddl = 2                      # constant used in indexing
 
     ## Robots geometry parameters ##
@@ -196,45 +205,43 @@ function problem(;
     return PR.EmptyProblem(sys, nothing)
 end
 
+
 #-----------------------------------------------------------
-# - Additional pruning constraints for a biped gait tube   -
+# - Additional pruning constraints for the reduced 6D model -
 #-----------------------------------------------------------
 
-# The robot state is
-#     x = [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
-# where:
-# - `LH`, `RH` are the hip angles,
-# - `LK`, `RK` are the knee angles,
-# - `dLH`, `dRH`, `dLK`, `dRK` are the corresponding angular velocities.
+const LTHIGH = 0.20125
+const LLEG   = 0.172
 
+deg2rad(d) = d * π / 180
 
-# The control vector is
-#     u = [uLH, uRH, uLK, uRK]
-# where each component represents a torque applied at the corresponding joint.
 
 """
     stance_foot(x; tol = 1e-9)
 
-Determine which leg is the stance leg from a simple geometric estimate
-of the foot height.
+Determine which leg is lower from a simple geometric estimate of foot height
+for the reduced 6D model
 
-The vertical positions of the feet are approximated as
+    x = [LH, RH, LK, dLH, dRH, dLK]
 
-    zl = Lthigh*cos(LH) + Lleg*cos(LK + LH)
-    zr = Lthigh*cos(RH) + Lleg*cos(RK + RH)
+This reduced model does not include the right knee explicitly, so the right knee
+is assumed to remain at `RK = 0`.
 
-The leg whose foot is lower is assumed to be in stance.
+The foot heights are approximated as
+
+    zl = LTHIGH*cos(LH) + LLEG*cos(LK + LH)
+    zr = LTHIGH*cos(RH) + LLEG*cos(RH)
 
 Returns:
 - `:left` if the left foot is clearly lower,
 - `:right` if the right foot is clearly lower,
-- `:ambiguous` if both feet have nearly equal height.
+- `:ambiguous` otherwise.
 """
-@inline function stance_foot(x::SVector{8,Float64}; tol=1e-9)
-    LH, RH, LK, RK = x[1], x[2], x[3], x[4]
+@inline function stance_foot(x::SVector{6,Float64}; tol = 1e-9)
+    LH, RH, LK = x[1], x[2], x[3]
 
-    zl = Lthigh * cos(LH) + Lleg * cos(LK + LH)
-    zr = Lthigh * cos(RH) + Lleg * cos(RK + RH)
+    zl = LTHIGH * cos(LH) + LLEG * cos(LK + LH)
+    zr = LTHIGH * cos(RH) + LLEG * cos(RH)   # RK assumed to be 0
 
     if zl >= zr + tol
         return :left
@@ -249,56 +256,56 @@ end
 """
     in_gait_tube(x)
 
-Return `true` if the state `x` belongs to a desired *walking tube* in the
-state space of the robot.
+Return `true` if the reduced 6D state
 
-This predicate is used as a pruning rule to discard states that do not
-resemble a plausible walking configuration.
+    x = [LH, RH, LK, dLH, dRH, dLK]
 
-The following constraints are enforced:
+belongs to a desired walking tube.
 
-1. **Hip symmetry**
-   The sum of hip angles and hip angular velocities should remain small,
-   encouraging an anti-symmetric gait (one leg forward while the other
-   moves backward).
+Since the reduced model includes only one knee (`LK`), this predicate no longer
+tries to distinguish between two fully modeled stance/swing legs. Instead, it
+enforces a simplified gait pattern:
 
-2. **Stance/swing configuration**
-   One knee should be nearly straight (stance leg) while the other
-   remains bent (swing leg), with a minimum angular gap between them.
+1. **Hip anti-symmetry**
+   The two hips should roughly mirror each other.
+
+2. **Swing-knee configuration**
+   The modeled knee should remain bent enough to represent a swing leg, but not
+   excessively bent.
 
 3. **Velocity bounds**
-   Knee angular velocities must remain within reasonable limits, with
-   stricter bounds for the stance leg.
+   Hip and knee angular velocities should remain within reasonable ranges.
 
-Returns `true` if all constraints are satisfied.
+This predicate is intended as a conservative pruning rule for abstraction.
 """
 function in_gait_tube(x::AbstractVector{<:Real})
-    LH, RH, LK, RK, dLH, dRH, dLK, dRK = x
+    LH, RH, LK, dLH, dRH, dLK = x
 
     hip_sum_tol  = deg2rad(10)
     dhip_sum_tol = 0.4
 
-    stance_knee_max = deg2rad(12)
-    swing_knee_min  = deg2rad(10)
-    knee_gap_min    = deg2rad(8)
+    swing_knee_min = deg2rad(5)
+    swing_knee_max = deg2rad(20)
 
-    stance_dk_max = 0.3
-    swing_dk_max  = 0.5
+    dhip_max = 0.8
+    dknee_max = 0.5
 
-    # Enforce approximate anti-symmetry of hips
-    if abs(LH + RH) > hip_sum_tol; return false; end
-    if abs(dLH + dRH) > dhip_sum_tol; return false; end
+    # Approximate anti-symmetry of hips
+    if abs(LH + RH) > hip_sum_tol
+        return false
+    end
+    if abs(dLH + dRH) > dhip_sum_tol
+        return false
+    end
 
-    # Detect stance/swing configuration
-    left_stance  = (LK <= stance_knee_max) && (RK >= swing_knee_min) && ((RK - LK) >= knee_gap_min)
-    right_stance = (RK <= stance_knee_max) && (LK >= swing_knee_min) && ((LK - RK) >= knee_gap_min)
-    if !(left_stance || right_stance); return false; end
+    # The modeled knee should represent a plausible swing knee
+    if LK < swing_knee_min || LK > swing_knee_max
+        return false
+    end
 
-    # Velocity limits on knees
-    if left_stance
-        if abs(dLK) > stance_dk_max || abs(dRK) > swing_dk_max; return false; end
-    else
-        if abs(dRK) > stance_dk_max || abs(dLK) > swing_dk_max; return false; end
+    # Velocity bounds
+    if abs(dLH) > dhip_max || abs(dRH) > dhip_max || abs(dLK) > dknee_max
+        return false
     end
 
     return true
@@ -308,7 +315,16 @@ end
 """
     input_allowed(x, u)
 
-Return `true` if control input `u` is admissible in state `x`.
+Return `true` if the reduced 3D control input
+
+    u = [uLH, uRH, uLK]
+
+is admissible at the reduced 6D state
+
+    x = [LH, RH, LK, dLH, dRH, dLK].
+
+This reduced model has no right-knee torque, so the admissibility conditions
+are adapted accordingly.
 
 The following heuristics are enforced:
 
@@ -318,16 +334,13 @@ The following heuristics are enforced:
 2. **Balance hip torques**
    The sum of hip torques should remain moderate.
 
-3. **Swing/stance knee behavior**
-   The swing leg should receive stronger torque than the stance leg.
-   This encourages lifting the swing leg rather than pushing with the
-   stance leg.
-
-Returns `true` if the input is considered physically plausible for walking.
+3. **Swing-knee actuation**
+   The modeled knee torque should remain large enough to support swing-leg
+   motion, but not excessively large.
 """
 function input_allowed(x::AbstractVector{<:Real}, u::AbstractVector{<:Real})
-    LH, RH, LK, RK, dLH, dRH, dLK, dRK = x
-    uLH, uRH, uLK, uRK = u
+    LH, RH, LK, dLH, dRH, dLK = x
+    uLH, uRH, uLK = u
 
     # Avoid both hips pushing strongly in the same direction
     if (sign(uLH) == sign(uRH)) && (abs(uLH) >= 2) && (abs(uRH) >= 2)
@@ -339,17 +352,9 @@ function input_allowed(x::AbstractVector{<:Real}, u::AbstractVector{<:Real})
         return false
     end
 
-    # Encourage stronger torque on the swing knee than on the stance knee
-    left_is_stance = LK < RK
-
-    if left_is_stance
-        if abs(uLK) > 1; return false; end
-        if abs(uRK) < 1; return false; end
-        if abs(uRK) < abs(uLK); return false; end
-    else
-        if abs(uRK) > 1; return false; end
-        if abs(uLK) < 1; return false; end
-        if abs(uLK) < abs(uRK); return false; end
+    # Keep knee torque in a plausible swing range
+    if abs(uLK) < 1 || abs(uLK) > 3
+        return false
     end
 
     return true
