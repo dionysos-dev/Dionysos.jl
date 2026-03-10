@@ -722,9 +722,11 @@ function MOI.optimize!(optimizer::OptimizerEmptyProblem)
         procs = local_procs,
         nparts = local_nparts,
         partition_strategy = optimizer.distributed_partition_strategy,
-        verbose = optimizer.print_level >= 2,
+        print_level = optimizer.print_level,
         update_interval = optimizer.progress_update_interval,
         progress_dt = optimizer.progress_dt,
+        state_filter = optimizer.state_filter,
+        state_input_filter = optimizer.state_input_filter,
     )
 
     optimizer.print_level >= 1 && println(

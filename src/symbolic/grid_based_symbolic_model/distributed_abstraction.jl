@@ -90,7 +90,7 @@ end
 function _run_local_partition(
     local_symmodel::GridBasedSymbolicModel,
     concrete_system_approx;
-    verbose::Bool = false,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
@@ -98,7 +98,7 @@ function _run_local_partition(
     transitions = collect_abstract_transitions(
         local_symmodel,
         concrete_system_approx;
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
@@ -120,11 +120,11 @@ function compute_abstract_system_distributed!(
     nparts::Int = length(procs),
     partition_strategy::Symbol = :roundrobin,
     threaded_per_worker::Bool = false,
-    verbose::Bool = true,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
-    if verbose
+    if print_level >= 1
         @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy =
             partition_strategy threaded_per_worker = threaded_per_worker master_nthreads =
             Threads.nthreads()
@@ -137,7 +137,7 @@ function compute_abstract_system_distributed!(
         nparts = nparts,
         partition_strategy = partition_strategy,
         threaded_per_worker = threaded_per_worker,
-        verbose = verbose,
+        print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
     )
@@ -153,7 +153,7 @@ function collect_abstract_transitions_distributed(
     nparts::Int = max(length(procs), 1),
     partition_strategy::Symbol = :roundrobin,
     threaded_per_worker::Bool = false,
-    verbose::Bool = true,
+    print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
 )
@@ -171,7 +171,7 @@ function collect_abstract_transitions_distributed(
             return _run_local_partition(
                 local_symmodel,
                 local_approx;
-                verbose = false,
+                print_level = print_level,
                 update_interval = update_interval,
                 progress_dt = progress_dt,
                 threaded = threaded_per_worker,
@@ -184,7 +184,7 @@ function collect_abstract_transitions_distributed(
             return _run_local_partition(
                 local_symmodel,
                 local_approx;
-                verbose = false,
+                print_level = print_level <= 1 ? print_level : 1,
                 update_interval = update_interval,
                 progress_dt = progress_dt,
                 threaded = threaded_per_worker,
@@ -202,7 +202,7 @@ function collect_abstract_transitions_distributed(
         total_transitions += res.n_transitions
     end
 
-    verbose && @info(
+    print_level >= 1 && @info(
         "Distributed abstraction finished",
         nparts = nparts,
         total_source_states = total_sources,
