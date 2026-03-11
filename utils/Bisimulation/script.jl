@@ -1,0 +1,113 @@
+using StaticArrays
+using LinearAlgebra
+using JuMP
+using Clarabel
+using MathOptInterface
+const MOI = MathOptInterface
+
+import HybridSystems
+using LazySets
+using Plots
+
+using Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const ST = DI.System
+const PR = DI.Problem
+const OP = DI.Optim
+const AB = OP.Abstraction
+
+const PCLF = UT.PathCompleteFramework
+
+# ---------------------------------------------------------
+# Define a stable switched system
+# ---------------------------------------------------------
+A1 = @SMatrix [0.70 0.10;
+               0.00 0.65]
+
+A2 = @SMatrix [0.60 -0.15;
+               0.10  0.55]
+
+f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
+
+# ---------------------------------------------------------
+# Define problem:
+#  Define region X, terminal region D, and observation regions
+# ---------------------------------------------------------
+
+# X = [-2,2]^2
+X = Hyperrectangle(low = [-2.0, -2.0], high = [2.0, 2.0]) |> HPolytope
+
+# D = [-0.2,0.2]^2
+D = Hyperrectangle(low = [-0.2, -0.2], high = [0.2, 0.2]) |> HPolytope
+
+# Two observation regions
+R1 = Hyperrectangle(low = [0.8, 0.8], high = [1.5, 1.5]) |> HPolytope
+R2 = Hyperrectangle(low = [-1.5, 0.8], high = [-0.8, 1.5]) |> HPolytope
+
+observation_regions = [R1, R2]
+
+quotient_bisimulation_problem = PR.QuotientBisimulationProblem(
+    f,
+    X,
+    D,
+    observation_regions,
+)
+
+# ---------------------------------------------------------
+# Compute a common polyhedral PCLF (k = 0 gives 1-node graph)
+# ---------------------------------------------------------
+G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
+
+sdp_optimizer = JuMP.optimizer_with_attributes(
+    Clarabel.Optimizer,
+    "max_iter" => 1000,
+)
+
+pclf = PCLF.compute_polyhedral_pieces_pclf(
+    f,
+    G,
+    sdp_optimizer;
+    MLF = true,
+    verbose = false,
+)
+
+println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
+
+# ---------------------------------------------------------
+# Define Lyapunov levels Γ
+# Must be increasing, with Γ[i] ≈ γ * Γ[i+1] structure
+# ---------------------------------------------------------
+γ = pclf.JSRapprox
+Γ0 = 0.05
+N = 8
+Γ = [Γ0 / (γ^i) for i in 0:(N-1)]
+
+println("Levels Γ = ", Γ)
+
+# ---------------------------------------------------------
+# Instantiate abstraction optimizer
+# ---------------------------------------------------------
+optimizer = MOI.instantiate(AB.PathCompleteBisimulation.OptimizerQuotientBisimulation)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("quotient_bisimulation_problem"), quotient_bisimulation_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-9)
+
+# ---------------------------------------------------------
+# Solve
+# ---------------------------------------------------------
+MOI.optimize!(optimizer)
+
+println("Construction time = ", MOI.get(optimizer, MOI.SolveTimeSec), " sec")
+
+Traw = MOI.get(optimizer, MOI.RawOptimizerAttribute("raw_bisimulation"))
+slices = MOI.get(optimizer, MOI.RawOptimizerAttribute("slices"))
+
+println("Number of abstract states = ", length(Traw.states))
+
+for (qid, q) in sort(collect(Traw.states); by = x -> x[1])
+    println("State $qid: node=$(q.node), slice=$(q.slice), obs=$(q.obs), ntrans=$(length(q.next))")
+end

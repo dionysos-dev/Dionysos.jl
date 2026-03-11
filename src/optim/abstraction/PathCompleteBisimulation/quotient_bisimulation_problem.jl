@@ -18,7 +18,7 @@ include("pclf_bisimulation_quotient.jl")
 mutable struct OptimizerQuotientBisimulation{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
     quotient_bisimulation_problem::Union{Nothing, PR.QuotientBisimulationProblem}
-    pclf::Union{Nothing,PCF.PCLF}
+    pclf::Union{Nothing,PCLF.PCLF}
     Γ::Union{Nothing,Vector{Float64}}
     obs_partition::Union{Nothing,Vector{Tuple{Poly,Int}}}
     verbose::Bool
@@ -187,7 +187,7 @@ Graph edges are stored as `(source_node, destination_node, mode_label)`.
 """
 function bisimulation_pclf(
     f::HybridSystems.HybridSystem,
-    pclf::PCF.PCLF,
+    pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
     obs_partition::Vector{Tuple{Poly,Int}};
     verbose::Bool = true,
@@ -275,11 +275,11 @@ end
 Return a dictionary mapping each graph node `s` to the list
 `[P^{(s)}_{Γ_1}, ..., P^{(s)}_{Γ_N}]`.
 """
-function build_sublevel_sequence(pclf::PCF.PCLF, Γ::AbstractVector{<:Real})
+function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     sublevels = Dict{Any,Vector{Poly}}()
     for s in pclf.graph.verts
         piece = pclf.pieces[s]
-        sublevels[s] = [_as_hpolytope(PCF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
+        sublevels[s] = [_as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
     end
     return sublevels
 end
@@ -346,7 +346,7 @@ end
 For all terminal states in slice 1, add graph-induced transitions
 along every edge `(s,d,m)`.
 """
-function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCF.PCLF)
+function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCLF.PCLF)
     terminal_by_node = Dict{Any,Vector{Int}}()
 
     for (qid, q) in T.states
