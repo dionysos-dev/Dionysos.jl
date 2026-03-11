@@ -83,7 +83,7 @@ mutable struct CenteredAbstractionGenerator{P, C, O, CT} <: AbstractHeuristicGen
     solve_time_sec::Float64
 end
 
-function _periodicity(cfg::CenteredAbstractionConfig)
+function _periodicity(cfg::CenteredAbstractionConfig) # je sais pas trop comment gérer ça 
     p = cfg.periodicity
     p === nothing && return nothing
     p isa NamedTuple || error("cfg.periodicity must be nothing or a NamedTuple")
@@ -103,7 +103,7 @@ function _periodicity(cfg::CenteredAbstractionConfig)
     return p
 end
 
-function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfig, p)
+function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfig, p) # litéralement ce que l'on fait dans dio, y'a pas une constrution plus smart ? 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), cfg.hx)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("UMapping"), cfg.Udom)
@@ -129,7 +129,7 @@ function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfi
     return optimizer
 end
 
-function set_problem!(gen::CenteredAbstractionGenerator, prob)
+function set_problem!(gen::CenteredAbstractionGenerator, prob) # j'aime bien
     gen.problem = prob
     gen.optimizer = nothing
     gen.candidate = nothing
@@ -138,7 +138,7 @@ function set_problem!(gen::CenteredAbstractionGenerator, prob)
     return gen
 end
 
-function generate!(gen::CenteredAbstractionGenerator)
+function generate!(gen::CenteredAbstractionGenerator) #j'aime bien
     cfg = gen.config
     @assert gen.problem !== nothing
     @assert cfg.Δt > 0.0

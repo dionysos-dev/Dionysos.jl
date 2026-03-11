@@ -9,7 +9,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const UT = DI.Utils
 
-struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB}
+struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB} # améliorer les typages
     problem::P
     candidate::C
     config::CFG
@@ -34,7 +34,7 @@ struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB}
     terminal_radius::Float64
 end
 
-function _identity_transition_cost(nx::Int, nu::Int)
+function _identity_transition_cost(nx::Int, nu::Int) # l'utilisateur devrait lui meme fournir la transi cost fonction (pour le moment c'est pratiqque)
     return [
         Matrix{Float64}(LA.I, nx, nx) zeros(nx, nu) zeros(nx, 1)
         zeros(nu, nx) Matrix{Float64}(LA.I, nu, nu) zeros(nu, 1)
@@ -42,7 +42,7 @@ function _identity_transition_cost(nx::Int, nu::Int)
     ]
 end
 
-function build_symbolic_context(problem, candidate, config, symbolic_builder)
+function build_symbolic_context(problem, candidate, config, symbolic_builder) # je pourrais cancel ça et tout condenser
     xs = collect(ST.enum_elems(candidate.x_traj))
     us = collect(ST.enum_elems(candidate.u_traj))
     K = length(us)
@@ -161,7 +161,7 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
     t0 = time()
 
     nx = length(ctx.xs[end])
-    PN = Matrix{Float64}(LA.I, nx, nx) * (1.0 / ctx.terminal_radius^2)
+    PN = Matrix{Float64}(LA.I, nx, nx) * (1.0 / ctx.terminal_radius^2) # je sais pas si je vais changer ou non cette logique
     E_next = UT.Ellipsoid(PN, collect(ctx.xs[end]))
     
 
@@ -184,10 +184,10 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
             )
         end
         
-        println("[",k,"] is a succes\n")
+        #println("[",k,"] is a succes\n")
         E_next = rec.ellipsoid
         
-        println("the volume is ",UT.get_volume(E_next),"\n\n")
+        #println("the volume is ",UT.get_volume(E_next),"\n\n")
         push!(ellipsoids, rec.ellipsoid)
         push!(kappas, rec.kappa)
         #println(E_next,"\n\n")

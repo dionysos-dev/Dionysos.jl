@@ -1,0 +1,17 @@
+##### Court terme
+1) fixe les benchmarks, les implémenter tous proprement et si ça ne fonctionne pas j'implémente des extentions
+2) retrouver la meme stabilités des LMI qu'avec l'ancienne version de Dionysos
+
+##### Long terme
+1) améliorer le typage de mes structures
+
+#### Suggestion 
+1) Adaptative time step (utiliser la formalisation de Adrien + mes notes)
+2) réimplémenter prorepemnt une monte carlo pour valider empiriquement la soundness, une sorte de statistical stress test
+3) réimplémenter une sorte de simple guide en utilisant la centered simu
+4) (?) MPC-iLQR ou autre (-> peut etre à court terme)
+
+#### Bugs à fix
+0) ajouter le plot des ellispoides
+1) problème avec le wrap unwrap des angles
+2) encore certains problèmes de compatibilité avec l'ancien version de dionysos

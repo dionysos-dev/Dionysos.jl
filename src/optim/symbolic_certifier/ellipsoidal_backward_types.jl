@@ -1,8 +1,8 @@
 # Expose ellipsoidal-backward public data types.
 export EllipsoidalBackwardConfig, BackwardStepRecord, EllipsoidalCertificationResult
-
+# (rajouter les types)
 # Store static configuration for ellipsoidal backward certification.
-struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts}
+struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts} # je me demande si je devrais pas changer cette fonction
     # State domain descriptor.
     Xdom::TX
     # Input domain descriptor.
@@ -26,7 +26,7 @@ struct BackwardStepRecord{TE, TK, TS}
     # Optional ellipsoid object.
     ellipsoid::Union{Nothing, TE}
     # Optional local control law object.
-    kappa::Union{Nothing, TK}
+    kappa::Union{Nothing, TK} # je vais utiliser un autre objet
     # Extensible summary payload.
     summary::TS
 end
@@ -47,7 +47,7 @@ struct EllipsoidalCertificationResult{S, CTRL, LMI}
     lmi_data::Union{Nothing, LMI}
 end
 
-function EllipsoidalCertificationResult(
+function EllipsoidalCertificationResult( # je suis pas encore certain des data dans la structure
     success::Bool,
     failed_k::Union{Nothing, Int},
     solve_time_sec::Float64,

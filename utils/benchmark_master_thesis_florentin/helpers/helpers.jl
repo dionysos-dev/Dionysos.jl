@@ -6,47 +6,10 @@ const UT = DI.Utils
 const ST = DI.System
 const OP = DI.Optim
 
+### ça
 const DEFAULT_PERIODIC_DIMS = SVector(3, 4)
 const DEFAULT_PERIODIC_PERIODS = SVector(2pi, 2pi)
 const DEFAULT_PERIODIC_START = SVector(-pi, -pi)
-
-"""
-Ensure compatibility with legacy symbolic helpers used by some benchmark scripts.
-"""
-function ensure_symbolic_format_compat!()
-    if !isdefined(DI.Symbolic, :format_input_set)
-        @eval DI.Symbolic format_input_set(args...) = $(UT).format_input_set(args...)
-    end
-    if !isdefined(DI.Symbolic, :format_noise_set)
-        @eval DI.Symbolic format_noise_set(args...) = $(UT).format_noise_set(args...)
-    end
-    return nothing
-end
-
-"""
-Validate periodic mapping settings for a state space of size nx.
-"""
-function audit_periodicity!(periodic_dims, periodic_periods, periodic_start; nx::Int)
-    nd = length(periodic_dims)
-    np = length(periodic_periods)
-    ns = length(periodic_start)
-
-    nd == np || error("periodicity invalid: length(periodic_dims)=$nd != length(periodic_periods)=$np")
-    nd == ns || error("periodicity invalid: length(periodic_dims)=$nd != length(periodic_start)=$ns")
-    nd >= 1 || error("periodicity invalid: expected at least one periodic dimension")
-
-    dims = Int.(collect(periodic_dims))
-    allunique(dims) || error("periodicity invalid: periodic_dims contains duplicates: $(dims)")
-
-    for i in eachindex(dims)
-        d = dims[i]
-        1 <= d <= nx || error("periodicity invalid: dimension $d out of bounds 1:$nx")
-        p = Float64(periodic_periods[i])
-        p > 0.0 || error("periodicity invalid: periodic_periods[$i]=$p must be > 0")
-    end
-
-    return nothing
-end
 
 """
 Unwrap periodic state dimensions to remove +/-2pi discontinuities.

@@ -192,8 +192,8 @@ function symbolic_system(
     
     # No additive noise in this model, but LMI API expects a noise format.
     Wset = UT.HyperRectangle(SVector(0.0), SVector(0.0))
-    Uformat = SY.format_input_set(_U_)
-    Wformat = SY.format_noise_set(Wset)
+    Uformat = UT.format_input_set(_U_)
+    Wformat = UT.format_noise_set(Wset)
 
     f_cont_fun = dynamic(params)
     function f_eval(xv, uv, _wv)

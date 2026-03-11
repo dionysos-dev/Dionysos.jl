@@ -1,3 +1,4 @@
+# c'est fait à la va vite, il faut fixe ça demain dans la nouvelle version de dio
 import Dionysos
 import IntervalArithmetic as IA
 import MathOptInterface as MOI
@@ -13,16 +14,21 @@ const MP = DI.Mapping
 const OP = DI.Optim
 const SC = OP.SymbolicCertifier
 
+
+######################################################
+####################[INCLUDE]#########################
+######################################################
+
 include(joinpath(@__DIR__, "..", "helpers", "helpers.jl"))
 include(joinpath(@__DIR__, "..", "helpers", "plot.jl"))
-
-# Keep compatibility with legacy symbolic helpers used in articulated_vehicle.jl.
-ensure_symbolic_format_compat!()
 
 # Load the articulated vehicle benchmark model from Dionysos problems.
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "articulated_vehicle.jl"))
 const AV = ArticulatedVehicle
 
+######################################################
+###################[DATA & INIT]######################
+######################################################
 """
 Configuration for the marche arriere benchmark.
 """
@@ -55,11 +61,11 @@ Base.@kwdef struct MarcheArriereConfig
     plot_subdir::String = "plots"
     animation_subdir::String = "animations"
 
-    plot_gif::Bool = true
-    verbose::Bool = true
+    plot_gif::Bool = false
+    verbose::Bool = false
 end
 
-periodicity_kwargs(cfg::MarcheArriereConfig) = (;
+periodicity_kwargs(cfg::MarcheArriereConfig) = (; # je n'aime pas l'idée qu'une structure soit stock pour wrap unwrap
     with_period = true,
     periodic_dims = cfg.periodic_dims,
     periodic_periods = cfg.periodic_periods,
@@ -84,6 +90,10 @@ function build_backend(; verbose::Bool = false)
     )
 end
 
+######################################################
+############[INITIALISATION DU BENCHMARK]#############
+######################################################
+
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
         SVector(-1.0, -1.0, -pi, -pi),
@@ -107,7 +117,7 @@ function build_concrete_system()
     return (; x_domain, u_domain, params, concrete_system)
 end
 
-function build_input_mapping()
+function build_input_mapping() # c'est pour la génération de la trajectoire
     inputs_delta = [
         [2.0, 0.0],
         [0.0, 0.0],
@@ -144,6 +154,10 @@ function build_problem(system_cfg, control_cfg)
         PR.Infinity(),
     )
 end
+
+######################################################
+##################[BUILD CERTIFIER]###################
+######################################################
 
 function build_generator(problem, system_cfg, control_cfg, cfg::MarcheArriereConfig)
     gen_cfg = OP.CenteredAbstractionConfig(
@@ -245,6 +259,13 @@ function solve_with_unwrapped_certification!(solver::OP.CertifiedPipelineSolver,
             cfg.periodic_dims,
             cfg.periodic_periods,
         )
+         
+        ## j'ai un probl!me avec la traj
+        xs = ST.enum_elems(candidate_for_cert.x_traj)
+
+        for k in eachindex(xs)
+            println("the traj :",xs[k])
+        end
 
         if was_unwrapped
             println("Candidate unwrapped for certification: ", wrap_jumps, " periodic jumps fixed.")
@@ -267,15 +288,11 @@ end
 function main(cfg::MarcheArriereConfig = MarcheArriereConfig())
     paths = output_paths(cfg)
 
+    # ------------------------------------------------------------
+    # 1) Build the different structure
+    # ------------------------------------------------------------
     system_cfg = build_concrete_system()
     control_cfg = build_control_problem()
-    audit_periodicity!(
-        cfg.periodic_dims,
-        cfg.periodic_periods,
-        cfg.periodic_start;
-        nx = length(control_cfg.x0),
-    )
-
     problem = build_problem(system_cfg, control_cfg)
     gen = build_generator(problem, system_cfg, control_cfg, cfg)
     cert = build_certifier(problem, system_cfg, cfg)
@@ -286,7 +303,10 @@ function main(cfg::MarcheArriereConfig = MarcheArriereConfig())
         typeof(problem),
         Any,
     }(gen, cert, nothing, nothing)
-
+    
+    # ------------------------------------------------------------
+    # 2) Build a candidate trajectory
+    # ------------------------------------------------------------
     OP.set_problem!(solver, problem)
     solve_with_unwrapped_certification!(solver, cfg)
     result = OP.get_result(solver)

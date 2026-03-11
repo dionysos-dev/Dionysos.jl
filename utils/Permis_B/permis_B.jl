@@ -650,6 +650,7 @@ function main(;
         cache_dir = nominal_cache_dir,
     )
     print_state_list(run_result.state_list)
+    return # ici c'est juste pour voir la traj candidate
 
     lmi_result = nothing
     lmi_empirical_result = nothing

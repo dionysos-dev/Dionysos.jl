@@ -39,7 +39,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
+    AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION 
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
