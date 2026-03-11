@@ -21,6 +21,27 @@ mutable struct EmptyProblem{S, X} <: ProblemType
     region::X
 end
 
+
+
+"""
+    QuotientBisimulationProblem{S,X,D,R,P,G} <: ProblemType
+
+A problem type used to construct a finite bisimulation quotient induced.
+
+# Fields
+- `system`: the switched system to abstract.
+- `region`: the state-space region of interest `X`.
+- `terminal_region`: the terminal invariant set `D`.
+- `observation_regions`: the regions of interest used to define the observation map.
+"""
+mutable struct QuotientBisimulationProblem{S,X,D,R,P,G} <: ProblemType
+    system::S
+    region::X
+    terminal_region::D
+    observation_regions::R
+end
+    
+
 """
     OptimalControlProblem{S, XI, XT, XC, TC, T} <: ProblemType
 

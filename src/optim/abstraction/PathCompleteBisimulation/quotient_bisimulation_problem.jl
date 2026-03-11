@@ -1,0 +1,422 @@
+
+module PathCompleteBisimulation
+
+import Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const PCLF = UT.PathCompleteFramework
+const PR = DI.Problem
+
+using JuMP
+using LazySets
+import HybridSystems
+import LinearAlgebra
+
+include("geometry_interface.jl")
+include("pclf_bisimulation_quotient.jl")
+
+mutable struct OptimizerQuotientBisimulation{T} <: MOI.AbstractOptimizer
+    # --- user inputs ---
+    quotient_bisimulation_problem::Union{Nothing, PR.QuotientBisimulationProblem}
+    pclf::Union{Nothing,PCF.PCLF}
+    Γ::Union{Nothing,Vector{Float64}}
+    obs_partition::Union{Nothing,Vector{Tuple{Poly,Int}}}
+    verbose::Bool
+    atol::T
+
+    # --- results ---
+    raw_bisimulation::Any
+    slices::Any
+    abstraction_construction_time_sec::T
+
+    function OptimizerQuotientBisimulation{T}() where {T}
+        return new{T}(
+            nothing,    # quotient_bisimulation_problem
+            nothing,    # pclf
+            nothing,    # Γ
+            nothing,    # obs_partition
+            true,       # verbose
+            zero(T),    # atol
+            nothing,    # raw_bisimulation
+            nothing,    # slices
+            zero(T),    # solve time
+        )
+    end
+end
+
+OptimizerQuotientBisimulation() = OptimizerQuotientBisimulation{Float64}()
+
+MOI.is_empty(opt::OptimizerQuotientBisimulation) = opt.quotient_bisimulation_problem === nothing
+
+function MOI.set(model::OptimizerQuotientBisimulation, param::MOI.RawOptimizerAttribute, value)
+    name = Symbol(param.name)
+    if !hasproperty(model, name)
+        error("Unknown optimizer attribute: $(param.name)")
+    end
+    setproperty!(model, name, value)
+    return
+end
+
+function MOI.get(model::OptimizerQuotientBisimulation, ::MOI.SolveTimeSec)
+    return model.abstraction_construction_time_sec
+end
+
+function MOI.get(model::OptimizerQuotientBisimulation, param::MOI.RawOptimizerAttribute)
+    name = Symbol(param.name)
+    if !hasproperty(model, name)
+        error("Unknown optimizer attribute: $(param.name)")
+    end
+    return getproperty(model, name)
+end
+
+function reset!(model::OptimizerQuotientBisimulation)
+    model.raw_bisimulation = nothing
+    model.slices = nothing
+    model.abstraction_construction_time_sec = 0.0
+    return model
+end
+
+function _validate_model(model::OptimizerQuotientBisimulation, required_fields::Vector{Symbol})
+    for field in required_fields
+        if isnothing(getfield(model, field))
+            error(
+                "Please set `$(field)`. Missing required field in OptimizerQuotientBisimulation.",
+            )
+        end
+    end
+end
+
+function MOI.optimize!(opt::OptimizerQuotientBisimulation)
+    t_ref = time()
+
+    _validate_model(opt, [:quotient_bisimulation_problem])
+
+    prob = opt.quotient_bisimulation_problem
+
+    system = prob.system
+    X = prob.region
+    D = prob.terminal_region
+    regions = prob.observation_regions
+
+    opt.obs_partition = build_observation_partition(
+        _as_hpolytope(X),
+        _as_hpolytope(D),
+        [_as_hpolytope(R) for R in regions];
+        atol = opt.atol,
+    )
+
+    T, slices = bisimulation_pclf(
+        system,
+        opt.pclf,
+        opt.Γ,
+        opt.obs_partition;
+        verbose = opt.verbose,
+        atol = opt.atol,
+    )
+
+    opt.raw_bisimulation = T
+    opt.slices = slices
+    opt.abstraction_construction_time_sec = time() - t_ref
+    return
+end
+
+
+# ============================================================
+# Observation partition
+# ============================================================
+
+"""
+    build_observation_partition(X, D, regions; neutral_obs = 0, terminal_obs = -1, atol = 0.0)
+
+Build
+    P_X = { R_i, X \\ (D ∪ ⋃_i R_i), D }
+
+returned as a vector `(polytope, obs_label)`.
+
+Labels:
+- region `R_i` gets label `i`
+- neutral region gets `neutral_obs`
+- terminal set `D` gets `terminal_obs`
+"""
+function build_observation_partition(
+    X::Poly,
+    D::Poly,
+    regions::Vector{Poly};
+    neutral_obs::Int = 0,
+    terminal_obs::Int = -1,
+    atol::Float64 = 0.0,
+)
+    out = Tuple{Poly,Int}[]
+
+    # Observation regions
+    for (i, R) in enumerate(regions)
+        I = set_intersection(X, R)
+        if is_nonempty_set(I)
+            push!(out, (I, i))
+        end
+    end
+
+    # Neutral region: X \ (D ∪ regions)
+    excluded = Poly[D]
+    append!(excluded, regions)
+    neutral_parts = set_difference_decompose(X, excluded; atol = atol)
+    for P in neutral_parts
+        if is_nonempty_set(P)
+            push!(out, (P, neutral_obs))
+        end
+    end
+
+    # Terminal region
+    Dcap = set_intersection(X, D)
+    if is_nonempty_set(Dcap)
+        push!(out, (Dcap, terminal_obs))
+    end
+
+    return out
+end
+
+# ============================================================
+# Main PCLF bisimulation algorithm
+# ============================================================
+
+"""
+    bisimulation_pclf(f, pclf, Γ, obs_partition; verbose = true, atol = 0.0)
+
+Construct the bisimulation quotient on the lifted product system.
+Graph edges are stored as `(source_node, destination_node, mode_label)`.
+"""
+function bisimulation_pclf(
+    f::HybridSystems.HybridSystem,
+    pclf::PCF.PCLF,
+    Γ::AbstractVector{<:Real},
+    obs_partition::Vector{Tuple{Poly,Int}};
+    verbose::Bool = true,
+    atol::Float64 = 0.0,
+)
+    A = extract_mode_matrices(f)
+
+    sublevels = build_sublevel_sequence(pclf, Γ)
+    slices = build_slice_sequence(sublevels; atol = atol)
+
+    U = typeof(first(pclf.graph.verts))
+    T = PCBisimulationQuotient{Poly,U}()
+
+    initialize_partitions!(T, slices, obs_partition)
+    initialize_terminal_transitions!(T, pclf)
+
+    N = length(Γ)
+
+    for i in 1:N
+        verbose && println("Current slice = $i")
+
+        # Stored order in LabDigraph is (source, destination, label)
+        for (s, d, m) in pclf.graph.edges
+            verbose && println("  edge = ($s, $m, $d)")
+
+            # Target cells in slice i of destination node d
+            target_ids = [
+                qid for qid in get(T.part_ids, d, Int[])
+                if haskey(T.states, qid) && T.states[qid].slice == i
+            ]
+
+            for qid in target_ids
+                haskey(T.states, qid) || continue
+                q = T.states[qid]
+                preP = preimage_linear(q.set, A[Int(m)])
+
+                # Only refine source cells in strictly outer slices
+                source_ids = [
+                    pid for pid in get(T.part_ids, s, Int[])
+                    if haskey(T.states, pid) && T.states[pid].slice > i
+                ]
+
+                for pid in copy(source_ids)
+                    haskey(T.states, pid) || continue
+                    refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
+                end
+            end
+        end
+    end
+
+    return T, slices
+end
+
+# ============================================================
+# Switched system helpers
+# ============================================================
+
+"""
+    extract_mode_matrices(f)
+
+Extract the linear reset / mode matrices from a switched `HybridSystem`.
+"""
+function extract_mode_matrices(f::HybridSystems.HybridSystem)
+    RMs = f.resetmaps
+    A = Vector{Matrix{Float64}}(undef, length(RMs))
+    for (i, rm) in enumerate(RMs)
+        if isa(rm, AbstractMatrix)
+            A[i] = Array(rm)
+        elseif :A in fieldnames(typeof(rm))
+            A[i] = Array(getfield(rm, :A))
+        else
+            error("Cannot extract matrix from resetmap of type $(typeof(rm)).")
+        end
+    end
+    return A
+end
+
+# ============================================================
+# Slice generation
+# ============================================================
+
+"""
+    build_sublevel_sequence(pclf, Γ)
+
+Return a dictionary mapping each graph node `s` to the list
+`[P^{(s)}_{Γ_1}, ..., P^{(s)}_{Γ_N}]`.
+"""
+function build_sublevel_sequence(pclf::PCF.PCLF, Γ::AbstractVector{<:Real})
+    sublevels = Dict{Any,Vector{Poly}}()
+    for s in pclf.graph.verts
+        piece = pclf.pieces[s]
+        sublevels[s] = [_as_hpolytope(PCF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
+    end
+    return sublevels
+end
+
+"""
+    build_slice_sequence(sublevels; atol = 0.0)
+
+For each node `s`, build
+    S_1^{(s)} = P_{Γ_1}^{(s)}
+    S_i^{(s)} = P_{Γ_i}^{(s)} \\ P_{Γ_{i-1}}^{(s)},  i>=2
+
+Each slice is stored as a vector of H-polytopes.
+"""
+function build_slice_sequence(sublevels::Dict; atol::Float64 = 0.0)
+    slices = Dict{Any,Vector{Vector{Poly}}}()
+
+    for (s, Ps) in sublevels
+        Ns = length(Ps)
+        local_slices = Vector{Vector{Poly}}(undef, Ns)
+
+        local_slices[1] = [Ps[1]]
+        for i in 2:Ns
+            local_slices[i] = set_difference_decompose(Ps[i], Ps[i-1]; atol = atol)
+        end
+        slices[s] = local_slices
+    end
+
+    return slices
+end
+
+# ============================================================
+# Initialization
+# ============================================================
+
+"""
+    initialize_partitions!(T, slices, obs_partition)
+
+Build the initial node-dependent partitions:
+    P_0^(s) = { O ∩ S_i^(s) : O ∈ P_X, S_i^(s) slice, intersection nonempty }.
+"""
+function initialize_partitions!(
+    T::PCBisimulationQuotient{Poly,U},
+    slices::Dict{U,Vector{Vector{Poly}}},
+    obs_partition::Vector{Tuple{Poly,Int}},
+) where {U}
+    for (s, slice_list) in slices
+        for (i, slice_parts) in enumerate(slice_list)
+            for Sset in slice_parts
+                for (ObsSet, obs) in obs_partition
+                    I = set_intersection(Sset, ObsSet)
+                    if is_nonempty_set(I)
+                        add_state!(T, s, I, obs, i)
+                    end
+                end
+            end
+        end
+    end
+    return T
+end
+
+"""
+    initialize_terminal_transitions!(T, pclf)
+
+For all terminal states in slice 1, add graph-induced transitions
+along every edge `(s,d,m)`.
+"""
+function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCF.PCLF)
+    terminal_by_node = Dict{Any,Vector{Int}}()
+
+    for (qid, q) in T.states
+        if q.slice == 1
+            get!(terminal_by_node, q.node, Int[])
+            push!(terminal_by_node[q.node], qid)
+        end
+    end
+
+    for (s, d, m) in pclf.graph.edges
+        if haskey(terminal_by_node, s) && haskey(terminal_by_node, d)
+            for qs in terminal_by_node[s], qd in terminal_by_node[d]
+                add_transition!(T, qs, Int(m), qd)
+            end
+        end
+    end
+
+    return T
+end
+
+# ============================================================
+# Refinement
+# ============================================================
+
+"""
+    refine_one_state!(T, qid, preP, mode, target_qid; atol = 0.0)
+
+Split state `qid` by `preP`.
+- difference pieces inherit transitions,
+- intersection piece inherits transitions and gets `(mode,target_qid)`.
+"""
+function refine_one_state!(
+    T::PCBisimulationQuotient{Poly,U},
+    qid::Int,
+    preP::Poly,
+    mode::Int,
+    target_qid::Int;
+    atol::Float64 = 0.0,
+) where {U}
+    haskey(T.states, qid) || return false
+    q = T.states[qid]
+
+    I = set_intersection(q.set, preP)
+    if !is_nonempty_set(I)
+        return false
+    end
+
+    Dparts = set_difference_decompose(q.set, preP; atol = atol)
+
+    old_next = copy(q.next)
+    old_obs  = q.obs
+    old_node = q.node
+    old_slice = q.slice
+
+    remove_state!(T, qid)
+
+    # Difference pieces
+    for D in Dparts
+        if is_nonempty_set(D)
+            new_id = add_state!(T, old_node, D, old_obs, old_slice)
+            T.states[new_id].next = copy(old_next)
+        end
+    end
+
+    # Intersection piece
+    inter_id = add_state!(T, old_node, I, old_obs, old_slice)
+    T.states[inter_id].next = copy(old_next)
+    add_transition!(T, inter_id, mode, target_qid)
+
+    return true
+end
+
+end # module
