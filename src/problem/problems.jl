@@ -34,7 +34,7 @@ A problem type used to construct a finite bisimulation quotient induced.
 - `terminal_region`: the terminal invariant set `D`.
 - `observation_regions`: the regions of interest used to define the observation map.
 """
-mutable struct QuotientBisimulationProblem{S,X,D,R,P,G} <: ProblemType
+mutable struct QuotientBisimulationProblem{S,X,D,R} <: ProblemType
     system::S
     region::X
     terminal_region::D
@@ -146,6 +146,39 @@ Base.isfinite(::Infinity) = false
         label := "Region"
         color := region_color
         problem.region
+    end
+end
+
+@recipe function f(
+    problem::QuotientBisimulationProblem;
+    region_color = :gray,
+    terminal_region_color = :blue,
+    region_alpha = 0.15,
+    terminal_region_alpha = 0.4,
+    observation_region_alpha = 0.4,
+    observation_colors = [:red, :green, :orange, :purple, :brown],
+)
+    @series begin
+        label := "Region"
+        color := region_color
+        fillalpha := region_alpha
+        problem.region
+    end
+
+    @series begin
+        label := "Terminal region"
+        color := terminal_region_color
+        fillalpha := terminal_region_alpha
+        problem.terminal_region
+    end
+
+    for (i, R) in enumerate(problem.observation_regions)
+        @series begin
+            label := "O $i"
+            color := observation_colors[mod1(i, length(observation_colors))]
+            fillalpha := observation_region_alpha
+            R
+        end
     end
 end
 

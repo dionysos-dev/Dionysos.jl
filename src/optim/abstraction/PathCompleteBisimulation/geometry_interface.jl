@@ -99,7 +99,7 @@ end
 
 Iteratively decompose `P \\ (⋃ Qs)` as a union of polytopes.
 """
-function set_difference_decompose(P::Poly, Qs::Vector{Poly}; atol::Float64 = 0.0)
+function set_difference_decompose(P::Poly, Qs::AbstractVector{<:Poly}; atol::Float64 = 0.0)
     parts = Poly[P]
     for Q in Qs
         new_parts = Poly[]

@@ -3,7 +3,6 @@ using LinearAlgebra
 using JuMP
 using Clarabel
 using MathOptInterface
-const MOI = MathOptInterface
 
 import HybridSystems
 using LazySets
@@ -36,18 +35,18 @@ f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
 # ---------------------------------------------------------
 
 # X = [-2,2]^2
-X = Hyperrectangle(low = [-2.0, -2.0], high = [2.0, 2.0]) |> HPolytope
+X = Hyperrectangle(low = [-2.0, -2.0], high = [2.0, 2.0])
 
 # D = [-0.2,0.2]^2
-D = Hyperrectangle(low = [-0.2, -0.2], high = [0.2, 0.2]) |> HPolytope
+D = Hyperrectangle(low = [-0.2, -0.2], high = [0.2, 0.2])
 
 # Two observation regions
-R1 = Hyperrectangle(low = [0.8, 0.8], high = [1.5, 1.5]) |> HPolytope
-R2 = Hyperrectangle(low = [-1.5, 0.8], high = [-0.8, 1.5]) |> HPolytope
+R1 = Hyperrectangle(low = [0.8, 0.8], high = [1.5, 1.5])
+R2 = Hyperrectangle(low = [-1.5, 0.8], high = [-0.8, 1.5])
 
 observation_regions = [R1, R2]
 
-quotient_bisimulation_problem = PR.QuotientBisimulationProblem(
+problem = PR.QuotientBisimulationProblem(
     f,
     X,
     D,
@@ -78,36 +77,49 @@ println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 # Define Lyapunov levels Γ
 # Must be increasing, with Γ[i] ≈ γ * Γ[i+1] structure
 # ---------------------------------------------------------
-γ = pclf.JSRapprox
-Γ0 = 0.05
-N = 8
-Γ = [Γ0 / (γ^i) for i in 0:(N-1)]
+# γ = pclf.JSRapprox
+# Γ0 = 200.0
+# N = 8
+# Γ = [Γ0 / (γ^i) for i in 0:(N-1)]
 
-println("Levels Γ = ", Γ)
+# println("Levels Γ = ", Γ)
 
 # ---------------------------------------------------------
 # Instantiate abstraction optimizer
 # ---------------------------------------------------------
 optimizer = MOI.instantiate(AB.PathCompleteBisimulation.OptimizerQuotientBisimulation)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("quotient_bisimulation_problem"), quotient_bisimulation_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("quotient_bisimulation_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-9)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 8)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
 MOI.optimize!(optimizer)
 
-println("Construction time = ", MOI.get(optimizer, MOI.SolveTimeSec), " sec")
+println("Construction time = ", MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")))
 
 Traw = MOI.get(optimizer, MOI.RawOptimizerAttribute("raw_bisimulation"))
-slices = MOI.get(optimizer, MOI.RawOptimizerAttribute("slices"))
+obs_partition = MOI.get(optimizer, MOI.RawOptimizerAttribute("obs_partition"))
+slices = Traw.slices
 
 println("Number of abstract states = ", length(Traw.states))
+# println("Number of states by mode = ", Traw.part_ids)
+# for (qid, q) in sort(collect(Traw.states); by = x -> x[1])
+#     println("State $qid: node=$(q.node), slice=$(q.slice), obs=$(q.obs), ntrans=$(length(q.next))")
+# end
 
-for (qid, q) in sort(collect(Traw.states); by = x -> x[1])
-    println("State $qid: node=$(q.node), slice=$(q.slice), obs=$(q.obs), ntrans=$(length(q.next))")
-end
+
+fig = plot(; aspect_ratio = :equal);
+# plot!(problem)                 # problem geometry
+# plot!(obs_partition)          # observation partition
+# plot!(Traw; what = :slices)      # abstract cells
+# plot!(Traw; what = :states, node = 1, slice = 3, by = :obs)
+# plot!(Traw; what = :states, mode = 1, by = :obs)
+plot!(Traw; what = :states, mode = 1, by = :slice)
+# plot!(Traw; what = :slices, mode = 1)
+display(fig)
