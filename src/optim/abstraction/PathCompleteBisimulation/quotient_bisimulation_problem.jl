@@ -20,13 +20,13 @@ include("sublevel_support.jl")
 mutable struct OptimizerQuotientBisimulation{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
     quotient_bisimulation_problem::Union{Nothing, PR.QuotientBisimulationProblem}
-    pclf::Union{Nothing,PCLF.PCLF}
-    Γ::Union{Nothing,Vector{Float64}}
-    obs_partition::Union{Nothing,Vector{Tuple{Poly,Int}}}
+    pclf::Union{Nothing, PCLF.PCLF}
+    Γ::Union{Nothing, Vector{Float64}}
+    obs_partition::Union{Nothing, Vector{Tuple{Poly, Int}}}
     verbose::Bool
     atol::T
-    num_levels::Union{Nothing,Int}
-    tau::Union{Nothing,Float64}
+    num_levels::Union{Nothing, Int}
+    tau::Union{Nothing, Float64}
 
     # --- results ---
     raw_bisimulation::Any
@@ -50,9 +50,14 @@ end
 
 OptimizerQuotientBisimulation() = OptimizerQuotientBisimulation{Float64}()
 
-MOI.is_empty(opt::OptimizerQuotientBisimulation) = opt.quotient_bisimulation_problem === nothing
+MOI.is_empty(opt::OptimizerQuotientBisimulation) =
+    opt.quotient_bisimulation_problem === nothing
 
-function MOI.set(model::OptimizerQuotientBisimulation, param::MOI.RawOptimizerAttribute, value)
+function MOI.set(
+    model::OptimizerQuotientBisimulation,
+    param::MOI.RawOptimizerAttribute,
+    value,
+)
     name = Symbol(param.name)
     if !hasproperty(model, name)
         error("Unknown optimizer attribute: $(param.name)")
@@ -80,7 +85,10 @@ function reset!(model::OptimizerQuotientBisimulation)
     return model
 end
 
-function _validate_model(model::OptimizerQuotientBisimulation, required_fields::Vector{Symbol})
+function _validate_model(
+    model::OptimizerQuotientBisimulation,
+    required_fields::Vector{Symbol},
+)
     for field in required_fields
         if isnothing(getfield(model, field))
             error(
@@ -111,15 +119,15 @@ function MOI.optimize!(opt::OptimizerQuotientBisimulation)
 
     # Automatic Γ if user did not provide it
     if isnothing(opt.Γ)
-        X isa Hyperrectangle || error("Automatic Γ construction currently expects `region` to be a Hyperrectangle.")
-        D isa Hyperrectangle || error("Automatic Γ construction currently expects `terminal_region` to be a Hyperrectangle.")
-
-        Γ_auto, τ_auto, ΓD, ΓX = build_levels_from_problem(
-            opt.pclf,
-            X,
-            D;
-            num_levels = opt.num_levels,
+        X isa Hyperrectangle || error(
+            "Automatic Γ construction currently expects `region` to be a Hyperrectangle.",
         )
+        D isa Hyperrectangle || error(
+            "Automatic Γ construction currently expects `terminal_region` to be a Hyperrectangle.",
+        )
+
+        Γ_auto, τ_auto, ΓD, ΓX =
+            build_levels_from_problem(opt.pclf, X, D; num_levels = opt.num_levels)
 
         opt.Γ = Γ_auto
         opt.tau = τ_auto
@@ -144,7 +152,6 @@ function MOI.optimize!(opt::OptimizerQuotientBisimulation)
     opt.abstraction_construction_time_sec = time() - t_ref
     return
 end
-
 
 # ============================================================
 # Observation partition
@@ -175,7 +182,7 @@ function build_observation_partition(
     Dh = _as_hpolytope(D)
     Rh = [_as_hpolytope(R) for R in regions]
 
-    out = Tuple{Poly,Int}[]
+    out = Tuple{Poly, Int}[]
 
     for (i, R) in enumerate(Rh)
         I = set_intersection(Xh, R)
@@ -215,7 +222,7 @@ function bisimulation_pclf(
     f::HybridSystems.HybridSystem,
     pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
-    obs_partition::AbstractVector{<:Tuple{<:Poly,Int}};
+    obs_partition::AbstractVector{<:Tuple{<:Poly, Int}};
     verbose::Bool = true,
     atol::Float64 = 0.0,
 )
@@ -225,45 +232,57 @@ function bisimulation_pclf(
     slices = build_slice_sequence(sublevels; atol = atol)
 
     U = typeof(first(pclf.graph.verts))
-    T = PCBisimulationQuotient{Poly,U}(slices, obs_partition)
-
+    T = PCBisimulationQuotient{Poly, U}(slices, obs_partition)
 
     initialize_partitions!(T)
-    # initialize_terminal_transitions!(T, pclf)
+    initialize_terminal_transitions!(T, pclf)
 
-    # N = length(Γ)
+    N = length(Γ)
 
-    # for i in 1:N
-    #     verbose && println("Current slice = $i")
+    refine_count = 0
 
-    #     # Stored order in LabDigraph is (source, destination, label)
-    #     for (s, d, m) in pclf.graph.edges
-    #         verbose && println("  edge = ($s, $m, $d)")
+    for i in 1:2 # N
+        verbose && println("Current slice = $i")
 
-    #         # Target cells in slice i of destination node d
-    #         target_ids = [
-    #             qid for qid in get(T.part_ids, d, Int[])
-    #             if haskey(T.states, qid) && T.states[qid].slice == i
-    #         ]
+        # Stored order in LabDigraph is (source, destination, label)
+        for (s, d, m) in pclf.graph.edges
+            verbose && println("  edge = ($s, $m, $d)")
 
-    #         for qid in target_ids
-    #             haskey(T.states, qid) || continue
-    #             q = T.states[qid]
-    #             preP = preimage_linear(q.set, A[Int(m)])
+            # Target cells in slice i of destination node d
+            target_ids = [
+                qid for qid in get(T.part_ids, d, Int[]) if
+                haskey(T.states, qid) && T.states[qid].slice == i
+            ]
+            for qid in target_ids
+                haskey(T.states, qid) || continue
+                q = T.states[qid]
+                preP = preimage_linear(q.set, A[Int(m)])
 
-    #             # Only refine source cells in strictly outer slices
-    #             source_ids = [
-    #                 pid for pid in get(T.part_ids, s, Int[])
-    #                 if haskey(T.states, pid) && T.states[pid].slice > i
-    #             ]
+                # Only refine source cells in strictly outer slices
+                source_ids = [
+                    pid for pid in get(T.part_ids, s, Int[]) if
+                    haskey(T.states, pid) && T.states[pid].slice > i
+                ]
 
-    #             for pid in copy(source_ids)
-    #                 haskey(T.states, pid) || continue
-    #                 refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
-    #             end
-    #         end
-    #     end
-    # end
+                for pid in copy(source_ids)
+                    haskey(T.states, pid) || continue
+                    # deterministic speed-up: if this state already has a successor for mode m,
+                    # do not refine it again for the same mode
+                    if any(tr[1] == Int(m) for tr in T.states[pid].next)
+                        continue
+                    end
+                    refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
+                    refine_count += 1
+
+                    if verbose && refine_count % 1000 == 0
+                        @info "Refinement progress" refine_count slice=i edge=(s, m, d)
+                    end
+                end
+            end
+        end
+    end
+
+    verbose && @info "Total number of refinements" refine_count
 
     return T
 end
@@ -304,7 +323,7 @@ Return a dictionary mapping each graph node `s` to the list
 """
 function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     U = typeof(first(pclf.graph.verts))
-    sublevels = Dict{U,Vector{Poly}}()
+    sublevels = Dict{U, Vector{Poly}}()
     for s in pclf.graph.verts
         piece = pclf.pieces[s]
         sublevels[s] = [_as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
@@ -320,8 +339,11 @@ For each node `s`, build
 
 Each slice is stored as a vector of H-polytopes.
 """
-function build_slice_sequence(sublevels::Dict{U,Vector{Poly}}; atol::Float64 = 0.0) where {U}
-    slices = Dict{U,Vector{Vector{Poly}}}()
+function build_slice_sequence(
+    sublevels::Dict{U, Vector{Poly}};
+    atol::Float64 = 0.0,
+) where {U}
+    slices = Dict{U, Vector{Vector{Poly}}}()
 
     for (s, Ps) in sublevels
         Ns = length(Ps)
@@ -346,7 +368,7 @@ end
 Build the initial node-dependent partitions:
     P_0^(s) = { O ∩ S_i^(s) : O ∈ P_X, S_i^(s) slice, intersection nonempty }.
 """
-function initialize_partitions!(T::PCBisimulationQuotient{Poly,U}) where {Poly,U}
+function initialize_partitions!(T::PCBisimulationQuotient{Poly, U}) where {Poly, U}
     for (s, slice_list) in T.slices
         for (i, slice_parts) in enumerate(slice_list)
             for Sset in slice_parts
@@ -369,7 +391,7 @@ For all terminal states in slice 1, add graph-induced transitions
 along every edge `(s,d,m)`.
 """
 function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCLF.PCLF)
-    terminal_by_node = Dict{Any,Vector{Int}}()
+    terminal_by_node = Dict{Any, Vector{Int}}()
 
     for (qid, q) in T.states
         if q.slice == 1
@@ -401,7 +423,7 @@ Split state `qid` by `preP`.
 - intersection piece inherits transitions and gets `(mode,target_qid)`.
 """
 function refine_one_state!(
-    T::PCBisimulationQuotient{Poly,U},
+    T::PCBisimulationQuotient{Poly, U},
     qid::Int,
     preP::Poly,
     mode::Int,
@@ -412,14 +434,14 @@ function refine_one_state!(
     q = T.states[qid]
 
     I = set_intersection(q.set, preP)
-    if !is_nonempty_set(I)
+    if !is_significant_set(I; min_width = atol > 0 ? atol : 1e-8)
         return false
     end
 
     Dparts = set_difference_decompose(q.set, preP; atol = atol)
 
     old_next = copy(q.next)
-    old_obs  = q.obs
+    old_obs = q.obs
     old_node = q.node
     old_slice = q.slice
 
@@ -427,7 +449,7 @@ function refine_one_state!(
 
     # Difference pieces
     for D in Dparts
-        if is_nonempty_set(D)
+        if is_significant_set(D; min_width = atol > 0 ? atol : 1e-8)
             new_id = add_state!(T, old_node, D, old_obs, old_slice)
             T.states[new_id].next = copy(old_next)
         end
@@ -441,7 +463,32 @@ function refine_one_state!(
     return true
 end
 
-@recipe function f(obs_partition::Vector{Tuple{HPolytope,Int}})
+function is_significant_set(P::Poly; min_width::Float64 = 1e-8)
+    is_nonempty_set(P) || return false
+
+    # keep only full-dimensional sets if possible
+    try
+        dim(P) == 2 || return false
+    catch
+    end
+
+    # crude width check from support in coordinate directions
+
+    try
+        xsup = σ([1.0, 0.0], P)
+        xinf = -σ([-1.0, 0.0], P)
+        ysup = σ([0.0, 1.0], P)
+        yinf = -σ([0.0, -1.0], P)
+
+        (xsup - xinf) > min_width || return false
+        (ysup - yinf) > min_width || return false
+    catch
+    end
+
+    return true
+end
+
+@recipe function f(obs_partition::Vector{Tuple{HPolytope, Int}})
     palette = [:gray, :red, :green, :blue, :orange, :purple]
 
     seen = Set{Int}()

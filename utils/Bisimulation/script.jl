@@ -21,11 +21,15 @@ const PCLF = UT.PathCompleteFramework
 # ---------------------------------------------------------
 # Define a stable switched system
 # ---------------------------------------------------------
-A1 = @SMatrix [0.70 0.10;
-               0.00 0.65]
+A1 = @SMatrix [
+    0.70 0.10;
+    0.00 0.65
+]
 
-A2 = @SMatrix [0.60 -0.15;
-               0.10  0.55]
+A2 = @SMatrix [
+    0.60 -0.15;
+    0.10 0.55
+]
 
 f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
 
@@ -35,41 +39,27 @@ f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
 # ---------------------------------------------------------
 
 # X = [-2,2]^2
-X = Hyperrectangle(low = [-2.0, -2.0], high = [2.0, 2.0])
+X = Hyperrectangle(; low = [-2.0, -2.0], high = [2.0, 2.0])
 
 # D = [-0.2,0.2]^2
-D = Hyperrectangle(low = [-0.2, -0.2], high = [0.2, 0.2])
+D = Hyperrectangle(; low = [-0.2, -0.2], high = [0.2, 0.2])
 
 # Two observation regions
-R1 = Hyperrectangle(low = [0.8, 0.8], high = [1.5, 1.5])
-R2 = Hyperrectangle(low = [-1.5, 0.8], high = [-0.8, 1.5])
+R1 = Hyperrectangle(; low = [0.8, 0.8], high = [1.5, 1.5])
+R2 = Hyperrectangle(; low = [-1.5, 0.8], high = [-0.8, 1.5])
 
 observation_regions = [R1, R2]
 
-problem = PR.QuotientBisimulationProblem(
-    f,
-    X,
-    D,
-    observation_regions,
-)
+problem = PR.QuotientBisimulationProblem(f, X, D, observation_regions)
 
 # ---------------------------------------------------------
 # Compute a common polyhedral PCLF (k = 0 gives 1-node graph)
 # ---------------------------------------------------------
 G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
 
-sdp_optimizer = JuMP.optimizer_with_attributes(
-    Clarabel.Optimizer,
-    "max_iter" => 1000,
-)
+sdp_optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(
-    f,
-    G,
-    sdp_optimizer;
-    MLF = true,
-    verbose = false,
-)
+pclf = PCLF.compute_polyhedral_pieces_pclf(f, G, sdp_optimizer; MLF = true, verbose = false)
 
 println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 
@@ -91,17 +81,20 @@ optimizer = MOI.instantiate(AB.PathCompleteBisimulation.OptimizerQuotientBisimul
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("quotient_bisimulation_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-9)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-2)
+# MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 5)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
 MOI.optimize!(optimizer)
 
-println("Construction time = ", MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")))
+println(
+    "Construction time = ",
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")),
+)
 
 Traw = MOI.get(optimizer, MOI.RawOptimizerAttribute("raw_bisimulation"))
 obs_partition = MOI.get(optimizer, MOI.RawOptimizerAttribute("obs_partition"))
@@ -113,13 +106,10 @@ println("Number of abstract states = ", length(Traw.states))
 #     println("State $qid: node=$(q.node), slice=$(q.slice), obs=$(q.obs), ntrans=$(length(q.next))")
 # end
 
-
 fig = plot(; aspect_ratio = :equal);
-# plot!(problem)                 # problem geometry
+# plot!(problem)                # problem geometry
 # plot!(obs_partition)          # observation partition
-# plot!(Traw; what = :slices)      # abstract cells
-# plot!(Traw; what = :states, node = 1, slice = 3, by = :obs)
+# plot!(Traw; what = :slices, mode = 1)
 # plot!(Traw; what = :states, mode = 1, by = :obs)
 plot!(Traw; what = :states, mode = 1, by = :slice)
-# plot!(Traw; what = :slices, mode = 1)
 display(fig)

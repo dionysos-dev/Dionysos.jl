@@ -2,30 +2,30 @@
 # Lifted quotient data structures
 # ============================================================
 
-mutable struct PCAbstractState{S,U}
+mutable struct PCAbstractState{S, U}
     id::Int
     node::U
     set::S
     obs::Int
     slice::Int
-    next::Vector{Tuple{Int,Int}}   # (mode, target_state_id)
+    next::Vector{Tuple{Int, Int}}   # (mode, target_state_id)
 end
 
-mutable struct PCBisimulationQuotient{S,U}
-    states::Dict{Int,PCAbstractState{S,U}}
-    part_ids::Dict{U,Vector{Int}}  # state ids per node partition
+mutable struct PCBisimulationQuotient{S, U}
+    states::Dict{Int, PCAbstractState{S, U}}
+    part_ids::Dict{U, Vector{Int}}  # state ids per node partition
     next_id::Int
-    slices::Dict{U,Vector{Vector{S}}}
-    obs_partition::Vector{Tuple{S,Int}}
+    slices::Dict{U, Vector{Vector{S}}}
+    obs_partition::Vector{Tuple{S, Int}}
 end
 
-function PCBisimulationQuotient{S,U}(
-    slices::Dict{U,Vector{Vector{S}}},
-    obs_partition::Vector{Tuple{S,Int}},
-) where {S,U}
-    return PCBisimulationQuotient{S,U}(
-        Dict{Int,PCAbstractState{S,U}}(),
-        Dict{U,Vector{Int}}(),
+function PCBisimulationQuotient{S, U}(
+    slices::Dict{U, Vector{Vector{S}}},
+    obs_partition::Vector{Tuple{S, Int}},
+) where {S, U}
+    return PCBisimulationQuotient{S, U}(
+        Dict{Int, PCAbstractState{S, U}}(),
+        Dict{U, Vector{Int}}(),
         1,
         slices,
         obs_partition,
@@ -33,15 +33,15 @@ function PCBisimulationQuotient{S,U}(
 end
 
 function add_state!(
-    T::PCBisimulationQuotient{S,U},
+    T::PCBisimulationQuotient{S, U},
     node::U,
     set::S,
     obs::Int,
     slice::Int,
-) where {S,U}
+) where {S, U}
     qid = T.next_id
     T.next_id += 1
-    q = PCAbstractState{S,U}(qid, node, set, obs, slice, Tuple{Int,Int}[])
+    q = PCAbstractState{S, U}(qid, node, set, obs, slice, Tuple{Int, Int}[])
     T.states[qid] = q
     get!(T.part_ids, node, Int[])
     push!(T.part_ids[node], qid)
@@ -68,17 +68,12 @@ end
 # ------------------------------------------------------------
 # Single abstract state
 # ------------------------------------------------------------
-@recipe function f(
-    q::PCAbstractState;
-    color = :blue,
-    fillalpha = 0.25,
-    show_label = true,
-)
+@recipe function f(q::PCAbstractState; color = :blue, fillalpha = 0.25, show_label = true)
     linecolor := color
     fillcolor := color
     fillalpha := fillalpha
     label := show_label ? "q$(q.id) [node=$(q.node), slice=$(q.slice), obs=$(q.obs)]" : ""
-    q.set
+    return q.set
 end
 
 # ------------------------------------------------------------
@@ -97,7 +92,8 @@ end
     seriesalpha = 0.9,
     show_labels = false,
 )
-    palette = [:red, :blue, :green, :orange, :purple, :brown, :pink, :cyan, :magenta, :olive]
+    palette =
+        [:red, :blue, :green, :orange, :purple, :brown, :pink, :cyan, :magenta, :olive]
 
     # --------------------------------------------------------
     # Plot abstract states
@@ -138,7 +134,7 @@ end
     # Plot slices stored in the quotient
     # --------------------------------------------------------
     if what == :slices
-        seen = Set{Tuple{Any,Int}}()
+        seen = Set{Tuple{Any, Int}}()
 
         for (nd, slice_list) in T.slices
             if !isnothing(node) && nd != node

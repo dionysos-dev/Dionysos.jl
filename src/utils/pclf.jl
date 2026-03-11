@@ -59,8 +59,8 @@ function get_sublevel_set(piece::PolyhedralPiece, gamma::Float64)
     cons = LazySets.HalfSpace[]
     for i in 1:m
         gi = vec(G[i, :])
-        push!(cons, LazySets.HalfSpace( gi,  gamma * w[i]))
-        push!(cons, LazySets.HalfSpace(-gi,  gamma * w[i]))
+        push!(cons, LazySets.HalfSpace(gi, gamma * w[i]))
+        push!(cons, LazySets.HalfSpace(-gi, gamma * w[i]))
     end
     return LazySets.HPolytope(cons)
 end

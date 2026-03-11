@@ -84,7 +84,7 @@ function build_levels_from_problem(
     pclf::PCLF.PCLF,
     X::Hyperrectangle,
     D::Hyperrectangle;
-    num_levels::Union{Nothing,Int} = nothing,
+    num_levels::Union{Nothing, Int} = nothing,
     safety_factor::Float64 = 1.05,
 )
     γ = pclf.JSRapprox
@@ -100,7 +100,7 @@ function build_levels_from_problem(
     τ_default = 1 / γ
 
     if isnothing(num_levels)
-        if isapprox(ΓX, ΓD; atol=1e-14, rtol=1e-12)
+        if isapprox(ΓX, ΓD; atol = 1e-14, rtol = 1e-12)
             num_levels = 1
         else
             num_levels = Int(ceil(log(ΓX / ΓD) / log(τ_default))) + 1
