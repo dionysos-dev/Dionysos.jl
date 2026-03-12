@@ -70,9 +70,3 @@ function to_ms_controller(C::SymbolicControlTable)
     X = PredicateDomain((qs::Int) -> is_defined(C, qs))
     return MS.ConstrainedBlackBoxMap(1, 1, qfun, X)
 end
-
-using JuMP
-include("optimal_control.jl")
-include("safety_control.jl")
-include("co_safe_ltl_control.jl")
-

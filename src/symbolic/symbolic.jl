@@ -4,6 +4,8 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import ProgressMeter
 
+using JuMP
+
 import LinearAlgebra as LA
 using Colors
 using HybridSystems
@@ -24,6 +26,10 @@ using ..Mapping
 const MP = Mapping
 
 include("automaton/automaton.jl")
+include("automaton/optimal_control.jl")
+include("automaton/safety_control.jl")
+include("automaton/co_safe_ltl_control.jl")
+
 include("automaton/sorted_automaton_list.jl")
 include("automaton/indexed_automaton_list.jl")
 
