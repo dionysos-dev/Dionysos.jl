@@ -405,7 +405,7 @@ function add_inter_mode_transitions!(
                 augmented_source_state = vcat(source_continuous_state, source_time_value)
 
                 # Apply the reset map to the augmented state
-                reset_result = MathematicalSystems.apply(reset_map, augmented_source_state)
+                reset_result = MS.apply(reset_map, augmented_source_state)
                 reset_continuous_part = reset_result[1:(end - 1)]
                 reset_time_value = reset_result[end]
 
@@ -799,7 +799,7 @@ struct TimeSymbolicModel{N, T}
 end
 
 function TimeSymbolicModel(
-    sys::MathematicalSystems.ConstrainedLinearContinuousSystem,
+    sys::MS.ConstrainedLinearContinuousSystem,
     tstep::Float64,
 )
     A = sys.A

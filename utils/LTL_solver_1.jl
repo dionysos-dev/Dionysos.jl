@@ -119,7 +119,7 @@ struct MonitorG1G2G3G1NoObs end
     end
 end
 
-mon = AB.UniformGridAbstraction.FunctionMonitor(
+mon = SY.FunctionMonitor(
     1,         # initial
     Set([5]),  # accepting
     (qa, ap) -> mon_next(MonitorG1G2G3G1NoObs(), qa, ap),

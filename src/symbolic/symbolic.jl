@@ -6,7 +6,8 @@ import ProgressMeter
 
 import LinearAlgebra as LA
 using Colors
-using HybridSystems, MathematicalSystems
+using HybridSystems
+import MathematicalSystems as MS
 
 using Graphs, SimpleWeightedGraphs
 
