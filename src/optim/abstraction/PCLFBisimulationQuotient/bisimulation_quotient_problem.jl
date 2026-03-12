@@ -28,6 +28,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     Γ::Union{Nothing, Vector{Float64}}
     num_levels::Union{Nothing, Int}
     tau::Union{Nothing, Float64}
+    max_slices::Union{Nothing, Int} # debug
 
     atol::T
     verbose::Bool
@@ -44,6 +45,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
             nothing,    # Γ
             nothing,    # num_levels
             nothing,    # tau
+            nothing,    # max_slices
             zero(T),    # atol
             true,       # verbose
             nothing,    # bisimulation_quotient
@@ -203,6 +205,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
         opt.obs_partition;
         verbose = opt.verbose,
         atol = opt.atol,
+        max_slices = opt.max_slices,
     )
 
     opt.bisimulation_quotient = T
@@ -282,6 +285,7 @@ function bisimulation_pclf(
     obs_partition::AbstractVector{<:Tuple{<:Poly, Int}};
     verbose::Bool = true,
     atol::Float64 = 0.0,
+    max_slices::Union{Nothing, Int} = nothing,
 )
     A = extract_mode_matrices(f)
 
@@ -294,11 +298,10 @@ function bisimulation_pclf(
     initialize_partitions!(T)
     initialize_terminal_transitions!(T, pclf)
 
-    N = length(Γ)
-
     refine_count = 0
-
-    for i in 1:4 # N
+    N = length(Γ)
+    Niter = isnothing(max_slices) ? N : min(max_slices, N)
+    for i in 1:Niter
         verbose && println("Current slice = $i")
 
         # Stored order in LabDigraph is (source, destination, label)
@@ -331,7 +334,7 @@ function bisimulation_pclf(
                     refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
                     refine_count += 1
 
-                    if verbose && refine_count % 10000 == 0
+                    if verbose && refine_count % 20000 == 0
                         @info "Refinement progress" refine_count slice=i edge=(s, m, d)
                     end
                 end

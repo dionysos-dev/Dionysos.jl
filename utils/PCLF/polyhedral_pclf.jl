@@ -20,7 +20,7 @@ function script()
     θ = π / 6
     R = [
         cos(θ) -sin(θ)
-        sin(θ)  cos(θ)
+        sin(θ) cos(θ)
     ]
 
     # Gmats = :identity
@@ -35,9 +35,9 @@ function script()
     gamma = 100.0
     pol1 = PCLF.get_sublevel_set(pclf.pieces[(1,)], gamma)
     pol2 = PCLF.get_sublevel_set(pclf.pieces[(2,)], gamma)
-    p = plot(pol1, label="1")
-    plot!(pol2, label="2")
-    display(p)
+    p = plot(pol1; label = "1")
+    plot!(pol2; label = "2")
+    return display(p)
 end
 
 script()
