@@ -8,6 +8,8 @@ import MathOptInterface
 const MOI = MathOptInterface
 import LinearAlgebra
 
+import LazySets
+
 """
     struct LabDigraph{T<:Real, U}
 
@@ -46,8 +48,21 @@ mutable struct PolyhedralPiece <: AbstractPiece
     w::Vector{Float64}      # n-dimensional positive vector
 end
 
+# P(γ) = { x : -γ w <= G x <= γ w }.
 function get_sublevel_set(piece::PolyhedralPiece, gamma::Float64)
-    return
+    G = piece.G
+    w = piece.w
+
+    m, n = size(G)
+    @assert length(w) == m "w must have length equal to number of rows of G"
+
+    cons = LazySets.HalfSpace[]
+    for i in 1:m
+        gi = vec(G[i, :])
+        push!(cons, LazySets.HalfSpace(gi, gamma * w[i]))
+        push!(cons, LazySets.HalfSpace(-gi, gamma * w[i]))
+    end
+    return LazySets.HPolytope(cons)
 end
 
 """

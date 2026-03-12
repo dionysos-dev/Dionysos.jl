@@ -9,6 +9,9 @@ All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Pro
 - [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem):  
     Used to construct an abstraction of a dynamical system without solving a control problem.
 
+- [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem):  
+    Used to construct a quotient bisimulation of a switched system based on an observation map.
+
 - [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem):  
     A reach-avoid optimal control problem defined over a finite time horizon, supporting state and transition costs.
 
@@ -23,6 +26,7 @@ Each of these problem types is detailed below:
 ```@docs
 Dionysos.Problem.ProblemType
 Dionysos.Problem.EmptyProblem
+Dionysos.Problem.BisimulationQuotientProblem
 Dionysos.Problem.OptimalControlProblem
 Dionysos.Problem.SafetyProblem
 Dionysos.Problem.CoSafeLTLProblem

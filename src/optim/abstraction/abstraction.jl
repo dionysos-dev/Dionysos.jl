@@ -5,4 +5,5 @@ include("UniformEllipsoidAbstraction/uniform_ellipsoid_abstraction.jl")
 include("HybridSystemAbstraction/hybrid_system_abstraction.jl")
 include("lazy_ellipsoids_abstraction.jl")
 
+include("PCLFBisimulationQuotient/bisimulation_quotient_problem.jl")
 end
