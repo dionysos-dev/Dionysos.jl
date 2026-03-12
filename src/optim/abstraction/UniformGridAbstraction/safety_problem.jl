@@ -115,16 +115,8 @@ function build_abstract_problem(
 )
     return PR.SafetyProblem(
         SY.get_automaton(abstract_system),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.initial_set,
-            MP.OUTER,
-        ),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.safe_set,
-            MP.INNER,
-        ),
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
+        SY.get_states_from_set(abstract_system, concrete_problem.safe_set, MP.INNER),
         concrete_problem.time, # TODO
     )
 end
@@ -134,13 +126,11 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
-    abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, abstract_system)
+    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
 
     abstract_optimizer = MOI.instantiate(SY.OptimizerSafetyProblem)
@@ -155,13 +145,14 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.invariant_set =
-        SY.get_state_set_from_states(abstract_system, collect(abstract_optimizer.invariant_set))
-    optimizer.invariant_set_complement =
-        SY.get_state_set_from_states(
-            abstract_system,
-            collect(abstract_optimizer.invariant_set_complement),
-        )
+    optimizer.invariant_set = SY.get_state_set_from_states(
+        abstract_system,
+        collect(abstract_optimizer.invariant_set),
+    )
+    optimizer.invariant_set_complement = SY.get_state_set_from_states(
+        abstract_system,
+        collect(abstract_optimizer.invariant_set_complement),
+    )
 
     optimizer.success = abstract_optimizer.success
     optimizer.abstract_problem_time_sec = time() - t0

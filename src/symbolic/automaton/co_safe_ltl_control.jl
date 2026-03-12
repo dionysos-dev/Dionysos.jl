@@ -56,7 +56,6 @@ end
 
 MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.solve_time_sec
 
-
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     t0 = time()
 
@@ -88,20 +87,19 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     elseif problem.labeling isa AbstractDict
         labeling_function_from_state_sets(problem.labeling)
     else
-        error("problem.labeling must be either a labeling function or Dict{Symbol,<:AbstractVector{Int}}")
+        error(
+            "problem.labeling must be either a labeling function or Dict{Symbol,<:AbstractVector{Int}}",
+        )
     end
 
     # (3) Product automaton
-    product_autom = build_product_automaton(
-        autom,
-        spec,
-        labeling;
-        initial_set = problem.initial_set,
-    )
+    product_autom =
+        build_product_automaton(autom, spec, labeling; initial_set = problem.initial_set)
 
     # (4) Solve reachability problem
     accQ = accepting_states(spec)
-    target_set = [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
+    target_set =
+        [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
     isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
 
     init_states = problem.initial_set
@@ -117,9 +115,8 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     success = all(p -> p in controllableP, init_prod)
 
-    problem.labeling isa AbstractDict || error(
-        "build_fm_controller_ms currently requires dictionary labeling.",
-    )
+    problem.labeling isa AbstractDict ||
+        error("build_fm_controller_ms currently requires dictionary labeling.")
 
     # (5) Wrap product controller into finite-memory controller on autom
     controller, qa0 = build_fm_controller_ms(

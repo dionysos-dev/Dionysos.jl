@@ -110,8 +110,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing &&
-        error("Concrete problem is not defined.")
+    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
 
     abstract_system = optimizer.abstract_system
 
@@ -122,8 +121,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     )
     optimizer.abstract_problem = abstract_problem
 
-    optimizer.print_level >= 1 &&
-        println("compute_controller_reachability! started")
+    optimizer.print_level >= 1 && println("compute_controller_reachability! started")
 
     abstract_optimizer = MOI.instantiate(SY.OptimizerOptimalControlProblem)
     MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
@@ -148,13 +146,14 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
 
-    optimizer.controllable_set =
-        SY.get_state_set_from_states(abstract_system, collect(abstract_optimizer.controllable_set))
-    optimizer.uncontrollable_set =
-        SY.get_state_set_from_states(
-            abstract_system,
-            collect(abstract_optimizer.uncontrollable_set),
-        )
+    optimizer.controllable_set = SY.get_state_set_from_states(
+        abstract_system,
+        collect(abstract_optimizer.controllable_set),
+    )
+    optimizer.uncontrollable_set = SY.get_state_set_from_states(
+        abstract_system,
+        collect(abstract_optimizer.uncontrollable_set),
+    )
 
     optimizer.value_fun_tab = abstract_optimizer.value_fun_tab
     optimizer.abstract_value_function =
@@ -180,16 +179,8 @@ function build_abstract_problem(
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.initial_set,
-            MP.OUTER,
-        ),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.target_set,
-            MP.INNER,
-        ),
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
+        SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
         concrete_problem.state_cost,
         abstract_transition_cost,
         concrete_problem.time,

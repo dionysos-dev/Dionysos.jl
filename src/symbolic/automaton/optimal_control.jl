@@ -76,7 +76,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
             sparse_input = optimizer.sparse_input,
             cost_function = problem.transition_cost,
         )
-    
+
     optimizer.controller = controller
     optimizer.controllable_set = controllable_set
     optimizer.uncontrollable_set = uncontrollable_set
@@ -324,8 +324,4 @@ function _compute_controller_reach!(
     end
 
     return iszero(num_init_unreachable), value_fun_tab
-end
-
-function build_value_function(value_fun_tab)
-    return state -> value_fun_tab[state]
 end

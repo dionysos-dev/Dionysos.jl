@@ -182,16 +182,8 @@ function build_abstract_problem(
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.initial_set,
-            MP.OUTER,
-        ),
-        SY.get_states_from_set(
-            abstract_system,
-            concrete_problem.target_set,
-            MP.INNER,
-        ),
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
+        SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
         concrete_problem.state_cost, # TODO
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
         concrete_problem.time, # TODO
@@ -201,10 +193,8 @@ end
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t0 = time()
 
-    optimizer.abstract_system === nothing &&
-        error("abstract_system not set")
-    optimizer.concrete_problem === nothing &&
-        error("concrete_problem not set")
+    optimizer.abstract_system === nothing && error("abstract_system not set")
+    optimizer.concrete_problem === nothing && error("concrete_problem not set")
 
     abs_sys = optimizer.abstract_system
     concrete_problem = optimizer.concrete_problem
@@ -242,8 +232,10 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 
     optimizer.controllable_set =
         SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.controllable_set))
-    optimizer.uncontrollable_set =
-        SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.uncontrollable_set))
+    optimizer.uncontrollable_set = SY.get_state_set_from_states(
+        abs_sys,
+        collect(abstract_optimizer.uncontrollable_set),
+    )
 
     optimizer.success = abstract_optimizer.success
     optimizer.abstract_problem_time_sec = time() - t0

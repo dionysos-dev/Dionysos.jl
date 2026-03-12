@@ -59,21 +59,15 @@ end
 function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     t0 = time()
 
-    optimizer.abstract_system === nothing &&
-        error("abstract_system not set")
-    optimizer.concrete_problem === nothing &&
-        error("concrete_problem not set")
+    optimizer.abstract_system === nothing && error("abstract_system not set")
+    optimizer.concrete_problem === nothing && error("concrete_problem not set")
 
     abstract_system = optimizer.abstract_system
 
-    abstract_problem = build_abstract_problem(
-        optimizer.concrete_problem,
-        abstract_system,
-    )
+    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
     optimizer.abstract_problem = abstract_problem
 
-    optimizer.print_level >= 1 &&
-        println("compute_largest_invariant_set! started")
+    optimizer.print_level >= 1 && println("compute_largest_invariant_set! started")
 
     abstract_optimizer = MOI.instantiate(SY.OptimizerSafetyProblem)
     MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)

@@ -74,10 +74,8 @@ end
 function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     t0 = time()
 
-    optimizer.abstract_system === nothing &&
-        error("abstract_system not set")
-    optimizer.concrete_problem === nothing &&
-        error("concrete_problem not set")
+    optimizer.abstract_system === nothing && error("abstract_system not set")
+    optimizer.concrete_problem === nothing && error("concrete_problem not set")
 
     abs_sys = optimizer.abstract_system
     concrete_problem = optimizer.concrete_problem

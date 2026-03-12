@@ -798,10 +798,7 @@ struct TimeSymbolicModel{N, T}
     is_time_active::Bool
 end
 
-function TimeSymbolicModel(
-    sys::MS.ConstrainedLinearContinuousSystem,
-    tstep::Float64,
-)
+function TimeSymbolicModel(sys::MS.ConstrainedLinearContinuousSystem, tstep::Float64)
     A = sys.A
     X = sys.X
 

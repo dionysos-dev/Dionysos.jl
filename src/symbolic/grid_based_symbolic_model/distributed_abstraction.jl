@@ -186,7 +186,7 @@ function collect_abstract_transitions_distributed(
                 progress_dt = progress_dt,
                 state_filter = state_filter,
                 state_input_filter = state_input_filter,
-                threaded = threaded_per_worker
+                threaded = threaded_per_worker,
             )
         end
     else

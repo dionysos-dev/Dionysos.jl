@@ -62,11 +62,8 @@ function MOI.get(opt::OptimizerCoSafeLTLOnQuotient, p::MOI.RawOptimizerAttribute
     return getproperty(opt, Symbol(p.name))
 end
 
-MOI.get(opt::OptimizerCoSafeLTLOnQuotient, ::MOI.SolveTimeSec) = opt.abstract_problem_time_sec
-
-
-
-
+MOI.get(opt::OptimizerCoSafeLTLOnQuotient, ::MOI.SolveTimeSec) =
+    opt.abstract_problem_time_sec
 
 # ============================================================
 # Quotient automaton wrapper
@@ -154,10 +151,7 @@ end
 # Lift initial set onto quotient states
 # ============================================================
 
-function quotient_states_from_set(
-    Q::QuotientAutomaton,
-    X0
-)
+function quotient_states_from_set(Q::QuotientAutomaton, X0)
     X0h = _as_hpolytope(X0)
     out = Int[]
 
@@ -173,17 +167,12 @@ end
 # Build quotient AP labeling from obs
 # ============================================================
 
-function quotient_lab_abs_dense(
-    Q::QuotientAutomaton,
-    ap_to_obs::Dict{Symbol, Int},
-)
+function quotient_lab_abs_dense(Q::QuotientAutomaton, ap_to_obs::Dict{Symbol, Int})
     lab = Dict{Symbol, Vector{Int}}()
 
     for (ap, obsval) in ap_to_obs
-        lab[ap] = Int[
-            i for i in 1:length(Q.qids)
-            if Q.quotient.states[Q.qids[i]].obs == obsval
-        ]
+        lab[ap] =
+            Int[i for i in 1:length(Q.qids) if Q.quotient.states[Q.qids[i]].obs == obsval]
     end
 
     return lab
@@ -251,12 +240,9 @@ end
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     t0 = time()
 
-    optimizer.bisimulation_quotient === nothing &&
-        error("bisimulation_quotient not set")
-    optimizer.concrete_problem === nothing &&
-        error("concrete_problem not set")
-    isempty(optimizer.ap_to_obs) &&
-        error("ap_to_obs not set")
+    optimizer.bisimulation_quotient === nothing && error("bisimulation_quotient not set")
+    optimizer.concrete_problem === nothing && error("concrete_problem not set")
+    isempty(optimizer.ap_to_obs) && error("ap_to_obs not set")
 
     concrete_problem = optimizer.concrete_problem
     T = optimizer.bisimulation_quotient

@@ -53,7 +53,8 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
 
-    controller, inv_set, invc_set = compute_largest_invariant_set(autom, optimizer.problem.safe_set,)
+    controller, inv_set, invc_set =
+        compute_largest_invariant_set(autom, optimizer.problem.safe_set)
 
     optimizer.controller = controller
     optimizer.invariant_set = inv_set
