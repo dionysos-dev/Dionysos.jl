@@ -222,6 +222,12 @@ end
 # Concrete controller synthesis
 # ================================================================
 
+# Domain object whose membership is a predicate
+struct PredicateDomain{F}
+    pred::F
+end
+Base.in(x, X::PredicateDomain) = X.pred(x)
+
 function solve_concrete_problem(
     abstract_system::SY.TimedHybridSymbolicModel,
     abstract_controller::MS.AbstractMap,

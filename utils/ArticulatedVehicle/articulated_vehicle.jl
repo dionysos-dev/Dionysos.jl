@@ -66,7 +66,7 @@ function plot_state_space!(
     periodic_start = SVector{0, Float64}(),
 )
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    abstract_system = abstract_problem.system
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     XMapping = SY.get_state_mapping(abstract_system)
     Xset = SY.get_state_domain(abstract_system)
 
@@ -242,7 +242,7 @@ function script()
         ST.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start) :
         (x -> x)
     reached(x) = (periodic_wrapper(x) ∈ target_set)
-    nstep = 300
+    nstep = 100
 
     x_traj, u_traj = ST.get_closed_loop_trajectory(
         discrete_time_system,
