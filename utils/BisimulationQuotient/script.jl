@@ -56,10 +56,21 @@ problem = PR.BisimulationQuotientProblem(f, X, D, observation_regions)
 # Compute a common polyhedral PCLF (k = 0 gives 1-node graph)
 # ---------------------------------------------------------
 G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
-
 sdp_optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(f, G, sdp_optimizer; MLF = true, verbose = false)
+θ = π / 6
+R = [
+    cos(θ) -sin(θ)
+    sin(θ)  cos(θ)
+]
+
+# Gmats = :identity
+Gmats = Dict(
+    # (1) => [1.0 0.3; 0.0 1.0],   # shear
+    (1) => R,                    # rotation
+)
+
+pclf = PCLF.compute_polyhedral_pieces_pclf(f, G, sdp_optimizer; Gmats=Gmats, MLF = true, verbose = false)
 
 println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 
@@ -82,9 +93,9 @@ optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuo
 MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-2)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
-MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 5)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 8)
 
 # ---------------------------------------------------------
 # Solve

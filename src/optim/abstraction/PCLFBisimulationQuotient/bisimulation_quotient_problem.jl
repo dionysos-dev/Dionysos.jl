@@ -298,7 +298,7 @@ function bisimulation_pclf(
 
     refine_count = 0
 
-    for i in 1:1 # N
+    for i in 1:4 # N
         verbose && println("Current slice = $i")
 
         # Stored order in LabDigraph is (source, destination, label)
@@ -492,7 +492,7 @@ function refine_one_state!(
     q = T.states[qid]
 
     I = set_intersection(q.set, preP)
-    if !is_significant_set(I; min_width = atol > 0 ? atol : 1e-8)
+    if !is_nonempty_set(I)
         return false
     end
 
@@ -507,7 +507,7 @@ function refine_one_state!(
 
     # Difference pieces
     for D in Dparts
-        if is_significant_set(D; min_width = atol > 0 ? atol : 1e-8)
+        if is_nonempty_set(D)
             new_id = add_state!(T, old_node, D, old_obs, old_slice)
             T.states[new_id].next = copy(old_next)
         end
@@ -517,31 +517,6 @@ function refine_one_state!(
     inter_id = add_state!(T, old_node, I, old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)
-
-    return true
-end
-
-function is_significant_set(P::Poly; min_width::Float64 = 1e-8)
-    is_nonempty_set(P) || return false
-
-    # keep only full-dimensional sets if possible
-    try
-        dim(P) == 2 || return false
-    catch
-    end
-
-    # crude width check from support in coordinate directions
-
-    try
-        xsup = σ([1.0, 0.0], P)
-        xinf = -σ([-1.0, 0.0], P)
-        ysup = σ([0.0, 1.0], P)
-        yinf = -σ([0.0, -1.0], P)
-
-        (xsup - xinf) > min_width || return false
-        (ysup - yinf) > min_width || return false
-    catch
-    end
 
     return true
 end
