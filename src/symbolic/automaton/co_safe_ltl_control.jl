@@ -20,8 +20,8 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
-    solve_time_sec::T
     success::Bool
+    solve_time_sec::T
 
     function OptimizerCoSafeLTLProblem{T}() where {T}
         return new{T}(
@@ -36,8 +36,8 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
             nothing,   # controllable_set
             nothing,   # uncontrollable_set
             nothing,   # value_fun_tab
-            zero(T),   # solve_time_sec
             false,     # success
+            zero(T),   # solve_time_sec
         )
     end
 end

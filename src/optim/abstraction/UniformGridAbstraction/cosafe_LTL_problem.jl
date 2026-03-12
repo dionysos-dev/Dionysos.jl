@@ -96,7 +96,7 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
     optimizer.abstract_problem = abstract_problem
 
-    abstract_optimizer = SY.OptimizerCoSafeLTLProblem()
+    abstract_optimizer = MOI.instantiate(SY.OptimizerCoSafeLTLProblem)
     MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
     MOI.set(
         abstract_optimizer,

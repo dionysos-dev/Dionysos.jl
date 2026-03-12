@@ -1,6 +1,96 @@
-###################################################
-################# Optimal control #################
-###################################################
+# ============================================================
+# Optimal Control
+# ============================================================
+
+mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
+    # inputs
+    problem::Union{Nothing, PR.OptimalControlProblem}
+    early_stop::Bool
+    sparse_input::Bool
+    print_level::Int
+
+    # outputs
+    controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    controllable_set::Any
+    uncontrollable_set::Any
+    value_fun_tab::Any
+    value_function::Any
+    success::Bool
+    solve_time_sec::T
+
+    function OptimizerOptimalControlProblem{T}() where {T}
+        return new{T}(
+            nothing, # problem
+            false,   # early_stop
+            false,   # sparse_input
+            1,       # print_level
+            nothing, # controller
+            nothing, # controllable_set
+            nothing, # uncontrollable_set
+            nothing, # value_fun_tab
+            nothing, # value_function
+            false,   # success
+            zero(T), # solve_time_sec
+        )
+    end
+end
+
+OptimizerOptimalControlProblem() = OptimizerOptimalControlProblem{Float64}()
+
+MOI.is_empty(optimizer::OptimizerOptimalControlProblem) = optimizer.problem === nothing
+
+function MOI.set(
+    model::OptimizerOptimalControlProblem,
+    param::MOI.RawOptimizerAttribute,
+    value,
+)
+    return setproperty!(model, Symbol(param.name), value)
+end
+
+function MOI.get(model::OptimizerOptimalControlProblem, ::MOI.SolveTimeSec)
+    return model.solve_time_sec
+end
+
+function MOI.get(model::OptimizerOptimalControlProblem, param::MOI.RawOptimizerAttribute)
+    return getproperty(model, Symbol(param.name))
+end
+
+function build_value_function(value_fun_tab)
+    return state -> value_fun_tab[state]
+end
+
+function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
+    t0 = time()
+
+    problem = optimizer.problem
+    problem === nothing && error("problem not set")
+
+    autom = problem.system
+    init_set = optimizer.early_stop ? problem.initial_set : enum_states(autom)
+
+    controller, controllable_set, uncontrollable_set, value_fun_tab =
+        compute_worst_case_cost_controller(
+            autom,
+            problem.target_set;
+            initial_set = init_set,
+            sparse_input = optimizer.sparse_input,
+            cost_function = problem.transition_cost,
+        )
+    
+    optimizer.controller = controller
+    optimizer.controllable_set = controllable_set
+    optimizer.uncontrollable_set = uncontrollable_set
+    optimizer.value_fun_tab = value_fun_tab
+    optimizer.value_function = build_value_function(value_fun_tab)
+    optimizer.success = all(q -> q in controllable_set, problem.initial_set)
+
+    optimizer.print_level >= 1 &&
+        println("Optimal control terminated with success = $(optimizer.success)")
+
+    optimizer.solve_time_sec = time() - t0
+    return
+end
+
 function compute_worst_case_cost_controller(
     autom::AbstractAutomatonList,
     target_set;
@@ -9,22 +99,20 @@ function compute_worst_case_cost_controller(
     sparse_input::Bool = false,
 )
     if cost_function === nothing
-        abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
-            compute_worst_case_uniform_cost_controller(
-                autom,
-                target_set;
-                initial_set = initial_set,
-                sparse_input = sparse_input,
-            )
+        return compute_worst_case_uniform_cost_controller(
+            autom,
+            target_set;
+            initial_set = initial_set,
+            sparse_input = sparse_input,
+        )
     else
-        abstract_controller, controllable_set, uncontrollable_set, value_fun_tab =
-            compute_optimal_controller(
-                autom,
-                target_set;
-                initial_set = initial_set,
-                sparse_input = sparse_input,
-                cost_function = cost_function,
-            )
+        return compute_optimal_controller(
+            autom,
+            target_set;
+            initial_set = initial_set,
+            sparse_input = sparse_input,
+            cost_function = cost_function,
+        )
     end
 end
 
@@ -95,9 +183,9 @@ function compute_optimal_controller(
 
     controllable_set = Set(i for (i, v) in pairs(value_fun_tab) if isfinite(v))
     uncontrollable_set = setdiff(state_set, controllable_set)
-    abstract_controller = to_ms_controller(contr_tab)
+    controller = to_ms_controller(contr_tab)
 
-    return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
+    return controller, controllable_set, uncontrollable_set, value_fun_tab
 end
 
 function increase_counter!(counter::Array{Int, 2}, source::Int, symbol::Int)
@@ -166,9 +254,9 @@ function compute_worst_case_uniform_cost_controller(
     )
 
     uncontrollable_set = setdiff(stateset, controllable_set)
-    abstract_controller = to_ms_controller(contr_tab)
+    controller = to_ms_controller(contr_tab)
 
-    return abstract_controller, controllable_set, uncontrollable_set, value_fun_tab
+    return controller, controllable_set, uncontrollable_set, value_fun_tab
 end
 
 function _data(autom, initlist, targetlist, sparse_input::Bool)
@@ -236,4 +324,8 @@ function _compute_controller_reach!(
     end
 
     return iszero(num_init_unreachable), value_fun_tab
+end
+
+function build_value_function(value_fun_tab)
+    return state -> value_fun_tab[state]
 end
