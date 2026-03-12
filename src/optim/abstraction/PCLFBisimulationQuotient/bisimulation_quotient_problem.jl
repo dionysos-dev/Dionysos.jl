@@ -1,5 +1,5 @@
 
-module PathCompleteBisimulation
+module PCLFBisimulationQuotient
 
 import Dionysos
 const DI = Dionysos
@@ -17,44 +17,47 @@ include("geometry_interface.jl")
 include("bisimulation_quotient.jl")
 include("sublevel_support.jl")
 
-mutable struct OptimizerQuotientBisimulation{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
-    quotient_bisimulation_problem::Union{Nothing, PR.QuotientBisimulationProblem}
+    bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
     pclf::Union{Nothing, PCLF.PCLF}
-    Γ::Union{Nothing, Vector{Float64}}
+
     obs_partition::Union{Nothing, Vector{Tuple{Poly, Int}}}
-    verbose::Bool
-    atol::T
+
+    Γ::Union{Nothing, Vector{Float64}}
     num_levels::Union{Nothing, Int}
     tau::Union{Nothing, Float64}
 
+    atol::T
+    verbose::Bool
+
     # --- results ---
-    raw_bisimulation::Any
+    bisimulation_quotient::Any
     abstraction_construction_time_sec::T
 
-    function OptimizerQuotientBisimulation{T}() where {T}
+    function OptimizerBisimulationQuotient{T}() where {T}
         return new{T}(
-            nothing,    # quotient_bisimulation_problem
+            nothing,    # bisimulation_quotient_problem
             nothing,    # pclf
-            nothing,    # Γ
             nothing,    # obs_partition
-            true,       # verbose
-            zero(T),    # atol
+            nothing,    # Γ
             nothing,    # num_levels
             nothing,    # tau
-            nothing,    # raw_bisimulation
+            zero(T),    # atol
+            true,       # verbose
+            nothing,    # bisimulation_quotient
             zero(T),    # solve time
         )
     end
 end
 
-OptimizerQuotientBisimulation() = OptimizerQuotientBisimulation{Float64}()
+OptimizerBisimulationQuotient() = OptimizerBisimulationQuotient{Float64}()
 
-MOI.is_empty(opt::OptimizerQuotientBisimulation) =
-    opt.quotient_bisimulation_problem === nothing
+MOI.is_empty(opt::OptimizerBisimulationQuotient) =
+    opt.bisimulation_quotient_problem === nothing
 
 function MOI.set(
-    model::OptimizerQuotientBisimulation,
+    model::OptimizerBisimulationQuotient,
     param::MOI.RawOptimizerAttribute,
     value,
 )
@@ -66,11 +69,11 @@ function MOI.set(
     return
 end
 
-function MOI.get(model::OptimizerQuotientBisimulation, ::MOI.SolveTimeSec)
+function MOI.get(model::OptimizerBisimulationQuotient, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
 end
 
-function MOI.get(model::OptimizerQuotientBisimulation, param::MOI.RawOptimizerAttribute)
+function MOI.get(model::OptimizerBisimulationQuotient, param::MOI.RawOptimizerAttribute)
     name = Symbol(param.name)
     if !hasproperty(model, name)
         error("Unknown optimizer attribute: $(param.name)")
@@ -78,32 +81,31 @@ function MOI.get(model::OptimizerQuotientBisimulation, param::MOI.RawOptimizerAt
     return getproperty(model, name)
 end
 
-function reset!(model::OptimizerQuotientBisimulation)
-    model.raw_bisimulation = nothing
-    model.slices = nothing
+function reset!(model::OptimizerBisimulationQuotient)
+    model.bisimulation_quotient = nothing
     model.abstraction_construction_time_sec = 0.0
     return model
 end
 
 function _validate_model(
-    model::OptimizerQuotientBisimulation,
+    model::OptimizerBisimulationQuotient,
     required_fields::Vector{Symbol},
 )
     for field in required_fields
         if isnothing(getfield(model, field))
             error(
-                "Please set `$(field)`. Missing required field in OptimizerQuotientBisimulation.",
+                "Please set `$(field)`. Missing required field in OptimizerBisimulationQuotient.",
             )
         end
     end
 end
 
-function MOI.optimize!(opt::OptimizerQuotientBisimulation)
+function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     t_ref = time()
 
-    _validate_model(opt, [:quotient_bisimulation_problem, :pclf])
+    _validate_model(opt, [:bisimulation_quotient_problem, :pclf])
 
-    prob = opt.quotient_bisimulation_problem
+    prob = opt.bisimulation_quotient_problem
 
     system = prob.system
     X = prob.region
@@ -148,7 +150,7 @@ function MOI.optimize!(opt::OptimizerQuotientBisimulation)
         atol = opt.atol,
     )
 
-    opt.raw_bisimulation = T
+    opt.bisimulation_quotient = T
     opt.abstraction_construction_time_sec = time() - t_ref
     return
 end
@@ -330,6 +332,7 @@ function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     end
     return sublevels
 end
+
 """
     build_slice_sequence(sublevels; atol = 0.0)
 

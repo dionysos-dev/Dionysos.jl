@@ -50,7 +50,7 @@ R2 = Hyperrectangle(; low = [-1.5, 0.8], high = [-0.8, 1.5])
 
 observation_regions = [R1, R2]
 
-problem = PR.QuotientBisimulationProblem(f, X, D, observation_regions)
+problem = PR.BisimulationQuotientProblem(f, X, D, observation_regions)
 
 # ---------------------------------------------------------
 # Compute a common polyhedral PCLF (k = 0 gives 1-node graph)
@@ -77,9 +77,9 @@ println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 # ---------------------------------------------------------
 # Instantiate abstraction optimizer
 # ---------------------------------------------------------
-optimizer = MOI.instantiate(AB.PathCompleteBisimulation.OptimizerQuotientBisimulation)
+optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("quotient_bisimulation_problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-2)
@@ -96,20 +96,15 @@ println(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")),
 )
 
-Traw = MOI.get(optimizer, MOI.RawOptimizerAttribute("raw_bisimulation"))
+bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 obs_partition = MOI.get(optimizer, MOI.RawOptimizerAttribute("obs_partition"))
-slices = Traw.slices
 
-println("Number of abstract states = ", length(Traw.states))
-# println("Number of states by mode = ", Traw.part_ids)
-# for (qid, q) in sort(collect(Traw.states); by = x -> x[1])
-#     println("State $qid: node=$(q.node), slice=$(q.slice), obs=$(q.obs), ntrans=$(length(q.next))")
-# end
+println("Number of abstract states = ", length(bisimulation.states))
 
 fig = plot(; aspect_ratio = :equal);
 # plot!(problem)                # problem geometry
 # plot!(obs_partition)          # observation partition
-# plot!(Traw; what = :slices, mode = 1)
-# plot!(Traw; what = :states, mode = 1, by = :obs)
-plot!(Traw; what = :states, mode = 1, by = :slice)
+plot!(bisimulation; what = :slices, mode = 1)
+# plot!(bisimulation; what = :states, mode = 1, by = :obs)
+# plot!(bisimulation; what = :states, mode = 1, by = :slice)
 display(fig)

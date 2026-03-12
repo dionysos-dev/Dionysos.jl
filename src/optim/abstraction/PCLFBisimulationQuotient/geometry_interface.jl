@@ -4,11 +4,7 @@
 
 const Poly = HPolytope
 
-"""
-    _as_hpolytope(P)
-
-Try to coerce a LazySets polyhedral object to an `HPolytope`.
-"""
+# Try to coerce a LazySets polyhedral object to an `HPolytope`.
 function _as_hpolytope(P)
     P isa HPolytope && return P
     try
@@ -18,20 +14,10 @@ function _as_hpolytope(P)
     end
 end
 
-"""
-    set_intersection(P, Q)
-
-Intersection of two H-polytopes, returned as an H-polytope.
-"""
 function set_intersection(P::Poly, Q::Poly)
     return HPolytope(vcat(constraints_list(P), constraints_list(Q)))
 end
 
-"""
-    is_nonempty_set(P)
-
-Nonemptiness check for a polytope.
-"""
 function is_nonempty_set(P::Poly)
     return !isempty(P)
 end

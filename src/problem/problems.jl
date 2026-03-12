@@ -22,7 +22,7 @@ mutable struct EmptyProblem{S, X} <: ProblemType
 end
 
 """
-    QuotientBisimulationProblem{S,X,D,R,P,G} <: ProblemType
+    BisimulationQuotientProblem{S,X,D,R,P,G} <: ProblemType
 
 A problem type used to construct a finite bisimulation quotient induced.
 
@@ -32,7 +32,7 @@ A problem type used to construct a finite bisimulation quotient induced.
 - `terminal_region`: the terminal invariant set `D`.
 - `observation_regions`: the regions of interest used to define the observation map.
 """
-mutable struct QuotientBisimulationProblem{S, X, D, R} <: ProblemType
+mutable struct BisimulationQuotientProblem{S, X, D, R} <: ProblemType
     system::S
     region::X
     terminal_region::D
@@ -147,7 +147,7 @@ Base.isfinite(::Infinity) = false
 end
 
 @recipe function f(
-    problem::QuotientBisimulationProblem;
+    problem::BisimulationQuotientProblem;
     region_color = :gray,
     terminal_region_color = :blue,
     region_alpha = 0.15,
