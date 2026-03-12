@@ -91,6 +91,10 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 5)
 # ---------------------------------------------------------
 MOI.optimize!(optimizer)
 
+# const FILENAME = joinpath(@__DIR__, "optimizer.jld2")
+# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+
 println(
     "Construction time = ",
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")),
@@ -104,7 +108,15 @@ println("Number of abstract states = ", length(bisimulation.states))
 fig = plot(; aspect_ratio = :equal);
 # plot!(problem)                # problem geometry
 # plot!(obs_partition)          # observation partition
-plot!(bisimulation; what = :slices, mode = 1)
+# plot!(bisimulation; what = :slices, mode = 1)
 # plot!(bisimulation; what = :states, mode = 1, by = :obs)
-# plot!(bisimulation; what = :states, mode = 1, by = :slice)
+plot!(bisimulation; what = :states, mode = 1, by = :slice)
 display(fig)
+
+# ---------------------------------------------------------
+# Export only the bisimulation quotient
+# ---------------------------------------------------------
+
+# const FILENAME = joinpath(@__DIR__, "bisimulation.jld2")
+# AB.PCLFBisimulationQuotient.export_bisimulation_jld2(optimizer, FILENAME)
+# optimizer = AB.PCLFBisimulationQuotient.import_bisimulation_jld2(FILENAME)
