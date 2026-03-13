@@ -1,82 +1,159 @@
-"""
-    OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
+# ============================================================
+# CoSafe LTL Control
+# ============================================================
 
-Abstraction-based solver for **co-safe LTL control problems**.
+import Spot
 
-This optimizer takes as input a concrete problem (an instance of [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)), and
-1. converts the co-safe LTL specification into a **finite monitor / automaton**,
-2. forms a product between the abstraction and the monitor (implicitly or explicitly),
-4. synthesizes an abstract controller (policy) on the product,
-5. constructs a concrete controller.
-
-# Typical workflow
-```julia
-opt = OptimizerCoSafeLTLProblem()
-MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
-# plus other parameters (grid, images, translators, ...)
-MOI.optimize!(opt)
-ctrl = opt.concrete_controller
-```
-"""
 mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     # inputs
-    concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    problem::Union{Nothing, PR.CoSafeLTLProblem}
+
+    sparse_input::Bool
+    print_level::Int
 
     # outputs / internals
-    abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
-    product_system::Any
-    abstract_controller_product::Union{Nothing, MS.ConstrainedBlackBoxMap}
-    abstract_controller::Union{Nothing, MS.SystemWithOutput}
-    qa0::Any # abstract/concrete controller initial state
+    controller::Union{Nothing, MS.SystemWithOutput}
+    product_autom::Union{Nothing, AbstractAutomatonList}
+    controller_product_autom::Any
+    qa0::Any
     update_on_next::Bool
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
-    abstract_problem_time_sec::T
     success::Bool
-    print_level::Int
-    sparse_input::Bool
+    solve_time_sec::T
 
     function OptimizerCoSafeLTLProblem{T}() where {T}
         return new{T}(
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            true,
-            nothing,
-            nothing,
-            nothing,
-            0.0,
-            false,
-            1,
-            false,
+            nothing,   # problem
+            false,     # sparse_input
+            1,         # print_level
+            nothing,   # controller
+            nothing,   # product_autom
+            nothing,   # controller_product_autom
+            nothing,   # qa0
+            true,      # update_on_next
+            nothing,   # controllable_set
+            nothing,   # uncontrollable_set
+            nothing,   # value_fun_tab
+            false,     # success
+            zero(T),   # solve_time_sec
         )
     end
 end
 
-using Spot
-
 OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
-MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.concrete_problem === nothing
+MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.problem === nothing
 
 function MOI.set(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute, v)
     return setproperty!(opt, Symbol(p.name), v)
 end
+
 function MOI.get(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute)
     return getproperty(opt, Symbol(p.name))
 end
-MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_problem_time_sec
+
+MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.solve_time_sec
+
+function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
+    t0 = time()
+
+    problem = optimizer.problem
+
+    problem === nothing && error("problem not set")
+    _check_ap_coverage(problem)
+
+    if optimizer.print_level > 0
+        for (ap, states) in problem.labeling
+            println("AP=$ap  #states=$(length(states))")
+        end
+    end
+
+    # (1) Finite system
+    autom = problem.system
+
+    # (2) Specification automaton
+    spec = if problem.spec isa Spot.SpotFormula
+        spot_stepper(problem.spec)
+    elseif problem.spec isa AbstractSpecStepper
+        problem.spec
+    else
+        error("spec must be SpotFormula or AbstractSpecStepper")
+    end
+
+    labeling = if problem.labeling isa Function
+        problem.labeling
+    elseif problem.labeling isa AbstractDict
+        labeling_function_from_state_sets(problem.labeling)
+    else
+        error(
+            "problem.labeling must be either a labeling function or Dict{Symbol,<:AbstractVector{Int}}",
+        )
+    end
+
+    # (3) Product automaton
+    product_autom =
+        build_product_automaton(autom, spec, labeling; initial_set = problem.initial_set)
+
+    # (4) Solve reachability problem
+    accQ = accepting_states(spec)
+
+    labels_seen = Set{Any}()
+    for qs in 1:get_n_state(autom)
+        push!(labels_seen, labeling(qs))
+    end
+
+    target_set =
+        [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
+    isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
+
+    init_states = problem.initial_set
+    init_prod = Int[]
+    for qs in init_states
+        ap0 = labeling(qs)
+        qa_init = step(spec, init_state(spec), ap0)
+        push!(init_prod, product_autom.pid[(qs, qa_init)])
+    end
+
+    controller_product_autom, controllableP, uncontrollableP, V =
+        compute_worst_case_uniform_cost_controller(
+            product_autom,
+            target_set;
+            initial_set = init_prod,
+            sparse_input = optimizer.sparse_input,
+        )
+
+    success = all(p -> p in controllableP, init_prod)
+
+    optimizer.print_level >= 1 && println("Success: ", success)
+
+    problem.labeling isa AbstractDict ||
+        error("build_fm_controller_ms currently requires dictionary labeling.")
+
+    # (5) Wrap product controller into finite-memory controller on autom
+    controller, qa0 = build_fm_controller_ms(
+        problem.labeling,
+        spec,
+        controller_product_autom,
+        product_autom.pid,
+    )
+
+    optimizer.controller = controller
+    optimizer.product_autom = product_autom
+    optimizer.controller_product_autom = controller_product_autom
+    optimizer.qa0 = qa0
+    optimizer.controllable_set = controllableP
+    optimizer.uncontrollable_set = uncontrollableP
+    optimizer.value_fun_tab = V
+    optimizer.success = success
+    optimizer.solve_time_sec = time() - t0
+
+    return
+end
 
 # ============================================================
-# Lifting: concrete CoSafeLTLProblem -> abstract CoSafeLTLProblem
-# concrete_problem.labeling :: Dict{Symbol, LazySet}
-# abstract_problem.labeling  :: Dict{Symbol, Vector{Int}}
+# Helpers
 # ============================================================
 
 # Small check: if the spec is a Spot formula, ensure all APs mentioned in the formula
@@ -84,138 +161,20 @@ MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_probl
 # Extra keys in the dict are fine.)
 collect_aps(φ::Spot.SpotFormula) = [Symbol(ap) for ap in Spot.atomic_prop_collect(φ)]
 
-function _check_ap_coverage(concrete_problem)
-    if concrete_problem.spec isa Spot.SpotFormula
-        aps = Set(collect_aps(concrete_problem.spec))
-        provided = Set(keys(concrete_problem.labeling))
-        missing = setdiff(aps, provided)
-        if !isempty(missing)
-            error("Missing AP sets in concrete_problem.labeling for: $(collect(missing)).")
-        end
+function _check_ap_coverage(problem)
+    if !(problem.spec isa Spot.SpotFormula)
+        return nothing
+    end
+
+    problem.labeling isa AbstractDict || return nothing
+
+    aps = Set(collect_aps(problem.spec))
+    provided = Set(keys(problem.labeling))
+    missing = setdiff(aps, provided)
+    if !isempty(missing)
+        error("Missing AP sets in problem.labeling for: $(collect(missing)).")
     end
     return nothing
-end
-
-function build_abstract_problem(
-    concrete_problem::PR.CoSafeLTLProblem,
-    abstract_system::SY.SymbolicModelList,
-)
-    _check_ap_coverage(concrete_problem)
-
-    # lift initial set (conservative for initial condition is usually OUTER)
-    init_states =
-        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER)
-
-    # lift each AP set to a set of symbolic states
-    lab_abs = Dict{Symbol, Vector{Int}}()
-    for (ap, setX) in concrete_problem.labeling
-        sem = get(concrete_problem.ap_semantics, ap, MP.INNER)
-        lab_abs[ap] = SY.get_states_from_set(abstract_system, setX, sem)
-    end
-
-    # NOTE: adapt this constructor call to match your actual PR.CoSafeLTLProblem definition
-    return PR.CoSafeLTLProblem(
-        abstract_system,
-        init_states,
-        concrete_problem.spec,
-        lab_abs,
-        concrete_problem.ap_semantics,
-        concrete_problem.strict_spot,
-    )
-end
-
-function labeling_function_from_state_sets(lab_abs::Dict{Symbol, <:AbstractVector{Int}})
-    # speed: BitSet membership is cheap
-    lab_bits = Dict{Symbol, BitSet}()
-    for (ap, states) in lab_abs
-        lab_bits[ap] = BitSet(states)
-    end
-    aps = collect(keys(lab_bits))
-
-    return function (qs::Int)
-        true_aps = Symbol[]
-        for ap in aps
-            (qs in lab_bits[ap]) && push!(true_aps, ap)
-        end
-        return Tuple(true_aps)
-    end
-end
-
-# ============================================================
-# optimize!
-# ============================================================
-
-function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
-    t0 = time()
-
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
-
-    concrete_problem = optimizer.concrete_problem
-    abs_sys = optimizer.abstract_system
-
-    # (1) Lift to abstract problem (same struct, labeling becomes Dict{Symbol,Vector{Int}})
-    abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
-    for (ap, states) in abstract_problem.labeling
-        println("AP=$ap  #states=$(length(states))")
-    end
-    optimizer.abstract_problem = abstract_problem
-
-    # (2) Build spec stepper
-    spec = if abstract_problem.spec isa Spot.SpotFormula
-        spot_stepper(abstract_problem.spec)
-    elseif abstract_problem.spec isa AbstractSpecStepper
-        abstract_problem.spec
-    else
-        error("spec must be SpotFormula or AbstractSpecStepper")
-    end
-
-    # (3) Build abstract labeling function (qs -> Tuple{Symbol,...})
-    abstract_labeling = labeling_function_from_state_sets(abstract_problem.labeling)
-
-    # (4) Product automaton on the *abstract* automaton
-    P = build_product_automaton(
-        abs_sys.autom,
-        spec,
-        abstract_labeling;
-        initial_set = abstract_problem.initial_set,
-    )
-    optimizer.product_system = P
-
-    # (5) Targets from accepting memory states
-    accQ = accepting_states(spec)
-    target_set = [p for p in 1:SY.get_n_state(P) if P.rev[p][2] in accQ]
-    isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
-
-    # (6) Initial product states
-    init_states = abstract_problem.initial_set
-    init_prod = [P.pid[(qs, init_state(spec))] for qs in init_states]
-
-    controller_product_automaton, controllableP, uncontrollableP, V =
-        SY.compute_worst_case_uniform_cost_controller(
-            P,
-            target_set;
-            initial_set = init_prod,
-        )
-
-    # (7) Wrap product controller into finite-memory controller on abstract system
-    abstract_controller, qa0 = build_abstract_fm_controller_ms(
-        abstract_problem.labeling,
-        spec,
-        controller_product_automaton,
-        P.pid,
-    )
-
-    optimizer.abstract_controller_product = controller_product_automaton
-    optimizer.abstract_controller = abstract_controller
-    optimizer.qa0 = qa0
-    optimizer.controllable_set = controllableP
-    optimizer.uncontrollable_set = uncontrollableP
-    optimizer.value_fun_tab = V
-    optimizer.success = all(p -> p in controllableP, init_prod)
-
-    optimizer.abstract_problem_time_sec = time() - t0
-    return
 end
 
 # ============================================================
@@ -349,11 +308,28 @@ function spot_stepper(
     end
 end
 
+function labeling_function_from_state_sets(lab_abs::Dict{Symbol, <:AbstractVector{Int}})
+    # speed: BitSet membership is cheap
+    lab_bits = Dict{Symbol, BitSet}()
+    for (ap, states) in lab_abs
+        lab_bits[ap] = BitSet(states)
+    end
+    aps = collect(keys(lab_bits))
+
+    return function (qs::Int)
+        true_aps = Symbol[]
+        for ap in aps
+            (qs in lab_bits[ap]) && push!(true_aps, ap)
+        end
+        return Tuple(true_aps)
+    end
+end
+
 # ============================================================
 # Product automaton (System × SpecStepper)
 # ============================================================
 
-struct ProductAutomaton{SYS, LAB, STEP} <: SY.AbstractAutomatonList{0, 0}
+struct ProductAutomaton{SYS, LAB, STEP} <: AbstractAutomatonList{0, 0}
     sys::SYS
     labeling::LAB
     spec::STEP
@@ -365,15 +341,15 @@ struct ProductAutomaton{SYS, LAB, STEP} <: SY.AbstractAutomatonList{0, 0}
     ninput::Int
 end
 
-SY.get_n_state(P::ProductAutomaton) = length(P.rev)
-SY.get_n_input(P::ProductAutomaton) = P.ninput
-SY.pre(P::ProductAutomaton, t::Int) = P.pre_tab[t]
-SY.post(P::ProductAutomaton, s::Int, u::Int) = P.post_tab[s][u]
+get_n_state(P::ProductAutomaton) = length(P.rev)
+get_n_input(P::ProductAutomaton) = P.ninput
+pre(P::ProductAutomaton, t::Int) = P.pre_tab[t]
+post(P::ProductAutomaton, s::Int, u::Int) = P.post_tab[s][u]
 
-function SY.enum_transitions(P::ProductAutomaton)
+function enum_transitions(P::ProductAutomaton)
     trans = Tuple{Int, Int, Int}[]
-    for q in 1:SY.get_n_state(P), u in 1:SY.get_n_input(P)
-        for q2 in SY.post(P, q, u)
+    for q in 1:get_n_state(P), u in 1:get_n_input(P)
+        for q2 in post(P, q, u)
             push!(trans, (q2, q, u))
         end
     end
@@ -381,12 +357,12 @@ function SY.enum_transitions(P::ProductAutomaton)
 end
 
 function build_product_automaton(
-    sys::SY.AbstractAutomatonList,
+    sys::AbstractAutomatonList,
     spec::AbstractSpecStepper,
     labeling;
-    initial_set = 1:SY.get_n_state(sys),
+    initial_set = 1:get_n_state(sys),
 )
-    nU = SY.get_n_input(sys)
+    nU = get_n_input(sys)
     qa0 = init_state(spec)
 
     pid = Dict{Tuple{Int, Int}, Int}()
@@ -402,8 +378,10 @@ function build_product_automaton(
     work = Int[]
     inqueue = BitSet()
     for qs in initial_set
-        p0 = getpid(qs, qa0)
-        push!(work, p0);
+        ap0 = labeling(qs)
+        qa_init = step(spec, qa0, ap0)
+        p0 = getpid(qs, qa_init)
+        push!(work, p0)
         push!(inqueue, p0)
     end
 
@@ -413,7 +391,7 @@ function build_product_automaton(
         i += 1
         (qs, qa) = rev[p]
         for u in 1:nU
-            for qs2 in SY.post(sys, qs, u)
+            for qs2 in post(sys, qs, u)
                 ap = labeling(qs2)
                 qa2 = step(spec, qa, ap)
                 p2 = getpid(qs2, qa2)
@@ -433,7 +411,7 @@ function build_product_automaton(
         (qs, qa) = rev[p]
         for u in 1:nU
             succs = Int[]
-            for qs2 in SY.post(sys, qs, u)
+            for qs2 in post(sys, qs, u)
                 ap = labeling(qs2)
                 qa2 = step(spec, qa, ap)
                 p2 = pid[(qs2, qa2)]
@@ -446,19 +424,7 @@ function build_product_automaton(
     return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
 end
 
-# Build abstract finite-memory controller as MS.SystemWithOutput.
-# Inputs:
-# - lab_abs :: Dict{Symbol, Vector{Int}}   (abstract labeling as state sets)
-# - spec    :: AbstractSpecStepper         (your step(spec, qa, ap_tuple))
-# - contrP  :: MS.AbstractMap              (controller on product states p -> u_sym or Vector{Int})
-# - pid     :: Dict{Tuple{Int,Int},Int}    ((qs,qa) -> p)
-
-# Output:
-# - Cabs :: MS.SystemWithOutput where:
-#     outputmap: (qa, qs) -> u_sym (or Vector{Int}) or nothing
-#     memsys:    (qa, qs_for_update) -> qa_next
-# - qa0  :: Int (initial abstract control state)
-function build_abstract_fm_controller_ms(
+function build_fm_controller_ms(
     lab_abs::Dict{Symbol, Vector{Int}},
     spec::AbstractSpecStepper,
     contrP::MS.AbstractMap,

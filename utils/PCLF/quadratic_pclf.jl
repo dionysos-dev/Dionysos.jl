@@ -29,18 +29,18 @@ function script()
     optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 
     pclf = PCLF.compute_quadratic_pieces_pclf(f, G, optimizer; MLF = true)
-    println(pclf.JSRapprox)
+    println("JSR = $(pclf.JSRapprox)")
 
     gamma = 100.0
-    elli_1 = PCLF.get_sublevel_set(pclf.pieces[1], gamma)
-    elli_2 = PCLF.get_sublevel_set(pclf.pieces[2], gamma)
-    elli_3 = PCLF.get_sublevel_set(pclf.pieces[3], gamma)
-    elli_4 = PCLF.get_sublevel_set(pclf.pieces[4], gamma)
-    println(elli_1)
-    plot(elli_1)
-    plot!(elli_2)
-    plot!(elli_3)
-    return plot!(elli_4)
+    elli1 = PCLF.get_sublevel_set(pclf.pieces[1], gamma)
+    elli2 = PCLF.get_sublevel_set(pclf.pieces[2], gamma)
+    elli3 = PCLF.get_sublevel_set(pclf.pieces[3], gamma)
+    elli4 = PCLF.get_sublevel_set(pclf.pieces[4], gamma)
+    p = plot(elli1; label = "1", opacity = 0.5)
+    plot!(p, elli2; label = "2", opacity = 0.5)
+    plot!(p, elli3; label = "3", opacity = 0.5)
+    plot!(p, elli4; label = "4", opacity = 0.5)
+    return display(p)
 end
 
 script()

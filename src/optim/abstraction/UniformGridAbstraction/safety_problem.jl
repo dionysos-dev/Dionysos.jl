@@ -3,7 +3,7 @@
 
 An optimizer for solving **safety control problems** over symbolic system abstractions.
 
-This solver takes as input a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) and a symbolic abstraction of the system (e.g., a [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList)), and computes a controller that ensures the system remains within a safe set over a time horizon or indefinitely.
+This solver takes as input a [`SafetyProblem`](@ref PR.SafetyProblem) and a symbolic abstraction of the system (e.g., a [`SymbolicModelList`](@ref SY.SymbolicModelList)), and computes a controller that ensures the system remains within a safe set over a time horizon or indefinitely.
 
 ---
 
@@ -21,7 +21,7 @@ This solver takes as input a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProbl
 #### Mandatory fields set by the user
 
 - `concrete_problem` (**required**):  
-  An instance of [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) that specifies the system, initial set, safe set, and horizon.
+  An instance of [`SafetyProblem`](@ref PR.SafetyProblem) that specifies the system, initial set, safe set, and horizon.
 
 - `abstract_system` (**required**):  
   A symbolic abstraction of the system, e.g., obtained from [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
@@ -63,23 +63,33 @@ abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 ```
 """
 mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
-    # Inputs
-    concrete_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
-    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    # inputs
+    concrete_problem::Union{Nothing, PR.SafetyProblem}
+    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    print_level::Int
 
-    # Constructed parameters
-    abstract_problem::Union{Nothing, Dionysos.Problem.SafetyProblem}
+    # outputs
+    abstract_optimizer::Union{Nothing, SY.OptimizerSafetyProblem}
+    abstract_problem::Union{Nothing, PR.SafetyProblem}
     abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
-    abstract_problem_time_sec::T
-
-    # Problem/Solver-Specific parameters
     invariant_set::Union{Nothing, MP.AbstractStateSet}
     invariant_set_complement::Union{Nothing, MP.AbstractStateSet}
-
     success::Bool
-    print_level::Int
+    abstract_problem_time_sec::T
+
     function OptimizerSafetyProblem{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, 0.0, nothing, nothing, false, 1)
+        return new{T}(
+            nothing, # concrete_problem
+            nothing, # abstract_system
+            1,       # print_level
+            nothing, # abstract_optimizer
+            nothing, # abstract_problem
+            nothing, # abstract_controller
+            nothing, # invariant_set
+            nothing, # invariant_set_complement
+            false,   # success
+            zero(T), # abstract_problem_time_sec
+        )
     end
 end
 
@@ -99,8 +109,20 @@ function MOI.get(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute
     return getproperty(model, Symbol(param.name))
 end
 
+function build_abstract_problem(
+    concrete_problem::PR.SafetyProblem,
+    abstract_system::SY.SymbolicModelList,
+)
+    return PR.SafetyProblem(
+        SY.get_automaton(abstract_system),
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
+        SY.get_states_from_set(abstract_system, concrete_problem.safe_set, MP.INNER),
+        concrete_problem.time, # TODO
+    )
+end
+
 function MOI.optimize!(optimizer::OptimizerSafetyProblem)
-    t_ref = time()
+    t0 = time()
 
     optimizer.abstract_system === nothing &&
         error("Abstract system is not defined. Ensure abstraction is computed first.")
@@ -108,49 +130,32 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     abstract_system = optimizer.abstract_system
 
-    optimizer.abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, abstract_system)
+    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
+    optimizer.abstract_problem = abstract_problem
 
-    optimizer.print_level >= 1 && println("compute_controller_safe! started")
-
-    abstract_controller, inv_ids, invc_ids = SY.compute_largest_invariant_set(
-        SY.get_automaton(abstract_system),
-        optimizer.abstract_problem.safe_set,
+    abstract_optimizer = MOI.instantiate(SY.OptimizerSafetyProblem)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("print_level"),
+        optimizer.print_level,
     )
 
-    optimizer.abstract_controller = abstract_controller
-    optimizer.invariant_set = SY.get_state_set_from_states(abstract_system, inv_ids)
-    optimizer.invariant_set_complement =
-        SY.get_state_set_from_states(abstract_system, invc_ids)
+    MOI.optimize!(abstract_optimizer)
 
-    # success check: initial_set ⊆ invariant_set
-    xm = SY.get_state_mapping(abstract_system)
-    init_ids = optimizer.abstract_problem.initial_set
-    optimizer.success =
-        all(q -> MP.contains_state(optimizer.invariant_set, xm, q), init_ids)
-
-    optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
-
-    optimizer.abstract_problem_time_sec = time() - t_ref
-    return
-end
-
-function build_abstract_problem(
-    concrete_problem::Dionysos.Problem.SafetyProblem,
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
-)
-    return Dionysos.Problem.SafetyProblem(
+    optimizer.abstract_optimizer = abstract_optimizer
+    optimizer.abstract_controller = abstract_optimizer.controller
+    optimizer.invariant_set = SY.get_state_set_from_states(
         abstract_system,
-        Dionysos.Symbolic.get_states_from_set(
-            abstract_system,
-            concrete_problem.initial_set,
-            MP.OUTER,
-        ),
-        Dionysos.Symbolic.get_states_from_set(
-            abstract_system,
-            concrete_problem.safe_set,
-            MP.INNER,
-        ),
-        concrete_problem.time, # TODO: This is continuous time, not the number of transitions
+        collect(abstract_optimizer.invariant_set),
     )
+    optimizer.invariant_set_complement = SY.get_state_set_from_states(
+        abstract_system,
+        collect(abstract_optimizer.invariant_set_complement),
+    )
+
+    optimizer.success = abstract_optimizer.success
+    optimizer.abstract_problem_time_sec = time() - t0
+
+    return
 end

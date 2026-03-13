@@ -122,7 +122,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         end
     end
 
-    mon = AB.UniformGridAbstraction.FunctionMonitor(
+    mon = SY.FunctionMonitor(
         1,         # initial state
         Set([3]),  # accepting states
         (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),

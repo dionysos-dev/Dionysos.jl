@@ -14,12 +14,16 @@ function _as_hpolytope(P)
     end
 end
 
-function set_intersection(P::Poly, Q::Poly)
-    return HPolytope(vcat(constraints_list(P), constraints_list(Q)))
+function clean_poly(P::Poly)
+    return remove_redundant_constraints(P)
 end
 
-function is_nonempty_set(P::Poly)
-    return !isempty(P)
+function set_intersection(P::Poly, Q::Poly)
+    return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
+end
+
+function is_nonempty_set(P::Union{∅, Poly})
+    return P == ∅ ? false : !isempty(P)
 end
 
 """
@@ -33,7 +37,7 @@ function preimage_linear(P::Poly, A::AbstractMatrix)
     for c in constraints_list(P)
         push!(new_cons, HalfSpace(A' * c.a, c.b))
     end
-    return HPolytope(new_cons)
+    return clean_poly(HPolytope(new_cons))
 end
 
 # ============================================================
@@ -70,7 +74,7 @@ function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
         # Complement of a'x <= b is approximated by a'x >= b + atol,
         # i.e. -a'x <= -(b + atol)
         comp = HalfSpace(-c.a, -(c.b + atol))
-        piece = HPolytope(vcat(pcons, prefix, [comp]))
+        piece = clean_poly(HPolytope(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
             push!(pieces, piece)
         end

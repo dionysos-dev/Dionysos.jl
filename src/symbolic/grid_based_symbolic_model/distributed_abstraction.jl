@@ -94,6 +94,8 @@ function _run_local_partition(
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
     threaded::Bool = false,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     transitions = collect_abstract_transitions(
         local_symmodel,
@@ -102,6 +104,8 @@ function _run_local_partition(
         update_interval = update_interval,
         progress_dt = progress_dt,
         threaded = threaded,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 
     n_source_states = length(collect(enum_source_states(local_symmodel)))
@@ -123,6 +127,8 @@ function compute_abstract_system_distributed!(
     print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     if print_level >= 1
         @info "Starting distributed abstraction" nprocs = length(procs) nparts = nparts partition_strategy =
@@ -140,6 +146,8 @@ function compute_abstract_system_distributed!(
         print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
+        state_filter = state_filter,
+        state_input_filter = state_input_filter,
     )
 
     isempty(transitions) || add_transitions!(symmodel, transitions)
@@ -156,6 +164,8 @@ function collect_abstract_transitions_distributed(
     print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
+    state_filter::Union{Nothing, Function} = nothing,
+    state_input_filter::Union{Nothing, Function} = nothing,
 )
     nparts >= 1 || error("nparts must be >= 1")
 
@@ -174,6 +184,8 @@ function collect_abstract_transitions_distributed(
                 print_level = print_level,
                 update_interval = update_interval,
                 progress_dt = progress_dt,
+                state_filter = state_filter,
+                state_input_filter = state_input_filter,
                 threaded = threaded_per_worker,
             )
         end
@@ -187,6 +199,8 @@ function collect_abstract_transitions_distributed(
                 print_level = print_level <= 1 ? print_level : 1,
                 update_interval = update_interval,
                 progress_dt = progress_dt,
+                state_filter = state_filter,
+                state_input_filter = state_input_filter,
                 threaded = threaded_per_worker,
             )
         end

@@ -24,7 +24,7 @@ export Optimizer
 include("empty_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
-include("cosafe_LTL_problem.jl")
+include("cosafe_ltl_problem.jl")
 
 """
     Optimizer{T} <: MOI.AbstractOptimizer

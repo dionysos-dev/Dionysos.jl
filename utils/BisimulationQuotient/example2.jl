@@ -2,7 +2,7 @@ using StaticArrays
 using LinearAlgebra
 using JuMP
 using Clarabel
-using MathOptInterface
+using JuMP
 
 import HybridSystems
 using LazySets
@@ -13,6 +13,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
+const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -45,8 +46,8 @@ X = Hyperrectangle(; low = [-2.0, -2.0], high = [2.0, 2.0])
 D = Hyperrectangle(; low = [-0.2, -0.2], high = [0.2, 0.2])
 
 # Two observation regions
-R1 = Hyperrectangle(; low = [0.8, 0.8], high = [1.5, 1.5])
-R2 = Hyperrectangle(; low = [-1.5, 0.8], high = [-0.8, 1.5])
+R1 = Hyperrectangle(; low = [0.5, 0.5], high = [0.9, 0.9])
+R2 = Hyperrectangle(; low = [0.5, -0.5], high = [0.9, -0.1])
 
 observation_regions = [R1, R2]
 
@@ -55,24 +56,20 @@ problem = PR.BisimulationQuotientProblem(f, X, D, observation_regions)
 # ---------------------------------------------------------
 # Compute a common polyhedral PCLF (k = 0 gives 1-node graph)
 # ---------------------------------------------------------
-G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
-
+G = PCLF.generate_DeBruijn_edges(2, 1; dual = false)
 sdp_optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(f, G, sdp_optimizer; MLF = true, verbose = false)
+Gmats = :identity
+pclf = PCLF.compute_polyhedral_pieces_pclf(
+    f,
+    G,
+    sdp_optimizer;
+    Gmats = Gmats,
+    MLF = true,
+    verbose = false,
+)
 
 println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
-
-# ---------------------------------------------------------
-# Define Lyapunov levels Γ
-# Must be increasing, with Γ[i] ≈ γ * Γ[i+1] structure
-# ---------------------------------------------------------
-# γ = pclf.JSRapprox
-# Γ0 = 200.0
-# N = 8
-# Γ = [Γ0 / (γ^i) for i in 0:(N-1)]
-
-# println("Levels Γ = ", Γ)
 
 # ---------------------------------------------------------
 # Instantiate abstraction optimizer
@@ -82,41 +79,81 @@ optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuo
 MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-2)
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("Γ"), Float64.(Γ))
-MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 5)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), nothing)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-MOI.optimize!(optimizer)
+# MOI.optimize!(optimizer)
+# construction_time =
+#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+# println("Construction time = ", construction_time)
 
-# const FILENAME = joinpath(@__DIR__, "optimizer.jld2")
+const FILENAME = joinpath(@__DIR__, "example2.jld2")
 # AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
-
-println(
-    "Construction time = ",
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec")),
-)
+optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 obs_partition = MOI.get(optimizer, MOI.RawOptimizerAttribute("obs_partition"))
 
-println("Number of abstract states = ", length(bisimulation.states))
+AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 
 fig = plot(; aspect_ratio = :equal);
-# plot!(problem)                # problem geometry
-# plot!(obs_partition)          # observation partition
-# plot!(bisimulation; what = :slices, mode = 1)
-# plot!(bisimulation; what = :states, mode = 1, by = :obs)
-plot!(bisimulation; what = :states, mode = 1, by = :slice)
+plot!(problem)
+# plot!(bisimulation; what = :states, node = (1,), by = :obs)
 display(fig)
 
 # ---------------------------------------------------------
-# Export only the bisimulation quotient
+# CoSafe LTL control synthesis on the quotient
 # ---------------------------------------------------------
+φ = ltl"(F(D)) & (G(!R1))"
+φ = ltl"F(R1 & F(D))"
 
-# const FILENAME = joinpath(@__DIR__, "bisimulation.jld2")
-# AB.PCLFBisimulationQuotient.export_bisimulation_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_bisimulation_jld2(FILENAME)
+M = DI.Symbolic.FunctionMonitor(0, Set([2]), (qa, ap) -> begin
+    if qa == 2
+        return 2
+    elseif qa == 0
+        return (:R1 in ap) ? 1 : 0
+    elseif qa == 1
+        return (:D in ap) ? 2 : 1
+    else
+        return qa
+    end
+end)
+
+_I_ = Hyperrectangle(; low = [1.3, 1.3], high = [1.5, 1.5])
+prob = PR.CoSafeLTLProblem(
+    f,
+    _I_,
+    φ,
+    Dict(:R1 => R1, :D => D),
+    Dict{Symbol, Any}(:R1 => MP.INNER, :D => MP.INNER),
+    true,
+)
+
+opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
+MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:R1 => 1, :D => -1))
+MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
+MOI.optimize!(opt)
+
+concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
+mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
+
+x0 = SVector(1.4, 1.4)
+(X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
+    f,
+    concrete_controller,
+    x0,
+    mem0;
+    N = 50,
+)
+println(X_seq)
+println(U_seq)
+println(M_seq)
+φ_str = string(φ)
+plot!(fig; title = "$φ_str")
+plot!(ST.Trajectory(X_seq); label = "Trajectory")

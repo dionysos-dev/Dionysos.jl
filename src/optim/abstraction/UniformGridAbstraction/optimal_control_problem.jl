@@ -3,7 +3,7 @@
 
 An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
 
-This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref Dionysos.Symbolic.SymbolicModelList)). It then solves the **abstract** version of the control problem.
+This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref PR.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref SY.SymbolicModelList)). It then solves the **abstract** version of the control problem.
 
 ### Key Behavior
 
@@ -20,7 +20,7 @@ This solver takes as input a concrete problem (typically an instance of [`Optima
 #### Mandatory fields set by the user
 
 - `concrete_problem` (**required**):  
-  An instance of [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) that defines the reach-avoid task (system, initial set, target, costs, horizon).
+  An instance of [`OptimalControlProblem`](@ref PR.OptimalControlProblem) that defines the reach-avoid task (system, initial set, target, costs, horizon).
 
 - `abstract_system` (**required**):  
   The symbolic abstraction of the system, usually obtained from an abstraction optimizer such as [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
@@ -32,7 +32,7 @@ This solver takes as input a concrete problem (typically an instance of [`Optima
   If `false`, it computes the entire maximal controllable set.
 
 - `sparse_input` (optional, default = `false`):  
-  If `true`, uses a sparse representation of the transition table, reducing memory usage when the number of inputs is large but only few are admissible per state (e.g., in [`determinized abstractions`](@ref Dionysos.Symbolic.determinize_symbolic_model), with `new_input = (input, target)`).
+  If `true`, uses a sparse representation of the transition table, reducing memory usage when the number of inputs is large but only few are admissible per state (e.g., in [`determinized abstractions`](@ref SY.determinize_symbolic_model), with `new_input = (input, target)`).
 
 - `print_level` (optional, default = `1`):  
   Controls verbosity:  
@@ -74,40 +74,44 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 ```
 """
 mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
-    # Inputs
-    concrete_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
-    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
-
-    # Common parameters
-    abstract_problem::Union{Nothing, Dionysos.Problem.OptimalControlProblem}
-    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
-    abstract_problem_time_sec::T
-
-    # Specific parameters
-    early_stop::Union{Nothing, Bool}
+    # inputs
+    concrete_problem::Union{Nothing, PR.OptimalControlProblem}
+    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    early_stop::Bool
     sparse_input::Bool
+    print_level::Int
+
+    # outputs
+    abstract_optimizer::Union{Nothing, SY.OptimizerOptimalControlProblem}
+    abstract_problem::Union{Nothing, PR.OptimalControlProblem}
+    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+
     controllable_set::Union{Nothing, MP.AbstractStateSet}
     uncontrollable_set::Union{Nothing, MP.AbstractStateSet}
-    value_fun_tab::Union{Nothing, Any} # Value function in tabular form, Inf means uncontrollable state
-    abstract_value_function::Union{Nothing, Any}
-    concrete_value_function::Union{Nothing, Any}
+    value_fun_tab::Any
+    abstract_value_function::Any
+    concrete_value_function::Any
 
     success::Bool
-    print_level::Int
+    abstract_problem_time_sec::T
 
     function OptimizerOptimalControlProblem{T}() where {T}
         return new{T}(
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            0.0,
-            false,
-            false,
-            nothing,
-            nothing,
-            false,
-            1,
+            nothing, # concrete_problem
+            nothing, # abstract_system
+            false,   # early_stop
+            false,   # sparse_input
+            1,       # print_level
+            nothing, # abstract_optimizer
+            nothing, # abstract_problem
+            nothing, # abstract_controller
+            nothing, # controllable_set
+            nothing, # uncontrollable_set
+            nothing, # value_fun_tab
+            nothing, # abstract_value_function
+            nothing, # concrete_value_function
+            false,   # success
+            zero(T), # abstract_problem_time_sec
         )
     end
 end
@@ -150,68 +154,12 @@ function reset!(model::OptimizerOptimalControlProblem)
     return model
 end
 
-function build_abstract_value_function(value_fun_tab)
-    return abstract_value_function(state) = value_fun_tab[state]
-end
-
 function build_concrete_value_function(abstract_system, abstract_value_function)
     function concrete_value_function(x)
         state = SY.get_abstract_state(abstract_system, x)
         return abstract_value_function(state)
     end
     return concrete_value_function
-end
-
-function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
-    t_ref = time()
-
-    optimizer.abstract_system === nothing &&
-        error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
-
-    abstract_system = optimizer.abstract_system
-
-    # Build abstract problem
-    optimizer.abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, abstract_system)
-
-    # Initial set for early stop
-    init_set =
-        optimizer.early_stop ? optimizer.abstract_problem.initial_set :
-        SY.enum_states(abstract_system)
-
-    optimizer.print_level >= 1 && println("compute_controller_reachability! started")
-
-    abstract_controller, controllable_ids, uncontrollable_ids, value_fun_tab =
-        SY.compute_worst_case_cost_controller(
-            SY.get_automaton(abstract_system),
-            optimizer.abstract_problem.target_set;
-            initial_set = init_set,
-            sparse_input = optimizer.sparse_input,
-            cost_function = optimizer.abstract_problem.transition_cost,
-        )
-
-    optimizer.abstract_controller = abstract_controller
-    optimizer.controllable_set =
-        SY.get_state_set_from_states(abstract_system, controllable_ids)
-    optimizer.uncontrollable_set =
-        SY.get_state_set_from_states(abstract_system, uncontrollable_ids)
-    optimizer.value_fun_tab = value_fun_tab
-
-    optimizer.abstract_value_function = build_abstract_value_function(value_fun_tab)
-    optimizer.concrete_value_function =
-        build_concrete_value_function(abstract_system, optimizer.abstract_value_function)
-
-    # success check: "initial_set ⊆ controllable"
-    xm = SY.get_state_mapping(abstract_system)
-    optimizer.success =
-        all(q -> MP.contains_state(optimizer.controllable_set, xm, q), init_set)
-
-    optimizer.print_level >= 1 &&
-        println("\n Reachability: terminated with $(optimizer.success)")
-
-    optimizer.abstract_problem_time_sec = time() - t_ref
-    return
 end
 
 function get_abstract_transition_cost(abstract_system, concrete_transition_cost)
@@ -227,25 +175,70 @@ function get_abstract_transition_cost(abstract_system, concrete_transition_cost)
 end
 
 function build_abstract_problem(
-    concrete_problem::Dionysos.Problem.OptimalControlProblem,
-    abstract_system::Dionysos.Symbolic.SymbolicModelList,
+    concrete_problem::PR.OptimalControlProblem,
+    abstract_system::SY.SymbolicModelList,
 )
     @warn("The `state_cost` is not yet fully implemented")
 
-    return Dionysos.Problem.OptimalControlProblem(
-        abstract_system,
-        Dionysos.Symbolic.get_states_from_set(
-            abstract_system,
-            concrete_problem.initial_set,
-            MP.OUTER,
-        ),
-        Dionysos.Symbolic.get_states_from_set(
-            abstract_system,
-            concrete_problem.target_set,
-            MP.INNER,
-        ),
-        concrete_problem.state_cost,       # TODO: Transform continuous cost into discrete abstraction
+    return PR.OptimalControlProblem(
+        SY.get_automaton(abstract_system),
+        SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
+        SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
+        concrete_problem.state_cost, # TODO
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time,             # TODO: Translate continuous time into discrete steps
+        concrete_problem.time, # TODO
     )
+end
+
+function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
+    t0 = time()
+
+    optimizer.abstract_system === nothing && error("abstract_system not set")
+    optimizer.concrete_problem === nothing && error("concrete_problem not set")
+
+    abs_sys = optimizer.abstract_system
+    concrete_problem = optimizer.concrete_problem
+
+    abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
+    optimizer.abstract_problem = abstract_problem
+
+    abstract_optimizer = MOI.instantiate(SY.OptimizerOptimalControlProblem)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("early_stop"),
+        optimizer.early_stop,
+    )
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("sparse_input"),
+        optimizer.sparse_input,
+    )
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("print_level"),
+        optimizer.print_level,
+    )
+
+    MOI.optimize!(abstract_optimizer)
+
+    optimizer.abstract_optimizer = abstract_optimizer
+    optimizer.abstract_controller = abstract_optimizer.controller
+
+    optimizer.value_fun_tab = abstract_optimizer.value_fun_tab
+    optimizer.abstract_value_function = abstract_optimizer.value_function
+    optimizer.concrete_value_function =
+        build_concrete_value_function(abs_sys, optimizer.abstract_value_function)
+
+    optimizer.controllable_set =
+        SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.controllable_set))
+    optimizer.uncontrollable_set = SY.get_state_set_from_states(
+        abs_sys,
+        collect(abstract_optimizer.uncontrollable_set),
+    )
+
+    optimizer.success = abstract_optimizer.success
+    optimizer.abstract_problem_time_sec = time() - t0
+
+    return
 end

@@ -18,6 +18,8 @@ include("geometry_interface.jl")
 include("bisimulation_quotient.jl")
 include("sublevel_support.jl")
 
+include("cosafe_ltl_problem.jl")
+
 mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
@@ -28,6 +30,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     Γ::Union{Nothing, Vector{Float64}}
     num_levels::Union{Nothing, Int}
     tau::Union{Nothing, Float64}
+    max_slices::Union{Nothing, Int} # debug
 
     atol::T
     verbose::Bool
@@ -44,6 +47,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
             nothing,    # Γ
             nothing,    # num_levels
             nothing,    # tau
+            nothing,    # max_slices
             zero(T),    # atol
             true,       # verbose
             nothing,    # bisimulation_quotient
@@ -203,6 +207,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
         opt.obs_partition;
         verbose = opt.verbose,
         atol = opt.atol,
+        max_slices = opt.max_slices,
     )
 
     opt.bisimulation_quotient = T
@@ -282,6 +287,7 @@ function bisimulation_pclf(
     obs_partition::AbstractVector{<:Tuple{<:Poly, Int}};
     verbose::Bool = true,
     atol::Float64 = 0.0,
+    max_slices::Union{Nothing, Int} = nothing,
 )
     A = extract_mode_matrices(f)
 
@@ -294,11 +300,10 @@ function bisimulation_pclf(
     initialize_partitions!(T)
     initialize_terminal_transitions!(T, pclf)
 
-    N = length(Γ)
-
     refine_count = 0
-
-    for i in 1:1 # N
+    N = length(Γ)
+    Niter = isnothing(max_slices) ? N : min(max_slices, N)
+    for i in 1:Niter
         verbose && println("Current slice = $i")
 
         # Stored order in LabDigraph is (source, destination, label)
@@ -331,7 +336,7 @@ function bisimulation_pclf(
                     refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
                     refine_count += 1
 
-                    if verbose && refine_count % 10000 == 0
+                    if verbose && refine_count % 20000 == 0
                         @info "Refinement progress" refine_count slice=i edge=(s, m, d)
                     end
                 end
@@ -492,7 +497,7 @@ function refine_one_state!(
     q = T.states[qid]
 
     I = set_intersection(q.set, preP)
-    if !is_significant_set(I; min_width = atol > 0 ? atol : 1e-8)
+    if !is_nonempty_set(I)
         return false
     end
 
@@ -507,7 +512,7 @@ function refine_one_state!(
 
     # Difference pieces
     for D in Dparts
-        if is_significant_set(D; min_width = atol > 0 ? atol : 1e-8)
+        if is_nonempty_set(D)
             new_id = add_state!(T, old_node, D, old_obs, old_slice)
             T.states[new_id].next = copy(old_next)
         end
@@ -517,31 +522,6 @@ function refine_one_state!(
     inter_id = add_state!(T, old_node, I, old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)
-
-    return true
-end
-
-function is_significant_set(P::Poly; min_width::Float64 = 1e-8)
-    is_nonempty_set(P) || return false
-
-    # keep only full-dimensional sets if possible
-    try
-        dim(P) == 2 || return false
-    catch
-    end
-
-    # crude width check from support in coordinate directions
-
-    try
-        xsup = σ([1.0, 0.0], P)
-        xinf = -σ([-1.0, 0.0], P)
-        ysup = σ([0.0, 1.0], P)
-        yinf = -σ([0.0, -1.0], P)
-
-        (xsup - xinf) > min_width || return false
-        (ysup - yinf) > min_width || return false
-    catch
-    end
 
     return true
 end
