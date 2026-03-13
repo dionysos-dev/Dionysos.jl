@@ -98,12 +98,23 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     # (4) Solve reachability problem
     accQ = accepting_states(spec)
+
+    labels_seen = Set{Any}()
+    for qs in 1:get_n_state(autom)
+        push!(labels_seen, labeling(qs))
+    end
+
     target_set =
         [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
     isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
 
     init_states = problem.initial_set
-    init_prod = [product_autom.pid[(qs, init_state(spec))] for qs in init_states]
+    init_prod = Int[]
+    for qs in init_states
+        ap0 = labeling(qs)
+        qa_init = step(spec, init_state(spec), ap0)
+        push!(init_prod, product_autom.pid[(qs, qa_init)])
+    end
 
     controller_product_autom, controllableP, uncontrollableP, V =
         compute_worst_case_uniform_cost_controller(
@@ -114,6 +125,8 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
         )
 
     success = all(p -> p in controllableP, init_prod)
+
+    optimizer.print_level >= 1 && println("Success: ", success)
 
     problem.labeling isa AbstractDict ||
         error("build_fm_controller_ms currently requires dictionary labeling.")
@@ -365,8 +378,10 @@ function build_product_automaton(
     work = Int[]
     inqueue = BitSet()
     for qs in initial_set
-        p0 = getpid(qs, qa0)
-        push!(work, p0);
+        ap0 = labeling(qs)
+        qa_init = step(spec, qa0, ap0)
+        p0 = getpid(qs, qa_init)
+        push!(work, p0)
         push!(inqueue, p0)
     end
 

@@ -18,6 +18,8 @@ include("geometry_interface.jl")
 include("bisimulation_quotient.jl")
 include("sublevel_support.jl")
 
+include("cosafe_ltl_problem.jl")
+
 mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
