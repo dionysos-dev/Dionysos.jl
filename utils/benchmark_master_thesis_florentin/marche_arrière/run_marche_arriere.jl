@@ -12,6 +12,7 @@ const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
 const OP = DI.Optim
+const SY = DI.Symbolic
 const SC = OP.SymbolicCertifier
 
 
@@ -46,13 +47,13 @@ Base.@kwdef struct MarcheArriereConfig
     maxδu::Float64 = 200.0
     symbolic_rk4_substeps::Int = 1
     ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
+        IA.interval(-0.5, 0.5),
+        IA.interval(-0.5, 0.5),
+        IA.interval(-0.5, 0.5),
+        IA.interval(-0.5, 0.5),
     )
     ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
+        IA.interval(-0.5, 0.5),
         IA.interval(-0.2, 0.2),
     )
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
@@ -126,6 +127,8 @@ function build_input_mapping() # c'est pour la génération de la trajectoire
         [2.0, 0.25],
         [-2.0, 0.25],
         [-2.0, -0.25],
+        [1.0, -0.15],
+        [1.0, 0.15],
     ]
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)

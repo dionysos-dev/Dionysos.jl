@@ -126,6 +126,8 @@ function build_input_mapping() # c'est pour la génération de la trajectoire
         [2.0, 0.25],
         [-2.0, 0.25],
         [-2.0, -0.25],
+        [1.0, 0.0],
+        [-1.0, 0.0],
     ]
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)
