@@ -252,6 +252,14 @@ function script()
         stopping = reached,
         wrap = periodic_wrapper,
     )
+    println("\n\nI need to checkk")
+    xs = ST.enum_elems(x_traj)
+    println("the length should be 54 : ",length(xs))
+    for k in eachindex(xs)
+        println("the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
+    end
+    println("\n\n")
+    return
 
     # ------------------------------------------------------------
     # Plot 
@@ -360,7 +368,6 @@ function script()
     cert.handle_system_domain = false
 
     SC.certify!(cert)
-
     println("\n=== Local Certification Result ===")
     println("success:    ", SC.get_success(cert))
     println("time (sec): ", SC.get_solve_time(cert))

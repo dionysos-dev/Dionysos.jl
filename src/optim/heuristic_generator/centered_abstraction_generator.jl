@@ -180,18 +180,22 @@ function generate!(gen::CenteredAbstractionGenerator) #j'aime bien
         end
     end
 
+    target_set = hasproperty(gen.problem, :target_set) ? gen.problem.target_set : nothing
+    stopfun = target_set === nothing ? (_ -> false) : (x -> (wrap(x) ∈ target_set))
+
+
     traj = ST.get_closed_loop_trajectory(
         disc_system,
         concrete_controller,
         x0,
         cfg.nstep;
-        stopping = x -> false,
+        stopping = stopfun,
         wrap = wrap,
     )
 
     x_traj = traj.x
     u_traj = traj.u
-
+ 
     candidate = CandidateTrajectory(
         x_traj,
         u_traj;
@@ -199,6 +203,22 @@ function generate!(gen::CenteredAbstractionGenerator) #j'aime bien
         source = :centered,
         metadata = (; hx = cfg.hx, nstep = cfg.nstep),
     )
+    # 
+    println("\n\nI need to checkk")
+    xs = ST.enum_elems(candidate.x_traj)
+
+    for k in eachindex(xs)
+        println("[",k,"]the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
+    end
+    println("\n\n")
+
+    println("\n\nI need to checkk")
+    xs = ST.enum_elems(candidate.u_traj)
+
+    for k in eachindex(xs)
+        println("[",k,"]the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
+    end
+    println("\n\n")
 
     success = length(x_traj) > 0
     if success && hasproperty(gen.problem, :target_set)

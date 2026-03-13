@@ -147,6 +147,8 @@ function get_closed_loop_trajectory(
         stopping(x) && break
 
         u = k(x)
+        # println("\n my state is :",x)
+        # println("my choosen control is :",k(x))
         u === nothing && println("No input") & break
 
         x = wrap(f(x, u))

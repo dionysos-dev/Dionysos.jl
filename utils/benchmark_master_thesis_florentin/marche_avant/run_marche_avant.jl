@@ -46,13 +46,13 @@ Base.@kwdef struct MarcheArriereConfig
     maxδu::Float64 = 200.0
     symbolic_rk4_substeps::Int = 1
     ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.0, 1.0),
+        IA.interval(-0.2, 0.2), # on peut aller jusqu'à -1.0 ; 1.0
+        IA.interval(-0.0, 0.2),
+        IA.interval(-0.2, 0.2),
+        IA.interval(-0.2, 0.2),
     )
     ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
+        IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
     )
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
@@ -259,6 +259,7 @@ function solve_with_unwrapped_certification!(solver::OP.CertifiedPipelineSolver,
             cfg.periodic_dims,
             cfg.periodic_periods,
         )
+        println("was-unweaped ?;", was_unwrapped)
          
         ## j'ai un probl!me avec la traj
         xs = ST.enum_elems(candidate_for_cert.x_traj)

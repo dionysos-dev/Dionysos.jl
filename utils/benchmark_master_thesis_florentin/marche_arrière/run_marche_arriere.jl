@@ -38,7 +38,7 @@ Base.@kwdef struct MarcheArriereConfig
     periodic_dims::SVector{2, Int} = SVector(3, 4)
     periodic_periods::SVector{2, Float64} = SVector(2pi, 2pi)
     periodic_start::SVector{2, Float64} = SVector(-pi, -pi)
-    nstep::Int = 700
+    nstep::Int = 300
 
     terminal_radius::Float64 = 0.45
     λ::Float64 = 0.001
@@ -134,8 +134,8 @@ end
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
     initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
+        SVector(-0.5, -0.5, -0.4, -0.4),
+        SVector(0.5, 0.5, 0.4, 0.4),
     )
     target_set = UT.HyperRectangle(
         SVector(9.0, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),
@@ -261,12 +261,8 @@ function solve_with_unwrapped_certification!(solver::OP.CertifiedPipelineSolver,
         )
          
         ## j'ai un probl!me avec la traj
-        xs = ST.enum_elems(candidate_for_cert.x_traj)
-
-        for k in eachindex(xs)
-            println("the traj :",xs[k])
-        end
-
+        println("wad : ",was_unwrapped)
+ 
         if was_unwrapped
             println("Candidate unwrapped for certification: ", wrap_jumps, " periodic jumps fixed.")
         else
