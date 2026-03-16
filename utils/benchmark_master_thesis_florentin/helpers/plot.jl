@@ -251,7 +251,7 @@ function plot_articulated_vehicle!(
     title = nothing,
 )
     gr()
-    xl = (-20.0, 20.0)
+    xl = (-20.0, 27.0)
     yl = (-20.0, 20.0)
     draw_params = vehicle_module.DrawParams(params)
 

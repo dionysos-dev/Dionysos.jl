@@ -62,7 +62,7 @@ Base.@kwdef struct MarcheArriereConfig
     plot_subdir::String = "plots"
     animation_subdir::String = "animations"
 
-    plot_gif::Bool = false
+    plot_gif::Bool = true
     verbose::Bool = false
 end
 
@@ -97,15 +97,13 @@ end
 
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 4.5, pi, pi),
+        SVector(0.0, 0.0, -pi, -pi),
+        SVector(25.0,6.0, pi, pi),
     )
-    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
+    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(65.0))
 
     obstacles_xy = [
-        UT.HyperRectangle(SVector(6.0, 1.05), SVector(9.0, 2.05)),  # voiture avant
-        UT.HyperRectangle(SVector(-0.6, 1.05), SVector(2.3, 2.05)),  # voiture arrière
-        UT.HyperRectangle(SVector(-1.0, -1.0), SVector(10.0, 0.9)), # trottoir
+        UT.HyperRectangle(SVector(7.5, 0.0), SVector(25.0, 3.0)), # trottoir
     ]
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
 
@@ -113,7 +111,7 @@ function build_concrete_system()
     σ_max = tan(δ_max)
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
-    params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+    params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5) # on devra peut etre rendre cela plus réaliste
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
@@ -121,25 +119,48 @@ end
 
 function build_input_mapping() # c'est pour la génération de la trajectoire
     inputs_delta = [
-        [2.0, 0.0],
-        [0.0, 0.0],
-        [-2.0, 0.0],
-        [2.0, -0.25],
-        [2.0, 0.25],
-        [-2.0, 0.25],
-        [-2.0, -0.25],
-        [-1.0, -0.15],
-        [-1.0, 0.15],
-        [1.0, -0.15],
-        [1.0, 0.15],
-        [-0.8,  0.00],                  # recul quasi droit
-        [-0.4, -0.12], [-0.4,  0.12],   # ajustement fin
-        [ 0.8, -0.15], [ 0.8,  0.15],   # correction avant (2 actions seulement)
-        [ 0.6,  0.00],                  # petit dégagement avant
-        [0.0, -0.45],
-        [0.0, 0.45],
-        [0.0, -0.8],
-        [0.0, 0.8],
+        [-2.0, 0.0], # vitesse sans angle
+        #[0.0, 0.0],
+        # [-1.0, 0.0],
+        # [-0.5, 0.0],
+
+        #[-2.0, 0.02], [-2.0, -0.02],
+        #[-1.5, 0.02], [-1.5, -0.02],
+        #[-1.0, 0.02], [-1.0, -0.02],
+        #[-0.5, 0.02], [-0.5, -0.02],
+
+        #[-2.0, 0.08], [-2.0, -0.08],
+        #[-1.5, 0.08], [-1.5, -0.08],
+        #[-1.0, 0.08], [-1.0, -0.08],
+        [-0.5, 0.08], [-0.5, -0.08],
+        
+
+        #[-1.5, 0.1],[-1.5, -0.1], # moyen angles
+        #[-1.0, 0.1],[-1.0, -0.1],
+        #[-0.5, 0.1],[-0.5, -0.1],
+
+        #[-1.5, 0.05],[-1.5, -0.05], # moyen angles
+        #[-1.0, 0.15],[-1.0, -0.15],
+        [-0.5, 0.15],[-0.5, -0.15],
+
+        #[-0.5, 0.25],[-0.5, -0.25],
+
+        #[-1.5, 0.35],[-1.5, -0.35],  # grand angles
+        #[-1.0, 0.35],[-1.0, -0.35],
+        [-0.5, 0.35],[-0.5, -0.35],
+
+        #[-0.5, 0.45],[-0.5, -0.45], # il faudrait le supprimer
+
+        #[-1.5, 0.55],[-1.5, -0.55], # très angles
+        #[-1.0, 0.55],[-1.0, -0.55],
+        [-0.5, 0.45],#
+        [-0.5, -0.55],
+
+        #[-1.5, 0.675],[-1.5, -0.675],  # grand angles
+        #[-1.0, 0.675],[-1.0, -0.675],
+        #[-0.5, 0.675],#
+        [-0.5, -0.675],
+
     ]
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)
@@ -147,15 +168,15 @@ end
 
 function build_control_problem()
     # voiture alignée dans la voie, un peu devant la place
-    x0 = SVector(8.1, 3.5, 0.0, 0.0)
+    x0 = SVector(22.0, 4.0, 0.0, 0.0)
 
     initial_set = UT.HyperRectangle(
-        SVector(7.8, 3.2, -3 * (pi / 180), -3 * (pi / 180)),
-        SVector(8.4, 3.8,  3 * (pi / 180),  3 * (pi / 180)),
+        SVector(21.5, 3.5, - deg2rad(4.0), - deg2rad(2.0)),
+        SVector(22.5, 4.5,   deg2rad(4.0),   deg2rad(2.0)),
     )
     target_set = UT.HyperRectangle(
-        SVector(3.8, 1.25, -5 * (pi / 180), -8 * (pi / 180)),
-        SVector(5.6, 1.95,  5 * (pi / 180),  8 * (pi / 180)),
+        SVector(0.1, 0.5, - deg2rad(6.0),  - deg2rad(4.0)),
+        SVector(2.2, 2.0,   deg2rad(6.0),    deg2rad(4.0)),
     )
     return (; x0, initial_set, target_set)
 end

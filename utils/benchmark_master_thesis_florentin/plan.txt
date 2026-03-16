@@ -1,5 +1,5 @@
 ##### Court terme
-1) Marche arrière autour d’un cercle ; Créneau arrière propre ; Deuxième remorque
+1)  Créneau arrière propre ; Deuxième remorque
 2) réimplementer :abstract_center
 
 ##### Long terme
