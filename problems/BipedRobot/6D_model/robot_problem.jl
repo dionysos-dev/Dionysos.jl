@@ -18,6 +18,27 @@ const SY = DI.Symbolic
 include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
 import .RS_tools
 
+const _robot_cache = Ref{Any}(nothing)
+
+function _get_robot_data(robot_urdf)
+    if _robot_cache[] === nothing
+        rs = RS_tools.RobotSimulator(;
+            fileName = robot_urdf,
+            symbolic = false,
+            add_contact_points = true,
+            add_gravity = true,
+            add_flat_ground = true,
+        )
+        mechanism = rs.mechanism
+        _robot_cache[] = (
+            rs = rs,
+            mechanism = mechanism,
+            states_per_thread = [MechanismState(mechanism) for _ in 1:Threads.nthreads()],
+        )
+    end
+    return _robot_cache[]
+end
+
 # The robot state is
 #     x = [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
 # where:
@@ -149,32 +170,50 @@ function system(;
         return q, qd
     end
 
-    # --- Thread-safe vector field: one MechanismState per thread ---
     function vectorFieldBipedRobot(x, u)
-        tid = Threads.threadid()
-        state = states_per_thread[tid]
+        cache = _get_robot_data(robot_urdf)
+        state = cache.states_per_thread[Threads.threadid()]
 
-        # Step 1: build full state
         q, q̇ = fill_state!(x)
-
-        # Step 2: set mechanism state
         set_configuration!(state, q)
         set_velocity!(state, q̇)
 
-        # Step 3: simulate
         q_ref = SVector{1}(0.0)
         controller! = voltage_controller!(u, q_ref)
-        ts, qs, vs =
-            RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+        ts, qs, vs = RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
 
-        # Only final joint states are used
         q_end = qs[end]
         v_end = vs[end]
 
-        x_next =
-            SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
-        return x_next
+        return SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
     end
+
+    # --- Thread-safe vector field: one MechanismState per thread ---
+    # function vectorFieldBipedRobot(x, u)
+    #     tid = Threads.threadid()
+    #     state = states_per_thread[tid]
+
+    #     # Step 1: build full state
+    #     q, q̇ = fill_state!(x)
+
+    #     # Step 2: set mechanism state
+    #     set_configuration!(state, q)
+    #     set_velocity!(state, q̇)
+
+    #     # Step 3: simulate
+    #     q_ref = SVector{1}(0.0)
+    #     controller! = voltage_controller!(u, q_ref)
+    #     ts, qs, vs =
+    #         RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+
+    #     # Only final joint states are used
+    #     q_end = qs[end]
+    #     v_end = vs[end]
+
+    #     x_next =
+    #         SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
+    #     return x_next
+    # end
 
     # --- State and input spaces ---
     disc_steps = [fill(π/180, 3)..., fill(0.075, 3)...]
