@@ -47,13 +47,13 @@ Base.@kwdef struct MarcheArriereConfig
     maxδu::Float64 = 200.0
     symbolic_rk4_substeps::Int = 1
     ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
-        IA.interval(-0.5, 0.5),
-        IA.interval(-0.5, 0.5),
-        IA.interval(-0.5, 0.5),
-        IA.interval(-0.5, 0.5),
+        IA.interval(-0.15, 0.15),
+        IA.interval(-0.15, 0.15),
+        IA.interval(-0.15, 0.15),
+        IA.interval(-0.15, 0.15),
     )
     ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.5, 0.5),
+        IA.interval(-0.15, 0.15),
         IA.interval(-0.2, 0.2),
     )
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
@@ -62,7 +62,7 @@ Base.@kwdef struct MarcheArriereConfig
     plot_subdir::String = "plots"
     animation_subdir::String = "animations"
 
-    plot_gif::Bool = false
+    plot_gif::Bool = true
     verbose::Bool = false
 end
 
@@ -97,18 +97,16 @@ end
 
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 9.0, pi, pi),
+        SVector(0.0, 0.0, -pi, -pi),
+        SVector(12.0, 10.0,  pi,  pi),
     )
-    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
+    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(35.0))
 
     # obstacles: couloir en anneau (rectangle) autour d’un îlot central
     obstacles_xy = [
-        UT.HyperRectangle(SVector(4.2, 3.2), SVector(5.8, 4.8)),  # ilot central
-        UT.HyperRectangle(SVector(-1.0, -1.0), SVector(2.8, 9.0)), # mur gauche
-        UT.HyperRectangle(SVector(7.2, -1.0), SVector(10.0, 9.0)), # mur droit
-        UT.HyperRectangle(SVector(2.8, -1.0), SVector(7.2, 1.8)),  # mur bas
-        UT.HyperRectangle(SVector(2.8, 6.2), SVector(7.2, 9.0)),   # mur haut
+        UT.HyperRectangle(SVector(3.0, 4.0), SVector(9.0, 6.0)),  # mur gauche
+        UT.HyperRectangle(SVector(4.0, 3.0), SVector(8.0, 7.0)),  # mur gauche
+        UT.HyperRectangle(SVector(5.0, 2.0), SVector(7.0, 8.0)),  # mur gauche
     ]
 
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
@@ -125,15 +123,22 @@ end
 
 function build_input_mapping() # c'est pour la génération de la trajectoire
     inputs_delta = [
-        [2.0, 0.0],
+        [-2.0, 0.0], # vitesse sans angle
         [0.0, 0.0],
-        [-2.0, 0.0],
-        [2.0, -0.25],
-        [2.0, 0.25],
-        [-2.0, 0.25],
-        [-2.0, -0.25],
-        [1.0, -0.15],
-        [1.0, 0.15],
+        [-1.0, 0.0],
+        [-0.5, 0.0],
+
+        [-1.5, 0.1],[-1.5, -0.1], # moyen angles
+        [-1.0, 0.1],[-1.0, -0.1],
+        [-0.5, 0.1],[-0.5, -0.1],
+
+        [-1.5, 0.35],[-1.5, -0.35],  # grand angles
+        [-1.0, 0.35],[-1.0, -0.35],
+        [-0.5, 0.35],[-0.5, -0.35],
+
+        [-1.5, 0.65],[-1.5, -0.65], # très angles
+        [-1.0, 0.65],[-1.0, -0.65],
+        [-0.5, 0.65],[-0.5, -0.65],
     ]
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)
@@ -141,17 +146,17 @@ end
 
 function build_control_problem()
     # départ côté est du couloir, orientation tangentielle
-    x0 = SVector(6.6, 4.0, pi/2, 0.0)
+    x0 = SVector(6.0, 9.0, pi, 0.0)
 
     initial_set = UT.HyperRectangle(
-        SVector(6.5, 3.9, pi/2 - 8*(pi/180), -5*(pi/180)),
-        SVector(6.7, 4.1, pi/2 + 8*(pi/180),  5*(pi/180)),
+        SVector(5.25, 8.50, pi - deg2rad(4.0), -deg2rad(2.0)),
+        SVector(6.45, 9.50, pi + deg2rad(4.0),  deg2rad(2.0)),
     )
 
     # même zone XY mais après un tour complet (theta décrémenté de 2π)
     target_set = UT.HyperRectangle(
-        SVector(6.5, 3.9, pi/2 - 2pi - 8*(pi/180), -5*(pi/180)),
-        SVector(6.7, 4.1, pi/2 - 2pi + 8*(pi/180),  5*(pi/180)),
+        SVector(5.00, 0.50, - deg2rad(6.0), -deg2rad(4.0)),
+        SVector(6.60, 2.0,  deg2rad(6.0),  deg2rad(4.0)),
     )
 
     return (; x0, initial_set, target_set)

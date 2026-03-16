@@ -1,7 +1,6 @@
 ##### Court terme
-0) ajouter un candidate generatir qui utilise la trajectoire abstraite
-1) fixe les benchmarks, les implémenter tous proprement et si ça ne fonctionne pas j'implémente des extentions
-2) retrouver la meme stabilités des LMI qu'avec l'ancienne version de Dionysos
+1) Marche arrière autour d’un cercle ; Créneau arrière propre ; Deuxième remorque
+2) réimplementer :abstract_center
 
 ##### Long terme
 1) améliorer le typage de mes structures

@@ -114,6 +114,7 @@ function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfi
         MOI.RawOptimizerAttribute("approx_mode"),
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
+    #MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 
     if p !== nothing
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), p.with_period)
