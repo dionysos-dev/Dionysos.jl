@@ -297,58 +297,70 @@ function bisimulation_pclf(
     initialize_partitions!(T)
     initialize_terminal_transitions!(T, pclf)
 
+    incoming_by_dm = group_edges_by_dest_mode(pclf.graph.edges, U)
+
     N = length(Γ)
     Niter = isnothing(max_slices) ? N : min(max_slices, N)
 
     refine_count = 0
-    # later improvement, iterate on d,m compute once the premigae, the iterate on s node
+
     for i in 1:Niter
         verbose && println("Current slice = $i")
 
-        for (s, d, m) in pclf.graph.edges
-            verbose && println("  edge = ($s, $m, $d)")
+        for ((d, m), source_nodes) in incoming_by_dm
+            verbose && println("  destination/mode = ($d, $m)")
 
             target_ids = [
                 qid for qid in get(T.part_ids, d, Int[])
                 if haskey(T.states, qid) && T.states[qid].slice == i
             ]
 
+            isempty(target_ids) && continue
+
             for qid in target_ids
                 haskey(T.states, qid) || continue
                 q = T.states[qid]
 
-                # for P in q.set
-                #     preP = preimage_linear(P, A[Int(m)])
-                #     if !is_nonempty_set(preP)
-                #         continue
-                #     end
-                #     source_ids = [
-                #         pid for pid in get(T.part_ids, s, Int[])
-                #         if haskey(T.states, pid) && T.states[pid].slice > i
-                #     ]
-                #     for pid in copy(source_ids)
-                #         haskey(T.states, pid) || continue
-                #         refined = refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
-                #         refined && (refine_count += 1)
-                #         verbose && refined && refine_count % 50 == 0 && println("    refinement: $refine_count")
-                #     end
-                # end
-                preP = preimage_linear(q.set, A[Int(m)])
-                source_ids = [
-                    pid for pid in get(T.part_ids, s, Int[])
-                    if haskey(T.states, pid) && T.states[pid].slice > i
-                ]
-                for pid in copy(source_ids)
-                    haskey(T.states, pid) || continue
-                    refined = refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
-                    refined && (refine_count += 1)
-                    verbose && refined && refine_count % 50 == 0 && println("    refinement: $refine_count")
+                pre_parts = preimage_linear_parts(q.set, A[m])
+                isempty(pre_parts) && continue
+
+                for s in source_nodes
+                    source_ids = [
+                        pid for pid in get(T.part_ids, s, Int[])
+                        if haskey(T.states, pid) && T.states[pid].slice > i
+                    ]
+
+                    for pid in source_ids
+                        haskey(T.states, pid) || continue
+                        qsrc = T.states[pid]
+
+                        if any(t -> t[1] == m, qsrc.next) # to investigate
+                            continue
+                        end
+
+                        refined = refine_one_state_by_parts!(
+                            T, pid, pre_parts, m, qid; atol = atol
+                        )
+                        refined && (refine_count += 1)
+
+                        verbose && refined && refine_count % 50 == 0 &&
+                            println("    refinement: $refine_count")
+                    end
                 end
             end
         end
     end
 
     return T
+end
+
+
+function group_edges_by_dest_mode(edges, ::Type{U}) where {U}
+    grouped = Dict{Tuple{U,Int}, Vector{U}}()
+    for (s, d, m) in edges
+        push!(get!(grouped, (d, Int(m)), U[]), s)
+    end
+    return grouped
 end
 
 # ============================================================
@@ -480,17 +492,10 @@ end
 # Refinement
 # ============================================================
 
-"""
-    refine_one_state!(T, qid, preP, mode, target_qid; atol = 0.0)
-
-Split state `qid` by `preP`.
-- difference pieces inherit transitions,
-- intersection piece inherits transitions and gets `(mode,target_qid)`.
-"""
-function refine_one_state!(
+function refine_one_state_by_parts!(
     T::PCBisimulationQuotient{SemiLinearSet,U},
     qid::Int,
-    preP,#::Poly, 
+    pre_parts::AbstractVector,
     mode::Int,
     target_qid::Int;
     atol::Float64 = 0.0,
@@ -498,29 +503,48 @@ function refine_one_state!(
     haskey(T.states, qid) || return false
     q = T.states[qid]
 
-    # for Q in q.set
-    I = set_intersection(q.set, preP)
-    if !is_nonempty_set(I)
-        return false
-    end
-
-    Dset = set_difference_decompose(q.set, preP; atol = atol)
-
     old_next = copy(q.next)
     old_obs = q.obs
     old_node = q.node
     old_slice = q.slice
 
-    remove_state!(T, qid)
+    inside_parts = Poly[]
+    outside_parts = Poly[]
+    touched = false
 
-    # Difference part
-    if is_nonempty_set(Dset)
-        new_id = add_state!(T, old_node, Dset, old_obs, old_slice)
-        T.states[new_id].next = copy(old_next)
+    for Q in q.set
+        Qrem = SemiLinearSet(Q)
+
+        for preP in pre_parts
+            I = set_intersection(Qrem, preP)
+            if !is_nonempty_set(I)
+                continue
+            end
+
+            touched = true
+            append!(inside_parts, I)
+
+            Qrem = set_difference_decompose(Qrem, preP; atol = atol)
+            if !is_nonempty_set(Qrem)
+                break
+            end
+        end
+
+        if is_nonempty_set(Qrem)
+            append!(outside_parts, Qrem)
+        end
     end
 
-    # Intersection part
-    inter_id = add_state!(T, old_node, I, old_obs, old_slice)
+    touched || return false
+
+    remove_state!(T, qid)
+
+    if !isempty(outside_parts)
+        diff_id = add_state!(T, old_node, SemiLinearSet(outside_parts), old_obs, old_slice)
+        T.states[diff_id].next = copy(old_next)
+    end
+
+    inter_id = add_state!(T, old_node, SemiLinearSet(inside_parts), old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)
 

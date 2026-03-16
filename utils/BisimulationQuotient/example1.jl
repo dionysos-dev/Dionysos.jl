@@ -98,9 +98,9 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 2) # nothing
 # Solve
 # ---------------------------------------------------------
 
-# using StatProfilerHTML
-# @profilehtml MOI.optimize!(optimizer)
-MOI.optimize!(optimizer)
+using StatProfilerHTML
+@profilehtml MOI.optimize!(optimizer)
+# MOI.optimize!(optimizer)
 
 
 # MOI.optimize!(optimizer)

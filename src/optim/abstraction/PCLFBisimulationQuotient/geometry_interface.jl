@@ -20,7 +20,14 @@ end
 
 function set_intersection(P::Poly, Q::Poly)
     return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
+    # intersection = HPolytope(vcat(constraints_list(P), constraints_list(Q)))
+    # if !isempty(intersection)
+    #     return clean_poly(intersection)
+    # else
+    #     return HPolytope(zeros(eltype(P), 0, dim(P)), zeros(eltype(P), 0))
+    # end
 end
+# return # clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
 
 # Safer than restricting to HPolytope only
 function is_nonempty_set(P)
@@ -184,6 +191,24 @@ function preimage_linear(P::Poly, A::AbstractMatrix)
         push!(new_cons, HalfSpace(A' * c.a, c.b))
     end
     return clean_poly(HPolytope(new_cons))
+end
+
+
+"""
+    preimage_linear_parts(S, A)
+
+Compute the linear preimage of each polytope in the semilinear set `S`
+separately, returning a vector of polytopes.
+"""
+function preimage_linear_parts(S::SemiLinearSet, A::AbstractMatrix)
+    parts = Poly[]
+    for P in S
+        preP = preimage_linear(P, A)
+        if is_nonempty_set(preP)
+            push!(parts, preP)
+        end
+    end
+    return parts
 end
 
 @recipe function f(
