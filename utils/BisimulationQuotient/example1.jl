@@ -97,14 +97,14 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 2) # nothing
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-# MOI.optimize!(optimizer)
-# construction_time =
-#     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
-# println("Construction time = ", construction_time)
+MOI.optimize!(optimizer)
+construction_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+println("Construction time = ", construction_time)
 
 const FILENAME = joinpath(@__DIR__, "example1.jld2")
-# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 obs_partition = MOI.get(optimizer, MOI.RawOptimizerAttribute("obs_partition"))
@@ -114,56 +114,57 @@ AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 fig = plot(; aspect_ratio = :equal);
 # plot!(problem)                # problem geometry
 # plot!(obs_partition)          # observation partition
-# plot!(bisimulation; what = :slices, node = 1)
+# plot!(bisimulation; what = :slices, node = (1,), show_contours=false)
+# plot(T, what=:states, by=:obs, show_contours=false)
 # plot!(bisimulation; what = :states, node = 1, by = :obs)
-println(bisimulation.states[1].node)
-plot!(bisimulation; what = :states, node = (1,), by = :obs)
+# println(bisimulation.states[1].node)
+plot!(bisimulation; what = :states, node = (1,), show_contours = false)
 display(fig)
 
-# ---------------------------------------------------------
-# CoSafe LTL control synthesis on the quotient
-# ---------------------------------------------------------
+# # ---------------------------------------------------------
+# # CoSafe LTL control synthesis on the quotient
+# # ---------------------------------------------------------
 
-using Spot
+# using Spot
 
-# φ = Spot.parse_formula("F(p)")
-# φ = ltl"F(p)"
-φ = ltl"F(p & F(q))"
+# # φ = Spot.parse_formula("F(p)")
+# # φ = ltl"F(p)"
+# φ = ltl"F(p & F(q))"
 
-# qa = 0  -> not yet reached D
-# qa = 1  -> reached D, stay there
-M = DI.Symbolic.FunctionMonitor(0, Set([1]), (qa, ap) -> (qa == 1 || :D in ap) ? 1 : 0)
+# # qa = 0  -> not yet reached D
+# # qa = 1  -> reached D, stay there
+# M = DI.Symbolic.FunctionMonitor(0, Set([1]), (qa, ap) -> (qa == 1 || :D in ap) ? 1 : 0)
 
-_I_ = Hyperrectangle(; low = [0.39, 0.39], high = [0.41, 0.41])
-prob = PR.CoSafeLTLProblem(
-    f,
-    _I_,
-    M,
-    Dict(:D => D), # no really useful since we have ap_to_obs, but let's be explicit
-    Dict{Symbol, Any}(:D => MP.INNER), # no really useful, but let's be explicit
-    true,
-)
+# _I_ = Hyperrectangle(; low = [0.39, 0.39], high = [0.41, 0.41])
+# prob = PR.CoSafeLTLProblem(
+#     f,
+#     _I_,
+#     M,
+#     Dict(:D => D), # no really useful since we have ap_to_obs, but let's be explicit
+#     Dict{Symbol, Any}(:D => MP.INNER), # no really useful, but let's be explicit
+#     true,
+# )
 
-opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
-MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
-MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:D => -1))
-MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
-MOI.optimize!(opt)
+# opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+# MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+# MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
+# MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:D => -1))
+# MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
+# MOI.optimize!(opt)
 
-concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
+# concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
 
-x0 = SVector(0.4, 0.4)
-mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
+# x0 = SVector(0.4, 0.4)
+# mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
 
-(X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
-    f,
-    concrete_controller,
-    x0,
-    mem0;
-    N = 50,
-)
-println(X_seq)
-println(U_seq)
-println(M_seq)
-plot!(ST.Trajectory(X_seq); label = "Trajectory")
+# (X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
+#     f,
+#     concrete_controller,
+#     x0,
+#     mem0;
+#     N = 50,
+# )
+# println(X_seq)
+# println(U_seq)
+# println(M_seq)
+# plot!(ST.Trajectory(X_seq); label = "Trajectory")

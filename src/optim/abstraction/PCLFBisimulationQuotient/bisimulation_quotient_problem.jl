@@ -8,6 +8,7 @@ const PCLF = UT.PathCompleteFramework
 const PR = DI.Problem
 
 using JuMP
+import HiGHS
 using LazySets
 import HybridSystems
 import LinearAlgebra as LA
@@ -25,8 +26,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
     pclf::Union{Nothing, PCLF.PCLF}
 
-    obs_partition::Union{Nothing, Vector{Tuple{Poly, Int}}}
-
+    obs_partition::Any
     Γ::Union{Nothing, Vector{Float64}}
     num_levels::Union{Nothing, Int}
     tau::Union{Nothing, Float64}
@@ -244,27 +244,24 @@ function build_observation_partition(
     Dh = _as_hpolytope(D)
     Rh = [_as_hpolytope(R) for R in regions]
 
-    out = Tuple{Poly, Int}[]
+    out = Vector{Tuple{SemiLinearSet, Int}}()
 
     for (i, R) in enumerate(Rh)
         I = set_intersection(Xh, R)
         if is_nonempty_set(I)
-            push!(out, (I, i))
+            push!(out, (SemiLinearSet(I), i))
         end
     end
 
-    excluded = Poly[Dh]
-    append!(excluded, Rh)
-    neutral_parts = set_difference_decompose(Xh, excluded; atol = atol)
-    for P in neutral_parts
-        if is_nonempty_set(P)
-            push!(out, (P, neutral_obs))
-        end
+    excluded = SemiLinearSet(vcat([Dh], Rh))
+    neutral_set = set_difference_decompose(SemiLinearSet(Xh), excluded; atol = atol)
+    if is_nonempty_set(neutral_set)
+        push!(out, (neutral_set, neutral_obs))
     end
 
     Dcap = set_intersection(Xh, Dh)
     if is_nonempty_set(Dcap)
-        push!(out, (Dcap, terminal_obs))
+        push!(out, (SemiLinearSet(Dcap), terminal_obs))
     end
 
     return out
@@ -284,10 +281,10 @@ function bisimulation_pclf(
     f::HybridSystems.HybridSystem,
     pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
-    obs_partition::AbstractVector{<:Tuple{<:Poly, Int}};
+    obs_partition::AbstractVector{<:Tuple{<:SemiLinearSet,Int}};
     verbose::Bool = true,
     atol::Float64 = 0.0,
-    max_slices::Union{Nothing, Int} = nothing,
+    max_slices::Union{Nothing,Int} = nothing,
 )
     A = extract_mode_matrices(f)
 
@@ -295,56 +292,47 @@ function bisimulation_pclf(
     slices = build_slice_sequence(sublevels; atol = atol)
 
     U = typeof(first(pclf.graph.verts))
-    T = PCBisimulationQuotient{Poly, U}(slices, obs_partition)
+    SL = SemiLinearSet
+    T = PCBisimulationQuotient{SL,U}(slices, obs_partition)
 
     initialize_partitions!(T)
     initialize_terminal_transitions!(T, pclf)
 
-    refine_count = 0
     N = length(Γ)
     Niter = isnothing(max_slices) ? N : min(max_slices, N)
+
+    refine_count = 0
+    # later improvement, iterate on d,m compute once the premigae, the iterate on s node
     for i in 1:Niter
         verbose && println("Current slice = $i")
 
-        # Stored order in LabDigraph is (source, destination, label)
         for (s, d, m) in pclf.graph.edges
             verbose && println("  edge = ($s, $m, $d)")
 
-            # Target cells in slice i of destination node d
             target_ids = [
-                qid for qid in get(T.part_ids, d, Int[]) if
-                haskey(T.states, qid) && T.states[qid].slice == i
+                qid for qid in get(T.part_ids, d, Int[])
+                if haskey(T.states, qid) && T.states[qid].slice == i
             ]
+
             for qid in target_ids
                 haskey(T.states, qid) || continue
                 q = T.states[qid]
                 preP = preimage_linear(q.set, A[Int(m)])
 
-                # Only refine source cells in strictly outer slices
                 source_ids = [
-                    pid for pid in get(T.part_ids, s, Int[]) if
-                    haskey(T.states, pid) && T.states[pid].slice > i
+                    pid for pid in get(T.part_ids, s, Int[])
+                    if haskey(T.states, pid) && T.states[pid].slice > i
                 ]
 
                 for pid in copy(source_ids)
                     haskey(T.states, pid) || continue
-                    # deterministic speed-up: if this state already has a successor for mode m,
-                    # do not refine it again for the same mode
-                    if any(tr[1] == Int(m) for tr in T.states[pid].next)
-                        continue
-                    end
-                    refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
-                    refine_count += 1
-
-                    if verbose && refine_count % 20000 == 0
-                        @info "Refinement progress" refine_count slice=i edge=(s, m, d)
-                    end
+                    refined = refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
+                    refined && (refine_count += 1)
+                    verbose && refined && refine_count % 10 == 0 && println("    refinement: $refine_count")
                 end
             end
         end
     end
-
-    verbose && @info "Total number of refinements" refine_count
 
     return T
 end
@@ -403,18 +391,20 @@ For each node `s`, build
 Each slice is stored as a vector of H-polytopes.
 """
 function build_slice_sequence(
-    sublevels::Dict{U, Vector{Poly}};
+    sublevels::Dict{U,Vector{Poly}};
     atol::Float64 = 0.0,
 ) where {U}
-    slices = Dict{U, Vector{Vector{Poly}}}()
+    slices = Dict{U,Vector{SemiLinearSet}}()
 
     for (s, Ps) in sublevels
         Ns = length(Ps)
-        local_slices = Vector{Vector{Poly}}(undef, Ns)
+        local_slices = Vector{SemiLinearSet}(undef, Ns)
 
-        local_slices[1] = [Ps[1]]
+        local_slices[1] = SemiLinearSet(Ps[1])
+
         for i in 2:Ns
-            local_slices[i] = set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
+            diff_parts = set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
+            local_slices[i] = SemiLinearSet(diff_parts)
         end
         slices[s] = local_slices
     end
@@ -431,15 +421,13 @@ end
 Build the initial node-dependent partitions:
     P_0^(s) = { O ∩ S_i^(s) : O ∈ P_X, S_i^(s) slice, intersection nonempty }.
 """
-function initialize_partitions!(T::PCBisimulationQuotient{Poly, U}) where {Poly, U}
+function initialize_partitions!(T::PCBisimulationQuotient{SemiLinearSet,U}) where {U}
     for (s, slice_list) in T.slices
-        for (i, slice_parts) in enumerate(slice_list)
-            for Sset in slice_parts
-                for (ObsSet, obs) in T.obs_partition
-                    I = set_intersection(Sset, ObsSet)
-                    if is_nonempty_set(I)
-                        add_state!(T, s, I, obs, i)
-                    end
+        for (i, Sset) in enumerate(slice_list)
+            for (ObsSet, obs) in T.obs_partition
+                I = set_intersection(Sset, ObsSet)
+                if is_nonempty_set(I)
+                    add_state!(T, s, I, obs, i)
                 end
             end
         end
@@ -486,9 +474,9 @@ Split state `qid` by `preP`.
 - intersection piece inherits transitions and gets `(mode,target_qid)`.
 """
 function refine_one_state!(
-    T::PCBisimulationQuotient{Poly, U},
+    T::PCBisimulationQuotient{SemiLinearSet,U},
     qid::Int,
-    preP::Poly,
+    preP::SemiLinearSet,
     mode::Int,
     target_qid::Int;
     atol::Float64 = 0.0,
@@ -501,7 +489,7 @@ function refine_one_state!(
         return false
     end
 
-    Dparts = set_difference_decompose(q.set, preP; atol = atol)
+    Dset = set_difference_decompose(q.set, preP; atol = atol)
 
     old_next = copy(q.next)
     old_obs = q.obs
@@ -510,15 +498,13 @@ function refine_one_state!(
 
     remove_state!(T, qid)
 
-    # Difference pieces
-    for D in Dparts
-        if is_nonempty_set(D)
-            new_id = add_state!(T, old_node, D, old_obs, old_slice)
-            T.states[new_id].next = copy(old_next)
-        end
+    # Difference part
+    if is_nonempty_set(Dset)
+        new_id = add_state!(T, old_node, Dset, old_obs, old_slice)
+        T.states[new_id].next = copy(old_next)
     end
 
-    # Intersection piece
+    # Intersection part
     inter_id = add_state!(T, old_node, I, old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)

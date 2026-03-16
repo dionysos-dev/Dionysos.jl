@@ -11,16 +11,16 @@ mutable struct PCAbstractState{S, U}
     next::Vector{Tuple{Int, Int}}   # (mode, target_state_id)
 end
 
-mutable struct PCBisimulationQuotient{S, U}
-    states::Dict{Int, PCAbstractState{S, U}}
-    part_ids::Dict{U, Vector{Int}}  # state ids per node partition
+mutable struct PCBisimulationQuotient{S,U}
+    states::Dict{Int, PCAbstractState{S,U}}
+    part_ids::Dict{U, Vector{Int}}
     next_id::Int
-    slices::Dict{U, Vector{Vector{S}}}
-    obs_partition::Vector{Tuple{S, Int}}
+    slices::Dict{U, Vector{S}}
+    obs_partition::Vector{Tuple{S,Int}}
 end
 
 function PCBisimulationQuotient{S, U}(
-    slices::Dict{U, Vector{Vector{S}}},
+    slices::Dict{U, Vector{S}},
     obs_partition::Vector{Tuple{S, Int}},
 ) where {S, U}
     return PCBisimulationQuotient{S, U}(
@@ -86,30 +86,45 @@ end
     slice = nothing,
     obs = nothing,
     mode = nothing,
-    by = :slice,
+    by = :state,   # :state, :slice, :obs, :node
     fillalpha = 0.25,
     linewidth = 1.5,
     seriesalpha = 0.9,
     show_labels = false,
+    show_contours = false,
 )
-    palette =
-        [:red, :blue, :green, :orange, :purple, :brown, :pink, :cyan, :magenta, :olive]
+    palette = [
+        :red,
+        :blue,
+        :green,
+        :orange,
+        :purple,
+        :brown,
+        :pink,
+        :cyan,
+        :magenta,
+        :olive,
+        :gold,
+        :coral,
+        :turquoise,
+        :navy,
+        :darkgreen,
+        :darkred,
+    ]
 
-    # --------------------------------------------------------
-    # Plot abstract states
-    # --------------------------------------------------------
+    local_linealpha = show_contours ? 1.0 : 0.0
+
     if what == :states
-        for q in values(T.states)
-            if !isnothing(node) && q.node != node
-                continue
-            end
-            if !isnothing(slice) && q.slice != slice
-                continue
-            end
-            if !isnothing(obs) && q.obs != obs
-                continue
-            end
+        qlist = [
+            q for q in values(T.states) if
+            (isnothing(node) || q.node == node) &&
+            (isnothing(slice) || q.slice == slice) &&
+            (isnothing(obs) || q.obs == obs)
+        ]
 
+        sort!(qlist; by = q -> q.id)
+
+        for (k, q) in enumerate(qlist)
             c = if by == :slice
                 palette[mod1(q.slice, length(palette))]
             elseif by == :obs
@@ -117,63 +132,77 @@ end
             elseif by == :node
                 palette[mod1(abs(hash(q.node)), length(palette))]
             else
-                :blue
+                palette[mod1(k, length(palette))]
             end
 
-            @series begin
-                linecolor := c
-                fillcolor := c
-                fillalpha := fillalpha
-                label := show_labels ? "q$(q.id)" : ""
-                q.set
+            for (j, P) in enumerate(q.set.parts)
+                @series begin
+                    seriestype := :shape
+                    fillcolor := c
+                    linecolor := c
+                    fillalpha := fillalpha
+                    linealpha := local_linealpha
+                    linewidth := linewidth
+                    seriesalpha := seriesalpha
+                    label := (show_labels && j == 1) ? "q$(q.id)" : ""
+                    P
+                end
             end
         end
     end
 
-    # --------------------------------------------------------
-    # Plot slices stored in the quotient
-    # --------------------------------------------------------
     if what == :slices
         seen = Set{Tuple{Any, Int}}()
 
+        groups = Tuple{Any,Int,SemiLinearSet}[]
         for (nd, slice_list) in T.slices
             if !isnothing(node) && nd != node
                 continue
             end
-
-            for (i, polys) in enumerate(slice_list)
+            for (i, S) in enumerate(slice_list)
                 if !isnothing(slice) && i != slice
                     continue
                 end
+                push!(groups, (nd, i, S))
+            end
+        end
 
-                c = palette[mod1(i, length(palette))]
-                key = (nd, i)
+        sort!(groups; by = x -> x[2])
 
-                for P in polys
-                    @series begin
-                        linecolor := c
-                        fillcolor := c
-                        fillalpha := fillalpha
-                        label := (show_labels && !(key in seen)) ? "node=$nd, slice=$i" : ""
-                        push!(seen, key)
-                        P
-                    end
+        for (nd, i, S) in groups
+            c = palette[mod1(i, length(palette))]
+            key = (nd, i)
+
+            for (j, P) in enumerate(S.parts)
+                @series begin
+                    seriestype := :shape
+                    fillcolor := c
+                    linecolor := c
+                    fillalpha := fillalpha
+                    linealpha := local_linealpha
+                    linewidth := linewidth
+                    seriesalpha := seriesalpha
+                    label := (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" : ""
+                    P
                 end
             end
+
+            push!(seen, key)
         end
     end
 
-    # --------------------------------------------------------
-    # Plot observation partition stored in the quotient
-    # --------------------------------------------------------
     if what == :obs_partition
         seen = Set{Int}()
 
-        for (P, ob) in T.obs_partition
+        plist = Tuple{SemiLinearSet,Int}[]
+        for (S, ob) in T.obs_partition
             if !isnothing(obs) && ob != obs
                 continue
             end
+            push!(plist, (S, ob))
+        end
 
+        for (S, ob) in plist
             c = palette[mod1(ob + 2, length(palette))]
 
             lbl = if ob in seen || !show_labels
@@ -185,15 +214,22 @@ end
             else
                 "Observation $ob"
             end
-            push!(seen, ob)
 
-            @series begin
-                linecolor := c
-                fillcolor := c
-                fillalpha := fillalpha
-                label := lbl
-                P
+            for (j, P) in enumerate(S.parts)
+                @series begin
+                    seriestype := :shape
+                    fillcolor := c
+                    linecolor := c
+                    fillalpha := fillalpha
+                    linealpha := local_linealpha
+                    linewidth := linewidth
+                    seriesalpha := seriesalpha
+                    label := (j == 1) ? lbl : ""
+                    P
+                end
             end
+
+            push!(seen, ob)
         end
     end
 end

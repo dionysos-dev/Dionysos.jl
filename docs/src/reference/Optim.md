@@ -31,11 +31,6 @@ Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.refine_one_state!
 ```
 
 ```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.preimage_linear
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.set_difference_decompose
-```
-
-```@docs
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient._support_abs_row_on_hyperrectangle
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_set
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_region_all_nodes

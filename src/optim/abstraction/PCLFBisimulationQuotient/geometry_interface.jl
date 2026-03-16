@@ -1,5 +1,5 @@
 # ============================================================
-# Utilities
+# Polytopes
 # ============================================================
 
 const Poly = HPolytope
@@ -22,47 +22,129 @@ function set_intersection(P::Poly, Q::Poly)
     return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
 end
 
-function is_nonempty_set(P::Union{∅, Poly})
-    return P == ∅ ? false : !isempty(P)
-end
-
-"""
-    preimage_linear(P, A)
-
-Return the linear preimage `{x : A*x ∈ P}`.
-If `P = {y : H y ≤ h}`, then `Pre(P,A) = {x : H A x ≤ h}`.
-"""
-function preimage_linear(P::Poly, A::AbstractMatrix)
-    new_cons = HalfSpace[]
-    for c in constraints_list(P)
-        push!(new_cons, HalfSpace(A' * c.a, c.b))
+# Safer than restricting to HPolytope only
+function is_nonempty_set(P)
+    try
+        return !isempty(P)
+    catch
+        return false
     end
-    return clean_poly(HPolytope(new_cons))
 end
 
 # ============================================================
-# Polyhedral difference decomposition
+# Semi-linear sets = finite unions of polytopes
 # ============================================================
 
-"""
-    set_difference_decompose(P, Q; atol=0.0)
+mutable struct SemiLinearSet
+    parts::Vector{Poly}
 
-Decompose `P \\ Q` into a finite union of H-polytopes using a sequential
-halfspace decomposition.
+    function SemiLinearSet(parts::Vector{Poly})
+        return new(parts)
+    end
+end
 
-If `Q = ⋂_{j=1}^m H_j`, then
-`P \\ Q = ⋃_{j=1}^m ( P ∩ H_1 ∩ ... ∩ H_{j-1} ∩ H_j^c )`.
+SemiLinearSet() = SemiLinearSet(Poly[])
 
-Here `H_j^c` is represented by the closed opposite halfspace
-`-a'x <= -b - atol` for `H_j = {x : a'x <= b}`.
+function SemiLinearSet(p::Poly)
+    return SemiLinearSet(Poly[_as_hpolytope(p)])
+end
 
-Notes:
-- `atol = 0.0` keeps the boundary and may produce overlaps on boundaries.
-- `atol > 0` separates boundaries slightly but changes the set by a small
-  tolerance.
-- This is the main place you may later replace by an exact Baotić-style
-  decomposition.
-"""
+function SemiLinearSet(parts::AbstractVector)
+    out = Poly[]
+    for P in parts
+        push!(out, _as_hpolytope(P))
+    end
+    return SemiLinearSet(out)
+end
+
+Base.length(S::SemiLinearSet) = length(S.parts)
+Base.isempty(S::SemiLinearSet) = isempty(S.parts)
+Base.iterate(S::SemiLinearSet, st...) = iterate(S.parts, st...)
+
+function Base.show(io::IO, S::SemiLinearSet)
+    print(io, "SemiLinearSet($(length(S.parts)) parts)")
+end
+
+function normalize_semilinear(S::SemiLinearSet)
+    keep = Poly[]
+    for Pk in S.parts
+        if is_nonempty_set(Pk)
+            push!(keep, _as_hpolytope(Pk))
+        end
+    end
+    return SemiLinearSet(keep)
+end
+
+# ============================================================
+# Semi-linear sets : Nonemptiness
+# ============================================================
+
+function is_nonempty_set(S::SemiLinearSet)
+    return any(is_nonempty_set(P) for P in S.parts)
+end
+
+# ============================================================
+# Semi-linear sets : Intersection
+# ============================================================
+
+function set_intersection(S1::SemiLinearSet, S2::SemiLinearSet)
+    out = Poly[]
+    for P1 in S1.parts, P2 in S2.parts
+        I = set_intersection(P1, P2)
+        if is_nonempty_set(I)
+            push!(out, _as_hpolytope(I))
+        end
+    end
+    return SemiLinearSet(out)
+end
+
+function set_intersection(S::SemiLinearSet, P0::Poly)
+    out = Poly[]
+    for P1 in S.parts
+        I = set_intersection(P1, P0)
+        if is_nonempty_set(I)
+            push!(out, _as_hpolytope(I))
+        end
+    end
+    return SemiLinearSet(out)
+end
+
+function set_intersection(P0::Poly, S::SemiLinearSet)
+    return set_intersection(S, P0)
+end
+
+# ============================================================
+# Semi-linear sets : Difference
+# ============================================================
+
+function set_difference_decompose(
+    S1::SemiLinearSet,
+    S2::SemiLinearSet;
+    atol::Float64 = 0.0,
+)
+    current = copy(S1.parts)
+    for Q in S2.parts
+        new_current = Poly[]
+        for P1 in current
+            append!(new_current, set_difference_decompose(P1, Q; atol = atol))
+        end
+        current = new_current
+    end
+    return SemiLinearSet(current)
+end
+
+function set_difference_decompose(
+    S::SemiLinearSet,
+    P0::Poly;
+    atol::Float64 = 0.0,
+)
+    out = Poly[]
+    for P1 in S.parts
+        append!(out, set_difference_decompose(P1, P0; atol = atol))
+    end
+    return SemiLinearSet(out)
+end
+
 function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
     qcons = constraints_list(Q)
     pcons = constraints_list(P)
@@ -71,32 +153,126 @@ function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
     prefix = HalfSpace[]
 
     for c in qcons
-        # Complement of a'x <= b is approximated by a'x >= b + atol,
-        # i.e. -a'x <= -(b + atol)
         comp = HalfSpace(-c.a, -(c.b + atol))
         piece = clean_poly(HPolytope(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
-            push!(pieces, piece)
+            push!(pieces, _as_hpolytope(piece))
         end
         push!(prefix, c)
     end
-
     return pieces
 end
 
-"""
-    set_difference_decompose(P, Qs::Vector{Poly}; atol=0.0)
+# ============================================================
+# Semi-linear sets : Preimage under linear map
+# ============================================================
 
-Iteratively decompose `P \\ (⋃ Qs)` as a union of polytopes.
-"""
-function set_difference_decompose(P::Poly, Qs::AbstractVector{<:Poly}; atol::Float64 = 0.0)
-    parts = Poly[P]
-    for Q in Qs
-        new_parts = Poly[]
-        for R in parts
-            append!(new_parts, set_difference_decompose(R, Q; atol = atol))
+function preimage_linear(S::SemiLinearSet, A::AbstractMatrix)
+    out = Poly[]
+    for P1 in S.parts
+        Ppre = preimage_linear(P1, A)
+        if is_nonempty_set(Ppre)
+            push!(out, _as_hpolytope(Ppre))
         end
-        parts = new_parts
     end
-    return parts
+    return SemiLinearSet(out)
+end
+
+function preimage_linear(P::Poly, A::AbstractMatrix)
+    new_cons = HalfSpace[]
+    for c in constraints_list(P)
+        push!(new_cons, HalfSpace(A' * c.a, c.b))
+    end
+    return clean_poly(HPolytope(new_cons))
+end
+
+@recipe function f(
+    S::SemiLinearSet;
+    fillcolor = :blue,
+    linecolor = :blue,
+    fillalpha = 0.25,
+    linealpha = 1.0,
+    linewidth = 1.0,
+    show_label = false,
+)
+    for (k, P) in enumerate(S.parts)
+        @series begin
+            fillcolor := fillcolor
+            linecolor := linecolor
+            fillalpha := fillalpha
+            linealpha := linealpha
+            linewidth := linewidth
+            label := (show_label && k == 1) ? "SemiLinearSet" : ""
+            P
+        end
+    end
+end
+
+# ============================================================
+# Helpers for 2D contour extraction
+# ============================================================
+
+_round_point(x::Tuple{<:Real,<:Real}; digits::Int = 10) =
+    (round(Float64(x[1]); digits = digits), round(Float64(x[2]); digits = digits))
+
+# Canonical undirected edge key
+function _edge_key(p1::Tuple{Float64,Float64}, p2::Tuple{Float64,Float64})
+    return p1 <= p2 ? (p1, p2) : (p2, p1)
+end
+
+# Get ordered 2D vertices of a polytope
+function _polygon_vertices_2d(P::Poly)
+    verts = vertices_list(P)
+    pts = [LA.Vector{Float64}(v) for v in verts]
+
+    isempty(pts) && return Tuple{Float64,Float64}[]
+
+    # remove duplicate closing point if present
+    out = Tuple{Float64,Float64}[]
+    for p in pts
+        push!(out, (Float64(p[1]), Float64(p[2])))
+    end
+
+    if length(out) >= 2 && out[1] == out[end]
+        pop!(out)
+    end
+    return out
+end
+
+# Boundary edges = edges that appear only once across all parts
+function boundary_edges_2d(S::SemiLinearSet; digits::Int = 10)
+    counts = Dict{Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}},Int}()
+    oriented = Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}[]
+
+    for P in S.parts
+        verts = _polygon_vertices_2d(P)
+        n = length(verts)
+        n < 2 && continue
+
+        for i in 1:n
+            p1 = _round_point(verts[i]; digits = digits)
+            p2 = _round_point(verts[mod1(i + 1, n)]; digits = digits)
+
+            # skip degenerate edge
+            p1 == p2 && continue
+
+            key = _edge_key(p1, p2)
+            counts[key] = get(counts, key, 0) + 1
+            push!(oriented, (p1, p2))
+        end
+    end
+
+    # keep only edges that occur once
+    out = Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}[]
+    seen = Set{Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}}()
+
+    for (p1, p2) in oriented
+        key = _edge_key(p1, p2)
+        if counts[key] == 1 && !(key in seen)
+            push!(out, (p1, p2))
+            push!(seen, key)
+        end
+    end
+
+    return out
 end

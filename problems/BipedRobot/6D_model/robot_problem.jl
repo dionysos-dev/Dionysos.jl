@@ -97,13 +97,13 @@ function system(;
 
             # indices: last 4 actuated joints plus offset ddl
             q = configuration(state)
-            qd = velocity(state)
+            q̇ = velocity(state)
             idx_lo = length(q) - 3 - ddl
             idx_hi = length(q) - ddl
 
             current_q = @view q[idx_lo:idx_hi]
-            current_qd = @view qd[idx_lo:idx_hi]
-            ω = current_qd .* GR
+            current_q̇ = @view q̇[idx_lo:idx_hi]
+            ω = current_q̇ .* GR
 
             # DXL controller on the right knee
             # (q_ref is 1x1 here, you might adapt if needed)
@@ -121,16 +121,18 @@ function system(;
         end
     end
 
-    # --- Fill state (pure) ---
+    """
+    x ∈ R^8 = [LH, RH, LK, RK, dLH, dRH, dLK, dRK]
+    Ordre des q (8) : [x z LH RH LK RK LA RA]
+    """
     function fill_state!(x)
-        # x = [LH RH LK RK LA RA] / [position, velocity] for 3 actuated joints
-        q = @SVector [0.0, 0.0, x[1], x[2], x[3], 0.0, 0.0, 0.0]
-        qd = @SVector [0.0, 0.0, x[4], x[5], x[6], 0.0, 0.0, 0.0]
+        q = vcat(zeros(2), x[1:3], zeros(3)) # q[3:6] = LH RH LK RK ; q[7:8]=LA RA
+        q̇ = vcat(zeros(2), x[4:6], zeros(3)) # q̇[3:6] = dLH dRH dLK dRK
 
         # heights of the two legs (double pendulum)
         zl = Lthigh * cos(q[3]) + Lleg * cos(q[5] + q[3])
-        zr = Lthigh * cos(q[4]) + Lleg * cos(q[6] + q[4])
-
+        zr = Lthigh * cos(q[4]) + Lleg * cos(q[6] + q[4])  # RK=0
+        
         # boom z position: most extended leg is in contact
         q2 = max(zl, zr) - Lthigh - Lleg + Init_offset
         q = SVector{8, Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
@@ -142,17 +144,17 @@ function system(;
         # speed equations of the double pendulum
         xboom = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
         ẋboom =
-            Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
+            Lthigh * q̇[i1] * cos(q[i1]) + Lleg * (q̇[i1] + q̇[i2]) * cos(q[i1] + q[i2])
         żboom =
-            -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
+            -(Lthigh * q̇[i1] * sin(q[i1]) + Lleg * (q̇[i1] + q̇[i2]) * sin(q[i1] + q[i2]))
 
         q1 = xboom
-        qd1 = ẋboom
-        qd2 = żboom
+        q̇1 = ẋboom
+        q̇2 = żboom
 
         # adjust the angular speed of the feet to remain mostly horizontal
-        qd7 = -(qd[3] + qd[5])
-        qd8 = -(qd[4] + qd[6])
+        q̇7 = -(q̇[3] + q̇[5])
+        q̇8 = -(q̇[4] + q̇[6])
 
         # The x position is set to 0, the feet are kept to the ground 
         q = SVector{8, Float64}(
@@ -165,9 +167,9 @@ function system(;
             -(q[3] + q[5]),
             -(q[4] + q[6]),
         )
-        qd = SVector{8, Float64}(qd1, qd2, qd[3], qd[4], qd[5], qd[6], qd7, qd8)
+        q̇ = SVector{8, Float64}(q̇1, q̇2, q̇[3], q̇[4], q̇[5], q̇[6], q̇7, q̇8)
 
-        return q, qd
+        return q, q̇
     end
 
     function vectorFieldBipedRobot(x, u)
@@ -187,33 +189,6 @@ function system(;
 
         return SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
     end
-
-    # --- Thread-safe vector field: one MechanismState per thread ---
-    # function vectorFieldBipedRobot(x, u)
-    #     tid = Threads.threadid()
-    #     state = states_per_thread[tid]
-
-    #     # Step 1: build full state
-    #     q, q̇ = fill_state!(x)
-
-    #     # Step 2: set mechanism state
-    #     set_configuration!(state, q)
-    #     set_velocity!(state, q̇)
-
-    #     # Step 3: simulate
-    #     q_ref = SVector{1}(0.0)
-    #     controller! = voltage_controller!(u, q_ref)
-    #     ts, qs, vs =
-    #         RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
-
-    #     # Only final joint states are used
-    #     q_end = qs[end]
-    #     v_end = vs[end]
-
-    #     x_next =
-    #         SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
-    #     return x_next
-    # end
 
     # --- State and input spaces ---
     disc_steps = [fill(π/180, 3)..., fill(0.075, 3)...]
