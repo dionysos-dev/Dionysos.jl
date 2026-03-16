@@ -8,7 +8,6 @@ const PCLF = UT.PathCompleteFramework
 const PR = DI.Problem
 
 using JuMP
-import HiGHS
 using LazySets
 import HybridSystems
 import LinearAlgebra as LA
@@ -317,18 +316,33 @@ function bisimulation_pclf(
             for qid in target_ids
                 haskey(T.states, qid) || continue
                 q = T.states[qid]
-                preP = preimage_linear(q.set, A[Int(m)])
 
+                # for P in q.set
+                #     preP = preimage_linear(P, A[Int(m)])
+                #     if !is_nonempty_set(preP)
+                #         continue
+                #     end
+                #     source_ids = [
+                #         pid for pid in get(T.part_ids, s, Int[])
+                #         if haskey(T.states, pid) && T.states[pid].slice > i
+                #     ]
+                #     for pid in copy(source_ids)
+                #         haskey(T.states, pid) || continue
+                #         refined = refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
+                #         refined && (refine_count += 1)
+                #         verbose && refined && refine_count % 50 == 0 && println("    refinement: $refine_count")
+                #     end
+                # end
+                preP = preimage_linear(q.set, A[Int(m)])
                 source_ids = [
                     pid for pid in get(T.part_ids, s, Int[])
                     if haskey(T.states, pid) && T.states[pid].slice > i
                 ]
-
                 for pid in copy(source_ids)
                     haskey(T.states, pid) || continue
                     refined = refine_one_state!(T, pid, preP, Int(m), qid; atol = atol)
                     refined && (refine_count += 1)
-                    verbose && refined && refine_count % 10 == 0 && println("    refinement: $refine_count")
+                    verbose && refined && refine_count % 50 == 0 && println("    refinement: $refine_count")
                 end
             end
         end
@@ -476,7 +490,7 @@ Split state `qid` by `preP`.
 function refine_one_state!(
     T::PCBisimulationQuotient{SemiLinearSet,U},
     qid::Int,
-    preP::SemiLinearSet,
+    preP,#::Poly, 
     mode::Int,
     target_qid::Int;
     atol::Float64 = 0.0,
@@ -484,6 +498,7 @@ function refine_one_state!(
     haskey(T.states, qid) || return false
     q = T.states[qid]
 
+    # for Q in q.set
     I = set_intersection(q.set, preP)
     if !is_nonempty_set(I)
         return false

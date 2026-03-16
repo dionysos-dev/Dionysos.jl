@@ -97,7 +97,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 2) # nothing
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
+
+# using StatProfilerHTML
+# @profilehtml MOI.optimize!(optimizer)
 MOI.optimize!(optimizer)
+
+
+# MOI.optimize!(optimizer)
 construction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Construction time = ", construction_time)
