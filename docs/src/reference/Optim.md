@@ -20,7 +20,7 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.make_out_of_domain_handler
 ### PCLF Bisimulation Quotient solver
 
 ```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_terminal_transitions!!
+Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_terminal_transitions!
 ```
 
 ```@docs
