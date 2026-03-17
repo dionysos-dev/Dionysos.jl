@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'></meta>
+    <link rel='stylesheet' type='text/css' href='statprofiler.css'></link>
+    <title>StatProfilerHTML - ..\..\..\.julia\packages\LazySets\gaIMn\src\Sets\HalfSpace\isfeasible.jl</title>
+  </head>
+  <body>
+    <div class='report-header'>
+      <div class='backlink'>
+        <a href='index.html'>Report index</a>
+      </div>
+      <div class='report-title'>
+        StatProfilerHTML.jl report
+      </div>
+      <div class='generated-on'>
+        Generated on Mon, 16 Mar 2026 19:42:19
+      </div>
+    </div>
+    <table>
+      <caption>File source code</caption>
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th>Exclusive</th>
+          <th>Inclusive</th>
+          <th>Code</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id='L1'>
+          <td class='lineno'>1</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L2'>
+          <td class='lineno'>2</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    isfeasible&#40;constraints::AbstractVector&#123;&lt;:HalfSpace&#125;, &#91;witness&#93;::Bool&#61;false;</span>
+          </td>
+        </tr>
+        <tr id='L3'>
+          <td class='lineno'>3</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>               &#91;solver&#93;&#61;nothing&#41;</span>
+          </td>
+        </tr>
+        <tr id='L4'>
+          <td class='lineno'>4</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L5'>
+          <td class='lineno'>5</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Check for feasibility of a list of linear constraints.</span>
+          </td>
+        </tr>
+        <tr id='L6'>
+          <td class='lineno'>6</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L7'>
+          <td class='lineno'>7</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>### Input</span>
+          </td>
+        </tr>
+        <tr id='L8'>
+          <td class='lineno'>8</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L9'>
+          <td class='lineno'>9</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>- &#96;constraints&#96; -- list of linear constraints</span>
+          </td>
+        </tr>
+        <tr id='L10'>
+          <td class='lineno'>10</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>- &#96;witness&#96;     -- &#40;optional; default: &#96;false&#96;&#41; flag for witness production</span>
+          </td>
+        </tr>
+        <tr id='L11'>
+          <td class='lineno'>11</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>- &#96;solver&#96;      -- &#40;optional; default: &#96;nothing&#96;&#41; LP solver</span>
+          </td>
+        </tr>
+        <tr id='L12'>
+          <td class='lineno'>12</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L13'>
+          <td class='lineno'>13</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>### Output</span>
+          </td>
+        </tr>
+        <tr id='L14'>
+          <td class='lineno'>14</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L15'>
+          <td class='lineno'>15</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>If &#96;witness&#96; is &#96;false&#96;, the result is a &#96;Bool&#96;.</span>
+          </td>
+        </tr>
+        <tr id='L16'>
+          <td class='lineno'>16</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L17'>
+          <td class='lineno'>17</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>If &#96;witness&#96; is &#96;true&#96;, the result is a pair &#96;&#40;res, w&#41;&#96; where &#96;res&#96; is a &#96;Bool&#96;</span>
+          </td>
+        </tr>
+        <tr id='L18'>
+          <td class='lineno'>18</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>and &#96;w&#96; is a witness point/vector.</span>
+          </td>
+        </tr>
+        <tr id='L19'>
+          <td class='lineno'>19</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L20'>
+          <td class='lineno'>20</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>### Algorithm</span>
+          </td>
+        </tr>
+        <tr id='L21'>
+          <td class='lineno'>21</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L22'>
+          <td class='lineno'>22</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>This implementation converts the constraints to matrix-vector form via</span>
+          </td>
+        </tr>
+        <tr id='L23'>
+          <td class='lineno'>23</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#96;tosimplehrep&#96; and then calls &#96;isfeasible&#96; on the result.</span>
+          </td>
+        </tr>
+        <tr id='L24'>
+          <td class='lineno'>24</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L25'>
+          <td class='lineno'>25</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>47316 &#40;89 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              47316 &#40;89 &#37;&#41;
+              samples spent in isfeasible
+              <br />
+              
+              41662 &#40;88 &#37;&#41; &#40;incl.&#41;
+              when called from #_isinfeasible#111
+              <a href='AbstractPolyhedron_functions.jl-b06c19b5e43feae9e0b9c783388bbbde4c05a61f.html#L946'>line 946</a>
+              <br />
+              
+              2827 &#40;6 &#37;&#41; &#40;incl.&#41;
+              when called from #remove_redundant_constraints&#33;#7
+              <a href='remove_redundant_constraints.jl-ff6a2d380264840f06334c5a5f718d113a646fda.html#L79'>line 79</a>
+              <br />
+              
+              2827 &#40;6 &#37;&#41; &#40;incl.&#41;
+              when called from isfeasible
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L25'>line 25</a>
+              <br />
+            </div>
+            <div class='callees'>
+              44175 &#40;93 &#37;&#41;
+              samples spent calling
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L29'>#isfeasible#4</a>
+              <br />
+              2827 &#40;6 &#37;&#41;
+              samples spent calling
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L25'>isfeasible</a>
+              <br />
+              314 &#40;1 &#37;&#41;
+              samples spent calling
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L28'>#isfeasible#4</a>
+              <br />
+            </div>
+            <span class='code'>function isfeasible&#40;constraints::AbstractVector&#123;&lt;:HalfSpace&#125;,</span>
+          </td>
+        </tr>
+        <tr id='L26'>
+          <td class='lineno'>26</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    witness::Bool&#61;false; solver&#61;nothing&#41;</span>
+          </td>
+        </tr>
+        <tr id='L27'>
+          <td class='lineno'>27</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    # the caller should verify that there is at least one constraint</span>
+          </td>
+        </tr>
+        <tr id='L28'>
+          <td class='lineno'>28</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>314 &#40;1 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              314 &#40;1 &#37;&#41;
+              samples spent in #isfeasible#4
+              <br />
+              
+              314 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from isfeasible
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L25'>line 25</a>
+              <br />
+            </div>
+            <div class='callees'>
+              314 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='tosimplehrep.jl-9a4ae89d4c56432a0b9c5197ccf35f94c7643e8b.html#L22'>tosimplehrep</a>
+              <br />
+            </div>
+            <span class='code'>    A, b &#61; tosimplehrep&#40;constraints&#41;</span>
+          </td>
+        </tr>
+        <tr id='L29'>
+          <td class='lineno'>29</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>44175 &#40;83 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              44175 &#40;83 &#37;&#41;
+              samples spent in #isfeasible#4
+              <br />
+              
+              44175 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from isfeasible
+              <a href='isfeasible.jl-8bf6123f66e5c8518d9c7b049946b84d330ad1de.html#L25'>line 25</a>
+              <br />
+            </div>
+            <div class='callees'>
+              44175 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='lp_solvers.jl-2471a8356868574996aa10e30410f820e8b6b1c1.html#L64'>isfeasible</a>
+              <br />
+            </div>
+            <span class='code'>    return isfeasible&#40;A, b, witness; solver&#61;solver&#41;</span>
+          </td>
+        </tr>
+        <tr id='L30'>
+          <td class='lineno'>30</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+

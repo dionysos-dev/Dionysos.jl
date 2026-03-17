@@ -69,7 +69,11 @@ function build_optimizer(;
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 300)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_partition_strategy"), :roundrobin)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("distributed_partition_strategy"),
+        :roundrobin,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), false)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)

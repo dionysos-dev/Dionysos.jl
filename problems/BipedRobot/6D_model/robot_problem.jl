@@ -132,7 +132,7 @@ function system(;
         # heights of the two legs (double pendulum)
         zl = Lthigh * cos(q[3]) + Lleg * cos(q[5] + q[3])
         zr = Lthigh * cos(q[4]) + Lleg * cos(q[6] + q[4])  # RK=0
-        
+
         # boom z position: most extended leg is in contact
         q2 = max(zl, zr) - Lthigh - Lleg + Init_offset
         q = SVector{8, Float64}(q[1], q2, q[3], q[4], q[5], q[6], q[7], q[8])
@@ -182,12 +182,20 @@ function system(;
 
         q_ref = SVector{1}(0.0)
         controller! = voltage_controller!(u, q_ref)
-        ts, qs, vs = RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+        ts, qs, vs =
+            RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
 
         q_end = qs[end]
         v_end = vs[end]
 
-        return SVector{6, Float64}(q_end[3], q_end[4], q_end[5], v_end[3], v_end[4], v_end[5])
+        return SVector{6, Float64}(
+            q_end[3],
+            q_end[4],
+            q_end[5],
+            v_end[3],
+            v_end[4],
+            v_end[5],
+        )
     end
 
     # --- State and input spaces ---

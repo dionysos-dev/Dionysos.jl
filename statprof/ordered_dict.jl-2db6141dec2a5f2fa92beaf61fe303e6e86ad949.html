@@ -1,0 +1,5685 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'></meta>
+    <link rel='stylesheet' type='text/css' href='statprofiler.css'></link>
+    <title>StatProfilerHTML - ..\..\..\.julia\packages\OrderedCollections\Xihhq\src\ordered_dict.jl</title>
+  </head>
+  <body>
+    <div class='report-header'>
+      <div class='backlink'>
+        <a href='index.html'>Report index</a>
+      </div>
+      <div class='report-title'>
+        StatProfilerHTML.jl report
+      </div>
+      <div class='generated-on'>
+        Generated on Mon, 16 Mar 2026 19:42:19
+      </div>
+    </div>
+    <table>
+      <caption>File source code</caption>
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th>Exclusive</th>
+          <th>Inclusive</th>
+          <th>Code</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id='L1'>
+          <td class='lineno'>1</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>using Base: isbitsunion</span>
+          </td>
+        </tr>
+        <tr id='L2'>
+          <td class='lineno'>2</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L3'>
+          <td class='lineno'>3</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># These can be changed, to trade off better performance for space</span>
+          </td>
+        </tr>
+        <tr id='L4'>
+          <td class='lineno'>4</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>const global maxallowedprobe &#61; isdefined&#40;Base, :maxallowedprobe&#41; ? Base.maxallowedprobe : 16</span>
+          </td>
+        </tr>
+        <tr id='L5'>
+          <td class='lineno'>5</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>const global maxprobeshift   &#61; isdefined&#40;Base, :maxprobeshift&#41; ? Base.maxprobeshift : 6</span>
+          </td>
+        </tr>
+        <tr id='L6'>
+          <td class='lineno'>6</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L7'>
+          <td class='lineno'>7</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L8'>
+          <td class='lineno'>8</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    OrderedDict</span>
+          </td>
+        </tr>
+        <tr id='L9'>
+          <td class='lineno'>9</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L10'>
+          <td class='lineno'>10</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#96;OrderedDict&#96;s are simply dictionaries whose entries have a particular order. The order</span>
+          </td>
+        </tr>
+        <tr id='L11'>
+          <td class='lineno'>11</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>refers to insertion order, which allows deterministic iteration over the dictionary.</span>
+          </td>
+        </tr>
+        <tr id='L12'>
+          <td class='lineno'>12</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L13'>
+          <td class='lineno'>13</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>mutable struct OrderedDict&#123;K,V&#125; &lt;: AbstractDict&#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L14'>
+          <td class='lineno'>14</td>
+          <td class='tracecount excl'>352 &#40;1 &#37;&#41;</td>
+          <td class='tracecount incl'>352 &#40;1 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              352 &#40;1 &#37;&#41;
+              samples spent in OrderedDict
+              <br />
+              352 &#40;100 &#37;&#41; &#40;ex.&#41;,
+              352 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from OrderedDict
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L23'>line 23</a>
+              <br />
+            </div>
+            
+            <span class='code'>    slots::Vector&#123;Int32&#125;</span>
+          </td>
+        </tr>
+        <tr id='L15'>
+          <td class='lineno'>15</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    keys::Vector&#123;K&#125;</span>
+          </td>
+        </tr>
+        <tr id='L16'>
+          <td class='lineno'>16</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    vals::Vector&#123;V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L17'>
+          <td class='lineno'>17</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    ndel::Int</span>
+          </td>
+        </tr>
+        <tr id='L18'>
+          <td class='lineno'>18</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    maxprobe::Int</span>
+          </td>
+        </tr>
+        <tr id='L19'>
+          <td class='lineno'>19</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    dirty::Bool</span>
+          </td>
+        </tr>
+        <tr id='L20'>
+          <td class='lineno'>20</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L21'>
+          <td class='lineno'>21</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L22'>
+          <td class='lineno'>22</td>
+          <td class='tracecount excl'>50 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>50 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              2732 &#40;5 &#37;&#41;
+              samples spent in OrderedDict
+              <br />
+              23 &#40;1 &#37;&#41; &#40;ex.&#41;,
+              994 &#40;36 &#37;&#41; &#40;incl.&#41;
+              when called from zero
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L219'>line 219</a>
+              <br />
+              12 &#40;0 &#37;&#41; &#40;ex.&#41;,
+              932 &#40;34 &#37;&#41; &#40;incl.&#41;
+              when called from _map_aff
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L399'>line 399</a>
+              <br />
+              15 &#40;1 &#37;&#41; &#40;ex.&#41;,
+              806 &#40;30 &#37;&#41; &#40;incl.&#41;
+              when called from CleverDict
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L91'>line 91</a>
+              <br />
+            </div>
+            
+            <span class='code'>function OrderedDict&#123;K,V&#125;&#40;&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L23'>
+          <td class='lineno'>23</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>2682 &#40;5 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              1417 &#40;53 &#37;&#41;
+              samples spent calling
+              <a href='boot.jl-031bcb51310ca5c370f5b841aa9d69579a5f5d0a.html#L496'>Array</a>
+              <br />
+              913 &#40;34 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L632'>zeros</a>
+              <br />
+              352 &#40;13 &#37;&#41;
+              samples spent calling
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L14'>OrderedDict</a>
+              <br />
+            </div>
+            <span class='code'>    OrderedDict&#123;K,V&#125;&#40;zeros&#40;Int32,16&#41;, Vector&#123;K&#125;&#40;&#41;, Vector&#123;V&#125;&#40;&#41;, 0, 0, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L24'>
+          <td class='lineno'>24</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L25'>
+          <td class='lineno'>25</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L26'>
+          <td class='lineno'>26</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function OrderedDict&#123;K,V&#125;&#40;kv&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L27'>
+          <td class='lineno'>27</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h &#61; OrderedDict&#123;K,V&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L28'>
+          <td class='lineno'>28</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for &#40;k,v&#41; in kv</span>
+          </td>
+        </tr>
+        <tr id='L29'>
+          <td class='lineno'>29</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h&#91;k&#93; &#61; v</span>
+          </td>
+        </tr>
+        <tr id='L30'>
+          <td class='lineno'>30</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L31'>
+          <td class='lineno'>31</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L32'>
+          <td class='lineno'>32</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L33'>
+          <td class='lineno'>33</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L34'>
+          <td class='lineno'>34</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#123;K,V&#125;&#40;p::Pair&#41; where &#123;K,V&#125; &#61; setindex&#33;&#40;OrderedDict&#123;K,V&#125;&#40;&#41;, p.second, p.first&#41;</span>
+          </td>
+        </tr>
+        <tr id='L35'>
+          <td class='lineno'>35</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L36'>
+          <td class='lineno'>36</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function OrderedDict&#123;K,V&#125;&#40;ps::Pair...&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L37'>
+          <td class='lineno'>37</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h &#61; OrderedDict&#123;K,V&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L38'>
+          <td class='lineno'>38</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    sizehint&#33;&#40;h, length&#40;ps&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L39'>
+          <td class='lineno'>39</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for p in ps</span>
+          </td>
+        </tr>
+        <tr id='L40'>
+          <td class='lineno'>40</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h&#91;p.first&#93; &#61; p.second</span>
+          </td>
+        </tr>
+        <tr id='L41'>
+          <td class='lineno'>41</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L42'>
+          <td class='lineno'>42</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L43'>
+          <td class='lineno'>43</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L44'>
+          <td class='lineno'>44</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L45'>
+          <td class='lineno'>45</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function OrderedDict&#123;K,V&#125;&#40;d::OrderedDict&#123;K,V&#125;&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L46'>
+          <td class='lineno'>46</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if d.ndel &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L47'>
+          <td class='lineno'>47</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        rehash&#33;&#40;d&#41;</span>
+          </td>
+        </tr>
+        <tr id='L48'>
+          <td class='lineno'>48</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L49'>
+          <td class='lineno'>49</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @assert d.ndel &#61;&#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L50'>
+          <td class='lineno'>50</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    OrderedDict&#123;K,V&#125;&#40;copy&#40;d.slots&#41;, copy&#40;d.keys&#41;, copy&#40;d.vals&#41;, 0, d.maxprobe, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L51'>
+          <td class='lineno'>51</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L52'>
+          <td class='lineno'>52</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L53'>
+          <td class='lineno'>53</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;&#41; &#61; OrderedDict&#123;Any,Any&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L54'>
+          <td class='lineno'>54</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;kv::Tuple&#123;&#125;&#41; &#61; OrderedDict&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L55'>
+          <td class='lineno'>55</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>copy&#40;d::OrderedDict&#41; &#61; OrderedDict&#40;d&#41;</span>
+          </td>
+        </tr>
+        <tr id='L56'>
+          <td class='lineno'>56</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L57'>
+          <td class='lineno'>57</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># TODO: this can probably be simplified using &#96;eltype&#96; as a THT &#40;Tim Holy trait&#41;</span>
+          </td>
+        </tr>
+        <tr id='L58'>
+          <td class='lineno'>58</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># OrderedDict&#123;K,V&#125;&#40;kv::Tuple&#123;Vararg&#123;Tuple&#123;K,V&#125;&#125;&#125;&#41;     &#61; OrderedDict&#123;K,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L59'>
+          <td class='lineno'>59</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># OrderedDict&#123;K  &#125;&#40;kv::Tuple&#123;Vararg&#123;Tuple&#123;K,Any&#125;&#125;&#125;&#41;   &#61; OrderedDict&#123;K,Any&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L60'>
+          <td class='lineno'>60</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># OrderedDict&#123;V  &#125;&#40;kv::Tuple&#123;Vararg&#123;Tuple&#123;Any,V&#125;&#125;&#125;&#41;   &#61; OrderedDict&#123;Any,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L61'>
+          <td class='lineno'>61</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;kv::Tuple&#123;Vararg&#123;Pair&#123;K,V&#125;&#125;&#125;&#41; where &#123;K,V&#125;  &#61; OrderedDict&#123;K,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L62'>
+          <td class='lineno'>62</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L63'>
+          <td class='lineno'>63</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;kv::AbstractArray&#123;Tuple&#123;K,V&#125;&#125;&#41; where &#123;K,V&#125; &#61; OrderedDict&#123;K,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L64'>
+          <td class='lineno'>64</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;kv::AbstractArray&#123;Pair&#123;K,V&#125;&#125;&#41; where &#123;K,V&#125;  &#61; OrderedDict&#123;K,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L65'>
+          <td class='lineno'>65</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;kv::AbstractDict&#123;K,V&#125;&#41; where &#123;K,V&#125;         &#61; OrderedDict&#123;K,V&#125;&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L66'>
+          <td class='lineno'>66</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L67'>
+          <td class='lineno'>67</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;ps::Pair&#123;K,V&#125;...&#41; where &#123;K,V&#125; &#61; OrderedDict&#123;K,V&#125;&#40;ps&#41;</span>
+          </td>
+        </tr>
+        <tr id='L68'>
+          <td class='lineno'>68</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>OrderedDict&#40;ps::Pair...&#41;                  &#61; OrderedDict&#40;ps&#41;</span>
+          </td>
+        </tr>
+        <tr id='L69'>
+          <td class='lineno'>69</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L70'>
+          <td class='lineno'>70</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>@static if VERSION &gt;&#61; v&quot;1.11&quot;</span>
+          </td>
+        </tr>
+        <tr id='L71'>
+          <td class='lineno'>71</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    # see JuliaLang/julia#53151</span>
+          </td>
+        </tr>
+        <tr id='L72'>
+          <td class='lineno'>72</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    OrderedDict&#40;kv&#41; &#61; dict_with_eltype&#40;&#40;K, V&#41; -&gt; OrderedDict&#123;K, V&#125;, kv, eltype&#40;kv&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L73'>
+          <td class='lineno'>73</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>else</span>
+          </td>
+        </tr>
+        <tr id='L74'>
+          <td class='lineno'>74</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    function OrderedDict&#40;kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L75'>
+          <td class='lineno'>75</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        try</span>
+          </td>
+        </tr>
+        <tr id='L76'>
+          <td class='lineno'>76</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            dict_with_eltype&#40;&#40;K, V&#41; -&gt; OrderedDict&#123;K, V&#125;, kv, eltype&#40;kv&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L77'>
+          <td class='lineno'>77</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        catch e</span>
+          </td>
+        </tr>
+        <tr id='L78'>
+          <td class='lineno'>78</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            if isempty&#40;methods&#40;iterate, &#40;typeof&#40;kv&#41;,&#41;&#41;&#41; ||</span>
+          </td>
+        </tr>
+        <tr id='L79'>
+          <td class='lineno'>79</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                &#33;all&#40;x-&gt;isa&#40;x, Union&#123;Tuple,Pair&#125;&#41;, kv&#41;</span>
+          </td>
+        </tr>
+        <tr id='L80'>
+          <td class='lineno'>80</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                throw&#40;ArgumentError&#40;&quot;OrderedDict&#40;kv&#41;: kv needs to be an iterator of tuples or pairs&quot;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L81'>
+          <td class='lineno'>81</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            else</span>
+          </td>
+        </tr>
+        <tr id='L82'>
+          <td class='lineno'>82</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                rethrow&#40;e&#41;</span>
+          </td>
+        </tr>
+        <tr id='L83'>
+          <td class='lineno'>83</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            end</span>
+          </td>
+        </tr>
+        <tr id='L84'>
+          <td class='lineno'>84</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L85'>
+          <td class='lineno'>85</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L86'>
+          <td class='lineno'>86</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L87'>
+          <td class='lineno'>87</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L88'>
+          <td class='lineno'>88</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>empty&#40;d::OrderedDict&#123;K,V&#125;&#41; where &#123;K,V&#125; &#61; OrderedDict&#123;K,V&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L89'>
+          <td class='lineno'>89</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>empty&#40;d::OrderedDict, ::Type&#123;K&#125;, ::Type&#123;V&#125;&#41; where &#123;K, V&#125; &#61; OrderedDict&#123;K, V&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L90'>
+          <td class='lineno'>90</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L91'>
+          <td class='lineno'>91</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              8 &#40;0 &#37;&#41;
+              samples spent in length
+              <br />
+              
+              8 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from length
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L480'>line 480</a>
+              <br />
+            </div>
+            <div class='callees'>
+              4 &#40;50 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L10'>length</a>
+              <br />
+              3 &#40;38 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L86'>-</a>
+              <br />
+              1 &#40;12 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>length&#40;d::OrderedDict&#41; &#61; length&#40;d.keys&#41; - d.ndel</span>
+          </td>
+        </tr>
+        <tr id='L92'>
+          <td class='lineno'>92</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>1 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              1 &#40;0 &#37;&#41;
+              samples spent in isempty
+              <br />
+              
+              1 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from has_bridges
+              <a href='map.jl-9b407b64c734d91f44956119d47786550ff8c0a7.html#L261'>line 261</a>
+              <br />
+            </div>
+            <div class='callees'>
+              1 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='promotion.jl-c01bb70052c854f2c6ebfa2fdab11861f550653d.html#L521'>&#61;&#61;</a>
+              <br />
+            </div>
+            <span class='code'>isempty&#40;d::OrderedDict&#41; &#61; &#40;length&#40;d&#41; &#61;&#61; 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L93'>
+          <td class='lineno'>93</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L94'>
+          <td class='lineno'>94</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L95'>
+          <td class='lineno'>95</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    isordered&#40;::Type&#41;</span>
+          </td>
+        </tr>
+        <tr id='L96'>
+          <td class='lineno'>96</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L97'>
+          <td class='lineno'>97</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Property of associative containers, that is &#96;true&#96; if the container type has a</span>
+          </td>
+        </tr>
+        <tr id='L98'>
+          <td class='lineno'>98</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>defined order &#40;such as &#96;OrderedDict&#96; and &#96;SortedDict&#96;&#41;, and &#96;false&#96; otherwise.</span>
+          </td>
+        </tr>
+        <tr id='L99'>
+          <td class='lineno'>99</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L100'>
+          <td class='lineno'>100</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>isordered&#40;::Type&#123;T&#125;&#41; where &#123;T&lt;:AbstractDict&#125; &#61; false</span>
+          </td>
+        </tr>
+        <tr id='L101'>
+          <td class='lineno'>101</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>isordered&#40;::Type&#123;T&#125;&#41; where &#123;T&lt;:OrderedDict&#125; &#61; true</span>
+          </td>
+        </tr>
+        <tr id='L102'>
+          <td class='lineno'>102</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L103'>
+          <td class='lineno'>103</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># conversion between OrderedDict types</span>
+          </td>
+        </tr>
+        <tr id='L104'>
+          <td class='lineno'>104</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function convert&#40;::Type&#123;OrderedDict&#123;K,V&#125;&#125;, d::AbstractDict&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L105'>
+          <td class='lineno'>105</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    d isa OrderedDict&#123;K, V&#125; &amp;&amp; return d</span>
+          </td>
+        </tr>
+        <tr id='L106'>
+          <td class='lineno'>106</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if &#33;isordered&#40;typeof&#40;d&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L107'>
+          <td class='lineno'>107</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        Base.depwarn&#40;&quot;Conversion to OrderedDict is deprecated for unordered associative containers &#40;in this case, &#36;&#40;typeof&#40;d&#41;&#41;&#41;. Use an ordered or sorted associative type, such as SortedDict and OrderedDict.&quot;, :convert&#41;</span>
+          </td>
+        </tr>
+        <tr id='L108'>
+          <td class='lineno'>108</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L109'>
+          <td class='lineno'>109</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h &#61; OrderedDict&#123;K,V&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L110'>
+          <td class='lineno'>110</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for &#40;k,v&#41; in d</span>
+          </td>
+        </tr>
+        <tr id='L111'>
+          <td class='lineno'>111</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        ck &#61; convert&#40;K,k&#41;</span>
+          </td>
+        </tr>
+        <tr id='L112'>
+          <td class='lineno'>112</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        if &#33;haskey&#40;h,ck&#41;</span>
+          </td>
+        </tr>
+        <tr id='L113'>
+          <td class='lineno'>113</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            h&#91;ck&#93; &#61; convert&#40;V,v&#41;</span>
+          </td>
+        </tr>
+        <tr id='L114'>
+          <td class='lineno'>114</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        else</span>
+          </td>
+        </tr>
+        <tr id='L115'>
+          <td class='lineno'>115</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            error&#40;&quot;key collision during dictionary conversion&quot;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L116'>
+          <td class='lineno'>116</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L117'>
+          <td class='lineno'>117</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L118'>
+          <td class='lineno'>118</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L119'>
+          <td class='lineno'>119</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L120'>
+          <td class='lineno'>120</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L121'>
+          <td class='lineno'>121</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>isslotempty&#40;slot_value::Integer&#41; &#61; slot_value &#61;&#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L122'>
+          <td class='lineno'>122</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>isslotfilled&#40;slot_value::Integer&#41; &#61; slot_value &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L123'>
+          <td class='lineno'>123</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>isslotmissing&#40;slot_value::Integer&#41; &#61; slot_value &lt; 0</span>
+          </td>
+        </tr>
+        <tr id='L124'>
+          <td class='lineno'>124</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L125'>
+          <td class='lineno'>125</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function rehash&#33;&#40;h::OrderedDict&#123;K,V&#125;, newsz::Integer &#61; length&#40;h.slots&#41;&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L126'>
+          <td class='lineno'>126</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    olds &#61; h.slots</span>
+          </td>
+        </tr>
+        <tr id='L127'>
+          <td class='lineno'>127</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    keys &#61; h.keys</span>
+          </td>
+        </tr>
+        <tr id='L128'>
+          <td class='lineno'>128</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    vals &#61; h.vals</span>
+          </td>
+        </tr>
+        <tr id='L129'>
+          <td class='lineno'>129</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    sz &#61; length&#40;olds&#41;</span>
+          </td>
+        </tr>
+        <tr id='L130'>
+          <td class='lineno'>130</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    newsz &#61; _tablesz&#40;newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L131'>
+          <td class='lineno'>131</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.dirty &#61; true</span>
+          </td>
+        </tr>
+        <tr id='L132'>
+          <td class='lineno'>132</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    count0 &#61; length&#40;h&#41;</span>
+          </td>
+        </tr>
+        <tr id='L133'>
+          <td class='lineno'>133</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if count0 &#61;&#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L134'>
+          <td class='lineno'>134</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        resize&#33;&#40;h.slots, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L135'>
+          <td class='lineno'>135</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        fill&#33;&#40;h.slots, 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L136'>
+          <td class='lineno'>136</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        resize&#33;&#40;h.keys, 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L137'>
+          <td class='lineno'>137</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        resize&#33;&#40;h.vals, 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L138'>
+          <td class='lineno'>138</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.ndel &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L139'>
+          <td class='lineno'>139</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        return h</span>
+          </td>
+        </tr>
+        <tr id='L140'>
+          <td class='lineno'>140</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L141'>
+          <td class='lineno'>141</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L142'>
+          <td class='lineno'>142</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    slots &#61; zeros&#40;Int32, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L143'>
+          <td class='lineno'>143</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    maxprobe &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L144'>
+          <td class='lineno'>144</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L145'>
+          <td class='lineno'>145</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if h.ndel &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L146'>
+          <td class='lineno'>146</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        ndel0 &#61; h.ndel</span>
+          </td>
+        </tr>
+        <tr id='L147'>
+          <td class='lineno'>147</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        ptrs &#61; &#33;isbitstype&#40;K&#41; &amp;&amp; &#33;isbitsunion&#40;K&#41;</span>
+          </td>
+        </tr>
+        <tr id='L148'>
+          <td class='lineno'>148</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        to &#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L149'>
+          <td class='lineno'>149</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # TODO: to get the best performance we need to avoid reallocating these.</span>
+          </td>
+        </tr>
+        <tr id='L150'>
+          <td class='lineno'>150</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # This algorithm actually works in place, unless the dict is modified</span>
+          </td>
+        </tr>
+        <tr id='L151'>
+          <td class='lineno'>151</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # due to GC during this process.</span>
+          </td>
+        </tr>
+        <tr id='L152'>
+          <td class='lineno'>152</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        newkeys &#61; similar&#40;keys, count0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L153'>
+          <td class='lineno'>153</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        newvals &#61; similar&#40;vals, count0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L154'>
+          <td class='lineno'>154</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        @inbounds for from &#61; 1:length&#40;keys&#41;</span>
+          </td>
+        </tr>
+        <tr id='L155'>
+          <td class='lineno'>155</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            if &#33;ptrs || isassigned&#40;keys, from&#41;</span>
+          </td>
+        </tr>
+        <tr id='L156'>
+          <td class='lineno'>156</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                k &#61; keys&#91;from&#93;</span>
+          </td>
+        </tr>
+        <tr id='L157'>
+          <td class='lineno'>157</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                hashk &#61; hash&#40;k&#41;&#37;Int</span>
+          </td>
+        </tr>
+        <tr id='L158'>
+          <td class='lineno'>158</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                isdeleted &#61; false</span>
+          </td>
+        </tr>
+        <tr id='L159'>
+          <td class='lineno'>159</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                if &#33;ptrs</span>
+          </td>
+        </tr>
+        <tr id='L160'>
+          <td class='lineno'>160</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    iter &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L161'>
+          <td class='lineno'>161</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    index &#61; &#40;hashk &amp; &#40;sz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L162'>
+          <td class='lineno'>162</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    while iter &lt;&#61; h.maxprobe</span>
+          </td>
+        </tr>
+        <tr id='L163'>
+          <td class='lineno'>163</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        si &#61; olds&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L164'>
+          <td class='lineno'>164</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        si &#61;&#61; from &amp;&amp; break</span>
+          </td>
+        </tr>
+        <tr id='L165'>
+          <td class='lineno'>165</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        # if we find si &#61;&#61; 0, then the key was deleted and it&#39;s slot was reused/overwritten</span>
+          </td>
+        </tr>
+        <tr id='L166'>
+          <td class='lineno'>166</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        &#40;si &#61;&#61; -from || si &#61;&#61; 0&#41; &amp;&amp; &#40;isdeleted &#61; true; break&#41;</span>
+          </td>
+        </tr>
+        <tr id='L167'>
+          <td class='lineno'>167</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        index &#61; &#40;index &amp; &#40;sz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L168'>
+          <td class='lineno'>168</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        iter &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L169'>
+          <td class='lineno'>169</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    end</span>
+          </td>
+        </tr>
+        <tr id='L170'>
+          <td class='lineno'>170</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    iter &gt; h.maxprobe &amp;&amp; &#40;isdeleted &#61; true&#41;  # Another case where the slot was reused/overwritten</span>
+          </td>
+        </tr>
+        <tr id='L171'>
+          <td class='lineno'>171</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                end</span>
+          </td>
+        </tr>
+        <tr id='L172'>
+          <td class='lineno'>172</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                if &#33;isdeleted</span>
+          </td>
+        </tr>
+        <tr id='L173'>
+          <td class='lineno'>173</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    index0 &#61; index &#61; &#40;hashk &amp; &#40;newsz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L174'>
+          <td class='lineno'>174</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    while slots&#91;index&#93; &#33;&#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L175'>
+          <td class='lineno'>175</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                        index &#61; &#40;index &amp; &#40;newsz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L176'>
+          <td class='lineno'>176</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    end</span>
+          </td>
+        </tr>
+        <tr id='L177'>
+          <td class='lineno'>177</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    probe &#61; &#40;index - index0&#41; &amp; &#40;newsz-1&#41;</span>
+          </td>
+        </tr>
+        <tr id='L178'>
+          <td class='lineno'>178</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    probe &gt; maxprobe &amp;&amp; &#40;maxprobe &#61; probe&#41;</span>
+          </td>
+        </tr>
+        <tr id='L179'>
+          <td class='lineno'>179</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    slots&#91;index&#93; &#61; to</span>
+          </td>
+        </tr>
+        <tr id='L180'>
+          <td class='lineno'>180</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    newkeys&#91;to&#93; &#61; k</span>
+          </td>
+        </tr>
+        <tr id='L181'>
+          <td class='lineno'>181</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    newvals&#91;to&#93; &#61; vals&#91;from&#93;</span>
+          </td>
+        </tr>
+        <tr id='L182'>
+          <td class='lineno'>182</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    to &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L183'>
+          <td class='lineno'>183</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                end</span>
+          </td>
+        </tr>
+        <tr id='L184'>
+          <td class='lineno'>184</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                if h.ndel &#33;&#61; ndel0</span>
+          </td>
+        </tr>
+        <tr id='L185'>
+          <td class='lineno'>185</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    # if items are removed by finalizers, retry</span>
+          </td>
+        </tr>
+        <tr id='L186'>
+          <td class='lineno'>186</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                    return rehash&#33;&#40;h, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L187'>
+          <td class='lineno'>187</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                end</span>
+          </td>
+        </tr>
+        <tr id='L188'>
+          <td class='lineno'>188</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            end</span>
+          </td>
+        </tr>
+        <tr id='L189'>
+          <td class='lineno'>189</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L190'>
+          <td class='lineno'>190</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.keys &#61; newkeys</span>
+          </td>
+        </tr>
+        <tr id='L191'>
+          <td class='lineno'>191</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.vals &#61; newvals</span>
+          </td>
+        </tr>
+        <tr id='L192'>
+          <td class='lineno'>192</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.ndel &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L193'>
+          <td class='lineno'>193</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    else</span>
+          </td>
+        </tr>
+        <tr id='L194'>
+          <td class='lineno'>194</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        @inbounds for i &#61; 1:count0</span>
+          </td>
+        </tr>
+        <tr id='L195'>
+          <td class='lineno'>195</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            k &#61; keys&#91;i&#93;</span>
+          </td>
+        </tr>
+        <tr id='L196'>
+          <td class='lineno'>196</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            index0 &#61; index &#61; hashindex&#40;k, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L197'>
+          <td class='lineno'>197</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            while slots&#91;index&#93; &#33;&#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L198'>
+          <td class='lineno'>198</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                index &#61; &#40;index &amp; &#40;newsz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L199'>
+          <td class='lineno'>199</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            end</span>
+          </td>
+        </tr>
+        <tr id='L200'>
+          <td class='lineno'>200</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            probe &#61; &#40;index - index0&#41; &amp; &#40;newsz-1&#41;</span>
+          </td>
+        </tr>
+        <tr id='L201'>
+          <td class='lineno'>201</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            probe &gt; maxprobe &amp;&amp; &#40;maxprobe &#61; probe&#41;</span>
+          </td>
+        </tr>
+        <tr id='L202'>
+          <td class='lineno'>202</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            slots&#91;index&#93; &#61; i</span>
+          </td>
+        </tr>
+        <tr id='L203'>
+          <td class='lineno'>203</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            if h.ndel &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L204'>
+          <td class='lineno'>204</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                # if items are removed by finalizers, retry</span>
+          </td>
+        </tr>
+        <tr id='L205'>
+          <td class='lineno'>205</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>                return rehash&#33;&#40;h, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L206'>
+          <td class='lineno'>206</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            end</span>
+          </td>
+        </tr>
+        <tr id='L207'>
+          <td class='lineno'>207</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L208'>
+          <td class='lineno'>208</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L209'>
+          <td class='lineno'>209</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L210'>
+          <td class='lineno'>210</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.slots &#61; slots</span>
+          </td>
+        </tr>
+        <tr id='L211'>
+          <td class='lineno'>211</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.maxprobe &#61; maxprobe</span>
+          </td>
+        </tr>
+        <tr id='L212'>
+          <td class='lineno'>212</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L213'>
+          <td class='lineno'>213</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L214'>
+          <td class='lineno'>214</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L215'>
+          <td class='lineno'>215</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function sizehint&#33;&#40;d::OrderedDict, newsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L216'>
+          <td class='lineno'>216</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    slotsz &#61; &#40;newsz*3&#41;&gt;&gt;1</span>
+          </td>
+        </tr>
+        <tr id='L217'>
+          <td class='lineno'>217</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    oldsz &#61; length&#40;d.slots&#41;</span>
+          </td>
+        </tr>
+        <tr id='L218'>
+          <td class='lineno'>218</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if slotsz &lt;&#61; oldsz</span>
+          </td>
+        </tr>
+        <tr id='L219'>
+          <td class='lineno'>219</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # todo: shrink</span>
+          </td>
+        </tr>
+        <tr id='L220'>
+          <td class='lineno'>220</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # be careful: rehash&#33;&#40;&#41; assumes everything fits. it was only designed</span>
+          </td>
+        </tr>
+        <tr id='L221'>
+          <td class='lineno'>221</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # for growing.</span>
+          </td>
+        </tr>
+        <tr id='L222'>
+          <td class='lineno'>222</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        return d</span>
+          </td>
+        </tr>
+        <tr id='L223'>
+          <td class='lineno'>223</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L224'>
+          <td class='lineno'>224</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    # grow at least 25&#37;</span>
+          </td>
+        </tr>
+        <tr id='L225'>
+          <td class='lineno'>225</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    slotsz &#61; max&#40;slotsz, &#40;oldsz*5&#41;&gt;&gt;2&#41;</span>
+          </td>
+        </tr>
+        <tr id='L226'>
+          <td class='lineno'>226</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    rehash&#33;&#40;d, slotsz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L227'>
+          <td class='lineno'>227</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L228'>
+          <td class='lineno'>228</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L229'>
+          <td class='lineno'>229</td>
+          <td class='tracecount excl'>104 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>104 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              332 &#40;1 &#37;&#41;
+              samples spent in empty&#33;
+              <br />
+              35 &#40;11 &#37;&#41; &#40;ex.&#41;,
+              126 &#40;38 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L134'>line 134</a>
+              <br />
+              24 &#40;7 &#37;&#41; &#40;ex.&#41;,
+              66 &#40;20 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='map.jl-9b407b64c734d91f44956119d47786550ff8c0a7.html#L46'>line 46</a>
+              <br />
+              13 &#40;4 &#37;&#41; &#40;ex.&#41;,
+              53 &#40;16 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='map.jl-9b407b64c734d91f44956119d47786550ff8c0a7.html#L45'>line 45</a>
+              <br />
+              16 &#40;5 &#37;&#41; &#40;ex.&#41;,
+              52 &#40;16 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='universalfallback.jl-d602d87e9ce22b9ac63f73773b26613e78f0ce59.html#L70'>line 70</a>
+              <br />
+              18 &#40;5 &#37;&#41; &#40;ex.&#41;,
+              35 &#40;11 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='universalfallback.jl-d602d87e9ce22b9ac63f73773b26613e78f0ce59.html#L71'>line 71</a>
+              <br />
+            </div>
+            
+            <span class='code'>function empty&#33;&#40;h::OrderedDict&#123;K,V&#125;&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L230'>
+          <td class='lineno'>230</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>159 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              83 &#40;52 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L394'>fill&#33;</a>
+              <br />
+              41 &#40;26 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L396'>fill&#33;</a>
+              <br />
+              12 &#40;8 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L395'>fill&#33;</a>
+              <br />
+              12 &#40;8 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L0'>fill&#33;</a>
+              <br />
+              11 &#40;7 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    fill&#33;&#40;h.slots, 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L231'>
+          <td class='lineno'>231</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>36 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              36 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1842'>empty&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    empty&#33;&#40;h.keys&#41;</span>
+          </td>
+        </tr>
+        <tr id='L232'>
+          <td class='lineno'>232</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>27 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              27 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1842'>empty&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    empty&#33;&#40;h.vals&#41;</span>
+          </td>
+        </tr>
+        <tr id='L233'>
+          <td class='lineno'>233</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.ndel &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L234'>
+          <td class='lineno'>234</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>4 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              4 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L41'>setproperty&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    h.dirty &#61; true</span>
+          </td>
+        </tr>
+        <tr id='L235'>
+          <td class='lineno'>235</td>
+          <td class='tracecount excl'>2 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>2 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L236'>
+          <td class='lineno'>236</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L237'>
+          <td class='lineno'>237</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L238'>
+          <td class='lineno'>238</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># get the index where a key is stored, or -1 if not present</span>
+          </td>
+        </tr>
+        <tr id='L239'>
+          <td class='lineno'>239</td>
+          <td class='tracecount excl'>16 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>16 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              89 &#40;0 &#37;&#41;
+              samples spent in ht_keyindex
+              <br />
+              17 &#40;19 &#37;&#41; &#40;ex.&#41;,
+              89 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from get
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L391'>line 391</a>
+              <br />
+            </div>
+            
+            <span class='code'>function ht_keyindex&#40;h::OrderedDict&#123;K,V&#125;, key, direct&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L240'>
+          <td class='lineno'>240</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>2 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              2 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    slots &#61; h.slots</span>
+          </td>
+        </tr>
+        <tr id='L241'>
+          <td class='lineno'>241</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    sz &#61; length&#40;slots&#41;</span>
+          </td>
+        </tr>
+        <tr id='L242'>
+          <td class='lineno'>242</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    iter &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L243'>
+          <td class='lineno'>243</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>5 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              5 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    maxprobe &#61; h.maxprobe</span>
+          </td>
+        </tr>
+        <tr id='L244'>
+          <td class='lineno'>244</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>20 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              20 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='dict_support.jl-7f5da3453817bc1cf3556e149104cb6090415f8c.html#L6'>hashindex</a>
+              <br />
+            </div>
+            <span class='code'>    index &#61; hashindex&#40;key, sz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L245'>
+          <td class='lineno'>245</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>1 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              1 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    keys &#61; h.keys</span>
+          </td>
+        </tr>
+        <tr id='L246'>
+          <td class='lineno'>246</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L247'>
+          <td class='lineno'>247</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds while true</span>
+          </td>
+        </tr>
+        <tr id='L248'>
+          <td class='lineno'>248</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>10 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              10 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L13'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>        si &#61; slots&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L249'>
+          <td class='lineno'>249</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        isslotempty&#40;si&#41; &amp;&amp; break</span>
+          </td>
+        </tr>
+        <tr id='L250'>
+          <td class='lineno'>250</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>34 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              26 &#40;76 &#37;&#41;
+              samples spent calling
+              <a href='tuple.jl-d9de2acad3e02244a6fd163ab875c5a374814845.html#L468'>isequal</a>
+              <br />
+              8 &#40;24 &#37;&#41;
+              samples spent calling
+              <a href='abstractarray.jl-d3ed7fe2d013341bfefaf46b3e4ac482b2e2f82d.html#L1294'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>        if isslotfilled&#40;si&#41; &amp;&amp; isequal&#40;key, keys&#91;si&#93;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L251'>
+          <td class='lineno'>251</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            return ifelse&#40;direct, oftype&#40;index, si&#41;, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L252'>
+          <td class='lineno'>252</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L253'>
+          <td class='lineno'>253</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L254'>
+          <td class='lineno'>254</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        index &#61; &#40;index &amp; &#40;sz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L255'>
+          <td class='lineno'>255</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        iter &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L256'>
+          <td class='lineno'>256</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        iter &gt; maxprobe &amp;&amp; break</span>
+          </td>
+        </tr>
+        <tr id='L257'>
+          <td class='lineno'>257</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L258'>
+          <td class='lineno'>258</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L259'>
+          <td class='lineno'>259</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return -1</span>
+          </td>
+        </tr>
+        <tr id='L260'>
+          <td class='lineno'>260</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L261'>
+          <td class='lineno'>261</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L262'>
+          <td class='lineno'>262</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># get the index where a key is stored, or -pos if not present</span>
+          </td>
+        </tr>
+        <tr id='L263'>
+          <td class='lineno'>263</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># and the key would be inserted at pos</span>
+          </td>
+        </tr>
+        <tr id='L264'>
+          <td class='lineno'>264</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># This version is for use by setindex&#33; and get&#33;</span>
+          </td>
+        </tr>
+        <tr id='L265'>
+          <td class='lineno'>265</td>
+          <td class='tracecount excl'>79 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>79 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              493 &#40;1 &#37;&#41;
+              samples spent in ht_keyindex2
+              <br />
+              40 &#40;8 &#37;&#41; &#40;ex.&#41;,
+              277 &#40;56 &#37;&#41; &#40;incl.&#41;
+              when called from setindex&#33;
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L334'>line 334</a>
+              <br />
+              47 &#40;10 &#37;&#41; &#40;ex.&#41;,
+              216 &#40;44 &#37;&#41; &#40;incl.&#41;
+              when called from _add_or_set&#33;
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L24'>line 24</a>
+              <br />
+            </div>
+            
+            <span class='code'>function ht_keyindex2&#40;h::OrderedDict&#123;K,V&#125;, key&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L266'>
+          <td class='lineno'>266</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>3 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              3 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    slots &#61; h.slots</span>
+          </td>
+        </tr>
+        <tr id='L267'>
+          <td class='lineno'>267</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>3 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              3 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L10'>length</a>
+              <br />
+            </div>
+            <span class='code'>    sz &#61; length&#40;slots&#41;</span>
+          </td>
+        </tr>
+        <tr id='L268'>
+          <td class='lineno'>268</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    iter &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L269'>
+          <td class='lineno'>269</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>7 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              7 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    maxprobe &#61; h.maxprobe</span>
+          </td>
+        </tr>
+        <tr id='L270'>
+          <td class='lineno'>270</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>361 &#40;1 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              361 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='dict_support.jl-7f5da3453817bc1cf3556e149104cb6090415f8c.html#L6'>hashindex</a>
+              <br />
+            </div>
+            <span class='code'>    index &#61; hashindex&#40;key, sz&#41;</span>
+          </td>
+        </tr>
+        <tr id='L271'>
+          <td class='lineno'>271</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>22 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              22 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    keys &#61; h.keys</span>
+          </td>
+        </tr>
+        <tr id='L272'>
+          <td class='lineno'>272</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    avail &#61; 0</span>
+          </td>
+        </tr>
+        <tr id='L273'>
+          <td class='lineno'>273</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L274'>
+          <td class='lineno'>274</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds while true</span>
+          </td>
+        </tr>
+        <tr id='L275'>
+          <td class='lineno'>275</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>10 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              10 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L13'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>        si &#61; slots&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L276'>
+          <td class='lineno'>276</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        if isslotempty&#40;si&#41;</span>
+          </td>
+        </tr>
+        <tr id='L277'>
+          <td class='lineno'>277</td>
+          <td class='tracecount excl'>8 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            
+            <span class='code'>            avail &lt; 0 &amp;&amp; return avail</span>
+          </td>
+        </tr>
+        <tr id='L278'>
+          <td class='lineno'>278</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            return -index</span>
+          </td>
+        </tr>
+        <tr id='L279'>
+          <td class='lineno'>279</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L280'>
+          <td class='lineno'>280</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L281'>
+          <td class='lineno'>281</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        if isslotmissing&#40;si&#41;</span>
+          </td>
+        </tr>
+        <tr id='L282'>
+          <td class='lineno'>282</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            avail &#61;&#61; 0 &amp;&amp; &#40;avail &#61; -index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L283'>
+          <td class='lineno'>283</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        elseif key &#61;&#61;&#61; keys&#91;si&#93; || isequal&#40;key, keys&#91;si&#93;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L284'>
+          <td class='lineno'>284</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            return oftype&#40;index, si&#41;</span>
+          </td>
+        </tr>
+        <tr id='L285'>
+          <td class='lineno'>285</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L286'>
+          <td class='lineno'>286</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L287'>
+          <td class='lineno'>287</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        index &#61; &#40;index &amp; &#40;sz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L288'>
+          <td class='lineno'>288</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        iter &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L289'>
+          <td class='lineno'>289</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        iter &gt; maxprobe &amp;&amp; break</span>
+          </td>
+        </tr>
+        <tr id='L290'>
+          <td class='lineno'>290</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L291'>
+          <td class='lineno'>291</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L292'>
+          <td class='lineno'>292</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    avail &lt; 0 &amp;&amp; return avail</span>
+          </td>
+        </tr>
+        <tr id='L293'>
+          <td class='lineno'>293</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L294'>
+          <td class='lineno'>294</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    # If key is not present, may need to keep searching to find slot</span>
+          </td>
+        </tr>
+        <tr id='L295'>
+          <td class='lineno'>295</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    maxallowed &#61; max&#40;maxallowedprobe, sz&gt;&gt;maxprobeshift&#41;</span>
+          </td>
+        </tr>
+        <tr id='L296'>
+          <td class='lineno'>296</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds while iter &lt; maxallowed</span>
+          </td>
+        </tr>
+        <tr id='L297'>
+          <td class='lineno'>297</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        if &#33;isslotfilled&#40;slots&#91;index&#93;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L298'>
+          <td class='lineno'>298</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            h.maxprobe &#61; iter</span>
+          </td>
+        </tr>
+        <tr id='L299'>
+          <td class='lineno'>299</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            return -index</span>
+          </td>
+        </tr>
+        <tr id='L300'>
+          <td class='lineno'>300</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L301'>
+          <td class='lineno'>301</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        index &#61; &#40;index &amp; &#40;sz-1&#41;&#41; &#43; 1</span>
+          </td>
+        </tr>
+        <tr id='L302'>
+          <td class='lineno'>302</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        iter &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L303'>
+          <td class='lineno'>303</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L304'>
+          <td class='lineno'>304</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L305'>
+          <td class='lineno'>305</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    rehash&#33;&#40;h, length&#40;h&#41; &gt; 64000 ? sz*2 : sz*4&#41;</span>
+          </td>
+        </tr>
+        <tr id='L306'>
+          <td class='lineno'>306</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L307'>
+          <td class='lineno'>307</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return ht_keyindex2&#40;h, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L308'>
+          <td class='lineno'>308</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L309'>
+          <td class='lineno'>309</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L310'>
+          <td class='lineno'>310</td>
+          <td class='tracecount excl'>66 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>66 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              1653 &#40;3 &#37;&#41;
+              samples spent in _setindex&#33;
+              <br />
+              84 &#40;5 &#37;&#41; &#40;ex.&#41;,
+              1653 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from setindex&#33;
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L340'>line 340</a>
+              <br />
+            </div>
+            
+            <span class='code'>function _setindex&#33;&#40;h::OrderedDict, v, key, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L311'>
+          <td class='lineno'>311</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>11 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              11 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    hk, hv &#61; h.keys, h.vals</span>
+          </td>
+        </tr>
+        <tr id='L312'>
+          <td class='lineno'>312</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>766 &#40;1 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              729 &#40;95 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1119'>push&#33;</a>
+              <br />
+              37 &#40;5 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1120'>push&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    push&#33;&#40;hk, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L313'>
+          <td class='lineno'>313</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>753 &#40;1 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              750 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1119'>push&#33;</a>
+              <br />
+              3 &#40;0 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1120'>push&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    push&#33;&#40;hv, v&#41;</span>
+          </td>
+        </tr>
+        <tr id='L314'>
+          <td class='lineno'>314</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              8 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L10'>length</a>
+              <br />
+            </div>
+            <span class='code'>    nk &#61; length&#40;hk&#41;</span>
+          </td>
+        </tr>
+        <tr id='L315'>
+          <td class='lineno'>315</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              7 &#40;88 &#37;&#41;
+              samples spent calling
+              <a href='array.jl-dd558b52b7e455cacbc2a791bcbc398f0e070fa9.html#L1021'>setindex&#33;</a>
+              <br />
+              1 &#40;12 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    @inbounds h.slots&#91;index&#93; &#61; nk</span>
+          </td>
+        </tr>
+        <tr id='L316'>
+          <td class='lineno'>316</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>7 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              7 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L41'>setproperty&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    h.dirty &#61; true</span>
+          </td>
+        </tr>
+        <tr id='L317'>
+          <td class='lineno'>317</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L318'>
+          <td class='lineno'>318</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>1 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              1 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L10'>length</a>
+              <br />
+            </div>
+            <span class='code'>    sz &#61; length&#40;h.slots&#41;</span>
+          </td>
+        </tr>
+        <tr id='L319'>
+          <td class='lineno'>319</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>3 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              2 &#40;67 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+              1 &#40;33 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L86'>-</a>
+              <br />
+            </div>
+            <span class='code'>    cnt &#61; nk - h.ndel</span>
+          </td>
+        </tr>
+        <tr id='L320'>
+          <td class='lineno'>320</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    # Rehash now if necessary</span>
+          </td>
+        </tr>
+        <tr id='L321'>
+          <td class='lineno'>321</td>
+          <td class='tracecount excl'>7 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>19 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              10 &#40;83 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L88'>*</a>
+              <br />
+              2 &#40;17 &#37;&#41;
+              samples spent calling
+              <a href='operators.jl-35a2f47069a9887585ec4e2beda56a469bb72b5e.html#L378'>&gt;</a>
+              <br />
+            </div>
+            <span class='code'>    if h.ndel &gt;&#61; &#40;&#40;3*nk&#41;&gt;&gt;2&#41; &gt; 4 || cnt*3 &gt; sz*2</span>
+          </td>
+        </tr>
+        <tr id='L322'>
+          <td class='lineno'>322</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        # &gt; 3/4 deleted or &gt; 2/3 full</span>
+          </td>
+        </tr>
+        <tr id='L323'>
+          <td class='lineno'>323</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        rehash&#33;&#40;h, cnt &gt; 64000 ? cnt*2 : cnt*4&#41;</span>
+          </td>
+        </tr>
+        <tr id='L324'>
+          <td class='lineno'>324</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L325'>
+          <td class='lineno'>325</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L326'>
+          <td class='lineno'>326</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L327'>
+          <td class='lineno'>327</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function setindex&#33;&#40;h::OrderedDict&#123;K,V&#125;, v0, key0&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L328'>
+          <td class='lineno'>328</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61; convert&#40;K, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L329'>
+          <td class='lineno'>329</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if &#33;isequal&#40;key, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L330'>
+          <td class='lineno'>330</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        throw&#40;ArgumentError&#40;&quot;&#36;key0 is not a valid key for type &#36;K&quot;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L331'>
+          <td class='lineno'>331</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L332'>
+          <td class='lineno'>332</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    v &#61; convert&#40;V, v0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L333'>
+          <td class='lineno'>333</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L334'>
+          <td class='lineno'>334</td>
+          <td class='tracecount excl'>19 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>314 &#40;1 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              314 &#40;1 &#37;&#41;
+              samples spent in setindex&#33;
+              <br />
+              9 &#40;3 &#37;&#41; &#40;ex.&#41;,
+              164 &#40;52 &#37;&#41; &#40;incl.&#41;
+              when called from _add_or_set&#33;
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L26'>line 26</a>
+              <br />
+              10 &#40;3 &#37;&#41; &#40;ex.&#41;,
+              150 &#40;48 &#37;&#41; &#40;incl.&#41;
+              when called from _map_aff
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L401'>line 401</a>
+              <br />
+            </div>
+            <div class='callees'>
+              277 &#40;94 &#37;&#41;
+              samples spent calling
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L265'>ht_keyindex2</a>
+              <br />
+              14 &#40;5 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L265'>ht_keyindex2</a>
+              <br />
+              4 &#40;1 &#37;&#41;
+              samples spent calling
+              <a href='variables.jl-41b38d5ece1d89765cf878f1567e771d2054fae4.html#L265'>ht_keyindex2</a>
+              <br />
+            </div>
+            <span class='code'>    index &#61; ht_keyindex2&#40;h, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L335'>
+          <td class='lineno'>335</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L336'>
+          <td class='lineno'>336</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if index &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L337'>
+          <td class='lineno'>337</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        @inbounds h.keys&#91;index&#93; &#61; key</span>
+          </td>
+        </tr>
+        <tr id='L338'>
+          <td class='lineno'>338</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        @inbounds h.vals&#91;index&#93; &#61; v</span>
+          </td>
+        </tr>
+        <tr id='L339'>
+          <td class='lineno'>339</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    else</span>
+          </td>
+        </tr>
+        <tr id='L340'>
+          <td class='lineno'>340</td>
+          <td class='tracecount excl'>16 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>1671 &#40;3 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              1671 &#40;3 &#37;&#41;
+              samples spent in setindex&#33;
+              <br />
+              7 &#40;0 &#37;&#41; &#40;ex.&#41;,
+              921 &#40;55 &#37;&#41; &#40;incl.&#41;
+              when called from _add_or_set&#33;
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L26'>line 26</a>
+              <br />
+              9 &#40;1 &#37;&#41; &#40;ex.&#41;,
+              750 &#40;45 &#37;&#41; &#40;incl.&#41;
+              when called from _map_aff
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L401'>line 401</a>
+              <br />
+            </div>
+            <div class='callees'>
+              1653 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L310'>_setindex&#33;</a>
+              <br />
+              2 &#40;0 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L85'>-</a>
+              <br />
+            </div>
+            <span class='code'>        _setindex&#33;&#40;h, v, key, -index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L341'>
+          <td class='lineno'>341</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L342'>
+          <td class='lineno'>342</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L343'>
+          <td class='lineno'>343</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L344'>
+          <td class='lineno'>344</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L345'>
+          <td class='lineno'>345</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L346'>
+          <td class='lineno'>346</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function get&#33;&#40;h::OrderedDict&#123;K,V&#125;, key0, default&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L347'>
+          <td class='lineno'>347</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61; convert&#40;K, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L348'>
+          <td class='lineno'>348</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if &#33;isequal&#40;key, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L349'>
+          <td class='lineno'>349</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        throw&#40;ArgumentError&#40;&quot;&#36;key0 is not a valid key for type &#36;K&quot;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L350'>
+          <td class='lineno'>350</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L351'>
+          <td class='lineno'>351</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L352'>
+          <td class='lineno'>352</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex2&#40;h, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L353'>
+          <td class='lineno'>353</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L354'>
+          <td class='lineno'>354</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &gt; 0 &amp;&amp; return h.vals&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L355'>
+          <td class='lineno'>355</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L356'>
+          <td class='lineno'>356</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    v &#61; convert&#40;V,  default&#41;</span>
+          </td>
+        </tr>
+        <tr id='L357'>
+          <td class='lineno'>357</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    _setindex&#33;&#40;h, v, key, -index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L358'>
+          <td class='lineno'>358</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return v</span>
+          </td>
+        </tr>
+        <tr id='L359'>
+          <td class='lineno'>359</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L360'>
+          <td class='lineno'>360</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L361'>
+          <td class='lineno'>361</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function get&#33;&#40;default::Base.Callable, h::OrderedDict&#123;K,V&#125;, key0&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L362'>
+          <td class='lineno'>362</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61; convert&#40;K, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L363'>
+          <td class='lineno'>363</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if &#33;isequal&#40;key, key0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L364'>
+          <td class='lineno'>364</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        throw&#40;ArgumentError&#40;&quot;&#36;key0 is not a valid key for type &#36;K&quot;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L365'>
+          <td class='lineno'>365</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L366'>
+          <td class='lineno'>366</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L367'>
+          <td class='lineno'>367</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex2&#40;h, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L368'>
+          <td class='lineno'>368</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L369'>
+          <td class='lineno'>369</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &gt; 0 &amp;&amp; return h.vals&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L370'>
+          <td class='lineno'>370</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L371'>
+          <td class='lineno'>371</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.dirty &#61; false</span>
+          </td>
+        </tr>
+        <tr id='L372'>
+          <td class='lineno'>372</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    v &#61; convert&#40;V,  default&#40;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L373'>
+          <td class='lineno'>373</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if h.dirty  # calling default could have dirtied h</span>
+          </td>
+        </tr>
+        <tr id='L374'>
+          <td class='lineno'>374</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        index &#61; ht_keyindex2&#40;h, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L375'>
+          <td class='lineno'>375</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L376'>
+          <td class='lineno'>376</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if index &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L377'>
+          <td class='lineno'>377</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.keys&#91;index&#93; &#61; key</span>
+          </td>
+        </tr>
+        <tr id='L378'>
+          <td class='lineno'>378</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        h.vals&#91;index&#93; &#61; v</span>
+          </td>
+        </tr>
+        <tr id='L379'>
+          <td class='lineno'>379</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    else</span>
+          </td>
+        </tr>
+        <tr id='L380'>
+          <td class='lineno'>380</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        _setindex&#33;&#40;h, v, key, -index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L381'>
+          <td class='lineno'>381</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L382'>
+          <td class='lineno'>382</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return v</span>
+          </td>
+        </tr>
+        <tr id='L383'>
+          <td class='lineno'>383</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L384'>
+          <td class='lineno'>384</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L385'>
+          <td class='lineno'>385</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function getindex&#40;h::OrderedDict&#123;K,V&#125;, key&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L386'>
+          <td class='lineno'>386</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, true&#41;</span>
+          </td>
+        </tr>
+        <tr id='L387'>
+          <td class='lineno'>387</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;index&lt;0&#41; ? throw&#40;KeyError&#40;key&#41;&#41; : h.vals&#91;index&#93;::V</span>
+          </td>
+        </tr>
+        <tr id='L388'>
+          <td class='lineno'>388</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L389'>
+          <td class='lineno'>389</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L390'>
+          <td class='lineno'>390</td>
+          <td class='tracecount excl'>13 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>13 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              113 &#40;0 &#37;&#41;
+              samples spent in get
+              <br />
+              20 &#40;18 &#37;&#41; &#40;ex.&#41;,
+              113 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from node
+              <a href='lazy_bridge_optimizer.jl-82a8aa0ad1d799f49ad0b595fee8bda4afa4299f.html#L324'>line 324</a>
+              <br />
+            </div>
+            
+            <span class='code'>function get&#40;h::OrderedDict&#123;K,V&#125;, key, default&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L391'>
+          <td class='lineno'>391</td>
+          <td class='tracecount excl'>1 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>91 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              89 &#40;99 &#37;&#41;
+              samples spent calling
+              <a href='ordered_dict.jl-2db6141dec2a5f2fa92beaf61fe303e6e86ad949.html#L239'>ht_keyindex</a>
+              <br />
+              1 &#40;1 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L239'>ht_keyindex</a>
+              <br />
+            </div>
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, true&#41;</span>
+          </td>
+        </tr>
+        <tr id='L392'>
+          <td class='lineno'>392</td>
+          <td class='tracecount excl'>5 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              3 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L13'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>    return &#40;index&lt;0&#41; ? default : h.vals&#91;index&#93;::V</span>
+          </td>
+        </tr>
+        <tr id='L393'>
+          <td class='lineno'>393</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L394'>
+          <td class='lineno'>394</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L395'>
+          <td class='lineno'>395</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function get&#40;default::Base.Callable, h::OrderedDict&#123;K,V&#125;, key&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L396'>
+          <td class='lineno'>396</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, true&#41;</span>
+          </td>
+        </tr>
+        <tr id='L397'>
+          <td class='lineno'>397</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;index&lt;0&#41; ? default&#40;&#41; : h.vals&#91;index&#93;::V</span>
+          </td>
+        </tr>
+        <tr id='L398'>
+          <td class='lineno'>398</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L399'>
+          <td class='lineno'>399</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L400'>
+          <td class='lineno'>400</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>haskey&#40;h::OrderedDict, key&#41; &#61; &#40;ht_keyindex&#40;h, key, true&#41; &gt;&#61; 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L401'>
+          <td class='lineno'>401</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>in&#40;key, v::Base.KeySet&#123;K,T&#125;&#41; where &#123;K,T&lt;:OrderedDict&#123;K&#125;&#125; &#61; &#40;ht_keyindex&#40;v.dict, key, true&#41; &gt;&#61; 0&#41;</span>
+          </td>
+        </tr>
+        <tr id='L402'>
+          <td class='lineno'>402</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L403'>
+          <td class='lineno'>403</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function getkey&#40;h::OrderedDict&#123;K,V&#125;, key, default&#41; where &#123;K,V&#125;</span>
+          </td>
+        </tr>
+        <tr id='L404'>
+          <td class='lineno'>404</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, true&#41;</span>
+          </td>
+        </tr>
+        <tr id='L405'>
+          <td class='lineno'>405</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;index&lt;0&#41; ? default : h.keys&#91;index&#93;::K</span>
+          </td>
+        </tr>
+        <tr id='L406'>
+          <td class='lineno'>406</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L407'>
+          <td class='lineno'>407</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L408'>
+          <td class='lineno'>408</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function _pop&#33;&#40;h::OrderedDict, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L409'>
+          <td class='lineno'>409</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds val &#61; h.vals&#91;h.slots&#91;index&#93;&#93;</span>
+          </td>
+        </tr>
+        <tr id='L410'>
+          <td class='lineno'>410</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    _delete&#33;&#40;h, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L411'>
+          <td class='lineno'>411</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return val</span>
+          </td>
+        </tr>
+        <tr id='L412'>
+          <td class='lineno'>412</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L413'>
+          <td class='lineno'>413</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L414'>
+          <td class='lineno'>414</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function pop&#33;&#40;h::OrderedDict&#41;</span>
+          </td>
+        </tr>
+        <tr id='L415'>
+          <td class='lineno'>415</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.ndel &gt; 0 &amp;&amp; rehash&#33;&#40;h&#41;</span>
+          </td>
+        </tr>
+        <tr id='L416'>
+          <td class='lineno'>416</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61; h.keys&#91;end&#93;</span>
+          </td>
+        </tr>
+        <tr id='L417'>
+          <td class='lineno'>417</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L418'>
+          <td class='lineno'>418</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return key &#61;&gt; _pop&#33;&#40;h, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L419'>
+          <td class='lineno'>419</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L420'>
+          <td class='lineno'>420</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L421'>
+          <td class='lineno'>421</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function popfirst&#33;&#40;h::OrderedDict&#41;</span>
+          </td>
+        </tr>
+        <tr id='L422'>
+          <td class='lineno'>422</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.ndel &gt; 0 &amp;&amp; rehash&#33;&#40;h&#41;</span>
+          </td>
+        </tr>
+        <tr id='L423'>
+          <td class='lineno'>423</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61; h.keys&#91;1&#93;</span>
+          </td>
+        </tr>
+        <tr id='L424'>
+          <td class='lineno'>424</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L425'>
+          <td class='lineno'>425</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key &#61;&gt; _pop&#33;&#40;h, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L426'>
+          <td class='lineno'>426</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L427'>
+          <td class='lineno'>427</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L428'>
+          <td class='lineno'>428</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function pop&#33;&#40;h::OrderedDict, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L429'>
+          <td class='lineno'>429</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L430'>
+          <td class='lineno'>430</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &gt; 0 ? _pop&#33;&#40;h, index&#41; : throw&#40;KeyError&#40;key&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L431'>
+          <td class='lineno'>431</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L432'>
+          <td class='lineno'>432</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L433'>
+          <td class='lineno'>433</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function pop&#33;&#40;h::OrderedDict, key, default&#41;</span>
+          </td>
+        </tr>
+        <tr id='L434'>
+          <td class='lineno'>434</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L435'>
+          <td class='lineno'>435</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &gt; 0 ? _pop&#33;&#40;h, index&#41; : default</span>
+          </td>
+        </tr>
+        <tr id='L436'>
+          <td class='lineno'>436</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L437'>
+          <td class='lineno'>437</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L438'>
+          <td class='lineno'>438</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function _delete&#33;&#40;h::OrderedDict, index&#41;</span>
+          </td>
+        </tr>
+        <tr id='L439'>
+          <td class='lineno'>439</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds ki &#61; h.slots&#91;index&#93;</span>
+          </td>
+        </tr>
+        <tr id='L440'>
+          <td class='lineno'>440</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds h.slots&#91;index&#93; &#61; -ki</span>
+          </td>
+        </tr>
+        <tr id='L441'>
+          <td class='lineno'>441</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds Base._unsetindex&#33;&#40;h.keys, Int&#40;ki&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L442'>
+          <td class='lineno'>442</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    @inbounds Base._unsetindex&#33;&#40;h.vals, Int&#40;ki&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L443'>
+          <td class='lineno'>443</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.ndel &#43;&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L444'>
+          <td class='lineno'>444</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    h.dirty &#61; true</span>
+          </td>
+        </tr>
+        <tr id='L445'>
+          <td class='lineno'>445</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L446'>
+          <td class='lineno'>446</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L447'>
+          <td class='lineno'>447</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L448'>
+          <td class='lineno'>448</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function delete&#33;&#40;h::OrderedDict, key&#41;</span>
+          </td>
+        </tr>
+        <tr id='L449'>
+          <td class='lineno'>449</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    index &#61; ht_keyindex&#40;h, key, false&#41;</span>
+          </td>
+        </tr>
+        <tr id='L450'>
+          <td class='lineno'>450</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    if index &gt; 0; _delete&#33;&#40;h, index&#41;; end</span>
+          </td>
+        </tr>
+        <tr id='L451'>
+          <td class='lineno'>451</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return h</span>
+          </td>
+        </tr>
+        <tr id='L452'>
+          <td class='lineno'>452</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L453'>
+          <td class='lineno'>453</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L454'>
+          <td class='lineno'>454</td>
+          <td class='tracecount excl'>56 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>56 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              102 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              44 &#40;43 &#37;&#41; &#40;ex.&#41;,
+              47 &#40;46 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='abstractdict.jl-ba195cc2b0eb32e8a05d8a852f0e9247c6446404.html#L64'>line 64</a>
+              <br />
+              27 &#40;26 &#37;&#41; &#40;ex.&#41;,
+              32 &#40;31 &#37;&#41; &#40;incl.&#41;
+              when called from get
+              <a href='universalfallback.jl-d602d87e9ce22b9ac63f73773b26613e78f0ce59.html#L445'>line 445</a>
+              <br />
+              21 &#40;21 &#37;&#41; &#40;ex.&#41;,
+              23 &#40;23 &#37;&#41; &#40;incl.&#41;
+              when called from get
+              <a href='universalfallback.jl-d602d87e9ce22b9ac63f73773b26613e78f0ce59.html#L450'>line 450</a>
+              <br />
+            </div>
+            
+            <span class='code'>function iterate&#40;t::OrderedDict&#41;</span>
+          </td>
+        </tr>
+        <tr id='L455'>
+          <td class='lineno'>455</td>
+          <td class='tracecount excl'>29 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>37 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              13 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              5 &#40;38 &#37;&#41; &#40;ex.&#41;,
+              7 &#40;54 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='abstractdict.jl-ba195cc2b0eb32e8a05d8a852f0e9247c6446404.html#L64'>line 64</a>
+              <br />
+              4 &#40;31 &#37;&#41; &#40;ex.&#41;,
+              6 &#40;46 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L464'>line 464</a>
+              <br />
+            </div>
+            <div class='callees'>
+              8 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='operators.jl-35a2f47069a9887585ec4e2beda56a469bb72b5e.html#L378'>&gt;</a>
+              <br />
+            </div>
+            <span class='code'>    t.ndel &gt; 0 &amp;&amp; rehash&#33;&#40;t&#41;</span>
+          </td>
+        </tr>
+        <tr id='L456'>
+          <td class='lineno'>456</td>
+          <td class='tracecount excl'>14 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>32 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              14 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              
+              7 &#40;50 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='abstractdict.jl-ba195cc2b0eb32e8a05d8a852f0e9247c6446404.html#L64'>line 64</a>
+              <br />
+              2 &#40;14 &#37;&#41; &#40;ex.&#41;,
+              7 &#40;50 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L464'>line 464</a>
+              <br />
+            </div>
+            <div class='callees'>
+              10 &#40;56 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L83'>&lt;</a>
+              <br />
+              6 &#40;33 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+              2 &#40;11 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L10'>length</a>
+              <br />
+            </div>
+            <span class='code'>    length&#40;t.keys&#41; &lt; 1 &amp;&amp; return nothing</span>
+          </td>
+        </tr>
+        <tr id='L457'>
+          <td class='lineno'>457</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>20 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              20 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              
+              13 &#40;65 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L464'>line 464</a>
+              <br />
+              
+              7 &#40;35 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='abstractdict.jl-ba195cc2b0eb32e8a05d8a852f0e9247c6446404.html#L64'>line 64</a>
+              <br />
+            </div>
+            <div class='callees'>
+              17 &#40;85 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L13'>getindex</a>
+              <br />
+              3 &#40;15 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+            </div>
+            <span class='code'>    return &#40;Pair&#40;t.keys&#91;1&#93;, t.vals&#91;1&#93;&#41;, 2&#41;</span>
+          </td>
+        </tr>
+        <tr id='L458'>
+          <td class='lineno'>458</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L459'>
+          <td class='lineno'>459</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function iterate&#40;t::OrderedDict, i&#41;</span>
+          </td>
+        </tr>
+        <tr id='L460'>
+          <td class='lineno'>460</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>7 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              7 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              
+              7 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L473'>line 473</a>
+              <br />
+            </div>
+            <div class='callees'>
+              6 &#40;86 &#37;&#41;
+              samples spent calling
+              <a href='Base.jl-67480fb8f95899446cab085c383c80edd02d1642.html#L37'>getproperty</a>
+              <br />
+              1 &#40;14 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L83'>&lt;</a>
+              <br />
+            </div>
+            <span class='code'>    length&#40;t.keys&#41; &lt; i &amp;&amp; return nothing</span>
+          </td>
+        </tr>
+        <tr id='L461'>
+          <td class='lineno'>461</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>12 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              12 &#40;0 &#37;&#41;
+              samples spent in iterate
+              <br />
+              
+              12 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from iterate
+              <a href='aff_expr.jl-2018b1bfd65821e9a2c5123219fef8769afbc6e8.html#L473'>line 473</a>
+              <br />
+            </div>
+            <div class='callees'>
+              11 &#40;92 &#37;&#41;
+              samples spent calling
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L13'>getindex</a>
+              <br />
+              1 &#40;8 &#37;&#41;
+              samples spent calling
+              <a href='int.jl-00e3825f7be6f108e0cf6ee96dbe2753b399f5de.html#L87'>&#43;</a>
+              <br />
+            </div>
+            <span class='code'>    return &#40;Pair&#40;t.keys&#91;i&#93;, t.vals&#91;i&#93;&#41;, i&#43;1&#41;</span>
+          </td>
+        </tr>
+        <tr id='L462'>
+          <td class='lineno'>462</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L463'>
+          <td class='lineno'>463</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L464'>
+          <td class='lineno'>464</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># lazy reverse iteration</span>
+          </td>
+        </tr>
+        <tr id='L465'>
+          <td class='lineno'>465</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function iterate&#40;rt::Iterators.Reverse&#123;&lt;:OrderedDict&#125;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L466'>
+          <td class='lineno'>466</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    t &#61; rt.itr</span>
+          </td>
+        </tr>
+        <tr id='L467'>
+          <td class='lineno'>467</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    t.ndel &gt; 0 &amp;&amp; rehash&#33;&#40;t&#41;</span>
+          </td>
+        </tr>
+        <tr id='L468'>
+          <td class='lineno'>468</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    n &#61; length&#40;t.keys&#41;</span>
+          </td>
+        </tr>
+        <tr id='L469'>
+          <td class='lineno'>469</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    n &lt; 1 &amp;&amp; return nothing</span>
+          </td>
+        </tr>
+        <tr id='L470'>
+          <td class='lineno'>470</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;Pair&#40;t.keys&#91;n&#93;, t.vals&#91;n&#93;&#41;, n - 1&#41;</span>
+          </td>
+        </tr>
+        <tr id='L471'>
+          <td class='lineno'>471</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L472'>
+          <td class='lineno'>472</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function iterate&#40;rt::Iterators.Reverse&#123;&lt;:OrderedDict&#125;, i&#41;</span>
+          </td>
+        </tr>
+        <tr id='L473'>
+          <td class='lineno'>473</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    t &#61; rt.itr</span>
+          </td>
+        </tr>
+        <tr id='L474'>
+          <td class='lineno'>474</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    i &lt; 1 &amp;&amp; return nothing</span>
+          </td>
+        </tr>
+        <tr id='L475'>
+          <td class='lineno'>475</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;Pair&#40;t.keys&#91;i&#93;, t.vals&#91;i&#93;&#41;, i - 1&#41;</span>
+          </td>
+        </tr>
+        <tr id='L476'>
+          <td class='lineno'>476</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L477'>
+          <td class='lineno'>477</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L478'>
+          <td class='lineno'>478</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L479'>
+          <td class='lineno'>479</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function _merge_kvtypes&#40;d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L480'>
+          <td class='lineno'>480</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    K, V &#61; keytype&#40;d&#41;, valtype&#40;d&#41;</span>
+          </td>
+        </tr>
+        <tr id='L481'>
+          <td class='lineno'>481</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for other in others</span>
+          </td>
+        </tr>
+        <tr id='L482'>
+          <td class='lineno'>482</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        K &#61; promote_type&#40;K, keytype&#40;other&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L483'>
+          <td class='lineno'>483</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        V &#61; promote_type&#40;V, valtype&#40;other&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L484'>
+          <td class='lineno'>484</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L485'>
+          <td class='lineno'>485</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return &#40;K,V&#41;</span>
+          </td>
+        </tr>
+        <tr id='L486'>
+          <td class='lineno'>486</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L487'>
+          <td class='lineno'>487</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L488'>
+          <td class='lineno'>488</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function merge&#40;d::OrderedDict, others::AbstractDict...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L489'>
+          <td class='lineno'>489</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    K,V &#61; _merge_kvtypes&#40;d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L490'>
+          <td class='lineno'>490</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    merge&#33;&#40;OrderedDict&#123;K,V&#125;&#40;&#41;, d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L491'>
+          <td class='lineno'>491</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L492'>
+          <td class='lineno'>492</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L493'>
+          <td class='lineno'>493</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function mergewith&#40;combine, d::OrderedDict, others::AbstractDict...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L494'>
+          <td class='lineno'>494</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    K,V &#61; _merge_kvtypes&#40;d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L495'>
+          <td class='lineno'>495</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    mergewith&#33;&#40;combine, OrderedDict&#123;K,V&#125;&#40;&#41;, d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L496'>
+          <td class='lineno'>496</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L497'>
+          <td class='lineno'>497</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L498'>
+          <td class='lineno'>498</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>merge&#40;combine::Function, d::OrderedDict, others::AbstractDict...&#41; &#61; mergewith&#40;combine, d, others...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L499'>
+          <td class='lineno'>499</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L500'>
+          <td class='lineno'>500</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.map&#33;&#40;f, iter::Base.ValueIterator&#123;&lt;:OrderedDict&#125;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L501'>
+          <td class='lineno'>501</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    dict &#61; iter.dict</span>
+          </td>
+        </tr>
+        <tr id='L502'>
+          <td class='lineno'>502</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    vals &#61; dict.vals</span>
+          </td>
+        </tr>
+        <tr id='L503'>
+          <td class='lineno'>503</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    elements &#61; length&#40;vals&#41; - dict.ndel</span>
+          </td>
+        </tr>
+        <tr id='L504'>
+          <td class='lineno'>504</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    elements &#61;&#61; 0 &amp;&amp; return iter</span>
+          </td>
+        </tr>
+        <tr id='L505'>
+          <td class='lineno'>505</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for i in dict.slots</span>
+          </td>
+        </tr>
+        <tr id='L506'>
+          <td class='lineno'>506</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        if i &gt; 0</span>
+          </td>
+        </tr>
+        <tr id='L507'>
+          <td class='lineno'>507</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            @inbounds vals&#91;i&#93; &#61; f&#40;vals&#91;i&#93;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L508'>
+          <td class='lineno'>508</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            elements -&#61; 1</span>
+          </td>
+        </tr>
+        <tr id='L509'>
+          <td class='lineno'>509</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>            elements &#61;&#61; 0 &amp;&amp; break</span>
+          </td>
+        </tr>
+        <tr id='L510'>
+          <td class='lineno'>510</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        end</span>
+          </td>
+        </tr>
+        <tr id='L511'>
+          <td class='lineno'>511</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L512'>
+          <td class='lineno'>512</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return iter</span>
+          </td>
+        </tr>
+        <tr id='L513'>
+          <td class='lineno'>513</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L514'>
+          <td class='lineno'>514</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L515'>
+          <td class='lineno'>515</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>last&#40;h::OrderedDict&#41; &#61; h.keys&#91;end&#93; &#61;&gt; h.vals&#91;end&#93;</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+

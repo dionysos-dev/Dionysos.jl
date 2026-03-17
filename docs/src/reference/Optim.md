@@ -22,12 +22,10 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.make_out_of_domain_handler
 ```@docs
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_observation_partition
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.bisimulation_pclf
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.extract_mode_matrices
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_sublevel_sequence
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_slice_sequence
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_partitions!
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_terminal_transitions!
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.refine_one_state!
 ```
 
 ```@docs

@@ -24,19 +24,12 @@ function set_intersection(P::Poly, Q::Poly)
     # if !isempty(intersection)
     #     return clean_poly(intersection)
     # else
-    #     return HPolytope(zeros(eltype(P), 0, dim(P)), zeros(eltype(P), 0))
+    #     return EmptySet{Float64}(dim(P))
     # end
 end
-# return # clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
 
-# Safer than restricting to HPolytope only
-function is_nonempty_set(P)
-    try
-        return !isempty(P)
-    catch
-        return false
-    end
-end
+is_nonempty_set(::LazySets.EmptySet) = false
+is_nonempty_set(P) = !isempty(P)
 
 # ============================================================
 # Semi-linear sets = finite unions of polytopes
@@ -69,7 +62,7 @@ Base.isempty(S::SemiLinearSet) = isempty(S.parts)
 Base.iterate(S::SemiLinearSet, st...) = iterate(S.parts, st...)
 
 function Base.show(io::IO, S::SemiLinearSet)
-    print(io, "SemiLinearSet($(length(S.parts)) parts)")
+    return print(io, "SemiLinearSet($(length(S.parts)) parts)")
 end
 
 function normalize_semilinear(S::SemiLinearSet)
@@ -124,11 +117,7 @@ end
 # Semi-linear sets : Difference
 # ============================================================
 
-function set_difference_decompose(
-    S1::SemiLinearSet,
-    S2::SemiLinearSet;
-    atol::Float64 = 0.0,
-)
+function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Float64 = 0.0)
     current = copy(S1.parts)
     for Q in S2.parts
         new_current = Poly[]
@@ -140,11 +129,7 @@ function set_difference_decompose(
     return SemiLinearSet(current)
 end
 
-function set_difference_decompose(
-    S::SemiLinearSet,
-    P0::Poly;
-    atol::Float64 = 0.0,
-)
+function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.0)
     out = Poly[]
     for P1 in S.parts
         append!(out, set_difference_decompose(P1, P0; atol = atol))
@@ -193,13 +178,6 @@ function preimage_linear(P::Poly, A::AbstractMatrix)
     return clean_poly(HPolytope(new_cons))
 end
 
-
-"""
-    preimage_linear_parts(S, A)
-
-Compute the linear preimage of each polytope in the semilinear set `S`
-separately, returning a vector of polytopes.
-"""
 function preimage_linear_parts(S::SemiLinearSet, A::AbstractMatrix)
     parts = Poly[]
     for P in S
@@ -231,73 +209,4 @@ end
             P
         end
     end
-end
-
-# ============================================================
-# Helpers for 2D contour extraction
-# ============================================================
-
-_round_point(x::Tuple{<:Real,<:Real}; digits::Int = 10) =
-    (round(Float64(x[1]); digits = digits), round(Float64(x[2]); digits = digits))
-
-# Canonical undirected edge key
-function _edge_key(p1::Tuple{Float64,Float64}, p2::Tuple{Float64,Float64})
-    return p1 <= p2 ? (p1, p2) : (p2, p1)
-end
-
-# Get ordered 2D vertices of a polytope
-function _polygon_vertices_2d(P::Poly)
-    verts = vertices_list(P)
-    pts = [LA.Vector{Float64}(v) for v in verts]
-
-    isempty(pts) && return Tuple{Float64,Float64}[]
-
-    # remove duplicate closing point if present
-    out = Tuple{Float64,Float64}[]
-    for p in pts
-        push!(out, (Float64(p[1]), Float64(p[2])))
-    end
-
-    if length(out) >= 2 && out[1] == out[end]
-        pop!(out)
-    end
-    return out
-end
-
-# Boundary edges = edges that appear only once across all parts
-function boundary_edges_2d(S::SemiLinearSet; digits::Int = 10)
-    counts = Dict{Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}},Int}()
-    oriented = Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}[]
-
-    for P in S.parts
-        verts = _polygon_vertices_2d(P)
-        n = length(verts)
-        n < 2 && continue
-
-        for i in 1:n
-            p1 = _round_point(verts[i]; digits = digits)
-            p2 = _round_point(verts[mod1(i + 1, n)]; digits = digits)
-
-            # skip degenerate edge
-            p1 == p2 && continue
-
-            key = _edge_key(p1, p2)
-            counts[key] = get(counts, key, 0) + 1
-            push!(oriented, (p1, p2))
-        end
-    end
-
-    # keep only edges that occur once
-    out = Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}[]
-    seen = Set{Tuple{Tuple{Float64,Float64},Tuple{Float64,Float64}}}()
-
-    for (p1, p2) in oriented
-        key = _edge_key(p1, p2)
-        if counts[key] == 1 && !(key in seen)
-            push!(out, (p1, p2))
-            push!(seen, key)
-        end
-    end
-
-    return out
 end

@@ -280,10 +280,10 @@ function bisimulation_pclf(
     f::HybridSystems.HybridSystem,
     pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
-    obs_partition::AbstractVector{<:Tuple{<:SemiLinearSet,Int}};
+    obs_partition::AbstractVector{<:Tuple{<:SemiLinearSet, Int}};
     verbose::Bool = true,
     atol::Float64 = 0.0,
-    max_slices::Union{Nothing,Int} = nothing,
+    max_slices::Union{Nothing, Int} = nothing,
 )
     A = extract_mode_matrices(f)
 
@@ -292,7 +292,7 @@ function bisimulation_pclf(
 
     U = typeof(first(pclf.graph.verts))
     SL = SemiLinearSet
-    T = PCBisimulationQuotient{SL,U}(slices, obs_partition)
+    T = PCBisimulationQuotient{SL, U}(slices, obs_partition)
 
     initialize_partitions!(T)
     initialize_terminal_transitions!(T, pclf)
@@ -311,8 +311,8 @@ function bisimulation_pclf(
             verbose && println("  destination/mode = ($d, $m)")
 
             target_ids = [
-                qid for qid in get(T.part_ids, d, Int[])
-                if haskey(T.states, qid) && T.states[qid].slice == i
+                qid for qid in get(T.part_ids, d, Int[]) if
+                haskey(T.states, qid) && T.states[qid].slice == i
             ]
 
             isempty(target_ids) && continue
@@ -326,8 +326,8 @@ function bisimulation_pclf(
 
                 for s in source_nodes
                     source_ids = [
-                        pid for pid in get(T.part_ids, s, Int[])
-                        if haskey(T.states, pid) && T.states[pid].slice > i
+                        pid for pid in get(T.part_ids, s, Int[]) if
+                        haskey(T.states, pid) && T.states[pid].slice > i
                     ]
 
                     for pid in source_ids
@@ -338,12 +338,12 @@ function bisimulation_pclf(
                             continue
                         end
 
-                        refined = refine_one_state_by_parts!(
-                            T, pid, pre_parts, m, qid; atol = atol
-                        )
+                        refined = refine_one_state!(T, pid, pre_parts, m, qid; atol = atol)
                         refined && (refine_count += 1)
 
-                        verbose && refined && refine_count % 50 == 0 &&
+                        verbose &&
+                            refined &&
+                            refine_count % 50 == 0 &&
                             println("    refinement: $refine_count")
                     end
                 end
@@ -354,24 +354,11 @@ function bisimulation_pclf(
     return T
 end
 
-
-function group_edges_by_dest_mode(edges, ::Type{U}) where {U}
-    grouped = Dict{Tuple{U,Int}, Vector{U}}()
-    for (s, d, m) in edges
-        push!(get!(grouped, (d, Int(m)), U[]), s)
-    end
-    return grouped
-end
-
 # ============================================================
 # Switched system helpers
 # ============================================================
 
-"""
-    extract_mode_matrices(f)
-
-Extract the linear reset / mode matrices from a switched `HybridSystem`.
-"""
+# could be move to system
 function extract_mode_matrices(f::HybridSystems.HybridSystem)
     RMs = f.resetmaps
     A = Vector{Matrix{Float64}}(undef, length(RMs))
@@ -417,10 +404,10 @@ For each node `s`, build
 Each slice is stored as a vector of H-polytopes.
 """
 function build_slice_sequence(
-    sublevels::Dict{U,Vector{Poly}};
+    sublevels::Dict{U, Vector{Poly}};
     atol::Float64 = 0.0,
 ) where {U}
-    slices = Dict{U,Vector{SemiLinearSet}}()
+    slices = Dict{U, Vector{SemiLinearSet}}()
 
     for (s, Ps) in sublevels
         Ns = length(Ps)
@@ -447,7 +434,7 @@ end
 Build the initial node-dependent partitions:
     P_0^(s) = { O ∩ S_i^(s) : O ∈ P_X, S_i^(s) slice, intersection nonempty }.
 """
-function initialize_partitions!(T::PCBisimulationQuotient{SemiLinearSet,U}) where {U}
+function initialize_partitions!(T::PCBisimulationQuotient{SemiLinearSet, U}) where {U}
     for (s, slice_list) in T.slices
         for (i, Sset) in enumerate(slice_list)
             for (ObsSet, obs) in T.obs_partition
@@ -492,8 +479,8 @@ end
 # Refinement
 # ============================================================
 
-function refine_one_state_by_parts!(
-    T::PCBisimulationQuotient{SemiLinearSet,U},
+function refine_one_state!(
+    T::PCBisimulationQuotient{SemiLinearSet, U},
     qid::Int,
     pre_parts::AbstractVector,
     mode::Int,
@@ -551,6 +538,19 @@ function refine_one_state_by_parts!(
     return true
 end
 
+# ============================================================
+# Helpers
+# ============================================================
+
+function group_edges_by_dest_mode(edges, ::Type{U}) where {U}
+    grouped = Dict{Tuple{U, Int}, Vector{U}}()
+    for (s, d, m) in edges
+        push!(get!(grouped, (d, Int(m)), U[]), s)
+    end
+    return grouped
+end
+
+# this could be remove, and adapt the...
 @recipe function f(obs_partition::Vector{Tuple{HPolytope, Int}})
     palette = [:gray, :red, :green, :blue, :orange, :purple]
 

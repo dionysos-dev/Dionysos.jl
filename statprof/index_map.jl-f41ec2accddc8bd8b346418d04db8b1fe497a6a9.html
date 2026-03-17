@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'></meta>
+    <link rel='stylesheet' type='text/css' href='statprofiler.css'></link>
+    <title>StatProfilerHTML - ..\..\..\.julia\packages\MathOptInterface\Q3V1z\src\Utilities\copy\index_map.jl</title>
+  </head>
+  <body>
+    <div class='report-header'>
+      <div class='backlink'>
+        <a href='index.html'>Report index</a>
+      </div>
+      <div class='report-title'>
+        StatProfilerHTML.jl report
+      </div>
+      <div class='generated-on'>
+        Generated on Mon, 16 Mar 2026 19:42:19
+      </div>
+    </div>
+    <table>
+      <caption>File source code</caption>
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th>Exclusive</th>
+          <th>Inclusive</th>
+          <th>Code</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id='L1'>
+          <td class='lineno'>1</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># Copyright &#40;c&#41; 2017: Miles Lubin and contributors</span>
+          </td>
+        </tr>
+        <tr id='L2'>
+          <td class='lineno'>2</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># Copyright &#40;c&#41; 2017: Google Inc.</span>
+          </td>
+        </tr>
+        <tr id='L3'>
+          <td class='lineno'>3</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#</span>
+          </td>
+        </tr>
+        <tr id='L4'>
+          <td class='lineno'>4</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># Use of this source code is governed by an MIT-style license that can be found</span>
+          </td>
+        </tr>
+        <tr id='L5'>
+          <td class='lineno'>5</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># in the LICENSE.md file or at https://opensource.org/licenses/MIT.</span>
+          </td>
+        </tr>
+        <tr id='L6'>
+          <td class='lineno'>6</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L7'>
+          <td class='lineno'>7</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># IndexMap is defined here because there is a boostrapping problem.</span>
+          </td>
+        </tr>
+        <tr id='L8'>
+          <td class='lineno'>8</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#  * IndexMap requires &#96;Utilities.CleverDicts&#96; and &#96;Utilities.DoubleDicts&#96;, so</span>
+          </td>
+        </tr>
+        <tr id='L9'>
+          <td class='lineno'>9</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#    if it were to be defined in MOI proper, it must be included after</span>
+          </td>
+        </tr>
+        <tr id='L10'>
+          <td class='lineno'>10</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#    Utilities.</span>
+          </td>
+        </tr>
+        <tr id='L11'>
+          <td class='lineno'>11</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#  * However, Utilities requires IndexMap, so it must be defined before</span>
+          </td>
+        </tr>
+        <tr id='L12'>
+          <td class='lineno'>12</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>#    Utilities.jl is included.</span>
+          </td>
+        </tr>
+        <tr id='L13'>
+          <td class='lineno'>13</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'># To work around this issue, we define &#96;IndexMap&#96; here.</span>
+          </td>
+        </tr>
+        <tr id='L14'>
+          <td class='lineno'>14</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L15'>
+          <td class='lineno'>15</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>struct IndexMap &lt;: AbstractDict&#123;MOI.Index,MOI.Index&#125;</span>
+          </td>
+        </tr>
+        <tr id='L16'>
+          <td class='lineno'>16</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    var_map::CleverDicts.CleverDict&#123;</span>
+          </td>
+        </tr>
+        <tr id='L17'>
+          <td class='lineno'>17</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        MOI.VariableIndex,</span>
+          </td>
+        </tr>
+        <tr id='L18'>
+          <td class='lineno'>18</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        MOI.VariableIndex,</span>
+          </td>
+        </tr>
+        <tr id='L19'>
+          <td class='lineno'>19</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        typeof&#40;CleverDicts.key_to_index&#41;,</span>
+          </td>
+        </tr>
+        <tr id='L20'>
+          <td class='lineno'>20</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        typeof&#40;CleverDicts.index_to_key&#41;,</span>
+          </td>
+        </tr>
+        <tr id='L21'>
+          <td class='lineno'>21</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    &#125;</span>
+          </td>
+        </tr>
+        <tr id='L22'>
+          <td class='lineno'>22</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    con_map::DoubleDicts.IndexDoubleDict</span>
+          </td>
+        </tr>
+        <tr id='L23'>
+          <td class='lineno'>23</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L24'>
+          <td class='lineno'>24</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L25'>
+          <td class='lineno'>25</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L26'>
+          <td class='lineno'>26</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    IndexMap&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L27'>
+          <td class='lineno'>27</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L28'>
+          <td class='lineno'>28</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>The dictionary-like object returned by &#91;&#96;MOI.copy_to&#96;&#93;&#40;@ref&#41;.</span>
+          </td>
+        </tr>
+        <tr id='L29'>
+          <td class='lineno'>29</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L30'>
+          <td class='lineno'>30</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function IndexMap&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L31'>
+          <td class='lineno'>31</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>1038 &#40;2 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              1038 &#40;2 &#37;&#41;
+              samples spent in IndexMap
+              <br />
+              
+              438 &#40;42 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L346'>line 346</a>
+              <br />
+              
+              243 &#40;23 &#37;&#41; &#40;incl.&#41;
+              when called from _copy_variables_with_set
+              <a href='copy.jl-f262aa8a78c4b576cc24d0b83e5bdd0495f210bd.html#L527'>line 527</a>
+              <br />
+              
+              202 &#40;19 &#37;&#41; &#40;incl.&#41;
+              when called from _reverse_index_map
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L276'>line 276</a>
+              <br />
+              
+              155 &#40;15 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L347'>line 347</a>
+              <br />
+            </div>
+            <div class='callees'>
+              1038 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L91'>CleverDict</a>
+              <br />
+            </div>
+            <span class='code'>    var_map &#61; CleverDicts.CleverDict&#123;MOI.VariableIndex,MOI.VariableIndex&#125;&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L32'>
+          <td class='lineno'>32</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>749 &#40;1 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              749 &#40;1 &#37;&#41;
+              samples spent in IndexMap
+              <br />
+              
+              258 &#40;34 &#37;&#41; &#40;incl.&#41;
+              when called from _reverse_index_map
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L276'>line 276</a>
+              <br />
+              
+              213 &#40;28 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L346'>line 346</a>
+              <br />
+              
+              170 &#40;23 &#37;&#41; &#40;incl.&#41;
+              when called from _copy_variables_with_set
+              <a href='copy.jl-f262aa8a78c4b576cc24d0b83e5bdd0495f210bd.html#L527'>line 527</a>
+              <br />
+              
+              108 &#40;14 &#37;&#41; &#40;incl.&#41;
+              when called from empty&#33;
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L347'>line 347</a>
+              <br />
+            </div>
+            <div class='callees'>
+              749 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='DoubleDicts.jl-23b1cd74d1d1766f9f36670d3885d2b0ca2f3502.html#L85'>IndexDoubleDict</a>
+              <br />
+            </div>
+            <span class='code'>    con_map &#61; DoubleDicts.IndexDoubleDict&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L33'>
+          <td class='lineno'>33</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return IndexMap&#40;var_map, con_map&#41;</span>
+          </td>
+        </tr>
+        <tr id='L34'>
+          <td class='lineno'>34</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L35'>
+          <td class='lineno'>35</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L36'>
+          <td class='lineno'>36</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function _identity_constraints_map&#40;</span>
+          </td>
+        </tr>
+        <tr id='L37'>
+          <td class='lineno'>37</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    model,</span>
+          </td>
+        </tr>
+        <tr id='L38'>
+          <td class='lineno'>38</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    map::DoubleDicts.IndexDoubleDictInner&#123;F,S&#125;,</span>
+          </td>
+        </tr>
+        <tr id='L39'>
+          <td class='lineno'>39</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#41; where &#123;F,S&#125;</span>
+          </td>
+        </tr>
+        <tr id='L40'>
+          <td class='lineno'>40</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for c in MOI.get&#40;model, MOI.ListOfConstraintIndices&#123;F,S&#125;&#40;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L41'>
+          <td class='lineno'>41</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        map&#91;c&#93; &#61; c</span>
+          </td>
+        </tr>
+        <tr id='L42'>
+          <td class='lineno'>42</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L43'>
+          <td class='lineno'>43</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return</span>
+          </td>
+        </tr>
+        <tr id='L44'>
+          <td class='lineno'>44</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L45'>
+          <td class='lineno'>45</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L46'>
+          <td class='lineno'>46</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L47'>
+          <td class='lineno'>47</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    identity_index_map&#40;model::MOI.ModelLike&#41;</span>
+          </td>
+        </tr>
+        <tr id='L48'>
+          <td class='lineno'>48</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L49'>
+          <td class='lineno'>49</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Return an &#91;&#96;IndexMap&#96;&#93;&#40;@ref&#41; that maps all variable and constraint indices of</span>
+          </td>
+        </tr>
+        <tr id='L50'>
+          <td class='lineno'>50</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#96;model&#96; to themselves.</span>
+          </td>
+        </tr>
+        <tr id='L51'>
+          <td class='lineno'>51</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&quot;&quot;&quot;</span>
+          </td>
+        </tr>
+        <tr id='L52'>
+          <td class='lineno'>52</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function identity_index_map&#40;model::MOI.ModelLike&#41;</span>
+          </td>
+        </tr>
+        <tr id='L53'>
+          <td class='lineno'>53</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    variables &#61; MOI.get&#40;model, MOI.ListOfVariableIndices&#40;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L54'>
+          <td class='lineno'>54</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    map &#61; IndexMap&#40;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L55'>
+          <td class='lineno'>55</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for x in variables</span>
+          </td>
+        </tr>
+        <tr id='L56'>
+          <td class='lineno'>56</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        map&#91;x&#93; &#61; x</span>
+          </td>
+        </tr>
+        <tr id='L57'>
+          <td class='lineno'>57</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L58'>
+          <td class='lineno'>58</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    for &#40;F, S&#41; in MOI.get&#40;model, MOI.ListOfConstraintTypesPresent&#40;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L59'>
+          <td class='lineno'>59</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>        _identity_constraints_map&#40;model, map.con_map&#91;F, S&#93;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L60'>
+          <td class='lineno'>60</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    end</span>
+          </td>
+        </tr>
+        <tr id='L61'>
+          <td class='lineno'>61</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return map</span>
+          </td>
+        </tr>
+        <tr id='L62'>
+          <td class='lineno'>62</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L63'>
+          <td class='lineno'>63</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L64'>
+          <td class='lineno'>64</td>
+          <td class='tracecount excl'>3 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>32 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              32 &#40;0 &#37;&#41;
+              samples spent in getindex
+              <br />
+              
+              18 &#40;56 &#37;&#41; &#40;incl.&#41;
+              when called from Fix1
+              <a href='operators.jl-35a2f47069a9887585ec4e2beda56a469bb72b5e.html#L1118'>line 1118</a>
+              <br />
+              3 &#40;9 &#37;&#41; &#40;ex.&#41;,
+              10 &#40;31 &#37;&#41; &#40;incl.&#41;
+              when called from get
+              <a href='cachingoptimizer.jl-4a4712a5ebe8ac1a908bda70572e404ed08b6878.html#L934'>line 934</a>
+              <br />
+              
+              4 &#40;12 &#37;&#41; &#40;incl.&#41;
+              when called from _pass_attribute
+              <a href='copy.jl-f262aa8a78c4b576cc24d0b83e5bdd0495f210bd.html#L93'>line 93</a>
+              <br />
+            </div>
+            <div class='callees'>
+              14 &#40;48 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L163'>getindex</a>
+              <br />
+              9 &#40;31 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L166'>getindex</a>
+              <br />
+              5 &#40;17 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L162'>getindex</a>
+              <br />
+              1 &#40;3 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L0'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>Base.getindex&#40;map::IndexMap, key::MOI.VariableIndex&#41; &#61; map.var_map&#91;key&#93;</span>
+          </td>
+        </tr>
+        <tr id='L65'>
+          <td class='lineno'>65</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L66'>
+          <td class='lineno'>66</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.getindex&#40;map::IndexMap, key::MOI.ConstraintIndex&#123;F,S&#125;&#41; where &#123;F,S&#125;</span>
+          </td>
+        </tr>
+        <tr id='L67'>
+          <td class='lineno'>67</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return map.con_map&#91;key&#93;::MOI.ConstraintIndex&#123;F,S&#125;</span>
+          </td>
+        </tr>
+        <tr id='L68'>
+          <td class='lineno'>68</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L69'>
+          <td class='lineno'>69</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L70'>
+          <td class='lineno'>70</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.getindex&#40;map::IndexMap, ::Type&#123;F&#125;, ::Type&#123;S&#125;&#41; where &#123;F,S&#125;</span>
+          </td>
+        </tr>
+        <tr id='L71'>
+          <td class='lineno'>71</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>348 &#40;1 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              348 &#40;1 &#37;&#41;
+              samples spent in getindex
+              <br />
+              
+              348 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from _copy_constraints
+              <a href='copy.jl-f262aa8a78c4b576cc24d0b83e5bdd0495f210bd.html#L192'>line 192</a>
+              <br />
+            </div>
+            <div class='callees'>
+              348 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='DoubleDicts.jl-23b1cd74d1d1766f9f36670d3885d2b0ca2f3502.html#L106'>getindex</a>
+              <br />
+            </div>
+            <span class='code'>    return map.con_map&#91;F, S&#93;</span>
+          </td>
+        </tr>
+        <tr id='L72'>
+          <td class='lineno'>72</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L73'>
+          <td class='lineno'>73</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L74'>
+          <td class='lineno'>74</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.setindex&#33;&#40;</span>
+          </td>
+        </tr>
+        <tr id='L75'>
+          <td class='lineno'>75</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    map::IndexMap,</span>
+          </td>
+        </tr>
+        <tr id='L76'>
+          <td class='lineno'>76</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    value::MOI.VariableIndex,</span>
+          </td>
+        </tr>
+        <tr id='L77'>
+          <td class='lineno'>77</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key::MOI.VariableIndex,</span>
+          </td>
+        </tr>
+        <tr id='L78'>
+          <td class='lineno'>78</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#41;</span>
+          </td>
+        </tr>
+        <tr id='L79'>
+          <td class='lineno'>79</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>61 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              61 &#40;0 &#37;&#41;
+              samples spent in setindex&#33;
+              <br />
+              
+              61 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from _copy_variables_with_set
+              <a href='copy.jl-f262aa8a78c4b576cc24d0b83e5bdd0495f210bd.html#L555'>line 555</a>
+              <br />
+            </div>
+            <div class='callees'>
+              61 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='CleverDicts.jl-1995152661036dbb33b7406e1e0e2c118843798a.html#L171'>setindex&#33;</a>
+              <br />
+            </div>
+            <span class='code'>    return map.var_map&#91;key&#93; &#61; value</span>
+          </td>
+        </tr>
+        <tr id='L80'>
+          <td class='lineno'>80</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L81'>
+          <td class='lineno'>81</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L82'>
+          <td class='lineno'>82</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.setindex&#33;&#40;</span>
+          </td>
+        </tr>
+        <tr id='L83'>
+          <td class='lineno'>83</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    map::IndexMap,</span>
+          </td>
+        </tr>
+        <tr id='L84'>
+          <td class='lineno'>84</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    value::MOI.ConstraintIndex&#123;F,S&#125;,</span>
+          </td>
+        </tr>
+        <tr id='L85'>
+          <td class='lineno'>85</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    key::MOI.ConstraintIndex&#123;F,S&#125;,</span>
+          </td>
+        </tr>
+        <tr id='L86'>
+          <td class='lineno'>86</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>&#41; where &#123;F,S&#125;</span>
+          </td>
+        </tr>
+        <tr id='L87'>
+          <td class='lineno'>87</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return map.con_map&#91;key&#93; &#61; value</span>
+          </td>
+        </tr>
+        <tr id='L88'>
+          <td class='lineno'>88</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L89'>
+          <td class='lineno'>89</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L90'>
+          <td class='lineno'>90</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Base.delete&#33;&#40;map::IndexMap, x::MOI.VariableIndex&#41; &#61; delete&#33;&#40;map.var_map, x&#41;</span>
+          </td>
+        </tr>
+        <tr id='L91'>
+          <td class='lineno'>91</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L92'>
+          <td class='lineno'>92</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Base.delete&#33;&#40;map::IndexMap, c::MOI.ConstraintIndex&#41; &#61; delete&#33;&#40;map.con_map, c&#41;</span>
+          </td>
+        </tr>
+        <tr id='L93'>
+          <td class='lineno'>93</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L94'>
+          <td class='lineno'>94</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Base.haskey&#40;map::IndexMap, c::MOI.ConstraintIndex&#41; &#61; haskey&#40;map.con_map, c&#41;</span>
+          </td>
+        </tr>
+        <tr id='L95'>
+          <td class='lineno'>95</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L96'>
+          <td class='lineno'>96</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Base.haskey&#40;map::IndexMap, x::MOI.VariableIndex&#41; &#61; haskey&#40;map.var_map, x&#41;</span>
+          </td>
+        </tr>
+        <tr id='L97'>
+          <td class='lineno'>97</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L98'>
+          <td class='lineno'>98</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>function Base.keys&#40;map::IndexMap&#41;</span>
+          </td>
+        </tr>
+        <tr id='L99'>
+          <td class='lineno'>99</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>    return Iterators.flatten&#40;&#40;keys&#40;map.var_map&#41;, keys&#40;map.con_map&#41;&#41;&#41;</span>
+          </td>
+        </tr>
+        <tr id='L100'>
+          <td class='lineno'>100</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+        <tr id='L101'>
+          <td class='lineno'>101</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L102'>
+          <td class='lineno'>102</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>Base.length&#40;map::IndexMap&#41; &#61; length&#40;map.var_map&#41; &#43; length&#40;map.con_map&#41;</span>
+          </td>
+        </tr>
+        <tr id='L103'>
+          <td class='lineno'>103</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'></span>
+          </td>
+        </tr>
+        <tr id='L104'>
+          <td class='lineno'>104</td>
+          <td class='tracecount excl'>8 &#40;0 &#37;&#41;</td>
+          <td class='tracecount incl'>8 &#40;0 &#37;&#41;</td>
+          <td>
+            <div class='call-sites'>
+              525 &#40;1 &#37;&#41;
+              samples spent in iterate
+              <br />
+              8 &#40;2 &#37;&#41; &#40;ex.&#41;,
+              525 &#40;100 &#37;&#41; &#40;incl.&#41;
+              when called from isempty
+              <a href='essentials.jl-2371200e5dc6587dd2c13e1101959cbe48161773.html#L957'>line 957</a>
+              <br />
+            </div>
+            
+            <span class='code'>function Base.iterate&#40;map::IndexMap, args...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L105'>
+          <td class='lineno'>105</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'>517 &#40;1 &#37;&#41;</td>
+          <td>
+            
+            <div class='callees'>
+              517 &#40;100 &#37;&#41;
+              samples spent calling
+              <a href='iterators.jl-dc86d2ef5e1159e71bac854bfb4a2d5a86e97eef.html#L1196'>iterate</a>
+              <br />
+            </div>
+            <span class='code'>    return iterate&#40;Base.Iterators.flatten&#40;&#40;map.var_map, map.con_map&#41;&#41;, args...&#41;</span>
+          </td>
+        </tr>
+        <tr id='L106'>
+          <td class='lineno'>106</td>
+          <td class='tracecount excl'></td>
+          <td class='tracecount incl'></td>
+          <td>
+            
+            
+            <span class='code'>end</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+

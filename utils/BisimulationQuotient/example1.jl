@@ -92,7 +92,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("num_levels"), 8)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 2) # nothing
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 4) # nothing
 
 # ---------------------------------------------------------
 # Solve
@@ -101,7 +101,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 2) # nothing
 using StatProfilerHTML
 @profilehtml MOI.optimize!(optimizer)
 # MOI.optimize!(optimizer)
-
 
 # MOI.optimize!(optimizer)
 construction_time =

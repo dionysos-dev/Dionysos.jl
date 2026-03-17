@@ -11,12 +11,12 @@ mutable struct PCAbstractState{S, U}
     next::Vector{Tuple{Int, Int}}   # (mode, target_state_id)
 end
 
-mutable struct PCBisimulationQuotient{S,U}
-    states::Dict{Int, PCAbstractState{S,U}}
+mutable struct PCBisimulationQuotient{S, U}
+    states::Dict{Int, PCAbstractState{S, U}}
     part_ids::Dict{U, Vector{Int}}
     next_id::Int
     slices::Dict{U, Vector{S}}
-    obs_partition::Vector{Tuple{S,Int}}
+    obs_partition::Vector{Tuple{S, Int}}
 end
 
 function PCBisimulationQuotient{S, U}(
@@ -116,8 +116,7 @@ end
 
     if what == :states
         qlist = [
-            q for q in values(T.states) if
-            (isnothing(node) || q.node == node) &&
+            q for q in values(T.states) if (isnothing(node) || q.node == node) &&
             (isnothing(slice) || q.slice == slice) &&
             (isnothing(obs) || q.obs == obs)
         ]
@@ -154,7 +153,7 @@ end
     if what == :slices
         seen = Set{Tuple{Any, Int}}()
 
-        groups = Tuple{Any,Int,SemiLinearSet}[]
+        groups = Tuple{Any, Int, SemiLinearSet}[]
         for (nd, slice_list) in T.slices
             if !isnothing(node) && nd != node
                 continue
@@ -182,7 +181,9 @@ end
                     linealpha := local_linealpha
                     linewidth := linewidth
                     seriesalpha := seriesalpha
-                    label := (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" : ""
+                    label :=
+                        (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" :
+                        ""
                     P
                 end
             end
@@ -194,7 +195,7 @@ end
     if what == :obs_partition
         seen = Set{Int}()
 
-        plist = Tuple{SemiLinearSet,Int}[]
+        plist = Tuple{SemiLinearSet, Int}[]
         for (S, ob) in T.obs_partition
             if !isnothing(obs) && ob != obs
                 continue
