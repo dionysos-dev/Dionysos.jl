@@ -11,6 +11,7 @@ using JuMP
 using LazySets
 import HybridSystems
 import LinearAlgebra as LA
+import Base
 import RecipesBase: @recipe, @series
 using JLD2
 
@@ -25,32 +26,32 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
     pclf::Union{Nothing, PCLF.PCLF}
 
-    obs_partition::Any
-    Γ::Union{Nothing, Vector{Float64}}
-    num_levels::Union{Nothing, Int}
-    tau::Union{Nothing, Float64}
-    max_slices::Union{Nothing, Int} # debug
+    level_tol::T
+    max_levels::Int
+    max_slices::Int
 
     atol::T
     verbose::Bool
 
     # --- results ---
+    Γ::Union{Nothing, Vector{Float64}}
+    D::Union{Nothing, SemiLinearSet}
     bisimulation_quotient::Any
-    abstraction_construction_time_sec::T
+    construction_time_sec::T
 
     function OptimizerBisimulationQuotient{T}() where {T}
         return new{T}(
             nothing,    # bisimulation_quotient_problem
             nothing,    # pclf
-            nothing,    # obs_partition
-            nothing,    # Γ
-            nothing,    # num_levels
-            nothing,    # tau
-            nothing,    # max_slices
-            zero(T),    # atol
+            1e-3,       # level_tol
+            200,        # max_levels    
+            200,        # max_slices
+            1e-3,       # atol
             true,       # verbose
+            nothing,    # Γ
+            nothing,    # D
             nothing,    # bisimulation_quotient
-            zero(T),    # solve time
+            zero(T),    # construction_time_sec
         )
     end
 end
@@ -74,7 +75,7 @@ function MOI.set(
 end
 
 function MOI.get(model::OptimizerBisimulationQuotient, ::MOI.SolveTimeSec)
-    return model.abstraction_construction_time_sec
+    return model.construction_time_sec
 end
 
 function MOI.get(model::OptimizerBisimulationQuotient, param::MOI.RawOptimizerAttribute)
@@ -86,8 +87,10 @@ function MOI.get(model::OptimizerBisimulationQuotient, param::MOI.RawOptimizerAt
 end
 
 function reset!(model::OptimizerBisimulationQuotient)
+    model.Γ = nothing
+    model.D = nothing
     model.bisimulation_quotient = nothing
-    model.abstraction_construction_time_sec = 0.0
+    model.construction_time_sec = 0.0
     return model
 end
 
@@ -167,120 +170,45 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
 
     system = prob.system
     X = prob.region
-    D = prob.terminal_region
     regions = prob.observation_regions
 
-    opt.obs_partition = build_observation_partition(
-        _as_hpolytope(X),
-        _as_hpolytope(D),
+    Γ, D = build_levels_and_terminal_set(
+        opt.pclf,
+        X,
         [_as_hpolytope(R) for R in regions];
-        atol = opt.atol,
+        tol = opt.level_tol,
+        max_levels = opt.max_levels,
     )
+    opt.Γ = Γ
+    opt.D = D
 
-    # Automatic Γ if user did not provide it
-    if isnothing(opt.Γ)
-        X isa Hyperrectangle || error(
-            "Automatic Γ construction currently expects `region` to be a Hyperrectangle.",
-        )
-        D isa Hyperrectangle || error(
-            "Automatic Γ construction currently expects `terminal_region` to be a Hyperrectangle.",
-        )
-
-        Γ_auto, τ_auto, ΓD, ΓX =
-            build_levels_from_problem(opt.pclf, X, D; num_levels = opt.num_levels)
-
-        opt.Γ = Γ_auto
-        opt.tau = τ_auto
-
-        opt.verbose && println("Automatic levels selected:")
-        opt.verbose && println("  ΓD = $ΓD")
-        opt.verbose && println("  ΓX = $ΓX")
-        opt.verbose && println("  τ  = $τ_auto")
-        opt.verbose && println("  Γ  = $(opt.Γ)")
-    end
+    println("Computed levels Γ = ", Γ)
+    println("Computed terminal set D = ", D)
 
     T = bisimulation_pclf(
         system,
         opt.pclf,
         opt.Γ,
-        opt.obs_partition;
+        regions;
         verbose = opt.verbose,
         atol = opt.atol,
         max_slices = opt.max_slices,
     )
 
     opt.bisimulation_quotient = T
-    opt.abstraction_construction_time_sec = time() - t_ref
+    opt.construction_time_sec = time() - t_ref
     return
-end
-
-# ============================================================
-# Observation partition
-# ============================================================
-
-"""
-    build_observation_partition(X, D, regions; neutral_obs = 0, terminal_obs = -1, atol = 0.0)
-
-Build
-    P_X = { R_i, X \\ (D ∪ ⋃_i R_i), D }
-
-returned as a vector `(polytope, obs_label)`.
-
-Labels:
-- region `R_i` gets label `i`
-- neutral region gets `neutral_obs`
-- terminal set `D` gets `terminal_obs`
-"""
-function build_observation_partition(
-    X,
-    D,
-    regions;
-    neutral_obs::Int = 0,
-    terminal_obs::Int = -1,
-    atol::Float64 = 0.0,
-)
-    Xh = _as_hpolytope(X)
-    Dh = _as_hpolytope(D)
-    Rh = [_as_hpolytope(R) for R in regions]
-
-    out = Vector{Tuple{SemiLinearSet, Int}}()
-
-    for (i, R) in enumerate(Rh)
-        I = set_intersection(Xh, R)
-        if is_nonempty_set(I)
-            push!(out, (SemiLinearSet(I), i))
-        end
-    end
-
-    excluded = SemiLinearSet(vcat([Dh], Rh))
-    neutral_set = set_difference_decompose(SemiLinearSet(Xh), excluded; atol = atol)
-    if is_nonempty_set(neutral_set)
-        push!(out, (neutral_set, neutral_obs))
-    end
-
-    Dcap = set_intersection(Xh, Dh)
-    if is_nonempty_set(Dcap)
-        push!(out, (SemiLinearSet(Dcap), terminal_obs))
-    end
-
-    return out
 end
 
 # ============================================================
 # Main PCLF bisimulation algorithm
 # ============================================================
 
-"""
-    bisimulation_pclf(f, pclf, Γ, obs_partition; verbose = true, atol = 0.0)
-
-Construct the bisimulation quotient on the lifted product system.
-Graph edges are stored as `(source_node, destination_node, mode_label)`.
-"""
 function bisimulation_pclf(
     f::HybridSystems.HybridSystem,
     pclf::PCLF.PCLF,
     Γ::AbstractVector{<:Real},
-    obs_partition::AbstractVector{<:Tuple{<:SemiLinearSet, Int}};
+    regions;
     verbose::Bool = true,
     atol::Float64 = 0.0,
     max_slices::Union{Nothing, Int} = nothing,
@@ -292,19 +220,17 @@ function bisimulation_pclf(
 
     U = typeof(first(pclf.graph.verts))
     SL = SemiLinearSet
-    T = PCBisimulationQuotient{SL, U}(slices, obs_partition)
+    T = PCBisimulationQuotient{SL, U}(slices)
 
-    initialize_partitions!(T)
-    initialize_terminal_transitions!(T, pclf)
+    initialize_partitions!(T; neutral_obs = 0, terminal_obs = -1)
+    refine_partitions_by_observations!(T, regions; terminal_obs = -1, atol = atol)
+    # initialize_terminal_transitions!(T, pclf)
 
     incoming_by_dm = group_edges_by_dest_mode(pclf.graph.edges, U)
 
     N = length(Γ)
-    Niter = isnothing(max_slices) ? N : min(max_slices, N)
-
     refine_count = 0
-
-    for i in 1:Niter
+    for i in 1:min(max_slices, N)
         verbose && println("Current slice = $i")
 
         for ((d, m), source_nodes) in incoming_by_dm
@@ -378,12 +304,6 @@ end
 # Slice generation
 # ============================================================
 
-"""
-    build_sublevel_sequence(pclf, Γ)
-
-Return a dictionary mapping each graph node `s` to the list
-`[P^{(s)}_{Γ_1}, ..., P^{(s)}_{Γ_N}]`.
-"""
 function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     U = typeof(first(pclf.graph.verts))
     sublevels = Dict{U, Vector{Poly}}()
@@ -394,15 +314,6 @@ function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     return sublevels
 end
 
-"""
-    build_slice_sequence(sublevels; atol = 0.0)
-
-For each node `s`, build
-    S_1^{(s)} = P_{Γ_1}^{(s)}
-    S_i^{(s)} = P_{Γ_i}^{(s)} \\ P_{Γ_{i-1}}^{(s)},  i>=2
-
-Each slice is stored as a vector of H-polytopes.
-"""
 function build_slice_sequence(
     sublevels::Dict{U, Vector{Poly}};
     atol::Float64 = 0.0,
@@ -425,24 +336,99 @@ function build_slice_sequence(
 end
 
 # ============================================================
-# Initialization
+# Initialize partitions and transitions
 # ============================================================
 
-"""
-    initialize_partitions!(T)
-
-Build the initial node-dependent partitions:
-    P_0^(s) = { O ∩ S_i^(s) : O ∈ P_X, S_i^(s) slice, intersection nonempty }.
-"""
-function initialize_partitions!(T::PCBisimulationQuotient{SemiLinearSet, U}) where {U}
+function initialize_partitions!(
+    T::PCBisimulationQuotient{SemiLinearSet, U};
+    neutral_obs::Int = 0,
+    terminal_obs::Int = -1,
+) where {U}
     for (s, slice_list) in T.slices
         for (i, Sset) in enumerate(slice_list)
-            for (ObsSet, obs) in T.obs_partition
-                I = set_intersection(Sset, ObsSet)
-                if is_nonempty_set(I)
-                    add_state!(T, s, I, obs, i)
-                end
+            obs = (i == 1) ? terminal_obs : neutral_obs
+            if is_nonempty_set(Sset)
+                add_state!(T, s, Sset, obs, i)
             end
+        end
+    end
+    return T
+end
+
+function refine_state_by_observation!(
+    T::PCBisimulationQuotient{SemiLinearSet, U},
+    qid::Int,
+    R::Poly,
+    new_obs::Int;
+    terminal_obs::Int = -1,
+    atol::Float64 = 0.0,
+) where {U}
+    haskey(T.states, qid) || return false
+    q = T.states[qid]
+
+    q.obs == terminal_obs && return false
+
+    old_next = copy(q.next)
+    old_node = q.node
+    old_slice = q.slice
+    old_obs = q.obs
+
+    inside_parts = Poly[]
+    outside_parts = Poly[]
+    touched = false
+
+    for Q in q.set
+        I = set_intersection(Q, R)
+        if is_nonempty_set(I)
+            touched = true
+            push!(inside_parts, I)
+
+            D = set_difference_decompose(Q, R; atol = atol)
+            if !isempty(D)
+                append!(outside_parts, D)
+            end
+        else
+            push!(outside_parts, Q)
+        end
+    end
+
+    touched || return false
+
+    remove_state!(T, qid)
+
+    if !isempty(outside_parts)
+        out_id = add_state!(T, old_node, SemiLinearSet(outside_parts), old_obs, old_slice)
+        T.states[out_id].next = old_next
+    end
+
+    if !isempty(inside_parts)
+        in_id = add_state!(T, old_node, SemiLinearSet(inside_parts), new_obs, old_slice)
+        T.states[in_id].next = old_next
+    end
+
+    return true
+end
+
+function refine_partitions_by_observations!(
+    T::PCBisimulationQuotient{SemiLinearSet, U},
+    regions;
+    terminal_obs::Int = -1,
+    atol::Float64 = 0.0,
+) where {U}
+    Rh = [_as_hpolytope(R) for R in regions]
+
+    for (obs, R) in enumerate(Rh)
+        qids = copy(collect(keys(T.states)))
+        for qid in qids
+            haskey(T.states, qid) || continue
+            refine_state_by_observation!(
+                T,
+                qid,
+                R,
+                obs;
+                terminal_obs = terminal_obs,
+                atol = atol,
+            )
         end
     end
     return T
@@ -548,28 +534,6 @@ function group_edges_by_dest_mode(edges, ::Type{U}) where {U}
         push!(get!(grouped, (d, Int(m)), U[]), s)
     end
     return grouped
-end
-
-# this could be remove, and adapt the...
-@recipe function f(obs_partition::Vector{Tuple{HPolytope, Int}})
-    palette = [:gray, :red, :green, :blue, :orange, :purple]
-
-    seen = Set{Int}()
-
-    for (P, obs) in obs_partition
-        c = palette[mod1(obs + 2, length(palette))]
-
-        label_str = obs ∈ seen ? "" : "O $obs"
-        push!(seen, obs)
-
-        @series begin
-            fillalpha := 0.35
-            linecolor := c
-            fillcolor := c
-            label := label_str
-            P
-        end
-    end
 end
 
 end # module

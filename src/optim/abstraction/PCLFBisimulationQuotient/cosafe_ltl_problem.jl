@@ -360,7 +360,7 @@ function solve_concrete_problem_lifted(
     # Dimensions
     # ---------------------------------------------------------
     first_q = first(values(T.states))
-    nx = LazySets.dim(first_q.set)
+    nx = dim(first_q.set)
     nu = 1
 
     # memory is a 2-tuple (qa,qid)
@@ -390,7 +390,6 @@ end
 
 function initial_concrete_controller_memory(Q::QuotientAutomaton, qa0::Int, x0)
     T = Q.quotient
-
     qid0 = _find_qid_global(T, x0)
     isnothing(qid0) &&
         error("Initial concrete state is not contained in any quotient cell.")

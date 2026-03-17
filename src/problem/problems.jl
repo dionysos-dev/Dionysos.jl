@@ -29,13 +29,11 @@ A problem type used to construct a finite bisimulation quotient induced.
 # Fields
 - `system`: the switched system to abstract.
 - `region`: the state-space region of interest `X`.
-- `terminal_region`: the terminal invariant set `D`.
 - `observation_regions`: the regions of interest used to define the observation map.
 """
-mutable struct BisimulationQuotientProblem{S, X, D, R} <: ProblemType
+mutable struct BisimulationQuotientProblem{S, X, R} <: ProblemType
     system::S
     region::X
-    terminal_region::D
     observation_regions::R
 end
 
@@ -149,9 +147,7 @@ end
 @recipe function f(
     problem::BisimulationQuotientProblem;
     region_color = :gray,
-    terminal_region_color = :blue,
     region_alpha = 0.15,
-    terminal_region_alpha = 0.4,
     observation_region_alpha = 0.4,
     observation_colors = [:red, :green, :orange, :purple, :brown],
 )
@@ -161,14 +157,6 @@ end
         fillalpha := region_alpha
         problem.region
     end
-
-    @series begin
-        label := "Terminal region"
-        color := terminal_region_color
-        fillalpha := terminal_region_alpha
-        problem.terminal_region
-    end
-
     for (i, R) in enumerate(problem.observation_regions)
         @series begin
             label := "O $i"

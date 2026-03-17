@@ -4,7 +4,6 @@
 
 const Poly = HPolytope
 
-# Try to coerce a LazySets polyhedral object to an `HPolytope`.
 function _as_hpolytope(P)
     P isa HPolytope && return P
     try
@@ -20,12 +19,6 @@ end
 
 function set_intersection(P::Poly, Q::Poly)
     return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
-    # intersection = HPolytope(vcat(constraints_list(P), constraints_list(Q)))
-    # if !isempty(intersection)
-    #     return clean_poly(intersection)
-    # else
-    #     return EmptySet{Float64}(dim(P))
-    # end
 end
 
 is_nonempty_set(::LazySets.EmptySet) = false
@@ -60,6 +53,19 @@ end
 Base.length(S::SemiLinearSet) = length(S.parts)
 Base.isempty(S::SemiLinearSet) = isempty(S.parts)
 Base.iterate(S::SemiLinearSet, st...) = iterate(S.parts, st...)
+function dim(P::Poly)
+    cons = constraints_list(P)
+    isempty(cons) && error("Cannot infer dimension from empty constraint list.")
+    return length(first(cons).a)
+end
+function dim(S::SemiLinearSet)
+    isempty(S) && error("Cannot infer dimension of an empty SemiLinearSet.")
+    return dim(first(S.parts))
+end
+
+function Base.in(x::AbstractVector, S::SemiLinearSet)
+    return any(Base.in(x, P) for P in S.parts)
+end
 
 function Base.show(io::IO, S::SemiLinearSet)
     return print(io, "SemiLinearSet($(length(S.parts)) parts)")

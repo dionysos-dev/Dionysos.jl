@@ -16,19 +16,14 @@ mutable struct PCBisimulationQuotient{S, U}
     part_ids::Dict{U, Vector{Int}}
     next_id::Int
     slices::Dict{U, Vector{S}}
-    obs_partition::Vector{Tuple{S, Int}}
 end
 
-function PCBisimulationQuotient{S, U}(
-    slices::Dict{U, Vector{S}},
-    obs_partition::Vector{Tuple{S, Int}},
-) where {S, U}
+function PCBisimulationQuotient{S, U}(slices::Dict{U, Vector{S}}) where {S, U}
     return PCBisimulationQuotient{S, U}(
         Dict{Int, PCAbstractState{S, U}}(),
         Dict{U, Vector{Int}}(),
         1,
         slices,
-        obs_partition,
     )
 end
 
@@ -86,7 +81,7 @@ end
     slice = nothing,
     obs = nothing,
     mode = nothing,
-    by = :state,   # :state, :slice, :obs, :node
+    by = :state,
     fillalpha = 0.25,
     linewidth = 1.5,
     seriesalpha = 0.9,
@@ -189,48 +184,6 @@ end
             end
 
             push!(seen, key)
-        end
-    end
-
-    if what == :obs_partition
-        seen = Set{Int}()
-
-        plist = Tuple{SemiLinearSet, Int}[]
-        for (S, ob) in T.obs_partition
-            if !isnothing(obs) && ob != obs
-                continue
-            end
-            push!(plist, (S, ob))
-        end
-
-        for (S, ob) in plist
-            c = palette[mod1(ob + 2, length(palette))]
-
-            lbl = if ob in seen || !show_labels
-                ""
-            elseif ob == -1
-                "Terminal set"
-            elseif ob == 0
-                "Neutral region"
-            else
-                "Observation $ob"
-            end
-
-            for (j, P) in enumerate(S.parts)
-                @series begin
-                    seriestype := :shape
-                    fillcolor := c
-                    linecolor := c
-                    fillalpha := fillalpha
-                    linealpha := local_linealpha
-                    linewidth := linewidth
-                    seriesalpha := seriesalpha
-                    label := (j == 1) ? lbl : ""
-                    P
-                end
-            end
-
-            push!(seen, ob)
         end
     end
 end
