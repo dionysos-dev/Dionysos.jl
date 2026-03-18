@@ -20,27 +20,8 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.make_out_of_domain_handler
 ### PCLF Bisimulation Quotient solver
 
 ```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_observation_partition
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.bisimulation_pclf
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.extract_mode_matrices
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_sublevel_sequence
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_slice_sequence
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_partitions!
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.initialize_terminal_transitions!
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.refine_one_state!
-```
-
-```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.preimage_linear
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.set_difference_decompose
-```
-
-```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient._support_abs_row_on_hyperrectangle
 Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_set
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_region_all_nodes
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_terminal_all_nodes
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.build_levels_from_problem
+Dionysos.Optim.Abstraction.PCLFBisimulationQuotient._support_abs_row_on_hyperrectangle
 ```
 
 ### Other abstraction-based solvers

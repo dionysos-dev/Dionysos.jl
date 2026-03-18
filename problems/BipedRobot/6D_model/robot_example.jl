@@ -2,6 +2,9 @@
 #  Runner script for abstraction + optimal-control simulations
 # ==============================================================================
 
+using Distributed
+length(workers()) < 4 && addprocs(4 - length(workers()))
+
 using MathematicalSystems
 using StaticArrays
 using LinearAlgebra
@@ -9,7 +12,7 @@ using Plots
 using JuMP
 using JLD2
 
-using Dionysos
+@everywhere using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -17,11 +20,14 @@ const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
+rs_tools_path = joinpath(@__DIR__, "..", "src", "RS_tools.jl")
+@everywhere include($rs_tools_path)
 import .RS_tools
 
-include(joinpath(@__DIR__, "robot_problem.jl"))
-include(joinpath(@__DIR__, "utils.jl"))
+robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
+@everywhere include($robot_problem_path)
+
+@everywhere include(joinpath(@__DIR__, "utils.jl"))
 
 # ==============================================================================
 # Script parameters
@@ -60,11 +66,20 @@ function build_optimizer(;
         MOI.RawOptimizerAttribute("approx_mode"),
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 300)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("distributed_partition_strategy"),
+        :roundrobin,
+    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), false)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-    MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e3))
+
+    # MOI.set(optimizer, MOI.Silent(), true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)
 
     return optimizer

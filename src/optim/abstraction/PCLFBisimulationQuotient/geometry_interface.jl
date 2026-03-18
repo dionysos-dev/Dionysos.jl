@@ -1,10 +1,9 @@
 # ============================================================
-# Utilities
+# Polytopes
 # ============================================================
 
 const Poly = HPolytope
 
-# Try to coerce a LazySets polyhedral object to an `HPolytope`.
 function _as_hpolytope(P)
     P isa HPolytope && return P
     try
@@ -22,47 +21,128 @@ function set_intersection(P::Poly, Q::Poly)
     return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
 end
 
-function is_nonempty_set(P::Union{∅, Poly})
-    return P == ∅ ? false : !isempty(P)
-end
+is_nonempty_set(::LazySets.EmptySet) = false
+is_nonempty_set(P) = !isempty(P)
 
-"""
-    preimage_linear(P, A)
+# ============================================================
+# Semi-linear sets = finite unions of polytopes
+# ============================================================
 
-Return the linear preimage `{x : A*x ∈ P}`.
-If `P = {y : H y ≤ h}`, then `Pre(P,A) = {x : H A x ≤ h}`.
-"""
-function preimage_linear(P::Poly, A::AbstractMatrix)
-    new_cons = HalfSpace[]
-    for c in constraints_list(P)
-        push!(new_cons, HalfSpace(A' * c.a, c.b))
+mutable struct SemiLinearSet
+    parts::Vector{Poly}
+
+    function SemiLinearSet(parts::Vector{Poly})
+        return new(parts)
     end
-    return clean_poly(HPolytope(new_cons))
+end
+
+SemiLinearSet() = SemiLinearSet(Poly[])
+
+function SemiLinearSet(p::Poly)
+    return SemiLinearSet(Poly[_as_hpolytope(p)])
+end
+
+function SemiLinearSet(parts::AbstractVector)
+    out = Poly[]
+    for P in parts
+        push!(out, _as_hpolytope(P))
+    end
+    return SemiLinearSet(out)
+end
+
+Base.length(S::SemiLinearSet) = length(S.parts)
+Base.isempty(S::SemiLinearSet) = isempty(S.parts)
+Base.iterate(S::SemiLinearSet, st...) = iterate(S.parts, st...)
+function dim(P::Poly)
+    cons = constraints_list(P)
+    isempty(cons) && error("Cannot infer dimension from empty constraint list.")
+    return length(first(cons).a)
+end
+function dim(S::SemiLinearSet)
+    isempty(S) && error("Cannot infer dimension of an empty SemiLinearSet.")
+    return dim(first(S.parts))
+end
+
+function Base.in(x::AbstractVector, S::SemiLinearSet)
+    return any(Base.in(x, P) for P in S.parts)
+end
+
+function Base.show(io::IO, S::SemiLinearSet)
+    return print(io, "SemiLinearSet($(length(S.parts)) parts)")
+end
+
+function normalize_semilinear(S::SemiLinearSet)
+    keep = Poly[]
+    for Pk in S.parts
+        if is_nonempty_set(Pk)
+            push!(keep, _as_hpolytope(Pk))
+        end
+    end
+    return SemiLinearSet(keep)
 end
 
 # ============================================================
-# Polyhedral difference decomposition
+# Semi-linear sets : Nonemptiness
 # ============================================================
 
-"""
-    set_difference_decompose(P, Q; atol=0.0)
+function is_nonempty_set(S::SemiLinearSet)
+    return any(is_nonempty_set(P) for P in S.parts)
+end
 
-Decompose `P \\ Q` into a finite union of H-polytopes using a sequential
-halfspace decomposition.
+# ============================================================
+# Semi-linear sets : Intersection
+# ============================================================
 
-If `Q = ⋂_{j=1}^m H_j`, then
-`P \\ Q = ⋃_{j=1}^m ( P ∩ H_1 ∩ ... ∩ H_{j-1} ∩ H_j^c )`.
+function set_intersection(S1::SemiLinearSet, S2::SemiLinearSet)
+    out = Poly[]
+    for P1 in S1.parts, P2 in S2.parts
+        I = set_intersection(P1, P2)
+        if is_nonempty_set(I)
+            push!(out, _as_hpolytope(I))
+        end
+    end
+    return SemiLinearSet(out)
+end
 
-Here `H_j^c` is represented by the closed opposite halfspace
-`-a'x <= -b - atol` for `H_j = {x : a'x <= b}`.
+function set_intersection(S::SemiLinearSet, P0::Poly)
+    out = Poly[]
+    for P1 in S.parts
+        I = set_intersection(P1, P0)
+        if is_nonempty_set(I)
+            push!(out, _as_hpolytope(I))
+        end
+    end
+    return SemiLinearSet(out)
+end
 
-Notes:
-- `atol = 0.0` keeps the boundary and may produce overlaps on boundaries.
-- `atol > 0` separates boundaries slightly but changes the set by a small
-  tolerance.
-- This is the main place you may later replace by an exact Baotić-style
-  decomposition.
-"""
+function set_intersection(P0::Poly, S::SemiLinearSet)
+    return set_intersection(S, P0)
+end
+
+# ============================================================
+# Semi-linear sets : Difference
+# ============================================================
+
+function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Float64 = 0.0)
+    current = copy(S1.parts)
+    for Q in S2.parts
+        new_current = Poly[]
+        for P1 in current
+            append!(new_current, set_difference_decompose(P1, Q; atol = atol))
+        end
+        current = new_current
+    end
+    return SemiLinearSet(current)
+end
+
+function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.0)
+    out = Poly[]
+    for P1 in S.parts
+        append!(out, set_difference_decompose(P1, P0; atol = atol))
+    end
+    return SemiLinearSet(out)
+end
+
 function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
     qcons = constraints_list(Q)
     pcons = constraints_list(P)
@@ -71,32 +151,68 @@ function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
     prefix = HalfSpace[]
 
     for c in qcons
-        # Complement of a'x <= b is approximated by a'x >= b + atol,
-        # i.e. -a'x <= -(b + atol)
         comp = HalfSpace(-c.a, -(c.b + atol))
         piece = clean_poly(HPolytope(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
-            push!(pieces, piece)
+            push!(pieces, _as_hpolytope(piece))
         end
         push!(prefix, c)
     end
-
     return pieces
 end
 
-"""
-    set_difference_decompose(P, Qs::Vector{Poly}; atol=0.0)
+# ============================================================
+# Semi-linear sets : Preimage under linear map
+# ============================================================
 
-Iteratively decompose `P \\ (⋃ Qs)` as a union of polytopes.
-"""
-function set_difference_decompose(P::Poly, Qs::AbstractVector{<:Poly}; atol::Float64 = 0.0)
-    parts = Poly[P]
-    for Q in Qs
-        new_parts = Poly[]
-        for R in parts
-            append!(new_parts, set_difference_decompose(R, Q; atol = atol))
+function preimage_linear(S::SemiLinearSet, A::AbstractMatrix)
+    out = Poly[]
+    for P1 in S.parts
+        Ppre = preimage_linear(P1, A)
+        if is_nonempty_set(Ppre)
+            push!(out, _as_hpolytope(Ppre))
         end
-        parts = new_parts
+    end
+    return SemiLinearSet(out)
+end
+
+function preimage_linear(P::Poly, A::AbstractMatrix)
+    new_cons = HalfSpace[]
+    for c in constraints_list(P)
+        push!(new_cons, HalfSpace(A' * c.a, c.b))
+    end
+    return clean_poly(HPolytope(new_cons))
+end
+
+function preimage_linear_parts(S::SemiLinearSet, A::AbstractMatrix)
+    parts = Poly[]
+    for P in S
+        preP = preimage_linear(P, A)
+        if is_nonempty_set(preP)
+            push!(parts, preP)
+        end
     end
     return parts
+end
+
+@recipe function f(
+    S::SemiLinearSet;
+    fillcolor = :blue,
+    linecolor = :blue,
+    fillalpha = 0.25,
+    linealpha = 1.0,
+    linewidth = 1.0,
+    show_label = false,
+)
+    for (k, P) in enumerate(S.parts)
+        @series begin
+            fillcolor := fillcolor
+            linecolor := linecolor
+            fillalpha := fillalpha
+            linealpha := linealpha
+            linewidth := linewidth
+            label := (show_label && k == 1) ? "SemiLinearSet" : ""
+            P
+        end
+    end
 end

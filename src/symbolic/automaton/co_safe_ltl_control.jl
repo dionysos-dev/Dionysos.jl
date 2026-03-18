@@ -17,6 +17,7 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     controller_product_autom::Any
     qa0::Any
     update_on_next::Bool
+    init_set::Any
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
@@ -33,6 +34,7 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
             nothing,   # controller_product_autom
             nothing,   # qa0
             true,      # update_on_next
+            nothing,   # init_set
             nothing,   # controllable_set
             nothing,   # uncontrollable_set
             nothing,   # value_fun_tab
@@ -109,22 +111,22 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
 
     init_states = problem.initial_set
-    init_prod = Int[]
+    initP = Int[]
     for qs in init_states
         ap0 = labeling(qs)
         qa_init = step(spec, init_state(spec), ap0)
-        push!(init_prod, product_autom.pid[(qs, qa_init)])
+        push!(initP, product_autom.pid[(qs, qa_init)])
     end
 
     controller_product_autom, controllableP, uncontrollableP, V =
         compute_worst_case_uniform_cost_controller(
             product_autom,
             target_set;
-            initial_set = init_prod,
+            initial_set = initP,
             sparse_input = optimizer.sparse_input,
         )
 
-    success = all(p -> p in controllableP, init_prod)
+    success = all(p -> p in controllableP, initP)
 
     optimizer.print_level >= 1 && println("Success: ", success)
 
@@ -143,6 +145,7 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     optimizer.product_autom = product_autom
     optimizer.controller_product_autom = controller_product_autom
     optimizer.qa0 = qa0
+    optimizer.init_set = initP
     optimizer.controllable_set = controllableP
     optimizer.uncontrollable_set = uncontrollableP
     optimizer.value_fun_tab = V

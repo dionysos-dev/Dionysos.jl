@@ -145,7 +145,11 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
     optimizer.qa0 = abstract_optimizer.qa0
-    optimizer.success = abstract_optimizer.success
+
+    # For each concrete initial state, there exists at least one winning lifted representative
+    optimizer.success = success(abstract_optimizer, concrete_problem.initial_set)
+    optimizer.print_level >= 1 &&
+        println("Success of concrete problem: ", optimizer.success)
     optimizer.solve_time_sec = time() - t0
 
     return
@@ -170,6 +174,16 @@ function build_abstract_problem(
         concrete_problem.ap_semantics,
         concrete_problem.strict_spot,
     )
+end
+
+# ============================================================
+# Success condition
+# ============================================================
+
+# assuming concrete_initial_set is a singleton, success if:
+# there exists a winning lifted representative for the concrete initial point,
+function success(abstract_optimizer, concrete_initial_set)
+    return any(p -> p in abstract_optimizer.controllable_set, abstract_optimizer.init_set)
 end
 
 # ============================================================
@@ -280,7 +294,6 @@ function solve_concrete_problem_lifted(
 
         haskey(T.states, qid) || return nothing
         q = T.states[qid]
-
         # Prefer the current cell if x still belongs to it
         qid_use = if x ∈ q.set
             qid
@@ -360,7 +373,7 @@ function solve_concrete_problem_lifted(
     # Dimensions
     # ---------------------------------------------------------
     first_q = first(values(T.states))
-    nx = LazySets.dim(first_q.set)
+    nx = dim(first_q.set)
     nu = 1
 
     # memory is a 2-tuple (qa,qid)
@@ -388,24 +401,56 @@ function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
     return solve_concrete_problem_lifted(Q, Cabs)
 end
 
-function initial_concrete_controller_memory(Q::QuotientAutomaton, qa0::Int, x0)
-    T = Q.quotient
+import Spot
+function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
+    Q = opt.quotient_automaton
+    absopt = opt.abstract_optimizer
+    absprob = opt.abstract_problem
 
-    qid0 = _find_qid_global(T, x0)
-    isnothing(qid0) &&
+    Q === nothing && error("No quotient_automaton available.")
+    absopt === nothing && error("No abstract_optimizer available.")
+    absprob === nothing && error("No abstract_problem available.")
+
+    T = Q.quotient
+    P = absopt.product_autom
+    W = absopt.controllable_set
+
+    labeling =
+        absprob.labeling isa Function ? absprob.labeling :
+        SY.labeling_function_from_state_sets(absprob.labeling)
+
+    spec0 = absprob.spec
+    spec = if spec0 isa Spot.SpotFormula
+        SY.spot_stepper(spec0)
+    elseif spec0 isa SY.AbstractSpecStepper
+        spec0
+    else
+        error("Unsupported spec type $(typeof(spec0))")
+    end
+
+    candidates = Tuple{Int, Int}[]  # (qs_dense, qid)
+    for (qs, qid) in enumerate(Q.qids)
+        if x0 ∈ T.states[qid].set
+            push!(candidates, (qs, qid))
+        end
+    end
+
+    isempty(candidates) &&
         error("Initial concrete state is not contained in any quotient cell.")
 
-    return (qa0, qid0)
+    for (qs, qid) in candidates
+        qa_init = SY.step(spec, SY.init_state(spec), labeling(qs))
+        p0 = get(P.pid, (qs, qa_init), nothing)
+        if p0 !== nothing && p0 in W
+            return (qa_init, qid)
+        end
+    end
+
+    return error("Initial concrete state belongs to quotient cells, but none is winning.")
 end
 
 function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
-    Q = opt.quotient_automaton
-    qa0 = opt.qa0
-
-    Q === nothing && error("No quotient_automaton available.")
-    qa0 === nothing && error("No qa0 available.")
-
-    return initial_concrete_controller_memory(Q, qa0, x0)
+    return initial_concrete_controller_memory(opt, x0)
 end
 
 function simulate_closed_loop(
