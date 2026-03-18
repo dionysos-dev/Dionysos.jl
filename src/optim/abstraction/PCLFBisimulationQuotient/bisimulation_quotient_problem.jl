@@ -224,7 +224,7 @@ function bisimulation_pclf(
 
     initialize_partitions!(T; neutral_obs = 0, terminal_obs = -1)
     refine_partitions_by_observations!(T, regions; terminal_obs = -1, atol = atol)
-    # initialize_terminal_transitions!(T, pclf)
+    initialize_terminal_transitions!(T, pclf)
 
     incoming_by_dm = group_edges_by_dest_mode(pclf.graph.edges, U)
 
@@ -434,12 +434,6 @@ function refine_partitions_by_observations!(
     return T
 end
 
-"""
-    initialize_terminal_transitions!(T, pclf)
-
-For all terminal states in slice 1, add graph-induced transitions
-along every edge `(s,d,m)`.
-"""
 function initialize_terminal_transitions!(T::PCBisimulationQuotient, pclf::PCLF.PCLF)
     terminal_by_node = Dict{Any, Vector{Int}}()
 

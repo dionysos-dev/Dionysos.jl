@@ -74,7 +74,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 10)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 4)
 
 # ---------------------------------------------------------
 # Solve

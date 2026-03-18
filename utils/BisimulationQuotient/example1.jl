@@ -108,10 +108,10 @@ AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 fig = plot(; aspect_ratio = :equal);
 # plot!(problem)                # problem geometry
 # plot!(bisimulation; what = :slices, node = (1,), show_contours=false)
-# plot(bisimulation, what=:states, by=:obs, show_contours=false)
-# plot!(bisimulation; what = :states, by = :obs, node = 1)
-# println(bisimulation.states[1].node)
+# plot!(bisimulation, what=:states, by=:obs, node = (1,), show_contours=false)
+# plot!(bisimulation; what = :states, by=:slice, node = (1,), show_contours = false)
 plot!(bisimulation; what = :states, node = (1,), show_contours = false)
+# println(bisimulation.states[1].node)
 display(fig)
 
 # ---------------------------------------------------------
@@ -120,34 +120,42 @@ display(fig)
 
 using Spot
 
-# φ = Spot.parse_formula("F(p)")
-# φ = ltl"F(p)"
-φ = ltl"F(p & F(q))"
+φ = ltl"F(!R1 & F(D))"
 
 # qa = 0  -> not yet reached D
 # qa = 1  -> reached D, stay there
-M = DI.Symbolic.FunctionMonitor(0, Set([1]), (qa, ap) -> (qa == 1 || :D in ap) ? 1 : 0)
+M = DI.Symbolic.FunctionMonitor(0, Set([2]), (qa, ap) -> begin
+    if qa == 2
+        return 2
+    elseif qa == 0
+        return (:R1 in ap) ? 1 : 0
+    elseif qa == 1
+        return (:D in ap) ? 2 : 1
+    else
+        return qa
+    end
+end)
 
-_I_ = Hyperrectangle(; low = [0.9, 2.0], high = [1.1, 2.1])
+_I_ = Hyperrectangle(; low = [1.2, 2.1], high = [1.2, 2.1])
 prob = PR.CoSafeLTLProblem(
     f,
     _I_,
-    M,
-    Dict(:D => D), # no really useful since we have ap_to_obs, but let's be explicit
-    Dict{Symbol, Any}(:D => MP.INNER), # no really useful, but let's be explicit
+    φ, # M
+    Dict(:D => D, :R1 => R1), # no really useful since we have ap_to_obs, but let's be explicit
+    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER), # no really useful, but let's be explicit
     true,
 )
 
 opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
 MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
 MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:D => -1))
+MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:R1 => 1, :D => -1))
 MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
 MOI.optimize!(opt)
 
 concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
 
-x0 = SVector(1.0, 2.1)
+x0 = SVector(1.2, 2.1)
 mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
 
 (X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
@@ -160,4 +168,6 @@ mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
 println(X_seq)
 println(U_seq)
 println(M_seq)
+φ_str = string(φ)
+plot!(fig; title = "$φ_str")
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
