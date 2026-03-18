@@ -1,6 +1,8 @@
 ##### Court terme
-1)  Créneau arrière propre ; Deuxième remorque
-2) réimplementer :abstract_center
+0) implémenter proprement un benchmark en marche arrière uniquement avec les deux remorques (marche arrière ensuite garer marche avant marche arrière)
+1) réimplementer :abstract_center (refaire tournour tous les benchmarks avec ce mode là)
+2) implémenter MPC (refaire tournour tous les benchmarks avec ce generateur là) [MPC-ilqr ou autre (?) demander l'avais à benoit]
+3) ajouter le scaling de mon vector field
 
 ##### Long terme
 1) améliorer le typage de mes structures
@@ -8,10 +10,7 @@
 #### Suggestion 
 1) Adaptative time step (utiliser la formalisation de Adrien + mes notes)
 2) réimplémenter prorepemnt une monte carlo pour valider empiriquement la soundness, une sorte de statistical stress test
-3) réimplémenter une sorte de simple guide en utilisant la centered simu
-4) (?) MPC-iLQR ou autre (-> peut etre à court terme)
 
 #### Bugs à fix
 0) ajouter le plot des ellispoides
-1) problème avec le wrap unwrap des angles
-2) encore certains problèmes de compatibilité avec l'ancien version de dionysos
+1) problème avec le wrap unwrap des angles (il faut gérer ça proprement (je sais comment faire, voir feuille))
