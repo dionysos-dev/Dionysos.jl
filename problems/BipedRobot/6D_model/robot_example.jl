@@ -2,13 +2,21 @@
 #  Runner script for abstraction + optimal-control simulations
 # ==============================================================================
 
+# ---------------------------------------------------------------------------
+#  Configuration from environment variables
+# ---------------------------------------------------------------------------
+const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
+const USE_THREADED    = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
+const N_PARTS         = parse(Int, get(ENV, "DIONYSOS_NPARTS", "300"))
+
 using Distributed
-length(workers()) < 4 && addprocs(4 - length(workers()))
+if USE_DISTRIBUTED && length(workers()) < 2
+    addprocs(max(N_PARTS, 2) - length(workers()))
+end
 
 using MathematicalSystems
 using StaticArrays
 using LinearAlgebra
-using Plots
 using JuMP
 using JLD2
 
@@ -20,10 +28,6 @@ const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-rs_tools_path = joinpath(@__DIR__, "..", "src", "RS_tools.jl")
-@everywhere include($rs_tools_path)
-import .RS_tools
-
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 @everywhere include($robot_problem_path)
 
@@ -32,7 +36,12 @@ robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 # ==============================================================================
 # Script parameters
 # ==============================================================================
-const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
+const MODE_TAG = USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
+                 USE_DISTRIBUTED ? "distributed" :
+                 USE_THREADED    ? "threaded" : "serial"
+const OUTDIR = get(ENV, "DIONYSOS_OUTDIR", @__DIR__)
+mkpath(OUTDIR)
+const FILENAME = joinpath(OUTDIR, "Abstraction_$(MODE_TAG).jld2")
 
 const COMPUTE_ABSTRACTION = true
 const SAVE_ABSTRACTION = true
@@ -67,14 +76,14 @@ function build_optimizer(;
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 300)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), USE_DISTRIBUTED)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), N_PARTS)
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("distributed_partition_strategy"),
         :roundrobin,
     )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), false)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), USE_THREADED)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
@@ -185,7 +194,7 @@ optimizer = nothing
 
 if COMPUTE_ABSTRACTION
     x0 = SVector{n_state, Float64}(zeros(n_state))
-    hx = SVector{n_state, Float64}([fill(2π/180, 3)..., fill(0.15, 3)...])
+    hx = SVector{n_state, Float64}([fill(2π/180, 3)..., fill(0.15, 3)...])*2.6
     state_grid = MP.GridFree(x0, hx)
 
     u0 = SVector{n_input, Float64}(zeros(n_input))
@@ -225,10 +234,12 @@ if SIMULATE_FIRST_STEP
 
     x_traj, u_traj =
         solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
-    # x_traj = make_test_trajectory()
 
-    rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
-    RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
+    # Save trajectory to file (works on headless servers)
+    traj_path = joinpath(OUTDIR, "trajectory_step1_$(MODE_TAG).jld2")
+    @save traj_path x_traj u_traj
+    println("Trajectory saved to: ", traj_path)
+    println("Final state: ", x_traj.seq[end])
 end
 
 if SIMULATE_SECOND_STEP
@@ -259,6 +270,9 @@ if SIMULATE_SECOND_STEP
         out_of_domain_handler = handler,
     )
 
-    println(x_traj, "\n")
-    println(u_traj, "\n")
+    # Save trajectory to file (works on headless servers)
+    traj_path = joinpath(OUTDIR, "trajectory_step2_$(MODE_TAG).jld2")
+    @save traj_path x_traj u_traj
+    println("Trajectory saved to: ", traj_path)
+    println("Final state: ", x_traj.seq[end])
 end

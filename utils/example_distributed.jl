@@ -1,5 +1,14 @@
+# ---------------------------------------------------------------------------
+#  Configuration from environment variables
+# ---------------------------------------------------------------------------
+const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
+const USE_THREADED    = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
+const N_PARTS         = parse(Int, get(ENV, "DIONYSOS_NPARTS", "8"))
+
 using Distributed
-length(workers()) < 4 && addprocs(4 - length(workers()))
+if USE_DISTRIBUTED && length(workers()) < 2
+    addprocs(max(N_PARTS, 2) - length(workers()))
+end
 
 @everywhere using Dionysos
 
@@ -31,8 +40,6 @@ XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode = MP.
 u0 = SVector(1)
 hu = SVector(1)
 input_grid = MP.GridFree(u0, hu)
-using JuMP
-
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
@@ -48,10 +55,10 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), USE_DISTRIBUTED)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), N_PARTS)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_partition_strategy"), :roundrobin)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), USE_THREADED)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
@@ -109,4 +116,13 @@ plot!((Xset, XMapping); efficient = true, color = :grey)
 plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
 plot!(x_traj)
-display(fig)
+
+# Save figure to file (works on headless servers)
+outdir = get(ENV, "DIONYSOS_OUTDIR", @__DIR__)
+mkpath(outdir)
+mode_tag = USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
+           USE_DISTRIBUTED ? "distributed" :
+           USE_THREADED    ? "threaded" : "serial"
+figpath = joinpath(outdir, "dcdc_safety_$(mode_tag).png")
+savefig(fig, figpath)
+println("Figure saved to: ", figpath)
