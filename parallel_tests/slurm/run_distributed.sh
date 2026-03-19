@@ -15,6 +15,7 @@ NPARTS=${SLURM_NTASKS:-8}
 
 # PROJECT_DIR is either exported by run_all.sh or derived from SLURM_SUBMIT_DIR
 PROJECT_DIR="${PROJECT_DIR:-${SLURM_SUBMIT_DIR:-.}}"
+PARALLEL_ENV="${PROJECT_DIR}/parallel_tests"
 EXAMPLE_NAME="$(basename "${EXAMPLE_SCRIPT}" .jl)"
 OUTDIR="${PROJECT_DIR}/parallel_tests/results/${EXAMPLE_NAME}/distributed"
 
@@ -34,7 +35,7 @@ echo "  Example:   ${EXAMPLE_SCRIPT}"
 echo "=========================================="
 
 WRAPPER="${PROJECT_DIR}/parallel_tests/src/run_and_collect.jl"
-srun julia --project="${PROJECT_DIR}" \
+srun julia --project="${PARALLEL_ENV}" \
      "${WRAPPER}" "${PROJECT_DIR}/${EXAMPLE_SCRIPT}" 2>&1 | tee "${OUTDIR}/run.log"
 
 echo "Job finished at $(date)"

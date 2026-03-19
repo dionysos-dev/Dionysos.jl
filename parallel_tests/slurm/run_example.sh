@@ -49,6 +49,7 @@ fi
 
 # Project directory
 PROJECT_DIR="${PROJECT_DIR:-${SLURM_SUBMIT_DIR:-.}}"
+PARALLEL_ENV="${PROJECT_DIR}/parallel_tests"
 EXAMPLE_NAME="$(basename "${EXAMPLE_SCRIPT}" .jl)"
 OUTDIR="${PROJECT_DIR}/parallel_tests/results/${EXAMPLE_NAME}/${MODE}"
 
@@ -77,7 +78,7 @@ echo "=========================================="
 
 # Build julia command
 WRAPPER="${PROJECT_DIR}/parallel_tests/src/run_and_collect.jl"
-JULIA_CMD="julia --project=${PROJECT_DIR}"
+JULIA_CMD="julia --project=${PARALLEL_ENV}"
 if [ "${THREADED}" = "true" ] && [ "${NTHREADS}" -gt 1 ]; then
     JULIA_CMD="${JULIA_CMD} --threads=${NTHREADS}"
 fi

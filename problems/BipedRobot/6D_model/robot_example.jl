@@ -85,7 +85,7 @@ function build_optimizer(;
     )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), USE_THREADED)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
 
     # MOI.set(optimizer, MOI.Silent(), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))

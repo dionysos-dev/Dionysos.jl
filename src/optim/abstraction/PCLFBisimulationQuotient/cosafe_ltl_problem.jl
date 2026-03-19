@@ -449,9 +449,9 @@ function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     return error("Initial concrete state belongs to quotient cells, but none is winning.")
 end
 
-function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
-    return initial_concrete_controller_memory(opt, x0)
-end
+# function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
+#     return initial_concrete_controller_memory(opt, x0)
+# end
 
 function simulate_closed_loop(
     f::HybridSystems.HybridSystem,

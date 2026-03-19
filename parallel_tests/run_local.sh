@@ -35,9 +35,10 @@ fi
 EXAMPLE_SCRIPT="${POSITIONAL[0]}"
 NPARTS="${POSITIONAL[1]:-4}"
 
-# Resolve project root (parent of parallel_tests/)
+# Resolve directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PARALLEL_ENV="${SCRIPT_DIR}"          # side environment with Project.toml
 WRAPPER="${SCRIPT_DIR}/src/run_and_collect.jl"
 
 # Derive a short name from the example script for output directories
@@ -73,7 +74,7 @@ DIONYSOS_DISTRIBUTED=false \
 DIONYSOS_THREADED=false \
 DIONYSOS_NPARTS=1 \
 DIONYSOS_OUTDIR="${OUTDIR}" \
-julia --project="${PROJECT_DIR}" \
+julia --project="${PARALLEL_ENV}" \
       "${WRAPPER}" "${EXAMPLE_FULL}" 2>&1 | tee "${OUTDIR}/run.log"
 echo ""
 
@@ -86,7 +87,7 @@ DIONYSOS_DISTRIBUTED=false \
 DIONYSOS_THREADED=true \
 DIONYSOS_NPARTS=1 \
 DIONYSOS_OUTDIR="${OUTDIR}" \
-julia --project="${PROJECT_DIR}" \
+julia --project="${PARALLEL_ENV}" \
       --threads="${NCPUS}" \
       "${WRAPPER}" "${EXAMPLE_FULL}" 2>&1 | tee "${OUTDIR}/run.log"
 echo ""
@@ -100,7 +101,7 @@ DIONYSOS_DISTRIBUTED=true \
 DIONYSOS_THREADED=false \
 DIONYSOS_NPARTS="${NPARTS}" \
 DIONYSOS_OUTDIR="${OUTDIR}" \
-julia --project="${PROJECT_DIR}" \
+julia --project="${PARALLEL_ENV}" \
       "${WRAPPER}" "${EXAMPLE_FULL}" 2>&1 | tee "${OUTDIR}/run.log"
 echo ""
 
@@ -113,7 +114,7 @@ DIONYSOS_DISTRIBUTED=true \
 DIONYSOS_THREADED=true \
 DIONYSOS_NPARTS="${NPARTS}" \
 DIONYSOS_OUTDIR="${OUTDIR}" \
-julia --project="${PROJECT_DIR}" \
+julia --project="${PARALLEL_ENV}" \
       --threads="${NCPUS}" \
       "${WRAPPER}" "${EXAMPLE_FULL}" 2>&1 | tee "${OUTDIR}/run.log"
 echo ""
@@ -122,7 +123,7 @@ echo ""
 if [ "${GENERATE_REPORT}" = "true" ]; then
     REPORT_DIR="${SCRIPT_DIR}/report/${EXAMPLE_NAME}"
     echo "──── Generating report ────"
-    julia --project="${PROJECT_DIR}" \
+    julia --project="${PARALLEL_ENV}" \
           "${SCRIPT_DIR}/src/generate_report.jl" \
           "${RESULTS_BASE}" "${REPORT_DIR}"
     echo ""

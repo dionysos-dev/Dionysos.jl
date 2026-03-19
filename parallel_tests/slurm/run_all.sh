@@ -31,6 +31,7 @@ fi
 EXAMPLE_SCRIPT="${POSITIONAL[0]}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PARALLEL_ENV="${PROJECT_DIR}/parallel_tests"
 
 EXAMPLE_NAME="$(basename "${EXAMPLE_SCRIPT}" .jl)"
 RESULTS_DIR="${PROJECT_DIR}/parallel_tests/results/${EXAMPLE_NAME}"
@@ -98,7 +99,7 @@ if [ "${GENERATE_REPORT}" = "true" ]; then
         --output="${PROJECT_DIR}/parallel_tests/logs/${EXAMPLE_NAME}_report_%j.out" \
         --error="${PROJECT_DIR}/parallel_tests/logs/${EXAMPLE_NAME}_report_%j.err" \
         --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=4G --time=00:30:00 \
-        --wrap="julia --project=\"${PROJECT_DIR}\" \
+        --wrap="julia --project=\"${PARALLEL_ENV}\" \
                 \"${PROJECT_DIR}/parallel_tests/src/generate_report.jl\" \
                 \"${RESULTS_DIR}\" \"${REPORT_DIR}\"")
     echo "  Report Job ID: ${JID_REPORT} (depends on ${DEPS})"

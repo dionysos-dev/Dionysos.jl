@@ -2,6 +2,30 @@
 
 Benchmark any Dionysos example across four parallelism strategies, collect JSON metrics per mode, and optionally generate a LaTeX/PDF comparison report.
 
+## Side Environment
+
+This folder has its own `Project.toml` — a **side environment** that keeps the main Dionysos `Project.toml` clean. It `dev`-depends on Dionysos (from `..`) and adds extra packages needed by examples and the benchmarking scripts (e.g. `RigidBodyDynamics`, `JSON`, `Plots`).
+
+### First-time setup
+
+```bash
+cd parallel_tests
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+```
+
+This resolves and installs all dependencies into `Manifest.toml` (gitignored).
+
+### Adding packages for a new example
+
+If your example uses a package not yet listed:
+
+```bash
+cd parallel_tests
+julia --project=. -e 'using Pkg; Pkg.add("NewPackage")'
+```
+
+All shell scripts automatically use `--project=<parallel_tests>`, so no further changes are needed.
+
 ## Parallelism Modes
 
 | Mode | `DIONYSOS_DISTRIBUTED` | `DIONYSOS_THREADED` | What happens |
@@ -13,17 +37,18 @@ Benchmark any Dionysos example across four parallelism strategies, collect JSON 
 
 ## Quick Start
 
+All commands can be run from the **Dionysos root** or from inside `parallel_tests/`.
+
 ### Local (no SLURM)
 
 ```bash
-# Run all 4 modes for the DC-DC example
+# From Dionysos root
 bash parallel_tests/run_local.sh utils/example_distributed.jl
-
-# Run all 4 modes with 4 distributed partitions + generate report
 bash parallel_tests/run_local.sh utils/example_distributed.jl 4 --report
-
-# Robot example
 bash parallel_tests/run_local.sh problems/BipedRobot/6D_model/robot_example.jl 4 --report
+
+# From parallel_tests/
+bash run_local.sh ../utils/example_distributed.jl 4 --report
 ```
 
 ### Supercomputer (SLURM)
@@ -51,9 +76,9 @@ sbatch --ntasks=1 --cpus-per-task=8 \
 If you already have results and just want a report:
 
 ```bash
-julia --project=. parallel_tests/src/generate_report.jl \
-    parallel_tests/results/example_distributed \
-    parallel_tests/report/example_distributed
+julia --project=parallel_tests src/generate_report.jl \
+    results/example_distributed \
+    report/example_distributed
 ```
 
 ## Command Reference
@@ -95,7 +120,7 @@ Set `--ntasks` and `--cpus-per-task` via `sbatch` options to control worker/thre
 ### `src/generate_report.jl`
 
 ```
-julia --project=. parallel_tests/src/generate_report.jl [results_dir] [report_dir]
+julia --project=parallel_tests src/generate_report.jl [results_dir] [report_dir]
 ```
 
 Reads `metrics_*.json` files from `results_dir`, generates `benchmark_report.tex` (and PDF if `pdflatex` is available) in `report_dir`.
@@ -115,6 +140,8 @@ The example scripts and wrapper read these environment variables:
 
 ```
 parallel_tests/
+├── Project.toml               # Side environment (Dionysos dev + extra deps)
+├── Manifest.toml              # (gitignored) resolved dependency versions
 ├── src/
 │   ├── run_and_collect.jl     # Wrapper: runs example + writes JSON metrics
 │   └── generate_report.jl     # Reads metrics JSONs → LaTeX/PDF report
