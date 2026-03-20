@@ -402,7 +402,7 @@ function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
 end
 
 import Spot
-function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
+function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     Q = opt.quotient_automaton
     absopt = opt.abstract_optimizer
     absprob = opt.abstract_problem
