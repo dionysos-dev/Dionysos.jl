@@ -3,7 +3,7 @@
 # ==============================================================================
 
 using Distributed
-length(workers()) < 4 && addprocs(4 - length(workers()))
+# length(workers()) < 4 && addprocs(4 - length(workers()))
 
 using MathematicalSystems
 using StaticArrays
@@ -35,10 +35,10 @@ robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 const FILENAME = joinpath(@__DIR__, "Abstraction.jld2")
 
 const COMPUTE_ABSTRACTION = true
-const SAVE_ABSTRACTION = true
+const SAVE_ABSTRACTION = false
 const LOAD_ABSTRACTION = false
 
-const SIMULATE_FIRST_STEP = true
+const SIMULATE_FIRST_STEP = false
 const SIMULATE_SECOND_STEP = false
 
 # ==============================================================================
@@ -67,7 +67,7 @@ function build_optimizer(;
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), false)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), 300)
     MOI.set(
         optimizer,
@@ -79,7 +79,7 @@ function build_optimizer(;
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
     # MOI.set(optimizer, MOI.Silent(), true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e2))
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)
 
     return optimizer

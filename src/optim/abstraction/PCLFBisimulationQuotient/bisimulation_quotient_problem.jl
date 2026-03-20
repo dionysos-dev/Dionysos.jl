@@ -28,6 +28,8 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
 
     level_tol::T
     max_levels::Int
+    ΓX::Union{Nothing, Float64}
+    nb_levels::Union{Nothing, Int}
     max_slices::Int
 
     atol::T
@@ -43,8 +45,10 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
         return new{T}(
             nothing,    # bisimulation_quotient_problem
             nothing,    # pclf
-            1e-3,       # level_tol
+            1e-2,       # level_tol
             200,        # max_levels    
+            nothing,    # ΓX
+            nothing,    # nb_levels
             200,        # max_slices
             1e-3,       # atol
             true,       # verbose
@@ -178,6 +182,8 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
         [_as_hpolytope(R) for R in regions];
         tol = opt.level_tol,
         max_levels = opt.max_levels,
+        ΓX = opt.ΓX,
+        nb_levels = opt.nb_levels,
     )
     opt.Γ = Γ
     opt.D = D
@@ -259,8 +265,9 @@ function bisimulation_pclf(
                     for pid in source_ids
                         haskey(T.states, pid) || continue
                         qsrc = T.states[pid]
-
-                        if any(t -> t[1] == m, qsrc.next) # to investigate
+                        
+                        # check if transition already exists to avoid unnecessary refinement
+                        if any(t -> t[1] == m && T.states[t[2]].node == d, qsrc.next)
                             continue
                         end
 

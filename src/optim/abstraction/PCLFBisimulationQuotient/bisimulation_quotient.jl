@@ -192,8 +192,13 @@ end
 # Basic statistics on the bisimulation quotient
 # ============================================================
 
-num_states(T::PCBisimulationQuotient) = length(T.states)
+num_nodes(T::PCBisimulationQuotient) = length(T.slices)
+function num_slices(T::PCBisimulationQuotient)
+    isempty(T.slices) && return 0
+    return length(first(values(T.slices)))
+end
 
+num_states(T::PCBisimulationQuotient) = length(T.states)
 num_transitions(T::PCBisimulationQuotient) = sum(length(q.next) for q in values(T.states))
 
 function states_by_obs(T::PCBisimulationQuotient)
@@ -315,6 +320,8 @@ end
 function print_bisimulation_stats(T::PCBisimulationQuotient)
     println("Bisimulation quotient statistics")
     println("--------------------------------")
+    println("Number of nodes        : ", num_nodes(T))
+    println("Number of slices       : ", num_slices(T))
     println("Number of states       : ", num_states(T))
     println("Number of transitions  : ", num_transitions(T))
     println("States by observation  : ", states_by_obs(T))

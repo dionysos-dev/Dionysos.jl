@@ -8,6 +8,8 @@ function build_levels_and_terminal_set(
     regions_to_avoid;
     tol::Float64 = 1e-3,
     max_levels::Int = 200,
+    ΓX::Union{Nothing, Float64} = nothing,
+    nb_levels::Union{Nothing, Int} = nothing,
 )
     levels = build_levels_from_problem(
         pclf,
@@ -15,6 +17,8 @@ function build_levels_and_terminal_set(
         regions_to_avoid;
         tol = tol,
         max_levels = max_levels,
+        ΓX = ΓX,
+        nb_levels = nb_levels,
     )
 
     D = compute_D_from_tau(pclf, levels[1])
@@ -28,18 +32,37 @@ function build_levels_from_problem(
     regions_to_avoid;
     tol::Float64 = 1e-3,
     max_levels::Int = 200,
+    ΓX::Union{Nothing, Float64} = nothing,
+    nb_levels::Union{Nothing, Int} = nothing,
 )
     γ = pclf.JSRapprox
     0.0 < γ < 1.0 || error("Expected contraction rate γ in (0,1), got $γ.")
     max_levels >= 1 || error("Expected max_levels >= 1, got $max_levels.")
     tol >= 0.0 || error("Expected tol >= 0, got $tol.")
 
-    τX = compute_tau_X(pclf, X; safety_factor = 1 + tol)
+    if nb_levels !== nothing
+        nb_levels >= 1 || error("Expected nb_levels >= 1, got $nb_levels.")
+    end
+
+    τX = if isnothing(ΓX)
+        compute_tau_X(pclf, X; safety_factor = 1 + tol)
+    else
+        Float64(ΓX)
+    end
 
     levels = Float64[]
     τ = Float64(τX)
-    τD = nothing
 
+    if nb_levels !== nothing
+        for _ in 1:nb_levels
+            push!(levels, τ)
+            τ *= γ
+        end
+        reverse!(levels)
+        return levels
+    end
+
+    τD = nothing
     for _ in 1:max_levels
         push!(levels, τ)
 
