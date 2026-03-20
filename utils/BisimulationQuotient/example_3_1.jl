@@ -21,7 +21,6 @@ const PCLF = UT.PathCompleteFramework
 
 # Example 3.1 from the paper
 
-
 # ---------------------------------------------------------
 # Define a stable switched system
 # ---------------------------------------------------------
@@ -45,41 +44,40 @@ f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
 p = 5.9
 X = Hyperrectangle(; low = [-p, -p], high = [p, p])
 
-
 H1 = [
-   -0.9869  -0.1615
-   -0.0931   0.9957
-    0.9659   0.2587
-    0.0825  -0.9966
+    -0.9869 -0.1615
+    -0.0931 0.9957
+    0.9659 0.2587
+    0.0825 -0.9966
 ]
 K1 = [
     6.6767
     9.2315
     2.3700
-   -5.9038
+    -5.9038
 ]
 R1 = HPolytope(H1, K1)
 
 H2 = [
-    0.9993   0.0363
-   -0.7743  -0.6329
-    0.5463   0.8376
+    0.9993 0.0363
+    -0.7743 -0.6329
+    0.5463 0.8376
 ]
 K2 = [
-   -2.1809
+    -2.1809
     6.3754
-   -4.8983
+    -4.8983
 ]
 R2 = HPolytope(H2, K2)
 
 H3 = [
-   -0.9946  -0.1041
-    0.5277   0.8494
-    0.9999   0.0146
-   -0.1191  -0.9929
+    -0.9946 -0.1041
+    0.5277 0.8494
+    0.9999 0.0146
+    -0.1191 -0.9929
 ]
 K3 = [
-   -5.5771
+    -5.5771
     5.3510
     9.1600
     6.2406
@@ -93,10 +91,10 @@ problem = PR.BisimulationQuotientProblem(f, X, observation_regions)
 # Common polyhedral PCLF
 # ---------------------------------------------------------
 L = [
-    -0.0625   1.0
-     0.6815   1.0
-     0.9947  0.6868
-     0.9947  -0.0678
+    -0.0625 1.0
+    0.6815 1.0
+    0.9947 0.6868
+    0.9947 -0.0678
 ]
 
 rho = 0.94
@@ -112,11 +110,7 @@ v = first(graph.verts)
 piece = PCLF.PolyhedralPiece(L, ones(size(L, 1)))
 
 # PCLF with one piece
-pclf = PCLF.PCLF(
-    graph,
-    Dict(v => piece),
-    rho,
-)
+pclf = PCLF.PCLF(graph, Dict(v => piece), rho)
 println("Computed JSR upper bound / contraction rate = ", pclf.JSRapprox)
 
 # ---------------------------------------------------------
@@ -154,9 +148,8 @@ fig = plot(; aspect_ratio = :equal);
 # fig = plot();
 # plot!(bisimulation; what = :slices, show_contours = false)
 plot!(bisimulation; what = :states, by = :state, show_contours = false)
-plot!(problem; opacity=0.2)
+plot!(problem; opacity = 0.2)
 display(fig)
-
 
 # ---------------------------------------------------------
 # CoSafe LTL control synthesis on the quotient
@@ -178,11 +171,14 @@ prob = PR.CoSafeLTLProblem(
     true,
 )
 
-
 opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
 MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
 MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3))
+MOI.set(
+    opt,
+    MOI.RawOptimizerAttribute("ap_to_obs"),
+    Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3),
+)
 MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
 MOI.optimize!(opt)
 

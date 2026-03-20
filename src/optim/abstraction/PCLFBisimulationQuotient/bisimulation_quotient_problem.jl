@@ -265,7 +265,7 @@ function bisimulation_pclf(
                     for pid in source_ids
                         haskey(T.states, pid) || continue
                         qsrc = T.states[pid]
-                        
+
                         # check if transition already exists to avoid unnecessary refinement
                         if any(t -> t[1] == m && T.states[t[2]].node == d, qsrc.next)
                             continue
