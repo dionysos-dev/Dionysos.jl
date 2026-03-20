@@ -53,7 +53,7 @@ if [ ! -f "${EXAMPLE_FULL}" ]; then
 fi
 
 # Detect CPU count
-NCPUS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+NCPUS=4 #$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 echo "============================================================"
 echo "  Dionysos Parallel Test Runner (local)"

@@ -8,10 +8,11 @@
 const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
 const USE_THREADED = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
 const N_PARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", "300"))
+const N_PROCS = N_PARTS
 
 using Distributed
 if USE_DISTRIBUTED && length(workers()) < 2
-    addprocs(max(N_PARTS, 2) - length(workers()))
+    addprocs(max(N_PROCS, 2) - length(workers()))
 end
 
 using MathematicalSystems
@@ -44,10 +45,10 @@ mkpath(OUTDIR)
 const FILENAME = joinpath(OUTDIR, "Abstraction_$(MODE_TAG).jld2")
 
 const COMPUTE_ABSTRACTION = true
-const SAVE_ABSTRACTION = true
+const SAVE_ABSTRACTION = false
 const LOAD_ABSTRACTION = false
 
-const SIMULATE_FIRST_STEP = true
+const SIMULATE_FIRST_STEP = false
 const SIMULATE_SECOND_STEP = false
 
 # ==============================================================================
@@ -194,7 +195,7 @@ optimizer = nothing
 
 if COMPUTE_ABSTRACTION
     x0 = SVector{n_state, Float64}(zeros(n_state))
-    hx = SVector{n_state, Float64}([fill(2π/180, 3)..., fill(0.15, 3)...])*2.6
+    hx = SVector{n_state, Float64}([fill(2π/180, 3)..., fill(0.15, 3)...])*2.5
     state_grid = MP.GridFree(x0, hx)
 
     u0 = SVector{n_input, Float64}(zeros(n_input))
@@ -210,6 +211,10 @@ if COMPUTE_ABSTRACTION
     )
 
     MOI.optimize!(optimizer)
+
+    abstraction_time =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+    println("Time to construct the abstraction: $(abstraction_time)")
 
     if SAVE_ABSTRACTION
         AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, FILENAME)
@@ -276,3 +281,6 @@ if SIMULATE_SECOND_STEP
     println("Trajectory saved to: ", traj_path)
     println("Final state: ", x_traj.seq[end])
 end
+
+rmprocs(workers())
+println("Workers removed")

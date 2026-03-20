@@ -126,3 +126,5 @@ mode_tag =
 figpath = joinpath(outdir, "dcdc_safety_$(mode_tag).png")
 savefig(fig, figpath)
 println("Figure saved to: ", figpath)
+rmprocs(workers())
+println("Workers removed")

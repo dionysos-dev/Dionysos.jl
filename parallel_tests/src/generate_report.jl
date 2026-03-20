@@ -72,12 +72,94 @@ function escape_latex(s::String)
 end
 
 # ---------------------------------------------------------------------------
+# Log parsing — extract structured info from run.log files
+# ---------------------------------------------------------------------------
+
+"""
+    parse_log_file(log_path) -> Dict{String, Any}
+
+Parse a `run.log` file and extract known key-value patterns.
+Returns a dictionary with parsed values (keys that are not found are omitted).
+"""
+function parse_log_file(log_path::String)
+    isfile(log_path) || return Dict{String, Any}()
+    text = read(log_path, String)
+    parsed = Dict{String, Any}()
+
+    # Patterns from example output
+    patterns = [
+        (
+            r"Time to construct the abstraction:\s*([\d.eE+-]+)",
+            "abstraction_time_sec",
+            Float64,
+        ),
+        (r"Time to solve the abstract problem:\s*([\d.eE+-]+)", "solve_time_sec", Float64),
+        (r"n_state:\s*(\d+)", "n_state", Int),
+        (r"n_input:\s*(\d+)", "n_input", Int),
+        (r"n_pos:\s*(\d+)", "n_pos", Int),
+        (r"n_vel:\s*(\d+)", "n_vel", Int),
+    ]
+
+    # Patterns from wrapper header
+    header_patterns = [
+        (r"NPARTS:\s*(\d+)", "log_nparts", Int),
+        (r"Threads:\s*(\d+)", "log_threads", Int),
+        (r"PID:\s*(\d+)", "log_pid", Int),
+        (r"Host:\s*(\S+)", "log_host", String),
+        (r"Mode:\s*(\S+)", "log_mode", String),
+    ]
+
+    # Patterns from wrapper footer
+    footer_patterns = [
+        (r"Wall-clock:\s*([\d.]+)\s*s", "log_wall_clock_sec", Float64),
+        (r"@timed:\s*([\d.]+)\s*s", "log_timed_sec", Float64),
+        (r"Alloc:\s*([\d.]+)\s*MB", "log_alloc_MB", Float64),
+        (r"GC time:\s*([\d.]+)\s*s", "log_gc_time_sec", Float64),
+    ]
+
+    for (regex, key, T) in vcat(patterns, header_patterns, footer_patterns)
+        m = match(regex, text)
+        if m !== nothing
+            try
+                parsed[key] = T == String ? m[1] : parse(T, m[1])
+            catch
+                parsed[key] = m[1]
+            end
+        end
+    end
+
+    # Count "addprocs" evidence: look for worker-related messages
+    if occursin(r"Workers removed", text)
+        parsed["had_workers"] = true
+    end
+
+    return parsed
+end
+
+"""
+    load_log_data(results_dir) -> Dict{String, Dict{String, Any}}
+
+Find and parse run.log files for each mode subdirectory.
+"""
+function load_log_data(results_dir::String)
+    logs = Dict{String, Dict{String, Any}}()
+    for mode in ["serial", "threaded", "distributed", "hybrid"]
+        log_path = joinpath(results_dir, mode, "run.log")
+        if isfile(log_path)
+            logs[mode] = parse_log_file(log_path)
+        end
+    end
+    return logs
+end
+
+# ---------------------------------------------------------------------------
 # LaTeX generation
 # ---------------------------------------------------------------------------
 
 function generate_latex(
     results::Dict{String, Vector{Dict{String, Any}}},
-    report_dir::String,
+    report_dir::String;
+    log_data::Dict{String, Dict{String, Any}} = Dict{String, Dict{String, Any}}(),
 )
     modes = ["serial", "threaded", "distributed", "hybrid"]
     data = Dict{String, Dict{String, Any}}()
@@ -230,7 +312,37 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
     println(tex, raw"\end{tabular}")
     println(tex, raw"\end{table}")
 
-    # ── Section 3: Results comparison table ──
+    # ── Section 3: Problem Characteristics (from logs) ──
+    if !isempty(log_data)
+        # Use any available log to get problem dimensions
+        sample_log = first(values(log_data))
+        has_dims =
+            any(haskey(sample_log, k) for k in ["n_state", "n_input", "n_pos", "n_vel"])
+        if has_dims
+            println(tex, raw"\section{Problem Characteristics}")
+            println(tex, raw"\begin{table}[H]")
+            println(tex, raw"\centering")
+            println(tex, raw"\caption{Problem dimensions (from example output)}")
+            println(tex, raw"\begin{tabular}{ll}")
+            println(tex, raw"\toprule")
+            println(tex, raw"\textbf{Property} & \textbf{Value} \\\\")
+            println(tex, raw"\midrule")
+            for (key, label) in [
+                ("n_state", "State dimension"),
+                ("n_input", "Input dimension"),
+                ("n_pos", "Position DoF"),
+                ("n_vel", "Velocity DoF"),
+            ]
+                val = get(sample_log, key, nothing)
+                val !== nothing && println(tex, "$label & \\texttt{$val} \\\\")
+            end
+            println(tex, raw"\bottomrule")
+            println(tex, raw"\end{tabular}")
+            println(tex, raw"\end{table}")
+        end
+    end
+
+    # ── Section 4: Results comparison table ──
     println(
         tex,
         raw"""
@@ -245,7 +357,7 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
     println(tex, raw"\toprule")
     println(
         tex,
-        raw"\textbf{Mode} & \textbf{Time (s)} & \textbf{Speedup} & \textbf{Threads} & \textbf{Workers} & \textbf{Parts} & \textbf{Alloc (MB)} \\\\",
+        raw"\textbf{Mode} & \textbf{Total (s)} & \textbf{Speedup} & \textbf{Threads} & \textbf{Workers} & \textbf{Parts} & \textbf{Alloc (MB)} \\\\",
     )
     println(tex, raw"\midrule")
 
@@ -259,7 +371,12 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         d = data[m]
         t = get(d, "elapsed_sec", 0.0)
         threads = get(d, "julia_threads", 1)
-        nworkers_val = get(d, "julia_nworkers", 0)
+        # Use example_nprocs from captured globals, fall back to log, then to JSON
+        nprocs_actual = get(
+            d,
+            "example_nprocs",
+            get(get(log_data, m, Dict()), "log_nparts", get(d, "dionysos_nparts", 1)),
+        )
         parts = get(d, "dionysos_nparts", 1)
         alloc = get(d, "alloc_MB", "—")
 
@@ -276,13 +393,68 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         )[m]
         println(
             tex,
-            "$mode_label & $(fmt_time(t)) & $(speedup)\\texttimes & $threads & $nworkers_val & $parts & $alloc \\\\",
+            "$mode_label & $(fmt_time(t)) & $(speedup)\\texttimes & $threads & $nprocs_actual & $parts & $alloc \\\\",
         )
     end
 
     println(tex, raw"\bottomrule")
     println(tex, raw"\end{tabular}")
     println(tex, raw"\end{table}")
+
+    # ── Abstraction time comparison (from logs) ──
+    serial_abs_time = nothing
+    abs_times = Dict{String, Float64}()
+    for m in modes
+        lg = get(log_data, m, Dict())
+        abt = get(lg, "abstraction_time_sec", nothing)
+        if abt !== nothing
+            abs_times[m] = abt
+            m == "serial" && (serial_abs_time = abt)
+        end
+    end
+
+    if !isempty(abs_times)
+        println(tex, raw"\subsection{Abstraction Construction Time}")
+        println(tex, raw"\begin{table}[H]")
+        println(tex, raw"\centering")
+        println(
+            tex,
+            raw"\caption{Abstraction construction time per mode (from example output)}",
+        )
+        println(tex, raw"\begin{tabular}{l r r r r}")
+        println(tex, raw"\toprule")
+        println(
+            tex,
+            raw"\textbf{Mode} & \textbf{Abstraction (s)} & \textbf{Speedup} & \textbf{Threads} & \textbf{Partitions} \\\\",
+        )
+        println(tex, raw"\midrule")
+
+        for m in modes
+            haskey(abs_times, m) || continue
+            abt = abs_times[m]
+            lg = get(log_data, m, Dict())
+            threads = get(lg, "log_threads", 1)
+            parts = get(lg, "log_nparts", 1)
+            sp = "1.00"
+            if serial_abs_time !== nothing && serial_abs_time > 0 && abt > 0
+                sp = fmt_float(serial_abs_time / abt)
+            end
+            mode_label = Dict(
+                "serial" => "Serial",
+                "threaded" => "Threaded",
+                "distributed" => "Distributed",
+                "hybrid" => "Hybrid",
+            )[m]
+            println(
+                tex,
+                "$mode_label & $(fmt_time(abt)) & $(sp)\\texttimes & $threads & $parts \\\\",
+            )
+        end
+
+        println(tex, raw"\bottomrule")
+        println(tex, raw"\end{tabular}")
+        println(tex, raw"\end{table}")
+    end
 
     # ── Section 4: Detailed per-mode analysis ──
     println(tex, raw"\subsection{Detailed Metrics}")
@@ -337,6 +509,61 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         end
 
         println(tex, "Speedup vs.~serial & \\texttt{$(speedup_str)\\texttimes} \\\\")
+
+        # Log-parsed metrics (abstraction time, problem dims, example config)
+        lg = get(log_data, m, Dict{String, Any}())
+        if !isempty(lg)
+            println(tex, raw"\midrule")
+            println(tex, raw"\multicolumn{2}{l}{\textbf{From Example Output}} \\\\")
+            log_keys = [
+                ("abstraction_time_sec", "Abstraction time (s)"),
+                ("solve_time_sec", "Abstract problem solve time (s)"),
+                ("n_state", "State dimension"),
+                ("n_input", "Input dimension"),
+                ("n_pos", "Position DoF"),
+                ("n_vel", "Velocity DoF"),
+            ]
+            for (key, label) in log_keys
+                val = get(lg, key, nothing)
+                val === nothing && continue
+                val_str = val isa AbstractFloat ? fmt_time(val) : string(val)
+                println(tex, "$label & \\texttt{$(escape_latex(val_str))} \\\\")
+            end
+            # Abstraction speedup
+            if haskey(lg, "abstraction_time_sec") &&
+               serial_abs_time !== nothing &&
+               serial_abs_time > 0
+                abs_sp = fmt_float(serial_abs_time / lg["abstraction_time_sec"])
+                println(
+                    tex,
+                    "Abstraction speedup vs.~serial & \\texttt{$(abs_sp)\\texttimes} \\\\",
+                )
+            end
+        end
+
+        # Captured example globals
+        example_keys = [
+            ("abstraction_time_sec", "Abstraction time (captured)"),
+            ("n_state", "State dim (captured)"),
+            ("n_input", "Input dim (captured)"),
+            ("example_nprocs", "Example N\\_PROCS"),
+            ("example_nparts", "Example N\\_PARTS"),
+        ]
+        has_example = false
+        for (key, label) in example_keys
+            val = get(d, key, nothing)
+            val === nothing && continue
+            if !has_example
+                println(tex, raw"\midrule")
+                println(
+                    tex,
+                    raw"\multicolumn{2}{l}{\textbf{Captured Example Globals}} \\\\",
+                )
+                has_example = true
+            end
+            val_str = val isa AbstractFloat ? fmt_time(val) : escape_latex(string(val))
+            println(tex, "$label & \\texttt{$val_str} \\\\")
+        end
 
         # Worker details
         winfo = get(d, "worker_info", nothing)
@@ -589,7 +816,17 @@ function main()
     end
     println()
 
-    generate_latex(results, report_dir)
+    log_data = load_log_data(results_dir)
+    if !isempty(log_data)
+        println("Parsed log files for modes: $(collect(keys(log_data)))")
+        for (mode, lg) in log_data
+            abt = get(lg, "abstraction_time_sec", nothing)
+            abt !== nothing && println("  $mode: abstraction_time = $(abt) s")
+        end
+        println()
+    end
+
+    generate_latex(results, report_dir; log_data = log_data)
     return println("\nDone.")
 end
 

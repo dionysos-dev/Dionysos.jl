@@ -75,7 +75,7 @@ println("  GC time:      $(round(gc_time; digits=4)) s")
 println("=" ^ 60)
 
 # ---------------------------------------------------------------------------
-# Collect worker info (if distributed)
+# Collect worker info (if any workers still alive)
 # ---------------------------------------------------------------------------
 worker_info = Dict{String, Any}()
 if nworkers() > 1
@@ -88,6 +88,25 @@ if nworkers() > 1
             )
         end
         worker_info[string(wid)] = info
+    end
+end
+
+# ---------------------------------------------------------------------------
+# Capture example-defined globals (best-effort, won't fail if absent)
+# ---------------------------------------------------------------------------
+captured = Dict{String, Any}()
+for (varname, key) in [
+    (:abstraction_time, "abstraction_time_sec"),
+    (:n_state, "n_state"),
+    (:n_input, "n_input"),
+    (:N_PARTS, "example_nparts"),
+    (:N_PROCS, "example_nprocs"),
+    (:USE_DISTRIBUTED, "example_use_distributed"),
+    (:USE_THREADED, "example_use_threaded"),
+]
+    if isdefined(Main, varname)
+        val = getfield(Main, varname)
+        captured[key] = val isa AbstractFloat ? round(val; digits = 6) : val
     end
 end
 
@@ -113,6 +132,9 @@ metrics = Dict{String, Any}(
     "total_memory_GB" => round(Sys.total_memory() / 1e9; digits = 2),
     "free_memory_GB" => round(Sys.free_memory() / 1e9; digits = 2),
 )
+
+# Merge captured example globals
+merge!(metrics, captured)
 
 if !isempty(worker_info)
     metrics["worker_info"] = worker_info
