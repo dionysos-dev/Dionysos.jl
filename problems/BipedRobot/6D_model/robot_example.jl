@@ -6,8 +6,8 @@
 #  Configuration from environment variables
 # ---------------------------------------------------------------------------
 const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
-const USE_THREADED    = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
-const N_PARTS         = parse(Int, get(ENV, "DIONYSOS_NPARTS", "300"))
+const USE_THREADED = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
+const N_PARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", "300"))
 
 using Distributed
 if USE_DISTRIBUTED && length(workers()) < 2
@@ -36,9 +36,9 @@ robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 # ==============================================================================
 # Script parameters
 # ==============================================================================
-const MODE_TAG = USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
-                 USE_DISTRIBUTED ? "distributed" :
-                 USE_THREADED    ? "threaded" : "serial"
+const MODE_TAG =
+    USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
+    USE_DISTRIBUTED ? "distributed" : USE_THREADED ? "threaded" : "serial"
 const OUTDIR = get(ENV, "DIONYSOS_OUTDIR", @__DIR__)
 mkpath(OUTDIR)
 const FILENAME = joinpath(OUTDIR, "Abstraction_$(MODE_TAG).jld2")

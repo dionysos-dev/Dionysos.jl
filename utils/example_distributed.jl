@@ -2,8 +2,8 @@
 #  Configuration from environment variables
 # ---------------------------------------------------------------------------
 const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
-const USE_THREADED    = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
-const N_PARTS         = parse(Int, get(ENV, "DIONYSOS_NPARTS", "8"))
+const USE_THREADED = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
+const N_PARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", "8"))
 
 using Distributed
 if USE_DISTRIBUTED && length(workers()) < 2
@@ -120,9 +120,9 @@ plot!(x_traj)
 # Save figure to file (works on headless servers)
 outdir = get(ENV, "DIONYSOS_OUTDIR", @__DIR__)
 mkpath(outdir)
-mode_tag = USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
-           USE_DISTRIBUTED ? "distributed" :
-           USE_THREADED    ? "threaded" : "serial"
+mode_tag =
+    USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
+    USE_DISTRIBUTED ? "distributed" : USE_THREADED ? "threaded" : "serial"
 figpath = joinpath(outdir, "dcdc_safety_$(mode_tag).png")
 savefig(fig, figpath)
 println("Figure saved to: ", figpath)
