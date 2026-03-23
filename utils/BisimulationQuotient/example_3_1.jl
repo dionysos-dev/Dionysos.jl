@@ -220,4 +220,3 @@ plot!(
 plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
 display(fig)
-
