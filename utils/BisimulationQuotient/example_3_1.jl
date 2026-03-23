@@ -126,18 +126,18 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("ΓX"), 10.0) # nothing
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("nb_levels"), 12) # nothing
-MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 1)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 100)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-# MOI.optimize!(optimizer)
-# construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-# println("Construction time = ", construction_time)
+MOI.optimize!(optimizer)
+construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+println("Construction time = ", construction_time)
 
-const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
-# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
+# # AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
@@ -186,8 +186,11 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 MOI.optimize!(optimizer)
 
 concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(optimizer)
-controlable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
 uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+println("Volume of controllable set = ", Vctrl)
 
 mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
 
@@ -205,10 +208,16 @@ println(M_seq)
 
 fig = plot(; aspect_ratio = :equal, legend = false)
 plot!(fig; title = "$φ_str")
-plot!(bisimulation; what = :states, state_ids = controlable_set, show_contours = false, user_color = :green, fillalpha = 1.0)
+plot!(
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
 # plot!(bisimulation; what = :states, state_ids = uncontrollable_set, show_contours = false, user_color = :red, fillalpha = 1.0)
 plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
 display(fig)
-
 

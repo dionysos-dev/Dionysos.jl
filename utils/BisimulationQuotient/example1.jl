@@ -121,7 +121,7 @@ AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 # Plot Pieces
 # ---------------------------------------------------------
 
-fig = plot(layout = (1, 2), aspect_ratio = :equal)
+fig = plot(; layout = (1, 2), aspect_ratio = :equal)
 # --- Node 1 ---
 plot!(fig[1], bisimulation; what = :states, node = (1,), show_contours = false)
 title!(fig[1], "Node 1")
@@ -151,7 +151,11 @@ prob = PR.CoSafeLTLProblem(
 optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), prob)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:D => -1, :R1 => 1, :R2 => 2))
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("ap_to_obs"),
+    Dict(:D => -1, :R1 => 1, :R2 => 2),
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 MOI.optimize!(optimizer)
@@ -176,36 +180,113 @@ println(M_seq)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(fig; title = "$φ_str")
-plot!(bisimulation; what = :states, state_ids = controllable_set, show_contours = false, user_color = :green, fillalpha = 1.0)
+plot!(
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
 display(fig)
 
-
 xlims = (-4.5, 4.5)
 ylims = (-4.5, 4.5)
-fig = plot(layout = (1, 3), aspect_ratio = :equal, legend = false)
+fig = plot(; layout = (1, 3), aspect_ratio = :equal, legend = false)
 # --- Node 1 ---
+controllable_set_node_1 = AB.PCLFBisimulationQuotient.state_ids_in_node(
+    bisimulation,
+    (1,);
+    state_ids = controllable_set,
+)
+Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_1)
+println("Volume of controllable set in Node 1 = ", Vctrl_node_1)
+
 title!(fig[1], "Node 1")
 xlims!(fig[1], xlims[1], xlims[2])
 ylims!(fig[1], ylims[1], ylims[2])
-plot!(fig[1], bisimulation; what = :states, state_ids = controllable_set, node = (1,), show_contours = false, user_color = :green, fillalpha = 1.0)
-plot!(fig[1], bisimulation; what = :states, state_ids = uncontrollable_set, node = (1,), show_contours = false, user_color = :red, fillalpha = 1.0)
+plot!(
+    fig[1],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    node = (1,),
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[1],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    node = (1,),
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
 plot!(fig[1], ST.Trajectory(X_seq); label = "Trajectory")
 
 # --- Node 2 ---
+controllable_set_node_2 = AB.PCLFBisimulationQuotient.state_ids_in_node(
+    bisimulation,
+    (2,);
+    state_ids = controllable_set,
+)
+Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_2)
+println("Volume of controllable set in Node 2 = ", Vctrl_node_2)
+
 title!(fig[2], "Node 2")
 xlims!(fig[2], xlims[1], xlims[2])
 ylims!(fig[2], ylims[1], ylims[2])
-plot!(fig[2], bisimulation; what = :states, state_ids = controllable_set, node = (2,), show_contours = false, user_color = :green, fillalpha = 1.0)
-plot!(fig[2], bisimulation; what = :states, state_ids = uncontrollable_set, node = (2,), show_contours = false, user_color = :red, fillalpha = 1.0)
+plot!(
+    fig[2],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    node = (2,),
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[2],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    node = (2,),
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
 plot!(fig[2], ST.Trajectory(X_seq); label = "Trajectory")
 
 # --- All states ---
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+println("Volume of controllable set in All states = ", Vctrl)
+
 title!(fig[3], "All states")
 xlims!(fig[3], xlims[1], xlims[2])
 ylims!(fig[3], ylims[1], ylims[2])
-plot!(fig[3], bisimulation; what = :states, state_ids = uncontrollable_set, show_contours = false, user_color = :red, fillalpha = 1.0)
-plot!(fig[3], bisimulation; what = :states, state_ids = controllable_set, show_contours = false, user_color = :green, fillalpha = 1.0)
+plot!(
+    fig[3],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[3],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
 plot!(fig[3], ST.Trajectory(X_seq); label = "Trajectory")
 
 display(fig)

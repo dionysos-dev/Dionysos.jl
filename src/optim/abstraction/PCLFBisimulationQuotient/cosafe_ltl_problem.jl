@@ -174,9 +174,21 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
 
     abstract_optimizer = MOI.instantiate(SY.OptimizerCoSafeLTLProblem)
     MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("early_stop"), optimizer.early_stop)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("sparse_input"), optimizer.sparse_input)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("print_level"), optimizer.print_level)
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("early_stop"),
+        optimizer.early_stop,
+    )
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("sparse_input"),
+        optimizer.sparse_input,
+    )
+    MOI.set(
+        abstract_optimizer,
+        MOI.RawOptimizerAttribute("print_level"),
+        optimizer.print_level,
+    )
 
     MOI.optimize!(abstract_optimizer)
 
@@ -184,9 +196,12 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     optimizer.abstract_controller = abstract_optimizer.controller
     optimizer.qa0 = abstract_optimizer.qa0
 
-    optimizer.controllable_set = sort(from_autom_to_bis_states(Q, abstract_optimizer.controllable_set))
-    optimizer.uncontrollable_set = sort(from_autom_to_bis_states(Q, abstract_optimizer.uncontrollable_set))
-    optimizer.value_fun_tab = from_autom_to_bis_value_function(Q, abstract_optimizer.value_fun_tab)
+    optimizer.controllable_set =
+        sort(from_autom_to_bis_states(Q, abstract_optimizer.controllable_set))
+    optimizer.uncontrollable_set =
+        sort(from_autom_to_bis_states(Q, abstract_optimizer.uncontrollable_set))
+    optimizer.value_fun_tab =
+        from_autom_to_bis_value_function(Q, abstract_optimizer.value_fun_tab)
 
     optimizer.success = abstract_optimizer.success
     optimizer.solve_time_sec = time() - t0

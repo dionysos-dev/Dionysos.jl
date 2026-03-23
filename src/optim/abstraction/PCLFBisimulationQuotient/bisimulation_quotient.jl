@@ -60,6 +60,57 @@ function add_transition!(T::PCBisimulationQuotient, src::Int, mode::Int, dst::In
     return nothing
 end
 
+function semilinear_by_node(T::PCBisimulationQuotient, state_ids)
+    parts_by_node = Dict{Any, Vector{Poly}}()
+
+    for qid in state_ids
+        haskey(T.states, qid) || continue
+        q = T.states[qid]
+        get!(parts_by_node, q.node, Poly[])
+        append!(parts_by_node[q.node], q.set.parts)
+    end
+
+    return Dict(
+        nd => normalize_semilinear(SemiLinearSet(parts)) for (nd, parts) in parts_by_node
+    )
+end
+
+function get_volume(T::PCBisimulationQuotient, state_ids; atol::Float64 = 0.0)
+    S_by_node = semilinear_by_node(T, state_ids)
+    isempty(S_by_node) && return 0.0
+
+    if length(S_by_node) == 1
+        return sum(get_volume(P) for P in first(values(S_by_node)).parts)
+    end
+
+    total = 0.0
+    accumulated_parts = Poly[]
+
+    for Snode in values(S_by_node)
+        current = copy(Snode.parts)
+
+        for Q in accumulated_parts
+            isempty(current) && break
+
+            new_current = Poly[]
+            for P in current
+                I = set_intersection(P, Q)
+                if is_nonempty_set(I)
+                    append!(new_current, set_difference_decompose(P, Q; atol = atol))
+                else
+                    push!(new_current, P)
+                end
+            end
+            current = new_current
+        end
+
+        total += sum(get_volume(P) for P in current)
+        append!(accumulated_parts, Snode.parts)
+    end
+
+    return total
+end
+
 # ------------------------------------------------------------
 # Single abstract state
 # ------------------------------------------------------------
@@ -114,8 +165,7 @@ end
 
     if what == :states
         qlist = [
-            q for q in values(T.states) if
-            (isnothing(node) || q.node == node) &&
+            q for q in values(T.states) if (isnothing(node) || q.node == node) &&
             (isnothing(slice) || q.slice == slice) &&
             (isnothing(obs) || q.obs == obs) &&
             (isnothing(state_id_set) || q.id in state_id_set)
@@ -184,7 +234,8 @@ end
                     linewidth := linewidth
                     seriesalpha := seriesalpha
                     label :=
-                        (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" : ""
+                        (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" :
+                        ""
                     P
                 end
             end
@@ -260,16 +311,34 @@ function outgoing_degree_stats(T::PCBisimulationQuotient)
     )
 end
 
-function states_in_slice(T::PCBisimulationQuotient, slice::Int)
-    return [q for q in values(T.states) if q.slice == slice]
+function states_in_slice(T::PCBisimulationQuotient, slice::Int; states = values(T.states))
+    return [q for q in states if q.slice == slice]
 end
 
-function states_in_obs(T::PCBisimulationQuotient, obs::Int)
-    return [q for q in values(T.states) if q.obs == obs]
+function states_in_obs(T::PCBisimulationQuotient, obs::Int; states = values(T.states))
+    return [q for q in states if q.obs == obs]
 end
 
-function states_in_node(T::PCBisimulationQuotient, node)
-    return [q for q in values(T.states) if q.node == node]
+function states_in_node(T::PCBisimulationQuotient, node; states = values(T.states))
+    return [q for q in states if q.node == node]
+end
+
+function state_ids_in_slice(
+    T::PCBisimulationQuotient,
+    slice::Int;
+    state_ids = keys(T.states),
+)
+    return [
+        qid for qid in state_ids if haskey(T.states, qid) && T.states[qid].slice == slice
+    ]
+end
+
+function state_ids_in_obs(T::PCBisimulationQuotient, obs::Int; state_ids = keys(T.states))
+    return [qid for qid in state_ids if haskey(T.states, qid) && T.states[qid].obs == obs]
+end
+
+function state_ids_in_node(T::PCBisimulationQuotient, node; state_ids = keys(T.states))
+    return [qid for qid in state_ids if haskey(T.states, qid) && T.states[qid].node == node]
 end
 
 function transitions_from_mode(T::PCBisimulationQuotient, mode::Int)

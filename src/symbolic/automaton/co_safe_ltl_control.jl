@@ -93,7 +93,7 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     # (3) Product automaton
     construction_states =
-    optimizer.early_stop ? problem.initial_set : collect(1:get_n_state(autom))
+        optimizer.early_stop ? problem.initial_set : collect(1:get_n_state(autom))
     product_autom =
         build_product_automaton(autom, spec, labeling; initial_set = construction_states)
 
@@ -108,7 +108,6 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     end
     isempty(product_initial_set) && error("Empty product initial set.")
 
-
     accQ = accepting_states(spec)
     labels_seen = Set{Any}()
     for qs in 1:get_n_state(autom)
@@ -116,7 +115,8 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     end
     product_target_set =
         [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
-    isempty(product_target_set) && error("Empty product target_set (AP mismatch or acceptance not found).")
+    isempty(product_target_set) &&
+        error("Empty product target_set (AP mismatch or acceptance not found).")
 
     product_automaton_problem = PR.OptimalControlProblem(
         product_autom,
@@ -128,7 +128,11 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     )
 
     product_automaton_optimizer = MOI.instantiate(OptimizerOptimalControlProblem)
-    MOI.set(product_automaton_optimizer, MOI.RawOptimizerAttribute("problem"), product_automaton_problem)
+    MOI.set(
+        product_automaton_optimizer,
+        MOI.RawOptimizerAttribute("problem"),
+        product_automaton_problem,
+    )
     MOI.set(
         product_automaton_optimizer,
         MOI.RawOptimizerAttribute("early_stop"),
@@ -527,7 +531,13 @@ function build_fm_controller_ms(
     return MS.SystemWithOutput(memsys, outmap), qa0
 end
 
-function project_initial_memory_controllable_set(product_autom, product_controllable_set, spec, labeling, nsys)
+function project_initial_memory_controllable_set(
+    product_autom,
+    product_controllable_set,
+    spec,
+    labeling,
+    nsys,
+)
     Wsys = Set{Int}()
     Wprod = Set(product_controllable_set)
     qa0 = init_state(spec)
@@ -542,7 +552,13 @@ function project_initial_memory_controllable_set(product_autom, product_controll
     return Wsys
 end
 
-function project_initial_memory_uncontrollable_set(product_autom, product_controllable_set, spec, labeling, nsys)
+function project_initial_memory_uncontrollable_set(
+    product_autom,
+    product_controllable_set,
+    spec,
+    labeling,
+    nsys,
+)
     Wsys = project_initial_memory_controllable_set(
         product_autom,
         product_controllable_set,

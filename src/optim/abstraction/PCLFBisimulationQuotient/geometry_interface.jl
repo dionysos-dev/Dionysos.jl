@@ -24,6 +24,11 @@ end
 is_nonempty_set(::LazySets.EmptySet) = false
 is_nonempty_set(P) = !isempty(P)
 
+function get_volume(P::Poly)
+    ph = polyhedron(P; backend = CDDLib.Library())
+    return Polyhedra.volume(ph)
+end
+
 # ============================================================
 # Semi-linear sets = finite unions of polytopes
 # ============================================================
@@ -79,6 +84,36 @@ function normalize_semilinear(S::SemiLinearSet)
         end
     end
     return SemiLinearSet(keep)
+end
+
+# ============================================================
+# Semi-linear sets : Volume
+# ============================================================
+
+function disjointify(S::SemiLinearSet; atol::Float64 = 0.0)
+    pieces = Poly[]
+
+    for P in S.parts
+        current = Poly[_as_hpolytope(P)]
+
+        for Q in pieces
+            new_current = Poly[]
+            for C in current
+                append!(new_current, set_difference_decompose(C, Q; atol = atol))
+            end
+            current = new_current
+            isempty(current) && break
+        end
+
+        append!(pieces, current)
+    end
+
+    return SemiLinearSet(pieces)
+end
+
+function get_volume(S::SemiLinearSet; assume_disjoint::Bool = false, atol::Float64 = 0.0)
+    Sd = assume_disjoint ? S : disjointify(S; atol = atol)
+    return sum(get_volume(P) for P in Sd.parts)
 end
 
 # ============================================================
