@@ -5,10 +5,11 @@ import MathOptInterface as MOI
 
 const DI = Dionysos
 const ST = DI.System
+const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-# j'aime pas trop cette logique (à discuter avec julien (c'est long pour pas grand chose))
-struct CenteredAbstractionConfig{TH, TU, TJ, TP, FX0} 
+
+struct CenteredAbstractionConfig{TH, TU, TJ, TP, FX0}
     Δt::Float64
     hx::TH
     Udom::TU
@@ -17,6 +18,10 @@ struct CenteredAbstractionConfig{TH, TU, TJ, TP, FX0}
     nstep::Int
     num_substeps::Int
     x0_provider::FX0
+    # Choix de la trajectoire candidate :
+    # - :closed_loop   -> simulation avec le controleur concret
+    # - :abstract_traj -> reconstruction depuis les etats abstraits
+    trajectory_mode::Symbol
 end
 
 function CenteredAbstractionConfig(
@@ -26,35 +31,9 @@ function CenteredAbstractionConfig(
     jacobian_bound,
     periodicity,
     nstep::Integer,
-    x0_provider,
-)
-    return CenteredAbstractionConfig{ # je modifierai les typages une bonne fois pour toutes
-        typeof(hx),
-        typeof(Udom),
-        typeof(jacobian_bound),
-        typeof(periodicity),
-        typeof(x0_provider),
-    }(
-        Float64(Δt),
-        hx,
-        Udom,
-        jacobian_bound,
-        periodicity,
-        Int(nstep),
-        5,
-        x0_provider,
-    )
-end
-
-function CenteredAbstractionConfig(
-    Δt::Real,
-    hx,
-    Udom,
-    jacobian_bound,
-    periodicity,
-    nstep::Integer,
-    num_substeps::Integer,
-    x0_provider,
+    x0_provider;
+    num_substeps::Integer = 5,
+    trajectory_mode::Symbol = :closed_loop,
 )
     return CenteredAbstractionConfig{
         typeof(hx),
@@ -71,6 +50,32 @@ function CenteredAbstractionConfig(
         Int(nstep),
         Int(num_substeps),
         x0_provider,
+        trajectory_mode,
+    )
+end
+
+# Compatibilite avec l'ancienne arite positionnelle qui expose num_substeps.
+function CenteredAbstractionConfig(
+    Δt::Real,
+    hx,
+    Udom,
+    jacobian_bound,
+    periodicity,
+    nstep::Integer,
+    num_substeps::Integer,
+    x0_provider;
+    trajectory_mode::Symbol = :closed_loop,
+)
+    return CenteredAbstractionConfig(
+        Δt,
+        hx,
+        Udom,
+        jacobian_bound,
+        periodicity,
+        nstep,
+        x0_provider;
+        num_substeps = num_substeps,
+        trajectory_mode = trajectory_mode,
     )
 end
 
@@ -83,7 +88,7 @@ mutable struct CenteredAbstractionGenerator{P, C, O, CT} <: AbstractHeuristicGen
     solve_time_sec::Float64
 end
 
-function _periodicity(cfg::CenteredAbstractionConfig) # je sais pas trop comment gérer ça 
+function _periodicity(cfg::CenteredAbstractionConfig)
     p = cfg.periodicity
     p === nothing && return nothing
     p isa NamedTuple || error("cfg.periodicity must be nothing or a NamedTuple")
@@ -103,7 +108,7 @@ function _periodicity(cfg::CenteredAbstractionConfig) # je sais pas trop comment
     return p
 end
 
-function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfig, p) # litéralement ce que l'on fait dans dio, y'a pas une constrution plus smart ? 
+function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfig, p)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), cfg.hx)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("UMapping"), cfg.Udom)
@@ -114,7 +119,6 @@ function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfi
         MOI.RawOptimizerAttribute("approx_mode"),
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
-    #MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 
     if p !== nothing
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), p.with_period)
@@ -130,60 +134,39 @@ function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfi
     return optimizer
 end
 
-function set_problem!(gen::CenteredAbstractionGenerator, prob) # j'aime bien
-    gen.problem = prob
-    gen.optimizer = nothing
-    gen.candidate = nothing
-    gen.success = false
-    gen.solve_time_sec = 0.0
-    return gen
+function _build_wrap_function(p)
+    if p === nothing || !p.with_period
+        return identity
+    end
+
+    if hasproperty(p, :periodic_start)
+        return ST.get_periodic_wrapper(
+            p.periodic_dims,
+            p.periodic_periods;
+            start = p.periodic_start,
+        )
+    end
+
+    return ST.get_periodic_wrapper(p.periodic_dims, p.periodic_periods)
 end
 
-function generate!(gen::CenteredAbstractionGenerator) #j'aime bien
-    cfg = gen.config
-    @assert gen.problem !== nothing
-    @assert cfg.Δt > 0.0
-    @assert cfg.nstep >= 1
-    @assert cfg.num_substeps >= 1
-    p = _periodicity(cfg)
-    t0 = time()
-
-    optimizer =
-        gen.optimizer === nothing ? MOI.instantiate(AB.UniformGridAbstraction.Optimizer) :
-        gen.optimizer
-
-    _configure_optimizer!(optimizer, gen.problem, cfg, p)
-    MOI.optimize!(optimizer)
-
+function _build_closed_loop_candidate(problem, optimizer, cfg, p)
+    # on simule le systeme discret avec le controleur concret.
     concrete_controller =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-    concrete_system = gen.problem.system
-    disc_system =
-        ST.discretize_continuous_system(
-            concrete_system,
-            cfg.Δt;
-            num_substeps = cfg.num_substeps,
-        )
+    concrete_system = problem.system
+    disc_system = ST.discretize_continuous_system(
+        concrete_system,
+        cfg.Δt;
+        num_substeps = cfg.num_substeps,
+    )
 
-    x0 = cfg.x0_provider(gen.problem)
+    x0 = cfg.x0_provider(problem)
+    wrap = _build_wrap_function(p)
 
-    wrap = identity
-    if p !== nothing && p.with_period
-        if hasproperty(p, :periodic_start)
-            wrap = ST.get_periodic_wrapper(
-                p.periodic_dims,
-                p.periodic_periods;
-                start = p.periodic_start,
-            )
-        else
-            wrap = ST.get_periodic_wrapper(p.periodic_dims, p.periodic_periods)
-        end
-    end
-
-    target_set = hasproperty(gen.problem, :target_set) ? gen.problem.target_set : nothing
+    target_set = hasproperty(problem, :target_set) ? problem.target_set : nothing
     stopfun = target_set === nothing ? (_ -> false) : (x -> (wrap(x) ∈ target_set))
-
 
     traj = ST.get_closed_loop_trajectory(
         disc_system,
@@ -194,38 +177,157 @@ function generate!(gen::CenteredAbstractionGenerator) #j'aime bien
         wrap = wrap,
     )
 
-    x_traj = traj.x
-    u_traj = traj.u
- 
-    candidate = CandidateTrajectory(
-        x_traj,
-        u_traj;
+    length(traj.x) >= 2 || return nothing
+
+    return CandidateTrajectory(
+        traj.x,
+        traj.u;
         Ts = cfg.Δt,
-        source = :centered,
-        metadata = (; hx = cfg.hx, nstep = cfg.nstep),
+        source = :centered_closed_loop,
+        metadata = (
+            ;
+            hx = cfg.hx,
+            nstep = cfg.nstep,
+            num_substeps = cfg.num_substeps,
+            trajectory_mode = :closed_loop,
+        ),
     )
-    # 
-    println("\n\nI need to checkk")
-    xs = ST.enum_elems(candidate.x_traj)
+end
 
-    for k in eachindex(xs)
-        println("[",k,"]the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
+function _select_best_abstract_step(abs_sys, k_abs, q::Int, value_fun_tab)
+    # On choisit le couple (u, q_next) qui minimise la valeur abstraite du successeur. (je sais pas trop si ça a du sens)
+    u_candidates = k_abs(q)
+    u_candidates === nothing && return nothing, nothing
+
+    inputs = u_candidates isa AbstractVector ? u_candidates : (u_candidates,)
+    best_u = nothing
+    best_q = nothing
+    best_cost = Inf
+
+    for u_sym in inputs
+        for q_next in SY.post(abs_sys, q, u_sym)
+            cost = value_fun_tab[q_next]
+            if isfinite(cost) && cost < best_cost
+                best_cost = cost
+                best_u = u_sym
+                best_q = q_next
+            end
+        end
     end
-    println("\n\n")
 
-    println("\n\nI need to checkk")
-    xs = ST.enum_elems(candidate.u_traj)
+    return best_u, best_q
+end
 
-    for k in eachindex(xs)
-        println("[",k,"]the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
+function _build_abstract_candidate(problem, optimizer, cfg, p)
+    # Mode abstrait : on reconstruit une trajectoire concrete a partir des centres -> le centre du premier point de la traj c'est le centre de la cellule qui lui est assigné 
+    # des cellules abstraites et des entrees abstraites choisies par le controleur.
+    abs_sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    abs_ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    value_fun_tab = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_fun_tab"))
+
+    k_abs = abs_ctrl.h
+    wrap = _build_wrap_function(p)
+    x0 = wrap(cfg.x0_provider(problem))
+
+    q = SY.get_abstract_state(abs_sys, x0)
+    q === nothing && return nothing
+    SY.is_allowed_state(abs_sys, q) || return nothing
+    isfinite(value_fun_tab[q]) || return nothing
+
+    qs = Int[q]
+    u_syms = Int[]
+    xs = [wrap(SY.get_concrete_state(abs_sys, q))]
+    us = Any[]
+
+    for _ in 1:cfg.nstep
+        # Une valeur abstraite nulle signifie que la cellule cible est atteinte.
+        iszero(value_fun_tab[q]) && break
+
+        u_sym, q_next = _select_best_abstract_step(abs_sys, k_abs, q, value_fun_tab)
+        (u_sym === nothing || q_next === nothing) && break
+
+        push!(u_syms, u_sym)
+        push!(us, SY.get_concrete_input(abs_sys, u_sym))
+        push!(qs, q_next)
+        push!(xs, wrap(SY.get_concrete_state(abs_sys, q_next)))
+
+        q = q_next
     end
-    println("\n\n")
 
-    success = length(x_traj) > 0
-    if success && hasproperty(gen.problem, :target_set)
-        last_state = last(ST.enum_elems(x_traj))
-        success = last_state ∈ gen.problem.target_set
+    length(xs) >= 2 || return nothing
+
+    return CandidateTrajectory(
+        ST.Trajectory(xs),
+        ST.Trajectory(us);
+        Ts = cfg.Δt,
+        source = :centered_abstract,
+        metadata = (
+            ;
+            hx = cfg.hx,
+            nstep = cfg.nstep,
+            num_substeps = cfg.num_substeps,
+            trajectory_mode = :abstract_traj,
+            q_traj = qs,
+            u_sym_traj = u_syms,
+        ),
+    )
+end
+
+function _build_candidate(problem, optimizer, cfg, p)
+    if cfg.trajectory_mode == :closed_loop
+        return _build_closed_loop_candidate(problem, optimizer, cfg, p)
+    elseif cfg.trajectory_mode == :abstract_traj
+        return _build_abstract_candidate(problem, optimizer, cfg, p)
     end
+
+    error("Unsupported trajectory_mode: $(cfg.trajectory_mode)")
+end
+
+function _candidate_reaches_target(problem, candidate, optimizer, cfg)
+    candidate === nothing && return false
+
+    # En mode abstrait, le dernier etat abstrait doit etre une cellule cible.
+    if cfg.trajectory_mode == :abstract_traj &&
+       candidate.metadata isa NamedTuple &&
+       hasproperty(candidate.metadata, :q_traj)
+        value_fun_tab = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_fun_tab"))
+        last_q = last(candidate.metadata.q_traj)
+        return isfinite(value_fun_tab[last_q]) && iszero(value_fun_tab[last_q])
+    end
+
+    hasproperty(problem, :target_set) || return true
+    last_state = last(ST.enum_elems(candidate.x_traj))
+    return last_state ∈ problem.target_set
+end
+
+function set_problem!(gen::CenteredAbstractionGenerator, prob)
+    gen.problem = prob
+    gen.optimizer = nothing
+    gen.candidate = nothing
+    gen.success = false
+    gen.solve_time_sec = 0.0
+    return gen
+end
+
+function generate!(gen::CenteredAbstractionGenerator)
+    cfg = gen.config
+    @assert gen.problem !== nothing "Call set_problem!(gen, problem) first."
+    @assert cfg.Δt > 0.0
+    @assert cfg.nstep >= 1
+    @assert cfg.num_substeps >= 1
+
+    p = _periodicity(cfg)
+    t0 = time()
+
+    optimizer =
+        gen.optimizer === nothing ? MOI.instantiate(AB.UniformGridAbstraction.Optimizer) :
+        gen.optimizer
+
+    _configure_optimizer!(optimizer, gen.problem, cfg, p)
+    MOI.optimize!(optimizer)
+
+    candidate = _build_candidate(gen.problem, optimizer, cfg, p)
+    success = _candidate_reaches_target(gen.problem, candidate, optimizer, cfg)
 
     gen.optimizer = optimizer
     gen.candidate = candidate

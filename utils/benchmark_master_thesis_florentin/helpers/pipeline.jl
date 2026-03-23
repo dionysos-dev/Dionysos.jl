@@ -54,7 +54,8 @@ function build_generator(
         vehicle_module.jacobian_bound(system_cfg.params),
         periodicity_kwargs(cfg),
         cfg.nstep,
-        _ -> control_cfg.x0,
+        _ -> control_cfg.x0;
+        trajectory_mode = :abstract_traj, # :closed_loop
     )
 
     return OP.CenteredAbstractionGenerator{

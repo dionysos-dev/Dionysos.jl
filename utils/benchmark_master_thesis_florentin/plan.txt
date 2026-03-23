@@ -1,18 +1,15 @@
 ##### WEEK 8
-1) clean le solver + régler le wrap 
-2) ajouter abstract traj generateur
-3) lire papier benoit
-4) implémenter le cercle complet
+1) ajouter abstract traj generateur + migrer tous les benchmakrs et voir ce que ça donne avec abstract traj
+2) ajouter le scaling de mon vector field
+3) implémenter le cercle complet
+4) lire papier benoit
 5) si le temps exploration MPC / random shooting / MPPI / iLQR (demander julien benoit)
--> choisir l'algo (sampling-based MPC - MPPI)
 
+-> choisir l'algo (sampling-based MPC - MPPI)
 traj nominal : transformer MPPI -> raffiner avec MPPI
 
 ##### Court terme
-0) implémenter proprement un benchmark en marche arrière uniquement avec les deux remorques (marche arrière ensuite garer marche avant marche arrière)
-1) réimplementer :abstract_center (refaire tournour tous les benchmarks avec ce mode là)
-2) implémenter MPC (refaire tournour tous les benchmarks avec ce generateur là) [MPC-ilqr ou autre (?) demander l'avais à benoit]
-3) ajouter le scaling de mon vector field
+
 
 ##### Long terme
 1) améliorer le typage de mes structures
@@ -20,7 +17,4 @@ traj nominal : transformer MPPI -> raffiner avec MPPI
 #### Suggestion 
 1) Adaptative time step (utiliser la formalisation de Adrien + mes notes)
 2) réimplémenter prorepemnt une monte carlo pour valider empiriquement la soundness, une sorte de statistical stress test (important)
-
-#### Bugs à fix
-0) ajouter le plot des ellispoides
-1) problème avec le wrap unwrap des angles (il faut gérer ça proprement (je sais comment faire, voir feuille))
+3) ajouter le plot des ellispoides
