@@ -9,7 +9,7 @@ const ST = DI.System
 
 # Load periodic helpers once when plot.jl is used standalone.
 if !isdefined(@__MODULE__, :unwrap_periodic_state_list)
-    include(joinpath(@__DIR__, "helpers.jl"))
+    include(joinpath(@__DIR__, "periodic.jl"))
 end
 if !isdefined(@__MODULE__, :DEFAULT_PERIODIC_DIMS)
     const DEFAULT_PERIODIC_DIMS = SVector(3, 4)
