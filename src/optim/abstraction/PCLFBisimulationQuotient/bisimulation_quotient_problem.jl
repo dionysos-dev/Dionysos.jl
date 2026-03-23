@@ -7,6 +7,8 @@ const UT = DI.Utils
 const PCLF = UT.PathCompleteFramework
 const PR = DI.Problem
 
+using Polyhedra
+import CDDLib
 using JuMP
 using LazySets
 import HybridSystems

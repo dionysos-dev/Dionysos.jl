@@ -62,11 +62,49 @@ function QuotientAutomaton(T::PCBisimulationQuotient)
     return QuotientAutomaton(T, qids, id2idx, post_tab, pre_tab, ninput)
 end
 
+from_autom_to_bis_state(Q::QuotientAutomaton, qs::Int) = Q.qids[qs]
+
+function from_autom_to_bis_states(Q::QuotientAutomaton, qs_list)
+    return [from_autom_to_bis_state(Q, qs) for qs in qs_list]
+end
+
+function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractDict)
+    out = Dict{Int, Float64}()
+    for (qs, v) in V
+        out[from_autom_to_bis_state(Q, qs)] = Float64(v)
+    end
+    return out
+end
+
+function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractVector)
+    out = Dict{Int, Float64}()
+    for qs in eachindex(V)
+        out[from_autom_to_bis_state(Q, qs)] = Float64(V[qs])
+    end
+    return out
+end
+
+function get_states_from_set(Q::QuotientAutomaton, X0)
+    X0h = _as_hpolytope(X0)
+    out = Int[]
+    for (i, qid) in enumerate(Q.qids)
+        q = Q.quotient.states[qid]
+        I = set_intersection(q.set, X0h)
+        is_nonempty_set(I) && push!(out, i)
+    end
+    return out
+end
+
+# ============================================================
+# Optimizer
+# ============================================================
+
 mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
     bisimulation_quotient::Any
     ap_to_obs::Dict{Symbol, Int}
+    early_stop::Bool
     sparse_input::Bool
     print_level::Int
 
@@ -76,23 +114,30 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
     abstract_controller::Union{Nothing, MS.SystemWithOutput}
     qa0::Union{Nothing, Int}
+    controllable_set::Union{Nothing, Vector{Int}}     # bisimulation qids
+    uncontrollable_set::Union{Nothing, Vector{Int}}   # bisimulation qids
+    value_fun_tab::Any
     success::Bool
     solve_time_sec::T
 
     function OptimizerCoSafeLTLOnQuotient{T}() where {T}
         return new{T}(
-            nothing,                    # concrete_problem
-            nothing,                    # bisimulation_quotient
-            Dict{Symbol, Int}(),        # ap_to_obs
-            false,                      # sparse_input
-            1,                          # print_level
-            nothing,                    # quotient_automaton
-            nothing,                    # abstract_optimizer
-            nothing,                    # abstract_problem
-            nothing,                    # abstract_controller
-            nothing,                    # qa0
-            false,                      # success
-            zero(T),                    # solve_time_sec
+            nothing,
+            nothing,
+            Dict{Symbol, Int}(),
+            true,
+            false,
+            1,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            false,
+            zero(T),
         )
     end
 end
@@ -131,6 +176,11 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
     MOI.set(
         abstract_optimizer,
+        MOI.RawOptimizerAttribute("early_stop"),
+        optimizer.early_stop,
+    )
+    MOI.set(
+        abstract_optimizer,
         MOI.RawOptimizerAttribute("sparse_input"),
         optimizer.sparse_input,
     )
@@ -146,10 +196,14 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     optimizer.abstract_controller = abstract_optimizer.controller
     optimizer.qa0 = abstract_optimizer.qa0
 
-    # For each concrete initial state, there exists at least one winning lifted representative
-    optimizer.success = success(abstract_optimizer, concrete_problem.initial_set)
-    optimizer.print_level >= 1 &&
-        println("Success of concrete problem: ", optimizer.success)
+    optimizer.controllable_set =
+        sort(from_autom_to_bis_states(Q, abstract_optimizer.controllable_set))
+    optimizer.uncontrollable_set =
+        sort(from_autom_to_bis_states(Q, abstract_optimizer.uncontrollable_set))
+    optimizer.value_fun_tab =
+        from_autom_to_bis_value_function(Q, abstract_optimizer.value_fun_tab)
+
+    optimizer.success = abstract_optimizer.success
     optimizer.solve_time_sec = time() - t0
 
     return
@@ -183,22 +237,7 @@ end
 # assuming concrete_initial_set is a singleton, success if:
 # there exists a winning lifted representative for the concrete initial point,
 function success(abstract_optimizer, concrete_initial_set)
-    return any(p -> p in abstract_optimizer.controllable_set, abstract_optimizer.init_set)
-end
-
-# ============================================================
-# Lift initial set onto quotient states
-# ============================================================
-
-function get_states_from_set(Q::QuotientAutomaton, X0)
-    X0h = _as_hpolytope(X0)
-    out = Int[]
-    for (i, qid) in enumerate(Q.qids)
-        q = Q.quotient.states[qid]
-        I = set_intersection(q.set, X0h)
-        is_nonempty_set(I) && push!(out, i)
-    end
-    return out
+    return true # any(p -> p in abstract_optimizer.product_controllable_set, abstract_optimizer.product_initial_set)
 end
 
 # ============================================================
@@ -412,8 +451,9 @@ function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x
     absprob === nothing && error("No abstract_problem available.")
 
     T = Q.quotient
-    P = absopt.product_autom
-    W = absopt.controllable_set
+    product_automaton_opt = absopt.product_automaton_optimizer
+    P = product_automaton_opt.problem.system
+    W = product_automaton_opt.controllable_set
 
     labeling =
         absprob.labeling isa Function ? absprob.labeling :

@@ -7,37 +7,34 @@ import Spot
 mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     # inputs
     problem::Union{Nothing, PR.CoSafeLTLProblem}
-
+    early_stop::Bool
     sparse_input::Bool
     print_level::Int
 
     # outputs / internals
     controller::Union{Nothing, MS.SystemWithOutput}
-    product_autom::Union{Nothing, AbstractAutomatonList}
-    controller_product_autom::Any
     qa0::Any
     update_on_next::Bool
-    init_set::Any
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
+    product_automaton_optimizer::Any
     success::Bool
     solve_time_sec::T
 
     function OptimizerCoSafeLTLProblem{T}() where {T}
         return new{T}(
             nothing,   # problem
+            true,      # early_stop
             false,     # sparse_input
             1,         # print_level
             nothing,   # controller
-            nothing,   # product_autom
-            nothing,   # controller_product_autom
             nothing,   # qa0
             true,      # update_on_next
-            nothing,   # init_set
             nothing,   # controllable_set
             nothing,   # uncontrollable_set
             nothing,   # value_fun_tab
+            nothing,   # product_automaton_optimizer
             false,     # success
             zero(T),   # solve_time_sec
         )
@@ -95,40 +92,71 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     end
 
     # (3) Product automaton
+    construction_states =
+        optimizer.early_stop ? problem.initial_set : collect(1:get_n_state(autom))
     product_autom =
-        build_product_automaton(autom, spec, labeling; initial_set = problem.initial_set)
+        build_product_automaton(autom, spec, labeling; initial_set = construction_states)
 
     # (4) Solve reachability problem
-    accQ = accepting_states(spec)
+    product_initial_set = Int[]
+    for qs in construction_states
+        ap0 = labeling(qs)
+        qa_init = step(spec, init_state(spec), ap0)
+        p0 = get(product_autom.pid, (qs, qa_init), nothing)
+        p0 === nothing && continue
+        push!(product_initial_set, p0)
+    end
+    isempty(product_initial_set) && error("Empty product initial set.")
 
+    accQ = accepting_states(spec)
     labels_seen = Set{Any}()
     for qs in 1:get_n_state(autom)
         push!(labels_seen, labeling(qs))
     end
-
-    target_set =
+    product_target_set =
         [p for p in 1:get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
-    isempty(target_set) && error("Empty target_set (AP mismatch or acceptance not found).")
+    isempty(product_target_set) &&
+        error("Empty product target_set (AP mismatch or acceptance not found).")
 
-    init_states = problem.initial_set
-    initP = Int[]
-    for qs in init_states
-        ap0 = labeling(qs)
-        qa_init = step(spec, init_state(spec), ap0)
-        push!(initP, product_autom.pid[(qs, qa_init)])
-    end
+    product_automaton_problem = PR.OptimalControlProblem(
+        product_autom,
+        product_initial_set,
+        product_target_set,
+        nothing,  # state_cost
+        nothing,  # transition_cost
+        0,
+    )
 
-    controller_product_autom, controllableP, uncontrollableP, V =
-        compute_worst_case_uniform_cost_controller(
-            product_autom,
-            target_set;
-            initial_set = initP,
-            sparse_input = optimizer.sparse_input,
-        )
+    product_automaton_optimizer = MOI.instantiate(OptimizerOptimalControlProblem)
+    MOI.set(
+        product_automaton_optimizer,
+        MOI.RawOptimizerAttribute("problem"),
+        product_automaton_problem,
+    )
+    MOI.set(
+        product_automaton_optimizer,
+        MOI.RawOptimizerAttribute("early_stop"),
+        optimizer.early_stop,
+    )
+    MOI.set(
+        product_automaton_optimizer,
+        MOI.RawOptimizerAttribute("sparse_input"),
+        optimizer.sparse_input,
+    )
+    MOI.set(
+        product_automaton_optimizer,
+        MOI.RawOptimizerAttribute("print_level"),
+        optimizer.print_level,
+    )
 
-    success = all(p -> p in controllableP, initP)
+    MOI.optimize!(product_automaton_optimizer)
 
-    optimizer.print_level >= 1 && println("Success: ", success)
+    optimizer.product_automaton_optimizer = product_automaton_optimizer
+    product_controller = product_automaton_optimizer.controller
+    product_controllable_set = product_automaton_optimizer.controllable_set
+    product_uncontrollable_set = product_automaton_optimizer.uncontrollable_set
+    product_value_fun_tab = product_automaton_optimizer.value_fun_tab
+    success = product_automaton_optimizer.success
 
     problem.labeling isa AbstractDict ||
         error("build_fm_controller_ms currently requires dictionary labeling.")
@@ -137,19 +165,36 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     controller, qa0 = build_fm_controller_ms(
         problem.labeling,
         spec,
-        controller_product_autom,
+        product_controller,
         product_autom.pid,
     )
 
     optimizer.controller = controller
-    optimizer.product_autom = product_autom
-    optimizer.controller_product_autom = controller_product_autom
     optimizer.qa0 = qa0
-    optimizer.init_set = initP
-    optimizer.controllable_set = controllableP
-    optimizer.uncontrollable_set = uncontrollableP
-    optimizer.value_fun_tab = V
+    optimizer.update_on_next = true
+    optimizer.controllable_set = project_initial_memory_controllable_set(
+        product_autom,
+        product_controllable_set,
+        spec,
+        labeling,
+        get_n_state(autom),
+    )
+    optimizer.uncontrollable_set = project_initial_memory_uncontrollable_set(
+        product_autom,
+        product_controllable_set,
+        spec,
+        labeling,
+        get_n_state(autom),
+    )
+    optimizer.value_fun_tab = project_initial_memory_value_function(
+        product_autom,
+        product_value_fun_tab,
+        spec,
+        labeling,
+        get_n_state(autom),
+    )
     optimizer.success = success
+    optimizer.print_level >= 1 && println("Success: ", success)
     optimizer.solve_time_sec = time() - t0
 
     return
@@ -359,6 +404,7 @@ function enum_transitions(P::ProductAutomaton)
     return trans
 end
 
+# build the product automaton only from the reachable states starting from the initial set:
 function build_product_automaton(
     sys::AbstractAutomatonList,
     spec::AbstractSpecStepper,
@@ -483,4 +529,70 @@ function build_fm_controller_ms(
     memsys = MS.BlackBoxDiscreteSystem((qa, qs_for_update) -> g(qa, qs_for_update), 1)
 
     return MS.SystemWithOutput(memsys, outmap), qa0
+end
+
+function project_initial_memory_controllable_set(
+    product_autom,
+    product_controllable_set,
+    spec,
+    labeling,
+    nsys,
+)
+    Wsys = Set{Int}()
+    Wprod = Set(product_controllable_set)
+    qa0 = init_state(spec)
+
+    for qs in 1:nsys
+        qa_init = step(spec, qa0, labeling(qs))
+        p = get(product_autom.pid, (qs, qa_init), nothing)
+        if p !== nothing && p in Wprod
+            push!(Wsys, qs)
+        end
+    end
+    return Wsys
+end
+
+function project_initial_memory_uncontrollable_set(
+    product_autom,
+    product_controllable_set,
+    spec,
+    labeling,
+    nsys,
+)
+    Wsys = project_initial_memory_controllable_set(
+        product_autom,
+        product_controllable_set,
+        spec,
+        labeling,
+        nsys,
+    )
+    Usys = Set(1:nsys)
+    for qs in Wsys
+        delete!(Usys, qs)
+    end
+    return Usys
+end
+
+function project_initial_memory_value_function(
+    product_autom,
+    product_value_fun_tab,
+    spec,
+    labeling,
+    nsys::Int,
+)
+    Vsys = Dict{Int, Float64}()
+    qa0 = init_state(spec)
+
+    for qs in 1:nsys
+        qa_init = step(spec, qa0, labeling(qs))
+        p = get(product_autom.pid, (qs, qa_init), nothing)
+        p === nothing && continue
+
+        vp = product_value_fun_tab[p]
+        vp isa Real || continue
+
+        Vsys[qs] = Float64(vp)
+    end
+
+    return Vsys
 end

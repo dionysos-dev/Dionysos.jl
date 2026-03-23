@@ -105,13 +105,29 @@ D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
 
 AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 
-fig = plot(; aspect_ratio = :equal);
-# plot!(problem)                # problem geometry
-# plot!(bisimulation; what = :slices, node = (1,), show_contours=false)
-# plot!(bisimulation, what=:states, by=:obs, node = (1,), show_contours=false)
-# plot!(bisimulation; what = :states, by=:slice, node = (1,), show_contours = false)
-plot!(bisimulation; what = :states, node = (1,), show_contours = false)
-# println(bisimulation.states[1].node)
+# ---------------------------------------------------------
+# Plot Problem
+# ---------------------------------------------------------
+
+# fig = plot(; aspect_ratio = :equal);
+# # plot!(problem)                # problem geometry
+# # plot!(bisimulation; what = :slices, node = (1,), show_contours=false)
+# # plot!(bisimulation, what=:states, by=:obs, node = (1,), show_contours=false)
+# # plot!(bisimulation; what = :states, by=:slice, node = (1,), show_contours = false)
+# plot!(bisimulation; what = :states, node = (1,), show_contours = false)
+# display(fig)
+
+# ---------------------------------------------------------
+# Plot Pieces
+# ---------------------------------------------------------
+
+fig = plot(; layout = (1, 2), aspect_ratio = :equal)
+# --- Node 1 ---
+plot!(fig[1], bisimulation; what = :states, node = (1,), show_contours = false)
+title!(fig[1], "Node 1")
+# --- Node 2 ---
+plot!(fig[2], bisimulation; what = :states, node = (2,), show_contours = false)
+title!(fig[2], "Node 2")
 display(fig)
 
 # ---------------------------------------------------------
@@ -120,43 +136,35 @@ display(fig)
 
 using Spot
 
-φ = ltl"F(!R1 & F(D))"
-
-# qa = 0  -> not yet reached D
-# qa = 1  -> reached D, stay there
-M = DI.Symbolic.FunctionMonitor(0, Set([2]), (qa, ap) -> begin
-    if qa == 2
-        return 2
-    elseif qa == 0
-        return (:R1 in ap) ? 1 : 0
-    elseif qa == 1
-        return (:D in ap) ? 2 : 1
-    else
-        return qa
-    end
-end)
-
-_I_ = Hyperrectangle(; low = [1.2, 2.1], high = [1.2, 2.1])
+φ = ltl"F(R1 & F(D))" # ltl"(!R1) U D"
+x0 = SVector(2.3, 1.5)
+_I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
 prob = PR.CoSafeLTLProblem(
     f,
     _I_,
-    φ, # M
-    Dict(:D => D, :R1 => R1), # no really useful since we have ap_to_obs, but let's be explicit
-    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER), # no really useful, but let's be explicit
+    φ,
+    Dict(:D => D, :R1 => R1, :R2 => R2), # no useful since we have ap_to_obs
+    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER), # no useful
     true,
 )
 
-opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
-MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
-MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-MOI.set(opt, MOI.RawOptimizerAttribute("ap_to_obs"), Dict(:R1 => 1, :D => -1))
-MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
-MOI.optimize!(opt)
+optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("ap_to_obs"),
+    Dict(:D => -1, :R1 => 1, :R2 => 2),
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
+MOI.optimize!(optimizer)
 
-concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
+concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(optimizer)
+controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
 
-x0 = SVector(1.2, 2.1)
-mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
+mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
 
 (X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
     f,
@@ -169,5 +177,116 @@ println(X_seq)
 println(U_seq)
 println(M_seq)
 φ_str = string(φ)
+
+fig = plot(; aspect_ratio = :equal);
 plot!(fig; title = "$φ_str")
+plot!(
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
+display(fig)
+
+xlims = (-4.5, 4.5)
+ylims = (-4.5, 4.5)
+fig = plot(; layout = (1, 3), aspect_ratio = :equal, legend = false)
+# --- Node 1 ---
+controllable_set_node_1 = AB.PCLFBisimulationQuotient.state_ids_in_node(
+    bisimulation,
+    (1,);
+    state_ids = controllable_set,
+)
+Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_1)
+println("Volume of controllable set in Node 1 = ", Vctrl_node_1)
+
+title!(fig[1], "Node 1")
+xlims!(fig[1], xlims[1], xlims[2])
+ylims!(fig[1], ylims[1], ylims[2])
+plot!(
+    fig[1],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    node = (1,),
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[1],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    node = (1,),
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
+plot!(fig[1], ST.Trajectory(X_seq); label = "Trajectory")
+
+# --- Node 2 ---
+controllable_set_node_2 = AB.PCLFBisimulationQuotient.state_ids_in_node(
+    bisimulation,
+    (2,);
+    state_ids = controllable_set,
+)
+Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_2)
+println("Volume of controllable set in Node 2 = ", Vctrl_node_2)
+
+title!(fig[2], "Node 2")
+xlims!(fig[2], xlims[1], xlims[2])
+ylims!(fig[2], ylims[1], ylims[2])
+plot!(
+    fig[2],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    node = (2,),
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[2],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    node = (2,),
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
+plot!(fig[2], ST.Trajectory(X_seq); label = "Trajectory")
+
+# --- All states ---
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+println("Volume of controllable set in All states = ", Vctrl)
+
+title!(fig[3], "All states")
+xlims!(fig[3], xlims[1], xlims[2])
+ylims!(fig[3], ylims[1], ylims[2])
+plot!(
+    fig[3],
+    bisimulation;
+    what = :states,
+    state_ids = uncontrollable_set,
+    show_contours = false,
+    user_color = :red,
+    fillalpha = 1.0,
+)
+plot!(
+    fig[3],
+    bisimulation;
+    what = :states,
+    state_ids = controllable_set,
+    show_contours = false,
+    user_color = :green,
+    fillalpha = 1.0,
+)
+plot!(fig[3], ST.Trajectory(X_seq); label = "Trajectory")
+
+display(fig)
