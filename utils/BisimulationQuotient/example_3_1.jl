@@ -126,16 +126,16 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("ΓX"), 10.0) # nothing
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("nb_levels"), 12) # nothing
-# MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 20)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 1)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-MOI.optimize!(optimizer)
-construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-println("Construction time = ", construction_time)
+# MOI.optimize!(optimizer)
+# construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+# println("Construction time = ", construction_time)
 
-# const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
+const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
 # AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
 optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
@@ -144,12 +144,12 @@ D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
 
 AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 
-fig = plot(; aspect_ratio = :equal);
-# fig = plot();
-# plot!(bisimulation; what = :slices, show_contours = false)
-plot!(bisimulation; what = :states, by = :state, show_contours = false)
-plot!(problem; opacity = 0.2)
-display(fig)
+# fig = plot(; aspect_ratio = :equal);
+# # fig = plot();
+# # plot!(bisimulation; what = :slices, show_contours = false)
+# plot!(bisimulation; what = :states, by = :state, show_contours = false)
+# plot!(problem; opacity = 0.2)
+# display(fig)
 
 # ---------------------------------------------------------
 # CoSafe LTL control synthesis on the quotient
@@ -159,7 +159,9 @@ using Spot
 
 φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
 
-x0 = SVector(5.5, 5.5)
+x0 = SVector(-6.0, 7.5)
+x0 = SVector(9.0, 0.0)     # initial point I in the paper
+x0 = SVector(-4.0, -7.0)   # initial point a in the paper
 _I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
 
 prob = PR.CoSafeLTLProblem(
@@ -171,20 +173,23 @@ prob = PR.CoSafeLTLProblem(
     true,
 )
 
-opt = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
-MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), prob)
-MOI.set(opt, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
+optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
 MOI.set(
-    opt,
+    optimizer,
     MOI.RawOptimizerAttribute("ap_to_obs"),
     Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3),
 )
-MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 1)
-MOI.optimize!(opt)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
+MOI.optimize!(optimizer)
 
-concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(opt)
+concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(optimizer)
+controlable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
 
-mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(opt, x0)
+mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
 
 (X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
     f,
@@ -197,5 +202,13 @@ println(X_seq)
 println(U_seq)
 println(M_seq)
 φ_str = string(φ)
+
+fig = plot(; aspect_ratio = :equal, legend = false)
 plot!(fig; title = "$φ_str")
+plot!(bisimulation; what = :states, state_ids = controlable_set, show_contours = false, user_color = :green, fillalpha = 1.0)
+# plot!(bisimulation; what = :states, state_ids = uncontrollable_set, show_contours = false, user_color = :red, fillalpha = 1.0)
+plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
+display(fig)
+
+

@@ -150,12 +150,15 @@ end
     region_alpha = 0.15,
     observation_region_alpha = 0.4,
     observation_colors = [:red, :green, :orange, :purple, :brown],
+    plot_region = true,
 )
-    @series begin
-        label := "Region"
-        color := region_color
-        fillalpha := region_alpha
-        problem.region
+    if plot_region
+        @series begin
+            label := "Region"
+            color := region_color
+            fillalpha := region_alpha
+            problem.region
+        end
     end
     for (i, R) in enumerate(problem.observation_regions)
         @series begin

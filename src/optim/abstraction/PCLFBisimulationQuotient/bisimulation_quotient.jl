@@ -81,12 +81,14 @@ end
     slice = nothing,
     obs = nothing,
     mode = nothing,
+    state_ids = nothing,
     by = :state,
     fillalpha = 0.25,
     linewidth = 1.5,
     seriesalpha = 0.9,
     show_labels = false,
     show_contours = false,
+    user_color = nothing,
 )
     palette = [
         :red,
@@ -108,18 +110,23 @@ end
     ]
 
     local_linealpha = show_contours ? 1.0 : 0.0
+    state_id_set = isnothing(state_ids) ? nothing : Set(state_ids)
 
     if what == :states
         qlist = [
-            q for q in values(T.states) if (isnothing(node) || q.node == node) &&
+            q for q in values(T.states) if
+            (isnothing(node) || q.node == node) &&
             (isnothing(slice) || q.slice == slice) &&
-            (isnothing(obs) || q.obs == obs)
+            (isnothing(obs) || q.obs == obs) &&
+            (isnothing(state_id_set) || q.id in state_id_set)
         ]
 
         sort!(qlist; by = q -> q.id)
 
         for (k, q) in enumerate(qlist)
-            c = if by == :slice
+            c = if !isnothing(user_color)
+                user_color
+            elseif by == :slice
                 palette[mod1(q.slice, length(palette))]
             elseif by == :obs
                 palette[mod1(q.obs + 2, length(palette))]
@@ -177,8 +184,7 @@ end
                     linewidth := linewidth
                     seriesalpha := seriesalpha
                     label :=
-                        (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" :
-                        ""
+                        (show_labels && !(key in seen) && j == 1) ? "node=$nd, slice=$i" : ""
                     P
                 end
             end
