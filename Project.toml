@@ -45,6 +45,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 ArnoldiMethod = "0.2, 0.4"
+CDDLib = "0.10.2"
 CSV = "0.10"
 Colors = "0.12, 0.13"
 DataFrames = "1"
