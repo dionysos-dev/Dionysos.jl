@@ -166,12 +166,13 @@ mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
     mem0;
     N = 50,
 )
-println(X_seq)
-println(U_seq)
-println(M_seq)
-φ_str = string(φ)
+
+# ---------------------------------------------------------
+# Plot closed-loop trajectory and controlled sets
+# ---------------------------------------------------------
 
 fig = plot(; aspect_ratio = :equal);
+φ_str = string(φ)
 plot!(fig; title = "$φ_str")
 plot!(
     bisimulation;
@@ -262,5 +263,37 @@ plot!(
     fillalpha = 1.0,
 )
 plot!(fig[3], ST.Trajectory(X_seq); label = "Trajectory")
+
+display(fig)
+
+# ---------------------------------------------------------
+# Plot lifted trajectory and quotient states
+# ---------------------------------------------------------
+
+include("lifted_trajectory_recipes.jl")
+
+node_z = Dict(1 => 1.0, 2 => 2.0)
+node_colors = Dict(1 => :blue, 2 => :orange)
+
+fig = GLMakie.Figure(; size = (900, 700))
+ax = GLMakie.Axis3(
+    fig[1, 1];
+    xlabel = "x₁",
+    ylabel = "x₂",
+    zlabel = "node",
+    zticks = (collect(values(node_z)), string.(collect(keys(node_z)))),
+    title = "Lifted quotient states and closed-loop trajectory",
+)
+
+plot_lifted_bisimulation_makie!(
+    ax,
+    bisimulation;
+    node_z = node_z,
+    color_by = :state,
+    alpha = 0.2,
+    show_contours = false,
+)
+
+plot_lifted_trajectory_makie!(ax, bisimulation, X_seq, M_seq; node_z = node_z)
 
 display(fig)

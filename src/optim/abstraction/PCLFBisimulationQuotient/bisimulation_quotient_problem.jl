@@ -7,12 +7,15 @@ const UT = DI.Utils
 const PCLF = UT.PathCompleteFramework
 const PR = DI.Problem
 
-using Polyhedra
-import CDDLib
 using JuMP
-using LazySets
+
+import LazySets
+import Polyhedra
+import CDDLib
+
 import HybridSystems
 import LinearAlgebra as LA
+
 import Base
 import RecipesBase: @recipe, @series
 using JLD2
