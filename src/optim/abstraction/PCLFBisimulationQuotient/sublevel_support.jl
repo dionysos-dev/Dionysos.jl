@@ -28,7 +28,7 @@ end
 
 function build_levels_from_problem(
     pclf::PCLF.PCLF,
-    X::Hyperrectangle,
+    X::LazySets.Hyperrectangle,
     regions_to_avoid;
     tol::Float64 = 1e-3,
     max_levels::Int = 200,
@@ -87,12 +87,16 @@ end
 # τX computation
 # ============================================================
 
-function compute_tau_X(pclf::PCLF.PCLF, X::Hyperrectangle; safety_factor::Float64 = 1.05)
+function compute_tau_X(
+    pclf::PCLF.PCLF,
+    X::LazySets.Hyperrectangle;
+    safety_factor::Float64 = 1.05,
+)
     safety_factor >= 1.0 || error("Expected safety_factor >= 1, got $safety_factor.")
     return safety_factor * gamma_cover_region_all_nodes(pclf, X)
 end
 
-function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::Hyperrectangle)
+function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::LazySets.Hyperrectangle)
     vals = Float64[]
 
     for piece in values(pclf.pieces)
@@ -104,7 +108,7 @@ function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::Hyperrectangle)
 end
 
 """
-    gamma_cover_set(piece::PCLF.PolyhedralPiece, X::Hyperrectangle)
+    gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle)
 
 Return the smallest τ such that
 
@@ -114,7 +118,7 @@ for
 
     P_piece(τ) = {x : -τ w <= Gx <= τ w}.
 """
-function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::Hyperrectangle)
+function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle)
     G = piece.G
     w = piece.w
 
@@ -140,13 +144,13 @@ Compute
 
 for a hyperrectangle `X`.
 """
-function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::Hyperrectangle)
+function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::LazySets.Hyperrectangle)
     c = LazySets.center(X)
     r = radius_hyperrectangle(X)
     return abs(LA.dot(g, c)) + sum(abs.(g) .* r)
 end
 
-function radius_hyperrectangle(X::Hyperrectangle)
+function radius_hyperrectangle(X::LazySets.Hyperrectangle)
     return LazySets.radius_hyperrectangle(X)
 end
 

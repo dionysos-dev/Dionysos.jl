@@ -2,30 +2,30 @@
 # Polytopes
 # ============================================================
 
-const Poly = HPolytope
+const Poly = Poly
 
 function _as_hpolytope(P)
-    P isa HPolytope && return P
+    P isa Poly && return P
     try
-        return HPolytope(constraints_list(P))
+        return Poly(LazySets.constraints_list(P))
     catch
         error("Cannot convert object of type $(typeof(P)) to HPolytope.")
     end
 end
 
-function clean_poly(P::Poly)
-    return remove_redundant_constraints(P)
-end
+clean_poly(P::Poly) = LazySets.remove_redundant_constraints(P)
 
 function set_intersection(P::Poly, Q::Poly)
-    return clean_poly(HPolytope(vcat(constraints_list(P), constraints_list(Q))))
+    return clean_poly(
+        Poly(vcat(LazySets.constraints_list(P), LazySets.constraints_list(Q))),
+    )
 end
 
 is_nonempty_set(::LazySets.EmptySet) = false
 is_nonempty_set(P) = !isempty(P)
 
 function get_volume(P::Poly)
-    ph = polyhedron(P; backend = CDDLib.Library())
+    ph = LazySets.polyhedron(P; backend = CDDLib.Library())
     return Polyhedra.volume(ph)
 end
 
@@ -59,7 +59,7 @@ Base.length(S::SemiLinearSet) = length(S.parts)
 Base.isempty(S::SemiLinearSet) = isempty(S.parts)
 Base.iterate(S::SemiLinearSet, st...) = iterate(S.parts, st...)
 function dim(P::Poly)
-    cons = constraints_list(P)
+    cons = LazySets.constraints_list(P)
     isempty(cons) && error("Cannot infer dimension from empty constraint list.")
     return length(first(cons).a)
 end
@@ -179,15 +179,15 @@ function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.
 end
 
 function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
-    qcons = constraints_list(Q)
-    pcons = constraints_list(P)
+    qcons = LazySets.constraints_list(Q)
+    pcons = LazySets.constraints_list(P)
 
     pieces = Poly[]
-    prefix = HalfSpace[]
+    prefix = LazySets.HalfSpace[]
 
     for c in qcons
-        comp = HalfSpace(-c.a, -(c.b + atol))
-        piece = clean_poly(HPolytope(vcat(pcons, prefix, [comp])))
+        comp = LazySets.HalfSpace(-c.a, -(c.b + atol))
+        piece = clean_poly(Poly(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
             push!(pieces, _as_hpolytope(piece))
         end
@@ -212,11 +212,11 @@ function preimage_linear(S::SemiLinearSet, A::AbstractMatrix)
 end
 
 function preimage_linear(P::Poly, A::AbstractMatrix)
-    new_cons = HalfSpace[]
-    for c in constraints_list(P)
-        push!(new_cons, HalfSpace(A' * c.a, c.b))
+    new_cons = LazySets.HalfSpace[]
+    for c in LazySets.constraints_list(P)
+        push!(new_cons, LazySets.HalfSpace(A' * c.a, c.b))
     end
-    return clean_poly(HPolytope(new_cons))
+    return clean_poly(Poly(new_cons))
 end
 
 function preimage_linear_parts(S::SemiLinearSet, A::AbstractMatrix)
