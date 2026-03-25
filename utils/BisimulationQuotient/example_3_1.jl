@@ -105,7 +105,7 @@ graph = PCLF.generate_DeBruijn_edges(M, 0)
 
 # Recover the unique vertex
 v = first(graph.verts)
-
+println("Vertex: ", v)
 # One piece: V(x) = ||Lx||_inf
 piece = PCLF.PolyhedralPiece(L, ones(size(L, 1)))
 
@@ -131,13 +131,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 100)
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-MOI.optimize!(optimizer)
-construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-println("Construction time = ", construction_time)
+# MOI.optimize!(optimizer)
+# construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+# println("Construction time = ", construction_time)
 
-# const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
-# # AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
+# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
+optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
@@ -201,12 +201,13 @@ mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
     mem0;
     N = 50,
 )
-println(X_seq)
-println(U_seq)
-println(M_seq)
-φ_str = string(φ)
+
+# ---------------------------------------------------------
+# Plot closed-loop trajectory and controlled sets
+# ---------------------------------------------------------
 
 fig = plot(; aspect_ratio = :equal, legend = false)
+φ_str = string(φ)
 plot!(fig; title = "$φ_str")
 plot!(
     bisimulation;
@@ -220,3 +221,41 @@ plot!(
 plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
 plot!(ST.Trajectory(X_seq); label = "Trajectory")
 display(fig)
+
+# ---------------------------------------------------------
+# Plot lifted trajectory and quotient states
+# ---------------------------------------------------------
+
+# include("lifted_trajectory_recipes.jl")
+
+# node_z = Dict(1 => 1.0)
+# node_colors = Dict(1 => :blue)
+
+# fig = GLMakie.Figure(size = (900, 700))
+# ax = GLMakie.Axis3(
+#     fig[1, 1],
+#     xlabel = "x₁",
+#     ylabel = "x₂",
+#     zlabel = "node",
+#     zticks = (collect(values(node_z)), string.(collect(keys(node_z)))),
+#     title = "Lifted quotient states and closed-loop trajectory",
+# )
+
+# plot_lifted_bisimulation_makie!(
+#     ax,
+#     bisimulation;
+#     node_z = node_z,
+#     color_by = :state,
+#     alpha = 0.2,
+#     show_contours = false,
+# )
+
+# plot_lifted_trajectory_makie!(
+#     ax,
+#     bisimulation,
+#     X_seq,
+#     M_seq;
+#     node_z = node_z,
+# )
+
+# display(fig)

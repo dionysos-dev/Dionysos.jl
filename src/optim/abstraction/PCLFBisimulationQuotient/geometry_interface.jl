@@ -2,7 +2,7 @@
 # Polytopes
 # ============================================================
 
-const Poly = Poly
+const Poly = LazySets.HPolytope
 
 function _as_hpolytope(P)
     P isa Poly && return P
