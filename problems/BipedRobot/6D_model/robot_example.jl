@@ -5,6 +5,8 @@
 # ---------------------------------------------------------------------------
 #  Configuration from environment variables
 # ---------------------------------------------------------------------------
+const _t_script_start = time()
+
 const USE_DISTRIBUTED = lowercase(get(ENV, "DIONYSOS_DISTRIBUTED", "false")) == "true"
 const USE_THREADED = lowercase(get(ENV, "DIONYSOS_THREADED", "false")) == "true"
 const N_PARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", "300"))
@@ -33,6 +35,9 @@ robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 @everywhere include($robot_problem_path)
 
 @everywhere include(joinpath(@__DIR__, "utils.jl"))
+
+const loading_time = time() - _t_script_start
+println("TIMING loading_time: ", loading_time)
 
 # ==============================================================================
 # Script parameters
@@ -176,14 +181,20 @@ end
 robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf")
 tstep = 0.1
 
+const _t_system_setup_start = time()
 concrete_problem = RobotProblem.problem(; robot_urdf = robot_urdf, tstep = tstep)
 concrete_system = concrete_problem.system
+const system_setup_time = time() - _t_system_setup_start
+println("TIMING system_setup_time: ", system_setup_time)
 
 n_state = MathematicalSystems.statedim(concrete_system)
 n_input = MathematicalSystems.inputdim(concrete_system)
 
 println("n_state: ", n_state)
 println("n_input: ", n_input)
+
+const pre_abstraction_time = time() - _t_script_start
+println("TIMING pre_abstraction_time: ", pre_abstraction_time)
 
 state_filter = nothing # RobotProblem.in_gait_tube
 state_input_filter = nothing # RobotProblem.input_allowed
@@ -210,11 +221,35 @@ if COMPUTE_ABSTRACTION
         state_input_filter = state_input_filter,
     )
 
+    RobotProblem.reset_rbd_timing!()
     MOI.optimize!(optimizer)
 
     abstraction_time =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
     println("Time to construct the abstraction: $(abstraction_time)")
+
+    # Collect RBD timing: on master for serial/threaded, from workers for distributed
+    if USE_DISTRIBUTED && length(workers()) > 1
+        rbd_total_ns = Int64(0)
+        rbd_total_calls = Int64(0)
+        for wid in workers()
+            wstats = @fetchfrom wid RobotProblem.get_rbd_timing()
+            rbd_total_ns += Int64(round(wstats.time_sec * 1e9))
+            rbd_total_calls += wstats.call_count
+            println(
+                "TIMING rbd_worker worker_id=$wid time=$(wstats.time_sec) calls=$(wstats.call_count)",
+            )
+        end
+        println("TIMING rbd_simulate_time: ", rbd_total_ns / 1e9)
+        println("TIMING rbd_call_count: ", rbd_total_calls)
+    else
+        rbd_stats = RobotProblem.get_rbd_timing()
+        println("TIMING rbd_simulate_time: ", rbd_stats.time_sec)
+        println("TIMING rbd_call_count: ", rbd_stats.call_count)
+    end
+
+    global post_abstraction_time = time() - _t_script_start
+    println("TIMING post_abstraction_time: ", post_abstraction_time)
 
     if SAVE_ABSTRACTION
         AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, FILENAME)

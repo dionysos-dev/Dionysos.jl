@@ -170,6 +170,7 @@ function _collect_transitions_threaded!(
 
     transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
     local_done = fill(0, nthreads)
+    thread_time_ns = fill(Int64(0), nthreads)
 
     progress_dt_ns = Int(round(progress_dt * 1e9))
     prog = print_level==2 ? ProgressMeter.Progress(total_work) : nothing
@@ -188,7 +189,9 @@ function _collect_transitions_threaded!(
 
         if state_input_filter === nothing ||
            _keep_state_input(symmodel, abstract_state, abstract_input, state_input_filter)
+            t_work = time_ns()
             workfun!(local_transitions, abstract_state, abstract_input)
+            thread_time_ns[tid] += Int64(time_ns() - t_work)
         end
 
         local_done[tid] += 1
@@ -216,6 +219,13 @@ function _collect_transitions_threaded!(
 
     for local_transitions in transitions_by_thread
         isempty(local_transitions) || append!(out, local_transitions)
+    end
+
+    # Print per-thread timing
+    for tid in 1:nthreads
+        println(
+            "TIMING thread_time thread_id=$(tid) elapsed=$(thread_time_ns[tid] / 1e9) n_transitions=$(length(transitions_by_thread[tid]))",
+        )
     end
 
     if print_level==2

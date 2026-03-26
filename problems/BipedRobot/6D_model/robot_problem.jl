@@ -20,6 +20,19 @@ import .RS_tools
 
 const _robot_cache = Ref{Any}(nothing)
 
+# Thread-safe RigidBodyDynamics timing accumulator
+const _rbd_time_ns = Threads.Atomic{Int64}(0)
+const _rbd_call_count = Threads.Atomic{Int64}(0)
+
+function reset_rbd_timing!()
+    Threads.atomic_xchg!(_rbd_time_ns, 0)
+    return Threads.atomic_xchg!(_rbd_call_count, 0)
+end
+
+function get_rbd_timing()
+    return (time_sec = _rbd_time_ns[] / 1e9, call_count = _rbd_call_count[])
+end
+
 function _get_robot_data(robot_urdf)
     if _robot_cache[] === nothing
         rs = RS_tools.RobotSimulator(;
@@ -182,8 +195,11 @@ function system(;
 
         q_ref = SVector{1}(0.0)
         controller! = voltage_controller!(u, q_ref)
+        t0 = time_ns()
         ts, qs, vs =
             RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+        Threads.atomic_add!(_rbd_time_ns, Int64(time_ns() - t0))
+        Threads.atomic_add!(_rbd_call_count, Int64(1))
 
         q_end = qs[end]
         v_end = vs[end]

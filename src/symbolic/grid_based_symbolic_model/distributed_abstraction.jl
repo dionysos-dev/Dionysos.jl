@@ -85,6 +85,8 @@ struct DistributedAbstractionResult
     transitions::Vector{Tuple{Int, Int, Int}}
     n_source_states::Int
     n_transitions::Int
+    worker_id::Int
+    elapsed_sec::Float64
 end
 
 function _run_local_partition(
@@ -97,6 +99,8 @@ function _run_local_partition(
     state_filter::Union{Nothing, Function} = nothing,
     state_input_filter::Union{Nothing, Function} = nothing,
 )
+    wid = Distributed.myid()
+    t0 = time()
     transitions = collect_abstract_transitions(
         local_symmodel,
         concrete_system_approx;
@@ -107,10 +111,17 @@ function _run_local_partition(
         state_filter = state_filter,
         state_input_filter = state_input_filter,
     )
+    elapsed = time() - t0
 
     n_source_states = length(collect(enum_source_states(local_symmodel)))
 
-    return DistributedAbstractionResult(transitions, n_source_states, length(transitions))
+    return DistributedAbstractionResult(
+        transitions,
+        n_source_states,
+        length(transitions),
+        wid,
+        elapsed,
+    )
 end
 
 # ------------------------------------------------------------------
@@ -214,6 +225,13 @@ function collect_abstract_transitions_distributed(
         append!(transitions, res.transitions)
         total_sources += res.n_source_states
         total_transitions += res.n_transitions
+    end
+
+    # Print per-worker timing
+    for (i, res) in enumerate(results)
+        println(
+            "TIMING worker_time worker_id=$(res.worker_id) partition=$(i) elapsed=$(res.elapsed_sec) n_states=$(res.n_source_states) n_transitions=$(res.n_transitions)",
+        )
     end
 
     print_level >= 1 && @info(

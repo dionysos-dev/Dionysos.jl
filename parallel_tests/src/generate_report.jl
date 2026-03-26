@@ -100,6 +100,24 @@ function parse_log_file(log_path::String)
         (r"n_vel:\s*(\d+)", "n_vel", Int),
     ]
 
+    # TIMING patterns from instrumented code
+    timing_patterns = [
+        (r"TIMING loading_time:\s*([\d.eE+-]+)", "loading_time_sec", Float64),
+        (r"TIMING system_setup_time:\s*([\d.eE+-]+)", "system_setup_time_sec", Float64),
+        (
+            r"TIMING pre_abstraction_time:\s*([\d.eE+-]+)",
+            "pre_abstraction_time_sec",
+            Float64,
+        ),
+        (
+            r"TIMING post_abstraction_time:\s*([\d.eE+-]+)",
+            "post_abstraction_time_sec",
+            Float64,
+        ),
+        (r"TIMING rbd_simulate_time:\s*([\d.eE+-]+)", "rbd_simulate_time_sec", Float64),
+        (r"TIMING rbd_call_count:\s*(\d+)", "rbd_call_count", Int),
+    ]
+
     # Patterns from wrapper header
     header_patterns = [
         (r"NPARTS:\s*(\d+)", "log_nparts", Int),
@@ -117,7 +135,7 @@ function parse_log_file(log_path::String)
         (r"GC time:\s*([\d.]+)\s*s", "log_gc_time_sec", Float64),
     ]
 
-    for (regex, key, T) in vcat(patterns, header_patterns, footer_patterns)
+    for (regex, key, T) in vcat(patterns, timing_patterns, header_patterns, footer_patterns)
         m = match(regex, text)
         if m !== nothing
             try
@@ -131,6 +149,63 @@ function parse_log_file(log_path::String)
     # Count "addprocs" evidence: look for worker-related messages
     if occursin(r"Workers removed", text)
         parsed["had_workers"] = true
+    end
+
+    # Parse per-worker timing lines
+    worker_times = Dict{String, Any}[]
+    for m in eachmatch(
+        r"TIMING worker_time worker_id=(\d+) partition=(\d+) elapsed=([\d.eE+-]+) n_states=(\d+) n_transitions=(\d+)",
+        text,
+    )
+        push!(
+            worker_times,
+            Dict{String, Any}(
+                "worker_id" => parse(Int, m[1]),
+                "partition" => parse(Int, m[2]),
+                "elapsed" => parse(Float64, m[3]),
+                "n_states" => parse(Int, m[4]),
+                "n_transitions" => parse(Int, m[5]),
+            ),
+        )
+    end
+    if !isempty(worker_times)
+        parsed["worker_times"] = worker_times
+    end
+
+    # Parse per-worker RBD timing lines
+    rbd_worker_times = Dict{String, Any}[]
+    for m in
+        eachmatch(r"TIMING rbd_worker worker_id=(\d+) time=([\d.eE+-]+) calls=(\d+)", text)
+        push!(
+            rbd_worker_times,
+            Dict{String, Any}(
+                "worker_id" => parse(Int, m[1]),
+                "time_sec" => parse(Float64, m[2]),
+                "call_count" => parse(Int, m[3]),
+            ),
+        )
+    end
+    if !isempty(rbd_worker_times)
+        parsed["rbd_worker_times"] = rbd_worker_times
+    end
+
+    # Parse per-thread timing lines
+    thread_times = Dict{String, Any}[]
+    for m in eachmatch(
+        r"TIMING thread_time thread_id=(\d+) elapsed=([\d.eE+-]+) n_transitions=(\d+)",
+        text,
+    )
+        push!(
+            thread_times,
+            Dict{String, Any}(
+                "thread_id" => parse(Int, m[1]),
+                "elapsed" => parse(Float64, m[2]),
+                "n_transitions" => parse(Int, m[3]),
+            ),
+        )
+    end
+    if !isempty(thread_times)
+        parsed["thread_times"] = thread_times
     end
 
     return parsed
@@ -147,6 +222,17 @@ function load_log_data(results_dir::String)
         log_path = joinpath(results_dir, mode, "run.log")
         if isfile(log_path)
             logs[mode] = parse_log_file(log_path)
+        end
+    end
+    # Also scan scaling subdirectories (distributed_n*, threaded_n*)
+    if isdir(results_dir)
+        for entry in readdir(results_dir)
+            m = match(r"^(distributed|threaded)_n(\d+)$", entry)
+            m === nothing && continue
+            log_path = joinpath(results_dir, entry, "run.log")
+            if isfile(log_path)
+                logs[entry] = parse_log_file(log_path)
+            end
         end
     end
     return logs
@@ -342,36 +428,47 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         end
     end
 
-    # ── Section 4: Results comparison table ──
+    # ── Section 4: Combined Results & Abstraction Table ──
     println(
         tex,
         raw"""
 \section{Performance Comparison}
-\subsection{Summary Table}
+\subsection{Combined Summary}
 """,
     )
-    println(tex, raw"\begin{table}[H]")
-    println(tex, raw"\centering")
-    println(tex, raw"\caption{Benchmark Results — all modes}")
-    println(tex, raw"\begin{tabular}{l r r r r r r}")
-    println(tex, raw"\toprule")
-    println(
-        tex,
-        raw"\textbf{Mode} & \textbf{Total (s)} & \textbf{Speedup} & \textbf{Threads} & \textbf{Workers} & \textbf{Parts} & \textbf{Alloc (MB)} \\\\",
-    )
-    println(tex, raw"\midrule")
 
     serial_time = nothing
     if haskey(data, "serial")
         serial_time = get(data["serial"], "elapsed_sec", nothing)
     end
 
+    serial_abs_time = nothing
+    abs_times = Dict{String, Float64}()
+    for m in modes
+        lg = get(log_data, m, Dict())
+        abt = get(lg, "abstraction_time_sec", nothing)
+        if abt !== nothing
+            abs_times[m] = abt
+            m == "serial" && (serial_abs_time = abt)
+        end
+    end
+
+    println(tex, raw"\begin{table}[H]")
+    println(tex, raw"\centering")
+    println(tex, raw"\caption{Benchmark and abstraction results — all modes}")
+    println(tex, raw"\begin{tabular}{l r r r r r r r r}")
+    println(tex, raw"\toprule")
+    println(
+        tex,
+        raw"\textbf{Mode} & \textbf{Total (s)} & \textbf{Speedup} & \textbf{Abstr.\ (s)} & \textbf{Abstr.\ Speedup} & \textbf{Threads} & \textbf{Workers} & \textbf{Parts} & \textbf{Alloc (MB)} \\\\",
+    )
+    println(tex, raw"\midrule")
+
     for m in modes
         haskey(data, m) || continue
         d = data[m]
         t = get(d, "elapsed_sec", 0.0)
         threads = get(d, "julia_threads", 1)
-        # Use example_nprocs from captured globals, fall back to log, then to JSON
         nprocs_actual = get(
             d,
             "example_nprocs",
@@ -385,6 +482,15 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
             speedup = fmt_float(serial_time / t)
         end
 
+        abt_str = "—"
+        abs_sp_str = "—"
+        if haskey(abs_times, m)
+            abt_str = fmt_time(abs_times[m])
+            if serial_abs_time !== nothing && serial_abs_time > 0 && abs_times[m] > 0
+                abs_sp_str = fmt_float(serial_abs_time / abs_times[m])
+            end
+        end
+
         mode_label = Dict(
             "serial" => "Serial",
             "threaded" => "Threaded",
@@ -393,7 +499,7 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         )[m]
         println(
             tex,
-            "$mode_label & $(fmt_time(t)) & $(speedup)\\texttimes & $threads & $nprocs_actual & $parts & $alloc \\\\",
+            "$mode_label & $(fmt_time(t)) & $(speedup)\\texttimes & $abt_str & $(abs_sp_str)\\texttimes & $threads & $nprocs_actual & $parts & $alloc \\\\",
         )
     end
 
@@ -401,54 +507,54 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
     println(tex, raw"\end{tabular}")
     println(tex, raw"\end{table}")
 
-    # ── Abstraction time comparison (from logs) ──
-    serial_abs_time = nothing
-    abs_times = Dict{String, Float64}()
-    for m in modes
-        lg = get(log_data, m, Dict())
-        abt = get(lg, "abstraction_time_sec", nothing)
-        if abt !== nothing
-            abs_times[m] = abt
-            m == "serial" && (serial_abs_time = abt)
-        end
-    end
-
-    if !isempty(abs_times)
-        println(tex, raw"\subsection{Abstraction Construction Time}")
+    # ── Timing Breakdown Table ──
+    has_breakdown = any(haskey(get(log_data, m, Dict()), "loading_time_sec") for m in modes)
+    if has_breakdown
+        println(tex, raw"\subsection{Timing Breakdown}")
         println(tex, raw"\begin{table}[H]")
         println(tex, raw"\centering")
-        println(
-            tex,
-            raw"\caption{Abstraction construction time per mode (from example output)}",
-        )
-        println(tex, raw"\begin{tabular}{l r r r r}")
+        println(tex, raw"\caption{Time breakdown per phase (seconds)}")
+
+        available_modes = [m for m in modes if haskey(data, m)]
+        ncols = length(available_modes) + 1
+        col_spec = "l" * repeat(" r", length(available_modes))
+        println(tex, "\\begin{tabular}{$col_spec}")
         println(tex, raw"\toprule")
-        println(
-            tex,
-            raw"\textbf{Mode} & \textbf{Abstraction (s)} & \textbf{Speedup} & \textbf{Threads} & \textbf{Partitions} \\\\",
+        mode_headers = join(
+            [
+                "\\textbf{$(Dict("serial"=>"Serial","threaded"=>"Threaded","distributed"=>"Distributed","hybrid"=>"Hybrid")[m])}"
+                for m in available_modes
+            ],
+            " & ",
         )
+        println(tex, "\\textbf{Phase} & $mode_headers \\\\")
         println(tex, raw"\midrule")
 
-        for m in modes
-            haskey(abs_times, m) || continue
-            abt = abs_times[m]
-            lg = get(log_data, m, Dict())
-            threads = get(lg, "log_threads", 1)
-            parts = get(lg, "log_nparts", 1)
-            sp = "1.00"
-            if serial_abs_time !== nothing && serial_abs_time > 0 && abt > 0
-                sp = fmt_float(serial_abs_time / abt)
+        breakdown_keys = [
+            ("loading_time_sec", "Loading \\& imports"),
+            ("system_setup_time_sec", "System setup (RBD init)"),
+            ("pre_abstraction_time_sec", "Pre-abstraction total"),
+            ("abstraction_time_sec", "Abstraction construction"),
+            ("rbd_simulate_time_sec", "RigidBodyDynamics (cumul.)"),
+            ("rbd_call_count", "RBD call count"),
+            ("post_abstraction_time_sec", "Post-abstraction total"),
+            ("log_wall_clock_sec", "Wall-clock total"),
+        ]
+
+        for (key, label) in breakdown_keys
+            vals = String[]
+            for m in available_modes
+                lg = get(log_data, m, Dict())
+                val = get(lg, key, nothing)
+                if val === nothing
+                    push!(vals, "—")
+                elseif val isa AbstractFloat
+                    push!(vals, fmt_time(val))
+                else
+                    push!(vals, string(val))
+                end
             end
-            mode_label = Dict(
-                "serial" => "Serial",
-                "threaded" => "Threaded",
-                "distributed" => "Distributed",
-                "hybrid" => "Hybrid",
-            )[m]
-            println(
-                tex,
-                "$mode_label & $(fmt_time(abt)) & $(sp)\\texttimes & $threads & $parts \\\\",
-            )
+            println(tex, "$label & $(join(vals, " & ")) \\\\")
         end
 
         println(tex, raw"\bottomrule")
@@ -456,39 +562,121 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
         println(tex, raw"\end{table}")
     end
 
-    # ── Section 4: Detailed per-mode analysis ──
-    println(tex, raw"\subsection{Detailed Metrics}")
+    # ── Per-Worker / Per-Thread Timing ──
+    has_worker_or_thread_times = any(
+        haskey(get(log_data, m, Dict()), "worker_times") ||
+        haskey(get(log_data, m, Dict()), "thread_times") ||
+        haskey(get(log_data, m, Dict()), "rbd_worker_times") for m in modes
+    )
+    if has_worker_or_thread_times
+        println(tex, raw"\subsection{Per-Worker / Per-Thread Timing}")
 
-    for m in modes
-        haskey(data, m) || continue
-        d = data[m]
-        mode_label = Dict(
-            "serial" => "Serial",
-            "threaded" => "Multithreaded",
-            "distributed" => "Distributed (Multiprocessing)",
-            "hybrid" => "Hybrid (Distributed + Threaded)",
-        )[m]
+        for m in modes
+            lg = get(log_data, m, Dict())
+            wt = get(lg, "worker_times", nothing)
+            tt = get(lg, "thread_times", nothing)
 
-        # Compute speedup for this mode
-        speedup_str = "—"
-        if serial_time !== nothing && serial_time > 0
-            t = get(d, "elapsed_sec", 0.0)
-            if t > 0
-                speedup_str = fmt_float(serial_time / t)
+            mode_label = Dict(
+                "serial" => "Serial",
+                "threaded" => "Threaded",
+                "distributed" => "Distributed",
+                "hybrid" => "Hybrid",
+            )[m]
+
+            if wt !== nothing && !isempty(wt)
+                println(tex, "\n\\subsubsection{$mode_label — Worker Times}")
+                println(tex, raw"\begin{table}[H]")
+                println(tex, raw"\centering")
+                println(tex, raw"\begin{tabular}{r r r r r}")
+                println(tex, raw"\toprule")
+                println(
+                    tex,
+                    raw"\textbf{Worker ID} & \textbf{Partition} & \textbf{Elapsed (s)} & \textbf{States} & \textbf{Transitions} \\\\",
+                )
+                println(tex, raw"\midrule")
+                for w in wt
+                    println(
+                        tex,
+                        "$(w["worker_id"]) & $(w["partition"]) & $(fmt_time(w["elapsed"])) & $(w["n_states"]) & $(w["n_transitions"]) \\\\",
+                    )
+                end
+                println(tex, raw"\bottomrule")
+                println(tex, raw"\end{tabular}")
+                println(tex, raw"\end{table}")
+            end
+
+            rbd_wt = get(lg, "rbd_worker_times", nothing)
+            if rbd_wt !== nothing && !isempty(rbd_wt)
+                println(tex, "\n\\subsubsection{$mode_label — RBD Per-Worker Times}")
+                println(tex, raw"\begin{table}[H]")
+                println(tex, raw"\centering")
+                println(tex, raw"\begin{tabular}{r r r}")
+                println(tex, raw"\toprule")
+                println(
+                    tex,
+                    raw"\textbf{Worker ID} & \textbf{RBD Time (s)} & \textbf{RBD Calls} \\\\",
+                )
+                println(tex, raw"\midrule")
+                for w in rbd_wt
+                    println(
+                        tex,
+                        "$(w["worker_id"]) & $(fmt_time(w["time_sec"])) & $(w["call_count"]) \\\\",
+                    )
+                end
+                println(tex, raw"\bottomrule")
+                println(tex, raw"\end{tabular}")
+                println(tex, raw"\end{table}")
+            end
+
+            if tt !== nothing && !isempty(tt)
+                println(tex, "\n\\subsubsection{$mode_label — Thread Times}")
+                println(tex, raw"\begin{table}[H]")
+                println(tex, raw"\centering")
+                println(tex, raw"\begin{tabular}{r r r}")
+                println(tex, raw"\toprule")
+                println(
+                    tex,
+                    raw"\textbf{Thread ID} & \textbf{Elapsed (s)} & \textbf{Transitions} \\\\",
+                )
+                println(tex, raw"\midrule")
+                for t in tt
+                    println(
+                        tex,
+                        "$(t["thread_id"]) & $(fmt_time(t["elapsed"])) & $(t["n_transitions"]) \\\\",
+                    )
+                end
+                println(tex, raw"\bottomrule")
+                println(tex, raw"\end{tabular}")
+                println(tex, raw"\end{table}")
             end
         end
+    end
 
-        println(tex, "\n\\subsubsection{$mode_label}")
+    # ── Section: Combined Detailed Metrics (4-column table) ──
+    println(tex, raw"\subsection{Detailed Metrics (All Modes)}")
+
+    available_modes = [m for m in modes if haskey(data, m)]
+    if !isempty(available_modes)
+        col_spec = "l" * repeat(" r", length(available_modes))
+        mode_headers = join(
+            [
+                "\\textbf{$(Dict("serial"=>"Serial","threaded"=>"Threaded","distributed"=>"Distributed","hybrid"=>"Hybrid")[m])}"
+                for m in available_modes
+            ],
+            " & ",
+        )
+
         println(tex, raw"\begin{table}[H]")
         println(tex, raw"\centering")
-        println(tex, raw"\begin{tabular}{ll}")
+        println(tex, raw"\caption{Detailed metrics comparison}")
+        println(tex, "\\begin{tabular}{$col_spec}")
         println(tex, raw"\toprule")
-        println(tex, raw"\textbf{Metric} & \textbf{Value} \\\\")
+        println(tex, "\\textbf{Metric} & $mode_headers \\\\")
         println(tex, raw"\midrule")
 
-        detail_keys = [
+        combined_detail_keys = [
             ("elapsed_sec", "Wall-clock time (s)"),
-            ("wall_clock_sec", "Total time incl. setup (s)"),
+            ("wall_clock_sec", "Total time incl.\\ setup (s)"),
             ("julia_threads", "Julia threads"),
             ("julia_nprocs", "Julia processes"),
             ("julia_nworkers", "Julia workers"),
@@ -497,124 +685,212 @@ Each mode is controlled via the \texttt{DIONYSOS\_DISTRIBUTED} and \texttt{DIONY
             ("gc_time_sec", "GC time (s)"),
             ("free_memory_GB", "Free memory (GB)"),
             ("total_memory_GB", "Total memory (GB)"),
-            ("hostname", "Hostname"),
-            ("pid", "PID"),
         ]
 
-        for (key, label) in detail_keys
-            val = get(d, key, nothing)
-            val === nothing && continue
-            val_str = val isa Bool ? (val ? "Yes" : "No") : escape_latex(string(val))
-            println(tex, "$label & \\texttt{$val_str} \\\\")
-        end
-
-        println(tex, "Speedup vs.~serial & \\texttt{$(speedup_str)\\texttimes} \\\\")
-
-        # Log-parsed metrics (abstraction time, problem dims, example config)
-        lg = get(log_data, m, Dict{String, Any}())
-        if !isempty(lg)
-            println(tex, raw"\midrule")
-            println(tex, raw"\multicolumn{2}{l}{\textbf{From Example Output}} \\\\")
-            log_keys = [
-                ("abstraction_time_sec", "Abstraction time (s)"),
-                ("solve_time_sec", "Abstract problem solve time (s)"),
-                ("n_state", "State dimension"),
-                ("n_input", "Input dimension"),
-                ("n_pos", "Position DoF"),
-                ("n_vel", "Velocity DoF"),
-            ]
-            for (key, label) in log_keys
-                val = get(lg, key, nothing)
-                val === nothing && continue
-                val_str = val isa AbstractFloat ? fmt_time(val) : string(val)
-                println(tex, "$label & \\texttt{$(escape_latex(val_str))} \\\\")
-            end
-            # Abstraction speedup
-            if haskey(lg, "abstraction_time_sec") &&
-               serial_abs_time !== nothing &&
-               serial_abs_time > 0
-                abs_sp = fmt_float(serial_abs_time / lg["abstraction_time_sec"])
-                println(
-                    tex,
-                    "Abstraction speedup vs.~serial & \\texttt{$(abs_sp)\\texttimes} \\\\",
-                )
-            end
-        end
-
-        # Captured example globals
-        example_keys = [
-            ("abstraction_time_sec", "Abstraction time (captured)"),
-            ("n_state", "State dim (captured)"),
-            ("n_input", "Input dim (captured)"),
-            ("example_nprocs", "Example N\\_PROCS"),
-            ("example_nparts", "Example N\\_PARTS"),
-        ]
-        has_example = false
-        for (key, label) in example_keys
-            val = get(d, key, nothing)
-            val === nothing && continue
-            if !has_example
-                println(tex, raw"\midrule")
-                println(
-                    tex,
-                    raw"\multicolumn{2}{l}{\textbf{Captured Example Globals}} \\\\",
-                )
-                has_example = true
-            end
-            val_str = val isa AbstractFloat ? fmt_time(val) : escape_latex(string(val))
-            println(tex, "$label & \\texttt{$val_str} \\\\")
-        end
-
-        # Worker details
-        winfo = get(d, "worker_info", nothing)
-        if winfo !== nothing && winfo isa Dict
-            println(tex, raw"\midrule")
-            println(tex, raw"\multicolumn{2}{l}{\textbf{Worker Details}} \\\\")
-            for (wid, info) in winfo
-                host = get(info, "host", "?")
-                pid = get(info, "pid", "?")
-                thr = get(info, "threads", "?")
-                println(
-                    tex,
-                    "Worker $wid & host=\\texttt{$(escape_latex(string(host)))}, pid=$pid, threads=$thr \\\\",
-                )
-            end
-        end
-
-        nodes = get(d, "nodes_used", nothing)
-        if nodes !== nothing && nodes isa Vector
-            println(tex, "Nodes used & \\texttt{$(escape_latex(join(nodes, ", ")))} \\\\")
-        end
-
-        # SLURM info
-        has_slurm = false
-        for var in [
-            "SLURM_JOB_ID",
-            "SLURM_NNODES",
-            "SLURM_NTASKS",
-            "SLURM_CPUS_PER_TASK",
-            "SLURM_NODELIST",
-        ]
-            val = get(d, var, nothing)
-            if val !== nothing
-                if !has_slurm
-                    println(tex, raw"\midrule")
-                    println(tex, raw"\multicolumn{2}{l}{\textbf{SLURM Configuration}} \\\\")
-                    has_slurm = true
+        for (key, label) in combined_detail_keys
+            vals = String[]
+            for m in available_modes
+                d = data[m]
+                val = get(d, key, nothing)
+                if val === nothing
+                    push!(vals, "—")
+                elseif val isa AbstractFloat
+                    push!(vals, fmt_time(val))
+                elseif val isa Bool
+                    push!(vals, val ? "Yes" : "No")
+                else
+                    push!(vals, escape_latex(string(val)))
                 end
-                println(
-                    tex,
-                    escape_latex(var),
-                    " & \\texttt{",
-                    escape_latex(string(val)),
-                    "} \\\\",
-                )
             end
+            println(tex, "$label & $(join(vals, " & ")) \\\\")
+        end
+
+        # Speedup row
+        speed_vals = String[]
+        for m in available_modes
+            t = get(data[m], "elapsed_sec", 0.0)
+            if serial_time !== nothing && serial_time > 0 && t > 0
+                push!(speed_vals, "$(fmt_float(serial_time / t))\\texttimes")
+            else
+                push!(speed_vals, "—")
+            end
+        end
+        println(tex, "Speedup vs.\\ serial & $(join(speed_vals, " & ")) \\\\")
+
+        # Log-derived rows
+        log_detail_keys = [
+            ("abstraction_time_sec", "Abstraction time (s)"),
+            ("loading_time_sec", "Loading time (s)"),
+            ("system_setup_time_sec", "System setup time (s)"),
+            ("pre_abstraction_time_sec", "Pre-abstraction time (s)"),
+            ("rbd_simulate_time_sec", "RBD simulate time (s)"),
+            ("rbd_call_count", "RBD call count"),
+        ]
+
+        println(tex, raw"\midrule")
+        for (key, label) in log_detail_keys
+            vals = String[]
+            any_present = false
+            for m in available_modes
+                lg = get(log_data, m, Dict())
+                val = get(lg, key, nothing)
+                if val === nothing
+                    push!(vals, "—")
+                else
+                    any_present = true
+                    push!(vals, val isa AbstractFloat ? fmt_time(val) : string(val))
+                end
+            end
+            any_present && println(tex, "$label & $(join(vals, " & ")) \\\\")
         end
 
         println(tex, raw"\bottomrule")
         println(tex, raw"\end{tabular}")
         println(tex, raw"\end{table}")
+    end
+
+    # ── Scaling Data & Plots ──
+    scaling_dist = Dict{Int, Dict{String, Any}}()
+    scaling_thr = Dict{Int, Dict{String, Any}}()
+    for (key, lg) in log_data
+        m = match(r"^distributed_n(\d+)$", key)
+        if m !== nothing
+            n = parse(Int, m[1])
+            scaling_dist[n] = lg
+        end
+        m = match(r"^threaded_n(\d+)$", key)
+        if m !== nothing
+            n = parse(Int, m[1])
+            scaling_thr[n] = lg
+        end
+    end
+
+    has_scaling = !isempty(scaling_dist) || !isempty(scaling_thr)
+    if has_scaling
+        println(tex, raw"\subsection{Scaling Results}")
+
+        # Generate scaling data files and PGF-free plots via LaTeX picture env
+        # We write CSV files and include as tables; also generate gnuplot/pgfplots if available
+        for (label, sdata, xlab) in
+            [("Distributed", scaling_dist, "Workers"), ("Threaded", scaling_thr, "Threads")]
+            isempty(sdata) && continue
+            ns = sort(collect(keys(sdata)))
+
+            println(tex, "\n\\subsubsection{$label Scaling}")
+            println(tex, raw"\begin{table}[H]")
+            println(tex, raw"\centering")
+            println(tex, "\\caption{$label scaling data}")
+            println(tex, raw"\begin{tabular}{r r r r r}")
+            println(tex, raw"\toprule")
+            println(
+                tex,
+                "\\textbf{$xlab} & \\textbf{Total (s)} & \\textbf{Abstr.\\ (s)} & \\textbf{Speedup (total)} & \\textbf{Speedup (abstr.)} \\\\",
+            )
+            println(tex, raw"\midrule")
+
+            base_total = get(get(sdata, ns[1], Dict()), "log_wall_clock_sec", nothing)
+            base_abs = get(get(sdata, ns[1], Dict()), "abstraction_time_sec", nothing)
+            # If serial data exists, use it as baseline
+            if serial_time !== nothing
+                base_total = serial_time
+            end
+            if serial_abs_time !== nothing
+                base_abs = serial_abs_time
+            end
+
+            # Collect for CSV
+            csv_rows = Tuple{Int, Float64, Float64}[]
+            for n in ns
+                lg = sdata[n]
+                total = get(lg, "log_wall_clock_sec", get(lg, "log_timed_sec", NaN))
+                abt = get(lg, "abstraction_time_sec", NaN)
+                sp_total =
+                    (base_total !== nothing && base_total > 0 && total > 0) ?
+                    fmt_float(base_total / total) : "—"
+                sp_abs =
+                    (base_abs !== nothing && base_abs > 0 && abt > 0) ?
+                    fmt_float(base_abs / abt) : "—"
+                println(
+                    tex,
+                    "$n & $(isnan(total) ? "—" : fmt_time(total)) & $(isnan(abt) ? "—" : fmt_time(abt)) & $sp_total & $sp_abs \\\\",
+                )
+                if !isnan(total) && !isnan(abt)
+                    push!(csv_rows, (n, total, abt))
+                end
+            end
+
+            println(tex, raw"\bottomrule")
+            println(tex, raw"\end{tabular}")
+            println(tex, raw"\end{table}")
+
+            # Write CSV for external plotting
+            tag = lowercase(label)
+            csv_path = joinpath(report_dir, "scaling_$(tag).csv")
+            mkpath(report_dir)
+            open(csv_path, "w") do io
+                println(io, "n,total_sec,abstraction_sec,speedup_total,speedup_abstraction")
+                for (n, total, abt) in csv_rows
+                    sp_t =
+                        (base_total !== nothing && base_total > 0) ? base_total / total :
+                        NaN
+                    sp_a = (base_abs !== nothing && base_abs > 0) ? base_abs / abt : NaN
+                    println(io, "$n,$total,$abt,$sp_t,$sp_a")
+                end
+            end
+
+            # Generate gnuplot script and try to produce PNG
+            gp_path = joinpath(report_dir, "scaling_$(tag).gp")
+            png_path = joinpath(report_dir, "scaling_$(tag).png")
+            open(gp_path, "w") do io
+                println(
+                    io,
+                    "set terminal pngcairo size 800,500 enhanced font 'Helvetica,12'",
+                )
+                println(io, "set output '$(basename(png_path))'")
+                println(io, "set title '$label Scaling'")
+                println(io, "set xlabel '$xlab'")
+                println(io, "set ylabel 'Time (s)'")
+                println(io, "set y2label 'Speedup'")
+                println(io, "set y2tics")
+                println(io, "set key top right")
+                println(io, "set grid")
+                println(io, "set datafile separator ','")
+                println(io, "set style line 1 lc rgb '#0060ad' lt 1 lw 2 pt 7 ps 1.2")
+                println(io, "set style line 2 lc rgb '#dd181f' lt 1 lw 2 pt 5 ps 1.2")
+                println(io, "set style line 3 lc rgb '#00a000' lt 2 lw 2 pt 9 ps 1.2")
+                println(
+                    io,
+                    "plot '$(basename(csv_path))' using 1:2 with linespoints ls 1 title 'Total time', \\",
+                )
+                println(
+                    io,
+                    "     '' using 1:3 with linespoints ls 2 title 'Abstraction time', \\",
+                )
+                return println(
+                    io,
+                    "     '' using 1:5 axes x1y2 with linespoints ls 3 title 'Speedup (abstr.)'",
+                )
+            end
+
+            try
+                cd(report_dir) do
+                    return run(`gnuplot $(basename(gp_path))`)
+                end
+                if isfile(png_path)
+                    println(tex, "\\begin{figure}[H]")
+                    println(tex, "\\centering")
+                    println(
+                        tex,
+                        "\\includegraphics[width=0.85\\textwidth]{$(basename(png_path))}",
+                    )
+                    println(tex, "\\caption{$label scaling: time and speedup vs.\\ $xlab}")
+                    println(tex, "\\end{figure}")
+                end
+            catch
+                println("Note: gnuplot not available, skipping $(tag) scaling plot.")
+                println("  Data saved to: $csv_path")
+            end
+        end
     end
 
     # ── Section 5: Pros & Cons ──

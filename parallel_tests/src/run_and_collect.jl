@@ -103,6 +103,10 @@ for (varname, key) in [
     (:N_PROCS, "example_nprocs"),
     (:USE_DISTRIBUTED, "example_use_distributed"),
     (:USE_THREADED, "example_use_threaded"),
+    (:loading_time, "loading_time_sec"),
+    (:system_setup_time, "system_setup_time_sec"),
+    (:pre_abstraction_time, "pre_abstraction_time_sec"),
+    (:post_abstraction_time, "post_abstraction_time_sec"),
 ]
     if isdefined(Main, varname)
         val = getfield(Main, varname)
