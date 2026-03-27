@@ -230,8 +230,8 @@ if COMPUTE_ABSTRACTION
 
     # Collect RBD timing: on master for serial/threaded, from workers for distributed
     if USE_DISTRIBUTED && length(workers()) > 1
-        rbd_total_ns = Int64(0)
-        rbd_total_calls = Int64(0)
+        local rbd_total_ns = Int64(0)
+        local rbd_total_calls = Int64(0)
         for wid in workers()
             wstats = @fetchfrom wid RobotProblem.get_rbd_timing()
             rbd_total_ns += Int64(round(wstats.time_sec * 1e9))
