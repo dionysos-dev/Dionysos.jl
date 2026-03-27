@@ -197,6 +197,46 @@ end
 
 function hybrid_constraints(
     model,
+    systems::Fill{<:AffineControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    system = first(systems)
+    add_constraint.(
+        model,
+        x - system.A * x_prev - system.B * u - system.c,
+        MOI.EqualTo(zero(T)),
+    )
+    return δ
+end
+
+function hybrid_constraints(
+    model,
+    systems::AbstractVector{<:AffineControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δs,
+) where {T}
+    δs = indicator_variables(model, δs, T)
+    n = length(x)
+    for (δ, system) in zip(δs, systems)
+        res = x - system.A * x_prev - system.B * u - system.c
+        M = T(1e4)
+        for i in 1:n
+            add_constraint(model, res[i] + M * (1 - δ), MOI.GreaterThan(zero(T)))
+            add_constraint(model, res[i] - M * (1 - δ), MOI.LessThan(zero(T)))
+        end
+    end
+    return δs
+end
+
+function hybrid_constraints(
+    model,
     systems::AbstractVector{<:ConstrainedContinuousIdentitySystem},
     x_prev,
     x,
@@ -219,6 +259,28 @@ function hybrid_constraints(
     δ = hybrid_constraints(
         model,
         inner_vector(system -> LinearControlMap(system.A, system.B), systems),
+        x_prev,
+        x,
+        u,
+        algo,
+        δ,
+    )
+    δ = hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
+    return hybrid_constraints(model, inner_vector(system -> system.U, systems), u, algo, δ)
+end
+
+function hybrid_constraints(
+    model,
+    systems::AbstractVector{<:ConstrainedAffineControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer,
+    δ,
+)
+    δ = hybrid_constraints(
+        model,
+        inner_vector(system -> AffineControlMap(system.A, system.B, system.c), systems),
         x_prev,
         x,
         u,
@@ -301,7 +363,7 @@ function transitions_constraints(
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -314,7 +376,7 @@ function transitions_constraints(
     modes_to,
     δ_to::AbstractVector{<:_Scalar},
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -327,7 +389,7 @@ function transitions_constraints(
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -340,7 +402,7 @@ function transitions_constraints(
     modes_to,
     δ_to::AbstractVector{<:_Scalar},
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans,
     T::Type,
 )
     for (mode_from, from) in zip(modes_from, δ_from)

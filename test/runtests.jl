@@ -44,3 +44,4 @@ include("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl")
 include("./optim/HybridSystemAbstraction/hybrid_system_abstraction.jl")
 
 include("./optim/GolLazarBelta/gol_lazar_belta.jl")
+include("./optim/NonLinear/non_linear.jl")
