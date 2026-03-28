@@ -61,10 +61,7 @@ function pwa_system(lib, T, μ, Ts, x_bounds, n_per_dim)
             (0.2+3μ*cx^2) 1.1
         ]
         B = T[Ts 0; 0 Ts]
-        f_cx = T[
-            1.1 * cx - 0.2 * cy - μ * cy^3,
-            1.1 * cy + 0.2 * cx + μ * cx^3,
-        ]
+        f_cx = T[1.1 * cx - 0.2 * cy - μ * cy ^ 3, 1.1 * cy + 0.2 * cx + μ * cx ^ 3]
         c = f_cx - A * T[cx, cy]
         return ConstrainedAffineControlMap(A, B, c, FullSpace(), pU)
     end
