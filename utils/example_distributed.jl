@@ -33,7 +33,7 @@ concrete_system = DCDC.system()
 empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 
 x0 = SVector(0.0, 0.0)
-hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
+hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3) * 0.05
 state_grid = MP.GridFree(x0, hx)
 XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode = MP.INNER)
 
@@ -64,7 +64,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
 
 MOI.set(optimizer, MOI.Silent(), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
@@ -75,56 +75,3 @@ MOI.optimize!(optimizer)
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
-
-### Solve a safety problem
-
-# concrete_system = concrete_problem.system
-_I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
-_S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
-concrete_problem_safety =
-    Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
-
-MOI.optimize!(optimizer)
-abstract_problem_time =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
-println("Time to solve the abstract problem: $(abstract_problem_time)")
-
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-invariant_set_complement =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
-
-nstep = 300
-x0 = SVector(1.2, 5.6)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-    concrete_controller,
-    x0,
-    nstep,
-);
-
-XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
-
-fig = plot(; aspect_ratio = :equal);
-plot!(concrete_problem_safety; opacity = 1.0);
-plot!(XMapping; efficient = true, color = :grey)
-plot!((Xset, XMapping); efficient = true, color = :grey)
-plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
-plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
-plot!(x_traj)
-
-# Save figure to file (works on headless servers)
-outdir = get(ENV, "DIONYSOS_OUTDIR", @__DIR__)
-mkpath(outdir)
-mode_tag =
-    USE_DISTRIBUTED && USE_THREADED ? "hybrid" :
-    USE_DISTRIBUTED ? "distributed" : USE_THREADED ? "threaded" : "serial"
-figpath = joinpath(outdir, "dcdc_safety_$(mode_tag).png")
-savefig(fig, figpath)
-println("Figure saved to: ", figpath)
-rmprocs(workers())
-println("Workers removed")
