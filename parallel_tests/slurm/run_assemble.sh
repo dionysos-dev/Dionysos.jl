@@ -10,6 +10,7 @@
 #  Environment variables (set before submission or via --export):
 #      DIONYSOS_NPARTS      — total number of partitions
 #      DIONYSOS_STRATEGY    — partition strategy (default: roundrobin)
+#      DIONYSOS_PROJECT_ROOT — absolute path to the Dionysos repository root
 #      DIONYSOS_SETUP       — path to setup script (default: auto-detected)
 #      DIONYSOS_PARTDIR     — directory containing partition_*.jld2 files
 #      DIONYSOS_OUTDIR      — output directory for assembled results (default: PARTDIR)
@@ -28,8 +29,15 @@
 set -euo pipefail
 
 # --- Resolve paths ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+if [ -n "${DIONYSOS_PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT="${DIONYSOS_PROJECT_ROOT}"
+elif [ -n "${SLURM_SUBMIT_DIR:-}" ] && [ -d "${SLURM_SUBMIT_DIR}/parallel_tests" ]; then
+    PROJECT_ROOT="${SLURM_SUBMIT_DIR}"
+else
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+fi
+
 PARALLEL_ENV="${PROJECT_ROOT}/parallel_tests"
 
 NPARTS="${DIONYSOS_NPARTS:?DIONYSOS_NPARTS must be set}"
@@ -45,6 +53,12 @@ fi
 mkdir -p "$(dirname "${SLURM_OUTPUT_FILE:-logs/dummy}")" 2>/dev/null || true
 mkdir -p "${OUTPUT_DIR}"
 
+if [ ! -f "${PROJECT_ROOT}/parallel_tests/src/assemble_partitions.jl" ]; then
+    echo "ERROR: assemble_partitions.jl not found under PROJECT_ROOT=${PROJECT_ROOT}" >&2
+    echo "Set DIONYSOS_PROJECT_ROOT to your repository checkout before submitting." >&2
+    exit 1
+fi
+
 echo "============================================================"
 echo "  SLURM Assembly Job"
 echo "============================================================"
@@ -52,6 +66,7 @@ echo "  Job ID        : ${SLURM_JOB_ID}"
 echo "  N parts       : ${NPARTS}"
 echo "  Strategy      : ${STRATEGY}"
 echo "  Node          : $(hostname)"
+echo "  Project root  : ${PROJECT_ROOT}"
 echo "  Partitions dir: ${PARTITIONS_DIR}"
 echo "  Output dir    : ${OUTPUT_DIR}"
 echo "  Solve         : ${DIONYSOS_SOLVE:-false}"

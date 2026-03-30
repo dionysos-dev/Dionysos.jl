@@ -10,6 +10,7 @@
 #  Environment variables (set before submission or via --export):
 #      DIONYSOS_NPARTS      — total number of partitions (default: from array size)
 #      DIONYSOS_STRATEGY    — partition strategy: roundrobin | contiguous (default: roundrobin)
+#      DIONYSOS_PROJECT_ROOT — absolute path to the Dionysos repository root
 #      DIONYSOS_SETUP       — path to setup script (default: auto-detected)
 #      DIONYSOS_OUTDIR      — output directory for partition files (default: auto)
 # ==============================================================================
@@ -26,8 +27,15 @@
 set -euo pipefail
 
 # --- Resolve paths ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+if [ -n "${DIONYSOS_PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT="${DIONYSOS_PROJECT_ROOT}"
+elif [ -n "${SLURM_SUBMIT_DIR:-}" ] && [ -d "${SLURM_SUBMIT_DIR}/parallel_tests" ]; then
+    PROJECT_ROOT="${SLURM_SUBMIT_DIR}"
+else
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+fi
+
 PARALLEL_ENV="${PROJECT_ROOT}/parallel_tests"
 
 PARTITION_IDX="${SLURM_ARRAY_TASK_ID}"
@@ -41,6 +49,12 @@ OUTPUT_DIR="${DIONYSOS_OUTDIR:-${PROJECT_ROOT}/parallel_tests/results/robot_exam
 mkdir -p "$(dirname "${SLURM_OUTPUT_FILE:-logs/dummy}")" 2>/dev/null || true
 mkdir -p "${OUTPUT_DIR}"
 
+if [ ! -f "${PROJECT_ROOT}/parallel_tests/src/partition_runner.jl" ]; then
+    echo "ERROR: partition_runner.jl not found under PROJECT_ROOT=${PROJECT_ROOT}" >&2
+    echo "Set DIONYSOS_PROJECT_ROOT to your repository checkout before submitting." >&2
+    exit 1
+fi
+
 echo "============================================================"
 echo "  SLURM Array Partition Job"
 echo "============================================================"
@@ -48,6 +62,7 @@ echo "  Job ID       : ${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 echo "  Partition    : ${PARTITION_IDX} / ${NPARTS}"
 echo "  Strategy     : ${STRATEGY}"
 echo "  Node         : $(hostname)"
+echo "  Project root : ${PROJECT_ROOT}"
 echo "  Setup script : ${SETUP_SCRIPT}"
 echo "  Output dir   : ${OUTPUT_DIR}"
 echo "============================================================"

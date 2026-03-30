@@ -90,7 +90,7 @@ ARRAY_CMD="sbatch --parsable \
     --mem=${PART_MEM} \
     --output=${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_%A_%a.out \
     --error=${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_%A_%a.err \
-    --export=ALL,DIONYSOS_NPARTS=${NPARTS},DIONYSOS_STRATEGY=${STRATEGY},DIONYSOS_SETUP=${SETUP_SCRIPT},DIONYSOS_OUTDIR=${OUTDIR} \
+    --export=ALL,DIONYSOS_PROJECT_ROOT=${PROJECT_ROOT},DIONYSOS_NPARTS=${NPARTS},DIONYSOS_STRATEGY=${STRATEGY},DIONYSOS_SETUP=${SETUP_SCRIPT},DIONYSOS_OUTDIR=${OUTDIR} \
     ${SCRIPT_DIR}/run_array_partitions.sh"
 
 echo "Step 1: Submitting array job (${NPARTS} tasks)..."
@@ -112,7 +112,7 @@ ASSEMBLE_CMD="sbatch --parsable \
     --mem=${ASSEMBLE_MEM} \
     --output=${PROJECT_ROOT}/parallel_tests/slurm/logs/assemble_%j.out \
     --error=${PROJECT_ROOT}/parallel_tests/slurm/logs/assemble_%j.err \
-    --export=ALL,DIONYSOS_NPARTS=${NPARTS},DIONYSOS_STRATEGY=${STRATEGY},DIONYSOS_SETUP=${SETUP_SCRIPT},DIONYSOS_PARTDIR=${OUTDIR},DIONYSOS_OUTDIR=${OUTDIR},DIONYSOS_SOLVE=${SOLVE} \
+    --export=ALL,DIONYSOS_PROJECT_ROOT=${PROJECT_ROOT},DIONYSOS_NPARTS=${NPARTS},DIONYSOS_STRATEGY=${STRATEGY},DIONYSOS_SETUP=${SETUP_SCRIPT},DIONYSOS_PARTDIR=${OUTDIR},DIONYSOS_OUTDIR=${OUTDIR},DIONYSOS_SOLVE=${SOLVE} \
     ${SCRIPT_DIR}/run_assemble.sh"
 
 echo
