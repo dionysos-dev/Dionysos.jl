@@ -33,7 +33,7 @@ concrete_system = DCDC.system()
 empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
 
 x0 = SVector(0.0, 0.0)
-hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3) * 0.5
+hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3) * 0.1
 state_grid = MP.GridFree(x0, hx)
 XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode = MP.INNER)
 
