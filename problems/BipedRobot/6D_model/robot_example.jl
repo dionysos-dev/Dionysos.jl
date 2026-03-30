@@ -1,5 +1,10 @@
 # ==============================================================================
 #  Runner script for abstraction + optimal-control simulations
+#
+#  This script supports serial, threaded, distributed, and hybrid modes via
+#  environment variables. For the SLURM array-based parallel pipeline, see
+#  robot_example_setup.jl  +  parallel_tests/src/partition_runner.jl
+#                           +  parallel_tests/src/assemble_partitions.jl
 # ==============================================================================
 
 # ---------------------------------------------------------------------------
