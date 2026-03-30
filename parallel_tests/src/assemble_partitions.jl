@@ -22,8 +22,8 @@ using JSON
 #  Argument parsing
 # ---------------------------------------------------------------------------
 SOLVE_PROBLEM = false
-STRATEGY      = :roundrobin
-positional    = String[]
+STRATEGY = :roundrobin
+positional = String[]
 
 for a in ARGS
     if a == "--solve"
@@ -42,10 +42,10 @@ if length(positional) < 3
     )
 end
 
-const SETUP_SCRIPT   = positional[1]
+const SETUP_SCRIPT = positional[1]
 const PARTITIONS_DIR = positional[2]
-const NPARTS         = parse(Int, positional[3])
-const OUTPUT_DIR     = length(positional) >= 4 ? positional[4] : PARTITIONS_DIR
+const NPARTS = parse(Int, positional[3])
+const OUTPUT_DIR = length(positional) >= 4 ? positional[4] : PARTITIONS_DIR
 
 mkpath(OUTPUT_DIR)
 
@@ -86,11 +86,11 @@ const AB = RobotExampleSetup.AB
 #  Load and merge all partition results
 # ---------------------------------------------------------------------------
 println("\nLoading partition results...")
-all_transitions    = Tuple{Int, Int, Int}[]
-total_sources      = 0
-total_compute_sec  = 0.0
-missing_parts      = Int[]
-partition_meta     = Dict{Int, Dict{String, Any}}()
+all_transitions = Tuple{Int, Int, Int}[]
+total_sources = 0
+total_compute_sec = 0.0
+missing_parts = Int[]
+partition_meta = Dict{Int, Dict{String, Any}}()
 
 for i in 1:NPARTS
     path = joinpath(PARTITIONS_DIR, "partition_$(i).jld2")
@@ -101,12 +101,12 @@ for i in 1:NPARTS
 
     data = load(path)
     transitions = data["transitions"]::Vector{Tuple{Int, Int, Int}}
-    meta        = data["metadata"]::Dict{String, Any}
+    meta = data["metadata"]::Dict{String, Any}
 
     append!(all_transitions, transitions)
-    total_sources     += meta["n_source_states"]
+    total_sources += meta["n_source_states"]
     total_compute_sec += meta["elapsed_compute_sec"]
-    partition_meta[i]  = meta
+    partition_meta[i] = meta
 
     println(
         "  Partition $(lpad(i, ndigits(NPARTS))): " *
@@ -153,24 +153,24 @@ println("Assembled abstraction saved to: $(assembled_path)")
 #  Save assembly metadata as JSON
 # ---------------------------------------------------------------------------
 assembly_meta = Dict{String, Any}(
-    "nparts"                => NPARTS,
-    "n_loaded"              => NPARTS - length(missing_parts),
-    "n_missing"             => length(missing_parts),
-    "missing_parts"         => missing_parts,
-    "total_transitions"     => length(all_transitions),
-    "total_source_states"   => total_sources,
-    "sum_compute_sec"       => total_compute_sec,
-    "add_transitions_sec"   => elapsed_add,
-    "setup_time_sec"        => t_setup,
-    "total_wall_clock_sec"  => time() - t_wall_start,
-    "timestamp"             => string(Dates.now()),
-    "hostname"              => gethostname(),
-    "strategy"              => string(STRATEGY),
+    "nparts" => NPARTS,
+    "n_loaded" => NPARTS - length(missing_parts),
+    "n_missing" => length(missing_parts),
+    "missing_parts" => missing_parts,
+    "total_transitions" => length(all_transitions),
+    "total_source_states" => total_sources,
+    "sum_compute_sec" => total_compute_sec,
+    "add_transitions_sec" => elapsed_add,
+    "setup_time_sec" => t_setup,
+    "total_wall_clock_sec" => time() - t_wall_start,
+    "timestamp" => string(Dates.now()),
+    "hostname" => gethostname(),
+    "strategy" => string(STRATEGY),
 )
 
 assembly_meta_path = joinpath(OUTPUT_DIR, "assembly_metadata.json")
 open(assembly_meta_path, "w") do io
-    JSON.print(io, assembly_meta, 4)
+    return JSON.print(io, assembly_meta, 4)
 end
 println("Assembly metadata saved to: $(assembly_meta_path)")
 
@@ -189,15 +189,20 @@ if SOLVE_PROBLEM
     concrete_system = env.concrete_system
 
     # --- First step ---
-    x0     = SVector{n_state, Float64}(zeros(n_state))
-    t_low  = SVector{n_state, Float64}([-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30])
+    x0 = SVector{n_state, Float64}(zeros(n_state))
+    t_low = SVector{n_state, Float64}([-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30])
     t_high = SVector{n_state, Float64}([-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75])
 
     I = UT.HyperRectangle(x0, x0)
     T = UT.HyperRectangle(t_low, t_high)
 
     problem = DI.Problem.OptimalControlProblem(
-        concrete_system, I, T, nothing, nothing, DI.Problem.Infinity(),
+        concrete_system,
+        I,
+        T,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
     )
 
     # Set the control problem on the optimizer (abstraction is already cached)
@@ -211,10 +216,14 @@ if SOLVE_PROBLEM
     println("Solve time: $(t_solve) s")
 
     controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    stopfun    = x -> (x ∈ problem.target_set)
+    stopfun = x -> (x ∈ problem.target_set)
 
     x_traj, u_traj = ST.get_closed_loop_trajectory(
-        concrete_system, controller, x0, 300; stopping = stopfun,
+        concrete_system,
+        controller,
+        x0,
+        300;
+        stopping = stopfun,
     )
 
     traj_path = joinpath(OUTPUT_DIR, "trajectory_step1_assembled.jld2")

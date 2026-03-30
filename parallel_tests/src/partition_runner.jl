@@ -27,10 +27,10 @@ if length(ARGS) < 4
     )
 end
 
-const SETUP_SCRIPT  = ARGS[1]
+const SETUP_SCRIPT = ARGS[1]
 const PARTITION_IDX = parse(Int, ARGS[2])
-const NPARTS        = parse(Int, ARGS[3])
-const OUTPUT_DIR    = ARGS[4]
+const NPARTS = parse(Int, ARGS[3])
+const OUTPUT_DIR = ARGS[4]
 
 STRATEGY = :roundrobin
 for a in ARGS[5:end]
@@ -75,21 +75,19 @@ const MP = RobotExampleSetup.MP
 # ---------------------------------------------------------------------------
 println("\nPartitioning source states ($(NPARTS) parts, $(STRATEGY))...")
 t0 = time()
-parts = SY.partition_source_states(
-    env.abstract_system, NPARTS; strategy = STRATEGY,
-)
+parts = SY.partition_source_states(env.abstract_system, NPARTS; strategy = STRATEGY)
 t_partition = time() - t0
 
-n_local_states = length(collect(
-    MP.enum_states(parts[PARTITION_IDX], SY.get_state_mapping(env.abstract_system)),
-))
+n_local_states = length(
+    collect(
+        MP.enum_states(parts[PARTITION_IDX], SY.get_state_mapping(env.abstract_system)),
+    ),
+)
 println("Partition time : $(round(t_partition; digits = 2)) s")
 println("Local states   : $(n_local_states)")
 
 # Build a LocalGridBasedSymbolicModel for this partition
-local_symmodel = SY.LocalGridBasedSymbolicModel(
-    env.abstract_system, parts[PARTITION_IDX],
-)
+local_symmodel = SY.LocalGridBasedSymbolicModel(env.abstract_system, parts[PARTITION_IDX])
 
 # ---------------------------------------------------------------------------
 #  Compute transitions
@@ -100,8 +98,8 @@ t0 = time()
 transitions = SY.collect_abstract_transitions(
     local_symmodel,
     env.system_approximation;
-    print_level      = 0,
-    state_filter      = env.state_filter,
+    print_level = 0,
+    state_filter = env.state_filter,
     state_input_filter = env.state_input_filter,
 )
 elapsed_compute = time() - t0
@@ -119,21 +117,21 @@ println("RBD calls      : $(rbd_stats.call_count)")
 output_file = joinpath(OUTPUT_DIR, "partition_$(PARTITION_IDX).jld2")
 
 metadata = Dict{String, Any}(
-    "partition_idx"       => PARTITION_IDX,
-    "nparts"              => NPARTS,
-    "strategy"            => string(STRATEGY),
-    "n_source_states"     => n_local_states,
-    "n_transitions"       => length(transitions),
+    "partition_idx" => PARTITION_IDX,
+    "nparts" => NPARTS,
+    "strategy" => string(STRATEGY),
+    "n_source_states" => n_local_states,
+    "n_transitions" => length(transitions),
     "elapsed_compute_sec" => elapsed_compute,
-    "setup_time_sec"      => t_setup,
-    "partition_time_sec"  => t_partition,
-    "rbd_time_sec"        => rbd_stats.time_sec,
-    "rbd_call_count"      => rbd_stats.call_count,
-    "hostname"            => gethostname(),
-    "pid"                 => getpid(),
-    "timestamp"           => string(Dates.now()),
-    "julia_version"       => string(VERSION),
-    "julia_threads"       => Threads.nthreads(),
+    "setup_time_sec" => t_setup,
+    "partition_time_sec" => t_partition,
+    "rbd_time_sec" => rbd_stats.time_sec,
+    "rbd_call_count" => rbd_stats.call_count,
+    "hostname" => gethostname(),
+    "pid" => getpid(),
+    "timestamp" => string(Dates.now()),
+    "julia_version" => string(VERSION),
+    "julia_threads" => Threads.nthreads(),
 )
 
 @save output_file transitions metadata
