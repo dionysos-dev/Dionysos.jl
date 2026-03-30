@@ -18,7 +18,7 @@ using Distributed
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-example_path = ARGS[1]
+example_path = abspath(ARGS[1])
 if !isfile(example_path)
     error("Example script not found: $example_path")
 end

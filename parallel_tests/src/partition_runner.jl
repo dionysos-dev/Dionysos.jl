@@ -27,7 +27,7 @@ if length(ARGS) < 4
     )
 end
 
-const SETUP_SCRIPT = ARGS[1]
+const SETUP_SCRIPT = abspath(ARGS[1])
 const PARTITION_IDX = parse(Int, ARGS[2])
 const NPARTS = parse(Int, ARGS[3])
 const OUTPUT_DIR = ARGS[4]
@@ -39,6 +39,8 @@ for a in ARGS[5:end]
 end
 
 mkpath(OUTPUT_DIR)
+
+isfile(SETUP_SCRIPT) || error("Setup script not found: $(SETUP_SCRIPT)")
 
 println("=" ^ 70)
 println("  Dionysos Partition Runner")

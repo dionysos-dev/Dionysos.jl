@@ -42,12 +42,14 @@ if length(positional) < 3
     )
 end
 
-const SETUP_SCRIPT = positional[1]
+const SETUP_SCRIPT = abspath(positional[1])
 const PARTITIONS_DIR = positional[2]
 const NPARTS = parse(Int, positional[3])
 const OUTPUT_DIR = length(positional) >= 4 ? positional[4] : PARTITIONS_DIR
 
 mkpath(OUTPUT_DIR)
+
+isfile(SETUP_SCRIPT) || error("Setup script not found: $(SETUP_SCRIPT)")
 
 println("=" ^ 70)
 println("  Dionysos Partition Assembler")
