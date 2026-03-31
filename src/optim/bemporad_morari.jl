@@ -213,6 +213,44 @@ function hybrid_constraints(
     return δ
 end
 
+"""
+    julia_function_to_moi(f, args::AbstractVector...)
+
+Convert a Julia function `f` into a vector of MOI scalar functions by
+exploiting JuMP's operator overloading.
+
+Each element of `args` is a vector that may contain `MOI.VariableIndex`
+(decision variables) or concrete values (e.g., `Float64` for fixed
+parameters). The function works as follows:
+
+ 1. A lightweight JuMP model is created.
+ 2. Every `MOI.VariableIndex` in `args` is wrapped into a
+    `JuMP.VariableRef`; concrete values are left unchanged.
+ 3. `f` is called with the wrapped arguments.  Thanks to Julia's
+    operator overloading the arithmetic inside `f` builds JuMP
+    expression trees (e.g. `NonlinearExpr`, `AffExpr`, …).
+ 4. Each element of the result is converted back to an MOI function
+    with `JuMP.moi_function`, yielding `MOI.ScalarNonlinearFunction`,
+    `MOI.ScalarAffineFunction`, etc.
+
+# Example
+
+```julia
+f(x, u) = [x[1]^3 + u[1], x[2] + u[2]]
+x = [MOI.VariableIndex(1), MOI.VariableIndex(2)]
+u = [MOI.VariableIndex(3), MOI.VariableIndex(4)]
+moi_exprs = julia_function_to_moi(f, x, u)
+# moi_exprs is a Vector of MOI.ScalarNonlinearFunction / ScalarAffineFunction
+```
+"""
+function julia_function_to_moi(f, args::AbstractVector...)
+    jump_model = JuMP.Model()
+    _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
+    _to_jump(v) = v
+    jump_args = map(a -> _to_jump.(a), args)
+    return JuMP.moi_function.(f(jump_args...))
+end
+
 function hybrid_constraints(
     model,
     systems::Fill{<:ST.NonlinearControlMap},
@@ -223,19 +261,16 @@ function hybrid_constraints(
     δ,
 ) where {T}
     system = first(systems)
-    # Create a dummy JuMP model to convert MOI.VariableIndex to JuMP.VariableRef
-    # so that calling the Julia function with JuMP variables produces JuMP expressions
-    # via operator overloading; these are then converted back to MOI functions.
-    jump_model = JuMP.Model()
-    _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
-    _to_jump(v) = v # concrete values (e.g., Float64) pass through
-    x_prev_j = _to_jump.(x_prev)
-    x_j = _to_jump.(x)
-    u_j = _to_jump.(u)
-    f_result = system.f(x_prev_j, u_j)
-    for i in eachindex(f_result)
-        moi_expr = JuMP.moi_function(x_j[i] - f_result[i])
-        add_constraint(model, moi_expr, MOI.EqualTo(zero(T)))
+    moi_exprs = julia_function_to_moi(system.f, x_prev, u)
+    for i in eachindex(moi_exprs)
+        add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(
+                :-,
+                Any[MOI.VariableIndex(x[i].value), moi_exprs[i]],
+            ),
+            MOI.EqualTo(zero(T)),
+        )
     end
     return δ
 end
