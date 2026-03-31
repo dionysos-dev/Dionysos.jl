@@ -215,6 +215,27 @@ end
 
 function hybrid_constraints(
     model,
+    systems::Fill{<:ST.NonlinearControlMap},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    system = first(systems)
+    exprs = system.f(x_prev, u)
+    for i in eachindex(exprs)
+        add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(:-, Any[x[i], exprs[i]]),
+            MOI.EqualTo(zero(T)),
+        )
+    end
+    return δ
+end
+
+function hybrid_constraints(
+    model,
     systems::AbstractVector{<:AffineControlMap},
     x_prev,
     x,

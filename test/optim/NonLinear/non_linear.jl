@@ -24,81 +24,51 @@ function rect2d(lib, T, x_l, x_u, y_l, y_u)
 end
 
 """
-Build a PWA HybridSystem approximation of the non-linear system by
-partitioning the state space into rectangular regions and linearizing
-the dynamics at the center of each region.
+Build the MOI.ScalarNonlinearFunction expression for the non-linear dynamics:
+    x1' = 1.1*x1 - 0.2*x2 - μ*x2^3 + Ts*u1
+    x2' = 1.1*x2 + 0.2*x1 + μ*x1^3 + Ts*u2
 """
-function pwa_system(lib, T, μ, Ts, x_bounds, n_per_dim)
-    step = (x_bounds[2] - x_bounds[1]) / n_per_dim
-    regions = Tuple{T, T, T, T}[]
-    centers = Tuple{T, T}[]
-    for i in 1:n_per_dim, j in 1:n_per_dim
-        x_l = x_bounds[1] + (i - 1) * step
-        x_u = x_bounds[1] + i * step
-        y_l = x_bounds[1] + (j - 1) * step
-        y_u = x_bounds[1] + j * step
-        push!(regions, (x_l, x_u, y_l, y_u))
-        push!(centers, ((x_l + x_u) / 2, (y_l + y_u) / 2))
-    end
-
-    n_modes = length(regions)
-    domains = [rect2d(lib, T, r...) for r in regions]
-
-    # Input domain
-    pU = rect2d(lib, T, -10, 10, -10, 10)
-
-    # Linearize at each region center:
-    # f(x,u) = [1.1*x1 - 0.2*x2 - μ*x2^3 + Ts*u1,
-    #            1.1*x2 + 0.2*x1 + μ*x1^3 + Ts*u2]
-    # Jacobian w.r.t. x at (cx, cy):
-    #   A = [1.1,          -0.2 - 3μ*cy^2;
-    #        0.2 + 3μ*cx^2, 1.1           ]
-    # B = [Ts 0; 0 Ts]
-    # c = f(cx,cy,0) - A*[cx;cy]
-    reset_maps = map(centers) do (cx, cy)
-        A = T[
-            1.1 (-0.2-3μ*cy^2)
-            (0.2+3μ*cx^2) 1.1
-        ]
-        B = T[Ts 0; 0 Ts]
-        f_cx = T[1.1 * cx - 0.2 * cy - μ * cy ^ 3, 1.1 * cy + 0.2 * cx + μ * cx ^ 3]
-        c = f_cx - A * T[cx, cy]
-        return ConstrainedAffineControlMap(A, B, c, FullSpace(), pU)
-    end
-
-    # Create automaton: allow transitions between all modes
-    automaton = GraphAutomaton(n_modes)
-    k = 0
-    for from in 1:n_modes, to in 1:n_modes
-        k += 1
-        add_transition!(automaton, from, to, k)
-    end
-
-    # Each transition (from, to) uses the dynamics linearized at the center of `from`
-    all_reset_maps = Vector{ConstrainedAffineControlMap}(undef, k)
-    idx = 0
-    for from in 1:n_modes, _ in 1:n_modes
-        idx += 1
-        all_reset_maps[idx] = reset_maps[from]
-    end
-
-    sys = HybridSystem(
-        automaton,
-        [ConstrainedContinuousIdentitySystem(2, d) for d in domains],
-        all_reset_maps,
-        Fill(ControlledSwitching(), k),
-    )
-    return sys
+function nonlinear_dynamics(μ, Ts)
+    snf(op, args...) = MOI.ScalarNonlinearFunction(op, Any[args...])
+    return (x, u) -> [
+        snf(
+            :+,
+            snf(:*, 1.1, x[1]),
+            snf(:*, -0.2, x[2]),
+            snf(:*, -μ, snf(:^, x[2], 3)),
+            snf(:*, Ts, u[1]),
+        ),
+        snf(
+            :+,
+            snf(:*, 1.1, x[2]),
+            snf(:*, 0.2, x[1]),
+            snf(:*, μ, snf(:^, x[1], 3)),
+            snf(:*, Ts, u[2]),
+        ),
+    ]
 end
 
 """
-Find the mode index for a given point in the grid.
+Build a single-mode HybridSystem using the exact nonlinear dynamics
+encoded as MOI.ScalarNonlinearFunction via NonlinearControlMap.
 """
-function find_mode(x, x_bounds, n_per_dim)
-    step = (x_bounds[2] - x_bounds[1]) / n_per_dim
-    i = clamp(Int(floor((x[1] - x_bounds[1]) / step)) + 1, 1, n_per_dim)
-    j = clamp(Int(floor((x[2] - x_bounds[1]) / step)) + 1, 1, n_per_dim)
-    return (i - 1) * n_per_dim + j
+function nonlinear_system(lib, T, μ, Ts, state_bounds, input_bounds)
+    pX = rect2d(lib, T, state_bounds...)
+    pU = rect2d(lib, T, input_bounds...)
+
+    f = nonlinear_dynamics(μ, Ts)
+    nlmap = ST.NonlinearControlMap(f, 2, 2)
+
+    automaton = GraphAutomaton(1)
+    add_transition!(automaton, 1, 1, 1)
+
+    sys = HybridSystem(
+        automaton,
+        [ConstrainedContinuousIdentitySystem(2, pX)],
+        Fill(nlmap, 1),
+        Fill(ControlledSwitching(), 1),
+    )
+    return sys, pU
 end
 
 @testset "NonLinear BemporadMorari" begin
@@ -107,17 +77,14 @@ end
     μ = T(0.00005)
     Ts = T(1.0)
 
-    # Use a 2x2 grid over [-4, 4]^2
-    x_bounds = (T(-4), T(4))
-    n_per_dim = 2
-    sys = pwa_system(lib, T, μ, Ts, x_bounds, n_per_dim)
+    sys, pU = nonlinear_system(lib, T, μ, Ts, (-5.0, 5.0, -5.0, 5.0), (-10.0, 10.0, -10.0, 10.0))
 
-    @testset "Depth 1" begin
-        # Start at [-2, -2] (mode 1: [-4,0]x[-4,0]), target mode 4 ([0,4]x[0,4])
-        x_0 = T[-2.0, -2.0]
-        q_0 = find_mode(x_0, x_bounds, n_per_dim)
-        q_T = find_mode(T[2.0, 2.0], x_bounds, n_per_dim)
-        N = 1
+    # Use Ipopt for NLP (nonlinear constraints)
+    nlp_solver = optimizer_with_attributes(cont_solver.optimizer_constructor, MOI.Silent() => true)
+
+    @testset "Depth $N" for (N, x_0) in [(1, T[-2.0, -2.0]), (3, T[-3.0, -3.0])]
+        q_0 = 1
+        q_T = 1
 
         state_cost = Fill(UT.ZeroFunction(), nmodes(sys))
         transition_cost = UT.QuadraticControlFunction(Matrix{T}(I, 2, 2))
@@ -132,51 +99,7 @@ end
 
         algo = optimizer_with_attributes(
             OP.BemporadMorari.Optimizer{T},
-            "continuous_solver" => qp_solver,
-            "mixed_integer_solver" => miqp_solver,
-            "indicator" => false,
-            "log_level" => 0,
-        )
-
-        optimizer = MOI.instantiate(algo)
-        MOI.set(optimizer, MOI.RawOptimizerAttribute("problem"), problem)
-        MOI.optimize!(optimizer)
-
-        @test MOI.get(optimizer, MOI.TerminationStatus()) in
-              [MOI.OPTIMAL, MOI.LOCALLY_SOLVED, MOI.ALMOST_LOCALLY_SOLVED]
-
-        xu = MOI.get(optimizer, ST.ContinuousTrajectoryAttribute())
-        # Final state must be in target region [0,4]x[0,4]
-        @test xu.x[end][1] >= -1e-2
-        @test xu.x[end][2] >= -1e-2
-        @test xu.x[end][1] <= 4.0 + 1e-2
-        @test xu.x[end][2] <= 4.0 + 1e-2
-
-        obj = MOI.get(optimizer, MOI.ObjectiveValue())
-        @test isfinite(obj)
-        @test obj >= 0.0
-    end
-
-    @testset "Depth 3" begin
-        x_0 = T[-3.0, -3.0]
-        q_0 = find_mode(x_0, x_bounds, n_per_dim)
-        q_T = find_mode(T[2.0, 2.0], x_bounds, n_per_dim)
-        N = 3
-
-        state_cost = Fill(UT.ZeroFunction(), nmodes(sys))
-        transition_cost = UT.QuadraticControlFunction(Matrix{T}(I, 2, 2))
-        problem = PR.OptimalControlProblem(
-            sys,
-            (q_0, x_0),
-            q_T,
-            Fill(state_cost, N),
-            Fill(Fill(transition_cost, ntransitions(sys)), N),
-            N,
-        )
-
-        algo = optimizer_with_attributes(
-            OP.BemporadMorari.Optimizer{T},
-            "continuous_solver" => qp_solver,
+            "continuous_solver" => nlp_solver,
             "mixed_integer_solver" => miqp_solver,
             "indicator" => false,
             "log_level" => 0,
@@ -193,16 +116,21 @@ end
         @test length(xu.x) == N
         @test length(xu.u) == N
 
-        # Final state must be in target region [0,4]x[0,4]
-        @test xu.x[end][1] >= -1e-2
-        @test xu.x[end][2] >= -1e-2
-        @test xu.x[end][1] <= 4.0 + 1e-2
-        @test xu.x[end][2] <= 4.0 + 1e-2
+        # Verify dynamics: x_next ≈ f(x_prev, u)
+        for t in 1:N
+            x_prev = t == 1 ? x_0 : xu.x[t - 1]
+            x_next = xu.x[t]
+            u_t = xu.u[t]
+            f_val = [
+                1.1 * x_prev[1] - 0.2 * x_prev[2] - μ * x_prev[2]^3 + Ts * u_t[1],
+                1.1 * x_prev[2] + 0.2 * x_prev[1] + μ * x_prev[1]^3 + Ts * u_t[2],
+            ]
+            @test x_next ≈ f_val atol = 1e-4
+        end
 
         obj = MOI.get(optimizer, MOI.ObjectiveValue())
         @test isfinite(obj)
-        # With longer horizon, cost should be <= depth 1 cost (more flexibility)
-        @test obj >= 0.0
+        @test obj >= -1e-6
     end
 end
 

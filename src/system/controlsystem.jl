@@ -132,3 +132,18 @@ struct SymbolicSystem
     Uformat::Any
     Wformat::Any
 end
+
+"""
+    NonlinearControlMap{F}
+
+A map encoding nonlinear dynamics `x_next = f(x, u)` where `f` is a callable
+that takes `(x_vars, u_vars)` and returns a vector of `MOI.ScalarNonlinearFunction`.
+"""
+struct NonlinearControlMap{F}
+    f::F
+    statedim::Int
+    inputdim::Int
+end
+
+MS.statedim(m::NonlinearControlMap) = m.statedim
+MS.inputdim(m::NonlinearControlMap) = m.inputdim
