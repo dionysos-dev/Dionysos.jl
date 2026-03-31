@@ -77,10 +77,12 @@ end
     μ = T(0.00005)
     Ts = T(1.0)
 
-    sys, pU = nonlinear_system(lib, T, μ, Ts, (-5.0, 5.0, -5.0, 5.0), (-10.0, 10.0, -10.0, 10.0))
+    sys, pU =
+        nonlinear_system(lib, T, μ, Ts, (-5.0, 5.0, -5.0, 5.0), (-10.0, 10.0, -10.0, 10.0))
 
     # Use Ipopt for NLP (nonlinear constraints)
-    nlp_solver = optimizer_with_attributes(cont_solver.optimizer_constructor, MOI.Silent() => true)
+    nlp_solver =
+        optimizer_with_attributes(cont_solver.optimizer_constructor, MOI.Silent() => true)
 
     @testset "Depth $N" for (N, x_0) in [(1, T[-2.0, -2.0]), (3, T[-3.0, -3.0])]
         q_0 = 1
