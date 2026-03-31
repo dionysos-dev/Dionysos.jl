@@ -122,6 +122,7 @@ metadata = Dict{String, Any}(
     "partition_idx" => PARTITION_IDX,
     "nparts" => NPARTS,
     "strategy" => string(STRATEGY),
+    "setup_script" => SETUP_SCRIPT,
     "n_source_states" => n_local_states,
     "n_transitions" => length(transitions),
     "elapsed_compute_sec" => elapsed_compute,
@@ -136,8 +137,10 @@ metadata = Dict{String, Any}(
     "julia_threads" => Threads.nthreads(),
 )
 
+total_wall = time() - t_wall_start
+metadata["total_wall_clock_sec"] = total_wall
+
 @save output_file transitions metadata
 println("\nSaved: $(output_file)")
 
-total_wall = time() - t_wall_start
 println("\nTotal wall-clock: $(round(total_wall; digits = 2)) s")

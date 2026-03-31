@@ -17,6 +17,8 @@
 #      --solve                 Also solve optimal-control after assembly
 #      --setup PATH            Path to setup script
 #      --outdir DIR            Output directory (default: auto)
+#      --report                Generate a partition-pipeline report after assembly
+#      --report-dir DIR        Report output directory (default: <outdir>/report)
 #      --dry-run               Print commands but do not submit
 # ==============================================================================
 
@@ -30,12 +32,14 @@ PART_MEM="8G"
 ASSEMBLE_TIME="00:30:00"
 ASSEMBLE_MEM="16G"
 SOLVE="false"
+GENERATE_REPORT="false"
 DRY_RUN=false
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SETUP_SCRIPT="${PROJECT_ROOT}/problems/BipedRobot/6D_model/robot_example_setup.jl"
 OUTDIR=""
+REPORT_DIR=""
 
 # --- Parse arguments ---
 while [[ $# -gt 0 ]]; do
@@ -49,6 +53,8 @@ while [[ $# -gt 0 ]]; do
         --solve)            SOLVE="true";       shift   ;;
         --setup)            SETUP_SCRIPT="$2";  shift 2 ;;
         --outdir)           OUTDIR="$2";        shift 2 ;;
+        --report)           GENERATE_REPORT="true"; shift ;;
+        --report-dir)       REPORT_DIR="$2";    shift 2 ;;
         --dry-run)          DRY_RUN=true;       shift   ;;
         *)
             echo "Unknown option: $1" >&2
@@ -62,10 +68,16 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 if [ -z "${OUTDIR}" ]; then
     OUTDIR="${PROJECT_ROOT}/parallel_tests/results/robot_example/array_${TIMESTAMP}"
 fi
+if [ -z "${REPORT_DIR}" ]; then
+    REPORT_DIR="${OUTDIR}/report"
+fi
 
 # --- Create directories ---
 mkdir -p "${PROJECT_ROOT}/parallel_tests/slurm/logs"
 mkdir -p "${OUTDIR}"
+if [ "${GENERATE_REPORT}" = "true" ]; then
+    mkdir -p "${REPORT_DIR}"
+fi
 
 echo "============================================================"
 echo "  Dionysos SLURM Array Pipeline"
@@ -77,6 +89,8 @@ echo "  Part memory   : ${PART_MEM}"
 echo "  Assemble time : ${ASSEMBLE_TIME}"
 echo "  Assemble mem  : ${ASSEMBLE_MEM}"
 echo "  Solve         : ${SOLVE}"
+echo "  Report        : ${GENERATE_REPORT}"
+echo "  Report dir    : ${REPORT_DIR}"
 echo "  Setup script  : ${SETUP_SCRIPT}"
 echo "  Output dir    : ${OUTDIR}"
 echo "  Dry run       : ${DRY_RUN}"
@@ -128,6 +142,32 @@ else
     echo "  Assembly job submitted: ${ASSEMBLE_JOB_ID}"
 fi
 
+# --- Step 3: Submit the report job with dependency ---
+REPORT_JOB_ID=""
+if [ "${GENERATE_REPORT}" = "true" ]; then
+    REPORT_CMD="sbatch --parsable \
+    --dependency=afterany:${ASSEMBLE_JOB_ID} \
+    --time=00:15:00 \
+    --mem=4G \
+    --output=${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_report_%j.out \
+    --error=${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_report_%j.err \
+    --export=ALL,DIONYSOS_PROJECT_ROOT=${PROJECT_ROOT},DIONYSOS_PARTDIR=${OUTDIR},DIONYSOS_REPORTDIR=${REPORT_DIR} \
+    ${SCRIPT_DIR}/run_partition_report.sh"
+
+    echo
+    echo "Step 3: Submitting report job (dependency: afterany:${ASSEMBLE_JOB_ID})..."
+    echo "  ${REPORT_CMD}"
+    echo
+
+    if [ "${DRY_RUN}" = true ]; then
+        REPORT_JOB_ID="DRYRUN_345678"
+        echo "  [DRY RUN] Would submit report job -> ${REPORT_JOB_ID}"
+    else
+        REPORT_JOB_ID=$(eval ${REPORT_CMD})
+        echo "  Report job submitted: ${REPORT_JOB_ID}"
+    fi
+fi
+
 # --- Summary ---
 echo
 echo "============================================================"
@@ -136,15 +176,27 @@ echo "============================================================"
 echo "  Array job ID   : ${ARRAY_JOB_ID}  (${NPARTS} tasks)"
 echo "  Assembly job ID: ${ASSEMBLE_JOB_ID}  (afterok:${ARRAY_JOB_ID})"
 echo "  Output dir     : ${OUTDIR}"
+if [ "${GENERATE_REPORT}" = "true" ]; then
+    echo "  Report job ID  : ${REPORT_JOB_ID}  (afterany:${ASSEMBLE_JOB_ID})"
+    echo "  Report dir     : ${REPORT_DIR}"
+fi
 echo
 echo "  Monitor with:"
 echo "    squeue -u \$USER"
 echo "    sacct -j ${ARRAY_JOB_ID} --format=JobID,State,Elapsed,MaxRSS"
 echo "    sacct -j ${ASSEMBLE_JOB_ID} --format=JobID,State,Elapsed,MaxRSS"
+if [ "${GENERATE_REPORT}" = "true" ]; then
+    echo "    sacct -j ${REPORT_JOB_ID} --format=JobID,State,Elapsed,MaxRSS"
+fi
 echo
 echo "  Check partition logs:"
 echo "    tail -f ${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_${ARRAY_JOB_ID}_*.out"
 echo
 echo "  Check assembly log:"
 echo "    tail -f ${PROJECT_ROOT}/parallel_tests/slurm/logs/assemble_${ASSEMBLE_JOB_ID}.out"
+if [ "${GENERATE_REPORT}" = "true" ]; then
+    echo
+    echo "  Check report log:"
+    echo "    tail -f ${PROJECT_ROOT}/parallel_tests/slurm/logs/partition_report_${REPORT_JOB_ID}.out"
+fi
 echo "============================================================"

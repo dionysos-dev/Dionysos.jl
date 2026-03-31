@@ -88,34 +88,38 @@ const AB = RobotExampleSetup.AB
 #  Load and merge all partition results
 # ---------------------------------------------------------------------------
 println("\nLoading partition results...")
-all_transitions = Tuple{Int, Int, Int}[]
-total_sources = 0
-total_compute_sec = 0.0
-missing_parts = Int[]
-partition_meta = Dict{Int, Dict{String, Any}}()
+all_transitions, total_sources, total_compute_sec, missing_parts, partition_meta = let
+    all_transitions = Tuple{Int, Int, Int}[]
+    total_sources = 0
+    total_compute_sec = 0.0
+    missing_parts = Int[]
+    partition_meta = Dict{Int, Dict{String, Any}}()
 
-for i in 1:NPARTS
-    path = joinpath(PARTITIONS_DIR, "partition_$(i).jld2")
-    if !isfile(path)
-        push!(missing_parts, i)
-        continue
+    for i in 1:NPARTS
+        path = joinpath(PARTITIONS_DIR, "partition_$(i).jld2")
+        if !isfile(path)
+            push!(missing_parts, i)
+            continue
+        end
+
+        data = load(path)
+        transitions = data["transitions"]::Vector{Tuple{Int, Int, Int}}
+        meta = data["metadata"]::Dict{String, Any}
+
+        append!(all_transitions, transitions)
+        total_sources += meta["n_source_states"]
+        total_compute_sec += meta["elapsed_compute_sec"]
+        partition_meta[i] = meta
+
+        println(
+            "  Partition $(lpad(i, ndigits(NPARTS))): " *
+            "$(lpad(meta["n_transitions"], 8)) transitions, " *
+            "$(lpad(meta["n_source_states"], 6)) states, " *
+            "$(round(meta["elapsed_compute_sec"]; digits = 1))s",
+        )
     end
 
-    data = load(path)
-    transitions = data["transitions"]::Vector{Tuple{Int, Int, Int}}
-    meta = data["metadata"]::Dict{String, Any}
-
-    append!(all_transitions, transitions)
-    total_sources += meta["n_source_states"]
-    total_compute_sec += meta["elapsed_compute_sec"]
-    partition_meta[i] = meta
-
-    println(
-        "  Partition $(lpad(i, ndigits(NPARTS))): " *
-        "$(lpad(meta["n_transitions"], 8)) transitions, " *
-        "$(lpad(meta["n_source_states"], 6)) states, " *
-        "$(round(meta["elapsed_compute_sec"]; digits = 1))s",
-    )
+    (all_transitions, total_sources, total_compute_sec, missing_parts, partition_meta)
 end
 
 if !isempty(missing_parts)
@@ -159,6 +163,9 @@ assembly_meta = Dict{String, Any}(
     "n_loaded" => NPARTS - length(missing_parts),
     "n_missing" => length(missing_parts),
     "missing_parts" => missing_parts,
+    "setup_script" => SETUP_SCRIPT,
+    "partitions_dir" => PARTITIONS_DIR,
+    "output_dir" => OUTPUT_DIR,
     "total_transitions" => length(all_transitions),
     "total_source_states" => total_sources,
     "sum_compute_sec" => total_compute_sec,
@@ -171,6 +178,7 @@ assembly_meta = Dict{String, Any}(
 )
 
 assembly_meta_path = joinpath(OUTPUT_DIR, "assembly_metadata.json")
+assembly_meta["assembled_abstraction_path"] = assembled_path
 open(assembly_meta_path, "w") do io
     return JSON.print(io, assembly_meta, 4)
 end

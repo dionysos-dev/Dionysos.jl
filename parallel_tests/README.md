@@ -81,6 +81,41 @@ julia --project=parallel_tests src/generate_report.jl \
     report/example_distributed
 ```
 
+### Assemble Partition Results Only
+
+You can assemble a finished partition directory without re-running the array job:
+
+```bash
+julia --project=parallel_tests parallel_tests/src/assemble_partitions.jl \
+    problems/BipedRobot/6D_model/robot_example_setup.jl \
+    /path/to/partitions 300 /path/to/partitions \
+    --strategy=roundrobin
+```
+
+On SLURM, the equivalent is:
+
+```bash
+sbatch \
+  --export=ALL,DIONYSOS_PROJECT_ROOT=$PWD,DIONYSOS_NPARTS=300,DIONYSOS_STRATEGY=roundrobin,DIONYSOS_SETUP=$PWD/problems/BipedRobot/6D_model/robot_example_setup.jl,DIONYSOS_PARTDIR=/path/to/partitions,DIONYSOS_OUTDIR=/path/to/partitions \
+  parallel_tests/slurm/run_assemble.sh
+```
+
+### Generate Partition Report Separately
+
+For a completed partition pipeline, generate a LaTeX/PDF report with:
+
+```bash
+bash parallel_tests/report_partitions.sh \
+    /path/to/partitions \
+    /path/to/report_dir
+```
+
+This reads `partition_*.jld2` and `assembly_metadata.json` and reports:
+- average per-partition compute, wall, setup, partitioning, and RBD times
+- total partition compute time and estimated total wall time
+- estimated partition parallel gain and end-to-end gain
+- per-partition states, transitions, timings, and call counts
+
 ## Command Reference
 
 ### `run_local.sh`
