@@ -11,21 +11,11 @@ const PR = DI.Problem
 const OP = DI.Optim
 
 using LinearAlgebra, Test
-import CDDLib
-import Polyhedra
-using MathematicalSystems, HybridSystems, SemialgebraicSets
+using MathematicalSystems, HybridSystems
 using FillArrays
-
-function rect2d(lib, T, x_l, x_u, y_l, y_u)
-    r =
-        Polyhedra.HalfSpace([-1, 0], -T(x_l)) ∩ Polyhedra.HalfSpace([1, 0], T(x_u)) ∩
-        Polyhedra.HalfSpace([0, -1], -T(y_l)) ∩ Polyhedra.HalfSpace([0, 1], T(y_u))
-    return Polyhedra.polyhedron(r, lib)
-end
 
 @testset "NonLinear BemporadMorari" begin
     T = Float64
-    lib = CDDLib.Library()
 
     # Get the nonlinear system from the problem definition
     nl_prob = NonLinear.problem(; N = 1)
@@ -37,8 +27,8 @@ end
 
     nlmap = ST.NonlinearControlMap(f, nl_sys.nx, nl_sys.nu)
 
-    # State and input domains as polyhedra
-    pX = rect2d(lib, T, -5, 5, -5, 5)
+    # State domain as HyperRectangle (automatic conversion to MOI constraints)
+    pX = UT.HyperRectangle([-5.0, -5.0], [5.0, 5.0])
 
     automaton = GraphAutomaton(1)
     add_transition!(automaton, 1, 1, 1)

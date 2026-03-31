@@ -148,6 +148,22 @@ add_constraint(model::JuMP.Model, func, set) =
 indicator_constraint(model::JuMP.Model, δ, func, set) =
     @constraint(model, δ => {func in set})
 
+function hybrid_constraints(
+    model,
+    sets::Fill{<:UT.HyperRectangle},
+    x,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+
+    set = first(sets)
+    for i in eachindex(x)
+        add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(set.lb[i])))
+        add_constraint(model, one(T) * x[i], MOI.LessThan(T(set.ub[i])))
+    end
+    return δ
+end
+
 function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimizer, δ)
     set = first(sets)
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(Polyhedra.hrep(set)))
@@ -195,24 +211,6 @@ function hybrid_constraints(
     return δ
 end
 
-function hybrid_constraints(
-    model,
-    systems::Fill{<:AffineControlMap},
-    x_prev,
-    x,
-    u,
-    algo::Optimizer{T},
-    δ,
-) where {T}
-    system = first(systems)
-    add_constraint.(
-        model,
-        x - system.A * x_prev - system.B * u - system.c,
-        MOI.EqualTo(zero(T)),
-    )
-    return δ
-end
-
 """
     julia_function_to_moi(f, args::AbstractVector...)
 
@@ -244,6 +242,7 @@ moi_exprs = julia_function_to_moi(f, x, u)
 ```
 """
 function julia_function_to_moi(f, args::AbstractVector...)
+
     jump_model = JuMP.Model()
     _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
     _to_jump(v) = v
@@ -260,6 +259,8 @@ function hybrid_constraints(
     algo::Optimizer{T},
     δ,
 ) where {T}
+
+
     system = first(systems)
     moi_exprs = julia_function_to_moi(system.f, x_prev, u)
     for i in eachindex(moi_exprs)
@@ -273,28 +274,6 @@ function hybrid_constraints(
         )
     end
     return δ
-end
-
-function hybrid_constraints(
-    model,
-    systems::AbstractVector{<:AffineControlMap},
-    x_prev,
-    x,
-    u,
-    algo::Optimizer{T},
-    δs,
-) where {T}
-    δs = indicator_variables(model, δs, T)
-    n = length(x)
-    for (δ, system) in zip(δs, systems)
-        res = x - system.A * x_prev - system.B * u - system.c
-        M = T(1e4)
-        for i in 1:n
-            add_constraint(model, res[i] + M * (1 - δ), MOI.GreaterThan(zero(T)))
-            add_constraint(model, res[i] - M * (1 - δ), MOI.LessThan(zero(T)))
-        end
-    end
-    return δs
 end
 
 function hybrid_constraints(
@@ -321,28 +300,6 @@ function hybrid_constraints(
     δ = hybrid_constraints(
         model,
         inner_vector(system -> LinearControlMap(system.A, system.B), systems),
-        x_prev,
-        x,
-        u,
-        algo,
-        δ,
-    )
-    δ = hybrid_constraints(model, inner_vector(system -> system.X, systems), x, algo, δ)
-    return hybrid_constraints(model, inner_vector(system -> system.U, systems), u, algo, δ)
-end
-
-function hybrid_constraints(
-    model,
-    systems::AbstractVector{<:ConstrainedAffineControlMap},
-    x_prev,
-    x,
-    u,
-    algo::Optimizer,
-    δ,
-)
-    δ = hybrid_constraints(
-        model,
-        inner_vector(system -> AffineControlMap(system.A, system.B, system.c), systems),
         x_prev,
         x,
         u,
