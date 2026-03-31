@@ -136,8 +136,10 @@ end
 """
     NonlinearControlMap{F}
 
-A map encoding nonlinear dynamics `x_next = f(x, u)` where `f` is a callable
-that takes `(x_vars, u_vars)` and returns a vector of `MOI.ScalarNonlinearFunction`.
+A map encoding nonlinear dynamics `x_next = f(x, u)` where `f` is a plain Julia
+function. When used with BemporadMorari, `f` is called with JuMP variables and the
+resulting expressions are converted to `MOI.ScalarNonlinearFunction` via operator
+overloading.
 """
 struct NonlinearControlMap{F}
     f::F

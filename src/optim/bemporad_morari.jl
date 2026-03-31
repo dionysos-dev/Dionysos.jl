@@ -223,13 +223,19 @@ function hybrid_constraints(
     δ,
 ) where {T}
     system = first(systems)
-    exprs = system.f(x_prev, u)
-    for i in eachindex(exprs)
-        add_constraint(
-            model,
-            MOI.ScalarNonlinearFunction(:-, Any[x[i], exprs[i]]),
-            MOI.EqualTo(zero(T)),
-        )
+    # Create a dummy JuMP model to convert MOI.VariableIndex to JuMP.VariableRef
+    # so that calling the Julia function with JuMP variables produces JuMP expressions
+    # via operator overloading; these are then converted back to MOI functions.
+    jump_model = JuMP.Model()
+    _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
+    _to_jump(v) = v # concrete values (e.g., Float64) pass through
+    x_prev_j = _to_jump.(x_prev)
+    x_j = _to_jump.(x)
+    u_j = _to_jump.(u)
+    f_result = system.f(x_prev_j, u_j)
+    for i in eachindex(f_result)
+        moi_expr = JuMP.moi_function(x_j[i] - f_result[i])
+        add_constraint(model, moi_expr, MOI.EqualTo(zero(T)))
     end
     return δ
 end

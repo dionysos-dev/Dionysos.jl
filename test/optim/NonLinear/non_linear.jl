@@ -23,41 +23,22 @@ function rect2d(lib, T, x_l, x_u, y_l, y_u)
     return Polyhedra.polyhedron(r, lib)
 end
 
-"""
-Build the MOI.ScalarNonlinearFunction expression for the non-linear dynamics:
-    x1' = 1.1*x1 - 0.2*x2 - μ*x2^3 + Ts*u1
-    x2' = 1.1*x2 + 0.2*x1 + μ*x1^3 + Ts*u2
-"""
-function nonlinear_dynamics(μ, Ts)
-    snf(op, args...) = MOI.ScalarNonlinearFunction(op, Any[args...])
-    return (x, u) -> [
-        snf(
-            :+,
-            snf(:*, 1.1, x[1]),
-            snf(:*, -0.2, x[2]),
-            snf(:*, -μ, snf(:^, x[2], 3)),
-            snf(:*, Ts, u[1]),
-        ),
-        snf(
-            :+,
-            snf(:*, 1.1, x[2]),
-            snf(:*, 0.2, x[1]),
-            snf(:*, μ, snf(:^, x[1], 3)),
-            snf(:*, Ts, u[2]),
-        ),
-    ]
-end
+@testset "NonLinear BemporadMorari" begin
+    T = Float64
+    lib = CDDLib.Library()
 
-"""
-Build a single-mode HybridSystem using the exact nonlinear dynamics
-encoded as MOI.ScalarNonlinearFunction via NonlinearControlMap.
-"""
-function nonlinear_system(lib, T, μ, Ts, state_bounds, input_bounds)
-    pX = rect2d(lib, T, state_bounds...)
-    pU = rect2d(lib, T, input_bounds...)
+    # Get the nonlinear system from the problem definition
+    nl_prob = NonLinear.problem(; N = 1)
+    nl_sys = nl_prob.system
 
-    f = nonlinear_dynamics(μ, Ts)
-    nlmap = ST.NonlinearControlMap(f, 2, 2)
+    # Wrap f_eval into a (x, u) -> next_state function (fixing w = 0)
+    w_zero = zeros(nl_sys.nw)
+    f = (x, u) -> nl_sys.f_eval(x, u, w_zero)
+
+    nlmap = ST.NonlinearControlMap(f, nl_sys.nx, nl_sys.nu)
+
+    # State and input domains as polyhedra
+    pX = rect2d(lib, T, -5, 5, -5, 5)
 
     automaton = GraphAutomaton(1)
     add_transition!(automaton, 1, 1, 1)
@@ -68,17 +49,6 @@ function nonlinear_system(lib, T, μ, Ts, state_bounds, input_bounds)
         Fill(nlmap, 1),
         Fill(ControlledSwitching(), 1),
     )
-    return sys, pU
-end
-
-@testset "NonLinear BemporadMorari" begin
-    T = Float64
-    lib = CDDLib.Library()
-    μ = T(0.00005)
-    Ts = T(1.0)
-
-    sys, pU =
-        nonlinear_system(lib, T, μ, Ts, (-5.0, 5.0, -5.0, 5.0), (-10.0, 10.0, -10.0, 10.0))
 
     # Use Ipopt for NLP (nonlinear constraints)
     nlp_solver =
@@ -118,15 +88,12 @@ end
         @test length(xu.x) == N
         @test length(xu.u) == N
 
-        # Verify dynamics: x_next ≈ f(x_prev, u)
+        # Verify dynamics: x_next ≈ f(x_prev, u) using the original f_eval
         for t in 1:N
             x_prev = t == 1 ? x_0 : xu.x[t - 1]
             x_next = xu.x[t]
             u_t = xu.u[t]
-            f_val = [
-                1.1 * x_prev[1] - 0.2 * x_prev[2] - μ * x_prev[2]^3 + Ts * u_t[1],
-                1.1 * x_prev[2] + 0.2 * x_prev[1] + μ * x_prev[1]^3 + Ts * u_t[2],
-            ]
+            f_val = nl_sys.f_eval(x_prev, u_t, w_zero)
             @test x_next ≈ f_val atol = 1e-4
         end
 
