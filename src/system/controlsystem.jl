@@ -132,4 +132,3 @@ struct SymbolicSystem
     Uformat::Any
     Wformat::Any
 end
-
