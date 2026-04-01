@@ -104,6 +104,11 @@ Dionysos.System.DiscreteTimeLinearized
 Dionysos.System.ContinuousTimeLinearized
 ```
 
+```@docs
+Dionysos.System.NonlinearControlMap
+```
+
+
 ## Trajectories 
 ```@docs
 Dionysos.System.wrap_coord

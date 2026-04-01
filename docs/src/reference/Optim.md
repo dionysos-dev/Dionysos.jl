@@ -30,7 +30,16 @@ Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
 ```
 
 ## Other solvers
+
+### Bemborad-Morari MIP reformulation
+
 ```@docs
 Dionysos.Optim.BemporadMorari.Optimizer
+Dionysos.Optim.BemporadMorari.julia_function_to_moi
+```
+
+### Branch & Bound
+
+```@docs
 Dionysos.Optim.BranchAndBound.Optimizer
 ```
