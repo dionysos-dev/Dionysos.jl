@@ -155,7 +155,6 @@ function hybrid_constraints(
     algo::Optimizer{T},
     δ,
 ) where {T}
-
     set = first(sets)
     for i in eachindex(x)
         add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(set.lb[i])))
@@ -242,7 +241,6 @@ moi_exprs = julia_function_to_moi(f, x, u)
 ```
 """
 function julia_function_to_moi(f, args::AbstractVector...)
-
     jump_model = JuMP.Model()
     _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
     _to_jump(v) = v
@@ -259,8 +257,6 @@ function hybrid_constraints(
     algo::Optimizer{T},
     δ,
 ) where {T}
-
-
     system = first(systems)
     moi_exprs = julia_function_to_moi(system.f, x_prev, u)
     for i in eachindex(moi_exprs)
