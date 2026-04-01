@@ -92,6 +92,8 @@ _name(::AbstractVector{<:HybridSystems.AbstractTransition}) = "trans"
 _base_name(iv::IndicatorVariables) = "δ_$(_name(iv.choices))_$(iv.time)"
 
 _Scalar = Union{JuMP.AbstractJuMPScalar, MOI.AbstractScalarFunction}
+const _ResolvedIndicators = AbstractVector{<:_Scalar}
+const _Indicators = Union{IndicatorVariables, _ResolvedIndicators}
 
 indicator_variables(model, δ::AbstractVector{<:_Scalar}, ::Type) = δ
 _sum(g, T) = reduce(+, g; init = zero(MOI.ScalarAffineFunction{T}))
@@ -378,7 +380,7 @@ function transitions_constraints(
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -389,9 +391,9 @@ function transitions_constraints(
     modes_from,
     δ_from::IndicatorVariables,
     modes_to,
-    δ_to::AbstractVector{<:_Scalar},
+    δ_to::_ResolvedIndicators,
     trans,
-    δ_trans,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -400,11 +402,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::AbstractVector{<:_Scalar},
+    δ_from::_ResolvedIndicators,
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -413,11 +415,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::AbstractVector{<:_Scalar},
+    δ_from::_ResolvedIndicators,
     modes_to,
-    δ_to::AbstractVector{<:_Scalar},
+    δ_to::_ResolvedIndicators,
     trans,
-    δ_trans,
+    δ_trans::_Indicators,
     T::Type,
 )
     for (mode_from, from) in zip(modes_from, δ_from)
