@@ -1,6 +1,8 @@
 export CertifiedSolveResult, CertifiedPipelineSolver,
        set_problem!, solve!, get_result, get_success, get_solve_time, get_certification_candidate
 
+import Dionysos
+
 const SC = SymbolicCertifier
 
 struct CertifiedSolveResult{CAND, CERTCAND, CERT}
@@ -18,11 +20,7 @@ function CertifiedSolveResult(
     success::Bool,
     solve_time_sec::Real,
 )
-    return CertifiedSolveResult{
-        typeof(candidate),
-        typeof(certification_candidate),
-        typeof(certification),
-    }(
+    return CertifiedSolveResult(
         candidate,
         certification_candidate,
         certification,
@@ -39,7 +37,12 @@ mutable struct CertifiedPipelineSolver{G, C, P, R}
 end
 
 function CertifiedPipelineSolver(generator, certifier)
-    return CertifiedPipelineSolver{typeof(generator), typeof(certifier), Any, Any}(
+    return CertifiedPipelineSolver{
+        typeof(generator),
+        typeof(certifier),
+        Dionysos.Problem.ProblemType,
+        CertifiedSolveResult,
+    }(
         generator,
         certifier,
         nothing,
@@ -65,7 +68,9 @@ function solve!(solver::CertifiedPipelineSolver; prepare_for_certification = ide
 
     t = @elapsed begin
         generate!(solver.generator)
+        println("we have lunch generate")
         cand = get_trajectory(solver.generator)
+        println("we have got our candidate traj")
         @assert cand !== nothing "Generator returned nothing trajectory."
 
         cert_cand = prepare_for_certification(cand)
@@ -73,6 +78,7 @@ function solve!(solver::CertifiedPipelineSolver; prepare_for_certification = ide
 
         SC.set_trajectory!(solver.certifier, cert_cand)
         SC.certify!(solver.certifier)
+        println("we've certify our traj")
         certres = SC.get_result(solver.certifier)
         @assert certres !== nothing "Certifier returned nothing result."
 

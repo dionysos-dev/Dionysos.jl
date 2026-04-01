@@ -9,7 +9,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const UT = DI.Utils
 
-struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB} # améliorer les typages
+struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB}
     problem::P
     candidate::C
     config::CFG
@@ -17,15 +17,6 @@ struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB} # améliorer l
     xs::TX
     us::TU
     K::Int
-    fsymbolic
-    x
-    u
-    w
-    ΔX
-    ΔU
-    ΔW
-    Uformat
-    Wformat
     S::TS
     backend::TB
     maxδx::Float64
@@ -50,16 +41,6 @@ function build_symbolic_context(problem, candidate, config, symbolic_builder) # 
 
     sym = symbolic_builder(problem, candidate, config)
 
-    fsymbolic = sym.fsymbolic
-    x = sym.x
-    u = sym.u
-    w = sym.w
-    ΔX = sym.ΔX
-    ΔU = sym.ΔU
-    ΔW = sym.ΔW
-    Uformat = sym.Uformat
-    Wformat = sym.Wformat
-
     nx = length(xs[1])
     nu = length(us[1])
     S = _identity_transition_cost(nx, nu)
@@ -78,15 +59,6 @@ function build_symbolic_context(problem, candidate, config, symbolic_builder) # 
         xs,
         us,
         K,
-        fsymbolic,
-        x,
-        u,
-        w,
-        ΔX,
-        ΔU,
-        ΔW,
-        Uformat,
-        Wformat,
         S,
         config.backend,
         maxδx,
@@ -99,17 +71,17 @@ end
 function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
     xk = collect(ctx.xs[k])
     uk = collect(ctx.us[k])
-    wk = collect(zeros(length(ctx.w)))
+    wk = zeros(length(ctx.symbolic.w))
 
-    Xbar = IA.IntervalBox(xk .+ ctx.ΔX)
-    Ubar = IA.IntervalBox(uk .+ ctx.ΔU)
-    Wbar = IA.IntervalBox(wk .+ ctx.ΔW)
+    Xbar = IA.IntervalBox(xk .+ ctx.symbolic.ΔX)
+    Ubar = IA.IntervalBox(uk .+ ctx.symbolic.ΔU)
+    Wbar = IA.IntervalBox(wk .+ ctx.symbolic.ΔW)
 
-    affineSys, L = ST.buildAffineApproximation(
-        ctx.fsymbolic,
-        ctx.x,
-        ctx.u,
-        ctx.w,
+    affineSys, L = ST.buildAffineApproximation( #
+        ctx.symbolic.fsymbolic,
+        ctx.symbolic.x,
+        ctx.symbolic.u,
+        ctx.symbolic.w,
         xk,
         uk,
         wk,
@@ -125,8 +97,8 @@ function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
         E_next,
         xk,
         uk,
-        ctx.Uformat,
-        ctx.Wformat,
+        ctx.symbolic.Uformat,
+        ctx.symbolic.Wformat,
         ctx.S,
         L,
         ctx.backend;
@@ -137,7 +109,7 @@ function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
 
     if E_prev === nothing || kappa === nothing
         println("My transi is impossible")
-        return BackwardStepRecord{Any, Any, NamedTuple}(
+        return BackwardStepRecord(
             k,
             :infeasible,
             nothing,
@@ -147,7 +119,7 @@ function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
         )
     end
 
-    return BackwardStepRecord{Any, Any, NamedTuple}(
+    return BackwardStepRecord(
         k,
         :ok,
         Float64(cost),
@@ -155,6 +127,22 @@ function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
         kappa,
         (; L),
     )
+end
+
+function _collect_kappas(steps::AbstractVector{<:BackwardStepRecord})
+    first_idx = findfirst(step -> step.kappa !== nothing, steps)
+    first_idx === nothing && return Nothing[]
+
+    κ1 = steps[first_idx].kappa
+    kappas = Vector{typeof(κ1)}()
+
+    for step in steps
+        κ = step.kappa
+        κ === nothing && continue
+        push!(kappas, κ)
+    end
+
+    return kappas
 end
 
 function run_backward_chain!(ctx::EllipsoidalBackwardContext)
@@ -165,9 +153,8 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
     E_next = UT.Ellipsoid(PN, collect(ctx.xs[end]))
     
 
-    steps = BackwardStepRecord{Any, Any, NamedTuple}[]
-    ellipsoids = UT.Ellipsoid[E_next]
-    kappas = Any[]
+    steps = BackwardStepRecord[]
+    ellipsoids = [E_next]
 
     for k in ctx.K:-1:1
         rec = backward_step!(ctx, k, E_next)
@@ -180,7 +167,7 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
                 Float64(time() - t0),
                 steps,
                 nothing,
-                (; ellipsoids, kappas),
+                (; ellipsoids, kappas = _collect_kappas(steps)),
             )
         end
         
@@ -189,9 +176,10 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
         
         #println("the volume is ",UT.get_volume(E_next),"\n\n")
         push!(ellipsoids, rec.ellipsoid)
-        push!(kappas, rec.kappa)
         #println(E_next,"\n\n")
     end
+
+    kappas = _collect_kappas(steps)
 
     return EllipsoidalCertificationResult(
         true,

@@ -1,7 +1,5 @@
-# Expose ellipsoidal-backward public data types.
 export EllipsoidalBackwardConfig, BackwardStepRecord, EllipsoidalCertificationResult
 # (rajouter les types)
-# Store static configuration for ellipsoidal backward certification.
 struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts} # je me demande si je devrais pas changer cette fonction
     # State domain descriptor.
     Xdom::TX
@@ -16,7 +14,7 @@ struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts} # je me demande si j
 end
 
 # Store one backward-step output record.
-struct BackwardStepRecord{TE, TK, TS}
+struct BackwardStepRecord{TE, TK, TS} # comment remplacer les nothings
     # Backward index k.
     k::Int
     # Step status tag.
@@ -24,11 +22,28 @@ struct BackwardStepRecord{TE, TK, TS}
     # Optional step cost.
     cost::Union{Nothing, Float64}
     # Optional ellipsoid object.
-    ellipsoid::Union{Nothing, TE}
+    ellipsoid::Union{Nothing, TE} # Ellipsoid
     # Optional local control law object.
     kappa::Union{Nothing, TK} # je vais utiliser un autre objet
-    # Extensible summary payload.
     summary::TS
+end
+
+function BackwardStepRecord(
+    k::Int,
+    status::Symbol,
+    cost::Nothing, # Float
+    ellipsoid::Nothing,
+    kappa::Nothing, # controller
+    summary::TS,
+) where {TS}
+    return BackwardStepRecord{Nothing, Nothing, TS}(
+        k,
+        status,
+        nothing,
+        nothing,
+        nothing,
+        summary,
+    )
 end
 
 # Store global certification output.
@@ -42,12 +57,11 @@ struct EllipsoidalCertificationResult{S, CTRL, LMI}
     # Ordered list of backward-step records.
     steps::Vector{S}
     # Optional synthesized controller payload.
-    controller::Union{Nothing, CTRL}
-    # Optional raw LMI payload.
+    controller::Union{Nothing, CTRL} # je devrais utiliser les controllers de julien
     lmi_data::Union{Nothing, LMI}
 end
 
-function EllipsoidalCertificationResult( # je suis pas encore certain des data dans la structure
+function EllipsoidalCertificationResult(
     success::Bool,
     failed_k::Union{Nothing, Int},
     solve_time_sec::Float64,
@@ -58,7 +72,7 @@ function EllipsoidalCertificationResult( # je suis pas encore certain des data d
     return EllipsoidalCertificationResult{S, Nothing, Nothing}(
         success,
         failed_k,
-        solve_time_sec,
+        Float64(solve_time_sec),
         steps,
         controller,
         lmi_data,
@@ -76,7 +90,7 @@ function EllipsoidalCertificationResult(
     return EllipsoidalCertificationResult{S, Nothing, LMI}(
         success,
         failed_k,
-        solve_time_sec,
+        Float64(solve_time_sec),
         steps,
         controller,
         lmi_data,
@@ -94,7 +108,25 @@ function EllipsoidalCertificationResult(
     return EllipsoidalCertificationResult{S, CTRL, Nothing}(
         success,
         failed_k,
-        solve_time_sec,
+        Float64(solve_time_sec),
+        steps,
+        controller,
+        lmi_data,
+    )
+end
+
+function EllipsoidalCertificationResult(
+    success::Bool,
+    failed_k::Union{Nothing, Int},
+    solve_time_sec::Float64,
+    steps::Vector{S},
+    controller::CTRL,
+    lmi_data::LMI,
+) where {S, CTRL, LMI}
+    return EllipsoidalCertificationResult{S, CTRL, LMI}(
+        success,
+        failed_k,
+        Float64(solve_time_sec),
         steps,
         controller,
         lmi_data,

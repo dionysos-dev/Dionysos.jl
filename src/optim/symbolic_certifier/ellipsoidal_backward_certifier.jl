@@ -21,6 +21,24 @@ mutable struct EllipsoidalBackwardCertifier{P, C, CFG, R, SB} <: AbstractSymboli
     symbolic_builder::SB
 end
 
+function EllipsoidalBackwardCertifier(config, symbolic_builder)
+    return EllipsoidalBackwardCertifier{
+        Dionysos.Problem.ProblemType,
+        Dionysos.Optim.CandidateTrajectory,
+        typeof(config),
+        EllipsoidalCertificationResult,
+        typeof(symbolic_builder),
+    }(
+        nothing,
+        nothing,
+        config,
+        nothing,
+        false,
+        0.0,
+        symbolic_builder,
+    )
+end
+
 function set_problem!(
     cert::EllipsoidalBackwardCertifier,
     prob::Dionysos.Problem.ProblemType,

@@ -55,7 +55,7 @@ function build_generator(
         periodicity_kwargs(cfg),
         cfg.nstep,
         _ -> control_cfg.x0;
-        trajectory_mode = :abstract_traj, # :closed_loop
+        trajectory_mode = :abstract_traj, # :closed_loop # :abstract_traj
     )
 
     return OP.CenteredAbstractionGenerator{
@@ -160,6 +160,12 @@ function run_vehicle_benchmark(
     build_concrete_system,
     build_control_problem,
     input_mapping,
+    # On laisse injectable la construction du generateur nominal.
+    # Par defaut, on garde le comportement historique du benchmark
+    # via `build_generator`. Mais ce petit point d'extension permet
+    # d'utiliser un autre heuristic generator, par exemple MPPI,
+    # sans dupliquer toute la pipeline ni modifier les helpers aval.
+    generator_builder = build_generator,
     show_ellipsoids::Bool = true,
     unwrap_angles::Bool = false,
     wrap_angles::Bool = true,
@@ -170,7 +176,11 @@ function run_vehicle_benchmark(
     control_cfg = build_control_problem()
     problem = build_problem(system_cfg, control_cfg)
 
-    gen = build_generator(
+    # Le reste de la pipeline ne depend que du contrat commun des
+    # heuristic generators. On peut donc construire ici soit le
+    # generateur historique, soit un generateur alternatif fourni
+    # par le benchmark appelant.
+    gen = generator_builder(
         problem,
         system_cfg,
         control_cfg,

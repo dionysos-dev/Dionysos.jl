@@ -4,6 +4,7 @@ export AbstractHeuristicGenerator,
     set_problem!, generate!, get_trajectory, get_success, get_solve_time
 export CandidateTrajectory, horizon, n_states
 export CenteredAbstractionConfig, CenteredAbstractionGenerator
+export MPPIConfig, MPPIGenerator
 
 abstract type AbstractHeuristicGenerator end
 
@@ -27,3 +28,4 @@ get_success(gen::AbstractHeuristicGenerator) = false
 get_solve_time(gen::AbstractHeuristicGenerator) = NaN
 
 include("centered_abstraction_generator.jl")
+include("mppi_generator.jl")

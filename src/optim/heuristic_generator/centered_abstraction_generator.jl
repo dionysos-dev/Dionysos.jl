@@ -35,13 +35,7 @@ function CenteredAbstractionConfig(
     num_substeps::Integer = 5,
     trajectory_mode::Symbol = :closed_loop,
 )
-    return CenteredAbstractionConfig{
-        typeof(hx),
-        typeof(Udom),
-        typeof(jacobian_bound),
-        typeof(periodicity),
-        typeof(x0_provider),
-    }(
+    return CenteredAbstractionConfig(
         Float64(Δt),
         hx,
         Udom,
@@ -86,6 +80,23 @@ mutable struct CenteredAbstractionGenerator{P, C, O, CT} <: AbstractHeuristicGen
     candidate::Union{Nothing, CT}
     success::Bool
     solve_time_sec::Float64
+end
+
+function CenteredAbstractionGenerator(problem, config)
+    P = problem === nothing ? DI.Problem.ProblemType : typeof(problem)
+    return CenteredAbstractionGenerator{
+        P,
+        typeof(config),
+        MOI.AbstractOptimizer,
+        CandidateTrajectory,
+    }(
+        problem,
+        config,
+        nothing,
+        nothing,
+        false,
+        0.0,
+    )
 end
 
 function _periodicity(cfg::CenteredAbstractionConfig)
@@ -195,7 +206,7 @@ function _build_closed_loop_candidate(problem, optimizer, cfg, p)
 end
 
 function _select_best_abstract_step(abs_sys, k_abs, q::Int, value_fun_tab)
-    # On choisit le couple (u, q_next) qui minimise la valeur abstraite du successeur. (je sais pas trop si ça a du sens)
+    # On choisit le couple (u, q_next) qui minimise la valeur abstraite du successeur. (je sais pas trop si ça a du sens, à terme je devrais généraliser potentiellement renvoyer plusieurs abstract traj)
     u_candidates = k_abs(q)
     u_candidates === nothing && return nothing, nothing
 
@@ -237,7 +248,6 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
     qs = Int[q]
     u_syms = Int[]
     xs = [wrap(SY.get_concrete_state(abs_sys, q))]
-    us = Any[]
 
     for _ in 1:cfg.nstep
         # Une valeur abstraite nulle signifie que la cellule cible est atteinte.
@@ -247,7 +257,6 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
         (u_sym === nothing || q_next === nothing) && break
 
         push!(u_syms, u_sym)
-        push!(us, SY.get_concrete_input(abs_sys, u_sym))
         push!(qs, q_next)
         push!(xs, wrap(SY.get_concrete_state(abs_sys, q_next)))
 
@@ -255,6 +264,7 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
     end
 
     length(xs) >= 2 || return nothing
+    us = [SY.get_concrete_input(abs_sys, u_sym) for u_sym in u_syms]
 
     return CandidateTrajectory(
         ST.Trajectory(xs),

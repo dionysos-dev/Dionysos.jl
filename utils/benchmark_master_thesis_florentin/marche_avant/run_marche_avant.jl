@@ -26,7 +26,7 @@ Base.@kwdef struct MarcheArriereConfig
     symbolic_rk4_substeps::Int = 1
     ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
         IA.interval(-0.2, 0.2), # on peut aller jusqu'à -1.0 ; 1.0
-        IA.interval(-0.0, 0.2),
+        IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
     )
@@ -40,7 +40,7 @@ Base.@kwdef struct MarcheArriereConfig
     plot_subdir::String = "plots"
     animation_subdir::String = "animations"
 
-    plot_gif::Bool = false
+    plot_gif::Bool = true
     verbose::Bool = false
 end
 
@@ -51,21 +51,21 @@ end
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
         SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 9.0, pi, pi),
+        SVector(10.0, 10.0, pi, pi),
     )
-    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
+    x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(55.0))
 
     obstacles_xy = [
         UT.HyperRectangle(SVector(4.0, -1.0), SVector(10.0, 4.7)),
-        UT.HyperRectangle(SVector(4.0, 6.0), SVector(10.0, 9.0)),
+        UT.HyperRectangle(SVector(4.0, 7.0), SVector(10.0, 10.0)),
     ]
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
 
-    δ_max = pi / 4
+    δ_max = 0.959931 # ce qui est donné dans l'article
     σ_max = tan(δ_max)
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
-    params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+    params = AV.Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9)
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
@@ -73,13 +73,13 @@ end
 
 function build_input_mapping() # c'est pour la génération de la trajectoire
     inputs_delta = [
-        [2.0, 0.0],
         [0.0, 0.0],
-        [-2.0, 0.0],
         [2.0, -0.25],
         [2.0, 0.25],
         [-2.0, 0.25],
         [-2.0, -0.25],
+        [2.0, -0.55],
+        [2.0, 0.55],
         [1.0, 0.0],
         [-1.0, 0.0],
     ]
@@ -94,8 +94,8 @@ function build_control_problem()
         SVector(1.0, 1.0, 0.4, 0.4),
     )
     target_set = UT.HyperRectangle( 
-        SVector(9.0, 5.0, -5 * (pi / 180), -5 * (pi / 180)),
-        SVector(10.0, 6.0, 5 * (pi / 180), 5 * (pi / 180)),
+        SVector(8.5, 5.0, -5 * (pi / 180), -5 * (pi / 180)),
+        SVector(10.0, 6.2, 5 * (pi / 180), 5 * (pi / 180)),
     )
     return (; x0, initial_set, target_set)
 end

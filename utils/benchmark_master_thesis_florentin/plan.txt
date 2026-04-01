@@ -1,15 +1,9 @@
-##### WEEK 8
-1) ajouter abstract traj generateur + migrer tous les benchmakrs et voir ce que ça donne avec abstract traj
-2) ajouter le scaling de mon vector field
-3) implémenter le cercle complet
-4) lire papier benoit
-5) si le temps exploration MPC / random shooting / MPPI / iLQR (demander julien benoit)
-
--> choisir l'algo (sampling-based MPC - MPPI)
-traj nominal : transformer MPPI -> raffiner avec MPPI
+##### à aborder en reu 
 
 ##### Court terme
-
+1) ajouter le scaling de mon vector field; investiguer l'amélioration de la stabilité de mes LMI
+2) test statistiques (uniquement pour mes benchmarks)
+3) tester rrt : à la place de centeredsimu (if rrt find a path its feasible)
 
 ##### Long terme
 1) améliorer le typage de mes structures

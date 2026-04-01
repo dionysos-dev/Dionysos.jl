@@ -5,4 +5,5 @@ if !isdefined(@__MODULE__, :_BENCHMARK_MASTER_THESIS_HELPERS_LOADED)
     include(joinpath(@__DIR__, "periodic.jl"))
     include(joinpath(@__DIR__, "pipeline.jl"))
     include(joinpath(@__DIR__, "plot.jl"))
+    include(joinpath(@__DIR__, "statistique.jl"))
 end
