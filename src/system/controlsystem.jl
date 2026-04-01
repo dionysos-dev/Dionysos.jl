@@ -133,19 +133,3 @@ struct SymbolicSystem
     Wformat::Any
 end
 
-"""
-    NonlinearControlMap{F}
-
-A map encoding nonlinear dynamics `x_next = f(x, u)` where `f` is a plain Julia
-function. When used with BemporadMorari, `f` is called with JuMP variables and the
-resulting expressions are converted to `MOI.ScalarNonlinearFunction` via operator
-overloading.
-"""
-struct NonlinearControlMap{F}
-    f::F
-    statedim::Int
-    inputdim::Int
-end
-
-MS.statedim(m::NonlinearControlMap) = m.statedim
-MS.inputdim(m::NonlinearControlMap) = m.inputdim

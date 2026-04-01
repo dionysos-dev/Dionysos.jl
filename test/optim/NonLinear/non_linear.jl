@@ -25,7 +25,7 @@ using FillArrays
     w_zero = zeros(nl_sys.nw)
     f = (x, u) -> nl_sys.f_eval(x, u, w_zero)
 
-    nlmap = ST.NonlinearControlMap(f, nl_sys.nx, nl_sys.nu)
+    nlmap = BlackBoxControlDiscreteSystem(f, nl_sys.nx, nl_sys.nu)
 
     # State domain as HyperRectangle (automatic conversion to MOI constraints)
     pX = UT.HyperRectangle([-5.0, -5.0], [5.0, 5.0])

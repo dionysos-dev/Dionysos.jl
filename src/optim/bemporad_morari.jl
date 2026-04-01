@@ -252,7 +252,7 @@ end
 
 function hybrid_constraints(
     model,
-    systems::Fill{<:ST.NonlinearControlMap},
+    systems::Fill{<:BlackBoxControlDiscreteSystem},
     x_prev,
     x,
     u,
