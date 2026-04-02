@@ -70,7 +70,7 @@ R2 = [
 # Gmats = :identity
 Gmats = Dict(1 => R, 2 => R2)
 
-pclf = PCLF.compute_polyhedral_pieces_pclf(
+pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f,
     G,
     sdp_optimizer;

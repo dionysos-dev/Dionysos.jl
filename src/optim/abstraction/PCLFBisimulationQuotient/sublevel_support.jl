@@ -65,13 +65,15 @@ function build_levels_from_problem(
     τD = nothing
     for _ in 1:max_levels
         push!(levels, τ)
-
+        #println("Build_levels")
+        #println(τ)
         if all_nodes_clear_regions(pclf, τ, regions_to_avoid; tol = tol)
             τD = τ
             break
         end
 
         τ *= γ
+
     end
 
     isnothing(τD) && error(
@@ -164,6 +166,8 @@ function all_nodes_clear_regions(
     regions_to_avoid;
     tol::Float64 = 0.0,
 )
+    #println("All_node_clear_regions")
+    #println(τ)
     for piece in values(pclf.pieces)
         for R in regions_to_avoid
             if piece_intersects_region_at_level(piece, τ, R; tol = tol)
@@ -183,6 +187,8 @@ function piece_intersects_region_at_level(
     tol >= 0.0 || error("Expected tol >= 0, got $tol.")
 
     τeff = max(Float64(τ) - tol, 0.0)
+    #println("piece_intersects")
+    #println(τ)
     Pτ = PCLF.get_sublevel_set(piece, τeff)
     I = set_intersection(Pτ, R)
     return is_nonempty_set(I)

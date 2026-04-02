@@ -190,7 +190,7 @@ function run_example_debruijn(;
 
     Gmats = make_Gmats(nodes; θ = θ, mode = gmode, n = 2)
 
-    pclf = PCLF.compute_polyhedral_pieces_pclf(
+    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
         f,
         G,
         sdp_optimizer;
