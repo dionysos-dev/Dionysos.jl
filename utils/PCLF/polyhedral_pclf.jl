@@ -47,8 +47,14 @@ function script()
     #Gmats = [randn(2, 2) for _ in 1:4]
     #println(Gmats)
 
-    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(f, G, optimizer; MLF = true, Gmats = Gmats)
-    println("JSR = $(pclf.JSRapprox)")
+    pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
+        f,
+        G,
+        optimizer;
+        MLF = true,
+        Gmats = Gmats,
+    )
+    return println("JSR = $(pclf.JSRapprox)")
 
     #gamma = 100.0
     #pol1 = PCLF.get_sublevel_set(pclf.pieces[(1,)], gamma)
@@ -59,7 +65,6 @@ function script()
 end
 
 function new_polyhedral()
-
     A1 = [-0.65 0.32; -0.42 -0.92]
     A2 = [0.65 0.32; -0.42 -0.92]
     f = HybridSystems.discreteswitchedsystem([A1, A2])
@@ -94,21 +99,18 @@ function new_polyhedral()
     #C3_2 = hcat(r3, r4)
     #C4_2 = hcat(r4, r1)
 
-    v1 = [ 1.0,  0.0]
-    v2 = [ 1.0,  1.0]
-    v3 = [ 0.0,  1.0]
-    v4 = [-1.0,  1.0]
-    v5 = [-1.0,  0.0]
+    v1 = [1.0, 0.0]
+    v2 = [1.0, 1.0]
+    v3 = [0.0, 1.0]
+    v4 = [-1.0, 1.0]
+    v5 = [-1.0, 0.0]
 
     C1 = hcat(v1, v2)
     C2 = hcat(v2, v3)
     C3 = hcat(v3, v4)
     C4 = hcat(v4, v5)
 
-    partitions = Dict(
-        (1,) => [C1, C2, C3, C4],
-        (2,) => [C1, C2, C3, C4],
-    )
+    partitions = Dict((1,) => [C1, C2, C3, C4], (2,) => [C1, C2, C3, C4])
 
     optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 
@@ -121,8 +123,7 @@ function new_polyhedral()
     p = plot(pol1; label = "1")
     plot!(pol2; label = "2")
     return display(p)
-
-end 
+end
 
 #script()
 new_polyhedral()

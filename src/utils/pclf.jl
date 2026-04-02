@@ -411,8 +411,6 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     return PCLF(D, pieces, gamma)
 end
 
-
-
 function compute_polyhedral_pieces_pclf(
     f::HybridSystems.HybridSystem,
     D::LabDigraph,
@@ -477,7 +475,8 @@ function compute_polyhedral_pieces_pclf(
         for v in verts
             l_v = length(partitions[v])
             Pvars[v] = JuMP.@variable(model, [1:l_v, 1:n], base_name = "P_$(index_of[v])")
-            cvars[v] = JuMP.@variable(model, base_name = "c_$(index_of[v])", lower_bound = min_c)
+            cvars[v] =
+                JuMP.@variable(model, base_name = "c_$(index_of[v])", lower_bound = min_c)
         end
 
         # --- node-wise constraints (Theorem-style conditions) ---
@@ -530,8 +529,14 @@ function compute_polyhedral_pieces_pclf(
                     x = Xi[:, e]
                     Ax = Am * x
                     for r in 1:l_v_local
-                        JuMP.@constraint(model, rho * linrow(Pu, i, x) + linrow(Pv, r, Ax) >= 0)
-                        JuMP.@constraint(model, rho * linrow(Pu, i, x) - linrow(Pv, r, Ax) >= 0)
+                        JuMP.@constraint(
+                            model,
+                            rho * linrow(Pu, i, x) + linrow(Pv, r, Ax) >= 0
+                        )
+                        JuMP.@constraint(
+                            model,
+                            rho * linrow(Pu, i, x) - linrow(Pv, r, Ax) >= 0
+                        )
                     end
                 end
             end
@@ -582,7 +587,7 @@ function compute_polyhedral_pieces_pclf(
     end
 
     gamma = b
-    
+
     # --- final solve to extract pieces ---
     pieces = Dict{Any, AbstractPiece}()
     if MLF
@@ -599,6 +604,5 @@ function compute_polyhedral_pieces_pclf(
 
     return PCLF(D, pieces, gamma)
 end
-
 
 end # module

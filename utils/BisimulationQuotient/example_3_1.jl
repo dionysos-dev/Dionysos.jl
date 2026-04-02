@@ -103,12 +103,7 @@ M = 2   # two modes
 # Common Lyapunov graph = one node with one self-loop per mode
 graph = PCLF.generate_DeBruijn_edges(M, 1)
 
-G = PCLF.edgeList_to_LabDigraph([
-    (1, 1, 1),
-    (2, 1, 1),
-    (2, 1, 2),
-    (1, 2, 2)
-])
+G = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (2, 1, 1), (2, 1, 2), (1, 2, 2)])
 
 # Recover the unique vertex
 # v = first(graph.verts)
@@ -119,21 +114,18 @@ G = PCLF.edgeList_to_LabDigraph([
 # PCLF with one piece
 # pclf = PCLF.PCLF(graph, Dict(v => piece), rho)
 
-v1 = [ 1.0,  0.0]
-v2 = [ 1.0,  1.0]
-v3 = [ 0.0,  1.0]
-v4 = [-1.0,  1.0]
-v5 = [-1.0,  0.0]
+v1 = [1.0, 0.0]
+v2 = [1.0, 1.0]
+v3 = [0.0, 1.0]
+v4 = [-1.0, 1.0]
+v5 = [-1.0, 0.0]
 
 C1 = hcat(v1, v2)
 C2 = hcat(v2, v3)
 C3 = hcat(v3, v4)
 C4 = hcat(v4, v5)
 
-partitions = Dict(
-   (1,) => [C1, C2, C3, C4],
-   (2,) => [C1, C2, C3, C4],
-)
+partitions = Dict((1,) => [C1, C2, C3, C4], (2,) => [C1, C2, C3, C4])
 
 optimizer_pclf = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 pclf = PCLF.compute_polyhedral_pieces_pclf(f, graph, optimizer_pclf, partitions; MLF = true)
