@@ -65,7 +65,6 @@ function build_levels_from_problem(
     τD = nothing
     for _ in 1:max_levels
         push!(levels, τ)
-
         if all_nodes_clear_regions(pclf, τ, regions_to_avoid; tol = tol)
             τD = τ
             break
