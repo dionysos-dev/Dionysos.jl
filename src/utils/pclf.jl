@@ -113,6 +113,48 @@ function generate_DeBruijn_edges(M::Int, k::Int; dual::Bool = false)
     return edgeList_to_LabDigraph(edges)
 end
 
+"""
+Compute a path-complete Lyapunov function (PCLF) with **quadratic (ellipsoidal) pieces**
+for a switched linear system.
+
+Each node `s` of the graph is associated with a quadratic Lyapunov function:
+
+    V_s(x) = xᵀ P_s x,
+
+where `P_s` is a symmetric positive definite matrix. The corresponding sublevel sets
+are ellipsoids.
+
+# Method
+The method formulates a semidefinite feasibility problem (SDP) and performs a
+bisection on γ. For each edge (u → v, σ), it enforces the Lyapunov inequality:
+
+    A_σᵀ P_v A_σ ≤ γ² P_u,
+
+implemented via linear matrix inequalities (LMIs):
+
+    γ² P_u - A_σᵀ P_v A_σ - I ≽ 0.
+
+Additional constraints ensure positive definiteness and boundedness of the matrices `P_s`.
+
+# Arguments
+- `f`: hybrid system containing the system matrices `A_σ`
+- `G`: labeled directed graph defining the PCLF structure
+- `optimizer`: JuMP-compatible SDP solver
+
+# Keyword arguments
+- `tol`: tolerance for bisection on γ
+- `maxiter`: maximum number of iterations
+- `MLF`: if true, extracts the Lyapunov matrices `P_s`
+
+# Returns
+- `PCLF`: structure containing the graph, Lyapunov pieces (ellipsoids), and JSR approximation
+
+# Notes
+- This method searches for a quadratic (ellipsoidal) Lyapunov function on each node.
+- It relies on semidefinite programming (SDP), which is more expensive than LP-based
+  polyhedral methods but often less conservative.
+- The resulting Lyapunov function is smooth and globally defined on each node.
+"""
 function compute_quadratic_pieces_pclf(
     f::HybridSystems.HybridSystem,
     G::LabDigraph,
@@ -240,6 +282,47 @@ function compute_quadratic_pieces_pclf(
     return PCLF(G, pieces, gamma)
 end
 
+"""
+Compute a path-complete Lyapunov function (PCLF) with **symmetric polyhedral pieces
+having 2n faces** for a switched linear system.
+
+Each node `s` of the graph is associated with a polyhedral Lyapunov function of the form:
+
+    V_s(x) = max_i |(G_s x)_i| / w_s[i]
+
+whose sublevel sets are polytopes:
+
+    { x : -γ w_s ≤ G_s x ≤ γ w_s }.
+
+# Method
+The method constructs and solves a feasibility linear program (LP) using bisection on γ.
+For each edge (u → v, σ), it enforces:
+
+    |G_v A_σ G_u^{-1}| * w_u ≤ γ w_v,
+
+where the absolute value is taken elementwise.
+
+# Arguments
+- `f`: hybrid system containing the system matrices `A_σ`
+- `D`: labeled directed graph defining the PCLF structure
+- `optimizer`: JuMP optimizer
+
+# Keyword arguments
+- `Gmats`: choice of matrices G_s (identity, Dict, or Vector)
+- `tol`: tolerance for bisection on γ
+- `maxiter`: maximum number of bisection iterations
+- `MLF`: if true, extracts the Lyapunov pieces
+- `verbose`: enable solver output
+- `min_w`: lower bound to enforce strict positivity of w
+
+# Returns
+- `PCLF`: structure containing the graph, Lyapunov pieces, and JSR approximation
+
+# Notes
+- The resulting Lyapunov functions are structured and correspond to
+  weighted ∞-norms in transformed coordinates.
+- This approach is computationally efficient but may be conservative.
+"""
 function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f::HybridSystems.HybridSystem,
     D::LabDigraph,
@@ -411,6 +494,52 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     return PCLF(D, pieces, gamma)
 end
 
+"""
+Compute a path-complete Lyapunov function (PCLF) with **general polyhedral pieces**
+defined over a partition of the state space into cones.
+
+Each node `s` is associated with a piecewise-linear Lyapunov function:
+
+    V_s(x) = max_i |p_{s,i}ᵀ x|,
+
+where the rows of a matrix `P_s` define the supporting hyperplanes of the polytope.
+
+# Method
+The method formulates a feasibility linear program (LP) based on:
+
+1. Positivity constraints ensuring V_s(x) ≥ 0 on each cone
+2. Dominance constraints ensuring correct piecewise structure
+3. Decrease conditions along edges:
+
+       V_v(A_σ x) ≤ ρ V_u(x)
+
+These constraints are enforced on the extreme rays of the cones in `partitions`.
+
+A bisection on ρ is used to approximate the joint spectral radius (JSR).
+
+# Arguments
+- `f`: hybrid system containing the system matrices `A_σ`
+- `D`: labeled directed graph defining the PCLF structure
+- `optimizer`: JuMP optimizer
+- `partitions`: dictionary mapping each node to a list of cones (matrices of rays)
+
+# Keyword arguments
+- `tol`: tolerance for bisection on ρ
+- `maxiter`: maximum number of iterations
+- `MLF`: if true, extracts the Lyapunov pieces
+- `verbose`: enable solver output
+- `min_c`: lower bound on auxiliary scalar variables
+
+# Returns
+- `PCLF`: structure containing the graph, Lyapunov pieces, and JSR approximation
+
+# Notes
+- This method allows for more general polyhedral Lyapunov functions than the
+  symmetric 2n-face construction.
+- The number of faces depends on the number of rows of `P_s`.
+- Less conservative but computationally more expensive.
+- The quality depends on the chosen cone partition.
+"""
 function compute_polyhedral_pieces_pclf(
     f::HybridSystems.HybridSystem,
     D::LabDigraph,

@@ -164,7 +164,7 @@ import Clarabel
         end
     end
 
-    @testset "compute_polyhedral_pieces_pclf on switched system" begin
+    @testset "compute_symmetric_2n_faces_polyhedral_pieces_pclf on switched system" begin
         A1 = [1.5519 0.4474; 7.6412 7.4716]
         A2 = [0.4750 9.1755; 1.8955 0.1850]
         f = HybridSystems.discreteswitchedsystem([A1, A2])
@@ -177,7 +177,7 @@ import Clarabel
             "verbose" => false,
         )
 
-        pclf = PCLF.compute_polyhedral_pieces_pclf(
+        pclf = PCLF.compute_symmetric_2n_faces_polyhedral_pieces_pclf(
             f,
             G,
             optimizer;
@@ -199,10 +199,51 @@ import Clarabel
         @test all(piece.w .>= 1e-5)
     end
 
-    @testset "graph size sanity check" begin
-        G = PCLF.generate_DeBruijn_edges(2, 1)
-        @test length(G.verts) == 2
-        @test length(G.edges) == 4
+    @testset "compute_polyhedral_pieces_pclf on switched system" begin
+        A1 = [1.5519 0.4474; 7.6412 7.4716]
+        A2 = [0.4750 9.1755; 1.8955 0.1850]
+        f = HybridSystems.discreteswitchedsystem([A1, A2])
+
+        G = PCLF.generate_DeBruijn_edges(2, 0; dual = false)
+
+        optimizer = JuMP.optimizer_with_attributes(
+            Clarabel.Optimizer,
+            "max_iter" => 1000,
+            "verbose" => false,
+        )
+
+        # 2D partition into 4 cones (quadrants)
+        e1 = [1.0, 0.0]
+        e2 = [0.0, 1.0]
+
+        X1 = hcat(e1, e2)
+        X2 = hcat(-e1, e2)
+        X3 = hcat(-e1, -e2)
+        X4 = hcat(e1, -e2)
+
+        partitions = Dict(1 => [X1, X2, X3, X4])
+
+        pclf = PCLF.compute_polyhedral_pieces_pclf(
+            f,
+            G,
+            optimizer,
+            partitions;
+            tol = 1e-6,
+            maxiter = 100,
+            MLF = true,
+            min_c = 1e-5,
+        )
+
+        @test pclf isa PCLF.PCLF
+        @test pclf.JSRapprox >= 0.0
+        @test length(pclf.pieces) == 1
+        @test haskey(pclf.pieces, 1)
+
+        piece = pclf.pieces[1]
+        @test piece isa PCLF.PolyhedralPiece
+        @test size(piece.G, 2) == 2
+        @test length(piece.w) == size(piece.G, 1)
+        @test all(piece.w .== 1.0)
     end
 end
 

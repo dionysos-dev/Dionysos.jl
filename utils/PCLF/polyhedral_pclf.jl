@@ -8,20 +8,20 @@ import JuMP
 import Clarabel
 using Plots
 
-function script()
-    #A1 = @SMatrix [
-    #    -0.65 0.32;
-    #    -0.42 -0.92
-    #]
+function symmetric_2n_faces_polyhedral()
+    A1 = @SMatrix [
+        -0.65 0.32;
+        -0.42 -0.92
+    ]
 
-    #A2 = @SMatrix [
-    #    0.65 0.32;
-    #    -0.42 -0.92   
-    #]
+    A2 = @SMatrix [
+        0.65 0.32;
+        -0.42 -0.92
+    ]
 
     f = HybridSystems.discreteswitchedsystem([A1, A2])
 
-    G = PCLF.generate_DeBruijn_edges(2, 2; dual = false)
+    G = PCLF.generate_DeBruijn_edges(2, 1; dual = false)
 
     #G = PCLF.edgeList_to_LabDigraph([
     #    (1, 1, 1),
@@ -54,17 +54,19 @@ function script()
         MLF = true,
         Gmats = Gmats,
     )
-    return println("JSR = $(pclf.JSRapprox)")
+    println("JSR = $(pclf.JSRapprox)")
 
-    #gamma = 100.0
-    #pol1 = PCLF.get_sublevel_set(pclf.pieces[(1,)], gamma)
-    #pol2 = PCLF.get_sublevel_set(pclf.pieces[(2,)], gamma)
-    #p = plot(pol1; label = "1")
-    #plot!(pol2; label = "2")
-    #return display(p)
+    gamma = 50.0
+    pol1 = PCLF.get_sublevel_set(pclf.pieces[(1,)], gamma)
+    pol2 = PCLF.get_sublevel_set(pclf.pieces[(2,)], gamma)
+    p = plot(pol1; label = "1")
+    plot!(pol2; label = "2", color = :red)
+    display(p)
+
+    return
 end
 
-function new_polyhedral()
+function polyhedral()
     A1 = [-0.65 0.32; -0.42 -0.92]
     A2 = [0.65 0.32; -0.42 -0.92]
     f = HybridSystems.discreteswitchedsystem([A1, A2])
@@ -121,9 +123,9 @@ function new_polyhedral()
     pol1 = PCLF.get_sublevel_set(pclf.pieces[(1,)], gamma)
     pol2 = PCLF.get_sublevel_set(pclf.pieces[(2,)], gamma)
     p = plot(pol1; label = "1")
-    plot!(pol2; label = "2")
+    plot!(pol2; label = "2", color = :red)
     return display(p)
 end
 
-#script()
-new_polyhedral()
+# symmetric_2n_faces_polyhedral()
+polyhedral()
