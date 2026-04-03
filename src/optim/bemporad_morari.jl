@@ -92,6 +92,8 @@ _name(::AbstractVector{<:HybridSystems.AbstractTransition}) = "trans"
 _base_name(iv::IndicatorVariables) = "δ_$(_name(iv.choices))_$(iv.time)"
 
 _Scalar = Union{JuMP.AbstractJuMPScalar, MOI.AbstractScalarFunction}
+const _ResolvedIndicators = AbstractVector{<:_Scalar}
+const _Indicators = Union{IndicatorVariables, _ResolvedIndicators}
 
 indicator_variables(model, δ::AbstractVector{<:_Scalar}, ::Type) = δ
 _sum(g, T) = reduce(+, g; init = zero(MOI.ScalarAffineFunction{T}))
@@ -148,6 +150,21 @@ add_constraint(model::JuMP.Model, func, set) =
 indicator_constraint(model::JuMP.Model, δ, func, set) =
     @constraint(model, δ => {func in set})
 
+function hybrid_constraints(
+    model,
+    sets::Fill{<:UT.HyperRectangle},
+    x,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    set = first(sets)
+    for i in eachindex(x)
+        add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(set.lb[i])))
+        add_constraint(model, one(T) * x[i], MOI.LessThan(T(set.ub[i])))
+    end
+    return δ
+end
+
 function hybrid_constraints(model, sets::Fill{<:Polyhedra.Rep}, x, algo::Optimizer, δ)
     set = first(sets)
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(Polyhedra.hrep(set)))
@@ -192,6 +209,68 @@ function hybrid_constraints(
 ) where {T}
     system = first(systems)
     add_constraint.(model, x - system.A * x_prev - system.B * u, MOI.EqualTo(zero(T)))
+    return δ
+end
+
+"""
+    julia_function_to_moi(f, args::AbstractVector...)
+
+Convert a Julia function `f` into a vector of MOI scalar functions by
+exploiting JuMP's operator overloading.
+
+Each element of `args` is a vector that may contain `MOI.VariableIndex`
+(decision variables) or concrete values (e.g., `Float64` for fixed
+parameters). The function works as follows:
+
+ 1. A lightweight JuMP model is created.
+ 2. Every `MOI.VariableIndex` in `args` is wrapped into a
+    `JuMP.VariableRef`; concrete values are left unchanged.
+ 3. `f` is called with the wrapped arguments.  Thanks to Julia's
+    operator overloading the arithmetic inside `f` builds JuMP
+    expression trees (e.g. `NonlinearExpr`, `AffExpr`, …).
+ 4. Each element of the result is converted back to an MOI function
+    with `JuMP.moi_function`, yielding `MOI.ScalarNonlinearFunction`,
+    `MOI.ScalarAffineFunction`, etc.
+
+# Example
+
+```julia
+f(x, u) = [x[1]^3 + u[1], x[2] + u[2]]
+x = [MOI.VariableIndex(1), MOI.VariableIndex(2)]
+u = [MOI.VariableIndex(3), MOI.VariableIndex(4)]
+moi_exprs = julia_function_to_moi(f, x, u)
+# moi_exprs is a Vector of MOI.ScalarNonlinearFunction / ScalarAffineFunction
+```
+"""
+function julia_function_to_moi(f, args::AbstractVector...)
+    jump_model = JuMP.Model()
+    _to_jump(vi::MOI.VariableIndex) = JuMP.VariableRef(jump_model, vi)
+    _to_jump(v) = v
+    jump_args = map(a -> _to_jump.(a), args)
+    return JuMP.moi_function.(f(jump_args...))
+end
+
+function hybrid_constraints(
+    model,
+    systems::Fill{<:BlackBoxControlDiscreteSystem},
+    x_prev,
+    x,
+    u,
+    algo::Optimizer{T},
+    δ,
+) where {T}
+    system = first(systems)
+    moi_exprs = julia_function_to_moi(system.f, x_prev, u)
+    for i in eachindex(moi_exprs)
+        add_constraint(
+            model,
+            MOI.ScalarNonlinearFunction(
+                :-,
+                Any[MOI.VariableIndex(x[i].value), moi_exprs[i]],
+            ),
+            MOI.EqualTo(zero(T)),
+        )
+    end
     return δ
 end
 
@@ -301,7 +380,7 @@ function transitions_constraints(
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -312,9 +391,9 @@ function transitions_constraints(
     modes_from,
     δ_from::IndicatorVariables,
     modes_to,
-    δ_to::AbstractVector{<:_Scalar},
+    δ_to::_ResolvedIndicators,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -323,11 +402,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::AbstractVector{<:_Scalar},
+    δ_from::_ResolvedIndicators,
     modes_to,
     δ_to::IndicatorVariables,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans::_Indicators,
     ::Type,
 )
     # Nothing to do, the impossible modes should have already been pruned
@@ -336,11 +415,11 @@ function transitions_constraints(
     model,
     system,
     modes_from,
-    δ_from::AbstractVector{<:_Scalar},
+    δ_from::_ResolvedIndicators,
     modes_to,
-    δ_to::AbstractVector{<:_Scalar},
+    δ_to::_ResolvedIndicators,
     trans,
-    δ_trans::IndicatorVariables,
+    δ_trans::_Indicators,
     T::Type,
 )
     for (mode_from, from) in zip(modes_from, δ_from)
