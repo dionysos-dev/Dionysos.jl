@@ -34,10 +34,10 @@ concrete_problem =
 concrete_system = concrete_problem.system
 
 # ---------------------------------------------------------
-# Build EmptyProblem (abstraction-only)
+# Build AlternatingSimulationProblem (abstraction-only)
 # ---------------------------------------------------------
 
-empty_problem = PR.EmptyProblem(
+alternating_simulation_problem = PR.AlternatingSimulationProblem(
     concrete_system,
     concrete_system.ext[:X],   # region = state constraint set
 )
@@ -73,7 +73,11 @@ opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
 optimizer = MOI.instantiate(AB.UniformEllipsoidAbstraction.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("empty_problem"), empty_problem)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("alternating_simulation_problem"),
+    alternating_simulation_problem,
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.INNER)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("P"), P)

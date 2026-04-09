@@ -198,7 +198,7 @@ function build_dynamical_symbolic_model(
         opt = MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer)
     end
 
-    problem = PR.EmptyProblem(system, system.X)
+    problem = PR.AlternatingSimulationProblem(system, system.X)
     MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)
 
     for (k, v) in optimizer_kwargs

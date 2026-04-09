@@ -1,6 +1,6 @@
-mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     # --- user inputs ---
-    empty_problem::Union{Nothing, PR.EmptyProblem}
+    alternating_simulation_problem::Union{Nothing, PR.AlternatingSimulationProblem}
 
     # State discretization
     state_grid::Any
@@ -34,7 +34,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     L::Union{Nothing, AbstractMatrix{<:Real}}
     Q_aug::Union{Nothing, AbstractMatrix{<:Real}}   # optional if you want "compute L from Q"
 
-    function OptimizerEmptyProblem{T}() where {T}
+    function OptimizerAlternatingSimulationProblem{T}() where {T}
         return new{T}(
             nothing,
             nothing,
@@ -61,46 +61,57 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     end
 end
 
-OptimizerEmptyProblem() = OptimizerEmptyProblem{Float64}()
+OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerEmptyProblem) = optimizer.empty_problem === nothing
+MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
+    optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute, value)
+function MOI.set(
+    model::OptimizerAlternatingSimulationProblem,
+    param::MOI.RawOptimizerAttribute,
+    value,
+)
     return setproperty!(model, Symbol(param.name), value)
 end
 
-function MOI.get(model::OptimizerEmptyProblem, ::MOI.SolveTimeSec)
+function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
 end
 
-function MOI.get(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute)
+function MOI.get(
+    model::OptimizerAlternatingSimulationProblem,
+    param::MOI.RawOptimizerAttribute,
+)
     return getproperty(model, Symbol(param.name))
 end
 
-function reset!(model::OptimizerEmptyProblem)
+function reset!(model::OptimizerAlternatingSimulationProblem)
     model.abstract_system = nothing
     model.abstraction_construction_time_sec = 0.0
     return model
 end
 
-function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
+function _validate_model(
+    model::OptimizerAlternatingSimulationProblem,
+    required_fields::Vector{Symbol},
+)
     for field in required_fields
         if isnothing(getfield(model, field))
             error(
-                "Please set the `$(field)`. Missing required field in OptimizerEmptyProblem.",
+                "Please set the `$(field)`. Missing required field in OptimizerAlternatingSimulationProblem.",
             )
         end
     end
 end
 
-function _pick_state_region(opt::OptimizerEmptyProblem)
+function _pick_state_region(opt::OptimizerAlternatingSimulationProblem)
     X = opt.abstraction_region
-    X === nothing && (X = opt.empty_problem.region)
-    X === nothing && (X = opt.empty_problem.system.ext[:X])
+    X === nothing && (X = opt.alternating_simulation_problem.region)
+    X === nothing && (X = opt.alternating_simulation_problem.system.ext[:X])
     return X
 end
 
-function build_state_grid(opt::OptimizerEmptyProblem)
+function build_state_grid(opt::OptimizerAlternatingSimulationProblem)
     # If user already gave a grid, use it
     if opt.state_grid !== nothing
         return opt.state_grid
@@ -120,7 +131,7 @@ function build_state_grid(opt::OptimizerEmptyProblem)
     return MP.GridEllipsoidalRectangular(gridfree, opt.P)
 end
 
-function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
+function build_state_mapping(opt::OptimizerAlternatingSimulationProblem{T}) where {T}
     opt.XMapping !== nothing && return opt.XMapping
 
     grid = build_state_grid(opt)
@@ -132,19 +143,19 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     return m
 end
 
-function build_state_set(opt::OptimizerEmptyProblem)
+function build_state_set(opt::OptimizerAlternatingSimulationProblem)
     opt.Xset !== nothing && return opt.Xset
     m = build_state_mapping(opt)
     N = MP.get_dim(m)
     return MP.MappingSet{N}()  # all states of mapping
 end
 
-function build_allowed_state_set(opt::OptimizerEmptyProblem)
+function build_allowed_state_set(opt::OptimizerAlternatingSimulationProblem)
     opt.Rset !== nothing && return opt.Rset
     return build_state_set(opt)
 end
 
-function build_input_mapping(opt::OptimizerEmptyProblem)
+function build_input_mapping(opt::OptimizerAlternatingSimulationProblem)
     opt.UMapping !== nothing && return opt.UMapping
 
     # Minimal "dummy" input universe: 1 element, or empty if you support it.
@@ -153,14 +164,14 @@ function build_input_mapping(opt::OptimizerEmptyProblem)
     return MP.ListMapping(dummy)
 end
 
-function build_input_set(opt::OptimizerEmptyProblem)
+function build_input_set(opt::OptimizerAlternatingSimulationProblem)
     opt.Uset !== nothing && return opt.Uset
     umap = build_input_mapping(opt)
     M = MP.get_dim(umap)
     return MP.MappingSet{M}()
 end
 
-function build_L(opt::OptimizerEmptyProblem, nx::Int, nu::Int)
+function build_L(opt::OptimizerAlternatingSimulationProblem, nx::Int, nu::Int)
     # 1) user provided L
     if opt.L !== nothing
         return opt.L
@@ -183,11 +194,11 @@ function build_L(opt::OptimizerEmptyProblem, nx::Int, nu::Int)
     return Matrix{Float64}(LA.I, naug, naug)
 end
 
-function MOI.optimize!(opt::OptimizerEmptyProblem)
+function MOI.optimize!(opt::OptimizerAlternatingSimulationProblem)
     t_ref = time()
-    _validate_model(opt, [:empty_problem, :sdp_solver, :R])
+    _validate_model(opt, [:alternating_simulation_problem, :sdp_solver, :R])
 
-    sys = opt.empty_problem.system
+    sys = opt.alternating_simulation_problem.system
     hybridsys = sys
 
     # Build symbolic model, mapping, sets ...

@@ -21,7 +21,8 @@ import StaticArrays: SVector
 concrete_system = DCDC.system()
 
 ### Construction of the abstraction
-empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
+alternating_simulation_problem =
+    DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
 x0 = SVector(0.0, 0.0)
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
@@ -35,7 +36,11 @@ using JuMP
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("concrete_problem"),
+    alternating_simulation_problem,
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("XMapping"), XMapping)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)  # optional if you pass state_grid

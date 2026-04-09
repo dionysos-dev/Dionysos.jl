@@ -47,10 +47,11 @@ include("../../../problems/pwa_sys.jl")
     concrete_system = concrete_problem.system
 
     # ----------------------------
-    # Build EmptyProblem (abstraction-only phase)
+    # Build AlternatingSimulationProblem (abstraction-only phase)
     # ----------------------------
     @test haskey(concrete_system.ext, :X)
-    empty_problem = PR.EmptyProblem(concrete_system, concrete_system.ext[:X])
+    alternating_simulation_problem =
+        PR.AlternatingSimulationProblem(concrete_system, concrete_system.ext[:X])
 
     # ----------------------------
     # Ellipsoidal grid definition
@@ -78,7 +79,11 @@ include("../../../problems/pwa_sys.jl")
     # ----------------------------
     optimizer = MOI.instantiate(AB.UniformEllipsoidAbstraction.Optimizer)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("empty_problem"), empty_problem)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("alternating_simulation_problem"),
+        alternating_simulation_problem,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.INNER)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("P"), P)

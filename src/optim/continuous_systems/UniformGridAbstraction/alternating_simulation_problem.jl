@@ -1,12 +1,12 @@
 @enum ApproxMode USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
 """
-    OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
+    OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
 
 A solver responsible for constructing a **symbolic abstraction of the system dynamics**,
 independently of any control specification.
 
-This optimizer wraps everything needed to solve an [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem),
+This optimizer wraps everything needed to solve an [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem),
 which is used to generate a symbolic model (abstraction) of either a continuous- or discrete-time system.
 
 The optimizer supports several abstraction modes, optional implicit mappings/state sets,
@@ -48,8 +48,8 @@ while retaining a common global `Rset`.
 
 #### Mandatory fields set by the user
 
-- `empty_problem` (**required**):  
-  An instance of [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem) containing the system to abstract and the target abstraction region.
+- `alternating_simulation_problem` (**required**):  
+  An instance of [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem) containing the system to abstract and the target abstraction region.
 
 - State discretization (**required**):
     - either `state_grid`
@@ -63,8 +63,8 @@ while retaining a common global `Rset`.
 - `abstraction_region` (optional):  
   Concrete region used to define the abstraction domain.  
   If not provided, the optimizer uses:
-  1. `empty_problem.region`, if available,
-  2. otherwise `empty_problem.system.X`.
+  1. `alternating_simulation_problem.region`, if available,
+  2. otherwise `alternating_simulation_problem.system.X`.
 
 - `incl_mode` (optional, default = `MP.INNER`):  
   Inclusion mode used when constructing mappings or state sets.
@@ -229,9 +229,9 @@ and computes transitions for its own source states. The final abstract transitio
 
 ```julia
 using Dionysos, JuMP
-optimizer = MOI.instantiate(Dionysos.Optim.OptimizerEmptyProblem.Optimizer)
+optimizer = MOI.instantiate(Dionysos.Optim.OptimizerAlternatingSimulationProblem.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("empty_problem"), my_problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("alternating_simulation_problem"), my_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
@@ -246,7 +246,7 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
 ```
 """
-mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     ## Abstraction Result
     discrete_time_system::Union{
         Nothing,
@@ -263,7 +263,10 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     discrete_time_system_approximation::Union{Nothing, ST.DiscreteTimeSystemApproximation}
 
     ## User Settings
-    empty_problem::Union{Nothing, Dionysos.Problem.EmptyProblem}
+    alternating_simulation_problem::Union{
+        Nothing,
+        Dionysos.Problem.AlternatingSimulationProblem,
+    }
     abstraction_region::Any
     incl_mode::MP.INCL_MODE
 
@@ -327,7 +330,7 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     progress_update_interval::Int
     progress_dt::Float64
 
-    function OptimizerEmptyProblem{T}() where {T}
+    function OptimizerAlternatingSimulationProblem{T}() where {T}
         optimizer = new{T}(
             nothing,
             nothing,
@@ -380,23 +383,31 @@ mutable struct OptimizerEmptyProblem{T} <: MOI.AbstractOptimizer
     end
 end
 
-OptimizerEmptyProblem() = OptimizerEmptyProblem{Float64}()
+OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerEmptyProblem) = optimizer.empty_problem === nothing
+MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
+    optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute, value)
+function MOI.set(
+    model::OptimizerAlternatingSimulationProblem,
+    param::MOI.RawOptimizerAttribute,
+    value,
+)
     return setproperty!(model, Symbol(param.name), value)
 end
 
-function MOI.get(model::OptimizerEmptyProblem, ::MOI.SolveTimeSec)
+function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
 end
 
-function MOI.get(model::OptimizerEmptyProblem, param::MOI.RawOptimizerAttribute)
+function MOI.get(
+    model::OptimizerAlternatingSimulationProblem,
+    param::MOI.RawOptimizerAttribute,
+)
     return getproperty(model, Symbol(param.name))
 end
 
-function reset!(model::OptimizerEmptyProblem)
+function reset!(model::OptimizerAlternatingSimulationProblem)
     model.discrete_time_system = nothing
     model.abstract_system = nothing
     model.abstraction_construction_time_sec = 0.0
@@ -405,17 +416,23 @@ function reset!(model::OptimizerEmptyProblem)
     return model
 end
 
-function _validate_model(model::OptimizerEmptyProblem, required_fields::Vector{Symbol})
+function _validate_model(
+    model::OptimizerAlternatingSimulationProblem,
+    required_fields::Vector{Symbol},
+)
     for field in required_fields
         if isnothing(getfield(model, field))
             error(
-                "Please set the `$(field)`. Missing required field in OptimizerEmptyProblem.",
+                "Please set the `$(field)`. Missing required field in OptimizerAlternatingSimulationProblem.",
             )
         end
     end
 end
 
-function build_continuous_approximation(optimizer::OptimizerEmptyProblem, system)
+function build_continuous_approximation(
+    optimizer::OptimizerAlternatingSimulationProblem,
+    system,
+)
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
@@ -453,7 +470,10 @@ function build_continuous_approximation(optimizer::OptimizerEmptyProblem, system
     end
 end
 
-function build_discrete_approximation(optimizer::OptimizerEmptyProblem, system)
+function build_discrete_approximation(
+    optimizer::OptimizerAlternatingSimulationProblem,
+    system,
+)
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
@@ -479,11 +499,11 @@ function build_discrete_approximation(optimizer::OptimizerEmptyProblem, system)
     end
 end
 
-function build_system_approximation!(optimizer::OptimizerEmptyProblem)
-    _validate_model(optimizer, [:empty_problem])
-    @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
+function build_system_approximation!(optimizer::OptimizerAlternatingSimulationProblem)
+    _validate_model(optimizer, [:alternating_simulation_problem])
+    @assert optimizer.alternating_simulation_problem.system !== nothing "System must be set before building overapproximation."
 
-    system = optimizer.empty_problem.system
+    system = optimizer.alternating_simulation_problem.system
     if isa(system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
         _validate_model(optimizer, [:time_step])  # Ensure time step is provided
         optimizer.continuous_time_system_approximation =
@@ -513,20 +533,20 @@ function _validate_periodic_data(opt)
     length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
     length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
 
-    N = UT.get_dims(opt.empty_problem.system.X)
+    N = UT.get_dims(opt.alternating_simulation_problem.system.X)
     if P > 0
         all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
     end
 end
 
-function build_abstraction_region(opt::OptimizerEmptyProblem)
+function build_abstraction_region(opt::OptimizerAlternatingSimulationProblem)
     X = opt.abstraction_region
-    X === nothing && (X = opt.empty_problem.region)
-    X === nothing && (X = opt.empty_problem.system.X)
+    X === nothing && (X = opt.alternating_simulation_problem.region)
+    X === nothing && (X = opt.alternating_simulation_problem.system.X)
     return X
 end
 
-function build_state_grid(opt::OptimizerEmptyProblem)
+function build_state_grid(opt::OptimizerAlternatingSimulationProblem)
     # If user already gave a Grid object, use it directly.
     if opt.state_grid !== nothing
         return opt.state_grid
@@ -572,7 +592,7 @@ function _validate_mapping_encloses_abstraction_region(opt)
     end
 end
 
-function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
+function build_state_mapping(opt::OptimizerAlternatingSimulationProblem{T}) where {T}
     if opt.XMapping !== nothing
         return opt.XMapping
     end
@@ -603,7 +623,7 @@ function build_state_mapping(opt::OptimizerEmptyProblem{T}) where {T}
     return m
 end
 
-function build_state_set(opt::OptimizerEmptyProblem)
+function build_state_set(opt::OptimizerAlternatingSimulationProblem)
     if opt.Xset !== nothing
         return opt.Xset
     end
@@ -618,23 +638,23 @@ function build_state_set(opt::OptimizerEmptyProblem)
     return S
 end
 
-function build_allowed_state_set(opt::OptimizerEmptyProblem)
+function build_allowed_state_set(opt::OptimizerAlternatingSimulationProblem)
     return opt.Rset === nothing ? copy(opt.Xset) : opt.Rset
 end
 
-function build_input_mapping(opt::OptimizerEmptyProblem{T}) where {T}
+function build_input_mapping(opt::OptimizerAlternatingSimulationProblem{T}) where {T}
     if opt.UMapping !== nothing
         return opt.UMapping
     end
     M = MP.get_dim(opt.input_grid)
     return MP.ExplicitGridMapping{M, T}(
         opt.input_grid,
-        opt.empty_problem.system.U,
+        opt.alternating_simulation_problem.system.U,
         MP.CENTER,
     )
 end
 
-function build_input_set(opt::OptimizerEmptyProblem{T}) where {T}
+function build_input_set(opt::OptimizerAlternatingSimulationProblem{T}) where {T}
     if opt.Uset !== nothing
         return opt.Uset
     end
@@ -645,17 +665,17 @@ end
 
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 
-function build_noise(optimizer::OptimizerEmptyProblem)
+function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
-    concrete_system = optimizer.empty_problem.system
+    concrete_system = optimizer.alternating_simulation_problem.system
     return _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
 end
 
-function MOI.optimize!(optimizer::OptimizerEmptyProblem)
+function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     t_ref = time()
     # Ensure necessary parameters are set
-    _validate_model(optimizer, [:empty_problem])
-    @assert optimizer.empty_problem.system !== nothing "System must be set before building overapproximation."
+    _validate_model(optimizer, [:alternating_simulation_problem])
+    @assert optimizer.alternating_simulation_problem.system !== nothing "System must be set before building overapproximation."
 
     # Create over-approximation method
     build_system_approximation!(optimizer)

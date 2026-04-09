@@ -29,12 +29,12 @@ end
         @test PR.Infinity() isa Real
     end
 
-    @testset "EmptyProblem fields" begin
+    @testset "AlternatingSimulationProblem fields" begin
         X = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
         sys = DummySystem(X)
         region = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 
-        p = PR.EmptyProblem(sys, region)
+        p = PR.AlternatingSimulationProblem(sys, region)
 
         @test p isa PR.ProblemType
         @test p.system === sys
@@ -122,7 +122,7 @@ end
         sys = DummySystem(X)
 
         region = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
-        p_empty = PR.EmptyProblem(sys, region)
+        p_empty = PR.AlternatingSimulationProblem(sys, region)
 
         XI = UT.HyperRectangle(SVector(-0.9, -0.9), SVector(-0.8, -0.8))
         XT = UT.HyperRectangle(SVector(0.8, 0.8), SVector(0.9, 0.9))

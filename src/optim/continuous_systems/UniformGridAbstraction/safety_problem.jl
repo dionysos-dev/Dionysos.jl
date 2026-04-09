@@ -24,7 +24,7 @@ This solver takes as input a [`SafetyProblem`](@ref PR.SafetyProblem) and a symb
   An instance of [`SafetyProblem`](@ref PR.SafetyProblem) that specifies the system, initial set, safe set, and horizon.
 
 - `abstract_system` (**required**):  
-  A symbolic abstraction of the system, e.g., obtained from [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+  A symbolic abstraction of the system, e.g., obtained from [`OptimizerAlternatingSimulationProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulationProblem).
 
 #### Optional user-tunable parameters
 

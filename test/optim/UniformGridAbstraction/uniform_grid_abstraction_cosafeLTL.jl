@@ -25,7 +25,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
 @testset "UniformGridAbstraction ToyProblem (CoSafeLTL monitor)" begin
     # ------------------------------------------------------------
-    # 1) Concrete system + EmptyProblem abstraction build
+    # 1) Concrete system + AlternatingSimulationProblem abstraction build
     # ------------------------------------------------------------
     _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
     _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
@@ -33,7 +33,8 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
     concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
     jacobian_bound = ToyProblem.jacobian_bound()
 
-    empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
+    alternating_simulation_problem =
+        DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
     x0g = SVector(-2.0, -2.0)
     hx = SVector(0.2, 0.2)
@@ -45,7 +46,11 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("concrete_problem"),
+        alternating_simulation_problem,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)

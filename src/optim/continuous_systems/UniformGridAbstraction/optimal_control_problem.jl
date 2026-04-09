@@ -23,7 +23,7 @@ This solver takes as input a concrete problem (typically an instance of [`Optima
   An instance of [`OptimalControlProblem`](@ref PR.OptimalControlProblem) that defines the reach-avoid task (system, initial set, target, costs, horizon).
 
 - `abstract_system` (**required**):  
-  The symbolic abstraction of the system, usually obtained from an abstraction optimizer such as [`OptimizerEmptyProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem).
+  The symbolic abstraction of the system, usually obtained from an abstraction optimizer such as [`OptimizerAlternatingSimulationProblem`](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulationProblem).
 
 #### Optional user-tunable parameters
 

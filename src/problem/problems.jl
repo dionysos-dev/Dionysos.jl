@@ -2,21 +2,21 @@
     ProblemType
 
 An abstract type that represents a generic control problem.  
-All concrete problem types (e.g., [`EmptyProblem`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref), [`CoSafeLTLProblem`](@ref)) should subtype `ProblemType`.
+All concrete problem types (e.g., [`AlternatingSimulationProblem{S,X}`](@ref), [`OptimalControlProblem`](@ref), [`SafetyProblem`](@ref), [`CoSafeLTLProblem`](@ref)) should subtype `ProblemType`.
 """
 abstract type ProblemType end
 
 """
-    EmptyProblem{S, X} <: ProblemType
+    AlternatingSimulationProblem{S, X} <: ProblemType
 
-A problem type used to construct an **abstraction** of a dynamical system.
+A problem type used to construct a **sound abstraction** of a dynamical system.
 
 - `S`: The system to abstract (continuous or discrete-time).
 - `X`: The region of interest (e.g., a subset of the state space).
 
 This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
-mutable struct EmptyProblem{S, X} <: ProblemType
+mutable struct AlternatingSimulationProblem{S, X} <: ProblemType
     system::S
     region::X
 end
@@ -24,12 +24,14 @@ end
 """
     BisimulationQuotientProblem{S,X,D,R,P,G} <: ProblemType
 
-A problem type used to construct a finite bisimulation quotient induced.
+A problem type used to construct a finite bisimulation (exact equivalence abstraction) quotient induced.
 
 # Fields
 - `system`: the switched system to abstract.
 - `region`: the state-space region of interest `X`.
 - `observation_regions`: the regions of interest used to define the observation map.
+
+This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
 mutable struct BisimulationQuotientProblem{S, X, R} <: ProblemType
     system::S
@@ -131,7 +133,11 @@ end
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
 
-@recipe function f(problem::EmptyProblem; domain_color = :gray, region_color = :lightgray)
+@recipe function f(
+    problem::AlternatingSimulationProblem;
+    domain_color = :gray,
+    region_color = :lightgray,
+)
     @series begin
         label := "Domain"
         color := domain_color

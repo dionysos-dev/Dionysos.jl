@@ -6,8 +6,8 @@ All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Pro
 
 ## Supported Problems
 
-- [`EmptyProblem`](@ref Dionysos.Problem.EmptyProblem):  
-    Used to construct an abstraction of a dynamical system without solving a control problem.
+- [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem):  
+    Used to construct a sound abstraction of a dynamical system without solving a control problem.
 
 - [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem):  
     Used to construct a quotient bisimulation of a switched system based on an observation map.
@@ -25,7 +25,7 @@ Each of these problem types is detailed below:
 
 ```@docs
 Dionysos.Problem.ProblemType
-Dionysos.Problem.EmptyProblem
+Dionysos.Problem.AlternatingSimulationProblem
 Dionysos.Problem.BisimulationQuotientProblem
 Dionysos.Problem.OptimalControlProblem
 Dionysos.Problem.SafetyProblem

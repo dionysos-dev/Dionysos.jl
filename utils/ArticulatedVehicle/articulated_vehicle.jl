@@ -26,11 +26,16 @@ function build_optimizer(
     with_period = false,
     approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
 )
-    empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
+    alternating_simulation_problem =
+        DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("concrete_problem"),
+        alternating_simulation_problem,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("UMapping"), UMapping)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)

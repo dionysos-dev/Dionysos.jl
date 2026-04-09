@@ -20,12 +20,12 @@ const OPDS = OP.DiscreteSystems
 
 export Optimizer
 
-include("empty_problem.jl")
+include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    abstraction_solver::Union{Nothing, OptimizerEmptyProblem{T}}
+    abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
     solve_time_sec::T
@@ -47,7 +47,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     param_symbol = Symbol(param.name)
 
     if model.abstraction_solver === nothing
-        model.abstraction_solver = OptimizerEmptyProblem()
+        model.abstraction_solver = OptimizerAlternatingSimulationProblem()
     end
 
     if param_symbol == :abstract_system
@@ -61,11 +61,11 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
 
     if param_symbol == :concrete_problem
         # Assign appropriate control solver
-        if isa(value, PR.EmptyProblem)
-            model.abstraction_solver = OptimizerEmptyProblem()
+        if isa(value, PR.AlternatingSimulationProblem)
+            model.abstraction_solver = OptimizerAlternatingSimulationProblem()
             MOI.set(
                 model.abstraction_solver,
-                MOI.RawOptimizerAttribute("empty_problem"),
+                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
                 value,
             )
             model.control_solver = nothing  # No control solver
@@ -95,12 +95,13 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
         end
 
         # Instantiate an abstraction_solver if it has not already been created
-        if model.abstraction_solver.empty_problem === nothing
-            empty_problem = PR.EmptyProblem(value.system, nothing)
+        if model.abstraction_solver.alternating_simulation_problem === nothing
+            alternating_simulation_problem =
+                PR.AlternatingSimulationProblem(value.system, nothing)
             MOI.set(
                 model.abstraction_solver,
-                MOI.RawOptimizerAttribute("empty_problem"),
-                empty_problem,
+                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
+                alternating_simulation_problem,
             )
         end
         return
