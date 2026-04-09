@@ -74,14 +74,14 @@ Ts_target = [UT.HyperRectangle(SVector(1.0), SVector(2.0))]
 Ns_target = [2]
 target_set = (Xs_target, Ts_target, Ns_target)
 
-transition_cost = (aug_state, u) -> 1.0
+trans_cost = (aug_state, u) -> 1.0
 
 concrete_problem = PR.OptimalControlProblem(
     concrete_system,
     initial_state,
     target_set,
     nothing,
-    transition_cost,
+    trans_cost,
     PR.Infinity(),
 )
 

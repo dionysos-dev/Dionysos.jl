@@ -60,13 +60,13 @@ get_concrete_elem(sym::SymbolicModel, q::Int) =
 function get_automaton(::SymbolicModel) end
 pre(sym::SymbolicModel, target::Int) = pre(get_automaton(sym), target)
 post(sym::SymbolicModel, source::Int, input::Int) = post(get_automaton(sym), source, input)
-enum_transitions(sym::SymbolicModel) = enum_transitions(get_automaton(sym))
+enum_transitions(sym::SymbolicModel) = ST.enum_transitions(get_automaton(sym))
 add_transition!(sym::SymbolicModel, q::Int, q′::Int, u::Int) =
-    add_transition!(get_automaton(sym), q, q′, u)
+    ST.add_transition!(get_automaton(sym), q, q′, u)
 add_transitions!(sym::SymbolicModel, translist) =
-    add_transitions!(get_automaton(sym), translist)
+    ST.add_transitions!(get_automaton(sym), translist)
 get_n_transitions(sym::SymbolicModel) = length(enum_transitions(sym))
-is_deterministic(sym::SymbolicModel) = is_deterministic(get_automaton(sym))
+is_deterministic(sym::SymbolicModel) = ST.is_deterministic(get_automaton(sym))
 function is_determinized(sym::SymbolicModel) end
 
 function get_states_from_set(sym::SymbolicModel, set, incl_mode::MP.INCL_MODE)
@@ -92,7 +92,7 @@ by making the target part of the symbol.
 """
 function determinize_symbolic_model(
     sym::SymbolicModel{N, M};
-    AutomatonConstructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+    AutomatonConstructor::Function = (n, m) -> ST.NewSortedAutomatonList(n, m),
 ) where {N, M}
     Umap = get_input_mapping(sym)
     Xmap = get_state_mapping(sym)
@@ -128,7 +128,7 @@ function determinize_symbolic_model(
     end
 
     new_autom = AutomatonConstructor(get_n_state(sym), length(new_uint2coord))
-    add_transitions!(new_autom, new_transitions)
+    ST.add_transitions!(new_autom, new_transitions)
 
     new_Umap = MP.ListMapping(new_uint2coord)
 

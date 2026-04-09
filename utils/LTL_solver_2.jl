@@ -13,6 +13,7 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+const OPDS = OP.DiscreteSystems
 
 # ------------------------------------------------------------
 # 1) Define a simple 2D continuous-time system: x' = u
@@ -122,7 +123,7 @@ struct MonitorG1NoDangerUntilG2 end
     end
 end
 
-mon = SY.FunctionMonitor(
+mon = OPDS.FunctionMonitor(
     1,         # initial
     Set([3]),  # accepting
     (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),

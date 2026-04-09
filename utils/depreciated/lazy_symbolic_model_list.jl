@@ -8,7 +8,7 @@ mutable struct LazySymbolicModelList{
     M,
     S1 <: DO.GridDomainType{N},
     S2 <: DO.CustomList{M},
-    A <: AbstractAutomatonList{3, 3},
+    A <: ST.AbstractAutomatonList{3, 3},
 } <: GridBasedSymbolicModel{N, M}
     Xdom::S1
     Udom::S2

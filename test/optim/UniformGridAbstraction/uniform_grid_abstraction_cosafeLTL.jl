@@ -16,6 +16,7 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+const OPDS = OP.DiscreteSystems
 
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "toy_problem.jl"))
 
@@ -122,7 +123,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         end
     end
 
-    mon = SY.FunctionMonitor(
+    mon = OPDS.FunctionMonitor(
         1,         # initial state
         Set([3]),  # accepting states
         (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),

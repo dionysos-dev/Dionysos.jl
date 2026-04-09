@@ -1,24 +1,39 @@
 module System
 
-import StaticArrays: SVector, SMatrix
-import RecipesBase: @recipe, @series
-import Colors
 import MathematicalSystems as MS
+import HybridSystems
 
+import StaticArrays: SVector, SMatrix
+import LinearAlgebra as LA
 using Symbolics
 import IntervalArithmetic as IA
-import LinearAlgebra as LA
+
 import JuMP: MOI
+import RecipesBase: @recipe, @series
+import Colors
 
 using ..Utils
 UT = Utils
 
-include("pid_controller.jl")
-include("controlsystem.jl")
-include("systems.jl")
+# Discrete systems: HybridSystems extension
+include("discrete_systems/discrete_systems.jl")
 
-using Colors
-import HybridSystems
-include("trajectory.jl")
-include("approximation/approximation.jl")
+# Continuous systems: MathematicalSystems extension
+include("continuous_systems/continuous_systems.jl")
+
+# Time discretization
+include("time_discretization.jl")
+
+# Linearization
+include("linearization.jl")
+
+# Kernel Approximation
+include("kernel_approximation/kernel_approximation.jl")
+
+# Basic Controllers
+include("pid_controller.jl")
+
+# Trajectories
+include("trajectories.jl")
+
 end

@@ -7,7 +7,7 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-const SC = OP.SymbolicCertifier
+const SC = AB.SymbolicCertifier
 
 include("../../problems/Pendulum/simple_pendulum.jl");
 
@@ -51,7 +51,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+    (n, m) -> ST.NewIndexedAutomatonList(n, m),
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)

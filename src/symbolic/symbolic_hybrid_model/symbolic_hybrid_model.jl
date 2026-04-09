@@ -485,13 +485,13 @@ function build_symbolic_automaton(
         augmented_to_state_index[aug_state] = i
     end
 
-    symbolic_automaton = NewIndexedAutomatonList(nstates, ninputs)
+    symbolic_automaton = ST.NewIndexedAutomatonList(nstates, ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = augmented_to_state_index[target]
         source_int = augmented_to_state_index[source]
 
-        add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
+        ST.add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
     end
 
     return state_index_to_augmented, augmented_to_state_index, symbolic_automaton
