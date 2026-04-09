@@ -180,7 +180,7 @@ function problem(;
     robot_urdf = joinpath(@__DIR__, "..", "deps/ZMP_2DBipedRobot_nodamping.urdf"),
 )
     sys = system(; tstep = tstep, robot_urdf = robot_urdf)
-    return PR.EmptyProblem(sys, nothing)
+    return PR.AlternatingSimulationProblem(sys, nothing)
 end
 
 #-----------------------------------------------------------

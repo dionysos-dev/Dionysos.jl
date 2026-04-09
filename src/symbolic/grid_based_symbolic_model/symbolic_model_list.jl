@@ -36,7 +36,7 @@ function SymbolicModelList(
     Xset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Rset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Uset::Union{Nothing, MP.AbstractStateSet{M}} = nothing,
-    automaton_constructor::Function = (n, m) -> NewSortedAutomatonList(n, m),
+    automaton_constructor::Function = (n, m) -> ST.NewSortedAutomatonList(n, m),
     original_symmodel = nothing,
     convert_U_to_list::Bool = true,
 ) where {N, M, TX, TU, XM <: MP.AbstractMapping{N, TX}, UM <: MP.AbstractMapping{M, TU}}

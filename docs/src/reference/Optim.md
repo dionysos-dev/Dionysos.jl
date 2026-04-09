@@ -6,7 +6,7 @@ This folder contains all the different (abstraction-based or not) solvers that c
 ### Uniform grid abstraction solver
 ```@docs
 Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerEmptyProblem
+Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulationProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem

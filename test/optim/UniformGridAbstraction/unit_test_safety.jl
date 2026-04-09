@@ -10,6 +10,8 @@ const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
+const Optim = DI.Optim
+const OPDS = Optim.DiscreteSystems
 
 sleep(0.1)
 println("Started test")
@@ -87,7 +89,7 @@ println("Started test")
     # Largest invariant set in safelist
     # ----------------------------
     contr, invariant_set_symbols, invariant_set_complement_symbols =
-        SY.compute_largest_invariant_set(symmodel.autom, safelist)
+        OPDS.compute_largest_invariant_set(symmodel.autom, safelist)
 
     # Verify controller keeps you inside safelist
     safe_set = Set(safelist)
@@ -101,7 +103,7 @@ println("Started test")
         # compute all possible targets under allowed symbols
         targetlist = Int[]
         for symbol in MathematicalSystems.apply(contr, source)
-            SY.compute_post!(targetlist, symmodel.autom, source, symbol)
+            ST.compute_post!(targetlist, symmodel.autom, source, symbol)
         end
 
         # all targets must be safe

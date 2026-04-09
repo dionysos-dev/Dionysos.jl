@@ -13,6 +13,7 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+const OPDS = OP.DiscreteSystems
 
 # ------------------------------------------------------------
 # 1) Define a simple 2D continuous-time system: x' = u
@@ -27,10 +28,11 @@ concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
 jacobian_bound = ToyProblem.jacobian_bound()
 
 # ------------------------------------------------------------
-# 2) Abstraction construction (EmptyProblem)
+# 2) Abstraction construction (AlternatingSimulationProblem)
 # ------------------------------------------------------------
 
-empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
+alternating_simulation_problem =
+    DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
 # grid resolution
 x0 = SVector(-2.0, -2.0)
@@ -43,7 +45,11 @@ input_grid = MP.GridFree(u0, hu)
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("concrete_problem"),
+    alternating_simulation_problem,
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
@@ -122,7 +128,7 @@ struct MonitorG1NoDangerUntilG2 end
     end
 end
 
-mon = SY.FunctionMonitor(
+mon = OPDS.FunctionMonitor(
     1,         # initial
     Set([3]),  # accepting
     (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),

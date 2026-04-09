@@ -50,7 +50,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+    (n, m) -> ST.NewIndexedAutomatonList(n, m),
 )
 
 MOI.optimize!(optimizer)
@@ -142,7 +142,7 @@ MOI.set(new_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> SY.NewIndexedAutomatonList(n, m),
+    (n, m) -> ST.NewIndexedAutomatonList(n, m),
 )
 
 MOI.optimize!(new_optimizer)

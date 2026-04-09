@@ -10,6 +10,8 @@ const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
+const Optim = DI.Optim
+const OPDS = Optim.DiscreteSystems
 
 sleep(0.1)
 println("Started test")
@@ -92,7 +94,7 @@ println("Started test")
     @test !isempty(targetlist)
 
     contr, controllable_set, uncontrollable_set, value_fun_tab =
-        SY.compute_worst_case_cost_controller(
+        OPDS.compute_worst_case_cost_controller(
             symmodel.autom,
             targetlist;
             initial_set = initlist,

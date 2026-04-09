@@ -12,10 +12,11 @@ include("./utils/sets/lazy_set_operations.jl")
 include("./utils/ellipsoidal_transitions.jl")
 include("./utils/pclf.jl")
 
-include("./system/control_system.jl")
+include("./system/automaton.jl")
 include("./system/vector_continuous_system.jl")
-include("./system/approximation.jl")
-include("./system/trajectory.jl")
+include("./system/linearization.jl")
+include("./system/kernel_approximation.jl")
+include("./system/trajectories.jl")
 
 include("./problem/problems.jl")
 
@@ -26,7 +27,6 @@ include("./mapping/implicit_grid_mapping.jl")
 include("./mapping/periodic_grid_mapping.jl")
 include("./mapping/abstract_state_set.jl")
 
-include("./symbolic/automaton.jl")
 include("./symbolic/symbolic_model_list.jl")
 include("./symbolic/allocation.jl")
 include("./symbolic/multithreading.jl")

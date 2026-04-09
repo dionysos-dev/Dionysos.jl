@@ -25,14 +25,6 @@ const PR = Problem
 using ..Mapping
 const MP = Mapping
 
-include("automaton/automaton.jl")
-include("automaton/optimal_control.jl")
-include("automaton/safety_control.jl")
-include("automaton/co_safe_ltl_control.jl")
-
-include("automaton/sorted_automaton_list.jl")
-include("automaton/indexed_automaton_list.jl")
-
 include("symbolic_model.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")

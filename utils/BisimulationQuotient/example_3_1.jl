@@ -151,13 +151,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 50)
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-#MOI.optimize!(optimizer)
-#construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-#println("Construction time = ", construction_time)
+MOI.optimize!(optimizer)
+construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+println("Construction time = ", construction_time)
 
-const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
+# const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
 #AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))

@@ -5,6 +5,7 @@ using StaticArrays
 using Plots
 using Dionysos
 const DI = Dionysos
+const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
 
@@ -93,7 +94,7 @@ println("Started test")
     # Transitions + plotting recipe
     # -----------------------
     translist = [(1, 2, 1), (2, 1, 1)]  # (q′, q, u)
-    SY.add_transitions!(sym.autom, translist)
+    ST.add_transitions!(sym.autom, translist)
     @test SY.get_n_transitions(sym) == 2
 
     fig = plot(; aspect_ratio = :equal)
