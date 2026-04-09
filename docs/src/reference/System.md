@@ -35,6 +35,8 @@ To reason about the system’s behavior during abstraction, we introduce **appro
 Both are subtypes of [`SystemApproximation`](@ref Dionysos.System.SystemApproximation), and can represent either **underapproximations** or **overapproximations** of the system dynamics.
 
 ```@docs
+Dionysos.System.runge_kutta4
+Dionysos.System.discretize_continuous_system
 Dionysos.System.SystemApproximation
 Dionysos.System.DiscreteTimeSystemApproximation
 Dionysos.System.ContinuousTimeSystemApproximation
