@@ -91,10 +91,28 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     return
 end
 
+"""
+    compute_worst_case_cost_controller(
+        autom::ST.AbstractAutomatonList,
+        target_set;
+        initial_set = ST.enum_states(autom),
+        cost_function = nothing,
+        sparse_input::Bool = false,
+    )
+
+Compute controller for optimal control problem assuming **worst case** for uncertainty.
+This means, if there are several states `x⁺` that can be the next state from state
+`x` with control `u`, we consider the **maximum** cost among all those `x⁺` states.
+If the `cost_function` is `nothing`, we interpret this as a constant cost function of
+`1` for each transition.
+
+This function redirects to [`compute_worst_case_uniform_cost_controller`](@ref) if the
+`cost_function` is nothing and [`compute_optimal_controller`](@ref) otherwise.
+"""
 function compute_worst_case_cost_controller(
     autom::ST.AbstractAutomatonList,
     target_set;
-    initial_set = enum_states(autom),
+    initial_set = ST.enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
 )
@@ -117,10 +135,26 @@ function compute_worst_case_cost_controller(
 end
 
 using DataStructures
+
+"""
+    compute_optimal_controller(
+        autom::ST.AbstractAutomatonList,
+        target_set;
+        initial_set = ST.enum_states(autom),
+        cost_function = nothing,
+        sparse_input::Bool = false,
+    )
+
+Implementation for [`compute_worst_case_cost_controller`](@ref) supporting any
+`cost_function` returning nonnegative values.
+If the cost function returns the same value across all `x` and `u`, consider
+calling the specialized function [`compute_worst_case_uniform_cost_controller`](@ref)
+instead.
+"""
 function compute_optimal_controller(
     autom::ST.AbstractAutomatonList,
     target_set;
-    initial_set = enum_states(autom),
+    initial_set = ST.enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
 )
@@ -225,11 +259,24 @@ function _counter(autom, sparse_input::Bool)
     return num_targets_unreachable
 end
 
-# More efficient for the uniform cost case since it does not rely on a PriorityQueue
+"""
+    function compute_worst_case_uniform_cost_controller(
+        autom::ST.AbstractAutomatonList,
+        target_set;
+        initial_set = ST.enum_states(autom),
+        sparse_input = false,
+    )
+
+Implementation for [`compute_worst_case_uniform_cost_controller`](@ref) supporting for
+a cost function that is `1` for any state `x` and input `u`.
+Consider using [`compute_optimal_controller`](@ref) for a more general cost function.
+But for this particular case of cost, this implementation is more efficient than [`compute_optimal_controller`](@ref)
+as it does not rely on a `PriorityQueue`.
+"""
 function compute_worst_case_uniform_cost_controller(
     autom::ST.AbstractAutomatonList,
     target_set;
-    initial_set = enum_states(autom),
+    initial_set = ST.enum_states(autom),
     sparse_input = false,
 )
     contr_tab = SymbolicControlTable(ST.get_n_state(autom))
