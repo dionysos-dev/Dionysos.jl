@@ -43,30 +43,35 @@ function start_control_server(controller::C.Controller; port=5000, max_packets=1
                 read!(sock, HEADER_BUF) 
                 msg_len = ntoh(reinterpret(UInt32, HEADER_BUF)[1])
 
-                # 2. Read payload into a Float64 vector
-                payload = Vector{Float64}(undef, Int(msg_len / 8))
-                read!(sock, payload)
-                
-                # 3. Fix endianness
-                measurements = ntoh.(payload)
+                if msg_len == UInt32(4294967295)
+                    # 2a. Reset controller if "special" input is received
+                    controller.x = x0
+                else
+                    # 2b. Read payload into a Float64 vector otherwise
+                    payload = Vector{Float64}(undef, Int(msg_len / 8))
+                    read!(sock, payload)
+                    
+                    # 3. Fix endianness
+                    measurements = ntoh.(payload)
 
-                # 4. Update the controller state and send back the controller output
-                x_plus = controller.f(controller.x, measurements)
-                control = controller.g(controller.x, measurements)
-                controller.x = x_plus
+                    # 4. Update the controller state and send back the controller output
+                    x_plus = controller.f(controller.x, measurements)
+                    control = controller.g(controller.x, measurements)
+                    controller.x = x_plus
 
-                # 5. Data Logging (if enabled)
-                if log_data && idx <= max_packets
-                    history.t[idx] = time() - start_time
-                    history.measurements[:, idx] = measurements
-                    history.states[:, idx] = controller.x
-                    idx += 1
+                    # 5. Data Logging (if enabled)
+                    if log_data && idx <= max_packets
+                        history.t[idx] = time() - start_time
+                        history.measurements[:, idx] = measurements
+                        history.states[:, idx] = controller.x
+                        idx += 1
+                    end
+
+                    # 6. Send response (Length + Data)
+                    resp_data = hton.(control)
+                    write(sock, hton(UInt32(length(resp_data) * 8)))
+                    write(sock, resp_data)
                 end
-
-                # 6. Send response (Length + Data)
-                resp_data = hton.(control)
-                write(sock, hton(UInt32(length(resp_data) * 8)))
-                write(sock, resp_data)
             end
         catch e
             if !(e isa EOFError)
@@ -75,7 +80,7 @@ function start_control_server(controller::C.Controller; port=5000, max_packets=1
         finally
             close(sock)
             println("Client disconnected.")
-            keep_running = !log_data
+            keep_running = false
         end
 
     end

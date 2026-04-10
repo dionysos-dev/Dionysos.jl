@@ -26,7 +26,13 @@ end
 
 controller = ControlServer.Controller4Server.Controller([(0.0)::Float64], f, g)
 
-(t, xp, xc) = server.start_control_server(controller; log_data=true, received_data_size=2)
-println("Data stored")
+plotting = true
 
-plot(t, xp[1,:])
+if plotting
+    (t, xp, xc) = server.start_control_server(controller; log_data=true, received_data_size=2)
+    println("Data stored")
+    plot(t, [xp[1,:] xc[1,:]], layout=(2,1), label=["y", "u"])
+else
+    server.start_control_server(controller; log_data=false)
+    println("Data not stored")
+end
