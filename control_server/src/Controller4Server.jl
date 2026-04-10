@@ -2,7 +2,7 @@ module Controller4Server
 
 export Controller
 
-struct Controller
+mutable struct Controller
     x::Vector{Float64}
     f::Function
     g::Function
