@@ -115,7 +115,7 @@ function setup_workers!(nworkers::Int)
     t_worker_includes = 0.0
 
     if nworkers > 0
-        t_addprocs = @elapsed addprocs(nworkers)
+        t_addprocs = @elapsed addprocs(nworkers; exeflags="--project=$(Base.active_project())")
 
         t_worker_packages = @elapsed begin
             @everywhere begin
