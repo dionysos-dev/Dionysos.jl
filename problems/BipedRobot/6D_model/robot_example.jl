@@ -2,17 +2,17 @@
 # Runner script for abstraction + optimal-control simulations
 # ==============================================================================
 
+import Pkg
+Pkg.instantiate()
+Pkg.precompile()
+
 using Distributed
 using Printf
 
-NWORKERS = 5
+NWORKERS = 10
 
-# ----------------------------------------------------------------------
-# Paths
-# ----------------------------------------------------------------------
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 utils_path = joinpath(@__DIR__, "utils.jl")
-
 # ----------------------------------------------------------------------
 # Timed startup
 # ----------------------------------------------------------------------
@@ -25,8 +25,10 @@ t_startup_total = @elapsed begin
         using JuMP
         using Plots
         using JLD2
+        using MathOptInterface
     end
 
+    global const MOI = MathOptInterface
     global const DI = Dionysos
     global const UT = DI.Utils
     global const ST = DI.System
@@ -37,15 +39,19 @@ t_startup_total = @elapsed begin
     global t_master_includes = @elapsed begin
         include(robot_problem_path)
         include(utils_path)
+        using .RobotProblem
     end
 
-    length(workers()) < NWORKERS && addprocs(NWORKERS - length(workers()))
+    if length(workers()) < NWORKERS
+        n_to_add = NWORKERS - length(workers())
+        addprocs(n_to_add; exeflags="--project=$(dirname(Base.active_project()))")
+    end
 
     global t_worker_packages = @elapsed begin
         @everywhere begin
             using Dionysos
-            using StaticArrays
             using MathematicalSystems
+            using StaticArrays
             using LinearAlgebra
         end
     end
@@ -53,6 +59,7 @@ t_startup_total = @elapsed begin
     global t_worker_includes = @elapsed begin
         @everywhere include($robot_problem_path)
         @everywhere include($utils_path)
+        @everywhere using .RobotProblem
     end
 end
 
@@ -62,9 +69,6 @@ end
 @printf("  Worker package load:        %.3f s\n", t_worker_packages)
 @printf("  Worker file includes:       %.3f s\n", t_worker_includes)
 println("Workers available: ", length(workers()))
-
-using .RobotProblem
-@everywhere using .RobotProblem
 
 # ==============================================================================
 # Script parameters
