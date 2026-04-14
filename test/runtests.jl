@@ -1,8 +1,5 @@
 include("./utils/data_structures/sorted_vector_set.jl")
-include("./utils/data_structures/queue.jl")
-include("./utils/data_structures/digraph.jl")
 include("./utils/data_structures/tree.jl")
-include("./utils/search/test_search.jl")
 include("./utils/scalar_functions.jl")
 include("./utils/optim/newton_method.jl")
 include("./utils/optim/bisection.jl")

@@ -1,15 +1,12 @@
 export LazyEllipsoidsAbstraction
 
 module LazyEllipsoidsAbstraction
-using JuMP, Random
-
+using JuMP
 import LinearAlgebra as LA
 import IntervalArithmetic as IA
 
 import MathematicalSystems
 MS = MathematicalSystems
-
-Random.seed!(0)
 
 import Dionysos
 const DI = Dionysos
