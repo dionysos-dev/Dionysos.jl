@@ -21,6 +21,22 @@ const PCLF = UT.PathCompleteFramework
 
 # Example 3.1 from the paper
 
+function export_optimizer_jld2(opt, filename::AbstractString)
+    jldopen(filename, "w") do f
+        f["format_version"] = 1
+        return f["optimizer"] = opt
+    end
+    return nothing
+end
+
+function import_optimizer_jld2(filename::AbstractString)
+    return jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported optimizer file format_version=$v")
+        return f["optimizer"]
+    end
+end
+
 # ---------------------------------------------------------
 # Define a stable switched system
 # ---------------------------------------------------------
@@ -156,8 +172,8 @@ construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_t
 println("Construction time = ", construction_time)
 
 # const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
-#AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))

@@ -14,6 +14,58 @@ import MathOptInterface as MOI
 
 using JLD2
 
+# --------------------------------------- #
+# --- JLD2 Abstraction Export/Import ---- #
+# --------------------------------------- #
+
+using JLD2
+
+function export_abstraction_jld2(opt, filename::AbstractString)
+    abs_opt = opt.abstraction_solver
+    abs_opt === nothing && error("No abstraction_solver in optimizer.")
+    abs_sys = abs_opt.abstract_system
+    abs_sys === nothing && error("No abstract_system computed yet.")
+
+    jldopen(filename, "w") do f
+        # versioning for forward compatibility
+        f["format_version"] = 1
+        f["abstract_system"] = abs_sys
+        return f["params"] = (time_step = opt.abstraction_solver.time_step,)
+    end
+    return nothing
+end
+
+function import_abstraction_jld2(filename::AbstractString; opt = nothing)
+    # If user didn't pass an optimizer, create one
+    if opt === nothing
+        opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+    end
+
+    # Ensure abstraction solver exists
+    if opt.abstraction_solver === nothing
+        opt.abstraction_solver =
+            AB.UniformGridAbstraction.OptimizerAlternatingSimulationProblem()
+    end
+
+    jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported abstraction file format_version=$v")
+
+        abs_sys = f["abstract_system"]
+        return MOI.set(
+            opt.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abs_sys,
+        )
+    end
+
+    return opt
+end
+
+# --------------------------------------- #
+# ------------- Builders ---------------- #
+# --------------------------------------- #
+
 function build_optimizer(
     concrete_system,
     Δt,
@@ -214,11 +266,11 @@ function script()
         )
         MOI.optimize!(optimizer)
         if (save)
-            AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, filename)
+            export_abstraction_jld2(optimizer, filename)
         end
     end
     if (load)
-        optimizer = AB.UniformGridAbstraction.import_abstraction_jld2(filename)
+        optimizer = import_abstraction_jld2(filename)
     end
 
     # ------------------------------------------------------------

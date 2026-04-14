@@ -20,7 +20,6 @@ import LinearAlgebra as LA
 
 import Base
 import RecipesBase: @recipe, @series
-using JLD2
 
 include("geometry_interface.jl")
 include("bisimulation_quotient.jl")
@@ -118,60 +117,6 @@ function _validate_model(
             )
         end
     end
-end
-
-function export_optimizer_jld2(opt::OptimizerBisimulationQuotient, filename::AbstractString)
-    jldopen(filename, "w") do f
-        f["format_version"] = 1
-        return f["optimizer"] = opt
-    end
-    return nothing
-end
-
-function import_optimizer_jld2(filename::AbstractString)
-    return jldopen(filename, "r") do f
-        v = f["format_version"]
-        v == 1 || error("Unsupported optimizer file format_version=$v")
-        return f["optimizer"]
-    end
-end
-
-function export_bisimulation_jld2(
-    opt::OptimizerBisimulationQuotient,
-    filename::AbstractString,
-)
-    bisimulation_quotient = opt.bisimulation_quotient
-    bisimulation_quotient === nothing && error("No bisimulation quotient computed yet.")
-
-    jldopen(filename, "w") do f
-        # versioning for forward compatibility
-        f["format_version"] = 1
-        f["bisimulation_quotient"] = bisimulation_quotient
-        return f
-    end
-    return nothing
-end
-
-function import_bisimulation_jld2(
-    filename::AbstractString;
-    opt::Union{Nothing, OptimizerBisimulationQuotient} = nothing,
-)
-    if opt === nothing
-        opt = MOI.instantiate(OptimizerBisimulationQuotient)
-    end
-    jldopen(filename, "r") do f
-        v = f["format_version"]
-        v == 1 || error("Unsupported bisimulation file format_version=$v")
-
-        bisimulation_quotient = f["bisimulation_quotient"]
-
-        return MOI.set(
-            opt,
-            MOI.RawOptimizerAttribute("bisimulation_quotient"),
-            bisimulation_quotient,
-        )
-    end
-    return opt
 end
 
 function MOI.optimize!(opt::OptimizerBisimulationQuotient)
