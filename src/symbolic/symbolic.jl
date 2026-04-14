@@ -11,8 +11,6 @@ using Colors
 using HybridSystems
 import MathematicalSystems as MS
 
-using Graphs
-
 using ..Utils
 const UT = Utils
 
