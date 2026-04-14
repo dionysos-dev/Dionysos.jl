@@ -11,8 +11,8 @@ struct HyperRectangle{N, T} <: AbstractSetNode{N, T}
 end
 
 # From tuples
-HyperRectangle(lb::NTuple{N, Ti}, ub::NTuple{N, Ti}) where {N, Ti} =
-    HyperRectangle(SVector{N, Ti}(lb), SVector{N, Ti}(ub))
+HyperRectangle(lb::T, ub::T) where {T <: Tuple} =
+    HyperRectangle(SVector(lb), SVector(ub))
 
 # From vectors (runtime dimension)
 HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} =
