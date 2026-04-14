@@ -1,8 +1,20 @@
+module DionysosCSVExt
+
+import Dionysos
+import CSV
+import DataFrames
+import Dionysos: export_controller_csv, import_controller_csv
+
+const DI = Dionysos
+const MP = DI.Mapping
+const SY = DI.Symbolic
+const AB = DI.Optim.Abstraction
+
+using DataFrames: DataFrame, eachrow, ncol, Not
+
 # --------------------------------------- #
 # ----- CSV Controller Export/Import ---- #
 # --------------------------------------- #
-
-using DataFrames, CSV
 
 # --------------- Export ---------------- #
 
@@ -25,7 +37,6 @@ function export_controller_csv(
     delim = ';',
     decimal = ',',
 )
-    # --- State mapping / optional grid ---
     Xmap = SY.get_state_mapping(sym)
 
     if Xmap isa MP.GridMapping
@@ -69,7 +80,7 @@ function build_grid_df(grid)
     rows = [["origin"; origin], ["h"; h]]
 
     df = DataFrame()
-    for j in 1:length(header)
+    for j in eachindex(header)
         df[!, Symbol(header[j])] = getindex.(rows, j)
     end
     return df
@@ -77,14 +88,15 @@ end
 
 function build_state_map_df(sym::SY.SymbolicModel)
     states = SY.enum_states(sym)
+    isempty(states) && error("Symbolic model has no states.")
+
     x1 = SY.get_concrete_state(sym, first(states))
     ndims = length(x1)
 
     headers = ["abstract_state"; ["x$(j)" for j in 1:ndims]]
-
     rows = [(q, SY.get_concrete_state(sym, q)...) for q in states]
 
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+    return DataFrame([headers[i] => getindex.(rows, i) for i in eachindex(headers)])
 end
 
 function build_controller_map_df(sym::SY.SymbolicModel, controller)
@@ -97,7 +109,6 @@ function build_controller_map_df(sym::SY.SymbolicModel, controller)
 end
 
 function get_input_symbol(controller, state; randomize = false)
-    # keep your semantics
     !(state in controller.X) && return -1
 
     u = controller.h(state)
@@ -110,16 +121,18 @@ end
 
 function build_input_map_df(sym::SY.SymbolicModel)
     inputs = SY.enum_inputs(sym)
+    isempty(inputs) && error("Symbolic model has no inputs.")
+
     u1 = SY.get_concrete_input(sym, first(inputs))
     ndims_u = length(u1)
 
     headers = ["abstract_input"; ["u$(j)" for j in 1:ndims_u]]
     rows = [(i, SY.get_concrete_input(sym, i)...) for i in inputs]
 
-    return DataFrame([headers[i] => getindex.(rows, i) for i in 1:length(headers)])
+    return DataFrame([headers[i] => getindex.(rows, i) for i in eachindex(headers)])
 end
 
-# -------------- Import --------------- #
+# --------------- Import ---------------- #
 
 function import_controller_csv(basename::String; delim = ';', decimal = ',')
     grid_path = basename * "_Grid.csv"
@@ -140,14 +153,13 @@ end
 function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
     origin = nothing
     h = nothing
+
     if grid_df !== nothing
         origin = Vector{Float64}(grid_df[grid_df.key .== "origin", Not(:key)][1, :])
         h = Vector{Float64}(grid_df[grid_df.key .== "h", Not(:key)][1, :])
     end
 
-    # coord -> state (tuple key, stable for Dict)
     ndims_x = ncol(state_df) - 1
-    coord2state = Dict{NTuple{0, Float64}, Int}()  # will be replaced immediately
     coord2state = Dict{NTuple{ndims_x, Float64}, Int}()
 
     for row in eachrow(state_df)
@@ -165,4 +177,6 @@ function parse_controller_tables(grid_df, state_df, ctrl_df, input_df)
     end
 
     return origin, h, coord2state, state2input, input2u
+end
+
 end
