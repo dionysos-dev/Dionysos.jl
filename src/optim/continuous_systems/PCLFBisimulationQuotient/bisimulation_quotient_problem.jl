@@ -39,6 +39,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     ΓX::Union{Nothing, Float64}
     nb_levels::Union{Nothing, Int}
     max_slices::Int
+    polyhedra_backend::Any
 
     atol::T
     verbose::Bool
@@ -58,6 +59,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
             nothing,    # ΓX
             nothing,    # nb_levels
             200,        # max_slices
+            nothing,    # polyhedra_backend
             1e-3,       # atol
             true,       # verbose
             nothing,    # Γ

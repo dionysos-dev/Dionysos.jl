@@ -2,7 +2,7 @@ using StaticArrays
 using LinearAlgebra
 using JuMP
 using Clarabel
-using JuMP
+using CDDLib
 
 import HybridSystems
 using LazySets
@@ -87,6 +87,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("polyhedra_backend"), CDDLib.Library())
 
 # ---------------------------------------------------------
 # Solve
@@ -204,7 +205,7 @@ controllable_set_node_1 = AB.PCLFBisimulationQuotient.state_ids_in_node(
     (1,);
     state_ids = controllable_set,
 )
-Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_1)
+Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_1; backend = CDDLib.Library())
 println("Volume of controllable set in Node 1 = ", Vctrl_node_1)
 
 title!(fig[1], "Node 1")
@@ -238,7 +239,7 @@ controllable_set_node_2 = AB.PCLFBisimulationQuotient.state_ids_in_node(
     (2,);
     state_ids = controllable_set,
 )
-Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_2)
+Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_2; backend = CDDLib.Library())
 println("Volume of controllable set in Node 2 = ", Vctrl_node_2)
 
 title!(fig[2], "Node 2")
@@ -267,7 +268,7 @@ plot!(
 plot!(fig[2], ST.Trajectory(X_seq); label = "Trajectory")
 
 # --- All states ---
-Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set; backend = CDDLib.Library())
 println("Volume of controllable set in All states = ", Vctrl)
 
 title!(fig[3], "All states")
