@@ -4,8 +4,6 @@ version = "0.1.3"
 authors = ["Raphael Jungers <raphael.jungers@uclouvain.be>", "Antoine Aspeel <antoine.aspeel@uclouvain.be>", "Guillaume Berger <guillaume.berger@uclouvain.be>", "Julien Calbert <julien.calbert@uclouvain.be>", "Virginie Debauche <virginie.debauche@uclouvain.be>", "Mahsa Farjadnia <mahsa.farjadnia@uclouvain.be>", "Benoît Legat <benoit.legat@uclouvain.be>", "Zheming Wang <zheming.wang@uclouvain.be>", "Lucas N. Egidio <lucas.egidio@uclouvain.be>", "Adrien Banse <adrien.banse@uclouvain.be>", "Somya Singh <somya.singh@uclouvain.be>", "Margot Devillers <margot.devillers@uclouvain.be>"]
 
 [deps]
-CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
@@ -27,8 +25,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
-CSV = "0.10"
-DataFrames = "1"
 DataStructures = "0.18, 0.19"
 FillArrays = "0.10, 0.11, 0.12, 0.13, 1"
 HybridSystems = "0.4"
