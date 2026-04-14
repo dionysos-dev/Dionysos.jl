@@ -498,6 +498,3 @@ function JuMP.parse_constraint_call(
     return parse_code, build_call
 end
 
-function Base.rem(x::JuMP.AbstractJuMPScalar, d)
-    return rem_op(x, d)
-end
