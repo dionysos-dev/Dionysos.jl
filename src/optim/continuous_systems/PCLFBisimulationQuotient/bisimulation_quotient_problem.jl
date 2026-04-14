@@ -14,7 +14,6 @@ using JuMP
 
 import LazySets
 import Polyhedra
-import CDDLib
 
 import HybridSystems
 import LinearAlgebra as LA

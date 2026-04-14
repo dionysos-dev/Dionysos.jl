@@ -2,16 +2,12 @@ module Utils
 
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
-import Colors
 import Polyhedra
 import DataStructures
 import LazySets
 import IntervalArithmetic as IA
-import SpecialFunctions: gamma
 using LinearAlgebra, JuMP
-import PlotUtils
 
-include("plotting/colorbar.jl")
 include("plotting/simple_plots.jl")
 
 include("scalar_functions.jl")

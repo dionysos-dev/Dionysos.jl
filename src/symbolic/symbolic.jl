@@ -7,7 +7,6 @@ import ProgressMeter
 using JuMP
 
 import LinearAlgebra as LA
-using Colors
 using HybridSystems
 import MathematicalSystems as MS
 

@@ -236,25 +236,34 @@ function Base.show(io::IO, tree::Tree)
     return println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
 
+function cost_color(val, vmin, vmax)
+    palette = [:lightblue, :deepskyblue, :dodgerblue, :blue, :darkblue]
+
+    if vmax <= vmin + 1e-8
+        return palette[cld(length(palette), 2)]
+    end
+
+    t = clamp((val - vmin) / (vmax - vmin), 0.0, 1.0)
+    idx = clamp(round(Int, 1 + t * (length(palette) - 1)), 1, length(palette))
+    return palette[idx]
+end
+
 @recipe function f(node::NodeT; pathB = false, cost = true)
     path = get_path(node)
-    # create a Colormap
+
     vmin = path[end].path_cost
     vmax = path[1].path_cost
-    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
+
     pathB ? path = sort(path; by = compare, rev = true) : path = [node]
     sortedPath = sort(path; by = compare, rev = true)
+
     for node in sortedPath
         @series begin
-            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
-            return node.state
+            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
+            node.state
         end
     end
-    if cost
-        @series begin
-            colorMap
-        end
-    end
+
     for i in 1:(length(path) - 1)
         @series begin
             DrawArrow(path[i].state.c, path[i + 1].state.c)
@@ -263,31 +272,26 @@ end
 end
 
 @recipe function f(tree::Tree; with_arrows = true, cost = true)
-    # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
-    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
-    # plot the nodes of the tree
+
     allNodes = collect_nodes(tree)
     sort!(allNodes; by = compare, rev = true)
+
     for node in allNodes
         @series begin
-            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
-            return node.state
+            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
+            node.state
         end
     end
-    if cost
-        @series begin
-            colorMap
-        end
-    end
+
     if with_arrows
         leaves = copy(tree.leaves)
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent !== nothing
                     @series begin
-                        return DrawArrow(leave.state.c, leave.parent.state.c)
+                        DrawArrow(leave.state.c, leave.parent.state.c)
                     end
                 end
             end

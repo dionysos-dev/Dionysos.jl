@@ -40,9 +40,18 @@ function pointCenterDistance(elli::Ellipsoid, x)
     return norm(get_center(elli) - x)
 end
 
+function gamma_half_integer_from_dim(N::Int)
+    if iseven(N)
+        return factorial(div(N, 2))
+    else
+        k = (N - 1) ÷ 2
+        return factorial(2k + 1) * sqrt(pi) / (4^(k + 1) * factorial(k + 1))
+    end
+end
+
 function get_volume(elli::Ellipsoid)
     N = size(elli.P, 1)
-    return pi^(N / 2) / (gamma(N / 2 + 1)) * det(elli.P)^(-1 / 2)
+    return pi^(N / 2) / gamma_half_integer_from_dim(N) * det(elli.P)^(-1 / 2)
 end
 
 function Base.:*(elli::Ellipsoid, r::Real)

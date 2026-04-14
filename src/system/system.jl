@@ -10,7 +10,6 @@ import IntervalArithmetic as IA
 
 import JuMP: MOI
 import RecipesBase: @recipe, @series
-import Colors
 
 using ..Utils
 UT = Utils
