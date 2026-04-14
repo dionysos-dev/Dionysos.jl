@@ -1,22 +1,12 @@
-# ==============================================================================
-# Runner script for abstraction + optimal-control simulations
-# ==============================================================================
-
-import Pkg
-Pkg.instantiate()
-Pkg.precompile()
-
 using Distributed
 using Printf
 
 NWORKERS = 4
 
-
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 utils_path = joinpath(@__DIR__, "utils.jl")
-# ----------------------------------------------------------------------
-# Timed startup
-# ----------------------------------------------------------------------
+sysimage_path = abspath(joinpath(@__DIR__, "..", "..", "..", "dionysos_sysimage.dll"))
+
 t_startup_total = @elapsed begin
     global t_master_packages = @elapsed begin
         using Dionysos
@@ -45,7 +35,10 @@ t_startup_total = @elapsed begin
 
     if length(workers()) < NWORKERS
         n_to_add = NWORKERS - length(workers())
-        addprocs(n_to_add; exeflags="--project=$(dirname(Base.active_project()))")
+        addprocs(
+            n_to_add;
+            exeflags = "--project=$(Base.active_project()) -J$(sysimage_path)",
+        )
     end
 
     global t_worker_packages = @elapsed begin
