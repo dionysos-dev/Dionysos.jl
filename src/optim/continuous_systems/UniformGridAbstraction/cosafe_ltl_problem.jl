@@ -76,7 +76,6 @@ function build_abstract_problem(
         concrete_problem.spec,
         lab_abs,
         concrete_problem.ap_semantics,
-        concrete_problem.strict_spot,
     )
 end
 

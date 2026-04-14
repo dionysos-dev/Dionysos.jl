@@ -50,8 +50,7 @@ labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :obs => obs)
 
 ap_semantics = Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :obs => MP.OUTER)
 
-concrete_problem =
-    PR.CoSafeLTLProblem(concrete_system, _I_, φ, labeling, ap_semantics, false)
+concrete_problem = PR.CoSafeLTLProblem(concrete_system, _I_, φ, labeling, ap_semantics)
 
 # ------------------------------------------------------------
 # 3) Define solver meta-parameters

@@ -8,4 +8,10 @@ include("symbolic/symbolic.jl")
 include("optim/optim.jl")
 include("MOI_wrapper.jl")
 
+function spot_stepper(args...; kwargs...)
+    return error(
+        "spot_stepper is available only when Spot.jl is installed and loaded with `using Spot`.",
+    )
+end
+
 end

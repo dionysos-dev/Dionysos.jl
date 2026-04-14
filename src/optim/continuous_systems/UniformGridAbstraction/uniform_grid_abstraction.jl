@@ -15,7 +15,6 @@ import StaticArrays: SVector, SMatrix
 import MathematicalSystems
 MS = MathematicalSystems
 import HybridSystems
-import Spot
 using JuMP
 import LinearAlgebra
 

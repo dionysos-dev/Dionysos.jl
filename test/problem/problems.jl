@@ -103,7 +103,7 @@ end
 
         ap_sem = Dict{Symbol, Any}(:goal => MP.INNER, :avoid => MP.OUTER)
 
-        p = PR.CoSafeLTLProblem(sys, XI, spec, lab, ap_sem, true)
+        p = PR.CoSafeLTLProblem(sys, XI, spec, lab, ap_sem)
 
         @test p isa PR.ProblemType
         @test p.system === sys
@@ -111,7 +111,6 @@ end
         @test p.spec == spec
         @test p.labeling == lab
         @test p.ap_semantics == ap_sem
-        @test p.strict_spot == true
     end
 
     @testset "Plots/recipes smoke tests" begin
@@ -135,7 +134,7 @@ end
             :ap => UT.HyperRectangle(SVector(0.2, 0.2), SVector(0.3, 0.3)),
         )
         ap_sem = Dict{Symbol, Any}(:ap => MP.INNER)
-        p_ltl = PR.CoSafeLTLProblem(sys, XI, :spec, lab, ap_sem, false)
+        p_ltl = PR.CoSafeLTLProblem(sys, XI, :spec, lab, ap_sem)
 
         @test_nowarn plot(p_empty)
         @test_nowarn plot(p_opt)

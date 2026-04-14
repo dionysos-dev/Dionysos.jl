@@ -250,6 +250,8 @@ function run_example_debruijn(;
     # CoSafe LTL control synthesis on the quotient
     # ---------------------------------------------------------
     φ = ltl"F(R1 & F(D))"
+    spec = Dionysos.spot_stepper(φ)
+
     φ_str = string(φ)
 
     x0 = SVector(2.3, 1.5)
@@ -258,10 +260,9 @@ function run_example_debruijn(;
     prob = PR.CoSafeLTLProblem(
         f,
         _I_,
-        φ,
+        spec,
         Dict(:D => D, :R1 => R1, :R2 => R2),
         Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER),
-        true,
     )
 
     optimizer_ltl =

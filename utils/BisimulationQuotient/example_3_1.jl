@@ -21,6 +21,10 @@ const PCLF = UT.PathCompleteFramework
 
 # Example 3.1 from the paper
 
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
 function export_optimizer_jld2(opt, filename::AbstractString)
     jldopen(filename, "w") do f
         f["format_version"] = 1
@@ -194,6 +198,7 @@ display(fig)
 #using Spot
 
 #φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
+#spec = Dionysos.spot_stepper(φ)
 
 #x0 = SVector(-6.0, 7.5)
 #x0 = SVector(9.0, 0.0)     # initial point I in the paper
@@ -203,10 +208,9 @@ display(fig)
 #prob = PR.CoSafeLTLProblem(
 #    f,
 #    _I_,
-#    φ,
+#    spec,
 #    Dict(:D => D, :R1 => R1, :R2 => R2, :R3 => R3), # no really useful since we have ap_to_obs, but let's be explicit
 #    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER, :R3 => MP.INNER), # no really useful, but let's be explicit
-#    true,
 #)
 
 #optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)

@@ -20,9 +20,14 @@ Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
-Spot = "f11abc24-ce50-11e8-2475-af6658d13f2b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+
+[weakdeps]
+Spot = "f11abc24-ce50-11e8-2475-af6658d13f2b"
+
+[extensions]
+DionysosSpotExt = "Spot"
 
 [compat]
 DataStructures = "0.18, 0.19"
