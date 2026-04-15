@@ -32,6 +32,7 @@ function ST.interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
 end
 
 to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
+_to_interval_box(X) = X isa IA.IntervalBox ? X : IA.IntervalBox(X)
 
 function ST._getLipschitzConstants(J, xi, rules)
     L = zeros(Base.length(xi))
@@ -54,9 +55,14 @@ function ST._getLipschitzConstants(J, xi, rules)
 end
 
 function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
+    X = _to_interval_box(X)
+    U = _to_interval_box(U)
+    W = _to_interval_box(W)
+
     n = Base.length(x)
     m = Base.length(u)
     p = Base.length(w)
+
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
     Xi = vcat(collect(X), collect(U), collect(W))

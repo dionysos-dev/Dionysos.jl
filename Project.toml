@@ -8,7 +8,6 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 HybridSystems = "2207ec0c-686c-5054-b4d2-543502888820"
-IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LazySets = "b4f0291d-fe17-52bc-9479-3d1a343d9043"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -24,21 +23,21 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [weakdeps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+MathOptSymbolicAD = "309f4015-3481-4d63-a8f9-aeb13adfe8eb"
 Spot = "f11abc24-ce50-11e8-2475-af6658d13f2b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-MathOptSymbolicAD = "309f4015-3481-4d63-a8f9-aeb13adfe8eb"
+IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 
 [extensions]
 DionysosCSVExt = ["CSV", "DataFrames"]
-DionysosSpotExt = "Spot"
-DionysosSymbolicsExt = ["Symbolics"]
 DionysosMathOptSymbolicADExt = ["Symbolics", "MathOptSymbolicAD"]
+DionysosSpotExt = "Spot"
+DionysosSymbolicsExt = ["Symbolics", "IntervalArithmetic"]
 
 [compat]
 DataStructures = "0.18, 0.19"
 FillArrays = "0.10, 0.11, 0.12, 0.13, 1"
 HybridSystems = "0.4"
-IntervalArithmetic = "0.20, 0.21, 0.22, 0.23, 1"
 JuMP = "1"
 LazySets = "5"
 MathOptInterface = "1"

@@ -4,7 +4,6 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import Polyhedra
 import LazySets
-import IntervalArithmetic as IA
 using LinearAlgebra, JuMP
 
 include("plotting/simple_plots.jl")
@@ -23,7 +22,6 @@ include("sets/ellipsoid.jl")
 include("sets/degenerate_ellipsoid.jl")
 include("sets/polyhedron.jl")
 
-include("box.jl")
 include("ellipsoidal_transitions.jl")
 
 include("pclf.jl")

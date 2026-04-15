@@ -221,13 +221,12 @@ function get_min_bounding_box(elli::Ellipsoid; optimizer = nothing)
             R[i] = get_farthest_point(elli, ei)[i]
         end
     end
-    box = IA.IntervalBox(elli.c .- R, elli.c .+ R)
-    return box
+    return HyperRectangle(elli.c .- R, elli.c .+ R)
 end
 
 function sample(elli::Ellipsoid; N = 500)
-    box = get_min_bounding_box(elli)
-    points = [sample(box) for i in 1:N]
+    rec = get_min_bounding_box(elli)
+    points = [sample(rec) for i in 1:N]
     filter!(x -> x ∈ elli, points)
     return points
 end

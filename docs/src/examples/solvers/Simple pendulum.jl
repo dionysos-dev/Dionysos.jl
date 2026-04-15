@@ -30,6 +30,9 @@ using Test     #src
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, JuMP, Plots
 
+using Symbolics
+using MathOptSymbolicAD
+
 # At this point, we import Dionysos.
 using Dionysos
 const DI = Dionysos
