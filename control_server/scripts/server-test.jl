@@ -5,7 +5,7 @@ using Plots
 
 server = ControlServer.ServerRuntime
 
-function f(x_c, x_p; Ts = 0.01::Float64)
+function f(x_c, x_p; Ts = 0.01)
     #     e  = -x_p[1]
     # int{e} = x_c
 
@@ -17,14 +17,14 @@ function g(x_c, x_p)
     # \dot{e} = -x_p[2]
     # \int{e} = x_c[1]
 
-    kp = 0.6649::Float64
-    ki = 0.2817::Float64
-    kd = 0.3923::Float64
+    kp = 0.6649
+    ki = 0.2817
+    kd = 0.3923
 
     return [-kp*x_p[1] + ki*x_c[1] - kd*x_p[2]]
 end
 
-controller = ControlServer.Controller4Server.Controller([(0.0)::Float64], f, g)
+controller = ControlServer.Controller4Server.Controller([0.0], f, g)
 
 plotting = true
 
