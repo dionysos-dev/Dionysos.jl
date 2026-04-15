@@ -11,14 +11,7 @@ Dionysos.Utils.QuadraticStateControlFunction
 ## Search
 
 ```@docs
-Dionysos.Utils.get_min_bounding_box
-Dionysos.Utils.NodeT
-Dionysos.Utils.collect_children
 Dionysos.Utils.RRT
-Dionysos.Utils.add_node!
-Dionysos.Utils.propagate_cost_to_leaves
-Dionysos.Utils.get_path
-Dionysos.Utils.Tree
 ```
 
 ## Geometric shapes
@@ -27,6 +20,7 @@ Dionysos.Utils.Tree
 Dionysos.Utils.HyperRectangle
 Dionysos.Utils.DeformedRectangle
 Dionysos.Utils.set_in_period
+Dionysos.Utils.get_min_bounding_box
 ```
 
 

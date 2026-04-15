@@ -101,7 +101,7 @@ inertia2 = SpatialInertia(
 
 body2 = RigidBody(inertia2)
 
-joint2 = Joint("r_hips_joint", Revolute(axis))
+joint2 = Joint("r_hips_joint", Revolute{T}(axis))
 
 joint2_to_body1 = Transform3D(
     frame_before(joint2),
@@ -121,7 +121,7 @@ inertia4 = SpatialInertia(
 
 body4 = RigidBody(inertia4)
 
-joint4 = Joint("l_hips_joint", Revolute(axis))
+joint4 = Joint("l_hips_joint", Revolute{T}(axis))
 
 joint4_to_body1 = Transform3D(
     frame_before(joint4),
@@ -141,7 +141,7 @@ inertia3 = SpatialInertia(
 
 body3 = RigidBody(inertia3)
 
-joint3 = Joint("r_knee_joint", Revolute(axis))
+joint3 = Joint("r_knee_joint", Revolute{T}(axis))
 
 joint3_to_body2 = Transform3D(
     frame_before(joint3),
@@ -161,7 +161,7 @@ inertia5 = SpatialInertia(
 
 body5 = RigidBody(inertia5)
 
-joint5 = Joint("l_knee_joint", Revolute(axis))
+joint5 = Joint("l_knee_joint", Revolute{T}(axis))
 
 joint5_to_body4 = Transform3D(
     frame_before(joint5),

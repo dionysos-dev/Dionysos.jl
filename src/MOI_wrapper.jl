@@ -502,7 +502,3 @@ function JuMP.parse_constraint_call(
     build_call = :(build_constraint($error_fn, $f, $(OuterSet)($set)))
     return parse_code, build_call
 end
-
-function Base.rem(x::JuMP.AbstractJuMPScalar, d)
-    return rem_op(x, d)
-end

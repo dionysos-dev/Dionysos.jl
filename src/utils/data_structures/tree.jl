@@ -1,6 +1,3 @@
-"
-cost: cost to reach its parent
-"
 mutable struct NodeT{S}
     state::S
     parent::Union{Nothing, NodeT{S}}
@@ -29,11 +26,6 @@ get_action(node::NodeT) = node.action
 get_cost(node::NodeT) = node.cost
 get_path_cost(node::NodeT) = node.path_cost
 
-"
-Tree structure with
-- cost for transitions (the cost function a non-negative function);
-- an underlying metric between the states that are encapsulated in the nodes of the tree
-"
 mutable struct Tree
     root::NodeT
     leaves::Vector{NodeT}
@@ -72,7 +64,6 @@ function delete_child!(tree::Tree, parent::NodeT, child::NodeT)
     end
 end
 
-"add a node as a leave"
 function add_node!(
     tree::Tree,
     state,
@@ -89,8 +80,6 @@ function add_node!(
     return newNode
 end
 
-"assuming that the path_cost of a node has changed (and its depth), 
-we should propagate the new cost to its children"
 function propagate_cost_to_leaves(node::NodeT)
     for child in node.children
         child.path_cost = node.path_cost + child.cost
@@ -156,7 +145,6 @@ function collect_states(tree::Tree)
     return [node.state for node in allNodes]
 end
 
-"Create a list of nodes from the root to this node."
 function path(node::NodeT)
     x, result = node, [node]
     while x.parent !== nothing
@@ -166,7 +154,6 @@ function path(node::NodeT)
     return reverse!(result)
 end
 
-"return the path from node to the root of the tree"
 function get_path(node::NodeT)
     return reverse!(path(node))
 end
