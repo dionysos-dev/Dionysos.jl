@@ -5,8 +5,6 @@ import HybridSystems
 
 import StaticArrays: SVector, SMatrix
 import LinearAlgebra as LA
-using Symbolics
-import IntervalArithmetic as IA
 
 import JuMP: MOI
 import RecipesBase: @recipe, @series

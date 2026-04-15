@@ -35,7 +35,7 @@ end
 function system(X, U, W, obstacles, Ts, noise, μ)
     f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
 
-    fsymbolicT = eval(ST.build_function(f, x, u, w, T)[1])
+    fsymbolicT = eval(Symbolics.build_function(f, x, u, w, T)[1])
 
     #### PWA approximation description #####
     # symmetric box [-1,1]^2

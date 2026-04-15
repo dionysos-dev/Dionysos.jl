@@ -15,6 +15,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+using Symbolics
+
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
 
 # # First example
