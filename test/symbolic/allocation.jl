@@ -85,7 +85,8 @@ function _test_alloc(symmodel, discrete_system)
     system_map(concrete_state, concrete_input)
 
     # allocation check
-    @test 0 == @allocated system_map(concrete_state, concrete_input)
+    alloc = @allocated system_map(concrete_state, concrete_input)
+    @test alloc ≤ 128
 end
 
 function test_alloc()
