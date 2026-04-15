@@ -32,7 +32,7 @@ transpose(params)
 # A `Mechanism` contains the joint layout and inertia parameters, but no state information.
 
 T = Num # the 'type' of the Mechanism we'll construct
-axis = SVector(zero(T), one(T), zero(T)) # axis of rotation for each for the knee and hips joints (around y-axis)
+axis = SVector{3, Float64}(0.0, 1.0, 0.0) # axis of rotation for each for the knee and hips joints (around y-axis)
 robot = Mechanism(RigidBody{T}("world"); gravity = SVector(zero(T), zero(T), g))
 world = root_body(robot) # the fixed 'world' rigid body
 

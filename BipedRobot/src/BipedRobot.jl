@@ -67,7 +67,7 @@ function mechanism(;
         params = [inertias..., lengths..., gravitational_acceleration...]
         transpose(params)
 
-        axis = SVector(zero(T), one(T), zero(T)) # axis of rotation for each for the knee and hips joints (around y-axis)
+        axis = SVector{3, Float64}(0.0, 1.0, 0.0) # axis of rotation for each for the knee and hips joints (around y-axis)
         mechanism = Mechanism(RigidBody{T}("world"); gravity = SVector(zero(T), zero(T), g))
         world = root_body(mechanism) # the fixed 'world' rigid body	
 
