@@ -17,16 +17,15 @@ MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 MathOptSymbolicAD = "309f4015-3481-4d63-a8f9-aeb13adfe8eb"
 Spot = "f11abc24-ce50-11e8-2475-af6658d13f2b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 
 [extensions]
 DionysosCSVExt = ["CSV", "DataFrames"]
@@ -47,7 +46,6 @@ MutableArithmetics = "1"
 Polyhedra = "0.7"
 ProgressMeter = "1.4"
 RecipesBase = "1"
-SemialgebraicSets = "0.2, 0.3"
 Spot = "0.3.0"
 StaticArrays = "1"
 Symbolics = "5, 6, 7"

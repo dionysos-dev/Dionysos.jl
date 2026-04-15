@@ -4,11 +4,11 @@ import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const PR = DI.Problem
+const OP = DI.Optim
 
 using FillArrays
 import Polyhedra
 using MathematicalSystems, HybridSystems
-using SemialgebraicSets
 
 import CDDLib
 
@@ -141,7 +141,7 @@ function system(lib, T::Type)
         # Modes
         [ConstrainedContinuousIdentitySystem(2, i) for i in domains],
         # Reset maps
-        Fill(ConstrainedLinearControlMap(A, B, FullSpace(), pU), k),
+        Fill(ConstrainedLinearControlMap(A, B, OP.BemporadMorari.NoConstraint(), pU), k),
         Fill(ControlledSwitching(), k),
     )
 
