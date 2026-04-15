@@ -128,7 +128,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         end
     end
 
-    mon = OPDS.FunctionMonitor(
+    spec = OPDS.FunctionMonitor(
         1,         # initial state
         Set([3]),  # accepting states
         (qa, ap) -> mon_next(MonitorG1NoDangerUntilG2(), qa, ap),
@@ -146,10 +146,9 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
     concrete_problem = DI.Problem.CoSafeLTLProblem(
         concrete_system,
         _I_,
-        mon, # could also store φ separately; here we use monitor
+        spec, # could also store φ separately; here we use monitor
         labeling,
         ap_semantics,
-        false,
     )
 
     # quick labeling sanity: each AP should exist
