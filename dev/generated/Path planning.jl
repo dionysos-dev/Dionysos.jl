@@ -1,5 +1,8 @@
 using StaticArrays, JuMP, Plots
 
+using Symbolics
+using MathOptSymbolicAD
+
 using Dionysos
 const DI = Dionysos
 const ST = DI.System
@@ -7,6 +10,8 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+
+### Definition of the problem
 
 model = Model(Dionysos.Optimizer);
 
