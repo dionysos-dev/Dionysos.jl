@@ -94,8 +94,8 @@ function problem(;
     # global state domain: [-20, 20]^2
     X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
 
-    # obstacle: ellipsoid with covariance (I/50) at [0,0]
-    obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 50), [0.0; 0.0])],
+    # obstacle: ellipsoid with covariance (I/30) at [0,0]
+    obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 30), [0.0; 0.0])],
 
     U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
 

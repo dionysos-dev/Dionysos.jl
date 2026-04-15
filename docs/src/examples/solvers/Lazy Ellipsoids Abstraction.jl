@@ -34,7 +34,7 @@ k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 100
+maxIter = 300
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(

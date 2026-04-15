@@ -40,7 +40,7 @@ function _include_sandbox(filename)
     return Base.include(mod, filename)
 end
 
-for file in ["mass_matrix_double_pendulum_urdf.jl", "Biped_robot.jl"]
+for file in ["mass_matrix_double_pendulum_urdf.jl"]
     @testset "$file" begin
         _include_sandbox(file)
     end

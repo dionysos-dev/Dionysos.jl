@@ -107,7 +107,6 @@ function collect_children!(node::NodeT, nodeAccumulator)
     end
 end
 
-"Return a list with all the children of node"
 function collect_children(node::NodeT)
     allNodes = []
     collect_children!(node, allNodes)

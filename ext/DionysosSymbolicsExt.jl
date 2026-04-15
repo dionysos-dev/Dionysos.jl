@@ -34,23 +34,28 @@ end
 to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
 _to_interval_box(X) = X isa IA.IntervalBox ? X : IA.IntervalBox(X)
 
-function ST._getLipschitzConstants(J, xi, rules)
-    L = zeros(Base.length(xi))
-    for (i, g) in enumerate(eachrow(J))
-        Hg_s = Symbolics.jacobian(g, xi) #gets symbolic hessian of the i-th component of f(x,u,w)
-        Hg = Symbolics.substitute(Hg_s, rules)
-        mat = Symbolics.value.(Hg)
+function ST._getLipschitzConstants(J, xi, Xi_vals)
+    L = zeros(length(xi))
 
-        if any(x -> isa(x, IA.Interval), mat)
-            # mixed Real / Interval => normalize to Interval
+    for (i, g) in enumerate(eachrow(J))
+        Hg_s = Symbolics.jacobian(g, xi)
+        nr, nc = size(Hg_s)
+
+        mat = Matrix{Any}(undef, nr, nc)
+        for r in 1:nr, c in 1:nc
+            f_rc =
+                Symbolics.build_function(Hg_s[r, c], collect(xi); expression = Val(false))
+            mat[r, c] = f_rc(Xi_vals...)
+        end
+
+        if any(x -> x isa IA.Interval, mat)
             matI = map(to_interval, mat)
-            # conservative but safe Lipschitz bound
             L[i] = ST.interval_matrix_max_eig(matI)
-            # L[i] = abs(IntervalLinearAlgebra.eigenbox(mat)).hi if we import the package IntervalLinearAlgebra 
         else
-            L[i] = max(abs.(LA.eigen(mat).values)...)
+            L[i] = maximum(abs, LA.eigen(Float64.(mat)).values)
         end
     end
+
     return L
 end
 
@@ -65,15 +70,14 @@ function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
 
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
-    Xi = vcat(collect(X), collect(U), collect(W))
-    sub_rules_Xi = Dict(xi[i] => Xi[i] for i in 1:(n + m + p))
 
     Jx = Symbolics.jacobian(f, x)
     Ju = Symbolics.jacobian(f, u)
     Jw = Symbolics.jacobian(f, w)
     Jxi = hcat(Jx, Ju, Jw)
 
-    L = ST._getLipschitzConstants(Jxi, xi, sub_rules_Xi)
+    Xi_vals = vcat(collect(X), collect(U), collect(W))
+    L = ST._getLipschitzConstants(Jxi, xi, Xi_vals)
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
     function evalSym(x)
