@@ -1,5 +1,8 @@
 using StaticArrays, JuMP, Plots
 
+using Symbolics
+using MathOptSymbolicAD
+
 using Dionysos
 const DI = Dionysos
 const ST = DI.System

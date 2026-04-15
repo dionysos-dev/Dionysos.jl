@@ -32,6 +32,9 @@
 # First, let us import [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) and [Plots](https://github.com/JuliaPlots/Plots.jl).
 using StaticArrays, JuMP, Plots
 
+using Symbolics
+using MathOptSymbolicAD
+
 using Dionysos
 const DI = Dionysos
 const ST = DI.System
@@ -40,7 +43,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-# ### Definition of the problem
+### Definition of the problem
 
 # We define the problem using JuMP as follows.
 # We first create a JuMP model:

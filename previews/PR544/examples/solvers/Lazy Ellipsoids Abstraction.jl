@@ -15,6 +15,8 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
+using Symbolics
+
 include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
 
 # # First example
@@ -32,7 +34,7 @@ k1 = 1
 k2 = 1
 RRTstar = false
 continues = false
-maxIter = 100
+maxIter = 300
 
 optimizer = MOI.instantiate(AB.LazyEllipsoidsAbstraction.Optimizer)
 AB.LazyEllipsoidsAbstraction.set_optimizer!(
