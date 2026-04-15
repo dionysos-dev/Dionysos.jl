@@ -16,7 +16,6 @@ import MathematicalSystems as MS
 using ProgressMeter
 using JuMP
 import MathOptInterface as MOI
-using JLD2
 
 export Optimizer
 
@@ -292,68 +291,6 @@ function solve_concrete_problem(
     nx = SY.get_state_dim(abstract_system)
     nu = SY.get_input_dim(abstract_system)
     return MS.ConstrainedBlackBoxMap(nx, nu, f, Xx)
-end
-
-# --------------------------------------- #
-# --- JLD2 Abstraction Export/Import ---- #
-# --------------------------------------- #
-
-function export_abstraction_jld2(opt::Optimizer, filename::AbstractString)
-    abs_opt = opt.abstraction_solver
-    abs_opt === nothing && error("No abstraction_solver in optimizer.")
-    abs_sys = abs_opt.abstract_system
-    abs_sys === nothing && error("No abstract_system computed yet.")
-
-    jldopen(filename, "w") do f
-        f["format_version"] = 1
-        f["abstract_system"] = abs_sys
-
-        # store ellipsoid-abstraction-specific parameters that affect transitions
-        return f["params"] =
-            (incl_mode = abs_opt.incl_mode, P = abs_opt.P, Pm = abs_opt.Pm, R = abs_opt.R)
-    end
-    return nothing
-end
-
-function import_abstraction_jld2(
-    filename::AbstractString;
-    opt::Union{Nothing, Optimizer} = nothing,
-)
-    opt === nothing && (opt = MOI.instantiate(Optimizer))
-    opt.abstraction_solver === nothing &&
-        (opt.abstraction_solver = OptimizerAlternatingSimulationProblem())
-
-    jldopen(filename, "r") do f
-        v = f["format_version"]
-        v == 1 || error("Unsupported abstraction file format_version=$v")
-
-        abs_sys = f["abstract_system"]
-        opt.abstraction_solver.abstract_system = abs_sys
-
-        # optional: reload params if you want them accessible
-        if haskey(f, "params")
-            p = f["params"]
-            # best-effort restore
-            try
-                opt.abstraction_solver.incl_mode = p.incl_mode
-            catch
-            end
-            try
-                opt.abstraction_solver.P = p.P
-            catch
-            end
-            try
-                opt.abstraction_solver.Pm = p.Pm
-            catch
-            end
-            try
-                opt.abstraction_solver.R = p.R
-            catch
-            end
-        end
-    end
-
-    return opt
 end
 
 end # module

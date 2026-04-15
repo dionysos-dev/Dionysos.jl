@@ -4,7 +4,7 @@ using Dionysos
 using JuMP
 import MathOptInterface as MOI
 
-using Spot
+# using Spot
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -92,7 +92,8 @@ danger2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
 danger = UT.LazySetUnion([danger1, danger2])
 
 # co-safe formula
-φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"
+# φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"
+φ = "G(!obs) & F(g1 & ((!danger) U g2))"
 
 struct MonitorG1NoDangerUntilG2 end
 
@@ -150,7 +151,6 @@ concrete_problem = DI.Problem.CoSafeLTLProblem(
     mon, # φ, mon
     labeling,
     ap_semantics,
-    false,
 )
 
 # ------------------------------------------------------------

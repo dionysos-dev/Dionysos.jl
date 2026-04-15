@@ -22,6 +22,26 @@ const PCLF = UT.PathCompleteFramework
 # Example 3.1 from the paper
 
 # ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+function export_optimizer_jld2(opt, filename::AbstractString)
+    jldopen(filename, "w") do f
+        f["format_version"] = 1
+        return f["optimizer"] = opt
+    end
+    return nothing
+end
+
+function import_optimizer_jld2(filename::AbstractString)
+    return jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported optimizer file format_version=$v")
+        return f["optimizer"]
+    end
+end
+
+# ---------------------------------------------------------
 # Define a stable switched system
 # ---------------------------------------------------------
 
@@ -156,8 +176,8 @@ construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_t
 println("Construction time = ", construction_time)
 
 # const FILENAME = joinpath(@__DIR__, "example_3_1.jld2")
-#AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
@@ -178,6 +198,7 @@ display(fig)
 #using Spot
 
 #φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
+#spec = Dionysos.spot_stepper(φ)
 
 #x0 = SVector(-6.0, 7.5)
 #x0 = SVector(9.0, 0.0)     # initial point I in the paper
@@ -187,10 +208,9 @@ display(fig)
 #prob = PR.CoSafeLTLProblem(
 #    f,
 #    _I_,
-#    φ,
+#    spec,
 #    Dict(:D => D, :R1 => R1, :R2 => R2, :R3 => R3), # no really useful since we have ap_to_obs, but let's be explicit
 #    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER, :R3 => MP.INNER), # no really useful, but let's be explicit
-#    true,
 #)
 
 #optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)

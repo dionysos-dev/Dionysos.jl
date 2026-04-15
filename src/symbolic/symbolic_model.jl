@@ -157,12 +157,27 @@ end
         return ((get_state_domain(sym), get_state_mapping(sym)),)
     end
     if with_arrows
+        palette = [
+            :red,
+            :blue,
+            :green,
+            :orange,
+            :purple,
+            :brown,
+            :pink,
+            :cyan,
+            :magenta,
+            :olive,
+            :gold,
+            :coral,
+            :turquoise,
+            :navy,
+            :darkgreen,
+            :darkred,
+        ]
+
         for t in enum_transitions(sym)
-            color = RGB(
-                abs(0.6 * sin(t[1])),
-                abs(0.6 * sin(t[1] + 2π / 3)),
-                abs(0.6 * sin(t[1] - 2π / 3)),
-            )
+            color = palette[mod1(t[1], length(palette))]
             p1 = get_concrete_state(sym, t[2])
             p2 = get_concrete_state(sym, t[1])
 

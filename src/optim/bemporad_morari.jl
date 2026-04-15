@@ -14,7 +14,7 @@ using LinearAlgebra
 import MutableArithmetics
 const MA = MutableArithmetics
 
-using FillArrays, MathematicalSystems, HybridSystems, JuMP, SemialgebraicSets
+using FillArrays, MathematicalSystems, HybridSystems, JuMP
 import Polyhedra
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
@@ -196,7 +196,8 @@ function hybrid_constraints(
     return δs
 end
 
-hybrid_constraints(model, ::AbstractVector{FullSpace}, x, algo::Optimizer, δ) = δ
+struct NoConstraint end
+hybrid_constraints(model, ::AbstractVector{NoConstraint}, x, algo::Optimizer, δ) = δ
 
 function hybrid_constraints(
     model,

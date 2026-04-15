@@ -2,7 +2,7 @@ using StaticArrays
 using LinearAlgebra
 using JuMP
 using Clarabel
-using JuMP
+using CDDLib
 
 import HybridSystems
 using LazySets
@@ -21,6 +21,26 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 const PCLF = UT.PathCompleteFramework
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+function export_optimizer_jld2(opt, filename::AbstractString)
+    jldopen(filename, "w") do f
+        f["format_version"] = 1
+        return f["optimizer"] = opt
+    end
+    return nothing
+end
+
+function import_optimizer_jld2(filename::AbstractString)
+    return jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported optimizer file format_version=$v")
+        return f["optimizer"]
+    end
+end
 
 # ---------------------------------------------------------
 # Define a stable switched system
@@ -87,6 +107,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 8)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("polyhedra_backend"), CDDLib.Library())
 
 # ---------------------------------------------------------
 # Solve
@@ -100,8 +121,8 @@ construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_t
 println("Construction time = ", construction_time)
 
 # const FILENAME = joinpath(@__DIR__, "example1.jld2")
-# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
@@ -140,15 +161,16 @@ display(fig)
 using Spot
 
 φ = ltl"F(R1 & F(D))" # ltl"(!R1) U D"
+spec = Dionysos.spot_stepper(φ)
+
 x0 = SVector(2.3, 1.5)
 _I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
 prob = PR.CoSafeLTLProblem(
     f,
     _I_,
-    φ,
+    spec,
     Dict(:D => D, :R1 => R1, :R2 => R2), # no useful since we have ap_to_obs
     Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER), # no useful
-    true,
 )
 
 optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
@@ -204,7 +226,11 @@ controllable_set_node_1 = AB.PCLFBisimulationQuotient.state_ids_in_node(
     (1,);
     state_ids = controllable_set,
 )
-Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_1)
+Vctrl_node_1 = AB.PCLFBisimulationQuotient.get_volume(
+    bisimulation,
+    controllable_set_node_1;
+    backend = CDDLib.Library(),
+)
 println("Volume of controllable set in Node 1 = ", Vctrl_node_1)
 
 title!(fig[1], "Node 1")
@@ -238,7 +264,11 @@ controllable_set_node_2 = AB.PCLFBisimulationQuotient.state_ids_in_node(
     (2,);
     state_ids = controllable_set,
 )
-Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set_node_2)
+Vctrl_node_2 = AB.PCLFBisimulationQuotient.get_volume(
+    bisimulation,
+    controllable_set_node_2;
+    backend = CDDLib.Library(),
+)
 println("Volume of controllable set in Node 2 = ", Vctrl_node_2)
 
 title!(fig[2], "Node 2")
@@ -267,7 +297,11 @@ plot!(
 plot!(fig[2], ST.Trajectory(X_seq); label = "Trajectory")
 
 # --- All states ---
-Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(
+    bisimulation,
+    controllable_set;
+    backend = CDDLib.Library(),
+)
 println("Volume of controllable set in All states = ", Vctrl)
 
 title!(fig[3], "All states")

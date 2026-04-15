@@ -40,9 +40,18 @@ function pointCenterDistance(elli::Ellipsoid, x)
     return norm(get_center(elli) - x)
 end
 
+function gamma_half_integer_from_dim(N::Int)
+    if iseven(N)
+        return factorial(div(N, 2))
+    else
+        k = (N - 1) ÷ 2
+        return factorial(2k + 1) * sqrt(pi) / (4^(k + 1) * factorial(k + 1))
+    end
+end
+
 function get_volume(elli::Ellipsoid)
     N = size(elli.P, 1)
-    return pi^(N / 2) / (gamma(N / 2 + 1)) * det(elli.P)^(-1 / 2)
+    return pi^(N / 2) / gamma_half_integer_from_dim(N) * det(elli.P)^(-1 / 2)
 end
 
 function Base.:*(elli::Ellipsoid, r::Real)
@@ -212,13 +221,12 @@ function get_min_bounding_box(elli::Ellipsoid; optimizer = nothing)
             R[i] = get_farthest_point(elli, ei)[i]
         end
     end
-    box = IA.IntervalBox(elli.c .- R, elli.c .+ R)
-    return box
+    return HyperRectangle(elli.c .- R, elli.c .+ R)
 end
 
 function sample(elli::Ellipsoid; N = 500)
-    box = get_min_bounding_box(elli)
-    points = [sample(box) for i in 1:N]
+    rec = get_min_bounding_box(elli)
+    points = [sample(rec) for i in 1:N]
     filter!(x -> x ∈ elli, points)
     return points
 end

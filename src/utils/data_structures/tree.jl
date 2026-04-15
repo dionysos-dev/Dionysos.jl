@@ -1,6 +1,3 @@
-"
-cost: cost to reach its parent
-"
 mutable struct NodeT{S}
     state::S
     parent::Union{Nothing, NodeT{S}}
@@ -29,11 +26,6 @@ get_action(node::NodeT) = node.action
 get_cost(node::NodeT) = node.cost
 get_path_cost(node::NodeT) = node.path_cost
 
-"
-Tree structure with
-- cost for transitions (the cost function a non-negative function);
-- an underlying metric between the states that are encapsulated in the nodes of the tree
-"
 mutable struct Tree
     root::NodeT
     leaves::Vector{NodeT}
@@ -72,7 +64,6 @@ function delete_child!(tree::Tree, parent::NodeT, child::NodeT)
     end
 end
 
-"add a node as a leave"
 function add_node!(
     tree::Tree,
     state,
@@ -89,8 +80,6 @@ function add_node!(
     return newNode
 end
 
-"assuming that the path_cost of a node has changed (and its depth), 
-we should propagate the new cost to its children"
 function propagate_cost_to_leaves(node::NodeT)
     for child in node.children
         child.path_cost = node.path_cost + child.cost
@@ -118,7 +107,6 @@ function collect_children!(node::NodeT, nodeAccumulator)
     end
 end
 
-"Return a list with all the children of node"
 function collect_children(node::NodeT)
     allNodes = []
     collect_children!(node, allNodes)
@@ -156,7 +144,6 @@ function collect_states(tree::Tree)
     return [node.state for node in allNodes]
 end
 
-"Create a list of nodes from the root to this node."
 function path(node::NodeT)
     x, result = node, [node]
     while x.parent !== nothing
@@ -166,7 +153,6 @@ function path(node::NodeT)
     return reverse!(result)
 end
 
-"return the path from node to the root of the tree"
 function get_path(node::NodeT)
     return reverse!(path(node))
 end
@@ -236,25 +222,34 @@ function Base.show(io::IO, tree::Tree)
     return println(io, "Maximum value    : ", get_max_Node(tree).path_cost)
 end
 
+function cost_color(val, vmin, vmax)
+    palette = [:lightblue, :deepskyblue, :dodgerblue, :blue, :darkblue]
+
+    if vmax <= vmin + 1e-8
+        return palette[cld(length(palette), 2)]
+    end
+
+    t = clamp((val - vmin) / (vmax - vmin), 0.0, 1.0)
+    idx = clamp(round(Int, 1 + t * (length(palette) - 1)), 1, length(palette))
+    return palette[idx]
+end
+
 @recipe function f(node::NodeT; pathB = false, cost = true)
     path = get_path(node)
-    # create a Colormap
+
     vmin = path[end].path_cost
     vmax = path[1].path_cost
-    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
+
     pathB ? path = sort(path; by = compare, rev = true) : path = [node]
     sortedPath = sort(path; by = compare, rev = true)
+
     for node in sortedPath
         @series begin
-            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
-            return node.state
+            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
+            node.state
         end
     end
-    if cost
-        @series begin
-            colorMap
-        end
-    end
+
     for i in 1:(length(path) - 1)
         @series begin
             DrawArrow(path[i].state.c, path[i + 1].state.c)
@@ -263,31 +258,26 @@ end
 end
 
 @recipe function f(tree::Tree; with_arrows = true, cost = true)
-    # create a Colormap
     vmin = get_min_path_cost(tree)
     vmax = get_max_path_cost(tree)
-    colorMap = Colormap([vmin, vmax], Colors.colormap("Blues"))
-    # plot the nodes of the tree
+
     allNodes = collect_nodes(tree)
     sort!(allNodes; by = compare, rev = true)
+
     for node in allNodes
         @series begin
-            cost ? color := get_color(colorMap, node.path_cost) : color := :yellow
-            return node.state
+            color := cost ? cost_color(node.path_cost, vmin, vmax) : :yellow
+            node.state
         end
     end
-    if cost
-        @series begin
-            colorMap
-        end
-    end
+
     if with_arrows
         leaves = copy(tree.leaves)
         while !isempty(leaves)
             for leave in leaves
                 if leave.parent !== nothing
                     @series begin
-                        return DrawArrow(leave.state.c, leave.parent.state.c)
+                        DrawArrow(leave.state.c, leave.parent.state.c)
                     end
                 end
             end

@@ -189,11 +189,8 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
     return Candidate(lb, ub, traj), sol_traj
 end
 
-using Printf
-
 const NUM_NODES = ["#nodes", "#queued", "#done", "#pruned", "#infeas", "#left"]
 
-# Inspired from Pavito's `printgap`
 function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queued)
     num_nodes = [
         optimizer.num_total,
@@ -202,30 +199,49 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
         optimizer.num_pruned_bound,
         optimizer.num_pruned_inf,
     ]
-    push!(num_nodes, 2optimizer.num_total - sum(num_nodes))
+    push!(num_nodes, 2 * optimizer.num_total - sum(num_nodes))
     @assert num_nodes[end] >= 0
+
     if optimizer.log_level >= 1
         len = max(maximum(length, NUM_NODES), length(string(num_nodes[1])))
+
+        padl(x, n) = lpad(string(x), n)
+        padr(x, n) = rpad(string(x), n)
+
         if optimizer.num_iter == 0 || optimizer.log_level >= 2
-            @printf "\n%-5s | %-14s | %-11s" "Iter." "Best feasible" "Time (s)"
+            header =
+                padr("Iter.", 5) *
+                " | " *
+                padr("Best feasible", 14) *
+                " | " *
+                padr("Time (s)", 11)
+
             for s in NUM_NODES
-                print(" | ", lpad(s, len))
+                header *= " | " * padl(s, len)
             end
-            println()
+            println("\n" * header)
         end
+
         if last_iter || (optimizer.num_iter in optimizer.log_iter)
-            @printf "%5d | %+14.6e | %11.3e" optimizer.num_iter optimizer.upper_bound (
-                time() - start_time
-            )
+            line =
+                padl(optimizer.num_iter, 5) *
+                " | " *
+                padl(round(optimizer.upper_bound; sigdigits = 6), 14) *
+                " | " *
+                padl(round(time() - start_time; sigdigits = 3), 11)
+
             for num in num_nodes
-                print(" | ", lpad(string(num), len))
+                line *= " | " * padl(num, len)
             end
-            println()
+
+            println(line)
         end
+
         flush(stdout)
         flush(stderr)
     end
-    return
+
+    return nothing
 end
 
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}

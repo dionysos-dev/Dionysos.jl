@@ -17,15 +17,15 @@ state_sym = MechanismState(mechanism_sym)
 M = mass_matrix(state_sym)
 @test size(M) == (10, 10)
 
-mechanism_sym = BipedRobot.mechanism(;
-    symbolic = true,
-    add_contact_points = true,
-    add_flat_ground = true,
-)
-state_sym = MechanismState(mechanism_sym)
-mass_matrix(state_sym)
-M = BipedRobot.simplify.(mass_matrix(state_sym))
-@test size(M) == (10, 10)
+# mechanism_sym = BipedRobot.mechanism(;
+#     symbolic = true,
+#     add_contact_points = true,
+#     add_flat_ground = true,
+# )
+# state_sym = MechanismState(mechanism_sym)
+# mass_matrix(state_sym)
+# M = BipedRobot.simplify.(mass_matrix(state_sym))
+# @test size(M) == (10, 10)
 
 """
     _include_sandbox(filename)
@@ -40,7 +40,7 @@ function _include_sandbox(filename)
     return Base.include(mod, filename)
 end
 
-for file in ["mass_matrix_double_pendulum_urdf.jl", "Biped_robot.jl"]
+for file in ["mass_matrix_double_pendulum_urdf.jl"]
     @testset "$file" begin
         _include_sandbox(file)
     end

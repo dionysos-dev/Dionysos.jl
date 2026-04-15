@@ -1,15 +1,13 @@
-import MathOptInterface as MOI
 import StaticArrays: SVector
 import MathematicalSystems
+import MathOptInterface as MOI
 import JuMP
-import MathOptSymbolicAD
-import Symbolics
 
 @enum(VariableType, INPUT, STATE, MODE)
 
 @enum(TimeType, UNKNOWN, CONTINUOUS, DISCRETE)
 
-mutable struct Optimizer <: MOI.AbstractOptimizer
+mutable struct SymbolicsOptimizer <: MOI.AbstractOptimizer
     inner::Any
     nlp_model::Any
     evaluator::Union{Nothing, MOI.Nonlinear.Evaluator}
@@ -27,7 +25,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     objective_function::MOI.AbstractScalarFunction
     nonlinear_index::Int
-    function Optimizer()
+    function SymbolicsOptimizer()
         return new(
             MOI.instantiate(Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer),
             nothing,
@@ -50,9 +48,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
-MOI.is_empty(model::Optimizer) = isempty(model.variable_types)
+MOI.is_empty(model::SymbolicsOptimizer) = isempty(model.variable_types)
 
-function MOI.empty!(model::Optimizer)
+function MOI.empty!(model::SymbolicsOptimizer)
     model.time_type = UNKNOWN
     empty!(model.variable_values)
     empty!(model.derivative_values)
@@ -70,7 +68,7 @@ function MOI.empty!(model::Optimizer)
     return
 end
 
-function MOI.add_variable(model::Optimizer)
+function MOI.add_variable(model::SymbolicsOptimizer)
     push!(model.variable_values, NaN)
     push!(model.variable_types, INPUT)
     push!(model.variable_index, 0)
@@ -90,7 +88,7 @@ MOI.dimension(set::OuterSet) = MOI.dimension(set.inner)
 Base.copy(set::OuterSet) = OuterSet(copy(set.inner))
 
 function MOI.supports_constraint(
-    ::Optimizer,
+    ::SymbolicsOptimizer,
     ::Type{MOI.VectorOfVariables},
     ::Type{OuterSet{MOI.HyperRectangle{Float64}}},
 )
@@ -98,7 +96,7 @@ function MOI.supports_constraint(
 end
 
 function MOI.add_constraint(
-    model::Optimizer,
+    model::SymbolicsOptimizer,
     func::MOI.VectorOfVariables,
     set::OuterSet{MOI.HyperRectangle{Float64}},
 )
@@ -107,25 +105,33 @@ function MOI.add_constraint(
 end
 
 function MOI.supports_constraint(
-    ::Optimizer,
+    ::SymbolicsOptimizer,
     ::Type{MOI.VariableIndex},
     ::Type{<:Union{MOI.LessThan, MOI.GreaterThan}},
 )
     return true
 end
 
-function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.GreaterThan)
+function MOI.add_constraint(
+    model::SymbolicsOptimizer,
+    func::MOI.VariableIndex,
+    set::MOI.GreaterThan,
+)
     model.lower[func.value] = MOI.constant(set)
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
-function MOI.add_constraint(model::Optimizer, func::MOI.VariableIndex, set::MOI.LessThan)
+function MOI.add_constraint(
+    model::SymbolicsOptimizer,
+    func::MOI.VariableIndex,
+    set::MOI.LessThan,
+)
     model.upper[func.value] = MOI.constant(set)
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(func.value)
 end
 
 function MOI.supports_constraint(
-    ::Optimizer,
+    ::SymbolicsOptimizer,
     ::Type{MOI.ScalarNonlinearFunction},
     ::Type{<:MOI.Interval},
 )
@@ -133,7 +139,7 @@ function MOI.supports_constraint(
 end
 
 function MOI.add_constraint(
-    model::Optimizer,
+    model::SymbolicsOptimizer,
     func::MOI.ScalarNonlinearFunction,
     set::MOI.Interval,
 )
@@ -156,7 +162,7 @@ function MOI.add_constraint(
 end
 
 function MOI.supports_constraint(
-    ::Optimizer,
+    ::SymbolicsOptimizer,
     ::Type{MOI.ScalarNonlinearFunction},
     ::Type{<:MOI.EqualTo},
 )
@@ -164,7 +170,7 @@ function MOI.supports_constraint(
 end
 
 function MOI.add_constraint(
-    model::Optimizer,
+    model::SymbolicsOptimizer,
     func::MOI.ScalarNonlinearFunction,
     set::MOI.EqualTo,
 )
@@ -211,15 +217,27 @@ function MOI.add_constraint(
     return error("Unsupported")
 end
 
-function MOI.supports(::Optimizer, ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunction})
+function MOI.supports(
+    ::SymbolicsOptimizer,
+    ::Union{MOI.ObjectiveSense, MOI.ObjectiveFunction},
+)
     return true
 end
 
-function MOI.supports(::Optimizer, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex})
+function MOI.supports(
+    ::SymbolicsOptimizer,
+    ::MOI.VariablePrimalStart,
+    ::Type{MOI.VariableIndex},
+)
     return true
 end
 
-function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, value)
+function MOI.set(
+    model::SymbolicsOptimizer,
+    ::MOI.VariablePrimalStart,
+    vi::MOI.VariableIndex,
+    value,
+)
     # create a MOI.Interval from the value if value is a scalar
     if !isa(value, MOI.Interval)
         value = MOI.Interval(value, value)
@@ -228,13 +246,17 @@ function MOI.set(model::Optimizer, ::MOI.VariablePrimalStart, vi::MOI.VariableIn
     return model.start[vi.value] = value
 end
 
-function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+function MOI.set(
+    model::SymbolicsOptimizer,
+    ::MOI.ObjectiveSense,
+    sense::MOI.OptimizationSense,
+)
     model.objective_sense = sense
     return
 end
 
 function MOI.set(
-    model::Optimizer,
+    model::SymbolicsOptimizer,
     ::MOI.ObjectiveFunction,
     func::MOI.AbstractScalarFunction,
 )
@@ -242,9 +264,9 @@ function MOI.set(
     return
 end
 
-MOI.supports_incremental_interface(::Optimizer) = true
+MOI.supports_incremental_interface(::SymbolicsOptimizer) = true
 
-function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)
+function MOI.copy_to(model::SymbolicsOptimizer, src::MOI.ModelLike)
     return MOI.Utilities.default_copy_to(model, src)
 end
 
@@ -368,7 +390,7 @@ function system(
     end
 end
 
-function problem(model::Optimizer)
+function problem(model::SymbolicsOptimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
     _I_ = Dionysos.Utils.HyperRectangle(
@@ -392,7 +414,7 @@ function problem(model::Optimizer)
     return problem
 end
 
-function variable_type(model::Optimizer, vi::MOI.VariableIndex)
+function variable_type(model::SymbolicsOptimizer, vi::MOI.VariableIndex)
     if isnothing(model.dynamic[vi.value])
         return INPUT
     else
@@ -400,19 +422,19 @@ function variable_type(model::Optimizer, vi::MOI.VariableIndex)
     end
 end
 
-function state_indices(model::Optimizer)
+function state_indices(model::SymbolicsOptimizer)
     return findall(eachindex(model.variable_index)) do i
         return variable_type(model, MOI.VariableIndex(i)) == STATE
     end
 end
 
-function input_indices(model::Optimizer)
+function input_indices(model::SymbolicsOptimizer)
     return findall(eachindex(model.variable_index)) do i
         return variable_type(model, MOI.VariableIndex(i)) == INPUT
     end
 end
 
-function setup!(model::Optimizer)
+function setup!(model::SymbolicsOptimizer)
     if all(isnothing, model.dynamic)
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
@@ -445,39 +467,22 @@ function setup!(model::Optimizer)
     return
 end
 
-function MOI.optimize!(model::Optimizer)
+function MOI.optimize!(model::SymbolicsOptimizer)
     setup!(model)
     MOI.set(model.inner, MOI.RawOptimizerAttribute("concrete_problem"), problem(model))
     MOI.optimize!(model.inner)
     return
 end
 
-MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
+MOI.supports(::SymbolicsOptimizer, ::MOI.RawOptimizerAttribute) = true
 
-function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
+function MOI.get(model::SymbolicsOptimizer, attr::MOI.RawOptimizerAttribute)
     return MOI.get(model.inner, attr)
 end
 
-function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
+function MOI.set(model::SymbolicsOptimizer, attr::MOI.RawOptimizerAttribute, value)
     return MOI.set(model.inner, attr, value)
 end
-
-export ∂, Δ, final, start
-
-function _diff end
-∂ = JuMP.NonlinearOperator(_diff, :∂)
-
-function _delta end
-Δ = JuMP.NonlinearOperator(_delta, :Δ)
-
-function _final end
-final = JuMP.NonlinearOperator(_final, :final)
-
-function _start end
-start = JuMP.NonlinearOperator(_start, :start)
-
-function rem end
-rem_op = JuMP.NonlinearOperator(rem, :rem)
 
 # Type piracy
 function JuMP.parse_constraint_call(
@@ -496,8 +501,4 @@ function JuMP.parse_constraint_call(
     end
     build_call = :(build_constraint($error_fn, $f, $(OuterSet)($set)))
     return parse_code, build_call
-end
-
-function Base.rem(x::JuMP.AbstractJuMPScalar, d)
-    return rem_op(x, d)
 end

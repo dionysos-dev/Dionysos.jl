@@ -24,8 +24,11 @@ end
 is_nonempty_set(::LazySets.EmptySet) = false
 is_nonempty_set(P) = !isempty(P)
 
-function get_volume(P::Poly)
-    ph = LazySets.polyhedron(P; backend = CDDLib.Library())
+function get_volume(P::Poly; backend = nothing)
+    backend === nothing && error(
+        "No polyhedral backend provided. Set `polyhedra_backend`, e.g. CDDLib.Library().",
+    )
+    ph = LazySets.polyhedron(P; backend = backend)
     return Polyhedra.volume(ph)
 end
 
@@ -111,9 +114,14 @@ function disjointify(S::SemiLinearSet; atol::Float64 = 0.0)
     return SemiLinearSet(pieces)
 end
 
-function get_volume(S::SemiLinearSet; assume_disjoint::Bool = false, atol::Float64 = 0.0)
+function get_volume(
+    S::SemiLinearSet;
+    backend = nothing,
+    assume_disjoint::Bool = false,
+    atol::Float64 = 0.0,
+)
     Sd = assume_disjoint ? S : disjointify(S; atol = atol)
-    return sum(get_volume(P) for P in Sd.parts)
+    return sum(get_volume(P; backend = backend) for P in Sd.parts)
 end
 
 # ============================================================

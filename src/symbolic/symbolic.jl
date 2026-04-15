@@ -7,11 +7,8 @@ import ProgressMeter
 using JuMP
 
 import LinearAlgebra as LA
-using Colors
 using HybridSystems
 import MathematicalSystems as MS
-
-using Graphs, SimpleWeightedGraphs
 
 using ..Utils
 const UT = Utils

@@ -1,15 +1,11 @@
 export LazyEllipsoidsAbstraction
 
 module LazyEllipsoidsAbstraction
-using JuMP, Random
-
+using JuMP
 import LinearAlgebra as LA
-import IntervalArithmetic as IA
 
 import MathematicalSystems
 MS = MathematicalSystems
-
-Random.seed!(0)
 
 import Dionysos
 const DI = Dionysos
@@ -295,26 +291,21 @@ end
 
 function get_candidate(
     tree::UT.Tree,
-    X::IA.IntervalBox,
+    X,
     E0::UT.Ellipsoid;
-    probSkew = 0.0,
-    probE0 = 0.05,
-    intialDist = 1,
+    probTarget = 0.15,
+    probSkew = 0.35,
 )
     guess = UT.sample(X)
-    randVal = rand()
+    r = rand()
 
-    if randVal > probSkew + probE0
-        return guess
-    elseif randVal > probSkew
+    if r < probTarget
         return E0.c
+    elseif r < probTarget + probSkew
+        α = 0.7 + 0.3 * rand()   # strongly biased toward E0
+        return α * E0.c + (1 - α) * guess
     else
-        closestNode, dist =
-            UT.findNClosestNode(tree, UT.Ellipsoid(Matrix{Float64}(LA.I(length(E0.c))), E0))
-        l = randVal / probSkew
-        r = dist / intialDist
-        return (E0.c * l + closestNode.state.c * (1 - l)) * (1 - 0.3 * r) +
-               (0.3 * r) * guess
+        return guess
     end
 end
 
@@ -374,9 +365,6 @@ function new_conf(
     )
 
     wnew = zeros(concrete_system.nw)
-    X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
-    Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
-    W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
 
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
@@ -386,9 +374,9 @@ function new_conf(
         xnew,
         unew,
         wnew,
-        X̄,
-        Ū,
-        W̄,
+        xnew .+ concrete_system.ΔX,
+        unew .+ concrete_system.ΔU,
+        wnew .+ concrete_system.ΔW,
     )
 
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
@@ -469,10 +457,6 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
 
-    X̄ = IA.IntervalBox(xnew .+ concrete_system.ΔX)
-    Ū = IA.IntervalBox(unew .+ concrete_system.ΔU)
-    W̄ = IA.IntervalBox(wnew .+ concrete_system.ΔW)
-
     (affineSys, L) = ST.buildAffineApproximation(
         concrete_system.fsymbolic,
         concrete_system.x,
@@ -481,9 +465,9 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
         xnew,
         unew,
         wnew,
-        X̄,
-        Ū,
-        W̄,
+        xnew .+ concrete_system.ΔX,
+        unew .+ concrete_system.ΔU,
+        wnew .+ concrete_system.ΔW,
     )
 
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)

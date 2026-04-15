@@ -9,9 +9,9 @@ import MathematicalSystems as MS
 
 struct QuotientAutomaton{QT} <: ST.AbstractAutomatonList{0, 0}
     quotient::QT
-    qids::Vector{Int}                      # dense index -> quotient state id
-    id2idx::Dict{Int, Int}                 # quotient state id -> dense index
-    post_tab::Vector{Vector{Vector{Int}}}  # post_tab[s][u]
+    qids::Vector{Int}
+    id2idx::Dict{Int, Int}
+    post_tab::Vector{Vector{Vector{Int}}}
     pre_tab::Vector{Vector{Tuple{Int, Int}}}
     ninput::Int
 end
@@ -114,8 +114,8 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
     abstract_controller::Union{Nothing, MS.SystemWithOutput}
     qa0::Union{Nothing, Int}
-    controllable_set::Union{Nothing, Vector{Int}}     # bisimulation qids
-    uncontrollable_set::Union{Nothing, Vector{Int}}   # bisimulation qids
+    controllable_set::Union{Nothing, Vector{Int}}
+    uncontrollable_set::Union{Nothing, Vector{Int}}
     value_fun_tab::Any
     success::Bool
     solve_time_sec::T
@@ -226,7 +226,6 @@ function build_abstract_problem(
         concrete_problem.spec,
         lab_abs,
         concrete_problem.ap_semantics,
-        concrete_problem.strict_spot,
     )
 end
 
@@ -234,10 +233,8 @@ end
 # Success condition
 # ============================================================
 
-# assuming concrete_initial_set is a singleton, success if:
-# there exists a winning lifted representative for the concrete initial point,
 function success(abstract_optimizer, concrete_initial_set)
-    return true # any(p -> p in abstract_optimizer.product_controllable_set, abstract_optimizer.product_initial_set)
+    return true
 end
 
 # ============================================================
@@ -272,7 +269,6 @@ function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
     return nothing
 end
 
-# Efficiency: find among successors first
 function _find_successor_qid(T::PCBisimulationQuotient, qid::Int, x)
     q = T.states[qid]
     for (_, dst_qid) in q.next
@@ -284,13 +280,11 @@ function _find_successor_qid(T::PCBisimulationQuotient, qid::Int, x)
     return nothing
 end
 
-# Fallback: global search in same node
 function _find_qid_same_node(T::PCBisimulationQuotient, qid::Int, x)
     node = T.states[qid].node
     return _find_qid_in_node(T, node, x)
 end
 
-# Fallback: global search (slow)
 function _find_qid_global(T::PCBisimulationQuotient, x)
     for (qid, q) in T.states
         if x ∈ q.set
@@ -306,13 +300,9 @@ function solve_concrete_problem_lifted(
 )
     T = Q.quotient
 
-    # abstract controller callables
-    h_abs = abstract_controller.outputmap.h      # expects ((qa, qs_dense))
-    g_abs = MS.mapping(abstract_controller.s)    # expects (qa, qs_dense)
+    h_abs = abstract_controller.outputmap.h
+    g_abs = MS.mapping(abstract_controller.s)
 
-    # ---------------------------------------------------------
-    # Conversion helpers
-    # ---------------------------------------------------------
     qid_to_qs(qid::Int) = Q.id2idx[qid]
     qs_to_qid(qs::Int) = Q.qids[qs]
 
@@ -325,19 +315,14 @@ function solve_concrete_problem_lifted(
         return us
     end
 
-    # ---------------------------------------------------------
-    # Concrete output map: ((qa,qid), x) -> u
-    # ---------------------------------------------------------
     h_conc = function (mem, x)
         qa, qid = mem
 
         haskey(T.states, qid) || return nothing
         q = T.states[qid]
-        # Prefer the current cell if x still belongs to it
         qid_use = if x ∈ q.set
             qid
         else
-            # fallback: search in same node partition
             qid_same = _find_qid_same_node(T, qid, x)
             isnothing(qid_same) ? nothing : qid_same
         end
@@ -349,32 +334,24 @@ function solve_concrete_problem_lifted(
         u_sym = pick_symbol(us)
         u_sym === nothing && return nothing
 
-        # for the quotient, mode index is already the concrete switched input
         return u_sym
     end
 
-    # ---------------------------------------------------------
-    # Memory update: ((qa,qid), x_for_update) -> (qa_next, qid_next)
-    # ---------------------------------------------------------
     g_conc = function (mem, x_for_update)
         qa, qid = mem
 
         haskey(T.states, qid) || return mem
 
-        # First try successor cells
         qid_next = _find_successor_qid(T, qid, x_for_update)
 
-        # Then fallback to same node
         if isnothing(qid_next)
             qid_next = _find_qid_same_node(T, qid, x_for_update)
         end
 
-        # Then fallback globally
         if isnothing(qid_next)
             qid_next = _find_qid_global(T, x_for_update)
         end
 
-        # If still nothing, keep memory unchanged
         isnothing(qid_next) && return mem
 
         qs_dense_next = qid_to_qs(qid_next)
@@ -383,9 +360,6 @@ function solve_concrete_problem_lifted(
         return (qa_next, qid_next)
     end
 
-    # ---------------------------------------------------------
-    # Domain predicate
-    # ---------------------------------------------------------
     is_defined_memx = function (memx)
         mem, x = memx
         qa, qid = mem
@@ -408,14 +382,10 @@ function solve_concrete_problem_lifted(
     end
     X_memx = PredicateDomain(is_defined_memx)
 
-    # ---------------------------------------------------------
-    # Dimensions
-    # ---------------------------------------------------------
     first_q = first(values(T.states))
     nx = dim(first_q.set)
     nu = 1
 
-    # memory is a 2-tuple (qa,qid)
     outmap = MS.ConstrainedBlackBoxMap(2, nu, memx -> begin
         mem, x = memx
         h_conc(mem, x)
@@ -440,7 +410,6 @@ function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
     return solve_concrete_problem_lifted(Q, Cabs)
 end
 
-import Spot
 function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     Q = opt.quotient_automaton
     absopt = opt.abstract_optimizer
@@ -459,16 +428,11 @@ function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x
         absprob.labeling isa Function ? absprob.labeling :
         OPDS.labeling_function_from_state_sets(absprob.labeling)
 
-    spec0 = absprob.spec
-    spec = if spec0 isa Spot.SpotFormula
-        OPDS.spot_stepper(spec0)
-    elseif spec0 isa OPDS.AbstractSpecStepper
-        spec0
-    else
-        error("Unsupported spec type $(typeof(spec0))")
-    end
+    spec = absprob.spec
+    spec isa OPDS.AbstractSpecStepper ||
+        error("Unsupported spec type $(typeof(spec)); expected AbstractSpecStepper")
 
-    candidates = Tuple{Int, Int}[]  # (qs_dense, qid)
+    candidates = Tuple{Int, Int}[]
     for (qs, qid) in enumerate(Q.qids)
         if x0 ∈ T.states[qid].set
             push!(candidates, (qs, qid))
@@ -501,10 +465,8 @@ function simulate_closed_loop(
     N::Int = 20,
     update_on_next::Bool = true,
 )
-    # plant matrices / reset maps
     A = f.resetmaps
 
-    # controller callables
     h = controller.outputmap.h
     g = MS.mapping(controller.s)
 
@@ -519,11 +481,9 @@ function simulate_closed_loop(
     push!(mems, mem)
 
     for k in 1:N
-        # controller output
         u = h((mem, x))
         u === nothing && break
 
-        # if controller returns a vector, pick first
         if u isa AbstractVector
             isempty(u) && break
             u = first(u)
@@ -531,7 +491,6 @@ function simulate_closed_loop(
 
         push!(us, u)
 
-        # plant update
         Ak = A[Int(u)]
         xnext = if Ak isa AbstractMatrix
             Ak * x
@@ -541,7 +500,6 @@ function simulate_closed_loop(
             error("Cannot simulate reset map of type $(typeof(Ak))")
         end
 
-        # controller memory update
         x_for_update = update_on_next ? xnext : x
         mem = g(mem, x_for_update)
 

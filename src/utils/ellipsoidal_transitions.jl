@@ -42,10 +42,13 @@ end
 
 function _getμν(L, subsys::AffineSys)
     n_x = length(subsys.c)
-    return (
-        LazySets.vertices_list(IA.IntervalBox(IA.interval(-x, x) for x in L[1:n_x])),
-        LazySets.vertices_list(IA.IntervalBox(subsys.D * subsys.W...)),
-    )
+
+    μ = LazySets.vertices_list(LazySets.Hyperrectangle(zeros(n_x), collect(L[1:n_x])))
+
+    Wmat = subsys.D * subsys.W
+    ν = [Wmat[:, i] for i in 1:size(Wmat, 2)]
+
+    return μ, ν
 end
 
 function hasTransition(

@@ -67,7 +67,7 @@ function mechanism(;
         params = [inertias..., lengths..., gravitational_acceleration...]
         transpose(params)
 
-        axis = SVector(zero(T), one(T), zero(T)) # axis of rotation for each for the knee and hips joints (around y-axis)
+        axis = SVector{3, Float64}(0.0, 1.0, 0.0) # axis of rotation for each for the knee and hips joints (around y-axis)
         mechanism = Mechanism(RigidBody{T}("world"); gravity = SVector(zero(T), zero(T), g))
         world = root_body(mechanism) # the fixed 'world' rigid body	
 
@@ -100,7 +100,7 @@ function mechanism(;
         )
 
         body2 = RigidBody(inertia2)
-        joint2 = Joint("r_hips_joint", Revolute(axis))
+        joint2 = Joint("r_hips_joint", Revolute{T}(axis))
         joint2_to_body1 = Transform3D(
             frame_before(joint2),
             default_frame(body1),
@@ -117,7 +117,7 @@ function mechanism(;
         )
 
         body4 = RigidBody(inertia4)
-        joint4 = Joint("l_hips_joint", Revolute(axis))
+        joint4 = Joint("l_hips_joint", Revolute{T}(axis))
         joint4_to_body1 = Transform3D(
             frame_before(joint4),
             default_frame(body1),
@@ -134,7 +134,7 @@ function mechanism(;
         )
 
         body3 = RigidBody(inertia3)
-        joint3 = Joint("r_knee_joint", Revolute(axis))
+        joint3 = Joint("r_knee_joint", Revolute{T}(axis))
         joint3_to_body2 = Transform3D(
             frame_before(joint3),
             default_frame(body2),
@@ -151,7 +151,7 @@ function mechanism(;
         )
 
         body5 = RigidBody(inertia5)
-        joint5 = Joint("l_knee_joint", Revolute(axis))
+        joint5 = Joint("l_knee_joint", Revolute{T}(axis))
         joint5_to_body4 = Transform3D(
             frame_before(joint5),
             default_frame(body4),

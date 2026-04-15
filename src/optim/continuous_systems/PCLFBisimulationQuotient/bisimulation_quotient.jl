@@ -75,12 +75,20 @@ function semilinear_by_node(T::PCBisimulationQuotient, state_ids)
     )
 end
 
-function get_volume(T::PCBisimulationQuotient, state_ids; atol::Float64 = 0.0)
+function get_volume(
+    T::PCBisimulationQuotient,
+    state_ids;
+    backend = nothing,
+    atol::Float64 = 0.0,
+)
+    backend === nothing &&
+        error("No polyhedral backend provided. Example: backend = CDDLib.Library().")
+
     S_by_node = semilinear_by_node(T, state_ids)
     isempty(S_by_node) && return 0.0
 
     if length(S_by_node) == 1
-        return sum(get_volume(P) for P in first(values(S_by_node)).parts)
+        return sum(get_volume(P; backend = backend) for P in first(values(S_by_node)).parts)
     end
 
     total = 0.0
@@ -104,7 +112,7 @@ function get_volume(T::PCBisimulationQuotient, state_ids; atol::Float64 = 0.0)
             current = new_current
         end
 
-        total += sum(get_volume(P) for P in current)
+        total += sum(get_volume(P; backend = backend) for P in current)
         append!(accumulated_parts, Snode.parts)
     end
 

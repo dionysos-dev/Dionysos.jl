@@ -103,8 +103,8 @@ construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_t
 println("Construction time = ", construction_time)
 
 # const FILENAME = joinpath(@__DIR__, "example1.jld2")
-# AB.PCLFBisimulationQuotient.export_optimizer_jld2(optimizer, FILENAME)
-# optimizer = AB.PCLFBisimulationQuotient.import_optimizer_jld2(FILENAME)
+# export_optimizer_jld2(optimizer, FILENAME)
+# optimizer = import_optimizer_jld2(FILENAME)
 
 bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
 D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
@@ -130,15 +130,16 @@ display(fig)
 using Spot
 
 φ = ltl"F(R1 & F(D))" # ltl"(!R1) U D"
+spec = Dionysos.spot_stepper(φ)
+
 x0 = SVector(2.3, 1.5)
 _I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
 prob = PR.CoSafeLTLProblem(
     f,
     _I_,
-    φ,
+    spec,
     Dict(:D => D, :R1 => R1, :R2 => R2),
     Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER),
-    true,
 )
 
 optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)

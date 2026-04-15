@@ -34,7 +34,8 @@ get_input_domain(sym::LocalGridBasedSymbolicModel) = get_input_domain(sym.parent
 
 # forward everything else to parent
 get_concrete_state(sym::LocalGridBasedSymbolicModel, q) = get_concrete_state(sym.parent, q)
-get_concrete_elem(sym::LocalGridBasedSymbolicModel, q) = get_concrete_elem(sym.parent, q)
+get_concrete_elem(sym::LocalGridBasedSymbolicModel, q::Int) =
+    get_concrete_elem(sym.parent, q)
 get_concrete_input(sym::LocalGridBasedSymbolicModel, u) = get_concrete_input(sym.parent, u)
 get_abstract_state(sym::LocalGridBasedSymbolicModel, x) = get_abstract_state(sym.parent, x)
 add_transitions!(sym::LocalGridBasedSymbolicModel, trans) =

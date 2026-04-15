@@ -42,8 +42,8 @@ function ListMapping(points::AbstractVector{SVector{N, T}}) where {N, T}
     return ListMapping{N, T}(id2, coord2)
 end
 
-function ListMapping(points::AbstractVector{<:NTuple{N, T}}) where {N, T}
-    return ListMapping([SVector{N, T}(p) for p in points])
+function ListMapping(points::AbstractVector{<:Tuple})
+    return ListMapping([SVector(p) for p in points])
 end
 
 function ListMapping(points::AbstractVector{<:AbstractVector{T}}) where {T}

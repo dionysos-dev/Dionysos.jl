@@ -1,7 +1,6 @@
 using StaticArrays
 using MathematicalSystems
 using Dionysos
-using Spot
 using JuMP
 import MathOptInterface as MOI
 
@@ -13,6 +12,9 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 const OPDS = OP.DiscreteSystems
+
+using Spot
+with_spot = true
 
 # ------------------------------------------------------------
 # 1) Define a simple 2D continuous-time system: x' = u
@@ -94,43 +96,6 @@ obs1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 obs2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
 obs = UT.LazySetUnion([obs1, obs2])
 
-# co-safe formula
-φ = ltl"G(!obs) & F(g1 & F(g2 & F(g3  & F(g1))))"
-
-struct MonitorG1G2G3G1NoObs end
-
-@inline function mon_next(::MonitorG1G2G3G1NoObs, q::Int, ap::Tuple{Vararg{Symbol}})
-    obs = (:obs in ap)
-    g1 = (:g1 in ap)
-    g2 = (:g2 in ap)
-    g3 = (:g3 in ap)
-
-    obs && return 0        # safety violation -> dead
-    q == 0 && return 0     # dead sink
-    q == 5 && return 5     # done sink
-
-    if q == 1
-        # waiting for first g1
-        return g1 ? 2 : 1
-    elseif q == 2
-        # have first g1, waiting for g2
-        return g2 ? 3 : 2
-    elseif q == 3
-        # have g2, waiting for g3
-        return g3 ? 4 : 3
-    else
-        @assert q == 4
-        # have g3, waiting for final g1
-        return g1 ? 5 : 4
-    end
-end
-
-mon = OPDS.FunctionMonitor(
-    1,         # initial
-    Set([5]),  # accepting
-    (qa, ap) -> mon_next(MonitorG1G2G3G1NoObs(), qa, ap),
-)
-
 # labeling dictionary: AP => concrete set (LazySet / HyperRectangle)
 labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)
 
@@ -138,14 +103,47 @@ labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)
 ap_semantics =
     Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :g3 => MP.INNER, :obs => MP.OUTER)
 
-concrete_problem = DI.Problem.CoSafeLTLProblem(
-    concrete_system,
-    _I_,
-    φ, # φ, mon
-    labeling,
-    ap_semantics,
-    false,
-)
+# co-safe formula
+if with_spot
+    φ = ltl"G(!obs) & F(g1 & F(g2 & F(g3  & F(g1))))"
+    spec = Dionysos.spot_stepper(φ)
+else
+    φ = "G(!obs) & F(g1 & F(g2 & F(g3  & F(g1))))"
+    struct MonitorG1G2G3G1NoObs end
+    @inline function mon_next(::MonitorG1G2G3G1NoObs, q::Int, ap::Tuple{Vararg{Symbol}})
+        obs = (:obs in ap)
+        g1 = (:g1 in ap)
+        g2 = (:g2 in ap)
+        g3 = (:g3 in ap)
+
+        obs && return 0        # safety violation -> dead
+        q == 0 && return 0     # dead sink
+        q == 5 && return 5     # done sink
+
+        if q == 1
+            # waiting for first g1
+            return g1 ? 2 : 1
+        elseif q == 2
+            # have first g1, waiting for g2
+            return g2 ? 3 : 2
+        elseif q == 3
+            # have g2, waiting for g3
+            return g3 ? 4 : 3
+        else
+            @assert q == 4
+            # have g3, waiting for final g1
+            return g1 ? 5 : 4
+        end
+    end
+    spec = OPDS.FunctionMonitor(
+        1,         # initial
+        Set([5]),  # accepting
+        (qa, ap) -> mon_next(MonitorG1G2G3G1NoObs(), qa, ap),
+    )
+end
+
+concrete_problem =
+    DI.Problem.CoSafeLTLProblem(concrete_system, _I_, spec, labeling, ap_semantics)
 
 # ------------------------------------------------------------
 # 4) Solve using the SAME pipeline optimizer

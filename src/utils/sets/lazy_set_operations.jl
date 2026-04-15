@@ -254,6 +254,9 @@ end
 intersect(s::AbstractLazySet{N, T}, I::LazySetIntersection{N, T}) where {N, T} =
     intersect(I, s)
 
+intersect(I1::LazySetIntersection{N, T}, I2::LazySetIntersection{N, T}) where {N, T} =
+    LazySetIntersection{N, T}(vcat(I1.sets, I2.sets))
+
 # ----------------------------
 # Periodic wrapping
 # ----------------------------
