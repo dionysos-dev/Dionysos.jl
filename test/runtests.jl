@@ -1,3 +1,6 @@
+
+include("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl")
+
 include("./utils/data_structures/sorted_vector_set.jl")
 include("./utils/data_structures/tree.jl")
 include("./utils/scalar_functions.jl")
@@ -37,7 +40,6 @@ include("./optim/UniformGridAbstraction/uniform_grid_abstraction_reachability.jl
 include("./optim/UniformGridAbstraction/uniform_grid_abstraction_safety.jl")
 include("./optim/UniformGridAbstraction/uniform_grid_abstraction_cosafeLTL.jl")
 include("./optim/UniformEllipsoidAbstraction/uniform_ellipsoid_abstraction.jl")
-include("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl")
 include("./optim/HybridSystemAbstraction/hybrid_system_abstraction.jl")
 
 include("./optim/GolLazarBelta/gol_lazar_belta.jl")

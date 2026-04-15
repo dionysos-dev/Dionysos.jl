@@ -43,8 +43,8 @@ function ST._getLipschitzConstants(J, xi, Xi_vals)
 
         mat = Matrix{Any}(undef, nr, nc)
         for r in 1:nr, c in 1:nc
-            f_rc =
-                Symbolics.build_function(Hg_s[r, c], collect(xi); expression = Val(false))
+            bf = Symbolics.build_function(Hg_s[r, c], xi...; expression = Val(false))
+            f_rc = bf isa Tuple ? bf[1] : bf
             mat[r, c] = f_rc(Xi_vals...)
         end
 
