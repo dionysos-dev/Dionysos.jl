@@ -21,7 +21,8 @@ import LinearAlgebra as LA
 import Base
 import RecipesBase: @recipe, @series
 
-include("geometry_interface.jl")
+const Poly = LazySets.HPolytope
+
 include("bisimulation_quotient.jl")
 include("sublevel_support.jl")
 
@@ -44,7 +45,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
 
     # --- results ---
     Γ::Union{Nothing, Vector{Float64}}
-    D::Union{Nothing, SemiLinearSet}
+    D::Union{Nothing, UT.SemiLinearSet}
     bisimulation_quotient::Any
     construction_time_sec::T
 
@@ -133,7 +134,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     Γ, D = build_levels_and_terminal_set(
         opt.pclf,
         X,
-        [_as_hpolytope(R) for R in regions];
+        [UT._as_hpolytope(R) for R in regions];
         tol = opt.level_tol,
         max_levels = opt.max_levels,
         ΓX = opt.ΓX,
@@ -179,7 +180,7 @@ function bisimulation_pclf(
     slices = build_slice_sequence(sublevels; atol = atol)
 
     U = typeof(first(pclf.graph.verts))
-    SL = SemiLinearSet
+    SL = UT.SemiLinearSet
     T = PCBisimulationQuotient{SL, U}(slices)
 
     initialize_partitions!(T; neutral_obs = 0, terminal_obs = -1)
@@ -207,7 +208,7 @@ function bisimulation_pclf(
                 haskey(T.states, qid) || continue
                 q = T.states[qid]
 
-                pre_parts = preimage_linear_parts(q.set, A[m])
+                pre_parts = UT.preimage_linear_parts(q.set, A[m])
                 isempty(pre_parts) && continue
 
                 for s in source_nodes
@@ -270,7 +271,8 @@ function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     sublevels = Dict{U, Vector{Poly}}()
     for s in pclf.graph.verts
         piece = pclf.pieces[s]
-        sublevels[s] = [_as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
+        sublevels[s] =
+            [UT._as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
     end
     return sublevels
 end
@@ -279,17 +281,17 @@ function build_slice_sequence(
     sublevels::Dict{U, Vector{Poly}};
     atol::Float64 = 0.0,
 ) where {U}
-    slices = Dict{U, Vector{SemiLinearSet}}()
+    slices = Dict{U, Vector{UT.SemiLinearSet}}()
 
     for (s, Ps) in sublevels
         Ns = length(Ps)
-        local_slices = Vector{SemiLinearSet}(undef, Ns)
+        local_slices = Vector{UT.SemiLinearSet}(undef, Ns)
 
-        local_slices[1] = SemiLinearSet(Ps[1])
+        local_slices[1] = UT.SemiLinearSet(Ps[1])
 
         for i in 2:Ns
-            diff_parts = set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
-            local_slices[i] = SemiLinearSet(diff_parts)
+            diff_parts = UT.set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
+            local_slices[i] = UT.SemiLinearSet(diff_parts)
         end
         slices[s] = local_slices
     end
@@ -301,14 +303,14 @@ end
 # ============================================================
 
 function initialize_partitions!(
-    T::PCBisimulationQuotient{SemiLinearSet, U};
+    T::PCBisimulationQuotient{UT.SemiLinearSet, U};
     neutral_obs::Int = 0,
     terminal_obs::Int = -1,
 ) where {U}
     for (s, slice_list) in T.slices
         for (i, Sset) in enumerate(slice_list)
             obs = (i == 1) ? terminal_obs : neutral_obs
-            if is_nonempty_set(Sset)
+            if UT.is_nonempty_set(Sset)
                 add_state!(T, s, Sset, obs, i)
             end
         end
@@ -317,7 +319,7 @@ function initialize_partitions!(
 end
 
 function refine_state_by_observation!(
-    T::PCBisimulationQuotient{SemiLinearSet, U},
+    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
     qid::Int,
     R::Poly,
     new_obs::Int;
@@ -339,12 +341,12 @@ function refine_state_by_observation!(
     touched = false
 
     for Q in q.set
-        I = set_intersection(Q, R)
-        if is_nonempty_set(I)
+        I = UT.set_intersection(Q, R)
+        if UT.is_nonempty_set(I)
             touched = true
             push!(inside_parts, I)
 
-            D = set_difference_decompose(Q, R; atol = atol)
+            D = UT.set_difference_decompose(Q, R; atol = atol)
             if !isempty(D)
                 append!(outside_parts, D)
             end
@@ -358,12 +360,13 @@ function refine_state_by_observation!(
     remove_state!(T, qid)
 
     if !isempty(outside_parts)
-        out_id = add_state!(T, old_node, SemiLinearSet(outside_parts), old_obs, old_slice)
+        out_id =
+            add_state!(T, old_node, UT.SemiLinearSet(outside_parts), old_obs, old_slice)
         T.states[out_id].next = old_next
     end
 
     if !isempty(inside_parts)
-        in_id = add_state!(T, old_node, SemiLinearSet(inside_parts), new_obs, old_slice)
+        in_id = add_state!(T, old_node, UT.SemiLinearSet(inside_parts), new_obs, old_slice)
         T.states[in_id].next = old_next
     end
 
@@ -371,12 +374,12 @@ function refine_state_by_observation!(
 end
 
 function refine_partitions_by_observations!(
-    T::PCBisimulationQuotient{SemiLinearSet, U},
+    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
     regions;
     terminal_obs::Int = -1,
     atol::Float64 = 0.0,
 ) where {U}
-    Rh = [_as_hpolytope(R) for R in regions]
+    Rh = [UT._as_hpolytope(R) for R in regions]
 
     for (obs, R) in enumerate(Rh)
         qids = copy(collect(keys(T.states)))
@@ -421,7 +424,7 @@ end
 # ============================================================
 
 function refine_one_state!(
-    T::PCBisimulationQuotient{SemiLinearSet, U},
+    T::PCBisimulationQuotient{UT.SemiLinearSet, U},
     qid::Int,
     pre_parts::AbstractVector,
     mode::Int,
@@ -441,24 +444,24 @@ function refine_one_state!(
     touched = false
 
     for Q in q.set
-        Qrem = SemiLinearSet(Q)
+        Qrem = UT.SemiLinearSet(Q)
 
         for preP in pre_parts
-            I = set_intersection(Qrem, preP)
-            if !is_nonempty_set(I)
+            I = UT.set_intersection(Qrem, preP)
+            if !UT.is_nonempty_set(I)
                 continue
             end
 
             touched = true
             append!(inside_parts, I)
 
-            Qrem = set_difference_decompose(Qrem, preP; atol = atol)
-            if !is_nonempty_set(Qrem)
+            Qrem = UT.set_difference_decompose(Qrem, preP; atol = atol)
+            if !UT.is_nonempty_set(Qrem)
                 break
             end
         end
 
-        if is_nonempty_set(Qrem)
+        if UT.is_nonempty_set(Qrem)
             append!(outside_parts, Qrem)
         end
     end
@@ -468,11 +471,12 @@ function refine_one_state!(
     remove_state!(T, qid)
 
     if !isempty(outside_parts)
-        diff_id = add_state!(T, old_node, SemiLinearSet(outside_parts), old_obs, old_slice)
+        diff_id =
+            add_state!(T, old_node, UT.SemiLinearSet(outside_parts), old_obs, old_slice)
         T.states[diff_id].next = copy(old_next)
     end
 
-    inter_id = add_state!(T, old_node, SemiLinearSet(inside_parts), old_obs, old_slice)
+    inter_id = add_state!(T, old_node, UT.SemiLinearSet(inside_parts), old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)
 
