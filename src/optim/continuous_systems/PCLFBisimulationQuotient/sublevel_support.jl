@@ -183,8 +183,8 @@ function piece_intersects_region_at_level(
 
     τeff = max(Float64(τ) - tol, 0.0)
     Pτ = PCLF.get_sublevel_set(piece, τeff)
-    I = set_intersection(Pτ, R)
-    return is_nonempty_set(I)
+    I = UT.set_intersection(Pτ, R)
+    return UT.is_nonempty_set(I)
 end
 
 # ============================================================
@@ -196,5 +196,5 @@ function compute_D_from_tau(pclf::PCLF.PCLF, τD::Real)
     isempty(pieces) && error("PCLF has no pieces.")
 
     sublevel_sets = [PCLF.get_sublevel_set(piece, τD) for piece in pieces]
-    return SemiLinearSet(sublevel_sets)
+    return UT.SemiLinearSet(sublevel_sets)
 end

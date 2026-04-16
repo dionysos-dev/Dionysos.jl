@@ -21,6 +21,7 @@ include("sets/rectangle.jl")
 include("sets/ellipsoid.jl")
 include("sets/degenerate_ellipsoid.jl")
 include("sets/polyhedron.jl")
+include("sets/semilinear_set.jl")
 
 include("ellipsoidal_transitions.jl")
 

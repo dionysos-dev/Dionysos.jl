@@ -1,6 +1,3 @@
-
-include("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl")
-
 include("./utils/data_structures/sorted_vector_set.jl")
 include("./utils/data_structures/tree.jl")
 include("./utils/scalar_functions.jl")
@@ -8,6 +5,7 @@ include("./utils/optim/newton_method.jl")
 include("./utils/optim/bisection.jl")
 include("./utils/sets/rectangle.jl")
 include("./utils/sets/ellipsoid.jl")
+include("./utils/sets/semilinear_set.jl")
 include("./utils/sets/lazy_set_operations.jl")
 include("./utils/ellipsoidal_transitions.jl")
 include("./utils/pclf.jl")
@@ -32,6 +30,7 @@ include("./symbolic/allocation.jl")
 include("./symbolic/multithreading.jl")
 include("./symbolic/multiprocessing.jl")
 
+include("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl")
 include("./optim/UniformGridAbstraction/unit_test_reachability.jl")
 include("./optim/UniformGridAbstraction/unit_test_safety.jl")
 include("./optim/UniformGridAbstraction/unit_test_growth_bound.jl")

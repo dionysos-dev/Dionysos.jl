@@ -85,12 +85,12 @@ function from_autom_to_bis_value_function(Q::QuotientAutomaton, V::AbstractVecto
 end
 
 function get_states_from_set(Q::QuotientAutomaton, X0)
-    X0h = _as_hpolytope(X0)
+    X0h = UT._as_hpolytope(X0)
     out = Int[]
     for (i, qid) in enumerate(Q.qids)
         q = Q.quotient.states[qid]
-        I = set_intersection(q.set, X0h)
-        is_nonempty_set(I) && push!(out, i)
+        I = UT.set_intersection(q.set, X0h)
+        UT.is_nonempty_set(I) && push!(out, i)
     end
     return out
 end
@@ -383,7 +383,7 @@ function solve_concrete_problem_lifted(
     X_memx = PredicateDomain(is_defined_memx)
 
     first_q = first(values(T.states))
-    nx = dim(first_q.set)
+    nx = UT.dim(first_q.set)
     nu = 1
 
     outmap = MS.ConstrainedBlackBoxMap(2, nu, memx -> begin

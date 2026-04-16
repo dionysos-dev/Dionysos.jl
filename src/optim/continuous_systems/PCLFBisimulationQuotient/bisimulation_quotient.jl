@@ -71,7 +71,8 @@ function semilinear_by_node(T::PCBisimulationQuotient, state_ids)
     end
 
     return Dict(
-        nd => normalize_semilinear(SemiLinearSet(parts)) for (nd, parts) in parts_by_node
+        nd => UT.normalize_semilinear(UT.SemiLinearSet(parts)) for
+        (nd, parts) in parts_by_node
     )
 end
 
@@ -88,7 +89,9 @@ function get_volume(
     isempty(S_by_node) && return 0.0
 
     if length(S_by_node) == 1
-        return sum(get_volume(P; backend = backend) for P in first(values(S_by_node)).parts)
+        return sum(
+            UT.get_volume(P; backend = backend) for P in first(values(S_by_node)).parts
+        )
     end
 
     total = 0.0
@@ -102,9 +105,9 @@ function get_volume(
 
             new_current = Poly[]
             for P in current
-                I = set_intersection(P, Q)
-                if is_nonempty_set(I)
-                    append!(new_current, set_difference_decompose(P, Q; atol = atol))
+                I = UT.set_intersection(P, Q)
+                if UT.is_nonempty_set(I)
+                    append!(new_current, UT.set_difference_decompose(P, Q; atol = atol))
                 else
                     push!(new_current, P)
                 end
@@ -112,7 +115,7 @@ function get_volume(
             current = new_current
         end
 
-        total += sum(get_volume(P; backend = backend) for P in current)
+        total += sum(UT.get_volume(P; backend = backend) for P in current)
         append!(accumulated_parts, Snode.parts)
     end
 
@@ -213,7 +216,7 @@ end
     if what == :slices
         seen = Set{Tuple{Any, Int}}()
 
-        groups = Tuple{Any, Int, SemiLinearSet}[]
+        groups = Tuple{Any, Int, UT.SemiLinearSet}[]
         for (nd, slice_list) in T.slices
             if !isnothing(node) && nd != node
                 continue
