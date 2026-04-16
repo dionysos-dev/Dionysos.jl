@@ -30,6 +30,23 @@ abstract type AbstractPiece end
 
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
 
+# Any template:
+function get_sublevel_set(
+    piece::AbstractPiece,
+    γ::Float64;
+    xmin = -2.0,
+    xmax = 2.0,
+    ymin = -2.0,
+    ymax = 2.0,
+    N = 300,
+)
+    xs = range(xmin, xmax; length = N)
+    ys = range(ymin, ymax; length = N)
+    vals = [piece_value(piece, [x, y]) for y in ys, x in xs]
+    mask = vals .<= γ
+    return xs, ys, vals, mask
+end
+
 # Quadratic Lyapunov functions:
 mutable struct EllipsoidalPiece <: AbstractPiece
     P::Matrix{Float64}   # symmetric positive-definite matrix
@@ -732,6 +749,127 @@ function compute_polyhedral_pieces_pclf(
     end
 
     return PCLF(D, pieces, gamma)
+end
+
+# Evaluation of a piece at a vector x:
+piece_value(::AbstractPiece, ::AbstractVector{<:Real}) =
+    error("piece_value not implemented")
+
+function piece_value(p::EllipsoidalPiece, x::AbstractVector{<:Real})
+    return LinearAlgebra.dot(x, p.P * x)
+end
+
+function piece_value(p::PolyhedralPiece, x::AbstractVector{<:Real})
+    gx = p.G * x
+    return maximum(abs.(gx) ./ p.w)
+end
+
+struct ObserverCLFPiece{U} <: AbstractPiece
+    observer_states::Vector{Set{U}}
+    base_pieces::Dict{U, AbstractPiece}
+end
+
+#function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
+#    parts = LazySets.HPolytope[]
+#
+#    for S in piece.observer_states
+#        isempty(S) && continue
+#
+#        cons = LazySets.HalfSpace[]
+#        for i in S
+#            Pi = piece.base_pieces[i]
+#            @assert Pi isa PolyhedralPiece
+
+#            for k in 1:size(Pi.G, 1)
+#                gk = vec(Pi.G[k, :])
+#                push!(cons, LazySets.HalfSpace( gk, γ * Pi.w[k]))
+#                push!(cons, LazySets.HalfSpace(-gk, γ * Pi.w[k]))
+#            end
+#        end
+
+#        push!(parts, LazySets.HPolytope(cons))
+#    end
+
+#    return SemiLinearSet(clean_poly(parts))     # TO be modified 
+#end
+
+function piece_value(p::ObserverCLFPiece, x::AbstractVector{<:Real})
+    best = Inf
+    for S in p.observer_states
+        isempty(S) && continue
+        worst = -Inf
+        for i in S
+            worst = max(worst, piece_value(p.base_pieces[i], x))
+        end
+        best = min(best, worst)
+    end
+    return best
+end
+
+graph_labels(g::LabDigraph{T, U}) where {T, U} = unique(last.(g.edges))
+
+function successor_subset(g::LabDigraph{T, U}, S::Set{U}, h::T) where {T, U}
+    Tset = Set{U}()
+    for (src, dst, lab) in g.edges
+        if lab == h && src in S
+            push!(Tset, dst)
+        end
+    end
+    return Tset
+end
+
+canonical_state(S::Set{U}) where {U} = Tuple(sort(collect(S); by = x -> string(x)))
+
+function build_observer_graph(g::LabDigraph{T, U}) where {T <: Real, U}
+    alphabet = collect(graph_labels(g))
+    start = Set(g.verts)
+
+    states = Vector{Set{U}}()
+    trans = Dict{Tuple{Int, T}, Int}()
+    seen = Dict{Any, Int}()
+
+    push!(states, start)
+    seen[canonical_state(start)] = 1
+
+    queue = [1]
+    while !isempty(queue)
+        k = popfirst!(queue)
+        S = states[k]
+
+        for h in alphabet
+            Tset = successor_subset(g, S, h)
+            isempty(Tset) && continue
+
+            key = canonical_state(Tset)
+            if !haskey(seen, key)
+                seen[key] = length(states) + 1
+                push!(states, Tset)
+                push!(queue, length(states))
+            end
+            trans[(k, h)] = seen[key]
+        end
+    end
+
+    return states, trans, alphabet
+end
+
+function common_lyapunov_graph(labels::Vector{T}) where {T <: Real}
+    node = :clf
+    verts = Set([node])
+    edges = [(node, node, h) for h in labels]
+    return LabDigraph{T, Symbol}(edges, verts)
+end
+
+function build_common_lyapunov(pclf::PCLF)
+    states, _, alphabet = build_observer_graph(pclf.graph)
+
+    U = eltype(pclf.graph.verts)
+    pieces_typed = Dict{U, AbstractPiece}(pclf.pieces)
+
+    clf_piece = ObserverCLFPiece(states, pieces_typed)
+    clf_graph = common_lyapunov_graph(alphabet)
+
+    return PCLF(clf_graph, Dict(:clf => clf_piece), pclf.JSRapprox)
 end
 
 end # module
