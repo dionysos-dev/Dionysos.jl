@@ -4,9 +4,9 @@
   <img src="assets/images/logo.png"  height="240">
 </picture>
 
-| **Documentation and paper** | **Build Status** |
-|:-----------------:|:----------------:|
-| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url]  [![][docs-stable-img]][docs-stable-url]        | [![Build Status][build-img]][build-url]  [![Codecov branch][codecov-img]][codecov-url]      |
+| **Documentation & Paper** | **Build Status** | **Quality** |
+|:-----------------:|:----------------:|:------------:|
+| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url] [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Codecov][codecov-img]][codecov-url] | [![Aqua QA][aqua-img]][aqua-url] |
 
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
@@ -21,7 +21,8 @@
 [codecov-img]: https://codecov.io/github/dionysos-dev/Dionysos.jl/coverage.svg
 [codecov-url]: https://app.codecov.io/github/dionysos-dev/Dionysos.jl
 
-[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[aqua-img]: https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg
+[aqua-url]: https://github.com/JuliaTesting/Aqua.jl
 
 ## Overview
 Dionysos is the software of the ERC project Learning to control (L2C). In view of the Cyber-Physical Revolution, the only sensible way of controlling these complex systems is often by discretizing the different variables, thus transforming the model into a simple combinatorial problem on a finite-state automaton, called an abstraction of this system. The goal of L2C is to transform this approach into an effective, scalable, cutting-edge technology that will address the CPS challenges and unlock their potential. This ambitious goal will be achieved by leveraging powerful tools from Mathematical Engineering.

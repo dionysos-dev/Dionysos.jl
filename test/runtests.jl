@@ -1,3 +1,5 @@
+include("./aqua.jl")
+
 include("./utils/data_structures/sorted_vector_set.jl")
 include("./utils/data_structures/tree.jl")
 include("./utils/scalar_functions.jl")
