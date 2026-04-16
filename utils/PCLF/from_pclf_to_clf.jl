@@ -42,7 +42,7 @@ f = HybridSystems.discreteswitchedsystem([A1, A2])
 # Vclf = clf.pieces[:clf]
 
 # γ = 1000.0
-# xs, ys, vals, mask = PCLF.get_sublevel_set(Vclf, γ)
+# xs, ys, vals, mask = PCLF.approximate_sublevel_set(Vclf, γ)
 
 # fig = plot(; aspect_ratio = :equal);
 
@@ -78,8 +78,8 @@ clf_poly = PCLF.build_common_lyapunov(pclf_poly)
 Vclf_poly = clf_poly.pieces[:clf]
 
 γ = 0.5
-xs_poly, ys_poly, vals_poly, mask_poly = PCLF.get_sublevel_set(Vclf_poly, γ)
-#Sclf = PCLF.get_sublevel_set(Vclf_poly, γ)
+xs_poly, ys_poly, vals_poly, mask_poly = PCLF.approximate_sublevel_set(Vclf_poly, γ)
+#Sclf = PCLF.approximate_sublevel_set(Vclf_poly, γ)
 
 fig = plot(; aspect_ratio = :equal);
 

@@ -6,6 +6,7 @@ const PCLF = UT.PathCompleteFramework
 import HybridSystems
 import JuMP
 import Clarabel
+using StaticArrays
 using Plots
 
 function symmetric_2n_faces_polyhedral()

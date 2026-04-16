@@ -31,7 +31,7 @@ abstract type AbstractPiece end
 function get_sublevel_set(piece::AbstractPiece, gamma::Float64) end
 
 # Any template:
-function get_sublevel_set(
+function approximate_sublevel_set(
     piece::AbstractPiece,
     γ::Float64;
     xmin = -2.0,
