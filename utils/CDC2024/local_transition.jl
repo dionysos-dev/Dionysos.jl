@@ -1,5 +1,4 @@
 using StaticArrays, Random
-import IntervalArithmetic as IA
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
 using Plots, Colors
@@ -32,9 +31,9 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = IA.IntervalBox(xnew .+ sys.ΔX)
-    Ū = IA.IntervalBox(unew .+ sys.ΔU)
-    W̄ = IA.IntervalBox(wnew .+ sys.ΔW)
+    X̄ = xnew .+ sys.ΔX
+    Ū = unew .+ sys.ΔU
+    W̄ = wnew .+ sys.ΔW
     (affineSys, L) = ST.buildAffineApproximation(
         sys.fsymbolic,
         sys.x,
