@@ -9,7 +9,7 @@ Pkg.precompile()
 using Distributed
 using Printf
 
-NWORKERS = 2
+NWORKERS = 0
 
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 utils_path = joinpath(@__DIR__, "utils.jl")
@@ -332,8 +332,9 @@ if SIMULATE_FIRST_STEP
     t_low = SVector{n_state, Float64}([-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30])
     t_high = SVector{n_state, Float64}([-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75])
 
-    x_traj, u_traj =
-        solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
+    # x_traj, u_traj =
+    #     solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
+    x_traj = make_test_trajectory(; N = 300, dt = tstep)
 
     rs, vis = RSVisualization.get_visualization_tool(; robot_urdf = robot_urdf)
     RSVisualization.animate_trajectory!(vis, x_traj.seq; dt = tstep)
