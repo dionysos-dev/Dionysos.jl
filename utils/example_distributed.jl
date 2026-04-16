@@ -3,7 +3,7 @@ using Distributed
 # ----------------------------------------------------------------------
 # Worker configuration
 # ----------------------------------------------------------------------
-# const NWORKERS = 2
+# const NWORKERS = 3
 # length(workers()) < NWORKERS && addprocs(NWORKERS - length(workers()))
 
 @everywhere using Dionysos

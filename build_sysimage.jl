@@ -6,14 +6,7 @@ using PackageCompiler
 
 # Adjust this list to what you really want baked into the sysimage.
 # Only include packages that are stable and frequently used.
-packages = [
-    "Dionysos",
-    "MathematicalSystems",
-    "StaticArrays",
-    "LinearAlgebra",
-    "JuMP",
-    "MathOptInterface",
-]
+packages = ["Dionysos"]
 
 # Optional: compile representative calls too
 precompile_file = joinpath(@__DIR__, "precompile_execution.jl")

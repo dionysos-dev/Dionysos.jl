@@ -1,8 +1,7 @@
 module RobotProblem
 
-using MathematicalSystems
-using LinearAlgebra
 using StaticArrays
+using MathematicalSystems
 using RigidBodyDynamics
 using Base.Threads
 
@@ -11,17 +10,15 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
-const MP = DI.Mapping
-const SY = DI.Symbolic
 
-include(joinpath(@__DIR__, "..", "src", "RS_tools.jl"))
-import .RS_tools
+include(joinpath(@__DIR__, "..", "src", "RSCore.jl"))
+import .RSCore
 
 const _robot_cache = Ref{Any}(nothing)
 
 function _get_robot_data(robot_urdf::AbstractString)
     if _robot_cache[] === nothing || _robot_cache[].robot_urdf != robot_urdf
-        rs = RS_tools.RobotSimulator(;
+        rs = RSCore.RobotSimulator(;
             fileName = robot_urdf,
             symbolic = false,
             add_contact_points = true,
@@ -104,6 +101,7 @@ function system(;
             τ[idx_lo:idx_hi] .= τ_m
             return nothing
         end
+        return controller!
     end
 
     function build_state(x)

@@ -9,11 +9,12 @@ Pkg.precompile()
 using Distributed
 using Printf
 
-NWORKERS = 4
-
+NWORKERS = 2
 
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 utils_path = joinpath(@__DIR__, "utils.jl")
+rsviz_path = joinpath(@__DIR__, "..", "src", "RSVisualization.jl")
+
 # ----------------------------------------------------------------------
 # Timed startup
 # ----------------------------------------------------------------------
@@ -45,15 +46,12 @@ t_startup_total = @elapsed begin
 
     if length(workers()) < NWORKERS
         n_to_add = NWORKERS - length(workers())
-        addprocs(n_to_add; exeflags="--project=$(dirname(Base.active_project()))")
+        addprocs(n_to_add; exeflags = "--project=$(dirname(Base.active_project()))")
     end
 
     global t_worker_packages = @elapsed begin
         @everywhere begin
             using Dionysos
-            using MathematicalSystems
-            using StaticArrays
-            using LinearAlgebra
         end
     end
 
@@ -89,6 +87,12 @@ DISTRIBUTED_NPARTS = length(workers())
 println(DISTRIBUTED_NPARTS)
 DISTRIBUTED_PARTITION_STRATEGY = :contiguous # :roundrobin, :contiguous
 SIMPLIFY = 3.0 # increase to simplify abstraction (e.g. by increasing grid size)
+
+# Only load visualization tools on master, and only if needed
+if SIMULATE_FIRST_STEP || SIMULATE_SECOND_STEP
+    include(rsviz_path)
+    using .RSVisualization
+end
 
 # ==============================================================================
 # Helpers
@@ -331,8 +335,8 @@ if SIMULATE_FIRST_STEP
     x_traj, u_traj =
         solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
 
-    rs, vis = RobotProblem.RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
-    RobotProblem.RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
+    rs, vis = RSVisualization.get_visualization_tool(; robot_urdf = robot_urdf)
+    RSVisualization.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 end
 
 if SIMULATE_SECOND_STEP
