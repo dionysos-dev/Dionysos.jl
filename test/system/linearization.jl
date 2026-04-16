@@ -22,9 +22,10 @@ const TOL = 1e-6
     w̄ = [0.0]
 
     v = 10.0
-    X = IA.IntervalBox(IA.interval(-v, v))
-    U = IA.IntervalBox(IA.interval(-v, v))
-    W = IA.IntervalBox(IA.interval(-v, v))
+    X = [(-v,), (v,)]
+    U = [(-v,), (v,)]
+    W = [(-v,), (v,)]
+
     approx_sys, L = ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
 
     @test isapprox(L, [2.0, 0.0, 0.0], atol = TOL)
@@ -32,7 +33,13 @@ const TOL = 1e-6
     @test approx_sys.U === U
     @test approx_sys.W === W
     @test isapprox(
-        MathematicalSystems.successor(approx_sys, [0.0], [0.0], [0.0]),
+        MathematicalSystems.successor(
+            approx_sys,
+            [0.0],
+            [0.0],
+            [0.0];
+            check_constraints = false,
+        ),
         [0.0],
         atol = TOL,
     )
@@ -48,7 +55,7 @@ end
     W = [(-Inf, -Inf), (Inf, Inf)]
     sys =
         MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, D, X, U, W)
-    L = 1.0 # Just for the example, not mathematically correct
+    L = 1.0
 
     obj_from_sys = ST.AffineApproximationDiscreteSystem(sys, L)
     @test obj_from_sys.constrainedAffineSys === sys

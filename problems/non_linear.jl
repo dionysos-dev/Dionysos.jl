@@ -26,9 +26,9 @@ function unstableSimple(; μ = 0.00005, noise = false)
         ]
     end
 
-    x = [px; py] # state
-    u = [vx; vy] # control
-    w = [wx; wy] # noise
+    x = [px; py]
+    u = [vx; vy]
+    w = [wx; wy]
     return f, x, u, w, T
 end
 
@@ -37,21 +37,18 @@ function system(X, U, W, obstacles, Ts, noise, μ)
 
     fsymbolicT = eval(Symbolics.build_function(f, x, u, w, T)[1])
 
-    #### PWA approximation description #####
-    # symmetric box [-1,1]^2
-    ΔX = IA.IntervalBox(IA.interval(-1.0, 1.0), 2)
-    # symmetric box [-20,20]^2
-    ΔU = IA.IntervalBox(IA.interval(-20.0, 20.0), 2)
-    # zero noise
-    ΔW = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
+    #### Local approximation domains ####
+    ΔX = [IA.interval(-1.0, 1.0), IA.interval(-1.0, 1.0)]
+    ΔU = [IA.interval(-20.0, 20.0), IA.interval(-20.0, 20.0)]
+    ΔW = [IA.interval(0.0, 0.0), IA.interval(0.0, 0.0)]
 
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
-    #### Format of input and noise set #####
+    #### Format of input and noise set ####
     Uformat = UT.format_input_set(U)
     Wformat = UT.format_noise_set(W)
 
-    #### Forward and backward dynamics #####
+    #### Forward and backward dynamics ####
     function f_eval(x, u, w)
         return [
             1.1 * x[1] - 0.2 * x[2] - μ * x[2]^3 + Ts * u[1] + w[1]
@@ -91,18 +88,14 @@ function system(X, U, W, obstacles, Ts, noise, μ)
 end
 
 function problem(;
-    # global state domain: [-20, 20]^2
     X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
 
-    # obstacle: ellipsoid with covariance (I/30) at [0,0]
     obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 30), [0.0; 0.0])],
 
     U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
 
-    # initial ellipsoid: 10 * I at [-10, -10]
     E0 = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 10.0, [-10.0; -10.0]),
 
-    # target ellipsoid: 1 * I at [10, 10]
     Ef = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 1.0, [10.0; 10.0]),
 
     state_cost = UT.ZeroFunction(),

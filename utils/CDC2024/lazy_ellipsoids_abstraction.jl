@@ -1,6 +1,5 @@
 using StaticArrays, Random
 import LinearAlgebra as LA
-import IntervalArithmetic as IA
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
 using Plots, Colors
@@ -24,7 +23,7 @@ Wbound = 0.0
 λ = 0.01
 
 concrete_problem = NonLinear.problem(;
-    X = IA.IntervalBox(IA.interval(-20.0, 20.0), 2),
+    X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
     obstacles = [
         UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1 / 50, [0.0; 0.0]),
         UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),

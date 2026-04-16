@@ -14,7 +14,6 @@ function ST.interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
     n, m = size(mat)
     @assert n == m "Matrix must be square"
 
-    # Worst-case absolute matrix |A|
     M = Array{Float64}(undef, n, n)
     for j in 1:n, i in 1:n
         a = mat[i, j]
@@ -23,16 +22,40 @@ function ST.interval_matrix_max_eig(mat::AbstractMatrix{<:IA.Interval})
         M[i, j] = max(abs(lo), abs(hi))
     end
 
-    # 1-norm (max column sum)
     norm1 = maximum(sum(abs, M; dims = 1))[]
-    # ∞-norm (max row sum)
     normInf = maximum(sum(abs, M; dims = 2))[]
 
     return sqrt(norm1 * normInf)
 end
 
 to_interval(x) = x isa IA.Interval ? x : IA.interval(float(x), float(x))
-_to_interval_box(X) = X isa IA.IntervalBox ? X : IA.IntervalBox(X)
+
+function _bounds_to_intervals(lb, ub)
+    @assert length(lb) == length(ub) "Lower/upper bounds must have the same dimension"
+    return [IA.interval(float(lb[i]), float(ub[i])) for i in eachindex(lb)]
+end
+
+function _as_interval_vector(X)
+    vals = collect(X)
+
+    if all(v -> v isa IA.Interval, vals) || all(v -> v isa Real, vals)
+        return map(to_interval, vals)
+    end
+
+    if length(vals) == 2
+        lb, ub = vals[1], vals[2]
+
+        if (lb isa Tuple || lb isa AbstractVector) &&
+           (ub isa Tuple || ub isa AbstractVector)
+            return _bounds_to_intervals(lb, ub)
+        end
+    end
+
+    return error(
+        "Cannot convert object of type $(typeof(X)) to a vector of intervals. " *
+        "Pass either a vector of intervals, a vector of reals, or a box as [lb, ub].",
+    )
+end
 
 function ST._getLipschitzConstants(J, xi, Xi_vals)
     L = zeros(length(xi))
@@ -60,13 +83,9 @@ function ST._getLipschitzConstants(J, xi, Xi_vals)
 end
 
 function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
-    X = _to_interval_box(X)
-    U = _to_interval_box(U)
-    W = _to_interval_box(W)
-
-    n = Base.length(x)
-    m = Base.length(u)
-    p = Base.length(w)
+    n = length(x)
+    m = length(u)
+    p = length(w)
 
     xi = vcat(x, u, w)
     x̄i = vcat(x̄, ū, w̄)
@@ -76,15 +95,15 @@ function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     Jw = Symbolics.jacobian(f, w)
     Jxi = hcat(Jx, Ju, Jw)
 
-    Xi_vals = vcat(collect(X), collect(U), collect(W))
+    Xi_vals = vcat(_as_interval_vector(X), _as_interval_vector(U), _as_interval_vector(W))
     L = ST._getLipschitzConstants(Jxi, xi, Xi_vals)
 
     sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
-    function evalSym(x)
-        if x isa Number
-            return Float64(Symbolics.value(Symbolics.substitute(x, sub_rules_x̄i)))
+    function evalSym(z)
+        if z isa Number
+            return Float64(Symbolics.value(Symbolics.substitute(z, sub_rules_x̄i)))
         else
-            y = Symbolics.substitute.(x, Ref(sub_rules_x̄i))
+            y = Symbolics.substitute.(z, Ref(sub_rules_x̄i))
             return Float64.(Symbolics.value.(y))
         end
     end
@@ -93,6 +112,7 @@ function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     B = evalSym(Ju)
     E = evalSym(Jw)
     c = vec(evalSym(f) - A * x̄ - B * ū - E * w̄)
+
     return (MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L)
 end
 
