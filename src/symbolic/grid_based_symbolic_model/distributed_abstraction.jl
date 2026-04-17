@@ -394,6 +394,12 @@ function collect_abstract_transitions_distributed(
     parts = partition_source_state_ids(symmodel, nparts; strategy = partition_strategy)
     worker_assignments = assign_states_to_workers(parts, procs)
 
+    if print_level >= 1
+        ninputs = length(collect(enum_inputs(symmodel)))
+        max_work = maximum(length(ids) * ninputs for (_, ids) in worker_assignments)
+        @info "Max worker workload" max_state_input_checks = max_work
+    end
+
     futures = Vector{Distributed.Future}(undef, length(worker_assignments))
 
     for (i, (p, ids)) in enumerate(worker_assignments)

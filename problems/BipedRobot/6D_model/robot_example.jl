@@ -3,21 +3,37 @@
 # ==============================================================================
 
 import Pkg
-Pkg.instantiate()
-Pkg.precompile()
+
+USE_SYSIMAGE = false
+NWORKERS = 4
+
+# Only do package management in non-sysimage / setup mode if desired
+DO_PKG_INSTANTIATE = !USE_SYSIMAGE
+DO_PKG_PRECOMPILE = false
+
+if DO_PKG_INSTANTIATE
+    Pkg.instantiate()
+end
+if DO_PKG_PRECOMPILE
+    Pkg.precompile()
+end
 
 using Distributed
 using Printf
-
-NWORKERS = 0
 
 robot_problem_path = joinpath(@__DIR__, "robot_problem.jl")
 utils_path = joinpath(@__DIR__, "utils.jl")
 rsviz_path = joinpath(@__DIR__, "..", "src", "RSVisualization.jl")
 
-# ----------------------------------------------------------------------
+# project used by workers
+PROJECT_DIR = abspath(joinpath(@__DIR__, ".."))
+
+# sysimage built in problems/BipedRobot
+SYSIMAGE_PATH = joinpath(PROJECT_DIR, "dionysos_robot_sysimage.dll")
+
+# ------------------------------------------------------------------------------
 # Timed startup
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 t_startup_total = @elapsed begin
     global t_master_packages = @elapsed begin
         using Dionysos
@@ -44,9 +60,19 @@ t_startup_total = @elapsed begin
         using .RobotProblem
     end
 
-    if length(workers()) < NWORKERS
-        n_to_add = NWORKERS - length(workers())
-        addprocs(n_to_add; exeflags = "--project=$(dirname(Base.active_project()))")
+    global t_worker_creation = @elapsed begin
+        if length(workers()) < NWORKERS
+            n_to_add = NWORKERS - length(workers())
+
+            if USE_SYSIMAGE
+                addprocs(
+                    n_to_add;
+                    exeflags = `--project=$(PROJECT_DIR) --sysimage=$(SYSIMAGE_PATH)`,
+                )
+            else
+                addprocs(n_to_add; exeflags = `--project=$(PROJECT_DIR)`)
+            end
+        end
     end
 
     global t_worker_packages = @elapsed begin
@@ -57,7 +83,6 @@ t_startup_total = @elapsed begin
 
     global t_worker_includes = @elapsed begin
         @everywhere include($robot_problem_path)
-        @everywhere include($utils_path)
         @everywhere using .RobotProblem
     end
 end
@@ -65,9 +90,11 @@ end
 @printf("Startup total time:           %.3f s\n", t_startup_total)
 @printf("  Master package load:        %.3f s\n", t_master_packages)
 @printf("  Master file includes:       %.3f s\n", t_master_includes)
+@printf("  Worker creation:            %.3f s\n", t_worker_creation)
 @printf("  Worker package load:        %.3f s\n", t_worker_packages)
 @printf("  Worker file includes:       %.3f s\n", t_worker_includes)
 println("Workers available: ", length(workers()))
+println("USE_SYSIMAGE: ", USE_SYSIMAGE)
 
 # ==============================================================================
 # Script parameters
@@ -84,7 +111,6 @@ SIMULATE_SECOND_STEP = false
 USE_DISTRIBUTED = length(workers()) > 0
 USE_THREADED_PER_WORKER = false
 DISTRIBUTED_NPARTS = length(workers())
-println(DISTRIBUTED_NPARTS)
 DISTRIBUTED_PARTITION_STRATEGY = :contiguous # :roundrobin, :contiguous
 SIMPLIFY = 3.0 # increase to simplify abstraction (e.g. by increasing grid size)
 
