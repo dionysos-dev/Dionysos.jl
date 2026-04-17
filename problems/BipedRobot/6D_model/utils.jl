@@ -1,8 +1,3 @@
-using MathematicalSystems, StaticArrays, Plots, LinearAlgebra
-using JuMP
-using JLD2
-
-# include Dionysos
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
