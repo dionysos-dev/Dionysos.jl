@@ -3,6 +3,8 @@ abstract type AbstractAutomatonList{N, M} <: HybridSystems.AbstractAutomaton end
 # === Required Interface ===
 function get_n_state(autom::AbstractAutomatonList{N, M}) where {N, M} end
 function get_n_input(autom::AbstractAutomatonList{N, M}) where {N, M} end
+
+# The transition enumeration should return a list of tuples (target, source, symbol)
 function enum_transitions(autom::AbstractAutomatonList{N, M}) where {N, M} end
 function add_transition!(
     autom::AbstractAutomatonList{N, M},
@@ -39,4 +41,22 @@ function is_deterministic(autom::AbstractAutomatonList{N, M}) where {N, M}
         end
     end
     return true
+end
+
+function nondeterminism_counts(autom::AbstractAutomatonList{N, M}) where {N, M}
+    count = Dict{Tuple{Int, Int}, Int}()
+    for (q′, q, u) in enum_transitions(autom)
+        count[(q, u)] = get(count, (q, u), 0) + 1
+    end
+    return collect(values(count))
+end
+
+function count_self_loops(autom::AbstractAutomatonList{N, M}) where {N, M}
+    count = 0
+    for (q′, q, u) in enum_transitions(autom)
+        if q′ == q
+            count += 1
+        end
+    end
+    return count
 end

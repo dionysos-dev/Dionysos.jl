@@ -5,7 +5,7 @@
 import Pkg
 
 USE_SYSIMAGE = false
-NWORKERS = 4
+NWORKERS = 1
 
 # Only do package management in non-sysimage / setup mode if desired
 DO_PKG_INSTANTIATE = !USE_SYSIMAGE
@@ -123,6 +123,20 @@ end
 # ==============================================================================
 # Helpers
 # ==============================================================================
+
+function _export_optimizer(optimizer, filename::AbstractString)
+    JLD2.jldopen(filename, "w") do file
+        return file["optimizer"] = optimizer
+    end
+    return filename
+end
+
+function import_optimizer_jld2(filename::AbstractString)
+    return JLD2.jldopen(filename, "r") do file
+        return file["optimizer"]
+    end
+end
+
 reached_target(problem) = (x -> (x ∈ problem.target_set))
 
 function warmup_workers!(; robot_urdf, tstep)
@@ -332,16 +346,14 @@ if COMPUTE_ABSTRACTION
     @printf("Abstraction reported construction time: %.3f s\n", t_construct)
 
     if SAVE_ABSTRACTION
-        t_save =
-            @elapsed AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, FILENAME)
+        t_save = @elapsed _export_optimizer(optimizer, FILENAME)
         @printf("Abstraction save time: %.3f s\n", t_save)
         println("Saved abstraction to: ", FILENAME)
     end
 end
 
 if LOAD_ABSTRACTION
-    t_load = @elapsed global optimizer =
-        AB.UniformGridAbstraction.import_abstraction_jld2(FILENAME)
+    t_load = @elapsed global optimizer = import_optimizer_jld2(FILENAME)
     @printf("Abstraction load time: %.3f s\n", t_load)
     println("Loaded abstraction from: ", FILENAME)
 end

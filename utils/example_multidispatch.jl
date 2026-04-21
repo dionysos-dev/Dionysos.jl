@@ -87,6 +87,11 @@ invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
 invariant_set_complement =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
+automaton = SY.get_automaton(abstract_system)
+fig = histogram(ST.nondeterminism_counts(automaton); legend = false)
+display(fig)
+println("Number of self-loops: $(ST.count_self_loops(automaton))")
+
 nstep = 300
 x0 = SVector(1.2, 5.6)
 x_traj, u_traj = ST.get_closed_loop_trajectory(
