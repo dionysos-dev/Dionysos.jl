@@ -14,33 +14,41 @@ const HEADER_BUF = Vector{UInt8}(undef, 4)
 Starts a server that listens for LabVIEW data. 
 'controller' is a structure containing a Vector{Float64} and two functions (f and g) that take two Vector{Float64} as arguments and returns a Vector{Float64}.
 """
-function start_control_server(controller::C.Controller; port=5000, max_packets=100000, log_data=false, received_data_size=1, )
+function start_control_server(
+    controller::C.Controller;
+    port = 5000,
+    max_packets = 100000,
+    log_data = false,
+    received_data_size = 1,
+)
     server = listen(port)
     println("Server listening on port $port...")
     keep_running = true
-    
+
     x0 = controller.x
 
     # Pre-allocate buffers if logging is enabled
-    history = log_data ? (
-        measurements = Matrix{Float64}(undef, received_data_size, max_packets), 
-        states = Matrix{Float64}(undef, length(controller.x), max_packets),
-        t = Vector{Float64}(undef, max_packets)
-    ) : nothing
+    history =
+        log_data ?
+        (
+            measurements = Matrix{Float64}(undef, received_data_size, max_packets),
+            states = Matrix{Float64}(undef, length(controller.x), max_packets),
+            t = Vector{Float64}(undef, max_packets),
+        ) : nothing
 
     idx = 1
-    
+
     while keep_running
         sock = accept(server)
         println("Client connected!")
         controller.x = x0
         idx = 1 # Packet counter
         start_time = time()
-        
+
         try
             while isopen(sock)
                 # 1. Read header (4 bytes)
-                read!(sock, HEADER_BUF) 
+                read!(sock, HEADER_BUF)
                 msg_len = ntoh(reinterpret(UInt32, HEADER_BUF)[1])
 
                 if msg_len == UInt32(4294967295)
@@ -50,7 +58,7 @@ function start_control_server(controller::C.Controller; port=5000, max_packets=1
                     # 2b. Read payload into a Float64 vector otherwise
                     payload = Vector{Float64}(undef, Int(msg_len / 8))
                     read!(sock, payload)
-                    
+
                     # 3. Fix endianness
                     measurements = ntoh.(payload)
 
@@ -82,7 +90,6 @@ function start_control_server(controller::C.Controller; port=5000, max_packets=1
             println("Client disconnected.")
             keep_running = false
         end
-
     end
 
     println("Closing server...")
@@ -91,9 +98,9 @@ function start_control_server(controller::C.Controller; port=5000, max_packets=1
     # 6. Return or process the matrices
     if log_data
         # Trim the matrices to the actual number of packets received
-        t = history.t[1:idx-1]
-        measurements = history.measurements[:, 1:idx-1]
-        states = history.states[:, 1:idx-1]
+        t = history.t[1:(idx - 1)]
+        measurements = history.measurements[:, 1:(idx - 1)]
+        states = history.states[:, 1:(idx - 1)]
         println("Logged $(idx-1) packets.")
     end
 

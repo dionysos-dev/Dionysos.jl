@@ -29,10 +29,11 @@ controller = ControlServer.Controller4Server.Controller([0.0], f, g)
 plotting = true
 
 if plotting
-    (t, xp, xc) = server.start_control_server(controller; log_data=true, received_data_size=2)
+    (t, xp, xc) =
+        server.start_control_server(controller; log_data = true, received_data_size = 2)
     println("Data stored")
-    plot(t, [xp[1,:] xc[1,:]], layout=(2,1), label=["y", "u"])
+    plot(t, [xp[1, :] xc[1, :]]; layout = (2, 1), label = ["y", "u"])
 else
-    server.start_control_server(controller; log_data=false)
+    server.start_control_server(controller; log_data = false)
     println("Data not stored")
 end
