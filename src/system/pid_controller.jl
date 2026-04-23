@@ -1,86 +1,122 @@
 module PIDControllers
-using LinearAlgebra
-import MathematicalSystems
-const MS = MathematicalSystems
 
-mutable struct PIDState
-    e_prev::Any
-    I::Any
+using LinearAlgebra
+import Dionysos
+const ST = Dionysos.System
+
+export PIDMemory,
+    PIDController,
+    PIDControllerVector,
+    ConstantSignal,
+    ConstantTimeGetter,
+    WrapAnglePositionVelocityError
+
+struct PIDMemory{E, I}
+    e_prev::E
+    I::I
     initialized::Bool
 end
 
-# K can be scalar, vector, or matrix
-mutable struct PIDController{K}
+# ------------------------------------------------------------------
+# Small serializable helper callables
+# ------------------------------------------------------------------
+
+struct ConstantSignal{T}
+    value::T
+end
+(c::ConstantSignal)(t) = c.value
+
+struct ConstantTimeGetter end
+(::ConstantTimeGetter)(x) = 0.0
+
+struct WrapAnglePositionVelocityError end
+function (e::WrapAnglePositionVelocityError)(x, r, t)
+    eθ = mod(r[1] - x[1] + π, 2π) - π
+    eω = r[2] - x[2]
+    return typeof(r)(eθ, eω)
+end
+
+# ------------------------------------------------------------------
+# PID controller
+# ------------------------------------------------------------------
+
+struct PIDController{K, EF, RF, DT, TG, U1, U2, E0} <: ST.AbstractContinuousController
     Kp::K
     Ki::K
     Kd::K
-    error::Any        # (x, r, t) -> e   (vector)
-    ref::Any          # constant ref or ref(t)
-    dt::Any           # constant dt or dt(x,t)
-    umin::Any
-    umax::Any
+    error::EF
+    ref::RF
+    dt::DT
+    time_getter::TG
+    umin::U1
+    umax::U2
     antiwindup::Bool
-    st::PIDState
+    e0::E0
 end
 
 _ref(ref, t) = ref
-_ref(ref::Function, t) = ref(t)
+_ref(ref::ConstantSignal, t) = ref(t)
 
 _dt(dt, x, t) = dt
 _dt(dt::Function, x, t) = dt(x, t)
 
-# multiply gain (scalar/vector/matrix) by vector error
-_apply_gain(K::AbstractMatrix, e) = K * e     # m×n × n → m
-_apply_gain(K::AbstractVector, e) = dot(K, e) # 1×n × n → scalar
-_apply_gain(K::Number, e) = K * e             # scalar error case
+_apply_gain(K::AbstractMatrix, e) = K * e
+_apply_gain(K::AbstractVector, e) = dot(K, e)
+_apply_gain(K::Number, e) = K * e
 
 _sat(u, umin, umax) = clamp.(u, umin, umax)
 
-function pid_map(
-    pid::PIDController;
-    nx::Int,
-    nu::Int,
-    time_getter = x -> 0.0,
-    silent = true,
-    X = nothing,
-)
-    h = function (x)
-        t = time_getter(x)
-        r = _ref(pid.ref, t)
-        e = pid.error(x, r, t)
+ST.domain(pid::PIDController) = nothing
 
-        dt = _dt(pid.dt, x, t)
+function ST.initial_state(pid::PIDController)
+    return PIDMemory(pid.e0, zero(pid.e0), false)
+end
 
-        if !pid.st.initialized
-            pid.st.e_prev = e
-            pid.st.I = zero(e)
-            pid.st.initialized = true
+function ST.output_control(pid::PIDController, mem::PIDMemory, x)
+    t = pid.time_getter(x)
+    r = _ref(pid.ref, t)
+    e = pid.error(x, r, t)
+
+    Δt = _dt(pid.dt, x, t)
+
+    e_prev = mem.initialized ? mem.e_prev : e
+    I_prev = mem.initialized ? mem.I : zero(e)
+
+    I_new = I_prev + e * Δt
+    de = (e - e_prev) / Δt
+
+    u_unsat = _apply_gain(pid.Kp, e) + _apply_gain(pid.Ki, I_new) + _apply_gain(pid.Kd, de)
+
+    if pid.umin !== nothing && pid.umax !== nothing
+        return _sat(u_unsat, pid.umin, pid.umax)
+    else
+        return u_unsat
+    end
+end
+
+function ST.update_state(pid::PIDController, mem::PIDMemory, x)
+    t = pid.time_getter(x)
+    r = _ref(pid.ref, t)
+    e = pid.error(x, r, t)
+
+    Δt = _dt(pid.dt, x, t)
+
+    e_prev = mem.initialized ? mem.e_prev : e
+    I_prev = mem.initialized ? mem.I : zero(e)
+
+    I_new = I_prev + e * Δt
+    de = (e - e_prev) / Δt
+
+    u_unsat = _apply_gain(pid.Kp, e) + _apply_gain(pid.Ki, I_new) + _apply_gain(pid.Kd, de)
+
+    if pid.umin !== nothing && pid.umax !== nothing
+        u = _sat(u_unsat, pid.umin, pid.umax)
+        if pid.antiwindup && any(u .!= u_unsat)
+            I_new = I_prev
         end
-
-        pid.st.I = pid.st.I + e * dt
-        de = (e - pid.st.e_prev) / dt
-
-        u_unsat =
-            _apply_gain(pid.Kp, e) + _apply_gain(pid.Ki, pid.st.I) + _apply_gain(pid.Kd, de)
-
-        u = u_unsat
-        if pid.umin !== nothing && pid.umax !== nothing
-            u = _sat(u_unsat, pid.umin, pid.umax)
-            if pid.antiwindup && any(u .!= u_unsat)
-                pid.st.I = pid.st.I - e * dt
-            end
-        end
-
-        if !silent
-            println("e: ", e, " u: ", u)
-            # println("i: ",  pid.st.I)
-        end
-
-        pid.st.e_prev = e
-        return u
     end
 
-    return MS.ConstrainedBlackBoxMap(nx, nu, h, X)
+    return PIDMemory(e, I_new, true)
 end
 
 function PIDControllerVector(;
@@ -90,13 +126,25 @@ function PIDControllerVector(;
     ref,
     error,
     dt = 1.0,
+    time_getter = ConstantTimeGetter(),
     umin = nothing,
     umax = nothing,
     antiwindup::Bool = true,
     e0,
 )
-    st = PIDState(e0, zero(e0), false)
-    return PIDController(Kp, Ki, Kd, error, ref, dt, umin, umax, antiwindup, st)
+    return PIDController(
+        Kp,
+        Ki,
+        Kd,
+        error,
+        ref,
+        dt,
+        time_getter,
+        umin,
+        umax,
+        antiwindup,
+        e0,
+    )
 end
 
-end # module
+end

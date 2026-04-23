@@ -231,14 +231,6 @@ function solve_and_simulate!(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
 
-    if out_of_domain_handler !== nothing
-        MOI.set(
-            optimizer,
-            MOI.RawOptimizerAttribute("handle_out_of_domain"),
-            out_of_domain_handler,
-        )
-    end
-
     t_solve_wall = @elapsed MOI.optimize!(optimizer)
     @printf("Abstract problem wall time:     %.3f s\n", t_solve_wall)
 

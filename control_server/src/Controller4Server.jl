@@ -2,10 +2,10 @@ module Controller4Server
 
 export Controller
 
-mutable struct Controller
-    x::Vector{Float64}
-    f::Function
-    g::Function
+mutable struct Controller{TX, TF, TG}
+    x::TX
+    f::TF
+    g::TG
 end
 
-end #module
+end # module

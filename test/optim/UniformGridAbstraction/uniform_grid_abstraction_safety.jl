@@ -70,7 +70,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
     x0 = SVector(1.2, 5.6)
 
     # controller should return an input at x0
-    u0 = MathematicalSystems.apply(concrete_controller, x0)
+    u0 = ST.output_control(concrete_controller, ST.initial_state(concrete_controller), x0)
     @test u0 !== nothing
 
     x_traj, u_traj =

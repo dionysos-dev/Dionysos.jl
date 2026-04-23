@@ -143,13 +143,8 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         :obs => MP.OUTER,
     )
 
-    concrete_problem = DI.Problem.CoSafeLTLProblem(
-        concrete_system,
-        _I_,
-        spec, # could also store φ separately; here we use monitor
-        labeling,
-        ap_semantics,
-    )
+    concrete_problem =
+        DI.Problem.CoSafeLTLProblem(concrete_system, _I_, spec, labeling, ap_semantics)
 
     # quick labeling sanity: each AP should exist
     @test haskey(concrete_problem.labeling, :g1)
@@ -170,11 +165,9 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
     concrete_controller =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-    qa0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
 
     @test abstract_controller !== nothing
     @test concrete_controller !== nothing
-    @test qa0 !== nothing
 
     # ------------------------------------------------------------
     # 4) Closed-loop trajectory sanity
@@ -186,7 +179,6 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         discrete_time_system,
         concrete_controller,
         x0,
-        qa0,
         nstep;
         update_on_next = true,
         stopping = x -> false,

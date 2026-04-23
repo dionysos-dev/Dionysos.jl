@@ -59,19 +59,19 @@ MOI.optimize!(optimizer)
 
 time = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 ```
 """
 mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    abstract_system::Any
     print_level::Int
 
     # outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerSafetyProblem}
     abstract_problem::Union{Nothing, PR.SafetyProblem}
-    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     invariant_set::Union{Nothing, MP.AbstractStateSet}
     invariant_set_complement::Union{Nothing, MP.AbstractStateSet}
     success::Bool
@@ -111,13 +111,13 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.SafetyProblem,
-    abstract_system::SY.SymbolicModelList,
+    abstract_system::SY.SymbolicModel,
 )
     return PR.SafetyProblem(
         SY.get_automaton(abstract_system),
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
         SY.get_states_from_set(abstract_system, concrete_problem.safe_set, MP.INNER),
-        concrete_problem.time, # TODO
+        concrete_problem.time,
     )
 end
 
@@ -145,6 +145,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
+
     optimizer.invariant_set = SY.get_state_set_from_states(
         abstract_system,
         collect(abstract_optimizer.invariant_set),

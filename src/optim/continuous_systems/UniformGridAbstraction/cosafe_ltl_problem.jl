@@ -11,15 +11,14 @@ This optimizer:
 mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    abstract_system::Any
     sparse_input::Bool
     print_level::Int
 
     # outputs / internals
     abstract_optimizer::Union{Nothing, OPDS.OptimizerCoSafeLTLProblem}
     abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
-    abstract_controller::Union{Nothing, MS.SystemWithOutput}
-    qa0::Union{Nothing, Int}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     success::Bool
     abstract_problem_time_sec::T
 
@@ -32,7 +31,6 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
             nothing, # abstract_optimizer
             nothing, # abstract_problem
             nothing, # abstract_controller
-            nothing, # qa0
             false,   # success
             zero(T), # abstract_problem_time_sec
         )
@@ -53,13 +51,9 @@ end
 
 MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_problem_time_sec
 
-# ============================================================
-# Lifting: concrete CoSafeLTLProblem -> abstract CoSafeLTLProblem
-# ============================================================
-
 function build_abstract_problem(
     concrete_problem::PR.CoSafeLTLProblem,
-    abstract_system::SY.SymbolicModelList,
+    abstract_system::SY.SymbolicModel,
 )
     init_states =
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER)
@@ -71,17 +65,13 @@ function build_abstract_problem(
     end
 
     return PR.CoSafeLTLProblem(
-        abstract_system.autom,
+        SY.get_automaton(abstract_system),
         init_states,
         concrete_problem.spec,
         lab_abs,
         concrete_problem.ap_semantics,
     )
 end
-
-# ============================================================
-# optimize!
-# ============================================================
 
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     t0 = time()
@@ -112,7 +102,6 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.qa0 = abstract_optimizer.qa0
     optimizer.success = abstract_optimizer.success
     optimizer.abstract_problem_time_sec = time() - t0
 

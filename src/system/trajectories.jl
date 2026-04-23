@@ -128,82 +128,62 @@ end
 
 function get_closed_loop_trajectory(
     system,
-    controller::MS.AbstractMap,
+    controller::AbstractController,
     x0,
-    nstep::Integer;
-    stopping = x -> false,
-    wrap = identity,
-    f_map_override = nothing,
-)
-    f = f_map_override == nothing ? MS.mapping(system) : f_map_override # expects (x,u)
-    k = controller.h  # expects (x)
-
-    x = wrap(x0)
-    xs = Vector{typeof(x)}(undef, 0);
-    push!(xs, x)
-    us = Any[]  # could be typed if you know u type
-
-    for _ in 1:nstep
-        stopping(x) && break
-
-        u = k(x)
-        u === nothing && println("No input") & break
-
-        x = wrap(f(x, u))
-
-        push!(us, u)
-        push!(xs, x)
-    end
-
-    return (x = Trajectory(xs), u = Trajectory(us))
-end
-
-# u = h(q, x)
-# x^+ = f(x, u)
-# q^+ = g(q, x) ou g(q, x^+) if update_on_next == true (it depends of the controller)
-function get_closed_loop_trajectory(
-    system,
-    controller::MS.SystemWithOutput,
-    x0,
-    q0,
     nstep::Integer;
     meas = identity,
     stopping = x -> false,
     wrap = identity,
     update_on_next::Bool = false,
+    f_map_override = nothing,
 )
-    f = MS.mapping(system)              # (x,u) -> xnext
-    gc = MS.mapping(controller.s)        # (q,y) -> qnext
-    hc = controller.outputmap.h # (q,y) -> u
+    f = f_map_override === nothing ? MS.mapping(system) : f_map_override
 
     x = wrap(x0)
-    q = q0
+    q = initial_state(controller)
 
-    xs = Vector{typeof(x)}(undef, 0);
+    xs = Vector{typeof(x)}()
     push!(xs, x)
-    qs = Vector{typeof(q)}(undef, 0);
-    push!(qs, q)
+
     us = Any[]
 
-    for _ in 1:nstep
-        stopping(x) && break
+    if q === nothing
+        for _ in 1:nstep
+            stopping(x) && break
 
-        y = meas(x)
-        u = hc((q, y))
-        u === nothing && break
+            y = meas(x)
+            u = output_control(controller, q, y)
+            u === nothing && break
 
-        xnext = f(x, u)
-        xnext = wrap(xnext)
+            x = wrap(f(x, u))
 
-        y_for_update = update_on_next ? meas(xnext) : y
-        qnext = gc(q, y_for_update)
+            push!(us, u)
+            push!(xs, x)
+        end
 
-        x, q = xnext, qnext
-
-        push!(us, u)
-        push!(xs, x)
+        return (x = Trajectory(xs), u = Trajectory(us))
+    else
+        qs = Vector{typeof(q)}()
         push!(qs, q)
-    end
 
-    return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
+        for _ in 1:nstep
+            stopping(x) && break
+
+            y = meas(x)
+            u = output_control(controller, q, y)
+            u === nothing && break
+
+            xnext = wrap(f(x, u))
+            y_for_update = update_on_next ? meas(xnext) : y
+            qnext = update_state(controller, q, y_for_update)
+
+            x, q = xnext, qnext
+
+            push!(us, u)
+            push!(xs, x)
+            push!(qs, q)
+        end
+
+        return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
+    end
 end

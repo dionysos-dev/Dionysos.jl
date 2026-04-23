@@ -12,7 +12,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Outputs / internals
     abstract_optimizer::Union{Nothing, OPDS.OptimizerOptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     controllable_set::Union{Nothing, MP.AbstractStateSet}
     uncontrollable_set::Union{Nothing, MP.AbstractStateSet}
     value_fun_tab::Any

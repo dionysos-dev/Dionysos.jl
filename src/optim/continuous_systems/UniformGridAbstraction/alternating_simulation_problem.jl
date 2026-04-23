@@ -248,10 +248,7 @@ discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_ti
 """
 mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     ## Abstraction Result
-    discrete_time_system::Union{
-        Nothing,
-        MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem,
-    }
+    discrete_time_system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
     abstraction_construction_time_sec::T
 
@@ -504,7 +501,7 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
     @assert optimizer.alternating_simulation_problem.system !== nothing "System must be set before building overapproximation."
 
     system = optimizer.alternating_simulation_problem.system
-    if isa(system, MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem)
+    if isa(system, MS.ConstrainedBlackBoxControlContinuousSystem)
         _validate_model(optimizer, [:time_step])  # Ensure time step is provided
         optimizer.continuous_time_system_approximation =
             build_continuous_approximation(optimizer, system)
@@ -512,7 +509,7 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
             optimizer.continuous_time_system_approximation,
             optimizer.time_step,
         )
-    elseif isa(system, MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem)
+    elseif isa(system, MS.ConstrainedBlackBoxControlDiscreteSystem)
         optimizer.discrete_time_system_approximation =
             build_discrete_approximation(optimizer, system)
     else

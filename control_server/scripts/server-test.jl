@@ -6,22 +6,15 @@ using Plots
 server = ControlServer.ServerRuntime
 
 function f(x_c, x_p; Ts = 0.01)
-    #     e  = -x_p[1]
-    # int{e} = x_c
-
-    return [x_c[1] - Ts*x_p[1]]
+    return [x_c[1] - Ts * x_p[1]]
 end
 
 function g(x_c, x_p)
-    #      e  = -x_p[1]
-    # \dot{e} = -x_p[2]
-    # \int{e} = x_c[1]
-
     kp = 0.6649
     ki = 0.2817
     kd = 0.3923
 
-    return [-kp*x_p[1] + ki*x_c[1] - kd*x_p[2]]
+    return [-kp * x_p[1] + ki * x_c[1] - kd * x_p[2]]
 end
 
 controller = ControlServer.Controller4Server.Controller([0.0], f, g)
@@ -29,10 +22,20 @@ controller = ControlServer.Controller4Server.Controller([0.0], f, g)
 plotting = true
 
 if plotting
-    (t, xp, xc) =
-        server.start_control_server(controller; log_data = true, received_data_size = 2)
+    t, xp, u, xc = server.start_control_server(
+        controller;
+        log_data = true,
+        received_data_size = 2,
+        state_to_vector = x -> x,
+    )
+
     println("Data stored")
-    plot(t, [xp[1, :] xc[1, :]]; layout = (2, 1), label = ["y", "u"])
+
+    plt = plot(; layout = (3, 1))
+    plot!(plt[1], t, xp[1, :]; label = "y")
+    plot!(plt[2], t, u[1, :]; label = "u")
+    plot!(plt[3], t, xc[1, :]; label = "x_c")
+    display(plt)
 else
     server.start_control_server(controller; log_data = false)
     println("Data not stored")

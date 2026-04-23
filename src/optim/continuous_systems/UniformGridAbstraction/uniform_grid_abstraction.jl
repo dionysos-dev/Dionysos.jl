@@ -12,8 +12,7 @@ const OP = Dionysos.Optim
 const OPDS = OP.DiscreteSystems
 
 import StaticArrays: SVector, SMatrix
-import MathematicalSystems
-MS = MathematicalSystems
+import MathematicalSystems as MS
 import HybridSystems
 using JuMP
 import LinearAlgebra
@@ -100,15 +99,12 @@ controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller")
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
-    concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
+    concrete_controller::Union{Nothing, ST.AbstractContinuousController}
     solve_time_sec::T
     print_level::Int
-    randomize::Bool
-    handle_out_of_domain::Function
 
     function Optimizer{T}() where {T}
-        default_handler = (x, abs_sys) -> nothing  # stop if out of domain
-        return new{T}(nothing, nothing, nothing, 0.0, 1, false, default_handler)
+        return new{T}(nothing, nothing, nothing, 0.0, 1)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -247,159 +243,12 @@ function reset!(optimizer::Optimizer)
     return optimizer
 end
 
-# Domain object whose membership is a predicate
-struct PredicateDomain{F}
-    pred::F
-end
-Base.in(x, X::PredicateDomain) = X.pred(x)
-
-function solve_concrete_problem(
-    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
-    abstract_controller::MS.AbstractMap;
-    randomize::Bool = false,
-    handle_out_of_domain::Function = (x, abs_sys) -> nothing,  # default: stop
-)
-    k_abs = abstract_controller.h
-
-    # map concrete x -> abstract state (or nothing)
-    x_to_qs = function (x)
-        state = SY.get_abstract_state(abstract_system, x)
-        if state===nothing || !SY.is_allowed_state(abstract_system, state)
-            xnew = handle_out_of_domain(x, abstract_system)
-            xnew === nothing && return nothing
-            statenew === nothing && return nothing
-            SY.is_allowed_state(abstract_system, statenew) || return nothing
-            return statenew
-        end
-        return state
-    end
-
-    # domain predicate on x (controller defined?)
-    is_defined = function (x)
-        qs = x_to_qs(x)
-        qs === nothing && return false
-        us = k_abs(qs)
-        return us !== nothing && !(us isa AbstractVector && isempty(us))
-    end
-
-    # output map x -> concrete u (or nothing)
-    f = function (x)
-        qs = x_to_qs(x)
-        qs === nothing && return nothing
-
-        us = k_abs(qs)
-        us === nothing && return nothing
-
-        u_sym = if us isa AbstractVector
-            isempty(us) ? nothing : (randomize ? rand(us) : first(us))
-        else
-            us
-        end
-        u_sym === nothing && return nothing
-
-        return Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym)
-    end
-
-    X = PredicateDomain(is_defined)
-    nx::Int = Dionysos.Symbolic.get_state_dim(abstract_system)
-    nu::Int = Dionysos.Symbolic.get_input_dim(abstract_system)
-    return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
-end
-
-# Concretizes an abstract finite-memory controller (on (qa,qs)) into a concrete
-# finite-memory controller (on (qa,x)).
-# Assumptions on `abstract_controller`:
-# - output:  u_sym = h_abs(qa, qs)  (may be Int, Vector{Int}, or nothing)
-# - update:  qa_next = g_abs(qa, qs_for_update)
-# Returns:
-# - concrete_controller :: MS.SystemWithOutput
-# - qa0 is NOT stored here; you keep passing q0 to closed_loop_trajectory.
-function solve_concrete_problem(
-    abstract_system::Dionysos.Symbolic.GridBasedSymbolicModel,
-    abstract_controller::MS.SystemWithOutput;
-    randomize::Bool = false,
-    handle_out_of_domain::Function = (x, abs_sys) -> nothing,
-)
-    # MS callables qa == abstract controller state
-    h_abs = abstract_controller.outputmap.h   # (qa, qs) -> u_sym (or Vector) or nothing
-    g_abs = MS.mapping(abstract_controller.s)         # (qa, qs) -> qa_next
-
-    # concrete-state -> abstract-state (or nothing)
-    x_to_qs = function (x)
-        state = SY.get_abstract_state(abstract_system, x)
-        if !SY.is_allowed_state(abstract_system, state)
-            xnew = handle_out_of_domain(x, abstract_system)
-            xnew === nothing && return nothing
-            statenew = SY.get_abstract_state(abstract_system, xnew)
-            !SY.is_allowed_state(abstract_system, statenew) || return nothing
-            return statenew
-        end
-        return state
-    end
-
-    # output map for concrete controller: (qa, x) -> u_conc (or nothing)
-    h_conc = function (qa, x)
-        qs = x_to_qs(x)
-        qs === nothing && return nothing
-
-        us = h_abs((qa, qs))
-        us === nothing && return nothing
-
-        u_sym = if us isa AbstractVector
-            isempty(us) ? nothing : (randomize ? rand(us) : first(us))
-        else
-            us
-        end
-        u_sym === nothing && return nothing
-
-        return Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym)
-    end
-
-    # state update for concrete controller: (qa, x_for_update) -> qa_next
-    # (your rollout can choose x or x_next via update_on_next flag)
-    g_conc = function (qa, x_for_update)
-        qs = x_to_qs(x_for_update)
-        qs === nothing && return qa     # or a dead-state if you prefer
-        return g_abs(qa, qs)
-    end
-
-    # Domain predicate on (qa, x) for the outputmap
-    is_defined_qax = function (qax)
-        qa, x = qax
-        qs = x_to_qs(x)
-        qs === nothing && return false
-        us = h_abs(qa, qs)
-        return us !== nothing && !(us isa AbstractVector && isempty(us))
-    end
-    X_qax = PredicateDomain(is_defined_qax)
-
-    # Build MS objects
-    nx = Dionysos.Symbolic.get_state_dim(abstract_system)
-    nu = Dionysos.Symbolic.get_input_dim(abstract_system)
-
-    outmap = MS.ConstrainedBlackBoxMap(2, nu, qax -> begin
-        qa, x = qax
-        h_conc(qa, x)
-    end, X_qax)
-
-    memsys = MS.BlackBoxControlDiscreteSystem(
-        (qa, x_for_update) -> g_conc(qa, x_for_update),
-        1,
-        nx,
-    )
-
-    return MS.SystemWithOutput(memsys, outmap)
-end
-
 function MOI.optimize!(optimizer::Optimizer)
     t_ref = time()
 
-    # Ensure the concrete problem is defined
-    if optimizer.abstraction_solver === nothing
+    optimizer.abstraction_solver === nothing &&
         error("The concrete problem is not defined.")
-    end
 
-    # Compute abstraction if not already done
     if !is_abstraction_computed(optimizer)
         MOI.set(
             optimizer.abstraction_solver,
@@ -409,36 +258,35 @@ function MOI.optimize!(optimizer::Optimizer)
         MOI.optimize!(optimizer.abstraction_solver)
     end
 
-    # If there's a control solver, optimize it
     if optimizer.control_solver !== nothing
         MOI.set(
             optimizer.control_solver,
             MOI.RawOptimizerAttribute("print_level"),
             optimizer.print_level,
         )
+
         abstract_system = MOI.get(
             optimizer.abstraction_solver,
             MOI.RawOptimizerAttribute("abstract_system"),
         )
+
         MOI.set(
             optimizer.control_solver,
             MOI.RawOptimizerAttribute("abstract_system"),
             abstract_system,
         )
+
         MOI.optimize!(optimizer.control_solver)
+
         abstract_controller = MOI.get(
             optimizer.control_solver,
             MOI.RawOptimizerAttribute("abstract_controller"),
         )
-        optimizer.concrete_controller = solve_concrete_problem(
-            optimizer.abstraction_solver.abstract_system,
-            abstract_controller;
-            randomize = optimizer.randomize,
-            handle_out_of_domain = optimizer.handle_out_of_domain,
-        )
+
+        optimizer.concrete_controller =
+            SY.quantize_controller(abstract_system, abstract_controller)
     end
 
-    # Time elapsed
     optimizer.solve_time_sec = time() - t_ref
     return
 end

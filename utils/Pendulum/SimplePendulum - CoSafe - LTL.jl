@@ -45,12 +45,13 @@ obs = UT.HyperRectangle(
 )
 
 φ = ltl"G(!obs) & F(g1 & F(g2))"
+spec = Dionysos.spot_stepper(φ)
 
 labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :obs => obs)
 
 ap_semantics = Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :obs => MP.OUTER)
 
-concrete_problem = PR.CoSafeLTLProblem(concrete_system, _I_, φ, labeling, ap_semantics)
+concrete_problem = PR.CoSafeLTLProblem(concrete_system, _I_, spec, labeling, ap_semantics)
 
 # ------------------------------------------------------------
 # 3) Define solver meta-parameters
@@ -123,14 +124,12 @@ println("Total time: $(total_time)")
 # ------------------------------------------------------------
 
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-q0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
 nstep = 100
 
 x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
-    q0,
     nstep;
     update_on_next = true,
     stopping = x -> false,

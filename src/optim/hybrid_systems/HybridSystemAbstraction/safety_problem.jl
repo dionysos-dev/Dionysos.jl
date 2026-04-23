@@ -7,7 +7,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     # Outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerSafetyProblem}
     abstract_problem::Union{Nothing, PR.SafetyProblem}
-    abstract_controller::Union{Nothing, MS.AbstractMap}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     invariant_set::Any
     invariant_set_complement::Any
     success::Bool

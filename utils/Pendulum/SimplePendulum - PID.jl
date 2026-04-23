@@ -7,13 +7,15 @@ const ST = DI.System
 using MathematicalSystems
 MS = MathematicalSystems
 
-include("../../problems/Pendulum/simple_pendulum.jl");
+using JLD2
+
+include("../../problems/Pendulum/simple_pendulum.jl")
 
 system = SimplePendulum.system(;
     l = 1.0,
     g = 9.81,
     _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0)),
-    _U_ = UT.HyperRectangle(SVector(-10), SVector(10)),
+    _U_ = UT.HyperRectangle(SVector(-10.0), SVector(10.0)),
 )
 
 tstep = 0.1
@@ -23,25 +25,23 @@ discrete_time_system = ST.discretize_continuous_system(system, tstep)
 # PID Controller on Position
 # ------------------------------------------------------------
 
-wrap_angle(e) = mod(e + π, 2π) - π
-error = (x, r, _) -> begin
-    eθ = wrap_angle(r[1] - x[1])
-    eω = r[2] - x[2]
-    return SVector(eθ, eω)
-end
 input_set = MS.inputset(system)
-pid = ST.PIDControllers.PIDControllerVector(;
-    Kp = SVector(15.0, 5.0), # SVector(20.0, 5.0)
-    Ki = SVector(3.0, 0.0),  # SVector(1.0, 0.0)
+
+pid_controller = ST.PIDControllers.PIDControllerVector(;
+    Kp = SVector(15.0, 5.0),
+    Ki = SVector(3.0, 0.0),
     Kd = SVector(0.0, 0.0),
-    ref = SVector(3*pi/4.0, 0.0),
-    error = error,
+    ref = ST.PIDControllers.ConstantSignal(SVector(3π / 4.0, 0.0)),
+    error = ST.PIDControllers.WrapAnglePositionVelocityError(),
     dt = tstep,
+    time_getter = ST.PIDControllers.ConstantTimeGetter(),
     umin = input_set.lb,
     umax = input_set.ub,
     e0 = SVector(0.0, 0.0),
 )
-pid_controller = ST.PIDControllers.pid_map(pid; nx = 2, nu = 1, silent = false)
+
+# JLD2.jldsave("pid_controller.jld2"; controller = pid_controller)
+# pid_controller = JLD2.load("pid_controller.jld2", "controller")
 
 # ------------------------------------------------------------
 # Closed-loop simulation
@@ -49,15 +49,19 @@ pid_controller = ST.PIDControllers.pid_map(pid; nx = 2, nu = 1, silent = false)
 
 nstep = 200
 x0 = SVector(0.0, 0.0)
-x_traj, u_traj =
-    ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
+
+traj = ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
+
+x_traj = traj.x
+u_traj = traj.u
+# traj.q is the PID internal memory trajectory if your rollout returns it
 
 # ------------------------------------------------------------
 # Plots
 # ------------------------------------------------------------
 
-fig = plot(; aspect_ratio = :equal);
-plot!(system.X; color = :grey, hole_color = :black, opacity = 1.0, label = "");
+fig = plot(; aspect_ratio = :equal)
+plot!(system.X; color = :grey, hole_color = :black, opacity = 1.0, label = "")
 plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
