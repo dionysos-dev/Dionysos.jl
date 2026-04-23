@@ -16,8 +16,6 @@ end
 clean_poly(P::Poly) = LazySets.remove_redundant_constraints(P)
 
 function set_intersection(P::Poly, Q::Poly)
-    println(P)
-    println(Q)
     return clean_poly(
         Poly(vcat(LazySets.constraints_list(P), LazySets.constraints_list(Q))),
     )
