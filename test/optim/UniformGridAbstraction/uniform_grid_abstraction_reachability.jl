@@ -72,16 +72,19 @@ include("../../../problems/path_planning.jl")
     x0 = SVector(0.4, 0.4, 0.0)
 
     # controller should return something at x0
-    u0 = MathematicalSystems.apply(concrete_controller, x0)
+    u0 = ST.output_control(concrete_controller, ST.initial_state(concrete_controller), x0)
     @test u0 !== nothing
 
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         discrete_time_system,
         concrete_controller,
         x0,
         nstep;
         stopping = reached,
     )
+
+    x_traj = traj.x
+    u_traj = traj.u
 
     # --- trajectory checks ---
     xs = collect(ST.enum_elems(x_traj))

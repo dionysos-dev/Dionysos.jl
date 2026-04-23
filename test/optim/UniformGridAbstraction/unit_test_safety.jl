@@ -95,19 +95,19 @@ println("Started test")
     safe_set = Set(safelist)
     correct = true
 
-    for source in 1:(symmodel.autom.nstates)
-        if !(source in contr.X)
+    for source in 1:ST.get_n_state(symmodel.autom)
+        if !(source in ST.domain(contr))
             continue
         end
 
-        # compute all possible targets under allowed symbols
         targetlist = Int[]
-        for symbol in MathematicalSystems.apply(contr, source)
+        symbols = contr.controller_map(source)
+
+        for symbol in symbols
             ST.compute_post!(targetlist, symmodel.autom, source, symbol)
         end
 
-        # all targets must be safe
-        if !(all(t -> (t in safe_set), targetlist))
+        if !(all(t -> t in safe_set, targetlist))
             correct = false
             break
         end

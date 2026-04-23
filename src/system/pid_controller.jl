@@ -4,10 +4,14 @@ using LinearAlgebra
 import Dionysos
 const ST = Dionysos.System
 
-export PIDMemory, PIDController, PIDControllerVector,
-       ConstantSignal, ConstantTimeGetter, WrapAnglePositionVelocityError
+export PIDMemory,
+    PIDController,
+    PIDControllerVector,
+    ConstantSignal,
+    ConstantTimeGetter,
+    WrapAnglePositionVelocityError
 
-struct PIDMemory{E,I}
+struct PIDMemory{E, I}
     e_prev::E
     I::I
     initialized::Bool
@@ -25,12 +29,6 @@ end
 struct ConstantTimeGetter end
 (::ConstantTimeGetter)(x) = 0.0
 
-"""
-    WrapAnglePositionVelocityError()
-
-Error law for a pendulum-like state `x = [θ, ω]` and reference `r = [θref, ωref]`.
-Returns `[wrap(θref-θ), ωref-ω]`.
-"""
 struct WrapAnglePositionVelocityError end
 function (e::WrapAnglePositionVelocityError)(x, r, t)
     eθ = mod(r[1] - x[1] + π, 2π) - π
@@ -42,7 +40,7 @@ end
 # PID controller
 # ------------------------------------------------------------------
 
-struct PIDController{K,EF,RF,DT,TG,U1,U2,E0} <: ST.AbstractContinuousController
+struct PIDController{K, EF, RF, DT, TG, U1, U2, E0} <: ST.AbstractContinuousController
     Kp::K
     Ki::K
     Kd::K
@@ -87,10 +85,7 @@ function ST.output_control(pid::PIDController, mem::PIDMemory, x)
     I_new = I_prev + e * Δt
     de = (e - e_prev) / Δt
 
-    u_unsat =
-        _apply_gain(pid.Kp, e) +
-        _apply_gain(pid.Ki, I_new) +
-        _apply_gain(pid.Kd, de)
+    u_unsat = _apply_gain(pid.Kp, e) + _apply_gain(pid.Ki, I_new) + _apply_gain(pid.Kd, de)
 
     if pid.umin !== nothing && pid.umax !== nothing
         return _sat(u_unsat, pid.umin, pid.umax)
@@ -112,10 +107,7 @@ function ST.update_state(pid::PIDController, mem::PIDMemory, x)
     I_new = I_prev + e * Δt
     de = (e - e_prev) / Δt
 
-    u_unsat =
-        _apply_gain(pid.Kp, e) +
-        _apply_gain(pid.Ki, I_new) +
-        _apply_gain(pid.Kd, de)
+    u_unsat = _apply_gain(pid.Kp, e) + _apply_gain(pid.Ki, I_new) + _apply_gain(pid.Kd, de)
 
     if pid.umin !== nothing && pid.umax !== nothing
         u = _sat(u_unsat, pid.umin, pid.umax)

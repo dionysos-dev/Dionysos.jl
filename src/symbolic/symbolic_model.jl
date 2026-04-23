@@ -191,46 +191,11 @@ end
     end
 end
 
-#---------- Quantization -------------
-
-function quantize_controller(
-    sym::SymbolicModel,
-    ctrl::ST.DiscreteStaticController;
-    handle_out_of_domain = (x, sym) -> nothing,
-)
-    return QuantizedStaticController(sym, ctrl, handle_out_of_domain)
-end
-
-function quantize_controller(
-    sym::SymbolicModel,
-    ctrl::ST.DiscreteDynamicController;
-    handle_out_of_domain = (x, sym) -> nothing,
-)
-    return QuantizedDynamicController(sym, ctrl, handle_out_of_domain)
-end
-
-function concrete_to_abstract_state(
-    sym::SymbolicModel,
-    x;
-    handle_out_of_domain = (x, sym) -> nothing,
-)
-    qs = get_abstract_state(sym, x)
-    if qs === nothing || !is_allowed_state(sym, qs)
-        xnew = handle_out_of_domain(x, sym)
-        xnew === nothing && return nothing
-        qs = get_abstract_state(sym, xnew)
-        qs === nothing && return nothing
-        is_allowed_state(sym, qs) || return nothing
-    end
-    return qs
-end
-
 #---------- Quantized Controllers -------------
 
-struct QuantizedStaticController{SM, AC, H} <: ST.AbstractContinuousController
+struct QuantizedStaticController{SM, AC} <: ST.AbstractContinuousController
     sym::SM
     abstract_controller::AC
-    handle_out_of_domain::H
 end
 
 ST.domain(ctrl::QuantizedStaticController) = ctrl.sym
@@ -240,21 +205,13 @@ ST.initial_state(ctrl::QuantizedStaticController) = nothing
 ST.update_state(ctrl::QuantizedStaticController, x, y) = nothing
 
 function ST.is_defined(ctrl::QuantizedStaticController, x, y)
-    qs = concrete_to_abstract_state(
-        ctrl.sym,
-        y;
-        handle_out_of_domain = ctrl.handle_out_of_domain,
-    )
+    qs = get_abstract_state(ctrl.sym, y)
     qs === nothing && return false
     return ST.is_defined(ctrl.abstract_controller, nothing, qs)
 end
 
 function ST.output_control(ctrl::QuantizedStaticController, x, y)
-    qs = concrete_to_abstract_state(
-        ctrl.sym,
-        y;
-        handle_out_of_domain = ctrl.handle_out_of_domain,
-    )
+    qs = get_abstract_state(ctrl.sym, y)
     qs === nothing && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, nothing, qs)
@@ -263,10 +220,9 @@ function ST.output_control(ctrl::QuantizedStaticController, x, y)
     return get_concrete_input(ctrl.sym, u_sym)
 end
 
-struct QuantizedDynamicController{SM, AC, H} <: ST.AbstractContinuousController
+struct QuantizedDynamicController{SM, AC} <: ST.AbstractContinuousController
     sym::SM
     abstract_controller::AC
-    handle_out_of_domain::H
 end
 
 ST.domain(ctrl::QuantizedDynamicController) = ctrl.sym
@@ -276,35 +232,33 @@ ST.initial_state(ctrl::QuantizedDynamicController) =
     ST.initial_state(ctrl.abstract_controller)
 
 function ST.update_state(ctrl::QuantizedDynamicController, x, y)
-    qs = concrete_to_abstract_state(
-        ctrl.sym,
-        y;
-        handle_out_of_domain = ctrl.handle_out_of_domain,
-    )
+    qs = get_abstract_state(ctrl.sym, y)
     qs === nothing && return x
     return ST.update_state(ctrl.abstract_controller, x, qs)
 end
 
 function ST.is_defined(ctrl::QuantizedDynamicController, x, y)
-    qs = concrete_to_abstract_state(
-        ctrl.sym,
-        y;
-        handle_out_of_domain = ctrl.handle_out_of_domain,
-    )
+    qs = get_abstract_state(ctrl.sym, y)
     qs === nothing && return false
     return ST.is_defined(ctrl.abstract_controller, x, qs)
 end
 
 function ST.output_control(ctrl::QuantizedDynamicController, x, y)
-    qs = concrete_to_abstract_state(
-        ctrl.sym,
-        y;
-        handle_out_of_domain = ctrl.handle_out_of_domain,
-    )
+    qs = get_abstract_state(ctrl.sym, y)
     qs === nothing && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, x, qs)
     u_sym === nothing && return nothing
 
     return get_concrete_input(ctrl.sym, u_sym)
+end
+
+#---------- Quantization -------------
+
+function quantize_controller(sym::SymbolicModel, ctrl::ST.DiscreteStaticController)
+    return QuantizedStaticController(sym, ctrl)
+end
+
+function quantize_controller(sym::SymbolicModel, ctrl::ST.DiscreteDynamicController)
+    return QuantizedDynamicController(sym, ctrl)
 end

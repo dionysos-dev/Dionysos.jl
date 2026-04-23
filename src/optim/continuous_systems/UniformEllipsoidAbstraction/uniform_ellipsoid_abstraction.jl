@@ -227,7 +227,6 @@ struct RefinedStaticController{AS, AC, TC, VF, H} <: ST.AbstractContinuousContro
     abstract_controller::AC
     transition_controllers::TC
     abstract_value_function::VF
-    handle_out_of_domain::H
     randomize::Bool
 end
 
@@ -242,7 +241,6 @@ function RefinedStaticController(
         abstract_controller,
         transitionCont,
         abstract_value_function,
-        (x, sys) -> nothing,
         false,
     )
 end
@@ -263,14 +261,7 @@ end
 
 function pick_best_refined_transition(ctrl::RefinedStaticController, x)
     qs = SY.get_abstract_states(ctrl.abstract_system, x)
-
-    if isempty(qs)
-        xnew = ctrl.handle_out_of_domain(x, ctrl.abstract_system)
-        xnew === nothing && return nothing
-        qs = SY.get_abstract_states(ctrl.abstract_system, xnew)
-        isempty(qs) && return nothing
-        x = xnew
-    end
+    isempty(qs) && return nothing
 
     best_q = nothing
     best_to = nothing
