@@ -35,23 +35,23 @@ A2 = [0.4750 9.1755; 1.8955 0.1850]
 f = HybridSystems.discreteswitchedsystem([A1, A2])
 
 # Quadratic pieces: 
-# optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
-# pclf = PCLF.compute_quadratic_pieces_pclf(f, graph, optimizer; MLF = true)
+#optimizer = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
+#pclf = PCLF.compute_quadratic_pieces_pclf(f, graph, optimizer; MLF = true)
 
-# clf = PCLF.build_common_lyapunov(pclf)
-# Vclf = clf.pieces[:clf]
+#clf = PCLF.build_common_lyapunov(pclf)
+#Vclf = clf.pieces[:clf]
 
-# γ = 1000.0
-# xs, ys, vals, mask = PCLF.approximate_sublevel_set(Vclf, γ)
+#γ = 1000.0
+#xs, ys, vals, mask = PCLF.approximate_sublevel_set(Vclf, γ)
 
-# fig = plot(; aspect_ratio = :equal);
+#fig = plot(; aspect_ratio = :equal);
 
-# plot!(PCLF.get_sublevel_set(pclf.pieces[3], γ); label = "3")
-# plot!(PCLF.get_sublevel_set(pclf.pieces[1], γ); label = "1")
-# plot!(PCLF.get_sublevel_set(pclf.pieces[2], γ); label = "2")
-# plot!(PCLF.get_sublevel_set(pclf.pieces[4], γ); label = "4")
+#plot!(PCLF.get_sublevel_set(pclf.pieces[3], γ); label = "3")
+#plot!(PCLF.get_sublevel_set(pclf.pieces[1], γ); label = "1")
+#plot!(PCLF.get_sublevel_set(pclf.pieces[2], γ); label = "2")
+#plot!(PCLF.get_sublevel_set(pclf.pieces[4], γ); label = "4")
 
-# contour!(xs, ys, vals; levels=[γ], aspect_ratio=:equal, linewidth=2)
+#contour!(xs, ys, vals; levels=[γ], aspect_ratio=:equal, linewidth=2)
 
 # Polytopic pieces: 
 v1 = [1.0, 0.0]
@@ -79,7 +79,9 @@ Vclf_poly = clf_poly.pieces[:clf]
 
 γ = 0.5
 xs_poly, ys_poly, vals_poly, mask_poly = PCLF.approximate_sublevel_set(Vclf_poly, γ)
-#Sclf = PCLF.approximate_sublevel_set(Vclf_poly, γ)
+Sclf = PCLF.approximate_sublevel_set(Vclf_poly, γ)
+
+Sclf_2 = PCLF.get_sublevel_set(Vclf_poly, γ)
 
 fig = plot(; aspect_ratio = :equal);
 
@@ -88,8 +90,5 @@ plot!(PCLF.get_sublevel_set(pclf_poly.pieces[1], γ); label = "1")
 plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], γ); label = "2")
 plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], γ); label = "4")
 
-contour!(xs_poly, ys_poly, vals_poly; levels = [γ], linewidth = 2)
+plot!(Sclf_2; label = "CLF")
 
-#for (k, P) in enumerate(Sclf.parts)
-#    plot!(fig, P; label = k == 1 ? "CLF" : nothing)
-#end
