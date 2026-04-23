@@ -30,4 +30,3 @@ R = Poly(vcat(LazySets.constraints_list(P1), LazySets.constraints_list(P2)))
 println(LazySets.isempty(R))
 
 R = UT.clean_poly(R)
-

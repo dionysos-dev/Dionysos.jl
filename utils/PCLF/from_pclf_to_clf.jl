@@ -91,4 +91,3 @@ plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], γ); label = "2")
 plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], γ); label = "4")
 
 plot!(Sclf_2; label = "CLF")
-
