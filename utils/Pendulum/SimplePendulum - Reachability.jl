@@ -9,6 +9,8 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 const SC = AB.SymbolicCertifier
 
+using JLD2
+
 include("../../problems/Pendulum/simple_pendulum.jl");
 
 concrete_problem =
@@ -74,6 +76,9 @@ abstract_problem_time =
 println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
+
+# JLD2.jldsave("concrete_controller.jld2"; concrete_controller = concrete_controller)
+# concrete_controller = JLD2.load("concrete_controller.jld2", "concrete_controller")
 
 # ------------------------------------------------------------
 # Closed loop simulation
