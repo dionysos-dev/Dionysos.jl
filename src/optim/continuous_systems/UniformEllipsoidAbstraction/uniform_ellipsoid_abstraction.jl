@@ -222,7 +222,7 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-struct RefinedStaticController{AS, AC, TC, VF, H} <: ST.AbstractContinuousController
+struct RefinedStaticController{AS, AC, TC, VF} <: ST.AbstractContinuousController
     abstract_system::AS
     abstract_controller::AC
     transition_controllers::TC
