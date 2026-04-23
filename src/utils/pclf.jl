@@ -769,29 +769,29 @@ struct ObserverCLFPiece{U} <: AbstractPiece
     base_pieces::Dict{U, AbstractPiece}
 end
 
-#function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
-#    parts = LazySets.HPolytope[]
-#
-#    for S in piece.observer_states
-#        isempty(S) && continue
-#
-#        cons = LazySets.HalfSpace[]
-#        for i in S
-#            Pi = piece.base_pieces[i]
-#            @assert Pi isa PolyhedralPiece
+function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
+    parts = LazySets.HPolytope[]
 
-#            for k in 1:size(Pi.G, 1)
-#                gk = vec(Pi.G[k, :])
-#                push!(cons, LazySets.HalfSpace( gk, γ * Pi.w[k]))
-#                push!(cons, LazySets.HalfSpace(-gk, γ * Pi.w[k]))
-#            end
-#        end
+    for S in piece.observer_states
+        isempty(S) && continue
 
-#        push!(parts, LazySets.HPolytope(cons))
-#    end
+        cons = LazySets.HalfSpace[]
+        for i in S
+            Pi = piece.base_pieces[i]
+            @assert Pi isa PolyhedralPiece
 
-#    return SemiLinearSet(clean_poly(parts))     # TO be modified 
-#end
+            for k in 1:size(Pi.G, 1)
+                gk = vec(Pi.G[k, :])
+                push!(cons, LazySets.HalfSpace(gk, γ * Pi.w[k]))
+                push!(cons, LazySets.HalfSpace(-gk, γ * Pi.w[k]))
+            end
+        end
+
+        push!(parts, LazySets.HPolytope(cons))
+    end
+
+    return UT.SemiLinearSet(parts)
+end
 
 function piece_value(p::ObserverCLFPiece, x::AbstractVector{<:Real})
     best = Inf
