@@ -9,7 +9,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # Outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerOptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_controller::Union{Nothing, MS.AbstractMap}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
@@ -124,6 +124,8 @@ function get_abstract_transition_cost(
     abstract_system::SY.TimedHybridSymbolicModel,
     concrete_transition_cost,
 )
+    concrete_transition_cost === nothing && return nothing
+
     function abstract_transition_cost(state, input)
         (x, t, k) = SY.get_concrete_state(abstract_system, state)
         aug_concrete_state = (x, t, k)
@@ -136,6 +138,7 @@ function get_abstract_transition_cost(
         end
         return concrete_transition_cost(aug_concrete_state, u)
     end
+
     return abstract_transition_cost
 end
 
@@ -144,7 +147,10 @@ function build_abstract_problem(
     abstract_system::SY.TimedHybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set # a unique augmented point
-    abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]
+    q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
+    q0 === nothing &&
+        error("Initial augmented state is outside the abstract system domain.")
+    abstract_initial_set = [q0]
 
     concrete_target_set = concrete_problem.target_set
     abstract_target_set = SY.get_states_from_set(

@@ -23,8 +23,8 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
     abstract_system_full::Union{Nothing, Any}
-    abstract_controller::Union{Nothing, MS.AbstractMap}
-    concrete_controller::Union{Nothing, MS.AbstractMap}
+    abstract_controller::Union{Nothing, Any}
+    concrete_controller::Union{Nothing, ST.AbstractContinuousController}
     abstract_lyap_fun::Union{Nothing, Any}
     concrete_lyap_fun::Union{Nothing, Any}
 
@@ -194,40 +194,41 @@ end
 # Controller / Lyapunov helpers
 # ----------------------------
 
-struct PredicateDomain{F}
-    pred::F
+struct TreeStaticController{TR} <: ST.AbstractContinuousController
+    tree::TR
 end
-Base.in(x, X::PredicateDomain) = X.pred(x)
+
+ST.domain(ctrl::TreeStaticController) = ctrl.tree
+ST.initial_state(::TreeStaticController) = nothing
+ST.update_state(::TreeStaticController, q, x) = nothing
+
+function _best_tree_action(ctrl::TreeStaticController, x)
+    compare(E, x) = x ∈ E
+    nodes = UT.get_nodes(ctrl.tree, x, compare)
+    isempty(nodes) && return nothing
+
+    sorted_nodes = sort(nodes; by = UT.compare)
+    isempty(sorted_nodes) && return nothing
+
+    local_map = UT.get_action(sorted_nodes[1])
+    local_map === nothing && return nothing
+
+    u = MS.apply(local_map, x)
+    u === nothing && return nothing
+
+    return u
+end
+
+function ST.is_defined(ctrl::TreeStaticController, q, x)
+    return _best_tree_action(ctrl, x) !== nothing
+end
+
+function ST.output_control(ctrl::TreeStaticController, q, x)
+    return _best_tree_action(ctrl, x)
+end
 
 function build_concrete_controller(abstract_tree::UT.Tree)
-    compare(E, x) = x ∈ E
-
-    # is_defined(x): there is at least one ellipsoid node containing x AND action returns something
-    isdef = function (x)
-        nodes = UT.get_nodes(abstract_tree, x, compare)
-        isempty(nodes) && return false
-        sorted_nodes = sort(nodes; by = UT.compare)
-        isempty(sorted_nodes) && return false
-        local_map = UT.get_action(sorted_nodes[1])  # expect MS map
-        local_map === nothing && return false
-        u = local_map.h(x)
-        return u !== nothing
-    end
-
-    f = function (x)
-        nodes = UT.get_nodes(abstract_tree, x, compare)
-        isempty(nodes) && return nothing
-        sorted_nodes = sort(nodes; by = UT.compare)
-        isempty(sorted_nodes) && return nothing
-
-        local_map = UT.get_action(sorted_nodes[1])
-        local_map === nothing && return nothing
-
-        return MS.apply(local_map, x)
-    end
-
-    X = PredicateDomain(isdef)
-    return MS.ConstrainedBlackBoxMap(0, 0, f, X)
+    return TreeStaticController(abstract_tree)
 end
 
 function build_abstract_lyap_fun()

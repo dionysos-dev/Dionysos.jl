@@ -3,7 +3,7 @@
 
 An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
 
-This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref PR.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref SY.SymbolicModelList)). It then solves the **abstract** version of the control problem.
+This solver takes as input a concrete problem (typically an instance of [`OptimalControlProblem`](@ref PR.OptimalControlProblem)) and a symbolic abstraction of the system (i.e., an [`abstract_system`](@ref SY.SymbolicModel)). It then solves the **abstract** version of the control problem.
 
 ### Key Behavior
 
@@ -76,7 +76,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    abstract_system::Any
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
@@ -84,7 +84,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     # outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerOptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
 
     controllable_set::Union{Nothing, MP.AbstractStateSet}
     uncontrollable_set::Union{Nothing, MP.AbstractStateSet}
@@ -163,20 +163,20 @@ function build_concrete_value_function(abstract_system, abstract_value_function)
 end
 
 function get_abstract_transition_cost(abstract_system, concrete_transition_cost)
-    if concrete_transition_cost === nothing
-        return nothing
-    end
+    concrete_transition_cost === nothing && return nothing
+
     function abstract_transition_cost(q, s)
-        x = SY.get_concrete_state(abstract_system, q)  # center of cell
+        x = SY.get_concrete_state(abstract_system, q)
         u = SY.get_concrete_input(abstract_system, s)
         return concrete_transition_cost(x, u)
     end
+
     return abstract_transition_cost
 end
 
 function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.SymbolicModelList,
+    abstract_system::SY.SymbolicModel,
 )
     @warn("The `state_cost` is not yet fully implemented")
 
@@ -184,9 +184,9 @@ function build_abstract_problem(
         SY.get_automaton(abstract_system),
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
         SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
-        concrete_problem.state_cost, # TODO
+        concrete_problem.state_cost,
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time, # TODO
+        concrete_problem.time,
     )
 end
 

@@ -27,7 +27,7 @@ include("safety_problem.jl")
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
-    concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
+    concrete_controller::Union{Nothing, ST.AbstractContinuousController}
     solve_time_sec::T
     print_level::Int
 
@@ -210,10 +210,8 @@ function MOI.optimize!(optimizer::Optimizer)
             optimizer.control_solver,
             MOI.RawOptimizerAttribute("abstract_controller"),
         )
-        optimizer.concrete_controller = solve_concrete_problem(
-            optimizer.abstraction_solver.abstract_system,
-            abstract_controller,
-        )
+        optimizer.concrete_controller =
+            HybridQuantizedStaticController(abstract_system, abstract_controller)
     end
 
     # Time elapsed
@@ -225,40 +223,34 @@ end
 # Concrete controller synthesis
 # ================================================================
 
-# Domain object whose membership is a predicate
-struct PredicateDomain{F}
-    pred::F
+struct HybridQuantizedStaticController{AS, AC} <: ST.AbstractContinuousController
+    abstract_system::AS
+    abstract_controller::AC
 end
-Base.in(x, X::PredicateDomain) = X.pred(x)
+ST.domain(ctrl::HybridQuantizedStaticController) = ctrl.abstract_system
+ST.initial_state(::HybridQuantizedStaticController) = nothing
+ST.update_state(::HybridQuantizedStaticController, q, y) = nothing
 
-function solve_concrete_problem(
-    abstract_system::SY.TimedHybridSymbolicModel,
-    abstract_controller::MS.AbstractMap,
-)
-    k_abs = abstract_controller.h  # q -> Vector{Int} or Int or nothing
+function ST.is_defined(ctrl::HybridQuantizedStaticController, q, aug_state)
+    abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
+    abs_q === nothing && return false
+    return ST.is_defined(ctrl.abstract_controller, nothing, abs_q)
+end
 
-    function f(aug_state)
-        q = SY.get_abstract_state(abstract_system, aug_state)
+function ST.output_control(ctrl::HybridQuantizedStaticController, q, aug_state)
+    abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
+    abs_q === nothing && return nothing
 
-        us = k_abs(q)
-        us === nothing && return nothing
-        (us isa AbstractVector && isempty(us)) && return nothing
+    u_abs = ST.output_control(ctrl.abstract_controller, nothing, abs_q)
+    u_abs === nothing && return nothing
 
-        u_abs = us isa AbstractVector ? first(us) : us
-
-        (_, _, k) = aug_state
-        if SY.is_switching_input(abstract_system.input_mapping, u_abs)
-            transition_id = abstract_system.input_mapping.global_to_switching[u_abs]
-            return abstract_system.input_mapping.switch_labels[transition_id]  # string label
-        else
-            return SY.get_concrete_input(abstract_system, u_abs, k)
-        end
+    (_, _, k) = aug_state
+    if SY.is_switching_input(ctrl.abstract_system.input_mapping, u_abs)
+        transition_id = ctrl.abstract_system.input_mapping.global_to_switching[u_abs]
+        return ctrl.abstract_system.input_mapping.switch_labels[transition_id]
+    else
+        return SY.get_concrete_input(ctrl.abstract_system, u_abs, k)
     end
-
-    X = PredicateDomain(_ -> true)
-    nx = 1  # “dimension” is not super meaningful for tuples; keep consistent with MS expectations in your codebase
-    nu = 1
-    return MS.ConstrainedBlackBoxMap(nx, nu, f, X)
 end
 
 # ================================================================
@@ -306,30 +298,34 @@ end
 
 function get_closed_loop_trajectory(
     hs::HybridSystem,
-    controller,
+    controller::ST.AbstractController,
     tsteps,
     aug_state_0,
     nstep;
-    stopping = (x) -> false,
+    stopping = x -> false,
 )
-    kmap = controller.h
-    aug_state_traj, u_traj = [aug_state_0], []
+    q = ST.initial_state(controller)
+    aug_state_traj, u_traj = [aug_state_0], Any[]
     aug_state = aug_state_0
 
     nmodes = HybridSystems.nmodes(hs.automaton)
     dynamics = [HybridSystems.mode(hs, k).systems[1].f for k in 1:nmodes]
     maps_sys = [ST.simulate_control_map(dynamics[i]) for i in 1:nmodes]
     times_is_active =
-        [([1.0;;]==HybridSystems.mode(hs, k).systems[2].A) ? true : false for k in 1:nmodes]
+        [([1.0;;] == HybridSystems.mode(hs, k).systems[2].A) for k in 1:nmodes]
 
     for _ in 1:nstep
         stopping(aug_state) && break
-        u = kmap(aug_state)
+
+        u = ST.output_control(controller, q, aug_state)
         u === nothing && break
 
         (_, _, k) = aug_state
-        aug_state =
+        next_aug_state =
             get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
+
+        q = ST.update_state(controller, q, aug_state)
+        aug_state = next_aug_state
 
         push!(aug_state_traj, aug_state)
         push!(u_traj, u)

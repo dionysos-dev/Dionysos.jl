@@ -27,7 +27,8 @@ include("linearization.jl")
 # Kernel Approximation
 include("kernel_approximation/kernel_approximation.jl")
 
-# Basic Controllers
+# Controllers
+include("controller.jl")
 include("pid_controller.jl")
 
 # Trajectories

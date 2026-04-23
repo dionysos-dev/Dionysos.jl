@@ -8,7 +8,7 @@ mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
     print_level::Int
 
     # outputs
-    controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    controller::Union{Nothing, ST.AbstractDiscreteController}
     invariant_set::Any
     invariant_set_complement::Any
     success::Bool
@@ -53,14 +53,12 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.print_level >= 1 && println("compute_controller_safe! started")
 
-    controller, inv_set, invc_set =
-        compute_largest_invariant_set(autom, optimizer.problem.safe_set)
+    controller, inv_set, invc_set = compute_largest_invariant_set(autom, problem.safe_set)
 
     optimizer.controller = controller
     optimizer.invariant_set = inv_set
     optimizer.invariant_set_complement = invc_set
 
-    # success check: initial_set ⊆ invariant_set
     optimizer.success = all(q -> q in inv_set, problem.initial_set)
 
     optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
@@ -69,18 +67,18 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     return
 end
 
-function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist;)
-    contr_tab = SymbolicControlTable(ST.get_n_state(autom))
+function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist)
+    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
     nstates = ST.get_n_state(autom)
     nsymbols = ST.get_n_input(autom)
-    pairstable = [false for i in 1:nstates, j in 1:nsymbols]
+    pairstable = falses(nstates, nsymbols)
 
     _compute_pairstable(pairstable, autom)
-    nsymbolslist = sum(pairstable; dims = 2)
+    nsymbolslist = vec(sum(pairstable; dims = 2))
 
     # Remove unsafe states
     safeset = Set(safelist)
-    for source in safeset
+    for source in collect(safeset)
         if nsymbolslist[source] == 0
             delete!(safeset, source)
         end
@@ -99,20 +97,18 @@ function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist
     # Iterate until convergence
     while true
         for target in unsafeset
-            for soursymb in ST.pre(autom, target)
-                if pairstable[soursymb[1], soursymb[2]]
-                    pairstable[soursymb[1], soursymb[2]] = false
-                    nsymbolslist[soursymb[1]] -= 1
-                    if nsymbolslist[soursymb[1]] == 0
-                        push!(nextunsafeset, soursymb[1])
+            for (source, symbol) in ST.pre(autom, target)
+                if pairstable[source, symbol]
+                    pairstable[source, symbol] = false
+                    nsymbolslist[source] -= 1
+                    if nsymbolslist[source] == 0
+                        push!(nextunsafeset, source)
                     end
                 end
             end
         end
 
-        if isempty(nextunsafeset)
-            break
-        end
+        isempty(nextunsafeset) && break
 
         setdiff!(safeset, nextunsafeset)
         unsafeset, nextunsafeset = nextunsafeset, unsafeset
@@ -123,19 +119,21 @@ function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist
     for source in safeset
         for symbol in 1:nsymbols
             if pairstable[source, symbol]
-                set_control!(contr_tab, source, symbol)
+                add_control!(contr_tab, source, symbol)
             end
         end
     end
+
     unsafeset = setdiff(Set(safelist), safeset)
-    controller = to_ms_controller(contr_tab)
+    controller = ST.DiscreteStaticController(safeset, contr_tab, false)
+
     return controller, safeset, unsafeset
 end
 
 function _compute_pairstable(pairstable, autom)
     for target in ST.enum_states(autom)
-        for soursymb in ST.pre(autom, target)
-            pairstable[soursymb[1], soursymb[2]] = true
+        for (source, symbol) in ST.pre(autom, target)
+            pairstable[source, symbol] = true
         end
     end
 end

@@ -279,8 +279,6 @@ function script()
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 0, warn = true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
     MOI.optimize!(optimizer)
 
     concrete_controller =
@@ -399,9 +397,6 @@ function script()
     ) # GROWTH, CENTER_SIMULATION
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 1, warn = true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("randomize"), false)
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("automaton_constructor"),

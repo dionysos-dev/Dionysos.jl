@@ -2,6 +2,7 @@ module UniformEllipsoidAbstraction
 
 import Dionysos
 const UT = Dionysos.Utils
+const ST = Dionysos.System
 const PR = Dionysos.Problem
 const MP = Dionysos.Mapping
 const SY = Dionysos.Symbolic
@@ -25,7 +26,7 @@ include("optimal_control_problem.jl")
 mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
-    concrete_controller::Union{Nothing, MS.AbstractSystem, MS.AbstractMap}
+    concrete_controller::Union{Nothing, ST.AbstractContinuousController}
     solve_time_sec::T
     print_level::Int
 
@@ -208,7 +209,7 @@ function MOI.optimize!(optimizer::Optimizer)
             optimizer.abstraction_solver,
             MOI.RawOptimizerAttribute("transitionCont"),
         )
-        optimizer.concrete_controller = solve_concrete_problem(
+        optimizer.concrete_controller = RefinedStaticController(
             optimizer.abstraction_solver.abstract_system,
             abstract_controller,
             transitionCont,
@@ -221,76 +222,85 @@ function MOI.optimize!(optimizer::Optimizer)
     return
 end
 
-struct PredicateDomain{F}
-    pred::F
+struct RefinedStaticController{AS, AC, TC, VF, H} <: ST.AbstractContinuousController
+    abstract_system::AS
+    abstract_controller::AC
+    transition_controllers::TC
+    abstract_value_function::VF
+    handle_out_of_domain::H
+    randomize::Bool
 end
-Base.in(x, X::PredicateDomain) = X.pred(x)
 
-function solve_concrete_problem(
-    abstract_system::SY.SymbolicModelList,
-    abstract_controller::MS.AbstractMap,
+function RefinedStaticController(
+    abstract_system,
+    abstract_controller::ST.AbstractDiscreteController,
     transitionCont::Dict,
-    abstract_value_function::Function;
-    handle_out_of_domain::Function = (x, abs_sys) -> nothing,
-    randomize = false,
+    abstract_value_function::Function,
 )
-    k_abs = abstract_controller.h
-    is_defined_q = q -> (q ∈ abstract_controller.X)
+    return RefinedStaticController(
+        abstract_system,
+        abstract_controller,
+        transitionCont,
+        abstract_value_function,
+        (x, sys) -> nothing,
+        false,
+    )
+end
 
-    # choose a valid (from,to,cont) with minimal value
-    function pick_best_transition(x)
-        qs = SY.get_abstract_states(abstract_system, x)
-        if isempty(qs)
-            xnew = handle_out_of_domain(x, abstract_system)
-            xnew === nothing && return nothing
-            qs = SY.get_abstract_states(abstract_system, xnew)
-            isempty(qs) && return nothing
-            x = xnew
-        end
+ST.domain(ctrl::RefinedStaticController) = ctrl.abstract_system
+ST.initial_state(::RefinedStaticController) = nothing
+ST.update_state(::RefinedStaticController, x, y) = nothing
 
-        best_q = nothing
-        best_to = nothing
-        best_cont = nothing
-        best_val = Inf
+function ST.is_defined(ctrl::RefinedStaticController, q, x)
+    return pick_best_refined_transition(ctrl, x) !== nothing
+end
 
-        for q in qs
-            is_defined_q(q) || continue
-            to_list = k_abs(q)
-            to_list === nothing && return nothing
-            to = isempty(to_list) ? nothing : (randomize ? rand(to_list) : first(to_list))
-            to === nothing && return nothing
+function ST.output_control(ctrl::RefinedStaticController, q, x)
+    tr = pick_best_refined_transition(ctrl, x)
+    tr === nothing && return nothing
+    return MS.apply(tr.cont, tr.x)
+end
 
-            key = (q, to)
-            haskey(transitionCont, key) || continue
+function pick_best_refined_transition(ctrl::RefinedStaticController, x)
+    qs = SY.get_abstract_states(ctrl.abstract_system, x)
 
-            v = abstract_value_function(q)
-            if v < best_val
-                best_val = v
-                best_q = q
-                best_to = to
-                best_cont = transitionCont[key]
-            end
-        end
-
-        if best_q === nothing
-            return nothing
-        end
-        return (x = x, from = best_q, to = best_to, cont = best_cont, val = best_val)
+    if isempty(qs)
+        xnew = ctrl.handle_out_of_domain(x, ctrl.abstract_system)
+        xnew === nothing && return nothing
+        qs = SY.get_abstract_states(ctrl.abstract_system, xnew)
+        isempty(qs) && return nothing
+        x = xnew
     end
 
-    # concrete controller x -> u
-    f = function (x)
-        tr = pick_best_transition(x)
-        tr === nothing && return nothing
-        return MS.apply(tr.cont, tr.x)
+    best_q = nothing
+    best_to = nothing
+    best_cont = nothing
+    best_val = Inf
+
+    for q in qs
+        ST.is_defined(ctrl.abstract_controller, nothing, q) || continue
+
+        to_list = ctrl.abstract_controller.controller_map(q)
+        to_list === nothing && continue
+        isempty(to_list) && continue
+
+        to = ctrl.randomize ? rand(to_list) : first(to_list)
+
+        key = (q, to)
+        haskey(ctrl.transition_controllers, key) || continue
+
+        v = ctrl.abstract_value_function(q)
+        if v < best_val
+            best_val = v
+            best_q = q
+            best_to = to
+            best_cont = ctrl.transition_controllers[key]
+        end
     end
 
-    # domain predicate (controller defined at x)
-    Xx = PredicateDomain(x -> pick_best_transition(x) !== nothing)
+    best_q === nothing && return nothing
 
-    nx = SY.get_state_dim(abstract_system)
-    nu = SY.get_input_dim(abstract_system)
-    return MS.ConstrainedBlackBoxMap(nx, nu, f, Xx)
+    return (x = x, from = best_q, to = best_to, cont = best_cont, val = best_val)
 end
 
 end # module

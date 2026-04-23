@@ -10,8 +10,7 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
     print_level::Int
 
     # outputs / internals
-    controller::Union{Nothing, MS.SystemWithOutput}
-    qa0::Any
+    controller::Union{Nothing, ST.AbstractDiscreteController}
     update_on_next::Bool
     controllable_set::Any
     uncontrollable_set::Any
@@ -27,7 +26,6 @@ mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
             false,     # sparse_input
             1,         # print_level
             nothing,   # controller
-            nothing,   # qa0
             true,      # update_on_next
             nothing,   # controllable_set
             nothing,   # uncontrollable_set
@@ -146,15 +144,14 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     optimizer.product_automaton_optimizer = product_automaton_optimizer
     product_controller = product_automaton_optimizer.controller
     product_controllable_set = product_automaton_optimizer.controllable_set
-    product_uncontrollable_set = product_automaton_optimizer.uncontrollable_set
     product_value_fun_tab = product_automaton_optimizer.value_fun_tab
     success = product_automaton_optimizer.success
 
     problem.labeling isa AbstractDict ||
-        error("build_fm_controller_ms currently requires dictionary labeling.")
+        error("build_dynamic_controller currently requires dictionary labeling.")
 
     # (5) Wrap product controller into finite-memory controller on autom
-    controller, qa0 = build_fm_controller_ms(
+    controller = build_dynamic_controller(
         problem.labeling,
         spec,
         product_controller,
@@ -162,7 +159,6 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     )
 
     optimizer.controller = controller
-    optimizer.qa0 = qa0
     optimizer.update_on_next = true
     optimizer.controllable_set = project_initial_memory_controllable_set(
         product_autom,
@@ -361,10 +357,10 @@ function build_product_automaton(
     return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
 end
 
-function build_fm_controller_ms(
+function build_dynamic_controller(
     lab_abs::Dict{Symbol, Vector{Int}},
     spec::AbstractSpecStepper,
-    contrP::MS.AbstractMap,
+    contrP::ST.AbstractDiscreteController,
     pid::Dict{Tuple{Int, Int}, Int},
 )
     lab_bits = Dict{Symbol, BitSet}((ap => BitSet(states)) for (ap, states) in lab_abs)
@@ -379,37 +375,29 @@ function build_fm_controller_ms(
     end
 
     qa0 = init_state(spec)
-    kP = contrP.h
 
     h = function (qa::Int, qs::Int)
         p = get(pid, (qs, qa), nothing)
         p === nothing && return nothing
-        return kP(p)
+        return ST.output_control(contrP, nothing, p)
     end
 
     g = function (qa::Int, qs_for_update::Int)
         return step(spec, qa, labeling_qs(qs_for_update))
     end
 
-    isdef_qaqs = function (qaqs)
+    dom = ST.PredicateDomain(qaqs -> begin
         qa, qs = qaqs
         p = get(pid, (qs, qa), nothing)
         p === nothing && return false
-        out = kP(p)
+        out = ST.output_control(contrP, nothing, p)
         out === nothing && return false
-        (out isa AbstractVector) && return !isempty(out)
         return true
-    end
-    X_qaqs = PredicateDomain(isdef_qaqs)
+    end)
 
-    outmap = MS.ConstrainedBlackBoxMap(2, 1, qaqs -> begin
-        qa, qs = qaqs
-        h(qa, qs)
-    end, X_qaqs)
+    ctrl = ST.DiscreteDynamicController(qa0, dom, g, h, false)
 
-    memsys = MS.BlackBoxDiscreteSystem((qa, qs_for_update) -> g(qa, qs_for_update), 1)
-
-    return MS.SystemWithOutput(memsys, outmap), qa0
+    return ctrl
 end
 
 function project_initial_memory_controllable_set(

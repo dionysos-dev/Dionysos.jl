@@ -1,8 +1,6 @@
 const MP = DI.Mapping
 const SY = DI.Symbolic
 
-import MathematicalSystems as MS
-
 # ============================================================
 # Quotient automaton wrapper
 # ============================================================
@@ -112,8 +110,7 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
     quotient_automaton::Any
     abstract_optimizer::Union{Nothing, OPDS.OptimizerCoSafeLTLProblem}
     abstract_problem::Union{Nothing, PR.CoSafeLTLProblem}
-    abstract_controller::Union{Nothing, MS.SystemWithOutput}
-    qa0::Union{Nothing, Int}
+    abstract_controller::Union{Nothing, ST.AbstractDiscreteController}
     controllable_set::Union{Nothing, Vector{Int}}
     uncontrollable_set::Union{Nothing, Vector{Int}}
     value_fun_tab::Any
@@ -128,7 +125,6 @@ mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
             true,
             false,
             1,
-            nothing,
             nothing,
             nothing,
             nothing,
@@ -194,7 +190,6 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
 
     optimizer.abstract_optimizer = abstract_optimizer
     optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.qa0 = abstract_optimizer.qa0
 
     optimizer.controllable_set =
         sort(from_autom_to_bis_states(Q, abstract_optimizer.controllable_set))
@@ -254,11 +249,6 @@ end
 # Concretize the controller
 # ============================================================
 
-struct PredicateDomain{F}
-    pred::F
-end
-Base.in(x, X::PredicateDomain) = X.pred(x)
-
 function _find_qid_in_node(T::PCBisimulationQuotient, node, x)
     for qid in get(T.part_ids, node, Int[])
         q = T.states[qid]
@@ -296,12 +286,9 @@ end
 
 function solve_concrete_problem_lifted(
     Q::QuotientAutomaton,
-    abstract_controller::MS.SystemWithOutput,
+    abstract_controller::ST.AbstractDiscreteController,
 )
     T = Q.quotient
-
-    h_abs = abstract_controller.outputmap.h
-    g_abs = MS.mapping(abstract_controller.s)
 
     qid_to_qs(qid::Int) = Q.id2idx[qid]
     qs_to_qid(qs::Int) = Q.qids[qs]
@@ -320,6 +307,7 @@ function solve_concrete_problem_lifted(
 
         haskey(T.states, qid) || return nothing
         q = T.states[qid]
+
         qid_use = if x ∈ q.set
             qid
         else
@@ -330,11 +318,8 @@ function solve_concrete_problem_lifted(
         qid_use === nothing && return nothing
 
         qs_dense = qid_to_qs(qid_use)
-        us = h_abs((qa, qs_dense))
-        u_sym = pick_symbol(us)
-        u_sym === nothing && return nothing
-
-        return u_sym
+        us = ST.output_control(abstract_controller, qa, qs_dense)
+        return us
     end
 
     g_conc = function (mem, x_for_update)
@@ -355,7 +340,7 @@ function solve_concrete_problem_lifted(
         isnothing(qid_next) && return mem
 
         qs_dense_next = qid_to_qs(qid_next)
-        qa_next = g_abs(qa, qs_dense_next)
+        qa_next = ST.update_state(abstract_controller, qa, qs_dense_next)
 
         return (qa_next, qid_next)
     end
@@ -375,29 +360,16 @@ function solve_concrete_problem_lifted(
         isnothing(qid_use) && return false
 
         qs_dense = qid_to_qs(qid_use)
-        us = h_abs((qa, qs_dense))
-        u_sym = pick_symbol(us)
+        u = ST.output_control(abstract_controller, qa, qs_dense)
 
-        return u_sym !== nothing
+        return u !== nothing
     end
-    X_memx = PredicateDomain(is_defined_memx)
 
-    first_q = first(values(T.states))
-    nx = UT.dim(first_q.set)
-    nu = 1
+    X_memx = ST.PredicateDomain(is_defined_memx)
 
-    outmap = MS.ConstrainedBlackBoxMap(2, nu, memx -> begin
-        mem, x = memx
-        h_conc(mem, x)
-    end, X_memx)
+    x0_abs = ST.initial_state(abstract_controller)
 
-    memsys = MS.BlackBoxControlDiscreteSystem(
-        (mem, x_for_update) -> g_conc(mem, x_for_update),
-        2,
-        nx,
-    )
-
-    return MS.SystemWithOutput(memsys, outmap)
+    return ST.DiscreteDynamicController(x0_abs, X_memx, g_conc, h_conc, false)
 end
 
 function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
@@ -410,7 +382,7 @@ function solve_concrete_problem(opt::OptimizerCoSafeLTLOnQuotient)
     return solve_concrete_problem_lifted(Q, Cabs)
 end
 
-function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
+function initial_lifted_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
     Q = opt.quotient_automaton
     absopt = opt.abstract_optimizer
     absprob = opt.abstract_problem
@@ -454,21 +426,18 @@ function initial_concrete_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x
 end
 
 function initial_controller_memory(opt::OptimizerCoSafeLTLOnQuotient, x0)
-    return initial_concrete_controller_memory(opt, x0)
+    return initial_lifted_controller_memory(opt, x0)
 end
 
 function simulate_closed_loop(
     f::HybridSystems.HybridSystem,
-    controller::MS.SystemWithOutput,
+    controller::ST.AbstractController,
     x0,
     mem0;
     N::Int = 20,
     update_on_next::Bool = true,
 )
     A = f.resetmaps
-
-    h = controller.outputmap.h
-    g = MS.mapping(controller.s)
 
     xs = Vector{typeof(x0)}()
     us = Int[]
@@ -480,8 +449,8 @@ function simulate_closed_loop(
     push!(xs, x)
     push!(mems, mem)
 
-    for k in 1:N
-        u = h((mem, x))
+    for _ in 1:N
+        u = ST.output_control(controller, mem, x)
         u === nothing && break
 
         if u isa AbstractVector
@@ -501,7 +470,7 @@ function simulate_closed_loop(
         end
 
         x_for_update = update_on_next ? xnext : x
-        mem = g(mem, x_for_update)
+        mem = ST.update_state(controller, mem, x_for_update)
 
         x = xnext
         push!(xs, x)

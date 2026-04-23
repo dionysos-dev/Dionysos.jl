@@ -161,7 +161,6 @@ println("Co-safe LTL success: $success")
 
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-q0 = MOI.get(optimizer, MOI.RawOptimizerAttribute("qa0"))
 
 x0 = SVector(-1.65, -1.65)
 nstep = 60
@@ -170,7 +169,6 @@ x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
     concrete_controller,
     x0,
-    q0,
     nstep;
     update_on_next = true,
     stopping = x -> false,

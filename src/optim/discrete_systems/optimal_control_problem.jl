@@ -10,7 +10,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
     print_level::Int
 
     # outputs
-    controller::Union{Nothing, MS.ConstrainedBlackBoxMap}
+    controller::Union{Nothing, ST.AbstractDiscreteController}
     controllable_set::Any
     uncontrollable_set::Any
     value_fun_tab::Any
@@ -158,7 +158,7 @@ function compute_optimal_controller(
     cost_function = nothing,
     sparse_input::Bool = false,
 )
-    contr_tab = SymbolicControlTable(ST.get_n_state(autom))
+    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
 
     is_det = ST.is_deterministic(autom)
     uniform_cost = cost_function === nothing
@@ -217,7 +217,7 @@ function compute_optimal_controller(
 
     controllable_set = Set(i for (i, v) in pairs(value_fun_tab) if isfinite(v))
     uncontrollable_set = setdiff(state_set, controllable_set)
-    controller = to_ms_controller(contr_tab)
+    controller = ST.DiscreteStaticController(controllable_set, contr_tab, false)
 
     return controller, controllable_set, uncontrollable_set, value_fun_tab
 end
@@ -279,7 +279,7 @@ function compute_worst_case_uniform_cost_controller(
     initial_set = ST.enum_states(autom),
     sparse_input = false,
 )
-    contr_tab = SymbolicControlTable(ST.get_n_state(autom))
+    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
 
     stateset,
     initset,
@@ -301,8 +301,7 @@ function compute_worst_case_uniform_cost_controller(
     )
 
     uncontrollable_set = setdiff(stateset, controllable_set)
-    controller = to_ms_controller(contr_tab)
-
+    controller = ST.DiscreteStaticController(controllable_set, contr_tab, false)
     return controller, controllable_set, uncontrollable_set, value_fun_tab
 end
 
