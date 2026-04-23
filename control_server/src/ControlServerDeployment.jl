@@ -1,18 +1,23 @@
 module ControlServerDeployment
 
 using Dionysos
+const ST = Dionysos.System
+
+using JLD2
 using ..Controller4Server
 
-function to_server_controller(ctrl::Dionysos.AbstractDeployableController)
-    x0 = Vector{Float64}(Dionysos.initial_state(ctrl))
-    f = (x, y) -> Vector{Float64}(Dionysos.update_state(ctrl, x, y))
-    g = (x, y) -> Vector{Float64}(Dionysos.output_control(ctrl, x, y))
+export to_server_controller, load_server_controller
+
+function to_server_controller(ctrl::ST.AbstractController)
+    x0 = ST.initial_state(ctrl)
+    f = (x, y) -> ST.update_state(ctrl, x, y)
+    g = (x, y) -> ST.output_control(ctrl, x, y)
     return Controller4Server.Controller(x0, f, g)
 end
 
 function load_server_controller(filename::AbstractString)
-    ctrl = Dionysos.import_controller_jld2(filename)
+    ctrl = JLD2.load(filename, "controller")
     return to_server_controller(ctrl)
 end
 
-end
+end # module

@@ -7,6 +7,8 @@ const ST = DI.System
 using MathematicalSystems
 MS = MathematicalSystems
 
+using JLD2
+
 include("../../problems/Pendulum/simple_pendulum.jl")
 
 system = SimplePendulum.system(;
@@ -23,28 +25,23 @@ discrete_time_system = ST.discretize_continuous_system(system, tstep)
 # PID Controller on Position
 # ------------------------------------------------------------
 
-wrap_angle(e) = mod(e + π, 2π) - π
-
-error = (x, r, _) -> begin
-    eθ = wrap_angle(r[1] - x[1])
-    eω = r[2] - x[2]
-    return SVector(eθ, eω)
-end
-
 input_set = MS.inputset(system)
 
 pid_controller = ST.PIDControllers.PIDControllerVector(;
     Kp = SVector(15.0, 5.0),
     Ki = SVector(3.0, 0.0),
     Kd = SVector(0.0, 0.0),
-    ref = SVector(3π / 4.0, 0.0),
-    error = error,
+    ref = ST.PIDControllers.ConstantSignal(SVector(3π / 4.0, 0.0)),
+    error = ST.PIDControllers.WrapAnglePositionVelocityError(),
     dt = tstep,
-    time_getter = x -> 0.0,   # optional if your constructor supports it
+    time_getter = ST.PIDControllers.ConstantTimeGetter(),
     umin = input_set.lb,
     umax = input_set.ub,
     e0 = SVector(0.0, 0.0),
 )
+
+# JLD2.jldsave("pid_controller.jld2"; controller = pid_controller)
+# pid_controller = JLD2.load("pid_controller.jld2", "controller")
 
 # ------------------------------------------------------------
 # Closed-loop simulation
