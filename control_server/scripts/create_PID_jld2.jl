@@ -21,7 +21,7 @@ pid_controller = ST.PIDControllers.PIDControllerVector(;
     umin = -10.0,
     umax = 10.0,
     dt = tstep,
-    time_getter = ST.PIDControllers.ConstantTimeGetter()
+    time_getter = ST.PIDControllers.ConstantTimeGetter(),
 )
 
 JLD2.jldsave(".\\control_server\\scripts\\pid_controller.jld2"; controller = pid_controller)
