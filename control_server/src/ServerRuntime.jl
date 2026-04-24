@@ -88,11 +88,11 @@ function start_control_server(
 
                     # 4. Update the controller state and compute control output
                     x_plus = controller.f(controller.x, measurements)
-                    control = controller.g(controller.x, measurements)
                     controller.x = x_plus
+                    control = controller.g(controller.x, measurements)
 
                     # Ensure control is a Float64 vector for transmission/logging
-                    control_vec = Float64.(collect(control))
+                    control_vec = Float64[control...]
 
                     # 5. Data logging
                     if log_data && idx <= max_packets
@@ -100,7 +100,7 @@ function start_control_server(
                         measurement_history[:, idx] = measurements
 
                         if state_history !== nothing
-                            state_history[:, idx] = Float64.(state_to_vector(controller.x))
+                            state_history[:, idx] = Float64[controller.x...]
                         end
 
                         if control_history === nothing
@@ -125,6 +125,9 @@ function start_control_server(
             finally
                 close(sock)
                 println("Client disconnected.")
+                # I think we need here:
+                # keep_running = false
+                # Otherwise, the server keeps running
             end
         end
     catch e
