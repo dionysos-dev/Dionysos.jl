@@ -57,9 +57,15 @@ function build_optimizer(;
         MOI.RawOptimizerAttribute("approx_mode"),
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.Silent(), true)
+
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("execution_backend"),
+        SY.SequentialBackend(),
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e3))
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60)

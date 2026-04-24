@@ -132,15 +132,27 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     end
 
     if param_symbol == :concrete_problem
-        # Assign appropriate control solver
+        old_abstraction_solver = model.abstraction_solver
+
         if isa(value, Dionysos.Problem.AlternatingSimulationProblem)
             model.abstraction_solver = OptimizerAlternatingSimulationProblem()
+
+            if old_abstraction_solver !== nothing
+                model.abstraction_solver.execution_backend =
+                    old_abstraction_solver.execution_backend
+                model.abstraction_solver.print_level = old_abstraction_solver.print_level
+                model.abstraction_solver.progress_update_interval =
+                    old_abstraction_solver.progress_update_interval
+                model.abstraction_solver.progress_dt = old_abstraction_solver.progress_dt
+            end
+
             MOI.set(
                 model.abstraction_solver,
                 MOI.RawOptimizerAttribute("alternating_simulation_problem"),
                 value,
             )
-            model.control_solver = nothing  # No control solver
+            model.control_solver = nothing
+
         elseif isa(value, Dionysos.Problem.OptimalControlProblem)
             model.control_solver = OptimizerOptimalControlProblem()
             MOI.set(
@@ -148,6 +160,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         elseif isa(value, Dionysos.Problem.SafetyProblem)
             model.control_solver = OptimizerSafetyProblem()
             MOI.set(
@@ -155,6 +168,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         elseif isa(value, Dionysos.Problem.CoSafeLTLProblem)
             model.control_solver = OptimizerCoSafeLTLProblem()
             MOI.set(
@@ -162,11 +176,11 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         else
             error("Unsupported problem type: $(typeof(value))")
         end
 
-        # Instantiate an abstraction_solver if it has not already been created
         if model.abstraction_solver.alternating_simulation_problem === nothing
             alternating_simulation_problem =
                 Dionysos.Problem.AlternatingSimulationProblem(value.system, nothing)
@@ -176,6 +190,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 alternating_simulation_problem,
             )
         end
+
         return
     end
 

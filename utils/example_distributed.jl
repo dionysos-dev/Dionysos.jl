@@ -3,7 +3,7 @@ using Distributed
 # ----------------------------------------------------------------------
 # Worker configuration
 # ----------------------------------------------------------------------
-# const NWORKERS = 3
+# NWORKERS = 3
 # length(workers()) < NWORKERS && addprocs(NWORKERS - length(workers()))
 
 @everywhere using Dionysos
@@ -76,14 +76,17 @@ DISTRIBUTED_NPARTS = max(length(workers()), 1)
 DISTRIBUTED_PARTITION_STRATEGY = :roundrobin
 USE_THREADED_PER_WORKER = false
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), DISTRIBUTED_NPARTS)
 MOI.set(
     optimizer,
-    MOI.RawOptimizerAttribute("distributed_partition_strategy"),
-    DISTRIBUTED_PARTITION_STRATEGY,
+    MOI.RawOptimizerAttribute("execution_backend"),
+    SY.JuliaDistributedBackend(
+        nothing, # use Distributed.workers()
+        DISTRIBUTED_NPARTS,
+        DISTRIBUTED_PARTITION_STRATEGY,
+        USE_THREADED_PER_WORKER,
+        true,
+    ),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), USE_THREADED_PER_WORKER)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)

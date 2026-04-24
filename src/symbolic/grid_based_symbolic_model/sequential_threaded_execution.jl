@@ -1,5 +1,5 @@
 # ------------------------------------------------
-# Sequential and Threaded Abstraction
+# Sequential and Threaded Execution
 # ------------------------------------------------
 
 function compute_abstract_system!(
@@ -29,7 +29,7 @@ function compute_abstract_system!(
         state_input_filter = state_input_filter,
     )
     isempty(trans) || add_transitions!(abstract_system, trans)
-    return
+    return abstract_system
 end
 
 function collect_abstract_transitions(
@@ -61,7 +61,6 @@ end
 # Generic helpers for sequential/threaded execution
 # ------------------------------------------------
 
-# Unified Dispatcher
 function _collect_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -97,7 +96,6 @@ function _collect_transitions!(
     end
 end
 
-# Sequential double loop
 function _collect_transitions_sequential!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -107,13 +105,14 @@ function _collect_transitions_sequential!(
     state_filter::Union{Nothing, Function} = nothing,
     state_input_filter::Union{Nothing, Function} = nothing,
 )
-    print_level>=1 && @info("Starting sequential abstraction")
+    print_level >= 1 && @info("Starting sequential abstraction")
+
     inputs = collect(enum_inputs(symmodel))
     states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
     total_updates = max(div(total_work, max(1, update_interval)), 1)
-    progress = print_level==2 ? ProgressMeter.Progress(total_updates) : nothing
+    progress = print_level == 2 ? ProgressMeter.Progress(total_updates) : nothing
 
     localbuf = Tuple{Int, Int, Int}[]
     count = 0
@@ -121,6 +120,7 @@ function _collect_transitions_sequential!(
     for abstract_input in inputs
         for abstract_state in states
             empty!(localbuf)
+
             if state_input_filter === nothing || _keep_state_input(
                 symmodel,
                 abstract_state,
@@ -132,7 +132,8 @@ function _collect_transitions_sequential!(
             end
 
             count += 1
-            if print_level>=1 && count % update_interval == 0
+
+            if print_level >= 1 && count % update_interval == 0
                 if print_level == 1
                     @info "Sequential abstraction progress" done = count total = total_work
                 elseif print_level == 2
@@ -142,14 +143,17 @@ function _collect_transitions_sequential!(
         end
     end
 
-    print_level==2 && ProgressMeter.finish!(progress)
-    print_level>=1 &&
-        @info "Finished sequential abstraction" total_work = total_work ntransitions =
-            length(out)
+    print_level == 2 && ProgressMeter.finish!(progress)
+
+    print_level >= 1 && @info(
+        "Finished sequential abstraction",
+        total_work = total_work,
+        ntransitions = length(out),
+    )
+
     return out
 end
 
-# Threaded double loop
 function _collect_transitions_threaded!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -160,19 +164,21 @@ function _collect_transitions_threaded!(
     state_filter::Union{Nothing, Function} = nothing,
     state_input_filter::Union{Nothing, Function} = nothing,
 )
-    print_level>=1 && (@info "Starting threaded abstraction" nthreads = Threads.nthreads())
+    print_level >= 1 &&
+        @info("Starting threaded abstraction", nthreads = Threads.nthreads(),)
 
     inputs = collect(enum_inputs(symmodel))
     states = filtered_source_states(symmodel, state_filter)
 
     total_work = length(inputs) * length(states)
-    nthreads = Threads.nthreads()
 
-    transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nthreads]
-    local_done = fill(0, nthreads)
+    nthreads = Threads.nthreads()
+    nbuffers = Threads.maxthreadid()
+    transitions_by_thread = [Vector{Tuple{Int, Int, Int}}() for _ in 1:nbuffers]
+    local_done = fill(0, nbuffers)
 
     progress_dt_ns = Int(round(progress_dt * 1e9))
-    prog = print_level==2 ? ProgressMeter.Progress(total_work) : nothing
+    prog = print_level == 2 ? ProgressMeter.Progress(total_work) : nothing
     global_done = Threads.Atomic{Int}(0)
     last_t = time_ns()
 
@@ -192,23 +198,22 @@ function _collect_transitions_threaded!(
         end
 
         local_done[tid] += 1
+
         if local_done[tid] >= update_interval
             Threads.atomic_add!(global_done, local_done[tid])
             local_done[tid] = 0
         end
 
-        if print_level>=1 && tid == 1
-            if print_level == 2
-                t = time_ns()
-                if t - last_t >= progress_dt_ns
-                    ProgressMeter.update!(prog, global_done[] + local_done[1])
-                    last_t = t
-                end
+        if print_level >= 1 && tid == 1 && print_level == 2
+            t = time_ns()
+            if t - last_t >= progress_dt_ns
+                ProgressMeter.update!(prog, global_done[] + local_done[1])
+                last_t = t
             end
         end
     end
 
-    for tid in 1:nthreads
+    for tid in 1:nbuffers
         if local_done[tid] > 0
             Threads.atomic_add!(global_done, local_done[tid])
         end
@@ -218,13 +223,17 @@ function _collect_transitions_threaded!(
         isempty(local_transitions) || append!(out, local_transitions)
     end
 
-    if print_level==2
+    if print_level == 2
         ProgressMeter.update!(prog, global_done[])
         ProgressMeter.finish!(prog)
     end
-    print_level>=1 &&
-        @info "Finished threaded abstraction" total_work = total_work nthreads = nthreads ntransitions =
-            length(out)
+
+    print_level >= 1 && @info(
+        "Finished threaded abstraction",
+        total_work = total_work,
+        nthreads = nthreads,
+        ntransitions = length(out),
+    )
 
     return out
 end
@@ -265,23 +274,28 @@ function compute_abstract_transitions_from_points!(
 
     for y in reachable_points
         target = get_abstract_state(symmodel, y)
+
         if target === nothing || !is_allowed_state(symmodel, target)
             resize!(translist, start_len)
             return false
         end
+
         push!(translist, (target, abstract_state, abstract_input))
     end
 
-    unique!(view(translist, (start_len + 1):length(translist)))
-    unique!(translist)
+    if length(translist) > start_len + 1
+        new_transitions = unique(translist[(start_len + 1):end])
+        resize!(translist, start_len)
+        append!(translist, new_transitions)
+    end
+
     return true
 end
 
 # ------------------------------------------------
-# Approximation Kernels
+# Approximation kernels
 # ------------------------------------------------
 
-# Kernel that computes transitions from a reachable set over-approximation
 function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -305,6 +319,7 @@ function collect_abstract_transitions!(
         reachable_set = compute_reachable_set(concrete_elem, concrete_input)
 
         localbuf = Tuple{Int, Int, Int}[]
+
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -312,6 +327,7 @@ function collect_abstract_transitions!(
             abstract_input,
             localbuf,
         )
+
         allin && append!(transbuf, localbuf)
         return nothing
     end
@@ -329,8 +345,6 @@ function collect_abstract_transitions!(
     )
 end
 
-# Kernel that computes transitions from a reachable set over-approximation
-# using growth bound
 function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -350,6 +364,7 @@ function collect_abstract_transitions!(
 
     inputs = collect(enum_inputs(symmodel))
     input_data = Dict{Int, Tuple{Any, Any}}()
+
     for abstract_input in inputs
         concrete_input = get_concrete_input(symmodel, abstract_input)
         Fr = growthbound_map(r, concrete_input)
@@ -367,6 +382,7 @@ function collect_abstract_transitions!(
         reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
 
         localbuf = Tuple{Int, Int, Int}[]
+
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -374,6 +390,7 @@ function collect_abstract_transitions!(
             abstract_input,
             localbuf,
         )
+
         allin && append!(transbuf, localbuf)
         return nothing
     end
@@ -391,8 +408,6 @@ function collect_abstract_transitions!(
     )
 end
 
-# Kernel that computes transitions from a reachable set over-approximation
-# using linearization
 function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -416,6 +431,7 @@ function collect_abstract_transitions!(
 
     inputs = collect(enum_inputs(symmodel))
     input_data = Dict{Int, Tuple{Any, Any, Any}}()
+
     for abstract_input in inputs
         concrete_input = get_concrete_input(symmodel, abstract_input)
         Fe = error_map(e, concrete_input)
@@ -441,6 +457,7 @@ function collect_abstract_transitions!(
         reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
 
         localbuf = Tuple{Int, Int, Int}[]
+
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
@@ -448,6 +465,7 @@ function collect_abstract_transitions!(
             abstract_input,
             localbuf,
         )
+
         allin && append!(transbuf, localbuf)
         return nothing
     end
@@ -465,7 +483,6 @@ function collect_abstract_transitions!(
     )
 end
 
-# Kernel that computes transitions from a reachable set under-approximation
 function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -489,6 +506,7 @@ function collect_abstract_transitions!(
         reachable_points = under_approximation_map(concrete_elem, concrete_input)
 
         localbuf = Tuple{Int, Int, Int}[]
+
         allin = compute_abstract_transitions_from_points!(
             symmodel,
             reachable_points,
@@ -496,6 +514,7 @@ function collect_abstract_transitions!(
             abstract_input,
             localbuf,
         )
+
         allin && append!(transbuf, localbuf)
         return nothing
     end
@@ -513,8 +532,6 @@ function collect_abstract_transitions!(
     )
 end
 
-# Kernel that computes transitions from a reachable set under-approximation
-# using center simulation
 function collect_abstract_transitions!(
     out::Vector{Tuple{Int, Int, Int}},
     symmodel::GridBasedSymbolicModel,
@@ -541,6 +558,7 @@ function collect_abstract_transitions!(
         if target !== nothing && is_allowed_state(symmodel, target)
             push!(transbuf, (target, abstract_state, abstract_input))
         end
+
         return nothing
     end
 

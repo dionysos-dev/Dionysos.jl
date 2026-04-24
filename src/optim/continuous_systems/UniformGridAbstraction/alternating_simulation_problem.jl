@@ -151,29 +151,22 @@ When enabled, the following fields are required:
 
 #### Execution settings
 
-- `threaded` (optional, default = `false`):  
-  If `true`, enables multithreaded abstraction on a single Julia process.
+- `execution_backend` (optional, default = `SY.SequentialBackend()`):  
+  Execution backend used to compute the transition relation.
 
-- `distributed` (optional, default = `false`):  
-  If `true`, enables partition-based distributed abstraction across Julia worker processes.
+Supported execution backends:
 
-- `distributed_procs` (optional):  
-  Vector of Julia worker IDs used for distributed abstraction.  
-  If `nothing`, all available workers returned by `Distributed.workers()` are used.
+- `SY.SequentialBackend()`  
+  Sequential computation on the current Julia process.
 
-- `distributed_nparts` (optional):  
-  Number of source-state partitions used in distributed abstraction.  
-  If `nothing`, defaults to the number of selected worker processes.
+- `SY.ThreadedBackend(progress_dt)`  
+  Multithreaded computation on the current Julia process.
 
-- `distributed_partition_strategy` (optional, default = `:roundrobin`):  
-  Strategy used to partition the source-state set `Xset`.  
-  Typical choices include `:roundrobin` and `:contiguous`.
+- `SY.JuliaDistributedBackend(procs, nparts, partition_strategy, threaded_per_worker, warmup_workers)`  
+  Distributed computation over Julia worker processes.
 
-In distributed mode, each partition receives:
-- the same global `XMapping`,
-- the same global `Rset`,
-- a local subset of `Xset`,
-and computes transitions for its own source states. The final abstract transition relation is obtained by merging all locally computed transitions.
+- `SY.SlurmArrayBackend(nchunks, chunk_id, outdir, partition_strategy, write_only)`  
+  SLURM-array execution. Each array task computes one chunk and writes it to disk.
 
 #### Logging / progress settings
 
@@ -194,7 +187,7 @@ and computes transitions for its own source states. The final abstract transitio
 ### Internally computed fields (after `MOI.optimize!`)
 
 - `abstract_system`:  
-  The resulting symbolic abstraction, of type [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList).
+  The resulting symbolic abstraction, of type [`SymbolicModelList`](@ref SY.SymbolicModelList).
 
 - `discrete_time_system`:  
   Internally constructed discrete-time system used to generate the abstraction.
@@ -249,7 +242,7 @@ discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_ti
 mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     ## Abstraction Result
     discrete_time_system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
-    abstract_system::Union{Nothing, Dionysos.Symbolic.SymbolicModelList}
+    abstract_system::Union{Nothing, SY.SymbolicModelList}
     abstraction_construction_time_sec::T
 
     ## System Approximation
@@ -315,11 +308,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     nsystem::Int
 
     ### Execution settings
-    threaded::Bool
-    distributed::Bool
-    distributed_procs::Union{Nothing, Vector{Int}}
-    distributed_nparts::Union{Nothing, Int}
-    distributed_partition_strategy::Symbol
+    execution_backend::SY.AbstractExecutionBackend
     approx_mode::ApproxMode
     efficient::Bool
 
@@ -365,13 +354,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
             5, #RANDOM_SIMULATION
             nothing,
             5,
-            false,         # threaded
-            false,         # distributed
-            nothing,       # distributed_procs
-            nothing,       # distributed_nparts
-            :roundrobin,   # distributed_partition_strategy
-            GROWTH,        # approx
-            true,          # efficient
+            SY.SequentialBackend(), # execution_backend
+            GROWTH,                 # approx
+            true,                   # efficient
             1,
             Int(1e5),
             0.2,
@@ -684,7 +669,7 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     optimizer.Xset = build_state_set(optimizer)
     optimizer.Rset = build_allowed_state_set(optimizer)
     optimizer.Uset = build_input_set(optimizer)
-    abstract_system = Dionysos.Symbolic.SymbolicModelList(
+    abstract_system = SY.SymbolicModelList(
         optimizer.XMapping,
         optimizer.UMapping;
         Xset = optimizer.Xset,
@@ -707,21 +692,6 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     optimizer.print_level >= 1 &&
         println("compute_abstract_system_from_concrete_system!: started")
 
-    local_procs =
-        optimizer.distributed_procs === nothing ? Distributed.workers() :
-        optimizer.distributed_procs
-
-    local_nparts =
-        optimizer.distributed_nparts === nothing ?
-        (optimizer.distributed ? max(length(local_procs), 1) : 1) :
-        optimizer.distributed_nparts
-
-    local_nparts >= 1 || error("distributed_nparts must be >= 1")
-
-    if optimizer.distributed && isempty(local_procs)
-        @warn "distributed=true but no worker processes are available; falling back to local partitioned execution"
-    end
-
     if !optimizer.efficient &&
        ST.is_over_approximation(optimizer.discrete_time_system_approximation)
         system_approximation = ST.get_DiscreteTimeOverApproximationMap(
@@ -731,17 +701,12 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         system_approximation = optimizer.discrete_time_system_approximation
     end
 
-    Dionysos.Symbolic.compute_abstract_system_from_concrete_system!(
+    SY.compute_abstract_system_from_concrete_system!(
         abstract_system,
         system_approximation;
-        distributed = optimizer.distributed,
-        threaded = optimizer.threaded,
-        procs = local_procs,
-        nparts = local_nparts,
-        partition_strategy = optimizer.distributed_partition_strategy,
+        execution_backend = optimizer.execution_backend,
         print_level = optimizer.print_level,
         update_interval = optimizer.progress_update_interval,
-        progress_dt = optimizer.progress_dt,
         state_filter = optimizer.state_filter,
         state_input_filter = optimizer.state_input_filter,
     )
