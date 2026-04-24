@@ -17,6 +17,14 @@ Dionysos.Symbolic.determinize_symbolic_model
 ```
 
 ```@docs
+Dionysos.Symbolic.AbstractExecutionBackend
+Dionysos.Symbolic.SequentialBackend
+Dionysos.Symbolic.ThreadedBackend
+Dionysos.Symbolic.JuliaDistributedBackend
+Dionysos.Symbolic.SlurmArrayBackend
+```
+
+```@docs
 Dionysos.Symbolic.init_abstraction_workers!
 Dionysos.Symbolic._install_distributed_abstraction_data!
 Dionysos.Symbolic._warmup_distributed_abstraction_worker!

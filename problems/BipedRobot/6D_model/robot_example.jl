@@ -167,7 +167,7 @@ function build_optimizer(;
     distributed = false,
     distributed_nparts = 1,
     distributed_partition_strategy = :roundrobin,
-    threaded = false,
+    use_thread_per_worker = false,
     print_level = 2,
 )
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -190,20 +190,29 @@ function build_optimizer(;
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed"), distributed)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("distributed_nparts"), distributed_nparts)
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("distributed_partition_strategy"),
-        distributed_partition_strategy,
-    )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), threaded)
+    if distributed
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("execution_backend"),
+            SY.JuliaDistributedBackend(
+                nothing, # use Distributed.workers()
+                distributed_nparts,
+                distributed_partition_strategy,
+                use_thread_per_worker,
+                true, # warmup_workers
+            ),
+        )
+    else
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("execution_backend"),
+            SY.SequentialBackend(),
+        )
+    end
+
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
-
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e2))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 60.0)
-
     return optimizer
 end
 
@@ -296,7 +305,7 @@ println("n_input: ", n_input)
 println("distributed: ", USE_DISTRIBUTED)
 println("nworkers: ", length(workers()))
 println("distributed_nparts: ", DISTRIBUTED_NPARTS)
-println("threaded_per_worker: ", USE_THREADED_PER_WORKER)
+println("use_thread_per_worker: ", USE_THREADED_PER_WORKER)
 
 state_filter = nothing
 state_input_filter = nothing
@@ -326,7 +335,7 @@ if COMPUTE_ABSTRACTION
         distributed = USE_DISTRIBUTED,
         distributed_nparts = DISTRIBUTED_NPARTS,
         distributed_partition_strategy = DISTRIBUTED_PARTITION_STRATEGY,
-        threaded = USE_THREADED_PER_WORKER,
+        use_thread_per_worker = USE_THREADED_PER_WORKER,
         print_level = 2,
     )
 
