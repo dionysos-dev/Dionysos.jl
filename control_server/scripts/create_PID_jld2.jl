@@ -10,7 +10,6 @@ MS = MathematicalSystems
 using JLD2
 
 tstep = 0.01
-input_set = UT.HyperRectangle(SVector(-10.0), SVector(10.0))
 
 pid_controller = ST.PIDControllers.PIDControllerVector(;
     Kp = 0.6649,
