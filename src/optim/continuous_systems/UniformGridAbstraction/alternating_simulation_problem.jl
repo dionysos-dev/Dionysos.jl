@@ -653,23 +653,19 @@ function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
     return _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
 end
 
-function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
-    t_ref = time()
-    # Ensure necessary parameters are set
+function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProblem)
     _validate_model(optimizer, [:alternating_simulation_problem])
-    @assert optimizer.alternating_simulation_problem.system !== nothing "System must be set before building overapproximation."
 
-    # Create over-approximation method
     build_system_approximation!(optimizer)
 
-    # Create abstract system
     optimizer.abstraction_region = build_abstraction_region(optimizer)
     optimizer.XMapping = build_state_mapping(optimizer)
     optimizer.UMapping = build_input_mapping(optimizer)
     optimizer.Xset = build_state_set(optimizer)
     optimizer.Rset = build_allowed_state_set(optimizer)
     optimizer.Uset = build_input_set(optimizer)
-    abstract_system = SY.SymbolicModelList(
+
+    optimizer.abstract_system = SY.SymbolicModelList(
         optimizer.XMapping,
         optimizer.UMapping;
         Xset = optimizer.Xset,
@@ -678,28 +674,39 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         automaton_constructor = optimizer.automaton_constructor,
     )
 
+    return optimizer.abstract_system
+end
+
+function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
+    t_ref = time()
+
+    _validate_model(optimizer, [:alternating_simulation_problem])
+    @assert optimizer.alternating_simulation_problem.system !== nothing
+
+    abstract_system = build_empty_abstraction!(optimizer)
+
     if optimizer.print_level >= 1
         @info("Number of states: $(SY.get_n_state(abstract_system))")
         @info("Number of inputs: $(SY.get_n_input(abstract_system))")
         @info(
-            "Number of forward images: $(SY.get_n_input(abstract_system)*SY.get_n_state(abstract_system))"
+            "Number of forward images: $(SY.get_n_input(abstract_system) * SY.get_n_state(abstract_system))",
         )
     end
 
-    # TODO: Consider adding noise handling
-    noise = build_noise(optimizer)
+    build_noise(optimizer)
 
     optimizer.print_level >= 1 &&
         println("compute_abstract_system_from_concrete_system!: started")
 
-    if !optimizer.efficient &&
-       ST.is_over_approximation(optimizer.discrete_time_system_approximation)
-        system_approximation = ST.get_DiscreteTimeOverApproximationMap(
-            optimizer.discrete_time_system_approximation,
-        )
-    else
-        system_approximation = optimizer.discrete_time_system_approximation
-    end
+    system_approximation =
+        if !optimizer.efficient &&
+           ST.is_over_approximation(optimizer.discrete_time_system_approximation)
+            ST.get_DiscreteTimeOverApproximationMap(
+                optimizer.discrete_time_system_approximation,
+            )
+        else
+            optimizer.discrete_time_system_approximation
+        end
 
     SY.compute_abstract_system_from_concrete_system!(
         abstract_system,
