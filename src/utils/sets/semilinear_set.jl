@@ -207,7 +207,6 @@ function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Fl
         end
         current = new_current
     end
-    #return SemiLinearSet(current)
     return current
 end
 
@@ -216,7 +215,6 @@ function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.
     for P1 in S.parts
         append!(out, set_difference_decompose(P1, P0; atol = atol))
     end
-    #return SemiLinearSet(out)
     return out
 end
 
@@ -231,7 +229,6 @@ function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
         comp = LazySets.HalfSpace(-c.a, -(c.b + atol))
         piece = clean_poly(Poly(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
-            #push!(pieces, _as_hpolytope(piece))
             push!(pieces, piece)
         end
         push!(prefix, c)

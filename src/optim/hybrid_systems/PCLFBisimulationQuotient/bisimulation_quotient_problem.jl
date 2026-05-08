@@ -268,12 +268,10 @@ end
 
 function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     U = typeof(first(pclf.graph.verts))
-    #sublevels = Dict{U, Vector{Poly}}()
     sublevels = Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}}()
     for s in pclf.graph.verts
         piece = pclf.pieces[s]
         sublevels[s] = [PCLF.get_sublevel_set(piece, Float64(γ)) for γ in Γ]
-        #[UT._as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
     end
     return sublevels
 end

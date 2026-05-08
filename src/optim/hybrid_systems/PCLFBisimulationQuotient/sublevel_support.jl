@@ -271,7 +271,5 @@ function compute_D_from_tau(pclf::PCLF.PCLF, τD::Real)
     isempty(pieces) && error("PCLF has no pieces.")
 
     sublevel_sets = [PCLF.get_sublevel_set(piece, τD) for piece in pieces]
-    #return UT.SemiLinearSet(sublevel_sets)
     return UT.SemiLinearSet(flatten_semilinear_sets(sublevel_sets))
 end
-
