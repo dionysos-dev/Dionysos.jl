@@ -1,0 +1,3 @@
+comparison_type,baseline_success_rate,scaled_success_rate,difference,p_value,ci_baseline_low,ci_baseline_high,ci_scaled_low,ci_scaled_high,interpretation
+paired_baseline_E0_mcnemar,0.313,0.614,0.301,0.0,0.28502093895360764,0.34241026871999,0.5834448620601524,0.643682637005141,Paired stress test on samples drawn from baseline E0.
+two_proportion_success,0.313,0.614,0.301,0.0,0.28502093895360764,0.34241026871999,0.5834448620601524,0.643682637005141,Approximate unpaired two-proportion z-test; paired McNemar row is preferred for common samples.

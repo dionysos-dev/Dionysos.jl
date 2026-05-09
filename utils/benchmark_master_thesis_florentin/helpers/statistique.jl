@@ -1,4 +1,5 @@
 import LinearAlgebra as LA
+using LaTeXStrings
 import MathematicalSystems as MS
 import Random
 import StaticArrays: SVector
@@ -55,11 +56,12 @@ function _sample_points_uniform_in_ellipsoid(
     E::UT.Ellipsoid,
     n::Int;
     rng = Random.default_rng(),
+    tol::Real = 1.0e-8,
 )
     n >= 1 || error("n must be >= 1.")
 
     nx = length(E.c)
-    L = LA.cholesky(LA.Symmetric(Matrix{Float64}(E.P))).L
+    U = LA.cholesky(LA.Symmetric(Matrix{Float64}(E.P))).U
     c = vec(Float64.(E.c))
     pts = Vector{Vector{Float64}}(undef, n)
 
@@ -72,10 +74,54 @@ function _sample_points_uniform_in_ellipsoid(
         end
         rho = Random.rand(rng)^(1 / nx)
         z = (rho / nv) .* v
-        pts[i] = collect(c .+ L \ z)
+        pts[i] = collect(c .+ U \ z)
     end
 
+    validation = _validate_ellipsoid_samples(E, pts; tol = tol)
+    @assert validation.max_rho <= 1.0 + tol
     return pts
+end
+
+function _ellipsoid_rho(E::UT.Ellipsoid, x::AbstractVector)
+    dx = collect(Float64, x) .- vec(Float64.(E.c))
+    return Float64(dx' * Matrix{Float64}(E.P) * dx)
+end
+
+function _validate_ellipsoid_samples(
+    E::UT.Ellipsoid,
+    pts;
+    tol::Real = 1.0e-8,
+    initial_set = nothing,
+)
+    rhos = [_ellipsoid_rho(E, x) for x in pts]
+    max_rho = isempty(rhos) ? 0.0 : maximum(rhos)
+    max_violation = max(0.0, max_rho - 1.0)
+    n_outside_ellipsoid = count(rho -> rho > 1.0 + tol, rhos)
+    n_outside_initial_set =
+        initial_set === nothing ? nothing : count(x -> !(x ∈ initial_set), pts)
+    return (;
+        n_samples = length(pts),
+        max_rho = max_rho,
+        max_ellipsoid_violation = max_violation,
+        n_outside_ellipsoid = n_outside_ellipsoid,
+        n_outside_initial_set = n_outside_initial_set,
+    )
+end
+
+function _validate_initial_samples(sample_set, pts; initial_set = nothing, tol::Real = 1.0e-8)
+    if sample_set isa UT.Ellipsoid
+        return _validate_ellipsoid_samples(sample_set, pts; tol = tol, initial_set = initial_set)
+    end
+
+    n_outside_initial_set =
+        initial_set === nothing ? nothing : count(x -> !(x ∈ initial_set), pts)
+    return (;
+        n_samples = length(pts),
+        max_rho = nothing,
+        max_ellipsoid_violation = nothing,
+        n_outside_ellipsoid = nothing,
+        n_outside_initial_set = n_outside_initial_set,
+    )
 end
 
 """
@@ -127,8 +173,11 @@ function _build_certified_kappa_chain(cert_result)
         ellipsoid_by_k[step.k] = step.ellipsoid
     end
 
+    # `run_backward_chain!` stores ellipsoids as [E_terminal, ..., E_initial].
+    # The step records already contain E_k.  The only missing element for
+    # replay is the terminal ellipsoid E_{K+1}.
     k_terminal = last(k_sequence) + 1
-    ellipsoid_by_k[k_terminal] = cert_result.lmi_data.ellipsoids[1]
+    ellipsoid_by_k[k_terminal] = first(cert_result.lmi_data.ellipsoids)
 
     return (;
         k_sequence = k_sequence,
@@ -137,6 +186,49 @@ function _build_certified_kappa_chain(cert_result)
         initial_ellipsoid = ellipsoid_by_k[1],
         target_ellipsoid = ellipsoid_by_k[k_terminal],
     )
+end
+
+function _domain_set(system)
+    !hasproperty(system, :X) && return nothing
+    X = system.X
+    return X isa UT.LazySetMinus ? X.A : X
+end
+
+function _obstacle_set(system)
+    if hasproperty(system, :obstacles)
+        obs = system.obstacles
+        isempty(obs) && return nothing
+        return obs
+    end
+
+    if hasproperty(system, :X) && system.X isa UT.LazySetMinus
+        return system.X.B
+    end
+
+    return nothing
+end
+
+function _point_in_single_set(x, set)
+    try
+        return x ∈ set
+    catch
+        if hasproperty(set, :sets)
+            return any(s -> _point_in_single_set(x, s), set.sets)
+        end
+        if hasproperty(set, :lb)
+            d = length(set.lb)
+            d <= length(x) && return x[1:d] ∈ set
+        end
+        rethrow()
+    end
+end
+
+function _point_in_any_set(x, set)
+    set === nothing && return false
+    if set isa AbstractVector
+        return any(s -> _point_in_single_set(x, s), set)
+    end
+    return _point_in_single_set(x, set)
 end
 
 function _build_periodic_maps(; periodic_dims = nothing, periodic_periods = nothing, periodic_start = nothing)
@@ -185,6 +277,7 @@ function _rollout_label(stats)
     stats.certified_success && return "certified_success"
     stats.closed_loop_success && return "target_reached"
     stats.hit_obstacle && return "obstacle"
+    stats.left_domain && return "domain_exit"
     stats.first_exit_k !== nothing && return "ellipsoid_exit"
     stats.started_outside_initial_ellipsoid && return "starts_outside"
     stats.final_in_target || return "miss_target"
@@ -192,13 +285,25 @@ function _rollout_label(stats)
 end
 
 function _rollout_color(stats)
-    stats.certified_success && return :seagreen3
-    stats.closed_loop_success && return :deepskyblue3
+    stats.certified_success && return :seagreen
+    stats.closed_loop_success && return :steelblue
     stats.hit_obstacle && return :crimson
-    stats.first_exit_k !== nothing && return :darkorange2
-    stats.started_outside_initial_ellipsoid && return :goldenrod3
-    stats.final_in_target || return :royalblue3
-    return :grey50
+    stats.left_domain && return :firebrick
+    stats.first_exit_k !== nothing && return :darkorange
+    stats.started_outside_initial_ellipsoid && return :goldenrod
+    stats.final_in_target || return :mediumpurple
+    return :grey45
+end
+
+function _rollout_pretty_label(lbl::String)
+    lbl == "certified_success" && return "Certified success"
+    lbl == "target_reached" && return "Empirical success"
+    lbl == "obstacle" && return "Obstacle hit"
+    lbl == "domain_exit" && return "Domain exit"
+    lbl == "ellipsoid_exit" && return "Certificate exit"
+    lbl == "starts_outside" && return "Starts outside initial ellipsoid"
+    lbl == "miss_target" && return "Target missed"
+    return "Other"
 end
 
 function _resolve_periodic_plot_config(
@@ -288,7 +393,7 @@ and the first ellipsoid exit for each rollout.
 
 Important:
 - this function expects a successful ellipsoidal certification,
-- points are sampled from `problem.initial_set` by default,
+- points are sampled from the first certified ellipsoid by default,
 - for periodic coordinates, pass `periodic_dims`, `periodic_periods`,
   and `periodic_start` so that the state is wrapped for the concrete
   simulation and lifted near the certification trajectory for ellipsoid
@@ -298,10 +403,12 @@ function run_kappa_statistical_check(
     run_result;
     n_samples::Int = 100,
     sample_set = nothing,
-    sample_from::Symbol = :initial_set,
+    sample_from::Symbol = :initial_ellipsoid,
     num_substeps::Int = 1,
     project_inputs::Bool = true,
     check_domain::Bool = true,
+    domain_set = nothing,
+    obstacle_set = nothing,
     periodic_dims = nothing,
     periodic_periods = nothing,
     periodic_start = nothing,
@@ -340,13 +447,20 @@ function run_kappa_statistical_check(
     end
 
     if sample_set === nothing
-        if sample_from == :initial_set
-            sample_set = problem.initial_set
-        elseif sample_from == :initial_ellipsoid
+        if sample_from == :initial_ellipsoid
             sample_set = chain.initial_ellipsoid
+        elseif sample_from == :initial_set
+            sample_set = problem.initial_set
         else
             error("Unsupported `sample_from` mode: $(sample_from).")
         end
+    end
+
+    if domain_set === nothing
+        domain_set = _domain_set(problem.system)
+    end
+    if obstacle_set === nothing
+        obstacle_set = _obstacle_set(problem.system)
     end
 
     maps = _build_periodic_maps(
@@ -356,6 +470,11 @@ function run_kappa_statistical_check(
     )
     f_disc = _build_discrete_system_map(problem.system, cert_candidate.Ts; num_substeps = num_substeps)
     x0_samples = sample_points_uniform_in_set(sample_set, n_samples; rng = rng)
+    sampling_validation =
+        _validate_initial_samples(sample_set, x0_samples; initial_set = problem.initial_set)
+    if sampling_validation.n_outside_ellipsoid !== nothing
+        @assert sampling_validation.n_outside_ellipsoid == 0
+    end
 
     x_rollouts = Vector{Vector{Vector{Float64}}}(undef, n_samples)
     u_rollouts = Vector{Vector{Vector{Float64}}}(undef, n_samples)
@@ -368,6 +487,7 @@ function run_kappa_statistical_check(
         u_hist = Vector{Vector{Float64}}()
 
         hit_obstacle = false
+        left_domain = false
         target_reached = false
         target_reach_k = nothing
         final_in_target = false
@@ -416,8 +536,14 @@ function run_kappa_statistical_check(
                 first_exit_state = copy(x_next)
             end
 
-            if check_domain && hasproperty(problem.system, :X) && !(x_next ∈ problem.system.X)
+            if _point_in_any_set(x_next, obstacle_set)
                 hit_obstacle = true
+                x = x_next
+                break
+            end
+
+            if check_domain && domain_set !== nothing && !(x_next ∈ domain_set)
+                left_domain = true
                 x = x_next
                 break
             end
@@ -435,9 +561,10 @@ function run_kappa_statistical_check(
         final_state = maps.wrap_state(x)
         final_in_target = final_state ∈ problem.target_set
         target_reached |= final_in_target
-        closed_loop_success = !hit_obstacle && target_reached
+        closed_loop_success = !hit_obstacle && !left_domain && target_reached
         certified_success =
             !hit_obstacle &&
+            !left_domain &&
             inside_initial_ellipsoid &&
             first_exit_k === nothing &&
             target_reached
@@ -449,6 +576,7 @@ function run_kappa_statistical_check(
             certified_success = certified_success,
             closed_loop_success = closed_loop_success,
             hit_obstacle = hit_obstacle,
+            left_domain = left_domain,
             target_reached = target_reached,
             target_reach_k = target_reach_k,
             final_in_target = final_in_target,
@@ -475,6 +603,7 @@ function run_kappa_statistical_check(
     n_certified_success = count(r -> r.certified_success, rollout_stats)
     n_closed_loop_success = count(r -> r.closed_loop_success, rollout_stats)
     n_obstacle = count(r -> r.hit_obstacle, rollout_stats)
+    n_left_domain = count(r -> r.left_domain, rollout_stats)
     n_target = count(r -> r.final_in_target, rollout_stats)
     n_ellipsoid_exit = count(r -> r.first_exit_k !== nothing, rollout_stats)
     n_exit_before = count(r -> r.first_exit_phase == :before_step, rollout_stats)
@@ -494,16 +623,21 @@ function run_kappa_statistical_check(
         n_certified_success = n_certified_success,
         n_closed_loop_success = n_closed_loop_success,
         n_hit_obstacle = n_obstacle,
+        n_left_domain = n_left_domain,
         n_final_in_target = n_target,
         n_ellipsoid_exit = n_ellipsoid_exit,
         n_exit_before_step = n_exit_before,
         n_exit_after_step = n_exit_after,
         n_started_outside_initial_ellipsoid = n_started_outside_initial_ellipsoid,
         n_outside_initial_ellipsoid = n_started_outside_initial_ellipsoid,
+        sampling_max_initial_ellipsoid_violation = sampling_validation.max_ellipsoid_violation,
+        sampling_n_outside_initial_ellipsoid = sampling_validation.n_outside_ellipsoid,
+        sampling_n_outside_initial_set = sampling_validation.n_outside_initial_set,
         success_rate = n_certified_success / n_samples,
         certified_success_rate = n_certified_success / n_samples,
         closed_loop_success_rate = n_closed_loop_success / n_samples,
         obstacle_rate = n_obstacle / n_samples,
+        domain_exit_rate = n_left_domain / n_samples,
         final_target_rate = n_target / n_samples,
         ellipsoid_exit_rate = n_ellipsoid_exit / n_samples,
         initial_ellipsoid_coverage_rate = 1.0 - n_started_outside_initial_ellipsoid / n_samples,
@@ -515,6 +649,9 @@ function run_kappa_statistical_check(
         config = hasproperty(run_result, :config) ? run_result.config : nothing,
         outputs = hasproperty(run_result, :outputs) ? run_result.outputs : nothing,
         sample_set = sample_set,
+        sample_from = sample_from,
+        domain_set = domain_set,
+        obstacle_set = obstacle_set,
         certification_result = cert_result,
         certification_candidate = cert_candidate,
         k_sequence = chain.k_sequence,
@@ -524,6 +661,7 @@ function run_kappa_statistical_check(
         target_ellipsoid = chain.target_ellipsoid,
         reference_states = cert_xs,
         x0_samples = x0_samples,
+        sampling_validation = sampling_validation,
         x_rollouts = x_rollouts,
         u_rollouts = u_rollouts,
         rollout_stats = rollout_stats,
@@ -544,54 +682,79 @@ Print a compact summary of the empirical kappa replay.
 function print_kappa_statistical_summary(stat_result)
     summary = stat_result.summary
 
-    println("\n=== Kappa statistical check ===")
-    println("samples = ", summary.n_samples)
+    println("\n=== Empirical closed-loop validation ===")
+    println("samples                  = ", summary.n_samples)
     println(
-        "certified_success = ",
+        "certified success        = ",
         summary.n_certified_success,
         " (",
         round(100 * summary.certified_success_rate; digits = 1),
         "%)",
     )
     println(
-        "closed_loop_success = ",
+        "empirical success        = ",
         summary.n_closed_loop_success,
         " (",
         round(100 * summary.closed_loop_success_rate; digits = 1),
         "%)",
     )
     println(
-        "final_in_target = ",
+        "final in target          = ",
         summary.n_final_in_target,
         " (",
         round(100 * summary.final_target_rate; digits = 1),
         "%)",
     )
     println(
-        "hit_obstacle = ",
+        "obstacle hit             = ",
         summary.n_hit_obstacle,
         " (",
         round(100 * summary.obstacle_rate; digits = 1),
         "%)",
     )
     println(
-        "ellipsoid_exit = ",
+        "domain exit              = ",
+        summary.n_left_domain,
+        " (",
+        round(100 * summary.domain_exit_rate; digits = 1),
+        "%)",
+    )
+    println(
+        "certificate exit         = ",
         summary.n_ellipsoid_exit,
         " (",
         round(100 * summary.ellipsoid_exit_rate; digits = 1),
         "%)",
     )
-    println("exit_before_step = ", summary.n_exit_before_step)
-    println("exit_after_step = ", summary.n_exit_after_step)
-    println("started_outside_initial_ellipsoid = ", summary.n_started_outside_initial_ellipsoid)
     println(
-        "initial_ellipsoid_coverage = ",
+        "outside initial ellipsoid = ",
+        summary.n_started_outside_initial_ellipsoid,
+        " (",
+        round(100 * (1.0 - summary.initial_ellipsoid_coverage_rate); digits = 1),
+        "%)",
+    )
+    println("exit before step         = ", summary.n_exit_before_step)
+    println("exit after step          = ", summary.n_exit_after_step)
+    println(
+        "initial ellipsoid coverage = ",
         round(100 * summary.initial_ellipsoid_coverage_rate; digits = 1),
         "%)",
     )
+    if hasproperty(stat_result, :sampling_validation)
+        sv = stat_result.sampling_validation
+        println("initial sampling check:")
+        println("  samples                  = ", sv.n_samples)
+        if sv.max_ellipsoid_violation !== nothing
+            println("  max ellipsoid violation  = ", sv.max_ellipsoid_violation)
+            println("  outside ellipsoid        = ", sv.n_outside_ellipsoid)
+        end
+        if sv.n_outside_initial_set !== nothing
+            println("  outside initial set      = ", sv.n_outside_initial_set)
+        end
+    end
 
     if !isempty(stat_result.exit_histogram)
-        println("first_exit_histogram:")
+        println("first certificate-exit histogram:")
         for k in sort(collect(keys(stat_result.exit_histogram)))
             println("  k = ", k, " -> ", stat_result.exit_histogram[k])
         end
@@ -614,14 +777,24 @@ function plot_kappa_statistical_rollouts(
     title = nothing,
     show_domain::Bool = true,
     show_sets::Bool = true,
-    show_ellipsoids::Bool = true,
-    show_exit_points::Bool = true,
+    show_ellipsoids::Bool = false,
+    show_exit_points::Bool = false,
     max_ellipsoids::Int = 40,
     wrap_angles::Bool = false,
     unwrap_angles::Bool = false,
     periodic_dims = nothing,
     periodic_periods = nothing,
     periodic_start = nothing,
+    rollout_lw::Real = 0.6,
+    rollout_alpha::Real = 0.24,
+    rollout_ms::Real = 1.2,
+    show_initial_samples::Bool = true,
+    initial_sample_ms::Real = 1.5,
+    initial_sample_alpha::Real = 0.48,
+    legend_position = :topright,
+    axis_labels = nothing,
+    show_title::Bool = false,
+    show_counts_in_legend::Bool = true,
 )
     isempty(stat_result.x_rollouts) && error("No rollout available to plot.")
     if output_dir == pwd() &&
@@ -644,12 +817,32 @@ function plot_kappa_statistical_rollouts(
     end
 
     d1, d2 = dims
-    succ_rate = stat_result.summary.success_rate
     title_txt =
         title !== nothing ? title :
-        "Kappa statistics ($(d1),$(d2)) | success=$(round(100 * succ_rate; digits = 1))%"
+        (show_title ? "Empirical closed-loop validation" : "")
+    xlabel_txt, ylabel_txt =
+        axis_labels === nothing ? (latexstring("x_{$d1}"), latexstring("x_{$d2}")) : axis_labels
 
-    fig = plot(; aspect_ratio = :equal, legend = true, title = title_txt)
+    fig = plot(
+        ;
+        aspect_ratio = :equal,
+        legend = legend_position,
+        title = title_txt,
+        xlabel = xlabel_txt,
+        ylabel = ylabel_txt,
+        grid = true,
+        gridalpha = 0.12,
+        foreground_color_grid = :gray82,
+        framestyle = :box,
+        tickfontsize = 10,
+        guidefontsize = 12,
+        legendfontsize = 9,
+        dpi = 300,
+        background_color = :white,
+        foreground_color_axis = :gray25,
+        foreground_color_border = :gray25,
+        margin = 3 * Plots.mm,
+    )
 
     raw_domain =
         show_domain && hasproperty(stat_result.problem.system, :X) ? stat_result.problem.system.X : nothing
@@ -657,6 +850,8 @@ function plot_kappa_statistical_rollouts(
         show_sets && hasproperty(stat_result.problem, :initial_set) ? stat_result.problem.initial_set : nothing
     raw_target_set =
         show_sets && hasproperty(stat_result.problem, :target_set) ? stat_result.problem.target_set : nothing
+    raw_obstacle_set =
+        show_sets && hasproperty(stat_result, :obstacle_set) ? stat_result.obstacle_set : nothing
 
     domain = maybe_wrap_set(
         raw_domain,
@@ -679,12 +874,35 @@ function plot_kappa_statistical_rollouts(
         periodic_cfg.periodic_start;
         enabled = wrap_angles,
     )
+    obstacle_set = maybe_wrap_set(
+        raw_obstacle_set,
+        periodic_cfg.periodic_dims,
+        periodic_cfg.periodic_periods,
+        periodic_cfg.periodic_start;
+        enabled = wrap_angles,
+    )
 
-    domain !== nothing && plot!(fig, domain; dims = [d1, d2], color = :grey, opacity = 0.10, label = "Domain")
+    domain !== nothing &&
+        plot!(fig, domain; dims = [d1, d2], color = :grey, opacity = 0.08, lw = 0.6, label = L"\mathcal{X}")
     initial_set !== nothing &&
-        plot!(fig, initial_set; dims = [d1, d2], color = :green, opacity = 0.12, label = "Initial set")
+        plot!(fig, initial_set; dims = [d1, d2], color = :seagreen, opacity = 0.14, lw = 0.7, label = L"\mathcal{X}_I")
     target_set !== nothing &&
-        plot!(fig, target_set; dims = [d1, d2], color = :red, opacity = 0.22, label = "Target set")
+        plot!(fig, target_set; dims = [d1, d2], color = :steelblue, opacity = 0.18, lw = 0.7, label = L"\mathcal{X}_T")
+    if obstacle_set !== nothing
+        try
+            plot!(
+                fig,
+                obstacle_set;
+                dims = [d1, d2],
+                color = :crimson,
+                opacity = 0.16,
+                lw = 0.7,
+                label = L"\mathcal{X}_{obs}",
+            )
+        catch err
+            @debug "Obstacle set could not be plotted." exception = err
+        end
+    end
 
     if show_ellipsoids
         ells = _ellipsoids_for_plot(stat_result; max_keep = max_ellipsoids)
@@ -707,12 +925,18 @@ function plot_kappa_statistical_rollouts(
                 fig,
                 E2;
                 color = :orange,
-                opacity = 0.12,
-                lw = 0.8,
-                label = label_used ? "" : "Certified ellipsoids",
+                opacity = 0.10,
+                lw = 0.6,
+                label = label_used ? "" : L"\mathrm{certified\ ellipsoids}",
             )
             label_used = true
         end
+    end
+
+    label_counts = Dict{String, Int}()
+    for stats in stat_result.rollout_stats
+        lbl = _rollout_label(stats)
+        label_counts[lbl] = get(label_counts, lbl, 0) + 1
     end
 
     used_labels = Set{String}()
@@ -727,27 +951,52 @@ function plot_kappa_statistical_rollouts(
             periodic_start = periodic_cfg.periodic_start,
         )
 
-        traj = ST.Trajectory(xs)
         lbl = _rollout_label(stats)
-        label_txt =
-            lbl in used_labels ? "" :
-            (lbl == "certified_success" ? "Certified success" :
-             lbl == "target_reached" ? "Target reached" :
-             lbl == "obstacle" ? "Obstacle hit" :
-             lbl == "ellipsoid_exit" ? "Ellipsoid exit" :
-             lbl == "starts_outside" ? "Starts outside E1" :
-             lbl == "miss_target" ? "Miss target" : "Other")
+        base_label = _rollout_pretty_label(lbl)
+        label_txt = lbl in used_labels ? "" :
+            (show_counts_in_legend ? "$(base_label) (n=$(label_counts[lbl]))" : base_label)
         plot!(
             fig,
-            traj;
-            dims = [d1, d2],
-            ms = 1.0,
+            [x[d1] for x in xs],
+            [x[d2] for x in xs];
+            lw = rollout_lw,
+            ms = rollout_ms,
+            markershape = :circle,
+            markerstrokewidth = 0,
             arrows = false,
             color = _rollout_color(stats),
-            alpha = 0.35,
+            alpha = rollout_alpha,
             label = label_txt,
         )
         push!(used_labels, lbl)
+    end
+
+    if show_initial_samples && !isempty(stat_result.x0_samples)
+        xs0 = Float64[]
+        ys0 = Float64[]
+        for x0 in stat_result.x0_samples
+            xp = _transform_single_state_for_plot(
+                x0;
+                unwrap_angles = unwrap_angles,
+                wrap_angles = wrap_angles,
+                periodic_dims = periodic_cfg.periodic_dims,
+                periodic_periods = periodic_cfg.periodic_periods,
+                periodic_start = periodic_cfg.periodic_start,
+            )
+            push!(xs0, xp[d1])
+            push!(ys0, xp[d2])
+        end
+        scatter!(
+            fig,
+            xs0,
+            ys0;
+            color = :black,
+            markershape = :circle,
+            ms = initial_sample_ms,
+            markerstrokewidth = 0,
+            alpha = initial_sample_alpha,
+            label = L"x_0\ \mathrm{samples}",
+        )
     end
 
     if show_exit_points && !isempty(stat_result.ellipsoid_exit_points)
@@ -771,16 +1020,156 @@ function plot_kappa_statistical_rollouts(
             xs_exit,
             ys_exit;
             color = :black,
-            marker = :xcross,
-            ms = 2.5,
-            alpha = 0.75,
-            label = "First ellipsoid exit",
+            markershape = :xcross,
+            ms = 2.0,
+            alpha = 0.55,
+            label = "First certificate exit",
         )
     end
 
     out_name =
         filename === nothing ? "kappa_statistical_rollouts_$(d1)$(d2).pdf" : String(filename)
     out_path = joinpath(output_dir, out_name)
+    savefig(fig, out_path)
+    display(fig)
+    return out_path
+end
+
+function save_initial_sampling_debug_plot!(
+    stat_result;
+    output_dir::AbstractString = pwd(),
+    filename::AbstractString = "initial_sampling_debug_12.pdf",
+    dims = (1, 2),
+    axis_labels = nothing,
+    wrap_angles::Bool = false,
+    unwrap_angles::Bool = false,
+    periodic_dims = nothing,
+    periodic_periods = nothing,
+    periodic_start = nothing,
+    tol::Real = 1.0e-8,
+)
+    if output_dir == pwd() &&
+       hasproperty(stat_result, :outputs) &&
+       stat_result.outputs !== nothing &&
+       hasproperty(stat_result.outputs, :plots_dir)
+        output_dir = stat_result.outputs.plots_dir
+    end
+    mkpath(output_dir)
+
+    periodic_cfg = _resolve_periodic_plot_config(
+        stat_result;
+        periodic_dims = periodic_dims,
+        periodic_periods = periodic_periods,
+        periodic_start = periodic_start,
+    )
+
+    d1, d2 = dims
+    xlabel_txt, ylabel_txt =
+        axis_labels === nothing ? (latexstring("x_{$d1}"), latexstring("x_{$d2}")) : axis_labels
+
+    fig = plot(
+        ;
+        aspect_ratio = :equal,
+        legend = :topright,
+        title = "",
+        xlabel = xlabel_txt,
+        ylabel = ylabel_txt,
+        grid = true,
+        gridalpha = 0.12,
+        foreground_color_grid = :gray82,
+        framestyle = :box,
+        tickfontsize = 10,
+        guidefontsize = 12,
+        legendfontsize = 9,
+        dpi = 300,
+        background_color = :white,
+        foreground_color_axis = :gray25,
+        foreground_color_border = :gray25,
+        margin = 3 * Plots.mm,
+    )
+
+    initial_set = maybe_wrap_set(
+        stat_result.problem.initial_set,
+        periodic_cfg.periodic_dims,
+        periodic_cfg.periodic_periods,
+        periodic_cfg.periodic_start;
+        enabled = wrap_angles,
+    )
+    initial_set !== nothing &&
+        plot!(fig, initial_set; dims = [d1, d2], color = :seagreen, opacity = 0.14, lw = 0.7, label = L"\mathcal{X}_I")
+
+    if stat_result.initial_ellipsoid !== nothing
+        E0 = stat_result.initial_ellipsoid
+        ells = [E0]
+        if unwrap_angles
+            ells = unwrap_ellipsoid_centers(ells, periodic_cfg.periodic_dims, periodic_cfg.periodic_periods)
+        end
+        if wrap_angles
+            ells = wrap_ellipsoid_centers(
+                ells,
+                periodic_cfg.periodic_dims,
+                periodic_cfg.periodic_periods,
+                periodic_cfg.periodic_start,
+            )
+        end
+        plot!(
+            fig,
+            project_ellipsoid_2d(first(ells); dims = dims);
+            color = :darkorange,
+            opacity = 0.12,
+            lw = 0.8,
+            label = L"E_0",
+        )
+    end
+
+    xs_ok = Float64[]
+    ys_ok = Float64[]
+    xs_bad = Float64[]
+    ys_bad = Float64[]
+    for x0 in stat_result.x0_samples
+        violates = _ellipsoid_rho(stat_result.initial_ellipsoid, x0) > 1.0 + tol
+        xp = _transform_single_state_for_plot(
+            x0;
+            unwrap_angles = unwrap_angles,
+            wrap_angles = wrap_angles,
+            periodic_dims = periodic_cfg.periodic_dims,
+            periodic_periods = periodic_cfg.periodic_periods,
+            periodic_start = periodic_cfg.periodic_start,
+        )
+        if violates
+            push!(xs_bad, xp[d1])
+            push!(ys_bad, xp[d2])
+        else
+            push!(xs_ok, xp[d1])
+            push!(ys_ok, xp[d2])
+        end
+    end
+
+    scatter!(
+        fig,
+        xs_ok,
+        ys_ok;
+        color = :black,
+        markershape = :circle,
+        ms = 1.7,
+        markerstrokewidth = 0,
+        alpha = 0.50,
+        label = L"x_0\ \mathrm{samples}",
+    )
+    if !isempty(xs_bad)
+        scatter!(
+            fig,
+            xs_bad,
+            ys_bad;
+            color = :crimson,
+            markershape = :xcross,
+            ms = 3.0,
+            alpha = 0.85,
+            label = L"x_0 \notin E_0",
+        )
+    end
+
+    out_path = joinpath(output_dir, filename)
     savefig(fig, out_path)
     display(fig)
     return out_path
@@ -801,9 +1190,20 @@ function save_kappa_statistical_plots!(
     periodic_dims = nothing,
     periodic_periods = nothing,
     periodic_start = nothing,
-    show_ellipsoids::Bool = true,
-    show_exit_points::Bool = true,
+    show_ellipsoids::Bool = false,
+    show_exit_points::Bool = false,
     max_ellipsoids::Int = 40,
+    axis_labels_12 = nothing,
+    axis_labels_34 = nothing,
+    rollout_lw::Real = 0.6,
+    rollout_alpha::Real = 0.24,
+    rollout_ms::Real = 1.2,
+    show_initial_samples::Bool = true,
+    initial_sample_ms::Real = 1.5,
+    initial_sample_alpha::Real = 0.48,
+    legend_position = :topright,
+    show_title::Bool = false,
+    show_counts_in_legend::Bool = true,
 )
     if output_dir == pwd() &&
        hasproperty(stat_result, :outputs) &&
@@ -828,6 +1228,16 @@ function save_kappa_statistical_plots!(
         show_ellipsoids = show_ellipsoids,
         show_exit_points = show_exit_points,
         max_ellipsoids = max_ellipsoids,
+        axis_labels = axis_labels_12,
+        rollout_lw = rollout_lw,
+        rollout_alpha = rollout_alpha,
+        rollout_ms = rollout_ms,
+        show_initial_samples = show_initial_samples,
+        initial_sample_ms = initial_sample_ms,
+        initial_sample_alpha = initial_sample_alpha,
+        legend_position = legend_position,
+        show_title = show_title,
+        show_counts_in_legend = show_counts_in_legend,
     )
 
     path34 = nothing
@@ -845,6 +1255,16 @@ function save_kappa_statistical_plots!(
             show_ellipsoids = show_ellipsoids,
             show_exit_points = show_exit_points,
             max_ellipsoids = max_ellipsoids,
+            axis_labels = axis_labels_34,
+            rollout_lw = rollout_lw,
+            rollout_alpha = rollout_alpha,
+            rollout_ms = rollout_ms,
+            show_initial_samples = show_initial_samples,
+            initial_sample_ms = initial_sample_ms,
+            initial_sample_alpha = initial_sample_alpha,
+            legend_position = legend_position,
+            show_title = show_title,
+            show_counts_in_legend = show_counts_in_legend,
         )
     end
 

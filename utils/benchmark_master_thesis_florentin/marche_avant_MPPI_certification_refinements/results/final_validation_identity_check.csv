@@ -1,0 +1,4 @@
+method,success,min_volume,median_volume,max_volume,initial_volume,total_certification_time,max_abs_volume_diff_vs_baseline,max_rel_volume_diff_vs_baseline,max_gain_diff_vs_baseline,conclusion
+baseline,true,8.617664888282891e-6,3.762981409993307e-5,0.2023577327360853,8.617664888282891e-6,23.32404398918152,0.0,0.0,0.0,passed
+identity,true,8.617664888282891e-6,3.762981409993307e-5,0.2023577327360853,8.617664888282891e-6,6.885101079940796,0.0,0.0,0.0,passed
+explicit_identity,true,8.617664888282891e-6,3.762981409993307e-5,0.2023577327360853,8.617664888282891e-6,6.5219340324401855,0.0,0.0,0.0,passed

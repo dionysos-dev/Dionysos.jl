@@ -56,8 +56,8 @@ Base.@kwdef struct MarcheArriereConfig
     # Parametres MPPI separes de ceux du certifier.
     # On ne reutilise pas `cfg.λ` car ce champ existe deja dans la
     # pipeline de certification et porte un autre sens.
-    mppi_nsamples::Int = 1800
-    mppi_niter::Int = 3*15
+    mppi_nsamples::Int = 50000
+    mppi_niter::Int = 4*15
     mppi_λ::Float64 = 0.3
 
     # Echelle du bruit ajoute sur les deux composantes du controle.
@@ -478,7 +478,8 @@ function main(cfg::MarcheArriereConfig = MarcheArriereConfig())
         title12 = "marche_arriere_mppi (x,y)",
         title34 = "marche_arriere_mppi (theta,phi)",
     )
-
+    stat_result = run_kappa_statistical_check(run_result; n_samples = 500)
+    save_kappa_statistical_plots!(stat_result; wrap_angles = true)
     return run_result
 end
 

@@ -256,12 +256,10 @@ function solve_concrete_problem(
     handle_out_of_domain::Function = (x, abs_sys) -> nothing,  # default: stop
 )
     k_abs = abstract_controller.h
-    println("1")
 
     # map concrete x -> abstract state (or nothing)
     x_to_qs = function (x)
         state = SY.get_abstract_state(abstract_system, x)
-        println("\n my x :",x,"my abstract state :",state)
         if state===nothing || !SY.is_allowed_state(abstract_system, state)
             xnew = handle_out_of_domain(x, abstract_system)
             xnew === nothing && return nothing
@@ -288,15 +286,12 @@ function solve_concrete_problem(
 
         us = k_abs(qs)
         us === nothing && return nothing
-        println("\nthe x is : ",x,"the qs is: ",qs," the us :",us)
         u_sym = if us isa AbstractVector
             isempty(us) ? nothing : (randomize ? rand(us) : first(us))
         else
             us
         end
         u_sym === nothing && return nothing
-        println("u_sym is :",u_sym)
-        println("the concrete input is :",Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym),"\n")
 
         return Dionysos.Symbolic.get_concrete_input(abstract_system, u_sym)
     end

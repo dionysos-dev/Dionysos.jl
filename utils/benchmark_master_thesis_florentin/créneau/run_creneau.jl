@@ -52,86 +52,59 @@ end
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
         SVector(0.0, 0.0, -pi, -pi),
-        SVector(25.0,6.0, pi, pi),
+        SVector(21.0,5.6, pi, pi),
     )
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(65.0))
 
     obstacles_xy = [
-        UT.HyperRectangle(SVector(7.5, 0.0), SVector(25.0, 3.0)), # trottoir
+        UT.HyperRectangle(SVector(0.0, 0.0), SVector(6.3, 2.1)), # voiture arrière
+        UT.HyperRectangle(SVector(14.3, 0.0), SVector(21.0, 2.1)), # voiture avant
     ]
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
 
-    δ_max = pi / 4
+    δ_max = 0.959931 
     σ_max = tan(δ_max)
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
-    params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5) # on devra peut etre rendre cela plus réaliste
+    params = AV.Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9) # on devra peut etre rendre cela plus réaliste
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
 end
 
-function build_input_mapping() # c'est pour la génération de la trajectoire
+function build_input_mapping()
     inputs_delta = [
         [-2.0, 0.0], # vitesse sans angle
-        #[0.0, 0.0],
-        # [-1.0, 0.0],
-        # [-0.5, 0.0],
-
-        #[-2.0, 0.02], [-2.0, -0.02],
-        #[-1.5, 0.02], [-1.5, -0.02],
-        #[-1.0, 0.02], [-1.0, -0.02],
-        #[-0.5, 0.02], [-0.5, -0.02],
-
-        #[-2.0, 0.08], [-2.0, -0.08],
-        #[-1.5, 0.08], [-1.5, -0.08],
-        #[-1.0, 0.08], [-1.0, -0.08],
-        [-0.5, 0.08], [-0.5, -0.08],
+        [0.0, 0.0],
+        [2.0, 0.0],
+        [-1.0, 0.1],[-1.0, -0.1],
+        [1.0, 0.1],[1.0, -0.1],
         
 
-        #[-1.5, 0.1],[-1.5, -0.1], # moyen angles
-        #[-1.0, 0.1],[-1.0, -0.1],
-        #[-0.5, 0.1],[-0.5, -0.1],
+        [-1.0, 0.35],[-1.0, -0.35],
+        [1.0, 0.35],[1.0, -0.35],
 
-        #[-1.5, 0.05],[-1.5, -0.05], # moyen angles
-        #[-1.0, 0.15],[-1.0, -0.15],
-        [-0.5, 0.15],[-0.5, -0.15],
-
-        #[-0.5, 0.25],[-0.5, -0.25],
-
-        #[-1.5, 0.35],[-1.5, -0.35],  # grand angles
-        #[-1.0, 0.35],[-1.0, -0.35],
-        [-0.5, 0.35],[-0.5, -0.35],
-
-        #[-0.5, 0.45],[-0.5, -0.45], # il faudrait le supprimer
-
-        #[-1.5, 0.55],[-1.5, -0.55], # très angles
-        #[-1.0, 0.55],[-1.0, -0.55],
-        [-0.5, 0.45],#
-        [-0.5, -0.55],
-
-        #[-1.5, 0.675],[-1.5, -0.675],  # grand angles
-        #[-1.0, 0.675],[-1.0, -0.675],
-        #[-0.5, 0.675],#
-        [-0.5, -0.675],
-
+        [-1.0, 0.5],[-1.0, -0.5],
     ]
+
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)
 end
 
 function build_control_problem()
-    # voiture alignée dans la voie, un peu devant la place
-    x0 = SVector(22.0, 4.0, 0.0, 0.0)
+    # départ dans la voie, devant la voiture avant
+    x0 = SVector(19.0, 3.8, 0.0, 0.0)
 
     initial_set = UT.HyperRectangle(
-        SVector(21.5, 3.5, - deg2rad(4.0), - deg2rad(2.0)),
-        SVector(22.5, 4.5,   deg2rad(4.0),   deg2rad(2.0)),
+        SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
+        SVector(20.6, 4.5,  deg2rad(3.0),  deg2rad(2.0)),
     )
+
     target_set = UT.HyperRectangle(
-        SVector(0.1, 0.5, - deg2rad(6.0),  - deg2rad(4.0)),
-        SVector(2.2, 2.0,   deg2rad(6.0),    deg2rad(4.0)),
+        SVector(10.0, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
+        SVector(12.8, 1.6,  deg2rad(6.0),  deg2rad(3.0)),
     )
+
     return (; x0, initial_set, target_set)
 end
 

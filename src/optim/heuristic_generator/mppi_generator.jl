@@ -44,7 +44,7 @@ _identity_wrap_state(problem, x) = x # je devrais avoir une manière générique
 #  Ce choix garde la V1 generique sans multiplier les couches
 #  d'abstraction inutiles.
 # ------------------------------------------------------------------
-struct MPPIConfig{FX0, FDYN, FNOISE, FPROJ, FCOST, FSUCC, FWRAP}
+struct MPPIConfig{FX0, FDYN, FNOISE, FPROJ, FCOST, FSUCC, FWRAP, FPOST}
     # Pas de temps associe a la trajectoire candidate renvoyee.
     Δt::Float64
 
@@ -88,6 +88,19 @@ struct MPPIConfig{FX0, FDYN, FNOISE, FPROJ, FCOST, FSUCC, FWRAP}
     # Ce callback permet de normaliser l'etat apres chaque pas de
     # simulation, par exemple pour les dimensions periodiques.
     wrap_state::FWRAP
+
+    # Historical MPPI behavior truncates at the first target-box hit.
+    truncate_at_first_target::Bool
+
+    # Optional final candidate postprocessor. The default preserves the
+    # historical target-box truncation behavior.
+    postprocess_candidate::FPOST
+end
+
+function _default_mppi_postprocess(problem, cfg, cand)
+    return cfg.truncate_at_first_target ?
+           _truncate_candidate_at_first_target_hit(problem, cfg, cand) :
+           cand
 end
 
 function MPPIConfig(
@@ -102,7 +115,9 @@ function MPPIConfig(
     project_input,
     trajectory_cost,
     success_fun,
-    wrap_state = _identity_wrap_state,
+    wrap_state = _identity_wrap_state;
+    truncate_at_first_target::Bool = true,
+    postprocess_candidate = _default_mppi_postprocess,
 )
     return MPPIConfig{
         typeof(x0_provider), # je dois changer les immondes typeof
@@ -112,6 +127,7 @@ function MPPIConfig(
         typeof(trajectory_cost),
         typeof(success_fun),
         typeof(wrap_state),
+        typeof(postprocess_candidate),
     }(
         Float64(Δt),
         Int(nstep),
@@ -125,6 +141,8 @@ function MPPIConfig(
         trajectory_cost,
         success_fun,
         wrap_state,
+        truncate_at_first_target,
+        postprocess_candidate,
     )
 end
 
@@ -410,18 +428,18 @@ function generate!(gen::MPPIGenerator)
         # Pour cette V1, on ne remplace le nominal courant que si la
         # nouvelle candidate ameliore effectivement le meilleur cout vu
         # jusqu'ici.
-        if cost < best_cost # théoriquement ça n'a pas trop de sens, je devrais tester si c'est performant ou pas
-            best_cost = cost
-            best_cand = cand
-            u_nom = u_new
-        end
-
-        # version classique MPPI (2)
-        # u_nom = u_new
-        # if cost < best_cost 
+        # if cost < best_cost # théoriquement ça n'a pas trop de sens, je devrais tester si c'est performant ou pas
         #     best_cost = cost
         #     best_cand = cand
+        #     u_nom = u_new
         # end
+
+        # version classique MPPI (2)
+        u_nom = u_new
+        if cost < best_cost 
+            best_cost = cost
+            best_cand = cand
+        end
 
         # Si la meilleure candidate satisfait deja le critere de succes,
         # on s'arrete. Cela suffit pour une premiere implementation.
@@ -430,7 +448,7 @@ function generate!(gen::MPPIGenerator)
         end
     end
 
-    final_cand = _truncate_candidate_at_first_target_hit(problem, cfg, best_cand)
+    final_cand = cfg.postprocess_candidate(problem, cfg, best_cand)
 
     gen.candidate = final_cand
     gen.success = cfg.success_fun(problem, final_cand)

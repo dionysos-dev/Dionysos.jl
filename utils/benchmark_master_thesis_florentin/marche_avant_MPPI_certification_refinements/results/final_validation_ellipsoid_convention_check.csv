@@ -1,0 +1,2 @@
+convention,P,expected_radius,computed_radius,expected_volume_1d,computed_volume,max_sample_membership_value,passed
+"E(c,P) = {x : (x-c)' P (x-c) <= 1}",4.0,0.5,0.5,1.0,1.0,0.9931373188899919,true

@@ -1,4 +1,7 @@
-export EllipsoidalBackwardConfig, BackwardStepRecord, EllipsoidalCertificationResult
+export EllipsoidalBackwardConfig,
+    EllipsoidalBackwardRefinementOptions,
+    BackwardStepRecord,
+    EllipsoidalCertificationResult
 # (rajouter les types)
 struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts} # je me demande si je devrais pas changer cette fonction
     # State domain descriptor.
@@ -11,6 +14,10 @@ struct EllipsoidalBackwardConfig{TX, TU, TW, Backend, Opts} # je me demande si j
     backend::Backend
     # Additional user options container.
     options::Opts
+end
+
+Base.@kwdef struct EllipsoidalBackwardRefinementOptions
+    state_scaling::Union{Nothing, Vector{Float64}} = nothing
 end
 
 # Store one backward-step output record.

@@ -24,7 +24,7 @@ Base.@kwdef struct MarcheArriereConfig
     maxδx::Float64 = 100.0
     maxδu::Float64 = 200.0
     symbolic_rk4_substeps::Int = 1
-    ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
+    ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox( 
         IA.interval(-0.2, 0.2), # on peut aller jusqu'à -1.0 ; 1.0
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),

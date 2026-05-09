@@ -8,7 +8,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "articulated_ve
 const AV = ArticulatedVehicle
 
 ######################################################
-###################[DATA & INIT]######################
+###################[DATA & INIT]###################### 
 ######################################################
 """
 Configuration for the marche arriere benchmark.
@@ -19,7 +19,7 @@ Base.@kwdef struct MarcheArriereConfig
     periodic_dims::SVector{2, Int} = SVector(3, 4)
     periodic_periods::SVector{2, Float64} = SVector(2pi, 2pi)
     periodic_start::SVector{2, Float64} = SVector(-pi, -pi)
-    nstep::Int = 60
+    nstep::Int = 40
 
     terminal_radius::Float64 = 0.45
     λ::Float64 = 0.001
@@ -49,7 +49,7 @@ Base.@kwdef struct MarcheArriereConfig
     seed_num_substeps::Int = 5
     mppi_nsamples::Int = 1900
     mppi_niter::Int = 5 * 15
-    mppi_λ::Float64 = 1.0
+    mppi_λ::Float64 = 0.3
     mppi_noise_v::Float64 = 0.15
     mppi_noise_σ::Float64 = 0.08
 end
@@ -62,20 +62,21 @@ end
 function build_concrete_system()
     x_domain = UT.HyperRectangle(
         SVector(0.0, 0.0, -pi, -pi),
-        SVector(25.0, 6.0, pi, pi),
+        SVector(21.0,5.6, pi, pi),
     )
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(65.0))
 
     obstacles_xy = [
-        UT.HyperRectangle(SVector(7.5, 0.0), SVector(25.0, 3.0)), # trottoir
+        UT.HyperRectangle(SVector(0.0, 0.0), SVector(6.3, 2.1)), # voiture arrière
+        UT.HyperRectangle(SVector(14.3, 0.0), SVector(21.0, 2.1)), # voiture avant
     ]
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
 
-    δ_max = pi / 4
+    δ_max = 0.959931 
     σ_max = tan(δ_max)
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
-    params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+    params = AV.Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9) # on devra peut etre rendre cela plus réaliste
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
@@ -83,29 +84,37 @@ end
 
 function build_input_mapping()
     inputs_delta = [
-        [-2.0, 0.0],
-        [-0.5, 0.08], [-0.5, -0.08],
-        [-0.5, 0.15], [-0.5, -0.15],
-        [-0.5, 0.35], [-0.5, -0.35],
-        [-0.5, 0.45],
-        [-0.5, -0.55],
-        [-0.5, -0.675],
+        [-2.0, 0.0], # vitesse sans angle
+        [0.0, 0.0],
+        [2.0, 0.0],
+        [-1.0, 0.1],[-1.0, -0.1],
+        [1.0, 0.1],[1.0, -0.1],
+        
+
+        [-1.0, 0.35],[-1.0, -0.35],
+        [1.0, 0.35],[1.0, -0.35],
+
+        [-1.0, 0.5],[-1.0, -0.5],
     ]
+
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
     return MP.ListMapping(inputs)
 end
 
 function build_control_problem()
-    x0 = SVector(22.0, 4.0, 0.0, 0.0)
+    # départ dans la voie, devant la voiture avant
+    x0 = SVector(19.0, 3.8, 0.0, 0.0)
 
     initial_set = UT.HyperRectangle(
-        SVector(21.5, 3.5, -deg2rad(4.0), -deg2rad(2.0)),
-        SVector(22.5, 4.5, deg2rad(4.0), deg2rad(2.0)),
+        SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
+        SVector(20.6, 4.5,  deg2rad(3.0),  deg2rad(2.0)),
     )
+
     target_set = UT.HyperRectangle(
-        SVector(0.1, 0.5, -deg2rad(6.0), -deg2rad(4.0)),
-        SVector(2.2, 2.0, deg2rad(6.0), deg2rad(4.0)),
+        SVector(10.0, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
+        SVector(12.8, 1.6,  deg2rad(6.0),  deg2rad(3.0)),
     )
+
     return (; x0, initial_set, target_set)
 end
 
@@ -173,20 +182,50 @@ function build_mppi_generator(
         ]
     end
 
+    get_reference_states = function ()
+        seed_cand = OP.get_trajectory(seed_gen)
+        seed_cand === nothing && return nothing
+        return ST.enum_elems(seed_cand.x_traj)
+    end
+
     project_input = u -> project_input_to_domain(u, system_cfg.u_domain)
 
     trajectory_cost = function (prob, cand)
-        xs = collect(ST.enum_elems(cand.x_traj))
-        us = collect(ST.enum_elems(cand.u_traj))
+        xs = ST.enum_elems(cand.x_traj)
+        us = ST.enum_elems(cand.u_traj)
+        reference_states = get_reference_states()
 
-        BAD_COST = 1.0e17
+        BAD_COST = 1.0e12
+        reference_states === nothing && return BAD_COST
+
         J = 0.0
-        w_step = 2.0
-        w_pos = 1.0
-        w_ang = 0.15
-        w_u = 0.05
-        w_du = 0.5
-        w_ddu = 0.1
+
+        # -----------------------------
+        # poids principaux
+        # -----------------------------
+        w_step        = 1.0
+
+        # suivi d'une trajectoire de référence (ou nominale)
+        w_ref_pos     = 2.0
+        w_ref_ang     = 0.25
+
+        # coût terminal vers la cible
+        w_goal_pos_T  = 800.0
+        w_goal_th_T   = 120.0
+        w_goal_phi_T  = 120.0
+        w_miss        = 1.0e4
+
+        # lissage des commandes # je devrais modifier ici afin de rendre mes commandes moins wiggly
+        w_u           = 0.03*3
+        w_du          = 0.25*2
+        w_ddu         = 0.05*3
+
+        # coût de marge / proximité frontière
+        w_margin      = 40.0
+
+        # seuils de "handoff" façon Nav2
+        near_goal_pos_radius = 1.5
+        near_goal_ang_radius = 0.75
 
         hit_target = false
         hit_index = length(xs)
@@ -194,6 +233,9 @@ function build_mppi_generator(
         for k in eachindex(xs)
             xw = wrap_state(xs[k])
 
+            # -------------------------------------------------
+            # 1) critic de faisabilité dure
+            # -------------------------------------------------
             if !(xw ∈ prob.system.X)
                 return BAD_COST
             end
@@ -201,24 +243,59 @@ function build_mppi_generator(
             if xw ∈ prob.target_set
                 hit_target = true
                 hit_index = k
-                J /= 30.0
                 break
             end
 
-            e = periodic_state_error(xw, target_center, cfg)
+            # -------------------------------------------------
+            # 2) critic de progression / suivi de référence
+            # -------------------------------------------------
+            # ref_x doit être la trajectoire nominale/abstraite alignée en temps
+            ref_x = wrap_state(reference_states[min(k, length(reference_states))])
+
+            e_ref = periodic_state_error(xw, ref_x, cfg)
             J += w_step
-            J += w_pos * (e[1]^2 + e[2]^2)
-            J += w_ang * (e[3]^2 + e[4]^2)
+            J += w_ref_pos * (e_ref[1]^2 + e_ref[2]^2)
+            J += w_ref_ang * (e_ref[3]^2 + e_ref[4]^2)
+
+            # -------------------------------------------------
+            # 3) critic goal activé seulement près du but
+            # -------------------------------------------------
+            e_goal = periodic_state_error(xw, target_center, cfg)
+            dpos_goal = sqrt(e_goal[1]^2 + e_goal[2]^2)
+
+            if dpos_goal <= near_goal_pos_radius
+                J += 30.0 * (e_goal[1]^2 + e_goal[2]^2)
+            end
+
+            if dpos_goal <= near_goal_ang_radius
+                J += 10.0 * e_goal[3]^2
+                J += 10.0 * e_goal[4]^2
+            end
+
+            # -------------------------------------------------
+            # 4) critic de marge de sécurité
+            # -------------------------------------------------
+            # Ce critic reste desactive tant qu'on ne dispose pas
+            # d'une primitive de distance/coquille exploitable ici.
         end
+
+        # -----------------------------------------------------
+        # 5) coût terminal
+        # -----------------------------------------------------
+        xT = wrap_state(xs[min(hit_index, length(xs))])
+        eT = periodic_state_error(xT, target_center, cfg)
+
+        J += w_goal_pos_T * (eT[1]^2 + eT[2]^2)
+        J += w_goal_th_T  * (eT[3]^2)
+        J += w_goal_phi_T * (eT[4]^2)
 
         if !hit_target
-            xT = wrap_state(last(xs))
-            eT = periodic_state_error(xT, target_center, cfg)
-            J += 500.0 * (eT[1]^2 + eT[2]^2)
-            J += 80.0 * (eT[3]^2 + eT[4]^2)
-            J += 1.0e4
+            J += w_miss
         end
 
+        # -----------------------------------------------------
+        # 6) critic sur les commandes
+        # -----------------------------------------------------
         last_u_index = min(length(us), max(hit_index - 1, 0))
 
         for k in 1:last_u_index
@@ -367,6 +444,8 @@ function main(cfg::MarcheArriereConfig = MarcheArriereConfig())
         title12 = "creneau_mppi (x,y)",
         title34 = "creneau_mppi (theta,phi)",
     )
+    stat_result = run_kappa_statistical_check(run_result; n_samples = 500)
+    save_kappa_statistical_plots!(stat_result; wrap_angles = true)
 
     return run_result
 end
