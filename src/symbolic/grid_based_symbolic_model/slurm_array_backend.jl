@@ -4,6 +4,50 @@
 
 import Serialization
 
+"""
+    SlurmArrayBackend(
+        nchunks,
+        chunk_id=nothing,
+        outdir,
+        partition_strategy=:contiguous,
+        write_only=true,
+    )
+
+Execution using SLURM array jobs (file-based parallelism).
+
+# Parameters
+- `nchunks`: total number of chunks (slurm array size).
+- `chunk_id`: current chunk (defaults to `SLURM_ARRAY_TASK_ID`).
+- `outdir`: directory where results are written.
+- `partition_strategy`: how to split states (`:contiguous` or `:roundrobin`).
+- `write_only`: if `true`, only writes transitions to disk (recommended for SLURM).
+"""
+struct SlurmArrayBackend <: AbstractExecutionBackend
+    nchunks::Int
+    chunk_id::Union{Nothing, Int}
+    outdir::String
+    partition_strategy::Symbol
+    write_only::Bool
+end
+
+SlurmArrayBackend(nchunks::Int, outdir::String) =
+    SlurmArrayBackend(nchunks, nothing, outdir, :contiguous, true)
+
+function compute_abstract_system_from_concrete_system!(
+    symmodel::GridBasedSymbolicModel,
+    concrete_system_approx,
+    execution_backend::SlurmArrayBackend;
+    kwargs...,
+)
+    return compute_abstract_system_slurm_array!(
+        symmodel,
+        concrete_system_approx,
+        execution_backend;
+        kwargs...,
+    )
+end
+
+
 current_slurm_chunk_id() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_ID", "1"))
 
 current_slurm_nchunks() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_COUNT", "1"))

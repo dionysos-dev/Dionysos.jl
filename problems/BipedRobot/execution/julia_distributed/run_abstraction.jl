@@ -18,12 +18,17 @@ const BIPED_ROOT = abspath(joinpath(@__DIR__, "..", ".."))
 const PROJECT_DIR = BIPED_ROOT
 
 if length(workers()) < NWORKERS
-    addprocs(NWORKERS - length(workers()); exeflags = `--project=$(PROJECT_DIR)`)
+    addprocs(NWORKERS - length(workers()) + 1; exeflags = `--project=$(PROJECT_DIR)`)
 end
 
 @everywhere using Dionysos
 
 include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
+
+robot_problem_path = selected_robot_problem_path()
+
+@everywhere include($robot_problem_path)
+@everywhere using .RobotProblem
 
 @info(
     "Starting Julia distributed abstraction",
