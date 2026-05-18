@@ -5,13 +5,15 @@
 import Pkg
 
 USE_SYSIMAGE = false
-NWORKERS = 4
+NWORKERS = 2 # parse(Int, get(ENV, "DIONYSOS_NWORKERS", "1"))
 
 # Only do package management in non-sysimage / setup mode if desired
 DO_PKG_INSTANTIATE = !USE_SYSIMAGE
 DO_PKG_PRECOMPILE = false
+PROJECT_DIR = abspath(joinpath(@__DIR__, ".."))
 
 if DO_PKG_INSTANTIATE
+    Pkg.activate(PROJECT_DIR)
     Pkg.instantiate()
 end
 if DO_PKG_PRECOMPILE
@@ -112,7 +114,8 @@ USE_DISTRIBUTED = length(workers()) > 0
 USE_THREADED_PER_WORKER = false
 DISTRIBUTED_NPARTS = length(workers())
 DISTRIBUTED_PARTITION_STRATEGY = :contiguous # :roundrobin, :contiguous
-SIMPLIFY = 3.0 # increase to simplify abstraction (e.g. by increasing grid size)
+SIMPLIFY = 1.5 # increase to simplify abstraction (e.g. by increasing grid size)
+println("Simplify : ", SIMPLIFY)
 
 # Only load visualization tools on master, and only if needed
 if SIMULATE_FIRST_STEP || SIMULATE_SECOND_STEP

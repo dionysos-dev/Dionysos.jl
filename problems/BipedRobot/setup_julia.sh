@@ -1,0 +1,7 @@
+#!/bin/bash
+export JULIA_PROJECT="problems/BipedRobot"
+export JULIA_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+export DIONYSOS_NWORKERS=$((SLURM_CPUS_PER_TASK))
