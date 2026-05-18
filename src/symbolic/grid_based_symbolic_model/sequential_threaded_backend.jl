@@ -23,7 +23,6 @@ end
 
 ThreadedBackend() = ThreadedBackend(0.2)
 
-
 function compute_abstract_system_from_concrete_system!(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx,

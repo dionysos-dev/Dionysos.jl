@@ -47,7 +47,6 @@ function compute_abstract_system_from_concrete_system!(
     )
 end
 
-
 current_slurm_chunk_id() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_ID", "1"))
 
 current_slurm_nchunks() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_COUNT", "1"))

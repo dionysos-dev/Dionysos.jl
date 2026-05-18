@@ -33,7 +33,6 @@ end
 JuliaDistributedBackend() =
     JuliaDistributedBackend(nothing, nothing, :roundrobin, false, true)
 
-
 function compute_abstract_system_from_concrete_system!(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx,

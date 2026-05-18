@@ -22,7 +22,6 @@ An execution backend defines **how the abstraction computation is executed**:
 """
 abstract type AbstractExecutionBackend end
 
-
 # ------------------------------------------------------------
 # Local partition symbolic model
 # ------------------------------------------------------------
