@@ -7,3 +7,6 @@ MathematicalSystems = "d14a8603-c872-5ed3-9ece-53e0e82e39da"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 RigidBodyDynamics = "366cf18f-59d5-5db9-a4de-86a9f6786172"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[sources]
+Dionysos = {path = "../.."}

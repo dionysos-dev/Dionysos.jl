@@ -17,8 +17,11 @@ const TSTEP = parse(Float64, get(ENV, "DIONYSOS_TSTEP", "0.1"))
 const BIPED_ROOT = abspath(joinpath(@__DIR__, "..", ".."))
 const PROJECT_DIR = BIPED_ROOT
 
-if length(workers()) < NWORKERS
-    addprocs(NWORKERS - length(workers()) + 1; exeflags = `--project=$(PROJECT_DIR)`)
+n_existing = nworkers()
+n_to_add = max(NWORKERS - n_existing, 0)
+
+if n_to_add > 0
+    addprocs(n_to_add; exeflags = `--project=$(PROJECT_DIR)`)
 end
 
 @everywhere using Dionysos

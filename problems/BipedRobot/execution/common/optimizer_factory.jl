@@ -64,7 +64,7 @@ function build_robot_abstraction_optimizer(;
     state_filter = nothing,
     state_input_filter = nothing,
     print_level::Int = 2,
-    progress_update_interval::Int = Int(1e3),
+    progress_update_interval::Int = Int(1e2), # Update progress every x iterations (for printlevel >= 1)
 )
     concrete_problem = build_robot_problem(; tstep = tstep)
     concrete_system = concrete_problem.system
