@@ -281,7 +281,6 @@ end
 )
     for (k, P) in enumerate(S.parts)
         try
-
             P = LazySets.remove_redundant_constraints(P)
 
             @series begin
