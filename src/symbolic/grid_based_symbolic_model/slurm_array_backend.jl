@@ -47,10 +47,6 @@ function compute_abstract_system_from_concrete_system!(
     )
 end
 
-current_slurm_chunk_id() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_ID", "1"))
-
-current_slurm_nchunks() = parse(Int, get(ENV, "SLURM_ARRAY_TASK_COUNT", "1"))
-
 function slurm_chunk_file(outdir::AbstractString, chunk_id::Int, nchunks::Int)
     return joinpath(outdir, "transitions_part_$(chunk_id)_of_$(nchunks).bin")
 end
@@ -61,6 +57,7 @@ function collect_abstract_transitions_chunk(
     chunk_id::Int,
     nchunks::Int;
     partition_strategy::Symbol = :contiguous,
+    print_level::Int = 0,
     kwargs...,
 )
     1 <= chunk_id <= nchunks ||
@@ -69,10 +66,33 @@ function collect_abstract_transitions_chunk(
     parts = partition_source_state_ids(symmodel, nchunks; strategy = partition_strategy)
 
     state_ids = parts[chunk_id]
+
+    if print_level >= 1
+        ninputs = length(collect(enum_inputs(symmodel)))
+        chunk_work = length(state_ids) * ninputs
+        max_work = maximum(length(ids) * ninputs for ids in parts)
+        min_work = minimum(length(ids) * ninputs for ids in parts)
+
+        @info(
+            "SLURM-array chunk workload",
+            chunk_id = chunk_id,
+            nchunks = nchunks,
+            n_source_states = length(state_ids),
+            ninputs = ninputs,
+            state_input_checks = chunk_work,
+            min_chunk_state_input_checks = min_work,
+            max_chunk_state_input_checks = max_work,
+        )
+    end
+
     local_symmodel = local_symmodel_from_state_ids(symmodel, state_ids)
 
-    transitions =
-        collect_abstract_transitions(local_symmodel, concrete_system_approx; kwargs...)
+    transitions = collect_abstract_transitions(
+        local_symmodel,
+        concrete_system_approx;
+        print_level = print_level,
+        kwargs...,
+    )
 
     return transitions, state_ids
 end
@@ -125,11 +145,8 @@ function compute_abstract_system_slurm_array!(
     print_level::Int = 0,
     kwargs...,
 )
-    nchunks =
-        execution_backend.nchunks > 0 ? execution_backend.nchunks : current_slurm_nchunks()
-    chunk_id =
-        execution_backend.chunk_id === nothing ? current_slurm_chunk_id() :
-        execution_backend.chunk_id
+    nchunks = execution_backend.nchunks
+    chunk_id = execution_backend.chunk_id
 
     if print_level >= 1
         @info(

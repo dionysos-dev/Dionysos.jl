@@ -136,6 +136,7 @@ function get_closed_loop_trajectory(
     wrap = identity,
     update_on_next::Bool = false,
     f_map_override = nothing,
+    verbose::Bool = false,
 )
     f = f_map_override === nothing ? MS.mapping(system) : f_map_override
 
@@ -148,14 +149,28 @@ function get_closed_loop_trajectory(
     us = Any[]
 
     if q === nothing
-        for _ in 1:nstep
-            stopping(x) && break
+        for k in 1:nstep
+            if stopping(x)
+                verbose && @info "Closed-loop simulation stopped: stopping condition reached" step = k state = x
+                break
+            end
 
             y = meas(x)
             u = output_control(controller, q, y)
-            u === nothing && break
 
-            x = wrap(f(x, u))
+            if u === nothing
+                verbose && @warn "Closed-loop simulation stopped: controller returned nothing" step = k state = x measurement = y controller_state = q
+                break
+            end
+
+            xnext = wrap(f(x, u))
+
+            if any(!isfinite, xnext)
+                verbose && @warn "Closed-loop simulation stopped: non-finite next state" step = k state = x input = u next_state = xnext
+                break
+            end
+
+            x = xnext
 
             push!(us, u)
             push!(xs, x)
@@ -166,16 +181,34 @@ function get_closed_loop_trajectory(
         qs = Vector{typeof(q)}()
         push!(qs, q)
 
-        for _ in 1:nstep
-            stopping(x) && break
+        for k in 1:nstep
+            if stopping(x)
+                verbose && @info "Closed-loop simulation stopped: stopping condition reached" step = k state = x controller_state = q
+                break
+            end
 
             y = meas(x)
             u = output_control(controller, q, y)
-            u === nothing && break
+
+            if u === nothing
+                verbose && @warn "Closed-loop simulation stopped: controller returned nothing" step = k state = x measurement = y controller_state = q
+                break
+            end
 
             xnext = wrap(f(x, u))
+
+            if any(!isfinite, xnext)
+                verbose && @warn "Closed-loop simulation stopped: non-finite next state" step = k state = x input = u next_state = xnext controller_state = q
+                break
+            end
+
             y_for_update = update_on_next ? meas(xnext) : y
             qnext = update_state(controller, q, y_for_update)
+
+            if qnext === nothing
+                verbose && @warn "Closed-loop simulation stopped: controller state update returned nothing" step = k state = x next_state = xnext measurement_for_update = y_for_update controller_state = q
+                break
+            end
 
             x, q = xnext, qnext
 

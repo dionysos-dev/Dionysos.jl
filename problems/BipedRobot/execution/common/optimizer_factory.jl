@@ -1,7 +1,5 @@
 include(joinpath(@__DIR__, "robot_setup.jl"))
 
-Pkg.instantiate()
-
 using Dionysos
 using MathematicalSystems
 using StaticArrays
@@ -18,9 +16,6 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-
-include(selected_robot_problem_path())
-using .RobotProblem
 
 function save_optimizer(filename::AbstractString, optimizer)
     mkpath(dirname(filename))

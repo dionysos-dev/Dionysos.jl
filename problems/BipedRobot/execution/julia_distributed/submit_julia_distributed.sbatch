@@ -3,7 +3,7 @@
 #SBATCH --output=logs/%x-%j.out
 #SBATCH --error=logs/%x-%j.err
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=11
+#SBATCH --cpus-per-task=21
 #SBATCH --mem=64G
 #SBATCH --time=00:10:00
 
@@ -12,10 +12,10 @@ set -euo pipefail
 mkdir -p logs
 
 export DIONYSOS_ROBOT_MODEL=6D
-export DIONYSOS_NWORKERS=11
-export DIONYSOS_NPARTS=10
+export DIONYSOS_NWORKERS=21
+export DIONYSOS_NPARTS=20
 export DIONYSOS_PARTITION_STRATEGY=contiguous
-export DIONYSOS_SIMPLIFY=1.0
+export DIONYSOS_SIMPLIFY=1.5
 export DIONYSOS_TSTEP=0.1
 
 echo "SLURM_JOB_ID=$SLURM_JOB_ID"
