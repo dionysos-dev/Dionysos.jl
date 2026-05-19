@@ -12,14 +12,15 @@ const USE_TEST_TRAJECTORY = false
 const VISUALIZE_TRAJECTORY = true
 
 const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller.jld2")
-const ROBOT_URDF_FILE = joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
+const ROBOT_URDF_FILE =
+    joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
 const RSVIZ_FILE = joinpath(@__DIR__, "..", "..", "src", "RSVisualization.jl")
 include(RSVIZ_FILE)
 using .RSVisualization
 
 function load_controller_data(filename::AbstractString)
     return JLD2.jldopen(filename, "r") do file
-        (
+        return (
             controller = file["controller"],
             concrete_system = file["concrete_system"],
             control_problem = file["control_problem"],
@@ -54,7 +55,9 @@ function visualize_trajectory!(x_traj; robot_urdf::AbstractString, tstep::Float6
     rs, vis = RSVisualization.get_visualization_tool(; robot_urdf = robot_urdf)
     RSVisualization.animate_trajectory!(vis, x_traj.seq; dt = tstep)
 
-    println("MeshCat visualizer opened. Keep this Julia session alive to view the animation.")
+    println(
+        "MeshCat visualizer opened. Keep this Julia session alive to view the animation.",
+    )
     return rs, vis
 end
 
@@ -93,11 +96,8 @@ println("Final state:")
 println(last(x_traj.seq))
 
 if VISUALIZE_TRAJECTORY
-    global rs, vis = visualize_trajectory!(
-        x_traj;
-        robot_urdf = ROBOT_URDF_FILE,
-        tstep = tstep,
-    )
+    global rs, vis =
+        visualize_trajectory!(x_traj; robot_urdf = ROBOT_URDF_FILE, tstep = tstep)
 end
 
 println("Done.")

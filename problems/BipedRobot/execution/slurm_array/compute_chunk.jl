@@ -44,7 +44,8 @@ t_startup_total = @elapsed begin
 
     global t_warmup = @elapsed begin
         if isdefined(RobotProblem, :warmup_robot_problem!)
-            @info "Warming up robot problem" robot_urdf = selected_robot_urdf() tstep = TSTEP
+            @info "Warming up robot problem" robot_urdf = selected_robot_urdf() tstep =
+                TSTEP
             RobotProblem.warmup_robot_problem!(;
                 robot_urdf = selected_robot_urdf(),
                 tstep = TSTEP,

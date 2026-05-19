@@ -151,7 +151,9 @@ function get_closed_loop_trajectory(
     if q === nothing
         for k in 1:nstep
             if stopping(x)
-                verbose && @info "Closed-loop simulation stopped: stopping condition reached" step = k state = x
+                verbose &&
+                    @info "Closed-loop simulation stopped: stopping condition reached" step =
+                        k state = x
                 break
             end
 
@@ -159,14 +161,18 @@ function get_closed_loop_trajectory(
             u = output_control(controller, q, y)
 
             if u === nothing
-                verbose && @warn "Closed-loop simulation stopped: controller returned nothing" step = k state = x measurement = y controller_state = q
+                verbose &&
+                    @warn "Closed-loop simulation stopped: controller returned nothing" step =
+                        k state = x measurement = y controller_state = q
                 break
             end
 
             xnext = wrap(f(x, u))
 
             if any(!isfinite, xnext)
-                verbose && @warn "Closed-loop simulation stopped: non-finite next state" step = k state = x input = u next_state = xnext
+                verbose &&
+                    @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
+                        x input = u next_state = xnext
                 break
             end
 
@@ -183,7 +189,9 @@ function get_closed_loop_trajectory(
 
         for k in 1:nstep
             if stopping(x)
-                verbose && @info "Closed-loop simulation stopped: stopping condition reached" step = k state = x controller_state = q
+                verbose &&
+                    @info "Closed-loop simulation stopped: stopping condition reached" step =
+                        k state = x controller_state = q
                 break
             end
 
@@ -191,14 +199,18 @@ function get_closed_loop_trajectory(
             u = output_control(controller, q, y)
 
             if u === nothing
-                verbose && @warn "Closed-loop simulation stopped: controller returned nothing" step = k state = x measurement = y controller_state = q
+                verbose &&
+                    @warn "Closed-loop simulation stopped: controller returned nothing" step =
+                        k state = x measurement = y controller_state = q
                 break
             end
 
             xnext = wrap(f(x, u))
 
             if any(!isfinite, xnext)
-                verbose && @warn "Closed-loop simulation stopped: non-finite next state" step = k state = x input = u next_state = xnext controller_state = q
+                verbose &&
+                    @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
+                        x input = u next_state = xnext controller_state = q
                 break
             end
 
@@ -206,7 +218,10 @@ function get_closed_loop_trajectory(
             qnext = update_state(controller, q, y_for_update)
 
             if qnext === nothing
-                verbose && @warn "Closed-loop simulation stopped: controller state update returned nothing" step = k state = x next_state = xnext measurement_for_update = y_for_update controller_state = q
+                verbose &&
+                    @warn "Closed-loop simulation stopped: controller state update returned nothing" step =
+                        k state = x next_state = xnext measurement_for_update = y_for_update controller_state =
+                        q
                 break
             end
 

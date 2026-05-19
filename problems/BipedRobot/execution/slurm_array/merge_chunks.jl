@@ -59,13 +59,7 @@ nchunks = parse(Int, get(ENV, "DIONYSOS_NCHUNKS", "1"))
     tstep = TSTEP,
 )
 
-execution_backend = SY.SlurmArrayBackend(
-    nchunks,
-    1,
-    outdir,
-    :contiguous,
-    true,
-)
+execution_backend = SY.SlurmArrayBackend(nchunks, 1, outdir, :contiguous, true)
 
 t_build_optimizer = @elapsed begin
     global optimizer = build_robot_abstraction_optimizer(;

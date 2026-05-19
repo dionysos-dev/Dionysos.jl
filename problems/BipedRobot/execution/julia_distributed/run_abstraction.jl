@@ -28,11 +28,9 @@ const NWORKERS = parse(Int, get(ENV, "DIONYSOS_NWORKERS", "4"))
 const USE_THREADED_PER_WORKER =
     lowercase(get(ENV, "DIONYSOS_THREADED_PER_WORKER", "false")) == "true"
 
-const DISTRIBUTED_NPARTS =
-    parse(Int, get(ENV, "DIONYSOS_NPARTS", string(NWORKERS)))
+const DISTRIBUTED_NPARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", string(NWORKERS)))
 
-const PARTITION_STRATEGY =
-    Symbol(get(ENV, "DIONYSOS_PARTITION_STRATEGY", "contiguous"))
+const PARTITION_STRATEGY = Symbol(get(ENV, "DIONYSOS_PARTITION_STRATEGY", "contiguous"))
 
 const SIMPLIFY = parse(Float64, get(ENV, "DIONYSOS_SIMPLIFY", "3.0"))
 const TSTEP = parse(Float64, get(ENV, "DIONYSOS_TSTEP", "0.1"))
@@ -86,10 +84,7 @@ t_startup_total = @elapsed begin
                     exeflags = `--project=$(PROJECT_DIR) --sysimage=$(SYSIMAGE_PATH)`,
                 )
             else
-                addprocs(
-                    n_to_add;
-                    exeflags = `--project=$(PROJECT_DIR)`,
-                )
+                addprocs(n_to_add; exeflags = `--project=$(PROJECT_DIR)`)
             end
         end
     end

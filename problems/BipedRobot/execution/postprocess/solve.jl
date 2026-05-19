@@ -17,8 +17,10 @@ const ST = DI.System
 const TSTEP = 0.1
 
 const ROBOT_PROBLEM_FILE = joinpath(@__DIR__, "..", "..", "6D_model", "robot_problem.jl")
-const ROBOT_URDF_FILE = joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
-const ABSTRACTION_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction.jld2")
+const ROBOT_URDF_FILE =
+    joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
+const ABSTRACTION_FILE =
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction.jld2")
 const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller.jld2")
 
 include(ROBOT_PROBLEM_FILE)
@@ -26,17 +28,22 @@ using .RobotProblem
 
 function load_optimizer(filename::AbstractString)
     return JLD2.jldopen(filename, "r") do file
-        file["optimizer"]
+        return file["optimizer"]
     end
 end
 
-function save_controller(filename::AbstractString; controller, concrete_system, control_problem)
+function save_controller(
+    filename::AbstractString;
+    controller,
+    concrete_system,
+    control_problem,
+)
     mkpath(dirname(filename))
     JLD2.jldopen(filename, "w") do file
         file["controller"] = controller
         file["concrete_system"] = concrete_system
         file["control_problem"] = control_problem
-        file["tstep"] = TSTEP
+        return file["tstep"] = TSTEP
     end
     return filename
 end
@@ -45,32 +52,16 @@ end
 optimizer = load_optimizer(ABSTRACTION_FILE)
 
 @info "Building concrete robot problem"
-concrete_problem = RobotProblem.problem(;
-    robot_urdf = ROBOT_URDF_FILE,
-    tstep = TSTEP,
-)
+concrete_problem = RobotProblem.problem(; robot_urdf = ROBOT_URDF_FILE, tstep = TSTEP)
 concrete_system = concrete_problem.system
 n_state = MathematicalSystems.statedim(concrete_system)
 
 x0 = SVector{n_state, Float64}(zeros(n_state))
 
-target_low = SVector{n_state, Float64}([
-    -12π / 180,
-     7π / 180,
-     8π / 180,
-    -0.75,
-    -0.30,
-    -0.30,
-])
+target_low =
+    SVector{n_state, Float64}([-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30])
 
-target_high = SVector{n_state, Float64}([
-    -8π / 180,
-     9π / 180,
-    12π / 180,
-     0.30,
-     0.75,
-     0.75,
-])
+target_high = SVector{n_state, Float64}([-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75])
 
 I = UT.HyperRectangle(x0, x0)
 T = UT.HyperRectangle(target_low, target_high)
@@ -104,6 +95,9 @@ save_controller(
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
 Xmap = SY.get_state_mapping(abstract_system)
-println("Number of controllable states = ", length(collect(MP.enum_states(controllable_set, Xmap))))
+println(
+    "Number of controllable states = ",
+    length(collect(MP.enum_states(controllable_set, Xmap))),
+)
 
 @info "Saved controller" CONTROLLER_FILE
