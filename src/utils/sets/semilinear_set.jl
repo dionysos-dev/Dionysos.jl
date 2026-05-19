@@ -281,9 +281,8 @@ end
 )
     for (k, P) in enumerate(S.parts)
         try
-            if !UT.is_nonempty_set(P)
-                continue
-            end
+
+            P = LazySets.remove_redundant_constraints(P)
 
             @series begin
                 fillcolor := fillcolor
