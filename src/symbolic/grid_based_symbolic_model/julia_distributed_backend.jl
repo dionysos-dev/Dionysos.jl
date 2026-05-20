@@ -4,6 +4,60 @@
 
 import Distributed
 
+"""
+    JuliaDistributedBackend(
+        procs=nothing,
+        nparts=nothing,
+        partition_strategy=:roundrobin,
+        threaded_per_worker=false,
+        warmup_workers=true,
+    )
+
+Distributed execution over Julia worker processes.
+
+# Parameters
+- `procs`: worker IDs (defaults to `Distributed.workers()`).
+- `nparts`: number of partitions (defaults to number of workers).
+- `partition_strategy`: how to split states (`:roundrobin` or `:contiguous`).
+- `threaded_per_worker`: enable threading inside each worker.
+- `warmup_workers`: run a small warm-up to reduce compilation overhead.
+"""
+struct JuliaDistributedBackend <: AbstractExecutionBackend
+    procs::Union{Nothing, Vector{Int}}
+    nparts::Union{Nothing, Int}
+    partition_strategy::Symbol
+    threaded_per_worker::Bool
+    warmup_workers::Bool
+end
+
+JuliaDistributedBackend() =
+    JuliaDistributedBackend(nothing, nothing, :roundrobin, false, true)
+
+function compute_abstract_system_from_concrete_system!(
+    symmodel::GridBasedSymbolicModel,
+    concrete_system_approx,
+    execution_backend::JuliaDistributedBackend;
+    kwargs...,
+)
+    procs =
+        execution_backend.procs === nothing ? Distributed.workers() :
+        execution_backend.procs
+    nparts =
+        execution_backend.nparts === nothing ? max(length(procs), 1) :
+        execution_backend.nparts
+
+    return compute_abstract_system_distributed!(
+        symmodel,
+        concrete_system_approx;
+        procs = procs,
+        nparts = nparts,
+        partition_strategy = execution_backend.partition_strategy,
+        threaded_per_worker = execution_backend.threaded_per_worker,
+        warmup_workers = execution_backend.warmup_workers,
+        kwargs...,
+    )
+end
+
 const _DIST_SYMMODEL = Ref{Any}(nothing)
 const _DIST_APPROX = Ref{Any}(nothing)
 const _DIST_READY = Ref(false)

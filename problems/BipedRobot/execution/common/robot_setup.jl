@@ -1,5 +1,3 @@
-import Pkg
-
 const BIPED_ROOT = abspath(joinpath(@__DIR__, "..", ".."))
 const PROJECT_DIR = BIPED_ROOT
 const DEPS_DIR = joinpath(BIPED_ROOT, "deps")

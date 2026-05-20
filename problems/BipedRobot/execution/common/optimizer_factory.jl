@@ -1,7 +1,5 @@
 include(joinpath(@__DIR__, "robot_setup.jl"))
 
-Pkg.instantiate()
-
 using Dionysos
 using MathematicalSystems
 using StaticArrays
@@ -18,9 +16,6 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-
-include(selected_robot_problem_path())
-using .RobotProblem
 
 function save_optimizer(filename::AbstractString, optimizer)
     mkpath(dirname(filename))
@@ -64,7 +59,7 @@ function build_robot_abstraction_optimizer(;
     state_filter = nothing,
     state_input_filter = nothing,
     print_level::Int = 2,
-    progress_update_interval::Int = Int(1e3),
+    progress_update_interval::Int = Int(1e2), # Update progress every x iterations (for printlevel >= 1)
 )
     concrete_problem = build_robot_problem(; tstep = tstep)
     concrete_system = concrete_problem.system

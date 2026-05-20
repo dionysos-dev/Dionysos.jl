@@ -2,6 +2,53 @@
 # Sequential and Threaded Execution
 # ------------------------------------------------
 
+"""
+    SequentialBackend()
+
+Sequential execution (no parallelism).
+"""
+struct SequentialBackend <: AbstractExecutionBackend end
+
+"""
+    ThreadedBackend(progress_dt=0.2)
+
+Multithreaded execution using all available Julia threads.
+
+# Parameters
+- `progress_dt`: minimum time (in seconds) between progress updates.
+"""
+struct ThreadedBackend <: AbstractExecutionBackend
+    progress_dt::Float64
+end
+
+ThreadedBackend() = ThreadedBackend(0.2)
+
+function compute_abstract_system_from_concrete_system!(
+    symmodel::GridBasedSymbolicModel,
+    concrete_system_approx,
+    ::SequentialBackend;
+    kwargs...,
+)
+    compute_abstract_system!(symmodel, concrete_system_approx; threaded = false, kwargs...)
+    return symmodel
+end
+
+function compute_abstract_system_from_concrete_system!(
+    symmodel::GridBasedSymbolicModel,
+    concrete_system_approx,
+    execution_backend::ThreadedBackend;
+    kwargs...,
+)
+    compute_abstract_system!(
+        symmodel,
+        concrete_system_approx;
+        threaded = true,
+        progress_dt = execution_backend.progress_dt,
+        kwargs...,
+    )
+    return symmodel
+end
+
 function compute_abstract_system!(
     abstract_system::GridBasedSymbolicModel,
     concrete_system_approx::Union{
