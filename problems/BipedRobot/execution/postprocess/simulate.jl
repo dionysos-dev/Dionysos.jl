@@ -4,6 +4,7 @@ using StaticArrays
 using JLD2
 
 const ST = Dionysos.System
+const AB = Dionysos.Optim.Abstraction
 
 const NSTEP = 300
 const TSTEP = 0.1

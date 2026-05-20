@@ -17,7 +17,6 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulation
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem
-Dionysos.Optim.Abstraction.UniformGridAbstraction.make_out_of_domain_handler
 ```
 
 ### Uniform ellipsoid abstraction solver

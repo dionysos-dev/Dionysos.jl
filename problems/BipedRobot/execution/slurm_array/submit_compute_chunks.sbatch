@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=dionysos-robot-chunks
-#SBATCH --array=1-20
+#SBATCH --array=1-200
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
@@ -25,7 +25,7 @@ export OMP_NUM_THREADS=1
 
 export DIONYSOS_ROBOT_MODEL="${DIONYSOS_ROBOT_MODEL:-6D}"
 export DIONYSOS_TRANSITION_OUTDIR="$PWD/out/$DIONYSOS_ROBOT_MODEL/transitions"
-export DIONYSOS_SIMPLIFY="${DIONYSOS_SIMPLIFY:-1.5}"
+export DIONYSOS_SIMPLIFY="${DIONYSOS_SIMPLIFY:-1.0}"
 export DIONYSOS_TSTEP="${DIONYSOS_TSTEP:-0.1}"
 
 echo "PWD=$(pwd)"

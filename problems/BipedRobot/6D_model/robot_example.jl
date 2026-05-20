@@ -402,17 +402,8 @@ if SIMULATE_SECOND_STEP
     t_high =
         SVector{n_state, Float64}([1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75])
 
-    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 1, warn = true)
-
-    x_traj, u_traj = solve_and_simulate!(
-        optimizer,
-        concrete_system,
-        x0,
-        t_low,
-        t_high;
-        nstep = 300,
-        out_of_domain_handler = handler,
-    )
+    x_traj, u_traj =
+        solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
 
     println(x_traj, "\n")
     println(u_traj, "\n")

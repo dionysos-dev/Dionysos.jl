@@ -76,6 +76,11 @@ control_problem = DI.Problem.OptimalControlProblem(
 )
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), control_problem)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("out_of_domain_handler"),
+    SY.ProjectToNearestCellHandler(; warn = true),
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
