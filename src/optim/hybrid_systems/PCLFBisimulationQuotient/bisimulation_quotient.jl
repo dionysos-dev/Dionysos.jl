@@ -80,7 +80,7 @@ function get_volume(
     T::PCBisimulationQuotient,
     state_ids;
     backend = nothing,
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
 )
     backend === nothing &&
         error("No polyhedral backend provided. Example: backend = CDDLib.Library().")

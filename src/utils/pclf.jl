@@ -769,8 +769,33 @@ struct ObserverCLFPiece{U} <: AbstractPiece
     base_pieces::Dict{U, AbstractPiece}
 end
 
-function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
+#= function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
     parts = LazySets.HPolytope[]
+
+    for S in piece.observer_states
+        isempty(S) && continue
+
+        cons = LazySets.HalfSpace[]
+
+        for i in S
+            Pi = piece.base_pieces[i]
+            @assert Pi isa PolyhedralPiece
+
+            for k in 1:size(Pi.G, 1)
+                gk = vec(Pi.G[k, :])
+                push!(cons, LazySets.HalfSpace(gk, γ * Pi.w[k]))
+                push!(cons, LazySets.HalfSpace(-gk, γ * Pi.w[k]))
+            end
+        end
+
+        push!(parts, UT.clean_poly(LazySets.HPolytope(cons)))
+    end
+
+    return UT.SemiLinearSet(parts)
+end =#
+
+function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64; atol::Float64 = 1e-6)
+    parts = UT.Poly[]
 
     for S in piece.observer_states
         isempty(S) && continue
@@ -787,7 +812,15 @@ function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
             end
         end
 
-        push!(parts, LazySets.HPolytope(cons))
+        P = UT.clean_poly(LazySets.HPolytope(cons))
+
+        if isempty(parts)
+            push!(parts, P)
+        else
+            prev_union = UT.SemiLinearSet(parts)
+            remainder = UT.set_difference_decompose(P, prev_union; atol = atol)
+            append!(parts, remainder)
+        end
     end
 
     return UT.SemiLinearSet(parts)

@@ -198,7 +198,11 @@ end
 # Semi-linear sets : Difference
 # ============================================================
 
-function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Float64 = 0.0)
+function set_difference_decompose(
+    S1::SemiLinearSet,
+    S2::SemiLinearSet;
+    atol::Float64 = 1e-6,
+)
     current = copy(S1.parts)
     for Q in S2.parts
         new_current = Poly[]
@@ -210,7 +214,7 @@ function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Fl
     return current
 end
 
-function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.0)
+function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 1e-6)
     out = Poly[]
     for P1 in S.parts
         append!(out, set_difference_decompose(P1, P0; atol = atol))
@@ -218,7 +222,21 @@ function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.
     return out
 end
 
-function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
+function set_difference_decompose(P::Poly, S::SemiLinearSet; atol::Float64 = 1e-6)
+    current = [P]
+
+    for Q in S.parts
+        new_current = Poly[]
+        for P1 in current
+            append!(new_current, set_difference_decompose(P1, Q; atol = atol))
+        end
+        current = new_current
+    end
+
+    return current
+end
+
+function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 1e-6)
     qcons = LazySets.constraints_list(Q)
     pcons = LazySets.constraints_list(P)
 
@@ -280,25 +298,14 @@ end
     show_label = false,
 )
     for (k, P) in enumerate(S.parts)
-        try
-            P = LazySets.remove_redundant_constraints(P)
-
-            @series begin
-                fillcolor := fillcolor
-                linecolor := linecolor
-                fillalpha := fillalpha
-                linealpha := linealpha
-                linewidth := linewidth
-                label := (show_label && k == 1) ? "SemiLinearSet" : ""
-                #               P
-            end
-
-        catch err
-            @warn "Skipping problematic polytope during plotting" exception=(
-                err,
-                catch_backtrace(),
-            )
-            continue
+        @series begin
+            fillcolor := fillcolor
+            linecolor := linecolor
+            fillalpha := fillalpha
+            linealpha := linealpha
+            linewidth := linewidth
+            label := (show_label && k == 1) ? "SemiLinearSet" : ""
+            P
         end
     end
 end
