@@ -14,13 +14,6 @@ import Serialization
     )
 
 Execution using SLURM array jobs (file-based parallelism).
-
-# Parameters
-- `nchunks`: total number of chunks (slurm array size).
-- `chunk_id`: current chunk (defaults to `SLURM_ARRAY_TASK_ID`).
-- `outdir`: directory where results are written.
-- `partition_strategy`: how to split states (`:contiguous` or `:roundrobin`).
-- `write_only`: if `true`, only writes transitions to disk (recommended for SLURM).
 """
 struct SlurmArrayBackend <: AbstractExecutionBackend
     nchunks::Int
@@ -64,7 +57,6 @@ function collect_abstract_transitions_chunk(
         error("Invalid chunk_id=$chunk_id. Expected value in 1:$nchunks.")
 
     parts = partition_source_state_ids(symmodel, nchunks; strategy = partition_strategy)
-
     state_ids = parts[chunk_id]
 
     if print_level >= 1
@@ -87,21 +79,22 @@ function collect_abstract_transitions_chunk(
 
     local_symmodel = local_symmodel_from_state_ids(symmodel, state_ids)
 
-    transitions = collect_abstract_transitions(
+    transitions, metadata_pairs = collect_abstract_transitions(
         local_symmodel,
         concrete_system_approx;
         print_level = print_level,
         kwargs...,
     )
 
-    return transitions, state_ids
+    return transitions, metadata_pairs, state_ids
 end
 
 function write_transition_chunk(
     outdir::AbstractString,
     chunk_id::Int,
     nchunks::Int,
-    transitions::Vector{Tuple{Int, Int, Int}},
+    transitions::Vector{TransitionKey},
+    metadata_pairs::Vector{Pair{TransitionKey, Any}},
     state_ids::Vector{Int};
     nstates::Int,
     ninputs::Int,
@@ -119,6 +112,7 @@ function write_transition_chunk(
         source_state_ids = state_ids,
         n_transitions = length(transitions),
         transitions = transitions,
+        metadata_pairs = metadata_pairs,
     )
 
     open(file, "w") do io
@@ -148,6 +142,10 @@ function compute_abstract_system_slurm_array!(
     nchunks = execution_backend.nchunks
     chunk_id = execution_backend.chunk_id
 
+    chunk_id === nothing && error(
+        "SlurmArrayBackend.chunk_id is nothing. Provide chunk_id or read SLURM_ARRAY_TASK_ID before constructing the backend.",
+    )
+
     if print_level >= 1
         @info(
             "Starting SLURM-array abstraction chunk",
@@ -157,7 +155,7 @@ function compute_abstract_system_slurm_array!(
         )
     end
 
-    transitions, state_ids = collect_abstract_transitions_chunk(
+    transitions, metadata_pairs, state_ids = collect_abstract_transitions_chunk(
         symmodel,
         concrete_system_approx,
         chunk_id,
@@ -172,6 +170,7 @@ function compute_abstract_system_slurm_array!(
         chunk_id,
         nchunks,
         transitions,
+        metadata_pairs,
         state_ids;
         nstates = get_n_state(symmodel),
         ninputs = get_n_input(symmodel),
@@ -183,12 +182,14 @@ function compute_abstract_system_slurm_array!(
             chunk_id = chunk_id,
             nchunks = nchunks,
             ntransitions = length(transitions),
+            nmetadata = length(metadata_pairs),
             file = file,
         )
     end
 
     if !execution_backend.write_only
         isempty(transitions) || add_transitions!(symmodel, transitions)
+        add_metadata_pairs!(symmodel, metadata_pairs)
     end
 
     return symmodel
@@ -200,7 +201,8 @@ function merge_transition_chunks!(
     nchunks::Int,
     print_level::Int = 0,
 )
-    all_transitions = Tuple{Int, Int, Int}[]
+    all_transitions = TransitionKey[]
+    all_metadata_pairs = Pair{TransitionKey, Any}[]
     total_source_states = 0
 
     expected_nstates = get_n_state(symmodel)
@@ -225,6 +227,11 @@ function merge_transition_chunks!(
         )
 
         append!(all_transitions, data.transitions)
+
+        if haskey(pairs(data), :metadata_pairs)
+            append!(all_metadata_pairs, data.metadata_pairs)
+        end
+
         total_source_states += data.n_source_states
 
         if print_level >= 2
@@ -232,12 +239,15 @@ function merge_transition_chunks!(
                 "Read transition chunk",
                 chunk_id = chunk_id,
                 ntransitions = data.n_transitions,
+                nmetadata =
+                    haskey(pairs(data), :metadata_pairs) ? length(data.metadata_pairs) : 0,
                 n_source_states = data.n_source_states,
             )
         end
     end
 
     isempty(all_transitions) || add_transitions!(symmodel, all_transitions)
+    add_metadata_pairs!(symmodel, all_metadata_pairs)
 
     if print_level >= 1
         @info(
@@ -245,6 +255,7 @@ function merge_transition_chunks!(
             nchunks = nchunks,
             total_source_states = total_source_states,
             total_transitions = length(all_transitions),
+            total_metadata = length(all_metadata_pairs),
         )
     end
 

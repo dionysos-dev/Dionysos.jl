@@ -152,7 +152,8 @@ function _warmup_distributed_abstraction_worker!()
 end
 
 struct DistributedAbstractionResult
-    transitions::Vector{Tuple{Int, Int, Int}}
+    transitions::Vector{TransitionKey}
+    metadata_pairs::Vector{Pair{TransitionKey, Any}}
     n_source_states::Int
     n_transitions::Int
 end
@@ -169,7 +170,7 @@ function _run_local_partition_ids(
     local_symmodel = _make_local_symmodel_from_ids(state_ids)
     local_approx = _DIST_APPROX[]
 
-    transitions = collect_abstract_transitions(
+    transitions, metadata_pairs = collect_abstract_transitions(
         local_symmodel,
         local_approx;
         print_level = print_level,
@@ -180,7 +181,12 @@ function _run_local_partition_ids(
         state_input_filter = state_input_filter,
     )
 
-    return DistributedAbstractionResult(transitions, length(state_ids), length(transitions))
+    return DistributedAbstractionResult(
+        transitions,
+        metadata_pairs,
+        length(state_ids),
+        length(transitions),
+    )
 end
 
 function init_abstraction_workers!(
@@ -240,7 +246,7 @@ function compute_abstract_system_distributed!(
         )
     end
 
-    transitions = collect_abstract_transitions_distributed(
+    transitions, metadata_pairs = collect_abstract_transitions_distributed(
         symmodel,
         concrete_system_approx;
         procs = procs,
@@ -256,6 +262,7 @@ function compute_abstract_system_distributed!(
     )
 
     isempty(transitions) || add_transitions!(symmodel, transitions)
+    add_metadata_pairs!(symmodel, metadata_pairs)
     return symmodel
 end
 
@@ -322,12 +329,16 @@ function collect_abstract_transitions_distributed(
 
     results = fetch.(futures)
 
-    transitions = Tuple{Int, Int, Int}[]
+    transitions = TransitionKey[]
+    metadata_pairs = Pair{TransitionKey, Any}[]
+
     total_sources = 0
     total_transitions = 0
 
     for res in results
         append!(transitions, res.transitions)
+        append!(metadata_pairs, res.metadata_pairs)
+
         total_sources += res.n_source_states
         total_transitions += res.n_transitions
     end
@@ -339,5 +350,5 @@ function collect_abstract_transitions_distributed(
         total_transitions = total_transitions,
     )
 
-    return transitions
+    return transitions, metadata_pairs
 end

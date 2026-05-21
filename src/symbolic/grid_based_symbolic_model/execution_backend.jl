@@ -69,6 +69,8 @@ get_abstract_state(sym::LocalGridBasedSymbolicModel, x) = get_abstract_state(sym
 add_transitions!(sym::LocalGridBasedSymbolicModel, trans) =
     add_transitions!(sym.parent, trans)
 
+metadata(sym::LocalGridBasedSymbolicModel) = metadata(sym.parent)
+
 # ------------------------------------------------------------
 # Partitioning utilities
 # ------------------------------------------------------------

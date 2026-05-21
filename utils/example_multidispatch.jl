@@ -56,10 +56,10 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), SY.ThreadedBa
 #     MOI.RawOptimizerAttribute("execution_backend"),
 #     SY.SlurmArrayBackend(
 #         1,
-#         nothing,              # read SLURM_ARRAY_TASK_ID
+#         1,
 #         "out/transitions",
 #         :contiguous,
-#         false,                 # write_only
+#         false,                # write_only
 #     ),
 # )
 
@@ -77,8 +77,13 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
+    AB.UniformGridAbstraction.CENTER_SIMULATION, # USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 )
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("transition_metadata"),
+    SY.TransitionMetadata(),
+) # SY.NoTransitionMetadata(), SY.TransitionMetadata()
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
@@ -96,6 +101,12 @@ MOI.optimize!(optimizer)
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
+
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+println(SY.has_metadata(abstract_system))
+tr = first(SY.enum_transitions(abstract_system))
+println(tr)
+println(SY.get_metadata(abstract_system, tr))
 
 ### Solve a safety problem
 

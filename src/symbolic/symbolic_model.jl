@@ -146,6 +146,31 @@ function determinize_symbolic_model(
     return new_sym
 end
 
+# -----------------------
+# MetaData (transition)
+# -----------------------
+
+function metadata(::SymbolicModel) end
+
+has_metadata(sym::SymbolicModel) = has_metadata(metadata(sym))
+get_metadata(sym::SymbolicModel, tr::TransitionKey) = get_metadata(metadata(sym), tr)
+add_metadata!(sym::SymbolicModel, tr::TransitionKey, value) =
+    add_metadata!(metadata(sym), tr, value)
+
+function add_metadata_pairs!(symmodel::SymbolicModel, metadata_pairs)
+    has_metadata(symmodel) || return nothing
+
+    for (tr, value) in metadata_pairs
+        add_metadata!(symmodel, tr, value)
+    end
+
+    return nothing
+end
+
+# -----------------------
+# Plots
+# -----------------------
+
 @recipe function f(
     sym::SymbolicModel;
     with_arrows = false,

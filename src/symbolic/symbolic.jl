@@ -22,6 +22,7 @@ const PR = Problem
 using ..Mapping
 const MP = Mapping
 
+include("metadata.jl")
 include("symbolic_model.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
