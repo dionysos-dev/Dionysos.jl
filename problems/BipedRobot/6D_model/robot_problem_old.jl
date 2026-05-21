@@ -14,9 +14,6 @@ const PR = DI.Problem
 include(joinpath(@__DIR__, "..", "src", "RSCore.jl"))
 import .RSCore
 
-include(joinpath(@__DIR__, "..", "src", "RBDCustomSimulation.jl"))
-import .RBDCustomSimulation
-
 const _robot_cache = Ref{Any}(nothing)
 
 function _get_robot_data(robot_urdf::AbstractString)
@@ -47,6 +44,12 @@ function clear_robot_cache!()
     return nothing
 end
 
+"""
+    warmup_robot_problem!(; robot_urdf, tstep, Δt_simu)
+
+Force robot-data initialization and one dynamics evaluation on the current process.
+Useful before distributed benchmarks to separate setup/JIT from abstraction time.
+"""
 function warmup_robot_problem!(;
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
     tstep = 1e-1,
@@ -69,8 +72,8 @@ function warmup_robot_problem!(;
     return nothing
 end
 
-mutable struct VoltageController{Q, G}
-    u::SVector{3, Float64}
+struct VoltageController{U, Q, G}
+    u::U
     q_ref::Q
     GR::G
     Kp::Float64
@@ -80,42 +83,29 @@ mutable struct VoltageController{Q, G}
     ddl::Int
 end
 
-@inline function (vc::VoltageController)(τ, t, state)
+function (vc::VoltageController)(τ, t, state)
     τ .= 0.0
 
     q = configuration(state)
     q̇ = velocity(state)
 
     idx_lo = length(q) - 3 - vc.ddl
+    idx_hi = length(q) - vc.ddl
 
-    q4 = q[idx_lo + 3]
+    current_q = @view q[idx_lo:idx_hi]
+    current_q̇ = @view q̇[idx_lo:idx_hi]
 
-    v1 = q̇[idx_lo]
-    v2 = q̇[idx_lo + 1]
-    v3 = q̇[idx_lo + 2]
-    v4 = q̇[idx_lo + 3]
+    ω = current_q̇ .* vc.GR
 
-    GR1 = vc.GR[1]
-    GR2 = vc.GR[2]
-    GR3 = vc.GR[3]
-    GR4 = vc.GR[4]
+    PWM = (vc.q_ref .- current_q[4]) .* (4095.0 / (2π) * vc.Kp)
+    PWM_sat = clamp.(PWM, -885.0, 885.0)
+    u_K = PWM_sat .* (12.0 / 885.0)
 
-    ω1 = v1 * GR1
-    ω2 = v2 * GR2
-    ω3 = v3 * GR3
-    ω4 = v4 * GR4
+    U_tot = SVector{4, Float64}(vc.u[1], vc.u[2], vc.u[3], u_K[1])
 
-    pwm = (vc.q_ref[1] - q4) * (4095.0 / (2π) * vc.Kp)
-    pwm_sat = clamp(pwm, -885.0, 885.0)
-    uK = pwm_sat * (12.0 / 885.0)
+    τ_m = U_tot .* vc.GR .* vc.ktp .- ω .* vc.GR .* vc.Kvp .- sign.(ω) .* vc.GR .* vc.τc_u
 
-    τ[idx_lo] = vc.u[1] * GR1 * vc.ktp - ω1 * GR1 * vc.Kvp - sign(ω1) * GR1 * vc.τc_u
-
-    τ[idx_lo + 1] = vc.u[2] * GR2 * vc.ktp - ω2 * GR2 * vc.Kvp - sign(ω2) * GR2 * vc.τc_u
-
-    τ[idx_lo + 2] = vc.u[3] * GR3 * vc.ktp - ω3 * GR3 * vc.Kvp - sign(ω3) * GR3 * vc.τc_u
-
-    τ[idx_lo + 3] = uK * GR4 * vc.ktp - ω4 * GR4 * vc.Kvp - sign(ω4) * GR4 * vc.τc_u
+    τ[idx_lo:idx_hi] .= τ_m
 
     return nothing
 end
@@ -124,7 +114,6 @@ function system(;
     tstep = 5e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
     Δt_simu = 1e-4,
-    simulator::Symbol = :history,
 )
     Δt_dionysos = tstep
 
@@ -142,21 +131,6 @@ function system(;
     Init_offset = -0.0006559432
 
     q_ref = SVector{1, Float64}(0.0)
-
-    controllers_per_thread = [
-        VoltageController(
-            SVector{3, Float64}(0.0, 0.0, 0.0),
-            q_ref,
-            GR,
-            Kp,
-            ktp,
-            Kvp,
-            τc_u,
-            ddl,
-        ) for _ in 1:Threads.nthreads()
-    ]
-
-    custom_sims_per_thread = Ref{Any}(nothing)
 
     function build_state(x::SVector{6, Float64})
         q3, q4, q5 = x[1], x[2], x[3]
@@ -194,53 +168,22 @@ function system(;
         return q, q̇
     end
 
-    function init_custom_sims!(cache)
-        if custom_sims_per_thread[] === nothing
-            custom_sims_per_thread[] = [
-                RBDCustomSimulation.CachedFinalStateSimulator(
-                    cache.states_per_thread[i],
-                    controllers_per_thread[i],
-                ) for i in 1:Threads.nthreads()
-            ]
-        end
-
-        return custom_sims_per_thread[]
-    end
-
     function vectorFieldBipedRobot(x::SVector{6, Float64}, u::SVector{3, Float64})
-        tid = Threads.threadid()
-
         cache = _get_robot_data(robot_urdf)
-        state = cache.states_per_thread[tid]
-        controller! = controllers_per_thread[tid]
-
-        controller!.u = u
+        state = cache.states_per_thread[Threads.threadid()]
 
         q, q̇ = build_state(x)
 
         set_configuration!(state, q)
         set_velocity!(state, q̇)
-        set_additional_state!(state, zero(RigidBodyDynamics.additional_state(state)))
 
-        if simulator == :custom
-            sims = init_custom_sims!(cache)
-            sim = sims[tid]
+        controller! = VoltageController(u, q_ref, GR, Kp, ktp, Kvp, τc_u, ddl)
 
-            q_end, v_end = RBDCustomSimulation.simulate_final_state_cached!(
-                sim,
-                Δt_dionysos,
-                Δt_simu;
-                check_finite = false,
-            )
-        else
-            q_end, v_end = RBDCustomSimulation.simulate_final_state!(
-                state,
-                Δt_dionysos,
-                controller!;
-                Δt = Δt_simu,
-                backend = :history,
-            )
-        end
+        _, qs, vs =
+            RigidBodyDynamics.simulate(state, Δt_dionysos, controller!; Δt = Δt_simu)
+
+        q_end = qs[end]
+        v_end = vs[end]
 
         return SVector{6, Float64}(
             q_end[3],
@@ -277,15 +220,8 @@ function problem(;
     tstep = 1e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
     Δt_simu = 1e-4,
-    simulator = :history,
 )
-    sys = system(;
-        tstep = tstep,
-        robot_urdf = robot_urdf,
-        Δt_simu = Δt_simu,
-        simulator = simulator,
-    )
-
+    sys = system(; tstep = tstep, robot_urdf = robot_urdf, Δt_simu = Δt_simu)
     return PR.AlternatingSimulationProblem(sys, nothing)
 end
 
