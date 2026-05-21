@@ -1,4 +1,5 @@
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Dionysos = "d92c97cf-b87d-42c1-a9c0-25df00b4d958"
 InteractBase = "d3863d7c-f0c8-5437-a7b4-3ae773c01009"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
