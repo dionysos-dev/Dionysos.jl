@@ -25,7 +25,7 @@ result = SR.start_control_server(
     server_controller;
     port = port,
     log_data = true,
-    received_data_size = 2,
+    received_data_size = 8,
     state_to_vector = nothing,
 )
 
