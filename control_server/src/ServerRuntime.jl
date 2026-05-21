@@ -85,6 +85,7 @@ function start_control_server(
                     # 3. Convert network-order bytes to Float64 vector
                     payload_u64 = reinterpret(UInt64, payload_bytes)
                     measurements = reinterpret(Float64, ntoh.(payload_u64))
+                    println("Received vector: $measurements")
 
                     # 4. Update the controller state and compute control output
                     x_plus = controller.f(controller.x, measurements)
@@ -144,7 +145,7 @@ function start_control_server(
     # 7. Return logged data
     if log_data
         n = idx - 1
-        t = time_history[1:n]
+        t = time_history[1:n] .- time_history[1]
         measurements = measurement_history[:, 1:n]
         controls = control_history === nothing ? nothing : control_history[:, 1:n]
         states = state_history === nothing ? nothing : state_history[:, 1:n]

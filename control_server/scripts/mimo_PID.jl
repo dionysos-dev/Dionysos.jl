@@ -9,13 +9,13 @@ MS = MathematicalSystems
 
 using JLD2
 
-Ts = 0.02
+Ts = 0.005
 
 Kp = 0.005
-Ki = 0.001
+Ki = 0.005
 Kd = 0.0
 
-r = [0.0, 30.0, 0.0, 0.0]
+r = [0.0, 0.0, 30.0, 0.0]
 
 initial_state = [0.0, 0.0, 0.0, 0.0]
 update_map = (x, y) -> x + Ts*(r-y[1:4])

@@ -36,9 +36,36 @@ if result !== nothing
     t, measurements, controls, states = result
     println("Server session finished.")
     println("Logged $(length(t)) packets.")
+    println("Average dt: $((t[length(t)]-t[1])/length(t))")
 end
 
 using Plots
 
-plot(t, measurements[1, :]; label = "y")
-plot!(t, controls[1, :]; label = "u")
+p = plot(layout = (2,2), size=(1200,900))
+
+for i in 1:4
+    plot!(
+        p[i],
+        t,
+        measurements[i, :],
+        label = "Angle $i"
+    )
+
+    #= plot!(
+        p[i],
+        t,
+        measurements[i+4, :],
+        label = "Velocity $i"
+    ) =#
+
+    plot!(
+        p[i],
+        t,
+        controls[i, :],
+        label = "Control input $i"
+    )
+
+    xlabel!(p[i], "Time")
+end
+
+display(p)
