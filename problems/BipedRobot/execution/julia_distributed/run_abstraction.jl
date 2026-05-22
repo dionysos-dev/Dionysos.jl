@@ -32,8 +32,7 @@ const DISTRIBUTED_NPARTS = parse(Int, get(ENV, "DIONYSOS_NPARTS", string(NWORKER
 
 const PARTITION_STRATEGY = Symbol(get(ENV, "DIONYSOS_PARTITION_STRATEGY", "contiguous"))
 
-const SIMPLIFY = parse(Float64, get(ENV, "DIONYSOS_SIMPLIFY", "3.0"))
-const TSTEP = parse(Float64, get(ENV, "DIONYSOS_TSTEP", "0.1"))
+tstep = 0.1
 
 const BIPED_ROOT = abspath(joinpath(@__DIR__, "..", ".."))
 const PROJECT_DIR = BIPED_ROOT
@@ -109,7 +108,7 @@ t_startup_total = @elapsed begin
                     RobotProblem.warmup_robot_problem!,
                     p;
                     robot_urdf = selected_robot_urdf(),
-                    tstep = TSTEP,
+                    tstep = tstep,
                 ) for p in workers()
             ]
 
@@ -137,19 +136,30 @@ println("USE_SYSIMAGE: ", USE_SYSIMAGE)
 
 include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
 
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+
+robot_urdf = selected_robot_urdf()
+tstep = 0.1
+domain = RobotProblem.default_robot_domain()
+
+simplify = 3.0
+discretization = RobotDiscretizationConfig(;
+    hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15) * simplify,
+    hu = SVector(1.0, 1.0, 1.0) * simplify,
+)
+
 # ==============================================================================
 # Abstraction
 # ==============================================================================
 
 @info(
     "Starting Julia distributed abstraction",
-    model = selected_robot_model(),
     nworkers = length(workers()),
     nparts = DISTRIBUTED_NPARTS,
     partition_strategy = PARTITION_STRATEGY,
     threaded_per_worker = USE_THREADED_PER_WORKER,
-    simplify = SIMPLIFY,
-    tstep = TSTEP,
 )
 
 execution_backend = SY.JuliaDistributedBackend(
@@ -160,12 +170,21 @@ execution_backend = SY.JuliaDistributedBackend(
     true,                     # warmup abstraction workers
 )
 
-optimizer = build_robot_abstraction_optimizer(;
-    execution_backend = execution_backend,
-    simplify = SIMPLIFY,
-    tstep = TSTEP,
+concrete_problem = RobotProblem.problem(;
+    robot_urdf = robot_urdf,
+    tstep = tstep,
+    domain = domain,
+    Δt_simu = 1e-4,
+    simulator = :history,
+)
+
+optimizer = build_robot_abstraction_optimizer(
+    concrete_problem,
+    execution_backend,
+    discretization;
     print_level = 2,
-    progress_update_interval = Int(1e2),
+    progress_update_interval = Int(1e3),
+    save_concrete_traj = false,
 )
 
 t_opt_wall = @elapsed MOI.optimize!(optimizer)

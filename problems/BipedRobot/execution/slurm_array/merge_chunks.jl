@@ -7,9 +7,6 @@ Pkg.instantiate()
 
 using Printf
 
-const SIMPLIFY = parse(Float64, get(ENV, "DIONYSOS_SIMPLIFY", "3.0"))
-const TSTEP = parse(Float64, get(ENV, "DIONYSOS_TSTEP", "0.1"))
-
 t_startup_total = @elapsed begin
     global t_packages = @elapsed begin
         using Dionysos
@@ -45,28 +42,53 @@ end
 
 include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
 
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+
+robot_urdf = selected_robot_urdf()
+tstep = 0.1
+domain = RobotProblem.default_robot_domain()
+
+simplify = 1.0 # 3.0
+discretization = RobotDiscretizationConfig(;
+    hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15) * simplify,
+    hu = SVector(1.0, 1.0, 1.0) * simplify,
+)
+
 outdir = get(ENV, "DIONYSOS_TRANSITION_OUTDIR", default_transition_outdir())
 outfile = get(ENV, "DIONYSOS_ABSTRACTION_FILE", default_abstraction_file())
-nchunks = parse(Int, get(ENV, "DIONYSOS_NCHUNKS", "1"))
+nchunks = 200
+
+# ------------------------------------------------------------------------------
+# Merge
+# ------------------------------------------------------------------------------
 
 @info(
     "Preparing empty abstraction for merge",
-    model = selected_robot_model(),
     nchunks = nchunks,
     outdir = outdir,
     outfile = outfile,
-    simplify = SIMPLIFY,
-    tstep = TSTEP,
 )
 
 execution_backend = SY.SlurmArrayBackend(nchunks, 1, outdir, :contiguous, true)
 
+concrete_problem = RobotProblem.problem(;
+    robot_urdf = robot_urdf,
+    tstep = tstep,
+    domain = domain,
+    Δt_simu = 5e-4, # 1e-4,
+    simulator = :custom,
+)
+
 t_build_optimizer = @elapsed begin
-    global optimizer = build_robot_abstraction_optimizer(;
-        execution_backend = execution_backend,
-        simplify = SIMPLIFY,
-        tstep = TSTEP,
-        print_level = 1,
+    global optimizer = build_robot_abstraction_optimizer(
+        concrete_problem,
+        execution_backend,
+        discretization;
+        print_level = 2,
+        progress_update_interval = Int(1e3),
+        save_concrete_traj = true,
     )
 end
 
@@ -82,6 +104,11 @@ t_merge = @elapsed SY.merge_transition_chunks!(
     nchunks = nchunks,
     print_level = 1,
 )
+
+println(SY.has_metadata(abstract_system))
+tr = first(SY.enum_transitions(abstract_system))
+println(tr)
+println(SY.get_metadata(abstract_system, tr))
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
 

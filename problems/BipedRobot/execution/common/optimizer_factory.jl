@@ -31,40 +31,53 @@ function load_optimizer(filename::AbstractString)
     end
 end
 
-function build_robot_grids(concrete_system; simplify::Float64 = 3.0)
+Base.@kwdef struct RobotDiscretizationConfig{X, U}
+    hx::X
+    hu::U
+end
+
+function default_robot_discretization()
+    return RobotDiscretizationConfig(;
+        hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15),
+        hu = SVector(1.0, 1.0, 1.0),
+    )
+end
+
+function build_robot_grids(concrete_system, discretization)
     n_state = MathematicalSystems.statedim(concrete_system)
     n_input = MathematicalSystems.inputdim(concrete_system)
 
-    x0 = SVector{n_state, Float64}(zeros(n_state))
-    hx =
-        SVector{n_state, Float64}([fill(2π / 180, 3)..., fill(0.15, n_state - 3)...]) *
-        simplify
-    state_grid = MP.GridFree(x0, hx)
+    length(discretization.hx) == n_state ||
+        error("Expected hx of length $n_state, got $(length(discretization.hx)).")
 
+    length(discretization.hu) == n_input ||
+        error("Expected hu of length $n_input, got $(length(discretization.hu)).")
+
+    x0 = SVector{n_state, Float64}(zeros(n_state))
     u0 = SVector{n_input, Float64}(zeros(n_input))
-    hu = SVector{n_input, Float64}(fill(1.0, n_input))
+
+    hx = SVector{n_state, Float64}(discretization.hx)
+    hu = SVector{n_input, Float64}(discretization.hu)
+
+    state_grid = MP.GridFree(x0, hx)
     input_grid = MP.GridFree(u0, hu)
 
     return state_grid, input_grid
 end
 
-function build_robot_problem(; tstep::Float64 = 0.1)
-    return RobotProblem.problem(; robot_urdf = selected_robot_urdf(), tstep = tstep)
-end
-
-function build_robot_abstraction_optimizer(;
+function build_robot_abstraction_optimizer(
+    concrete_problem,
     execution_backend,
-    simplify::Float64 = 3.0,
-    tstep::Float64 = 0.1,
+    discretization;
     state_filter = nothing,
     state_input_filter = nothing,
     print_level::Int = 2,
-    progress_update_interval::Int = Int(1e2), # Update progress every x iterations (for printlevel >= 1)
+    progress_update_interval::Int = Int(1e2),
+    save_concrete_traj = false,
 )
-    concrete_problem = build_robot_problem(; tstep = tstep)
     concrete_system = concrete_problem.system
 
-    state_grid, input_grid = build_robot_grids(concrete_system; simplify = simplify)
+    state_grid, input_grid = build_robot_grids(concrete_system, discretization)
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -86,6 +99,14 @@ function build_robot_abstraction_optimizer(;
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), execution_backend)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
+    if save_concrete_traj
+        MOI.set(
+            optimizer,
+            MOI.RawOptimizerAttribute("transition_metadata"),
+            SY.TransitionMetadata(),
+        ) # SY.NoTransitionMetadata(), SY.TransitionMetadata()
+    end
+
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), print_level)
     MOI.set(
         optimizer,
