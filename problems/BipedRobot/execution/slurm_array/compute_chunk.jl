@@ -52,18 +52,21 @@ include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
 
 robot_urdf = selected_robot_urdf()
 tstep = 0.1
-domain = RobotProblem.default_robot_domain()
-# RobotDomainConfig(
-#     x_lb = SVector(-0.3, 0.0, 0.0, -0.4, -0.2, -0.2),
-#     x_ub = SVector(0.0, 0.3, 0.4, 0.2, 0.4, 0.4),
-#     u_lb = SVector(-2.0, -2.0, -3.0),
-#     u_ub = SVector(2.0, 2.0, 3.0),
-# )
 
-simplify = 1.0 # 3.0
+# # Cedric & Maxime settings
+# domain = RobotProblem.default_robot_domain()
+# discretization = default_robot_discretization(; scale = 1.0)
+
+# Baptiste settings
+domain = RobotProblem.RobotDomainConfig(
+    x_lb = SVector{6,Float64}([-25*π/180, -25*π/180, -10*π/180, -2, -1, -2.5]),
+    x_ub = SVector{6,Float64}([25*π/180, 25*π/180, 80*π/180, 1, 2, 2.5]),
+    u_lb = SVector{3,Float64}((-4.0, -4.0, -4.0)),
+    u_ub = SVector{3,Float64}(( 4.0,  4.0,  4.0)),
+)
 discretization = RobotDiscretizationConfig(;
-    hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15) * simplify,
-    hu = SVector(1.0, 1.0, 1.0) * simplify,
+    hx = SVector{6,Float64}([0.025490685402655037, 0.021796907174709057, 0.025842360657025935, 0.6553157054436949, 0.4732745368241606, 1.548368319358735]),
+    hu = SVector{3,Float64}((1.3221879606782365, 1.7200722827025006, 0.7845631194998841)),
 )
 
 # ------------------------------------------------------------------------------

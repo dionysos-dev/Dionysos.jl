@@ -166,7 +166,7 @@ end
         )
 
         trans_dist = Set(SY.enum_transitions(sym2))
-        trans_ref = Set(
+        trans_ref, _ = Set(
             SY.collect_abstract_transitions(sym, approx; print_level = 0, threaded = false),
         )
 

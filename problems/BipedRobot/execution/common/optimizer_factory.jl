@@ -36,10 +36,17 @@ Base.@kwdef struct RobotDiscretizationConfig{X, U}
     hu::U
 end
 
-function default_robot_discretization()
+function default_robot_discretization(; scale::Float64 = 1.0)
     return RobotDiscretizationConfig(;
-        hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15),
-        hu = SVector(1.0, 1.0, 1.0),
+        hx = scale .* SVector(
+            2π / 180,
+            2π / 180,
+            2π / 180,
+            0.15,
+            0.15,
+            0.15,
+        ),
+        hu = scale .* SVector(1.0, 1.0, 1.0),
     )
 end
 

@@ -45,6 +45,10 @@ get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
 
 _outer_box(X::HyperRectangle) = X
 
+function enlarge(rect::HyperRectangle, δ)
+    return HyperRectangle(rect.lb .- δ, rect.ub .+ δ)
+end
+
 function get_vertices(rect::HyperRectangle)
     n = length(rect.lb)
     vertices = zeros(n, 2^n)

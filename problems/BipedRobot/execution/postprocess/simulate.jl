@@ -3,6 +3,9 @@ using Dionysos
 using StaticArrays
 using JLD2
 
+include(joinpath(@__DIR__, "..", "..", "6D_model", "robot_problem.jl"))
+using .RobotProblem
+
 const ST = Dionysos.System
 const AB = Dionysos.Optim.Abstraction
 
@@ -12,7 +15,9 @@ const TSTEP = 0.1
 const USE_TEST_TRAJECTORY = false
 const VISUALIZE_TRAJECTORY = true
 
-const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller.jld2")
+# const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_1.jld2")
+const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_1.jld2")
+
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
 const RSVIZ_FILE = joinpath(@__DIR__, "..", "..", "src", "RSVisualization.jl")
@@ -70,7 +75,20 @@ else
     data = load_controller_data(CONTROLLER_FILE)
 
     controller = data.controller
-    concrete_system = data.concrete_system
+    # concrete_system = data.concrete_system
+
+    controller = data.controller
+    tstep = data.tstep
+
+    concrete_problem = RobotProblem.problem(;
+        robot_urdf = ROBOT_URDF_FILE,
+        tstep = tstep,
+        Δt_simu = 5e-4,
+        simulator = :custom,
+    )
+
+    concrete_system = concrete_problem.system
+
     control_problem = data.control_problem
     tstep = data.tstep
 
@@ -84,7 +102,7 @@ else
             controller,
             x0,
             NSTEP;
-            stopping = reached_target(control_problem), # stopping = x -> false,
+            stopping = stopping = x -> false, # reached_target(control_problem), # stopping = x -> false,
             verbose = true,
         )
     end

@@ -48,17 +48,30 @@ include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
 
 robot_urdf = selected_robot_urdf()
 tstep = 0.1
-domain = RobotProblem.default_robot_domain()
+# # Cedric & Maxime settings
+# domain = RobotProblem.default_robot_domain()
+# simplify = 1.0 # 3.0
+# discretization = RobotDiscretizationConfig(;
+#     hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15) * simplify,
+#     hu = SVector(1.0, 1.0, 1.0) * simplify,
+# )
+# nchunks = 200
 
-simplify = 1.0 # 3.0
-discretization = RobotDiscretizationConfig(;
-    hx = SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15) * simplify,
-    hu = SVector(1.0, 1.0, 1.0) * simplify,
+# Baptiste settings
+domain = RobotProblem.RobotDomainConfig(
+    x_lb = SVector{6,Float64}([-25*π/180, -25*π/180, -10*π/180, -2, -1, -2.5]),
+    x_ub = SVector{6,Float64}([25*π/180, 25*π/180, 80*π/180, 1, 2, 2.5]),
+    u_lb = SVector{3,Float64}((-4.0, -4.0, -4.0)),
+    u_ub = SVector{3,Float64}(( 4.0,  4.0,  4.0)),
 )
+discretization = RobotDiscretizationConfig(;
+    hx = SVector{6,Float64}([0.025490685402655037, 0.021796907174709057, 0.025842360657025935, 0.6553157054436949, 0.4732745368241606, 1.548368319358735]),
+    hu = SVector{3,Float64}((1.3221879606782365, 1.7200722827025006, 0.7845631194998841)),
+)
+nchunks = 5000
 
 outdir = get(ENV, "DIONYSOS_TRANSITION_OUTDIR", default_transition_outdir())
 outfile = get(ENV, "DIONYSOS_ABSTRACTION_FILE", default_abstraction_file())
-nchunks = 200
 
 # ------------------------------------------------------------------------------
 # Merge
