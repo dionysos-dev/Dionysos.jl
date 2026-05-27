@@ -20,8 +20,9 @@ const ROBOT_PROBLEM_FILE = joinpath(@__DIR__, "..", "..", "6D_model", "robot_pro
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
 const ABSTRACTION_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction.jld2")
-const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction_1.jld2")
+const CONTROLLER_FILE =
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_2.jld2")
 
 include(ROBOT_PROBLEM_FILE)
 using .RobotProblem

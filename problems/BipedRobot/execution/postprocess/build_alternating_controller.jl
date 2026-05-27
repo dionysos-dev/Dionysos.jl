@@ -7,10 +7,10 @@ const UT = DI.Utils
 const ST = DI.System
 
 const NOMINAL_CONTROLLER_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_1.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_2.jld2")
 
 const ALTERNATING_CONTROLLER_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_1.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_2.jld2")
 
 include(joinpath(@__DIR__, "..", "..", "6D_model", "alternating_walking_controller.jl"))
 

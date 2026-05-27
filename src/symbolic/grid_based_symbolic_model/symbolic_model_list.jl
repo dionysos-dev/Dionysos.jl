@@ -79,3 +79,15 @@ get_automaton(sym::SymbolicModelList) = sym.autom
 is_determinized(sym::SymbolicModelList) = !(sym.original_symmodel === nothing)
 
 metadata(sym::SymbolicModelList) = sym.metadata
+
+function without_metadata(sym::SymbolicModel)
+    return SymbolicModelList(
+        get_state_mapping(sym),
+        get_input_mapping(sym);
+        Xset = get_state_domain(sym),
+        Rset = get_retained_domain(sym),
+        Uset = get_input_domain(sym),
+        automaton_constructor = (n, m) -> get_automaton(sym),
+        metadata = NoTransitionMetadata(),
+    )
+end

@@ -2,7 +2,7 @@
 #SBATCH --job-name=dionysos-robot-merge
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=16G
+#SBATCH --mem=280G
 #SBATCH --time=01:00:00
 #SBATCH --output=problems/BipedRobot/out/slurm_logs/merge_%j.out
 #SBATCH --error=problems/BipedRobot/out/slurm_logs/merge_%j.err

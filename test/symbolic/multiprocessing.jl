@@ -12,9 +12,6 @@ const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
 
-# ------------------------------------------------------------------------------
-# Define the toy dynamics on all processes in Main so it can be serialized safely
-# ------------------------------------------------------------------------------
 @everywhere begin
     struct ToyAddDynamics <: Function end
     (f::ToyAddDynamics)(x, u) = x + u
@@ -51,15 +48,12 @@ end
 @testset "Distributed abstraction helpers" begin
     toy = build_toy_abstraction()
 
-    X = toy.X
-    U = toy.U
-    sys = toy.sys
-    approx = toy.approx
     Xmap = toy.Xmap
     Umap = toy.Umap
     Xset = toy.Xset
     Rset = toy.Rset
     Uset = toy.Uset
+    approx = toy.approx
     sym = toy.sym
 
     @testset "LocalGridBasedSymbolicModel forwarding" begin
@@ -86,12 +80,10 @@ end
         all_states = collect(SY.enum_source_states(sym))
 
         rr = SY.partition_source_state_ids(sym, 2; strategy = :roundrobin)
-        rr_states = reduce(vcat, rr)
-        @test sort(rr_states) == sort(all_states)
+        @test sort(reduce(vcat, rr)) == sort(all_states)
 
         contig = SY.partition_source_state_ids(sym, 2; strategy = :contiguous)
-        contig_states = reduce(vcat, contig)
-        @test sort(contig_states) == sort(all_states)
+        @test sort(reduce(vcat, contig)) == sort(all_states)
 
         onepart = SY.partition_source_state_ids(sym, 1; strategy = :roundrobin)
         @test length(onepart) == 1
@@ -121,36 +113,32 @@ end
     end
 
     @testset "collect_abstract_transitions_distributed local fallback" begin
-        mono = Set(
-            SY.collect_abstract_transitions(sym, approx; print_level = 0, threaded = false),
+        trans_ref, _ =
+            SY.collect_abstract_transitions(sym, approx; print_level = 0, threaded = false)
+        mono = Set(trans_ref)
+
+        trans_rr, _ = SY.collect_abstract_transitions_distributed(
+            sym,
+            approx;
+            procs = Int[],
+            nparts = 2,
+            partition_strategy = :roundrobin,
+            print_level = 0,
+            threaded_per_worker = false,
         )
 
-        part_rr = Set(
-            SY.collect_abstract_transitions_distributed(
-                sym,
-                approx;
-                procs = Int[],
-                nparts = 2,
-                partition_strategy = :roundrobin,
-                print_level = 0,
-                threaded_per_worker = false,
-            ),
+        trans_contig, _ = SY.collect_abstract_transitions_distributed(
+            sym,
+            approx;
+            procs = Int[],
+            nparts = 2,
+            partition_strategy = :contiguous,
+            print_level = 0,
+            threaded_per_worker = false,
         )
 
-        part_contig = Set(
-            SY.collect_abstract_transitions_distributed(
-                sym,
-                approx;
-                procs = Int[],
-                nparts = 2,
-                partition_strategy = :contiguous,
-                print_level = 0,
-                threaded_per_worker = false,
-            ),
-        )
-
-        @test mono == part_rr
-        @test mono == part_contig
+        @test mono == Set(trans_rr)
+        @test mono == Set(trans_contig)
     end
 
     @testset "compute_abstract_system_distributed! local fallback" begin
@@ -166,15 +154,15 @@ end
         )
 
         trans_dist = Set(SY.enum_transitions(sym2))
-        trans_ref, _ = Set(
-            SY.collect_abstract_transitions(sym, approx; print_level = 0, threaded = false),
-        )
 
-        @test trans_dist == trans_ref
+        trans_ref, _ =
+            SY.collect_abstract_transitions(sym, approx; print_level = 0, threaded = false)
+
+        @test trans_dist == Set(trans_ref)
     end
 
     @testset "distributed local fallback with threaded worker" begin
-        trans = SY.collect_abstract_transitions_distributed(
+        trans, _ = SY.collect_abstract_transitions_distributed(
             sym,
             approx;
             procs = Int[],
@@ -183,8 +171,9 @@ end
             print_level = 0,
         )
 
-        ref =
+        ref, _ =
             SY.collect_abstract_transitions(sym, approx; threaded = false, print_level = 0)
+
         @test Set(trans) == Set(ref)
     end
 
@@ -192,24 +181,26 @@ end
         if isempty(workers())
             addprocs(2)
         end
-        println("Workers available for distributed test: ", workers())
 
         @everywhere using Dionysos
         @everywhere using MathematicalSystems
         @everywhere using StaticArrays
 
-        trans = SY.collect_abstract_transitions_distributed(
+        procs = workers()[1:min(2, length(workers()))]
+
+        trans, _ = SY.collect_abstract_transitions_distributed(
             sym,
             approx;
-            procs = workers()[1:min(2, length(workers()))],
+            procs = procs,
             nparts = 4,
             print_level = 0,
         )
 
-        ref = SY.collect_abstract_transitions(sym, approx; print_level = 0)
+        ref, _ = SY.collect_abstract_transitions(sym, approx; print_level = 0)
+
         @test Set(trans) == Set(ref)
 
-        SY.clear_abstraction_workers!(workers()[1:min(2, length(workers()))])
+        SY.clear_abstraction_workers!(procs)
     end
 end
 

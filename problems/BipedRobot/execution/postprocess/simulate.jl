@@ -17,7 +17,7 @@ const VISUALIZE_TRAJECTORY = true
 
 # const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_1.jld2")
 const CONTROLLER_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_1.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_2.jld2")
 
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
