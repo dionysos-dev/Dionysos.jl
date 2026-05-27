@@ -25,21 +25,26 @@ function load_controller(filename)
     end
 end
 
-function save_alternating_controller(filename; controller, concrete_system, control_problem, tstep)
+function save_alternating_controller(
+    filename;
+    controller,
+    concrete_system,
+    control_problem,
+    tstep,
+)
     mkpath(dirname(filename))
     JLD2.jldopen(filename, "w") do file
         file["controller"] = controller
         file["concrete_system"] = concrete_system
         file["control_problem"] = control_problem
-        file["tstep"] = tstep
+        return file["tstep"] = tstep
     end
     return filename
 end
 
 data = load_controller(NOMINAL_CONTROLLER_FILE)
 
-alternating_controller =
-    build_alternating_walking_controller(data.controller)
+alternating_controller = build_alternating_walking_controller(data.controller)
 
 save_alternating_controller(
     ALTERNATING_CONTROLLER_FILE;
@@ -50,7 +55,6 @@ save_alternating_controller(
 )
 
 @info "Saved alternating walking controller" ALTERNATING_CONTROLLER_FILE
-
 
 # 1. compute abstraction
 # 2. synthesize nominal one-step controller

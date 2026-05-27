@@ -38,14 +38,7 @@ end
 
 function default_robot_discretization(; scale::Float64 = 1.0)
     return RobotDiscretizationConfig(;
-        hx = scale .* SVector(
-            2π / 180,
-            2π / 180,
-            2π / 180,
-            0.15,
-            0.15,
-            0.15,
-        ),
+        hx = scale .* SVector(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15),
         hu = scale .* SVector(1.0, 1.0, 1.0),
     )
 end

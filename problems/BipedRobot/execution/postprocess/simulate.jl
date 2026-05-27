@@ -16,7 +16,8 @@ const USE_TEST_TRAJECTORY = false
 const VISUALIZE_TRAJECTORY = true
 
 # const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_1.jld2")
-const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_1.jld2")
+const CONTROLLER_FILE =
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_1.jld2")
 
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
@@ -102,7 +103,7 @@ else
             controller,
             x0,
             NSTEP;
-            stopping = stopping = x -> false, # reached_target(control_problem), # stopping = x -> false,
+            stopping =  stopping = x -> false , # reached_target(control_problem), # stopping = x -> false,
             verbose = true,
         )
     end
