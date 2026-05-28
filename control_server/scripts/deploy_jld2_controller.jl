@@ -9,7 +9,20 @@ const SR = ControlServer.ServerRuntime
 # ------------------------------------------------------------
 # Path to saved controller
 # ------------------------------------------------------------
-controller_file = joinpath(@__DIR__, "pid_controller.jld2")
+# controller_file = joinpath(@__DIR__, "pid_controller.jld2")
+
+include(
+    joinpath(
+        @__DIR__,
+        "..",
+        "..",
+        "problems",
+        "BipedRobot",
+        "6D_model",
+        "two_step_walking_controller.jl",
+    ),
+)
+controller_file = joinpath(@__DIR__, "robot_two_step_controller_CM.jld2")
 
 # ------------------------------------------------------------
 # Load Dionysos controller and convert for server runtime
