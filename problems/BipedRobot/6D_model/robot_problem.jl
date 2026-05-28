@@ -309,6 +309,63 @@ function problem(;
     return PR.AlternatingSimulationProblem(sys, nothing)
 end
 
+# ============================================================
+# Step 1: neutral -> walking posture
+# ============================================================
+
+function first_step_problem(concrete_system)
+    x0 = SVector{6, Float64}(0, 0, 0, 0, 0, 0)
+
+    I1 = UT.HyperRectangle(x0, x0)
+
+    T1 = UT.HyperRectangle(
+        SVector{6, Float64}(-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30),
+        SVector{6, Float64}(-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75),
+    )
+
+    return DI.Problem.OptimalControlProblem(
+        concrete_system,
+        I1,
+        T1,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
+    )
+end
+
+# ============================================================
+# Step 2: walking posture -> neutral posture
+# ============================================================
+
+function second_step_problem(concrete_system)
+    x2_center = SVector{6, Float64}(
+        -0.15352800685754736,
+        0.11944498327439435,
+        0.21311298746900986,
+        0.0,
+        0.0,
+        0.0,
+    )
+
+    I2_margin = SVector{6, Float64}(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15)
+
+    I2 = UT.HyperRectangle(x2_center .- I2_margin, x2_center .+ I2_margin)
+
+    T2 = UT.HyperRectangle(
+        SVector{6, Float64}(-1.1π / 180, -1.1π / 180, -1.1π / 180, -0.75, -0.30, -0.30),
+        SVector{6, Float64}(1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75),
+    )
+
+    return DI.Problem.OptimalControlProblem(
+        concrete_system,
+        I2,
+        T2,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
+    )
+end
+
 const LTHIGH = 0.20125
 const LLEG = 0.172
 

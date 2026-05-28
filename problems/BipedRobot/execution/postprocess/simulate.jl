@@ -1,13 +1,14 @@
 using Printf
-using Dionysos
 using StaticArrays
 using JLD2
+using Dionysos
+const ST = Dionysos.System
+const AB = Dionysos.Optim.Abstraction
 
 include(joinpath(@__DIR__, "..", "..", "6D_model", "robot_problem.jl"))
 using .RobotProblem
 
-const ST = Dionysos.System
-const AB = Dionysos.Optim.Abstraction
+include(joinpath(@__DIR__, "..", "..", "6D_model", "two_step_walking_controller.jl"))
 
 const NSTEP = 300
 const TSTEP = 0.1
@@ -15,9 +16,9 @@ const TSTEP = 0.1
 const USE_TEST_TRAJECTORY = false
 const VISUALIZE_TRAJECTORY = true
 
-# const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller_1.jld2")
+# const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_one_step_controller_2_CM.jld2")
 const CONTROLLER_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_alternating_controller_2.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_two_step_controller_CM.jld2")
 
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
@@ -77,13 +78,19 @@ else
 
     controller = data.controller
     # concrete_system = data.concrete_system
-
-    controller = data.controller
     tstep = data.tstep
+
+    domain = RobotProblem.RobotDomainConfig(;
+        x_lb = SVector{6, Float64}([-25π/180, -25π/180, -10π/180, -2, -1, -2.5]),
+        x_ub = SVector{6, Float64}([25π/180, 25π/180, 80π/180, 1, 2, 2.5]),
+        u_lb = SVector{3, Float64}((-4.0, -4.0, -4.0)),
+        u_ub = SVector{3, Float64}((4.0, 4.0, 4.0)),
+    )
 
     concrete_problem = RobotProblem.problem(;
         robot_urdf = ROBOT_URDF_FILE,
         tstep = tstep,
+        domain = domain,
         Δt_simu = 5e-4,
         simulator = :custom,
     )
@@ -93,7 +100,8 @@ else
     control_problem = data.control_problem
     tstep = data.tstep
 
-    x0 = SVector{6, Float64}(zeros(6))
+    x0 = UT.get_center(control_problem.initial_set) # SVector{6, Float64}(zeros(6))
+    println("Initial state: ", x0)
 
     @info "Simulating closed loop" NSTEP
 
@@ -103,7 +111,8 @@ else
             controller,
             x0,
             NSTEP;
-            stopping =  stopping = x -> false , # reached_target(control_problem), # stopping = x -> false,
+            stopping = x -> false, # reached_target(control_problem), # stopping = x -> false,
+            update_on_next = true,
             verbose = true,
         )
     end
