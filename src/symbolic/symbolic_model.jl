@@ -138,7 +138,7 @@ function determinize_symbolic_model(
         Xset = Xset,
         Rset = Rset,
         Uset = MP.MappingSet{M+1}(),
-        automaton_constructor = (n, m)->new_autom,
+        automaton_constructor = (n, m) -> new_autom,
         original_symmodel = sym,
         convert_U_to_list = true,
     )

@@ -212,7 +212,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         fig = plot(; aspect_ratio = :equal, title = string(φ))
         plot!(
             concrete_problem;
-            ap_colors = Dict(:g1=>:red, :g2=>:cyan, :danger=>:orange, :obs=>:black),
+            ap_colors = Dict(:g1 => :red, :g2 => :cyan, :danger => :orange, :obs => :black),
         )
         plot!(fig, x_traj; color = :blue, dims = [1, 2])
         @test fig isa Plots.Plot
