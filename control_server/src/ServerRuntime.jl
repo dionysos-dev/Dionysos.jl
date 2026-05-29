@@ -89,8 +89,10 @@ function start_control_server(
 
                     # 4. Update the controller state and compute control output
                     x_plus = controller.f(controller.x, measurements)
+                    println("Computed state update: $x_plus")
                     controller.x = x_plus
                     control = controller.g(controller.x, measurements)
+                    
 
                     # Ensure control is a Float64 vector for transmission/logging
                     control_vec = Float64[control...]
