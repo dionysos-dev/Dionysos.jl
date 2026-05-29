@@ -20,3 +20,4 @@ paper/paper.pdf
 *.bbl
 *.synctex.gz
 *.log*.jld2
+*.jld2
