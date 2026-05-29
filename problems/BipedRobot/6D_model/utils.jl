@@ -12,7 +12,7 @@ function get_abstract_closed_loop_trajectory(
     abstract_controller,
     source,
     nstep;
-    stopping = (s)->false,
+    stopping = (s) -> false,
 )
     state_traj, input_traj = [source], []
 

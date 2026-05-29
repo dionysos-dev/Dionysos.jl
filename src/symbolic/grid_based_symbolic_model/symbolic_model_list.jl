@@ -17,6 +17,7 @@ mutable struct SymbolicModelList{
     US <: MP.AbstractStateSet{M},
     A,
     OS,
+    MD <: AbstractTransitionMetadata,
 } <: GridBasedSymbolicModel{N, M}
     XMapping::XM
     UMapping::UM
@@ -25,6 +26,7 @@ mutable struct SymbolicModelList{
     Uset::US
     autom::A
     original_symmodel::OS
+    metadata::MD
 end
 
 # default sets = "all states of mapping"
@@ -39,6 +41,7 @@ function SymbolicModelList(
     automaton_constructor::Function = (n, m) -> ST.NewSortedAutomatonList(n, m),
     original_symmodel = nothing,
     convert_U_to_list::Bool = true,
+    metadata = NoTransitionMetadata(),
 ) where {N, M, TX, TU, XM <: MP.AbstractMapping{N, TX}, UM <: MP.AbstractMapping{M, TU}}
     UMap = convert_U_to_list ? MP.convert_to_list_mapping(UMapping) : UMapping
 
@@ -59,6 +62,7 @@ function SymbolicModelList(
         Uset_final,
         autom,
         original_symmodel,
+        metadata,
     )
 end
 
@@ -73,3 +77,17 @@ get_input_domain(sym::SymbolicModelList) = sym.Uset
 get_automaton(sym::SymbolicModelList) = sym.autom
 
 is_determinized(sym::SymbolicModelList) = !(sym.original_symmodel === nothing)
+
+metadata(sym::SymbolicModelList) = sym.metadata
+
+function without_metadata(sym::SymbolicModel)
+    return SymbolicModelList(
+        get_state_mapping(sym),
+        get_input_mapping(sym);
+        Xset = get_state_domain(sym),
+        Rset = get_retained_domain(sym),
+        Uset = get_input_domain(sym),
+        automaton_constructor = (n, m) -> get_automaton(sym),
+        metadata = NoTransitionMetadata(),
+    )
+end

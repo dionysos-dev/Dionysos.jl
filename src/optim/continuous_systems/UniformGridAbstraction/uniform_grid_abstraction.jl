@@ -300,7 +300,7 @@ function MOI.optimize!(optimizer::Optimizer)
         )
 
         optimizer.concrete_controller = SY.quantize_controller(
-            abstract_system,
+            SY.without_metadata(abstract_system), # light version of the abstract system, without metadata, for faster controller saving/loading
             abstract_controller;
             out_of_domain_handler = optimizer.out_of_domain_handler,
         )

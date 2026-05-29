@@ -154,7 +154,7 @@ const AB = OP.Abstraction
     @test abstract_problem.time == concrete_problem.time
 
     for state in 1:SY.get_n_state(abstract_system)
-        for input in 1:abstract_system.input_mapping.total_inputs
+        for input in 1:(abstract_system.input_mapping.total_inputs)
             @test abstract_problem.transition_cost(state, input) == 1.0
         end
     end
@@ -376,7 +376,7 @@ end
     @test abstract_problem.time == concrete_problem.time
 
     for state in 1:SY.get_n_state(abstract_system)
-        for input in 1:abstract_system.input_mapping.total_inputs
+        for input in 1:(abstract_system.input_mapping.total_inputs)
             @test abstract_problem.transition_cost(state, input) == 1.0
         end
     end

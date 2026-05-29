@@ -65,7 +65,7 @@ is_pos(Ndomain::NestedDomain, pos, l) = pos in Ndomain.domains[l]
 
 # Find which level a point belongs to
 function get_depth(Ndomain::NestedDomain, x)
-    for l in 1:Ndomain.levels
+    for l in 1:(Ndomain.levels)
         pos = get_pos_by_coord(Ndomain, l, x)
         if is_pos(Ndomain, pos, l) && is_active(Ndomain, pos, l)
             return l

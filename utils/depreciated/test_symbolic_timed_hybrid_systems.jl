@@ -397,7 +397,7 @@ end
         end
     end
 
-    for tr in 1:gim.switching_inputs
+    for tr in 1:(gim.switching_inputs)
         gid = SY.SymbolicTimedHybridSystems.get_switching_global_id(gim, tr)
         @test isnothing(
             SY.SymbolicTimedHybridSystems.get_concrete_input(hybrid_model, gid, 1),
@@ -945,11 +945,11 @@ end
     for mode in 1:3
         for local_input in
             1:min(
-            5,
-            SY.SymbolicTimedHybridSystems.Dionysos.Symbolic.get_n_input(
-                hybrid_model.mode_abstractions[mode],
-            ),
-        )  # Test with first few inputs
+                5,
+                SY.SymbolicTimedHybridSystems.Dionysos.Symbolic.get_n_input(
+                    hybrid_model.mode_abstractions[mode],
+                ),
+            )  # Test with first few inputs
 
             gid = SY.SymbolicTimedHybridSystems.get_global_input_id(gim, mode, local_input)
             @test gid > 0
@@ -1017,7 +1017,7 @@ end
     end
 
     # Test global input info consistency
-    for gid in 1:gim.total_inputs
+    for gid in 1:(gim.total_inputs)
         typ, info = SY.SymbolicTimedHybridSystems.get_local_input_info(gim, gid)
         if typ == :continuous
             @test 1 <= info[1] <= 3  # mode_id should be 1, 2, or 3
@@ -1090,7 +1090,7 @@ end
     end
 
     # Test switching inputs return nothing for concrete input
-    for tr in 1:gim.switching_inputs
+    for tr in 1:(gim.switching_inputs)
         gid = SY.SymbolicTimedHybridSystems.get_switching_global_id(gim, tr)
         @test isnothing(
             SY.SymbolicTimedHybridSystems.get_concrete_input(hybrid_model, gid, 1),

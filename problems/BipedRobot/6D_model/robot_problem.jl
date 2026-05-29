@@ -47,12 +47,38 @@ function clear_robot_cache!()
     return nothing
 end
 
+Base.@kwdef struct RobotDomainConfig{X1, X2, U1, U2}
+    x_lb::X1
+    x_ub::X2
+    u_lb::U1
+    u_ub::U2
+end
+
+function default_robot_domain()
+    disc_steps = [fill(π / 180, 3)..., fill(0.075, 3)...]
+
+    return RobotDomainConfig(;
+        x_lb = SVector(-12π / 180, 0.0, 0.0, -0.6, -0.15, -0.15) .- disc_steps,
+        x_ub = SVector(0.0, 12π / 180, 14π / 180, 0.15, 0.6, 0.6) .+ disc_steps,
+        u_lb = SVector(-3.0, -3.0, -3.0),
+        u_ub = SVector(3.0, 2.0, 3.0),
+    )
+end
+
 function warmup_robot_problem!(;
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
     tstep = 1e-1,
+    domain = default_robot_domain(),
     Δt_simu = 1e-4,
+    simulator::Symbol = :history,
 )
-    sys = system(; tstep = tstep, robot_urdf = robot_urdf, Δt_simu = Δt_simu)
+    sys = system(;
+        robot_urdf = robot_urdf,
+        tstep = tstep,
+        domain = domain,
+        Δt_simu = Δt_simu,
+        simulator = simulator,
+    )
 
     x = SVector{6, Float64}(
         -0.10471975511965978,
@@ -121,8 +147,9 @@ end
 end
 
 function system(;
-    tstep = 5e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
+    tstep = 1e-1,
+    domain = default_robot_domain(),
     Δt_simu = 1e-4,
     simulator::Symbol = :history,
 )
@@ -252,17 +279,8 @@ function system(;
         )
     end
 
-    disc_steps = [fill(π / 180, 3)..., fill(0.075, 3)...]
-
-    state_lower_bounds = [-12 * π / 180, 0, 0, -0.6, -0.15, -0.15] .- disc_steps
-
-    state_upper_bounds = [0, 12 * π / 180, 14 * π / 180, 0.15, 0.6, 0.6] .+ disc_steps
-
-    state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
-
-    input_lower_bounds = [-3, -3, -3]
-    input_upper_bounds = [3, 2, 3]
-    input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
+    state_space = UT.HyperRectangle(domain.x_lb, domain.x_ub)
+    input_space = UT.HyperRectangle(domain.u_lb, domain.u_ub)
 
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,
@@ -274,19 +292,78 @@ function system(;
 end
 
 function problem(;
-    tstep = 1e-1,
     robot_urdf = joinpath(@__DIR__, "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf"),
+    tstep = 1e-1,
+    domain = default_robot_domain(),
     Δt_simu = 1e-4,
     simulator = :history,
 )
     sys = system(;
-        tstep = tstep,
         robot_urdf = robot_urdf,
+        tstep = tstep,
+        domain = domain,
         Δt_simu = Δt_simu,
         simulator = simulator,
     )
 
     return PR.AlternatingSimulationProblem(sys, nothing)
+end
+
+# ============================================================
+# Step 1: neutral -> walking posture
+# ============================================================
+
+function first_step_problem(concrete_system)
+    x0 = SVector{6, Float64}(0, 0, 0, 0, 0, 0)
+
+    I1 = UT.HyperRectangle(x0, x0)
+
+    T1 = UT.HyperRectangle(
+        SVector{6, Float64}(-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30),
+        SVector{6, Float64}(-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75),
+    )
+
+    return DI.Problem.OptimalControlProblem(
+        concrete_system,
+        I1,
+        T1,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
+    )
+end
+
+# ============================================================
+# Step 2: walking posture -> neutral posture
+# ============================================================
+
+function second_step_problem(concrete_system)
+    x2_center = SVector{6, Float64}(
+        -0.15352800685754736,
+        0.11944498327439435,
+        0.21311298746900986,
+        0.0,
+        0.0,
+        0.0,
+    )
+
+    I2_margin = SVector{6, Float64}(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15)
+
+    I2 = UT.HyperRectangle(x2_center .- I2_margin, x2_center .+ I2_margin)
+
+    T2 = UT.HyperRectangle(
+        SVector{6, Float64}(-1.1π / 180, -1.1π / 180, -1.1π / 180, -0.75, -0.30, -0.30),
+        SVector{6, Float64}(1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75),
+    )
+
+    return DI.Problem.OptimalControlProblem(
+        concrete_system,
+        I2,
+        T2,
+        nothing,
+        nothing,
+        DI.Problem.Infinity(),
+    )
 end
 
 const LTHIGH = 0.20125

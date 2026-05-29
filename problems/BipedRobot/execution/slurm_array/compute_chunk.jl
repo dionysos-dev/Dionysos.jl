@@ -7,9 +7,6 @@ Pkg.instantiate()
 
 using Printf
 
-const SIMPLIFY = parse(Float64, get(ENV, "DIONYSOS_SIMPLIFY", "3.0"))
-const TSTEP = parse(Float64, get(ENV, "DIONYSOS_TSTEP", "0.1"))
-
 # ------------------------------------------------------------------------------
 # Startup timing
 # ------------------------------------------------------------------------------
@@ -41,23 +38,43 @@ t_startup_total = @elapsed begin
         include(robot_problem_path)
         using .RobotProblem
     end
-
-    global t_warmup = @elapsed begin
-        @info "Warming up robot problem" robot_urdf = selected_robot_urdf() tstep = TSTEP
-        RobotProblem.warmup_robot_problem!(;
-            robot_urdf = selected_robot_urdf(),
-            tstep = TSTEP,
-        )
-        @info "Robot warm-up finished"
-    end
 end
 
 @printf("Startup total time:           %.3f s\n", t_startup_total)
 @printf("  Package load:               %.3f s\n", t_packages)
 @printf("  File includes:              %.3f s\n", t_includes)
-@printf("  Robot warm-up:              %.3f s\n", t_warmup)
 
 include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
+
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+
+robot_urdf = selected_robot_urdf()
+tstep = 0.1
+
+# # Cedric & Maxime settings
+# domain = RobotProblem.default_robot_domain()
+# discretization = default_robot_discretization(; scale = 1.0)
+
+# # Baptiste settings
+# domain = RobotProblem.RobotDomainConfig(;
+#     x_lb = SVector{6, Float64}([-25*π/180, -25*π/180, -10*π/180, -2, -1, -2.5]),
+#     x_ub = SVector{6, Float64}([25*π/180, 25*π/180, 80*π/180, 1, 2, 2.5]),
+#     u_lb = SVector{3, Float64}((-4.0, -4.0, -4.0)),
+#     u_ub = SVector{3, Float64}((4.0, 4.0, 4.0)),
+# )
+# discretization = RobotDiscretizationConfig(;
+#     hx = SVector{6, Float64}([
+#         0.025490685402655037,
+#         0.021796907174709057,
+#         0.025842360657025935,
+#         0.6553157054436949,
+#         0.4732745368241606,
+#         1.548368319358735,
+#     ]),
+#     hu = SVector{3, Float64}((1.3221879606782365, 1.7200722827025006, 0.7845631194998841)),
+# )
 
 # ------------------------------------------------------------------------------
 # Chunk parameters
@@ -69,12 +86,9 @@ chunk_id = parse(Int, get(ENV, "SLURM_ARRAY_TASK_ID", "1"))
 
 @info(
     "Starting SLURM abstraction chunk",
-    model = selected_robot_model(),
     chunk_id = chunk_id,
     nchunks = nchunks,
     outdir = outdir,
-    simplify = SIMPLIFY,
-    tstep = TSTEP,
 )
 
 execution_backend = SY.SlurmArrayBackend(
@@ -82,20 +96,41 @@ execution_backend = SY.SlurmArrayBackend(
     chunk_id,
     outdir,
     :contiguous,
-    true,      # write_only: do not add transitions to local abstract system
+    true, # write_only: do not add transitions to local abstract system
 )
+
+global t_warmup = @elapsed begin
+    @info "Warming up robot problem"
+    RobotProblem.warmup_robot_problem!(;
+        robot_urdf = robot_urdf,
+        tstep = tstep,
+        Δt_simu = 5e-4,
+        simulator = :custom,
+    )
+    @info "Robot warm-up finished"
+end
+@printf("  Robot warm-up:              %.3f s\n", t_warmup)
 
 # ------------------------------------------------------------------------------
 # Build and compute chunk
 # ------------------------------------------------------------------------------
 
+concrete_problem = RobotProblem.problem(;
+    robot_urdf = robot_urdf,
+    tstep = tstep,
+    domain = domain,
+    Δt_simu = 5e-4, # 1e-4,
+    simulator = :custom,
+)
+
 t_build_optimizer = @elapsed begin
-    global optimizer = build_robot_abstraction_optimizer(;
-        execution_backend = execution_backend,
-        simplify = SIMPLIFY,
-        tstep = TSTEP,
+    global optimizer = build_robot_abstraction_optimizer(
+        concrete_problem,
+        execution_backend,
+        discretization;
         print_level = 2,
-        progress_update_interval = Int(1e2),
+        progress_update_interval = Int(1e3),
+        save_concrete_traj = true,
     )
 end
 

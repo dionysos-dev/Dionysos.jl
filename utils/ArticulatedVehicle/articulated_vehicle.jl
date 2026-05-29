@@ -315,7 +315,7 @@ function script()
     # Plot 
     # ------------------------------------------------------------
 
-    dims=[1, 2]
+    dims = [1, 2]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
         optimizer,
@@ -331,7 +331,7 @@ function script()
     )
     # savefig(fig, "state_space_12.pdf")
     display(fig)
-    dims=[3, 4]
+    dims = [3, 4]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
         optimizer,
@@ -441,7 +441,7 @@ function script()
 
     # --- Plots --- 
 
-    dims=[1, 2]
+    dims = [1, 2]
     fig =
         plot(; aspect_ratio = :equal, title = "Articulated Vehicle: candidate traj + sets")
     plot!(

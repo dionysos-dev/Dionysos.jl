@@ -20,8 +20,9 @@ const ROBOT_PROBLEM_FILE = joinpath(@__DIR__, "..", "..", "6D_model", "robot_pro
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
 const ABSTRACTION_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction.jld2")
-const CONTROLLER_FILE = joinpath(@__DIR__, "..", "..", "out", "6D", "robot_controller.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction_CM.jld2")
+const CONTROLLER_FILE =
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_one_step_controller_1_CM.jld2")
 
 include(ROBOT_PROBLEM_FILE)
 using .RobotProblem
@@ -54,26 +55,9 @@ optimizer = load_optimizer(ABSTRACTION_FILE)
 @info "Building concrete robot problem"
 concrete_problem = RobotProblem.problem(; robot_urdf = ROBOT_URDF_FILE, tstep = TSTEP)
 concrete_system = concrete_problem.system
-n_state = MathematicalSystems.statedim(concrete_system)
 
-x0 = SVector{n_state, Float64}(zeros(n_state))
-
-target_low =
-    SVector{n_state, Float64}([-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30])
-
-target_high = SVector{n_state, Float64}([-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75])
-
-I = UT.HyperRectangle(x0, x0)
-T = UT.HyperRectangle(target_low, target_high)
-
-control_problem = DI.Problem.OptimalControlProblem(
-    concrete_system,
-    I,
-    T,
-    nothing,
-    nothing,
-    DI.Problem.Infinity(),
-)
+control_problem = RobotProblem.first_step_problem(concrete_system)
+# control_problem = RobotProblem.second_step_problem(concrete_system)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), control_problem)
 MOI.set(

@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=dionysos-robot-chunks
-#SBATCH --array=1-200
+#SBATCH --array=1-5000
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
-#SBATCH --time=02:00:00
+#SBATCH --time=01:00:00
 #SBATCH --output=logs/slurm_array/chunk_%A_%a.out
 #SBATCH --error=logs/slurm_array/chunk_%A_%a.err
 
@@ -24,9 +24,9 @@ export MKL_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
 export DIONYSOS_ROBOT_MODEL="${DIONYSOS_ROBOT_MODEL:-6D}"
-export DIONYSOS_TRANSITION_OUTDIR="$PWD/out/$DIONYSOS_ROBOT_MODEL/transitions"
-export DIONYSOS_SIMPLIFY="${DIONYSOS_SIMPLIFY:-1.0}"
-export DIONYSOS_TSTEP="${DIONYSOS_TSTEP:-0.1}"
+export DIONYSOS_TRANSITION_OUTDIR="$GLOBALSCRATCH/jcalbert/out/$DIONYSOS_ROBOT_MODEL/transitions"
+
+#"$PWD/out/$DIONYSOS_ROBOT_MODEL/transitions"
 
 echo "PWD=$(pwd)"
 echo "SLURM_JOB_ID=$SLURM_JOB_ID"

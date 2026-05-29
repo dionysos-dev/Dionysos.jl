@@ -312,6 +312,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
     approx_mode::ApproxMode
     efficient::Bool
 
+    ### Metadata settings
+    transition_metadata::SY.AbstractTransitionMetadata
+
     print_level::Int
     progress_update_interval::Int
     progress_dt::Float64
@@ -357,6 +360,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
             SY.SequentialBackend(), # execution_backend
             GROWTH,                 # approx
             true,                   # efficient
+            SY.NoTransitionMetadata(),
             1,
             Int(1e5),
             0.2,
@@ -672,6 +676,7 @@ function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProbl
         Rset = optimizer.Rset,
         Uset = optimizer.Uset,
         automaton_constructor = optimizer.automaton_constructor,
+        metadata = optimizer.transition_metadata,
     )
 
     return optimizer.abstract_system
