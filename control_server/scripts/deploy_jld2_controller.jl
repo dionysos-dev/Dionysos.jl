@@ -41,15 +41,10 @@ end
 
 using Plots
 
-p = plot(layout = (2,2), size=(1200,900))
+p = plot(; layout = (2, 2), size = (1200, 900))
 
 for i in 1:4
-    plot!(
-        p[i],
-        t,
-        measurements[i, :],
-        label = "Angle $i"
-    )
+    plot!(p[i], t, measurements[i, :]; label = "Angle $i")
 
     #= plot!(
         p[i],
@@ -58,12 +53,7 @@ for i in 1:4
         label = "Velocity $i"
     ) =#
 
-    plot!(
-        p[i],
-        t,
-        controls[i, :],
-        label = "Control input $i"
-    )
+    plot!(p[i], t, controls[i, :]; label = "Control input $i")
 
     xlabel!(p[i], "Time")
 end

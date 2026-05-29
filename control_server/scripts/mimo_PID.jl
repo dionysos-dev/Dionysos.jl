@@ -26,7 +26,7 @@ pid_controller = ST.DiscreteDynamicController(
     ST.PredicateDomain(_ -> true),
     update_map,
     output_map,
-    false
+    false,
 )
 
 JLD2.jldsave(".\\control_server\\scripts\\pid_controller.jld2"; controller = pid_controller)
