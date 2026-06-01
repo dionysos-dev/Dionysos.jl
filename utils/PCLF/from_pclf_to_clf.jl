@@ -82,12 +82,26 @@ xs_poly, ys_poly, vals_poly, mask_poly = PCLF.approximate_sublevel_set(Vclf_poly
 Sclf = PCLF.approximate_sublevel_set(Vclf_poly, γ)
 
 Sclf_2 = PCLF.get_sublevel_set(Vclf_poly, γ)
+#    optimizer_factory = () -> Clarabel.Optimizer()
+#)
+#println(Sclf_2.parts)
 
 fig = plot(; aspect_ratio = :equal);
 
-plot!(PCLF.get_sublevel_set(pclf_poly.pieces[3], γ); label = "3")
-plot!(PCLF.get_sublevel_set(pclf_poly.pieces[1], γ); label = "1")
-plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], γ); label = "2")
-plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], γ); label = "4")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[3], γ); label = "3")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[1], γ); label = "1")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], γ); label = "2")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], γ); label = "4")
 
 plot!(Sclf_2; label = "CLF")
+
+#P1 = Sclf_2.parts[1]
+#P2 = Sclf_2.parts[2]
+#D12 = UT.SemiLinearSet(UT.set_difference_decompose(P2, P1; atol = 1e-6))
+#println(D12.parts)
+
+#fig = plot(; aspect_ratio = :equal)
+#plot!(P1; alpha = 0.4, label = "P1")
+#plot!(P2; alpha = 0.4, label = "P2")
+#plot!(D12; alpha = 0.6, label = "P1 \\ P2")
+#display(fig)

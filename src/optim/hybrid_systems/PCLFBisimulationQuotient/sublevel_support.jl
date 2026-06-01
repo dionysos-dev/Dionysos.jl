@@ -28,7 +28,7 @@ end
 
 function build_levels_from_problem(
     pclf::PCLF.PCLF,
-    X::LazySets.Hyperrectangle,
+    X::LazySets.HPolytope,
     regions_to_avoid;
     tol::Float64 = 1e-3,
     max_levels::Int = 200,
@@ -88,14 +88,14 @@ end
 
 function compute_tau_X(
     pclf::PCLF.PCLF,
-    X::LazySets.Hyperrectangle;
+    X::LazySets.HPolytope;
     safety_factor::Float64 = 1.05,
 )
     safety_factor >= 1.0 || error("Expected safety_factor >= 1, got $safety_factor.")
     return safety_factor * gamma_cover_region_all_nodes(pclf, X)
 end
 
-function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::LazySets.Hyperrectangle)
+function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::LazySets.HPolytope)
     vals = Float64[]
 
     for piece in values(pclf.pieces)
@@ -107,7 +107,7 @@ function gamma_cover_region_all_nodes(pclf::PCLF.PCLF, X::LazySets.Hyperrectangl
 end
 
 """
-    gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle)
+    gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.HPolytope)
 
 Return the smallest τ such that
 
@@ -117,7 +117,7 @@ for
 
     P_piece(τ) = {x : -τ w <= Gx <= τ w}.
 """
-function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle)
+function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.HPolytope)
     G = piece.G
     w = piece.w
 
@@ -127,14 +127,15 @@ function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle
         wi > 0 || error("Expected strictly positive weight w[$i], got $wi.")
 
         gi = vec(Float64.(G[i, :]))
-        worst = _support_abs_row_on_hyperrectangle(gi, X)
+        #worst = _support_abs_row_on_hyperrectangle(gi, X)
+        worst = _support_abs_row_on_hpolytope(gi, X)
         push!(vals, worst / wi)
     end
 
     return isempty(vals) ? 0.0 : maximum(vals)
 end
 
-function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.Hyperrectangle)
+function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     vals = Float64[]
 
     for S in piece.observer_states
@@ -143,7 +144,7 @@ function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.Hyperrectangl
         worst = -Inf
         for i in S
             Pi = piece.base_pieces[i]
-            v = gamma_cover_set(Pi, X)   # already implemented
+            v = gamma_cover_set(Pi, X)
             worst = max(worst, v)
         end
 
@@ -168,6 +169,10 @@ function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::LazySets.Hyper
     c = LazySets.center(X)
     r = radius_hyperrectangle(X)
     return abs(LA.dot(g, c)) + sum(abs.(g) .* r)
+end
+
+function _support_abs_row_on_hpolytope(g::AbstractVector, X::LazySets.HPolytope)
+    return max(LazySets.ρ(g, X), LazySets.ρ(-g, X))
 end
 
 function radius_hyperrectangle(X::LazySets.Hyperrectangle)

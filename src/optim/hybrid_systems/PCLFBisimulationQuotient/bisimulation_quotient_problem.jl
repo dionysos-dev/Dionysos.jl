@@ -278,7 +278,7 @@ end
 
 function build_slice_sequence(
     sublevels::Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}};
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
 ) where {U}
     slices = Dict{U, Vector{UT.SemiLinearSet}}()
 
@@ -327,7 +327,7 @@ function refine_state_by_observation!(
     R::Poly,
     new_obs::Int;
     terminal_obs::Int = -1,
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
 ) where {U}
     haskey(T.states, qid) || return false
     q = T.states[qid]
@@ -432,7 +432,7 @@ function refine_one_state!(
     pre_parts::AbstractVector,
     mode::Int,
     target_qid::Int;
-    atol::Float64 = 0.0,
+    atol::Float64 = 1e-6,
 ) where {U}
     haskey(T.states, qid) || return false
     q = T.states[qid]

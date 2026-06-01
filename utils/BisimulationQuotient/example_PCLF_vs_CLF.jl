@@ -75,41 +75,41 @@ display(fig)
 
 # -- Computation of the abtraction: 
 
-optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
+#optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf_poly)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-4)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf_poly)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-4)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("ΓX"), 10.0) # nothing
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("nb_levels"), 12) # nothing
-MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 30)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 30)
 
 # ---------------------------------------------------------
 # Solve
 # ---------------------------------------------------------
-MOI.optimize!(optimizer)
-construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-println("Construction time = ", construction_time)
+#MOI.optimize!(optimizer)
+#construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+#println("Construction time = ", construction_time)
 
-bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
-D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
+#bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
+#D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
 
-AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
+#AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 
-fig = plot(; aspect_ratio = :equal);
+#fig = plot(; aspect_ratio = :equal);
 # fig = plot();
 # plot!(bisimulation; what = :slices, show_contours = false)
-plot!(bisimulation; what = :states, by = :states, node = 2, show_contours = false)
-plot!(problem; opacity = 0.2)
-display(fig)
+#plot!(bisimulation; what = :states, by = :states, node = 2, show_contours = false)
+#plot!(problem; opacity = 0.2)
+#display(fig)
 
 # -- The induced CLF -----------------------------------------------------------------------------------------
 
-#states, trans, alphabet = PCLF.build_observer_graph(graph)
-#clf_poly = PCLF.build_common_lyapunov(pclf_poly)
+states, trans, alphabet = PCLF.build_observer_graph(graph)
+clf_poly = PCLF.build_common_lyapunov(pclf_poly)
 
 #Vclf_poly = clf_poly.pieces[:clf]
 
@@ -143,27 +143,27 @@ display(fig)
 #plot!(D)
 #display(fig)
 
-#optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
+optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
 
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), clf_poly)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-4)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 20)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), clf_poly)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-4)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 20)
 
-#MOI.optimize!(optimizer)
-#construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
-#println("Construction time = ", construction_time)
+MOI.optimize!(optimizer)
+construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+println("Construction time = ", construction_time)
 
-#bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
-#D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
+bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
+D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
 
-#AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
+AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 
-#fig = plot(; aspect_ratio = :equal);
+fig = plot(; aspect_ratio = :equal);
 # fig = plot();
 # plot!(bisimulation; what = :slices, show_contours = false)
-#plot!(bisimulation; what = :states, by = :states, node = :clf, show_contours = false)
-#plot!(problem; opacity = 0.2)
-#display(fig)
+plot!(bisimulation; what = :states, by = :states, node = :clf, show_contours = false)
+plot!(problem; opacity = 0.2)
+display(fig)

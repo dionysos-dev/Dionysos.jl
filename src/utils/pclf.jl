@@ -769,8 +769,8 @@ struct ObserverCLFPiece{U} <: AbstractPiece
     base_pieces::Dict{U, AbstractPiece}
 end
 
-function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
-    parts = LazySets.HPolytope[]
+function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64; atol::Float64 = 1e-6)
+    parts = UT.Poly[]
 
     for S in piece.observer_states
         isempty(S) && continue
@@ -787,7 +787,15 @@ function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64)
             end
         end
 
-        push!(parts, LazySets.HPolytope(cons))
+        P = UT.clean_poly(LazySets.HPolytope(cons))
+
+        if isempty(parts)
+            push!(parts, P)
+        else
+            prev_union = UT.SemiLinearSet(parts)
+            remainder = UT.set_difference_decompose(P, prev_union; atol = atol)
+            append!(parts, remainder)
+        end
     end
 
     return UT.SemiLinearSet(parts)
@@ -870,6 +878,46 @@ function build_common_lyapunov(pclf::PCLF)
     clf_graph = common_lyapunov_graph(alphabet)
 
     return PCLF(clf_graph, Dict(:clf => clf_piece), pclf.JSRapprox)
+end
+
+function base_conic_partition_2d()
+    v1 = [1.0, 0.0]
+    v2 = [1.0, 1.0]
+    v3 = [0.0, 1.0]
+    v4 = [-1.0, 1.0]
+    v5 = [-1.0, 0.0]
+
+    return [hcat(v1, v2), hcat(v2, v3), hcat(v3, v4), hcat(v4, v5)]
+end
+
+function split_cone(C::AbstractMatrix)
+    a = vec(C[:, 1])
+    b = vec(C[:, 2])
+    m = a + b
+    return hcat(a, m), hcat(m, b)
+end
+
+function conic_partitions_2d(order::Int)
+    order >= 1 || error("order must be >= 1")
+
+    cones = base_conic_partition_2d()
+
+    for _ in 2:order
+        refined = Matrix{Float64}[]
+        for C in cones
+            C1, C2 = split_cone(C)
+            push!(refined, C1)
+            push!(refined, C2)
+        end
+        cones = refined
+    end
+
+    return cones
+end
+
+function conic_partitions_dict_2d(order::Int, node_ids; offset::Float64 = 0.0)
+    cones = conic_partition_2d(order; offset = offset)
+    return Dict(id => cones for id in node_ids)
 end
 
 end # module
