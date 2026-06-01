@@ -3,6 +3,7 @@ using LinearAlgebra
 using JuMP
 using Clarabel
 using JuMP
+using CDDLib
 
 import HybridSystems
 using LazySets
@@ -62,7 +63,13 @@ f = HybridSystems.discreteswitchedsystem([Matrix(A1), Matrix(A2)])
 # ---------------------------------------------------------
 
 p = 5.9
-X = Hyperrectangle(; low = [-p, -p], high = [p, p])
+
+X = HPolytope([
+    HalfSpace([ 1.0,  0.0], p),   # x ≤ p
+    HalfSpace([-1.0,  0.0], p),   # x ≥ -p
+    HalfSpace([ 0.0,  1.0], p),   # y ≤ p
+    HalfSpace([ 0.0, -1.0], p),   # y ≥ -p
+])
 
 H1 = [
     -0.9869 -0.1615
@@ -122,8 +129,9 @@ M = 2   # two modes
 
 # Common Lyapunov graph = one node with one self-loop per mode
 graph = PCLF.generate_DeBruijn_edges(M, 1)
+println(graph)
 
-G = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (2, 1, 1), (2, 1, 2), (1, 2, 2)])
+#G = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (2, 1, 1), (2, 1, 2), (1, 2, 2)])
 
 # Recover the unique vertex
 # v = first(graph.verts)
@@ -134,18 +142,11 @@ G = PCLF.edgeList_to_LabDigraph([(1, 1, 1), (2, 1, 1), (2, 1, 2), (1, 2, 2)])
 # PCLF with one piece
 # pclf = PCLF.PCLF(graph, Dict(v => piece), rho)
 
-v1 = [1.0, 0.0]
-v2 = [1.0, 1.0]
-v3 = [0.0, 1.0]
-v4 = [-1.0, 1.0]
-v5 = [-1.0, 0.0]
+partition_order = 2
+partition = PCLF.conic_partitions_2d(partition_order)
+partitions = Dict((1,) => partition, (2,) => partition)
 
-C1 = hcat(v1, v2)
-C2 = hcat(v2, v3)
-C3 = hcat(v3, v4)
-C4 = hcat(v4, v5)
 
-partitions = Dict((1,) => [C1, C2, C3, C4], (2,) => [C1, C2, C3, C4])
 
 optimizer_pclf = JuMP.optimizer_with_attributes(Clarabel.Optimizer, "max_iter" => 1000)
 pclf = PCLF.compute_polyhedral_pieces_pclf(f, graph, optimizer_pclf, partitions; MLF = true)
@@ -187,7 +188,7 @@ AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 fig = plot(; aspect_ratio = :equal);
 # fig = plot();
 # plot!(bisimulation; what = :slices, show_contours = false)
-plot!(bisimulation; what = :states, by = :states, node = (2,), show_contours = false)
+plot!(bisimulation; what = :states, by = :states, node = (1,), show_contours = false)
 plot!(problem; opacity = 0.2)
 display(fig)
 
@@ -195,72 +196,72 @@ display(fig)
 # CoSafe LTL control synthesis on the quotient
 # ---------------------------------------------------------
 
-#using Spot
+using Spot
 
-#φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
-#spec = Dionysos.spot_stepper(φ)
+φ = ltl"((!R2 U D) & F(R1) & ((R3 -> X(!R1)) U D))"
+spec = Dionysos.spot_stepper(φ)
 
-#x0 = SVector(-6.0, 7.5)
-#x0 = SVector(9.0, 0.0)     # initial point I in the paper
-#x0 = SVector(-4.0, -7.0)   # initial point a in the paper
-#_I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
+x0 = SVector(-6.0, 7.5)
+x0 = SVector(9.0, 0.0)     # initial point I in the paper
+x0 = SVector(-4.0, -7.0)   # initial point a in the paper
+_I_ = Hyperrectangle(; low = [x0[1], x0[2]], high = [x0[1], x0[2]])
 
-#prob = PR.CoSafeLTLProblem(
-#    f,
-#    _I_,
-#    spec,
-#    Dict(:D => D, :R1 => R1, :R2 => R2, :R3 => R3), # no really useful since we have ap_to_obs, but let's be explicit
-#    Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER, :R3 => MP.INNER), # no really useful, but let's be explicit
-#)
+prob = PR.CoSafeLTLProblem(
+   f,
+   _I_,
+   spec,
+   Dict(:D => D, :R1 => R1, :R2 => R2, :R3 => R3), # no really useful since we have ap_to_obs, but let's be explicit
+   Dict{Symbol, Any}(:D => MP.INNER, :R1 => MP.INNER, :R2 => MP.INNER, :R3 => MP.INNER), # no really useful, but let's be explicit
+)
 
-#optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), prob)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
-#MOI.set(
-#    optimizer,
-#    MOI.RawOptimizerAttribute("ap_to_obs"),
-#    Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3),
-#)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
-#MOI.optimize!(optimizer)
+optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerCoSafeLTLOnQuotient)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), prob)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"), bisimulation)
+MOI.set(
+   optimizer,
+   MOI.RawOptimizerAttribute("ap_to_obs"),
+   Dict(:D => -1, :R1 => 1, :R2 => 2, :R3 => 3),
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
+MOI.optimize!(optimizer)
 
-#concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(optimizer)
-#controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-#uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
+concrete_controller = AB.PCLFBisimulationQuotient.solve_concrete_problem(optimizer)
+controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+uncontrollable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
 
-#Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
-#println("Volume of controllable set = ", Vctrl)
+Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set; backend = CDDLib.Library())
+println("Volume of controllable set = ", Vctrl)
 
-#mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
+mem0 = AB.PCLFBisimulationQuotient.initial_controller_memory(optimizer, x0)
 
-#(X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
-#    f,
-#    concrete_controller,
-#    x0,
-#    mem0;
-#    N = 50,
-#)
+(X_seq, U_seq, M_seq) = AB.PCLFBisimulationQuotient.simulate_closed_loop(
+   f,
+   concrete_controller,
+   x0,
+   mem0;
+   N = 50,
+)
 
 # ---------------------------------------------------------
 # Plot closed-loop trajectory and controlled sets
 # ---------------------------------------------------------
 
-#fig = plot(; aspect_ratio = :equal, legend = false)
-#φ_str = string(φ)
-#plot!(fig; title = "$φ_str")
-#plot!(
-#    bisimulation;
-#    what = :states,
-#    state_ids = controllable_set,
-#    show_contours = false,
-#    user_color = :green,
-#    fillalpha = 1.0,
-#)
-# plot!(bisimulation; what = :states, state_ids = uncontrollable_set, show_contours = false, user_color = :red, fillalpha = 1.0)
-#plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
-#plot!(ST.Trajectory(X_seq); label = "Trajectory")
-#display(fig)
+fig = plot(; aspect_ratio = :equal, legend = false)
+φ_str = string(φ)
+plot!(fig; title = "$φ_str")
+plot!(
+   bisimulation;
+   what = :states,
+   state_ids = controllable_set,
+   show_contours = false,
+   user_color = :green,
+   fillalpha = 1.0,
+)
+plot!(bisimulation; what = :states, state_ids = uncontrollable_set, show_contours = false, user_color = :red, fillalpha = 1.0)
+plot!(problem; region_alpha = 0.0, observation_region_alpha = 0.0, plot_region = false)
+plot!(ST.Trajectory(X_seq); label = "Trajectory")
+display(fig)
 
 # ---------------------------------------------------------
 # Plot lifted trajectory and quotient states

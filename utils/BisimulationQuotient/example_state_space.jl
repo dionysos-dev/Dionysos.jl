@@ -36,21 +36,11 @@ R = [
 normals = [R * [1.0, 0.0], R * [-1.0, 0.0], R * [0.0, 1.0], R * [0.0, -1.0]]
 
 # State space
-#= X = HPolytope([
+X = HPolytope([
     HalfSpace(normals[1], p),
     HalfSpace(normals[2], p),
     HalfSpace(normals[3], p),
     HalfSpace(normals[4], p),
-]) =#
-X = HPolytope([
-    HalfSpace([1.0, 0.0], 3.1),   # x ≤ 3.1
-    HalfSpace([-1.0, 0.0], 3.2),   # x ≥ -3.2
-    HalfSpace([0.0, 1.0], 3.6),   # y ≤ 3.6
-    HalfSpace([0.0, -1.0], 2.9),   # y ≥ -2.9
-    HalfSpace([0.8, 0.6], 2.7),
-    HalfSpace([-0.8, -0.6], 2.7),
-    HalfSpace([0.6, -0.8], 2.8),
-    HalfSpace([-0.6, 0.8], 2.8),
 ])
 
 # R1 = [0.8, 1.5] × [0.8, 1.5]
