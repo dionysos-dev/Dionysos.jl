@@ -13,7 +13,14 @@ function _as_hpolytope(P)
     end
 end
 
-clean_poly(P::Poly) = LazySets.remove_redundant_constraints(P)
+function clean_poly(P::Poly)
+    try
+        return LazySets.remove_redundant_constraints(P)
+    catch
+        println("Clean failed")
+        return P
+    end
+end
 
 function set_intersection(P::Poly, Q::Poly)
     return clean_poly(
@@ -162,6 +169,31 @@ function set_intersection(P0::Poly, S::SemiLinearSet)
     return set_intersection(S, P0)
 end
 
+function hyperrectangle_to_hpolytope(X::LazySets.Hyperrectangle)
+    c = LazySets.center(X)
+    r = LazySets.radius_hyperrectangle(X)
+
+    n = length(c)
+    cons = LazySets.HalfSpace[]
+
+    for i in 1:n
+        ei = zeros(n)
+        ei[i] = 1.0
+
+        # x_i ≤ c_i + r_i
+        push!(cons, LazySets.HalfSpace(ei, c[i] + r[i]))
+
+        # -x_i ≤ -(c_i - r_i)
+        push!(cons, LazySets.HalfSpace(-ei, -(c[i] - r[i])))
+    end
+
+    return LazySets.HPolytope(cons)
+end
+
+function set_intersection(P::Poly, X::LazySets.Hyperrectangle)
+    return set_intersection(P, hyperrectangle_to_hpolytope(X))
+end
+
 # ============================================================
 # Semi-linear sets : Difference
 # ============================================================
@@ -175,7 +207,7 @@ function set_difference_decompose(S1::SemiLinearSet, S2::SemiLinearSet; atol::Fl
         end
         current = new_current
     end
-    return SemiLinearSet(current)
+    return current
 end
 
 function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.0)
@@ -183,7 +215,7 @@ function set_difference_decompose(S::SemiLinearSet, P0::Poly; atol::Float64 = 0.
     for P1 in S.parts
         append!(out, set_difference_decompose(P1, P0; atol = atol))
     end
-    return SemiLinearSet(out)
+    return out
 end
 
 function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
@@ -197,7 +229,7 @@ function set_difference_decompose(P::Poly, Q::Poly; atol::Float64 = 0.0)
         comp = LazySets.HalfSpace(-c.a, -(c.b + atol))
         piece = clean_poly(Poly(vcat(pcons, prefix, [comp])))
         if is_nonempty_set(piece)
-            push!(pieces, _as_hpolytope(piece))
+            push!(pieces, piece)
         end
         push!(prefix, c)
     end
@@ -248,14 +280,25 @@ end
     show_label = false,
 )
     for (k, P) in enumerate(S.parts)
-        @series begin
-            fillcolor := fillcolor
-            linecolor := linecolor
-            fillalpha := fillalpha
-            linealpha := linealpha
-            linewidth := linewidth
-            label := (show_label && k == 1) ? "SemiLinearSet" : ""
-            P
+        try
+            P = LazySets.remove_redundant_constraints(P)
+
+            @series begin
+                fillcolor := fillcolor
+                linecolor := linecolor
+                fillalpha := fillalpha
+                linealpha := linealpha
+                linewidth := linewidth
+                label := (show_label && k == 1) ? "SemiLinearSet" : ""
+                #               P
+            end
+
+        catch err
+            @warn "Skipping problematic polytope during plotting" exception=(
+                err,
+                catch_backtrace(),
+            )
+            continue
         end
     end
 end

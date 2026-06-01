@@ -66,6 +66,13 @@ pclf_poly =
     PCLF.compute_polyhedral_pieces_pclf(f, graph, lp_optimizer, partitions; MLF = true)
 println("Computed JSR upper bound / contraction rate = ", pclf_poly.JSRapprox)
 
+fig = plot(; aspect_ratio = :equal);
+plot!(PCLF.get_sublevel_set(pclf_poly.pieces[3], 0.5); label = "3")
+plot!(PCLF.get_sublevel_set(pclf_poly.pieces[1], 0.5); label = "1")
+plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], 0.5); label = "2")
+plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], 0.5); label = "4")
+display(fig)
+
 # -- Computation of the abtraction: 
 
 optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
@@ -78,7 +85,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("ΓX"), 10.0) # nothing
 # MOI.set(optimizer, MOI.RawOptimizerAttribute("nb_levels"), 12) # nothing
-MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 3)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 30)
 
 # ---------------------------------------------------------
 # Solve
@@ -95,9 +102,68 @@ AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
 fig = plot(; aspect_ratio = :equal);
 # fig = plot();
 # plot!(bisimulation; what = :slices, show_contours = false)
-plot!(bisimulation; what = :states, by = :states, node = 4, show_contours = false)
+plot!(bisimulation; what = :states, by = :states, node = 2, show_contours = false)
 plot!(problem; opacity = 0.2)
 display(fig)
 
 # -- The induced CLF -----------------------------------------------------------------------------------------
-# states, trans, alphabet = PCLF.build_observer_graph(graph)
+
+#states, trans, alphabet = PCLF.build_observer_graph(graph)
+#clf_poly = PCLF.build_common_lyapunov(pclf_poly)
+
+#Vclf_poly = clf_poly.pieces[:clf]
+
+#Sclf_2 = PCLF.get_sublevel_set(Vclf_poly, 0.5)
+
+#fig = plot(; aspect_ratio = :equal);
+
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[3], 0.5); label = "3")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[1], 0.5); label = "1")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[2], 0.5); label = "2")
+#plot!(PCLF.get_sublevel_set(pclf_poly.pieces[4], 0.5); label = "4")
+
+#plot!(Sclf_2; label = "CLF")
+
+# Computation of the abstraction
+
+#levels, D = AB.PCLFBisimulationQuotient.build_levels_and_terminal_set(
+#    clf_poly,   # <-- CLF, not pclf_poly
+#    X,
+#    observation_regions;
+#    tol = 1e-3,
+#    max_levels = 50,
+#)
+
+#fig = plot(; aspect_ratio = :equal);
+#for τ in levels
+#    Sτ = PCLF.get_sublevel_set(Vclf_poly, τ)
+#    plot!(fig, Sτ; alpha = 0.05, label = nothing)
+#end
+#plot!(X)
+#plot!(D)
+#display(fig)
+
+#optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuotient)
+
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), clf_poly)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-4)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), 1e-2)
+#MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 20)
+
+#MOI.optimize!(optimizer)
+#construction_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("construction_time_sec"))
+#println("Construction time = ", construction_time)
+
+#bisimulation = MOI.get(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient"))
+#D = MOI.get(optimizer, MOI.RawOptimizerAttribute("D"))
+
+#AB.PCLFBisimulationQuotient.print_bisimulation_stats(bisimulation)
+
+#fig = plot(; aspect_ratio = :equal);
+# fig = plot();
+# plot!(bisimulation; what = :slices, show_contours = false)
+#plot!(bisimulation; what = :states, by = :states, node = :clf, show_contours = false)
+#plot!(problem; opacity = 0.2)
+#display(fig)

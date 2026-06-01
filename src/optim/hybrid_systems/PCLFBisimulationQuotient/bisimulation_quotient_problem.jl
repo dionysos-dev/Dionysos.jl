@@ -268,17 +268,16 @@ end
 
 function build_sublevel_sequence(pclf::PCLF.PCLF, Γ::AbstractVector{<:Real})
     U = typeof(first(pclf.graph.verts))
-    sublevels = Dict{U, Vector{Poly}}()
+    sublevels = Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}}()
     for s in pclf.graph.verts
         piece = pclf.pieces[s]
-        sublevels[s] =
-            [UT._as_hpolytope(PCLF.get_sublevel_set(piece, Float64(γ))) for γ in Γ]
+        sublevels[s] = [PCLF.get_sublevel_set(piece, Float64(γ)) for γ in Γ]
     end
     return sublevels
 end
 
 function build_slice_sequence(
-    sublevels::Dict{U, Vector{Poly}};
+    sublevels::Dict{U, Vector{Union{Poly, UT.SemiLinearSet}}};
     atol::Float64 = 0.0,
 ) where {U}
     slices = Dict{U, Vector{UT.SemiLinearSet}}()
@@ -287,7 +286,11 @@ function build_slice_sequence(
         Ns = length(Ps)
         local_slices = Vector{UT.SemiLinearSet}(undef, Ns)
 
-        local_slices[1] = UT.SemiLinearSet(Ps[1])
+        if Ps[1] isa Poly
+            local_slices[1] = UT.SemiLinearSet([Ps[1]])
+        else
+            local_slices[1] = Ps[1]
+        end
 
         for i in 2:Ns
             diff_parts = UT.set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
@@ -346,7 +349,7 @@ function refine_state_by_observation!(
             touched = true
             push!(inside_parts, I)
 
-            D = UT.set_difference_decompose(Q, R; atol = atol)
+            D = UT.set_difference_decompose(Q, R; atol = atol) # maybe something to change here??
             if !isempty(D)
                 append!(outside_parts, D)
             end
@@ -455,7 +458,8 @@ function refine_one_state!(
             touched = true
             append!(inside_parts, I)
 
-            Qrem = UT.set_difference_decompose(Qrem, preP; atol = atol)
+            parts = UT.set_difference_decompose(Qrem, preP; atol = atol)    # modified because set_difference_decompore now returns a vector
+            Qrem = UT.SemiLinearSet(parts)
             if !UT.is_nonempty_set(Qrem)
                 break
             end

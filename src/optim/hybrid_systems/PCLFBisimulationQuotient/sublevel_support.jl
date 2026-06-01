@@ -134,6 +134,27 @@ function gamma_cover_set(piece::PCLF.PolyhedralPiece, X::LazySets.Hyperrectangle
     return isempty(vals) ? 0.0 : maximum(vals)
 end
 
+function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.Hyperrectangle)
+    vals = Float64[]
+
+    for S in piece.observer_states
+        isempty(S) && continue
+
+        worst = -Inf
+        for i in S
+            Pi = piece.base_pieces[i]
+            v = gamma_cover_set(Pi, X)   # already implemented
+            worst = max(worst, v)
+        end
+
+        push!(vals, worst)
+    end
+
+    isempty(vals) && error("No observer states.")
+
+    return minimum(vals)
+end
+
 """
     _support_abs_row_on_hyperrectangle(g, X)
 
@@ -187,14 +208,68 @@ function piece_intersects_region_at_level(
     return UT.is_nonempty_set(I)
 end
 
+function piece_intersects_region_at_level(
+    piece::PCLF.ObserverCLFPiece,
+    τ::Real,
+    R;
+    tol::Float64 = 0.0,
+)
+    tol >= 0.0 || error("Expected tol >= 0, got $tol.")
+
+    τeff = max(Float64(τ) - tol, 0.0)
+
+    for S in piece.observer_states
+        isempty(S) && continue
+
+        cons = LazySets.HalfSpace[]
+
+        for i in S
+            Pi = piece.base_pieces[i]
+            @assert Pi isa PCLF.PolyhedralPiece
+
+            for k in 1:size(Pi.G, 1)
+                gk = vec(Pi.G[k, :])
+                push!(cons, LazySets.HalfSpace(gk, τeff * Pi.w[k]))
+                push!(cons, LazySets.HalfSpace(-gk, τeff * Pi.w[k]))
+            end
+        end
+
+        Pτ = LazySets.HPolytope(cons)
+
+        I = UT.set_intersection(Pτ, R)
+
+        if UT.is_nonempty_set(I)
+            return true
+        end
+    end
+
+    return false
+end
+
 # ============================================================
 # Terminal-set construction
 # ============================================================
+
+function flatten_semilinear_sets(sets)
+    parts = Poly[]
+
+    for S in sets
+        if S isa Poly
+            push!(parts, S)
+        elseif S isa UT.SemiLinearSet
+            append!(parts, S.parts)
+        else
+            error("Unsupported type $(typeof(S))")
+        end
+    end
+
+    return parts
+end
 
 function compute_D_from_tau(pclf::PCLF.PCLF, τD::Real)
     pieces = collect(values(pclf.pieces))
     isempty(pieces) && error("PCLF has no pieces.")
 
     sublevel_sets = [PCLF.get_sublevel_set(piece, τD) for piece in pieces]
-    return UT.SemiLinearSet(sublevel_sets)
+    return UT.SemiLinearSet(flatten_semilinear_sets(sublevel_sets))
 end

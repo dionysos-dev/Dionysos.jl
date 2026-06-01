@@ -175,13 +175,13 @@ end
 
     S = UT.SemiLinearSet([P1, P2])
 
-    D1 = UT.set_difference_decompose(S, UT.SemiLinearSet(Q))
+    D1 = UT.SemiLinearSet(UT.set_difference_decompose(S, UT.SemiLinearSet(Q)))
     @test D1 isa UT.SemiLinearSet
     @test [0.25, 0.25] ∈ D1
     @test [3.5, 3.5] ∈ D1
     @test [1.0, 1.0] ∉ D1
 
-    D2 = UT.set_difference_decompose(S, Q)
+    D2 = UT.SemiLinearSet(UT.set_difference_decompose(S, Q))
     @test D2 isa UT.SemiLinearSet
     @test [0.25, 0.25] ∈ D2
     @test [3.5, 3.5] ∈ D2

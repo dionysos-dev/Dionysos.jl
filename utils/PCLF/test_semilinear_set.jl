@@ -21,10 +21,14 @@ P2 = Poly([
 println(LazySets.isempty(P1))
 println(LazySets.isempty(P2))
 
-#p = plot(; aspect_ratio = :equal);
-#plot!(p,P1)
-#plot!(p,P2)
-#display(p)
+p = plot(; aspect_ratio = :equal, xlims = (-2.00, -1.97), ylims = (0.765, 0.790));
+plot!(p, P1)
+plot!(p, P2)
+
+xlims!(p, -2.00, -1.97)
+ylims!(p, 0.765, 0.790)
+
+display(p)
 
 R = Poly(vcat(LazySets.constraints_list(P1), LazySets.constraints_list(P2)))
 println(LazySets.isempty(R))
