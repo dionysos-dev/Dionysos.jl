@@ -782,7 +782,7 @@ function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64; atol::Float64 = 
 
             for k in 1:size(Pi.G, 1)
                 gk = vec(Pi.G[k, :])
-                push!(cons, LazySets.HalfSpace( gk, γ * Pi.w[k]))
+                push!(cons, LazySets.HalfSpace(gk, γ * Pi.w[k]))
                 push!(cons, LazySets.HalfSpace(-gk, γ * Pi.w[k]))
             end
         end
@@ -887,12 +887,7 @@ function base_conic_partition_2d()
     v4 = [-1.0, 1.0]
     v5 = [-1.0, 0.0]
 
-    return [
-        hcat(v1, v2),
-        hcat(v2, v3),
-        hcat(v3, v4),
-        hcat(v4, v5),
-    ]
+    return [hcat(v1, v2), hcat(v2, v3), hcat(v3, v4), hcat(v4, v5)]
 end
 
 function split_cone(C::AbstractMatrix)
