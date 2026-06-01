@@ -125,7 +125,7 @@ end
 
         XI = UT.HyperRectangle(SVector(-0.9, -0.9), SVector(-0.8, -0.8))
         XT = UT.HyperRectangle(SVector(0.8, 0.8), SVector(0.9, 0.9))
-        p_opt = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u)->1.0, 3)
+        p_opt = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 3)
 
         XS = UT.HyperRectangle(SVector(-0.7, -0.7), SVector(0.7, 0.7))
         p_safe = PR.SafetyProblem(sys, XI, XS, 4)

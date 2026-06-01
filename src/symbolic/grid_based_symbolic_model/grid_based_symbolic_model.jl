@@ -39,6 +39,7 @@ get_n_state(symmodel::GridBasedSymbolicModel) =
 get_n_input(symmodel::GridBasedSymbolicModel) = length(collect(enum_inputs(symmodel)))
 
 get_state_domain(symmodel::GridBasedSymbolicModel) = get_source_domain(symmodel)
+
 enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
 
 @inline function _keep_state_input(
@@ -60,38 +61,4 @@ function filtered_source_states(
     states = collect(enum_source_states(symmodel))
     state_filter === nothing && return states
     return [q for q in states if state_filter(get_concrete_state(symmodel, q))]
-end
-
-include("sequential_threaded_abstraction.jl")
-include("distributed_abstraction.jl")
-
-function compute_abstract_system_from_concrete_system!(
-    symmodel::GridBasedSymbolicModel,
-    concrete_system_approx;
-    distributed::Bool = false,
-    threaded::Bool = false,
-    procs = Distributed.workers(),
-    nparts::Int = max(length(procs), 1),
-    partition_strategy::Symbol = :roundrobin,
-    kwargs...,
-)
-    if distributed
-        return compute_abstract_system_distributed!(
-            symmodel,
-            concrete_system_approx;
-            procs = procs,
-            nparts = nparts,
-            partition_strategy = partition_strategy,
-            threaded_per_worker = threaded,
-            kwargs...,
-        )
-    else
-        compute_abstract_system!(
-            symmodel,
-            concrete_system_approx;
-            threaded = threaded,
-            kwargs...,
-        )
-        return symmodel
-    end
 end

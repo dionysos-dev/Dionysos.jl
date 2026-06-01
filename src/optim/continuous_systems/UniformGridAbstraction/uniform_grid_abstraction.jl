@@ -100,11 +100,12 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Union{Nothing, ST.AbstractContinuousController}
+    out_of_domain_handler::SY.AbstractOutOfDomainHandler
     solve_time_sec::T
     print_level::Int
 
     function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, 0.0, 1)
+        return new{T}(nothing, nothing, nothing, SY.NoOutOfDomainHandler(), 0.0, 1)
     end
 end
 Optimizer() = Optimizer{Float64}()
@@ -132,15 +133,27 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     end
 
     if param_symbol == :concrete_problem
-        # Assign appropriate control solver
+        old_abstraction_solver = model.abstraction_solver
+
         if isa(value, Dionysos.Problem.AlternatingSimulationProblem)
             model.abstraction_solver = OptimizerAlternatingSimulationProblem()
+
+            if old_abstraction_solver !== nothing
+                model.abstraction_solver.execution_backend =
+                    old_abstraction_solver.execution_backend
+                model.abstraction_solver.print_level = old_abstraction_solver.print_level
+                model.abstraction_solver.progress_update_interval =
+                    old_abstraction_solver.progress_update_interval
+                model.abstraction_solver.progress_dt = old_abstraction_solver.progress_dt
+            end
+
             MOI.set(
                 model.abstraction_solver,
                 MOI.RawOptimizerAttribute("alternating_simulation_problem"),
                 value,
             )
-            model.control_solver = nothing  # No control solver
+            model.control_solver = nothing
+
         elseif isa(value, Dionysos.Problem.OptimalControlProblem)
             model.control_solver = OptimizerOptimalControlProblem()
             MOI.set(
@@ -148,6 +161,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         elseif isa(value, Dionysos.Problem.SafetyProblem)
             model.control_solver = OptimizerSafetyProblem()
             MOI.set(
@@ -155,6 +169,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         elseif isa(value, Dionysos.Problem.CoSafeLTLProblem)
             model.control_solver = OptimizerCoSafeLTLProblem()
             MOI.set(
@@ -162,11 +177,11 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 MOI.RawOptimizerAttribute("concrete_problem"),
                 value,
             )
+
         else
             error("Unsupported problem type: $(typeof(value))")
         end
 
-        # Instantiate an abstraction_solver if it has not already been created
         if model.abstraction_solver.alternating_simulation_problem === nothing
             alternating_simulation_problem =
                 Dionysos.Problem.AlternatingSimulationProblem(value.system, nothing)
@@ -176,6 +191,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
                 alternating_simulation_problem,
             )
         end
+
         return
     end
 
@@ -283,70 +299,15 @@ function MOI.optimize!(optimizer::Optimizer)
             MOI.RawOptimizerAttribute("abstract_controller"),
         )
 
-        optimizer.concrete_controller =
-            SY.quantize_controller(abstract_system, abstract_controller)
+        optimizer.concrete_controller = SY.quantize_controller(
+            SY.without_metadata(abstract_system), # light version of the abstract system, without metadata, for faster controller saving/loading
+            abstract_controller;
+            out_of_domain_handler = optimizer.out_of_domain_handler,
+        )
     end
 
     optimizer.solve_time_sec = time() - t_ref
     return
-end
-
-"""
-make_out_of_domain_handler(; mode=0, warn=true, dims=nothing)
-
-mode = 0: return nothing when x is not allowed (or outside mapping)
-mode = 1: project to nearest allowed abstract state (using mapping coords)
-"""
-function make_out_of_domain_handler(; mode::Int = 0, warn::Bool = true, dims = nothing)
-    if mode == 0
-        return (x, abs_sys) -> begin
-            Xmap = SY.get_state_mapping(abs_sys)
-            Xset = SY.get_state_domain(abs_sys)
-            q = MP.get_state_by_coord(Xmap, x)
-            if q === nothing || !MP.contains_state(Xset, Xmap, q)
-                warn && @warn("State out of allowed domain: $x")
-                return nothing
-            end
-            return x
-        end
-    elseif mode == 1
-        return (x, abs_sys) -> begin
-            Xmap = SY.get_state_mapping(abs_sys)
-            Xset = SY.get_state_domain(abs_sys)
-            q = MP.get_state_by_coord(Xmap, x)
-            if q !== nothing && MP.contains_state(Xset, Xmap, q)
-                return x
-            end
-            # Otherwise: project to nearest allowed state (in coordinate space)
-            # NOTE: this can be expensive if Xset is large.
-            states = MP.enum_states(Xset, Xmap)
-
-            isempty(states) && begin
-                warn && @warn("Allowed state set is empty; cannot project $x")
-                return nothing
-            end
-
-            # Choose a distance in full space or in selected dims
-            function dist(qi::Int)
-                xi = MP.get_coord_by_state(Xmap, qi)
-                if dims === nothing
-                    return LinearAlgebra.norm(xi - x)
-                else
-                    return LinearAlgebra.norm(xi[dims] - x[dims])
-                end
-            end
-
-            qbest = argmin(dist, states)
-            xproj = MP.get_coord_by_state(Xmap, qbest)
-
-            warn && @warn(
-                "State out of allowed domain: $x -> projected to state $qbest at $xproj (mode=1)"
-            )
-            return xproj
-        end
-    else
-        error("Unknown mode=$mode")
-    end
 end
 
 end # module

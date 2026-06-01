@@ -308,13 +308,13 @@ function run_single_config(trials, n_per_dim, dt, du)
     approximations = build_approximations(csys, dt)
     symmodel_builder = () -> SY.SymbolicModelList(Xfull, Ufull)
     all_results = Dict{String, Any}[]
-    for (method_name, approx_obj) in sort(collect(approximations); by = x->x[1])
+    for (method_name, approx_obj) in sort(collect(approximations); by = x -> x[1])
         try
             push!(
                 all_results,
                 merge(
                     benchmark_method(method_name, symmodel_builder, approx_obj, trials),
-                    Dict("n_per_dim"=>n_per_dim, "threads"=>nthreads),
+                    Dict("n_per_dim" => n_per_dim, "threads" => nthreads),
                 ),
             )
         catch e

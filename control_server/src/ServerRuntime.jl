@@ -85,14 +85,15 @@ function start_control_server(
                     # 3. Convert network-order bytes to Float64 vector
                     payload_u64 = reinterpret(UInt64, payload_bytes)
                     measurements = reinterpret(Float64, ntoh.(payload_u64))
+                    println("Received vector: $measurements")
 
                     # 4. Update the controller state and compute control output
                     x_plus = controller.f(controller.x, measurements)
-                    control = controller.g(controller.x, measurements)
                     controller.x = x_plus
+                    control = controller.g(controller.x, measurements)
 
                     # Ensure control is a Float64 vector for transmission/logging
-                    control_vec = Float64.(collect(control))
+                    control_vec = Float64[control...]
 
                     # 5. Data logging
                     if log_data && idx <= max_packets
@@ -100,7 +101,7 @@ function start_control_server(
                         measurement_history[:, idx] = measurements
 
                         if state_history !== nothing
-                            state_history[:, idx] = Float64.(state_to_vector(controller.x))
+                            state_history[:, idx] = Float64[controller.x...]
                         end
 
                         if control_history === nothing
@@ -125,6 +126,9 @@ function start_control_server(
             finally
                 close(sock)
                 println("Client disconnected.")
+                # I think we need here:
+                # keep_running = false
+                # Otherwise, the server keeps running
             end
         end
     catch e
@@ -141,7 +145,7 @@ function start_control_server(
     # 7. Return logged data
     if log_data
         n = idx - 1
-        t = time_history[1:n]
+        t = time_history[1:n] .- time_history[1]
         measurements = measurement_history[:, 1:n]
         controls = control_history === nothing ? nothing : control_history[:, 1:n]
         states = state_history === nothing ? nothing : state_history[:, 1:n]

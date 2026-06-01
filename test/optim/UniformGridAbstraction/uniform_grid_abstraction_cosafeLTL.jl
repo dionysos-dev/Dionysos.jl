@@ -64,7 +64,6 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
     # Make it deterministic + small for CI
     MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), false)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.set(optimizer, MOI.Silent(), true)
@@ -213,7 +212,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         fig = plot(; aspect_ratio = :equal, title = string(φ))
         plot!(
             concrete_problem;
-            ap_colors = Dict(:g1=>:red, :g2=>:cyan, :danger=>:orange, :obs=>:black),
+            ap_colors = Dict(:g1 => :red, :g2 => :cyan, :danger => :orange, :obs => :black),
         )
         plot!(fig, x_traj; color = :blue, dims = [1, 2])
         @test fig isa Plots.Plot

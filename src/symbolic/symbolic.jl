@@ -22,9 +22,16 @@ const PR = Problem
 using ..Mapping
 const MP = Mapping
 
+include("metadata.jl")
 include("symbolic_model.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
+
+include("grid_based_symbolic_model/execution_backend.jl")
+include("grid_based_symbolic_model/sequential_threaded_backend.jl")
+include("grid_based_symbolic_model/julia_distributed_backend.jl")
+include("grid_based_symbolic_model/slurm_array_backend.jl")
+
 include("grid_based_symbolic_model/symbolic_model_list.jl")
 
 include("symbolic_hybrid_model/symbolic_hybrid_model.jl")

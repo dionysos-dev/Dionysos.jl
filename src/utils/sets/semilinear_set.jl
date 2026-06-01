@@ -298,14 +298,25 @@ end
     show_label = false,
 )
     for (k, P) in enumerate(S.parts)
-        @series begin
-            fillcolor := fillcolor
-            linecolor := linecolor
-            fillalpha := fillalpha
-            linealpha := linealpha
-            linewidth := linewidth
-            label := (show_label && k == 1) ? "SemiLinearSet" : ""
-            P
+        try
+            P = LazySets.remove_redundant_constraints(P)
+
+            @series begin
+                fillcolor := fillcolor
+                linecolor := linecolor
+                fillalpha := fillalpha
+                linealpha := linealpha
+                linewidth := linewidth
+                label := (show_label && k == 1) ? "SemiLinearSet" : ""
+                #               P
+            end
+
+        catch err
+            @warn "Skipping problematic polytope during plotting" exception=(
+                err,
+                catch_backtrace(),
+            )
+            continue
         end
     end
 end

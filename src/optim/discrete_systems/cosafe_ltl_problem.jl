@@ -301,11 +301,10 @@ function build_product_automaton(
     pid = Dict{Tuple{Int, Int}, Int}()
     rev = Tuple{Int, Int}[]
 
-    getpid(qs::Int, qa::Int) =
-        get!(pid, (qs, qa)) do
-            push!(rev, (qs, qa))
-            return length(rev)
-        end
+    getpid(qs::Int, qa::Int) = get!(pid, (qs, qa)) do
+        push!(rev, (qs, qa))
+        return length(rev)
+    end
 
     work = Int[]
     inqueue = BitSet()

@@ -138,13 +138,38 @@ function determinize_symbolic_model(
         Xset = Xset,
         Rset = Rset,
         Uset = MP.MappingSet{M+1}(),
-        automaton_constructor = (n, m)->new_autom,
+        automaton_constructor = (n, m) -> new_autom,
         original_symmodel = sym,
         convert_U_to_list = true,
     )
 
     return new_sym
 end
+
+# -----------------------
+# MetaData (transition)
+# -----------------------
+
+function metadata(::SymbolicModel) end
+
+has_metadata(sym::SymbolicModel) = has_metadata(metadata(sym))
+get_metadata(sym::SymbolicModel, tr::TransitionKey) = get_metadata(metadata(sym), tr)
+add_metadata!(sym::SymbolicModel, tr::TransitionKey, value) =
+    add_metadata!(metadata(sym), tr, value)
+
+function add_metadata_pairs!(symmodel::SymbolicModel, metadata_pairs)
+    has_metadata(symmodel) || return nothing
+
+    for (tr, value) in metadata_pairs
+        add_metadata!(symmodel, tr, value)
+    end
+
+    return nothing
+end
+
+# -----------------------
+# Plots
+# -----------------------
 
 @recipe function f(
     sym::SymbolicModel;
@@ -191,11 +216,65 @@ end
     end
 end
 
+#---------- Out-of-domain handlers -------------
+
+abstract type AbstractOutOfDomainHandler end
+
+struct NoOutOfDomainHandler <: AbstractOutOfDomainHandler end
+
+struct ProjectToNearestCellHandler{D} <: AbstractOutOfDomainHandler
+    warn::Bool
+    dims::D
+end
+
+ProjectToNearestCellHandler(; warn::Bool = true, dims = nothing) =
+    ProjectToNearestCellHandler(warn, dims)
+
+function apply_out_of_domain_handler(::NoOutOfDomainHandler, sym::SymbolicModel, x)
+    return x
+end
+
+function apply_out_of_domain_handler(
+    handler::ProjectToNearestCellHandler,
+    sym::SymbolicModel,
+    x,
+)
+    q = get_abstract_state(sym, x)
+
+    if q !== nothing && is_state(sym, q)
+        return x
+    end
+
+    Xmap = get_state_mapping(sym)
+    Xset = get_state_domain(sym)
+
+    states = collect(enum_states(sym))
+    isempty(states) && return nothing
+
+    function dist(qi::Int)
+        xi = get_concrete_state(sym, qi)
+        if handler.dims === nothing
+            return LA.norm(xi - x)
+        else
+            return LA.norm(xi[handler.dims] - x[handler.dims])
+        end
+    end
+
+    qbest = argmin(dist, states)
+    xproj = get_concrete_state(sym, qbest)
+
+    handler.warn &&
+        @warn "State outside abstraction domain; projected to nearest cell" x xproj qbest
+
+    return xproj
+end
+
 #---------- Quantized Controllers -------------
 
-struct QuantizedStaticController{SM, AC} <: ST.AbstractContinuousController
+struct QuantizedStaticController{SM, AC, H} <: ST.AbstractContinuousController
     sym::SM
     abstract_controller::AC
+    out_of_domain_handler::H
 end
 
 ST.domain(ctrl::QuantizedStaticController) = ctrl.sym
@@ -205,13 +284,20 @@ ST.initial_state(ctrl::QuantizedStaticController) = nothing
 ST.update_state(ctrl::QuantizedStaticController, x, y) = nothing
 
 function ST.is_defined(ctrl::QuantizedStaticController, x, y)
-    qs = get_abstract_state(ctrl.sym, y)
+    y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
+    y_checked === nothing && return false
+
+    qs = get_abstract_state(ctrl.sym, y_checked)
     qs === nothing && return false
+
     return ST.is_defined(ctrl.abstract_controller, nothing, qs)
 end
 
 function ST.output_control(ctrl::QuantizedStaticController, x, y)
-    qs = get_abstract_state(ctrl.sym, y)
+    y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
+    y_checked === nothing && return nothing
+
+    qs = get_abstract_state(ctrl.sym, y_checked)
     qs === nothing && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, nothing, qs)
@@ -220,9 +306,10 @@ function ST.output_control(ctrl::QuantizedStaticController, x, y)
     return get_concrete_input(ctrl.sym, u_sym)
 end
 
-struct QuantizedDynamicController{SM, AC} <: ST.AbstractContinuousController
+struct QuantizedDynamicController{SM, AC, H} <: ST.AbstractContinuousController
     sym::SM
     abstract_controller::AC
+    out_of_domain_handler::H
 end
 
 ST.domain(ctrl::QuantizedDynamicController) = ctrl.sym
@@ -232,19 +319,30 @@ ST.initial_state(ctrl::QuantizedDynamicController) =
     ST.initial_state(ctrl.abstract_controller)
 
 function ST.update_state(ctrl::QuantizedDynamicController, x, y)
-    qs = get_abstract_state(ctrl.sym, y)
+    y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
+    y_checked === nothing && return x
+
+    qs = get_abstract_state(ctrl.sym, y_checked)
     qs === nothing && return x
+
     return ST.update_state(ctrl.abstract_controller, x, qs)
 end
 
 function ST.is_defined(ctrl::QuantizedDynamicController, x, y)
-    qs = get_abstract_state(ctrl.sym, y)
+    y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
+    y_checked === nothing && return false
+
+    qs = get_abstract_state(ctrl.sym, y_checked)
     qs === nothing && return false
+
     return ST.is_defined(ctrl.abstract_controller, x, qs)
 end
 
 function ST.output_control(ctrl::QuantizedDynamicController, x, y)
-    qs = get_abstract_state(ctrl.sym, y)
+    y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
+    y_checked === nothing && return nothing
+
+    qs = get_abstract_state(ctrl.sym, y_checked)
     qs === nothing && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, x, qs)
@@ -255,10 +353,18 @@ end
 
 #---------- Quantization -------------
 
-function quantize_controller(sym::SymbolicModel, ctrl::ST.DiscreteStaticController)
-    return QuantizedStaticController(sym, ctrl)
+function quantize_controller(
+    sym::SymbolicModel,
+    ctrl::ST.DiscreteStaticController;
+    out_of_domain_handler = NoOutOfDomainHandler(),
+)
+    return QuantizedStaticController(sym, ctrl, out_of_domain_handler)
 end
 
-function quantize_controller(sym::SymbolicModel, ctrl::ST.DiscreteDynamicController)
-    return QuantizedDynamicController(sym, ctrl)
+function quantize_controller(
+    sym::SymbolicModel,
+    ctrl::ST.DiscreteDynamicController;
+    out_of_domain_handler = NoOutOfDomainHandler(),
+)
+    return QuantizedDynamicController(sym, ctrl, out_of_domain_handler)
 end

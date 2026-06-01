@@ -94,11 +94,14 @@ function build_optimizer(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), approx_mode)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("execution_backend"),
+        SY.ThreadedBackend(0.2),
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 0.5)
 
     if with_period
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
@@ -312,7 +315,7 @@ function script()
     # Plot 
     # ------------------------------------------------------------
 
-    dims=[1, 2]
+    dims = [1, 2]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
         optimizer,
@@ -328,7 +331,7 @@ function script()
     )
     # savefig(fig, "state_space_12.pdf")
     display(fig)
-    dims=[3, 4]
+    dims = [3, 4]
     fig = plot(; aspect_ratio = :equal, legend = false)
     plot_state_space!(
         optimizer,
@@ -438,7 +441,7 @@ function script()
 
     # --- Plots --- 
 
-    dims=[1, 2]
+    dims = [1, 2]
     fig =
         plot(; aspect_ratio = :equal, title = "Articulated Vehicle: candidate traj + sets")
     plot!(

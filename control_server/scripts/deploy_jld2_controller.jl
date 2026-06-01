@@ -9,7 +9,20 @@ const SR = ControlServer.ServerRuntime
 # ------------------------------------------------------------
 # Path to saved controller
 # ------------------------------------------------------------
-controller_file = joinpath(@__DIR__, "pid_controller.jld2")
+# controller_file = joinpath(@__DIR__, "pid_controller.jld2")
+
+include(
+    joinpath(
+        @__DIR__,
+        "..",
+        "..",
+        "problems",
+        "BipedRobot",
+        "6D_model",
+        "two_step_walking_controller.jl",
+    ),
+)
+controller_file = joinpath(@__DIR__, "robot_two_step_controller_CM.jld2")
 
 # ------------------------------------------------------------
 # Load Dionysos controller and convert for server runtime
@@ -25,7 +38,7 @@ result = SR.start_control_server(
     server_controller;
     port = port,
     log_data = true,
-    received_data_size = 2,
+    received_data_size = 8,
     state_to_vector = nothing,
 )
 
@@ -36,9 +49,26 @@ if result !== nothing
     t, measurements, controls, states = result
     println("Server session finished.")
     println("Logged $(length(t)) packets.")
+    println("Average dt: $((t[length(t)]-t[1])/length(t))")
 end
 
 using Plots
 
-plot(t, measurements[1, :]; label = "y")
-plot!(t, controls[1, :]; label = "u")
+p = plot(; layout = (2, 2), size = (1200, 900))
+
+for i in 1:4
+    plot!(p[i], t, measurements[i, :]; label = "Angle $i")
+
+    #= plot!(
+        p[i],
+        t,
+        measurements[i+4, :],
+        label = "Velocity $i"
+    ) =#
+
+    plot!(p[i], t, controls[i, :]; label = "Control input $i")
+
+    xlabel!(p[i], "Time")
+end
+
+display(p)
