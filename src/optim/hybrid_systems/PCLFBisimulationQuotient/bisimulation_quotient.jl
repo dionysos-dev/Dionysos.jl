@@ -388,6 +388,40 @@ function self_loop_count(T::PCBisimulationQuotient)
     return c
 end
 
+function num_parts(S::UT.SemiLinearSet)
+    return length(S.parts)
+end
+
+function num_faces(P::UT.Poly)
+    Q = UT.clean_poly(copy(P))
+    return length(LazySets.constraints_list(Q))
+end
+
+function num_faces(S::UT.SemiLinearSet)
+    total = 0
+    for P in S.parts
+        try
+            total += num_faces(P)
+        catch
+            continue
+        end
+    end
+    return total
+end
+
+function cell_complexities(T::PCBisimulationQuotient)
+    n_parts = Int[]
+    n_faces = Int[]
+
+    for q in values(T.states)
+        S = q.set
+        push!(n_parts, num_parts(S))
+        push!(n_faces, num_faces(S))
+    end
+
+    return n_parts, n_faces
+end
+
 function bisimulation_stats(T::PCBisimulationQuotient)
     return Dict(
         :num_states => num_states(T),
