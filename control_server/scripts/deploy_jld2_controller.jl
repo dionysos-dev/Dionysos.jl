@@ -22,7 +22,18 @@ include(
         "two_step_walking_controller.jl",
     ),
 )
-controller_file = joinpath(@__DIR__, "robot_two_step_controller_CM.jld2")
+include(
+    joinpath(
+        @__DIR__,
+        "..",
+        "..",
+        "problems",
+        "BipedRobot",
+        "6D_model",
+        "lifted_robot_controller.jl",
+    ),
+)
+controller_file = joinpath(@__DIR__, "robot_two_step_controller_8D4U_CM.jld2")
 
 # ------------------------------------------------------------
 # Load Dionysos controller and convert for server runtime

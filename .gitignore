@@ -19,4 +19,5 @@ paper/paper.pdf
 *.out
 *.bbl
 *.synctex.gz
-*.log*.jld2
+*.log
+*.jld2
