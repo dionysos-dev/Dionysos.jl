@@ -945,11 +945,11 @@ end
     for mode in 1:3
         for local_input in
             1:min(
-            5,
-            SY.SymbolicTimedHybridSystems.Dionysos.Symbolic.get_n_input(
-                hybrid_model.mode_abstractions[mode],
-            ),
-        )  # Test with first few inputs
+                5,
+                SY.SymbolicTimedHybridSystems.Dionysos.Symbolic.get_n_input(
+                    hybrid_model.mode_abstractions[mode],
+                ),
+            )  # Test with first few inputs
 
             gid = SY.SymbolicTimedHybridSystems.get_global_input_id(gim, mode, local_input)
             @test gid > 0
