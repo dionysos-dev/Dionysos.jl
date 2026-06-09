@@ -19,10 +19,10 @@ const TSTEP = 0.1
 const ROBOT_PROBLEM_FILE = joinpath(@__DIR__, "..", "..", "6D_model", "robot_problem.jl")
 const ROBOT_URDF_FILE =
     joinpath(@__DIR__, "..", "..", "deps", "ZMP_2DBipedRobot_nodamping.urdf")
-const ABSTRACTION_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction_CM.jld2")
+const ABSTRACTION_FILE = joinpath("/globalscratch/ucl/inma/jcalbert/jcalbert/out/6D", "robot_abstraction_B.jld2")
+# joinpath(@__DIR__, "..", "..", "out", "6D", "robot_abstraction_B.jld2") # _CM
 const CONTROLLER_FILE =
-    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_one_step_controller_1_CM.jld2")
+    joinpath(@__DIR__, "..", "..", "out", "6D", "robot_one_step_controller_1_B.jld2") # _CM
 
 include(ROBOT_PROBLEM_FILE)
 using .RobotProblem

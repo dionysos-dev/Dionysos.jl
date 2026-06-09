@@ -3,6 +3,7 @@ using StaticArrays
 using JLD2
 using Dionysos
 const ST = Dionysos.System
+const UT = Dionysos.Utils
 const AB = Dionysos.Optim.Abstraction
 
 include(joinpath(@__DIR__, "..", "..", "6D_model", "robot_problem.jl"))

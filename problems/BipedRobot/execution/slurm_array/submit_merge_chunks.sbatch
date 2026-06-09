@@ -2,8 +2,8 @@
 #SBATCH --job-name=dionysos-robot-merge
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=250G
-#SBATCH --time=01:00:00
+#SBATCH --mem=100G
+#SBATCH --time=02:00:00
 #SBATCH --output=problems/BipedRobot/out/slurm_logs/merge_%j.out
 #SBATCH --error=problems/BipedRobot/out/slurm_logs/merge_%j.err
 
@@ -21,8 +21,8 @@ export MKL_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
 export DIONYSOS_ROBOT_MODEL="${DIONYSOS_ROBOT_MODEL:-6D}"
-export DIONYSOS_TRANSITION_OUTDIR="$GLOBALSCRATCH/jcalbert/out/$DIONYSOS_ROBOT_MODEL/transitions"
-export DIONYSOS_ABSTRACTION_FILE="$$GLOBALSCRATCH/jcalbert/out/$DIONYSOS_ROBOT_MODEL/robot_abstraction.jld2"
+export DIONYSOS_TRANSITION_OUTDIR="$GLOBALSCRATCH/jcalbert/out/$DIONYSOS_ROBOT_MODEL/transitions_no_concrete_state"
+export DIONYSOS_ABSTRACTION_FILE="$GLOBALSCRATCH/jcalbert/out/$DIONYSOS_ROBOT_MODEL/robot_abstraction_B.jld2"
 
 #"$PWD/out/$DIONYSOS_ROBOT_MODEL/transitions"
 #"$PWD/out/$DIONYSOS_ROBOT_MODEL/robot_abstraction.jld2"

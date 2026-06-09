@@ -53,28 +53,28 @@ include(joinpath(@__DIR__, "..", "common", "optimizer_factory.jl"))
 robot_urdf = selected_robot_urdf()
 tstep = 0.1
 
-# # Cedric & Maxime settings
-# domain = RobotProblem.default_robot_domain()
-# discretization = default_robot_discretization(; scale = 1.0)
+# Cedric & Maxime settings
+domain = RobotProblem.default_robot_domain()
+discretization = default_robot_discretization(; scale = 1.0)
 
-# # Baptiste settings
-# domain = RobotProblem.RobotDomainConfig(;
-#     x_lb = SVector{6, Float64}([-25*π/180, -25*π/180, -10*π/180, -2, -1, -2.5]),
-#     x_ub = SVector{6, Float64}([25*π/180, 25*π/180, 80*π/180, 1, 2, 2.5]),
-#     u_lb = SVector{3, Float64}((-4.0, -4.0, -4.0)),
-#     u_ub = SVector{3, Float64}((4.0, 4.0, 4.0)),
-# )
-# discretization = RobotDiscretizationConfig(;
-#     hx = SVector{6, Float64}([
-#         0.025490685402655037,
-#         0.021796907174709057,
-#         0.025842360657025935,
-#         0.6553157054436949,
-#         0.4732745368241606,
-#         1.548368319358735,
-#     ]),
-#     hu = SVector{3, Float64}((1.3221879606782365, 1.7200722827025006, 0.7845631194998841)),
-# )
+# Baptiste settings
+domain = RobotProblem.RobotDomainConfig(;
+    x_lb = SVector{6, Float64}([-25*π/180, -25*π/180, -10*π/180, -2, -1, -2.5]),
+    x_ub = SVector{6, Float64}([25*π/180, 25*π/180, 80*π/180, 1, 2, 2.5]),
+    u_lb = SVector{3, Float64}((-4.0, -4.0, -4.0)),
+    u_ub = SVector{3, Float64}((4.0, 4.0, 4.0)),
+)
+discretization = RobotDiscretizationConfig(;
+    hx = SVector{6, Float64}([
+        0.025490685402655037,
+        0.021796907174709057,
+        0.025842360657025935,
+        0.6553157054436949,
+        0.4732745368241606,
+        1.548368319358735,
+    ]),
+    hu = SVector{3, Float64}((1.3221879606782365, 1.7200722827025006, 0.7845631194998841)),
+)
 
 # ------------------------------------------------------------------------------
 # Chunk parameters
@@ -130,7 +130,7 @@ t_build_optimizer = @elapsed begin
         discretization;
         print_level = 2,
         progress_update_interval = Int(1e3),
-        save_concrete_traj = true,
+        save_concrete_traj = false,
     )
 end
 
