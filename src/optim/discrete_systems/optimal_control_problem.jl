@@ -71,7 +71,10 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     controller, controllable_set, uncontrollable_set, value_fun_tab =
         compute_worst_case_cost_controller(
             autom,
-            problem.target_set;
+            problem.target_set,
+            problem.target_u,
+            problem.d,
+            problem.Delta;
             initial_set = init_set,
             sparse_input = optimizer.sparse_input,
             cost_function = problem.transition_cost,
@@ -111,12 +114,26 @@ This function redirects to [`compute_worst_case_uniform_cost_controller`](@ref) 
 """
 function compute_worst_case_cost_controller(
     autom::ST.AbstractAutomatonList,
-    target_set;
+    target_set,
+    target_u,
+    d,
+    Delta::Real;
     initial_set = ST.enum_states(autom),
     cost_function = nothing,
-    sparse_input::Bool = false,
+    sparse_input::Bool = false
 )
-    if cost_function === nothing
+
+    if Delta > 0.0
+        return compute_optimal_controller_bounded_var(
+            autom,
+            target_set,
+            target_u,
+            cost_function,
+            d,
+            Delta;
+            initial_nodes = initial_set
+        )
+    elseif cost_function === nothing
         return compute_worst_case_uniform_cost_controller(
             autom,
             target_set;
@@ -370,4 +387,100 @@ function _compute_controller_reach!(
     end
 
     return iszero(num_init_unreachable), value_fun_tab
+end
+
+"""
+    compute_optimal_controller_bounded_var(
+        autom::ST.AbstractAutomatonList,
+        target_set,
+        target_u,
+        transition_cost,
+        d,
+        Delta;
+        initial_nodes = ST.enum_states(autom)
+    )
+
+Computation of the optimal controller leading to target_set with final input target_input (optionally: starting from initial_set). Along each path, the function d(u-, u), i.e., the difference between consecutive inputs, is constrained to stay below a threshold Delta.
+NOTE: this only works with deterministic automata.
+"""
+
+function compute_optimal_controller_bounded_var(
+    autom::ST.IndexedAutomatonList,
+    target_nodes,
+    target_u,
+    transition_cost::Dict{Int, <:Real},
+    d::Any,
+    Delta::Real = 0.0;
+    initial_nodes = ST.enum_states(autom)
+)
+
+    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
+
+    initial_set = isa(initial_nodes, Set) ? initial_nodes : Set(initial_nodes)
+    target_set = isa(target_nodes, Set) ? target_nodes : Set(target_nodes)
+    state_set = Set(ST.enum_states(autom))
+    
+    value_fun_tab = fill(Inf, ST.get_n_state(autom))
+    for q in target_set
+        value_fun_tab[q] = 0.0
+    end
+    # Priority Queue stores: state (q, u) => total_cost
+    pq = PriorityQueue{Tuple{Int, Int}, Float64}()
+    # Counter: used for early termination
+    num_init_unreachable = length(initial_set)
+
+    ###############################
+    ## CHANGE THIS IN THE FUTURE ##
+    ###############################
+    # Trivial case: if the initial set is a subset of the final set, print a warning and return nothing
+    if issubset(initial_set, target_set)
+        println("WARNING: Initial set is a subset of target set. Optimizer will not run.")
+        return nothing, nothing, nothing, nothing
+    end
+
+    # Initialization (boundary condition for the last edge of the path)
+    for final_q in target_set
+        for (q, u) in ST.pre(autom, final_q)
+            if d(u, target_u) <= Delta
+                total_cost = transition_cost[u]
+                prev_key = (q, u)
+                if edge_weight < best_cost[prev_key]
+                    value_fun_tab[q] = next_dist
+                    set_control!(contr_tab, q, u)
+                    pq[prev_key] = total_cost
+                end
+            end
+        end
+    end
+
+    # Main Dijkstra loop
+    while !isempty(pq) && num_init_unreachable > 0
+        (target, cost_to_target) = dequeue_pair!(pq)
+        next_q, next_u = target
+
+        if next_q in initial_set
+            num_init_unreachable -= 1
+        end
+
+        # Backward search
+        for (q, u) in ST.pre(autom, next_q)
+            if d(u, next_u) <= Delta
+                total_cost = transition_cost[u] + cost_to_target
+                prev_key = (q, u)
+                if total_cost < best_cost[q]
+                    value_fun_tab[q] = next_dist
+                    ###############################
+                    set_control!(contr_tab, q, u) # ADD or SET ?
+                    ###############################
+                    pq[prev_key] = total_cost
+                end
+            end
+        end
+    end
+
+    controllable_set = Set(i for (i, v) in pairs(value_fun_tab) if isfinite(v))
+    uncontrollable_set = setdiff(state_set, controllable_set)
+    controller = ST.DiscreteStaticController(controllable_set, contr_tab, false)
+
+    return controller, controllable_set, uncontrollable_set, value_fun_tab
 end

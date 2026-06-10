@@ -7,6 +7,7 @@ include("constrained_Dijkstra.jl")
 graph = ST.NewIndexedAutomatonList(9, 4)
 
 # Add transitions:
+#  - 0 = NOTHING
 #  - 1 = UP
 #  - 2 = DOWN
 #  - 3 = LEFT
