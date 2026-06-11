@@ -405,10 +405,10 @@ NOTE: this only works with deterministic automata.
 """
 
 function compute_optimal_controller_bounded_var(
-    autom::ST.IndexedAutomatonList,
+    autom::ST.AbstractAutomatonList,
     target_nodes,
     target_u,
-    transition_cost::Dict{Int, <:Real},
+    transition_cost,
     d::Any,
     Delta::Real = 0.0;
     initial_nodes = ST.enum_states(autom)
@@ -423,6 +423,7 @@ function compute_optimal_controller_bounded_var(
     value_fun_tab = fill(Inf, ST.get_n_state(autom))
     for q in target_set
         value_fun_tab[q] = 0.0
+        set_control!(contr_tab, q, target_u)
     end
     # Priority Queue stores: state (q, u) => total_cost
     pq = PriorityQueue{Tuple{Int, Int}, Float64}()
@@ -434,7 +435,7 @@ function compute_optimal_controller_bounded_var(
     ###############################
     # Trivial case: if the initial set is a subset of the final set, print a warning and return nothing
     if issubset(initial_set, target_set)
-        println("WARNING: Initial set is a subset of target set. Optimizer will not run.")
+        @warn("Initial set is a subset of target set. Optimizer will not run.")
         return nothing, nothing, nothing, nothing
     end
 
@@ -442,10 +443,10 @@ function compute_optimal_controller_bounded_var(
     for final_q in target_set
         for (q, u) in ST.pre(autom, final_q)
             if d(u, target_u) <= Delta
-                total_cost = transition_cost[u]
+                total_cost = transition_cost(q,u)
                 prev_key = (q, u)
-                if edge_weight < best_cost[prev_key]
-                    value_fun_tab[q] = next_dist
+                if total_cost < value_fun_tab[q]
+                    value_fun_tab[q] = total_cost
                     set_control!(contr_tab, q, u)
                     pq[prev_key] = total_cost
                 end
@@ -465,13 +466,11 @@ function compute_optimal_controller_bounded_var(
         # Backward search
         for (q, u) in ST.pre(autom, next_q)
             if d(u, next_u) <= Delta
-                total_cost = transition_cost[u] + cost_to_target
+                total_cost = transition_cost(q,u) + cost_to_target
                 prev_key = (q, u)
-                if total_cost < best_cost[q]
-                    value_fun_tab[q] = next_dist
-                    ###############################
-                    set_control!(contr_tab, q, u) # ADD or SET ?
-                    ###############################
+                if total_cost < value_fun_tab[q]
+                    value_fun_tab[q] = total_cost
+                    set_control!(contr_tab, q, u)
                     pq[prev_key] = total_cost
                 end
             end

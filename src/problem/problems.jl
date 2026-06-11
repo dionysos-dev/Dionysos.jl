@@ -49,26 +49,27 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 - `XT`: The target set to be reached.
 - `XC`: A state cost function or structure.
 - `TC`: A transition cost function or structure.
+- 'UT': The target input to be reached
 - `T`: The time horizon (number of allowed time steps).
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
-mutable struct OptimalControlProblem{S, XI, XT, XC, T <: Real} <: ProblemType
+mutable struct OptimalControlProblem{S, XI, XT, XC, UT, T <: Real} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
     state_cost::XC
     transition_cost::Any
     time::T
-    target_u::Int ## ??
-    Delta::real
+    target_u::UT
+    Delta::Real
     d::Any
 end
 
 """
 Constructor for OCP if the parameters Delta and d are not passed (no constraints on consecutive inputs)
 """
-function OptimalControlProblem(system::S, initial_set::XI, target_set::XT, state_cost::XC, transition_cost::Any, time::T)
+function OptimalControlProblem(system::S, initial_set::XI, target_set::XT, state_cost::XC, transition_cost::Any, time::T) where {S, XI, XT, XC, T}
     return OptimalControlProblem(system::S, initial_set::XI, target_set::XT, state_cost::XC, transition_cost::Any, time::T, 0, 0.0, (x,y) -> 0)
 end
 

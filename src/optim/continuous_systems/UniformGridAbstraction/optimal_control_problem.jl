@@ -174,6 +174,19 @@ function get_abstract_transition_cost(abstract_system, concrete_transition_cost)
     return abstract_transition_cost
 end
 
+function get_abstract_input_distance(abstract_system, concrete_distance)
+
+    concrete_distance === nothing && return nothing
+
+    function abstract_input_distance(s_1, s_2)
+        u_1 = SY.get_concrete_input(abstract_system, s_1)
+        u_2 = SY.get_concrete_input(abstract_system, s_2)
+        return concrete_distance(u_1, u_2)
+    end
+
+    return abstract_input_distance
+end
+
 function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
     abstract_system::SY.SymbolicModel,
@@ -187,6 +200,9 @@ function build_abstract_problem(
         concrete_problem.state_cost,
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
         concrete_problem.time,
+        SY.get_abstract_input(abstract_system, concrete_problem.target_u),
+        concrete_problem.Delta,
+        get_abstract_input_distance(abstract_system, concrete_problem.d)
     )
 end
 
