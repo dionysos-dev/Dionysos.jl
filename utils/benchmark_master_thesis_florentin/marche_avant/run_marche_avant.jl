@@ -24,16 +24,14 @@ Base.@kwdef struct MarcheArriereConfig
     maxδx::Float64 = 100.0
     maxδu::Float64 = 200.0
     symbolic_rk4_substeps::Int = 1
-    ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox( 
+    ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
         IA.interval(-0.2, 0.2), # on peut aller jusqu'à -1.0 ; 1.0
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.2, 0.2),
-        IA.interval(-0.2, 0.2),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.2, 0.2), IA.interval(-0.2, 0.2))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     output_root::String = joinpath(@__DIR__, "outputs")
@@ -49,10 +47,7 @@ end
 ######################################################
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 10.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(10.0, 10.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(55.0))
 
     obstacles_xy = [
@@ -89,11 +84,9 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
-    target_set = UT.HyperRectangle( 
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
+    target_set = UT.HyperRectangle(
         SVector(8.5, 5.0, -5 * (pi / 180), -5 * (pi / 180)),
         SVector(10.0, 6.2, 5 * (pi / 180), 5 * (pi / 180)),
     )

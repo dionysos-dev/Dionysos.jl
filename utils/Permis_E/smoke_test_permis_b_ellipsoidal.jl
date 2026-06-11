@@ -78,10 +78,7 @@ opts = (
         IA.interval(-1.0, 1.0),
         IA.interval(-1.0, 1.0),
     ),
-    ΔU = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.2, 1.2),
-    ),
+    ΔU = IA.IntervalBox(IA.interval(-1.0, 1.0), IA.interval(-1.2, 1.2)),
     ΔW = IA.IntervalBox(IA.interval(0.5, 0.5), 1),
     symbolic_rk4_substeps = 1,
 )
@@ -124,7 +121,13 @@ cand = OP.CandidateTrajectory(
     metadata = cand_raw.metadata,
 )
 
-cert = SC.EllipsoidalBackwardCertifier{typeof(nominal.problem), typeof(cand), typeof(cert_cfg), Any, typeof(symbolic_builder)}(
+cert = SC.EllipsoidalBackwardCertifier{
+    typeof(nominal.problem),
+    typeof(cand),
+    typeof(cert_cfg),
+    Any,
+    typeof(symbolic_builder),
+}(
     nothing,
     nothing,
     cert_cfg,

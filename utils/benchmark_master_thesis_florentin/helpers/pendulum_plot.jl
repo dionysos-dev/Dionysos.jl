@@ -6,7 +6,11 @@ function _pendulum_plot_filename(basename::AbstractString, stem::AbstractString)
     return _pendulum_artifact_filename(basename, stem)
 end
 
-function _pendulum_animation_filename(basename::AbstractString, stem::AbstractString, ext::AbstractString)
+function _pendulum_animation_filename(
+    basename::AbstractString,
+    stem::AbstractString,
+    ext::AbstractString,
+)
     return _pendulum_artifact_filename(basename, stem, ext)
 end
 
@@ -39,12 +43,7 @@ function _pendulum_target_angle(problem)
     return target_center[1]
 end
 
-function _build_pendulum_pose_plot(
-    xs,
-    k::Int,
-    target_angle::Real;
-    title::AbstractString,
-)
+function _build_pendulum_pose_plot(xs, k::Int, target_angle::Real; title::AbstractString)
     θ = xs[k][1]
     bob_x = sin(θ)
     bob_y = -cos(θ)
@@ -52,7 +51,7 @@ function _build_pendulum_pose_plot(
     target_x = sin(target_angle)
     target_y = -cos(target_angle)
 
-    fig = plot(
+    fig = plot(;
         xlim = (-1.25, 1.25),
         ylim = (-1.25, 0.45),
         aspect_ratio = :equal,
@@ -71,7 +70,13 @@ function _build_pendulum_pose_plot(
 end
 
 function _build_pendulum_phase_plot(data, k::Int; title::AbstractString)
-    return _build_phase_prefix_plot(data, k; dims = (1, 2), xlabel = L"\theta\,[\mathrm{rad}]", ylabel = L"\dot{\theta}\,[\mathrm{rad/s}]")
+    return _build_phase_prefix_plot(
+        data,
+        k;
+        dims = (1, 2),
+        xlabel = L"\theta\,[\mathrm{rad}]",
+        ylabel = L"\dot{\theta}\,[\mathrm{rad/s}]",
+    )
 end
 
 function _build_pendulum_control_plot(data, k::Int, problem; title::AbstractString)
@@ -94,7 +99,7 @@ function save_pendulum_animation!(
     every::Int = 1,
     save_gif::Bool = true,
     save_mp4::Bool = true,
-    title::AbstractString = "Pendulum rollout",
+    title::AbstractString = "",
 )
     mkpath(output_dir)
 
@@ -112,15 +117,26 @@ function save_pendulum_animation!(
 
     target_angle = _pendulum_target_angle(problem)
     gif_path =
-        save_gif ? joinpath(output_dir, _pendulum_animation_filename(basename, "rollout", "gif")) : nothing
+        save_gif ?
+        joinpath(output_dir, _pendulum_animation_filename(basename, "rollout", "gif")) :
+        nothing
     mp4_path =
-        save_mp4 ? joinpath(output_dir, _pendulum_animation_filename(basename, "rollout", "mp4")) : nothing
+        save_mp4 ?
+        joinpath(output_dir, _pendulum_animation_filename(basename, "rollout", "mp4")) :
+        nothing
 
     anim = @animate for k in 1:every:length(data.xs)
-        fig_pose = _build_pendulum_pose_plot(data.xs, k, target_angle; title = title)
-        fig_phase = _build_pendulum_phase_plot(data, k; title = "Phase space")
-        fig_control = _build_pendulum_control_plot(data, max(k - 1, 1), problem; title = "Control")
-        plot(fig_pose, fig_phase, fig_control; layout = @layout([a{0.42w} [b; c]]), size = (1200, 650))
+        fig_pose = _build_pendulum_pose_plot(data.xs, k, target_angle; title = "")
+        fig_phase = _build_pendulum_phase_plot(data, k; title = "")
+        fig_control =
+            _build_pendulum_control_plot(data, max(k - 1, 1), problem; title = "")
+        plot(
+            fig_pose,
+            fig_phase,
+            fig_control;
+            layout = @layout([a{0.42w} [b; c]]),
+            size = (1200, 650),
+        )
     end
 
     if gif_path !== nothing
@@ -169,7 +185,9 @@ function save_pendulum_plots!(
         periodic_start = periodic_start,
     )
 
-    trajectory_label = occursin("mppi", lowercase(basename)) ? L"\mathrm{MPPI\ trajectory}" : L"\mathrm{nominal\ trajectory}"
+    trajectory_label =
+        occursin("mppi", lowercase(basename)) ? L"\mathrm{MPPI\ trajectory}" :
+        L"\mathrm{nominal\ trajectory}"
     fig_phase = _build_state_space_projection(
         data;
         dims = (1, 2),
@@ -189,8 +207,18 @@ function save_pendulum_plots!(
         data,
         problem,
         (
-            (; index = 1, label = L"\theta", ylabel = L"\theta\,[\mathrm{rad}]", color = :steelblue4),
-            (; index = 2, label = L"\dot{\theta}", ylabel = L"\dot{\theta}\,[\mathrm{rad/s}]", color = :seagreen4),
+            (;
+                index = 1,
+                label = L"\theta",
+                ylabel = L"\theta\,[\mathrm{rad}]",
+                color = :steelblue4,
+            ),
+            (;
+                index = 2,
+                label = L"\dot{\theta}",
+                ylabel = L"\dot{\theta}\,[\mathrm{rad/s}]",
+                color = :seagreen4,
+            ),
         );
         title = "",
         layout = (2, 1),
@@ -202,9 +230,5 @@ function save_pendulum_plots!(
     savefig(fig_control, control_path)
     display(fig_control)
 
-    return (;
-        phase_path,
-        state_path,
-        control_path,
-    )
+    return (; phase_path, state_path, control_path)
 end

@@ -64,7 +64,7 @@ function _make_lmi_cfg_single_thread(base_cfg)
         @warn "Could not enforce MOSEK thread option on lmi_cfg.sdp_opt; backend may be non-MOSEK or inaccessible."
     end
 
-    return PBRef.LMIConfig(
+    return PBRef.LMIConfig(;
         rayon_terminal = base_cfg.rayon_terminal,
         λ = base_cfg.λ,
         maxδx = base_cfg.maxδx,
@@ -235,7 +235,14 @@ function main()
     WDOM_REF[] = Wdom
 
     println("=== Quad Compare Trajectory x Certifier ===")
-    println("LMI cfg: λ=", lmi_cfg.λ, " | maxδx=", lmi_cfg.maxδx, " | maxδu=", lmi_cfg.maxδu)
+    println(
+        "LMI cfg: λ=",
+        lmi_cfg.λ,
+        " | maxδx=",
+        lmi_cfg.maxδx,
+        " | maxδu=",
+        lmi_cfg.maxδu,
+    )
     println("ΔW=", lmi_cfg.ΔW)
 
     # 2) Load Permis_B trajectory
@@ -258,7 +265,10 @@ function main()
     @assert pe_nom.candidate !== nothing
     xs_pe_raw = collect(ST.enum_elems(pe_nom.candidate.x_traj))
     us_pe = collect(ST.enum_elems(pe_nom.candidate.u_traj))
-    xs_pe = UNWRAP_PE ? PBRef.unwrap_periodic_state_list(xs_pe_raw, SVector(3, 4), SVector(2pi, 2pi)) : xs_pe_raw
+    xs_pe =
+        UNWRAP_PE ?
+        PBRef.unwrap_periodic_state_list(xs_pe_raw, SVector(3, 4), SVector(2pi, 2pi)) :
+        xs_pe_raw
     Ts_pe = pe_nom.candidate.Ts
     problem_pe = pe_nom.problem
 
@@ -272,26 +282,34 @@ function main()
     params_pe_old = PBRef.AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
 
     println("Permis_B traj: n_states=", length(xs_pb), " | n_inputs=", length(us_pb))
-    println("Permis_E traj: n_states=", length(xs_pe), " | n_inputs=", length(us_pe), " | unwrap=", UNWRAP_PE)
+    println(
+        "Permis_E traj: n_states=",
+        length(xs_pe),
+        " | n_inputs=",
+        length(us_pe),
+        " | unwrap=",
+        UNWRAP_PE,
+    )
 
     # 4) Run 2x2 matrix
     c1 = _run_case("PB-old", "Permis_B", "old") do
-        run_old(xs_pb, us_pb, Ts_pb, problem_pb, av_mod_pb, params_pb)
+        return run_old(xs_pb, us_pb, Ts_pb, problem_pb, av_mod_pb, params_pb)
     end
     c2 = _run_case("PB-new", "Permis_B", "new") do
-        run_new(xs_pb, us_pb, Ts_pb, problem_pb, av_mod_pb, params_pb)
+        return run_new(xs_pb, us_pb, Ts_pb, problem_pb, av_mod_pb, params_pb)
     end
     c3 = _run_case("PE-old", "Permis_E", "old") do
-        run_old(xs_pe, us_pe, Ts_pe, problem_pe, av_mod_pe, params_pe_old)
+        return run_old(xs_pe, us_pe, Ts_pe, problem_pe, av_mod_pe, params_pe_old)
     end
     c4 = _run_case("PE-new", "Permis_E", "new") do
-        run_new(xs_pe, us_pe, Ts_pe, problem_pe, av_mod_pe, params_pe_new)
+        return run_new(xs_pe, us_pe, Ts_pe, problem_pe, av_mod_pe, params_pe_new)
     end
 
     rows = [c1, c2, c3, c4]
 
     println("\n=== Results ===")
-    @printf("%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13s | %-13s | %-8s\n",
+    @printf(
+        "%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13s | %-13s | %-8s\n",
         "Case",
         "Traj",
         "Cert",
@@ -306,7 +324,8 @@ function main()
 
     for r in rows
         if !r.ok
-            @printf("%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13s | %-13s | %-8s\n",
+            @printf(
+                "%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13s | %-13s | %-8s\n",
                 r.label,
                 r.traj,
                 r.cert,
@@ -322,7 +341,8 @@ function main()
         end
 
         s = r.cert == "old" ? summarize_old(r.out) : summarize_new(r.out)
-        @printf("%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13d | %-13s | %-8s\n",
+        @printf(
+            "%-10s | %-8s | %-4s | %-7s | %-8s | %-9s | %-13d | %-13s | %-8s\n",
             r.label,
             r.traj,
             r.cert,

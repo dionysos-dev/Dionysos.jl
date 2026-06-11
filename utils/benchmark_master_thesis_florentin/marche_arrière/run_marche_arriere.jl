@@ -31,10 +31,8 @@ Base.@kwdef struct MarcheArriereConfig #dt = 0.1, nstep = 500
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.2, 0.2),
-        IA.interval(-0.2, 0.2),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.2, 0.2), IA.interval(-0.2, 0.2))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     output_root::String = joinpath(@__DIR__, "outputs")
@@ -50,10 +48,7 @@ end
 ######################################################
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(16.0, 10.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(16.0, 10.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(55.0))
 
     obstacles_xy = [
@@ -67,7 +62,7 @@ function build_concrete_system()
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
     params = AV.Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9)
-    
+
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
@@ -83,7 +78,6 @@ function build_input_mapping() # c'est pour la génération de la trajectoire
         [2.0, 0.0],
         [0.0, 0.0],
         [-2.0, 0.0],
-
         [2.0, -0.25],
         [2.0, 0.25],
         [-2.0, 0.25],
@@ -95,10 +89,8 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     target_set = UT.HyperRectangle(
         SVector(13.5, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),
         SVector(16.0, 6.2, pi + 5 * (pi / 180), 5 * (pi / 180)),

@@ -281,7 +281,7 @@ function solve_concrete_problem(
     # output map x -> concrete u (or nothing)
     f = function (x)
         qs = x_to_qs(x)
-        
+
         qs === nothing && return nothing
 
         us = k_abs(qs)

@@ -101,7 +101,7 @@ function construire_contexte_lmi(;
     sdp_opt = nothing,
     maxδx = 100.0,
     maxδu = 20.0,
-    λ = 0.01
+    λ = 0.01,
 )
     S =
         transition_cost isa AbstractMatrix ? transition_cost :
@@ -121,7 +121,7 @@ function construire_contexte_lmi(;
         sdp_opt = sdp_opt,
         maxδx = maxδx,
         maxδu = maxδu,
-        λ = λ
+        λ = λ,
     )
 end
 
@@ -171,13 +171,12 @@ function lineariser_localement(
         wvec,
         Xbar,
         Ubar,
-        Wbar
+        Wbar,
         #remainder_model = remainder_model,
     )
 
     return affineSys, L, uvec, wvec
 end
-
 
 """
     _eval_local_controller(kappa, x)
@@ -222,8 +221,7 @@ function creer_ellipsoide_terminal(state_list; rayon = 0.25, P = nothing)
     c = collect(state_list[end])
     nx = length(c)
     Pmat =
-        P === nothing ? Matrix{Float64}(LA.I, nx, nx) * (1.0 / rayon^2) :
-        Matrix{Float64}(P)
+        P === nothing ? Matrix{Float64}(LA.I, nx, nx) * (1.0 / rayon^2) : Matrix{Float64}(P)
 
     return UT.Ellipsoid(Pmat, c)
 end
@@ -253,15 +251,13 @@ function synthetiser_transitions_backward(
     couts = Float64[]
     indices = Int[]
 
-    for k in (n - 1):-stride:1
+    for k in (n - 1):(-stride):1
         xk = collect(state_list[k])
         uk = k <= length(input_list) ? collect(input_list[k]) : zeros(length(ctx.u))
 
         affineSys, L, uvec, _ = lineariser_localement(ctx, xk; unew = uk)
-        verbose &&
-            println("k=", k, " | Lips=", L)
+        verbose && println("k=", k, " | Lips=", L)
 
-        
         E_try, kappa_try, cout_try = SY.transition_backward(
             affineSys,
             E_next,
@@ -295,7 +291,7 @@ function synthetiser_transitions_backward(
         push!(indices, k)
         E_next = E_try
 
-        println("the volume is ",UT.get_volume(E_next),"\n\n")
+        println("the volume is ", UT.get_volume(E_next), "\n\n")
 
         verbose && println("Transition OK k=", k, ", cout=", cout_try)
     end
@@ -433,8 +429,11 @@ function simuler_kappa_sur_modele_concret(
     E_target = E_by_k[k_max + 1]
 
     x0_samples = _sample_points_uniform_in_ellipsoid(E_init, n_samples; rng = rng)
-    disc =
-        ST.discretize_continuous_system(run_result.concrete_system, run_result.Δt; num_substeps = num_substeps)
+    disc = ST.discretize_continuous_system(
+        run_result.concrete_system,
+        run_result.Δt;
+        num_substeps = num_substeps,
+    )
     fdisc = MS.mapping(disc)
 
     x_rollouts = Vector{Vector{Vector{Float64}}}(undef, n_samples)

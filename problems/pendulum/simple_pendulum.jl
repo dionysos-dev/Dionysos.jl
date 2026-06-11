@@ -133,10 +133,10 @@ function optimal_control_problem(;
         )
     elseif objective == "benchmark_up_convex" # je n'utilise pas LazySetMinus 
         _X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
-        _U_ = UT.HyperRectangle(SVector(-3.5), SVector(3.5))
+        _U_ = UT.HyperRectangle(SVector(-4.5), SVector(4.5))
         _I_ = UT.HyperRectangle(
-            SVector(-5.0 * pi / 180.0, -0.2),
-            SVector(5.0 * pi / 180.0, 0.2),
+            SVector(-10.0 * pi / 180.0, -0.5),
+            SVector(10.0 * pi / 180.0, 0.5),
         )
         _T_ = UT.HyperRectangle(
             SVector(pi - 15.0 * pi / 180.0, -1.0),

@@ -11,24 +11,18 @@ import Dionysos
 
 export EllipsoidalBackwardCertifier, get_result
 
-mutable struct EllipsoidalBackwardCertifier{P, C, CFG, R, SB} <: AbstractSymbolicCertifier
-    problem::Union{Nothing, P}
-    candidate::Union{Nothing, C}
+mutable struct EllipsoidalBackwardCertifier{CFG, SB} <: AbstractSymbolicCertifier
+    problem::Union{Nothing, Dionysos.Problem.ProblemType}
+    candidate::Union{Nothing, Dionysos.Optim.CandidateTrajectory}
     config::CFG
-    result::Union{Nothing, R}
+    result::Union{Nothing, EllipsoidalCertificationResult}
     success::Bool
     solve_time_sec::Float64
     symbolic_builder::SB
 end
 
-function EllipsoidalBackwardCertifier(config, symbolic_builder)
-    return EllipsoidalBackwardCertifier{
-        Dionysos.Problem.ProblemType,
-        Dionysos.Optim.CandidateTrajectory,
-        typeof(config),
-        EllipsoidalCertificationResult,
-        typeof(symbolic_builder),
-    }(
+function EllipsoidalBackwardCertifier(config::EllipsoidalBackwardConfig, symbolic_builder)
+    return EllipsoidalBackwardCertifier(
         nothing,
         nothing,
         config,
@@ -50,7 +44,10 @@ function set_problem!(
     return cert
 end
 
-function set_trajectory!(cert::EllipsoidalBackwardCertifier, cand)
+function set_trajectory!(
+    cert::EllipsoidalBackwardCertifier,
+    cand::Dionysos.Optim.CandidateTrajectory,
+)
     cert.candidate = cand
     cert.result = nothing
     cert.success = false
@@ -59,6 +56,9 @@ function set_trajectory!(cert::EllipsoidalBackwardCertifier, cand)
 end
 
 function certify!(cert::EllipsoidalBackwardCertifier)
+    @assert cert.problem !== nothing "Call set_problem!(cert, problem) first."
+    @assert cert.candidate !== nothing "Call set_trajectory!(cert, candidate) first."
+
     t0 = time()
 
     ctx = build_symbolic_context(

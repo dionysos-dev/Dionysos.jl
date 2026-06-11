@@ -1,0 +1,10 @@
+alpha_inner,alpha_outer,n_samples,success_count,success_rate,target_reached_count,target_reached_rate,obstacle_violation_count,obstacle_violation_rate,state_violation_count,state_violation_rate,input_violation_count,input_violation_rate,chain_violation_count,chain_violation_rate,started_outside_initial_ellipsoid_count,started_outside_initial_ellipsoid_rate
+0.0,1.0,5000,5000,1.0,5000,1.0,0,0.0,0,0.0,0,0.0,0,0.0,0,0.0
+1.0,1.1,5000,5000,1.0,5000,1.0,0,0.0,0,0.0,0,0.0,5000,1.0,5000,1.0
+1.1,1.25,5000,5000,1.0,5000,1.0,0,0.0,0,0.0,0,0.0,5000,1.0,5000,1.0
+1.25,1.5,5000,5000,1.0,5000,1.0,0,0.0,0,0.0,0,0.0,5000,1.0,5000,1.0
+1.5,1.75,5000,4997,0.9994,4997,0.9994,0,0.0,3,0.0006,0,0.0,5000,1.0,5000,1.0
+1.75,2.0,5000,4883,0.9766,4883,0.9766,0,0.0,117,0.0234,0,0.0,5000,1.0,5000,1.0
+2.0,2.5,5000,4620,0.924,4620,0.924,0,0.0,380,0.076,0,0.0,5000,1.0,5000,1.0
+2.5,3.0,5000,4307,0.8614,4307,0.8614,0,0.0,693,0.1386,0,0.0,5000,1.0,5000,1.0
+3.0,5.0,5000,3633,0.7266,3633,0.7266,0,0.0,1205,0.241,162,0.0324,5000,1.0,5000,1.0

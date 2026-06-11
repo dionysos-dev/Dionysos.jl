@@ -48,10 +48,36 @@ function plot_ellipsoide_terminale(state_list, E_terminal; output_dir = dirname(
     traj = ST.Trajectory(state_list)
     E_terminal_xy = projeter_ellipsoide_2d(E_terminal; dims = (1, 2))
 
-    fig = plot(; aspect_ratio = :equal, legend = true, title = "Test LMI - Ellipsoide terminale")
-    plot!(fig, traj; dims = [1, 2], ms = 2.0, arrows = false, color = :blue, label = "Trajectoire")
-    plot!(fig, E_terminal_xy; color = :orange, opacity = 0.35, label = "E terminale proj. (x1,x2)")
-    scatter!(fig, [E_terminal.c[1]], [E_terminal.c[2]]; color = :red, marker = :star5, ms = 7, label = "Centre E")
+    fig = plot(;
+        aspect_ratio = :equal,
+        legend = true,
+        title = "Test LMI - Ellipsoide terminale",
+    )
+    plot!(
+        fig,
+        traj;
+        dims = [1, 2],
+        ms = 2.0,
+        arrows = false,
+        color = :blue,
+        label = "Trajectoire",
+    )
+    plot!(
+        fig,
+        E_terminal_xy;
+        color = :orange,
+        opacity = 0.35,
+        label = "E terminale proj. (x1,x2)",
+    )
+    scatter!(
+        fig,
+        [E_terminal.c[1]],
+        [E_terminal.c[2]];
+        color = :red,
+        marker = :star5,
+        ms = 7,
+        label = "Centre E",
+    )
 
     out_path = joinpath(output_dir, "lmi_ellipsoide_terminale_12.pdf")
     savefig(fig, out_path)
@@ -64,7 +90,12 @@ end
 
 Visualise une transition backward unique (avant-dernier vers terminal).
 """
-function plot_test_transition_backward(state_list, E_terminal, E_prev; output_dir = dirname(@__DIR__))
+function plot_test_transition_backward(
+    state_list,
+    E_terminal,
+    E_prev;
+    output_dir = dirname(@__DIR__),
+)
     traj = ST.Trajectory(state_list)
     E_terminal_xy = projeter_ellipsoide_2d(E_terminal; dims = (1, 2))
     E_prev_xy = projeter_ellipsoide_2d(E_prev; dims = (1, 2))
@@ -74,11 +105,35 @@ function plot_test_transition_backward(state_list, E_terminal, E_prev; output_di
         legend = true,
         title = "Test LMI - Transition backward (avant-dernier -> terminal)",
     )
-    plot!(fig, traj; dims = [1, 2], ms = 2.0, arrows = false, color = :blue, label = "Trajectoire")
+    plot!(
+        fig,
+        traj;
+        dims = [1, 2],
+        ms = 2.0,
+        arrows = false,
+        color = :blue,
+        label = "Trajectoire",
+    )
     plot!(fig, E_terminal_xy; color = :orange, opacity = 0.30, label = "E terminale")
     plot!(fig, E_prev_xy; color = :green, opacity = 0.30, label = "E avant-dernier")
-    scatter!(fig, [E_terminal.c[1]], [E_terminal.c[2]]; color = :red, marker = :star5, ms = 7, label = "Centre terminal")
-    scatter!(fig, [E_prev.c[1]], [E_prev.c[2]]; color = :black, marker = :diamond, ms = 6, label = "Centre E_prev")
+    scatter!(
+        fig,
+        [E_terminal.c[1]],
+        [E_terminal.c[2]];
+        color = :red,
+        marker = :star5,
+        ms = 7,
+        label = "Centre terminal",
+    )
+    scatter!(
+        fig,
+        [E_prev.c[1]],
+        [E_prev.c[2]];
+        color = :black,
+        marker = :diamond,
+        ms = 6,
+        label = "Centre E_prev",
+    )
 
     out_path = joinpath(output_dir, "lmi_transition_backward_12.pdf")
     savefig(fig, out_path)
@@ -109,11 +164,7 @@ function plot_transitions_backward_chaine(
     title_txt =
         title === nothing ? "Test LMI - Chaine transitions backward ($(d1),$(d2))" : title
 
-    fig = plot(;
-        aspect_ratio = :equal,
-        legend = true,
-        title = title_txt,
-    )
+    fig = plot(; aspect_ratio = :equal, legend = true, title = title_txt)
     plot!(
         fig,
         traj;
@@ -132,7 +183,15 @@ function plot_transitions_backward_chaine(
 
     xcent = [E.c[d1] for E in ellipsoides]
     ycent = [E.c[d2] for E in ellipsoides]
-    scatter!(fig, xcent, ycent; color = :black, ms = 2.5, alpha = 0.8, label = "Centres ellipsoides")
+    scatter!(
+        fig,
+        xcent,
+        ycent;
+        color = :black,
+        ms = 2.5,
+        alpha = 0.8,
+        label = "Centres ellipsoides",
+    )
 
     filename_out =
         filename === nothing ? "lmi_transition_backward_$(d1)$(d2).pdf" : filename
@@ -169,17 +228,27 @@ function plot_kappa_rollouts_state_space(
     # Resume de succes (si disponible) pour enrichir le titre.
     succ_rate =
         hasproperty(empirical_result, :summary) &&
-        hasproperty(empirical_result.summary, :success_rate) ? empirical_result.summary.success_rate : NaN
+        hasproperty(empirical_result.summary, :success_rate) ?
+        empirical_result.summary.success_rate : NaN
     title_txt =
         title !== nothing ? title :
-        (isfinite(succ_rate) ?
-         "Validation κ - rollouts concrets ($(d1),$(d2)) | succes=$(round(100*succ_rate; digits=1))%" :
-         "Validation κ - rollouts concrets ($(d1),$(d2))")
+        (
+            isfinite(succ_rate) ?
+            "Validation κ - rollouts concrets ($(d1),$(d2)) | succes=$(round(100*succ_rate; digits=1))%" :
+            "Validation κ - rollouts concrets ($(d1),$(d2))"
+        )
 
     fig = plot(; aspect_ratio = :equal, legend = true, title = title_txt)
 
     if domain !== nothing
-        plot!(fig, domain; dims = [d1, d2], color = :grey, opacity = 0.12, label = "Domaine")
+        plot!(
+            fig,
+            domain;
+            dims = [d1, d2],
+            color = :grey,
+            opacity = 0.12,
+            label = "Domaine",
+        )
     end
 
     if show_init && hasproperty(empirical_result, :E_init)
@@ -224,13 +293,12 @@ function plot_kappa_rollouts_state_space(
         traj = ST.Trajectory(xseq)
         is_success =
             hasproperty(empirical_result, :rollout_stats) &&
-            i <= length(empirical_result.rollout_stats) ? empirical_result.rollout_stats[i].success :
-            false
+            i <= length(empirical_result.rollout_stats) ?
+            empirical_result.rollout_stats[i].success : false
 
         col = is_success ? :seagreen3 : :crimson
         lbl =
-            is_success ?
-            (!label_success_used ? "Traj. succes" : "") :
+            is_success ? (!label_success_used ? "Traj. succes" : "") :
             (!label_fail_used ? "Traj. echec" : "")
         plot!(
             fig,

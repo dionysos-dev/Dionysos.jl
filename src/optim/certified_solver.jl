@@ -1,5 +1,11 @@
-export CertifiedSolveResult, CertifiedPipelineSolver,
-       set_problem!, solve!, get_result, get_success, get_solve_time, get_certification_candidate
+export CertifiedSolveResult,
+    CertifiedPipelineSolver,
+    set_problem!,
+    solve!,
+    get_result,
+    get_success,
+    get_solve_time,
+    get_certification_candidate
 
 import Dionysos
 
@@ -29,28 +35,21 @@ function CertifiedSolveResult(
     )
 end
 
-mutable struct CertifiedPipelineSolver{G, C, P, R}
+mutable struct CertifiedPipelineSolver{G, C}
     generator::G
     certifier::C
-    problem::Union{Nothing, P}
-    result::Union{Nothing, R}
+    problem::Union{Nothing, Dionysos.Problem.ProblemType}
+    result::Union{Nothing, CertifiedSolveResult}
 end
 
-function CertifiedPipelineSolver(generator, certifier)
-    return CertifiedPipelineSolver{
-        typeof(generator),
-        typeof(certifier),
-        Dionysos.Problem.ProblemType,
-        CertifiedSolveResult,
-    }(
-        generator,
-        certifier,
-        nothing,
-        nothing,
-    )
+function CertifiedPipelineSolver(
+    generator::AbstractHeuristicGenerator,
+    certifier::SC.AbstractSymbolicCertifier,
+)
+    return CertifiedPipelineSolver(generator, certifier, nothing, nothing)
 end
 
-function set_problem!(solver::CertifiedPipelineSolver, prob)
+function set_problem!(solver::CertifiedPipelineSolver, prob::Dionysos.Problem.ProblemType)
     solver.problem = prob
     solver.result = nothing
     set_problem!(solver.generator, prob)
@@ -68,9 +67,7 @@ function solve!(solver::CertifiedPipelineSolver; prepare_for_certification = ide
 
     t = @elapsed begin
         generate!(solver.generator)
-        println("we have lunch generate")
         cand = get_trajectory(solver.generator)
-        println("we have got our candidate traj")
         @assert cand !== nothing "Generator returned nothing trajectory."
 
         cert_cand = prepare_for_certification(cand)
@@ -78,7 +75,6 @@ function solve!(solver::CertifiedPipelineSolver; prepare_for_certification = ide
 
         SC.set_trajectory!(solver.certifier, cert_cand)
         SC.certify!(solver.certifier)
-        println("we've certify our traj")
         certres = SC.get_result(solver.certifier)
         @assert certres !== nothing "Certifier returned nothing result."
 
@@ -90,7 +86,9 @@ function solve!(solver::CertifiedPipelineSolver; prepare_for_certification = ide
 end
 
 get_result(solver::CertifiedPipelineSolver) = solver.result
-get_success(solver::CertifiedPipelineSolver) = solver.result === nothing ? false : solver.result.success
-get_solve_time(solver::CertifiedPipelineSolver) = solver.result === nothing ? NaN : solver.result.solve_time_sec
+get_success(solver::CertifiedPipelineSolver) =
+    solver.result === nothing ? false : solver.result.success
+get_solve_time(solver::CertifiedPipelineSolver) =
+    solver.result === nothing ? NaN : solver.result.solve_time_sec
 get_certification_candidate(solver::CertifiedPipelineSolver) =
     solver.result === nothing ? nothing : solver.result.certification_candidate

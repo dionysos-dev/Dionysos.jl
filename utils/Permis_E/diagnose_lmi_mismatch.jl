@@ -25,7 +25,7 @@ function _parse_args(args)
     skip_permis_e = false
     for a in args
         if startswith(a, "--nsteps=")
-            nsteps = parse(Int, split(a, "=", limit = 2)[2])
+            nsteps = parse(Int, split(a, "="; limit = 2)[2])
         elseif a == "--skip-permis-e"
             skip_permis_e = true
         else
@@ -110,10 +110,7 @@ function _make_problem_from_pb_run(run_result)
 end
 
 function _opts_from_lmi_cfg(cfg::PBRef.LMIConfig; smoke_like::Bool)
-    ΔW =
-        smoke_like ?
-        IA.IntervalBox(IA.interval(0.0, 0.0), 1) :
-        cfg.ΔW
+    ΔW = smoke_like ? IA.IntervalBox(IA.interval(0.0, 0.0), 1) : cfg.ΔW
     return (
         maxδx = cfg.maxδx,
         maxδu = cfg.maxδu,
@@ -142,7 +139,16 @@ function _make_symbolic_builder(av_mod, params)
     end
 end
 
-function _build_new_context(problem, xs, us, Ts, av_mod, params, lmi_cfg; smoke_like::Bool = false)
+function _build_new_context(
+    problem,
+    xs,
+    us,
+    Ts,
+    av_mod,
+    params,
+    lmi_cfg;
+    smoke_like::Bool = false,
+)
     nx = length(xs[1])
     nu = length(us[1])
     opts = _opts_from_lmi_cfg(lmi_cfg; smoke_like = smoke_like)
@@ -199,7 +205,14 @@ function _compare_linearization_pair(labelA, ctxA, labelB, ctxB, xs, us, i_state
     dL = _maxabsdiff_vec(LA, LB)
 
     println("  compare @i=$i_state ($labelA vs $labelB)")
-    @printf("    max|ΔA| = %.3e | max|ΔB| = %.3e | max|Δc| = %.3e | max|ΔD| = %.3e | max|ΔL| = %.3e\n", dA, dB, dC, dD, dL)
+    @printf(
+        "    max|ΔA| = %.3e | max|ΔB| = %.3e | max|Δc| = %.3e | max|ΔD| = %.3e | max|ΔL| = %.3e\n",
+        dA,
+        dB,
+        dC,
+        dD,
+        dL
+    )
     return (; dA, dB, dC, dD, dL)
 end
 
@@ -241,12 +254,7 @@ function _run_backward_prefix(ctx, xs, us; nsteps::Int, radius::Float64)
             λ = ctx.λ,
         )
         status = (E_prev !== nothing && kappa !== nothing) ? :ok : :fail
-        push!(out, (;
-            j,
-            i_state,
-            status,
-            cost = cost === nothing ? NaN : Float64(cost),
-        ))
+        push!(out, (; j, i_state, status, cost = cost === nothing ? NaN : Float64(cost)))
         status == :fail && break
         E_next = E_prev
     end
@@ -267,7 +275,13 @@ function _print_prefix_result(label, rows)
     if first_fail === nothing
         println("  prefix result: no failure on tested horizon")
     else
-        println("  prefix result: first fail at tested step j=", rows[first_fail].j, " (state index i=", rows[first_fail].i_state, ")")
+        println(
+            "  prefix result: first fail at tested step j=",
+            rows[first_fail].j,
+            " (state index i=",
+            rows[first_fail].i_state,
+            ")",
+        )
     end
 end
 
@@ -324,7 +338,13 @@ function main(args = ARGS)
     )
 
     println("\n[linearization consistency on SAME trajectory (Permis_B)]")
-    isamp = unique(clamp.(Int.([1, floor(length(us_pb) / 2), length(us_pb)]), 1, max(1, length(us_pb))))
+    isamp = unique(
+        clamp.(
+            Int.([1, floor(length(us_pb) / 2), length(us_pb)]),
+            1,
+            max(1, length(us_pb)),
+        ),
+    )
     for i_state in isamp
         _compare_linearization_pair(
             "old Permis_B",
@@ -346,9 +366,27 @@ function main(args = ARGS)
         )
     end
 
-    old_prefix = _run_backward_prefix(old_ctx_pb, xs_pb, us_pb; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
-    new_same_prefix = _run_backward_prefix(new_pb_same.ctx, xs_pb, us_pb; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
-    new_smoke_prefix = _run_backward_prefix(new_pb_smoke.ctx, xs_pb, us_pb; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
+    old_prefix = _run_backward_prefix(
+        old_ctx_pb,
+        xs_pb,
+        us_pb;
+        nsteps = nsteps,
+        radius = lmi_cfg.rayon_terminal,
+    )
+    new_same_prefix = _run_backward_prefix(
+        new_pb_same.ctx,
+        xs_pb,
+        us_pb;
+        nsteps = nsteps,
+        radius = lmi_cfg.rayon_terminal,
+    )
+    new_smoke_prefix = _run_backward_prefix(
+        new_pb_smoke.ctx,
+        xs_pb,
+        us_pb;
+        nsteps = nsteps,
+        radius = lmi_cfg.rayon_terminal,
+    )
     _print_prefix_result("old Permis_B", old_prefix)
     _print_prefix_result("new certifier (same trajectory, same opts)", new_same_prefix)
     _print_prefix_result("new certifier (same trajectory, smoke-like ΔW)", new_smoke_prefix)
@@ -359,14 +397,20 @@ function main(args = ARGS)
         pe_nom.candidate === nothing && error("Permis_E nominal candidate is nothing.")
         xs_pe_raw = collect(ST.enum_elems(pe_nom.candidate.x_traj))
         us_pe = collect(ST.enum_elems(pe_nom.candidate.u_traj))
-        xs_pe = PBRef.unwrap_periodic_state_list(xs_pe_raw, SVector(3, 4), SVector(2pi, 2pi))
+        xs_pe =
+            PBRef.unwrap_periodic_state_list(xs_pe_raw, SVector(3, 4), SVector(2pi, 2pi))
         _print_trajectory_summary("Permis_E nominal (unwrapped)", xs_pe, us_pe)
 
         td = _trajectory_delta(xs_pb, us_pb, xs_pe, us_pe)
         println("\n[trajectory delta: Permis_B vs Permis_E]")
         @printf("  max|Δx| = %.6g at i=%d\n", td.dx, td.ix)
         @printf("  max|Δu| = %.6g at i=%d\n", td.du, td.iu)
-        println("  same lengths? x=", length(xs_pb) == length(xs_pe), " u=", length(us_pb) == length(us_pe))
+        println(
+            "  same lengths? x=",
+            length(xs_pb) == length(xs_pe),
+            " u=",
+            length(us_pb) == length(us_pe),
+        )
         if 1 <= td.ix <= min(length(xs_pb), length(xs_pe))
             println("  x_pb[i] = ", xs_pb[td.ix])
             println("  x_pe[i] = ", xs_pe[td.ix])
@@ -409,15 +453,39 @@ function main(args = ARGS)
             smoke_like = true,
         )
 
-        old_pe_prefix = _run_backward_prefix(old_ctx_pe, xs_pe, us_pe; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
-        new_pe_same_prefix = _run_backward_prefix(new_pe_same.ctx, xs_pe, us_pe; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
-        new_pe_smoke_prefix = _run_backward_prefix(new_pe_smoke.ctx, xs_pe, us_pe; nsteps = nsteps, radius = lmi_cfg.rayon_terminal)
+        old_pe_prefix = _run_backward_prefix(
+            old_ctx_pe,
+            xs_pe,
+            us_pe;
+            nsteps = nsteps,
+            radius = lmi_cfg.rayon_terminal,
+        )
+        new_pe_same_prefix = _run_backward_prefix(
+            new_pe_same.ctx,
+            xs_pe,
+            us_pe;
+            nsteps = nsteps,
+            radius = lmi_cfg.rayon_terminal,
+        )
+        new_pe_smoke_prefix = _run_backward_prefix(
+            new_pe_smoke.ctx,
+            xs_pe,
+            us_pe;
+            nsteps = nsteps,
+            radius = lmi_cfg.rayon_terminal,
+        )
         _print_prefix_result("old helper (Permis_E nominal, same opts)", old_pe_prefix)
-        _print_prefix_result("new certifier (Permis_E nominal, same opts)", new_pe_same_prefix)
-        _print_prefix_result("new certifier (Permis_E nominal, smoke-like opts)", new_pe_smoke_prefix)
+        _print_prefix_result(
+            "new certifier (Permis_E nominal, same opts)",
+            new_pe_same_prefix,
+        )
+        _print_prefix_result(
+            "new certifier (Permis_E nominal, smoke-like opts)",
+            new_pe_smoke_prefix,
+        )
     end
 
-    println("\n=== diagnosis end ===")
+    return println("\n=== diagnosis end ===")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

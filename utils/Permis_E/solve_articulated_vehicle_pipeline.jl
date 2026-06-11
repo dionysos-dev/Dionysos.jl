@@ -55,10 +55,8 @@ Base.@kwdef struct SolverConfig
         IA.interval(-0.1, 0.1),
         IA.interval(-0.1, 0.1),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.2, 0.2),
-        IA.interval(-0.2, 0.2),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.2, 0.2), IA.interval(-0.2, 0.2))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     outdir::String = joinpath(@__DIR__, "outputs", "articulated_pipeline")
@@ -84,10 +82,7 @@ function build_backend(; verbose::Bool = false) # utilise mosek ou clarabel
 end
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 9.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(10.0, 9.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
 
     obstacles_xy = [
@@ -121,10 +116,8 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     target_set = UT.HyperRectangle(
         SVector(9.0, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),
         SVector(10.0, 6.0, pi + 5 * (pi / 180), 5 * (pi / 180)),
@@ -154,12 +147,7 @@ function build_generator(problem, system_cfg, control_cfg, cfg::SolverConfig)
         _ -> control_cfg.x0,
     )
 
-    return OP.CenteredAbstractionGenerator{
-        typeof(problem),
-        typeof(gen_cfg),
-        Any,
-        Any,
-    }(
+    return OP.CenteredAbstractionGenerator{typeof(problem), typeof(gen_cfg), Any, Any}(
         problem,
         gen_cfg,
         nothing,
@@ -242,10 +230,7 @@ function _augment_metadata_for_unwrap(metadata, was_unwrapped::Bool, wrap_jumps:
     if metadata isa NamedTuple
         return merge(
             metadata,
-            (;
-                lmi_unwrapped = was_unwrapped,
-                lmi_wrap_jumps = wrap_jumps,
-            ),
+            (; lmi_unwrapped = was_unwrapped, lmi_wrap_jumps = wrap_jumps),
         )
     end
     return (;
@@ -289,11 +274,18 @@ function solve_with_unwrapped_certification!(
         cand_raw = OP.get_trajectory(solver.generator)
         cand_raw === nothing && error("Aucune candidate generee.")
 
-        cand_for_cert, was_unwrapped, wrap_jumps = candidate_for_certification(cand_raw, cfg)
+        cand_for_cert, was_unwrapped, wrap_jumps =
+            candidate_for_certification(cand_raw, cfg)
         if was_unwrapped
-            println("Candidate unwrap pour certif: ", wrap_jumps, " saut(s) periodiques corriges.")
+            println(
+                "Candidate unwrap pour certif: ",
+                wrap_jumps,
+                " saut(s) periodiques corriges.",
+            )
         else
-            println("Candidate deja unwrap-coherente pour certif (aucun saut periodique detecte).")
+            println(
+                "Candidate deja unwrap-coherente pour certif (aucun saut periodique detecte).",
+            )
         end
 
         SC.set_trajectory!(solver.certifier, cand_for_cert)
@@ -325,12 +317,12 @@ function main(cfg::SolverConfig = SolverConfig())
     gen = build_generator(problem, system_cfg, control_cfg, cfg)
     cert = build_certifier(problem, system_cfg, cfg)
 
-    solver = OP.CertifiedPipelineSolver{
-        typeof(gen),
-        typeof(cert),
-        typeof(problem),
-        Any,
-    }(gen, cert, nothing, nothing)
+    solver = OP.CertifiedPipelineSolver{typeof(gen), typeof(cert), typeof(problem), Any}(
+        gen,
+        cert,
+        nothing,
+        nothing,
+    )
 
     OP.set_problem!(solver, problem)
     solve_with_unwrapped_certification!(solver, cfg)
@@ -378,7 +370,14 @@ function main(cfg::SolverConfig = SolverConfig())
     println("plots_dir = ", cfg.outdir)
     cfg.plot_gif && println("gif = ", gifpath)
 
-    return (; solver, result = res, problem, config = cfg, outdir = cfg.outdir, gif = gifpath)
+    return (;
+        solver,
+        result = res,
+        problem,
+        config = cfg,
+        outdir = cfg.outdir,
+        gif = gifpath,
+    )
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

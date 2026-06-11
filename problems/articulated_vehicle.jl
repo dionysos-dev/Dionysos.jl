@@ -173,7 +173,7 @@ function symbolic_system(
     Symbolics.@variables x1 x2 θ1 ϕ v1 σ̃ w1 T
     x = [x1; x2; θ1; ϕ]
     #u = [v1; δ] je remplace δ par arctan(δ)
-    u = [v1; σ̃ ]
+    u = [v1; σ̃]
     w = [w1]
 
     f_cont_expr(xloc, uloc) = [
@@ -185,11 +185,11 @@ function symbolic_system(
     ]
 
     # Discretisation symbolique choisie pour la linearisation LMI.
-    f_disc = ST.runge_kutta4(f_cont_expr, x, u, T,  rk4_num_substeps)
+    f_disc = ST.runge_kutta4(f_cont_expr, x, u, T, rk4_num_substeps)
 
     fsymbolicT = eval(ST.build_function(f_disc, x, u, w, T)[1])
     fsymbolic = Symbolics.substitute(f_disc, Dict(T => Ts))
-    
+
     # No additive noise in this model, but LMI API expects a noise format.
     Wset = UT.HyperRectangle(SVector(0.0), SVector(0.0))
     Uformat = UT.format_input_set(_U_)

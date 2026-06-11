@@ -48,7 +48,12 @@ function _wrap_vector_periodic!(
     return x
 end
 
-function wrap_periodic_state_list(state_list, periodic_dims, periodic_periods, periodic_start)
+function wrap_periodic_state_list(
+    state_list,
+    periodic_dims,
+    periodic_periods,
+    periodic_start,
+)
     isempty(state_list) && return state_list
     length(periodic_dims) == length(periodic_periods) ||
         error("periodic_dims et periodic_periods doivent avoir la meme longueur.")
@@ -87,7 +92,12 @@ function _unwrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods)
     return out
 end
 
-function _wrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods, periodic_start)
+function _wrap_ellipsoid_centers(
+    ellipsoids,
+    periodic_dims,
+    periodic_periods,
+    periodic_start,
+)
     isempty(ellipsoids) && return ellipsoids
     out = UT.Ellipsoid[]
     for E in ellipsoids
@@ -98,7 +108,13 @@ function _wrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods, pe
     return out
 end
 
-function _maybe_wrap_set(set, periodic_dims, periodic_periods, periodic_start; enabled::Bool)
+function _maybe_wrap_set(
+    set,
+    periodic_dims,
+    periodic_periods,
+    periodic_start;
+    enabled::Bool,
+)
     set === nothing && return nothing
     enabled || return set
     try
@@ -160,10 +176,19 @@ function extract_ellipsoids(cert_result; max_keep = 60)
 end
 
 function plot_state_space_basic!(fig, domain, I, T, x_traj; dims = [1, 2])
-    domain !== nothing && plot!(fig, domain; dims = dims, color = :grey, opacity = 1.0, label = "")
+    domain !== nothing &&
+        plot!(fig, domain; dims = dims, color = :grey, opacity = 1.0, label = "")
     I !== nothing && plot!(fig, I; dims = dims, color = :green, opacity = 0.2, label = "I")
     T !== nothing && plot!(fig, T; dims = dims, color = :red, opacity = 0.5, label = "T")
-    return plot!(fig, x_traj; dims = dims, ms = 2.0, arrows = false, color = :blue, label = "traj")
+    return plot!(
+        fig,
+        x_traj;
+        dims = dims,
+        ms = 2.0,
+        arrows = false,
+        color = :blue,
+        label = "traj",
+    )
 end
 
 function save_state_space_plots!(
@@ -192,19 +217,45 @@ function save_state_space_plots!(
     x_traj = ST.Trajectory(xs)
 
     raw_domain =
-        (hasproperty(problem, :system) && hasproperty(problem.system, :X)) ? problem.system.X : nothing
+        (hasproperty(problem, :system) && hasproperty(problem.system, :X)) ?
+        problem.system.X : nothing
     raw_I = hasproperty(problem, :initial_set) ? problem.initial_set : nothing
     raw_T = hasproperty(problem, :target_set) ? problem.target_set : nothing
-    domain = _maybe_wrap_set(raw_domain, periodic_dims, periodic_periods, periodic_start; enabled = wrap_angles)
-    I = _maybe_wrap_set(raw_I, periodic_dims, periodic_periods, periodic_start; enabled = wrap_angles)
-    T = _maybe_wrap_set(raw_T, periodic_dims, periodic_periods, periodic_start; enabled = wrap_angles)
+    domain = _maybe_wrap_set(
+        raw_domain,
+        periodic_dims,
+        periodic_periods,
+        periodic_start;
+        enabled = wrap_angles,
+    )
+    I = _maybe_wrap_set(
+        raw_I,
+        periodic_dims,
+        periodic_periods,
+        periodic_start;
+        enabled = wrap_angles,
+    )
+    T = _maybe_wrap_set(
+        raw_T,
+        periodic_dims,
+        periodic_periods,
+        periodic_start;
+        enabled = wrap_angles,
+    )
 
-    ellipsoids = (show_ellipsoids && cert_result !== nothing) ? extract_ellipsoids(cert_result) : UT.Ellipsoid[]
+    ellipsoids =
+        (show_ellipsoids && cert_result !== nothing) ? extract_ellipsoids(cert_result) :
+        UT.Ellipsoid[]
     if !isempty(ellipsoids) && unwrap_angles
         ellipsoids = _unwrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods)
     end
     if !isempty(ellipsoids) && wrap_angles
-        ellipsoids = _wrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods, periodic_start)
+        ellipsoids = _wrap_ellipsoid_centers(
+            ellipsoids,
+            periodic_dims,
+            periodic_periods,
+            periodic_start,
+        )
     end
 
     dims = [1, 2]

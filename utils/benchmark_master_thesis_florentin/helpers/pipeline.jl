@@ -22,9 +22,36 @@ end
 function build_backend(; verbose::Bool = false)
     return optimizer_with_attributes(
         MosekTools.Optimizer,
+
+        # Logging
         MOI.Silent() => !verbose,
         MOI.RawOptimizerAttribute("MSK_IPAR_LOG") => (verbose ? 10 : 0),
+
+        # Reproductibilité
         MOI.RawOptimizerAttribute("MSK_IPAR_NUM_THREADS") => 1,
+
+        # Autoriser plus d'itérations
+        MOI.RawOptimizerAttribute("MSK_IPAR_INTPNT_MAX_ITERATIONS") => 400,
+
+        # Tolérances coniques relâchées
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_PFEAS") => 1e-6,
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_DFEAS") => 1e-6,
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_REL_GAP") => 1e-6,
+
+        # Critère de complémentarité conique plus permissif
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_MU_RED") => 1e-6,
+
+        # Déclaration d'infaisabilité moins stricte
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_INFEAS") => 1e-8,
+
+        # Accepter plus facilement une solution "near optimal"
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_CO_TOL_NEAR_REL") => 1e4,
+
+        # Suivre plus prudemment le chemin central sur problèmes instables
+        MOI.RawOptimizerAttribute("MSK_DPAR_INTPNT_TOL_PATH") => 1e-6,
+
+        # Diagnostics si infaisable
+        MOI.RawOptimizerAttribute("MSK_IPAR_INFEAS_REPORT_AUTO") => 1,
     )
 end
 
@@ -49,7 +76,7 @@ end
 
 function default_prepare_for_certification(cfg)
     if hasproperty(cfg, :periodic_dims) && hasproperty(cfg, :periodic_periods)
-        return build_periodic_certification_preprocessor(
+        return build_periodic_certification_preprocessor(;
             periodic_dims = cfg.periodic_dims,
             periodic_periods = cfg.periodic_periods,
         )
@@ -178,7 +205,16 @@ function build_certifier(
     )
 end
 
-function _report_pipeline_status(gen, cert, solver, nominal_candidate, cert_candidate, paths, gif_path, mp4_path)
+function _report_pipeline_status(
+    gen,
+    cert,
+    solver,
+    nominal_candidate,
+    cert_candidate,
+    paths,
+    gif_path,
+    mp4_path,
+)
     println("generator_success = ", OP.get_success(gen))
     println("certifier_success = ", SC.get_success(cert))
     println("pipeline_success = ", OP.get_success(solver))
@@ -186,7 +222,9 @@ function _report_pipeline_status(gen, cert, solver, nominal_candidate, cert_cand
     println("certification_candidate_horizon = ", OP.horizon(cert_candidate))
 
     result = OP.get_result(solver)
-    if result !== nothing && result.certification !== nothing && hasproperty(result.certification, :steps)
+    if result !== nothing &&
+       result.certification !== nothing &&
+       hasproperty(result.certification, :steps)
         println("cert_steps = ", length(result.certification.steps))
         println("failed_k = ", result.certification.failed_k)
     end
@@ -230,8 +268,7 @@ function run_benchmark(
     nominal_candidate = result.candidate
     cert_candidate = result.certification_candidate
 
-    run_result = (
-        ;
+    run_result = (;
         solver,
         result,
         problem,
@@ -279,6 +316,7 @@ function run_vehicle_benchmark(
     # d'utiliser un autre heuristic generator, par exemple MPPI,
     # sans dupliquer toute la pipeline ni modifier les helpers aval.
     generator_builder = build_generator,
+    certifier_builder = build_certifier,
     show_ellipsoids::Bool = true,
     unwrap_angles::Bool = false,
     wrap_angles::Bool = true,
@@ -295,12 +333,7 @@ function run_vehicle_benchmark(
     end
 
     wrapped_certifier_builder = function (problem, system_cfg, _control_cfg, cfg)
-        return build_certifier(
-            problem,
-            system_cfg,
-            cfg;
-            vehicle_module = vehicle_module,
-        )
+        return certifier_builder(problem, system_cfg, cfg; vehicle_module = vehicle_module)
     end
 
     save_artifacts! = function (run_result)
@@ -320,9 +353,10 @@ function run_vehicle_benchmark(
         )
 
         gif_path = nothing
+        mp4_path = nothing
         if cfg.plot_gif
             gif_path = joinpath(run_result.outputs.animations_dir, "rollout.gif")
-            plot_articulated_vehicle!(
+            animation_paths = plot_articulated_vehicle!(
                 vehicle_module,
                 run_result.problem.system,
                 run_result.system_cfg.params,
@@ -330,11 +364,13 @@ function run_vehicle_benchmark(
                 run_result.nominal_candidate.u_traj;
                 giffile = gif_path,
                 dt = run_result.nominal_candidate.Ts,
-                title = "$(scenario_name) - pipeline certifie",
+                title = nothing,
             )
+            mp4_path =
+                hasproperty(animation_paths, :mp4_path) ? animation_paths.mp4_path : nothing
         end
 
-        return (; gif = gif_path)
+        return (; gif = gif_path, mp4 = mp4_path)
     end
 
     return run_benchmark(

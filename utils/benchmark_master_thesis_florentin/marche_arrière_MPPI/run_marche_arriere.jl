@@ -33,10 +33,8 @@ Base.@kwdef struct MarcheArriereConfig
         IA.interval(-0.2, 0.2),
         IA.interval(-0.2, 0.2),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.2, 0.2),
-        IA.interval(-0.2, 0.2),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.2, 0.2), IA.interval(-0.2, 0.2))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     output_root::String = joinpath(@__DIR__, "outputs")
@@ -72,10 +70,7 @@ end
 ######################################################
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(16.0, 10.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(16.0, 10.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(55.0))
 
     obstacles_xy = [
@@ -89,7 +84,7 @@ function build_concrete_system()
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
     params = AV.Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9)
-    
+
     concrete_system = AV.system(x_domain; _U_ = u_domain, params = params)
 
     return (; x_domain, u_domain, params, concrete_system)
@@ -101,11 +96,9 @@ function build_input_mapping() # c'est pour la génération de la trajectoire
         [2.0, 0.5],
         [-2.0, -0.5],
         [-2.0, 0.5],
-
         [2.0, 0.0],
         [0.0, 0.0],
         [-2.0, 0.0],
-
         [2.0, -0.25],
         [2.0, 0.25],
         [-2.0, 0.25],
@@ -117,13 +110,11 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     target_set = UT.HyperRectangle(
         SVector(15.0, 5.0, pi - 3 * (pi / 180), -2 * (pi / 180)),
-        SVector(16.0, 6.2, pi + 3 * (pi / 180),  2 * (pi / 180)),
+        SVector(16.0, 6.2, pi + 3 * (pi / 180), 2 * (pi / 180)),
     )
     return (; x0, initial_set, target_set)
 end
@@ -204,10 +195,7 @@ function build_mppi_generator(
 
     # Bruit additif simple, volontairement sans sophistication.
     noise_sampler = function (rng, u, k)
-        return [
-            cfg.mppi_noise_v * Random.randn(rng),
-            cfg.mppi_noise_σ * Random.randn(rng),
-        ]
+        return [cfg.mppi_noise_v * Random.randn(rng), cfg.mppi_noise_σ * Random.randn(rng)]
     end
 
     project_input = u -> project_input_to_domain(u, system_cfg.u_domain)
@@ -237,25 +225,25 @@ function build_mppi_generator(
         # -----------------------------
         # poids principaux
         # -----------------------------
-        w_step        = 1.0
+        w_step = 1.0
 
         # suivi d'une trajectoire de référence (ou nominale)
-        w_ref_pos     = 2.0
-        w_ref_ang     = 0.25
+        w_ref_pos = 2.0
+        w_ref_ang = 0.25
 
         # coût terminal vers la cible
-        w_goal_pos_T  = 800.0
-        w_goal_th_T   = 120.0
-        w_goal_phi_T  = 120.0
-        w_miss        = 1.0e4
+        w_goal_pos_T = 800.0
+        w_goal_th_T = 120.0
+        w_goal_phi_T = 120.0
+        w_miss = 1.0e4
 
         # lissage des commandes # je devrais modifier ici afin de rendre mes commandes moins wiggly
-        w_u           = 0.03*3
-        w_du          = 0.25*2
-        w_ddu         = 0.05*3
+        w_u = 0.03*3
+        w_du = 0.25*2
+        w_ddu = 0.05*3
 
         # coût de marge / proximité frontière
-        w_margin      = 40.0
+        w_margin = 40.0
 
         # seuils de "handoff" façon Nav2
         near_goal_pos_radius = 1.5
@@ -320,7 +308,7 @@ function build_mppi_generator(
         eT = periodic_state_error(xT, target_center, cfg)
 
         J += w_goal_pos_T * (eT[1]^2 + eT[2]^2)
-        J += w_goal_th_T  * (eT[3]^2)
+        J += w_goal_th_T * (eT[3]^2)
         J += w_goal_phi_T * (eT[4]^2)
 
         if !hit_target
@@ -409,13 +397,13 @@ function save_named_state_space_plots!(
             joinpath(plots_dir, "$(basename)_12.pdf");
             force = true,
         )
-        cp(
+        return cp(
             joinpath(tmp_dir, "state_space_34.pdf"),
             joinpath(plots_dir, "$(basename)_34.pdf");
             force = true,
         )
     end
-    
+
     return nothing
 end
 

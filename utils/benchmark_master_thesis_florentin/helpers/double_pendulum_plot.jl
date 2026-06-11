@@ -24,6 +24,7 @@ function _prepare_double_pendulum_plot_data(
     periodic_dims = SVector(1, 2),
     periodic_periods = SVector(2pi, 2pi),
     periodic_start = SVector(-pi, -pi),
+    periodic_ellipsoid_copy_mode::Symbol = :terminal_only,
 )
     return _prepare_periodic_state_plot_data(
         problem,
@@ -35,6 +36,7 @@ function _prepare_double_pendulum_plot_data(
         periodic_dims = periodic_dims,
         periodic_periods = periodic_periods,
         periodic_start = periodic_start,
+        periodic_ellipsoid_copy_mode = periodic_ellipsoid_copy_mode,
     )
 end
 
@@ -66,7 +68,7 @@ function _build_double_pendulum_pose_plot(
     yt2 = yt1 - l2 * cos(θ2t)
 
     reach = l1 + l2 + 0.15
-    fig = plot(
+    fig = plot(;
         xlim = (-reach, reach),
         ylim = (-reach, reach),
         aspect_ratio = :equal,
@@ -77,15 +79,28 @@ function _build_double_pendulum_pose_plot(
         xlabel = "x",
         ylabel = "y",
     )
-    scatter!(fig, [0.0], [0.0]; color = :black, ms = 5)
-    plot!(fig, [0.0, xt1, xt2], [0.0, yt1, yt2]; color = :red, lw = 2, ls = :dash)
-    plot!(fig, [0.0, x1, x2], [0.0, y1, y2]; color = :royalblue4, lw = 4)
-    scatter!(fig, [x1, x2], [y1, y2]; color = :royalblue4, ms = 7)
+    scatter!(fig, [0.0], [0.0]; color = PLOT_COLORS[:constraint], ms = 5)
+    plot!(
+        fig,
+        [0.0, xt1, xt2],
+        [0.0, yt1, yt2];
+        color = PLOT_COLORS[:target_edge],
+        lw = 2,
+        ls = :dash,
+    )
+    plot!(fig, [0.0, x1, x2], [0.0, y1, y2]; color = PLOT_COLORS[:nominal], lw = 4)
+    scatter!(fig, [x1, x2], [y1, y2]; color = PLOT_COLORS[:nominal], ms = 7)
     return fig
 end
 
 function _build_double_pendulum_angles_plot(data, k::Int; title::AbstractString)
-    return _build_phase_prefix_plot(data, k; dims = (1, 2), xlabel = "θ₁ [rad]", ylabel = "θ₂ [rad]")
+    return _build_phase_prefix_plot(
+        data,
+        k;
+        dims = (1, 2),
+        xlabel = "θ₁ [rad]",
+        ylabel = "θ₂ [rad]",
+    )
 end
 
 function _build_double_pendulum_control_plot(data, k::Int, problem; title::AbstractString)
@@ -110,7 +125,7 @@ function save_double_pendulum_animation!(
     every::Int = 1,
     save_gif::Bool = true,
     save_mp4::Bool = true,
-    title::AbstractString = "Double pendulum rollout",
+    title::AbstractString = "",
 )
     mkpath(output_dir)
 
@@ -127,12 +142,18 @@ function save_double_pendulum_animation!(
     )
 
     target_angles = _double_pendulum_target_angles(problem)
-    gif_path = save_gif ?
-        joinpath(output_dir, _double_pendulum_animation_filename(basename, "rollout", "gif")) :
-        nothing
-    mp4_path = save_mp4 ?
-        joinpath(output_dir, _double_pendulum_animation_filename(basename, "rollout", "mp4")) :
-        nothing
+    gif_path =
+        save_gif ?
+        joinpath(
+            output_dir,
+            _double_pendulum_animation_filename(basename, "rollout", "gif"),
+        ) : nothing
+    mp4_path =
+        save_mp4 ?
+        joinpath(
+            output_dir,
+            _double_pendulum_animation_filename(basename, "rollout", "mp4"),
+        ) : nothing
 
     anim = @animate for k in 1:every:length(data.xs)
         fig_pose = _build_double_pendulum_pose_plot(
@@ -141,11 +162,22 @@ function save_double_pendulum_animation!(
             target_angles;
             l1 = l1,
             l2 = l2,
-            title = title,
+            title = "",
         )
-        fig_angles = _build_double_pendulum_angles_plot(data, k; title = "(theta1, theta2)")
-        fig_control = _build_double_pendulum_control_plot(data, max(k - 1, 1), problem; title = "Control")
-        plot(fig_pose, fig_angles, fig_control; layout = @layout([a{0.42w} [b; c]]), size = (1200, 650))
+        fig_angles = _build_double_pendulum_angles_plot(data, k; title = "")
+        fig_control = _build_double_pendulum_control_plot(
+            data,
+            max(k - 1, 1),
+            problem;
+            title = "",
+        )
+        plot(
+            fig_pose,
+            fig_angles,
+            fig_control;
+            layout = @layout([a{0.42w} [b; c]]),
+            size = (1200, 650),
+        )
     end
 
     if gif_path !== nothing
@@ -156,7 +188,8 @@ function save_double_pendulum_animation!(
         try
             mp4(anim, mp4_path; fps = fps)
         catch err
-            @warn "Could not save double pendulum MP4 animation." path = mp4_path exception = err
+            @warn "Could not save double pendulum MP4 animation." path = mp4_path exception =
+                err
             mp4_path = nothing
         end
     end
@@ -196,15 +229,18 @@ function save_double_pendulum_plots!(
         periodic_start = periodic_start,
     )
 
-    trajectory_label = occursin("mppi", lowercase(basename)) ? "MPPI trajectory" : "nominal trajectory"
+    trajectory_label =
+        occursin("mppi", lowercase(basename)) ? "MPPI trajectory" : "nominal trajectory"
     fig_angles = _build_state_space_projection(
         data;
         dims = (1, 2),
         xlabel = "θ₁ [rad]",
         ylabel = "θ₂ [rad]",
         trajectory_label = trajectory_label,
+        legend = :topleft,
     )
-    angles_path = joinpath(output_dir, _double_pendulum_plot_filename(basename, "angles_space"))
+    angles_path =
+        joinpath(output_dir, _double_pendulum_plot_filename(basename, "angles_space"))
     savefig(fig_angles, angles_path)
     display(fig_angles)
 
@@ -221,23 +257,47 @@ function save_double_pendulum_plots!(
     savefig(fig_velocities, velocities_path)
     display(fig_velocities)
 
-    state_path = joinpath(output_dir, _double_pendulum_plot_filename(basename, "state_time"))
+    state_path =
+        joinpath(output_dir, _double_pendulum_plot_filename(basename, "state_time"))
     _save_state_time_plot!(
         state_path,
         data,
         problem,
         (
-            (; index = 1, label = "θ₁", ylabel = "θ₁ [rad]", color = :royalblue4),
-            (; index = 2, label = "θ₂", ylabel = "θ₂ [rad]", color = :darkorange3),
-            (; index = 3, label = "θ̇₁", ylabel = "θ̇₁ [rad/s]", color = :darkgreen),
-            (; index = 4, label = "θ̇₂", ylabel = "θ̇₂ [rad/s]", color = :purple4),
+            (;
+                index = 1,
+                label = L"\theta_1",
+                ylabel = L"\theta_1\,[\mathrm{rad}]",
+                color = PLOT_COLORS[:nominal],
+            ),
+            (;
+                index = 2,
+                label = L"\theta_2",
+                ylabel = L"\theta_2\,[\mathrm{rad}]",
+                color = PLOT_COLORS[:state2],
+            ),
+            (;
+                index = 3,
+                label = L"\dot{\theta}_1",
+                ylabel = L"\dot{\theta}_1\,[\mathrm{rad/s}]",
+                color = PLOT_COLORS[:heading],
+            ),
+            (;
+                index = 4,
+                label = L"\dot{\theta}_2",
+                ylabel = L"\dot{\theta}_2\,[\mathrm{rad/s}]",
+                color = PLOT_COLORS[:trailer1],
+            ),
         );
         title = "",
         layout = (2, 2),
         size = (1100, 800),
     )
 
-    fig_phase = plot(; layout = (1, 2), thesis_plot_kwargs(; legend = :topright, size = (1100, 450))...)
+    fig_phase = plot(;
+        layout = (1, 2),
+        thesis_plot_kwargs(; legend = :topright, size = (1100, 450))...,
+    )
     sets = _plot_data_sets(data)
     plot_state_space_basic!(
         fig_phase[1],
@@ -261,20 +321,16 @@ function save_double_pendulum_plots!(
     )
     _add_projected_ellipsoids!(fig_phase[2], data.ellipsoids, (2, 4))
     plot!(fig_phase[2]; title = "", xlabel = "θ₂ [rad]", ylabel = "θ̇₂ [rad/s]")
-    phase_path = joinpath(output_dir, _double_pendulum_plot_filename(basename, "phase_portraits"))
+    phase_path =
+        joinpath(output_dir, _double_pendulum_plot_filename(basename, "phase_portraits"))
     savefig(fig_phase, phase_path)
     display(fig_phase)
 
     fig_control = _build_control_time_plot(data, problem; title = "")
-    control_path = joinpath(output_dir, _double_pendulum_plot_filename(basename, "control_time"))
+    control_path =
+        joinpath(output_dir, _double_pendulum_plot_filename(basename, "control_time"))
     savefig(fig_control, control_path)
     display(fig_control)
 
-    return (;
-        angles_path,
-        velocities_path,
-        state_path,
-        phase_path,
-        control_path,
-    )
+    return (; angles_path, velocities_path, state_path, phase_path, control_path)
 end

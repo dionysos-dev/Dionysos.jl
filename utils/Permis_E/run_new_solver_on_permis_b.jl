@@ -20,15 +20,15 @@ const CS = OP
 # Legacy namespace expected by utils/Permis_B/permis_B.jl.
 if !isdefined(DI, :Domain)
     @eval DI module Domain
-        const _MP = $(DI).Mapping
-        const INNER = _MP.INNER
-        const OUTER = _MP.OUTER
-        const CENTER = _MP.CENTER
+    const _MP = $(DI).Mapping
+    const INNER = _MP.INNER
+    const OUTER = _MP.OUTER
+    const CENTER = _MP.CENTER
 
-        GridFree(args...; kwargs...) = _MP.GridFree(args...; kwargs...)
-        CustomList(inputs) = _MP.ListMapping(inputs)
-        DomainList(grid) = _MP.ExplicitGridMapping(grid)
-        add_set!(dom, set, incl_mode) = (_MP.add_set!(dom, set, incl_mode); dom)
+    GridFree(args...; kwargs...) = _MP.GridFree(args...; kwargs...)
+    CustomList(inputs) = _MP.ListMapping(inputs)
+    DomainList(grid) = _MP.ExplicitGridMapping(grid)
+    add_set!(dom, set, incl_mode) = (_MP.add_set!(dom, set, incl_mode); dom)
     end
 end
 
@@ -60,11 +60,7 @@ function MOI.set(
     )
 end
 
-function MOI.set(
-    model::UGA.Optimizer,
-    attr::MOI.RawOptimizerAttribute,
-    value::Bool,
-)
+function MOI.set(model::UGA.Optimizer, attr::MOI.RawOptimizerAttribute, value::Bool)
     if attr.name == "use_periodic_domain"
         return MOI.set(model, MOI.RawOptimizerAttribute("use_periodic_mapping"), value)
     end
@@ -119,7 +115,10 @@ function OP.generate!(gen::PermisBCandidateGenerator)
             ST.Trajectory(run_result_lmi.input_list);
             Ts = run_result.Δt,
             source = :permis_b_nominal,
-            metadata = (; from_cache = hasproperty(run_result, :from_cache) ? run_result.from_cache : false),
+            metadata = (;
+                from_cache = hasproperty(run_result, :from_cache) ?
+                             run_result.from_cache : false
+            ),
         )
 
         gen.candidate = cand
@@ -228,19 +227,24 @@ function main()
         builder,
     )
 
-    solver = CS.CertifiedPipelineSolver{
-        typeof(gen),
-        typeof(cert),
-        typeof(problem),
-        Any,
-    }(gen, cert, nothing, nothing)
+    solver = CS.CertifiedPipelineSolver{typeof(gen), typeof(cert), typeof(problem), Any}(
+        gen,
+        cert,
+        nothing,
+        nothing,
+    )
     CS.set_problem!(solver, problem)
     CS.solve!(solver)
     res = CS.get_result(solver)
 
     println("generator success=", HG.get_success(gen), " time=", HG.get_solve_time(gen))
     println("certifier success=", SC.get_success(cert), " time=", SC.get_solve_time(cert))
-    println("pipeline success=", CS.get_success(solver), " time=", CS.get_solve_time(solver))
+    println(
+        "pipeline success=",
+        CS.get_success(solver),
+        " time=",
+        CS.get_solve_time(solver),
+    )
     if res !== nothing
         println("n_steps_cert=", length(res.certification.steps))
         println("failed_k=", res.certification.failed_k)

@@ -60,8 +60,8 @@ function main()
     controller = OP.OpenLoopController(us)
     tube = extract_tube(res.certification)
 
-    mc_cfg = OP.MonteCarloConfig(N = 200, seed = 1, keep_traces = 5)
-    ro_cfg = OP.RolloutConfig(
+    mc_cfg = OP.MonteCarloConfig(; N = 200, seed = 1, keep_traces = 5)
+    ro_cfg = OP.RolloutConfig(;
         Ts = res.candidate.Ts,
         nstep = length(us),
         num_substeps = 5,

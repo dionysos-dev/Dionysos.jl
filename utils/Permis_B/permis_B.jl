@@ -67,7 +67,7 @@ Base.@kwdef struct LMIConfig
     maxδu::Float64 = 200.0
     # Optional external SDP optimizer override (e.g. MosekTools.Optimizer).
     # If `nothing`, Clarabel + clarabel_* settings are used.
-    sdp_opt::Any = build_mosek_optimizer(verbose=false)
+    sdp_opt::Any = build_mosek_optimizer(verbose = false)
     # Nombre de sous-pas RK4 pour le modele symbolique.
     symbolic_rk4_substeps::Int = 1
     # LMI model switches:
@@ -78,11 +78,11 @@ Base.@kwdef struct LMIConfig
         IA.interval(-0.1, 0.1),  # x1
         IA.interval(-0.1, 0.1),  # x2
         IA.interval(-0.1, 0.1),   # θ
-        IA.interval(-0.1, 0.1)   # ϕ
+        IA.interval(-0.1, 0.1),   # ϕ
     )
     ΔU = IA.IntervalBox(
         IA.interval(-0.2, 0.2),# v
-        IA.interval(-0.2, 0.2) # δ (steering) mainteannt c'est tan(δ) (ça devrait etre largement)
+        IA.interval(-0.2, 0.2), # δ (steering) mainteannt c'est tan(δ) (ça devrait etre largement)
     )
     ΔW::Any = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
     verbose::Bool = true
@@ -102,7 +102,7 @@ function build_concrete_system()
         SVector(-1.0, -1.0, -pi, -pi),
         SVector(10.0, 9.0, pi, pi),
     )
-    
+
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
     obstacles_xy = [ # c'est bout le benchmark classique
         UT.HyperRectangle(SVector(4.0, -1.0), SVector(10.0, 4.7)),
@@ -141,17 +141,15 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     target_set = UT.HyperRectangle( # il va faire de la marche avant
         SVector(9.0, 5.0, -5 * (pi / 180), -5 * (pi / 180)),
         SVector(10.0, 6.0, 5 * (pi / 180), 5 * (pi / 180)),
     )
     target_set = UT.HyperRectangle( # il va faire de la marche arrière
         SVector(9.0, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),
-        SVector(10.0, 6.0, pi + 5 * (pi / 180),  5 * (pi / 180)),
+        SVector(10.0, 6.0, pi + 5 * (pi / 180), 5 * (pi / 180)),
     )
 
     # pour le créneau arrière
@@ -164,7 +162,6 @@ function build_control_problem()
     #     SVector(2.2, 1.2, -5 * (pi / 180), -5 * (pi / 180)),
     #     SVector(4.0, 2.2,  5 * (pi / 180), 5 * (pi / 180)),
     # )
-
 
     return (; x0, initial_set, target_set)
 end
@@ -231,12 +228,16 @@ function prepare_run_result_for_lmi(
 
     dims =
         periodic_dims === nothing ?
-        (hasproperty(run_result, :periodic_dims) ? getproperty(run_result, :periodic_dims) : nothing) :
-        periodic_dims
+        (
+            hasproperty(run_result, :periodic_dims) ?
+            getproperty(run_result, :periodic_dims) : nothing
+        ) : periodic_dims
     periods =
         periodic_periods === nothing ?
-        (hasproperty(run_result, :periodic_periods) ? getproperty(run_result, :periodic_periods) :
-         nothing) : periodic_periods
+        (
+            hasproperty(run_result, :periodic_periods) ?
+            getproperty(run_result, :periodic_periods) : nothing
+        ) : periodic_periods
 
     (dims === nothing || periods === nothing || isempty(dims)) && return run_result
 
@@ -276,8 +277,8 @@ function run_nominal_simulation(
 )
     system_cfg = build_concrete_system()
     centered_gif_path =
-        centered_animation_gif === nothing ?
-        joinpath(@__DIR__, "centered_simu.gif") : String(centered_animation_gif)
+        centered_animation_gif === nothing ? joinpath(@__DIR__, "centered_simu.gif") :
+        String(centered_animation_gif)
     cache_file = nominal_cache_path(cfg; cache_dir = cache_dir)
     if use_cache && !force_recompute && isfile(cache_file)
         try
@@ -364,7 +365,8 @@ function run_nominal_simulation(
     end
 
     animation =
-        show_animation ? plot_articulated_vehicle!(
+        show_animation ?
+        plot_articulated_vehicle!(
             AV,
             system_cfg.concrete_system,
             system_cfg.params,
@@ -413,8 +415,9 @@ function build_symbolic_lmi_context(run_result, cfg::LMIConfig)
     )
 
     nx = length(run_result.state_list[1])
-    nu = isempty(run_result.input_list) ? UT.get_dims(run_result.concrete_system.U) :
-         length(run_result.input_list[1])
+    nu =
+        isempty(run_result.input_list) ? UT.get_dims(run_result.concrete_system.U) :
+        length(run_result.input_list[1])
     S = matrice_cout_identite(nx, nu)
 
     return construire_contexte_lmi(;
@@ -431,7 +434,7 @@ function build_symbolic_lmi_context(run_result, cfg::LMIConfig)
         sdp_opt = cfg.sdp_opt,
         maxδx = cfg.maxδx,
         maxδu = cfg.maxδu,
-        λ = cfg.λ
+        λ = cfg.λ,
     )
 end
 
@@ -452,7 +455,8 @@ function run_lmi_diagnostic(
     )
 
     println("\n=== Test LMI (mode symbolique) ===")
-    E_terminal = creer_ellipsoide_terminal(run_result_lmi.state_list; rayon = cfg.rayon_terminal)
+    E_terminal =
+        creer_ellipsoide_terminal(run_result_lmi.state_list; rayon = cfg.rayon_terminal)
     println("Ellipsoide terminale creee.")
     println("Centre: ", E_terminal.c)
     println("P[1,1]: ", E_terminal.P[1, 1])
@@ -485,7 +489,12 @@ function run_lmi_diagnostic(
         println("Chaine backward incomplete. premier echec k = ", transitions.failed_k)
     end
     if !isempty(transitions.couts)
-        println("Cout min/max = ", minimum(transitions.couts), " / ", maximum(transitions.couts))
+        println(
+            "Cout min/max = ",
+            minimum(transitions.couts),
+            " / ",
+            maximum(transitions.couts),
+        )
     end
 
     pdf_transitions = nothing
@@ -510,7 +519,13 @@ function run_lmi_diagnostic(
         println("Plot transition angles enregistre: ", pdf_transitions_angles)
     end
 
-    return (; E_terminal, transitions, pdf_terminal, pdf_transitions, pdf_transitions_angles)
+    return (;
+        E_terminal,
+        transitions,
+        pdf_terminal,
+        pdf_transitions,
+        pdf_transitions_angles,
+    )
 end
 
 """
@@ -559,8 +574,7 @@ function animate_kappa_rollout(
     title::String = "ellipsoidal controller",
 )
     n = length(empirical_result.x_rollouts)
-    (1 <= sample_idx <= n) ||
-        error("sample_idx doit etre dans 1:$n.")
+    (1 <= sample_idx <= n) || error("sample_idx doit etre dans 1:$n.")
 
     x_seq = empirical_result.x_rollouts[sample_idx]
     u_seq = empirical_result.u_rollouts[sample_idx]
@@ -680,8 +694,10 @@ function main(;
         else
             n_samples_for_check =
                 show_lmi_animation ?
-                max(max(lmi_animation_n_samples, lmi_animation_sample_idx), lmi_check_n_samples) :
-                lmi_check_n_samples
+                max(
+                    max(lmi_animation_n_samples, lmi_animation_sample_idx),
+                    lmi_check_n_samples,
+                ) : lmi_check_n_samples
             lmi_empirical_result = run_kappa_empirical_check(
                 run_result,
                 lmi_result;
@@ -696,7 +712,8 @@ function main(;
             if show_lmi_animation
                 lmi_gif_path =
                     lmi_animation_gif === nothing ?
-                    joinpath(@__DIR__, "ellipsoidal_controller.gif") : String(lmi_animation_gif)
+                    joinpath(@__DIR__, "ellipsoidal_controller.gif") :
+                    String(lmi_animation_gif)
                 lmi_animation = animate_kappa_rollout(
                     run_result,
                     lmi_empirical_result;

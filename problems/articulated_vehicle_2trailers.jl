@@ -40,8 +40,10 @@ function dynamic(p::Params = Params())
             v * cos(θ1),
             v * sin(θ1),
             (v / p.L1) * σ̃,
-            -(v / (p.L1 * p.L2)) * (p.L1 * sin(ϕ1) + (p.Lc * cos(ϕ1) + p.L2) * σ̃), 
-            -(v/p.L3) * (cos(ϕ1) - (p.Lc/p.L1) * σ̃ * sin(ϕ1)) * sin(ϕ2) + (1 + (p.Lc2/p.L3) * cos(ϕ2)) * ( (v/p.L2) * sin(ϕ1) + ((v * p.Lc)/(p.L1 * p.L2)) * σ̃ * cos(ϕ1))
+            -(v / (p.L1 * p.L2)) * (p.L1 * sin(ϕ1) + (p.Lc * cos(ϕ1) + p.L2) * σ̃),
+            -(v/p.L3) * (cos(ϕ1) - (p.Lc/p.L1) * σ̃ * sin(ϕ1)) * sin(ϕ2) +
+            (1 + (p.Lc2/p.L3) * cos(ϕ2)) *
+            ((v/p.L2) * sin(ϕ1) + ((v * p.Lc)/(p.L1 * p.L2)) * σ̃ * cos(ϕ1)),
         )
     end
 end
@@ -69,7 +71,7 @@ function jacobian(p::Params = Params())
 
         return @SMatrix [
             0.0 0.0 -v * sin(θ1) 0.0 0.0
-            0.0 0.0  v * cos(θ1) 0.0 0.0
+            0.0 0.0 v * cos(θ1) 0.0 0.0
             0.0 0.0 0.0 0.0 0.0
             0.0 0.0 0.0 d4dϕ1 0.0
             0.0 0.0 0.0 d5dϕ1 d5dϕ2
@@ -119,22 +121,16 @@ function jacobian_bound(p::Params = Params())
         bθ = v
         bϕ1 = (v / p.L2) * R
 
-        bϕ2_ϕ1 = v * (
-            R / p.L3 +
-            (1 + abs(b)) * R / p.L2
-        )
+        bϕ2_ϕ1 = v * (R / p.L3 + (1 + abs(b)) * R / p.L2)
 
-        bϕ2_ϕ2 = v * (
-            R / p.L3 +
-            abs(b) * R / p.L2
-        )
+        bϕ2_ϕ2 = v * (R / p.L3 + abs(b) * R / p.L2)
 
         return @SMatrix [
-            0.0  0.0  bθ       0.0        0.0
-            0.0  0.0  bθ       0.0        0.0
-            0.0  0.0  0.0      0.0        0.0
-            0.0  0.0  0.0      bϕ1        0.0
-            0.0  0.0  0.0      bϕ2_ϕ1     bϕ2_ϕ2
+            0.0 0.0 bθ 0.0 0.0
+            0.0 0.0 bθ 0.0 0.0
+            0.0 0.0 0.0 0.0 0.0
+            0.0 0.0 0.0 bϕ1 0.0
+            0.0 0.0 0.0 bϕ2_ϕ1 bϕ2_ϕ2
         ]
     end
 end
@@ -144,14 +140,17 @@ function bound_norm_jacobian(p::Params = Params())
         v = abs(u[1])
         σ̃ = abs(u[2])
         bϕ1 = v / (p.L1 * p.L2) * (p.L1 + abs(p.Lc) * σ̃)
-        bϕ2_ϕ1 = v * (
-            (1 + abs(p.Lc) * σ̃ / p.L1) / p.L3 +
-            (1 + abs(p.Lc2) / p.L3) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
-        )
-        bϕ2_ϕ2 = v / p.L3 * (
-            1 + abs(p.Lc) * σ̃ / p.L1 +
-            abs(p.Lc2) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
-        )
+        bϕ2_ϕ1 =
+            v * (
+                (1 + abs(p.Lc) * σ̃ / p.L1) / p.L3 +
+                (1 + abs(p.Lc2) / p.L3) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
+            )
+        bϕ2_ϕ2 =
+            v / p.L3 * (
+                1 +
+                abs(p.Lc) * σ̃ / p.L1 +
+                abs(p.Lc2) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
+            )
         # crude but monotone (you can replace by something tighter)
         return v + bϕ1 + bϕ2_ϕ1 + bϕ2_ϕ2
     end
@@ -162,14 +161,17 @@ function bound_norm_hessian_tensor(p::Params = Params())
         v = abs(u[1])
         σ̃ = abs(u[2])
         bϕ1 = v / (p.L1 * p.L2) * (p.L1 + abs(p.Lc) * σ̃)
-        bϕ2_ϕ1 = v * (
-            (1 + abs(p.Lc) * σ̃ / p.L1) / p.L3 +
-            (1 + abs(p.Lc2) / p.L3) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
-        )
-        bϕ2_ϕ2 = v / p.L3 * (
-            1 + abs(p.Lc) * σ̃ / p.L1 +
-            abs(p.Lc2) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
-        )
+        bϕ2_ϕ1 =
+            v * (
+                (1 + abs(p.Lc) * σ̃ / p.L1) / p.L3 +
+                (1 + abs(p.Lc2) / p.L3) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
+            )
+        bϕ2_ϕ2 =
+            v / p.L3 * (
+                1 +
+                abs(p.Lc) * σ̃ / p.L1 +
+                abs(p.Lc2) * (1 / p.L2 + abs(p.Lc) * σ̃ / (p.L1 * p.L2))
+            )
         return bϕ1 + bϕ2_ϕ1 + bϕ2_ϕ2
     end
 end
@@ -216,7 +218,6 @@ function symbolic_system(
 
     f_cont_fun = dynamic(params)
     f_cont_expr(xloc, uloc) = collect(f_cont_fun(xloc, uloc))
-
 
     # Discretisation symbolique choisie pour la linearisation LMI.
     f_disc = ST.runge_kutta4(f_cont_expr, x, u, T, rk4_num_substeps)

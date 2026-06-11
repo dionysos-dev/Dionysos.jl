@@ -20,10 +20,7 @@ Base.@kwdef struct NominalConfig
 end
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 9.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(10.0, 9.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
 
     obstacles_xy = [
@@ -57,10 +54,8 @@ end
 
 function build_control_problem()
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
 
     target_set = UT.HyperRectangle(
         SVector(9.0, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),

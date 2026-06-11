@@ -9,10 +9,10 @@ const UT = Dionysos.Utils
 const ST = Dionysos.System
 const PB = Dionysos.Problem
 
-function dynamic(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81) 
+function dynamic(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81)
     function f(x, u)
         M = m1 + m2
-        Δθ = x[1] - x[2] 
+        Δθ = x[1] - x[2]
         α = m1 + m2 * sin(Δθ)^2
         return SVector{4}(
             x[3],
@@ -31,10 +31,10 @@ function jacobian_bound(; l1 = 1.0, l2 = 1.0, m1 = 1.0, m2 = 1.0, g = 9.81, ωma
     M = m1 + m2
     gloc = abs(g)
 
-    cθ1 = (2.0 * M * gloc) / (max(l1, 1.0e-6) * αmin) +
-          (2.0 * m2 * (l1 + l2) * ωmax^2) / αmin
-    cθ2 = (2.0 * M * gloc) / (max(l2, 1.0e-6) * αmin) +
-          (2.0 * m2 * (l1 + l2) * ωmax^2) / αmin
+    cθ1 =
+        (2.0 * M * gloc) / (max(l1, 1.0e-6) * αmin) + (2.0 * m2 * (l1 + l2) * ωmax^2) / αmin
+    cθ2 =
+        (2.0 * M * gloc) / (max(l2, 1.0e-6) * αmin) + (2.0 * m2 * (l1 + l2) * ωmax^2) / αmin
     cω1 = 1.0 + (2.0 * m2 * l1 * ωmax) / αmin
     cω2 = 1.0 + (2.0 * m2 * l2 * ωmax) / αmin
 
@@ -101,18 +101,20 @@ function optimal_control_problem(;
 )
     if objective == "benchmark_up_convex" # j'ai ajouté un set, mais le problème me semble plus mainigfull
         _X_ = UT.HyperRectangle(SVector(-π, -π, -6.0, -6.0), SVector(π, π, 6.0, 6.0))
-        _U_ = UT.HyperRectangle(SVector(-5.5), SVector(5.5))
+        _U_ = UT.HyperRectangle(SVector(-8.5), SVector(8.5))
         _I_ = UT.HyperRectangle(
-            SVector(-3.0 * pi / 180.0, -3.0 * pi / 180.0, -0.5, -0.5),
-            SVector(3.0 * pi / 180.0, 3.0 * pi / 180.0, 0.5, 0.5),
+            SVector(-10.0 * pi / 180.0, -10.0 * pi / 180.0, -0.5, -0.5),
+            SVector(10.0 * pi / 180.0, 10.0 * pi / 180.0, 0.5, 0.5),
         )
         _T_ = UT.HyperRectangle(
-            SVector(π - 10.0*pi/180.0, π - 10.0*pi/180.0, -2.0, -2.0),
-            SVector(π + 10.0*pi/180.0, π + 10.0*pi/180.0,  2.0,  2.0),
+            SVector(π - 25.0*pi/180.0, π - 25.0*pi/180.0, -5.0, -5.0),
+            SVector(π + 25.0*pi/180.0, π + 25.0*pi/180.0, 5.0, 5.0),
         )
     else
-        _X_ =
-            UT.HyperRectangle(SVector(-π / 2.0, -π, -5.0, -5.0), SVector(π / 2.0, π, 5.0, 5.0))
+        _X_ = UT.HyperRectangle(
+            SVector(-π / 2.0, -π, -5.0, -5.0),
+            SVector(π / 2.0, π, 5.0, 5.0),
+        )
         _U_ = UT.LazySetMinus(
             UT.HyperRectangle(SVector(-5.5), SVector(5.5)),
             UT.HyperRectangle(SVector(-0.5), SVector(0.5)),

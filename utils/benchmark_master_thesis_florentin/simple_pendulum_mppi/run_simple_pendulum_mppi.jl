@@ -4,7 +4,14 @@ import LinearAlgebra as LA
 import MathematicalSystems as MS
 import Random
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pendulum", "simple_pendulum.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "pendulum",
+        "simple_pendulum.jl",
+    ),
+)
 const SP = SimplePendulum
 
 Base.@kwdef struct SimplePendulumMPPIConfig
@@ -17,7 +24,7 @@ Base.@kwdef struct SimplePendulumMPPIConfig
     periodic_dims::SVector{1, Int} = SVector(1)
     periodic_periods::SVector{1, Float64} = SVector(2pi)
     periodic_start::SVector{1, Float64} = SVector(-pi)
-    nstep::Int = 55
+    nstep::Int = 75
     input_values::Tuple{Vararg{Float64}} = Tuple(-2.3:0.25:2.3)
 
     terminal_radius::Float64 = 0.25
@@ -30,27 +37,26 @@ Base.@kwdef struct SimplePendulumMPPIConfig
     maxδx::Float64 = 80.0
     maxδu::Float64 = 40.0
     use_state_scaling::Bool = true
-    state_scaling::Vector{Float64} = [0.85 * 15.0 * pi / 180.0, 0.85]
+    state_scaling::Vector{Float64} = [0.85 * 15.0 * pi / 180.0, 0.25]
     symbolic_rk4_substeps::Int = 1
-    ΔX::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.0002, 0.0002),
-        IA.interval(-0.0002, 0.0002),
-    )
-    ΔU::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(-0.0002, 0.0002), 1)
+    ΔX::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.02, 0.02), IA.interval(-0.02, 0.02))
+    ΔU::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(-0.02, 0.02), 1)
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
     adaptive_linearization_boxes::Bool = true
     ΔX_initial::Vector{Float64} = [0.02, 0.02]
-    ΔX_min::Vector{Float64} = [1.0e-3, 1.0e-3]
+    ΔX_min::Vector{Float64} = [1.0e-8, 1.0e-8]
     ΔX_max::Vector{Float64} = [0.30, 2.00]
     ΔU_initial::Vector{Float64} = [0.02]
     ΔU_min::Vector{Float64} = [1.0e-3]
     ΔU_max::Vector{Float64} = [1.00]
     adaptive_box_growth::Float64 = 1.5
-    adaptive_box_safety::Float64 = 1.15
-    adaptive_box_max_iters::Int = 8
+    adaptive_box_safety::Float64 = 1.01
+    adaptive_box_max_iters::Int = 16
     adaptive_box_atol::Float64 = 1.0e-8
     adaptive_box_verbose::Bool = true
-    adaptive_box_search_scales::Vector{Float64} = [0.7, 0.85, 1.0, 1.15, 1.35, 1.6, 2.0]
+    adaptive_box_search_scales::Vector{Float64} =
+        [0.5, 0.7, 0.85, 1.0, 1.15, 1.35, 1.6, 2.0]
     adaptive_box_objective::Symbol = :max_volume
     adaptive_box_keep_first_consistent::Bool = false
 
@@ -65,6 +71,7 @@ Base.@kwdef struct SimplePendulumMPPIConfig
     seed_trajectory_mode::Symbol = :abstract_traj
     seed_num_substeps::Int = 1
 
+    planning_input_scale::Float64 = 1.0
     mppi_nsamples::Int = 7800
     mppi_niter::Int = 20
     mppi_λ::Float64 = 1.75
@@ -81,14 +88,14 @@ function build_inner_terminal_ellipsoid(lower, upper; shrink = 0.95)
         throw(ArgumentError("target lower/upper bounds must have the same length"))
     all(isfinite, lb) && all(isfinite, ub) ||
         throw(ArgumentError("target bounds must be finite"))
-    all(ub .> lb) ||
-        throw(ArgumentError("each target upper bound must be strictly larger than lower bound"))
+    all(ub .> lb) || throw(
+        ArgumentError("each target upper bound must be strictly larger than lower bound"),
+    )
     isfinite(shrink) && 0.0 < shrink <= 1.0 ||
         throw(ArgumentError("terminal_shrink must be finite and in (0, 1]"))
 
     radii = 0.5 .* (ub .- lb)
-    all(radii .> 0.0) ||
-        throw(ArgumentError("target radii must be positive"))
+    all(radii .> 0.0) || throw(ArgumentError("target radii must be positive"))
 
     terminal_center = 0.5 .* (lb .+ ub)
     terminal_shape = Matrix(LA.Diagonal(1.0 ./ (shrink .* radii) .^ 2))
@@ -119,13 +126,35 @@ function check_ellipsoid_inside_box(c, P, lower, upper; atol = 1.0e-8)
 
     Q = inv(LA.Symmetric(shape))
     radii = sqrt.(max.(0.0, LA.diag(Q)))
-    return all(center .+ radii .<= ub .+ atol) &&
-           all(center .- radii .>= lb .- atol)
+    return all(center .+ radii .<= ub .+ atol) && all(center .- radii .>= lb .- atol)
 end
 
 terminal_ellipsoidal_distance2(x, terminal_center, terminal_shape) = begin
     e = Float64.(collect(x)) .- terminal_center
     return Float64(e' * terminal_shape * e)
+end
+
+function input_bounds(problem, cfg::SimplePendulumMPPIConfig)
+    if hasproperty(problem.system, :U) && problem.system.U isa UT.HyperRectangle
+        return Float64(problem.system.U.lb[1]), Float64(problem.system.U.ub[1])
+    end
+    vals = Float64.(collect(cfg.input_values))
+    return minimum(vals), maximum(vals)
+end
+
+function planning_input_bounds(problem, cfg::SimplePendulumMPPIConfig)
+    0.0 < cfg.planning_input_scale <= 1.0 ||
+        throw(ArgumentError("planning_input_scale must be in (0, 1]"))
+    umin, umax = input_bounds(problem, cfg)
+    center = 0.5 * (umin + umax)
+    half_width = 0.5 * (umax - umin)
+    return center - cfg.planning_input_scale * half_width,
+    center + cfg.planning_input_scale * half_width
+end
+
+function planning_input_domain(problem, cfg::SimplePendulumMPPIConfig)
+    umin_plan, umax_plan = planning_input_bounds(problem, cfg)
+    return UT.HyperRectangle([umin_plan], [umax_plan])
 end
 
 function truncate_candidate_at_first_terminal_ellipsoid_hit(
@@ -161,10 +190,8 @@ end
 
 function terminal_inner_ellipsoid_data(problem, cfg::SimplePendulumMPPIConfig)
     cfg.use_terminal_inner_ellipsoid || return nothing
-    terminal_center, terminal_shape = build_inner_terminal_ellipsoid(
-        problem.target_set;
-        shrink = cfg.terminal_shrink,
-    )
+    terminal_center, terminal_shape =
+        build_inner_terminal_ellipsoid(problem.target_set; shrink = cfg.terminal_shrink)
     inside = check_ellipsoid_inside_box(
         terminal_center,
         terminal_shape,
@@ -222,7 +249,10 @@ function build_simple_pendulum_mppi_generator(
 
     discrete_dynamics = (_prob, x, u, _k, _Δt) -> f_disc(x, u)
     noise_sampler = (rng, _u, _k) -> [cfg.mppi_noise_u * Random.randn(rng)]
-    project_input = u -> project_pendulum_input_to_domain(u, problem.system.U)
+    # MPPI plans with U_plan, a restricted subset of the physical U_cert.
+    # The certifier below still receives problem.system.U, i.e. the full U_cert.
+    plan_U = planning_input_domain(problem, cfg)
+    project_input = u -> project_pendulum_input_to_domain(u, plan_U)
 
     get_reference_states = function ()
         seed_cand = OP.get_trajectory(seed_gen)
@@ -273,7 +303,10 @@ function build_simple_pendulum_mppi_generator(
                     terminal_data.terminal_shape,
                 ) for x in xs
             ]
-            hit_idx = findfirst(d -> d <= cfg.terminal_success_distance2 + 1.0e-8, terminal_distances)
+            hit_idx = findfirst(
+                d -> d <= cfg.terminal_success_distance2 + 1.0e-8,
+                terminal_distances,
+            )
             hit_index = hit_idx === nothing ? argmin(terminal_distances) : hit_idx
             hit_target = hit_idx !== nothing
         end
@@ -312,7 +345,8 @@ function build_simple_pendulum_mppi_generator(
     end
 
     success_fun = if terminal_data === nothing
-        (prob, cand) -> any(x -> (wrap_state(x) ∈ prob.target_set), ST.enum_elems(cand.x_traj))
+        (prob, cand) ->
+            any(x -> (wrap_state(x) ∈ prob.target_set), ST.enum_elems(cand.x_traj))
     else
         (_prob, cand) -> any(ST.enum_elems(cand.x_traj)) do x
             dT2 = terminal_ellipsoidal_distance2(
@@ -327,13 +361,12 @@ function build_simple_pendulum_mppi_generator(
     postprocess_candidate = if terminal_data === nothing
         OP._default_mppi_postprocess
     else
-        (_prob, _mppi_cfg, cand) ->
-            truncate_candidate_at_first_terminal_ellipsoid_hit(
-                cand,
-                wrap_state,
-                terminal_data;
-                threshold = cfg.terminal_success_distance2,
-            )
+        (_prob, _mppi_cfg, cand) -> truncate_candidate_at_first_terminal_ellipsoid_hit(
+            cand,
+            wrap_state,
+            terminal_data;
+            threshold = cfg.terminal_success_distance2,
+        )
     end
 
     mppi_cfg = OP.MPPIConfig(
@@ -373,7 +406,8 @@ function build_simple_pendulum_certifier(
         ΔW = cfg.ΔW,
         rayon_terminal = cfg.terminal_radius,
         symbolic_rk4_substeps = cfg.symbolic_rk4_substeps,
-        terminal_center = terminal_data === nothing ? nothing : terminal_data.terminal_center,
+        terminal_center = terminal_data === nothing ? nothing :
+                          terminal_data.terminal_center,
         terminal_shape = terminal_data === nothing ? nothing : terminal_data.terminal_shape,
         state_scaling = certifier_state_scaling(cfg),
         adaptive_linearization_boxes = cfg.adaptive_linearization_boxes,
@@ -491,13 +525,26 @@ function print_certification_diagnostics(run_result, cfg, terminal_data)
     return nothing
 end
 
-function main(cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig())
+function main(
+    cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig();
+    save_outputs::Bool = true,
+    run_statistical::Bool = true,
+    artifact_prefix::AbstractString = "",
+)
     Random.seed!(cfg.rng_seed)
+
+    certification_basename =
+        isempty(artifact_prefix) ? "ellipsoids" : "$(artifact_prefix)_certification"
+    warmup_basename =
+        isempty(artifact_prefix) ? "abstract_traj_used_as_warmup" :
+        "$(artifact_prefix)_warmup"
+    nominal_basename =
+        isempty(artifact_prefix) ? "mppi_candidate_traj" : "$(artifact_prefix)_nominal"
 
     input_mapping = build_pendulum_input_mapping(cfg)
 
-    generator_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_simple_pendulum_mppi_generator(
+    generator_builder =
+        (problem, system_cfg, control_cfg, cfg_) -> build_simple_pendulum_mppi_generator(
             problem,
             system_cfg,
             control_cfg,
@@ -505,15 +552,17 @@ function main(cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig())
             input_mapping = input_mapping,
         )
 
-    certifier_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_simple_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
+    certifier_builder =
+        (problem, system_cfg, control_cfg, cfg_) ->
+            build_simple_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
 
     save_artifacts! = function (run_result)
+        save_outputs || return (;)
         save_pendulum_plots!(
             run_result.outputs.plots_dir,
             run_result.problem,
             run_result.nominal_candidate;
-            basename = "ellipsoids",
+            basename = certification_basename,
             cert_result = run_result.result.certification,
             show_ellipsoids = true,
             periodic_dims = cfg.periodic_dims,
@@ -527,7 +576,7 @@ function main(cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig())
             run_result.outputs.animations_dir,
             run_result.problem,
             run_result.nominal_candidate;
-            basename = "ellipsoids",
+            basename = certification_basename,
             cert_result = run_result.result.certification,
             show_ellipsoids = true,
             periodic_dims = cfg.periodic_dims,
@@ -543,8 +592,10 @@ function main(cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig())
     run_result = run_benchmark(
         cfg;
         scenario_name = "simple_pendulum_mppi",
-        build_concrete_system = () -> build_pendulum_system_cfg(cfg; pendulum_module = SP),
-        build_control_problem = () -> build_pendulum_control_cfg(cfg; pendulum_module = SP),
+        build_concrete_system = () ->
+            build_pendulum_system_cfg(cfg; pendulum_module = SP),
+        build_control_problem = () ->
+            build_pendulum_control_cfg(cfg; pendulum_module = SP),
         generator_builder = generator_builder,
         certifier_builder = certifier_builder,
         save_artifacts! = save_artifacts!,
@@ -558,81 +609,94 @@ function main(cfg::SimplePendulumMPPIConfig = SimplePendulumMPPIConfig())
     warmup_candidate = OP.get_seed(run_result.solver.generator)
     warmup_candidate === nothing && error("MPPI warmup trajectory is missing.")
 
-    save_pendulum_plots!(
-        run_result.outputs.plots_dir,
-        run_result.problem,
-        warmup_candidate;
-        basename = "abstract_traj_used_as_warmup",
-        cert_result = nothing,
-        show_ellipsoids = false,
-        periodic_dims = cfg.periodic_dims,
-        periodic_periods = cfg.periodic_periods,
-        periodic_start = cfg.periodic_start,
-        phase_title = "simple_pendulum_mppi - warmup phase space",
-        state_title = "simple_pendulum_mppi - warmup states",
-        control_title = "simple_pendulum_mppi - warmup control",
-    )
-    save_pendulum_animation!(
-        run_result.outputs.animations_dir,
-        run_result.problem,
-        warmup_candidate;
-        basename = "abstract_traj_used_as_warmup",
-        cert_result = nothing,
-        show_ellipsoids = false,
-        periodic_dims = cfg.periodic_dims,
-        periodic_periods = cfg.periodic_periods,
-        periodic_start = cfg.periodic_start,
-        save_gif = cfg.plot_gif,
-        save_mp4 = cfg.plot_mp4,
-        title = "simple_pendulum_mppi - warmup",
-    )
+    if save_outputs
+        save_pendulum_plots!(
+            run_result.outputs.plots_dir,
+            run_result.problem,
+            warmup_candidate;
+            basename = warmup_basename,
+            cert_result = nothing,
+            show_ellipsoids = false,
+            periodic_dims = cfg.periodic_dims,
+            periodic_periods = cfg.periodic_periods,
+            periodic_start = cfg.periodic_start,
+            phase_title = "simple_pendulum_mppi - warmup phase space",
+            state_title = "simple_pendulum_mppi - warmup states",
+            control_title = "simple_pendulum_mppi - warmup control",
+        )
+        save_pendulum_animation!(
+            run_result.outputs.animations_dir,
+            run_result.problem,
+            warmup_candidate;
+            basename = warmup_basename,
+            cert_result = nothing,
+            show_ellipsoids = false,
+            periodic_dims = cfg.periodic_dims,
+            periodic_periods = cfg.periodic_periods,
+            periodic_start = cfg.periodic_start,
+            save_gif = cfg.plot_gif,
+            save_mp4 = cfg.plot_mp4,
+            title = "simple_pendulum_mppi - warmup",
+        )
 
-    save_pendulum_plots!(
-        run_result.outputs.plots_dir,
-        run_result.problem,
-        run_result.nominal_candidate;
-        basename = "mppi_candidate_traj",
-        cert_result = nothing,
-        show_ellipsoids = false,
-        periodic_dims = cfg.periodic_dims,
-        periodic_periods = cfg.periodic_periods,
-        periodic_start = cfg.periodic_start,
-        phase_title = "simple_pendulum_mppi - candidate phase space",
-        state_title = "simple_pendulum_mppi - candidate states",
-        control_title = "simple_pendulum_mppi - candidate control",
-    )
-    save_pendulum_animation!(
-        run_result.outputs.animations_dir,
-        run_result.problem,
-        run_result.nominal_candidate;
-        basename = "mppi_candidate_traj",
-        cert_result = nothing,
-        show_ellipsoids = false,
-        periodic_dims = cfg.periodic_dims,
-        periodic_periods = cfg.periodic_periods,
-        periodic_start = cfg.periodic_start,
-        save_gif = cfg.plot_gif,
-        save_mp4 = cfg.plot_mp4,
-        title = "simple_pendulum_mppi - candidate",
-    )
+        save_pendulum_plots!(
+            run_result.outputs.plots_dir,
+            run_result.problem,
+            run_result.nominal_candidate;
+            basename = nominal_basename,
+            cert_result = nothing,
+            show_ellipsoids = false,
+            periodic_dims = cfg.periodic_dims,
+            periodic_periods = cfg.periodic_periods,
+            periodic_start = cfg.periodic_start,
+            phase_title = "simple_pendulum_mppi - candidate phase space",
+            state_title = "simple_pendulum_mppi - candidate states",
+            control_title = "simple_pendulum_mppi - candidate control",
+        )
+        save_pendulum_animation!(
+            run_result.outputs.animations_dir,
+            run_result.problem,
+            run_result.nominal_candidate;
+            basename = nominal_basename,
+            cert_result = nothing,
+            show_ellipsoids = false,
+            periodic_dims = cfg.periodic_dims,
+            periodic_periods = cfg.periodic_periods,
+            periodic_start = cfg.periodic_start,
+            save_gif = cfg.plot_gif,
+            save_mp4 = cfg.plot_mp4,
+            title = "simple_pendulum_mppi - candidate",
+        )
+    end
 
-    if run_result.result.certification.success && cfg.kappa_statistical_samples > 0
+    stat_result = nothing
+    if run_statistical &&
+       run_result.result.certification.success &&
+       cfg.kappa_statistical_samples > 0
         stat_result = run_kappa_statistical_check(
             run_result;
             n_samples = cfg.kappa_statistical_samples,
         )
-        save_kappa_statistical_plots!(
-            stat_result;
-            wrap_angles = true,
-            axis_labels_12 = (L"\theta\,[\mathrm{rad}]", L"\dot{\theta}\,[\mathrm{rad/s}]"),
-        )
-    elseif run_result.result.certification.success
+        if save_outputs
+            save_kappa_statistical_plots!(
+                stat_result;
+                output_dir = run_result.outputs.plots_dir,
+                basename = isempty(artifact_prefix) ? "kappa_statistical_rollouts" :
+                           "$(artifact_prefix)_statistical",
+                wrap_angles = true,
+                axis_labels_12 = (
+                    L"\theta\,[\mathrm{rad}]",
+                    L"\dot{\theta}\,[\mathrm{rad/s}]",
+                ),
+            )
+        end
+    elseif run_statistical && run_result.result.certification.success
         println("Skipping kappa statistical check because kappa_statistical_samples <= 0.")
-    else
+    elseif run_statistical
         println("Skipping kappa statistical check because certification failed.")
     end
 
-    return run_result
+    return merge(run_result, (; statistical = stat_result))
 end
 
 function run_simple_pendulum_certification_mode(; adaptive_linearization_boxes::Bool)

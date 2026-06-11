@@ -1,6 +1,13 @@
 include(joinpath(@__DIR__, "..", "helpers", "helpers.jl"))
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pendulum", "simple_pendulum.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "pendulum",
+        "simple_pendulum.jl",
+    ),
+)
 const SP = SimplePendulum
 
 Base.@kwdef struct SimplePendulumBenchmarkConfig
@@ -8,12 +15,12 @@ Base.@kwdef struct SimplePendulumBenchmarkConfig
     g::Float64 = 9.81
     objective::String = "benchmark_up_convex"
 
-    Δt::Float64 = 0.1
+    Δt::Float64 = 0.05
     hx::SVector{2, Float64} = SVector(5 * (pi / 180), 0.25)
     periodic_dims::SVector{1, Int} = SVector(1)
     periodic_periods::SVector{1, Float64} = SVector(2pi)
     periodic_start::SVector{1, Float64} = SVector(-pi)
-    nstep::Int = 160
+    nstep::Int = 6600
     trajectory_mode::Symbol = :abstract_traj
     input_values::Tuple{Vararg{Float64}} = Tuple(-2.3:0.25:2.3)
 
@@ -22,10 +29,8 @@ Base.@kwdef struct SimplePendulumBenchmarkConfig
     maxδx::Float64 = 80.0
     maxδu::Float64 = 40.0
     symbolic_rk4_substeps::Int = 1
-    ΔX::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.05, 0.05),
-        IA.interval(-0.05, 0.05),
-    )
+    ΔX::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.05, 0.05), IA.interval(-0.05, 0.05))
     ΔU::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(-0.05, 0.05), 1)
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
@@ -72,8 +77,8 @@ end
 function main(cfg::SimplePendulumBenchmarkConfig = SimplePendulumBenchmarkConfig())
     input_mapping = build_pendulum_input_mapping(cfg)
 
-    generator_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_simple_pendulum_generator(
+    generator_builder =
+        (problem, system_cfg, control_cfg, cfg_) -> build_simple_pendulum_generator(
             problem,
             system_cfg,
             control_cfg,
@@ -81,8 +86,9 @@ function main(cfg::SimplePendulumBenchmarkConfig = SimplePendulumBenchmarkConfig
             input_mapping = input_mapping,
         )
 
-    certifier_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_simple_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
+    certifier_builder =
+        (problem, system_cfg, control_cfg, cfg_) ->
+            build_simple_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
 
     save_artifacts! = function (run_result)
         save_pendulum_plots!(

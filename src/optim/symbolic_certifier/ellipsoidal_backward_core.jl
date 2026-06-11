@@ -28,6 +28,17 @@ struct AdaptiveLinearizationBoxOptions
     keep_first_consistent::Bool
 end
 
+struct EllipsoidalBackwardOptions
+    maxδx::Float64
+    maxδu::Float64
+    λ::Float64
+    terminal_radius::Float64
+    state_scaling::Union{Nothing, Matrix{Float64}}
+    terminal_center::Union{Nothing, Vector{Float64}}
+    terminal_shape::Union{Nothing, Matrix{Float64}}
+    adaptive_boxes::AdaptiveLinearizationBoxOptions
+end
+
 struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB}
     problem::P
     candidate::C
@@ -38,17 +49,10 @@ struct EllipsoidalBackwardContext{P, C, CFG, SYM, TX, TU, TS, TB}
     K::Int
     S::TS
     backend::TB
-    maxδx::Float64
-    maxδu::Float64
-    λ::Float64
-    terminal_radius::Float64
-    state_scaling::Union{Nothing, Vector{Float64}}
-    terminal_center::Union{Nothing, Vector{Float64}}
-    terminal_shape::Union{Nothing, Matrix{Float64}}
-    adaptive_boxes::AdaptiveLinearizationBoxOptions
+    options::EllipsoidalBackwardOptions
 end
 
-function _identity_transition_cost(nx::Int, nu::Int) # l'utilisateur devrait lui meme fournir la transi cost fonction (pour le moment c'est pratiqque)
+function _identity_transition_cost(nx::Int, nu::Int)
     return [
         Matrix{Float64}(LA.I, nx, nx) zeros(nx, nu) zeros(nx, 1)
         zeros(nu, nx) Matrix{Float64}(LA.I, nu, nu) zeros(nu, 1)
@@ -56,7 +60,12 @@ function _identity_transition_cost(nx::Int, nu::Int) # l'utilisateur devrait lui
     ]
 end
 
-function build_symbolic_context(problem, candidate, config, symbolic_builder) # je pourrais cancel ça et tout condenser
+function build_symbolic_context(
+    problem::DI.Problem.ProblemType,
+    candidate::DI.Optim.CandidateTrajectory,
+    config::EllipsoidalBackwardConfig,
+    symbolic_builder,
+)
     xs = collect(ST.enum_elems(candidate.x_traj))
     us = collect(ST.enum_elems(candidate.u_traj))
     K = length(us)
@@ -68,14 +77,7 @@ function build_symbolic_context(problem, candidate, config, symbolic_builder) # 
     nu = length(us[1])
     S = _identity_transition_cost(nx, nu)
 
-    opts = config.options
-    maxδx = Float64(opts.maxδx)
-    maxδu = Float64(opts.maxδu)
-    λ = Float64(opts.λ)
-    terminal_radius = Float64(opts.rayon_terminal)
-    state_scaling = _state_scaling(opts, nx)
-    terminal_center, terminal_shape = _terminal_ellipsoid_data(opts, nx)
-    adaptive_boxes = _adaptive_linearization_box_options(opts, sym, nx, nu)
+    opts = EllipsoidalBackwardOptions(config.options, sym, nx, nu)
 
     return EllipsoidalBackwardContext(
         problem,
@@ -87,208 +89,109 @@ function build_symbolic_context(problem, candidate, config, symbolic_builder) # 
         K,
         S,
         config.backend,
-        maxδx,
-        maxδu,
-        λ,
-        terminal_radius,
-        state_scaling,
-        terminal_center,
-        terminal_shape,
-        adaptive_boxes,
-    )
-end
-
-_option(opts, name::Symbol, default) = hasproperty(opts, name) ? getproperty(opts, name) : default
-
-function Base.getproperty(rec::BackwardStepRecord, name::Symbol)
-    name === :info && return getfield(rec, :summary)
-    return getfield(rec, name)
-end
-
-function Base.propertynames(rec::BackwardStepRecord; private::Bool = false)
-    names = fieldnames(typeof(rec))
-    return private ? (names..., :info) : (names..., :info)
-end
-
-function _interval_box_radii(Δ, n::Int, name::Symbol)
-    vals = collect(Δ)
-    length(vals) == n ||
-        throw(ArgumentError("$name must have length $n, got $(length(vals))"))
-    radii = [max(abs(Float64(IA.inf(I))), abs(Float64(IA.sup(I)))) for I in vals]
-    all(isfinite, radii) ||
-        throw(ArgumentError("$name entries must be finite"))
-    all(>=(0.0), radii) ||
-        throw(ArgumentError("$name entries must be nonnegative"))
-    return radii
-end
-
-function _vector_option(opts, name::Symbol, default::AbstractVector, n::Int; allow_inf::Bool = false)
-    raw = _option(opts, name, default)
-    v = Float64.(collect(raw))
-    length(v) == n ||
-        throw(ArgumentError("$name must have length $n, got $(length(v))"))
-    if allow_inf
-        all(!isnan, v) ||
-            throw(ArgumentError("$name entries must not be NaN"))
-    else
-        all(isfinite, v) ||
-            throw(ArgumentError("$name entries must be finite"))
-    end
-    all(>=(0.0), v) ||
-        throw(ArgumentError("$name entries must be nonnegative"))
-    return v
-end
-
-function _vector_option(opts, name::Symbol, default::AbstractVector; allow_inf::Bool = false)
-    raw = _option(opts, name, default)
-    v = Float64.(collect(raw))
-    if allow_inf
-        all(!isnan, v) ||
-            throw(ArgumentError("$name entries must not be NaN"))
-    else
-        all(isfinite, v) ||
-            throw(ArgumentError("$name entries must be finite"))
-    end
-    all(>=(0.0), v) ||
-        throw(ArgumentError("$name entries must be nonnegative"))
-    return v
-end
-
-function _adaptive_linearization_box_options(opts, sym, nx::Int, nu::Int)
-    default_ΔX = _interval_box_radii(sym.ΔX, nx, :ΔX)
-    default_ΔU = _interval_box_radii(sym.ΔU, nu, :ΔU)
-    enabled = Bool(_option(opts, :adaptive_linearization_boxes, false))
-
-    ΔX_initial = _vector_option(opts, :ΔX_initial, default_ΔX, nx)
-    ΔX_min = _vector_option(opts, :ΔX_min, zeros(nx), nx)
-    ΔX_max = _vector_option(opts, :ΔX_max, fill(Inf, nx), nx; allow_inf = true)
-    ΔU_initial = _vector_option(opts, :ΔU_initial, default_ΔU, nu)
-    ΔU_min = _vector_option(opts, :ΔU_min, zeros(nu), nu)
-    ΔU_max = _vector_option(opts, :ΔU_max, fill(Inf, nu), nu; allow_inf = true)
-
-    all(ΔX_max .>= ΔX_min) ||
-        throw(ArgumentError("ΔX_max must be componentwise >= ΔX_min"))
-    all(ΔU_max .>= ΔU_min) ||
-        throw(ArgumentError("ΔU_max must be componentwise >= ΔU_min"))
-
-    growth = Float64(_option(opts, :adaptive_box_growth, 2.0))
-    safety = Float64(_option(opts, :adaptive_box_safety, 1.05))
-    max_iters = Int(_option(opts, :adaptive_box_max_iters, 1))
-    atol = Float64(_option(opts, :adaptive_box_atol, 1.0e-8))
-    verbose = Bool(_option(opts, :adaptive_box_verbose, false))
-    search_scales = _vector_option(
         opts,
-        :adaptive_box_search_scales,
-        [0.7, 0.85, 1.0, 1.15, 1.35, 1.6, 2.0],
     )
-    objective = Symbol(_option(opts, :adaptive_box_objective, :max_volume))
-    keep_first_consistent = Bool(_option(opts, :adaptive_box_keep_first_consistent, false))
+end
 
-    isfinite(growth) && growth > 1.0 ||
-        throw(ArgumentError("adaptive_box_growth must be finite and > 1"))
-    isfinite(safety) && safety >= 1.0 ||
-        throw(ArgumentError("adaptive_box_safety must be finite and >= 1"))
-    max_iters >= 1 ||
-        throw(ArgumentError("adaptive_box_max_iters must be >= 1"))
-    isfinite(atol) && atol >= 0.0 ||
-        throw(ArgumentError("adaptive_box_atol must be finite and nonnegative"))
-    !isempty(search_scales) ||
-        throw(ArgumentError("adaptive_box_search_scales must not be empty"))
-    all(>(0.0), search_scales) ||
-        throw(ArgumentError("adaptive_box_search_scales entries must be strictly positive"))
-    objective in (:first_consistent, :max_volume) ||
-        throw(ArgumentError("adaptive_box_objective must be :first_consistent or :max_volume"))
+_floatvec(x) = Float64.(collect(x))
+
+function _interval_box_radii(Δ)
+    return [max(abs(Float64(IA.inf(I))), abs(Float64(IA.sup(I)))) for I in collect(Δ)]
+end
+
+function AdaptiveLinearizationBoxOptions(opts, sym, nx::Int, nu::Int)
+    default_ΔX = _interval_box_radii(sym.ΔX)
+    default_ΔU = _interval_box_radii(sym.ΔU)
+
+    ΔX_min = _floatvec(get(opts, :ΔX_min, zeros(nx)))
+    ΔU_min = _floatvec(get(opts, :ΔU_min, zeros(nu)))
 
     return AdaptiveLinearizationBoxOptions(
-        enabled,
-        max.(ΔX_initial, ΔX_min),
+        Bool(get(opts, :adaptive_linearization_boxes, false)),
+        max.(_floatvec(get(opts, :ΔX_initial, default_ΔX)), ΔX_min),
         ΔX_min,
-        ΔX_max,
-        max.(ΔU_initial, ΔU_min),
+        _floatvec(get(opts, :ΔX_max, fill(Inf, nx))),
+        max.(_floatvec(get(opts, :ΔU_initial, default_ΔU)), ΔU_min),
         ΔU_min,
-        ΔU_max,
-        growth,
-        safety,
-        max_iters,
-        atol,
-        verbose,
-        search_scales,
-        objective,
-        keep_first_consistent,
+        _floatvec(get(opts, :ΔU_max, fill(Inf, nu))),
+        Float64(get(opts, :adaptive_box_growth, 2.0)),
+        Float64(get(opts, :adaptive_box_safety, 1.05)),
+        Int(get(opts, :adaptive_box_max_iters, 1)),
+        Float64(get(opts, :adaptive_box_atol, 1.0e-8)),
+        Bool(get(opts, :adaptive_box_verbose, false)),
+        _floatvec(
+            get(opts, :adaptive_box_search_scales, [0.7, 0.85, 1.0, 1.15, 1.35, 1.6, 2.0]),
+        ),
+        Symbol(get(opts, :adaptive_box_objective, :max_volume)),
+        Bool(get(opts, :adaptive_box_keep_first_consistent, false)),
     )
 end
 
-function _state_scaling(opts, nx::Int)
-    raw = _option(opts, :state_scaling, nothing)
-    raw === nothing && return nothing
+function EllipsoidalBackwardOptions(opts, sym, nx::Int, nu::Int)
+    terminal_center, terminal_shape = _terminal_ellipsoid_data(
+        get(opts, :terminal_center, nothing),
+        get(opts, :terminal_shape, nothing),
+    )
 
-    s = Float64.(collect(raw))
-    length(s) == nx ||
-        throw(ArgumentError("state_scaling must have length $nx, got $(length(s))"))
-    all(isfinite, s) ||
-        throw(ArgumentError("state_scaling entries must be finite"))
-    all(>(0.0), s) ||
-        throw(ArgumentError("state_scaling entries must be strictly positive"))
-    return s
+    return EllipsoidalBackwardOptions(
+        Float64(opts.maxδx),
+        Float64(opts.maxδu),
+        Float64(opts.λ),
+        Float64(opts.rayon_terminal),
+        _state_scaling(get(opts, :state_scaling, nothing)),
+        terminal_center,
+        terminal_shape,
+        AdaptiveLinearizationBoxOptions(opts, sym, nx, nu),
+    )
 end
 
-function _terminal_ellipsoid_data(opts, nx::Int)
-    raw_center = _option(opts, :terminal_center, nothing)
-    raw_shape = _option(opts, :terminal_shape, nothing)
+EllipsoidalBackwardOptions(opts::EllipsoidalBackwardOptions, sym, nx::Int, nu::Int) = opts
 
-    (raw_center === nothing) == (raw_shape === nothing) ||
-        throw(ArgumentError("terminal_center and terminal_shape must be provided together"))
+function _state_scaling(raw)
+    raw === nothing && return nothing
+
+    if raw isa AbstractMatrix
+        return Matrix{Float64}(raw)
+    end
+
+    return Matrix{Float64}(LA.Diagonal(_floatvec(raw)))
+end
+
+function _terminal_ellipsoid_data(raw_center, raw_shape)
     raw_center === nothing && return nothing, nothing
-
-    c = Float64.(collect(raw_center))
-    length(c) == nx ||
-        throw(ArgumentError("terminal_center must have length $nx, got $(length(c))"))
-    all(isfinite, c) ||
-        throw(ArgumentError("terminal_center entries must be finite"))
-
-    P = Matrix{Float64}(raw_shape)
-    size(P) == (nx, nx) ||
-        throw(ArgumentError("terminal_shape must have size ($nx, $nx), got $(size(P))"))
-    all(isfinite, P) ||
-        throw(ArgumentError("terminal_shape entries must be finite"))
-    LA.norm(P - P', Inf) <= 1.0e-9 ||
-        throw(ArgumentError("terminal_shape must be symmetric"))
-    LA.isposdef(LA.Symmetric(P)) ||
-        throw(ArgumentError("terminal_shape must be positive definite"))
-
-    return c, Matrix(LA.Symmetric(P))
+    return _floatvec(raw_center), Matrix(LA.Symmetric(Matrix{Float64}(raw_shape)))
 end
 
 function _scale_target_ellipsoid(E, xnext, scaling)
     scaling === nothing && return E
     # Convention used here: E(c, P) = {x : (x-c)' P (x-c) <= 1}.
-    # With x = xnext + D*z, the normalized ellipsoid center is
-    # cz = D^{-1} * (c - xnext), not necessarily zero.
-    D = LA.Diagonal(scaling)
-    S = LA.Diagonal(1.0 ./ scaling)
-    Pz = Matrix(D' * Matrix(E.P) * D)
-    cz = collect(S * (collect(E.c) - collect(xnext)))
+    # With x = xnext + T*z, the normalized ellipsoid center is
+    # cz = T^{-1} * (c - xnext), not necessarily zero.
+    T = Matrix{Float64}(scaling)
+    Tinv = inv(T)
+    Pz = Matrix(T' * Matrix(E.P) * T)
+    cz = collect(Tinv * (collect(E.c) - collect(xnext)))
     return UT.Ellipsoid(Pz, cz)
 end
 
 function _unscale_source_ellipsoid(Ez, center, scaling)
     scaling === nothing && return Ez
     # Convention used here: E(c, P) = {x : (x-c)' P (x-c) <= 1}.
-    # Since z = D^{-1}(x-c), the physical ellipsoid has Px = D^{-T} * Pz * D^{-1}.
-    S = LA.Diagonal(1.0 ./ scaling)
-    Px = Matrix(S' * Matrix(Ez.P) * S)
+    # Since z = T^{-1}(x-c), the physical ellipsoid has Px = T^{-T} * Pz * T^{-1}.
+    Tinv = inv(Matrix{Float64}(scaling))
+    Px = Matrix(Tinv' * Matrix(Ez.P) * Tinv)
     return UT.Ellipsoid(Px, center)
 end
 
 function _scaled_affine_system(affsys, xk, xnext, scaling)
     scaling === nothing && return affsys
 
-    Dstate = LA.Diagonal(scaling)
-    Sstate = LA.Diagonal(1.0 ./ scaling)
-    A = Matrix(Sstate * affsys.A * Dstate)
-    B = Matrix(Sstate * affsys.B)
-    c = vec(Sstate * (affsys.A * xk + affsys.c - xnext))
-    Dnoise = Matrix(Sstate * affsys.D)
+    Tstate = Matrix{Float64}(scaling)
+    Tinv = inv(Tstate)
+    A = Matrix(Tinv * affsys.A * Tstate)
+    B = Matrix(Tinv * affsys.B)
+    c = vec(Tinv * (affsys.A * xk + affsys.c - xnext))
+    Dnoise = Matrix(Tinv * affsys.D)
     return MS.NoisyConstrainedAffineControlDiscreteSystem(
         A,
         B,
@@ -304,8 +207,10 @@ function _scaled_lipschitz(L, nx::Int, scaling)
     scaling === nothing && return L
     Ls = collect(Float64, L)
     # The first nx entries are interpreted as output-state remainder radii.
-    # They are scaled componentwise because z_next = D^{-1}(x_next - xnext_nominal).
-    Ls[1:nx] .= Ls[1:nx] ./ scaling
+    # For z_next = T^{-1}(x_next - xnext_nominal), bound the transformed
+    # interval remainder by the axis-aligned enclosure abs(T^{-1}) * Lx.
+    Tinv = inv(Matrix{Float64}(scaling))
+    Ls[1:nx] .= abs.(Tinv) * Ls[1:nx]
     return Ls
 end
 
@@ -313,17 +218,17 @@ function _scaled_transition_cost(S, xk, nu::Int, scaling)
     scaling === nothing && return S
 
     # In transition_backward, S is used as a linear factor S * [x; u; 1].
-    # With x = xk + D*z, use [x; u; 1] = T * [z; u; 1], hence Sz = S*T.
+    # With x = xk + Tstate*z, use [x; u; 1] = T * [z; u; 1], hence Sz = S*T.
     nx = length(xk)
     T = zeros(nx + nu + 1, nx + nu + 1)
-    T[1:nx, 1:nx] .= LA.Diagonal(scaling)
+    T[1:nx, 1:nx] .= Matrix{Float64}(scaling)
     T[1:nx, end] .= xk
     T[(nx + 1):(nx + nu), (nx + 1):(nx + nu)] .= Matrix{Float64}(LA.I, nu, nu)
     T[end, end] = 1.0
     return S * T
 end
 
-function _transition_backward_with_optional_scaling(
+function _transition_backward(
     affsys,
     E_next,
     xk,
@@ -385,7 +290,7 @@ function _transition_backward_with_optional_scaling(
 
     E_prev = _unscale_source_ellipsoid(UT.Ellipsoid(Pz, zeros(nx)), xk, state_scaling)
     Kz, ell = UT.get_controller_matrices(kappa_z)
-    Kx = Kz * LA.Diagonal(1.0 ./ state_scaling)
+    Kx = Kz * inv(Matrix{Float64}(state_scaling))
     cont = MS.AffineMap(Kx, ell - Kx * xk)
     return E_prev, cont, cost
 end
@@ -393,14 +298,6 @@ end
 function _centered_interval_box(center::AbstractVector, radius::AbstractVector)
     c = Float64.(collect(center))
     r = Float64.(collect(radius))
-    length(c) == length(r) ||
-        throw(ArgumentError("center and radius must have the same length"))
-    all(isfinite, c) ||
-        throw(ArgumentError("box center entries must be finite"))
-    all(isfinite, r) ||
-        throw(ArgumentError("box radius entries must be finite"))
-    all(>=(0.0), r) ||
-        throw(ArgumentError("box radius entries must be nonnegative"))
     return IA.IntervalBox(c .- r, c .+ r)
 end
 
@@ -416,18 +313,17 @@ function _ellipsoid_logvolume(E)
     return -sum(log, LA.diag(F.U))
 end
 
+function _controller_matrices(kappa::MS.AffineMap, nx::Int)
+    return Matrix{Float64}(kappa.A), vec(Float64.(kappa.c))
+end
+
+function _controller_matrices(kappa::AbstractMatrix, nx::Int)
+    K = Matrix{Float64}(kappa[:, 1:nx])
+    b = vec(Float64.(kappa[:, nx + 1]))
+    return K, b
+end
+
 function _controller_matrices(kappa, nx::Int)
-    if hasproperty(kappa, :A) && hasproperty(kappa, :b)
-        return Matrix{Float64}(getproperty(kappa, :A)), vec(Float64.(getproperty(kappa, :b)))
-    end
-    if hasproperty(kappa, :A) && hasproperty(kappa, :c)
-        return Matrix{Float64}(getproperty(kappa, :A)), vec(Float64.(getproperty(kappa, :c)))
-    end
-    if kappa isa AbstractMatrix
-        K = Matrix{Float64}(kappa[:, 1:nx])
-        b = vec(Float64.(kappa[:, nx + 1]))
-        return K, b
-    end
     K, b = UT.get_controller_matrices(kappa)
     return Matrix{Float64}(K), vec(Float64.(b))
 end
@@ -463,11 +359,8 @@ end
 _clamp_box_radii(δ::AbstractVector, δmin::AbstractVector, δmax::AbstractVector) =
     min.(max.(δ, δmin), δmax)
 
-_grow_infeasible_box_radii(
-    δ::AbstractVector,
-    δmax::AbstractVector,
-    growth::Float64,
-) = min.(growth .* δ, δmax)
+_grow_infeasible_box_radii(δ::AbstractVector, δmax::AbstractVector, growth::Float64) =
+    min.(growth .* δ, δmax)
 
 _grow_to_required_box_radii(
     required::AbstractVector,
@@ -476,23 +369,16 @@ _grow_to_required_box_radii(
     safety::Float64,
 ) = min.(max.(safety .* required, δmin), δmax)
 
-function _build_affine_approximation(ctx, xk, uk, wk, Xbar, Ubar, Wbar)
-    return ST.buildAffineApproximation( #
-        ctx.symbolic.fsymbolic,
-        ctx.symbolic.x,
-        ctx.symbolic.u,
-        ctx.symbolic.w,
-        xk,
-        uk,
-        wk,
-        Xbar,
-        Ubar,
-        Wbar,
-    )
-end
-
-function _solve_backward_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
-    return _transition_backward_with_optional_scaling(
+function _solve_transition(
+    ctx::EllipsoidalBackwardContext,
+    affineSys,
+    E_next,
+    xk,
+    xnext,
+    uk,
+    L,
+)
+    return _transition_backward(
         affineSys,
         E_next,
         xk,
@@ -503,10 +389,10 @@ function _solve_backward_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
         ctx.S,
         L,
         ctx.backend;
-        maxδx = ctx.maxδx,
-        maxδu = ctx.maxδu,
-        λ = ctx.λ,
-        state_scaling = ctx.state_scaling,
+        maxδx = ctx.options.maxδx,
+        maxδu = ctx.options.maxδu,
+        λ = ctx.options.λ,
+        state_scaling = ctx.options.state_scaling,
     )
 end
 
@@ -520,38 +406,39 @@ function _fixed_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
     Ubar = IA.IntervalBox(uk .+ ctx.symbolic.ΔU)
     Wbar = IA.IntervalBox(wk .+ ctx.symbolic.ΔW)
 
-    affineSys, L = _build_affine_approximation(ctx, xk, uk, wk, Xbar, Ubar, Wbar)
+    affineSys, L = ST.buildAffineApproximation(
+        ctx.symbolic.fsymbolic,
+        ctx.symbolic.x,
+        ctx.symbolic.u,
+        ctx.symbolic.w,
+        xk,
+        uk,
+        wk,
+        Xbar,
+        Ubar,
+        Wbar,
+    )
 
-    E_prev, kappa, cost =
-        _solve_backward_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
-    Xbar_radius = _interval_box_radii(ctx.symbolic.ΔX, length(xk), :ΔX)
-    Ubar_radius = _interval_box_radii(ctx.symbolic.ΔU, length(uk), :ΔU)
+    E_prev, kappa, cost = _solve_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
+    Xbar_radius = _interval_box_radii(ctx.symbolic.ΔX)
+    Ubar_radius = _interval_box_radii(ctx.symbolic.ΔU)
 
     if E_prev === nothing || kappa === nothing
-        println("My transi is impossible")
         return BackwardStepRecord(
             k,
             :infeasible,
             nothing,
             nothing,
             nothing,
-            (;
+            _step_summary(
                 L,
                 Xbar_radius,
                 Ubar_radius,
-                required_X_radius = nothing,
-                required_U_radius = nothing,
-                adaptive_box_iters = 1,
-                adaptive_box_status = :fixed_infeasible,
-                selected_logvolume = nothing,
-                selected_scale = nothing,
-                selected_candidate_index = nothing,
-                number_of_candidate_boxes = 0,
-                candidate_scales = Float64[],
-                candidate_logvolumes = Union{Nothing, Float64}[],
-                candidate_statuses = Symbol[],
-                candidate_Xbar_radii = Vector{Float64}[],
-                candidate_Ubar_radii = Vector{Float64}[],
+                nothing,
+                nothing,
+                1,
+                :fixed_infeasible;
+                _candidate_diagnostics_empty()...,
             ),
         )
     end
@@ -565,23 +452,15 @@ function _fixed_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
         Float64(cost),
         E_prev,
         kappa,
-        (;
+        _step_summary(
             L,
             Xbar_radius,
             Ubar_radius,
             required_X_radius,
             required_U_radius,
-            adaptive_box_iters = 1,
-            adaptive_box_status = :fixed,
-            selected_logvolume = nothing,
-            selected_scale = nothing,
-            selected_candidate_index = nothing,
-            number_of_candidate_boxes = 0,
-            candidate_scales = Float64[],
-            candidate_logvolumes = Union{Nothing, Float64}[],
-            candidate_statuses = Symbol[],
-            candidate_Xbar_radii = Vector{Float64}[],
-            candidate_Ubar_radii = Vector{Float64}[],
+            1,
+            :fixed;
+            _candidate_diagnostics_empty()...,
         ),
     )
 end
@@ -596,7 +475,7 @@ function _candidate_diagnostics_empty()
     )
 end
 
-function _record_info(
+function _step_summary(
     L,
     δx,
     δu,
@@ -648,9 +527,19 @@ function _evaluate_adaptive_box_candidate(
 )
     Xbar = _centered_interval_box(xk, δx)
     Ubar = _centered_interval_box(uk, δu)
-    affineSys, L = _build_affine_approximation(ctx, xk, uk, wk, Xbar, Ubar, Wbar)
-    E_prev, kappa, cost =
-        _solve_backward_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
+    affineSys, L = ST.buildAffineApproximation(
+        ctx.symbolic.fsymbolic,
+        ctx.symbolic.x,
+        ctx.symbolic.u,
+        ctx.symbolic.w,
+        xk,
+        uk,
+        wk,
+        Xbar,
+        Ubar,
+        Wbar,
+    )
+    E_prev, kappa, cost = _solve_transition(ctx, affineSys, E_next, xk, xnext, uk, L)
 
     if E_prev === nothing || kappa === nothing
         return (;
@@ -686,12 +575,8 @@ function _evaluate_adaptive_box_candidate(
         )
     end
 
-    logvolume = try
-        _ellipsoid_logvolume(E_prev)
-    catch
-        nothing
-    end
-    if logvolume === nothing || !isfinite(logvolume)
+    logvolume = _ellipsoid_logvolume(E_prev)
+    if !isfinite(logvolume)
         return (;
             status = :invalid_logvolume,
             L,
@@ -736,7 +621,7 @@ function _candidate_diagnostics_tuple(diag)
 end
 
 function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
-    opts = ctx.adaptive_boxes
+    opts = ctx.options.adaptive_boxes
     xk = collect(ctx.xs[k])
     xnext = collect(ctx.xs[k + 1])
     uk = collect(ctx.us[k])
@@ -796,7 +681,7 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
         last_required_X = result.required_X_radius
         last_required_U = result.required_U_radius
 
-        if result.status == :ok || result.status == :invalid_logvolume
+        if result.status == :ok
             opts.verbose && println(
                 "[adaptive-box] k=",
                 k,
@@ -815,12 +700,7 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
                 " logvolume=",
                 result.logvolume,
             )
-            base = (;
-                δx = copy(δx),
-                δu = copy(δu),
-                result,
-                iter,
-            )
+            base = (; δx = copy(δx), δu = copy(δu), result, iter)
             if opts.keep_first_consistent || opts.objective == :first_consistent
                 return BackwardStepRecord(
                     k,
@@ -828,7 +708,7 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
                     Float64(result.cost),
                     result.E_prev,
                     result.kappa,
-                    _record_info(
+                    _step_summary(
                         result.L,
                         δx,
                         δu,
@@ -976,7 +856,7 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
             Float64(best.result.cost),
             best.result.E_prev,
             best.result.kappa,
-            _record_info(
+            _step_summary(
                 best.result.L,
                 best.δx,
                 best.δu,
@@ -1015,55 +895,41 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
         nothing,
         nothing,
         nothing,
-        (;
-            L = last_L,
-            Xbar_radius = copy(δx),
-            Ubar_radius = copy(δu),
-            required_X_radius = last_required_X,
-            required_U_radius = last_required_U,
-            adaptive_box_iters = last_iter,
-            adaptive_box_status = last_status,
-            selected_logvolume = nothing,
-            selected_scale = nothing,
-            selected_candidate_index = nothing,
-            number_of_candidate_boxes = 0,
+        _step_summary(
+            last_L,
+            δx,
+            δu,
+            last_required_X,
+            last_required_U,
+            last_iter,
+            last_status;
             _candidate_diagnostics_empty()...,
         ),
     )
 end
 
 function backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
-    ctx.adaptive_boxes.enabled && return _adaptive_backward_step!(ctx, k, E_next)
+    ctx.options.adaptive_boxes.enabled && return _adaptive_backward_step!(ctx, k, E_next)
     return _fixed_backward_step!(ctx, k, E_next)
 end
 
 function _collect_kappas(steps::AbstractVector{<:BackwardStepRecord})
-    first_idx = findfirst(step -> step.kappa !== nothing, steps)
-    first_idx === nothing && return Nothing[]
-
-    κ1 = steps[first_idx].kappa
-    kappas = Vector{typeof(κ1)}()
-
-    for step in steps
-        κ = step.kappa
-        κ === nothing && continue
-        push!(kappas, κ)
-    end
-
-    return kappas
+    valid_steps = filter(step -> step.kappa !== nothing, steps)
+    isempty(valid_steps) && return Nothing[]
+    return getproperty.(valid_steps, :kappa)
 end
 
 function run_backward_chain!(ctx::EllipsoidalBackwardContext)
     t0 = time()
 
     nx = length(ctx.xs[end])
-    E_next = if ctx.terminal_center !== nothing && ctx.terminal_shape !== nothing
-        UT.Ellipsoid(ctx.terminal_shape, ctx.terminal_center)
+    opts = ctx.options
+    E_next = if opts.terminal_center !== nothing && opts.terminal_shape !== nothing
+        UT.Ellipsoid(opts.terminal_shape, opts.terminal_center)
     else
-        PN = Matrix{Float64}(LA.I, nx, nx) * (1.0 / ctx.terminal_radius^2)
+        PN = Matrix{Float64}(LA.I, nx, nx) * (1.0 / opts.terminal_radius^2)
         UT.Ellipsoid(PN, collect(ctx.xs[end]))
     end
-    
 
     steps = BackwardStepRecord[]
     ellipsoids = [E_next]
@@ -1071,7 +937,7 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
     for k in ctx.K:-1:1
         rec = backward_step!(ctx, k, E_next)
         push!(steps, rec)
-       
+
         if rec.status == :infeasible
             return EllipsoidalCertificationResult(
                 false,
@@ -1082,13 +948,9 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
                 (; ellipsoids, kappas = _collect_kappas(steps)),
             )
         end
-        
-        #println("[",k,"] is a succes\n")
+
         E_next = rec.ellipsoid
-        
-        #println("the volume is ",UT.get_volume(E_next),"\n\n")
         push!(ellipsoids, rec.ellipsoid)
-        #println(E_next,"\n\n")
     end
 
     kappas = _collect_kappas(steps)

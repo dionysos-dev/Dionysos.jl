@@ -2,7 +2,14 @@ include(joinpath(@__DIR__, "..", "helpers", "helpers.jl"))
 import MathematicalSystems as MS
 import Random
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pendulum", "double_pendulum.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "pendulum",
+        "double_pendulum.jl",
+    ),
+)
 const DP = DoublePendulum
 
 Base.@kwdef struct DoublePendulumMPPIConfig
@@ -13,18 +20,18 @@ Base.@kwdef struct DoublePendulumMPPIConfig
     g::Float64 = 9.81
     objective::String = "benchmark_up_convex"
 
-    Δt::Float64 = 0.11
+    Δt::Float64 = 0.05
     hx::SVector{4, Float64} = SVector(5 * (pi / 180), 5 * (pi / 180), 0.25, 0.25)
     periodic_dims::SVector{2, Int} = SVector(1, 2)
     periodic_periods::SVector{2, Float64} = SVector(2pi, 2pi)
     periodic_start::SVector{2, Float64} = SVector(-pi, -pi)
-    nstep::Int = 41
-    input_values::Tuple{Vararg{Float64}} = vals_tuple = Tuple(-3.5:0.25:3.5)
+    nstep::Int = 51
+    input_values::Tuple{Vararg{Float64}} = vals_tuple = Tuple(-6.5:0.25:6.5)
 
     terminal_radius::Float64 = 0.3
     λ::Float64 = 0.0000005
-    maxδx::Float64 = 120.0
-    maxδu::Float64 = 60.0
+    maxδx::Float64 = 180.0
+    maxδu::Float64 = 160.0
     symbolic_rk4_substeps::Int = 1
     ΔX::IA.IntervalBox{4, Float64} = IA.IntervalBox(
         IA.interval(-0.01, 0.01),
@@ -161,7 +168,8 @@ function build_double_pendulum_mppi_generator(
     end
 
     success_fun =
-        (prob, cand) -> any(x -> (wrap_state(x) ∈ prob.target_set), ST.enum_elems(cand.x_traj))
+        (prob, cand) ->
+            any(x -> (wrap_state(x) ∈ prob.target_set), ST.enum_elems(cand.x_traj))
 
     mppi_cfg = OP.MPPIConfig(
         cfg.Δt,
@@ -200,8 +208,8 @@ function main(cfg::DoublePendulumMPPIConfig = DoublePendulumMPPIConfig())
 
     input_mapping = build_double_pendulum_input_mapping(cfg)
 
-    generator_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_double_pendulum_mppi_generator(
+    generator_builder =
+        (problem, system_cfg, control_cfg, cfg_) -> build_double_pendulum_mppi_generator(
             problem,
             system_cfg,
             control_cfg,
@@ -209,8 +217,9 @@ function main(cfg::DoublePendulumMPPIConfig = DoublePendulumMPPIConfig())
             input_mapping = input_mapping,
         )
 
-    certifier_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_double_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
+    certifier_builder =
+        (problem, system_cfg, control_cfg, cfg_) ->
+            build_double_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
 
     save_artifacts! = function (run_result)
         save_double_pendulum_plots!(
@@ -251,8 +260,10 @@ function main(cfg::DoublePendulumMPPIConfig = DoublePendulumMPPIConfig())
     run_result = run_benchmark(
         cfg;
         scenario_name = "double_pendulum_mppi",
-        build_concrete_system = () -> build_double_pendulum_system_cfg(cfg; pendulum_module = DP),
-        build_control_problem = () -> build_double_pendulum_control_cfg(cfg; pendulum_module = DP),
+        build_concrete_system = () ->
+            build_double_pendulum_system_cfg(cfg; pendulum_module = DP),
+        build_control_problem = () ->
+            build_double_pendulum_control_cfg(cfg; pendulum_module = DP),
         generator_builder = generator_builder,
         certifier_builder = certifier_builder,
         save_artifacts! = save_artifacts!,
@@ -329,7 +340,6 @@ function main(cfg::DoublePendulumMPPIConfig = DoublePendulumMPPIConfig())
 
     stat_result = run_kappa_statistical_check(run_result; n_samples = 500)
     save_kappa_statistical_plots!(stat_result; wrap_angles = true)
-
 
     return run_result
 end

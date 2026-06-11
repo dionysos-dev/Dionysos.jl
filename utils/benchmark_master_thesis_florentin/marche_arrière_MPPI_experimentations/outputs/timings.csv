@@ -1,0 +1,7 @@
+metric,seconds
+abstract_trajectory_sec,45.04120898246765
+mppi_sec,29.695075035095215
+mppi_with_seed_sec,74.73628401756287
+lmi_sec,316.1405830383301
+total_sec,395.040242459
+total_components_sec,390.87686705589294

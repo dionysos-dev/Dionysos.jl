@@ -545,7 +545,7 @@ function transition_backward(
                     beta[i, j]*eye(nx) z t(At)
                     t(z) 1-beta[i, j] t(aux)
                     At aux inv(P2)
-                ] >= eye(2 * nx + 1) * 1e-8, # en gros pour le moment dans le backward bench on converge à 1e-6 donc j'ai baissé la tolérance
+                ] >= eye(2 * nx + 1) * 1e-8,
                 PSDCone()
             )
         end
@@ -581,14 +581,14 @@ function transition_backward(
             ϕ*eye(nx) z t(F)
             t(z) δu-ϕ t(ell - u)
             (F) (ell-u) eye(nu)
-        ] >= eye(nx + nu + 1) * 1e-8, # c'est cela qui pose problème
+        ] >= eye(nx + nu + 1) * 1e-8,
         PSDCone()
     )
 
     @constraint(model, [
         eye(nx) t(L)
         L δx*eye(nx)
-    ] >= eye(nx * 2) * 1e-8, PSDCone()) # en changeant la tolérance, on passe de quelques LMI solve à tous (infeasible -> optimal) 
+    ] >= eye(nx * 2) * 1e-8, PSDCone())
 
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)

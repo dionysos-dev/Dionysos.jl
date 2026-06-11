@@ -34,7 +34,7 @@ function parse_args(args)
     verbose = false
     for a in args
         if startswith(a, "--traj=")
-            v = lowercase(split(a, "=", limit = 2)[2])
+            v = lowercase(split(a, "="; limit = 2)[2])
             if v == "permis_e"
                 traj = :permis_e
             elseif v == "permis_b"
@@ -43,7 +43,7 @@ function parse_args(args)
                 error("--traj must be permis_e or permis_b")
             end
         elseif startswith(a, "--nsteps=")
-            nsteps = parse(Int, split(a, "=", limit = 2)[2])
+            nsteps = parse(Int, split(a, "="; limit = 2)[2])
         elseif a == "--no-unwrap"
             unwrap = false
         elseif a == "--verbose"
@@ -102,18 +102,36 @@ function _load_trajectory(cfg::CompareConfig)
         us = pb_lmi.input_list
         Ts = pb_run.Δt
         problem = _make_problem_from_pb_run(pb_run)
-        return (; xs, us, Ts, problem, params_pb = pb_run.params, params_pe = nothing, av_mod = PBRef.AV)
+        return (;
+            xs,
+            us,
+            Ts,
+            problem,
+            params_pb = pb_run.params,
+            params_pe = nothing,
+            av_mod = PBRef.AV,
+        )
     end
 
     pe_nom = PERef.get_nominal_traje()
     pe_nom.candidate === nothing && error("Permis_E candidate is nothing.")
     xs_raw = collect(ST.enum_elems(pe_nom.candidate.x_traj))
     us = collect(ST.enum_elems(pe_nom.candidate.u_traj))
-    xs = cfg.unwrap ? PBRef.unwrap_periodic_state_list(xs_raw, SVector(3, 4), SVector(2pi, 2pi)) : xs_raw
+    xs =
+        cfg.unwrap ?
+        PBRef.unwrap_periodic_state_list(xs_raw, SVector(3, 4), SVector(2pi, 2pi)) : xs_raw
 
     params_pb = PBRef.AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
     params_pe = PERef.AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
-    return (; xs, us, Ts = pe_nom.candidate.Ts, problem = pe_nom.problem, params_pb, params_pe, av_mod = PERef.AV)
+    return (;
+        xs,
+        us,
+        Ts = pe_nom.candidate.Ts,
+        problem = pe_nom.problem,
+        params_pb,
+        params_pe,
+        av_mod = PERef.AV,
+    )
 end
 
 function _make_new_context(problem, xs, us, Ts, av_mod, params, lmi_cfg)
@@ -183,7 +201,8 @@ function _linearize_ctx(ctx, xk, uk)
     return affineSys, L
 end
 
-_backend(ctx) = hasproperty(ctx, :backend) ? getproperty(ctx, :backend) : getproperty(ctx, :sdp_opt)
+_backend(ctx) =
+    hasproperty(ctx, :backend) ? getproperty(ctx, :backend) : getproperty(ctx, :sdp_opt)
 
 function _terminal_ellipsoid(xs, radius)
     nx = length(xs[end])
@@ -191,7 +210,15 @@ function _terminal_ellipsoid(xs, radius)
     return UT.Ellipsoid(P, _vecf(xs[end]))
 end
 
-function compare_stepwise(old_ctx, new_ctx, xs, us, lmi_cfg; nsteps::Int = 0, verbose::Bool = false)
+function compare_stepwise(
+    old_ctx,
+    new_ctx,
+    xs,
+    us,
+    lmi_cfg;
+    nsteps::Int = 0,
+    verbose::Bool = false,
+)
     n_u = length(us)
     n_use = nsteps <= 0 ? n_u : min(nsteps, n_u)
 
@@ -283,41 +310,38 @@ function compare_stepwise(old_ctx, new_ctx, xs, us, lmi_cfg; nsteps::Int = 0, ve
                 dL,
             )
             if st_old == st_new
-                common_failure = (;
-                    j,
-                    i_state,
-                    status = st_old,
-                    dA,
-                    dB,
-                    dc_aff,
-                    dD,
-                    dL,
-                )
+                common_failure = (; j, i_state, status = st_old, dA, dB, dc_aff, dD, dL)
             else
-                first_mismatch = (;
-                    j,
-                    i_state,
-                    st_old,
-                    st_new,
-                    dA,
-                    dB,
-                    dc_aff,
-                    dD,
-                    dL,
-                )
+                first_mismatch = (; j, i_state, st_old, st_new, dA, dB, dc_aff, dD, dL)
             end
             break
         end
 
         if verbose
-            @printf("  volumes old/new: %.12e / %.12e\n", UT.get_volume(E_old), UT.get_volume(E_new))
+            @printf(
+                "  volumes old/new: %.12e / %.12e\n",
+                UT.get_volume(E_old),
+                UT.get_volume(E_new)
+            )
         end
     end
 
     if first_mismatch !== nothing
-        println("Result: OLD/NEW mismatch at j=", first_mismatch.j, " (i_state=", first_mismatch.i_state, ")")
+        println(
+            "Result: OLD/NEW mismatch at j=",
+            first_mismatch.j,
+            " (i_state=",
+            first_mismatch.i_state,
+            ")",
+        )
     elseif common_failure !== nothing
-        println("Result: identical behavior, common failure at j=", common_failure.j, " (i_state=", common_failure.i_state, ")")
+        println(
+            "Result: identical behavior, common failure at j=",
+            common_failure.j,
+            " (i_state=",
+            common_failure.i_state,
+            ")",
+        )
     else
         println("Result: no mismatch found on tested steps.")
     end
@@ -347,9 +371,18 @@ function main(args = ARGS)
     old_ctx = PBRef.build_symbolic_lmi_context(run_like, lmi_cfg)
 
     params_new = data.params_pe === nothing ? data.params_pb : data.params_pe
-    new_ctx = _make_new_context(data.problem, xs, us, data.Ts, data.av_mod, params_new, lmi_cfg)
+    new_ctx =
+        _make_new_context(data.problem, xs, us, data.Ts, data.av_mod, params_new, lmi_cfg)
 
-    compare_stepwise(old_ctx, new_ctx, xs, us, lmi_cfg; nsteps = cfg.nsteps, verbose = cfg.verbose)
+    return compare_stepwise(
+        old_ctx,
+        new_ctx,
+        xs,
+        us,
+        lmi_cfg;
+        nsteps = cfg.nsteps,
+        verbose = cfg.verbose,
+    )
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

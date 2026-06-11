@@ -1,6 +1,13 @@
 include(joinpath(@__DIR__, "..", "helpers", "helpers.jl"))
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pendulum", "double_pendulum.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "pendulum",
+        "double_pendulum.jl",
+    ),
+)
 const DP = DoublePendulum
 
 Base.@kwdef struct DoublePendulumBenchmarkConfig
@@ -11,14 +18,14 @@ Base.@kwdef struct DoublePendulumBenchmarkConfig
     g::Float64 = 9.81
     objective::String = "benchmark_up_convex"
 
-    Δt::Float64 = 0.1
+    Δt::Float64 = 0.05
     hx::SVector{4, Float64} = SVector(5 * (pi / 180), 5 * (pi / 180), 0.25, 0.25)
     periodic_dims::SVector{2, Int} = SVector(1, 2)
     periodic_periods::SVector{2, Float64} = SVector(2pi, 2pi)
     periodic_start::SVector{2, Float64} = SVector(-pi, -pi)
     nstep::Int = 300
     trajectory_mode::Symbol = :abstract_traj
-    input_values::Tuple{Vararg{Float64}} = vals_tuple = Tuple(-3.5:0.25:3.5)
+    input_values::Tuple{Vararg{Float64}} = vals_tuple = Tuple(-6.5:0.25:6.5)
 
     terminal_radius::Float64 = 1.5
     λ::Float64 = 0.05
@@ -84,8 +91,8 @@ end
 function main(cfg::DoublePendulumBenchmarkConfig = DoublePendulumBenchmarkConfig())
     input_mapping = build_double_pendulum_input_mapping(cfg)
 
-    generator_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_double_pendulum_generator(
+    generator_builder =
+        (problem, system_cfg, control_cfg, cfg_) -> build_double_pendulum_generator(
             problem,
             system_cfg,
             control_cfg,
@@ -93,8 +100,9 @@ function main(cfg::DoublePendulumBenchmarkConfig = DoublePendulumBenchmarkConfig
             input_mapping = input_mapping,
         )
 
-    certifier_builder = (problem, system_cfg, control_cfg, cfg_) ->
-        build_double_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
+    certifier_builder =
+        (problem, system_cfg, control_cfg, cfg_) ->
+            build_double_pendulum_certifier(problem, system_cfg, control_cfg, cfg_)
 
     save_artifacts! = function (run_result)
         save_double_pendulum_plots!(
@@ -133,8 +141,10 @@ function main(cfg::DoublePendulumBenchmarkConfig = DoublePendulumBenchmarkConfig
     return run_benchmark(
         cfg;
         scenario_name = "double_pendulum",
-        build_concrete_system = () -> build_double_pendulum_system_cfg(cfg; pendulum_module = DP),
-        build_control_problem = () -> build_double_pendulum_control_cfg(cfg; pendulum_module = DP),
+        build_concrete_system = () ->
+            build_double_pendulum_system_cfg(cfg; pendulum_module = DP),
+        build_control_problem = () ->
+            build_double_pendulum_control_cfg(cfg; pendulum_module = DP),
         generator_builder = generator_builder,
         certifier_builder = certifier_builder,
         save_artifacts! = save_artifacts!,

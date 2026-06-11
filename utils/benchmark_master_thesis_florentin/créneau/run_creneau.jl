@@ -19,7 +19,7 @@ Base.@kwdef struct MarcheArriereConfig
     periodic_start::SVector{2, Float64} = SVector(-pi, -pi)
     nstep::Int = 300
 
-    terminal_radius::Float64 = 0.45 
+    terminal_radius::Float64 = 0.45
     λ::Float64 = 0.001
     maxδx::Float64 = 100.0
     maxδu::Float64 = 200.0
@@ -30,10 +30,8 @@ Base.@kwdef struct MarcheArriereConfig
         IA.interval(-0.1, 0.1),
         IA.interval(-0.1, 0.1),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-0.1, 0.1),
-        IA.interval(-0.1, 0.1),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-0.1, 0.1), IA.interval(-0.1, 0.1))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
 
     output_root::String = joinpath(@__DIR__, "outputs")
@@ -44,16 +42,12 @@ Base.@kwdef struct MarcheArriereConfig
     verbose::Bool = false
 end
 
-
 ######################################################
 ############[INITIALISATION DU BENCHMARK]#############
 ######################################################
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(0.0, 0.0, -pi, -pi),
-        SVector(21.0,5.6, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(0.0, 0.0, -pi, -pi), SVector(21.0, 5.6, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(65.0))
 
     obstacles_xy = [
@@ -62,7 +56,7 @@ function build_concrete_system()
     ]
     x_domain = AV.with_xy_obstacles(x_domain; obstacles2d = obstacles_xy)
 
-    δ_max = 0.959931 
+    δ_max = 0.959931
     σ_max = tan(δ_max)
     u_domain = UT.HyperRectangle(SVector(-5.0, -σ_max), SVector(5.0, σ_max))
 
@@ -77,14 +71,16 @@ function build_input_mapping()
         [-2.0, 0.0], # vitesse sans angle
         [0.0, 0.0],
         [2.0, 0.0],
-        [-1.0, 0.1],[-1.0, -0.1],
-        [1.0, 0.1],[1.0, -0.1],
-        
-
-        [-1.0, 0.35],[-1.0, -0.35],
-        [1.0, 0.35],[1.0, -0.35],
-
-        [-1.0, 0.5],[-1.0, -0.5],
+        [-1.0, 0.1],
+        [-1.0, -0.1],
+        [1.0, 0.1],
+        [1.0, -0.1],
+        [-1.0, 0.35],
+        [-1.0, -0.35],
+        [1.0, 0.35],
+        [1.0, -0.35],
+        [-1.0, 0.5],
+        [-1.0, -0.5],
     ]
 
     inputs = [[u[1], tan(u[2])] for u in inputs_delta]
@@ -97,12 +93,12 @@ function build_control_problem()
 
     initial_set = UT.HyperRectangle(
         SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
-        SVector(20.6, 4.5,  deg2rad(3.0),  deg2rad(2.0)),
+        SVector(20.6, 4.5, deg2rad(3.0), deg2rad(2.0)),
     )
 
     target_set = UT.HyperRectangle(
         SVector(10.0, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
-        SVector(12.8, 1.6,  deg2rad(6.0),  deg2rad(3.0)),
+        SVector(12.8, 1.6, deg2rad(6.0), deg2rad(3.0)),
     )
 
     return (; x0, initial_set, target_set)
@@ -118,7 +114,6 @@ function main(cfg::MarcheArriereConfig = MarcheArriereConfig())
         input_mapping = build_input_mapping(),
     )
 end
-
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()

@@ -8,6 +8,7 @@ const ST = DI.System
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+const CenteredAbstractionOptimizer = AB.UniformGridAbstraction.Optimizer{Float64}
 
 struct CenteredAbstractionConfig{TH, TU, TJ, TP, FX0}
     Δt::Float64
@@ -18,9 +19,6 @@ struct CenteredAbstractionConfig{TH, TU, TJ, TP, FX0}
     nstep::Int
     num_substeps::Int
     x0_provider::FX0
-    # Choix de la trajectoire candidate :
-    # - :closed_loop   -> simulation avec le controleur concret
-    # - :abstract_traj -> reconstruction depuis les etats abstraits
     trajectory_mode::Symbol
 end
 
@@ -48,7 +46,6 @@ function CenteredAbstractionConfig(
     )
 end
 
-# Compatibilite avec l'ancienne arite positionnelle qui expose num_substeps.
 function CenteredAbstractionConfig(
     Δt::Real,
     hx,
@@ -73,24 +70,31 @@ function CenteredAbstractionConfig(
     )
 end
 
-mutable struct CenteredAbstractionGenerator{P, C, O, CT} <: AbstractHeuristicGenerator
+mutable struct CenteredAbstractionGenerator{
+    P <: DI.Problem.ProblemType,
+    C <: CenteredAbstractionConfig,
+} <: AbstractHeuristicGenerator
     problem::Union{Nothing, P}
     config::C
-    optimizer::Union{Nothing, O}
-    candidate::Union{Nothing, CT}
+    optimizer::Union{Nothing, CenteredAbstractionOptimizer}
+    candidate::Union{Nothing, CandidateTrajectory}
     success::Bool
     solve_time_sec::Float64
 end
 
-function CenteredAbstractionGenerator(problem, config)
-    P = problem === nothing ? DI.Problem.ProblemType : typeof(problem)
-    return CenteredAbstractionGenerator{
-        P,
-        typeof(config),
-        MOI.AbstractOptimizer,
-        CandidateTrajectory,
-    }(
-        problem,
+function CenteredAbstractionGenerator(
+    problem::P,
+    config::C,
+) where {P <: DI.Problem.ProblemType, C <: CenteredAbstractionConfig}
+    return CenteredAbstractionGenerator{P, C}(problem, config, nothing, nothing, false, 0.0)
+end
+
+function CenteredAbstractionGenerator(
+    ::Nothing,
+    config::C,
+) where {C <: CenteredAbstractionConfig}
+    return CenteredAbstractionGenerator{DI.Problem.ProblemType, C}(
+        nothing,
         config,
         nothing,
         nothing,
@@ -99,27 +103,17 @@ function CenteredAbstractionGenerator(problem, config)
     )
 end
 
-function _periodicity(cfg::CenteredAbstractionConfig)
-    p = cfg.periodicity
-    p === nothing && return nothing
-    p isa NamedTuple || error("cfg.periodicity must be nothing or a NamedTuple")
+CenteredAbstractionGenerator(config::CenteredAbstractionConfig) =
+    CenteredAbstractionGenerator(nothing, config)
 
-    ks = Tuple(keys(p))
-    required = (:with_period, :periodic_dims, :periodic_periods)
-    allowed = (:with_period, :periodic_dims, :periodic_periods, :periodic_start)
+_periodicity(cfg::CenteredAbstractionConfig) = cfg.periodicity
 
-    for k in required
-        k in ks || error("cfg.periodicity is missing required key: $(k)")
-    end
-    for k in ks
-        k in allowed || error("cfg.periodicity has unsupported key: $(k)")
-    end
-    p.with_period isa Bool || error("cfg.periodicity.with_period must be Bool")
-
-    return p
-end
-
-function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfig, p)
+function _configure_optimizer!(
+    optimizer::CenteredAbstractionOptimizer,
+    problem::DI.Problem.ProblemType,
+    cfg::CenteredAbstractionConfig,
+    p,
+)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), cfg.hx)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("UMapping"), cfg.Udom)
@@ -135,9 +129,17 @@ function _configure_optimizer!(optimizer, problem, cfg::CenteredAbstractionConfi
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), p.with_period)
         if p.with_period
             MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), p.periodic_dims)
-            MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), p.periodic_periods)
+            MOI.set(
+                optimizer,
+                MOI.RawOptimizerAttribute("periodic_periods"),
+                p.periodic_periods,
+            )
             if hasproperty(p, :periodic_start)
-                MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), p.periodic_start)
+                MOI.set(
+                    optimizer,
+                    MOI.RawOptimizerAttribute("periodic_start"),
+                    p.periodic_start,
+                )
             end
         end
     end
@@ -161,8 +163,12 @@ function _build_wrap_function(p)
     return ST.get_periodic_wrapper(p.periodic_dims, p.periodic_periods)
 end
 
-function _build_closed_loop_candidate(problem, optimizer, cfg, p)
-    # on simule le systeme discret avec le controleur concret.
+function _build_closed_loop_candidate(
+    problem::DI.Problem.ProblemType,
+    optimizer::CenteredAbstractionOptimizer,
+    cfg::CenteredAbstractionConfig,
+    p,
+)
     concrete_controller =
         MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
@@ -195,8 +201,7 @@ function _build_closed_loop_candidate(problem, optimizer, cfg, p)
         traj.u;
         Ts = cfg.Δt,
         source = :centered_closed_loop,
-        metadata = (
-            ;
+        metadata = (;
             hx = cfg.hx,
             nstep = cfg.nstep,
             num_substeps = cfg.num_substeps,
@@ -206,7 +211,6 @@ function _build_closed_loop_candidate(problem, optimizer, cfg, p)
 end
 
 function _select_best_abstract_step(abs_sys, k_abs, q::Int, value_fun_tab)
-    # On choisit le couple (u, q_next) qui minimise la valeur abstraite du successeur. (je sais pas trop si ça a du sens, à terme je devrais généraliser potentiellement renvoyer plusieurs abstract traj)
     u_candidates = k_abs(q)
     u_candidates === nothing && return nothing, nothing
 
@@ -229,9 +233,12 @@ function _select_best_abstract_step(abs_sys, k_abs, q::Int, value_fun_tab)
     return best_u, best_q
 end
 
-function _build_abstract_candidate(problem, optimizer, cfg, p)
-    # Mode abstrait : on reconstruit une trajectoire concrete a partir des centres -> le centre du premier point de la traj c'est le centre de la cellule qui lui est assigné 
-    # des cellules abstraites et des entrees abstraites choisies par le controleur.
+function _build_abstract_candidate(
+    problem::DI.Problem.ProblemType,
+    optimizer::CenteredAbstractionOptimizer,
+    cfg::CenteredAbstractionConfig,
+    p,
+)
     abs_sys = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     abs_ctrl = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
     value_fun_tab = MOI.get(optimizer, MOI.RawOptimizerAttribute("value_fun_tab"))
@@ -250,7 +257,6 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
     xs = [wrap(SY.get_concrete_state(abs_sys, q))]
 
     for _ in 1:cfg.nstep
-        # Une valeur abstraite nulle signifie que la cellule cible est atteinte.
         iszero(value_fun_tab[q]) && break
 
         u_sym, q_next = _select_best_abstract_step(abs_sys, k_abs, q, value_fun_tab)
@@ -271,8 +277,7 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
         ST.Trajectory(us);
         Ts = cfg.Δt,
         source = :centered_abstract,
-        metadata = (
-            ;
+        metadata = (;
             hx = cfg.hx,
             nstep = cfg.nstep,
             num_substeps = cfg.num_substeps,
@@ -283,20 +288,29 @@ function _build_abstract_candidate(problem, optimizer, cfg, p)
     )
 end
 
-function _build_candidate(problem, optimizer, cfg, p)
+function _build_candidate(
+    problem::DI.Problem.ProblemType,
+    optimizer::CenteredAbstractionOptimizer,
+    cfg::CenteredAbstractionConfig,
+    p,
+)
     if cfg.trajectory_mode == :closed_loop
         return _build_closed_loop_candidate(problem, optimizer, cfg, p)
     elseif cfg.trajectory_mode == :abstract_traj
         return _build_abstract_candidate(problem, optimizer, cfg, p)
     end
 
-    error("Unsupported trajectory_mode: $(cfg.trajectory_mode)")
+    return error("Unsupported trajectory_mode: $(cfg.trajectory_mode)")
 end
 
-function _candidate_reaches_target(problem, candidate, optimizer, cfg)
+function _candidate_reaches_target(
+    problem::DI.Problem.ProblemType,
+    candidate::Union{Nothing, CandidateTrajectory},
+    optimizer::CenteredAbstractionOptimizer,
+    cfg::CenteredAbstractionConfig,
+)
     candidate === nothing && return false
 
-    # En mode abstrait, le dernier etat abstrait doit etre une cellule cible.
     if cfg.trajectory_mode == :abstract_traj &&
        candidate.metadata isa NamedTuple &&
        hasproperty(candidate.metadata, :q_traj)
@@ -310,7 +324,7 @@ function _candidate_reaches_target(problem, candidate, optimizer, cfg)
     return last_state ∈ problem.target_set
 end
 
-function set_problem!(gen::CenteredAbstractionGenerator, prob)
+function set_problem!(gen::CenteredAbstractionGenerator, prob::DI.Problem.ProblemType)
     gen.problem = prob
     gen.optimizer = nothing
     gen.candidate = nothing

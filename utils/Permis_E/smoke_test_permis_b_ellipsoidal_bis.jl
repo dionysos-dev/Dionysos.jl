@@ -37,10 +37,8 @@ Base.@kwdef struct SmokeConfig
         IA.interval(-1.0, 1.0),
         IA.interval(-1.0, 1.0),
     )
-    ΔU::IA.IntervalBox{2, Float64} = IA.IntervalBox(
-        IA.interval(-1.0, 1.0),
-        IA.interval(-1.2, 1.2),
-    )
+    ΔU::IA.IntervalBox{2, Float64} =
+        IA.IntervalBox(IA.interval(-1.0, 1.0), IA.interval(-1.2, 1.2))
     ΔW::IA.IntervalBox{1, Float64} = IA.IntervalBox(IA.interval(0.0, 0.0), 1)
     debug_k_start::Union{Nothing, Int} = nothing
     debug_k_stop::Int = 0
@@ -67,10 +65,7 @@ function unwrap_periodic_state_list(state_list, periodic_dims, periodic_periods)
 end
 
 function build_concrete_system()
-    x_domain = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -pi, -pi),
-        SVector(10.0, 9.0, pi, pi),
-    )
+    x_domain = UT.HyperRectangle(SVector(-1.0, -1.0, -pi, -pi), SVector(10.0, 9.0, pi, pi))
     x_domain = AV.with_phi_limit(x_domain; phi_max = deg2rad(50.0))
     obstacles_xy = [
         UT.HyperRectangle(SVector(4.0, -1.0), SVector(10.0, 4.7)),
@@ -101,10 +96,8 @@ end
 
 function build_control_problem(system)
     x0 = SVector(0.0, 0.0, 0.0, 0.0)
-    initial_set = UT.HyperRectangle(
-        SVector(-1.0, -1.0, -0.4, -0.4),
-        SVector(1.0, 1.0, 0.4, 0.4),
-    )
+    initial_set =
+        UT.HyperRectangle(SVector(-1.0, -1.0, -0.4, -0.4), SVector(1.0, 1.0, 0.4, 0.4))
     target_set = UT.HyperRectangle(
         SVector(9.0, 5.0, pi - 5 * (pi / 180), -5 * (pi / 180)),
         SVector(10.0, 6.0, pi + 5 * (pi / 180), 5 * (pi / 180)),
@@ -141,12 +134,7 @@ function get_nominal_candidate(cfg::SmokeConfig)
         cfg.nstep,
         _ -> ctl.x0,
     )
-    gen = OP.CenteredAbstractionGenerator{
-        typeof(ctl.problem),
-        typeof(gen_cfg),
-        Any,
-        Any,
-    }(
+    gen = OP.CenteredAbstractionGenerator{typeof(ctl.problem), typeof(gen_cfg), Any, Any}(
         ctl.problem,
         gen_cfg,
         nothing,
@@ -211,7 +199,16 @@ function print_storage_audit(res)
     n_fail = count(s -> s.status != :ok, steps)
 
     println("\n=== Storage Audit ===")
-    println("n_steps=", length(steps), " | ok=", n_ok, " | fail=", n_fail, " | n_ellipsoids=", length(ells))
+    println(
+        "n_steps=",
+        length(steps),
+        " | ok=",
+        n_ok,
+        " | fail=",
+        n_fail,
+        " | n_ellipsoids=",
+        length(ells),
+    )
     println("expect n_ellipsoids = n_ok + 1 -> ", length(ells) == n_ok + 1)
     if n_fail > 0
         first_fail = findfirst(s -> s.status != :ok, steps)
@@ -219,16 +216,33 @@ function print_storage_audit(res)
     end
     if !isempty(ells)
         mT = ellipsoid_metrics(ells[1])
-        @printf("terminal | vol=%.12e | cond(P)=%.3e | λmin=%.3e | λmax=%.3e\n", mT.vol, mT.condP, mT.λmin, mT.λmax)
+        @printf(
+            "terminal | vol=%.12e | cond(P)=%.3e | λmin=%.3e | λmax=%.3e\n",
+            mT.vol,
+            mT.condP,
+            mT.λmin,
+            mT.λmax
+        )
     end
     for i in 2:length(ells)
         k = steps[i - 1].k
         m = ellipsoid_metrics(ells[i])
-        @printf("k=%d | vol=%.12e | cond(P)=%.3e | λmin=%.3e | λmax=%.3e\n", k, m.vol, m.condP, m.λmin, m.λmax)
+        @printf(
+            "k=%d | vol=%.12e | cond(P)=%.3e | λmin=%.3e | λmax=%.3e\n",
+            k,
+            m.vol,
+            m.condP,
+            m.λmin,
+            m.λmax
+        )
     end
 end
 
-function run_manual_backward_debug(ctx; k_start::Union{Nothing, Int} = nothing, k_stop::Int = 0)
+function run_manual_backward_debug(
+    ctx;
+    k_start::Union{Nothing, Int} = nothing,
+    k_stop::Int = 0,
+)
     nx = length(ctx.xs[end])
     PN = Matrix{Float64}(I, nx, nx) * (1.0 / ctx.terminal_radius^2)
     E_next = UT.Ellipsoid(PN, ctx.xs[end])
@@ -360,7 +374,11 @@ function main(cfg::SmokeConfig = SmokeConfig())
     print_storage_audit(res)
 
     ctx = SC.build_symbolic_context(nominal.problem, cand, cert_cfg, builder)
-    run_manual_backward_debug(ctx; k_start = cfg.debug_k_start, k_stop = cfg.debug_k_stop)
+    return run_manual_backward_debug(
+        ctx;
+        k_start = cfg.debug_k_start,
+        k_stop = cfg.debug_k_stop,
+    )
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

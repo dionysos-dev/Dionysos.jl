@@ -52,7 +52,8 @@ function _load_candidate()
 end
 
 function _default_scaled_state_scaling(x_traj)
-    scaled_state_scaling_override !== nothing && return Float64.(scaled_state_scaling_override)
+    scaled_state_scaling_override !== nothing &&
+        return Float64.(scaled_state_scaling_override)
     n = size(x_traj, 1)
     s = ones(n)
     if n >= 1
@@ -95,7 +96,8 @@ end
 function _assert_close(a, b; atol = 1e-8, rtol = 1e-8, label = "values")
     err = norm(collect(a) .- collect(b))
     scale = max(norm(collect(a)), norm(collect(b)), 1.0)
-    err <= atol + rtol * scale || error("Scaling sanity check failed for $(label): error=$(err)")
+    err <= atol + rtol * scale ||
+        error("Scaling sanity check failed for $(label): error=$(err)")
     return nothing
 end
 
@@ -178,7 +180,8 @@ end
 function _volumes_by_k(result)
     rows = NamedTuple[]
     for step in sort(result.steps; by = s -> s.k)
-        volume = step.ellipsoid === nothing ? missing : Float64(UT.get_volume(step.ellipsoid))
+        volume =
+            step.ellipsoid === nothing ? missing : Float64(UT.get_volume(step.ellipsoid))
         solve_time =
             hasproperty(step.summary, :solve_time) && step.summary.solve_time !== nothing ?
             Float64(step.summary.solve_time) : missing
@@ -206,16 +209,20 @@ function _summary_row(run; horizon)
         method = run.method,
         state_scaling = _vec_string(run.state_scaling),
         success = run.result.success,
-        number_of_certified_transitions = count(step -> step.status == :ok, run.result.steps),
+        number_of_certified_transitions = count(
+            step -> step.status == :ok,
+            run.result.steps,
+        ),
         horizon,
         min_volume = isempty(vols) ? missing : minimum(vols),
         median_volume = isempty(vols) ? missing : median(vols),
         mean_volume = isempty(vols) ? missing : mean(vols),
         max_volume = isempty(vols) ? missing : maximum(vols),
         initial_volume = isempty(vols) ? missing : first(vols),
-        final_volume =
-            run.result.lmi_data !== nothing && hasproperty(run.result.lmi_data, :ellipsoids) ?
-            Float64(UT.get_volume(first(run.result.lmi_data.ellipsoids))) : missing,
+        final_volume = run.result.lmi_data !== nothing &&
+                       hasproperty(run.result.lmi_data, :ellipsoids) ?
+                       Float64(UT.get_volume(first(run.result.lmi_data.ellipsoids))) :
+                       missing,
         total_certification_time = run.total_time,
         average_step_time = isempty(solve_times) ? missing : mean(solve_times),
         solver_status_summary = _solver_status_summary(run.result),
@@ -250,8 +257,13 @@ function _ellipsoid_value(E, x)
 end
 
 function _final_distance_to_target(problem, x)
-    hasproperty(problem.target_set, :lb) && hasproperty(problem.target_set, :ub) || return missing
-    center = (collect(Float64, problem.target_set.lb) .+ collect(Float64, problem.target_set.ub)) ./ 2
+    hasproperty(problem.target_set, :lb) && hasproperty(problem.target_set, :ub) ||
+        return missing
+    center =
+        (
+            collect(Float64, problem.target_set.lb) .+
+            collect(Float64, problem.target_set.ub)
+        ) ./ 2
     return norm(collect(Float64, x) .- center)
 end
 
@@ -263,7 +275,7 @@ function _simulate_samples(run_payload, x0_samples; method, scenario)
     cert_xs = collect(ST.enum_elems(cert_candidate.x_traj))
     cfg = run_payload.config
 
-    maps = _build_periodic_maps(
+    maps = _build_periodic_maps(;
         periodic_dims = cfg.periodic_dims,
         periodic_periods = cfg.periodic_periods,
         periodic_start = cfg.periodic_start,
@@ -287,7 +299,8 @@ function _simulate_samples(run_payload, x0_samples; method, scenario)
         max_violation = -Inf
 
         try
-            x_init_chain = maps.lift_state_near_reference(x, cert_xs[first(chain.k_sequence)])
+            x_init_chain =
+                maps.lift_state_near_reference(x, cert_xs[first(chain.k_sequence)])
             if !(x_init_chain ∈ chain.initial_ellipsoid)
                 status = "left_chain"
                 first_failure_step = first(chain.k_sequence)
@@ -296,7 +309,8 @@ function _simulate_samples(run_payload, x0_samples; method, scenario)
             for k in chain.k_sequence
                 x_phys = maps.wrap_state(x)
                 x_chain = maps.lift_state_near_reference(x_phys, cert_xs[k])
-                max_violation = max(max_violation, _ellipsoid_value(chain.ellipsoid_by_k[k], x_chain))
+                max_violation =
+                    max(max_violation, _ellipsoid_value(chain.ellipsoid_by_k[k], x_chain))
 
                 if status == "success" && !(x_chain ∈ chain.ellipsoid_by_k[k])
                     status = "left_chain"
@@ -304,7 +318,8 @@ function _simulate_samples(run_payload, x0_samples; method, scenario)
                 end
 
                 u = _eval_kappa_controller(chain.kappa_by_k[k], x_chain)
-                hasproperty(problem.system, :U) && (u = _project_input_to_domain(u, problem.system.U))
+                hasproperty(problem.system, :U) &&
+                    (u = _project_input_to_domain(u, problem.system.U))
 
                 x_next = maps.wrap_state(f_disc(x_phys, u))
                 push!(x_hist, copy(x_next))
@@ -350,7 +365,8 @@ function _simulate_samples(run_payload, x0_samples; method, scenario)
             :status => status,
             :first_failure_step => first_failure_step,
             :final_state => join(string.(final_state), ";"),
-            :final_distance_to_target => _final_distance_to_target(problem, final_state),
+            :final_distance_to_target =>
+                _final_distance_to_target(problem, final_state),
             :maximum_normalized_ellipsoid_violation => max_violation,
         )
         for i in eachindex(x0)
@@ -467,8 +483,9 @@ function _comparison_rows(baseline_rows, scaled_rows)
 end
 
 function main()
-    isfile(TRAJECTORY_PATH) ||
-        error("Missing saved trajectory. Run 01_generate_and_save_mppi_trajectory.jl first.")
+    isfile(TRAJECTORY_PATH) || error(
+        "Missing saved trajectory. Run 01_generate_and_save_mppi_trajectory.jl first.",
+    )
     mkpath(RESULTS_DIR)
 
     cfg = MarcheAvantConfig(; output_root = RESULTS_DIR, plot_gif = false)
@@ -569,7 +586,11 @@ function main()
                     baseline_own_stress.rows;
                     scenario = "own_ellipsoid",
                 ),
-                _stress_summary("scaled", scaled_own_stress.rows; scenario = "own_ellipsoid"),
+                _stress_summary(
+                    "scaled",
+                    scaled_own_stress.rows;
+                    scenario = "own_ellipsoid",
+                ),
                 _stress_summary(
                     "baseline",
                     baseline_paired_stress.rows;
@@ -584,7 +605,9 @@ function main()
         )
         CSV.write(
             STAT_COMPARISON_PATH,
-            DataFrame(_comparison_rows(baseline_paired_stress.rows, scaled_paired_stress.rows)),
+            DataFrame(
+                _comparison_rows(baseline_paired_stress.rows, scaled_paired_stress.rows),
+            ),
         )
         jldsave(
             joinpath(RESULTS_DIR, "statistical_rollouts.jld2");

@@ -9,7 +9,8 @@ using StaticArrays: SVector
 
 const TRANSITION_AUDIT_DIR = joinpath(RESULTS_DIR, "transition_audit")
 const TRANSITION_AUDIT_PLOTS_DIR = joinpath(TRANSITION_AUDIT_DIR, "plots")
-const TRANSITION_AUDIT_SUMMARY = joinpath(TRANSITION_AUDIT_DIR, "transition_audit_summary.csv")
+const TRANSITION_AUDIT_SUMMARY =
+    joinpath(TRANSITION_AUDIT_DIR, "transition_audit_summary.csv")
 const TRANSITION_AUDIT_PER_TRANSITION =
     joinpath(TRANSITION_AUDIT_DIR, "transition_audit_per_transition.csv")
 const TRANSITION_AUDIT_WORST_SAMPLES =
@@ -26,8 +27,7 @@ const audit_uniform_samples =
     parse(Int, get(ENV, "TRANSITION_AUDIT_UNIFORM_SAMPLES", "10000"))
 const audit_boundary_samples =
     parse(Int, get(ENV, "TRANSITION_AUDIT_BOUNDARY_SAMPLES", "2000"))
-const audit_global_samples =
-    parse(Int, get(ENV, "TRANSITION_AUDIT_GLOBAL_SAMPLES", "1000"))
+const audit_global_samples = parse(Int, get(ENV, "TRANSITION_AUDIT_GLOBAL_SAMPLES", "1000"))
 const audit_tol = 1.0e-7
 const audit_tols = (1.0e-7, 1.0e-6, 1.0e-5)
 
@@ -39,18 +39,23 @@ end
 
 function _audit_bounds_string(set)
     if hasproperty(set, :lb) && hasproperty(set, :ub)
-        return join(string.(Float64.(set.lb)), ";") * "|" * join(string.(Float64.(set.ub)), ";")
+        return join(string.(Float64.(set.lb)), ";") *
+               "|" *
+               join(string.(Float64.(set.ub)), ";")
     end
     return string(typeof(set))
 end
 
 function _audit_kappa_matrix(kappa)
-    hasproperty(kappa, :A) || error("Unsupported kappa type without A field: $(typeof(kappa))")
+    hasproperty(kappa, :A) ||
+        error("Unsupported kappa type without A field: $(typeof(kappa))")
     K = Matrix{Float64}(getproperty(kappa, :A))
     b =
         hasproperty(kappa, :b) ? vec(Float64.(getproperty(kappa, :b))) :
-        (hasproperty(kappa, :c) ? vec(Float64.(getproperty(kappa, :c))) :
-         error("Unsupported kappa type without b/c offset: $(typeof(kappa))"))
+        (
+            hasproperty(kappa, :c) ? vec(Float64.(getproperty(kappa, :c))) :
+            error("Unsupported kappa type without b/c offset: $(typeof(kappa))")
+        )
     return K, b
 end
 
@@ -214,9 +219,15 @@ function _audit_nominal_indexing_rows(result, candidate, cfg)
             rows,
             (;
                 k,
-                source_center_minus_nominal_norm = norm(_audit_periodic_error(E.c, xs[k], cfg)),
-                target_center_minus_nominal_norm = norm(_audit_periodic_error(Enext.c, xs[k + 1], cfg)),
-                kappa_at_source_center_minus_u_norm = norm(K * collect(E.c) + b - collect(us[k])),
+                source_center_minus_nominal_norm = norm(
+                    _audit_periodic_error(E.c, xs[k], cfg),
+                ),
+                target_center_minus_nominal_norm = norm(
+                    _audit_periodic_error(Enext.c, xs[k + 1], cfg),
+                ),
+                kappa_at_source_center_minus_u_norm = norm(
+                    K * collect(E.c) + b - collect(us[k]),
+                ),
                 source_center = _audit_vec_string(E.c),
                 source_nominal = _audit_vec_string(xs[k]),
                 target_center = _audit_vec_string(Enext.c),
@@ -240,12 +251,16 @@ function _audit_transition_empirical(
     chain = _build_certified_kappa_chain(run.result)
     xs = collect(ST.enum_elems(candidate.x_traj))
     us = collect(ST.enum_elems(candidate.u_traj))
-    maps = _build_periodic_maps(
+    maps = _build_periodic_maps(;
         periodic_dims = cfg.periodic_dims,
         periodic_periods = cfg.periodic_periods,
         periodic_start = cfg.periodic_start,
     )
-    fA = _build_discrete_system_map(problem.system, candidate.Ts; num_substeps = cfg.symbolic_rk4_substeps)
+    fA = _build_discrete_system_map(
+        problem.system,
+        candidate.Ts;
+        num_substeps = cfg.symbolic_rk4_substeps,
+    )
     fB = _audit_independent_rk4_map(system_cfg, candidate.Ts, cfg.symbolic_rk4_substeps)
     box_radii = _audit_interval_radii(cfg.ΔX)
     U = problem.system.U
@@ -381,29 +396,26 @@ function _audit_transition_empirical(
     return (; per_transition, worst_rows, simulator_rows)
 end
 
-function _audit_global_stress(
-    config_name,
-    run,
-    problem,
-    system_cfg,
-    candidate,
-    cfg;
-    rng,
-)
+function _audit_global_stress(config_name, run, problem, system_cfg, candidate, cfg; rng)
     chain = _build_certified_kappa_chain(run.result)
     xs = collect(ST.enum_elems(candidate.x_traj))
-    maps = _build_periodic_maps(
+    maps = _build_periodic_maps(;
         periodic_dims = cfg.periodic_dims,
         periodic_periods = cfg.periodic_periods,
         periodic_start = cfg.periodic_start,
     )
-    fA = _build_discrete_system_map(problem.system, candidate.Ts; num_substeps = cfg.symbolic_rk4_substeps)
+    fA = _build_discrete_system_map(
+        problem.system,
+        candidate.Ts;
+        num_substeps = cfg.symbolic_rk4_substeps,
+    )
     fB = _audit_independent_rk4_map(system_cfg, candidate.Ts, cfg.symbolic_rk4_substeps)
     box_radii = _audit_interval_radii(cfg.ΔX)
     U = problem.system.U
     domain_set = _domain_set(problem.system)
     obstacle_set = _obstacle_set(problem.system)
-    samples = _audit_sample_uniform_ellipsoid(chain.initial_ellipsoid, audit_global_samples; rng)
+    samples =
+        _audit_sample_uniform_ellipsoid(chain.initial_ellipsoid, audit_global_samples; rng)
     rows = NamedTuple[]
 
     for (sample_id, x0) in enumerate(samples)
@@ -523,7 +535,8 @@ function _audit_summary_for_config(
     all_input = all(r.input_inclusion_pass for r in per_rows)
     empirical_pass = all(r.next_ellipsoid_failures_tol_1e_7 == 0 for r in per_rows)
     simulators_ok = all(r.max_difference <= 1.0e-8 for r in simulator_rows)
-    global_success_rate = count(r -> r.status == "success", global_rows) / length(global_rows)
+    global_success_rate =
+        count(r -> r.status == "success", global_rows) / length(global_rows)
     global_ok = global_success_rate >= 0.99
 
     verdict =
@@ -534,13 +547,20 @@ function _audit_summary_for_config(
         !simulators_ok ? "BUG SUSPECTED" : "FORMAL"
 
     reason_counts = join(
-        ["$(r):$(count(row -> row.first_failure_reason == r, global_rows))" for r in sort(unique([row.first_failure_reason for row in global_rows]))],
+        [
+            "$(r):$(count(row -> row.first_failure_reason == r, global_rows))" for
+            r in sort(unique([row.first_failure_reason for row in global_rows]))
+        ],
         ";",
     )
     hist = join(
         [
-            "$(s):$(count(row -> !ismissing(row.first_failure_step) && row.first_failure_step == s, global_rows))" for
-            s in sort(unique(collect(skipmissing([row.first_failure_step for row in global_rows]))))
+            "$(s):$(count(row -> !ismissing(row.first_failure_step) && row.first_failure_step == s, global_rows))"
+            for s in sort(
+                unique(
+                    collect(skipmissing([row.first_failure_step for row in global_rows])),
+                ),
+            )
         ],
         ";",
     )
@@ -562,9 +582,13 @@ function _audit_summary_for_config(
         max_box_margin = maximum(r.max_box_margin for r in per_rows),
         max_input_margin = maximum(r.max_input_margin for r in per_rows),
         max_next_ellipsoid_value = maximum(r.max_next_ellipsoid_value for r in per_rows),
-        total_next_failures_tol_1e_7 = sum(r.next_ellipsoid_failures_tol_1e_7 for r in per_rows),
+        total_next_failures_tol_1e_7 = sum(
+            r.next_ellipsoid_failures_tol_1e_7 for r in per_rows
+        ),
         total_box_membership_failures = sum(r.box_membership_failures for r in per_rows),
-        total_input_membership_failures = sum(r.input_membership_failures for r in per_rows),
+        total_input_membership_failures = sum(
+            r.input_membership_failures for r in per_rows
+        ),
         simulator_max_difference = maximum(r.max_difference for r in simulator_rows),
         failure_reason_counts = reason_counts,
         first_failure_step_histogram = hist,
@@ -581,14 +605,26 @@ function _audit_write_plots(per_transition_rows, global_rows, simulator_rows)
     glob = DataFrame(global_rows)
     sim = DataFrame(simulator_rows)
 
-    p = plot(; xlabel = "transition k", ylabel = "max next ellipsoid value", yscale = :log10, title = "Transition audit: max v_{k+1}")
+    p = plot(;
+        xlabel = "transition k",
+        ylabel = "max next ellipsoid value",
+        yscale = :log10,
+        title = "Transition audit: max v_{k+1}",
+    )
     for cfg in unique(per.configuration)
         df = per[per.configuration .== cfg, :]
         plot!(p, df.k, df.max_next_ellipsoid_value; label = cfg, marker = :circle)
     end
-    savefig(p, joinpath(TRANSITION_AUDIT_PLOTS_DIR, "max_next_ellipsoid_value_by_transition.png"))
+    savefig(
+        p,
+        joinpath(TRANSITION_AUDIT_PLOTS_DIR, "max_next_ellipsoid_value_by_transition.png"),
+    )
 
-    p = plot(; xlabel = "transition k", ylabel = "violations", title = "Transition audit: empirical violations")
+    p = plot(;
+        xlabel = "transition k",
+        ylabel = "violations",
+        title = "Transition audit: empirical violations",
+    )
     for cfg in unique(per.configuration)
         df = per[per.configuration .== cfg, :]
         plot!(p, df.k, df.next_ellipsoid_failures_tol_1e_7; label = cfg, marker = :circle)
@@ -605,29 +641,49 @@ function _audit_write_plots(per_transition_rows, global_rows, simulator_rows)
             title = "Global stress first failure step",
             label = "",
         )
-        savefig(p, joinpath(TRANSITION_AUDIT_PLOTS_DIR, "global_first_failure_step_histogram.png"))
+        savefig(
+            p,
+            joinpath(TRANSITION_AUDIT_PLOTS_DIR, "global_first_failure_step_histogram.png"),
+        )
     end
 
-    p = plot(; xlabel = "transition k", ylabel = "Simulator A/B max difference", yscale = :log10, title = "Simulator comparison")
+    p = plot(;
+        xlabel = "transition k",
+        ylabel = "Simulator A/B max difference",
+        yscale = :log10,
+        title = "Simulator comparison",
+    )
     for cfg in unique(sim.configuration)
         df = sim[sim.configuration .== cfg, :]
         plot!(p, df.k, df.max_difference .+ eps(); label = cfg, marker = :circle)
     end
-    savefig(p, joinpath(TRANSITION_AUDIT_PLOTS_DIR, "simulator_A_vs_B_difference.png"))
+    return savefig(
+        p,
+        joinpath(TRANSITION_AUDIT_PLOTS_DIR, "simulator_A_vs_B_difference.png"),
+    )
 end
 
 function _audit_write_diagnostics(summary_rows, indexing_rows)
     df = DataFrame(summary_rows)
     open(TRANSITION_AUDIT_DIAGNOSTICS, "w") do io
         println(io, "# Transition-level certificate audit\n")
-        println(io, "Monte Carlo stress tests are empirical diagnostics, not formal proofs. A transition is treated as locally formal only when the LMI solved, the source ellipsoid is inside the local linearization box, the affine feedback maps the full source ellipsoid inside U, and the direct transition-level replay has no violations at the selected tolerance.\n")
+        println(
+            io,
+            "Monte Carlo stress tests are empirical diagnostics, not formal proofs. A transition is treated as locally formal only when the LMI solved, the source ellipsoid is inside the local linearization box, the affine feedback maps the full source ellipsoid inside U, and the direct transition-level replay has no violations at the selected tolerance.\n",
+        )
         println(io, "## Indexing diagnostics")
         for row in indexing_rows[1:min(end, 5)]
-            println(io, "- k=$(row.k): ||E_k.c - x_k||=$(row.source_center_minus_nominal_norm), ||E_{k+1}.c - x_{k+1}||=$(row.target_center_minus_nominal_norm), ||kappa(E_k.c)-u_k||=$(row.kappa_at_source_center_minus_u_norm)")
+            println(
+                io,
+                "- k=$(row.k): ||E_k.c - x_k||=$(row.source_center_minus_nominal_norm), ||E_{k+1}.c - x_{k+1}||=$(row.target_center_minus_nominal_norm), ||kappa(E_k.c)-u_k||=$(row.kappa_at_source_center_minus_u_norm)",
+            )
         end
         println(io, "\n## Verdicts")
         for row in eachrow(df)
-            println(io, "- $(row.configuration): $(row.final_verdict), global_success=$(row.global_success_rate), box_all=$(row.box_inclusion_all_transitions), input_all=$(row.input_inclusion_all_transitions), empirical_pass=$(row.transition_empirical_test_pass), sim_ok=$(row.simulator_A_B_consistent)")
+            println(
+                io,
+                "- $(row.configuration): $(row.final_verdict), global_success=$(row.global_success_rate), box_all=$(row.box_inclusion_all_transitions), input_all=$(row.input_inclusion_all_transitions), empirical_pass=$(row.transition_empirical_test_pass), sim_ok=$(row.simulator_A_B_consistent)",
+            )
         end
     end
 end
@@ -635,7 +691,9 @@ end
 function main()
     mkpath(TRANSITION_AUDIT_DIR)
     mkpath(TRANSITION_AUDIT_PLOTS_DIR)
-    isfile(TRAJECTORY_PATH) || error("Missing saved MPPI trajectory. Run 01_generate_and_save_mppi_trajectory.jl first.")
+    isfile(TRAJECTORY_PATH) || error(
+        "Missing saved MPPI trajectory. Run 01_generate_and_save_mppi_trajectory.jl first.",
+    )
 
     cfg0 = MarcheAvantConfig(; output_root = RESULTS_DIR, plot_gif = false)
     candidate, data = _load_candidate()
@@ -643,7 +701,8 @@ function main()
     system_cfg = build_concrete_system()
     control_cfg = build_control_problem()
     problem = build_problem(system_cfg, control_cfg)
-    scaling_pairs = Dict(String(k) => v for (k, v) in _scaling_candidates(data["x_traj"], cfg0))
+    scaling_pairs =
+        Dict(String(k) => v for (k, v) in _scaling_candidates(data["x_traj"], cfg0))
 
     selected = [
         ("none", 1.0, scaling_pairs["none"]),
@@ -664,7 +723,9 @@ function main()
     global_rows = NamedTuple[]
     indexing_rows_all = NamedTuple[]
 
-    println("Transition audit settings: uniform=$(audit_uniform_samples), boundary=$(audit_boundary_samples), global=$(audit_global_samples)")
+    println(
+        "Transition audit settings: uniform=$(audit_uniform_samples), boundary=$(audit_boundary_samples), global=$(audit_global_samples)",
+    )
     for (name, mx, scaling) in selected
         cfg = _cfg_with_boxes(cfg0; mx = mx, mu = 1.0)
         config_name = "$(name)__box_$(mx)"
@@ -679,7 +740,10 @@ function main()
                     state_scaling_vector = _audit_vec_string(scaling),
                     box_multiplier_X = mx,
                     lmi_feasible = false,
-                    certified_transitions = count(step -> step.status == :ok, run.result.steps),
+                    certified_transitions = count(
+                        step -> step.status == :ok,
+                        run.result.steps,
+                    ),
                     horizon = OP.horizon(candidate),
                     box_inclusion_all_transitions = false,
                     input_inclusion_all_transitions = false,
@@ -702,15 +766,32 @@ function main()
             continue
         end
 
-        append!(indexing_rows_all, [(; configuration = config_name, row...) for row in _audit_nominal_indexing_rows(run.result, candidate, cfg)])
+        append!(
+            indexing_rows_all,
+            [
+                (; configuration = config_name, row...) for
+                row in _audit_nominal_indexing_rows(run.result, candidate, cfg)
+            ],
+        )
 
-        rng = Random.MersenneTwister(audit_rng_seed + round(Int, 100 * mx) + hash(name) % 10000)
-        audit = _audit_transition_empirical(config_name, run, problem, system_cfg, candidate, cfg; rng)
+        rng = Random.MersenneTwister(
+            audit_rng_seed + round(Int, 100 * mx) + hash(name) % 10000,
+        )
+        audit = _audit_transition_empirical(
+            config_name,
+            run,
+            problem,
+            system_cfg,
+            candidate,
+            cfg;
+            rng,
+        )
         append!(per_transition_rows, audit.per_transition)
         append!(worst_rows, audit.worst_rows)
         append!(simulator_rows, audit.simulator_rows)
 
-        global_audit = _audit_global_stress(config_name, run, problem, system_cfg, candidate, cfg; rng)
+        global_audit =
+            _audit_global_stress(config_name, run, problem, system_cfg, candidate, cfg; rng)
         append!(global_rows, global_audit)
         push!(
             summary_rows,
@@ -732,7 +813,10 @@ function main()
     CSV.write(TRANSITION_AUDIT_WORST_SAMPLES, DataFrame(worst_rows))
     CSV.write(TRANSITION_AUDIT_GLOBAL_REASONS, DataFrame(global_rows))
     CSV.write(TRANSITION_AUDIT_SIMULATORS, DataFrame(simulator_rows))
-    CSV.write(joinpath(TRANSITION_AUDIT_DIR, "indexing_diagnostics.csv"), DataFrame(indexing_rows_all))
+    CSV.write(
+        joinpath(TRANSITION_AUDIT_DIR, "indexing_diagnostics.csv"),
+        DataFrame(indexing_rows_all),
+    )
 
     _audit_write_plots(per_transition_rows, global_rows, simulator_rows)
     _audit_write_diagnostics(summary_rows, indexing_rows_all)

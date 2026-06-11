@@ -8,11 +8,63 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-const SC = OP.SymbolicCertifier
+const SC = AB.SymbolicCertifier
 using JuMP
 import MathOptInterface as MOI
 
 using JLD2
+
+# --------------------------------------- #
+# --- JLD2 Abstraction Export/Import ---- #
+# --------------------------------------- #
+
+using JLD2
+
+function export_abstraction_jld2(opt, filename::AbstractString)
+    abs_opt = opt.abstraction_solver
+    abs_opt === nothing && error("No abstraction_solver in optimizer.")
+    abs_sys = abs_opt.abstract_system
+    abs_sys === nothing && error("No abstract_system computed yet.")
+
+    jldopen(filename, "w") do f
+        # versioning for forward compatibility
+        f["format_version"] = 1
+        f["abstract_system"] = abs_sys
+        return f["params"] = (time_step = opt.abstraction_solver.time_step,)
+    end
+    return nothing
+end
+
+function import_abstraction_jld2(filename::AbstractString; opt = nothing)
+    # If user didn't pass an optimizer, create one
+    if opt === nothing
+        opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+    end
+
+    # Ensure abstraction solver exists
+    if opt.abstraction_solver === nothing
+        opt.abstraction_solver =
+            AB.UniformGridAbstraction.OptimizerAlternatingSimulationProblem()
+    end
+
+    jldopen(filename, "r") do f
+        v = f["format_version"]
+        v == 1 || error("Unsupported abstraction file format_version=$v")
+
+        abs_sys = f["abstract_system"]
+        return MOI.set(
+            opt.abstraction_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abs_sys,
+        )
+    end
+
+    return opt
+end
+
+# --------------------------------------- #
+# ------------- Builders ---------------- #
+# --------------------------------------- #
 
 function build_optimizer(
     concrete_system,
@@ -26,22 +78,30 @@ function build_optimizer(
     with_period = false,
     approx_mode = AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
 )
-    empty_problem = DI.Problem.EmptyProblem(concrete_system, concrete_system.X)
+    alternating_simulation_problem =
+        DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), empty_problem)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("concrete_problem"),
+        alternating_simulation_problem,
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("UMapping"), UMapping)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("approx_mode"), approx_mode)
 
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("threaded"), true)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("execution_backend"),
+        SY.ThreadedBackend(0.2),
+    )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_dt"), 0.5)
 
     if with_period
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
@@ -66,7 +126,7 @@ function plot_state_space!(
     periodic_start = SVector{0, Float64}(),
 )
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    abstract_system = abstract_problem.system
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     XMapping = SY.get_state_mapping(abstract_system)
     Xset = SY.get_state_domain(abstract_system)
 
@@ -209,11 +269,11 @@ function script()
         )
         MOI.optimize!(optimizer)
         if (save)
-            AB.UniformGridAbstraction.export_abstraction_jld2(optimizer, filename)
+            export_abstraction_jld2(optimizer, filename)
         end
     end
     if (load)
-        optimizer = AB.UniformGridAbstraction.import_abstraction_jld2(filename)
+        optimizer = import_abstraction_jld2(filename)
     end
 
     # ------------------------------------------------------------
@@ -222,8 +282,6 @@ function script()
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 0, warn = true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
     MOI.optimize!(optimizer)
 
     concrete_controller =
@@ -242,7 +300,7 @@ function script()
         ST.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start) :
         (x -> x)
     reached(x) = (periodic_wrapper(x) ∈ target_set)
-    nstep = 300
+    nstep = 100
 
     x_traj, u_traj = ST.get_closed_loop_trajectory(
         discrete_time_system,
@@ -252,14 +310,6 @@ function script()
         stopping = reached,
         wrap = periodic_wrapper,
     )
-    println("\n\nI need to checkk")
-    xs = ST.enum_elems(x_traj)
-    println("the length should be 54 : ",length(xs))
-    for k in eachindex(xs)
-        println("the traj :",xs[k]) # soit le problème est dégnéré soit il y'a un problème avec generate!
-    end
-    println("\n\n")
-    return
 
     # ------------------------------------------------------------
     # Plot 
@@ -350,13 +400,10 @@ function script()
     ) # GROWTH, CENTER_SIMULATION
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false)
-    handler = AB.UniformGridAbstraction.make_out_of_domain_handler(; mode = 1, warn = true)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("handle_out_of_domain"), handler)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("randomize"), false)
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("automaton_constructor"),
-        (n, m) -> SY.NewIndexedAutomatonList(n, m),
+        (n, m) -> ST.NewIndexedAutomatonList(n, m),
     )
 
     # --- Build Certifier --- 
@@ -368,6 +415,7 @@ function script()
     cert.handle_system_domain = false
 
     SC.certify!(cert)
+
     println("\n=== Local Certification Result ===")
     println("success:    ", SC.get_success(cert))
     println("time (sec): ", SC.get_solve_time(cert))

@@ -8,10 +8,7 @@ end
 
 function build_pendulum_system_cfg(cfg; pendulum_module)
     problem = build_pendulum_problem(cfg; pendulum_module = pendulum_module)
-    return (;
-        concrete_system = problem.system,
-        params = (; l = cfg.l, g = cfg.g),
-    )
+    return (; concrete_system = problem.system, params = (; l = cfg.l, g = cfg.g))
 end
 
 function build_pendulum_control_cfg(cfg; pendulum_module)

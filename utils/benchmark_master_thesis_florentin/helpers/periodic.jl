@@ -50,7 +50,12 @@ function unwrap_periodic_state_list(state_list, periodic_dims, periodic_periods)
     return [SVector{nx, Float64}(x) for x in xs]
 end
 
-function wrap_vector_periodic!(x::AbstractVector{Float64}, periodic_dims, periodic_periods, periodic_start)
+function wrap_vector_periodic!(
+    x::AbstractVector{Float64},
+    periodic_dims,
+    periodic_periods,
+    periodic_start,
+)
     _check_periodic_data(periodic_dims, periodic_periods, periodic_start)
 
     for i in eachindex(periodic_dims)
@@ -62,7 +67,12 @@ function wrap_vector_periodic!(x::AbstractVector{Float64}, periodic_dims, period
     return x
 end
 
-function wrap_periodic_state_list(state_list, periodic_dims, periodic_periods, periodic_start)
+function wrap_periodic_state_list(
+    state_list,
+    periodic_dims,
+    periodic_periods,
+    periodic_start,
+)
     isempty(state_list) && return state_list
 
     nx = length(state_list[1])
@@ -100,7 +110,10 @@ function unwrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods)
     cs = [SVector{length(E.c), Float64}(E.c) for E in ellipsoids]
     cs_unwrapped = unwrap_periodic_state_list(cs, periodic_dims, periodic_periods)
 
-    return [UT.Ellipsoid(Matrix(E.P), collect(cs_unwrapped[i])) for (i, E) in enumerate(ellipsoids)]
+    return [
+        UT.Ellipsoid(Matrix(E.P), collect(cs_unwrapped[i])) for
+        (i, E) in enumerate(ellipsoids)
+    ]
 end
 
 function wrap_ellipsoid_centers(ellipsoids, periodic_dims, periodic_periods, periodic_start)

@@ -16,7 +16,7 @@ const STRESS_ROLLOUTS_PATH = joinpath(RESULTS_DIR, "statistical_rollouts.jld2")
 
 function _initial_ellipsoid(certification)
     steps = sort(certification.steps; by = s -> s.k)
-    first(steps).ellipsoid
+    return first(steps).ellipsoid
 end
 
 function _plot_initial_ellipsoids(baseline_cert, scaled_cert)
@@ -45,7 +45,7 @@ function _plot_initial_ellipsoids(baseline_cert, scaled_cert)
         label = "scaled E0",
     )
     savefig(fig, joinpath(PLOTS_DIR, "initial_ellipsoid_comparison.png"))
-    savefig(fig, joinpath(PLOTS_DIR, "initial_ellipsoid_comparison.pdf"))
+    return savefig(fig, joinpath(PLOTS_DIR, "initial_ellipsoid_comparison.pdf"))
 end
 
 function _plot_stress_rates()
@@ -53,10 +53,8 @@ function _plot_stress_rates()
     df = CSV.read(STRESS_SUMMARY_PATH, DataFrame)
     labels = string.(df.scenario, " / ", df.method)
 
-    success_yerr = (
-        df.success_rate .- df.success_ci_low,
-        df.success_ci_high .- df.success_rate,
-    )
+    success_yerr =
+        (df.success_rate .- df.success_ci_low, df.success_ci_high .- df.success_rate)
     fig = bar(
         labels,
         df.success_rate;
@@ -85,7 +83,7 @@ function _plot_stress_rates()
         xrotation = 35,
         size = (760, 520),
     )
-    savefig(fig, joinpath(PLOTS_DIR, "left_chain_rates.png"))
+    return savefig(fig, joinpath(PLOTS_DIR, "left_chain_rates.png"))
 end
 
 function _plot_sampled_rollouts()
@@ -108,15 +106,31 @@ function _plot_sampled_rollouts()
         yb = [x[2] for x in baseline_rollouts[i]]
         xs = [x[1] for x in scaled_rollouts[i]]
         ys = [x[2] for x in scaled_rollouts[i]]
-        plot!(fig, xb, yb; color = :steelblue3, alpha = 0.25, label = i == 1 ? "baseline" : "")
-        plot!(fig, xs, ys; color = :darkorange2, alpha = 0.25, label = i == 1 ? "scaled" : "")
+        plot!(
+            fig,
+            xb,
+            yb;
+            color = :steelblue3,
+            alpha = 0.25,
+            label = i == 1 ? "baseline" : "",
+        )
+        plot!(
+            fig,
+            xs,
+            ys;
+            color = :darkorange2,
+            alpha = 0.25,
+            label = i == 1 ? "scaled" : "",
+        )
     end
-    savefig(fig, joinpath(PLOTS_DIR, "sampled_trajectories_xy.png"))
+    return savefig(fig, joinpath(PLOTS_DIR, "sampled_trajectories_xy.png"))
 end
 
 function main()
-    isfile(SUMMARY_PATH) || error("Missing summary CSV. Run 02_run_baseline_vs_scaled.jl first.")
-    isfile(DETAILED_PATH) || error("Missing detailed CSV. Run 02_run_baseline_vs_scaled.jl first.")
+    isfile(SUMMARY_PATH) ||
+        error("Missing summary CSV. Run 02_run_baseline_vs_scaled.jl first.")
+    isfile(DETAILED_PATH) ||
+        error("Missing detailed CSV. Run 02_run_baseline_vs_scaled.jl first.")
     mkpath(PLOTS_DIR)
 
     detailed = CSV.read(DETAILED_PATH, DataFrame)
