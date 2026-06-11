@@ -444,11 +444,10 @@ function compute_optimal_controller_bounded_var(
         for (q, u) in ST.pre(autom, final_q)
             if d(u, target_u) <= Delta
                 total_cost = transition_cost(q,u)
-                prev_key = (q, u)
                 if total_cost < value_fun_tab[q]
                     value_fun_tab[q] = total_cost
                     set_control!(contr_tab, q, u)
-                    pq[prev_key] = total_cost
+                    pq[(q,u)] = total_cost
                 end
             end
         end
@@ -467,11 +466,10 @@ function compute_optimal_controller_bounded_var(
         for (q, u) in ST.pre(autom, next_q)
             if d(u, next_u) <= Delta
                 total_cost = transition_cost(q,u) + cost_to_target
-                prev_key = (q, u)
                 if total_cost < value_fun_tab[q]
                     value_fun_tab[q] = total_cost
                     set_control!(contr_tab, q, u)
-                    pq[prev_key] = total_cost
+                    pq[(q,u)] = total_cost
                 end
             end
         end

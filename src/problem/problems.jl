@@ -70,7 +70,17 @@ end
 Constructor for OCP if the parameters Delta and d are not passed (no constraints on consecutive inputs)
 """
 function OptimalControlProblem(system::S, initial_set::XI, target_set::XT, state_cost::XC, transition_cost::Any, time::T) where {S, XI, XT, XC, T}
-    return OptimalControlProblem(system::S, initial_set::XI, target_set::XT, state_cost::XC, transition_cost::Any, time::T, 0, 0.0, (x,y) -> 0)
+    return OptimalControlProblem(
+        system::S,
+        initial_set::XI,
+        target_set::XT,
+        state_cost::XC,
+        transition_cost::Any,
+        time::T,
+        Nothing,
+        0.0,
+        (x,y) -> 0.0
+    )
 end
 
 

@@ -80,7 +80,17 @@ _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 _T_ = UT.HyperRectangle(SVector(1.6, 1.6), SVector(2.0, 2.0))
 
 concrete_problem =
-    DI.Problem.OptimalControlProblem(concrete_system, _I_, _T_, nothing, (x,u) -> 1, 0.0, SVector(0.0, 0.0), 1.5, (u_1, u_2) -> norm(u_1 - u_2))
+    DI.Problem.OptimalControlProblem(
+        concrete_system,
+        _I_,
+        _T_,
+        nothing,
+        (x,u) -> 1,
+        0.0
+        #SVector(0.0, 0.0),
+        #Inf,
+        #(u_1, u_2) -> max(abs(u_1[1] - u_2[1]), abs(u_1[2] - u_2[2]))
+    )
 
 # ------------------------------------------------------------
 # 4) Solve using the SAME pipeline optimizer
@@ -111,8 +121,8 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
 )
 
-println("Trajectory length: ", length(x_traj.seq))
-println("Trajectory length: ", length(u_traj.seq))
+println("Trajectory (states): ", (x_traj.seq))
+println("Trajectory (inputs): ", (u_traj.seq))
 
 # ------------------------------------------------------------
 # 6) Plot

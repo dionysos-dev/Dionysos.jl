@@ -193,6 +193,8 @@ function build_abstract_problem(
 )
     @warn("The `state_cost` is not yet fully implemented")
 
+    abstract_u = (concrete_problem.target_u === Nothing) ? Nothing : SY.get_abstract_input(abstract_system, concrete_problem.target_u)
+
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
@@ -200,7 +202,7 @@ function build_abstract_problem(
         concrete_problem.state_cost,
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
         concrete_problem.time,
-        SY.get_abstract_input(abstract_system, concrete_problem.target_u),
+        abstract_u,
         concrete_problem.Delta,
         get_abstract_input_distance(abstract_system, concrete_problem.d)
     )
