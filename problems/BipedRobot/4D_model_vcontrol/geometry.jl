@@ -1,18 +1,3 @@
-using StaticArrays
-using Plots
-
-include("./postproc.jl")
-
-"""
-States (angles) and inputs (angular velocities):
-    1 -> left hip
-    2 -> left knee
-    3 -> right hip
-    4 -> right knee
-"""
-
-robot_dynamics(x,u,dt) = x + dt*u
-
 """
 Robot geometry:
     Torso angle: 0°
@@ -25,6 +10,9 @@ struct geometry
     knee_to_foot
 end
 
+"""
+Get the cartesian coordinates of each joint from the four angular coordinates and the foot on the ground
+"""
 function get_cartesian_coordinates(theta::SVector, geometry, grounded_left_foot)
     (theta1, theta2, theta3, theta4) = grounded_left_foot ? (theta[1], theta[2], theta[3], theta[4]) : (theta[3], theta[4], theta[1], theta[2])
 
@@ -38,19 +26,26 @@ function get_cartesian_coordinates(theta::SVector, geometry, grounded_left_foot)
     return grounded_left_foot ? (grounded_hip, grounded_knee, grounded_foot, swing_hip, swing_knee, swing_foot) : (swing_hip, swing_knee, swing_foot, grounded_hip, grounded_knee, grounded_foot)
 end
 
-function simulate_robot(x0, U, dt)
-    N = length(U)
 
-    X = Vector{typeof(x0)}(undef, N + 1)
-    X[1] = x0
+"""
+Get the 4 angular coordinates from the cartesian coordinates of the joints
+"""
+function get_angular_coordinates(cartesian_coords::Tuple, geometry)
 
-    for k in 1:N
-        X[k+1] = robot_dynamics(X[k], U[k], dt)
-    end
+    lh, lk, lf, rh, rk, rf = cartesian_coords
+    grounded_left_foot = (cartesian_coords[3] == SVector(0.0, 0.0))
 
-    return X
+    theta1 = asin((lk[1]-lh[1])/geometry.hip_to_knee) - geometry.theta_hip
+    theta2 = asin((lf[1]-lk[1])/geometry.knee_to_foot) - geometry.theta_hip - theta1
+    theta3 = asin((rk[1]-rh[1])/geometry.hip_to_knee) - geometry.theta_hip
+    theta4 = asin((rf[1]-rk[1])/geometry.knee_to_foot) - geometry.theta_hip - theta3
+
+    return SVector(theta1, theta2, theta3, theta4), grounded_left_foot
 end
 
+"""
+Useful for visualization
+"""
 function robot_segments(theta, geometry, grounded_left_foot)
 
     lh, lk, lf, rh, rk, rf =
@@ -64,45 +59,3 @@ function robot_segments(theta, geometry, grounded_left_foot)
 
     return left_x, left_y, right_x, right_y
 end
-
-
-
-"""
-USAGE EXAMPLE
-"""
-
-robot_geometry = geometry(0, 0.202, 0.172)
-x0 = SVector(0.0, 0.0, pi/4, -pi/4)
-
-dt = 0.01
-T = 5
-
-lx, ly, rx, ry = robot_segments(x0, robot_geometry, true)
-
-plot(
-    lx, ly,
-    lw=4,
-    marker=:circle,
-    aspect_ratio=:equal,
-    xlim=(-0.5,0.5),
-    ylim=(-0.05,0.45),
-    legend=false
-)
-
-U = [
-    SVector(
-        0.0,
-        0.0,
-        1*sin(0.05*k),
-        -1*sin(0.05*k)
-    )
-    for k in 1:N
-]
-
-X = simulate_robot(x0, U, dt)
-animate_robot_live(
-    X,
-    dt,
-    robot_geometry,
-    grounded_left_foot=true
-)

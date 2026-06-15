@@ -8,7 +8,7 @@ function animate_robot(
     dt,
     geometry;
     grounded_left_foot=true,
-    filename="walking_robot.gif"
+    filename="./problems/BipedRobot/4D_model_vcontrol/walking_robot.gif"
 )
 
     anim = @animate for x in X
