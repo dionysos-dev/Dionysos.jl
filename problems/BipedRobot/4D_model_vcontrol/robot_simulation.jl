@@ -106,7 +106,7 @@ concrete_problem =
         _I_,
         _T_,
         nothing,
-        (x,u) -> norm(u),
+        (x,u) -> 1,
         0.0
     )
 
@@ -156,7 +156,7 @@ using Plots
 # plot!(fig, x_traj; color = :blue, dims = [1, 2])
 # display(fig)
 
-animate_robot(
+animate_robot_live(
     x_traj.seq,
     dt,
     robot_geometry;
