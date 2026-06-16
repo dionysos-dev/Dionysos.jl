@@ -1,3 +1,7 @@
+module Geometry
+
+using StaticArrays
+
 """
 Robot geometry:
     Torso angle: 0°
@@ -58,4 +62,6 @@ function robot_segments(theta, geometry, grounded_left_foot)
     right_y = [rf[2], rk[2], rh[2]]
 
     return left_x, left_y, right_x, right_y
+end
+
 end

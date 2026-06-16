@@ -49,6 +49,13 @@ x0 = SVector(0.0, 0.0, 0.0, 0.0)
 hx = SVector(dx, dx, dx, dx)
 state_grid = MP.GridFree(x0, hx)
 
+RobotModel.remove_infeasible_cells(
+    _X_,
+    state_grid,
+    UT.HyperRectangle(SVector(0.2, 0), SVector(0.4,0.1)),
+    robot_geometry, true
+)
+
 du = 0.52
 u0 = SVector(0.0, 0.0, 0.0, 0.0)
 hu = SVector(du, du, du, du)
@@ -82,8 +89,6 @@ MOI.optimize!(optimizer)
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
-
-@show(discrete_time_system)
 
 println("Abstraction built.")
 
@@ -140,8 +145,8 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached
 )
 
-println("Trajectory (states): ", (x_traj.seq))
-println("Trajectory (inputs): ", (u_traj.seq))
+# println("Trajectory (states): ", (x_traj.seq))
+# println("Trajectory (inputs): ", (u_traj.seq))
 println("Number of transitions: ", length(u_traj.seq))
 
 # ------------------------------------------------------------

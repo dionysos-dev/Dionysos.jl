@@ -5,9 +5,12 @@ using Plots
 using Dionysos
 using MathematicalSystems
 
+using ..Geometry
+
 const UT = Dionysos.Utils
 const PB = Dionysos.Problem
 const ST = Dionysos.System
+const MP = Dionysos.Mapping
 
 """
 States (angles) and inputs (angular velocities):
@@ -69,5 +72,34 @@ function optimal_control_problem(;
     sys = system(; _X_ = _X_, _U_ = _U_)
     return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
 end
+
+
+
+function index_vectors(lb::NTuple{N,Int}, ub::NTuple{N,Int}) where {N}
+    ranges = ntuple(i -> lb[i]:ub[i], N)
+    return (SVector{N}(t) for t in Iterators.product(ranges...))
+end
+
+function remove_infeasible_cells(_X_::UT.HyperRectangle, state_grid::MP.GridFree, infeasible_shape::Any, geometry, grounded_left_foot)
+
+    infeasible_set = nothing
+
+    lb = MP.get_pos_by_coord(state_grid, _X_.lb)
+    ub = MP.get_pos_by_coord(state_grid, _X_.ub)
+    N = length(lb)
+    for idx in index_vectors(lb, ub)
+        center = MP.get_coord_by_pos(state_grid, idx)
+        cartesian = Geometry.get_cartesian_coordinates(center, geometry, grounded_left_foot)
+        swing_foot_coords = grounded_left_foot ? cartesian[6] : cartesian[3]
+        if Base.in(swing_foot_coords, infeasible_shape)
+            infeasible_set = UT.LazySetUnion([infeasible_set, UT.HyperRectangle])
+            println("Removed")
+        end
+    end
+    println("Done")
+
+end
+
+
 
 end
