@@ -116,7 +116,7 @@ function hasTransition(
                     bta[i, j]*eye(n) z t(At)
                     t(z) 1-bta[i, j] t(aux)
                     At aux inv(Pp)
-                ] >= eye(2 * n + 1) * 1e-4,
+                ] >= eye(2 * n + 1) * 1e-8,
                 PSDCone()
             )
         end
@@ -130,7 +130,7 @@ function hasTransition(
                 tau[i]*eye(n) z t(U[i] * F)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-4,
+            ] >= eye(n + n_ui + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -141,7 +141,7 @@ function hasTransition(
             gamma*eye(n) z [t(C) t(F) z]*t(S)
             t(z) J-gamma [t(c) t(ell) 1]*t(S)
             S*t([t(C) t(F) z]) S*t([t(c) t(ell) 1]) eye(n_S)
-        ] >= eye(n + n_S + 1) * 1e-4,
+        ] >= eye(n + n_S + 1) * 1e-8,
         PSDCone()
     )
 
@@ -152,14 +152,14 @@ function hasTransition(
             ϕ*eye(n) z t(F)
             t(z) δu-ϕ t(ell - u)
             (F) (ell-u) eye(m)
-        ] >= eye(n + m + 1) * 1e-4,
+        ] >= eye(n + m + 1) * 1e-8,
         PSDCone()
     )
 
     @constraint(model, [
         eye(n) t(C)
         C r*eye(n)
-    ] >= eye(n * 2) * 1e-4, PSDCone())
+    ] >= eye(n * 2) * 1e-8, PSDCone())
 
     # @constraint(model,diag(C).>=ones(n,1)*0.01)
     @constraint(model, r <= maxRadius^2)
@@ -231,7 +231,7 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
                 bta[i]*P z t(At)
                 t(z) 1-bta[i] t(aux)
                 At aux inv(Pp)
-            ] >= eye(2 * n + 1) * 1e-4,
+            ] >= eye(2 * n + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -244,7 +244,7 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
                 tau[i]*P z t(U[i] * K)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-4,
+            ] >= eye(n + n_ui + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -350,7 +350,7 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     @constraint(model, [
         S t(A * S + B * L)
         A * S+B * L S
-    ] >= 1e-4 * eye(2n), PSDCone())
+    ] >= 1e-8 * eye(2n), PSDCone())
     @constraint(model, eye(n) >= S, PSDCone())
     @constraint(model, S >= gamma * eye(n), PSDCone())
 
@@ -405,7 +405,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
                 beta[i]*P1 z t(At)
                 t(z) 1-beta[i] t(aux)
                 At aux inv(P2)
-            ] >= eye(2 * nx + 1) * 1e-4,
+            ] >= eye(2 * nx + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -418,7 +418,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
                 tau[i]*P1 z t(U[i] * K)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-4,
+            ] >= eye(nx + n_ui + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -429,7 +429,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
             γ*P1 z [LA.I t(K) z]*t(S)
             t(z) J-γ [t(c1) t(ell) 1]*t(S)
             S*t([LA.I t(K) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-4,
+        ] >= eye(nx + n_S + 1) * 1e-8,
         PSDCone()
     )
 
@@ -548,7 +548,7 @@ function transition_backward(
                     beta[i, j]*eye(nx) z t(At)
                     t(z) 1-beta[i, j] t(aux)
                     At aux inv(P2)
-                ] >= eye(2 * nx + 1) * 1e-4,
+                ] >= eye(2 * nx + 1) * 1e-8,
                 PSDCone()
             )
         end
@@ -562,7 +562,7 @@ function transition_backward(
                 tau[i]*eye(nx) z t(U[i] * F)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-4,
+            ] >= eye(nx + n_ui + 1) * 1e-8,
             PSDCone()
         )
     end
@@ -573,7 +573,7 @@ function transition_backward(
             γ*eye(nx) z [t(L) t(F) z]*t(S)
             t(z) J-γ [t(c1) t(ell) 1]*t(S)
             S*t([t(L) t(F) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-4,
+        ] >= eye(nx + n_S + 1) * 1e-8,
         PSDCone()
     )
 
@@ -584,14 +584,14 @@ function transition_backward(
             ϕ*eye(nx) z t(F)
             t(z) δu-ϕ t(ell - u)
             (F) (ell-u) eye(nu)
-        ] >= eye(nx + nu + 1) * 1e-4,
+        ] >= eye(nx + nu + 1) * 1e-8,
         PSDCone()
     )
 
     @constraint(model, [
         eye(nx) t(L)
         L δx*eye(nx)
-    ] >= eye(nx * 2) * 1e-4, PSDCone())
+    ] >= eye(nx * 2) * 1e-8, PSDCone())
 
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)
