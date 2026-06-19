@@ -16,13 +16,8 @@ const PR = DI.Problem
 
 _identity_wrap_state(problem, x) = x
 
-mutable struct TrajectoryGenerator{
-    RNG,
-    FNOISE,
-    FPROJ,
-    FCOST,
-    FWRAP,
-} <: AbstractTrajectoryGenerator
+mutable struct TrajectoryGenerator{RNG, FNOISE, FPROJ, FCOST, FWRAP} <:
+               AbstractTrajectoryGenerator
     # Inputs
     problem::Union{Nothing, PR.ProblemType} # problems with system being a MS.AbstractDiscreteSystem
     seed_generator::Union{Nothing, AbstractTrajectoryGenerator}
@@ -61,7 +56,7 @@ function TrajectoryGenerator(;
     trajectory_cost,
     wrap_state = _identity_wrap_state,
     hard_constraint::Bool = true,
-)   
+)
     return TrajectoryGenerator{
         typeof(rng),
         typeof(noise_sampler),
@@ -104,10 +99,7 @@ function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
     return gen
 end
 
-function set_seed_trajectory!(
-    gen::TrajectoryGenerator,
-    traj::ST.ClosedLoopTrajectory,
-)
+function set_seed_trajectory!(gen::TrajectoryGenerator, traj::ST.ClosedLoopTrajectory)
     gen.seed_trajectory = traj
     return gen
 end
@@ -229,28 +221,15 @@ function _rollout_controls(
         push!(xs, x)
     end
 
-    return ST.ClosedLoopTrajectory(
-        ST.Trajectory(xs),
-        ST.Trajectory(us),
-    )
+    return ST.ClosedLoopTrajectory(ST.Trajectory(xs), ST.Trajectory(us))
 end
 
-function _sample_perturbed_controls(
-    gen::TrajectoryGenerator,
-    rng,
-    u_nom::AbstractVector,
-)
+function _sample_perturbed_controls(gen::TrajectoryGenerator, rng, u_nom::AbstractVector)
     horizon = length(u_nom)
 
-    eps_seq = [
-        gen.noise_sampler(rng, u_nom[k], k)
-        for k in 1:horizon
-    ]
+    eps_seq = [gen.noise_sampler(rng, u_nom[k], k) for k in 1:horizon]
 
-    u_roll = [
-        gen.project_input(u_nom[k] + eps_seq[k])
-        for k in 1:horizon
-    ]
+    u_roll = [gen.project_input(u_nom[k] + eps_seq[k]) for k in 1:horizon]
 
     return eps_seq, u_roll
 end

@@ -57,6 +57,13 @@ function _as_interval_vector(X)
     )
 end
 
+function _centered_box(center, radius)
+    c = collect(Float64, center)
+    r = collect(Float64, radius)
+    @assert length(c) == length(r)
+    return IA.interval.(c .- r, c .+ r)
+end
+
 function ST._getLipschitzConstants(J, xi, Xi_vals)
     L = zeros(length(xi))
 
@@ -66,7 +73,13 @@ function ST._getLipschitzConstants(J, xi, Xi_vals)
 
         mat = Matrix{Any}(undef, nr, nc)
         for r in 1:nr, c in 1:nc
-            bf = Symbolics.build_function(Hg_s[r, c], xi...; expression = Val(false))
+            bf = Symbolics.build_function(
+                Hg_s[r, c],
+                xi...;
+                expression = Val(false),
+                nanmath = false,
+            )
+
             f_rc = bf isa Tuple ? bf[1] : bf
             mat[r, c] = f_rc(Xi_vals...)
         end
@@ -98,22 +111,58 @@ function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     Xi_vals = vcat(_as_interval_vector(X), _as_interval_vector(U), _as_interval_vector(W))
     L = ST._getLipschitzConstants(Jxi, xi, Xi_vals)
 
-    sub_rules_x̄i = Dict(xi[i] => x̄i[i] for i in 1:(n + m + p))
     function evalSym(z)
-        if z isa Number
-            return Float64(Symbolics.value(Symbolics.substitute(z, sub_rules_x̄i)))
-        else
-            y = Symbolics.substitute.(z, Ref(sub_rules_x̄i))
-            return Float64.(Symbolics.value.(y))
-        end
+        bf = Symbolics.build_function(z, xi...; expression = Val(false), nanmath = false)
+
+        fz = bf isa Tuple ? bf[1] : bf
+        return Float64.(fz(x̄i...))
     end
 
     A = evalSym(Jx)
     B = evalSym(Ju)
     E = evalSym(Jw)
-    c = vec(evalSym(f) - A * x̄ - B * ū - E * w̄)
+    f0 = vec(evalSym(f))
 
-    return (MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L)
+    c = f0 - A * x̄ - B * ū - E * w̄
+
+    return MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L
 end
 
+function ST.build_affine_approximation(
+    provider::ST.SymbolicAffineApproximationProvider,
+    k::Int,
+    xk,
+    xnext,
+    uk,
+    δx,
+    δu,
+)
+    wk = zeros(length(provider.w))
+
+    Xbar = _centered_box(xk, δx)
+    Ubar = _centered_box(uk, δu)
+    Wbar = _centered_box(wk, provider.ΔW)
+
+    affineSys, L = ST.buildAffineApproximation(
+        provider.fsymbolic,
+        provider.x,
+        provider.u,
+        provider.w,
+        xk,
+        uk,
+        wk,
+        Xbar,
+        Ubar,
+        Wbar,
+    )
+
+    return ST.AffineApproximation(
+        affineSys,
+        L,
+        provider.Uformat,
+        provider.Wformat,
+        (; k, δx = copy(δx), δu = copy(δu)),
+    )
 end
+
+end # module

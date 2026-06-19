@@ -8,7 +8,6 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-const SC = AB.SymbolicCertifier
 using JuMP
 import MathOptInterface as MOI
 
@@ -407,19 +406,19 @@ function script()
     )
 
     # --- Build Certifier --- 
-    cert = SC.UniformGridLocalTubeCertifier()
-    SC.set_optimizer!(cert, optimizer)
-    SC.set_trajectory!(cert, x_traj)
+    cert = AB.UniformGridTrajectoryCertifier.TrajectoryCertifier()
+    AB.UniformGridTrajectoryCertifier.set_optimizer!(cert, optimizer)
+    AB.set_trajectory!(cert, x_traj)
     cert.radius = SVector(0.8, 0.6, 20*pi/180, 20*pi/180)
     cert.incl_mode = MP.INNER
     cert.handle_system_domain = false
 
-    SC.certify!(cert)
+    AB.certify!(cert)
 
     println("\n=== Local Certification Result ===")
-    println("success:    ", SC.get_success(cert))
-    println("time (sec): ", SC.get_solve_time(cert))
-    concrete_controller = SC.get_controller(cert)
+    println("success:    ", AB.get_success(cert))
+    println("time (sec): ", AB.get_solve_time(cert))
+    concrete_controller = AB.get_controller(cert)
 
     # --- Closed-loop trajectory --- 
 

@@ -46,7 +46,7 @@ function TrajectoryGenerator(
     nstep::Int,
 )
     return TrajectoryGenerator(
-        nothing,   
+        nothing,
         optimizer,
         initial_state,
         concrete,
@@ -73,8 +73,8 @@ function generate!(gen::TrajectoryGenerator)
 
     gen.solve_time = time() - t0
 
-    gen.trajectory = gen.concrete ?
-        _generate_concrete_trajectory(gen) :
+    gen.trajectory =
+        gen.concrete ? _generate_concrete_trajectory(gen) :
         _generate_abstract_trajectory(gen)
 
     gen.success = PR.trajectory_success(problem, gen.trajectory.x)
@@ -96,8 +96,10 @@ end
 
 function _generate_concrete_trajectory(gen::TrajectoryGenerator)
     optimizer = gen.optimizer
-    discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+    discrete_time_system =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
     x0 = _initial_state(gen, gen.problem)
 
@@ -108,7 +110,6 @@ function _generate_concrete_trajectory(gen::TrajectoryGenerator)
         gen.nstep;
         trajectory_success = xtraj -> PR.trajectory_success(gen.problem, xtraj),
     )
-    
 
     return ST.ClosedLoopTrajectory(traj.x, traj.u)
 end
@@ -118,7 +119,8 @@ function _generate_abstract_trajectory(gen::TrajectoryGenerator)
     abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
     autom = abstract_problem.system
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+    abstract_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 
     q0 = SY.get_abstract_state(abstract_system, _initial_state(gen, gen.problem))
 
@@ -130,20 +132,11 @@ function _generate_abstract_trajectory(gen::TrajectoryGenerator)
         trajectory_success = qtraj -> PR.trajectory_success(abstract_problem, qtraj),
     )
 
-    xs = [
-        SY.get_concrete_state(abstract_system, q)
-        for q in traj_abs.x.seq
-    ]
+    xs = [SY.get_concrete_state(abstract_system, q) for q in traj_abs.x.seq]
 
-    us = [
-        SY.get_concrete_input(abstract_system, u)
-        for u in traj_abs.u.seq
-    ]
+    us = [SY.get_concrete_input(abstract_system, u) for u in traj_abs.u.seq]
 
-    return ST.ClosedLoopTrajectory(
-        ST.Trajectory(xs),
-        ST.Trajectory(us),
-    )
+    return ST.ClosedLoopTrajectory(ST.Trajectory(xs), ST.Trajectory(us))
 end
 
 end # end module

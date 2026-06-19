@@ -138,8 +138,7 @@ end
 function trajectory_success(problem::SafetyProblem, traj::ST.Trajectory)
     isempty(traj.seq) && return false
 
-    return first(traj.seq) ∈ problem.initial_set &&
-           all(x -> x ∈ problem.safe_set, traj.seq)
+    return first(traj.seq) ∈ problem.initial_set && all(x -> x ∈ problem.safe_set, traj.seq)
 end
 
 function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
@@ -149,12 +148,8 @@ function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
     return false
 end
 
-function discretize_problem(
-    problem::ProblemType,
-    tstep::Float64;
-    num_substeps = 5,
-)
-    error("discretize_problem not implemented for $(typeof(problem))")
+function discretize_problem(problem::ProblemType, tstep::Float64; num_substeps = 5)
+    return error("discretize_problem not implemented for $(typeof(problem))")
 end
 
 function discretize_problem(
@@ -162,11 +157,8 @@ function discretize_problem(
     tstep::Float64;
     num_substeps = 5,
 )
-    discrete_system = ST.discretize_continuous_system(
-        problem.system,
-        tstep;
-        num_substeps = num_substeps,
-    )
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
 
     return OptimalControlProblem(
         discrete_system,
@@ -178,16 +170,9 @@ function discretize_problem(
     )
 end
 
-function discretize_problem(
-    problem::SafetyProblem,
-    tstep::Float64;
-    num_substeps = 5,
-)
-    discrete_system = ST.discretize_continuous_system(
-        problem.system,
-        tstep;
-        num_substeps = num_substeps,
-    )
+function discretize_problem(problem::SafetyProblem, tstep::Float64; num_substeps = 5)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
 
     return SafetyProblem(
         discrete_system,
@@ -197,16 +182,9 @@ function discretize_problem(
     )
 end
 
-function discretize_problem(
-    problem::CoSafeLTLProblem,
-    tstep::Float64;
-    num_substeps = 5,
-)
-    discrete_system = ST.discretize_continuous_system(
-        problem.system,
-        tstep;
-        num_substeps = num_substeps,
-    )
+function discretize_problem(problem::CoSafeLTLProblem, tstep::Float64; num_substeps = 5)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
 
     return CoSafeLTLProblem(
         discrete_system,
@@ -219,7 +197,6 @@ end
 
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
-
 
 @recipe function f(
     problem::AlternatingSimulationProblem;

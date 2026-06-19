@@ -43,11 +43,8 @@ function TrajectoryGenerator(
     refinement_generator::GREFINE;
     tstep::Real,
     num_substeps::Integer = 5,
-) where {
-    GSEED <: AbstractTrajectoryGenerator,
-    GREFINE <: AbstractTrajectoryGenerator,
-}
-    return TrajectoryGenerator{GSEED,GREFINE}(
+) where {GSEED <: AbstractTrajectoryGenerator, GREFINE <: AbstractTrajectoryGenerator}
+    return TrajectoryGenerator{GSEED, GREFINE}(
         nothing,
         seed_generator,
         refinement_generator,
@@ -65,11 +62,8 @@ end
 function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
     gen.problem = problem
 
-    gen.discrete_problem = PR.discretize_problem(
-        problem,
-        gen.tstep;
-        num_substeps = gen.num_substeps,
-    )
+    gen.discrete_problem =
+        PR.discretize_problem(problem, gen.tstep; num_substeps = gen.num_substeps)
 
     set_problem!(gen.seed_generator, problem)
     set_problem!(gen.refinement_generator, gen.discrete_problem)
@@ -85,7 +79,8 @@ end
 
 function generate!(gen::TrajectoryGenerator)
     gen.problem === nothing && error("No problem attached. Call set_problem! first.")
-    gen.discrete_problem === nothing && error("Discrete problem was not built. Call set_problem! first.")
+    gen.discrete_problem === nothing &&
+        error("Discrete problem was not built. Call set_problem! first.")
 
     t0 = time()
 

@@ -1,3 +1,5 @@
+module UniformGridTrajectoryCertifier
+
 using StaticArrays
 import MathOptInterface as MOI
 import Dionysos
@@ -8,12 +10,17 @@ const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-import ..SymbolicCertifier:
-    AbstractSymbolicCertifier, set_trajectory!, certify!, get_success, get_solve_time
+import ..AbstractTrajectoryCertifier
+import ..set_problem!
+import ..set_trajectory!
+import ..certify!
+import ..get_controller
+import ..get_success
+import ..get_solve_time
 
-mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
+mutable struct TrajectoryCertifier{T} <: AbstractTrajectoryCertifier
     # Required
-    traj::Union{Nothing, ST.Trajectory}
+    traj::Union{Nothing, ST.ClosedLoopTrajectory}
 
     # Tube params
     radius::Any # control-theoretic parameter
@@ -30,23 +37,52 @@ mutable struct UniformGridLocalTubeCertifier{T} <: AbstractSymbolicCertifier
     # Outputs
     solve_time_sec::T
 
-    function UniformGridLocalTubeCertifier{T}() where {T}
+    function TrajectoryCertifier{T}() where {T}
         return new{T}(nothing, 0.1, 0.0, MP.INNER, 0, nothing, true, true, nothing, 0.0)
     end
 end
 
-UniformGridLocalTubeCertifier() = UniformGridLocalTubeCertifier{Float64}()
+TrajectoryCertifier() = TrajectoryCertifier{Float64}()
 
-set_optimizer!(
-    c::UniformGridLocalTubeCertifier,
-    optimizer::AB.UniformGridAbstraction.Optimizer,
-) = (c.optimizer = optimizer; c)
-set_trajectory!(c::UniformGridLocalTubeCertifier, x_traj) = (c.traj = x_traj; c)
-get_success(c::UniformGridLocalTubeCertifier) = c.optimizer.control_solver.success
-get_solve_time(c::UniformGridLocalTubeCertifier) = c.solve_time_sec
-get_controller(c::UniformGridLocalTubeCertifier) = c.optimizer.concrete_controller
+function TrajectoryCertifier(;
+    optimizer::Union{Nothing, AB.UniformGridAbstraction.Optimizer} = nothing,
+    radius = 0.1,
+    margin::Float64 = 0.0,
+    incl_mode::MP.INCL_MODE = MP.INNER,
+    n_between::Int = 0,
+    max_step::Union{Nothing, Float64} = nothing,
+    enforce_safe_max_step::Bool = true,
+    handle_system_domain::Bool = true,
+)
+    c = TrajectoryCertifier{Float64}()
+    c.optimizer = optimizer
+    c.radius = radius
+    c.margin = margin
+    c.incl_mode = incl_mode
+    c.n_between = n_between
+    c.max_step = max_step
+    c.enforce_safe_max_step = enforce_safe_max_step
+    c.handle_system_domain = handle_system_domain
+    return c
+end
 
-function certify!(c::UniformGridLocalTubeCertifier)
+set_optimizer!(c::TrajectoryCertifier, optimizer::AB.UniformGridAbstraction.Optimizer) =
+    (c.optimizer = optimizer; c)
+
+function set_problem!(c::TrajectoryCertifier, concrete_problem)
+    @assert c.optimizer !== nothing "Call set_optimizer! before set_problem!."
+    MOI.set(c.optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    return c
+end
+
+set_trajectory!(c::TrajectoryCertifier, x_traj) = (c.traj = x_traj; c)
+get_success(c::TrajectoryCertifier) =
+    c.optimizer === nothing ? false : c.optimizer.control_solver.success
+get_solve_time(c::TrajectoryCertifier) = c.solve_time_sec
+get_controller(c::TrajectoryCertifier) =
+    c.optimizer === nothing ? nothing : c.optimizer.concrete_controller
+
+function certify!(c::TrajectoryCertifier)
     t0 = time()
     @assert c.optimizer !== nothing "Set cert.optimizer = your configured AB.UniformGridAbstraction.Optimizer"
     @assert c.traj !== nothing "Call set_trajectory! first."
@@ -55,7 +91,7 @@ function certify!(c::UniformGridLocalTubeCertifier)
     @assert concrete_problem !== nothing "Your uniformGridOptimizer must already have concrete_problem set."
 
     # Build tube set
-    x_traj = c.traj
+    x_traj = c.traj.x
     X_local = build_tube(
         x_traj,
         c.radius;
@@ -66,7 +102,7 @@ function certify!(c::UniformGridLocalTubeCertifier)
         X_domain = c.handle_system_domain ? concrete_problem.system.X : nothing,
     )
 
-    # Build abstracion & solve problem
+    # Build abstraction & solve problem
     MOI.set(optimizer, MOI.RawOptimizerAttribute("abstraction_region"), X_local)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), c.incl_mode)
     MOI.optimize!(optimizer)
@@ -142,9 +178,11 @@ function build_tube(
 )
     # 1) collect points
     xs = collect(ST.enum_elems(x_traj))
+    @assert !isempty(xs) "Cannot build tube from an empty trajectory."
 
     # compute safe limit once (independent of max_step)
     rmin = radius isa Number ? Float64(radius) : Float64(minimum(radius))
+    @assert rmin > 0 "Tube radius must be positive."
     safe_limit = 0.5 * rmin
 
     # handle max_step
@@ -180,3 +218,5 @@ function build_tube(
     tube = X_domain !== nothing ? tube ∩ X_domain : tube
     return tube
 end
+
+end # module

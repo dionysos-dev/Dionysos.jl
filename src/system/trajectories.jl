@@ -90,7 +90,6 @@ function get_cost_trajectory(x_traj::Trajectory, u_traj::Trajectory, c)
     return (c = Trajectory(cs), total_cost)
 end
 
-
 function get_closed_loop_trajectory(
     autom::AbstractAutomatonList,
     controller::AbstractDiscreteController,
@@ -110,14 +109,16 @@ function get_closed_loop_trajectory(
 
     if trajectory_success(Trajectory(qs))
         verbose &&
-            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state = q
+            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
+                q
         return (x = Trajectory(qs), u = Trajectory(us))
     end
 
     for k in 1:nstep
         if stopping(q)
             verbose &&
-                @info "Closed-loop simulation stopped: stopping condition reached" step = k state = q
+                @info "Closed-loop simulation stopped: stopping condition reached" step = k state =
+                    q
             break
         end
 
@@ -125,7 +126,8 @@ function get_closed_loop_trajectory(
 
         if u === nothing
             verbose &&
-                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state = q
+                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state =
+                    q
             break
         end
 
@@ -133,7 +135,8 @@ function get_closed_loop_trajectory(
 
         if qnexts === nothing || isempty(qnexts)
             verbose &&
-                @warn "Closed-loop simulation stopped: no successor state" step = k state = q input = u
+                @warn "Closed-loop simulation stopped: no successor state" step = k state =
+                    q input = u
             break
         end
 
@@ -146,7 +149,8 @@ function get_closed_loop_trajectory(
 
         if trajectory_success(Trajectory(qs))
             verbose &&
-                @info "Closed-loop simulation stopped: trajectory success reached" step = k state = q
+                @info "Closed-loop simulation stopped: trajectory success reached" step = k state =
+                    q
             break
         end
     end
@@ -220,7 +224,8 @@ function get_closed_loop_trajectory(
 
     if trajectory_success(Trajectory(xs))
         verbose &&
-            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state = x
+            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
+                x
         return (x = Trajectory(xs), u = Trajectory(us))
     end
 

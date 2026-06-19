@@ -1,9 +1,5 @@
 export AbstractTrajectoryGenerator,
-    set_problem!,
-    generate!,
-    get_trajectory,
-    get_success,
-    get_solve_time
+    set_problem!, generate!, get_trajectory, get_success, get_solve_time
 
 abstract type AbstractTrajectoryGenerator end
 
