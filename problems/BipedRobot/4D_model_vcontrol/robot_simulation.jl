@@ -46,7 +46,7 @@ else
     # ------------------------------------------------------------
 
     # State space
-    x_bar = 1.0
+    x_bar = 1.5
     full_X_ = UT.HyperRectangle(
         -SVector(x_bar, x_bar, x_bar, x_bar),
         SVector(x_bar, x_bar, x_bar, x_bar)
@@ -87,11 +87,11 @@ else
     )
 
     # Target set
-    _T_ = UT.HyperRectangle(
-        SVector(-x_bar, -x_bar, 0.2, -x_bar),
-        SVector(-0.2, 0.0, x_bar, 0.0)
-    )
-    # _T_ = compute_target_set(_X_, state_grid, SVector(0.4, 0.0), geometry, true)
+    # _T_ = UT.HyperRectangle(
+    #     SVector(-x_bar, -x_bar, 0.2, -x_bar),
+    #     SVector(-0.2, 0.0, x_bar, 0.0)
+    # )
+    _T_ = RV.RobotModel.compute_target_set(state_grid, SVector(0.25, 0.0), robot_geometry, true)
 
     concrete_system = RV.RobotModel.system(; _X_ = _X_, _U_ = _U_)
     jacobian_bound = RV.RobotModel.jacobian_bound()
@@ -162,15 +162,19 @@ else
     end
 end
 
-if success && animate
-    # ------------------------------------------------------------
-    # 5) Collect results
-    # ------------------------------------------------------------
-    abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-    abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-    concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+# ------------------------------------------------------------
+# 5) Collect results
+# ------------------------------------------------------------
+abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
+abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
+concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 
-    abstract_I_ = abstract_problem.initial_set
+abstract_I_ = abstract_problem.initial_set
+abstract_T_ = abstract_problem.target_set
+if !success
+    println(abstract_I_)
+    println(abstract_T_)
+elseif animate
     x0_sim = SY.get_concrete_state(abstract_system, abstract_I_[1])
 
     dt = 0.01

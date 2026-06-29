@@ -4,6 +4,7 @@ using StaticArrays
 using Plots
 using Dionysos
 using MathematicalSystems
+using LinearAlgebra
 
 using ..Geometry
 using ..PostProc
@@ -108,27 +109,47 @@ function remove_infeasible_cells(_X_::UT.HyperRectangle{N, T} , state_grid::MP.G
 end
 
 
-function compute_target_set(_X_::UT.HyperRectangle{N, T} , state_grid::MP.GridFree, swing_foot_coords::Real, geometry, grounded_left_foot) where {N, T}
+function compute_target_set(
+    state_grid::MP.GridFree,
+    swing_foot_coords::SVector{2},
+    geometry,
+    grounded_left_foot
+)
 
-    target_sets = typeof(_X_)[]
+    cell = MP.get_elem_by_coord(state_grid, SVector(0.0, 0.0, 0.0, 0.0))
+    target_sets = typeof(cell)[]
+    count = 0
 
-    L = geometry.hip_to_knee + geometry.knee_to_foot
+    Lmax = geometry.hip_to_knee + geometry.knee_to_foot
+    Lmin = abs(geometry.hip_to_knee - geometry.knee_to_foot)
     for hip_x in 0:1e-3:swing_foot_coords[1]
-        for hip_y in swing_foot_coords[2]:1e-3:L
+        for hip_y in swing_foot_coords[2]:1e-3:Lmax
             ds = norm([hip_x, hip_y])
             dw = norm([hip_x, hip_y] - swing_foot_coords)
-            if ds <= L && dw <= L
-                theta2 = -acos((ds^2 - geometry.hip_to_knee^2 - geometry.knee_to_foot^2)/(geometry.hip_to_knee*geometry.knee_to_foot))
-                theta4 = -acos((dw^2 - geometry.hip_to_knee^2 - geometry.knee_to_foot^2)/(geometry.hip_to_knee*geometry.knee_to_foot))
-                theta1 = atan(hip_x, hip_y) - atan(-geometry.hip_to_knee-geometry.knee_to_foot*cos(theta2), geometry.knee_to_foot*sin(theta2)) - geometry.theta_hip
-                theta3 = atan(hip_x - swing_foot_coords[1], hip_y - swing_foot_coords[2]) - atan(-geometry.hip_to_knee-geometry.knee_to_foot*cos(theta4), geometry.knee_to_foot*sin(theta4)) - geometry.theta_hip
+            if Lmin <= ds <= Lmax && Lmin <= dw <= Lmax
+                theta_k_stance = -acos(1 + (ds^2 - Lmax^2)/(2*geometry.hip_to_knee*geometry.knee_to_foot))
+
+                theta_k_swing = -acos(1 + (dw^2 - Lmax^2)/(2*geometry.hip_to_knee*geometry.knee_to_foot))
+
+                v = inv([-geometry.knee_to_foot*cos(theta_k_stance)-geometry.hip_to_knee -geometry.knee_to_foot*sin(theta_k_stance); -geometry.knee_to_foot*sin(theta_k_stance) geometry.knee_to_foot*cos(theta_k_stance)+geometry.hip_to_knee]) * [hip_x; hip_y]
+
+                theta_h_stance = atan(v[1], v[2]) - geometry.theta_hip
+
+                v = inv([-geometry.knee_to_foot*cos(theta_k_swing)-geometry.hip_to_knee -geometry.knee_to_foot*sin(theta_k_swing); -geometry.knee_to_foot*sin(theta_k_swing) geometry.knee_to_foot*cos(theta_k_swing)+geometry.hip_to_knee]) * [hip_x - swing_foot_coords[1]; hip_y - swing_foot_coords[2]]
                 
-                rec = MP.get_elem_by_coord(state_grid, SVector(theta1, theta2, theta3, theta4))
+                theta_h_swing = atan(v[1], v[2]) - geometry.theta_hip
+
+                # theta_h_stance = atan(hip_x, hip_y) - atan(-geometry.hip_to_knee-geometry.knee_to_foot*cos(theta_k_stance), geometry.knee_to_foot*sin(theta_k_stance)) - geometry.theta_hip
+
+                # theta_h_swing = atan(hip_x - swing_foot_coords[1], hip_y - swing_foot_coords[2]) - atan(-geometry.hip_to_knee-geometry.knee_to_foot*cos(theta_k_swing), geometry.knee_to_foot*sin(theta_k_swing)) - geometry.theta_hip
+                
+                config = grounded_left_foot ? SVector(theta_h_stance, theta_k_stance, theta_h_swing, theta_k_swing) : SVector(theta_h_swing, theta_k_swing, theta_h_stance, theta_k_stance)
+                rec = MP.get_elem_by_coord(state_grid, config)
                 inflated_rec = UT.HyperRectangle(
-                    rec.lb * 0.95,
-                    rec.ub * 0.95
+                    rec.lb - 0.1*(rec.ub - rec.lb),
+                    rec.ub + 0.1*(rec.ub - rec.lb)
                 )
-                push!(target_sets, inflated_rec)
+                push!(target_sets, rec)
             end
         end
     end
