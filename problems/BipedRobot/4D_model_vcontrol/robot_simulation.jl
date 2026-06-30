@@ -21,7 +21,7 @@ const OPDS = OP.DiscreteSystems
 #----------------------
 # Save-load settings 
 #----------------------
-save = false
+save = true
 load = false
 animate = true
 filename = "./problems/BipedRobot/4D_model_vcontrol/optimizer.jld2"
@@ -59,10 +59,12 @@ else
     state_grid = MP.GridFree(x0, hx)
 
     # State constraints
+    obstacle = UT.HyperRectangle(SVector(-0.03, 0.0), SVector(0.03,0.05))
+
     _X_ = RV.RobotModel.remove_infeasible_cells(
         full_X_,
         state_grid,
-        UT.HyperRectangle(SVector(-0.03, -1.0), SVector(0.03,0.03)),
+        obstacle,
         robot_geometry, true
     )
     # _X_ = full_X_
@@ -91,7 +93,7 @@ else
     #     SVector(-x_bar, -x_bar, 0.2, -x_bar),
     #     SVector(-0.2, 0.0, x_bar, 0.0)
     # )
-    _T_ = RV.RobotModel.compute_target_set(state_grid, SVector(0.25, 0.0), robot_geometry, true)
+    _T_ = RV.RobotModel.compute_target_set(state_grid, SVector(0.2, 0.0), robot_geometry, true)
 
     concrete_system = RV.RobotModel.system(; _X_ = _X_, _U_ = _U_)
     jacobian_bound = RV.RobotModel.jacobian_bound()
@@ -206,11 +208,13 @@ elseif animate
     # plot!(fig, x_traj; color = :blue, dims = [1, 2])
     # display(fig)
 
-    p = RV.PostProc.animate_robot_live(
+    RV.PostProc.animate_robot(
         x_traj.seq,
         0.5,
         robot_geometry;
-        grounded_left_foot=true
+        grounded_left_foot=true,
+        obstacle = obstacle,
+        add_obstacle = true
     )
 
     #p = RV.PostProc.plot_configuration_interval(_T_.lb, _T_.ub, robot_geometry, true; p = p)

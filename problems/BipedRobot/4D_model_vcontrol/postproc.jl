@@ -13,7 +13,8 @@ const PLOT = plot(aspect_ratio=:equal, xlim=(-0.5, 0.5), ylim=(-0.05, 0.45), leg
 General function to visualize a robot configuration
 """
 
-function plot_robot(
+function plot_robot!(
+    p,
     x,
     geometry,
     grounded_left_foot
@@ -21,13 +22,11 @@ function plot_robot(
 
     lx, ly, rx, ry = Geometry.robot_segments(x, geometry, grounded_left_foot)
     # left leg
-    p = plot(lx, ly, lw=4, marker=:circle, label="Left leg", aspect_ratio=:equal, xlim=(-0.5, 0.5), ylim=(-0.05, 0.45), legend=false, xlabel="x (m)", ylabel="y (m)")
+    plot!(p, lx, ly, lw=4, marker=:circle, label="Left leg", aspect_ratio=:equal, xlim=(-0.5, 0.5), ylim=(-0.05, 0.45), legend=false, xlabel="x (m)", ylabel="y (m)")
     # right leg
     plot!(p, rx, ry, lw=4, marker=:circle, label="Right leg")
     # hip connection
     plot!(p, [lx[end], rx[end]], [ly[end], ry[end]], lw=4, label="")
-
-    return p
 
 end
 
@@ -39,12 +38,17 @@ function animate_robot(
     dt,
     geometry;
     grounded_left_foot=true,
-    filename="./problems/BipedRobot/4D_model_vcontrol/walking_robot.gif"
+    filename="./problems/BipedRobot/4D_model_vcontrol/walking_robot.gif",
+    add_obstacle=false,
+    obstacle=nothing
 )
 
     anim = @animate for x in X
-
-        p = plot_robot(x, geometry, grounded_left_foot)
+        p = plot()
+        if add_obstacle
+            plot!(p, obstacle, color=:red)
+        end
+        plot_robot!(p, x, geometry, grounded_left_foot)
 
         p
     end
@@ -60,16 +64,20 @@ function animate_robot_live(
     dt,
     geometry;
     grounded_left_foot=true,
-    p = PLOT
+    add_obstacle=false,
+    obstacle=nothing
 )
 
     for x in X
-        p = plot_robot(x, geometry, grounded_left_foot)
+        p = plot()
+        if add_obstacle
+            plot!(p, obstacle, color=:red)
+        end
+        plot_robot!(p, x, geometry, grounded_left_foot)
         display(p)
         sleep(dt)
     end
 
-    return p
 end
 
 """
