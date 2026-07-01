@@ -26,5 +26,9 @@ end
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 include("cosafe_ltl_problem.jl")
+include("reach_and_stay_problem.jl") 
+
+export OptimizerReachAndStayProblem
 
 end
+

@@ -82,6 +82,30 @@ mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
 end
 
 """
+    ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
+
+Encodes a **reach-and-stay control problem**.
+
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `XT`: The target set to be reached and stayed in.
+- `XS`: The safe set in which the system must remain during the approach.
+- `T`: The time horizon (number of allowed time steps).
+
+This problem aims to synthesize a controller that drives the system from the initial set
+into the target set and keeps it there indefinitely, while remaining within the safe set
+during the approach phase.
+"""
+
+mutable struct ReachAndStayProblem{S, XI, XT, XS, T <: Real} <: ProblemType
+    system::S
+    initial_set::XI
+    target_set::XT
+    safe_set::XS
+    time::T
+end
+
+"""
     CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
 
 Encodes a **co-safe LTL control problem**.
@@ -252,4 +276,5 @@ end
 
 export OptimalControlProblem
 export SafetyProblem
+export ReachAndStayProblem
 export Infinity
