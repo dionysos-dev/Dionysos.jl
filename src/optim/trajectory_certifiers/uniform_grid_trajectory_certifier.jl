@@ -42,8 +42,6 @@ mutable struct TrajectoryCertifier{T} <: AbstractTrajectoryCertifier
     end
 end
 
-TrajectoryCertifier() = TrajectoryCertifier{Float64}()
-
 function TrajectoryCertifier(;
     optimizer::Union{Nothing, AB.UniformGridAbstraction.Optimizer} = nothing,
     radius = 0.1,

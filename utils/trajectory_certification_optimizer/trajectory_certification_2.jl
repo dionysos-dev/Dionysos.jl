@@ -42,7 +42,7 @@ concrete_problem =
 # 2) Trajectory generator block 1: abstraction-based generator
 # ------------------------------------------------------------
 
-Δt = 0.3*2.0
+Δt = 0.3
 
 alternating_simulation_problem =
     DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
@@ -195,7 +195,7 @@ transition_cost = UT.QuadraticStateControlFunction(
 ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδx = 1e6, # Upper bound on predecessor ellipsoid size. Larger makes the LMI easier. 
     maxδu = 1e6, # Upper bound on controller/input deviation (deviation from nominal input). Larger makes the LMI easier.
-    λ = 0.4, # Objective tradeoff. Small λ favors larger ellipsoids; large λ favors lower transition cost.
+    λ = 0.3, # Objective tradeoff. Small λ favors larger ellipsoids; large λ favors lower transition cost.
     terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.5^2, # Shape matrix of the terminal ellipsoid centered at the last trajectory point.
     transition_cost = transition_cost,
     linearization_δx = [1.1, 1.0], # State box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes

@@ -506,7 +506,7 @@ function transition_backward(
     maxδx = maxδx,
     maxδu = maxδu,
     λ = 0.01,
-    use_log_det = false,
+    use_log_det = true,
 )
     eye(n) = LA.diagm(ones(n))
     nx = length(c) #dimension of the state
