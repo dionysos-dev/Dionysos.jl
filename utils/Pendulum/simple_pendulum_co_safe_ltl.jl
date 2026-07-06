@@ -21,7 +21,7 @@ _U_ = UT.LazySetMinus(
     UT.HyperRectangle(SVector(-4.5), SVector(4.5)),
     UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
 )
-concrete_system = SimplePendulum.system(; l = 1.0, g = 9.81, _X_ = _X_, _U_ = _U_)
+concrete_system = SimplePendulum.system(; _X_ = _X_, _U_ = _U_)
 
 # ------------------------------------------------------------
 # 2) Define co-safe LTL problem with sets labeling
@@ -62,7 +62,7 @@ hx = SVector(3*(pi/180.0), 0.05)
 u0 = SVector(0.0)
 hu = SVector(0.3)
 
-tstep = 0.1
+Δt = 0.1
 
 periodic_dims = SVector(1)
 periods = SVector(2*pi)
@@ -78,7 +78,7 @@ MOI.set(
     MOI.RawOptimizerAttribute("jacobian_bound"),
     SimplePendulum.jacobian_bound(),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
@@ -140,7 +140,6 @@ x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
 # 7) Plots
 # ------------------------------------------------------------
 
-using Plots
 φ_str = string(φ)
 fig = plot(; aspect_ratio = :equal, title = "$φ_str")
 concrete_system = concrete_problem.system
@@ -160,38 +159,23 @@ plot!(fig, x_traj; color = :blue, dims = [1, 2])
 display(fig)
 
 # ------------------------------------------------------------
-# 8) Visualization
+# 8) Animation with dashboard
 # ------------------------------------------------------------
 
-using RigidBodyDynamics
-using MeshCat, MeshCatMechanisms
-
-# --- build mechanism/state from your URDF ---
-urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
-mechanism = parse_urdf(urdf)
-state = MechanismState(mechanism)
-joint = first(joints(mechanism))
-
-# --- build trajectory data ---
-state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
-ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
-
-# --- visualizer ---
-mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
-vis = mvis.visualizer
-open(vis)
-
-# --- animation (no Interpolations) ---
-fps = round(Int, 1 / tstep)
-anim = MeshCat.Animation(vis; fps = fps)
-
-for k in eachindex(ts)
-    θ = state_values[k][1]
-    set_configuration!(state, joint, θ)
-
-    MeshCat.atframe(anim, k) do
-        return MeshCatMechanisms.set_configuration!(mvis, configuration(state))
-    end
-end
-
-MeshCat.setanimation!(vis, anim; play = true)
+system_plot! = SimplePendulum.system_plot!()
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),      # phase plot θ vs ω
+    udims = (1,),        # input over time
+    Δt = Δt,
+    fps = 5,
+    # filename = "simple_pendulum_dashboard.mp4",
+    xlabel_state = "θ [rad]",
+    ylabel_state = "ω [rad/s]",
+    xlabel_input = "time [s]",
+    ylabel_input = "τ [Nm]",
+    xlims_state = (-π, π),
+    ylims_state = (-8, 8),
+)

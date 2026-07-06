@@ -397,74 +397,47 @@ function plot_xy_obstacles!(plt, obs2d; alpha = 0.25)
     return plt
 end
 
-function live_vehicle_progression(
-    p,
-    dp,
-    x_traj::ST.Trajectory,
-    u_traj::ST.Trajectory,
-    xl,
-    yl;
+function system_plot!(;
+    params::Params = Params(),
+    draw_params::DrawParams = DrawParams(params),
+    xlims = nothing,
+    ylims = nothing,
     domain = nothing,
     obstacles2d = nothing,
-    every = 1,
-    dt = 0.05,
-    giffile::Union{Nothing, String} = nothing,
-    fps::Int = 20,
+    show_axes = true,
+    show_heading = true,
+    show_phi_arc = true,
 )
-    states = x_traj.seq
-    inputs = u_traj.seq
-
-    xs = [x[1] for x in states]
-    ys = [x[2] for x in states]
-
-    # --- GIF MODE ---
-    if giffile !== nothing
-        anim = @animate for k in 1:every:length(states)
-            plt = plot(;
-                aspect_ratio = :equal,
-                xlims = xl,
-                ylims = yl,
-                legend = false,
-                size = (700, 700),
-            )
-            if domain !== nothing
-                plot!(plt, domain; color = :grey, opacity = 0.1)
-            end
-            if obstacles2d !== nothing
-                plot_xy_obstacles!(plt, obstacles2d, color = :black)
-            end
-            plot!(plt, xs, ys; lw = 1)
-            uk = (k <= length(inputs)) ? inputs[k] : inputs[end]
-            draw_articulated!(plt, p, dp, states[k], uk)
-        end
-
-        gif(anim, giffile; fps = fps)
-        return anim
-    end
-
-    # --- LIVE MODE ---
-    for k in 1:every:length(states)
-        plt = plot(;
-            aspect_ratio = :equal,
-            xlims = xl,
-            ylims = yl,
-            legend = false,
-            size = (700, 700),
-        )
+    return function (fig, x, u)
         if domain !== nothing
-            plot!(plt, domain; color = :grey, opacity = 0.1)
+            plot!(fig, domain; color = :grey, opacity = 0.1, label = false)
         end
-        if obstacles2d !== nothing
-            plot_xy_obstacles!(plt, obstacles2d; color = :black)
-        end
-        plot!(plt, xs, ys; lw = 1)
-        uk = (k <= length(inputs)) ? inputs[k] : inputs[end]
-        draw_articulated!(plt, p, dp, states[k], uk)
-        display(plt)
-        sleep(dt)
-    end
 
-    return nothing
+        if obstacles2d !== nothing
+            plot_xy_obstacles!(fig, obstacles2d)
+        end
+
+        draw_articulated!(
+            fig,
+            params,
+            draw_params,
+            x,
+            u;
+            show_axes = show_axes,
+            show_heading = show_heading,
+            show_phi_arc = show_phi_arc,
+        )
+
+        if xlims !== nothing
+            xlims!(fig, xlims...)
+        end
+
+        if ylims !== nothing
+            ylims!(fig, ylims...)
+        end
+
+        return fig
+    end
 end
 
 end # module

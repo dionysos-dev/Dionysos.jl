@@ -646,6 +646,7 @@ function transition_backward(
     maxδx = 100,
     maxδu = 10.0 * 2,
     λ = 0.01,
+    use_log_det = true,
 )
     P1, kappa, cost = transition_backward(
         affsys.A,
@@ -664,6 +665,7 @@ function transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
+        use_log_det = use_log_det,
     )
     if P1 !== nothing
         K, ℓ = get_controller_matrices(kappa)

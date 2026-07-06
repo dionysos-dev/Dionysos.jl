@@ -128,7 +128,7 @@ mppi_generator = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,
     mppi_generator;
-    tstep = Δt,
+    Δt = Δt,
     num_substeps = 5,
 )
 

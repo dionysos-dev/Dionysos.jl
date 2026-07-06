@@ -17,24 +17,24 @@ const MP = DI.Mapping
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/pendulum/simple_pendulum.jl")
+include("../../problems/Pendulum/simple_pendulum.jl")
 
 # ------------------------------------------------------------
 # 1) Problem
 # ------------------------------------------------------------
 
-l = 1.0
-g = 9.81
-Δt = 0.1
+params = SimplePendulum.Params(; l = 1.0, g = 9.81)
 
 concrete_problem = SimplePendulum.optimal_control_problem(;
-    l = l,
-    g = g,
+    params = params,
     objective = "reachability_up_medium_power",
 )
-
 concrete_system = concrete_problem.system
-jacobian_bound = SimplePendulum.jacobian_bound(l, g)
+jacobian_bound = SimplePendulum.jacobian_bound(params)
+
+# ------------------------------------------------------------
+# 2) Trajectory generator block 1: abstraction-based generator
+# ------------------------------------------------------------
 
 _X_ = concrete_system.X
 _U_ = concrete_system.U
@@ -45,15 +45,10 @@ periods = SVector(2π)
 periodic_start = SVector(-π)
 
 wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start)
-
 wrap_state = (problem, x) -> wrap(x)
 
-# ------------------------------------------------------------
-# 2) Trajectory generator block 1: abstraction-based generator
-# ------------------------------------------------------------
-
+Δt = 0.1
 hx = SVector(3.0 * π / 180.0, 0.05)
-
 input_grid = MP.GridFree(SVector(0.0), SVector(0.3))
 
 abstraction_optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -164,7 +159,7 @@ mppi_generator = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,
     mppi_generator;
-    tstep = Δt,
+    Δt = Δt,
     num_substeps = 5,
 )
 
@@ -180,7 +175,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 
 # fsymbolic = [
 #     x[1] + Δt * (x[2] + w[1]),
-#     x[2] + Δt * (-(g / l) * Symbolics.sin(x[1]) + u[1] + w[2]),
+#     x[2] + Δt * (-(params.g / params.l) * Symbolics.sin(x[1]) + u[1] + w[2]),
 # ]
 # Wformat = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0))
 
@@ -200,7 +195,8 @@ x = [θ, ω]
 u = [τ]
 w = [w1, w2]
 
-f_cont_expr(xloc, uloc) = [xloc[2], -(g / l) * Symbolics.sin(xloc[1]) + uloc[1]]
+f_cont_expr(xloc, uloc) =
+    [xloc[2], -(params.g / params.l) * Symbolics.sin(xloc[1]) + uloc[1]]
 
 f_disc = ST.runge_kutta4(f_cont_expr, x, u, T, 1)
 
@@ -245,6 +241,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
+    use_log_det = true,
 )
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
@@ -538,3 +535,22 @@ if idx_fail !== nothing
 else
     println("No failed step: certification succeeded.")
 end
+
+system_plot! = SimplePendulum.system_plot!(; params = params)
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    pendulum_traj.x,
+    pendulum_traj.u;
+    xdims = (1, 2),      # phase plot θ vs ω
+    udims = (1,),        # input over time
+    Δt = Δt,
+    fps = 5,
+    filename = "pendulum_dashboard.mp4",
+    xlabel_state = "θ [rad]",
+    ylabel_state = "ω [rad/s]",
+    xlabel_input = "time [s]",
+    ylabel_input = "τ [Nm]",
+    xlims_state = (-π, π),
+    ylims_state = (-8, 8),
+)
+

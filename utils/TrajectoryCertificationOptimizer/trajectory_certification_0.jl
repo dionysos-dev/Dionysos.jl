@@ -82,7 +82,7 @@ g12 = UT.HyperRectangle(SVector(1.0, 2.0), SVector(3.0, 3.7))
 target_set = UT.LazySetUnion([g11, g12])
 
 state_cost = nothing
-transition_cost = nothing
+trans_cost = nothing
 time_horizon = 20
 
 concrete_problem = DI.Problem.OptimalControlProblem(
@@ -90,7 +90,7 @@ concrete_problem = DI.Problem.OptimalControlProblem(
     _I_,
     target_set,
     state_cost,
-    transition_cost,
+    trans_cost,
     time_horizon,
 )
 
@@ -196,7 +196,7 @@ println("MPPI diagnostics: ", AB.MPPITrajectoryGenerator.get_diagnostics(mppi_ge
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,
     mppi_generator;
-    tstep = 0.3,
+    Δt = 0.3,
     num_substeps = 5,
 )
 
@@ -296,6 +296,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     linearization_δx = [0.2, 0.2],
     linearization_δu = [0.5, 0.5],
     adaptive_boxes = adaptive_opts,
+    use_log_det = false,
 )
 
 using Clarabel
@@ -322,7 +323,7 @@ certifier = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,
     mppi_generator;
-    tstep = 0.3,
+    Δt = 0.3,
     num_substeps = 5,
 )
 

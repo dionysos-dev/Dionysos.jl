@@ -2,6 +2,8 @@ module ToyProblem
 
 using StaticArrays
 using MathematicalSystems
+using Plots
+
 using Dionysos
 
 const UT = Dionysos.Utils
@@ -40,6 +42,49 @@ function optimal_control_problem(;
 )
     sys = system(; _X_ = _X_, _U_ = _U_)
     return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+end
+
+function system_plot!(;
+    xlims = (-2.2, 2.2),
+    ylims = (-2.2, 2.2),
+    marker_size = 8,
+    show_input = true,
+)
+    return function (fig, x, u)
+        px = Float64(x[1])
+        py = Float64(x[2])
+        ux = Float64(u[1])
+        uy = Float64(u[2])
+
+        scatter!(fig, [px], [py]; markersize = marker_size, color = :blue, label = "")
+
+        plot!(
+            fig,
+            [px, px + ux],
+            [py, py + uy];
+            linewidth = 3,
+            color = :red,
+            linestyle = :dash,
+            label = "",
+        )
+
+        if show_input
+            annotate!(
+                fig,
+                xlims[1] + 0.05 * (xlims[2] - xlims[1]),
+                ylims[1] + 0.05 * (ylims[2] - ylims[1]),
+                text(
+                    "u₁ = $(round(ux; digits = 2))\n" * "u₂ = $(round(uy; digits = 2))",
+                    10,
+                ),
+            )
+        end
+
+        xlims!(fig, xlims...)
+        ylims!(fig, ylims...)
+
+        return fig
+    end
 end
 
 end # module

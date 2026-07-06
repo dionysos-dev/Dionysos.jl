@@ -19,7 +19,7 @@ with_spot = true
 # ------------------------------------------------------------
 # 1) Define a simple 2D continuous-time system: x' = u
 # ------------------------------------------------------------
-include("../problems/toy_problem.jl")
+include("../../problems/toy_problem.jl")
 
 _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
@@ -33,6 +33,8 @@ jacobian_bound = ToyProblem.jacobian_bound()
 
 alternating_simulation_problem =
     DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
+
+Δt = 0.3
 
 # grid resolution
 x0 = SVector(-2.0, -2.0)
@@ -52,7 +54,7 @@ MOI.set(
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 
 # choose an approx mode that exists in your setup
 MOI.set(
@@ -188,3 +190,26 @@ plot!(
 )
 plot!(fig, x_traj; color = :blue, dims = [1, 2])
 display(fig)
+
+# ------------------------------------------------------------
+# Animation with dashboard
+# ------------------------------------------------------------
+
+system_plot! = ToyProblem.system_plot!()
+
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 5,
+    # filename = "toy_problem_dashboard.gif",
+    xlabel_state = "x₁",
+    ylabel_state = "x₂",
+    xlabel_input = "u₁",
+    ylabel_input = "u₂",
+    xlims_state = (-2.0, 2.0),
+    ylims_state = (-2.0, 2.0),
+)

@@ -2,6 +2,8 @@ module PathPlanning
 
 using StaticArrays
 using MathematicalSystems, HybridSystems
+using Plots
+
 using Dionysos
 const UT = Dionysos.Utils
 const ST = Dionysos.System
@@ -116,6 +118,98 @@ function problem(; simple = false, transition_cost = nothing)
     problem =
         PB.OptimalControlProblem(sys, _I_, _T_, nothing, transition_cost, PB.Infinity())
     return problem
+end
+
+function plot_xy_obstacles!(fig, obstacles; alpha = 0.25)
+    for ob in obstacles
+        x1l, x2l = ob.lb[1], ob.lb[2]
+        x1u, x2u = ob.ub[1], ob.ub[2]
+
+        xs = [x1l, x1u, x1u, x1l, x1l]
+        ys = [x2l, x2l, x2u, x2u, x2l]
+
+        plot!(fig, xs, ys; linewidth = 1, fill = (true, alpha), color = :black, label = "")
+    end
+
+    return fig
+end
+
+function system_plot!(;
+    car_length = 0.45,
+    car_width = 0.25,
+    arrow_length = 0.6,
+    xlims = (-0.1, 10.1),
+    ylims = (-0.1, 10.1),
+    obstacles = nothing,
+    show_input = true,
+)
+    return function (fig, x, u)
+        px = Float64(x[1])
+        py = Float64(x[2])
+        θ = Float64(x[3])
+
+        v = Float64(u[1])
+        δ = Float64(u[2])
+
+        if obstacles !== nothing
+            plot_xy_obstacles!(fig, obstacles)
+        end
+
+        R = @SMatrix [
+            cos(θ) -sin(θ)
+            sin(θ) cos(θ)
+        ]
+
+        c = SVector(px, py)
+
+        corners_body = [
+            SVector(car_length / 2, car_width / 2),
+            SVector(car_length / 2, -car_width / 2),
+            SVector(-car_length / 2, -car_width / 2),
+            SVector(-car_length / 2, car_width / 2),
+            SVector(car_length / 2, car_width / 2),
+        ]
+
+        body = [c + R * q for q in corners_body]
+
+        plot!(
+            fig,
+            [p[1] for p in body],
+            [p[2] for p in body];
+            linewidth = 2,
+            fill = (true, 0.25),
+            color = :blue,
+            label = "",
+        )
+
+        # heading arrow
+        p_head = c + arrow_length * SVector(cos(θ), sin(θ))
+
+        plot!(
+            fig,
+            [px, p_head[1]],
+            [py, p_head[2]];
+            linewidth = 3,
+            color = :blue,
+            label = "",
+        )
+
+        scatter!(fig, [px], [py]; markersize = 5, color = :blue, label = "")
+
+        if show_input
+            annotate!(
+                fig,
+                xlims[1] + 0.05 * (xlims[2] - xlims[1]),
+                ylims[1] + 0.05 * (ylims[2] - ylims[1]),
+                text("v = $(round(v; digits = 2))\nδ = $(round(δ; digits = 2))", 10),
+            )
+        end
+
+        xlims!(fig, xlims...)
+        ylims!(fig, ylims...)
+
+        return fig
+    end
 end
 
 end

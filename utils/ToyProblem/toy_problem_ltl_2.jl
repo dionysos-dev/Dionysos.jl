@@ -19,7 +19,7 @@ const OPDS = OP.DiscreteSystems
 # 1) Define a simple 2D continuous-time system: x' = u
 # ------------------------------------------------------------
 
-include("../problems/toy_problem.jl")
+include("../../problems/toy_problem.jl")
 
 _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))

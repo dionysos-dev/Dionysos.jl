@@ -10,7 +10,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../problems/path_planning.jl")
+include("../../problems/path_planning.jl")
 
 ####################################################################################
 ########### PART 1 : Construct the classical abstraction using any mode: ###########

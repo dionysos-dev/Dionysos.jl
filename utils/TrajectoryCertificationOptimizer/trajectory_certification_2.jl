@@ -129,7 +129,7 @@ mppi_generator = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,
     mppi_generator;
-    tstep = Δt,
+    Δt = Δt,
     num_substeps = 5,
 )
 
@@ -179,7 +179,7 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,        # accept first consistent box
 )
 
-transition_cost = UT.QuadraticStateControlFunction(
+trans_cost = UT.QuadraticStateControlFunction(
     zeros(2, 2),              # Q: state cost
     Matrix{Float64}(LA.I, 2, 2), # R: input cost
     zeros(2, 2),              # N
@@ -197,10 +197,11 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδu = 1e6, # Upper bound on controller/input deviation (deviation from nominal input). Larger makes the LMI easier.
     λ = 0.3, # Objective tradeoff. Small λ favors larger ellipsoids; large λ favors lower transition cost.
     terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.5^2, # Shape matrix of the terminal ellipsoid centered at the last trajectory point.
-    transition_cost = transition_cost,
+    transition_cost = trans_cost,
     linearization_δx = [1.1, 1.0], # State box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
     linearization_δu = [0.5, 0.5], # Input box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
     adaptive_boxes = adaptive_opts,
+    use_log_det = false,
 )
 
 # So ell is allowed to move away from nominal u, but only within the allowed δu budget.

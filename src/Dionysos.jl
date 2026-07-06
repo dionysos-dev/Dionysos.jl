@@ -42,4 +42,12 @@ function spot_stepper(args...; kwargs...)
     )
 end
 
+# ----- Animation functions for optional dependencies ---------
+
+function animate_trajectory_dashboard end
+
+# ----- RigidBodyDynamics functions for optional dependencies ---------
+
+function animate_mechanism_trajectory end
+
 end

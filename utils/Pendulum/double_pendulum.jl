@@ -8,20 +8,21 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/Pendulum/simple_pendulum.jl");
+include("../../problems/Pendulum/double_pendulum.jl");
 
-concrete_problem = SimplePendulum.safety_problem(; objective = "safety_up") # safety_up, safety_down
+# concrete_problem = DoublePendulum.safety_problem(; objective = "safety_down")
+concrete_problem = DoublePendulum.optimal_control_problem()
 
-hx = SVector(3*(pi/180.0), 0.05)
+hx = SVector(5*(pi/180.0), 5*(pi/180.0), 0.5, 0.5)
 
 u0 = SVector(0.0)
 hu = SVector(0.3)
 
-periodic_dims = SVector(1)
-periods = SVector(2*pi)
-periodic_start = SVector(-pi)
+periodic_dims = SVector(1, 2)
+periods = SVector(2*pi, 2*pi)
+periodic_start = SVector(-pi, -pi)
 
-tstep = 0.1
+Δt = 0.1
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -33,11 +34,11 @@ MOI.set(
     MOI.RawOptimizerAttribute("jacobian_bound"),
     SimplePendulum.jacobian_bound(),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH,
+    AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
@@ -45,15 +46,16 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("automaton_constructor"),
+    (n, m) -> ST.NewIndexedAutomatonList(n, m),
+)
 
 MOI.optimize!(optimizer);
 
 # Get the results
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"));
-abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"));
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"));
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-concrete_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_problem"));
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
@@ -64,13 +66,19 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 nstep = 100
+target_set =
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
+nstep = 100
+reached(x) = x ∈ target_set
 
-x0 = SVector(UT.sample(concrete_problem.initial_set)...)
+zero_controller = MathematicalSystems.BlackBoxMap(4, 1, x -> SVector(0.0))
+x0 = SVector(0.0, 0.0, 0.0, 0.0)
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-    concrete_controller,
+    concrete_controller, # zero_controller
     x0,
     nstep;
+    stopping = reached,
     wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
@@ -83,10 +91,10 @@ plot!(
     label = "",
 );
 plot!(
-    UT.set_in_period(concrete_problem.safe_set, periodic_dims, periods, periodic_start);
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start);
     color = :red,
     opacity = 0.4,
-    label = "Safe set",
+    label = "Target set",
 );
 plot!(
     UT.set_in_period(concrete_problem.initial_set, periodic_dims, periods, periodic_start);
@@ -97,37 +105,50 @@ plot!(
 plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
-# ### For Visualization
+# ------------------------------------------------------------
+# Animation with dashboard
+# ------------------------------------------------------------
 
-using RigidBodyDynamics
-using MeshCat, MeshCatMechanisms
+system_plot! = DoublePendulum.system_plot!()
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),
+    udims = (1,),
+    Δt = Δt,
+    fps = 5,
+    # filename = "double_pendulum_dashboard.mp4",
+    xlabel_state = "θ₁ [rad]",
+    ylabel_state = "θ₂ [rad]",
+    xlabel_input = "time [s]",
+    ylabel_input = "τ",
+    xlims_state = (-π, π),
+    ylims_state = (-π, π),
+)
 
-# --- build mechanism/state from your URDF ---
-urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
-mechanism = parse_urdf(urdf)
-state = MechanismState(mechanism)
-joint = first(joints(mechanism))
+# ------------------------------------------------------------
+# Visualization with RigidBodyDynamics
+# ------------------------------------------------------------
 
-# --- build trajectory data ---
-state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
-ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
+# using RigidBodyDynamics
+# using MeshCat
+# using MeshCatMechanisms
 
-# --- visualizer ---
-mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
-vis = mvis.visualizer
-open(vis)
+# urdf = joinpath(
+#     dirname(dirname(pathof(Dionysos))),
+#     "problems",
+#     "Pendulum",
+#     "DoublePendulum.urdf",
+# )
 
-# --- animation (no Interpolations) ---
-fps = round(Int, 1 / tstep)
-anim = MeshCat.Animation(vis; fps = fps)
-
-for k in eachindex(ts)
-    θ = state_values[k][1]
-    set_configuration!(state, joint, θ)
-
-    MeshCat.atframe(anim, k) do
-        return MeshCatMechanisms.set_configuration!(mvis, configuration(state))
-    end
-end
-
-MeshCat.setanimation!(vis, anim; play = true)
+# Dionysos.animate_mechanism_trajectory(
+#     urdf,
+#     x_traj;
+#     joint_names = ["joint1", "joint2"],
+#     configuration = x -> [
+#         x[1],          # joint1 angle
+#         x[2] - x[1],   # joint2 relative angle
+#     ],
+#     Δt = Δt,
+# )

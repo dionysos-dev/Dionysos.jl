@@ -62,6 +62,7 @@ Base.@kwdef mutable struct EllipsoidalBackwardOptions
     linearization_δu::Vector{Float64} = Float64[]
 
     adaptive_boxes::Union{Nothing, AdaptiveLinearizationBoxOptions} = nothing
+    use_log_det::Bool = true
 end
 
 # ------------------------------------------------------------
@@ -356,6 +357,7 @@ function _transition_backward(
     maxδu,
     λ,
     state_scaling,
+    use_log_det = true,
 )
     if state_scaling === nothing
         return UT.transition_backward(
@@ -371,6 +373,7 @@ function _transition_backward(
             maxδx = maxδx,
             maxδu = maxδu,
             λ = λ,
+            use_log_det = use_log_det,
         )
     end
 
@@ -429,6 +432,7 @@ function _solve_transition(ctx::EllipsoidalBackwardContext, approx, E_next, xk, 
         maxδu = ctx.options.maxδu,
         λ = ctx.options.λ,
         state_scaling = ctx.options.state_scaling,
+        use_log_det = ctx.options.use_log_det,
     )
 end
 

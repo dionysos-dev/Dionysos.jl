@@ -24,7 +24,7 @@ mutable struct TrajectoryGenerator{
     problem::Union{Nothing, PR.ProblemType}
     seed_generator::GSEED
     refinement_generator::GREFINE
-    tstep::Float64
+    Δt::Float64
 
     # Parameters
     num_substeps::Int
@@ -41,14 +41,14 @@ end
 function TrajectoryGenerator(
     seed_generator::GSEED,
     refinement_generator::GREFINE;
-    tstep::Real,
+    Δt::Real,
     num_substeps::Integer = 5,
 ) where {GSEED <: AbstractTrajectoryGenerator, GREFINE <: AbstractTrajectoryGenerator}
     return TrajectoryGenerator{GSEED, GREFINE}(
         nothing,
         seed_generator,
         refinement_generator,
-        Float64(tstep),
+        Float64(Δt),
         Int(num_substeps),
         nothing,
         nothing,
@@ -63,7 +63,7 @@ function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
     gen.problem = problem
 
     gen.discrete_problem =
-        PR.discretize_problem(problem, gen.tstep; num_substeps = gen.num_substeps)
+        PR.discretize_problem(problem, gen.Δt; num_substeps = gen.num_substeps)
 
     set_problem!(gen.seed_generator, problem)
     set_problem!(gen.refinement_generator, gen.discrete_problem)
