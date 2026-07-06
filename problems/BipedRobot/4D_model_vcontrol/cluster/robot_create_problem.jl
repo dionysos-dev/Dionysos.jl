@@ -7,7 +7,6 @@ using JLD2
 import MathOptInterface as MOI
 
 include("../robot_vcontrol.jl")
-include(joinpath(@__DIR__, "4D_model_vcontrol/robot_vcontrol.jl"))
 import .RobotVelocity as RV
 
 const DI = Dionysos
@@ -73,52 +72,11 @@ _I_ = UT.HyperRectangle(
     SVector(0.2, 0.0, -0.2, 0.0) + hx/2
 )
 
-# Target set
-# _T_ = UT.HyperRectangle(
-#     SVector(-x_bar, -x_bar, 0.2, -x_bar),
-#     SVector(-0.2, 0.0, x_bar, 0.0)
-# )
 _T_ = RV.RobotModel.compute_target_set(state_grid, SVector(0.25, 0.0), robot_geometry, true)
 
 concrete_system = RV.RobotModel.system(; _X_ = _X_, _U_ = _U_)
-jacobian_bound = RV.RobotModel.jacobian_bound()
 
-alternating_simulation_problem =
-    DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
-
-optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("concrete_problem"),
-    alternating_simulation_problem,
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), SY.ThreadedBackend(0.2))
-
-# choose an approx mode that exists in your setup
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.CENTER_SIMULATION,
-) # GROWTH CENTER_SIMULATION
-MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
-
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), false)
-#MOI.set(optimizer, MOI.RawOptimizerAttribute("mapping_region"), full_X_)
-
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-MOI.set(optimizer, MOI.Silent(), true)
-
-MOI.optimize!(optimizer)
-
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
-
-println("Abstraction built.")
+# concrete_problem = DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
 
 # ------------------------------------------------------------
 # 3) Define co-safe LTL problem with sets labeling
@@ -130,6 +88,6 @@ concrete_problem =
         _I_,
         _T_,
         nothing,
-        (x,u) -> 1,
+        nothing,
         0.0
     )

@@ -7,6 +7,8 @@ docs/src/generated
 BipedRobot/ZMPBipedRobot/docs
 BipedRobot/ZMPBipedRobot/testbench
 
+problems/BipedRobot/4D_model_vcontrol/cluster/logs
+
 bench/benchmark.csv
 
 .DS_Store

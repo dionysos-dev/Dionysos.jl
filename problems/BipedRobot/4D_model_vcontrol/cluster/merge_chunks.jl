@@ -1,5 +1,5 @@
 # ==============================================================================
-# SLURM-array chunk computation for robot abstraction
+# Merge SLURM-array transition chunks into one abstraction
 # ==============================================================================
  
 import Pkg
@@ -7,15 +7,14 @@ Pkg.instantiate()
  
 using Printf
  
-global begin
-    using Dionysos
-    using MathematicalSystems
-    using StaticArrays
-    using LinearAlgebra
-    using JuMP
-    using MathOptInterface
-    using JLD2
-end
+using Dionysos
+using MathematicalSystems
+using StaticArrays
+using LinearAlgebra
+using JuMP
+using MathOptInterface
+using JLD2
+ 
  
 global const MOI = MathOptInterface
 global const DI = Dionysos
@@ -25,11 +24,11 @@ global const MP = DI.Mapping
 global const SY = DI.Symbolic
 global const OP = DI.Optim
 global const AB = OP.Abstraction
- 
+
 # ------------------------------------------------------------------------------
 # Optimizer builder
 # ------------------------------------------------------------------------------
- 
+
 function build_optimizer(
     concrete_problem,
     execution_backend,
@@ -41,6 +40,8 @@ function build_optimizer(
     optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
  
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.1)
  
     MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), false)
@@ -63,40 +64,46 @@ function build_optimizer(
     )
     return optimizer
 end
+
+function build_empty_abstraction_for_optimizer!(optimizer)
+    abstraction_solver = optimizer.abstraction_solver
+    abstraction_solver === nothing && error("Optimizer has no abstraction_solver.")
  
+    return AB.UniformGridAbstraction.build_empty_abstraction!(abstraction_solver)
+end
+
+function save_optimizer(filename::AbstractString, optimizer)
+    mkpath(dirname(filename))
+    JLD2.jldopen(filename, "w") do file
+        return file["optimizer"] = optimizer
+    end
+    return filename
+end
+
 # ------------------------------------------------------------------------------
 # Problem
 # ------------------------------------------------------------------------------
- 
-global begin
-    include(joinpath(@__DIR__, "4D_model_vcontrol/cluster/robot_cluster_simulation.jl"))
-end
+
+include(joinpath(@__DIR__, "robot_create_problem.jl"))
  
 # ------------------------------------------------------------------------------
-# Chunk parameters
+# Slurm Parameters
 # ------------------------------------------------------------------------------
  
-nchunks = parse(Int, get(ENV, "SLURM_ARRAY_TASK_COUNT", "1"))
-chunk_id = parse(Int, get(ENV, "SLURM_ARRAY_TASK_ID", "1"))
-outdir = get(ENV, "DIONYSOS_TRANSITION_OUTDIR", default_transition_outdir())
- 
+nchunks = 2
+outdir = get(ENV, "DIONYSOS_TRANSITION_OUTDIR", "")
+outfile = get(ENV, "DIONYSOS_ABSTRACTION_FILE", "")
+
 execution_backend = SY.SlurmArrayBackend(
     nchunks,
-    chunk_id,
+    1,
     outdir,
     :contiguous,
-    true, # write_only: do not add transitions to local abstract system
-)
- 
-@info(
-    "Starting SLURM abstraction chunk",
-    chunk_id = chunk_id,
-    nchunks = nchunks,
-    outdir = outdir,
+    true
 )
  
 # ------------------------------------------------------------------------------
-# Optimizer
+# Optimizer (same as the one for computing the transition chunks)
 # ------------------------------------------------------------------------------
  
 global optimizer = build_optimizer(
@@ -109,18 +116,32 @@ global optimizer = build_optimizer(
 )
  
 # ------------------------------------------------------------------------------
-# Build and compute chunk
+# Merge
 # ------------------------------------------------------------------------------
- 
-@printf("Optimizer build time:         %.3f s\n", t_build_optimizer)
- 
-t_opt_wall = @elapsed MOI.optimize!(optimizer)
- 
-@printf("Chunk optimize! wall time:    %.3f s\n", t_opt_wall)
- 
+
 @info(
-    "Finished SLURM abstraction chunk",
-    chunk_id = chunk_id,
+    "Preparing empty abstraction for merge",
     nchunks = nchunks,
-    elapsed = t_opt_wall,
+    outdir = outdir,
+    outfile = outfile,
 )
+ 
+abstract_system = build_empty_abstraction_for_optimizer!(optimizer)
+
+@info "Merging transition chunks" nchunks outdir
+ 
+t_merge = @elapsed SY.merge_transition_chunks!(
+    abstract_system,
+    outdir;
+    nchunks = nchunks,
+    print_level = 1,
+)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("abstract_system"), abstract_system)
+ 
+@printf("Merge time:                   %.3f s\n", t_merge)
+ 
+t_save = @elapsed JLD2.jldsave(outfile; optimizer = optimizer) #save_optimizer(outfile, optimizer)
+ 
+@printf("Save time:                    %.3f s\n", t_save)
+ 
+@info "Saved merged optimizer" outfile
