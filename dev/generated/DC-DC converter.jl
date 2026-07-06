@@ -9,7 +9,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
@@ -65,7 +65,7 @@ plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system

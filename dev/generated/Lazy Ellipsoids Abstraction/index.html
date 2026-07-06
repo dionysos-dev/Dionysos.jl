@@ -41,30 +41,60 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     continues,
     maxIter,
 )</code></pre><p>Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.</p><pre><code class="language-julia hljs">MOI.optimize!(optimizer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Iterations2Go:	300
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	299
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	298
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	297
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	296
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	295
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	294
 	Closest Dist: 28.284271247461902
 Iterations2Go:	293
 	Closest Dist: 28.284271247461902
 Iterations2Go:	292
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	291
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	290
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	289
 	Closest Dist: 28.284271247461902
 Iterations2Go:	288
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 28.284271247461902
 Iterations2Go:	287
 	Closest Dist: 28.284271247461902
@@ -75,10 +105,13 @@ Iterations2Go:	285
 Iterations2Go:	284
 	Closest Dist: 12.792689040381546
 Iterations2Go:	283
+term = MathOptInterface.INFEASIBLE
+pstat = MathOptInterface.INFEASIBLE_POINT
+raw_status(model) = &quot;PRIMAL_INFEASIBLE&quot;
 	Closest Dist: 12.792689040381546
 Iterations2Go:	282
 	Closest Dist: 7.441879587934252
-Path cost from EI : 959.4267940929124</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
+Path cost from EI : 959.3355515099179</code></pre><p>Get the results</p><pre><code class="language-julia hljs">abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_system&quot;))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_problem&quot;))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;abstract_controller&quot;))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute(&quot;concrete_controller&quot;))
@@ -99,8 +132,8 @@ cost_bound = concrete_lyap_fun(x0);
 println(&quot;Goal set reached&quot;)
 println(&quot;Guaranteed cost:\t $(cost_bound)&quot;)
 println(&quot;True cost:\t\t $(cost_true)&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Goal set reached
-Guaranteed cost:	 959.4267940929124
-True cost:		 773.3109401109587</code></pre><h2 id="Display-the-results"><a class="docs-heading-anchor" href="#Display-the-results">Display the results</a><a id="Display-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results" title="Permalink"></a></h2><h1 id="Display-the-specifications-and-domains"><a class="docs-heading-anchor" href="#Display-the-specifications-and-domains">Display the specifications and domains</a><a id="Display-the-specifications-and-domains-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-specifications-and-domains" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+Guaranteed cost:	 959.3355515099179
+True cost:		 773.3142630183602</code></pre><h2 id="Display-the-results"><a class="docs-heading-anchor" href="#Display-the-results">Display the results</a><a id="Display-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-results" title="Permalink"></a></h2><h1 id="Display-the-specifications-and-domains"><a class="docs-heading-anchor" href="#Display-the-specifications-and-domains">Display the specifications and domains</a><a id="Display-the-specifications-and-domains-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-specifications-and-domains" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -120,7 +153,7 @@ plot!(abstract_system; with_arrows = false, cost = false, label = false);
 
 #Display the concrete specifications
 plot!(concrete_problem.initial_set; color = :green, label = false);
-plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img src="c93551b5.svg" alt="Example block output"/><h1 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img src="6c187ca7.svg" alt="Example block output"/><h1 id="Display-the-abstraction"><a class="docs-heading-anchor" href="#Display-the-abstraction">Display the abstraction</a><a id="Display-the-abstraction-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-abstraction" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -128,7 +161,7 @@ plot!(concrete_problem.target_set; color = :red, label = false)</code></pre><img
     titlefontsize = 14,
 );
 title!(&quot;Abstractions&quot;);
-plot!(abstract_system; with_arrows = true)</code></pre><img src="a47d5d4f.svg" alt="Example block output"/><h1 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
+plot!(abstract_system; with_arrows = true)</code></pre><img src="bd4c89d7.svg" alt="Example block output"/><h1 id="Display-the-Lyapunov-function-and-the-trajectory"><a class="docs-heading-anchor" href="#Display-the-Lyapunov-function-and-the-trajectory">Display the Lyapunov function and the trajectory</a><a id="Display-the-Lyapunov-function-and-the-trajectory-1"></a><a class="docs-heading-anchor-permalink" href="#Display-the-Lyapunov-function-and-the-trajectory" title="Permalink"></a></h1><pre><code class="language-julia hljs">fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
     ytickfontsize = 10,
@@ -143,4 +176,4 @@ for obs in concrete_system.obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; with_arrows = false, cost = true);
-plot!(x_traj; color = :black)</code></pre><img src="1ba23dc7.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Gol, Lazar &amp; Belta (2013)/">« Gol, Lazar &amp; Belta (2013)</a><a class="docs-footer-nextpage" href="../Path planning/">Path planning »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 24 June 2026 10:00">Wednesday 24 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(x_traj; color = :black)</code></pre><img src="c6740618.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Gol, Lazar &amp; Belta (2013)/">« Gol, Lazar &amp; Belta (2013)</a><a class="docs-footer-nextpage" href="../Path planning/">Path planning »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 6 July 2026 13:16">Monday 6 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
