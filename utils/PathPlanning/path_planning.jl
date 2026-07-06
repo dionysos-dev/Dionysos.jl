@@ -9,7 +9,7 @@ const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../problems/path_planning.jl");
+include("../../problems/path_planning.jl");
 
 concrete_problem = PathPlanning.problem(; simple = true)
 concrete_system = concrete_problem.system
@@ -18,7 +18,7 @@ x0 = SVector(0.0, 0.1, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
 u0 = SVector(0.0, 0.0);
 hu = SVector(0.3, 0.3);
-tstep = 0.3;
+Δt = 0.3;
 periodic_dims = SVector(2); # SVector(1, 2);, 
 periods = SVector(10.0); # SVector(4.0, 10.0);
 periodic_start = SVector(0.0); # SVector(0.0, 0.0);
@@ -35,7 +35,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_probl
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_implicit_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("mapping_region"), mapping_region)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), false)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
@@ -47,7 +47,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.INNER)
 # Input Mapping attributes
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 # Time Mapping attributes
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 
 # Other attributes
 MOI.set(
@@ -145,3 +145,31 @@ plot!(
 
 # We display the concrete trajectory
 plot!(x_traj; ms = 2.0, arrows = false)
+
+# ------------------------------------------------------------
+# Animation with dashboard
+# ------------------------------------------------------------
+
+_X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
+obstacles = PathPlanning.get_obstacles(_X_)
+system_plot! = PathPlanning.system_plot!(;
+    obstacles = obstacles,
+    xlims = (-0.1, 10.1),
+    ylims = (-0.1, 10.1),
+)
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 5,
+    # filename = "path_planning_dashboard.mp4",
+    xlabel_state = "x",
+    ylabel_state = "y",
+    xlabel_input = "v",
+    ylabel_input = "δ",
+    xlims_state = (-0.1, 10.1),
+    ylims_state = (-0.1, 10.1),
+)

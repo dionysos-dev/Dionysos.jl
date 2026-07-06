@@ -7,7 +7,6 @@ const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
-const SC = AB.SymbolicCertifier
 
 using JLD2
 
@@ -27,7 +26,7 @@ periodic_dims = SVector(1)
 periods = SVector(2*pi)
 periodic_start = SVector(-pi)
 
-tstep = 0.1
+Δt = 0.1
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
@@ -39,7 +38,7 @@ MOI.set(
     MOI.RawOptimizerAttribute("jacobian_bound"),
     SimplePendulum.jacobian_bound(),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), tstep)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
@@ -123,105 +122,41 @@ plot!(x_traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ------------------------------------------------------------
-# Vizualization
+# Animation with dashboard
+# ------------------------------------------------------------
+
+system_plot! = SimplePendulum.system_plot!()
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),      # phase plot θ vs ω
+    udims = (1,),        # input over time
+    Δt = Δt,
+    fps = 5,
+    # filename = "simple_pendulum_dashboard.mp4",
+    xlabel_state = "θ [rad]",
+    ylabel_state = "ω [rad/s]",
+    xlabel_input = "time [s]",
+    ylabel_input = "τ [Nm]",
+    xlims_state = (-π, π),
+    ylims_state = (-8, 8),
+)
+
+# ------------------------------------------------------------
+# Visualization with RigidBodyDynamics
 # ------------------------------------------------------------
 
 using RigidBodyDynamics
-using MeshCat, MeshCatMechanisms
+using MeshCat
+using MeshCatMechanisms
 
-# --- build mechanism/state from your URDF ---
-urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems/pendulum/", "Pendulum.urdf")
-mechanism = parse_urdf(urdf)
-state = MechanismState(mechanism)
-joint = first(joints(mechanism))
+urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Pendulum", "Pendulum.urdf")
 
-# --- build trajectory data ---
-state_values = [x_traj.seq[i] for i in 1:ST.length(x_traj)]
-ts = collect(0.0:tstep:((length(state_values) - 1) * tstep))
-
-# --- visualizer ---
-mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
-vis = mvis.visualizer
-open(vis)
-
-# --- animation (no Interpolations) ---
-fps = round(Int, 1 / tstep)
-anim = MeshCat.Animation(vis; fps = fps)
-
-for k in eachindex(ts)
-    θ = state_values[k][1]
-    set_configuration!(state, joint, θ)
-
-    MeshCat.atframe(anim, k) do
-        return MeshCatMechanisms.set_configuration!(mvis, configuration(state))
-    end
-end
-
-MeshCat.setanimation!(vis, anim; play = true)
-
-# ------------------------------------------------------------
-# Call local tube certifier
-# ------------------------------------------------------------
-
-AB.UniformGridAbstraction.reset!(optimizer)
-hx = SVector(3*(pi/180.0), 0.05) # SVector(2*(pi/180.0), 0.02)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
-
-cert = SC.UniformGridLocalTubeCertifier()
-candidate_x_traj = x_traj
-SC.set_optimizer!(cert, optimizer)
-SC.set_trajectory!(cert, candidate_x_traj)
-cert.radius = 0.8
-cert.incl_mode = MP.INNER
-
-SC.certify!(cert)
-
-println("\n=== Local Certification Result ===")
-println("success:    ", SC.get_success(cert))
-println("time (sec): ", SC.get_solve_time(cert))
-controller = SC.get_controller(cert)
-
-nstep = 300
-x_traj, u_traj = ST.get_closed_loop_trajectory(
-    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
-    controller,
-    x0,
-    nstep;
-    stopping = reached,
-);
-
-abstract_system = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-controllable_set = MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-uncontrollable_set =
-    MOI.get(cert.optimizer, MOI.RawOptimizerAttribute("uncontrollable_set"))
-XMapping = SY.get_state_mapping(abstract_system)
-
-# ------------------------------------------------------------
-# Plot 
-# ------------------------------------------------------------
-
-fig = plot(; aspect_ratio = :equal, title = "ToyExample: candidate traj + sets")
-plot!(concrete_problem.system.X; color = :grey, opacity = 0.15, label = "X")
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.25, label = "Initial set")
-plot!(concrete_problem.target_set; color = :red, opacity = 0.35, label = "Target set")
-plot!(
-    cert.optimizer.abstraction_solver.abstraction_region;
-    color = :blue,
-    opacity = 0.55,
-    label = "Tube",
+Dionysos.animate_mechanism_trajectory(
+    urdf,
+    x_traj;
+    joint_names = ["pendulum_joint"],
+    configuration = x -> [x[1]],
+    Δt = Δt,
 )
-plot!(
-    (controllable_set, XMapping);
-    color = :yellow,
-    linecolor = :yellow,
-    label = "Controllable set",
-)
-plot!(
-    (uncontrollable_set, XMapping);
-    color = :black,
-    linecolor = :black,
-    label = "Uncontrollable set",
-)
-plot!(candidate_x_traj; ms = 2.0, arrows = false, label = "Candidate")
-plot!(x_traj; color = :red, ms = 2.0, arrows = false, label = "Closed loop Trajecory")
-display(fig)

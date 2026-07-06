@@ -116,7 +116,7 @@ function hasTransition(
                     bta[i, j]*eye(n) z t(At)
                     t(z) 1-bta[i, j] t(aux)
                     At aux inv(Pp)
-                ] >= eye(2 * n + 1) * 1e-4,
+                ] >= eye(2 * n + 1) * 1e-10,
                 PSDCone()
             )
         end
@@ -130,7 +130,7 @@ function hasTransition(
                 tau[i]*eye(n) z t(U[i] * F)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-4,
+            ] >= eye(n + n_ui + 1) * 1e-10,
             PSDCone()
         )
     end
@@ -141,7 +141,7 @@ function hasTransition(
             gamma*eye(n) z [t(C) t(F) z]*t(S)
             t(z) J-gamma [t(c) t(ell) 1]*t(S)
             S*t([t(C) t(F) z]) S*t([t(c) t(ell) 1]) eye(n_S)
-        ] >= eye(n + n_S + 1) * 1e-4,
+        ] >= eye(n + n_S + 1) * 1e-10,
         PSDCone()
     )
 
@@ -152,14 +152,14 @@ function hasTransition(
             ϕ*eye(n) z t(F)
             t(z) δu-ϕ t(ell - u)
             (F) (ell-u) eye(m)
-        ] >= eye(n + m + 1) * 1e-4,
+        ] >= eye(n + m + 1) * 1e-10,
         PSDCone()
     )
 
     @constraint(model, [
         eye(n) t(C)
         C r*eye(n)
-    ] >= eye(n * 2) * 1e-4, PSDCone())
+    ] >= eye(n * 2) * 1e-10, PSDCone())
 
     # @constraint(model,diag(C).>=ones(n,1)*0.01)
     @constraint(model, r <= maxRadius^2)
@@ -169,6 +169,7 @@ function hasTransition(
     @objective(model, Min, -ϵ + λ * J)# -tr(C)) #TODO regularization ? 
 
     optimize!(model)
+
     if solution_summary(model).termination_status == MOI.OPTIMAL
         C = value.(C)
         El = Ellipsoid(transpose(C) \ eye(n) / C, c)
@@ -231,7 +232,7 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
                 bta[i]*P z t(At)
                 t(z) 1-bta[i] t(aux)
                 At aux inv(Pp)
-            ] >= eye(2 * n + 1) * 1e-4,
+            ] >= eye(2 * n + 1) * 1e-10,
             PSDCone()
         )
     end
@@ -244,7 +245,7 @@ function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
                 tau[i]*P z t(U[i] * K)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-4,
+            ] >= eye(n + n_ui + 1) * 1e-10,
             PSDCone()
         )
     end
@@ -350,7 +351,7 @@ function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem
     @constraint(model, [
         S t(A * S + B * L)
         A * S+B * L S
-    ] >= 1e-4 * eye(2n), PSDCone())
+    ] >= 1e-10 * eye(2n), PSDCone())
     @constraint(model, eye(n) >= S, PSDCone())
     @constraint(model, S >= gamma * eye(n), PSDCone())
 
@@ -405,7 +406,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
                 beta[i]*P1 z t(At)
                 t(z) 1-beta[i] t(aux)
                 At aux inv(P2)
-            ] >= eye(2 * nx + 1) * 1e-4,
+            ] >= eye(2 * nx + 1) * 1e-10,
             PSDCone()
         )
     end
@@ -418,7 +419,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
                 tau[i]*P1 z t(U[i] * K)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-4,
+            ] >= eye(nx + n_ui + 1) * 1e-10,
             PSDCone()
         )
     end
@@ -429,7 +430,7 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
             γ*P1 z [LA.I t(K) z]*t(S)
             t(z) J-γ [t(c1) t(ell) 1]*t(S)
             S*t([LA.I t(K) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-4,
+        ] >= eye(nx + n_S + 1) * 1e-10,
         PSDCone()
     )
 
@@ -505,6 +506,7 @@ function transition_backward(
     maxδx = maxδx,
     maxδu = maxδu,
     λ = 0.01,
+    use_log_det = true,
 )
     eye(n) = LA.diagm(ones(n))
     nx = length(c) #dimension of the state
@@ -548,7 +550,7 @@ function transition_backward(
                     beta[i, j]*eye(nx) z t(At)
                     t(z) 1-beta[i, j] t(aux)
                     At aux inv(P2)
-                ] >= eye(2 * nx + 1) * 1e-4,
+                ] >= eye(2 * nx + 1) * 1e-8,
                 PSDCone()
             )
         end
@@ -562,10 +564,11 @@ function transition_backward(
                 tau[i]*eye(nx) z t(U[i] * F)
                 t(z) 1-tau[i] t(U[i] * ell)
                 U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-4,
+            ] >= eye(nx + n_ui + 1) * 1e-8,
             PSDCone()
         )
     end
+
     n_S = size(S, 1)
     @constraint(
         model,
@@ -573,7 +576,7 @@ function transition_backward(
             γ*eye(nx) z [t(L) t(F) z]*t(S)
             t(z) J-γ [t(c1) t(ell) 1]*t(S)
             S*t([t(L) t(F) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-4,
+        ] >= eye(nx + n_S + 1) * 1e-8,
         PSDCone()
     )
 
@@ -584,32 +587,45 @@ function transition_backward(
             ϕ*eye(nx) z t(F)
             t(z) δu-ϕ t(ell - u)
             (F) (ell-u) eye(nu)
-        ] >= eye(nx + nu + 1) * 1e-4,
+        ] >= eye(nx + nu + 1) * 1e-8,
         PSDCone()
     )
 
     @constraint(model, [
-        eye(nx) t(L)
-        L δx*eye(nx)
-    ] >= eye(nx * 2) * 1e-4, PSDCone())
+        eye(nx) L
+        t(L) δx * eye(nx)
+    ] >= eye(nx * 2) * 1e-8, PSDCone())
 
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)
 
-    @variable(model, t)
-    u_q = [L[i, j] for j in 1:nx for i in 1:j]
+    if use_log_det && λ < 1.0
+        @variable(model, t)
 
-    @constraint(model, vcat(t, 1, u_q) in MOI.LogDetConeTriangle(nx))
+        # Lower-triangular entries of symmetric PSD matrix L
+        L_tri = [L[i, j] for j in 1:nx for i in j:nx]
 
-    @objective(model, Min, λ * J + (1 - λ) * (-t))
+        @constraint(model, vcat(t, 1.0, L_tri) in MOI.LogDetConeTriangle(nx),)
+
+        @objective(model, Min, λ * J - (1.0 - λ) * t)
+    else
+        # Stable proxy for volume
+        @objective(model, Min, λ * J - (1.0 - λ) * sum(L[i, i] for i in 1:nx),)
+    end
+
     optimize!(model)
 
-    if solution_summary(model).termination_status == MOI.OPTIMAL
-        L = value.(L)
-        P = transpose(L) \ eye(nx) / L
-        kappa = [value.(F) / (L) value.(ell)]
+    term = termination_status(model)
+    pstat = primal_status(model)
+
+    if term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
+       pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+        Lval = value.(L)
+        P = inv(Lval * transpose(Lval))
+        kappa = [value.(F) / Lval value.(ell)]
         cost = value(J)
     else
+        @show term pstat raw_status(model)
         P = nothing
         kappa = nothing
         cost = nothing
@@ -630,6 +646,7 @@ function transition_backward(
     maxδx = 100,
     maxδu = 10.0 * 2,
     λ = 0.01,
+    use_log_det = true,
 )
     P1, kappa, cost = transition_backward(
         affsys.A,
@@ -648,6 +665,7 @@ function transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
+        use_log_det = use_log_det,
     )
     if P1 !== nothing
         K, ℓ = get_controller_matrices(kappa)

@@ -1,6 +1,6 @@
 using Dionysos
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"))
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -27,6 +27,9 @@ XMapping = MP.ImplicitGridMapping(state_grid, concrete_system.X; incl_mode = MP.
 u0 = SVector(1)
 hu = SVector(1)
 input_grid = MP.GridFree(u0, hu)
+
+Δt = 0.5
+
 using JuMP
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -73,7 +76,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)  # optional if you pass state_grid
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
@@ -222,3 +225,26 @@ plot!(
 )
 plot!(x_traj)
 display(fig)
+
+# ------------------------------------------------------------
+# Animation with dashboard
+# ------------------------------------------------------------
+
+system_plot! = DCDC.system_plot!()
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    x_traj,
+    u_traj;
+    xdims = (1, 2),
+    udims = (1,),
+    Δt = Δt,
+    fps = 5,
+    # filename = "dcdc_converter_dashboard.mp4",
+    xlabel_state = "iL",
+    ylabel_state = "vC",
+    xlabel_input = "time [s]",
+    ylabel_input = "mode",
+    xlims_state = (1.15, 1.55),
+    ylims_state = (5.45, 5.85),
+    ylims_input = (0.5, 2.5),
+)

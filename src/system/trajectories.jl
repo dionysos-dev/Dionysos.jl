@@ -59,6 +59,11 @@ struct Trajectory{T}
     seq::Vector{T}
 end
 
+struct ClosedLoopTrajectory{XT, UT}
+    x::Trajectory{XT}
+    u::Trajectory{UT}
+end
+
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
 enum_elems(traj::Trajectory) = traj.seq
@@ -83,6 +88,74 @@ function get_cost_trajectory(x_traj::Trajectory, u_traj::Trajectory, c)
     end
 
     return (c = Trajectory(cs), total_cost)
+end
+
+function get_closed_loop_trajectory(
+    autom::AbstractAutomatonList,
+    controller::AbstractDiscreteController,
+    q0::Int,
+    nstep::Integer;
+    stopping = q -> false,
+    trajectory_success = traj -> false,
+    randomize_post::Bool = false,
+    verbose::Bool = false,
+)
+    q = q0
+
+    qs = Int[]
+    us = Int[]
+
+    push!(qs, q)
+
+    if trajectory_success(Trajectory(qs))
+        verbose &&
+            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
+                q
+        return (x = Trajectory(qs), u = Trajectory(us))
+    end
+
+    for k in 1:nstep
+        if stopping(q)
+            verbose &&
+                @info "Closed-loop simulation stopped: stopping condition reached" step = k state =
+                    q
+            break
+        end
+
+        u = output_control(controller, nothing, q)
+
+        if u === nothing
+            verbose &&
+                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state =
+                    q
+            break
+        end
+
+        qnexts = post(autom, q, u)
+
+        if qnexts === nothing || isempty(qnexts)
+            verbose &&
+                @warn "Closed-loop simulation stopped: no successor state" step = k state =
+                    q input = u
+            break
+        end
+
+        qnext = randomize_post ? rand(qnexts) : first(qnexts)
+
+        push!(us, u)
+        push!(qs, qnext)
+
+        q = qnext
+
+        if trajectory_success(Trajectory(qs))
+            verbose &&
+                @info "Closed-loop simulation stopped: trajectory success reached" step = k state =
+                    q
+            break
+        end
+    end
+
+    return (x = Trajectory(qs), u = Trajectory(us))
 end
 
 """
@@ -133,6 +206,7 @@ function get_closed_loop_trajectory(
     nstep::Integer;
     meas = identity,
     stopping = x -> false,
+    trajectory_success = traj -> false,
     wrap = identity,
     update_on_next::Bool = false,
     f_map_override = nothing,
@@ -147,6 +221,13 @@ function get_closed_loop_trajectory(
     push!(xs, x)
 
     us = Any[]
+
+    if trajectory_success(Trajectory(xs))
+        verbose &&
+            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
+                x
+        return (x = Trajectory(xs), u = Trajectory(us))
+    end
 
     if q === nothing
         for k in 1:nstep
@@ -180,6 +261,13 @@ function get_closed_loop_trajectory(
 
             push!(us, u)
             push!(xs, x)
+
+            if trajectory_success(Trajectory(xs))
+                verbose &&
+                    @info "Closed-loop simulation stopped: trajectory success reached" step =
+                        k state = x
+                break
+            end
         end
 
         return (x = Trajectory(xs), u = Trajectory(us))
@@ -230,6 +318,13 @@ function get_closed_loop_trajectory(
             push!(us, u)
             push!(xs, x)
             push!(qs, q)
+
+            if trajectory_success(Trajectory(xs))
+                verbose &&
+                    @info "Closed-loop simulation stopped: trajectory success reached" step =
+                        k state = x controller_state = q
+                break
+            end
         end
 
         return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))

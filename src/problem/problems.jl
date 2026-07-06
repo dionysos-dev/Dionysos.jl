@@ -126,6 +126,75 @@ mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
     ap_semantics::Dict{Symbol, Any}  # Symbol => DO.INNER / DO.OUTER
 end
 
+trajectory_success(problem::ProblemType, traj::ST.Trajectory) = false
+
+function trajectory_success(problem::OptimalControlProblem, traj::ST.Trajectory)
+    isempty(traj.seq) && return false
+
+    return first(traj.seq) ∈ problem.initial_set &&
+           any(x -> x ∈ problem.target_set, traj.seq)
+end
+
+function trajectory_success(problem::SafetyProblem, traj::ST.Trajectory)
+    isempty(traj.seq) && return false
+
+    return first(traj.seq) ∈ problem.initial_set && all(x -> x ∈ problem.safe_set, traj.seq)
+end
+
+function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
+    isempty(traj.seq) && return false
+
+    # Placeholder until monitor/spec trajectory evaluation is implemented.
+    return false
+end
+
+function discretize_problem(problem::ProblemType, tstep::Float64; num_substeps = 5)
+    return error("discretize_problem not implemented for $(typeof(problem))")
+end
+
+function discretize_problem(
+    problem::OptimalControlProblem,
+    tstep::Float64;
+    num_substeps = 5,
+)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+
+    return OptimalControlProblem(
+        discrete_system,
+        problem.initial_set,
+        problem.target_set,
+        problem.state_cost,
+        problem.transition_cost,
+        problem.time,
+    )
+end
+
+function discretize_problem(problem::SafetyProblem, tstep::Float64; num_substeps = 5)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+
+    return SafetyProblem(
+        discrete_system,
+        problem.initial_set,
+        problem.safe_set,
+        problem.time,
+    )
+end
+
+function discretize_problem(problem::CoSafeLTLProblem, tstep::Float64; num_substeps = 5)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+
+    return CoSafeLTLProblem(
+        discrete_system,
+        problem.initial_set,
+        problem.spec,
+        problem.labeling,
+        problem.ap_semantics,
+    )
+end
+
 struct Infinity <: Real end
 Base.isfinite(::Infinity) = false
 

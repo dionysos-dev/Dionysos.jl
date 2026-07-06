@@ -125,7 +125,7 @@ function dbisection(
             println(string(dfval[1]) * " " * string(dfval[2]) * "    " * string(fβ))
         end
         while abs(x[1] - x[2]) > δ &&
-            (!stopIfNegative || (fβ > 0 && 2 * fβ < -L * (x[2] - x[1])^2))
+              (!stopIfNegative || (fβ > 0 && 2 * fβ < -L * (x[2] - x[1])^2))
             if (verbose)
                 println(string(x[1]) * "\t" * string(x[2]) * "\t" * string(fβ))
                 println(string(dfval[1]) * "\t" * string(dfval[2]) * "\t" * string(fβ))

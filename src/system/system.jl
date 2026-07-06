@@ -34,4 +34,43 @@ include("pid_controller.jl")
 # Trajectories
 include("trajectories.jl")
 
+# ------------------------------------------------------------
+# Package extension hooks
+# ------------------------------------------------------------
+export AbstractAffineApproximationProvider,
+    SymbolicAffineApproximationProvider, AffineApproximation, build_affine_approximation
+
+abstract type AbstractAffineApproximationProvider end
+
+struct SymbolicAffineApproximationProvider{F, X, U, W, DW, UF, WF} <:
+       AbstractAffineApproximationProvider
+    fsymbolic::F
+    x::X
+    u::U
+    w::W
+    ΔW::DW
+    Uformat::UF
+    Wformat::WF
+end
+
+struct AffineApproximation{SYS, LIP, UF, WF, S}
+    system::SYS
+    lipschitz::LIP
+    Uformat::UF
+    Wformat::WF
+    summary::S
+end
+
+function build_affine_approximation(
+    provider::AbstractAffineApproximationProvider,
+    k::Int,
+    xk,
+    xnext,
+    uk,
+    δx,
+    δu,
+)
+    return error("build_affine_approximation not implemented for $(typeof(provider))")
+end
+
 end

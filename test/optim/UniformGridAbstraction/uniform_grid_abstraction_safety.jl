@@ -14,7 +14,7 @@ const AB = OP.Abstraction
 using JuMP
 import MathOptInterface as MOI
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"))
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"))
 
 @testset "UniformGridAbstraction DCDC (growth mode)" begin
     concrete_problem = DCDC.problem()

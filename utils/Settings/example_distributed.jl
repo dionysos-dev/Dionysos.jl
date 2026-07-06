@@ -8,7 +8,7 @@ using Distributed
 
 @everywhere using Dionysos
 
-dcdc_path = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl")
+dcdc_path = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl")
 @everywhere include($dcdc_path)
 
 using Dionysos

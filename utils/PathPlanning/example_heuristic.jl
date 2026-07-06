@@ -62,7 +62,7 @@ function build_heuristic_controller(
            MOI.get(new_optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
 end
 
-include("../problems/path_planning.jl")
+include("../../problems/path_planning.jl")
 
 concrete_problem = PathPlanning.problem(; simple = true)
 state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0), SVector(0.2, 0.2, 0.2))

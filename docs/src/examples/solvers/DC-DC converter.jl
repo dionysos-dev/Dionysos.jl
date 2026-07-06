@@ -41,7 +41,7 @@ const AB = OP.Abstraction
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
@@ -85,7 +85,7 @@ invariant_set_complement =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"));
 
 # ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`Δt`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
@@ -104,7 +104,7 @@ plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dc_dc.jl"));
+include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
@@ -148,7 +148,7 @@ total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 # ### Trajectory display
-# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`tstep`
+# We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`Δt`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
