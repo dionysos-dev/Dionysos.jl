@@ -177,9 +177,9 @@ end
     if what == :states
         qlist = [
             q for q in values(T.states) if (isnothing(node) || q.node == node) &&
-            (isnothing(slice) || q.slice == slice) &&
-            (isnothing(obs) || q.obs == obs) &&
-            (isnothing(state_id_set) || q.id in state_id_set)
+                (isnothing(slice) || q.slice == slice) &&
+                (isnothing(obs) || q.obs == obs) &&
+                (isnothing(state_id_set) || q.id in state_id_set)
         ]
 
         sort!(qlist; by = q -> q.id)

@@ -553,4 +553,3 @@ Dionysos.animate_trajectory_dashboard(
     xlims_state = (-π, π),
     ylims_state = (-8, 8),
 )
-

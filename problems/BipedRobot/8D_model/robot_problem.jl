@@ -104,8 +104,7 @@ function system(;
         i2 = zl > zr ? 5 : 6
 
         xboom = Lthigh * sin(q[i1]) + Lleg * sin(q[i2] + q[i1])
-        ẋboom =
-            Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
+        ẋboom = Lthigh * qd[i1] * cos(q[i1]) + Lleg * (qd[i1] + qd[i2]) * cos(q[i1] + q[i2])
         żboom =
             -(Lthigh * qd[i1] * sin(q[i1]) + Lleg * (qd[i1] + qd[i2]) * sin(q[i1] + q[i2]))
 

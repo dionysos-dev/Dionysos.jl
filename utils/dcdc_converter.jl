@@ -248,4 +248,3 @@ Dionysos.animate_trajectory_dashboard(
     ylims_state = (5.45, 5.85),
     ylims_input = (0.5, 2.5),
 )
-
