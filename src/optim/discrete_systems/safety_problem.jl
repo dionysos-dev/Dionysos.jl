@@ -131,9 +131,7 @@ function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist
 end
 
 function _compute_pairstable(pairstable, autom)
-    for target in ST.enum_states(autom)
-        for (source, symbol) in ST.pre(autom, target)
-            pairstable[source, symbol] = true
-        end
+    for (_, source, symbol) in ST.enum_transitions(autom)
+        pairstable[source, symbol] = true
     end
 end

@@ -82,6 +82,29 @@ mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
 end
 
 """
+    ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
+
+Encodes a **reach-and-stay control problem** (eventually always).
+
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `XT`: The target set to be reached and stayed in.
+- `XS`: The safe set in which the system must remain during the approach.
+- `T`: The time horizon (number of allowed time steps).
+
+This problem aims to synthesize a controller that drives the system from the initial set
+into the target set and keeps it there indefinitely, while remaining within the safe set
+during the approach phase.
+"""
+mutable struct ReachAndStayProblem{S, XI, XT, XS, T <: Real} <: ProblemType
+    system::S
+    initial_set::XI
+    target_set::XT
+    safe_set::XS
+    time::T
+end
+
+"""
     CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
 
 Encodes a **co-safe LTL control problem**.
@@ -141,6 +164,14 @@ function trajectory_success(problem::SafetyProblem, traj::ST.Trajectory)
     return first(traj.seq) ∈ problem.initial_set && all(x -> x ∈ problem.safe_set, traj.seq)
 end
 
+function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
+    xs = traj.seq
+    first(xs) ∈ problem.initial_set || return false
+    all(x -> x ∈ problem.safe_set, xs) || return false
+
+    return any(k -> all(x -> x ∈ problem.target_set, xs[k:end]), eachindex(xs))
+end
+
 function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
     isempty(traj.seq) && return false
 
@@ -177,6 +208,18 @@ function discretize_problem(problem::SafetyProblem, tstep::Float64; num_substeps
     return SafetyProblem(
         discrete_system,
         problem.initial_set,
+        problem.safe_set,
+        problem.time,
+    )
+end
+
+function discretize_problem(problem::ReachAndStayProblem; tstep, num_substeps = 5)
+    discrete_system = ST.discretize_continuous_system(problem.system, tstep; num_substeps)
+
+    return ReachAndStayProblem(
+        discrete_system,
+        problem.initial_set,
+        problem.target_set,
         problem.safe_set,
         problem.time,
     )
@@ -288,6 +331,38 @@ end
 end
 
 @recipe function f(
+    problem::ReachAndStayProblem;
+    domain_color = :gray,
+    safe_set_color = :lightgray,
+    target_set_color = :red,
+    initial_set_color = :green,
+)
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+
+    @series begin
+        label := "Safe set"
+        color := safe_set_color
+        problem.safe_set
+    end
+
+    @series begin
+        label := "Target set"
+        color := target_set_color
+        problem.target_set
+    end
+
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+end
+
+@recipe function f(
     problem::CoSafeLTLProblem;
     domain_color = :gray,
     initial_set_color = :green,
@@ -321,4 +396,6 @@ end
 
 export OptimalControlProblem
 export SafetyProblem
+export ReachAndStayProblem
+export CoSafeLTLProblem
 export Infinity

@@ -24,6 +24,7 @@ export Optimizer
 include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
+include("reach_and_stay_problem.jl")
 include("cosafe_ltl_problem.jl")
 
 """
@@ -164,6 +165,14 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
 
         elseif isa(value, Dionysos.Problem.SafetyProblem)
             model.control_solver = OptimizerSafetyProblem()
+            MOI.set(
+                model.control_solver,
+                MOI.RawOptimizerAttribute("concrete_problem"),
+                value,
+            )
+
+        elseif isa(value, Dionysos.Problem.ReachAndStayProblem)
+            model.control_solver = OptimizerReachAndStayProblem()
             MOI.set(
                 model.control_solver,
                 MOI.RawOptimizerAttribute("concrete_problem"),
