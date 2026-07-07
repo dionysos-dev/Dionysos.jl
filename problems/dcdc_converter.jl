@@ -8,7 +8,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const PB = DI.Problem
+const PR = DI.Problem
 
 Base.@kwdef struct Params{T}
     vs::T = 1.0

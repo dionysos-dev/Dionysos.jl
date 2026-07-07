@@ -11,7 +11,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const PB = DI.Problem
+const PR = DI.Problem
 
 struct FlowShopResetMap <: MS.AbstractMap
     domain::UT.HyperRectangle
