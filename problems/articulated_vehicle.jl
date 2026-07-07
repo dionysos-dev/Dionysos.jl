@@ -7,7 +7,7 @@ using Plots
 
 const UT = Dionysos.Utils
 const ST = Dionysos.System
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 
 # ----------------------------
 # Parameters (edit as you want)
@@ -173,7 +173,6 @@ function problem(;
     params::Params = Params(),
     transition_cost = nothing,
     state_cost = nothing,
-    terminal_cost = PB.Infinity(),
 )
 
     # Example domains (edit):
@@ -187,14 +186,7 @@ function problem(;
     sys = system(_X_; params = params)
 
     # If you want pure reachability: state_cost = nothing, transition_cost = nothing.
-    return PB.OptimalControlProblem(
-        sys,
-        _I_,
-        _T_,
-        state_cost,
-        transition_cost,
-        terminal_cost,
-    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 ################################################

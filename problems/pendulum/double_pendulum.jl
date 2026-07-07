@@ -95,7 +95,7 @@ function safety_problem(; params::Params = Params(), objective = "safety_down")
     end
 
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
-    return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
+    return PB.SafetyProblem(sys, _I_, _S_)
 end
 
 function optimal_control_problem(;
@@ -103,7 +103,6 @@ function optimal_control_problem(;
     objective = "swing_up",
     state_cost = nothing,
     transition_cost = nothing,
-    terminal_cost = PB.Infinity(),
 )
     if objective == "swing_up"
         _X_ = UT.HyperRectangle(
@@ -131,14 +130,7 @@ function optimal_control_problem(;
 
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
 
-    return PB.OptimalControlProblem(
-        sys,
-        _I_,
-        _T_,
-        state_cost,
-        transition_cost,
-        terminal_cost,
-    )
+    return PB.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 function system_plot!(;

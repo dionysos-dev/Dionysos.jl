@@ -25,8 +25,6 @@ end
         @test Base.isfinite(Inf) == false
 
         @test Base.isfinite(PR.Infinity()) == false
-        # Optional sanity: should be a Real subtype
-        @test PR.Infinity() isa Real
     end
 
     @testset "AlternatingSimulationProblem fields" begin

@@ -242,16 +242,29 @@ init_state(M::FunctionMonitor) = M.qa0
 accepting_states(M::FunctionMonitor) = M.acc
 
 function labeling_function_from_state_sets(lab_abs::Dict{Symbol, <:AbstractVector{Int}})
-    lab_bits = Dict{Symbol, BitSet}()
-    for (ap, states) in lab_abs
-        lab_bits[ap] = BitSet(states)
+    nmax = 0
+    for states in values(lab_abs)
+        isempty(states) || (nmax = max(nmax, maximum(states)))
     end
+
+    lab_bits = Dict{Symbol, BitVector}()
+    for (ap, states) in lab_abs
+        bits = falses(nmax)
+        for q in states
+            bits[q] = true
+        end
+        lab_bits[ap] = bits
+    end
+
     aps = collect(keys(lab_bits))
 
     return function (qs::Int)
         true_aps = Symbol[]
         for ap in aps
-            (qs in lab_bits[ap]) && push!(true_aps, ap)
+            bits = lab_bits[ap]
+            if qs <= length(bits) && bits[qs]
+                push!(true_aps, ap)
+            end
         end
         return Tuple(true_aps)
     end
@@ -268,21 +281,27 @@ struct ProductAutomaton{SYS, LAB, STEP} <: ST.AbstractAutomatonList{0, 0}
 
     pid::Dict{Tuple{Int, Int}, Int}
     rev::Vector{Tuple{Int, Int}}
-    post_tab::Vector{Vector{Vector{Int}}}
-    pre_tab::Vector{Vector{Tuple{Int, Int}}}
+
+    postmap::Vector{Vector{Int}}              # pair_id(p,u) -> successors
+    premap::Vector{Vector{Tuple{Int, Int}}}   # target -> (source, input)
+
     ninput::Int
 end
 
+_product_pair_id(P::ProductAutomaton, p::Int, u::Int) = (p - 1) * P.ninput + u
+
 ST.get_n_state(P::ProductAutomaton) = length(P.rev)
 ST.get_n_input(P::ProductAutomaton) = P.ninput
-ST.pre(P::ProductAutomaton, t::Int) = P.pre_tab[t]
-ST.post(P::ProductAutomaton, s::Int, u::Int) = P.post_tab[s][u]
+ST.pre(P::ProductAutomaton, t::Int) = P.premap[t]
+ST.post(P::ProductAutomaton, p::Int, u::Int) = P.postmap[_product_pair_id(P, p, u)]
 
-function enum_transitions(P::ProductAutomaton)
+ST.enum_transitions(P::ProductAutomaton) = begin
     trans = Tuple{Int, Int, Int}[]
-    for q in 1:ST.get_n_state(P), u in 1:ST.get_n_input(P)
-        for q2 in ST.post(P, q, u)
-            push!(trans, (q2, q, u))
+    for p in 1:ST.get_n_state(P)
+        for u in 1:ST.get_n_input(P)
+            for p2 in ST.post(P, p, u)
+                push!(trans, (p2, p, u))
+            end
         end
     end
     return trans
@@ -295,65 +314,91 @@ function build_product_automaton(
     labeling;
     initial_set = 1:ST.get_n_state(sys),
 )
+    nS = ST.get_n_state(sys)
     nU = ST.get_n_input(sys)
     qa0 = init_state(spec)
+
+    labels = Vector{Any}(undef, nS)
+    for qs in 1:nS
+        labels[qs] = labeling(qs)
+    end
 
     pid = Dict{Tuple{Int, Int}, Int}()
     rev = Tuple{Int, Int}[]
 
-    getpid(qs::Int, qa::Int) = get!(pid, (qs, qa)) do
+    postmap = Vector{Vector{Int}}()
+    premap = Vector{Vector{Tuple{Int, Int}}}()
+
+    seen_succ = Int[]
+    discovered = Bool[]
+
+    function add_product_state!(qs::Int, qa::Int)
         push!(rev, (qs, qa))
+
+        for _ in 1:nU
+            push!(postmap, Int[])
+        end
+
+        push!(premap, Tuple{Int, Int}[])
+        push!(seen_succ, 0)
+        push!(discovered, false)
+
         return length(rev)
     end
 
-    work = Int[]
-    inqueue = BitSet()
-    for qs in initial_set
-        ap0 = labeling(qs)
-        qa_init = step(spec, qa0, ap0)
-        p0 = getpid(qs, qa_init)
-        push!(work, p0)
-        push!(inqueue, p0)
+    function getpid!(qs::Int, qa::Int)
+        return get!(pid, (qs, qa)) do
+            return add_product_state!(qs, qa)
+        end
     end
+
+    work = Int[]
+
+    for qs in initial_set
+        qa_init = step(spec, qa0, labels[qs])
+        p0 = getpid!(qs, qa_init)
+
+        if !discovered[p0]
+            discovered[p0] = true
+            push!(work, p0)
+        end
+    end
+
+    stamp = 0
 
     i = 1
     while i <= length(work)
         p = work[i]
         i += 1
-        (qs, qa) = rev[p]
+
+        qs, qa = rev[p]
+
         for u in 1:nU
+            pair_id = (p - 1) * nU + u
+            succs = postmap[pair_id]
+            empty!(succs)
+
+            stamp += 1
+
             for qs2 in ST.post(sys, qs, u)
-                ap = labeling(qs2)
-                qa2 = step(spec, qa, ap)
-                p2 = getpid(qs2, qa2)
-                if !(p2 in inqueue)
+                qa2 = step(spec, qa, labels[qs2])
+                p2 = getpid!(qs2, qa2)
+
+                if seen_succ[p2] != stamp
+                    seen_succ[p2] = stamp
+                    push!(succs, p2)
+                    push!(premap[p2], (p, u))
+                end
+
+                if !discovered[p2]
+                    discovered[p2] = true
                     push!(work, p2)
-                    push!(inqueue, p2)
                 end
             end
         end
     end
 
-    nP = length(rev)
-    post_tab = [[Int[] for _ in 1:nU] for _ in 1:nP]
-    pre_tab = [Tuple{Int, Int}[] for _ in 1:nP]
-
-    for p in 1:nP
-        (qs, qa) = rev[p]
-        for u in 1:nU
-            succs = Int[]
-            for qs2 in ST.post(sys, qs, u)
-                ap = labeling(qs2)
-                qa2 = step(spec, qa, ap)
-                p2 = pid[(qs2, qa2)]
-                push!(succs, p2)
-                push!(pre_tab[p2], (p, u))
-            end
-            post_tab[p][u] = unique(succs)
-        end
-    end
-
-    return ProductAutomaton(sys, labeling, spec, pid, rev, post_tab, pre_tab, nU)
+    return ProductAutomaton(sys, labeling, spec, pid, rev, postmap, premap, nU)
 end
 
 function build_dynamic_controller(
@@ -362,22 +407,41 @@ function build_dynamic_controller(
     contrP::ST.AbstractDiscreteController,
     pid::Dict{Tuple{Int, Int}, Int},
 )
-    lab_bits = Dict{Symbol, BitSet}((ap => BitSet(states)) for (ap, states) in lab_abs)
+    nmax = 0
+    for states in values(lab_abs)
+        isempty(states) || (nmax = max(nmax, maximum(states)))
+    end
+
+    lab_bits = Dict{Symbol, BitVector}()
+
+    for (ap, states) in lab_abs
+        bits = falses(nmax)
+        for q in states
+            bits[q] = true
+        end
+        lab_bits[ap] = bits
+    end
+
     aps = collect(keys(lab_bits))
+    qa0 = init_state(spec)
 
     labeling_qs = function (qs::Int)
         trues = Symbol[]
+
         for ap in aps
-            (qs in lab_bits[ap]) && push!(trues, ap)
+            bits = lab_bits[ap]
+            if qs <= length(bits) && bits[qs]
+                push!(trues, ap)
+            end
         end
+
         return Tuple(trues)
     end
-
-    qa0 = init_state(spec)
 
     h = function (qa::Int, qs::Int)
         p = get(pid, (qs, qa), nothing)
         p === nothing && return nothing
+
         return ST.output_control(contrP, nothing, p)
     end
 
@@ -387,16 +451,17 @@ function build_dynamic_controller(
 
     dom = ST.PredicateDomain(qaqs -> begin
         qa, qs = qaqs
+
         p = get(pid, (qs, qa), nothing)
         p === nothing && return false
+
         out = ST.output_control(contrP, nothing, p)
         out === nothing && return false
+
         return true
     end)
 
-    ctrl = ST.DiscreteDynamicController(qa0, dom, g, h, false)
-
-    return ctrl
+    return ST.DiscreteDynamicController(qa0, dom, g, h, false)
 end
 
 function project_initial_memory_controllable_set(

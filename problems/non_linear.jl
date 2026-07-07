@@ -111,12 +111,11 @@ function problem(;
 
     W = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0)),
     Ts = 1.0,
-    N = PR.Infinity(),
     noise = false,
     μ = 0.00005,
 )
     sys = system(X, U, W, obstacles, Ts, noise, μ)
-    return PR.OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost, N)
+    return PR.OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost)
 end
 
 end # module

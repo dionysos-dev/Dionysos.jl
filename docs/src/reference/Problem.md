@@ -18,6 +18,9 @@ All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Pro
 - [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem):  
     A safety specification problem requiring the system to remain within a safe set for the entire time horizon.
 
+- [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem):  
+    A reach-and-stay specification problem requiring the system to eventually always satify a target set.
+
 - [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem):  
     A co-safe LTL specification problem requiring the system to satisfy a co-safe LTL formula, i.e. to reach an accepting condition in finite time (equivalently: achieve a “good prefix” after which the specification is permanently satisfied).
 
@@ -29,5 +32,6 @@ Dionysos.Problem.AlternatingSimulationProblem
 Dionysos.Problem.BisimulationQuotientProblem
 Dionysos.Problem.OptimalControlProblem
 Dionysos.Problem.SafetyProblem
+Dionysos.Problem.ReachAndStayProblem
 Dionysos.Problem.CoSafeLTLProblem
 ```

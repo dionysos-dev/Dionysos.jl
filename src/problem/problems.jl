@@ -1,3 +1,10 @@
+struct Infinity end
+Base.isfinite(::Infinity) = false
+
+discretize_time(time::Real, Δt::Real; ceil = true) =
+    ceil ? ceil(Int, time / Δt) : floor(Int, time / Δt)
+discretize_time(::Infinity, Δt) = Infinity()
+
 """
     ProblemType
 
@@ -49,11 +56,11 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 - `XT`: The target set to be reached.
 - `XC`: A state cost function or structure.
 - `TC`: A transition cost function or structure.
-- `T`: The time horizon (number of allowed time steps).
+- `T`: Satisfy the property in at most time T.
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
-mutable struct OptimalControlProblem{S, XI, XT, XC, T <: Real} <: ProblemType
+mutable struct OptimalControlProblem{S, XI, XT, XC, T} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
@@ -61,6 +68,16 @@ mutable struct OptimalControlProblem{S, XI, XT, XC, T <: Real} <: ProblemType
     transition_cost::Any
     time::T
 end
+
+OptimalControlProblem(system, initial_set, target_set, state_cost, transition_cost) =
+    OptimalControlProblem(
+        system,
+        initial_set,
+        target_set,
+        state_cost,
+        transition_cost,
+        Infinity(),
+    )
 
 """
     SafetyProblem{S, XI, XS, T} <: ProblemType
@@ -70,16 +87,45 @@ Encodes a **safety control problem** over a finite horizon.
 - `S`: The system to control.
 - `XI`: The initial set of states.
 - `XS`: The safe set in which the system must remain.
-- `T`: The time horizon (number of allowed time steps).
+- `T`: Satisfy the property for at least time T.
 
 This problem aims to synthesize a controller that ensures the system remains within the safe set for the entire duration of the time horizon.
 """
-mutable struct SafetyProblem{S, XI, XS, T <: Real} <: ProblemType
+mutable struct SafetyProblem{S, XI, XS, T} <: ProblemType
     system::S
     initial_set::XI
     safe_set::XS
     time::T
 end
+
+SafetyProblem(system, initial_set, safe_set) =
+    SafetyProblem(system, initial_set, safe_set, Infinity())
+
+"""
+    ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
+
+Encodes a **reach-and-stay control problem** (eventually always).
+
+- `S`: The system to control.
+- `XI`: The initial set of states.
+- `XT`: The target set to be reached and stayed in.
+- `XS`: The safe set in which the system must remain during the approach.
+- `T`: Satisfy the property for at least time T.
+
+This problem aims to synthesize a controller that drives the system from the initial set
+into the target set and keeps it there indefinitely, while remaining within the safe set
+during the approach phase.
+"""
+mutable struct ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
+    system::S
+    initial_set::XI
+    target_set::XT
+    safe_set::XS
+    time::T
+end
+
+ReachAndStayProblem(system, initial_set, target_set, safe_set) =
+    ReachAndStayProblem(system, initial_set, target_set, safe_set, Infinity())
 
 """
     CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
@@ -141,6 +187,14 @@ function trajectory_success(problem::SafetyProblem, traj::ST.Trajectory)
     return first(traj.seq) ∈ problem.initial_set && all(x -> x ∈ problem.safe_set, traj.seq)
 end
 
+function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
+    xs = traj.seq
+    first(xs) ∈ problem.initial_set || return false
+    all(x -> x ∈ problem.safe_set, xs) || return false
+
+    return any(k -> all(x -> x ∈ problem.target_set, xs[k:end]), eachindex(xs))
+end
+
 function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
     isempty(traj.seq) && return false
 
@@ -148,17 +202,13 @@ function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
     return false
 end
 
-function discretize_problem(problem::ProblemType, tstep::Float64; num_substeps = 5)
+function discretize_problem(problem::ProblemType, Δt::Float64; num_substeps = 5)
     return error("discretize_problem not implemented for $(typeof(problem))")
 end
 
-function discretize_problem(
-    problem::OptimalControlProblem,
-    tstep::Float64;
-    num_substeps = 5,
-)
+function discretize_problem(problem::OptimalControlProblem, Δt::Float64; num_substeps = 5)
     discrete_system =
-        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+        ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
     return OptimalControlProblem(
         discrete_system,
@@ -166,25 +216,37 @@ function discretize_problem(
         problem.target_set,
         problem.state_cost,
         problem.transition_cost,
-        problem.time,
+        discretize_time(problem.time, Δt; ceil = false),
     )
 end
 
-function discretize_problem(problem::SafetyProblem, tstep::Float64; num_substeps = 5)
+function discretize_problem(problem::SafetyProblem, Δt::Float64; num_substeps = 5)
     discrete_system =
-        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+        ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
     return SafetyProblem(
         discrete_system,
         problem.initial_set,
         problem.safe_set,
-        problem.time,
+        discretize_time(problem.time, Δt; ceil = true),
     )
 end
 
-function discretize_problem(problem::CoSafeLTLProblem, tstep::Float64; num_substeps = 5)
+function discretize_problem(problem::ReachAndStayProblem; Δt, num_substeps = 5)
+    discrete_system = ST.discretize_continuous_system(problem.system, Δt; num_substeps)
+
+    return ReachAndStayProblem(
+        discrete_system,
+        problem.initial_set,
+        problem.target_set,
+        problem.safe_set,
+        discretize_time(problem.time, Δt; ceil = true),
+    )
+end
+
+function discretize_problem(problem::CoSafeLTLProblem, Δt::Float64; num_substeps = 5)
     discrete_system =
-        ST.discretize_continuous_system(problem.system, tstep; num_substeps = num_substeps)
+        ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
     return CoSafeLTLProblem(
         discrete_system,
@@ -194,9 +256,6 @@ function discretize_problem(problem::CoSafeLTLProblem, tstep::Float64; num_subst
         problem.ap_semantics,
     )
 end
-
-struct Infinity <: Real end
-Base.isfinite(::Infinity) = false
 
 @recipe function f(
     problem::AlternatingSimulationProblem;
@@ -288,6 +347,38 @@ end
 end
 
 @recipe function f(
+    problem::ReachAndStayProblem;
+    domain_color = :gray,
+    safe_set_color = :lightgray,
+    target_set_color = :red,
+    initial_set_color = :green,
+)
+    @series begin
+        label := "Domain"
+        color := domain_color
+        problem.system.X
+    end
+
+    @series begin
+        label := "Safe set"
+        color := safe_set_color
+        problem.safe_set
+    end
+
+    @series begin
+        label := "Target set"
+        color := target_set_color
+        problem.target_set
+    end
+
+    @series begin
+        label := "Initial set"
+        color := initial_set_color
+        problem.initial_set
+    end
+end
+
+@recipe function f(
     problem::CoSafeLTLProblem;
     domain_color = :gray,
     initial_set_color = :green,
@@ -321,4 +412,6 @@ end
 
 export OptimalControlProblem
 export SafetyProblem
+export ReachAndStayProblem
+export CoSafeLTLProblem
 export Infinity

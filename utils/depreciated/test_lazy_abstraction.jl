@@ -33,7 +33,6 @@ concrete_problem = PR.OptimalControlProblem(
     _T_,
     UT.ZeroFunction(),
     UT.ConstantControlFunction(0.5),
-    PR.Infinity(),
 )
 
 function post_image(abstract_system, concrete_system, xpos, u)

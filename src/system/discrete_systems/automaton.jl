@@ -17,6 +17,8 @@ function post(autom::AbstractAutomatonList{N, M}, source::Int, symbol::Int) wher
 function Base.empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
 function add_state!(autom::AbstractAutomatonList{N, M}) where {N, M} end
 
+finalize!(autom::AbstractAutomatonList) = autom
+
 # === Common Default Implementations ===
 enum_states(autom::AbstractAutomatonList) = 1:get_n_state(autom)
 enum_inputs(autom::AbstractAutomatonList) = 1:get_n_input(autom)

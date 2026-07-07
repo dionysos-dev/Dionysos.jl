@@ -43,6 +43,84 @@ function MOI.get(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute
     return getproperty(model, Symbol(param.name))
 end
 
+function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist)
+    nstates = ST.get_n_state(autom)
+    nsymbols = ST.get_n_input(autom)
+
+    safeset = _bitset_from_states(safelist, nstates)
+
+    pairstable = _compute_base_pairstable(autom)
+
+    unsafeset = falses(nstates)
+
+    @inbounds for q in 1:nstates
+        if !safeset[q]
+            unsafeset[q] = true
+
+            for u in 1:nsymbols
+                pairstable[q, u] = false
+            end
+        end
+    end
+
+    nsymbolslist = _compute_nsymbolslist(pairstable)
+    nextunsafeset = falses(nstates)
+
+    while true
+        fill!(nextunsafeset, false)
+
+        @inbounds for target in 1:nstates
+            unsafeset[target] || continue
+
+            for (source, symbol) in ST.pre(autom, target)
+                if pairstable[source, symbol]
+                    pairstable[source, symbol] = false
+                    nsymbolslist[source] -= 1
+
+                    if safeset[source] && nsymbolslist[source] == 0
+                        nextunsafeset[source] = true
+                    end
+                end
+            end
+        end
+
+        has_next = false
+
+        @inbounds for q in 1:nstates
+            if nextunsafeset[q]
+                safeset[q] = false
+                has_next = true
+            end
+        end
+
+        has_next || break
+
+        unsafeset, nextunsafeset = nextunsafeset, unsafeset
+    end
+
+    contr_tab = DiscreteControlTable(nstates)
+
+    @inbounds for q in 1:nstates
+        safeset[q] || continue
+
+        for u in 1:nsymbols
+            if pairstable[q, u]
+                add_control!(contr_tab, q, u)
+            end
+        end
+    end
+
+    inv_set = _set_from_bitset(safeset)
+
+    safe_bits_original = _bitset_from_states(safelist, nstates)
+    invc_bits = safe_bits_original .& .!safeset
+    invc_set = _set_from_bitset(invc_bits)
+
+    controller = ST.DiscreteStaticController(inv_set, contr_tab, false)
+
+    return controller, inv_set, invc_set
+end
+
 function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     t0 = time()
 
@@ -65,75 +143,4 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
 
     optimizer.solve_time_sec = time() - t0
     return
-end
-
-function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist)
-    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
-    pairstable = falses(nstates, nsymbols)
-
-    _compute_pairstable(pairstable, autom)
-    nsymbolslist = vec(sum(pairstable; dims = 2))
-
-    # Remove unsafe states
-    safeset = Set(safelist)
-    for source in collect(safeset)
-        if nsymbolslist[source] == 0
-            delete!(safeset, source)
-        end
-    end
-
-    unsafeset = Set(1:nstates)
-    setdiff!(unsafeset, safeset)
-
-    for source in unsafeset
-        for symbol in 1:nsymbols
-            pairstable[source, symbol] = false
-        end
-    end
-    nextunsafeset = Set{Int}()
-
-    # Iterate until convergence
-    while true
-        for target in unsafeset
-            for (source, symbol) in ST.pre(autom, target)
-                if pairstable[source, symbol]
-                    pairstable[source, symbol] = false
-                    nsymbolslist[source] -= 1
-                    if nsymbolslist[source] == 0
-                        push!(nextunsafeset, source)
-                    end
-                end
-            end
-        end
-
-        isempty(nextunsafeset) && break
-
-        setdiff!(safeset, nextunsafeset)
-        unsafeset, nextunsafeset = nextunsafeset, unsafeset
-        empty!(nextunsafeset)
-    end
-
-    # Populate controller
-    for source in safeset
-        for symbol in 1:nsymbols
-            if pairstable[source, symbol]
-                add_control!(contr_tab, source, symbol)
-            end
-        end
-    end
-
-    unsafeset = setdiff(Set(safelist), safeset)
-    controller = ST.DiscreteStaticController(safeset, contr_tab, false)
-
-    return controller, safeset, unsafeset
-end
-
-function _compute_pairstable(pairstable, autom)
-    for target in ST.enum_states(autom)
-        for (source, symbol) in ST.pre(autom, target)
-            pairstable[source, symbol] = true
-        end
-    end
 end

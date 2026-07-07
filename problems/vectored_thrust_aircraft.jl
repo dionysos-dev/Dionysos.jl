@@ -7,7 +7,7 @@ using Plots
 using Dionysos
 const UT = Dionysos.Utils
 const ST = Dionysos.System
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 
 Base.@kwdef struct Params{T}
     m::T = 1.0      # mass
@@ -149,18 +149,10 @@ function optimal_control_problem(;
     ),
     state_cost = nothing,
     transition_cost = nothing,
-    terminal_cost = PB.Infinity(),
 )
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
 
-    return PB.OptimalControlProblem(
-        sys,
-        _I_,
-        _T_,
-        state_cost,
-        transition_cost,
-        terminal_cost,
-    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 function system_plot!(;

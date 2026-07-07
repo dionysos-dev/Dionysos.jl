@@ -1,174 +1,189 @@
-using StaticArrays, JuMP, Plots
+using StaticArrays
+using JuMP
+using Plots
+
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const PR = DI.Problem
 const MP = DI.Mapping
 const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
+const PR = DI.Problem
 
-using Spot
+import MathOptInterface as MOI
 
-# ------------------------------------------------------------
-# 1) Define System
-# ------------------------------------------------------------
-include("../../problems/Pendulum/simple_pendulum.jl");
-
-_X_ = UT.HyperRectangle(SVector(-π, -5.5), SVector(π, 5.5))
-_U_ = UT.LazySetMinus(
-    UT.HyperRectangle(SVector(-4.5), SVector(4.5)),
-    UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
-)
-concrete_system = SimplePendulum.system(; _X_ = _X_, _U_ = _U_)
+include("../../problems/Pendulum/simple_pendulum.jl")
 
 # ------------------------------------------------------------
-# 2) Define co-safe LTL problem with sets labeling
+# Concrete reach-and-stay problem: swing up and stay near upright
 # ------------------------------------------------------------
 
-_I_ = UT.HyperRectangle(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
+params = SimplePendulum.Params()
 
-g1 = UT.HyperRectangle(
-    SVector(pi - 10.0 * pi / 180.0, -1.0),
-    SVector(pi + 15.0 * pi / 180.0, 1.0),
-)
+_X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
+_U_ = UT.HyperRectangle(SVector(-3.5), SVector(3.5)) # SVector(-3.0), SVector(3.0) is with escaping
+_I_ = UT.HyperRectangle(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
+_T_ = UT.HyperRectangle(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+_S_ = _X_
 
-g2 = UT.HyperRectangle(
-    SVector(pi/2.0-10.0 * pi / 180.0, -0.4),
-    SVector(pi/2.0+10.0 * pi / 180.0, 0.4),
-)
+concrete_system = SimplePendulum.system(; params = params, _X_ = _X_, _U_ = _U_)
 
-obs = UT.HyperRectangle(
-    SVector(-pi + 16.0 * pi / 180.0, -5.5),
-    SVector(-pi + 38.0 * pi / 180.0, 5.5),
-)
-
-φ = ltl"G(!obs) & F(g1 & F(g2))"
-spec = Dionysos.spot_stepper(φ)
-
-labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :obs => obs)
-
-ap_semantics = Dict{Symbol, Any}(:g1 => MP.INNER, :g2 => MP.INNER, :obs => MP.OUTER)
-
-concrete_problem = PR.CoSafeLTLProblem(concrete_system, _I_, spec, labeling, ap_semantics)
+concrete_problem = PR.ReachAndStayProblem(concrete_system, _I_, _T_, _S_)
 
 # ------------------------------------------------------------
-# 3) Define solver meta-parameters
+# Abstraction parameters
 # ------------------------------------------------------------
 
-hx = SVector(3*(pi/180.0), 0.05)
+hx = SVector(3.0 * π / 180.0, 0.05)
 
 u0 = SVector(0.0)
 hu = SVector(0.3)
 
+periodic_dims = SVector(1)
+periods = SVector(2π)
+periodic_start = SVector(-π)
+
 Δt = 0.1
 
-periodic_dims = SVector(1)
-periods = SVector(2*pi)
-periodic_start = SVector(-pi)
+# ------------------------------------------------------------
+# Uniform-grid abstraction + reach-and-stay synthesis
+# ------------------------------------------------------------
 
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("h"), hx)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
+
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
-    SimplePendulum.jacobian_bound(),
+    SimplePendulum.jacobian_bound(params),
 )
+
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
+
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH, # GROWTH, CENTER_SIMULATION
+    AB.UniformGridAbstraction.GROWTH,
 )
+
 MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
+
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
 )
+
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
-# ------------------------------------------------------------
-# 4) Solve the problem
-# ------------------------------------------------------------
-
-MOI.optimize!(optimizer);
+MOI.optimize!(optimizer)
 
 # ------------------------------------------------------------
-# 5) Get the results
+# Results
 # ------------------------------------------------------------
-success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
-println("Co-safe LTL success: $success")
 
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+winning_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("winning_set"))
 
 abstraction_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
 println("Time to construct the abstraction: $(abstraction_time)")
+
 abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 println("Time to solve the abstract problem: $(abstract_problem_time)")
+
 total_time = MOI.get(optimizer, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
 # ------------------------------------------------------------
-# 6) Visualization
+# Closed-loop simulation
 # ------------------------------------------------------------
 
-x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-nstep = 100
+target_set =
+    UT.set_in_period(concrete_problem.target_set, periodic_dims, periods, periodic_start)
 
-x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
+safe_set =
+    UT.set_in_period(concrete_problem.safe_set, periodic_dims, periods, periodic_start)
+
+nstep = 150
+
+function stayed_in_target_after(x_traj, k)
+    return all(x -> x ∈ target_set, x_traj[k:end])
+end
+
+x0 = SVector(UT.sample(concrete_problem.initial_set)...)
+
+x_traj, u_traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
     nstep;
-    update_on_next = true,
-    stopping = x -> false,
     wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # ------------------------------------------------------------
-# 7) Plots
+# Check finite simulated reach-and-stay behavior
 # ------------------------------------------------------------
 
-φ_str = string(φ)
-fig = plot(; aspect_ratio = :equal, title = "$φ_str")
-concrete_system = concrete_problem.system
+success_check = PR.trajectory_success(concrete_problem, x_traj)
+
+println("Simulation eventually stays in target over sampled horizon: $(success_check)")
+
+# ------------------------------------------------------------
+# Plots
+# ------------------------------------------------------------
+XMapping = SY.get_state_mapping(abstract_system)
+
+fig = plot(; aspect_ratio = :equal)
+
 plot!(
     UT.set_in_period(concrete_system.X, periodic_dims, periods, periodic_start);
     color = :grey,
     hole_color = :black,
     opacity = 1.0,
     label = "",
-);
-plot!(
-    concrete_problem;
-    ap_colors = Dict(:g1 => :red, :g2 => :cyan, :obs => :black),
-    aspect_ratio = :equal,
 )
-plot!(fig, x_traj; color = :blue, dims = [1, 2])
+
+plot!((winning_set, XMapping); color = :blue, linecolor = :blue)
+
+plot!(
+    UT.set_in_period(concrete_problem.initial_set, periodic_dims, periods, periodic_start);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+)
+
+plot!(target_set; color = :red, opacity = 0.8, label = "Target set")
+
+plot!(x_traj; ms = 2.0, arrows = false, label = "Closed-loop trajectory")
+
 display(fig)
 
 # ------------------------------------------------------------
-# 8) Animation with dashboard
+# Animation with dashboard
 # ------------------------------------------------------------
 
-system_plot! = SimplePendulum.system_plot!()
+system_plot! = SimplePendulum.system_plot!(; params = params)
+
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
     x_traj,
     u_traj;
-    xdims = (1, 2),      # phase plot θ vs ω
-    udims = (1,),        # input over time
+    xdims = (1, 2),
+    udims = (1,),
     Δt = Δt,
     fps = 5,
     # filename = "simple_pendulum_dashboard.mp4",

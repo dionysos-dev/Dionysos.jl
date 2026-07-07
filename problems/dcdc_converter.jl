@@ -8,7 +8,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const PB = DI.Problem
+const PR = DI.Problem
 
 Base.@kwdef struct Params{T}
     vs::T = 1.0
@@ -83,7 +83,7 @@ function problem(;
 )
     sys = system(; params = params)
 
-    return PB.SafetyProblem(sys, _I_, sys.X, PB.Infinity())
+    return PR.SafetyProblem(sys, _I_, sys.X)
 end
 
 function system_plot!(;
