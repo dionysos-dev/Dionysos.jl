@@ -1,4 +1,4 @@
-using StaticArrays, JuMP, Plots
+using StaticArrays, MathematicalSystems, JuMP, Plots
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils

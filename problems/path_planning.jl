@@ -7,7 +7,7 @@ using Plots
 using Dionysos
 const UT = Dionysos.Utils
 const ST = Dionysos.System
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 
 # System eq x' = F_sys(x, u)
 function dynamic()
@@ -115,8 +115,7 @@ function problem(; simple = false, transition_cost = nothing)
     _X_ = UT.LazySetMinus(_X_, obstacles_LU)
     sys = system(_X_)
 
-    problem =
-        PB.OptimalControlProblem(sys, _I_, _T_, nothing, transition_cost, PB.Infinity())
+    problem = PR.OptimalControlProblem(sys, _I_, _T_, nothing, transition_cost)
     return problem
 end
 

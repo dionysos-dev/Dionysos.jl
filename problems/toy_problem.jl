@@ -7,7 +7,7 @@ using Plots
 using Dionysos
 
 const UT = Dionysos.Utils
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 
 # 2D integrator: ẋ = u
 dynamic() = (x, u) -> SVector{2}(u[1], u[2])
@@ -41,7 +41,7 @@ function optimal_control_problem(;
     _T_ = UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2)),
 )
     sys = system(; _X_ = _X_, _U_ = _U_)
-    return PB.OptimalControlProblem(sys, _I_, _T_, nothing, nothing, PB.Infinity())
+    return PR.OptimalControlProblem(sys, _I_, _T_, nothing, nothing)
 end
 
 function system_plot!(;

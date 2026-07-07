@@ -174,13 +174,12 @@ function problem()
     t_nexttask_starts = [1.0, 7.0, 8.0, 10.0]
     transition_cost_function = make_cost_function(mode_weights, t_nexttask_starts)
 
-    return PB.OptimalControlProblem(
+    return PR.OptimalControlProblem(
         hybrid_system,
         initial_state,
         target_set,
         nothing,
         transition_cost_function,
-        PB.Infinity(),
     )
 end
 

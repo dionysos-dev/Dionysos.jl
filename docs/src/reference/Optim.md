@@ -16,6 +16,7 @@ Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulationProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
+Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerReachAndStayProblem
 Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem
 ```
 

@@ -83,7 +83,7 @@ function problem(;
 )
     sys = system(; params = params)
 
-    return PB.SafetyProblem(sys, _I_, sys.X, PB.Infinity())
+    return PR.SafetyProblem(sys, _I_, sys.X)
 end
 
 function system_plot!(;

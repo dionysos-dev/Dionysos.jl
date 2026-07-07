@@ -39,7 +39,6 @@ concrete_problem = PR.OptimalControlProblem(
     _T_,
     UT.ZeroFunction(),
     UT.ConstantControlFunction(1.0),
-    PR.Infinity(),
 )
 
 ## specific functions

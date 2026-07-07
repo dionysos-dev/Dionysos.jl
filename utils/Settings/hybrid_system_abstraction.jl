@@ -82,7 +82,6 @@ concrete_problem = PR.OptimalControlProblem(
     target_set,
     nothing,
     trans_cost,
-    PR.Infinity(),
 )
 
 # ==============================

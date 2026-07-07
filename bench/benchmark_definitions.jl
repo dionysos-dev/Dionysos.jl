@@ -12,7 +12,7 @@ using Pavito
 using Dionysos
 const OP = Dionysos.Optim
 const AB = OP.Abstraction
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 const DO = Dionysos.Domain
 const UT = Dionysos.Utils
 const SY = Dionysos.Symbolic

@@ -6,7 +6,7 @@ using Plots
 using Dionysos
 
 const UT = Dionysos.Utils
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 const ST = Dionysos.System
 
 Base.@kwdef struct Params{T}
@@ -58,7 +58,7 @@ function safety_problem(; params::Params = Params(), objective = "safety_up")
     end
 
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
-    return PB.SafetyProblem(sys, _I_, _S_, PB.Infinity())
+    return PR.SafetyProblem(sys, _I_, _S_)
 end
 
 function optimal_control_problem(;
@@ -66,7 +66,6 @@ function optimal_control_problem(;
     objective = "reachability_up_low_power",
     state_cost = nothing,
     transition_cost = nothing,
-    terminal_cost = PB.Infinity(),
 )
     _O_ = nothing
 
@@ -126,14 +125,7 @@ function optimal_control_problem(;
     _X_ = _O_ === nothing ? _X_ : UT.LazySetMinus(_X_, _O_)
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
 
-    return PB.OptimalControlProblem(
-        sys,
-        _I_,
-        _T_,
-        state_cost,
-        transition_cost,
-        terminal_cost,
-    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 function system_plot!(;

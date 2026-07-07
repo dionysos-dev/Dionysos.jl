@@ -7,7 +7,7 @@ using Plots
 
 const UT = Dionysos.Utils
 const ST = Dionysos.System
-const PB = Dionysos.Problem
+const PR = Dionysos.Problem
 
 Base.@kwdef struct Params{T}
     M::T = 1.0      # cart mass
@@ -98,7 +98,6 @@ function optimal_control_problem(;
     objective = "swing_up",
     state_cost = nothing,
     transition_cost = nothing,
-    terminal_cost = PB.Infinity(),
 )
     if objective == "swing_up"
         _X_ = UT.HyperRectangle(SVector(-5.0, -pi, -5.0, -5.0), SVector(5.0, pi, 5.0, 5.0))
@@ -137,14 +136,7 @@ function optimal_control_problem(;
 
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
 
-    return PB.OptimalControlProblem(
-        sys,
-        _I_,
-        _T_,
-        state_cost,
-        transition_cost,
-        terminal_cost,
-    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 function system_plot!(;

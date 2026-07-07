@@ -130,13 +130,12 @@ function problem()
     # Cost Function
     transition_cost_function = (x, u) -> 1.0
 
-    return PB.OptimalControlProblem(
+    return PR.OptimalControlProblem(
         hybrid_system,
         initial_state,
         target_set,
         nothing,
         transition_cost_function,
-        PB.Infinity(),
     )
 end
 
