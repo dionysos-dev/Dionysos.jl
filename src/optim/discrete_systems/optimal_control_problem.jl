@@ -279,95 +279,65 @@ function compute_worst_case_uniform_cost_controller(
     initial_set = ST.enum_states(autom),
     sparse_input = false,
 )
-    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
+    nstates = ST.get_n_state(autom)
+    nsymbols = ST.get_n_input(autom)
 
-    stateset,
-    initset,
-    controllable_set,
-    num_targets_unreachable,
-    current_targets,
-    next_targets,
-    value_fun_tab = _data(autom, initial_set, target_set, sparse_input)
+    contr_tab = DiscreteControlTable(nstates)
 
-    success, value_fun_tab = _compute_controller_reach!(
-        contr_tab,
-        autom,
-        initset,
-        controllable_set,
-        num_targets_unreachable,
-        current_targets,
-        next_targets,
-        value_fun_tab,
-    )
+    init_bits = _bitset_from_states(initial_set, nstates)
+    controllable_bits = _bitset_from_states(target_set, nstates)
 
-    uncontrollable_set = setdiff(stateset, controllable_set)
-    controller = ST.DiscreteStaticController(controllable_set, contr_tab, false)
-    return controller, controllable_set, uncontrollable_set, value_fun_tab
-end
+    counter = sparse_input ? _counter(autom, true) : _counter_dense(autom)
 
-function _data(autom, initlist, targetlist, sparse_input::Bool)
-    if sparse_input
-        num_targets_unreachable = Dict{Tuple{Int, Int}, Int}()
-    else
-        num_targets_unreachable = zeros(Int, ST.get_n_state(autom), ST.get_n_input(autom))
+    current_targets = Int[]
+    for q in target_set
+        push!(current_targets, q)
     end
 
-    _compute_num_targets_unreachable(num_targets_unreachable, autom)
-
-    stateset = BitSet(ST.enum_states(autom))
-    initset = BitSet(initlist)
-    targetset = BitSet(targetlist)
-    current_targets = copy(targetlist)
     next_targets = Int[]
-    value_fun_tab = fill(Inf, ST.get_n_state(autom)) # Inf = uncontrollable by default
-
-    return stateset,
-    initset,
-    targetset,
-    num_targets_unreachable,
-    current_targets,
-    next_targets,
-    value_fun_tab
-end
-
-function _compute_controller_reach!(
-    contr_tab,
-    autom,
-    init_set,
-    target_set,
-    counter,
-    current_targets,
-    next_targets,
-    value_fun_tab,
-)::Tuple{Bool, Vector{Float64}}
-    num_init_unreachable = length(init_set)
+    value_fun_tab = fill(Inf, nstates)
 
     step = 0
-    for s in current_targets
-        value_fun_tab[s] = step
+    for q in current_targets
+        value_fun_tab[q] = 0.0
     end
 
-    while !isempty(current_targets) && !iszero(num_init_unreachable)
+    num_init_unreachable = 0
+    @inbounds for q in 1:nstates
+        init_bits[q] && !controllable_bits[q] && (num_init_unreachable += 1)
+    end
+
+    while !isempty(current_targets) && num_init_unreachable > 0
         empty!(next_targets)
         step += 1
 
         for target in current_targets
             for (source, symbol) in ST.pre(autom, target)
-                if !(source in target_set) &&
-                   iszero(decrease_counter!(counter, source, symbol))
-                    push!(target_set, source)
+                controllable_bits[source] && continue
+
+                if decrease_counter!(counter, source, symbol) == 0
+                    controllable_bits[source] = true
                     push!(next_targets, source)
+
                     add_control!(contr_tab, source, symbol)
                     value_fun_tab[source] = step
 
-                    if source in init_set
+                    if init_bits[source]
                         num_init_unreachable -= 1
                     end
                 end
             end
         end
+
         current_targets, next_targets = next_targets, current_targets
     end
 
-    return iszero(num_init_unreachable), value_fun_tab
+    controllable_set = _set_from_bitset(controllable_bits)
+
+    uncontrollable_bits = .!controllable_bits
+    uncontrollable_set = _set_from_bitset(uncontrollable_bits)
+
+    controller = ST.DiscreteStaticController(controllable_set, contr_tab, false)
+
+    return controller, controllable_set, uncontrollable_set, value_fun_tab
 end

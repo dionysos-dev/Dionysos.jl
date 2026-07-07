@@ -81,7 +81,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewIndexedAutomatonList(n, m),
+    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
 )
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)

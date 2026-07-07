@@ -102,6 +102,12 @@ function build_optimizer(
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
 
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("automaton_constructor"),
+        (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+    )
+
     if with_period
         MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
         MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)

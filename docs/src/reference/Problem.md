@@ -32,5 +32,6 @@ Dionysos.Problem.AlternatingSimulationProblem
 Dionysos.Problem.BisimulationQuotientProblem
 Dionysos.Problem.OptimalControlProblem
 Dionysos.Problem.SafetyProblem
+Dionysos.Problem.ReachAndStayProblem
 Dionysos.Problem.CoSafeLTLProblem
 ```

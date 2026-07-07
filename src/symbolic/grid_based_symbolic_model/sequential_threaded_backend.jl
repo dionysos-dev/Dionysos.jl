@@ -74,6 +74,10 @@ function compute_abstract_system!(
     )
 
     isempty(trans) || add_transitions!(abstract_system, trans)
+
+    # Deduplicate / compress automaton after all transitions are inserted.
+    ST.finalize!(get_automaton(abstract_system))
+
     add_metadata_pairs!(abstract_system, metadata_pairs)
 
     return abstract_system
@@ -339,7 +343,7 @@ function compute_abstract_transitions_from_points!(
     start_len = length(translist)
     start_meta_len = length(metadatalist)
 
-    local_pairs = Pair{TransitionKey, Any}[]
+    seen_targets = Set{Int}()
 
     for y in reachable_points
         target = get_abstract_state(symmodel, y)
@@ -350,22 +354,15 @@ function compute_abstract_transitions_from_points!(
             return false
         end
 
+        target in seen_targets && continue
+        push!(seen_targets, target)
+
         tr = (target, abstract_state, abstract_input)
         push!(translist, tr)
 
         if has_metadata(symmodel)
-            push!(local_pairs, tr => ConcreteTransitionSample(concrete_source, y))
+            push!(metadatalist, tr => ConcreteTransitionSample(concrete_source, y))
         end
-    end
-
-    if length(translist) > start_len + 1
-        new_transitions = unique(translist[(start_len + 1):end])
-        resize!(translist, start_len)
-        append!(translist, new_transitions)
-    end
-
-    if has_metadata(symmodel)
-        append!(metadatalist, local_pairs)
     end
 
     return true
@@ -389,27 +386,33 @@ function collect_abstract_transitions!(
 )
     compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
 
+    inputs = collect(enum_inputs(symmodel))
+    concrete_inputs = Dict(u => get_concrete_input(symmodel, u) for u in inputs)
+
+    states = collect(enum_states(symmodel))
+    concrete_elems = Dict(q => get_concrete_elem(symmodel, q) for q in states)
+
     workfun! = function (
         transbuf::Vector{TransitionKey},
         metadatabuf::Vector{Pair{TransitionKey, Any}},
         abstract_state::Int,
         abstract_input::Int,
     )
-        concrete_input = get_concrete_input(symmodel, abstract_input)
-        concrete_elem = get_concrete_elem(symmodel, abstract_state)
+        concrete_input = concrete_inputs[abstract_input]
+        concrete_elem = concrete_elems[abstract_state]
         reachable_set = compute_reachable_set(concrete_elem, concrete_input)
 
-        localbuf = TransitionKey[]
+        start_len = length(transbuf)
 
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
             abstract_state,
             abstract_input,
-            localbuf,
+            transbuf,
         )
 
-        allin && append!(transbuf, localbuf)
+        allin || resize!(transbuf, start_len)
         return nothing
     end
 
@@ -454,6 +457,9 @@ function collect_abstract_transitions!(
         input_data[abstract_input] = (concrete_input, Fr)
     end
 
+    states = collect(enum_states(symmodel))
+    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
+
     workfun! = function (
         transbuf::Vector{TransitionKey},
         metadatabuf::Vector{Pair{TransitionKey, Any}},
@@ -461,21 +467,22 @@ function collect_abstract_transitions!(
         abstract_input::Int,
     )
         concrete_input, Fr = input_data[abstract_input]
-        concrete_state = get_concrete_state(symmodel, abstract_state)
+        concrete_state = concrete_states[abstract_state]
+
         Fx = system_map(concrete_state, concrete_input)
         reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
 
-        localbuf = TransitionKey[]
+        start_len = length(transbuf)
 
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
             abstract_state,
             abstract_input,
-            localbuf,
+            transbuf,
         )
 
-        allin && append!(transbuf, localbuf)
+        allin || resize!(transbuf, start_len)
         return nothing
     end
 
@@ -525,6 +532,9 @@ function collect_abstract_transitions!(
         input_data[abstract_input] = (concrete_input, Fe, Fr)
     end
 
+    states = collect(enum_states(symmodel))
+    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
+
     workfun! = function (
         transbuf::Vector{TransitionKey},
         metadatabuf::Vector{Pair{TransitionKey, Any}},
@@ -532,28 +542,27 @@ function collect_abstract_transitions!(
         abstract_input::Int,
     )
         concrete_input, Fe, Fr = input_data[abstract_input]
-        concrete_state = get_concrete_state(symmodel, abstract_state)
+        concrete_state = concrete_states[abstract_state]
 
         Fx, DFx = linsys_map(concrete_state, _H_, concrete_input)
 
         A = inv(DFx)
         b = abs.(A) * Fr .+ 1.0
-        HP = UT.CenteredPolyhedron(A, b)
 
         rad = abs.(DFx) * _ONE_ .+ Fe
         reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
 
-        localbuf = TransitionKey[]
+        start_len = length(transbuf)
 
         allin = compute_abstract_transitions_from_rectangle!(
             symmodel,
             reachable_set,
             abstract_state,
             abstract_input,
-            localbuf,
+            transbuf,
         )
 
-        allin && append!(transbuf, localbuf)
+        allin || resize!(transbuf, start_len)
         return nothing
     end
 
@@ -585,20 +594,27 @@ function collect_abstract_transitions!(
 )
     under_approximation_map = ST.get_under_approximation_map(concrete_system_approx)
 
+    inputs = collect(enum_inputs(symmodel))
+    concrete_inputs = Dict(u => get_concrete_input(symmodel, u) for u in inputs)
+
+    states = collect(enum_states(symmodel))
+    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
+    concrete_elems = Dict(q => get_concrete_elem(symmodel, q) for q in states)
+
     workfun! = function (
         transbuf::Vector{TransitionKey},
         metadatabuf::Vector{Pair{TransitionKey, Any}},
         abstract_state::Int,
         abstract_input::Int,
     )
-        concrete_input = get_concrete_input(symmodel, abstract_input)
-        concrete_elem = get_concrete_elem(symmodel, abstract_state)
-        concrete_state = get_concrete_state(symmodel, abstract_state)
+        concrete_input = concrete_inputs[abstract_input]
+        concrete_elem = concrete_elems[abstract_state]
+        concrete_state = concrete_states[abstract_state]
 
         reachable_points = under_approximation_map(concrete_elem, concrete_input)
 
-        localbuf = TransitionKey[]
-        localmeta = Pair{TransitionKey, Any}[]
+        start_len = length(transbuf)
+        start_meta_len = length(metadatabuf)
 
         allin = compute_abstract_transitions_from_points!(
             symmodel,
@@ -606,13 +622,13 @@ function collect_abstract_transitions!(
             concrete_state,
             abstract_state,
             abstract_input,
-            localbuf,
-            localmeta,
+            transbuf,
+            metadatabuf,
         )
 
-        if allin
-            append!(transbuf, localbuf)
-            append!(metadatabuf, localmeta)
+        if !allin
+            resize!(transbuf, start_len)
+            resize!(metadatabuf, start_meta_len)
         end
 
         return nothing
@@ -646,14 +662,20 @@ function collect_abstract_transitions!(
 )
     system_map = ST.get_system_map(concrete_system_approx)
 
+    inputs = collect(enum_inputs(symmodel))
+    concrete_inputs = Dict(u => get_concrete_input(symmodel, u) for u in inputs)
+
+    states = collect(enum_states(symmodel))
+    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
+
     workfun! = function (
         transbuf::Vector{TransitionKey},
         metadatabuf::Vector{Pair{TransitionKey, Any}},
         abstract_state::Int,
         abstract_input::Int,
     )
-        concrete_input = get_concrete_input(symmodel, abstract_input)
-        concrete_state = get_concrete_state(symmodel, abstract_state)
+        concrete_input = concrete_inputs[abstract_input]
+        concrete_state = concrete_states[abstract_state]
 
         y = system_map(concrete_state, concrete_input)
         target = get_abstract_state(symmodel, y)

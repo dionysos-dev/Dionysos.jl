@@ -30,9 +30,7 @@ function MOI.set(
     return setproperty!(model, Symbol(param.name), value)
 end
 
-function MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec)
-    return model.solve_time_sec
-end
+MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec) = model.solve_time_sec
 
 function MOI.get(model::OptimizerReachAndStayProblem, param::MOI.RawOptimizerAttribute)
     return getproperty(model, Symbol(param.name))
@@ -43,22 +41,24 @@ end
 # Pre(Y | S) = {q in S | exists u, Post(q,u) subset Y}
 # ------------------------------------------------------------
 
-function _compute_seed(autom, Y::Set{Int}, S::Set{Int})
-    seed = Set{Int}()
-    seen = Set{Tuple{Int, Int}}()
+function _compute_seed(autom, Y::BitVector, S::BitVector, seen_pairs::BitMatrix)
+    nstates = ST.get_n_state(autom)
+    seed = falses(nstates)
 
-    for target in Y
+    fill!(seen_pairs, false)
+
+    for target in eachindex(Y)
+        Y[target] || continue
         for (source, symbol) in ST.pre(autom, target)
-            source in S || continue
+            S[source] || continue
+            seen_pairs[source, symbol] && continue
 
-            key = (source, symbol)
-            key in seen && continue
-            push!(seen, key)
+            seen_pairs[source, symbol] = true
 
-            destinations = ST.post(autom, source, symbol)
+            dests = ST.post(autom, source, symbol)
 
-            if !isempty(destinations) && all(d -> d in Y, destinations)
-                push!(seed, source)
+            if !isempty(dests) && all(d -> Y[d], dests)
+                seed[source] = true
             end
         end
     end
@@ -67,55 +67,75 @@ function _compute_seed(autom, Y::Set{Int}, S::Set{Int})
 end
 
 # ------------------------------------------------------------
-# Maximal controlled invariant subset of safe_cells ∪ floor_cells
-# with floor_cells protected from removal.
+# Maximal controlled invariant subset of safe_cells ∪ floor_cells.
+#
+# `floor_cells` are protected from removal. In Algorithm (3),
+# this is used with:
+#
+#     safe_cells  = Ω
+#     floor_cells = Y_i
+#
+# so the invariant is computed inside Ω ∪ Y_i.
 # ------------------------------------------------------------
 
-function _invariant_with_floor(autom, safe_cells, floor_cells)
+function _invariant_with_floor(
+    autom,
+    safe_cells::BitVector,
+    floor_cells::BitVector,
+    base_pairstable::BitMatrix,
+)
     nstates = ST.get_n_state(autom)
     nsymbols = ST.get_n_input(autom)
 
-    floor_set = Set(floor_cells)
-    safeset = Set(safe_cells) ∪ floor_set
+    safeset = copy(safe_cells)
+    safeset .|= floor_cells
 
-    pairstable = falses(nstates, nsymbols)
-    _compute_pairstable(pairstable, autom)
+    pairstable = copy(base_pairstable)
 
-    outside = setdiff(Set(1:nstates), safeset)
+    unsafeset = falses(nstates)
 
-    for source in outside
-        for symbol in 1:nsymbols
-            pairstable[source, symbol] = false
+    @inbounds for q in 1:nstates
+        if !safeset[q]
+            unsafeset[q] = true
+            for u in 1:nsymbols
+                pairstable[q, u] = false
+            end
         end
     end
 
-    nsymbolslist = vec(sum(pairstable; dims = 2))
-
-    unsafeset = outside
-    nextunsafeset = Set{Int}()
+    nsymbolslist = _compute_nsymbolslist(pairstable)
+    nextunsafeset = falses(nstates)
 
     while true
-        for target in unsafeset
+        fill!(nextunsafeset, false)
+
+        @inbounds for target in 1:nstates
+            unsafeset[target] || continue
+
             for (source, symbol) in ST.pre(autom, target)
                 if pairstable[source, symbol]
                     pairstable[source, symbol] = false
                     nsymbolslist[source] -= 1
 
-                    if source in safeset &&
-                       !(source in floor_set) &&
-                       nsymbolslist[source] == 0
-                        push!(nextunsafeset, source)
+                    if safeset[source] && !floor_cells[source] && nsymbolslist[source] == 0
+                        nextunsafeset[source] = true
                     end
                 end
             end
         end
 
-        isempty(nextunsafeset) && break
+        has_next = false
 
-        setdiff!(safeset, nextunsafeset)
+        @inbounds for q in 1:nstates
+            if nextunsafeset[q]
+                safeset[q] = false
+                has_next = true
+            end
+        end
+
+        has_next || break
 
         unsafeset, nextunsafeset = nextunsafeset, unsafeset
-        empty!(nextunsafeset)
     end
 
     return safeset, pairstable
@@ -125,14 +145,17 @@ end
 # Add one admissible control q -> target_set.
 # ------------------------------------------------------------
 
-function _add_one_control_to_target!(contr, autom, cells, target_set::Set{Int})
-    for q in cells
+function _add_one_control_to_target!(contr, autom, cells::BitVector, target_set::BitVector)
+    nstates = ST.get_n_state(autom)
+
+    @inbounds for q in 1:nstates
+        cells[q] || continue
         isempty(contr(q)) || continue
 
         for u in ST.enum_inputs(autom)
-            destinations = ST.post(autom, q, u)
+            dests = ST.post(autom, q, u)
 
-            if !isempty(destinations) && all(d -> d in target_set, destinations)
+            if !isempty(dests) && all(d -> target_set[d], dests)
                 add_control!(contr, q, u)
                 break
             end
@@ -153,53 +176,58 @@ function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
     problem === nothing && error("problem not set")
 
     autom = problem.system
-
-    T = Set(problem.target_set)
-    S = Set(problem.safe_set)
-    I = collect(problem.initial_set)
-
     nstates = ST.get_n_state(autom)
+    nsymbols = ST.get_n_input(autom)
+
+    T = _bitset_from_states(problem.target_set, nstates)
+    S = _bitset_from_states(problem.safe_set, nstates)
+    I = collect(problem.initial_set)
 
     optimizer.print_level >= 1 && println("compute_reach_and_stay! started")
 
-    contr = DiscreteControlTable(nstates)
+    base_pairstable = _compute_base_pairstable(autom)
+    seen_pairs = falses(nstates, nsymbols)
 
-    Y = Set{Int}()
-    X_prev = Set{Int}()
+    contr = _empty_control_table(nstates)
+
+    Y = falses(nstates)
+    X_prev = falses(nstates)
 
     while true
         Y_old = copy(Y)
 
         # Inner ν fixed point:
         # X∞_{i+1} = maximal controlled invariant inside Ω ∪ Y_i
-        X_star, _ = _invariant_with_floor(autom, T, Y)
+        X_star, _ = _invariant_with_floor(autom, T, Y, base_pairstable)
 
-        # Controls for states in Ω ∩ (X∞_{i+1} \ X∞_i)
-        new_stay_cells = intersect(T, setdiff(X_star, X_prev))
+        # Controls for Ω ∩ (X∞_{i+1} \ X∞_i)
+        new_stay_cells = X_star .& T .& .!X_prev
         _add_one_control_to_target!(contr, autom, new_stay_cells, X_star)
 
         # Outer μ fixed point:
-        # Y_{i+1} = Pre(X∞_{i+1})
-        Y_next = _compute_seed(autom, X_star, S)
+        # Y_{i+1} = Pre(X∞_{i+1} | S)
+        Y_next = _compute_seed(autom, X_star, S, seen_pairs)
 
-        # Controls for states in Y_{i+1} \ (Y_i ∪ Ω)
-        new_reach_cells = setdiff(Y_next, union(Y, T))
+        # Controls for Y_{i+1} \ (Y_i ∪ Ω)
+        new_reach_cells = Y_next .& .!Y .& .!T
         _add_one_control_to_target!(contr, autom, new_reach_cells, X_star)
 
         Y = Y_next
         X_prev = X_star
 
-        if optimizer.early_stop && all(q -> q in Y, I)
+        if optimizer.early_stop && all(q -> Y[q], I)
             break
         end
 
         Y == Y_old && break
     end
 
-    optimizer.controller = ST.DiscreteStaticController(Y, contr, false)
-    optimizer.winning_set = Y
-    optimizer.winning_set_complement = setdiff(Set(ST.enum_states(autom)), Y)
-    optimizer.success = all(q -> q in Y, I)
+    winning_set = _set_from_bitset(Y)
+
+    optimizer.controller = ST.DiscreteStaticController(winning_set, contr, false)
+    optimizer.winning_set = winning_set
+    optimizer.winning_set_complement = setdiff(Set(ST.enum_states(autom)), winning_set)
+    optimizer.success = all(q -> Y[q], I)
 
     optimizer.print_level >= 1 &&
         println("\n Reach and Stay: terminated with $(optimizer.success)")

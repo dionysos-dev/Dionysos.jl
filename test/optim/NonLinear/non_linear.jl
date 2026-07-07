@@ -18,7 +18,7 @@ using FillArrays
     T = Float64
 
     # Get the nonlinear system from the problem definition
-    nl_prob = NonLinear.problem(; N = 1)
+    nl_prob = NonLinear.problem()
     nl_sys = nl_prob.system
 
     # Wrap f_eval into a (x, u) -> next_state function (fixing w = 0)

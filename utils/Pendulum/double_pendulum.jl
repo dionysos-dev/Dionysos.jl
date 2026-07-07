@@ -49,7 +49,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewIndexedAutomatonList(n, m),
+    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
 )
 
 MOI.optimize!(optimizer);
