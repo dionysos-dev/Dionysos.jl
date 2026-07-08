@@ -143,20 +143,20 @@ Dionysos.animate_trajectory_dashboard(
     ylims_state = (-8, 8),
 )
 
-# # ------------------------------------------------------------
-# # Visualization with RigidBodyDynamics
-# # ------------------------------------------------------------
+# ------------------------------------------------------------
+# Visualization with RigidBodyDynamics
+# ------------------------------------------------------------
 
-# using RigidBodyDynamics
-# using MeshCat
-# using MeshCatMechanisms
+using RigidBodyDynamics
+using MeshCat
+using MeshCatMechanisms
 
-# urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Pendulum", "Pendulum.urdf")
+urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Pendulum", "Pendulum.urdf")
 
-# Dionysos.animate_mechanism_trajectory(
-#     urdf,
-#     x_traj;
-#     joint_names = ["pendulum_joint"],
-#     configuration = x -> [x[1]],
-#     Δt = Δt,
-# )
+Dionysos.animate_mechanism_trajectory(
+    urdf,
+    x_traj;
+    joint_names = ["pendulum_joint"],
+    configuration = x -> [x[1]],
+    Δt = Δt,
+)
