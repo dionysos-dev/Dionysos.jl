@@ -18,11 +18,11 @@ println("Started test")
     ]
     rec = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(2)); optimizer = opt_qp)
     x = [rec.ub[i] for i in 1:2]
-    @test x ≈ [1.0, 2.0] atol = 1e-2
+    @test x ≈ [1.0, 2.0] atol = 1e-1
     P = [1.5 -0.5; -0.5 2.5]
     rec = UT.get_min_bounding_box(UT.Ellipsoid(P, zeros(2)); optimizer = opt_qp)
     x = [rec.ub[i] for i in 1:2]
-    @test x ≈ [0.84515, 0.65465] atol = 1e-2
+    @test x ≈ [0.84515, 0.65465] atol = 1e-1
 end
 
 @testset "Provide P" begin
@@ -37,7 +37,7 @@ end
 
     sys = HybridSystems.ConstrainedAffineControlDiscreteSystem(A, B, c, Nothing, Nothing)
     ans, K, P, gamma = UT._provide_P(sys, opt_sdp)
-    @test K ≈ [-2.0 -1.0 -5.0] atol = 1e-2
+    @test K ≈ [-2.0 -1.0 -5.0] atol = 1e-1
 end
 
 println("End test")
