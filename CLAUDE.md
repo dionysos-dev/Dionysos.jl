@@ -215,6 +215,10 @@ concrete_controller = get_attribute(model, "concrete_controller")
 
 ## 7. Julia conventions & idioms (imitate these)
 
+> Full, authoritative version: [docs/src/developers/conventions.md](docs/src/developers/conventions.md)
+> — the house style for interfaces, type stability, naming, logging, immutability, ecosystem reuse, and
+> solver structure. The summary below is the short form.
+
 **Naming**
 - Modules: `CamelCase`, one per subsystem. Abstract types: `Abstract`-prefixed
   (`AbstractMapping`, `AbstractController`). Concrete types: `CamelCase`.
@@ -262,12 +266,45 @@ concrete_controller = get_attribute(model, "concrete_controller")
 
 Julia ≥ 1.10 (CI tests 1.10 and current `1`). Commands assume the repo root.
 
-**Run tests**
+**Run tests — don't run the whole suite for every change; it's slow.** Prefer the narrowest scope:
+
+1. **Run only the test file(s) you touched, standalone.** Every test file is a self-contained module
+   (its own `using`) and *must be runnable on its own* in the test environment
+   ([test/Project.toml](test/Project.toml), which sources `Dionysos` via a relative path):
+   ```
+   julia --project=test test/optim/UniformGridAbstraction/unit_test_reachability.jl
+   ```
+   First time only: `julia --project=test -e 'using Pkg; Pkg.instantiate()'`. If a file is *not*
+   standalone-runnable (e.g. a missing import), fix it — add the missing `using`/`import`.
+2. **Fast subset smoke check:** `julia --project -e 'using Pkg; Pkg.test(; test_args = ["--fast"])'`
+   runs everything except suites tagged `:slow` in [test/runtests.jl](test/runtests.jl) (heavy
+   end-to-end solver pipelines + Aqua). The driver prints per-file timings and a slowest-first summary.
+3. **Full gate before committing / in CI:** `julia --project -e 'using Pkg; Pkg.test()'`.
+
+New test files must be added to the `TEST_FILES` list in [test/runtests.jl](test/runtests.jl) (tag a
+slow suite `:slow`). **Coverage check:** to confirm new lines are exercised, put `@show @__LINE__`
+around them and look for those line numbers in the test log — if they don't appear, the lines are
+untested.
+
+**Persistent Julia REPL (avoid precompilation).** Julia pays a large precompilation cost per process.
+For quick iterations (scripts under ~30 s), keep a long-lived REPL in `tmux` and send commands to it
+instead of relaunching `julia`:
 ```
-julia --project -e 'using Pkg; Pkg.test()'
+tmux new-session -d -s julia -x 220 -y 50
+tmux send-keys -t julia 'julia --project=test' Enter          # then wait for the julia> prompt
+tmux send-keys -t julia 'using Pkg; Pkg.instantiate()' Enter  # first time only
+tmux send-keys -t julia 'using Revise' Enter                  # hot-reload edited code
+tmux send-keys -t julia 'includet("test/…/foo.jl")' Enter     # includet = tracked by Revise
+# wait for completion, then inspect:
+while ! tmux capture-pane -t julia -p | grep -q "^julia>"; do sleep 1; done
+tmux capture-pane -t julia -p
 ```
-The test tree mirrors `src/`; the Aqua quality test runs first
-([test/aqua.jl](test/aqua.jl)). Test-only deps live in [test/Project.toml](test/Project.toml).
+Tear down with `tmux kill-session -t julia`. (Unix/tmux; on Windows use a persistent VSCode Julia REPL.)
+
+**Julia & dev packages.** Julia is managed by `juliaup` (`~/.julia/juliaup`); local dev checkouts of
+packages live in `~/.julia/dev`. If you need the source of a package that isn't there, ask for it to be
+cloned. When `Pkg.develop`-ing a package use a **relative path**, never an absolute one — absolute paths
+(`/home/<user>/…`) break the shared `Manifest.toml` across machines.
 
 **Format — REQUIRED before every commit** (CI `format_check.yml` fails on any diff):
 ```
@@ -307,7 +344,9 @@ extension is loaded (`using Plots`, `using Symbolics`, …).
   is **`Dionysos.Mapping`** (`INNER`/`OUTER`/`CENTER`). "Domain" is a former name — verify against the
   code before trusting a comment.
 - **Two `utils/`.** Root `utils/` = case-study scripts; `src/utils/` = the `Utils` library module.
-- **Test include paths** in [test/runtests.jl](test/runtests.jl) are slightly flatter than the current,
-  more deeply nested `src/` tree. Mirror the *actual* `src/` layout when adding source, and wire new
-  tests into `runtests.jl` explicitly.
-- **Windows / PowerShell environment**: prefer the exact `julia --project …` invocations above.
+- **Wire new tests in.** [test/runtests.jl](test/runtests.jl) is a `TEST_FILES` list (path + optional
+  `:slow` tag) run in a timed loop; its include paths are slightly flatter than the deeply nested `src/`
+  tree. Add every new test file to that list, and mirror the *actual* `src/` layout for source.
+- **Cross-platform.** The repo is developed both in a Linux container and on Windows. The `julia
+  --project …` commands are portable; the `tmux` persistent-REPL recipe is Unix-only (on Windows use a
+  persistent VSCode Julia REPL instead).
