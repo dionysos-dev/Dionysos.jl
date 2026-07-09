@@ -48,6 +48,7 @@ const TEST_FILES = [
     ("./optim/HybridSystemAbstraction/hybrid_system_abstraction.jl", :slow),
     ("./optim/GolLazarBelta/gol_lazar_belta.jl", :slow),
     ("./optim/NonLinear/non_linear.jl", :slow),
+    ("./regression/uniform_grid_abstraction.jl", :slow),  # golden-output regression net
 ]
 
 const _timings = Tuple{String, Float64}[]
