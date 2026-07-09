@@ -1,4 +1,4 @@
-mutable struct FastIndexedAutomatonList <: AbstractAutomatonList{3, 3}
+mutable struct FastIndexedAutomatonList <: AbstractAutomatonList
     nstates::Int
     nsymbols::Int
     transitions::Vector{NTuple{3, Int}}
@@ -6,7 +6,7 @@ mutable struct FastIndexedAutomatonList <: AbstractAutomatonList{3, 3}
     premap::Vector{Vector{Tuple{Int, Int}}}
 end
 
-function NewFastIndexedAutomatonList(nstates::Int, nsymbols::Int)
+function FastIndexedAutomatonList(nstates::Int, nsymbols::Int)
     return FastIndexedAutomatonList(
         nstates,
         nsymbols,

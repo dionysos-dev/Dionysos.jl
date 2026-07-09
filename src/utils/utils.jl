@@ -10,6 +10,8 @@ using LinearAlgebra, JuMP
 include("plotting/simple_plots.jl")
 
 include("scalar_functions.jl")
+include("periodic.jl")
+include("incl_mode.jl")
 include("data_structures/sorted_vector_set.jl")
 include("data_structures/tree.jl")
 include("search/RRT.jl")

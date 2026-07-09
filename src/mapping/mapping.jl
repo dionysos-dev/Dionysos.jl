@@ -8,13 +8,13 @@ import RecipesBase: @recipe, @series
 using ..Utils
 const UT = Utils
 
-@enum INCL_MODE INNER OUTER CENTER
-@inline function _invInclMode(mode::INCL_MODE)
-    mode === INNER && return OUTER
-    mode === OUTER && return INNER
-    mode === CENTER && return OUTER
-    return error("Invalid inclusion mode $mode")
-end
+# Inclusion modes live in Utils (shared with Problem); aliased here so the
+# established `MP.INNER` / `MP.OUTER` / `MP.CENTER` spelling keeps working.
+const INCL_MODE = UT.INCL_MODE
+const INNER = UT.INNER
+const OUTER = UT.OUTER
+const CENTER = UT.CENTER
+const invert_incl_mode = UT.invert_incl_mode
 
 # ----------------------------
 # Mapping API

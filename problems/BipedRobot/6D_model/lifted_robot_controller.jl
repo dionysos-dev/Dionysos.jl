@@ -7,6 +7,7 @@ struct LiftedRobotController{C} <: ST.AbstractContinuousController
     controller6::C
 end
 
+ST.controller_kind(ctrl::LiftedRobotController) = ST.controller_kind(ctrl.controller6)
 ST.initial_state(ctrl::LiftedRobotController) = ST.initial_state(ctrl.controller6)
 
 # 8D measured state -> 6D reduced state

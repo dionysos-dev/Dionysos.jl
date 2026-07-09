@@ -6,10 +6,10 @@ Defines an abstract type for grid-based structures in `N` dimensions with floati
 abstract type Grid{N, T} end
 
 # ----------------------------
-# Required API for Grid Domains
+# Required API for Grids
 # ----------------------------
-function get_origin(grid::Grid) end
-function get_h(grid::Grid) end
+get_origin(grid::Grid) = error("implement `get_origin` for $(typeof(grid))")
+get_h(grid::Grid) = error("implement `get_h` for $(typeof(grid))")
 
 # ----------------------------
 # Derived Utility Methods
@@ -106,9 +106,9 @@ function get_pos_from_set(grid, U::UT.SetUnion, incl_mode::INCL_MODE)
     return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.array)
 end
 
-function get_pos_from_set(grid, S::UT.SetMinus, incl_mode::INCL_MODE)
-    inv = _invInclMode(incl_mode)
-    Bpos = Set{Any}()
+function get_pos_from_set(grid::Grid{N}, S::UT.SetMinus, incl_mode::INCL_MODE) where {N}
+    inv = invert_incl_mode(incl_mode)
+    Bpos = Set{NTuple{N, Int}}()
     for pos in get_pos_from_set(grid, UT.minus_hole(S), inv)
         push!(Bpos, pos)
     end
@@ -176,30 +176,25 @@ function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
 end
 
 """
-    DeformedGrid{N, T} <: Grid{N, T}
+    DeformedGrid{N, T, F, FI, AT} <: Grid{N, T}
 
 Represents a deformed version of a `GridFree` grid, where points are mapped via an invertible transformation `f` and its inverse `fi`.
 
 # Fields
-- `grid::GridFree{N, T}` : The underlying grid.
-- `f::Function` : The forward transformation (physical -> deformed).
-- `fi::Function` : The inverse transformation (deformed -> physical).
-- `A::Union{Nothing, SMatrix{N, N, T, N*N}}` : Optional linear transformation matrix for volume calculations.
+- `underlying_grid::GridFree{N, T}` : The underlying grid.
+- `f::F` : The forward transformation (physical -> deformed).
+- `fi::FI` : The inverse transformation (deformed -> physical).
+- `A::AT` : Optional linear transformation matrix for volume calculations (`nothing` if absent).
 """
-struct DeformedGrid{N, T} <: Grid{N, T}
+struct DeformedGrid{N, T, F, FI, AT} <: Grid{N, T}
     underlying_grid::GridFree{N, T}
-    f::Function
-    fi::Function
-    A::Union{Nothing, Any}
+    f::F
+    fi::FI
+    A::AT
 end
 
-function DeformedGrid(
-    grid::GridFree{N, T},
-    f::Function,
-    fi::Function;
-    A = nothing,
-) where {N, T}
-    return DeformedGrid{N, T}(grid, f, fi, A)
+function DeformedGrid(grid::GridFree{N, T}, f, fi; A = nothing) where {N, T}
+    return DeformedGrid{N, T, typeof(f), typeof(fi), typeof(A)}(grid, f, fi, A)
 end
 
 get_origin(grid::DeformedGrid) = grid.f(get_origin(grid.underlying_grid))

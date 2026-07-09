@@ -1,17 +1,18 @@
 abstract type AbstractStateSet{N} end
 
 contains_state(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
+    error("implement `contains_state` for $(typeof(S))")
 enum_states(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
-    error("not implemented")
+    error("implement `enum_states` for $(typeof(S))")
 get_n_state(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
     length(enum_states(S, m))
 
 add_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
+    error("implement `add_state!` for $(typeof(S))")
 remove_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
-empty_states!(S::AbstractStateSet{N}) where {N} = error("not implemented")
+    error("implement `remove_state!` for $(typeof(S))")
+empty_states!(S::AbstractStateSet{N}) where {N} =
+    error("implement `empty_states!` for $(typeof(S))")
 
 function add_states!(S::AbstractStateSet{N}, m::AbstractMapping{N}, states) where {N}
     for q in states
@@ -329,7 +330,7 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    return S.set = UT.set_minus(UT.empty_region(N), UT.empty_region(N))
+    return S.set = UT.empty_region(N)
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =

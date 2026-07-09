@@ -266,7 +266,7 @@ end
 # Product automaton (System × SpecStepper)
 # ============================================================
 
-struct ProductAutomaton{SYS, LAB, STEP} <: ST.AbstractAutomatonList{0, 0}
+struct ProductAutomaton{SYS, LAB, STEP} <: ST.AbstractAutomatonList
     sys::SYS
     labeling::LAB
     spec::STEP

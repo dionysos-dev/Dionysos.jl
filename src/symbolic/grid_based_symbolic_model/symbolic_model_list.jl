@@ -38,7 +38,7 @@ function SymbolicModelList(
     Xset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Rset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Uset::Union{Nothing, MP.AbstractStateSet{M}} = nothing,
-    automaton_constructor::Function = (n, m) -> ST.NewSortedAutomatonList(n, m),
+    automaton_constructor::Function = (n, m) -> ST.SortedAutomatonList(n, m),
     original_symmodel = nothing,
     convert_U_to_list::Bool = true,
     metadata = NoTransitionMetadata(),
@@ -70,9 +70,9 @@ end
 get_state_mapping(sym::SymbolicModelList) = sym.XMapping
 get_input_mapping(sym::SymbolicModelList) = sym.UMapping
 
-get_source_domain(sym::SymbolicModelList) = sym.Xset
-get_retained_domain(sym::SymbolicModelList) = sym.Rset
-get_input_domain(sym::SymbolicModelList) = sym.Uset
+get_state_set(sym::SymbolicModelList) = sym.Xset
+get_retained_set(sym::SymbolicModelList) = sym.Rset
+get_input_set(sym::SymbolicModelList) = sym.Uset
 
 get_automaton(sym::SymbolicModelList) = sym.autom
 
@@ -84,9 +84,9 @@ function without_metadata(sym::SymbolicModel)
     return SymbolicModelList(
         get_state_mapping(sym),
         get_input_mapping(sym);
-        Xset = get_state_domain(sym),
-        Rset = get_retained_domain(sym),
-        Uset = get_input_domain(sym),
+        Xset = get_state_set(sym),
+        Rset = get_retained_set(sym),
+        Uset = get_input_set(sym),
         automaton_constructor = (n, m) -> get_automaton(sym),
         metadata = NoTransitionMetadata(),
     )

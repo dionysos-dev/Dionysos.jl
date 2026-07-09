@@ -198,6 +198,7 @@ struct TreeStaticController{TR} <: ST.AbstractContinuousController
     tree::TR
 end
 
+ST.controller_kind(::TreeStaticController) = ST.StaticKind()
 ST.domain(ctrl::TreeStaticController) = ctrl.tree
 ST.initial_state(::TreeStaticController) = nothing
 ST.update_state(::TreeStaticController, q, x) = nothing

@@ -5,7 +5,7 @@ const SY = DI.Symbolic
 # Quotient automaton wrapper
 # ============================================================
 
-struct QuotientAutomaton{QT} <: ST.AbstractAutomatonList{0, 0}
+struct QuotientAutomaton{QT} <: ST.AbstractAutomatonList
     quotient::QT
     qids::Vector{Int}
     id2idx::Dict{Int, Int}

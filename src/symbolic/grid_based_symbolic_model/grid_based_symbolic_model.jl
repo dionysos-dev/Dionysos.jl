@@ -7,8 +7,8 @@ mapping-based discretization.
 Semantics:
 - state mapping: global abstract-state numbering / coordinate map
 - input mapping: global abstract-input numbering / coordinate map
-- source domain (`Xset`): states enumerated as sources
-- retained domain (`Rset`): states allowed as targets
+- state set (`Xset`): states enumerated as sources
+- retained set (`Rset`): states allowed as targets
 """
 abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
 
@@ -16,29 +16,27 @@ abstract type GridBasedSymbolicModel{N, M} <: SymbolicModel{N, M} end
 # Required interface for concrete subtypes
 # ------------------------------------------------------------------
 
-get_source_domain(symmodel::GridBasedSymbolicModel) =
-    error("get_source_domain not implemented for $(typeof(symmodel))")
+get_state_set(symmodel::GridBasedSymbolicModel) =
+    error("get_state_set not implemented for $(typeof(symmodel))")
 
-get_retained_domain(symmodel::GridBasedSymbolicModel) =
-    error("get_retained_domain not implemented for $(typeof(symmodel))")
+get_retained_set(symmodel::GridBasedSymbolicModel) =
+    error("get_retained_set not implemented for $(typeof(symmodel))")
 
 # ------------------------------------------------------------------
 # Default generic behavior
 # ------------------------------------------------------------------
 
 enum_source_states(symmodel::GridBasedSymbolicModel) =
-    MP.enum_states(get_source_domain(symmodel), get_state_mapping(symmodel))
+    MP.enum_states(get_state_set(symmodel), get_state_mapping(symmodel))
 
 is_allowed_state(symmodel::GridBasedSymbolicModel, q::Int) =
     q !== nothing &&
-    MP.contains_state(get_retained_domain(symmodel), get_state_mapping(symmodel), q)
+    MP.contains_state(get_retained_set(symmodel), get_state_mapping(symmodel), q)
 
 get_n_state(symmodel::GridBasedSymbolicModel) =
     length(collect(enum_source_states(symmodel)))
 
 get_n_input(symmodel::GridBasedSymbolicModel) = length(collect(enum_inputs(symmodel)))
-
-get_state_domain(symmodel::GridBasedSymbolicModel) = get_source_domain(symmodel)
 
 enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
 

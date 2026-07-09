@@ -41,16 +41,6 @@ end
 struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute end
 
 """
-    HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
-
-`discrete` is the discrete trajectory of type `DiscreteTrajectory` and  `continuous` is a the continuous trajectory of type `ContinuousTrajectory`.
-"""
-struct HybridTrajectory{T, TT, XVT <: AbstractVector{T}, UVT <: AbstractVector{T}}
-    discrete::DiscreteTrajectory{TT}
-    continuous::ContinuousTrajectory{T, XVT, UVT}
-end
-
-"""
     Trajectory{T}
 
 provides the sequence of some elements of a trajectory.
@@ -158,48 +148,89 @@ function get_closed_loop_trajectory(
     return (x = Trajectory(qs), u = Trajectory(us))
 end
 
-"""
-    wrap_coord(x::SVector{N, T}, periodic_dims::SVector{P, Int}, periods::SVector{P, T}; start = zeros(SVector{P, T}))
+get_closed_loop_trajectory(
+    system,
+    controller::AbstractController,
+    x0,
+    nstep::Integer;
+    kwargs...,
+) = _closed_loop(controller_kind(controller), system, controller, x0, nstep; kwargs...)
 
-Wraps the vector `x` into a periodic domain along dimensions specified in `periodic_dims`,
-with period lengths `periods` and optional offset `start`.
+function _closed_loop(
+    ::StaticKind,
+    system,
+    controller::AbstractController,
+    x0,
+    nstep::Integer;
+    meas = identity,
+    stopping = x -> false,
+    trajectory_success = traj -> false,
+    wrap = identity,
+    update_on_next::Bool = false,
+    f_map_override = nothing,
+    verbose::Bool = false,
+)
+    f = f_map_override === nothing ? MS.mapping(system) : f_map_override
 
-# Arguments
-- `x`: The coordinate vector to wrap.
-- `periodic_dims`: Indices of the periodic dimensions.
-- `periods`: Period lengths for the periodic dimensions.
-- `start` (optional): Starting values of the periodic domains (defaults to `0.0`).
+    x = wrap(x0)
 
-# Returns
-A wrapped `SVector` where each periodic dimension is mapped to the interval `[start[i], start[i] + periods[i])`.
-"""
-function wrap_coord(
-    x::SVector{N, T},
-    periodic_dims::SVector{P, Int},
-    periods::SVector{P, T};
-    start::SVector{P, T} = zeros(SVector{P, T}),
-) where {N, P, T}
-    return SVector{N, T}(ntuple(d -> begin
-        i = findfirst(isequal(d), periodic_dims)
-        if i === nothing
-            x[d]
-        else
-            s = start[i]
-            p = periods[i]
-            mod(x[d] - s, p) + s
+    xs = Vector{typeof(x)}()
+    push!(xs, x)
+
+    us = Any[]
+
+    if trajectory_success(Trajectory(xs))
+        verbose &&
+            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
+                x
+        return (x = Trajectory(xs), u = Trajectory(us))
+    end
+
+    for k in 1:nstep
+        if stopping(x)
+            verbose &&
+                @info "Closed-loop simulation stopped: stopping condition reached" step = k state =
+                    x
+            break
         end
-    end, N))
+
+        y = meas(x)
+        u = output_control(controller, nothing, y)
+
+        if u === nothing
+            verbose &&
+                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state =
+                    x measurement = y
+            break
+        end
+
+        xnext = wrap(f(x, u))
+
+        if any(!isfinite, xnext)
+            verbose &&
+                @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
+                    x input = u next_state = xnext
+            break
+        end
+
+        x = xnext
+
+        push!(us, u)
+        push!(xs, x)
+
+        if trajectory_success(Trajectory(xs))
+            verbose &&
+                @info "Closed-loop simulation stopped: trajectory success reached" step = k state =
+                    x
+            break
+        end
+    end
+
+    return (x = Trajectory(xs), u = Trajectory(us))
 end
 
-function get_periodic_wrapper(
-    periodic_dims::SVector{P, Int},
-    periods::SVector{P, T};
-    start::SVector{P, T} = zeros(SVector{P, T}),
-) where {P, T}
-    return x -> wrap_coord(x, periodic_dims, periods; start = start)
-end
-
-function get_closed_loop_trajectory(
+function _closed_loop(
+    ::DynamicKind,
     system,
     controller::AbstractController,
     x0,
@@ -229,104 +260,60 @@ function get_closed_loop_trajectory(
         return (x = Trajectory(xs), u = Trajectory(us))
     end
 
-    if q === nothing
-        for k in 1:nstep
-            if stopping(x)
-                verbose &&
-                    @info "Closed-loop simulation stopped: stopping condition reached" step =
-                        k state = x
-                break
-            end
+    qs = Vector{typeof(q)}()
+    push!(qs, q)
 
-            y = meas(x)
-            u = output_control(controller, q, y)
-
-            if u === nothing
-                verbose &&
-                    @warn "Closed-loop simulation stopped: controller returned nothing" step =
-                        k state = x measurement = y controller_state = q
-                break
-            end
-
-            xnext = wrap(f(x, u))
-
-            if any(!isfinite, xnext)
-                verbose &&
-                    @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
-                        x input = u next_state = xnext
-                break
-            end
-
-            x = xnext
-
-            push!(us, u)
-            push!(xs, x)
-
-            if trajectory_success(Trajectory(xs))
-                verbose &&
-                    @info "Closed-loop simulation stopped: trajectory success reached" step =
-                        k state = x
-                break
-            end
+    for k in 1:nstep
+        if stopping(x)
+            verbose &&
+                @info "Closed-loop simulation stopped: stopping condition reached" step = k state =
+                    x controller_state = q
+            break
         end
 
-        return (x = Trajectory(xs), u = Trajectory(us))
-    else
-        qs = Vector{typeof(q)}()
+        y = meas(x)
+        u = output_control(controller, q, y)
+
+        if u === nothing
+            verbose &&
+                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state =
+                    x measurement = y controller_state = q
+            break
+        end
+
+        xnext = wrap(f(x, u))
+
+        if any(!isfinite, xnext)
+            verbose &&
+                @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
+                    x input = u next_state = xnext controller_state = q
+            break
+        end
+
+        y_for_update = update_on_next ? meas(xnext) : y
+        qnext = update_state(controller, q, y_for_update)
+
+        if qnext === nothing
+            verbose &&
+                @warn "Closed-loop simulation stopped: controller state update returned nothing" step =
+                    k state = x next_state = xnext measurement_for_update = y_for_update controller_state =
+                    q
+            break
+        end
+
+        x, q = xnext, qnext
+
+        push!(us, u)
+        push!(xs, x)
         push!(qs, q)
 
-        for k in 1:nstep
-            if stopping(x)
-                verbose &&
-                    @info "Closed-loop simulation stopped: stopping condition reached" step =
-                        k state = x controller_state = q
-                break
-            end
-
-            y = meas(x)
-            u = output_control(controller, q, y)
-
-            if u === nothing
-                verbose &&
-                    @warn "Closed-loop simulation stopped: controller returned nothing" step =
-                        k state = x measurement = y controller_state = q
-                break
-            end
-
-            xnext = wrap(f(x, u))
-
-            if any(!isfinite, xnext)
-                verbose &&
-                    @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
-                        x input = u next_state = xnext controller_state = q
-                break
-            end
-
-            y_for_update = update_on_next ? meas(xnext) : y
-            qnext = update_state(controller, q, y_for_update)
-
-            if qnext === nothing
-                verbose &&
-                    @warn "Closed-loop simulation stopped: controller state update returned nothing" step =
-                        k state = x next_state = xnext measurement_for_update = y_for_update controller_state =
-                        q
-                break
-            end
-
-            x, q = xnext, qnext
-
-            push!(us, u)
-            push!(xs, x)
-            push!(qs, q)
-
-            if trajectory_success(Trajectory(xs))
-                verbose &&
-                    @info "Closed-loop simulation stopped: trajectory success reached" step =
-                        k state = x controller_state = q
-                break
-            end
+        if trajectory_success(Trajectory(xs))
+            verbose &&
+                @info "Closed-loop simulation stopped: trajectory success reached" step = k state =
+                    x controller_state = q
+            break
         end
-
-        return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
     end
+
+    return (x = Trajectory(xs), u = Trajectory(us), q = Trajectory(qs))
 end

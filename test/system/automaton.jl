@@ -50,8 +50,9 @@ end
 
 # === Run tests for all known implementations ===
 
-run_automaton_tests((n, m) -> ST.NewSortedAutomatonList(n, m))
-run_automaton_tests((n, m) -> ST.NewIndexedAutomatonList(n, m))
+run_automaton_tests((n, m) -> ST.SortedAutomatonList(n, m))
+run_automaton_tests((n, m) -> ST.IndexedAutomatonList(n, m))
+run_automaton_tests((n, m) -> ST.FastIndexedAutomatonList(n, m))
 
 println("End of tests")
 

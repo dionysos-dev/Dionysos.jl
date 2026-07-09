@@ -51,11 +51,11 @@ get_state_mapping(sym::LocalGridBasedSymbolicModel) = get_state_mapping(sym.pare
 
 get_input_mapping(sym::LocalGridBasedSymbolicModel) = get_input_mapping(sym.parent)
 
-get_source_domain(sym::LocalGridBasedSymbolicModel) = sym.Xset_local
+get_state_set(sym::LocalGridBasedSymbolicModel) = sym.Xset_local
 
-get_retained_domain(sym::LocalGridBasedSymbolicModel) = get_retained_domain(sym.parent)
+get_retained_set(sym::LocalGridBasedSymbolicModel) = get_retained_set(sym.parent)
 
-get_input_domain(sym::LocalGridBasedSymbolicModel) = get_input_domain(sym.parent)
+get_input_set(sym::LocalGridBasedSymbolicModel) = get_input_set(sym.parent)
 
 get_concrete_state(sym::LocalGridBasedSymbolicModel, q) = get_concrete_state(sym.parent, q)
 

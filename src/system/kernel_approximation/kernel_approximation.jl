@@ -27,17 +27,22 @@ Abstract supertype for approximations of continuous-time systems.
 """
 abstract type ContinuousTimeSystemApproximation <: SystemApproximation end
 
-function get_system(approx::SystemApproximation) end
-function is_over_approximation(approx::SystemApproximation) end
+get_system(approx::SystemApproximation) =
+    error("implement `get_system` for $(typeof(approx))")
+is_over_approximation(approx::SystemApproximation) =
+    error("implement `is_over_approximation` for $(typeof(approx))")
 
 is_continuous_time(approx::SystemApproximation) =
     isa(approx, ContinuousTimeSystemApproximation)
 
 get_system_map(approx::DiscreteTimeSystemApproximation) = MS.mapping(get_system(approx))
-get_system_map(approx::ContinuousTimeSystemApproximation; num_substeps = 5) =
-    simulate_control_map(MS.mapping(get_system(approx)); num_substeps = num_substeps)
+get_system_map(
+    approx::ContinuousTimeSystemApproximation;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+) = simulate_control_map(MS.mapping(get_system(approx)); num_substeps = num_substeps)
 
-function discretize(approx::ContinuousTimeSystemApproximation, tstep::Float64) end
+discretize(approx::ContinuousTimeSystemApproximation, tstep::Float64) =
+    error("implement `discretize` for $(typeof(approx))")
 
 # --------------------------------------------------
 #  SYSTEM UNDERAPPROXIMATIONS
@@ -66,7 +71,8 @@ is_over_approximation(approx::ContinuousTimeSystemUnderApproximation) = false
 Returns a function that computes the underapproximation (list of points) of the system's evolution:
     `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}) -> SVector{N,T}[]`
 """
-function get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximation) end
+get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximation) =
+    error("implement `get_under_approximation_map` for $(typeof(approx))")
 
 """
     get_under_approximation_map(approx::ContinuousTimeSystemUnderApproximation) -> Function
@@ -74,7 +80,8 @@ function get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximatio
 Returns a function that computes the underapproximation (list of points) of the system's evolution:
     `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}, tstep::T) -> SVector{N,T}[]`
 """
-function get_under_approximation_map(approx::ContinuousTimeSystemUnderApproximation) end
+get_under_approximation_map(approx::ContinuousTimeSystemUnderApproximation) =
+    error("implement `get_under_approximation_map` for $(typeof(approx))")
 
 include("simulation.jl")
 
@@ -105,7 +112,8 @@ is_over_approximation(approx::ContinuousTimeSystemOverApproximation) = true
 Returns a function that computes the overapproximation of the system's evolution:
     `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}) -> UT.HyperRectangle{N,T}`
 """
-function get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) end
+get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) =
+    error("implement `get_over_approximation_map` for $(typeof(approx))")
 
 """
     get_over_approximation_map(overApprox::ContinuousTimeSystemOverApproximation) -> Function
@@ -113,7 +121,8 @@ function get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation)
 Returns a function that computes the overapproximation of the system's evolution:
     `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}, tstep::T) -> UT.HyperRectangle{N,T}`
 """
-function get_over_approximation_map(approx::ContinuousTimeSystemOverApproximation) end
+get_over_approximation_map(approx::ContinuousTimeSystemOverApproximation) =
+    error("implement `get_over_approximation_map` for $(typeof(approx))")
 
 function get_DiscreteTimeOverApproximationMap(approx::DiscreteTimeSystemOverApproximation)
     return DiscreteTimeOverApproximationMap(
@@ -146,9 +155,12 @@ This type wraps a constrained discrete-time system along with an overapproximati
     `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`  
     which returns an overapproximated successor set.
 """
-struct DiscreteTimeOverApproximationMap <: DiscreteTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
-    over_approximation_map::Function
+struct DiscreteTimeOverApproximationMap{
+    S <: MS.ConstrainedBlackBoxControlDiscreteSystem,
+    F,
+} <: DiscreteTimeSystemOverApproximation
+    system::S
+    over_approximation_map::F
 end
 get_system(approx::DiscreteTimeOverApproximationMap) = approx.system
 get_over_approximation_map(approx::DiscreteTimeOverApproximationMap) =
@@ -170,16 +182,23 @@ This type stores a constrained continuous-time system and an overapproximation f
 # Notes
 Use `discretize` to convert this approximation into a discrete-time overapproximation suitable for use in fixed-step abstraction pipelines.
 """
-struct ContinuousTimeSystemOverApproximationMap <: ContinuousTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
-    over_approximation_map::Function
+struct ContinuousTimeSystemOverApproximationMap{
+    S <: MS.ConstrainedBlackBoxControlContinuousSystem,
+    F,
+} <: ContinuousTimeSystemOverApproximation
+    system::S
+    over_approximation_map::F
 end
 get_system(approx::ContinuousTimeSystemOverApproximationMap) = approx.system
 get_over_approximation_map(approx::ContinuousTimeSystemOverApproximationMap) =
     approx.over_approximation_map
-function discretize(approx::ContinuousTimeSystemOverApproximationMap, tstep::Float64)
+function discretize(
+    approx::ContinuousTimeSystemOverApproximationMap,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
     discretized_system =
-        discretize_continuous_system(get_system(approx), tstep; num_substeps = 5)
+        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
     discrete_overapprox = (rect, u) -> get_over_approximation_map(approx)(rect, u, tstep)
     return DiscreteTimeOverApproximationMap(discretized_system, discrete_overapprox)
 end

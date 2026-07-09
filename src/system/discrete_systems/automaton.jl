@@ -1,20 +1,22 @@
-abstract type AbstractAutomatonList{N, M} <: HybridSystems.AbstractAutomaton end
+abstract type AbstractAutomatonList <: HybridSystems.AbstractAutomaton end
 
 # === Required Interface ===
-function get_n_state(autom::AbstractAutomatonList{N, M}) where {N, M} end
-function get_n_input(autom::AbstractAutomatonList{N, M}) where {N, M} end
+get_n_state(autom::AbstractAutomatonList) =
+    error("implement `get_n_state` for $(typeof(autom))")
+get_n_input(autom::AbstractAutomatonList) =
+    error("implement `get_n_input` for $(typeof(autom))")
 
 # The transition enumeration should return a list of tuples (target, source, symbol)
-function enum_transitions(autom::AbstractAutomatonList{N, M}) where {N, M} end
-function add_transition!(
-    autom::AbstractAutomatonList{N, M},
-    source::Int,
-    target::Int,
-    symbol::Int,
-) where {N, M} end
-function pre(autom::AbstractAutomatonList{N, M}, target::Int) where {N, M} end
-function post(autom::AbstractAutomatonList{N, M}, source::Int, symbol::Int) where {N, M} end
-function Base.empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
+enum_transitions(autom::AbstractAutomatonList) =
+    error("implement `enum_transitions` for $(typeof(autom))")
+add_transition!(autom::AbstractAutomatonList, source::Int, target::Int, symbol::Int) =
+    error("implement `add_transition!` for $(typeof(autom))")
+pre(autom::AbstractAutomatonList, target::Int) =
+    error("implement `pre` for $(typeof(autom))")
+post(autom::AbstractAutomatonList, source::Int, symbol::Int) =
+    error("implement `post` for $(typeof(autom))")
+Base.empty!(autom::AbstractAutomatonList) =
+    error("implement `Base.empty!` for $(typeof(autom))")
 # Concrete subtypes implement `HybridSystems.add_state!(autom)` (returns the new state id).
 # (Do not add a separate `System.add_state!` stub here: it would shadow the real method and
 #  silently return `nothing`.)
@@ -25,17 +27,22 @@ finalize!(autom::AbstractAutomatonList) = autom
 enum_states(autom::AbstractAutomatonList) = 1:get_n_state(autom)
 enum_inputs(autom::AbstractAutomatonList) = 1:get_n_input(autom)
 
-function HybridSystems.ntransitions(autom::AbstractAutomatonList{N, M}) where {N, M}
+function HybridSystems.ntransitions(autom::AbstractAutomatonList)
     return length(enum_transitions(autom))
 end
 
-function add_transitions!(autom::AbstractAutomatonList{N, M}, translist) where {N, M}
+function add_transitions!(autom::AbstractAutomatonList, translist)
     for (q′, q, u) in translist
         add_transition!(autom, q, q′, u)
     end
 end
 
-function is_deterministic(autom::AbstractAutomatonList{N, M}) where {N, M}
+"Append the successors of `(source, symbol)` to `targetlist` in place."
+function compute_post!(targetlist, autom::AbstractAutomatonList, source::Int, symbol::Int)
+    return append!(targetlist, post(autom, source, symbol))
+end
+
+function is_deterministic(autom::AbstractAutomatonList)
     seen = Dict{Tuple{Int, Int}, Int}()
     for (q′, q, u) in enum_transitions(autom)
         key = (q, u)
@@ -47,7 +54,7 @@ function is_deterministic(autom::AbstractAutomatonList{N, M}) where {N, M}
     return true
 end
 
-function nondeterminism_counts(autom::AbstractAutomatonList{N, M}) where {N, M}
+function nondeterminism_counts(autom::AbstractAutomatonList)
     count = Dict{Tuple{Int, Int}, Int}()
     for (q′, q, u) in enum_transitions(autom)
         count[(q, u)] = get(count, (q, u), 0) + 1
@@ -55,7 +62,7 @@ function nondeterminism_counts(autom::AbstractAutomatonList{N, M}) where {N, M}
     return collect(values(count))
 end
 
-function count_self_loops(autom::AbstractAutomatonList{N, M}) where {N, M}
+function count_self_loops(autom::AbstractAutomatonList)
     count = 0
     for (q′, q, u) in enum_transitions(autom)
         if q′ == q

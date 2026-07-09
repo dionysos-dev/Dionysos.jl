@@ -11,34 +11,33 @@ abstract type SymbolicModel{N, M} end
 # State/Input enumeration
 # -----------------------
 
-function get_state_mapping(::SymbolicModel) end
-function get_input_mapping(::SymbolicModel) end
+get_state_mapping(sym::SymbolicModel) =
+    error("implement `get_state_mapping` for $(typeof(sym))")
+get_input_mapping(sym::SymbolicModel) =
+    error("implement `get_input_mapping` for $(typeof(sym))")
 
-function get_state_domain(::SymbolicModel) end
-function get_retained_domain(::SymbolicModel) end
-function get_input_domain(::SymbolicModel) end
+get_state_set(sym::SymbolicModel) = error("implement `get_state_set` for $(typeof(sym))")
+get_retained_set(sym::SymbolicModel) =
+    error("implement `get_retained_set` for $(typeof(sym))")
+get_input_set(sym::SymbolicModel) = error("implement `get_input_set` for $(typeof(sym))")
 
-get_n_state(sym::SymbolicModel) =
-    MP.get_n_state(get_state_domain(sym), get_state_mapping(sym))
+get_n_state(sym::SymbolicModel) = MP.get_n_state(get_state_set(sym), get_state_mapping(sym))
 get_n_allowed_state(sym::SymbolicModel) =
-    MP.get_n_state(get_retained_domain(sym), get_state_mapping(sym))
-get_n_input(sym::SymbolicModel) =
-    MP.get_n_state(get_input_domain(sym), get_input_mapping(sym))
+    MP.get_n_state(get_retained_set(sym), get_state_mapping(sym))
+get_n_input(sym::SymbolicModel) = MP.get_n_state(get_input_set(sym), get_input_mapping(sym))
 
-enum_states(sym::SymbolicModel) =
-    MP.enum_states(get_state_domain(sym), get_state_mapping(sym))
+enum_states(sym::SymbolicModel) = MP.enum_states(get_state_set(sym), get_state_mapping(sym))
 enum_allowed_states(sym::SymbolicModel) =
-    MP.enum_states(get_retained_domain(sym), get_state_mapping(sym))
-enum_inputs(sym::SymbolicModel) =
-    MP.enum_states(get_input_domain(sym), get_input_mapping(sym))
+    MP.enum_states(get_retained_set(sym), get_state_mapping(sym))
+enum_inputs(sym::SymbolicModel) = MP.enum_states(get_input_set(sym), get_input_mapping(sym))
 
 is_state(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_state_domain(sym), get_state_mapping(sym), q)
+    MP.contains_state(get_state_set(sym), get_state_mapping(sym), q)
 is_allowed_state(::SymbolicModel, ::Nothing) = false
 is_allowed_state(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_retained_domain(sym), get_state_mapping(sym), q)
+    MP.contains_state(get_retained_set(sym), get_state_mapping(sym), q)
 is_input(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_input_domain(sym), get_input_mapping(sym), q)
+    MP.contains_state(get_input_set(sym), get_input_mapping(sym), q)
 
 get_state_dim(sym::SymbolicModel) = MP.get_dim(get_state_mapping(sym))
 get_input_dim(sym::SymbolicModel) = MP.get_dim(get_input_mapping(sym))
@@ -57,7 +56,7 @@ get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapp
 get_concrete_elem(sym::SymbolicModel, q::Int) =
     MP.get_elem_by_state(get_state_mapping(sym), q)
 
-function get_automaton(::SymbolicModel) end
+get_automaton(sym::SymbolicModel) = error("implement `get_automaton` for $(typeof(sym))")
 pre(sym::SymbolicModel, target::Int) = pre(get_automaton(sym), target)
 post(sym::SymbolicModel, source::Int, input::Int) = post(get_automaton(sym), source, input)
 enum_transitions(sym::SymbolicModel) = ST.enum_transitions(get_automaton(sym))
@@ -67,7 +66,8 @@ add_transitions!(sym::SymbolicModel, translist) =
     ST.add_transitions!(get_automaton(sym), translist)
 get_n_transitions(sym::SymbolicModel) = length(enum_transitions(sym))
 is_deterministic(sym::SymbolicModel) = ST.is_deterministic(get_automaton(sym))
-function is_determinized(sym::SymbolicModel) end
+is_determinized(sym::SymbolicModel) =
+    error("implement `is_determinized` for $(typeof(sym))")
 
 function get_states_from_set(sym::SymbolicModel, set, incl_mode::MP.INCL_MODE)
     return MP.get_states_from_set(get_state_mapping(sym), set, incl_mode)
@@ -92,12 +92,12 @@ by making the target part of the symbol.
 """
 function determinize_symbolic_model(
     sym::SymbolicModel{N, M};
-    AutomatonConstructor::Function = (n, m) -> ST.NewSortedAutomatonList(n, m),
+    AutomatonConstructor::Function = (n, m) -> ST.SortedAutomatonList(n, m),
 ) where {N, M}
     Umap = get_input_mapping(sym)
     Xmap = get_state_mapping(sym)
-    Xset = get_state_domain(sym)
-    Rset = get_retained_domain(sym)
+    Xset = get_state_set(sym)
+    Rset = get_retained_set(sym)
 
     trans = enum_transitions(sym)
 
@@ -150,7 +150,7 @@ end
 # MetaData (transition)
 # -----------------------
 
-function metadata(::SymbolicModel) end
+metadata(sym::SymbolicModel) = error("implement `metadata` for $(typeof(sym))")
 
 has_metadata(sym::SymbolicModel) = has_metadata(metadata(sym))
 get_metadata(sym::SymbolicModel, tr::TransitionKey) = get_metadata(metadata(sym), tr)
@@ -180,7 +180,7 @@ end
     @series begin
         dims := dims
         value_function := value_function
-        return ((get_state_domain(sym), get_state_mapping(sym)),)
+        return ((get_state_set(sym), get_state_mapping(sym)),)
     end
     if with_arrows
         palette = [
@@ -246,7 +246,7 @@ function apply_out_of_domain_handler(
     end
 
     Xmap = get_state_mapping(sym)
-    Xset = get_state_domain(sym)
+    Xset = get_state_set(sym)
 
     states = collect(enum_states(sym))
     isempty(states) && return nothing
@@ -277,8 +277,8 @@ struct QuantizedStaticController{SM, AC, H} <: ST.AbstractContinuousController
     out_of_domain_handler::H
 end
 
+ST.controller_kind(::QuantizedStaticController) = ST.StaticKind()
 ST.domain(ctrl::QuantizedStaticController) = ctrl.sym
-ST.input_domain(ctrl::QuantizedStaticController) = ctrl.sym
 
 ST.initial_state(ctrl::QuantizedStaticController) = nothing
 ST.update_state(ctrl::QuantizedStaticController, x, y) = nothing
@@ -312,8 +312,8 @@ struct QuantizedDynamicController{SM, AC, H} <: ST.AbstractContinuousController
     out_of_domain_handler::H
 end
 
+ST.controller_kind(::QuantizedDynamicController) = ST.DynamicKind()
 ST.domain(ctrl::QuantizedDynamicController) = ctrl.sym
-ST.input_domain(ctrl::QuantizedDynamicController) = ctrl.sym
 
 ST.initial_state(ctrl::QuantizedDynamicController) =
     ST.initial_state(ctrl.abstract_controller)

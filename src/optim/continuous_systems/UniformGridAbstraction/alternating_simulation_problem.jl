@@ -346,7 +346,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            (n, m) -> ST.NewSortedAutomatonList(n, m),
+            (n, m) -> ST.SortedAutomatonList(n, m),
             nothing, #USER_DEFINED
             nothing,
             nothing,

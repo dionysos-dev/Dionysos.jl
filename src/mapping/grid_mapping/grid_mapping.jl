@@ -97,7 +97,7 @@ function get_states_from_set_strict(
 ) where {N}
     states_A, okA = get_states_from_set_strict(m, UT.minus_included(set), incl_mode)
     states_B, okB =
-        get_states_from_set_strict(m, UT.minus_hole(set), _invInclMode(incl_mode))
+        get_states_from_set_strict(m, UT.minus_hole(set), invert_incl_mode(incl_mode))
     return setdiff(states_A, states_B), (okA && okB)
 end
 

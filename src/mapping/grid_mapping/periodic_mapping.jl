@@ -157,16 +157,15 @@ function wrap_coord(m::PeriodicGridMapping{N, T}, x::SVector{N, T}) where {N, T}
     !is_periodic(m) && return x
 
     pmap = m.periodic_index_map
-    return SVector{N, T}(ntuple(d -> begin
-        i = pmap[d]
-        if i === nothing
-            x[d]
-        else
-            s = m.start[i]
-            p = m.periods[i]
-            mod(x[d] - s, p) + s
-        end
-    end, N))
+    return SVector{N, T}(
+        ntuple(
+            d -> begin
+                i = pmap[d]
+                i === nothing ? x[d] : UT.wrap_value(x[d], m.start[i], m.periods[i])
+            end,
+            N,
+        ),
+    )
 end
 
 # ----------------------------

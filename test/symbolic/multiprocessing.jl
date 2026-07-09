@@ -64,8 +64,8 @@ end
 
         @test SY.get_state_mapping(local_sym) === SY.get_state_mapping(sym)
         @test SY.get_input_mapping(local_sym) === SY.get_input_mapping(sym)
-        @test SY.get_retained_domain(local_sym) === SY.get_retained_domain(sym)
-        @test SY.get_input_domain(local_sym) === SY.get_input_domain(sym)
+        @test SY.get_retained_set(local_sym) === SY.get_retained_set(sym)
+        @test SY.get_input_set(local_sym) === SY.get_input_set(sym)
 
         @test collect(SY.enum_source_states(local_sym)) == parts[1]
 

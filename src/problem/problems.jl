@@ -23,13 +23,13 @@ A problem type used to construct a **sound abstraction** of a dynamical system.
 
 This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
-mutable struct AlternatingSimulationProblem{S, X} <: ProblemType
+struct AlternatingSimulationProblem{S, X} <: ProblemType
     system::S
     region::X
 end
 
 """
-    BisimulationQuotientProblem{S,X,D,R,P,G} <: ProblemType
+    BisimulationQuotientProblem{S, X, R} <: ProblemType
 
 A problem type used to construct a finite bisimulation (exact equivalence abstraction) quotient induced.
 
@@ -40,7 +40,7 @@ A problem type used to construct a finite bisimulation (exact equivalence abstra
 
 This problem encodes no control objective. It is intended for generating symbolic models that can later be reused by other solvers.
 """
-mutable struct BisimulationQuotientProblem{S, X, R} <: ProblemType
+struct BisimulationQuotientProblem{S, X, R} <: ProblemType
     system::S
     region::X
     observation_regions::R
@@ -60,12 +60,12 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
 """
-mutable struct OptimalControlProblem{S, XI, XT, XC, T} <: ProblemType
+struct OptimalControlProblem{S, XI, XT, XC, TC, T} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
     state_cost::XC
-    transition_cost::Any
+    transition_cost::TC
     time::T
 end
 
@@ -91,7 +91,7 @@ Encodes a **safety control problem** over a finite horizon.
 
 This problem aims to synthesize a controller that ensures the system remains within the safe set for the entire duration of the time horizon.
 """
-mutable struct SafetyProblem{S, XI, XS, T} <: ProblemType
+struct SafetyProblem{S, XI, XS, T} <: ProblemType
     system::S
     initial_set::XI
     safe_set::XS
@@ -116,7 +116,7 @@ This problem aims to synthesize a controller that drives the system from the ini
 into the target set and keeps it there indefinitely, while remaining within the safe set
 during the approach phase.
 """
-mutable struct ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
+struct ReachAndStayProblem{S, XI, XT, XS, T} <: ProblemType
     system::S
     initial_set::XI
     target_set::XT
@@ -153,15 +153,15 @@ Encodes a **co-safe LTL control problem**.
   In a **concrete** problem, values are typically sets (e.g. LazySets / Dionysos sets) over the state space.
   In an **abstract** problem, values are typically collections of abstract states (e.g. `Vector{Int}`).
 
-- `ap_semantics::Dict{Symbol, Any}`:
-  Per-AP semantics used when converting set labels to abstract labels.
-  Values: `Dionysos.Domain.INNER` or `Dionysos.Domain.OUTER`.
+- `ap_semantics::Dict{Symbol, UT.INCL_MODE}`:
+  Per-AP semantics used when converting set labels to abstract labels
+  (`UT.INNER` or `UT.OUTER`; also reachable as `Mapping.INNER`/`Mapping.OUTER`).
 
 
 This problem aims to synthesize a controller such that the generated trajectory satisfies the co-safe LTL
 formula, i.e. it reaches an accepting condition in finite time.
 """
-mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
+struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
     system::S
     initial_set::XI
     spec::SPEC
@@ -169,7 +169,25 @@ mutable struct CoSafeLTLProblem{S, XI, SPEC, LAB} <: ProblemType
     # unified labeling container:
     labeling::Dict{Symbol, LAB}   # Symbol => LazySet (concrete) or Vector{Int} (abstract)
 
-    ap_semantics::Dict{Symbol, Any}  # Symbol => DO.INNER / DO.OUTER
+    ap_semantics::Dict{Symbol, UT.INCL_MODE}
+end
+
+# Parametric structs do not convert non-parametric fields, so accept any
+# INCL_MODE-valued dict (e.g. the common `Dict{Symbol, Any}`) and convert.
+function CoSafeLTLProblem(
+    system,
+    initial_set,
+    spec,
+    labeling::Dict{Symbol, LAB},
+    ap_semantics::AbstractDict{Symbol},
+) where {LAB}
+    return CoSafeLTLProblem(
+        system,
+        initial_set,
+        spec,
+        labeling,
+        convert(Dict{Symbol, UT.INCL_MODE}, ap_semantics),
+    )
 end
 
 trajectory_success(problem::ProblemType, traj::ST.Trajectory) = false
@@ -202,11 +220,19 @@ function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
     return false
 end
 
-function discretize_problem(problem::ProblemType, Δt::Float64; num_substeps = 5)
-    return error("discretize_problem not implemented for $(typeof(problem))")
+function discretize_problem(
+    problem::ProblemType,
+    Δt::Float64;
+    num_substeps::Int = ST.DEFAULT_NUM_SUBSTEPS,
+)
+    return error("implement `discretize_problem` for $(typeof(problem))")
 end
 
-function discretize_problem(problem::OptimalControlProblem, Δt::Float64; num_substeps = 5)
+function discretize_problem(
+    problem::OptimalControlProblem,
+    Δt::Float64;
+    num_substeps::Int = ST.DEFAULT_NUM_SUBSTEPS,
+)
     discrete_system =
         ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
@@ -220,7 +246,11 @@ function discretize_problem(problem::OptimalControlProblem, Δt::Float64; num_su
     )
 end
 
-function discretize_problem(problem::SafetyProblem, Δt::Float64; num_substeps = 5)
+function discretize_problem(
+    problem::SafetyProblem,
+    Δt::Float64;
+    num_substeps::Int = ST.DEFAULT_NUM_SUBSTEPS,
+)
     discrete_system =
         ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
@@ -232,8 +262,13 @@ function discretize_problem(problem::SafetyProblem, Δt::Float64; num_substeps =
     )
 end
 
-function discretize_problem(problem::ReachAndStayProblem; Δt, num_substeps = 5)
-    discrete_system = ST.discretize_continuous_system(problem.system, Δt; num_substeps)
+function discretize_problem(
+    problem::ReachAndStayProblem,
+    Δt::Float64;
+    num_substeps::Int = ST.DEFAULT_NUM_SUBSTEPS,
+)
+    discrete_system =
+        ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
     return ReachAndStayProblem(
         discrete_system,
@@ -244,7 +279,11 @@ function discretize_problem(problem::ReachAndStayProblem; Δt, num_substeps = 5)
     )
 end
 
-function discretize_problem(problem::CoSafeLTLProblem, Δt::Float64; num_substeps = 5)
+function discretize_problem(
+    problem::CoSafeLTLProblem,
+    Δt::Float64;
+    num_substeps::Int = ST.DEFAULT_NUM_SUBSTEPS,
+)
     discrete_system =
         ST.discretize_continuous_system(problem.system, Δt; num_substeps = num_substeps)
 
@@ -265,7 +304,7 @@ end
     @series begin
         label := "Domain"
         color := domain_color
-        problem.system.X
+        MS.stateset(problem.system)
     end
     @series begin
         label := "Region"
@@ -309,7 +348,7 @@ end
     @series begin
         label := "Domain"
         color := domain_color
-        problem.system.X
+        MS.stateset(problem.system)
     end
     @series begin
         label := "Initial set"
@@ -332,7 +371,7 @@ end
     @series begin
         label := "Domain"
         color := domain_color
-        problem.system.X
+        MS.stateset(problem.system)
     end
     @series begin
         label := "Safe set"
@@ -356,7 +395,7 @@ end
     @series begin
         label := "Domain"
         color := domain_color
-        problem.system.X
+        MS.stateset(problem.system)
     end
 
     @series begin
@@ -391,7 +430,7 @@ end
     @series begin
         label := "Domain"
         color := domain_color
-        problem.system.X
+        MS.stateset(problem.system)
     end
 
     @series begin

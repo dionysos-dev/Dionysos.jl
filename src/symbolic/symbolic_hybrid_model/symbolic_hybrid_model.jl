@@ -485,7 +485,7 @@ function build_symbolic_automaton(
         augmented_to_state_index[aug_state] = i
     end
 
-    symbolic_automaton = ST.NewIndexedAutomatonList(nstates, ninputs)
+    symbolic_automaton = ST.IndexedAutomatonList(nstates, ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = augmented_to_state_index[target]

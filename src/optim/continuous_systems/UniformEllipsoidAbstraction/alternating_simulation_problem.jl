@@ -280,7 +280,7 @@ function compute_abstract_system_from_concrete_system!(
     incl_mode = MP.OUTER,
 )
     Xmap = SY.get_state_mapping(sym)
-    Rset = SY.get_retained_domain(sym)
+    Rset = SY.get_retained_set(sym)
     X = hybridsys.ext[:X]
 
     trans_count = 0

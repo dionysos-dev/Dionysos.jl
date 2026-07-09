@@ -1,16 +1,34 @@
+# Controllers have two orthogonal axes:
+#  - discrete vs continuous (the *level* they act on: automaton states vs concrete
+#    states) — expressed by the type hierarchy, used to type solver fields;
+#  - static vs dynamic (stateless feedback map vs internal memory) — expressed by
+#    the `controller_kind` trait, used to dispatch the closed-loop simulation.
 abstract type AbstractController end
 abstract type AbstractDiscreteController <: AbstractController end
 abstract type AbstractContinuousController <: AbstractController end
 
-initial_state(ctrl::AbstractController) = error("Not implemented")
-update_state(ctrl::AbstractController, x, y) = error("Not implemented")
-output_control(ctrl::AbstractController, x, y) = error("Not implemented")
+"""
+    ControllerKind
 
-domain(ctrl::AbstractController) = error("Not implemented")
-is_defined(ctrl::AbstractController, x, y) = true
+Trait: `StaticKind()` for a stateless feedback map, `DynamicKind()` for a
+controller with internal memory (protocol `initial_state`/`update_state`).
+"""
+abstract type ControllerKind end
+struct StaticKind <: ControllerKind end
+struct DynamicKind <: ControllerKind end
 
-state_domain(ctrl::AbstractController) = nothing
-input_domain(ctrl::AbstractController) = nothing
+controller_kind(ctrl::AbstractController) =
+    error("implement `controller_kind` for $(typeof(ctrl))")
+
+initial_state(ctrl::AbstractController) =
+    error("implement `initial_state` for $(typeof(ctrl))")
+update_state(ctrl::AbstractController, controller_state, measurement) =
+    error("implement `update_state` for $(typeof(ctrl))")
+output_control(ctrl::AbstractController, controller_state, measurement) =
+    error("implement `output_control` for $(typeof(ctrl))")
+
+domain(ctrl::AbstractController) = error("implement `domain` for $(typeof(ctrl))")
+is_defined(ctrl::AbstractController, controller_state, measurement) = true
 
 # --------------- Discrete Static Controller --------------------------
 
@@ -20,6 +38,7 @@ struct DiscreteStaticController{D, C} <: AbstractDiscreteController
     randomize::Bool
 end
 
+controller_kind(::DiscreteStaticController) = StaticKind()
 domain(ctrl::DiscreteStaticController) = ctrl.dom
 initial_state(::DiscreteStaticController) = nothing
 update_state(::DiscreteStaticController, x, y) = nothing
@@ -51,6 +70,7 @@ struct DiscreteDynamicController{XD, D, G, H} <: AbstractDiscreteController
     randomize::Bool
 end
 
+controller_kind(::DiscreteDynamicController) = DynamicKind()
 domain(ctrl::DiscreteDynamicController) = ctrl.dom
 initial_state(ctrl::DiscreteDynamicController) = ctrl.x0
 

@@ -1,4 +1,4 @@
-mutable struct IndexedAutomatonList <: AbstractAutomatonList{3, 3}
+mutable struct IndexedAutomatonList <: AbstractAutomatonList
     nstates::Int
     nsymbols::Int
     transitions::Vector{NTuple{3, Int}}
@@ -6,7 +6,7 @@ mutable struct IndexedAutomatonList <: AbstractAutomatonList{3, 3}
     premap::Dict{Int, Vector{Tuple{Int, Int}}}
 end
 
-function NewIndexedAutomatonList(nstates, nsymbols)
+function IndexedAutomatonList(nstates::Int, nsymbols::Int)
     return IndexedAutomatonList(nstates, nsymbols, NTuple{3, Int}[], Dict(), Dict())
 end
 

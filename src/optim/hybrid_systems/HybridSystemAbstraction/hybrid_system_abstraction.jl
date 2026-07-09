@@ -227,6 +227,7 @@ struct HybridQuantizedStaticController{AS, AC} <: ST.AbstractContinuousControlle
     abstract_system::AS
     abstract_controller::AC
 end
+ST.controller_kind(::HybridQuantizedStaticController) = ST.StaticKind()
 ST.domain(ctrl::HybridQuantizedStaticController) = ctrl.abstract_system
 ST.initial_state(::HybridQuantizedStaticController) = nothing
 ST.update_state(::HybridQuantizedStaticController, q, y) = nothing

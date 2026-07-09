@@ -143,18 +143,81 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
   blocks risks silent numeric drift for low structural payoff, and the plan marks numeric kernels
   "cleaned/typed, not re-derived".
 
-### Phase 2 — System ⬜
-Type the untyped wrappers (`SymbolicSystem` 20×`::Any`); `SystemApproximation` typed callables + threaded
-`num_substeps`; static/dynamic controllers as **types**; consolidate the trajectory zoo to `Trajectory{T}`;
-unify the 3 automata behind one CSR interface (relocated to Symbolic in Phase 5).
+### Phase 2 — System 🔄 (edits done, gate running)
+- ✅ **Typed wrappers** (`linearization.jl`): `SymbolicSystem` 20×`::Any` → 20 type params (constructed
+  positionally in one place, `problems/non_linear.jl`, so zero call-site churn);
+  `AffineApproximationDiscreteSystem{S, LT, F}` with a typed inner-constructor closure.
+- ✅ **Kernel approximations**: all 7 silent empty-body interface stubs → error stubs; the 10 concrete
+  approximation structs (`GrowthBound`, `Linearized`, `CenteredSimulation`, `RandomSimulation`,
+  `OverApproximationMap` × discrete/continuous) lost their `Union{Nothing, …}` system fields (no caller
+  ever passed `nothing`) and `::Function` fields → type params; the magic `num_substeps = 5` (4×
+  hardcoded in `discretize`, plus `ngrowthbound`) is now one `ST.DEFAULT_NUM_SUBSTEPS` constant threaded
+  as a kwarg through every `discretize`.
+- ✅ **Controllers — two orthogonal axes, hierarchy + trait.** The audit's "AbstractStaticController/
+  AbstractDynamicController as types" collides with reality: the discrete/continuous axis is load-bearing
+  (~20 solver fields typed `ST.AbstractDiscreteController`/`…ContinuousController` — automaton-level vs
+  concrete-level controller), and Julia has no multiple inheritance. Resolution: keep the
+  discrete/continuous *hierarchy*, add the static/dynamic axis as the **`controller_kind` trait**
+  (`StaticKind`/`DynamicKind` singletons, error stub — no silent fallthrough). `get_closed_loop_trajectory`
+  now dispatches on the trait into two typed `_closed_loop` methods, replacing the runtime
+  `initial_state === nothing` branch. Every concrete controller (8 in src + 2 BipedRobot in problems/)
+  declares its kind; wrapper controllers delegate. Dead `state_domain`/`input_domain` controller methods
+  removed (never called); protocol stubs now error with the offending type; argument names
+  `controller_state`/`measurement`.
+- ✅ **Trajectories**: deleted the never-used `HybridTrajectory`. Kept `DiscreteTrajectory`/
+  `ContinuousTrajectory` (load-bearing for branch-and-bound/Bemporad-Morari) and `ClosedLoopTrajectory`
+  (generators/certifiers) — the audit's "consolidate to `Trajectory{T}`" would rewrite those solvers for
+  no user benefit; revisit in Phase 6 if their APIs merge. `wrap_coord`/`get_periodic_wrapper` moved to
+  their single home `src/utils/periodic.jl` (+ scalar `wrap_value` shared with
+  `Mapping.PeriodicGridMapping`, which keeps its precomputed-index fast path).
+- ✅ **Automata**: dead `{N, M}` params dropped from `AbstractAutomatonList` and all 5 subtypes (three
+  impls hardcoded `{3,3}`, ProductAutomaton/QuotientAutomaton used `{0,0}`); silent empty-body required
+  methods → error stubs; non-idiomatic `NewXxxAutomatonList` free functions → `XxxAutomatonList(n, m)`
+  constructors; `compute_post!` (used by docs Getting Started + unit tests but implemented only for
+  Sorted) got a generic `append!(targetlist, post(...))` default so it works for every implementation;
+  `FastIndexedAutomatonList` added to the automaton unit tests (was untested). CSR unification +
+  relocation to Symbolic stays in Phase 5.
 
-### Phase 3 — Mapping ⬜
-Settle vocabulary (mapping = universe, state-set = subset; rename `get_state_domain`/`get_source_domain`);
-make state-sets self-contained (stop threading `(set, mapping)`); type grids.
+### Phase 3 — Mapping 🔄 (edits done, gated jointly with Phase 2)
+- ✅ **Vocabulary settled — "domain" fully retired.** The Symbolic accessor surface returned
+  `AbstractStateSet`s under the old Domain-module names, with a straight duplicate
+  (`get_state_domain` ≡ `get_source_domain` ≡ `Xset`): renamed to `get_state_set` /
+  `get_retained_set` / `get_input_set` across Symbolic + consumers, deleted the duplicate alias
+  (which the rename would otherwise have turned into a self-recursive method that *overwrote* the
+  error stub — same signature). Root `utils/` scripts lag, per policy.
+- ✅ **Silent stubs → error stubs** in `SymbolicModel` (`get_state_mapping`/`get_input_mapping`/
+  `get_state_set`/`get_retained_set`/`get_input_set`/`get_automaton`/`is_determinized`/`metadata` —
+  `metadata` previously fell through to a cryptic `has_metadata(::Nothing)` MethodError) and in
+  `Grid` (`get_origin`/`get_h`); `abstract_state_set.jl`'s bare `error("not implemented")` now
+  names the offending type.
+- ✅ **Typing**: `DeformedGrid{N, T, F, FI, AT}` (was `f::Function`, `fi::Function`,
+  `A::Union{Nothing, Any}` — the docstring claimed `SMatrix`, the field said `Any`);
+  `Set{Any}` → `Set{NTuple{N, Int}}` in the `SetMinus` pos-enumeration.
+- ✅ **Hygiene**: `empty_states!(::ImplicitStateSet)` stores `empty_region(N)` directly (was the
+  awkward `∅ \ ∅`).
+- 📌 **`(set, mapping)` bundling → deliberately moved to Phase 5.** The bundle's only real
+  consumer is `SymbolicModelList`, whose 12 type params get grouped in Phase 5 — bundling now
+  would churn the same struct twice. The two-arg `MP` API stays until then.
+- (Already fixed in Phase 0: broken `PeriodicGridMapping` constructors, orphaned
+  `time_grid_mapping.jl`.)
 
-### Phase 4 — Problem ⬜
-Immutable, fully-typed problems (`transition_cost`); uniform `discretize_problem` signature; plot via
-`MS.stateset`; type `ap_semantics` (fix load order).
+### Phase 4 — Problem 🔄 (edits done, gated jointly with Phases 2–3)
+- ✅ **All 6 `ProblemType`s immutable** (verified: no in-place field mutation anywhere in the repo).
+- ✅ **`transition_cost::Any` → `TC` type param restored** on `OptimalControlProblem{S, XI, XT, XC, TC, T}`
+  (the docstring already promised `TC`; no caller writes explicit type params, so zero churn).
+- ✅ **Uniform `discretize_problem(problem, Δt::Float64; num_substeps)`** — fixed the
+  `ReachAndStayProblem` keyword-`Δt` outlier; all defaults now come from `ST.DEFAULT_NUM_SUBSTEPS`.
+- ✅ **`ap_semantics` typed**: moved `@enum INCL_MODE` + `invert_incl_mode` (was the camelCase
+  `_invInclMode`) to `src/utils/incl_mode.jl` — Utils loads before both Problem and Mapping, which
+  resolves the load-order cycle that had forced `Dict{Symbol, Any}`. `Mapping` aliases
+  (`MP.INNER === UT.INNER`, …) so every existing `MP.INNER` spelling keeps working;
+  `CoSafeLTLProblem.ap_semantics::Dict{Symbol, UT.INCL_MODE}` (a `Dict{Symbol, Any}` with
+  INCL_MODE values still converts on construction). Stale `Dionysos.Domain.INNER` docstring fixed.
+- ✅ **Plot recipes decoupled** from system internals: `problem.system.X` → `MS.stateset(problem.system)`
+  (5 recipes; `Problem` now imports MathematicalSystems).
+- ✅ `BisimulationQuotientProblem` docstring/type drift fixed (`{S,X,D,R,P,G}` → `{S, X, R}`).
+- Kept: the `Infinity` sentinel; the `trajectory_success(::CoSafeLTLProblem)` placeholder
+  (documented as such).
 
 ### Phase 5 — Symbolic ⬜
 Slim the 12-param `SymbolicModelList`; unify `TimedHybridSymbolicModel`; own the automaton; keep the clean

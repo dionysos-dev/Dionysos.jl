@@ -245,6 +245,7 @@ function RefinedStaticController(
     )
 end
 
+ST.controller_kind(::RefinedStaticController) = ST.StaticKind()
 ST.domain(ctrl::RefinedStaticController) = ctrl.abstract_system
 ST.initial_state(::RefinedStaticController) = nothing
 ST.update_state(::RefinedStaticController, x, y) = nothing
