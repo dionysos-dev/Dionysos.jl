@@ -1,5 +1,5 @@
 
-function Base.in(x::AbstractVecOrMat, elli::Ellipsoid)
+function Base.in(x::AbstractVector, elli::Ellipsoid)
     return (x - elli.c)'elli.P * (x - elli.c) ≤ 1
 end
 

@@ -61,15 +61,53 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
 - ⏸ Dep promotion deferred to first use (Aqua stale-deps blocks unused deps).
 
 ### Phase 1 — Utils (biggest ecosystem win) ⬜ IN PROGRESS
-- Sets → **LazySets** as the canonical representation: delete the hand-rolled lazy-set algebra
-  (`src/utils/sets/lazy_set_operations.jl`) and custom set types; route through `UnionSetArray` /
-  `Intersection(Array)` / `Complement`. Keep Dionysos-only types (`DeformedRectangle`, integer `IndexBox`
-  for grids) behind the same interface. `SpecialFunctions.gamma` for ellipsoid volume. Collapse duplicate
-  accessors (`get_dim`/`get_dims`, `volume`/`get_volume`, `expand≡get_sublevel_set≡*`,
-  `transform≡affine_transformation`).
-- Data structures & search: type-stable `Tree{S}`; `NearestNeighbors` KDTree behind a
-  `NearestNeighborIndex`; fold `SortedTupleSet` into the automaton work; remove `print`/`println` from RRT.
-- Numerics: unify `bisection`(golden-section)/`newton_method`/`dbisection`; dedup the 4 LMI builders in
+- ✅ **`SpecialFunctions.gamma` for ellipsoid volume** — promoted `SpecialFunctions` to a direct dep;
+  removed hand-rolled `gamma_half_integer_from_dim` (`src/utils/sets/ellipsoid.jl`). Verified.
+- ✅ **Type-stable `Tree{S,A}`/`NodeT{S,A}`** (`src/utils/data_structures/tree.jl`) — bound the unbound
+  `NodeT` UnionAll; `action::A` (defaults `Any`) instead of a bare `::Any` field; typed accumulators.
+  Removed `print`/`println` from `src/utils/search/RRT.jl` (→ `@debug`); snake_case rename
+  (`kNearestNeighbors→k_nearest_neighbors`, `get_nNodes→get_n_nodes`, `is_leave→is_leaf`, …). Verified
+  (tree 68/68, lazy-ellipsoid 13/13).
+- ⬜ **Sets → LazySets (staged; user chose full migration).** Target: delete
+  `src/utils/sets/lazy_set_operations.jl` and represent set algebra with pure LazySets types.
+  - **Correctness constraint (discovered):** the `A\B` discretization is inclusion-mode-aware —
+    `states(A\B, incl) = states(A, incl) \ states(B, inv(incl))` (B uses the *inverted* mode). So a
+    plain `Intersection(A, Complement(B))` discretized with one mode is WRONG. Canonical rep is
+    `Intersection(A, Complement(B))` **and** the Mapping discretization must split it and invert B's
+    mode. Also `set_in_period` (periodic wrapping) has no LazySets equivalent — it stays a Dionysos
+    function that *produces* a `UnionSetArray`.
+  - **Consumer contract to preserve:** construction in `problems/*` (`UT.LazySetUnion(v)`,
+    `UT.LazySetMinus(A,B)` — path_planning, pwa_sys, articulated_vehicle, Pendulum/*); dispatch+fields
+    in `src/mapping/grid_mapping/grid.jl` & `grid_mapping.jl` (`get_pos_from_set`/
+    `get_states_from_set_strict` reach `.sets`, `.A`, `.B`); `src/mapping/abstract_state_set.jl`
+    `ImplicitStateSet` (holds the minus, corner INNER/OUTER/CENTER via `.A`/`.B`, `set_in_period`).
+    `HyperRectangle` doubles as an **integer index-box** (`get_pos_lims` returns `rectI` with Int
+    bounds) — that use never enters a LazySets container, so it stays as-is for now (a later `IndexBox{N}`
+    split is optional).
+  - **Stages (each verified against fast set/mapping tests + regression net before the next):**
+    1. ✅ `abstract type AbstractSetNode{N,T} <: LazySets.LazySet{T}` + `LazySets.dim`; old algebra kept
+       working. Joining the `LazySet` hierarchy required constraining every leaf/container membership to
+       `Base.in(x::AbstractVector, …)` (else it's ambiguous with LazySets' `in(::AbstractVector,
+       ::LazySet)`) — done in `rectangle.jl`, `ellipsoid_inclusion.jl`, `lazy_set_operations.jl`.
+       Verified: lazy_set_ops 45/45, rectangle/ellipsoid/abstract_state_set/grid green.
+       Also fixed a **pre-existing latent bug**: `HyperRectangle(lb, ub)` with `length(lb)≠length(ub)`
+       infinitely recursed → `StackOverflowError` (masked by a `@test_throws Exception`); now a clean
+       `DimensionMismatch`.
+    2. ⬜ Union → `LazySets.UnionSetArray`: update `problems/*` construction and the Mapping `.sets`
+       iteration to `.array`; `point_in_set`→`∈`. **Watch:** if any path calls `σ`/`ρ`/`box_approximation`
+       on our leaves via LazySets, implement the support-function interface for `HyperRectangle`/
+       `Ellipsoid` (natural). `DeformedRectangle` is plot-only (never in the algebra) so it can stay a
+       `LazySet` without `σ`/`ρ`.
+    3. ⬜ Minus → `Intersection(A, Complement(B))`: update Mapping discretization to destructure it and
+       invert B's inclusion mode; update `ImplicitStateSet` corner logic; update `problems/*`.
+    4. ⬜ Delete `lazy_set_operations.jl`; port `test/utils/sets/lazy_set_operations.jl`; keep
+       `set_in_period` as a Dionysos helper returning `UnionSetArray`.
+- ⬜ Collapse duplicate accessors (`get_dim`/`get_dims`, `volume`/`get_volume`, `expand≡get_sublevel_set≡*`,
+  `transform≡affine_transformation`, `is_intersection`/`is_intersected`).
+- ⏸ **NearestNeighbors — deferred.** The RRT distance is a custom non-`Metric` function over `Ellipsoid`
+  states, so a KDTree would fall back to linear scan anyway. Revisit only if a Euclidean-metric NN index
+  is needed elsewhere.
+- ⬜ Numerics: unify `bisection`(golden-section)/`newton_method`/`dbisection`; dedup the 4 LMI builders in
   `ellipsoidal_transitions.jl`.
 
 ### Phase 2 — System ⬜

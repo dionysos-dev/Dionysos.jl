@@ -57,7 +57,7 @@ paths.
 - **Modules**: `CamelCase`. **Concrete types**: `CamelCase`. **Abstract types**: `Abstract`-prefixed
   (`AbstractMapping`, `AbstractController`).
 - **Functions**: `snake_case`. No `camelCase` — rename on sight (`centerDistance → center_distance`,
-  `kNearestNeighbors → k_nearest_neighbors`, `get_nNodes → num_nodes`, `get_max_Node → get_max_node`).
+  `kNearestNeighbors → k_nearest_neighbors`, `get_nNodes → get_n_nodes`, `get_max_Node → get_max_node`).
 - Accessors: `get_<noun>` / `get_<noun>_by_<key>`; enumerators: `enum_<plural>`; predicates:
   `is_<adj>` / `has_<noun>`. Counts: `num_<plural>` (or `get_n_<noun>` — pick one per subsystem and be
   consistent).

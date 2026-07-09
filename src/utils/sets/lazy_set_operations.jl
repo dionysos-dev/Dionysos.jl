@@ -4,9 +4,14 @@ import Base: intersect
 # Core types / invariants
 # ----------------------------
 
-abstract type AbstractLazySet{N, T} end
+# The Dionysos set hierarchy is rooted in `LazySets.LazySet` so that leaf sets
+# (rectangles, ellipsoids, …) compose with the ecosystem's lazy set algebra
+# (`UnionSetArray`, `Intersection`, `Complement`). `N` is the ambient dimension,
+# `T` the coordinate type (the `LazySet` numeric parameter).
+abstract type AbstractLazySet{N, T} <: LazySets.LazySet{T} end
 
 get_dims(::AbstractLazySet{N, T}) where {N, T} = N
+LazySets.dim(::AbstractLazySet{N, T}) where {N, T} = N
 
 abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
 function _outer_box(X::AbstractSetNode) end
@@ -94,9 +99,10 @@ end
 
 point_in_set(S::LazySetMinus, x) = point_in_set(S.A, x) && !point_in_set(S.B, x)
 
-Base.in(x, U::LazySetUnion) = point_in_set(U, x)
-Base.in(x, S::LazySetMinus) = point_in_set(S, x)
-Base.in(x, I::LazySetIntersection{N, T}) where {N, T} = all(s -> (x in s), I.sets)
+Base.in(x::AbstractVector, U::LazySetUnion) = point_in_set(U, x)
+Base.in(x::AbstractVector, S::LazySetMinus) = point_in_set(S, x)
+Base.in(x::AbstractVector, I::LazySetIntersection{N, T}) where {N, T} =
+    all(s -> (x in s), I.sets)
 
 # ----------------------------
 # add_set! / remove_set!

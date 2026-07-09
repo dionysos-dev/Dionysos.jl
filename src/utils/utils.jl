@@ -4,6 +4,7 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import Polyhedra
 import LazySets
+import SpecialFunctions
 using LinearAlgebra, JuMP
 
 include("plotting/simple_plots.jl")

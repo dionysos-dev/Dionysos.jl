@@ -26,13 +26,13 @@ make_ellipsoid(scale, center) = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * scale
 
     tree = UT.Tree(ellipsoids[1])
 
-    @test UT.get_nLeaves(tree) == 1
-    @test UT.get_nNodes(tree) == 1
-    @test UT.is_leave(tree.root)
+    @test UT.get_n_leaves(tree) == 1
+    @test UT.get_n_nodes(tree) == 1
+    @test UT.is_leaf(tree.root)
     @test tree.root.depth == 0
     @test tree.root.path_cost == 0.0
 
-    nearest_nodes, dists = UT.kNearestNeighbors(tree, ellipsoids[2], distance; k = 1)
+    nearest_nodes, dists = UT.k_nearest_neighbors(tree, ellipsoids[2], distance; k = 1)
     @test length(nearest_nodes) == 1
     @test dists == [10.0]
     @test nearest_nodes[1] === tree.root
@@ -40,17 +40,17 @@ make_ellipsoid(scale, center) = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * scale
     action, cost = get_action(ellipsoids[2], nearest_nodes[1].state)
     node2 = UT.add_node!(tree, ellipsoids[2], nearest_nodes[1], action, cost)
 
-    @test !UT.is_leave(tree.root)
-    @test UT.is_leave(node2)
+    @test !UT.is_leaf(tree.root)
+    @test UT.is_leaf(node2)
     @test node2.parent === tree.root
     @test node2.depth == 1
     @test node2.cost == 1.0
     @test node2.path_cost == 1.0
 
-    @test UT.get_nLeaves(tree) == 1
-    @test UT.get_nNodes(tree) == 2
+    @test UT.get_n_leaves(tree) == 1
+    @test UT.get_n_nodes(tree) == 2
 
-    nearest_nodes, dists = UT.kNearestNeighbors(tree, ellipsoids[2], distance; k = 2)
+    nearest_nodes, dists = UT.k_nearest_neighbors(tree, ellipsoids[2], distance; k = 2)
     @test length(nearest_nodes) == 2
     @test dists[1] == 0.0
     @test dists[2] == 10.0
@@ -62,7 +62,7 @@ make_ellipsoid(scale, center) = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * scale
     node7 = UT.add_closest_node!(tree, ellipsoids[7], distance, get_action)
     node8 = UT.add_closest_node!(tree, ellipsoids[8], distance, get_action)
 
-    @test UT.get_nNodes(tree) == 8
+    @test UT.get_n_nodes(tree) == 8
 
     @test node3.path_cost == 1.0
     @test node5.path_cost == 2.0
@@ -93,8 +93,8 @@ make_ellipsoid(scale, center) = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * scale
     @test node7.depth == node5.depth + 1
     @test node8.depth == node5.depth + 1
 
-    @test UT.is_leave(node3)
-    @test !UT.is_leave(node6)
+    @test UT.is_leaf(node3)
+    @test !UT.is_leaf(node6)
 end
 
 @testset "Tree utility coverage" begin
@@ -125,17 +125,17 @@ end
     @test nodes[1] === a
 
     @test UT.compare(c) == 4.0
-    @test UT.get_min_Node(tree) === root
+    @test UT.get_min_node(tree) === root
     @test UT.get_min_path_cost(tree) == 0.0
-    @test UT.get_max_Node(tree) === c
+    @test UT.get_max_node(tree) === c
     @test UT.get_max_path_cost(tree) == 4.0
 
-    vals, idx = UT.findkmin([3.0, 1.0, 2.0], 2)
+    vals, idx = UT.find_k_min([3.0, 1.0, 2.0], 2)
     @test vals == [1.0, 2.0]
     @test idx == [2, 3]
 
     UT.delete_child!(tree, a, c)
-    @test UT.is_leave(a)
+    @test UT.is_leaf(a)
     @test !(c in a.children)
 
     io = IOBuffer()
@@ -152,7 +152,7 @@ end
     b = UT.add_node!(tree, 2.0, a, :b, 1.0)
     c = UT.add_node!(tree, 10.0, root, :c, 1.0)
 
-    nodes, _ = UT.kNearestNeighbors(tree, b, (x, y) -> abs(x - y); k = 2)
+    nodes, _ = UT.k_nearest_neighbors(tree, b, (x, y) -> abs(x - y); k = 2)
 
     @test !(root in nodes)
     @test !(a in nodes)

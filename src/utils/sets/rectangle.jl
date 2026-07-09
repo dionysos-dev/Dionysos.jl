@@ -14,10 +14,20 @@ end
 HyperRectangle(lb::T, ub::T) where {T <: Tuple} = HyperRectangle(SVector(lb), SVector(ub))
 
 # From vectors (runtime dimension)
-HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} =
-    HyperRectangle(SVector{length(lb), Ti}(lb), SVector{length(ub), Ti}(ub))
+function HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti}
+    n = length(lb)
+    # Guard: without this, a length mismatch keeps re-matching this same
+    # AbstractVector method (the `SVector{length,·}` results are still vectors of
+    # unequal length) and recurses until a StackOverflowError.
+    n == length(ub) || throw(
+        DimensionMismatch(
+            "lb and ub must have equal length, got $(length(lb)) and $(length(ub))",
+        ),
+    )
+    return HyperRectangle(SVector{n, Ti}(lb), SVector{n, Ti}(ub))
+end
 
-Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
+Base.in(x::AbstractVector, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
 Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
     all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
 Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
