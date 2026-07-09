@@ -38,6 +38,23 @@ function get_obstacles(_X_, X1_lb, X1_ub, X2_lb, X2_ub; margin::Float64 = 0.0)
     ]
 end
 
+function build_obstacle_union(obs)
+    isempty(obs) && error("Cannot build obstacle union from an empty obstacle list.")
+
+    # If there is only one obstacle, no union object is needed.
+    length(obs) == 1 && return first(obs)
+
+    # Dionysos.Utils.LazySetMinus expects the second argument to be either
+    # an AbstractSetNode or a LazySetUnion. Therefore, build a Dionysos
+    # LazySetUnion from the obstacle rectangles instead of using LazySets.
+    if isdefined(UT, :LazySetUnion)
+        return UT.LazySetUnion(obs)
+    end
+
+    error("Could not construct obstacle union: Dionysos.Utils.LazySetUnion is not defined.")
+end
+
+
 function jacobian()
     return (x, u) -> begin
         α = atan(tan(u[2]) / 2)
@@ -91,15 +108,15 @@ function problem(x1_lb, x1_ub, x2_lb, x2_ub; simple = false, transition_cost = n
 
     # 2) Obstacles in that box
     obs = get_obstacles(X_box, x1_lb, x1_ub, x2_lb, x2_ub; margin = OBSTACLE_MARGIN)
-    obstacles_LU = UT.LazyUnionSetArray(obs)
+    obstacles_union = build_obstacle_union(obs)
 
     # 3) Free state space for the system
-    X_free = UT.LazySetMinus(X_box, obstacles_LU)
+    X_free = UT.LazySetMinus(X_box, obstacles_union)
 
-    # 4) System uses X_free, but EmptyProblem stores X_box
+    # 4) System uses X_free, while the abstraction domain is X_box
     sys = system(X_free; _U_ = U_box)
 
-    return PB.EmptyProblem(sys, X_box)
+    return PB.AlternatingSimulationProblem(sys, X_box)
 end
 
 

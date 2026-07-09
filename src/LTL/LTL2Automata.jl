@@ -6,9 +6,11 @@ using Dionysos
 using Spot
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
+const DO = DI.Utils
 const SY = DI.Symbolic
-
+const OP = DI.Optim
+const AB = OP.Abstraction
+const MP = AB.UniformGridAbstraction.MP
 
 export TSFromAdj, AbstractTS, nstates, ninputs, initset, post, pre_product
 export Automaton, is_accepting
@@ -510,7 +512,7 @@ This is the fast path (what your earlier logs were doing).
 """
 function ts_from_symbolic_onepass(abs_sys, X0_rect; reachable_only::Bool=false, x0_abs=nothing)
     nx = getproperty(abs_sys.autom, :nstates)
-    nu = length(getfield(abs_sys.Udom, 1))
+    nu = getproperty(abs_sys.autom, :nsymbols)
 
     trans = getproperty(abs_sys.autom, :transitions)
     tv = _raw_transition_vec(trans)  # now iterable
@@ -549,7 +551,7 @@ function ts_from_symbolic_onepass(abs_sys, X0_rect; reachable_only::Bool=false, 
     end
 
     # Initial-set (OUTER)
-    X0 = Dionysos.Symbolic.get_states_from_set(abs_sys, X0_rect, Dionysos.Domain.INNER)
+    X0 = Dionysos.Symbolic.get_states_from_set(abs_sys, X0_rect, MP.INNER)
 
     # Optional reachable-only pruning without renumbering
     if reachable_only
@@ -694,10 +696,11 @@ function labeler_and_inner_sets(abstract_system;
         # OUTER states for labeling
         # -------------------------
         idxs_outer = Int[]
+        label_mode = (ap in forbidden_aps) ? MP.OUTER : MP.INNER
 
         if region_obj isa Dionysos.Utils.HyperRectangle
             idxs_outer = Dionysos.Symbolic.get_states_from_set(
-                abstract_system, region_obj, Dionysos.Domain.INNER
+                abstract_system, region_obj, label_mode
             )
 
         elseif region_obj isa AbstractVector
@@ -705,7 +708,7 @@ function labeler_and_inner_sets(abstract_system;
                 @assert rect isa Dionysos.Utils.HyperRectangle
                 append!(idxs_outer,
                     Dionysos.Symbolic.get_states_from_set(
-                        abstract_system, rect, Dionysos.Domain.INNER
+                        abstract_system, rect, label_mode
                     )
                 )
             end
@@ -725,7 +728,7 @@ function labeler_and_inner_sets(abstract_system;
 
             if region_obj isa Dionysos.Utils.HyperRectangle
                 idxs_inner = Dionysos.Symbolic.get_states_from_set(
-                    abstract_system, region_obj, Dionysos.Domain.INNER
+                    abstract_system, region_obj, MP.INNER
                 )
 
             elseif region_obj isa AbstractVector
@@ -733,7 +736,7 @@ function labeler_and_inner_sets(abstract_system;
                     @assert rect isa Dionysos.Utils.HyperRectangle
                     append!(idxs_inner,
                         Dionysos.Symbolic.get_states_from_set(
-                            abstract_system, rect, Dionysos.Domain.INNER
+                            abstract_system, rect, MP.INNER
                         )
                     )
                 end

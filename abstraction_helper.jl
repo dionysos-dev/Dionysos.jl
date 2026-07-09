@@ -1,5 +1,3 @@
-
-
 function input_from_index(u_idx::Int, abstract_system)
     Udom = abstract_system.Udom
 
@@ -87,22 +85,30 @@ end
 
 """Return the integer grid position (i,j,k) for abstract state id s."""
 function _pos_of_state(abs_sys, s::Int)
-    if hasproperty(abs_sys, :xint2pos)
-        xint2pos = getproperty(abs_sys, :xint2pos)
-        # xint2pos is either a Vector (indexable) or a Dict
-        if xint2pos isa AbstractVector
-            return xint2pos[s]
-        elseif xint2pos isa AbstractDict
-            return xint2pos[s]
+    if hasproperty(abs_sys, :XMapping)
+        mapping = abs_sys.XMapping
+        if hasproperty(mapping, :id2pos)
+            return mapping.id2pos[s]
         end
     end
-    error("Could not recover xint2pos mapping from abstract_system; fields=$(fieldnames(typeof(abs_sys)))")
+
+    # Backward compatibility with older Dionysos versions.
+    for fname in (:xint2pos, :id2pos, :state_to_pos)
+        if hasproperty(abs_sys, fname)
+            mapping = getproperty(abs_sys, fname)
+            if mapping isa AbstractVector || mapping isa AbstractDict
+                return mapping[s]
+            end
+        end
+    end
+
+    error("Could not recover state-position mapping from abstract_system; fields=$(fieldnames(typeof(abs_sys)))")
 end
 
 """Compute the 3D center of abstract state s from (xint2pos, Xdom.grid)."""
 function _center3d_from_grid(abs_sys, s::Int)
     pos = _pos_of_state(abs_sys, s)
-    grid = getproperty(getproperty(abs_sys, :Xdom), :grid)
+    grid = hasproperty(abs_sys, :XMapping) ? abs_sys.XMapping.grid : getproperty(getproperty(abs_sys, :Xdom), :grid)
     x0g, hxg = _grid_params(grid)
 
     # `pos` is typically a Tuple{Int,Int,Int}.
@@ -135,5 +141,4 @@ end
 if !isdefined(Main, :_CENTER2D_CACHE)
     const _CENTER2D_CACHE = Dict{Int, Tuple{Float64, Float64}}()
 end
-
 

@@ -39,6 +39,11 @@ mutable struct BisimulationQuotientProblem{S, X, R} <: ProblemType
     observation_regions::R
 end
 
+mutable struct EmptyProblem{S, X} <: ProblemType
+    system::S
+    region::X
+end
+
 """
     OptimalControlProblem{S, XI, XT, XC, TC, T} <: ProblemType
 
@@ -253,3 +258,4 @@ end
 export OptimalControlProblem
 export SafetyProblem
 export Infinity
+export EmptyProblem

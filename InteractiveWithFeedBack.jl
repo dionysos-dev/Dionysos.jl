@@ -4,15 +4,29 @@ using Dionysos
 import MathOptInterface as MOI
 
 
+
 const DI = Dionysos
 const UT = DI.Utils
-const DO = DI.Domain
+const DO = DI.Utils
 const ST = DI.System
 const SY = DI.Symbolic
 const PR = DI.Problem
 const OP = DI.Optim
 const AB = OP.Abstraction
 const PB = Dionysos.Problem
+
+# Helper to construct a GridFree object from a grid spacing vector.
+# In the current Dionysos API, GridFree is defined in the mapping module
+# used internally by UniformGridAbstraction and takes only h, not (x0, h).
+function make_grid_free(x0, h)
+    uga = AB.UniformGridAbstraction
+
+    if isdefined(uga, :MP) && isdefined(getfield(uga, :MP), :GridFree)
+        return getfield(getfield(uga, :MP), :GridFree)(h)
+    end
+
+    error("Could not construct GridFree: MP.GridFree was not found in AB.UniformGridAbstraction.")
+end
 
 
 include("LTL_utils.jl")
@@ -273,11 +287,11 @@ include("abstraction_helper.jl")
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
 concrete_problem = problem(x1_lb, x1_ub, x2_lb, x2_ub)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), Dionysos.Domain.GridFree(x0, hx))
+MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), make_grid_free(x0, hx))
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("input_grid"),
-    Dionysos.Domain.GridFree(u0, hu),
+    make_grid_free(u0, hu),
 )
 MOI.set(
     optimizer,  
@@ -402,6 +416,36 @@ _ts_tmp = ts_from_symbolic_onepass(
     x0_abs = nothing,
 )
 
+# Globally remove obstacle states from the transition system.
+# This ensures that the controller never plans through black obstacle regions,
+# even when the user requirement does not explicitly mention `obs`.
+function prune_forbidden_successors(ts_local::TSFromAdj, Label, forbidden_aps::Vector{Symbol})
+    nx_local = L2A.nstates(ts_local)
+    nu_local = L2A.ninputs(ts_local)
+
+    is_forbidden_state(x::Int) = any(ap -> ap in Label(x), forbidden_aps)
+
+    safe_adj = [
+        [
+            filter(xp -> !is_forbidden_state(xp), L2A.post(ts_local, x, u))
+            for u in 1:nu_local
+        ]
+        for x in 1:nx_local
+    ]
+
+    n_removed = 0
+    for x in 1:nx_local
+        for u in 1:nu_local
+            n_removed += length(L2A.post(ts_local, x, u)) - length(safe_adj[x][u])
+        end
+    end
+
+    println("Pruned ", n_removed, " transitions entering forbidden obstacle states.")
+    return L2A.TSFromAdj(safe_adj, L2A.initset(ts_local))
+end
+
+_ts_tmp = prune_forbidden_successors(_ts_tmp, Label, forbidden_aps)
+
 # Backward-compat alias (older scripts used ts_from_symbolic)
 const ts_from_symbolic = ts_from_symbolic_onepass
 
@@ -409,11 +453,11 @@ const ts_from_symbolic = ts_from_symbolic_onepass
 # We query a tiny box of half-cell size around x0_cont and use DO.CENTER so
 # the returned state corresponds to the representative point inside that cell.
 X0_cell = UT.HyperRectangle(x0_cont .- (hx ./ 2), x0_cont .+ (hx ./ 2)) 
-X0_center_states = SY.get_states_from_set(abstract_system, X0_cell, DO.CENTER)
+X0_center_states = SY.get_states_from_set(abstract_system, X0_cell, AB.UniformGridAbstraction.MP.OUTER)
 
 if isempty(X0_center_states)
     # Fallback: OUTER query (should almost always return something)
-    X0_center_states = SY.get_states_from_set(abstract_system, X0_cell, DO.OUTER)
+    X0_center_states = SY.get_states_from_set(abstract_system, X0_cell, AB.UniformGridAbstraction.MP.OUTER)
 end
 
 if isempty(X0_center_states)
@@ -426,8 +470,10 @@ println("Forced TS initial state from x0_cont: x0_abs_start=", x0_abs_start, ", 
 
 # Final TS uses the same adjacency but a single initial state at x0_cont
 
-
 ts = L2A.TSFromAdj(_ts_tmp.Adj, [x0_abs_start])
+if any(ap -> ap in Label(x0_abs_start), forbidden_aps)
+    error("The initial state is labeled as forbidden/obstacle. Move x0_cont or reduce OBSTACLE_MARGIN.")
+end
 
 # Precompute TS labels once at startup so the AP-label quotient can be built and saved immediately.
 const TASK_APS = Symbol[:obs, :blue, :green, :purple, :brown, :yellow]
