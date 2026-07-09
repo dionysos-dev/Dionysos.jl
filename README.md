@@ -32,11 +32,12 @@ This branch contains the implementation of the interactive natural-language inte
 
 Install Julia and follow the package installation instructions described in the Julia documentation.
 
-In addition, install **GLMakie**:
+In addition, install **GLMakie** and **Genie**:
 
 ```julia
 import Pkg
 Pkg.add("GLMakie")
+Pkg.add("Genie")
 ```
 
 To use the LLM, create a `.env` file in the root of the repository and add your API key for the corresponding provider (e.g., Anthropic).
