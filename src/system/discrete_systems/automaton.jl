@@ -15,7 +15,9 @@ function add_transition!(
 function pre(autom::AbstractAutomatonList{N, M}, target::Int) where {N, M} end
 function post(autom::AbstractAutomatonList{N, M}, source::Int, symbol::Int) where {N, M} end
 function Base.empty!(autom::AbstractAutomatonList{N, M}) where {N, M} end
-function add_state!(autom::AbstractAutomatonList{N, M}) where {N, M} end
+# Concrete subtypes implement `HybridSystems.add_state!(autom)` (returns the new state id).
+# (Do not add a separate `System.add_state!` stub here: it would shadow the real method and
+#  silently return `nothing`.)
 
 finalize!(autom::AbstractAutomatonList) = autom
 

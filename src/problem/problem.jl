@@ -7,9 +7,6 @@ using ..Utils
 const UT = Utils
 
 using ..System
-const UT = Utils
-
-using ..System
 const ST = System
 
 include("problems.jl")

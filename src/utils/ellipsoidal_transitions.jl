@@ -503,8 +503,8 @@ function transition_backward(
     S,
     Lip,
     optimizer;
-    maxδx = maxδx,
-    maxδu = maxδu,
+    maxδx,
+    maxδu,
     λ = 0.01,
     use_log_det = true,
 )

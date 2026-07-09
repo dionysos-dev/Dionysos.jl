@@ -100,5 +100,9 @@ function ContinuousTimeGrowthBound(
 end
 
 function compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
-    # TODO: Implement the logic for computing the Jacobian bound.
+    return error(
+        "Automatic Jacobian-bound computation is not implemented. " *
+        "Build the growth bound explicitly with a user-provided bound via " *
+        "`ContinuousTimeGrowthBound_from_jacobian_bound(system, jacobian_bound)`.",
+    )
 end

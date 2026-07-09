@@ -1,8 +1,8 @@
 struct Infinity end
 Base.isfinite(::Infinity) = false
 
-discretize_time(time::Real, Δt::Real; ceil = true) =
-    ceil ? ceil(Int, time / Δt) : floor(Int, time / Δt)
+discretize_time(time::Real, Δt::Real; round_up = true) =
+    round_up ? ceil(Int, time / Δt) : floor(Int, time / Δt)
 discretize_time(::Infinity, Δt) = Infinity()
 
 """
@@ -216,7 +216,7 @@ function discretize_problem(problem::OptimalControlProblem, Δt::Float64; num_su
         problem.target_set,
         problem.state_cost,
         problem.transition_cost,
-        discretize_time(problem.time, Δt; ceil = false),
+        discretize_time(problem.time, Δt; round_up = false),
     )
 end
 
@@ -228,7 +228,7 @@ function discretize_problem(problem::SafetyProblem, Δt::Float64; num_substeps =
         discrete_system,
         problem.initial_set,
         problem.safe_set,
-        discretize_time(problem.time, Δt; ceil = true),
+        discretize_time(problem.time, Δt; round_up = true),
     )
 end
 
@@ -240,7 +240,7 @@ function discretize_problem(problem::ReachAndStayProblem; Δt, num_substeps = 5)
         problem.initial_set,
         problem.target_set,
         problem.safe_set,
-        discretize_time(problem.time, Δt; ceil = true),
+        discretize_time(problem.time, Δt; round_up = true),
     )
 end
 

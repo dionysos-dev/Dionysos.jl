@@ -60,43 +60,10 @@ end
 # Constructors 
 # ----------------------------
 
-function PeriodicGridMapping(
-    periodic_dims::SVector{P, Int},
-    periods::SVector{P, T},
-    start::SVector{P, T},
-    grid::M,
-) where {N, T, M <: Grid{N, T}, P}
-    orig = get_origin(grid)
-    h = get_h(grid)
-
-    for i in 1:P
-        d = periodic_dims[i]
-        expected_orig = start[i] + h[d] / 2.0
-        if !isapprox(orig[d], expected_orig; atol = 1e-9)
-            error(
-                "Grid origin orig[$d] = $(orig[d]) must equal start[$i] + h[$d]/2 = $(expected_orig).",
-            )
-        end
-
-        q = periods[i] / h[d]
-        if !isapprox(q, round(q); atol = 1e-9)
-            error("Grid step h[$d] = $(h[d]) must divide period[$i] = $(periods[i]).")
-        end
-    end
-
-    pmap = _make_periodic_index_map(periodic_dims, N)
-    return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, mapping, pmap)
-end
-
-function PeriodicGridMapping(
-    periodic_dims::SVector{P, Int},
-    periods::SVector{P, T},
-    start::SVector{P, T},
-    h::SVector{N, T},
-) where {N, T, P}
-    grid = get_grid_in_periods(periodic_dims, periods, start, h)
-    return PeriodicGridMapping{N, T, M, P}(periodic_dims, periods, start, grid)
-end
+# NOTE (v0.2): two constructors taking a raw `grid::Grid` or a bare `h::SVector` were removed. Both
+# were broken (one referenced an out-of-scope `mapping`; the other used a type parameter `M` absent
+# from its `where` clause) and unused — every caller builds a `PeriodicGridMapping` from a
+# `GridMapping` via the constructor below. Add a build-from-grid path, with tests, if it is needed.
 
 function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
