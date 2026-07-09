@@ -94,7 +94,7 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
     danger1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
     danger2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
-    danger = UT.LazySetUnion([danger1, danger2])
+    danger = UT.set_union([danger1, danger2])
 
     φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"
 

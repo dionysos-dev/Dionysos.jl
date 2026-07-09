@@ -1,299 +1,162 @@
-import Base: intersect
+# ============================================================
+# Set algebra, backed by LazySets.
+#
+# Dionysos leaf sets (rectangles, ellipsoids, …) are `LazySets.LazySet`s (see
+# `AbstractSetNode`). Composite regions reuse the ecosystem's lazy wrappers:
+#
+#     union   ⋃ᵢ Aᵢ   → `LazySets.UnionSetArray`
+#     minus   A \ B    → `LazySets.Intersection(A, LazySets.Complement(B))`
+#
+# On top we add only what LazySets lacks and Dionysos needs: periodic-domain
+# wrapping (`set_in_period`) and incremental union/hole builders
+# (`add_set`/`remove_set`, used to grow `ImplicitStateSet`s).
+# ============================================================
 
-# ----------------------------
-# Core types / invariants
-# ----------------------------
-
-# The Dionysos set hierarchy is rooted in `LazySets.LazySet` so that leaf sets
-# (rectangles, ellipsoids, …) compose with the ecosystem's lazy set algebra
-# (`UnionSetArray`, `Intersection`, `Complement`). `N` is the ambient dimension,
-# `T` the coordinate type (the `LazySet` numeric parameter).
+# The Dionysos leaf-set hierarchy is rooted in `LazySets.LazySet` so leaves
+# compose with the ecosystem's set algebra. `N` = ambient dimension, `T` = the
+# coordinate type (the `LazySet` numeric parameter).
 abstract type AbstractLazySet{N, T} <: LazySets.LazySet{T} end
 
 get_dims(::AbstractLazySet{N, T}) where {N, T} = N
+get_dims(s::LazySets.LazySet) = LazySets.dim(s)
 LazySets.dim(::AbstractLazySet{N, T}) where {N, T} = N
 
 abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
-function _outer_box(X::AbstractSetNode) end
+_outer_box(X::AbstractSetNode) = error("implement `_outer_box` for $(typeof(X))")
 
-# ----------------------------
-# LazySetUnion: contains ONLY nodes
-# ----------------------------
+# ------------------------------------------------------------
+# Composite-set constructors and dispatch aliases
+# ------------------------------------------------------------
 
-struct LazySetUnion{N, T} <: AbstractLazySet{N, T}
-    sets::Vector{AbstractSetNode{N, T}}
+"""
+    set_union(sets) -> LazySets.UnionSetArray
+
+Lazy union `⋃ᵢ setsᵢ` of the given (Dionysos or LazySets) sets.
+"""
+set_union(sets::AbstractVector) = LazySets.UnionSetArray(collect(sets))
+set_union(sets...) = set_union(collect(sets))
+
+"""
+    set_minus(A, B) -> LazySets.Intersection
+
+The set difference `A \\ B`, represented lazily as `A ∩ Bᶜ`.
+"""
+function set_minus(A, B)
+    # `A \ ∅ = A`; also avoids building an `Intersection` with a dimensionless
+    # empty union (an empty `UnionSetArray` has no inferable dimension).
+    _is_empty_region(B) && return A
+    return LazySets.Intersection(A, LazySets.Complement(B))
 end
 
-LazySetUnion{N, T}() where {N, T} = LazySetUnion{N, T}(AbstractSetNode{N, T}[])
-LazySetUnion(v::Vector{<:AbstractSetNode{N, T}}) where {N, T} =
-    LazySetUnion{N, T}(AbstractSetNode{N, T}[s for s in v])
+"""
+    empty_region(::Type{T}, n) -> LazySets.EmptySet{T}
 
-Base.isempty(U::LazySetUnion) = isempty(U.sets)
-get_sets(U::LazySetUnion) = U.sets
+An empty set of dimension `n` (a typed identity for `set_union`/`set_minus`; an
+empty `UnionSetArray` has no well-defined dimension, so we use `EmptySet`).
+"""
+empty_region(::Type{T}, n::Integer) where {T} = LazySets.EmptySet{T}(n)
+empty_region(n::Integer) = empty_region(Float64, n)
+empty_region_like(r::AbstractLazySet{N, T}) where {N, T} = empty_region(T, N)
+empty_region_like(r) = empty_region(Float64, LazySets.dim(r))
 
-function _outer_box(U::LazySetUnion{N, T}) where {N, T}
-    isempty(U.sets) && error("Cannot compute outer box of empty LazySetUnion")
-    boxes = [_outer_box(s) for s in U.sets]
+set_dim(s) = LazySets.dim(s)
+
+# A `set_union` is any `UnionSetArray`; a `set_minus` is an `Intersection` whose
+# second operand is a `Complement`.
+const SetUnion = LazySets.UnionSetArray
+const SetMinus{T, XT, BT} = LazySets.Intersection{T, XT, LazySets.Complement{T, BT}}
+const EmptyRegion = LazySets.EmptySet
+const Region = LazySets.LazySet
+
+_is_empty_region(::LazySets.EmptySet) = true
+_is_empty_region(B::SetUnion) = isempty(B.array)
+_is_empty_region(B) = false
+
+# LazySets' smart constructors may simplify `set_minus` away from an `Intersection`
+# (e.g. `∅ \ B → ∅`, `A \ ∅ → A`), so these extractors are total: a plain set is
+# "the included region with no hole".
+"Included region `A` of `A \\ B`."
+minus_included(S::LazySets.Intersection) = S.X
+minus_included(S::LazySets.EmptySet) = S
+minus_included(S) = S
+"Hole `B` of `A \\ B`."
+minus_hole(S::LazySets.Intersection) = S.Y.X
+minus_hole(S::LazySets.EmptySet) = S
+minus_hole(S) = empty_region_like(S)
+
+# ------------------------------------------------------------
+# Membership (LazySets provides `∈` for all of these; thin alias kept for the
+# discretisation call sites that spell it out).
+# ------------------------------------------------------------
+
+point_in_set(S, x) = x ∈ S
+
+# ------------------------------------------------------------
+# Incremental builders — grow the included region (`add_set`) or the holes
+# (`remove_set`) of a `set_minus`. Used by `ImplicitStateSet`.
+# ------------------------------------------------------------
+
+_num_type(::LazySets.LazySet{T}) where {T} = T
+
+# `UnionSetArray` needs a `Vector{<:LazySet{T}}`, not the unparametrised `LazySet`.
+_region_vector(::Type{T}) where {T} = LazySets.LazySet{T}[]
+
+_collect_sets!(arr, u::SetUnion) = (append!(arr, u.array); arr)
+_collect_sets!(arr, ::LazySets.EmptySet) = arr
+_collect_sets!(arr, s) = (push!(arr, s); arr)
+
+function _union_with(existing, s)
+    arr = _region_vector(_num_type(s))
+    _collect_sets!(arr, existing)
+    _collect_sets!(arr, s)
+    return LazySets.UnionSetArray(arr)
+end
+
+add_set(S, s) = set_minus(_union_with(minus_included(S), s), minus_hole(S))
+remove_set(S, s) = set_minus(minus_included(S), _union_with(minus_hole(S), s))
+
+# ------------------------------------------------------------
+# Outer bounding box
+# ------------------------------------------------------------
+
+function _outer_box(U::SetUnion)
+    isempty(U.array) && error("cannot compute outer box of an empty union")
+    boxes = [_outer_box(s) for s in U.array]
     lb = reduce((a, b) -> min.(a, b), (B.lb for B in boxes))
     ub = reduce((a, b) -> max.(a, b), (B.ub for B in boxes))
     return HyperRectangle(lb, ub)
 end
+_outer_box(S::LazySets.Intersection) = _outer_box(minus_included(S))
 
-# ----------------------------
-# LazySetIntersection:
-# ----------------------------
+# ------------------------------------------------------------
+# Periodic wrapping (splits sets crossing a period boundary; no LazySets
+# equivalent). `set_in_period` on a leaf `HyperRectangle` lives in rectangle.jl.
+# ------------------------------------------------------------
 
-struct LazySetIntersection{N, T} <: AbstractLazySet{N, T}
-    sets::Vector{AbstractSetNode{N, T}}
-end
-
-LazySetIntersection{N, T}() where {N, T} =
-    LazySetIntersection{N, T}(AbstractSetNode{N, T}[])
-
-_flat_sets(s::AbstractLazySet{N, T}) where {N, T} = AbstractLazySet{N, T}[s]
-_flat_sets(I::LazySetIntersection{N, T}) where {N, T} = I.sets
-
-# ----------------------------
-# LazySetMinus: children can be Node or LazySetUnion (but never LazySetMinus)
-# ----------------------------
-
-const MinusChild{N, T} = Union{AbstractSetNode{N, T}, LazySetUnion{N, T}}
-
-struct LazySetMinus{N, T, CA <: MinusChild{N, T}, CB <: MinusChild{N, T}} <:
-       AbstractLazySet{N, T}
-    A::CA
-    B::CB
-end
-
-# ----------------------------
-# Guards / flatten helpers
-# ----------------------------
-
-_assert_not_minus(s) =
-    s isa LazySetMinus ? throw(ArgumentError("Nested LazySetMinus forbidden")) : s
-
-# Promote a child (node) to a union when we need to add more stuff to it
-_promote_copy(child::AbstractSetNode{N, T}) where {N, T} = begin
-    U = LazySetUnion{N, T}()
-    push!(U.sets, child)
-    U
-end
-_promote_copy(child::LazySetUnion{N, T}) where {N, T} = LazySetUnion{N, T}(copy(child.sets))
-
-# Iterate nodes from either a node or a union
-_eachnode(s::AbstractSetNode{N, T}) where {N, T} = (s,)
-_eachnode(U::LazySetUnion{N, T}) where {N, T} = U.sets
-
-# ----------------------------
-# Membership
-# ----------------------------
-
-point_in_set(S, x) = (x ∈ S)
-
-function point_in_set(U::LazySetUnion{N, T}, x) where {N, T}
-    @inbounds for s in U.sets
-        point_in_set(s, x) && return true
+function set_in_period(U::SetUnion, periodic_dims, periods, start)
+    arr = _region_vector(_num_type(U))
+    for s in U.array
+        _collect_sets!(arr, set_in_period(s, periodic_dims, periods, start))
     end
-    return false
+    return LazySets.UnionSetArray(arr)
 end
 
-point_in_set(S::LazySetMinus, x) = point_in_set(S.A, x) && !point_in_set(S.B, x)
-
-Base.in(x::AbstractVector, U::LazySetUnion) = point_in_set(U, x)
-Base.in(x::AbstractVector, S::LazySetMinus) = point_in_set(S, x)
-Base.in(x::AbstractVector, I::LazySetIntersection{N, T}) where {N, T} =
-    all(s -> (x in s), I.sets)
-
-# ----------------------------
-# add_set! / remove_set!
-# ----------------------------
-
-function add_set!(U::LazySetUnion{N, T}, s) where {N, T}
-    _assert_not_minus(s)
-    if s isa AbstractSetNode{N, T}
-        push!(U.sets, s)
-    elseif s isa LazySetUnion{N, T}
-        Base.append!(U.sets, s.sets)
-    else
-        throw(ArgumentError("Invalid type $(typeof(s)) for LazySetUnion{$N,$T}"))
-    end
-    return U
+function set_in_period(S::LazySets.Intersection, periodic_dims, periods, start)
+    A = set_in_period(minus_included(S), periodic_dims, periods, start)
+    B = set_in_period(minus_hole(S), periodic_dims, periods, start)
+    return set_minus(A, B)
 end
 
-add_set(U::LazySetUnion{N, T}, s) where {N, T} =
-    (V = LazySetUnion{N, T}(copy(U.sets)); add_set!(V, s); V)
+set_in_period(S::LazySets.EmptySet, periodic_dims, periods, start) = S
 
-function add_set(S::LazySetMinus{N, T}, s::LazySetMinus{N, T}) where {N, T}
-    if isempty(s.B) || isequal(S.B, s.B)
-        Aunion = _promote_copy(S.A)
-        add_set!(Aunion, s.A)
-        return LazySetMinus(Aunion, S.B)
-    else
-        throw(
-            ArgumentError(
-                "Nested LazySetMinus forbidden: cannot canonically add $(typeof(s)) to LazySetMinus unless s.B is empty or S.B == s.B",
-            ),
-        )
-    end
-end
-
-function add_set(S::LazySetMinus{N, T}, s) where {N, T}
-    _assert_not_minus(s)
-    Aunion = _promote_copy(S.A)
-    add_set!(Aunion, s)
-    return LazySetMinus(Aunion, S.B)
-end
-
-function remove_set(S::LazySetMinus{N, T}, s) where {N, T}
-    _assert_not_minus(s)
-    Bunion = _promote_copy(S.B)
-    add_set!(Bunion, s)
-    return LazySetMinus(S.A, Bunion)
-end
-
-_outer_box(S::LazySetMinus) = _outer_box(S.A)
-
-# ----------------------------
-# Others
-# ----------------------------
-
-# LazySetUnion is a container of nodes
-Base.length(U::LazySetUnion) = length(U.sets)
-Base.eltype(::Type{LazySetUnion{N, T}}) where {N, T} = AbstractSetNode{N, T}
-Base.iterate(U::LazySetUnion, st::Int = 1) =
-    st > length(U.sets) ? nothing : (U.sets[st], st+1)
-
-# Let LazySetMinus behave like "its A part" for iteration/length
-Base.length(M::LazySetMinus{N, T}) where {N, T} = begin
-    A = M.A
-    A isa LazySetUnion{N, T} ? length(A) : 1
-end
-Base.eltype(::Type{LazySetMinus{N, T}}) where {N, T} = AbstractSetNode{N, T}
-Base.iterate(M::LazySetMinus{N, T}, st::Int = 1) where {N, T} = begin
-    A = M.A
-    A isa LazySetUnion{N, T} ? iterate(A, st) : (st == 1 ? (A, 2) : nothing)
-end
-
-# ----------------------------
-# Intersection
-# ----------------------------
-
-function _push_nonempty!(out::LazySetUnion{N, T}, s) where {N, T}
-    _assert_not_minus(s)
-    if s isa AbstractSetNode{N, T}
-        isempty(s) || push!(out.sets, s)
-    elseif s isa LazySetUnion{N, T}
-        isempty(s) || append!(out.sets, s.sets)
-    else
-        throw(ArgumentError("Invalid type $(typeof(s)) for LazySetUnion{$N,$T}"))
-    end
-    return out
-end
-
-function intersect(U::LazySetUnion{N, T}, s::AbstractSetNode{N, T}) where {N, T}
-    out = LazySetUnion{N, T}()
-    @inbounds for a in U.sets
-        _push_nonempty!(out, intersect(a, s))
-    end
-    return out
-end
-
-intersect(s::AbstractSetNode{N, T}, U::LazySetUnion{N, T}) where {N, T} = intersect(U, s)
-
-# (A \ B) ∩ S = (A ∩ S) \ (B ∩ S)  [tighter than keeping B unchanged]
-function intersect(M::LazySetMinus{N, T}, s::AbstractSetNode{N, T}) where {N, T}
-    A2 = intersect(M.A, s)
-    B2 = intersect(M.B, s)
-    _assert_not_minus(A2);
-    _assert_not_minus(B2)
-
-    # If A2 is empty => empty
-    isempty(A2) && return LazySetUnion{N, T}()
-
-    return LazySetMinus(A2, B2)
-end
-
-intersect(s::AbstractSetNode{N, T}, M::LazySetMinus{N, T}) where {N, T} = intersect(M, s)
-
-# U ∩ V = ⋃_{a∈U} ⋃_{b∈V} (a ∩ b)
-function intersect(U::LazySetUnion{N, T}, V::LazySetUnion{N, T}) where {N, T}
-    out = LazySetUnion{N, T}()
-    # iterate over smaller outer loop to reduce overhead a bit
-    A, B = length(U.sets) <= length(V.sets) ? (U, V) : (V, U)
-    @inbounds for a in A.sets, b in B.sets
-        _push_nonempty!(out, intersect(a, b))
-    end
-    return out
-end
-
-# U ∩ (A \ B) = (U ∩ A) \ (U ∩ B)
-function intersect(U::LazySetUnion{N, T}, M::LazySetMinus{N, T}) where {N, T}
-    A2 = intersect(U, M.A)  # returns LazySetUnion
-    B2 = intersect(U, M.B)  # returns LazySetUnion
-    isempty(A2) && return LazySetUnion{N, T}()
-    return LazySetMinus(A2, B2)
-end
-
-# (A \ B) ∩ U = (A ∩ U) \ (B ∩ U)
-function intersect(M::LazySetMinus{N, T}, U::LazySetUnion{N, T}) where {N, T}
-    A2 = intersect(M.A, U)  # returns LazySetUnion
-    B2 = intersect(M.B, U)  # returns LazySetUnion
-    isempty(A2) && return LazySetUnion{N, T}()
-    return LazySetMinus(A2, B2)
-end
-
-# (A \ B) ∩ (C \ D) = (A ∩ C) \ (B ∪ D)
-# (safe over-approx of hole union; exact for set difference algebra)
-function intersect(M1::LazySetMinus{N, T}, M2::LazySetMinus{N, T}) where {N, T}
-    A2 = intersect(M1.A, M2.A)                 # allowed: child ∩ child
-    isempty(A2) && return LazySetUnion{N, T}()
-    Bunion = LazySetUnion{N, T}()                  # build B ∪ D
-    add_set!(Bunion, M1.B)
-    add_set!(Bunion, M2.B)
-    return LazySetMinus(A2, Bunion)
-end
-
-# intersection ∩ anything
-function intersect(I::LazySetIntersection{N, T}, s::AbstractLazySet{N, T}) where {N, T}
-    return LazySetIntersection{N, T}(vcat(I.sets, _flat_sets(s)))
-end
-intersect(s::AbstractLazySet{N, T}, I::LazySetIntersection{N, T}) where {N, T} =
-    intersect(I, s)
-
-intersect(I1::LazySetIntersection{N, T}, I2::LazySetIntersection{N, T}) where {N, T} =
-    LazySetIntersection{N, T}(vcat(I1.sets, I2.sets))
-
-# ----------------------------
-# Periodic wrapping
-# ----------------------------
-
-function set_in_period(U::LazySetUnion{N, T}, periodic_dims, periods, start) where {N, T}
-    out = LazySetUnion{N, T}()
-    for s in U.sets
-        ws = set_in_period(s, periodic_dims, periods, start)
-        _assert_not_minus(ws)
-        add_set!(out, ws)
-    end
-    return out
-end
-
-function set_in_period(S::LazySetMinus{N, T}, periodic_dims, periods, start) where {N, T}
-    A2 = set_in_period(S.A, periodic_dims, periods, start)
-    B2 = set_in_period(S.B, periodic_dims, periods, start)
-    _assert_not_minus(A2);
-    _assert_not_minus(B2)
-    return LazySetMinus(A2, B2)
-end
-
-# ----------------------------
+# ------------------------------------------------------------
 # Plots
-# ----------------------------
+# ------------------------------------------------------------
 
-@recipe function f(U::LazySetUnion; dims = [1, 2], label = "set")
+@recipe function f(U::SetUnion; dims = [1, 2], label = "set")
     dims := dims
-
     first_series = true
-    for s in U.sets
+    for s in U.array
         @series begin
             label := first_series ? label : ""
             first_series = false
@@ -302,43 +165,23 @@ end
     end
 end
 
-compare_sets(set1, set2) = get_volume(set1) < get_volume(set2)
-function Base.sort!(
-    iset::LazySetIntersection{N, T};
-    lt = compare_sets,
-    rev = false,
-) where {N, T}
-    sort!(iset.sets; lt = lt, rev = rev)
-    return iset
-end
-@recipe function f(iset::LazySetIntersection)
-    sets = sort(iset.sets; lt = compare_sets, rev = true)
-    for set in sets
-        @series begin
-            return set
-        end
-    end
-end
-
 @recipe function f(
-    S::LazySetMinus;
+    S::LazySets.Intersection{N, S1, S2};
     dims = [1, 2],
     hole_color = :gray,
     hole_alpha = 1.0,
     label = "Set",
-)
+) where {N, S1 <: LazySets.LazySet{N}, S2 <: LazySets.Complement{N}}
     dims := dims
-
     @series begin
         label := label
-        return S.A
+        return minus_included(S)
     end
-
     @series begin
         label := ""
         seriestype := :shape
         fillcolor := hole_color
         fillalpha := hole_alpha
-        return S.B
+        return minus_hole(S)
     end
 end

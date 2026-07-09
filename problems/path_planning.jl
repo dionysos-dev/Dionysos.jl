@@ -62,7 +62,7 @@ function filter_obstacles(_X_, _I_, _T_, obs)
             push!(obstacles, ob)
         end
     end
-    obstacles_LU = UT.LazySetUnion(obstacles)
+    obstacles_LU = UT.set_union(obstacles)
     return obstacles_LU
 end
 
@@ -112,7 +112,7 @@ function problem(; simple = false, transition_cost = nothing)
     end
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
-    _X_ = UT.LazySetMinus(_X_, obstacles_LU)
+    _X_ = UT.set_minus(_X_, obstacles_LU)
     sys = system(_X_)
 
     problem = PR.OptimalControlProblem(sys, _I_, _T_, nothing, transition_cost)

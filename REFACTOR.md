@@ -93,15 +93,25 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
        Also fixed a **pre-existing latent bug**: `HyperRectangle(lb, ub)` with `length(lb)≠length(ub)`
        infinitely recursed → `StackOverflowError` (masked by a `@test_throws Exception`); now a clean
        `DimensionMismatch`.
-    2. ⬜ Union → `LazySets.UnionSetArray`: update `problems/*` construction and the Mapping `.sets`
-       iteration to `.array`; `point_in_set`→`∈`. **Watch:** if any path calls `σ`/`ρ`/`box_approximation`
-       on our leaves via LazySets, implement the support-function interface for `HyperRectangle`/
-       `Ellipsoid` (natural). `DeformedRectangle` is plot-only (never in the algebra) so it can stay a
-       `LazySet` without `σ`/`ρ`.
-    3. ⬜ Minus → `Intersection(A, Complement(B))`: update Mapping discretization to destructure it and
-       invert B's inclusion mode; update `ImplicitStateSet` corner logic; update `problems/*`.
-    4. ⬜ Delete `lazy_set_operations.jl`; port `test/utils/sets/lazy_set_operations.jl`; keep
-       `set_in_period` as a Dionysos helper returning `UnionSetArray`.
+    2.–4. ✅ **DONE.** `set_union(v) → UnionSetArray`, `set_minus(A,B) → Intersection(A, Complement(B))`;
+       gutted `lazy_set_operations.jl` down to the LazySets-backed helpers + `AbstractSetNode` (kept the
+       filename). Mapping discretization (`get_pos_from_set`/`get_states_from_set_strict`) dispatches on
+       `SetUnion`/`SetMinus`/`EmptyRegion` and destructures the minus via `minus_included`/`minus_hole`
+       (which invert B's inclusion mode — the correctness constraint above). `ImplicitStateSet` stores a
+       `Region` and uses the total extractors. Ported `problems/*`, `MOI_wrapper`, the trajectory
+       certifier, `format_input_set` (→ `IntersectionArray`), and all tests.
+       **Gotchas hit & fixed:** (a) joining `LazySet` forced `Base.in(::AbstractVector, …)` on every
+       leaf/container (ambiguity with LazySets' `in`); (b) LazySets' smart constructors simplify
+       `Intersection(∅,·)→∅` and `Intersection(·,Universe)→·`, so `minus_included`/`minus_hole`/`add_set`/
+       `remove_set` are **total** over any region, and `set_minus(A, ∅)=A` short-circuits (an empty
+       `UnionSetArray` has no inferable `dim`, which otherwise trips `Intersection`'s dim assertion for
+       obstacle-free domains e.g. `pwa_sys` simple mode); (c) `UnionSetArray` needs a `Vector{<:LazySet{T}}`
+       not the unparametrised `LazySet`; (d) `UniformEllipsoidAbstraction` reached `X.A` → now
+       `UT.minus_included(X)`; (e) the minus plot recipe needed a strictly-more-specific signature to beat
+       LazySets' `Intersection` recipe (Aqua ambiguity).
+       Verified: full `--fast` (34 files), regression net (fingerprint unchanged: 26285 / 9705631), Aqua
+       11/11, lazy-ellipsoid 13/13, uniform-ellipsoid 22/22.
+       *Optional follow-up:* rename `lazy_set_operations.jl` → `set_algebra.jl` (filename now stale).
 - ⬜ Collapse duplicate accessors (`get_dim`/`get_dims`, `volume`/`get_volume`, `expand≡get_sublevel_set≡*`,
   `transform≡affine_transformation`, `is_intersection`/`is_intersected`).
 - ⏸ **NearestNeighbors — deferred.** The RRT distance is a custom non-`Metric` function over `Ellipsoid`

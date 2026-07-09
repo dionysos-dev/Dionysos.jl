@@ -100,20 +100,22 @@ function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
     return Iterators.product(_ranges(rectI)...)
 end
 
-function get_pos_from_set(grid, U::UT.LazySetUnion, incl_mode::INCL_MODE)
-    return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.sets)
+get_pos_from_set(grid, ::UT.EmptyRegion, incl_mode::INCL_MODE) = ()
+
+function get_pos_from_set(grid, U::UT.SetUnion, incl_mode::INCL_MODE)
+    return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.array)
 end
 
-function get_pos_from_set(grid, S::UT.LazySetMinus, incl_mode::INCL_MODE)
+function get_pos_from_set(grid, S::UT.SetMinus, incl_mode::INCL_MODE)
     inv = _invInclMode(incl_mode)
-
-    # Build hash-set of positions for B (with inverse mode), then filter A
     Bpos = Set{Any}()
-    for pos in get_pos_from_set(grid, S.B, inv)
+    for pos in get_pos_from_set(grid, UT.minus_hole(S), inv)
         push!(Bpos, pos)
     end
-
-    return (pos for pos in get_pos_from_set(grid, S.A, incl_mode) if !(pos in Bpos))
+    return (
+        pos for
+        pos in get_pos_from_set(grid, UT.minus_included(S), incl_mode) if !(pos in Bpos)
+    )
 end
 # ----------------------------
 # Concrete types

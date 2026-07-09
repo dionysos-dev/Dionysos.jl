@@ -71,14 +71,17 @@ function get_states_from_set_strict(
     return qs, allin
 end
 
+get_states_from_set_strict(m::GridMapping, ::UT.EmptyRegion, incl_mode::INCL_MODE) =
+    (Int[], true)
+
 function get_states_from_set_strict(
     m::GridMapping{N},
-    subsets::UT.LazySetUnion,
+    subsets::UT.SetUnion,
     incl_mode::INCL_MODE,
 ) where {N}
     acc = Int[]
     allin = true
-    for subset in subsets.sets
+    for subset in subsets.array
         qs, ok = get_states_from_set_strict(m, subset, incl_mode)
         Base.append!(acc, qs)
         allin &= ok
@@ -89,11 +92,12 @@ end
 
 function get_states_from_set_strict(
     m::GridMapping{N},
-    set::UT.LazySetMinus,
+    set::UT.SetMinus,
     incl_mode::INCL_MODE,
 ) where {N}
-    states_A, okA = get_states_from_set_strict(m, set.A, incl_mode)
-    states_B, okB = get_states_from_set_strict(m, set.B, _invInclMode(incl_mode))
+    states_A, okA = get_states_from_set_strict(m, UT.minus_included(set), incl_mode)
+    states_B, okB =
+        get_states_from_set_strict(m, UT.minus_hole(set), _invInclMode(incl_mode))
     return setdiff(states_A, states_B), (okA && okB)
 end
 
@@ -117,7 +121,7 @@ end
 
 function get_states_from_set(
     m::GridMapping{N},
-    subsets::UT.LazySetUnion,
+    subsets::UT.SetUnion,
     incl_mode::INCL_MODE,
 ) where {N}
     qs, _ = get_states_from_set_strict(m, subsets, incl_mode)
@@ -126,7 +130,7 @@ end
 
 function get_states_from_set(
     m::GridMapping{N},
-    set::UT.LazySetMinus,
+    set::UT.SetMinus,
     incl_mode::INCL_MODE,
 ) where {N}
     qs, _ = get_states_from_set_strict(m, set, incl_mode)

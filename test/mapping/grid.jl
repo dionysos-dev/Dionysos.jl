@@ -70,34 +70,34 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
         @test (0, 0) in poss
     end
 
-    @testset "get_pos_from_set LazySetUnion" begin
+    @testset "get_pos_from_set set_union" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
         r1 = UT.HyperRectangle(SVector(-0.1, -0.1), SVector(0.1, 0.1))
         r2 = UT.HyperRectangle(SVector(2.9, -0.1), SVector(3.1, 0.1))
-        U = UT.LazySetUnion([r1, r2])
+        U = UT.set_union([r1, r2])
         poss = collect(MP.get_pos_from_set(g, U, MP.OUTER))
         @test (0, 0) in poss
         @test (3, 0) in poss
     end
 
-    @testset "get_pos_from_set LazySetMinus" begin
+    @testset "get_pos_from_set set_minus" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
         A = UT.HyperRectangle(SVector(-0.6, -0.6), SVector(0.6, 0.6))
         B = UT.HyperRectangle(SVector(-0.51, -0.51), SVector(0.51, 0.51))
-        S = UT.LazySetMinus(A, B)
+        S = UT.set_minus(A, B)
         poss = collect(MP.get_pos_from_set(g, S, MP.OUTER))
         @test (0, 0) ∉ poss
         @test !isempty(poss)
     end
 
-    @testset "LazySetMinus respects inverse inclusion mode" begin
+    @testset "set_minus respects inverse inclusion mode" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
         A = UT.HyperRectangle(SVector(-0.6, -0.6), SVector(0.6, 0.6))
         Btiny = UT.HyperRectangle(SVector(-0.1, -0.1), SVector(0.1, 0.1))
-        S1 = UT.LazySetMinus(A, Btiny)
+        S1 = UT.set_minus(A, Btiny)
         poss1 = collect(MP.get_pos_from_set(g, S1, MP.OUTER))
         @test (0, 0) in poss1
     end

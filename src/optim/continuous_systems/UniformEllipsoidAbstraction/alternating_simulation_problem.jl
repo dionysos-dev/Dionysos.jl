@@ -303,7 +303,7 @@ function compute_abstract_system_from_concrete_system!(
 
         # filter to allowed + inside X
         cand = filter(q′ -> MP.contains_state(Rset, Xmap, q′), cand)
-        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ X.A), cand)
+        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ UT.minus_included(X)), cand)
 
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)

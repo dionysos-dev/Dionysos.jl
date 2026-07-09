@@ -22,9 +22,9 @@ function format_input_set(elli::Ellipsoid)
     return [get_root(elli)]
 end
 
-function format_input_set(iset::LazySetIntersection)
+function format_input_set(iset::LazySets.IntersectionArray)
     result = Any[]
-    for set in iset.sets
+    for set in iset.array
         Base.append!(result, format_input_set(set))
     end
     return result

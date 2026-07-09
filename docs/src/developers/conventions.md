@@ -75,14 +75,23 @@ paths.
 - **One verbosity knob**: an integer `print_level` (`0` = silent, `1` = default, `2` = detailed) plus
   support for `MOI.Silent`. Do not introduce `log_level`, `verbose`, `debug`, etc. in new code.
 
-## 5. Immutability
+## 5. Modules, imports, and comments
+
+- **`import`, don't `using`.** Prefer `import Module` (or `import ..Utils as UT`) and call through the
+  prefix — `LazySets.dim(x)`, `UT.set_union(v)` — so every name's origin is explicit. Reserve `using`
+  for the rare need to pull in operators/macros that must be unqualified (e.g. `using LinearAlgebra` for
+  `I` and `\`), and keep it to that.
+- **Comment the *why*, not the *what*.** Do not add comments that restate the code; keep only
+  non-obvious rationale, invariants, gotchas, or correctness constraints. Docstrings cover the API.
+
+## 6. Immutability
 
 - Value objects (problems, sets, approximations, trajectories) are **immutable `struct`s**. Build a new
   object rather than mutating in place.
 - Use `mutable struct` only where in-place mutation is part of the design (incremental builders, indexes,
   caches, solver state). State the reason in a comment when it is not obvious.
 
-## 6. Reuse the ecosystem (behind an interface)
+## 7. Reuse the ecosystem (behind an interface)
 
 Prefer a mature package over a hand-rolled equivalent, wrapped behind a small Dionysos interface so the
 implementation can be swapped:
@@ -99,7 +108,7 @@ implementation can be swapped:
 Add a dependency **in the same change that first uses it** — `Aqua`'s stale-dependency check fails if a
 package is declared in `[deps]` but never `import`ed/`using`ed.
 
-## 7. Solvers (`Optim`)
+## 8. Solvers (`Optim`)
 
 Every solver is a `MOI.AbstractOptimizer`. To keep the "swap / compare / benchmark the solver" story
 first-class:
@@ -112,7 +121,7 @@ first-class:
 - Select behaviour by multiple dispatch on the problem/system type, not by an `isa`-chain edited in
   several places.
 
-## 8. Tests, formatting, docs
+## 9. Tests, formatting, docs
 
 - Run the suite: `julia --project -e 'using Pkg; Pkg.test()'`.
 - Format before committing: `julia -e 'using JuliaFormatter; format(".")'` (CI fails on any diff).

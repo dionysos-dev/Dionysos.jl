@@ -143,7 +143,6 @@ end
 
 @testset "Periodic split (set_in_period)" begin
     # Minimal sanity tests that exercise code paths.
-    # Assumes LazySetUnion exists and has field .sets used in set_in_period.
 
     rect_nowrap = UT.HyperRectangle([0.2, 0.0], [0.8, 1.0])
     periodic_dims = UT.SVector(1)     # dim 1 periodic
@@ -151,21 +150,21 @@ end
     start = UT.SVector(0.0)
 
     U1 = UT.set_in_period(rect_nowrap, periodic_dims, periods, start)
-    @test length(U1.sets) == 1
-    @test U1.sets[1] == rect_nowrap
+    @test length(U1.array) == 1
+    @test U1.array[1] == rect_nowrap
 
     # wrapping case: [0.8, 1.2] wraps over period 1.0 -> two intervals
     rect_wrap = UT.HyperRectangle([0.8, 0.0], [1.2, 1.0])
     U2 = UT.set_in_period(rect_wrap, periodic_dims, periods, start)
-    @test length(U2.sets) == 2
-    @test all(r -> !UT.isempty(r), U2.sets)
+    @test length(U2.array) == 2
+    @test all(r -> !UT.isempty(r), U2.array)
 
     # covers full period: width >= period -> single [start, start+period]
     rect_full = UT.HyperRectangle([-0.5, 0.0], [1.5, 1.0]) # width 2.0 >= 1.0
     U3 = UT.set_in_period(rect_full, periodic_dims, periods, start)
-    @test length(U3.sets) == 1
-    @test all(U3.sets[1].lb .== [0.0, 0.0])
-    @test all(U3.sets[1].ub .== [1.0, 1.0])
+    @test length(U3.array) == 1
+    @test all(U3.array[1].lb .== [0.0, 0.0])
+    @test all(U3.array[1].ub .== [1.0, 1.0])
 end
 
 @testset "DeformedRectangle boundary sampling" begin

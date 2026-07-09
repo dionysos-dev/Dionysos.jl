@@ -140,9 +140,9 @@ function _recursive_period_split!(
 end
 
 """
-    set_in_period(rect, periodic_dims, periods, start) -> LazySetUnion{N,T}
+    set_in_period(rect, periodic_dims, periods, start) -> LazySets.UnionSetArray
 
-Split `rect` along periodic boundaries and return a `LazySetUnion` of wrapped rectangles.
+Split `rect` along periodic boundaries and return the union of the wrapped rectangles.
 """
 function set_in_period(
     rect::HyperRectangle{N, T},
@@ -161,11 +161,7 @@ function set_in_period(
         start,
         1,
     )
-
-    # you need a constructor; otherwise build explicitly:
-    U = LazySetUnion{N, T}()
-    Base.append!(U.sets, L)
-    return U
+    return set_union(L)
 end
 
 """

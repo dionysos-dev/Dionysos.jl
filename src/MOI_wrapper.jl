@@ -358,10 +358,7 @@ function system(
 )
     _X_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
-    _X_ = Dionysos.Utils.LazySetMinus(
-        _X_,
-        Dionysos.Utils.LazySetUnion(obstacles(model, x_idx)),
-    )
+    _X_ = Dionysos.Utils.set_minus(_X_, Dionysos.Utils.set_union(obstacles(model, x_idx)))
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     if model.time_type == CONTINUOUS
