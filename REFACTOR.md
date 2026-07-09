@@ -60,7 +60,7 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
   the remaining ~15 optimizers happens in Phase 6.)
 - ⏸ Dep promotion deferred to first use (Aqua stale-deps blocks unused deps).
 
-### Phase 1 — Utils (biggest ecosystem win) ⬜ IN PROGRESS
+### Phase 1 — Utils (biggest ecosystem win) ✅ DONE (NearestNeighbors + `set_algebra.jl` rename deferred)
 - ✅ **`SpecialFunctions.gamma` for ellipsoid volume** — promoted `SpecialFunctions` to a direct dep;
   removed hand-rolled `gamma_half_integer_from_dim` (`src/utils/sets/ellipsoid.jl`). Verified.
 - ✅ **Type-stable `Tree{S,A}`/`NodeT{S,A}`** (`src/utils/data_structures/tree.jl`) — bound the unbound
@@ -125,8 +125,23 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
 - ⏸ **NearestNeighbors — deferred.** The RRT distance is a custom non-`Metric` function over `Ellipsoid`
   states, so a KDTree would fall back to linear scan anyway. Revisit only if a Euclidean-metric NN index
   is needed elsewhere.
-- ⬜ Numerics: unify `bisection`(golden-section)/`newton_method`/`dbisection`; dedup the 4 LMI builders in
-  `ellipsoidal_transitions.jl`.
+- ✅ **Numerics: scalar optimizers unified — DONE.** The three were misnamed/misplaced: `bisection` is
+  actually golden-section, and `dbisection` (the only one with production callers) was hidden inside the
+  *set* file `ellipsoid_inclusion.jl`; `bisection`/`newton_method` had no callers outside their own tests.
+  Consolidated into `src/utils/optim/scalar_optimization.jl` as `golden_section_search` / `newton_method` /
+  `derivative_bisection` — algorithms byte-identical, existing kwargs preserved (no caller breakage), each
+  docstringed. Deleted `optim/{bisection,newton_method}.jl`; merged their tests into one
+  `test/utils/optim/scalar_optimization.jl` (+ a first direct `derivative_bisection` test). Verified via
+  scalar-opt unit + ellipsoid inclusion/intersection.
+- ✅ **LMI builders: safe dedup done; deep dedup deferred.** Hoisted the 5 duplicated local
+  `eye(n) = LA.diagm(ones(n))` closures to one module-level def in `ellipsoidal_transitions.jl` (identical
+  matrices, zero call-site churn; `LA.I` can't substitute since `eye` also fills identity *blocks* inside
+  matrix literals). Verified numerically identical: lazy-ellipsoid path cost `959.3348169927308` unchanged,
+  both ellipsoid abstractions 13/13 + 22/22. **Deferred** the deeper block-PSD helper extraction: the 4
+  builders are numerically-pinned research kernels (per-builder tolerances 1e-8/1e-10, J vs log-det
+  objectives, P-as-variable vs parameter) feeding the exact regression fingerprint — factoring the PSD
+  blocks risks silent numeric drift for low structural payoff, and the plan marks numeric kernels
+  "cleaned/typed, not re-derived".
 
 ### Phase 2 — System ⬜
 Type the untyped wrappers (`SymbolicSystem` 20×`::Any`); `SystemApproximation` typed callables + threaded

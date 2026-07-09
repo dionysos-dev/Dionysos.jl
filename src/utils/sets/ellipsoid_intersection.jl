@@ -22,8 +22,13 @@ function is_intersecting(elli1::Ellipsoid, elli2::Ellipsoid)
         if (ub < lb)
             return true
         end
-        (val, _) =
-            dbisection(polPos, dpolPos, ddpolPos; interval = [lb, ub], verbose = false) #, stopIfPositive=true)
+        (val, _) = derivative_bisection(
+            polPos,
+            dpolPos,
+            ddpolPos;
+            interval = [lb, ub],
+            verbose = false,
+        ) #, stopIfPositive=true)
         g_star = -val
         return g_star <= 1
     end
@@ -55,7 +60,7 @@ function get_ℓ_ast_intersect(elli1::Ellipsoid, elli2::Ellipsoid)
             ub *= 2
         end
     end
-    (val, βstar) = dbisection(
+    (val, βstar) = derivative_bisection(
         polPos,
         dpolPos,
         ddpolPos;

@@ -14,8 +14,7 @@ include("data_structures/sorted_vector_set.jl")
 include("data_structures/tree.jl")
 include("search/RRT.jl")
 
-include("optim/bisection.jl")
-include("optim/newton_method.jl")
+include("optim/scalar_optimization.jl")
 
 include("sets/lazy_set_operations.jl")
 include("sets/rectangle.jl")
