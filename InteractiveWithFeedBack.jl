@@ -280,7 +280,7 @@ MOI.set(
     Dionysos.Domain.GridFree(u0, hu),
 )
 MOI.set(
-    optimizer,
+    optimizer,  
     MOI.RawOptimizerAttribute("jacobian_bound"),
     jacobian_bound(),
 )
