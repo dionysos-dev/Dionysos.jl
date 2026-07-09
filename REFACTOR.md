@@ -112,8 +112,16 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
        Verified: full `--fast` (34 files), regression net (fingerprint unchanged: 26285 / 9705631), Aqua
        11/11, lazy-ellipsoid 13/13, uniform-ellipsoid 22/22.
        *Optional follow-up:* rename `lazy_set_operations.jl` → `set_algebra.jl` (filename now stale).
-- ⬜ Collapse duplicate accessors (`get_dim`/`get_dims`, `volume`/`get_volume`, `expand≡get_sublevel_set≡*`,
-  `transform≡affine_transformation`, `is_intersection`/`is_intersected`).
+- ✅ **Collapse duplicate accessors — DONE.** One name per concept: `get_dim` (was `get_dim`+`get_dims`;
+  neither exported, so the set (`UT`) and mapping (`MP`) methods coexist without unqualified-collision),
+  `get_volume` (dropped the rectangle-only `volume` alias), `get_sublevel_set` (dropped `expand`; kept the
+  `*` operator sugar), `affine_transformation` (dropped the unused ellipsoid-only `transform`),
+  `is_intersecting` (was `is_intersection` on rectangles + `is_intersected` on ellipsoids). Ported all
+  call sites in `src/`, `problems/*`, `test/*`, `docs`, `bench`. Root `utils/` case-study + `Depreciated`
+  scripts intentionally left to lag (outside the v0.2 library surface). Caught a latent internal caller:
+  `grid.jl::get_volume(::Grid)` used the dropped `volume` alias.
+  Verified: rectangle/ellipsoid/lazy-set/grid units green, regression fingerprint unchanged (9705631),
+  linearization 18/18, lazy-ellipsoid 13/13, uniform-ellipsoid 22/22, Aqua 11/11.
 - ⏸ **NearestNeighbors — deferred.** The RRT distance is a custom non-`Metric` function over `Ellipsoid`
   states, so a KDTree would fall back to linear scan anyway. Revisit only if a Euclidean-metric NN index
   is needed elsewhere.

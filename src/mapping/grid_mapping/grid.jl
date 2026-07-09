@@ -85,7 +85,7 @@ is_state_cover(grid) = false
 
 function get_volume(grid::Grid)
     r = get_h(grid) / 2.0
-    return UT.volume(UT.HyperRectangle(-r, r))
+    return UT.get_volume(UT.HyperRectangle(-r, r))
 end
 
 @recipe function f(grid::Grid, pos; dims = [1, 2])

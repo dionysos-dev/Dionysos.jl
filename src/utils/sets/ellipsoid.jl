@@ -24,7 +24,7 @@ end
 get_center(e::Ellipsoid) = e.c
 get_shape(elli::Ellipsoid) = elli.P
 
-function get_dims(elli::Ellipsoid)
+function get_dim(elli::Ellipsoid)
     return length(elli.c)
 end
 
@@ -65,19 +65,11 @@ function scale(elli::Ellipsoid, α)
     return Ellipsoid(elli.P * (1 / α), elli.c * α)
 end
 
-function expand(elli::Ellipsoid, α)
-    return Ellipsoid(elli.P * (1 / α), elli.c)
-end
-
 function get_sublevel_set(elli::Ellipsoid, α)
     return Ellipsoid(elli.P * (1 / α), elli.c)
 end
 
-function transform(elli::Ellipsoid, A, b)
-    return Ellipsoid(A' \ elli.P / A, A * elli.c + b)
-end
-
-# return the ellidpoid f(Ε) where E = {x : (x-c)'P(x-c) <= 1} and f(x) = Ax+B
+# return the ellipsoid f(Ε) where E = {x : (x-c)'P(x-c) <= 1} and f(x) = Ax+b
 # with A invertible
 function affine_transformation(elli::Ellipsoid, A, b)
     return Ellipsoid(A' \ elli.P / A, A * elli.c + b)
@@ -230,7 +222,7 @@ include("ellipsoid_intersection.jl")
 # compress E1 if E1∩E2≠∅
 # return nothing if impossible
 function compress_if_intersection(E1::Ellipsoid, E2::Ellipsoid)
-    if is_intersected(E1, E2)
+    if is_intersecting(E1, E2)
         return scale_for_noninclusion_contact_point(E1, E2)
     else
         return E1

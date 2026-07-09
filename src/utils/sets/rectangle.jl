@@ -34,7 +34,7 @@ Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
     all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
 Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
 Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
-is_intersection(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
+is_intersecting(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
 import Base: intersect
 function intersect(a::HyperRectangle{N, T}, b::HyperRectangle{N, T}) where {N, T}
     return HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
@@ -44,8 +44,7 @@ Base.issubset(a::HyperRectangle, b::HyperRectangle) =
 get_center(rect::HyperRectangle) = (rect.lb + rect.ub) / 2
 get_h(rect::HyperRectangle) = rect.ub - rect.lb
 get_r(rect::HyperRectangle) = get_h(rect) ./ 2.0
-get_dims(rect::HyperRectangle) = length(rect.lb)
-volume(rect::HyperRectangle) = Base.isempty(rect) ? 0.0 : prod(rect.ub - rect.lb)
+get_dim(rect::HyperRectangle) = length(rect.lb)
 scale(rect::HyperRectangle, α) = HyperRectangle(rect.lb * α, rect.ub * α)
 to_LazySets(rect::HyperRectangle) =
     LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))

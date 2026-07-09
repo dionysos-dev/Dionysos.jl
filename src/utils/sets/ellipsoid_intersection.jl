@@ -1,4 +1,4 @@
-function is_intersected(elli1::Ellipsoid, elli2::Ellipsoid)
+function is_intersecting(elli1::Ellipsoid, elli2::Ellipsoid)
     if elli1.c == elli2.c
         return true
     elseif (elli1.c ∈ elli2) || (elli2.c ∈ elli1)

@@ -27,8 +27,8 @@ function system(;
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
-        UT.get_dims(_X_),
-        UT.get_dims(_U_),
+        UT.get_dim(_X_),
+        UT.get_dim(_U_),
         _X_,
         _U_,
     )

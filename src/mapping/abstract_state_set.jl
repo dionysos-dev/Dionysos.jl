@@ -214,7 +214,7 @@ mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
 end
 
 ImplicitStateSet(set, incl_mode::INCL_MODE) =
-    ImplicitStateSet{UT.get_dims(set)}(set, incl_mode)
+    ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
 
 function ImplicitStateSet(m::AbstractMapping, set, incl_mode::INCL_MODE)
     if is_periodic(m)
@@ -225,7 +225,7 @@ function ImplicitStateSet(m::AbstractMapping, set, incl_mode::INCL_MODE)
             get_periodic_starts(m),
         )
     end
-    return ImplicitStateSet{UT.get_dims(set)}(set, incl_mode)
+    return ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
 end
 
 ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(UT.empty_region(N), INNER)

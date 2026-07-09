@@ -17,8 +17,8 @@
 # coordinate type (the `LazySet` numeric parameter).
 abstract type AbstractLazySet{N, T} <: LazySets.LazySet{T} end
 
-get_dims(::AbstractLazySet{N, T}) where {N, T} = N
-get_dims(s::LazySets.LazySet) = LazySets.dim(s)
+get_dim(::AbstractLazySet{N, T}) where {N, T} = N
+get_dim(s::LazySets.LazySet) = LazySets.dim(s)
 LazySets.dim(::AbstractLazySet{N, T}) where {N, T} = N
 
 abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end

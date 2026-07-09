@@ -32,7 +32,7 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dims(rect)
+        N = UT.get_dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
@@ -77,7 +77,7 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dims(rect)
+        N = UT.get_dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})

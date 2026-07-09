@@ -55,8 +55,8 @@ const UT = DI.Utils
     @test !([0.0, 0.0] ∈ e)
 
     # --- dimensions ---
-    @test UT.get_dims(U) == 2
-    @test UT.get_dims(M) == 2
+    @test UT.get_dim(U) == 2
+    @test UT.get_dim(M) == 2
 end
 
 @testset "Periodic wrapping" begin
