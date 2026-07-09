@@ -2,7 +2,7 @@
 # CoSafe LTL Control
 # ============================================================
 
-mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerCoSafeLTLProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.CoSafeLTLProblem}
     early_stop::Bool
@@ -41,15 +41,7 @@ OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.problem === nothing
 
-function MOI.set(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute, v)
-    return setproperty!(opt, Symbol(p.name), v)
-end
-
-function MOI.get(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute)
-    return getproperty(opt, Symbol(p.name))
-end
-
-MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.solve_time_sec
+# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
 
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     t0 = time()

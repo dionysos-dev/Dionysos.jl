@@ -1,5 +1,7 @@
 module Optim
 
+include("optimizer_common.jl")
+
 include("discrete_systems/discrete_systems.jl")
 
 module Abstraction

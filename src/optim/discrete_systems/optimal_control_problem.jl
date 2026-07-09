@@ -2,7 +2,7 @@
 # Optimal Control
 # ============================================================
 
-mutable struct OptimizerOptimalControlProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.OptimalControlProblem}
     early_stop::Bool
@@ -39,21 +39,7 @@ OptimizerOptimalControlProblem() = OptimizerOptimalControlProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerOptimalControlProblem) = optimizer.problem === nothing
 
-function MOI.set(
-    model::OptimizerOptimalControlProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
-function MOI.get(model::OptimizerOptimalControlProblem, ::MOI.SolveTimeSec)
-    return model.solve_time_sec
-end
-
-function MOI.get(model::OptimizerOptimalControlProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
-end
+# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
 
 function build_value_function(value_fun_tab)
     return state -> value_fun_tab[state]

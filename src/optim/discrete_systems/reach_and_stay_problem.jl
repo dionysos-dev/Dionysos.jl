@@ -2,7 +2,7 @@
 # Reach-and-Stay Problem
 # ============================================================
 
-mutable struct OptimizerReachAndStayProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerReachAndStayProblem{T} <: AbstractDionysosOptimizer
     problem::Union{Nothing, PR.ReachAndStayProblem}
     early_stop::Bool
     print_level::Int
@@ -22,19 +22,7 @@ OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerReachAndStayProblem) = optimizer.problem === nothing
 
-function MOI.set(
-    model::OptimizerReachAndStayProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
-MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec) = model.solve_time_sec
-
-function MOI.get(model::OptimizerReachAndStayProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
-end
+# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
 
 # ------------------------------------------------------------
 # Controlled predecessor:
