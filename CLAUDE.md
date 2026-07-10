@@ -100,7 +100,7 @@ const AB = OP.Abstraction
 
 | Module | File | Responsibility |
 | :--- | :--- | :--- |
-| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational helpers: geometric sets (`HyperRectangle`, `Ellipsoid`, polytope unions) conforming to the LazySets API, callable cost functions (`functions.jl`), data structures, `search/RRT.jl`, scalar optimization (`numeric/`), plotting recipes, PCLF. |
+| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational helpers on top of LazySets: sets *are* LazySets (`UT.box`/`LazySets.Hyperrectangle`, `LazySets.Ellipsoid` with shape matrix `Q = P⁻¹`, unions/set-minus), plus what LazySets lacks — exact ellipsoid kernels (`is_included`/`is_disjoint`), periodic splitting (`set_in_period`), quadratic-form bridge (`get_quadratic_form`) — callable cost functions (`functions.jl`), data structures, `search/RRT.jl`, scalar optimization (`numeric/`), plotting recipes, PCLF. |
 | `System` | [src/system/system.jl](src/system/system.jl) | Concrete dynamical systems (extends MathematicalSystems / HybridSystems), time discretization, linearization, controllers, trajectories, ellipsoidal transition synthesis (`solve_transition`). |
 | `Problem` | [src/problem/problems.jl](src/problem/problems.jl) | Control-task **specifications** = `ProblemType` subtypes (solver-independent). |
 | `Mapping` | [src/mapping/mapping.jl](src/mapping/mapping.jl) | Concrete ↔ abstract **discretization**: grids, cells, `AbstractMapping`, inclusion modes `INNER/OUTER/CENTER`. |
@@ -237,14 +237,21 @@ concrete_controller = get_attribute(model, "concrete_controller")
   `SymbolicModel{N,M}`, `AbstractMapping{N,T}`, `OptimalControlProblem{S,XI,XT,XC,T}`.
 - **StaticArrays everywhere** for small fixed-size data — `SVector`/`SMatrix` for coordinates, grid
   steps, system matrices, ellipsoid shapes.
-- Validating/normalizing constructors (e.g. `Ellipsoid` symmetrizes and checks `isposdef`).
+- Validating/normalizing constructors (e.g. `UT.box` rejects crossed bounds; an empty
+  region is `LazySets.EmptySet`, never a sentinel).
 - Sentinel/singleton types and `@enum` instead of magic values (`struct Infinity end`,
   `@enum INCL_MODE INNER OUTER CENTER`).
 - `nothing` + short-circuit guards in hot paths (`q in domain(ctrl) || return false`).
 - Plot logic lives in `@recipe`/`@series` functions next to each type — keep it out of core logic.
 
-**Reuse before writing.** Prefer existing primitives — `UT.HyperRectangle`, `MP.GridFree`,
-`UT.Ellipsoid`, the data structures in `src/utils/` — over re-implementing.
+**Reuse before writing.** Prefer existing primitives — `UT.box` / `LazySets.Hyperrectangle`,
+`LazySets.Ellipsoid` (construct from a quadratic-form matrix `P` via `Q = inv(P)`; never swap
+the two silently), `MP.GridFree`, the LazySets API (`center`, `low`/`high`, `∈`,
+`box_approximation`, `vertices_list`, `sample`) and the data structures in `src/utils/` — over
+re-implementing. Set predicates go through `UT.is_included` / `UT.is_disjoint` (Dionysos-owned
+verbs; `Base` methods on two LazySets-owned types are piracy and fail the Aqua gate). Grid
+discretization (`MP.get_states_from_set`) accepts any bounded `LazySet` — zonotopes, balls,
+polytopes included.
 
 ---
 

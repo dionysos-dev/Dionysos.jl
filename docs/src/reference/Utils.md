@@ -5,7 +5,13 @@ This folder contains all the auxiliary functions needed.
 ## Functions 
 
 ```@docs
+Dionysos.Utils.ScalarFunction
+Dionysos.Utils.ScalarControlFunction
+Dionysos.Utils.QuadraticFunction
 Dionysos.Utils.QuadraticStateControlFunction 
+Dionysos.Utils.PolyhedralFunction
+Dionysos.Utils.BlackBoxFunction
+Dionysos.Utils.BlackBoxControlFunction
 ```
 
 ## Search
@@ -23,9 +29,13 @@ Dionysos.Utils.add_node!
 Dionysos.Utils.Box
 Dionysos.Utils.box
 Dionysos.Utils.get_quadratic_form
+Dionysos.Utils.get_sublevel_set
+Dionysos.Utils.get_length_semiaxis
 Dionysos.Utils.set_in_period
 Dionysos.Utils.get_min_bounding_box
 Dionysos.Utils.project_set
+Dionysos.Utils.sample
+Dionysos.Utils.samples
 ```
 
 ## Set algebra
