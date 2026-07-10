@@ -78,7 +78,7 @@ abstract_input = 1
 u = SY.get_concrete_input(abstract_system, abstract_input)
 
 post = Int[]
-ST.compute_post!(post, SY.get_automaton(abstract_system), q, abstract_input)
+SY.compute_post!(post, SY.get_automaton(abstract_system), q, abstract_input)
 
 post_set = SY.get_state_set_from_states(abstract_system, post)
 
