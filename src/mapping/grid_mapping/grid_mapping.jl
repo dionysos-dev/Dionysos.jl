@@ -49,18 +49,20 @@ function get_states_from_set_strict(
     return q===nothing ? (nothing, false) : (Int[q], true)
 end
 
+# Any bounded `LazySet` works here: `get_pos_from_set` enumerates the covered
+# cells (exact index ranges for boxes, bounding-box candidates certified per
+# inclusion mode otherwise).
 function get_states_from_set_strict(
     m::GridMapping{N},
-    rect::LazySets.AbstractHyperrectangle,
+    S::LazySets.LazySet,
     incl_mode::INCL_MODE,
 ) where {N}
     grid = get_grid(m)
-    ranges = get_pos_lims(grid, rect, incl_mode)
 
     qs = Int[]
     allin = true
 
-    for pos in Iterators.product(ranges...)
+    for pos in get_pos_from_set(grid, S, incl_mode)
         p = pos::NTuple{N, Int}
         if is_valid_pos(m, p)
             push!(qs, get_state_by_pos(m, p))
@@ -112,10 +114,10 @@ end
 
 function get_states_from_set(
     m::GridMapping{N},
-    rect::LazySets.AbstractHyperrectangle,
+    S::LazySets.LazySet,
     incl_mode::INCL_MODE,
 ) where {N}
-    qs, _ = get_states_from_set_strict(m, rect, incl_mode)
+    qs, _ = get_states_from_set_strict(m, S, incl_mode)
     return qs
 end
 

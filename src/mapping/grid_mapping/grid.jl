@@ -109,6 +109,35 @@ function get_pos_from_set(grid, rect::LazySets.AbstractHyperrectangle, incl_mode
     return Iterators.product(get_pos_lims(grid, rect, incl_mode)...)
 end
 
+# LazySets cannot decide disjointness for every set pair; keeping an
+# undecidable candidate is sound for an over-approximation.
+function _cell_intersects(cell, S)
+    return try
+        !LazySets.isdisjoint(cell, S)
+    catch
+        true
+    end
+end
+
+# Cells covered by an arbitrary bounded `LazySet`: candidate cells come from
+# the bounding-box index ranges, then each candidate is certified per mode —
+# OUTER keeps cells intersecting `S` (sound over-approximation), INNER cells
+# fully inside (exact for convex `S`, via the cell corners), CENTER cells
+# whose center lies in `S`.
+function get_pos_from_set(grid, S::LazySets.LazySet, incl_mode::INCL_MODE)
+    candidates = Iterators.product(get_pos_lims(grid, UT._outer_box(S), OUTER)...)
+    if incl_mode == OUTER
+        return (pos for pos in candidates if _cell_intersects(get_rec(grid, pos), S))
+    elseif incl_mode == INNER
+        return (
+            pos for pos in candidates if
+            all(v ∈ S for v in LazySets.vertices_list(get_rec(grid, pos)))
+        )
+    else
+        return (pos for pos in candidates if get_coord_by_pos(grid, pos) ∈ S)
+    end
+end
+
 get_pos_from_set(grid, ::UT.EmptyRegion, incl_mode::INCL_MODE) = ()
 
 function get_pos_from_set(grid, U::UT.SetUnion, incl_mode::INCL_MODE)

@@ -78,3 +78,7 @@ function compress_if_intersection(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid
         return E1
     end
 end
+
+# For a non-ellipsoidal obstacle there is no analytic shrink: keep E1 when it
+# already avoids the obstacle, reject it otherwise.
+compress_if_intersection(E1::LazySets.Ellipsoid, O) = is_disjoint(E1, O) ? E1 : nothing
