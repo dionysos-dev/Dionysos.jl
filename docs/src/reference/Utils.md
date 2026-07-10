@@ -14,6 +14,7 @@ Dionysos.Utils.QuadraticStateControlFunction
 Dionysos.Utils.RRT
 Dionysos.Utils.Tree
 Dionysos.Utils.NodeT
+Dionysos.Utils.add_node!
 ```
 
 ## Geometric shapes

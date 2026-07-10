@@ -81,6 +81,12 @@ function delete_child!(tree::Tree, parent::NodeT, child::NodeT)
     end
 end
 
+"""
+    add_node!(tree, state, parent, action, cost; path_cost = parent.path_cost + cost)
+
+Create a node for `state`, attach it to `parent` with the `action` and edge `cost` that
+reached it, and register it as a leaf of `tree`. Returns the new node.
+"""
 function add_node!(
     tree::Tree{S, A},
     state,
