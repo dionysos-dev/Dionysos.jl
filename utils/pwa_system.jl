@@ -108,7 +108,7 @@ println("Number of states: ", SY.get_n_state(abstract_system))
 println("Number of transitions: ", length(optimizer.abstraction_solver.transitionCost))
 
 XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
+Xset = SY.get_state_set(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 # plot!(XMapping; efficient=true, color=:grey)

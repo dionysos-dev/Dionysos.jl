@@ -3,8 +3,14 @@
 This folder contains the data structures needed to encode the different abstractions.
 
 ```@docs
+Dionysos.Symbolic.AbstractSymbolicModel
 Dionysos.Symbolic.SymbolicModel
 Dionysos.Symbolic.GridBasedSymbolicModel
+```
+
+## Automaton
+```@docs
+Dionysos.Symbolic.compute_post!
 ```
 
 ```@docs

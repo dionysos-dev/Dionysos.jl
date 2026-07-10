@@ -103,7 +103,7 @@ optimizer = MOI.instantiate(AB.PCLFBisimulationQuotient.OptimizerBisimulationQuo
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), true)
+MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), 1e-3)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_levels"), 100)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), 8)

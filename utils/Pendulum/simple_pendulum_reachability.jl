@@ -52,7 +52,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+    (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
@@ -95,7 +95,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
+    wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # ------------------------------------------------------------

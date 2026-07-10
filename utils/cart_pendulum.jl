@@ -9,6 +9,7 @@ const DI = Dionysos
 const ST = DI.System
 const UT = DI.Utils
 const MP = DI.Mapping
+const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
@@ -74,7 +75,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), 100)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+    (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
 
 MOI.optimize!(optimizer)
@@ -90,7 +91,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 
 discrete_system = ST.discretize_continuous_system(concrete_system, Δt; num_substeps = 5)
 
-wrap = ST.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start)
+wrap = UT.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start)
 
 reached(x) = wrap(x) ∈ concrete_problem.target_set
 

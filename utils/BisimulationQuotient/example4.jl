@@ -218,7 +218,11 @@ function run_example_debruijn(;
         problem,
     )
     MOI.set(optimizer_bisim, MOI.RawOptimizerAttribute("pclf"), pclf)
-    MOI.set(optimizer_bisim, MOI.RawOptimizerAttribute("verbose"), verbose_bisim)
+    MOI.set(
+        optimizer_bisim,
+        MOI.RawOptimizerAttribute("print_level"),
+        verbose_bisim ? 1 : 0,
+    )
     MOI.set(optimizer_bisim, MOI.RawOptimizerAttribute("atol"), atol)
     MOI.set(optimizer_bisim, MOI.RawOptimizerAttribute("max_levels"), max_levels)
     MOI.set(optimizer_bisim, MOI.RawOptimizerAttribute("max_slices"), max_slices)

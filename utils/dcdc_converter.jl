@@ -50,7 +50,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), SY.ThreadedBa
 #         nothing,      # nparts = number of workers
 #         :roundrobin,
 #         false,        # threaded_per_worker
-#         true,         # warmup_workers
 #     ),
 # )
 
@@ -96,7 +95,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+    (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
 
 MOI.optimize!(optimizer)
@@ -133,9 +132,9 @@ invariant_set_complement =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"))
 
 automaton = SY.get_automaton(abstract_system)
-fig = histogram(ST.nondeterminism_counts(automaton); legend = false)
+fig = histogram(SY.nondeterminism_counts(automaton); legend = false)
 display(fig)
-println("Number of self-loops: $(ST.count_self_loops(automaton))")
+println("Number of self-loops: $(SY.count_self_loops(automaton))")
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
@@ -147,7 +146,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 );
 
 XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
+Xset = SY.get_state_set(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_safety; opacity = 1.0);
@@ -206,7 +205,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 );
 
 XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
+Xset = SY.get_state_set(abstract_system)
 
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_problem_reachability);

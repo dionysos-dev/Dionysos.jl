@@ -33,7 +33,7 @@ _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
 g11 = UT.HyperRectangle(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
 g12 = UT.HyperRectangle(SVector(1.0, 2.0), SVector(3.0, 3.7))
-target_set = UT.LazySetUnion([g11, g12])
+target_set = UT.set_union([g11, g12])
 
 concrete_problem =
     DI.Problem.OptimalControlProblem(concrete_system, _I_, target_set, nothing, nothing, 20)

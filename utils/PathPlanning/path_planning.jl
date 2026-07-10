@@ -103,7 +103,7 @@ x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
     x0,
     nstep;
     stopping = reached,
-    wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
+    wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
@@ -116,7 +116,7 @@ plot!(system_domain_in_periodic; color = :grey, opacity = 1.0, label = "");
 
 # We display the abstract domain with worst-case cost
 XMapping = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
+Xset = SY.get_state_set(abstract_system)
 plot!(abstract_system; efficient = false, value_function = abstract_value_function);
 # plot!(XMapping; value_function=abstract_value_function, efficient=false)
 # plot!((Xset, XMapping); efficient=true, color = :yellow)

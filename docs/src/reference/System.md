@@ -37,6 +37,7 @@ Both are subtypes of [`SystemApproximation`](@ref Dionysos.System.SystemApproxim
 ```@docs
 Dionysos.System.runge_kutta4
 Dionysos.System.discretize_continuous_system
+Dionysos.System.DEFAULT_NUM_SUBSTEPS
 Dionysos.System.SystemApproximation
 Dionysos.System.DiscreteTimeSystemApproximation
 Dionysos.System.ContinuousTimeSystemApproximation
@@ -106,11 +107,15 @@ Dionysos.System.DiscreteTimeLinearized
 Dionysos.System.ContinuousTimeLinearized
 ```
 
+## Controllers
+```@docs
+Dionysos.System.ControllerKind
+```
+
 ## Trajectories 
 ```@docs
-Dionysos.System.wrap_coord
+Dionysos.Utils.wrap_coord
 Dionysos.System.DiscreteTrajectory
 Dionysos.System.ContinuousTrajectory
-Dionysos.System.HybridTrajectory
 Dionysos.System.Trajectory
 ```
