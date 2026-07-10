@@ -372,22 +372,21 @@ function new_conf(
         wnew .+ concrete_system.ΔW,
     )
 
-    S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-
-    return ST.transition_backward(
+    result = ST.solve_transition_backward(
         affineSys,
         Nnear.state,
         xnew,
         unew,
         concrete_system.Uformat,
         concrete_system.Wformat,
-        S,
+        concrete_problem.transition_cost,
         L,
         opt.sdp_opt;
         λ = opt.λ,
         maxδx = opt.maxδx,
         maxδu = opt.maxδu,
     )
+    return (result.source, result.controller, result.cost)
 end
 
 function keep(
@@ -463,19 +462,17 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
         wnew .+ concrete_system.ΔW,
     )
 
-    S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-
-    ans, cont, cost = ST.transition_fixed(
+    result = ST.solve_transition(
         affineSys,
         E1,
         E2,
         concrete_system.Uformat,
         concrete_system.Wformat,
-        S,
+        concrete_problem.transition_cost,
         opt.sdp_opt,
     )
 
-    return ans, cont, cost
+    return result.feasible, result.controller, result.cost
 end
 
 function stop_crit(

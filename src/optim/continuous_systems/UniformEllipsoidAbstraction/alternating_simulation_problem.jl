@@ -293,7 +293,7 @@ function compute_abstract_system_from_concrete_system!(
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)
 
-            ans, cont, cost = ST._has_transition(
+            result = ST.solve_transition(
                 hybridsys.resetmaps[m],
                 UT.Ellipsoid(P, x),
                 UT.Ellipsoid(Pm, xm),
@@ -303,13 +303,13 @@ function compute_abstract_system_from_concrete_system!(
                 opt_sdp,
             )
 
-            if ans
+            if result.feasible
                 trans_count += 1
                 symbol = q′
 
                 SY.add_transition!(sym, q, q′, symbol)
-                transitionCost[(q, q′)] = cost
-                transitionCont[(q, q′)] = cont
+                transitionCost[(q, q′)] = result.cost
+                transitionCont[(q, q′)] = result.controller
             end
         end
     end

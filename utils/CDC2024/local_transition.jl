@@ -48,25 +48,25 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     )
 
     # Solve the control problem
-    S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
 
-    E1, cont, cost = ST.transition_backward(
+    result = ST.solve_transition_backward(
         affineSys,
         E2,
         xnew,
         unew,
         sys.Uformat,
         sys.Wformat,
-        S,
+        problem.transition_cost,
         L,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,
         maxδu = maxδu,
     )
+    E1, cont, cost = result.source, result.controller, result.cost
 
     # Get results
     cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)

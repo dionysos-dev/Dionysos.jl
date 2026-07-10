@@ -112,6 +112,21 @@ Dionysos.System.ContinuousTimeLinearized
 Dionysos.System.ControllerKind
 ```
 
+## Transition synthesis
+
+Synthesis of affine controllers certifying ellipsoid-to-ellipsoid transitions
+of affine systems (S-procedure LMIs), used by the ellipsoidal abstraction
+solvers and the backward trajectory certifier.
+
+```@docs
+Dionysos.System.solve_transition
+Dionysos.System.solve_transition_backward
+Dionysos.System.TransitionResult
+Dionysos.System.stabilizing_feedback
+Dionysos.System.format_input_set
+Dionysos.System.format_noise_set
+```
+
 ## Trajectories 
 ```@docs
 Dionysos.Utils.wrap_coord

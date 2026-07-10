@@ -1,9 +1,14 @@
 # Ellipsoid-to-ellipsoid transition synthesis for affine systems: given
-# x(k+1) = Ax(k) + Bu(k) + c (+ Dw(k)), decide whether an affine controller
-# u(x) = K(x - c₁) + ℓ drives the source ellipsoid into the target ellipsoid
-# under input constraints and polytopic noise, minimizing a worst-case
-# quadratic transition cost. Each entry point solves one SDP (S-procedure
-# LMIs); see Corollary 1 of https://arxiv.org/pdf/2204.00315.pdf.
+# x⁺ = Ax + Bu + c (+ Dw), decide whether an affine controller
+# u(x) = K(x − c₁) + ℓ drives a source ellipsoid into a target ellipsoid under
+# input constraints and polytopic noise, while minimizing an upper bound J on
+# the worst-case transition cost ‖Λ·[x; u; 1]‖². Each entry point assembles one
+# SDP from shared S-procedure blocks; see Corollary 1 of
+# https://arxiv.org/pdf/2204.00315.pdf.
+#
+# Entry points: `solve_transition` (both shapes fixed),
+# `solve_transition_backward` (source shape is a decision variable),
+# `stabilizing_feedback` (Lyapunov pair for an affine system).
 
 import LazySets
 using JuMP
@@ -18,6 +23,38 @@ AffineSys = Union{
     HybridSystems.HybridSystems.ConstrainedAffineControlMap,
 }
 
+"""
+    TransitionResult
+
+Outcome of one transition-synthesis SDP (`solve_transition` /
+`solve_transition_backward`).
+
+- `feasible::Bool` — whether a certified controller was found;
+- `controller` — the affine controller as a `MathematicalSystems.AffineMap`
+  `x ↦ Kx + b` (with `b = ℓ − K·c₁`), or `nothing` if infeasible;
+- `cost` — upper bound on the worst-case transition cost, or `nothing`;
+- `source` — the synthesized source ellipsoid (backward mode only), or `nothing`.
+"""
+struct TransitionResult
+    feasible::Bool
+    controller::Union{Nothing, MS.AffineMap}
+    cost::Union{Nothing, Float64}
+    source::Union{Nothing, UT.Ellipsoid}
+end
+
+_infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
+
+# ------------------------------------------------------------
+# Argument normalization: sets → LMI data
+# ------------------------------------------------------------
+
+"""
+    format_input_set(U) -> Vector{<:AbstractMatrix}
+
+Convert the input set `U` (`UT.HyperRectangle`, `UT.Ellipsoid`, or a
+`LazySets.IntersectionArray` of those) into the list of matrices `Uᵢ` encoding
+the input constraints `|Uᵢ·u| ≤ 1` used by the transition-synthesis LMIs.
+"""
 function format_input_set(rec::UT.HyperRectangle)
     n = UT.get_dim(rec)
     Uaux = LA.diagm(1:n)
@@ -37,195 +74,107 @@ function format_input_set(iset::LazySets.IntersectionArray)
     return result
 end
 
+"""
+    format_noise_set(rec::UT.HyperRectangle) -> Matrix
+
+Vertices of the noise polytope `rec` as an `n × 2ⁿ` matrix (one vertex per
+column), the format consumed by the transition-synthesis LMIs.
+"""
 function format_noise_set(rec::UT.HyperRectangle)
     return UT.get_vertices(rec)
 end
 
-function get_controller_matrices(m)
-    dims = size(m)
-    nu = dims[1]
-    return m[:, 1:(end - 1)], SVector{nu}(m[:, end])
+_input_matrices(U::AbstractVector) = U
+_input_matrices(U) = format_input_set(U)
+
+_noise_vertex_matrix(W::AbstractMatrix) = W
+_noise_vertex_matrix(W::UT.HyperRectangle) = format_noise_set(W)
+
+# Noise vertices in state space: systems carrying a noise matrix D map the
+# noise-space vertices through it; systems without D take them as given.
+_state_noise(::Any, W) = _noise_vertex_matrix(W)
+_state_noise(affsys::HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, W) =
+    affsys.D * _noise_vertex_matrix(W)
+
+# The LMIs bound the cost ‖Λ·[x; u; 1]‖², i.e. the matrix argument is a
+# *factor* Λ, not the PSD matrix Λ'Λ. For a `QuadraticStateControlFunction`
+# the historical call sites pass its full PSD matrix as Λ (exact only when
+# that matrix is idempotent, e.g. the identity) — preserved verbatim here.
+_cost_matrix(Λ::AbstractMatrix) = Λ
+_cost_matrix(f::UT.QuadraticStateControlFunction) = UT.get_full_psd_matrix(f)
+
+# kappa = [K ℓ] → (K, ℓ)
+function _split_controller(kappa)
+    nu = size(kappa, 1)
+    return kappa[:, 1:(end - 1)], SVector{nu}(kappa[:, end])
 end
 
-#     _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
+# ------------------------------------------------------------
+# Shared S-procedure PSD blocks. `shape` is the source-set shape matrix
+# (P₁ when the source is fixed, I when its square root is the variable).
+# ------------------------------------------------------------
 
-# Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
-# defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
-# to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is
-# minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix
-# `W` defines a vertex of the polytope from which additive disturbance are drawn.
-
-# The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP
-# SDP optimizer (e.g., Mosek, SDPA, COSMO, ...).
-
-# ## Note
-# This implements the optimization problem presented in Corollary 1 of the following paper
-# https://arxiv.org/pdf/2204.00315.pdf
-function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
-    n = length(c)
-    m = size(U[1], 2)
-    N = size(W, 2)
-    p = size(W, 1)
-    Nu = length(U)
-
-    model = Model(optimizer)
-    @variable(model, K[i = 1:m, j = 1:n])
-    @variable(model, ell[i = 1:m, j = 1:1])
-    @variable(model, bta[i = 1:N] >= 0)
-    @variable(model, tau[i = 1:Nu] >= 0)
-    @variable(model, gamma >= 0)
-    @variable(model, J >= 0)
-
-    @expressions(model, begin
-        At, A + B * K
-        gt, g + B * ell
-    end)
-
-    t(x) = transpose(x)
-
+# Reachability: the closed loop maps {ξ: ξ'·shape·ξ ≤ 1} into the target
+# ellipsoid, for one disturbance vertex (`aux` collects the affine part).
+function _reach_constraint!(model, β, shape, At, aux, P2inv, n, ε)
     z = zeros(n, 1)
-
-    for i in 1:N
-        w = W[:, i]
-        aux = A * hcat(c) + hcat(gt) - hcat(cp) + hcat(w)
-        @constraint(
-            model,
-            [
-                bta[i]*P z t(At)
-                t(z) 1-bta[i] t(aux)
-                At aux inv(Pp)
-            ] >= eye(2 * n + 1) * 1e-10,
-            PSDCone()
-        )
-    end
-
-    for i in 1:Nu
-        n_ui = size(U[i], 1)
-        @constraint(
-            model,
-            [
-                tau[i]*P z t(U[i] * K)
-                t(z) 1-tau[i] t(U[i] * ell)
-                U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-10,
-            PSDCone()
-        )
-    end
-    n = length(c)
-    m = size(U[1], 2)
-    nS = size(L, 1)
-
-    I_n = Matrix{Float64}(LA.I, n, n)
-    Z_n1 = zeros(n, 1)
-
-    # This is n × (n+m+1)
-    G = hcat(I_n, transpose(K), Z_n1)
-
-    # This is 1 × (n+m+1)
-    d = hcat(transpose(c), transpose(ell), 1.0)
-    @assert size(L, 2) == n + m + 1 "Expected L to have $(n+m+1) columns (for [x;u;1]), got size(L)=$(size(L))."
-    @constraint(
+    return @constraint(
         model,
         [
-            gamma * P zeros(n, 1) G * transpose(L)
-            zeros(1, n) J - gamma d * transpose(L)
-            L * transpose(G) L * transpose(d) Matrix{Float64}(LA.I, nS, nS)
-        ] in PSDCone()
+            β*shape z transpose(At)
+            transpose(z) 1-β transpose(aux)
+            At aux P2inv
+        ] >= eye(2 * n + 1) * ε,
+        PSDCone()
     )
-
-    @objective(model, Min, J)
-
-    optimize!(model)
-
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
-    kappa = [value.(K) value.(ell)]
-    cost = value(J)
-    # println("$(solution_summary(model).solve_time) s")
-    return ans, kappa, cost
 end
 
-function _has_transition(
-    affsys::AffineSys,
-    E1::UT.Ellipsoid,
-    E2::UT.Ellipsoid,
-    U,
-    W,
-    S,
-    optimizer,
-)
-    ans, kappa, cost = _has_transition(
-        affsys.A,
-        affsys.B,
-        affsys.c,
-        U,
-        W,
-        S,
-        E1.c,
-        E1.P,
-        E2.c,
-        E2.P,
-        optimizer,
+# Input feasibility: |Uᵢ·u(x)| ≤ 1 on the source set, for one constraint
+# matrix (UK = Uᵢ·K, Uℓ = Uᵢ·ℓ).
+function _input_constraint!(model, τ, shape, UK, Uℓ, n, ε)
+    n_ui = size(UK, 1)
+    z = zeros(n, 1)
+    return @constraint(
+        model,
+        [
+            τ*shape z transpose(UK)
+            transpose(z) 1-τ transpose(Uℓ)
+            UK Uℓ eye(n_ui)
+        ] >= eye(n + n_ui + 1) * ε,
+        PSDCone()
     )
-    K, ℓ = get_controller_matrices(kappa)
-    cont = MS.AffineMap(K, ℓ - K * E1.c)
-    return ans, cont, cost
 end
 
-#
-#    _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
-#
-# If `subsys` is a stabilizable system, finds the matrix `P` and the state-feedback gain `K`
-# that satisfy the discrete-time Lyapunov inequality (A+BK)'P(A+BK)-P < 0. The condition number
-# of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
-
-function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
-    A = subsys.A
-    B = subsys.B
-    n = size(A, 1)
-    m = size(B, 2)
-
-    model = Model(optimizer)
-    @variable(model, L[i = 1:m, j = 1:n])
-    @variable(model, S[i = 1:n, j = 1:n], PSD)
-    @variable(model, gamma)
-
-    t(x) = transpose(x)
-
-    @constraint(model, [
-        S t(A * S + B * L)
-        A * S+B * L S
-    ] >= 1e-10 * eye(2n), PSDCone())
-    @constraint(model, eye(n) >= S, PSDCone())
-    @constraint(model, S >= gamma * eye(n), PSDCone())
-
-    @objective(model, Max, gamma)
-
-    optimize!(model)
-
-    P = inv(value.(S))
-    K = value.(L) * P
-    gamma = value(gamma)
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
-    return ans, K, P, gamma
+# Cost bound: ‖Λ·[x; u(x); 1]‖² ≤ J on the source set, with
+# [x; u(x); 1]' = ξ'·G + d for ξ in the source set.
+function _cost_constraint!(model, γ, J, shape, G, d, Λ, n, ε)
+    nS = size(Λ, 1)
+    z = zeros(n, 1)
+    return @constraint(
+        model,
+        [
+            γ*shape z G*transpose(Λ)
+            transpose(z) J-γ d*transpose(Λ)
+            Λ*transpose(G) Λ*transpose(d) eye(nS)
+        ] >= eye(n + nS + 1) * ε,
+        PSDCone()
+    )
 end
 
-###############################################################################################################################
+# ------------------------------------------------------------
+# Fixed-shape kernel: both ellipsoids given, decision variables (K, ℓ).
+# ------------------------------------------------------------
 
-# U: each entry of U is a quadratic constraint on the input
-# W: each column is vertex of the polytopic noise
-# x(k+1) = Ax(k)+Bu(k)+g+Ew(k), with u(k)∈E(0,U^T U), w(k)∈W
-# W[:,i] = vertex i of the polytop
-function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
-    W = D * W
-    nx = length(c) # dimension of the state
-    nu = size(U[1], 2) # dimension of the input
-    nw = size(W, 1) # dimension of the noise (not use for now, we could add matrix of the noise)
-    Nu = length(U) # number of quadratic input constraints
-    Nw = size(W, 2) # number of vertex of the polytopic noise
+function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, P2, sdp_solver)
+    n = length(c)
+    Nw = size(Wcols, 2)
+    Nu = length(U)
+    m = size(U[1], 2)
+    ε = 1e-10
 
-    model = Model(optimizer)
-    @variable(model, K[i = 1:nu, j = 1:nx])
-    @variable(model, ell[i = 1:nu, j = 1:1])
+    model = Model(sdp_solver)
+    @variable(model, K[i = 1:m, j = 1:n])
+    @variable(model, ell[i = 1:m, j = 1:1])
     @variable(model, beta[i = 1:Nw] >= 0)
     @variable(model, tau[i = 1:Nu] >= 0)
     @variable(model, γ >= 0)
@@ -236,128 +185,121 @@ function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
         ct, c + B * ell
     end)
 
-    t(x) = transpose(x)
-    z = zeros(nx, 1)
+    z = zeros(n, 1)
+    P2inv = inv(P2)
 
     for i in 1:Nw
-        w = W[:, i]
+        w = Wcols[:, i]
         aux = A * hcat(c1) + hcat(ct) - hcat(c2) + hcat(w)
-        @constraint(
-            model,
-            [
-                beta[i]*P1 z t(At)
-                t(z) 1-beta[i] t(aux)
-                At aux inv(P2)
-            ] >= eye(2 * nx + 1) * 1e-10,
-            PSDCone()
-        )
+        _reach_constraint!(model, beta[i], P1, At, aux, P2inv, n, ε)
     end
 
     for i in 1:Nu
-        n_ui = size(U[i], 1)
-        @constraint(
-            model,
-            [
-                tau[i]*P1 z t(U[i] * K)
-                t(z) 1-tau[i] t(U[i] * ell)
-                U[i]*K U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-10,
-            PSDCone()
-        )
+        _input_constraint!(model, tau[i], P1, U[i] * K, U[i] * ell, n, ε)
     end
-    n_S = size(S, 1)
-    @constraint(
-        model,
-        [
-            γ*P1 z [LA.I t(K) z]*t(S)
-            t(z) J-γ [t(c1) t(ell) 1]*t(S)
-            S*t([LA.I t(K) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-10,
-        PSDCone()
-    )
+
+    G = [LA.I transpose(K) z]
+    d = [transpose(c1) transpose(ell) 1]
+    _cost_constraint!(model, γ, J, P1, G, d, Λ, n, ε)
 
     @objective(model, Min, J)
 
     optimize!(model)
 
-    ans = solution_summary(model).termination_status == MOI.OPTIMAL
-    kappa = [value.(K) value.(ell)]
-    cost = value(J)
-
-    return ans, kappa, cost
+    feasible = solution_summary(model).termination_status == MOI.OPTIMAL
+    feasible || return false, nothing, nothing
+    return true, [value.(K) value.(ell)], value(J)
 end
 
-function transition_fixed(
+"""
+    solve_transition(affsys, source, target, U, W, cost, sdp_solver) -> TransitionResult
+
+Synthesize an affine controller `u(x) = K(x − c₁) + ℓ` certifying that every
+state of the `source` ellipsoid reaches the `target` ellipsoid in one step of
+the affine system `affsys` (`x⁺ = Ax + Bu + c (+ Dw)`), for every disturbance
+vertex, while minimizing an upper bound on the worst-case transition cost
+`‖cost · [x; u; 1]‖²`.
+
+# Arguments
+- `affsys`: an affine system (`(Noisy)ConstrainedAffineControlDiscreteSystem`
+  or `ConstrainedAffineControlMap`);
+- `source`, `target`: `UT.Ellipsoid`s;
+- `U`: input constraints — a set (`UT.HyperRectangle`, `UT.Ellipsoid`,
+  `LazySets.IntersectionArray`) or a preformatted list (`format_input_set`);
+- `W`: disturbance vertices — one per column, or a `UT.HyperRectangle`; mapped
+  through the system's noise matrix `D` when the system has one;
+- `cost`: the cost factor matrix `Λ` of size `(nx+nu+1) × (nx+nu+1)`, or a
+  `UT.QuadraticStateControlFunction`;
+- `sdp_solver`: a JuMP-compatible SDP optimizer (Clarabel, Mosek, …).
+"""
+function solve_transition(
     affsys::AffineSys,
-    E1::UT.Ellipsoid,
-    E2::UT.Ellipsoid,
+    source::UT.Ellipsoid,
+    target::UT.Ellipsoid,
     U,
     W,
-    S,
-    optimizer,
+    cost,
+    sdp_solver,
 )
-    ans, kappa, cost = transition_fixed(
+    feasible, kappa, J = _fixed_shape_kernel(
         affsys.A,
         affsys.B,
         affsys.c,
-        affsys.D,
-        U,
-        W,
-        S,
-        E1.c,
-        E1.P,
-        E2.c,
-        E2.P,
-        optimizer,
+        _state_noise(affsys, W),
+        _input_matrices(U),
+        _cost_matrix(cost),
+        source.c,
+        source.P,
+        target.c,
+        target.P,
+        sdp_solver,
     )
-    K, ℓ = get_controller_matrices(kappa)
-    cont = MS.AffineMap(K, ℓ - K * E1.c)
-    return ans, cont, cost
+    feasible || return _infeasible_transition()
+    K, ℓ = _split_controller(kappa)
+    return TransitionResult(true, MS.AffineMap(K, ℓ - K * source.c), J, nothing)
 end
 
-function _getμν(L, nx, D, W)
-    vertices_matrix = D * W
-    noise_vertices = [vertices_matrix[:, i] for i in 1:size(vertices_matrix, 2)]
+# ------------------------------------------------------------
+# Free-source kernel: target given, the source shape (via its square root L)
+# is a decision variable; the source center c₁ and a reference input are data.
+# ------------------------------------------------------------
 
-    r = collect(L[1:nx])                 # radii (half-widths)
-    c = zeros(eltype(r), nx)             # center at 0
-    X = LazySets.Hyperrectangle(c, r)    # represents [-r1,r1]×...×[-rnx,rnx]
-
-    return (LazySets.vertices_list(X), noise_vertices)
+# Vertices of the Lipschitz box: the linearization-error term of the
+# reachability blocks scales the box [−Lip[1:nx], Lip[1:nx]] by (δx + δu).
+function _lipschitz_vertices(Lip, nx)
+    r = collect(Lip[1:nx])
+    X = LazySets.Hyperrectangle(zeros(eltype(r), nx), r)
+    return LazySets.vertices_list(X)
 end
 
-# the dynamic: Ax+Bu+c+Dw
-# linearization point: (̄x,̄u, w) = (c,u,0)
-# inputs constraint: u
-# polytopic noise: W (ach column is a vertex)
-# objective function: S
-function transition_backward(
+function _free_source_kernel(
     A,
     B,
     c,
-    D,
+    Wcols,
+    U,
+    Λ,
+    c1,
+    u_ref,
     c2,
     P2,
-    c1,
-    u,
-    U,
-    W,
-    S,
     Lip,
-    optimizer;
+    sdp_solver;
     maxδx,
     maxδu,
-    λ = 0.01,
-    use_log_det = true,
+    λ,
+    use_log_det,
 )
-    nx = length(c) #dimension of the state
-    nu = size(U[1], 2) #dimension of the input
-    μ, ν = _getμν(Lip, nx, D, W)
-    Nx = length(μ) #number of vertex of the hyperrectangle: 2^nx
-    Nw = length(ν) #number of vertex of the polytopic noise
-    Nu = length(U) #number of constraints on u
+    nx = length(c)
+    nu = size(U[1], 2)
+    μ = _lipschitz_vertices(Lip, nx)
+    ν = [Wcols[:, i] for i in 1:size(Wcols, 2)]
+    Nx = length(μ)
+    Nw = length(ν)
+    Nu = length(U)
+    ε = 1e-8
 
-    model = Model(optimizer)
+    model = Model(sdp_solver)
     @variable(model, L[i = 1:nx, j = 1:nx], PSD)
     @variable(model, F[i = 1:nu, j = 1:nx])
     @variable(model, ell[i = 1:nu, j = 1:1])
@@ -374,8 +316,8 @@ function transition_backward(
         ct, c + B * ell
     end)
 
-    t(x) = transpose(x)
     z = zeros(nx, 1)
+    P2inv = inv(P2)
 
     for i in 1:Nx
         for j in 1:Nw
@@ -385,57 +327,35 @@ function transition_backward(
                 hcat(Vector(μ[i])) * (δx + δu) +
                 hcat(Vector(ν[j]))
             )
-            @constraint(
-                model,
-                [
-                    beta[i, j]*eye(nx) z t(At)
-                    t(z) 1-beta[i, j] t(aux)
-                    At aux inv(P2)
-                ] >= eye(2 * nx + 1) * 1e-8,
-                PSDCone()
-            )
+            _reach_constraint!(model, beta[i, j], eye(nx), At, aux, P2inv, nx, ε)
         end
     end
 
     for i in 1:Nu
-        n_ui = size(U[i], 1)
-        @constraint(
-            model,
-            [
-                tau[i]*eye(nx) z t(U[i] * F)
-                t(z) 1-tau[i] t(U[i] * ell)
-                U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(nx + n_ui + 1) * 1e-8,
-            PSDCone()
-        )
+        _input_constraint!(model, tau[i], eye(nx), U[i] * F, U[i] * ell, nx, ε)
     end
 
-    n_S = size(S, 1)
-    @constraint(
-        model,
-        [
-            γ*eye(nx) z [t(L) t(F) z]*t(S)
-            t(z) J-γ [t(c1) t(ell) 1]*t(S)
-            S*t([t(L) t(F) z]) S*t([t(c1) t(ell) 1]) eye(n_S)
-        ] >= eye(nx + n_S + 1) * 1e-8,
-        PSDCone()
-    )
+    G = [transpose(L) transpose(F) z]
+    d = [transpose(c1) transpose(ell) 1]
+    _cost_constraint!(model, γ, J, eye(nx), G, d, Λ, nx, ε)
 
-    u = hcat(u)
+    # Input proximity: ‖u(x) − u_ref‖² ≤ δu on the source set.
+    u = hcat(u_ref)
     @constraint(
         model,
         [
-            ϕ*eye(nx) z t(F)
-            t(z) δu-ϕ t(ell - u)
+            ϕ*eye(nx) z transpose(F)
+            transpose(z) δu-ϕ transpose(ell - u)
             (F) (ell-u) eye(nu)
-        ] >= eye(nx + nu + 1) * 1e-8,
+        ] >= eye(nx + nu + 1) * ε,
         PSDCone()
     )
 
+    # Source-radius bound: L·L' ⪯ δx·I.
     @constraint(model, [
         eye(nx) L
-        t(L) δx * eye(nx)
-    ] >= eye(nx * 2) * 1e-8, PSDCone())
+        transpose(L) δx * eye(nx)
+    ] >= eye(nx * 2) * ε, PSDCone())
 
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)
@@ -463,56 +383,112 @@ function transition_backward(
        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
         Lval = value.(L)
         P = inv(Lval * transpose(Lval))
-        kappa = [value.(F) / Lval value.(ell)]
-        cost = value(J)
-    else
-        @show term pstat raw_status(model)
-        P = nothing
-        kappa = nothing
-        cost = nothing
+        return true, P, [value.(F) / Lval value.(ell)], value(J)
     end
-    return P, kappa, cost
+    @debug "solve_transition_backward: infeasible SDP" term pstat raw_status(model)
+    return false, nothing, nothing, nothing
 end
 
-function transition_backward(
+"""
+    solve_transition_backward(affsys, target, source_center, u_ref, U, W, cost,
+                              lipschitz, sdp_solver;
+                              maxδx = 100.0, maxδu = 20.0, λ = 0.01,
+                              use_log_det = true) -> TransitionResult
+
+Synthesize an affine controller *and the largest source ellipsoid* centered at
+`source_center` that the controller certifiably drives into the `target`
+ellipsoid in one step of `affsys`, robustly to the disturbance vertices `W` and
+to the linearization error bounded by `lipschitz` (the Lipschitz radii of
+`[x; u; 1]`, scaled by the synthesized state/input deviations `δx + δu`).
+
+The objective trades the transition-cost bound against the source volume:
+`min λ·J − (1−λ)·logdet(L)` (a trace proxy when `use_log_det = false`).
+`u_ref` is the reference input the controller stays `δu`-close to; `maxδx` /
+`maxδu` cap the synthesized deviations. Other arguments as in
+[`solve_transition`](@ref). Returns a [`TransitionResult`](@ref) whose `source`
+is the synthesized ellipsoid.
+"""
+function solve_transition_backward(
     affsys::AffineSys,
-    E2::UT.Ellipsoid,
-    c1,
-    u,
+    target::UT.Ellipsoid,
+    source_center,
+    u_ref,
     U,
     W,
-    S,
-    Lip,
-    optimizer;
-    maxδx = 100,
-    maxδu = 10.0 * 2,
+    cost,
+    lipschitz,
+    sdp_solver;
+    maxδx = 100.0,
+    maxδu = 20.0,
     λ = 0.01,
     use_log_det = true,
 )
-    P1, kappa, cost = transition_backward(
+    feasible, P1, kappa, J = _free_source_kernel(
         affsys.A,
         affsys.B,
         affsys.c,
-        affsys.D,
-        E2.c,
-        E2.P,
-        c1,
-        u,
-        U,
-        W,
-        S,
-        Lip,
-        optimizer;
+        _state_noise(affsys, W),
+        _input_matrices(U),
+        _cost_matrix(cost),
+        source_center,
+        u_ref,
+        target.c,
+        target.P,
+        lipschitz,
+        sdp_solver;
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
         use_log_det = use_log_det,
     )
-    if P1 !== nothing
-        K, ℓ = get_controller_matrices(kappa)
-        cont = MS.AffineMap(K, ℓ - K * c1)
-        return UT.Ellipsoid(P1, c1), cont, cost
-    else
-        return nothing, nothing, nothing
-    end
+    feasible || return _infeasible_transition()
+    K, ℓ = _split_controller(kappa)
+    controller = MS.AffineMap(K, ℓ - K * source_center)
+    return TransitionResult(true, controller, J, UT.Ellipsoid(P1, source_center))
+end
+
+# ------------------------------------------------------------
+# Stabilizing feedback
+# ------------------------------------------------------------
+
+"""
+    stabilizing_feedback(subsys, sdp_solver) -> (feasible, K, P, γ)
+
+For a stabilizable affine system, find the state-feedback gain `K` and the
+matrix `P` satisfying the discrete-time Lyapunov inequality
+`(A+BK)'P(A+BK) − P ≺ 0`, minimizing the condition number of `P` (`γ` is the
+attained smallest eigenvalue of `P⁻¹`).
+"""
+function stabilizing_feedback(
+    subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem,
+    sdp_solver,
+)
+    A = subsys.A
+    B = subsys.B
+    n = size(A, 1)
+    m = size(B, 2)
+
+    model = Model(sdp_solver)
+    @variable(model, L[i = 1:m, j = 1:n])
+    @variable(model, S[i = 1:n, j = 1:n], PSD)
+    @variable(model, gamma)
+
+    t(x) = transpose(x)
+
+    @constraint(model, [
+        S t(A * S + B * L)
+        A * S+B * L S
+    ] >= 1e-10 * eye(2n), PSDCone())
+    @constraint(model, eye(n) >= S, PSDCone())
+    @constraint(model, S >= gamma * eye(n), PSDCone())
+
+    @objective(model, Max, gamma)
+
+    optimize!(model)
+
+    P = inv(value.(S))
+    K = value.(L) * P
+    gamma = value(gamma)
+    feasible = solution_summary(model).termination_status == MOI.OPTIMAL
+    return feasible, K, P, gamma
 end

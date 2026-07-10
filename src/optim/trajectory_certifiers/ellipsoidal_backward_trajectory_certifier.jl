@@ -360,7 +360,7 @@ function _transition_backward(
     use_log_det = true,
 )
     if state_scaling === nothing
-        return ST.transition_backward(
+        result = ST.solve_transition_backward(
             affsys,
             E_next,
             xk,
@@ -375,6 +375,7 @@ function _transition_backward(
             λ = λ,
             use_log_det = use_log_det,
         )
+        return result.source, result.controller, result.cost
     end
 
     nx = length(xk)
@@ -384,13 +385,9 @@ function _transition_backward(
     Lz = _scaled_lipschitz(L, nx, state_scaling)
     Sz = _scaled_transition_cost(S, xk, length(uk), state_scaling)
 
-    Pz, kappa_z, cost = ST.transition_backward(
-        affsys_z.A,
-        affsys_z.B,
-        affsys_z.c,
-        affsys_z.D,
-        E_next_z.c,
-        E_next_z.P,
+    result = ST.solve_transition_backward(
+        affsys_z,
+        E_next_z,
         zeros(nx),
         uk,
         Uformat,
@@ -401,19 +398,20 @@ function _transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
+        use_log_det = use_log_det,
     )
 
-    if Pz === nothing || kappa_z === nothing
-        return nothing, nothing, nothing
-    end
+    result.feasible || return nothing, nothing, nothing
 
-    E_prev = _unscale_source_ellipsoid(UT.Ellipsoid(Pz, zeros(nx)), xk, state_scaling)
+    E_prev = _unscale_source_ellipsoid(result.source, xk, state_scaling)
 
-    Kz, ell = ST.get_controller_matrices(kappa_z)
+    # source center is the origin in scaled coordinates, so controller.c == ℓ
+    Kz = Matrix{Float64}(result.controller.A)
+    ell = vec(Float64.(result.controller.c))
     Kx = Kz * inv(Matrix{Float64}(state_scaling))
     cont = MS.AffineMap(Kx, ell - Kx * xk)
 
-    return E_prev, cont, cost
+    return E_prev, cont, result.cost
 end
 
 function _solve_transition(ctx::EllipsoidalBackwardContext, approx, E_next, xk, xnext, uk)
@@ -460,11 +458,6 @@ function _controller_matrices(kappa::AbstractMatrix, nx::Int)
     K = Matrix{Float64}(kappa[:, 1:nx])
     b = vec(Float64.(kappa[:, nx + 1]))
     return K, b
-end
-
-function _controller_matrices(kappa, nx::Int)
-    K, b = ST.get_controller_matrices(kappa)
-    return Matrix{Float64}(K), vec(Float64.(b))
 end
 
 function _controller_image_axis_radii(kappa, E)

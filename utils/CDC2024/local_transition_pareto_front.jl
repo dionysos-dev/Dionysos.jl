@@ -57,24 +57,24 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
 
     # Solve the control problem
 
-    S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
-    E1, cont, max_cost = ST.transition_backward(
+    result = ST.solve_transition_backward(
         affineSys,
         E2,
         c,
         unew,
         sys.Uformat,
         sys.Wformat,
-        S,
+        problem.transition_cost,
         L,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,
         maxδu = maxδu,
     )
+    E1, cont, max_cost = result.source, result.controller, result.cost
 
     # Get results 
     if cont == nothing
