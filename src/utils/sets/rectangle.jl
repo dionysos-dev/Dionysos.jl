@@ -28,13 +28,11 @@ function HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {T
 end
 
 Base.in(x::AbstractVector, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
-Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
-    all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
 Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
     all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
 Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
 Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
-is_intersecting(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
+Base.isdisjoint(a::HyperRectangle, b::HyperRectangle) = Base.isempty(Base.intersect(a, b))
 import Base: intersect
 function intersect(a::HyperRectangle{N, T}, b::HyperRectangle{N, T}) where {N, T}
     return HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
@@ -45,6 +43,16 @@ get_center(rect::HyperRectangle) = (rect.lb + rect.ub) / 2
 get_h(rect::HyperRectangle) = rect.ub - rect.lb
 get_r(rect::HyperRectangle) = get_h(rect) ./ 2.0
 get_dim(rect::HyperRectangle) = length(rect.lb)
+
+LazySets.center(rect::HyperRectangle) = get_center(rect)
+LazySets.low(rect::HyperRectangle) = rect.lb
+LazySets.high(rect::HyperRectangle) = rect.ub
+LazySets.low(rect::HyperRectangle, i::Int) = rect.lb[i]
+LazySets.high(rect::HyperRectangle, i::Int) = rect.ub[i]
+LazySets.ρ(d::AbstractVector, rect::HyperRectangle) =
+    d ⋅ get_center(rect) + abs.(d) ⋅ get_r(rect)
+LazySets.σ(d::AbstractVector, rect::HyperRectangle) =
+    get_center(rect) .+ get_r(rect) .* sign.(d)
 scale(rect::HyperRectangle, α) = HyperRectangle(rect.lb * α, rect.ub * α)
 to_LazySets(rect::HyperRectangle) =
     LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
@@ -161,53 +169,4 @@ function set_in_period(
         1,
     )
     return set_union(L)
-end
-
-"""
-    DeformedRectangle(rect, f, N, shape)
-
-A deformed rectangle.
-"""
-struct DeformedRectangle{N, T} <: AbstractSetNode{N, T}
-    rect::HyperRectangle{N, T}
-    f::Function
-end
-
-function SampleBoundaryDeformedRectangle(
-    drect::DeformedRectangle{N, T};
-    K = 50,
-    dims = (1, 2),
-) where {N, T}
-    rect = drect.rect
-    f = drect.f
-    d1, d2 = dims
-    lb = rect.lb[[d1, d2]]
-    ub = rect.ub[[d1, d2]]
-
-    points = SVector{2, T}[]  # assumes dims=(1,2)
-
-    for x in LinRange(lb[1], ub[1], K)
-        push!(points, f(SVector(x, lb[2])))
-    end
-    for y in LinRange(lb[2], ub[2], K)
-        push!(points, f(SVector(ub[1], y)))
-    end
-    for x in LinRange(ub[1], lb[1], K)
-        push!(points, f(SVector(x, ub[2])))
-    end
-    for y in LinRange(ub[2], lb[2], K)
-        push!(points, f(SVector(lb[1], y)))
-    end
-
-    return points
-end
-
-@recipe function f(drect::DeformedRectangle; dims = (1, 2), K = 50)
-    pts = SampleBoundaryDeformedRectangle(drect; K = K, dims = dims)
-    x = getindex.(pts, 1)
-    y = getindex.(pts, 2)
-    @series begin
-        seriestype := :polygon
-        (x, y)
-    end
 end

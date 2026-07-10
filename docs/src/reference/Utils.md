@@ -21,7 +21,6 @@ Dionysos.Utils.add_node!
 
 ```@docs
 Dionysos.Utils.HyperRectangle
-Dionysos.Utils.DeformedRectangle
 Dionysos.Utils.set_in_period
 Dionysos.Utils.get_min_bounding_box
 ```

@@ -26,7 +26,7 @@ end
     R1 = UT.HyperRectangle([1, 1], [2, 2])
     R2 = UT.HyperRectangle([0, 0], [3, 3])
 
-    @test (R1 ∈ R2) == true
+    @test (R1 ⊆ R2) == true
     @test UT.isempty(R1) == false
 
     R3 = UT.HyperRectangle([1, 1], [-1, -1])
@@ -39,9 +39,9 @@ end
     R4 = UT.HyperRectangle([1, 1], [1, 1])
     @test UT.get_volume(R4) == 0
 
-    @test UT.is_intersecting(R1, R2) == true
+    @test isdisjoint(R1, R2) == false
     R5 = UT.HyperRectangle([3, 3], [4, 4])
-    @test UT.is_intersecting(R1, R5) == false
+    @test isdisjoint(R1, R5) == true
 
     @test UT.issubset(R1, R2) == true
     @test UT.issubset(R2, R5) == false
@@ -62,8 +62,8 @@ end
 
     # rectangle in rectangle
     Rin = UT.HyperRectangle([0.2, 0.3], [0.8, 1.9])
-    @test (Rin ∈ R) == true
-    @test (R ∈ Rin) == false
+    @test (Rin ⊆ R) == true
+    @test (R ⊆ Rin) == false
 end
 
 @testset "Equality / isequal / ==" begin
@@ -165,16 +165,6 @@ end
     @test length(U3.array) == 1
     @test all(U3.array[1].lb .== [0.0, 0.0])
     @test all(U3.array[1].ub .== [1.0, 1.0])
-end
-
-@testset "DeformedRectangle boundary sampling" begin
-    R = UT.HyperRectangle([0.0, 0.0], [1.0, 1.0])
-    f(x) = x .+ UT.SVector(1.0, 0.0)  # translate x by +1 in dim 1
-    D = UT.DeformedRectangle(R, f)
-
-    pts = UT.SampleBoundaryDeformedRectangle(D; K = 10, dims = (1, 2))
-    @test length(pts) == 4*10
-    @test all(p -> length(p) == 2, pts)
 end
 
 println("End test")

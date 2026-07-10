@@ -7,7 +7,7 @@ import LinearAlgebra as LA
 const DI = Dionysos
 const UT = DI.Utils
 
-distance(E1, E2) = UT.pointCenterDistance(E1, E2.c)
+distance(E1, E2) = UT.center_distance(E1, E2.c)
 get_action(E1, E2) = (1.0, 1.0)
 
 make_ellipsoid(scale, center) = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * scale, center)

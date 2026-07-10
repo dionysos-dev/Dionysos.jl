@@ -1,4 +1,8 @@
-function is_intersecting(elli1::Ellipsoid, elli2::Ellipsoid)
+# Exact ellipsoid-ellipsoid disjointness (an analytic kernel LazySets lacks),
+# under the ecosystem verb: `isdisjoint(E1, E2)`.
+Base.isdisjoint(elli1::Ellipsoid, elli2::Ellipsoid) = !_intersects(elli1, elli2)
+
+function _intersects(elli1::Ellipsoid, elli2::Ellipsoid)
     if elli1.c == elli2.c
         return true
     elseif (elli1.c ∈ elli2) || (elli2.c ∈ elli1)
@@ -28,7 +32,7 @@ function is_intersecting(elli1::Ellipsoid, elli2::Ellipsoid)
             ddpolPos;
             interval = [lb, ub],
             verbose = false,
-        ) #, stopIfPositive=true)
+        )
         g_star = -val
         return g_star <= 1
     end

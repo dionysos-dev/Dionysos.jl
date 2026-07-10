@@ -58,10 +58,29 @@ Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
 enum_elems(traj::Trajectory) = traj.seq
 
-@recipe function f(traj::Trajectory; dims = [1, 2])
+@recipe function f(traj::Trajectory; dims = [1, 2], arrows = true)
+    traj_label = get(plotattributes, :label, "")
+
+    # first point carries the user label, the rest stay unlabelled
     @series begin
         dims := dims
-        UT.DrawTrajectory(traj.seq)
+        label := traj_label
+        UT.DrawPoint(traj.seq[1])
+    end
+
+    for k in 1:(length(traj.seq) - 1)
+        @series begin
+            dims := dims
+            label := ""
+            UT.DrawPoint(traj.seq[k + 1])
+        end
+        if arrows
+            @series begin
+                dims := dims
+                label := ""
+                UT.DrawArrow(traj.seq[k], traj.seq[k + 1])
+            end
+        end
     end
 end
 

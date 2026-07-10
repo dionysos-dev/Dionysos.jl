@@ -126,30 +126,6 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
 
         @test !isempty(poss2)
     end
-
-    @testset "DeformedGrid" begin
-        h = SVector(1.0, 2.0)
-        base = MP.GridFree(h; zero_origin = true)
-
-        A = @SMatrix [2.0 0.0; 0.0 0.5]
-        b = SVector(1.0, -3.0)
-
-        f(x) = A*x + b
-        fi(y) = A \ (y-b)
-
-        g = MP.DeformedGrid(base, f, fi; A = A)
-
-        pos = (2, -1)
-        x_def = MP.get_coord_by_pos(g, pos)
-
-        @test x_def == f(MP.get_coord_by_pos(base, pos))
-        @test MP.get_pos_by_coord(g, x_def) == pos
-
-        elem = MP.get_elem_by_pos(g, (0, 0))
-        @test elem isa UT.DeformedRectangle
-
-        @test isapprox(MP.get_volume(g), abs(LA.det(A))*MP.get_volume(base); atol = 1e-12)
-    end
 end
 
 end

@@ -279,7 +279,7 @@ end
 # ----------------------------
 
 function distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid)
-    return UT.centerDistance(E1, E2)
+    return UT.center_distance(E1, E2)
 end
 
 function get_candidate(
@@ -409,7 +409,7 @@ function keep(
 
         if Enew === nothing
             # infeasible candidate
-        elseif EI ∈ Enew
+        elseif EI ⊆ Enew
             iMin = i
             break
         elseif minDist > LA.norm(EI.c - Enew.c)
@@ -425,7 +425,7 @@ function keep(
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
 
     if ElMin !== nothing
-        if all(O -> !UT.is_intersecting(ElMin, O), obstacles)
+        if all(O -> isdisjoint(ElMin, O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles
@@ -512,7 +512,7 @@ function stop_crit(
     end
 
     newEllipsoids = [newNode.state for newNode in LNnew]
-    return any(E -> (EI ∈ E), newEllipsoids) && !continues
+    return any(E -> (EI ⊆ E), newEllipsoids) && !continues
 end
 
 end # module

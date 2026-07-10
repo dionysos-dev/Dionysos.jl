@@ -100,7 +100,7 @@ const AB = OP.Abstraction
 
 | Module | File | Responsibility |
 | :--- | :--- | :--- |
-| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational, dependency-free helpers: geometric sets (`HyperRectangle`, `Ellipsoid`, polyhedra), data structures, `search/RRT.jl`, scalar optimization, plotting recipes, PCLF. |
+| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational helpers: geometric sets (`HyperRectangle`, `Ellipsoid`, polytope unions) conforming to the LazySets API, callable cost functions (`functions.jl`), data structures, `search/RRT.jl`, scalar optimization (`numeric/`), plotting recipes, PCLF. |
 | `System` | [src/system/system.jl](src/system/system.jl) | Concrete dynamical systems (extends MathematicalSystems / HybridSystems), time discretization, linearization, controllers, trajectories, ellipsoidal transition synthesis (`solve_transition`). |
 | `Problem` | [src/problem/problems.jl](src/problem/problems.jl) | Control-task **specifications** = `ProblemType` subtypes (solver-independent). |
 | `Mapping` | [src/mapping/mapping.jl](src/mapping/mapping.jl) | Concrete ↔ abstract **discretization**: grids, cells, `AbstractMapping`, inclusion modes `INNER/OUTER/CENTER`. |

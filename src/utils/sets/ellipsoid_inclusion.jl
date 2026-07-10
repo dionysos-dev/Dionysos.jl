@@ -3,11 +3,9 @@ function Base.in(x::AbstractVector, elli::Ellipsoid)
     return (x - elli.c)'elli.P * (x - elli.c) ≤ 1
 end
 
-function Base.:∉(elli1::Ellipsoid, elli2::Ellipsoid)
-    return !(elli1 ∈ elli2)
-end
-
-function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
+# Exact ellipsoid-in-ellipsoid inclusion test (an analytic kernel LazySets
+# lacks), under the ecosystem verb: `E1 ⊆ E2`.
+function Base.issubset(elli1::Ellipsoid, elli2::Ellipsoid)
     e_min = eigmin(elli1.P - elli2.P)
     if e_min < 0
         return false
@@ -49,7 +47,7 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
     end
 end
 
-function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
+function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid)
     L = cholesky(elli2.P).L
     P = L \ elli1.P / L'
     c = L' * (elli1.c - elli2.c)

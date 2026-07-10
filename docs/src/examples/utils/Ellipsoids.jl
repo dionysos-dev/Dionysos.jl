@@ -20,7 +20,7 @@ const UT = DI.Utils
 
 # We define a plotting functions
 function plot_config!(fig, El0, El, Elnew)
-    if Elnew ∈ El0
+    if Elnew ⊆ El0
         plot!(fig, El0; color = :red, label = "El0")
         plot!(fig, Elnew; color = :green, label = "Elnew")
     else
@@ -34,11 +34,11 @@ function analyze(fig1, fig2, i)
     El0 = E0L[i]
     Elnew = UT.scale_for_inclusion_contact_point(El0, El)
     plot_config!(fig1, El0, El, Elnew)
-    println(El0 ∈ El ? "El0 ∈ El" : "El0 ∉ El")
+    println(El0 ⊆ El ? "El0 ⊆ El" : "El0 ⊈ El")
 
     Elnew = UT.scale_for_noninclusion_contact_point(El0, El)
     plot_config!(fig2, El0, El, Elnew)
-    return println(UT.is_intersecting(El0, El) ? "El0 ∩ El ≠ ∅" : "El0 ∩ El = ∅")
+    return println(!isdisjoint(El0, El) ? "El0 ∩ El ≠ ∅" : "El0 ∩ El = ∅")
 end
 
 # We define some ellipsoids

@@ -32,13 +32,15 @@ function get_root(elli::Ellipsoid)
     return sqrt(elli.P)
 end
 
-function centerDistance(elli1::Ellipsoid, elli2::Ellipsoid)
-    return norm(get_center(elli1) - get_center(elli2))
-end
+center_distance(elli1::Ellipsoid, elli2::Ellipsoid) =
+    norm(get_center(elli1) - get_center(elli2))
+center_distance(elli::Ellipsoid, x::AbstractVector) = norm(get_center(elli) - x)
 
-function pointCenterDistance(elli::Ellipsoid, x)
-    return norm(get_center(elli) - x)
-end
+LazySets.center(elli::Ellipsoid) = elli.c
+
+# Support function/vector of {x : (x-c)'P(x-c) ≤ 1}: ρ(d) = d⋅c + √(d'P⁻¹d).
+LazySets.ρ(d::AbstractVector, elli::Ellipsoid) = d ⋅ elli.c + sqrt(d' * (elli.P \ d))
+LazySets.σ(d::AbstractVector, elli::Ellipsoid) = elli.c + get_farthest_point(elli, d)
 
 # Volume of {x : (x-c)'P(x-c) ≤ 1} = π^(N/2) / Γ(N/2 + 1) · det(P)^(-1/2)
 # (the volume of the unit N-ball scaled by the ellipsoid's semi-axes).
@@ -94,53 +96,11 @@ function get_axis_points(elli::Ellipsoid, i)
     return p1, p2
 end
 
-# get the point aling the axis, from the largest
-function get_all_axis_points(elli::Ellipsoid)
-    specDecomp = eigen(elli.P)
-    vals = specDecomp.values
-    vectors = specDecomp.vectors
-    # Trouver l'indice de la plus grande valeur propre
-    sorted_indices = sortperm(vals)
-    L = []
-    for i in 1:length(vals)
-        index = sorted_indices[i]
-        # Extraire le vecteur propre correspondant
-        vp = vectors[:, index]
-        # Calculer la longueur de l'axe
-        l = 1 / sqrt(vals[index])
-        # Calculer les coordonnées des deux points
-        p1 = elli.c - l * vp
-        p2 = elli.c + l * vp
-        push!(L, (p1, p2))
-    end
-    return L
-end
-
-# get the radius of the largest ball that is inscribed in an ellipsoid of the i largest
-# function with argument 1 returns the length of the longest semi-axis of the ellipsoid. 
-function get_length_semiaxis_sorted(elli::Ellipsoid, i)
-    specDecomp = eigen(elli.P)
-    vals = specDecomp.values
-    sorted_vals = sort(vals)
-    return 1 / sqrt(sorted_vals[i])
-end
-
-function get_length_semiaxis(elli::Ellipsoid, i)
-    specDecomp = eigen(elli.P)
-    vals = specDecomp.values
-    return 1 / sqrt(vals[i])
-end
-
+"Semi-axis lengths `1/√λᵢ(P)` of the ellipsoid, in the eigenvalue order of `P`."
 function get_length_semiaxis(elli::Ellipsoid)
     specDecomp = eigen(elli.P)
     vals = specDecomp.values
     return 1 ./ sqrt.(vals)
-end
-
-function get_inscribed_ball(elli::Ellipsoid)
-    r = get_length_semiaxis_sorted(elli, 1)
-    I_elli = Matrix{Float64}(I, size(elli.P)...)
-    return Ellipsoid((1 / (r * r)) * I_elli, elli.c)
 end
 
 @recipe function f(
@@ -195,9 +155,10 @@ function get_min_bounding_box(elli::Ellipsoid)
     return HyperRectangle(elli.c .- R, elli.c .+ R)
 end
 
-function sample(elli::Ellipsoid; N = 500)
+"Rejection-sample up to `N` points of the ellipsoid (drawn from its bounding box)."
+function samples(elli::Ellipsoid, N::Int = 500)
     rec = get_min_bounding_box(elli)
-    points = [sample(rec) for i in 1:N]
+    points = [sample(rec) for _ in 1:N]
     filter!(x -> x ∈ elli, points)
     return points
 end
@@ -208,7 +169,7 @@ include("ellipsoid_intersection.jl")
 # compress E1 if E1∩E2≠∅
 # return nothing if impossible
 function compress_if_intersection(E1::Ellipsoid, E2::Ellipsoid)
-    if is_intersecting(E1, E2)
+    if !isdisjoint(E1, E2)
         return scale_for_noninclusion_contact_point(E1, E2)
     else
         return E1

@@ -110,7 +110,7 @@ end
     # no slack is needed.
     K = Matrix(result.controller.A)
     b = collect(result.controller.c)
-    for x in UT.sample(result.source; N = 100)
+    for x in UT.samples(result.source, 100)
         u = K * x + b
         for j in 1:size(Wmat, 2)
             xnext = A * x + B * u + g + D * Wmat[:, j]
