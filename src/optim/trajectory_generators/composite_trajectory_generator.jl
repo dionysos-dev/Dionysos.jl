@@ -34,7 +34,7 @@ mutable struct TrajectoryGenerator{
     seed_trajectory::Any
     trajectory::Any
     success::Bool
-    solve_time::Float64
+    solve_time_sec::Float64
     diagnostics::NamedTuple
 end
 
@@ -71,7 +71,7 @@ function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
     gen.seed_trajectory = nothing
     gen.trajectory = nothing
     gen.success = false
-    gen.solve_time = NaN
+    gen.solve_time_sec = NaN
     gen.diagnostics = (;)
 
     return gen
@@ -90,7 +90,7 @@ function generate!(gen::TrajectoryGenerator)
     gen.seed_trajectory = seed
 
     if seed === nothing
-        gen.solve_time = time() - t0
+        gen.solve_time_sec = time() - t0
         gen.success = false
         gen.diagnostics = (;
             seed_available = false,
@@ -105,7 +105,7 @@ function generate!(gen::TrajectoryGenerator)
 
     gen.trajectory = get_trajectory(gen.refinement_generator)
     gen.success = get_success(gen.refinement_generator)
-    gen.solve_time = time() - t0
+    gen.solve_time_sec = time() - t0
 
     gen.diagnostics = (;
         seed_available = true,
@@ -113,7 +113,7 @@ function generate!(gen::TrajectoryGenerator)
         refinement_success = get_success(gen.refinement_generator),
         seed_solve_time = get_solve_time(gen.seed_generator),
         refinement_solve_time = get_solve_time(gen.refinement_generator),
-        total_solve_time = gen.solve_time,
+        total_solve_time = gen.solve_time_sec,
     )
 
     return gen
@@ -122,7 +122,7 @@ end
 get_trajectory(gen::TrajectoryGenerator) = gen.trajectory
 get_seed(gen::TrajectoryGenerator) = gen.seed_trajectory
 get_success(gen::TrajectoryGenerator) = gen.success
-get_solve_time(gen::TrajectoryGenerator) = gen.solve_time
+get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 get_diagnostics(gen::TrajectoryGenerator) = gen.diagnostics
 
 end

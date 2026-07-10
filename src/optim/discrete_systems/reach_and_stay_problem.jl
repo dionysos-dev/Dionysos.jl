@@ -22,8 +22,6 @@ OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerReachAndStayProblem) = optimizer.problem === nothing
 
-# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
-
 # ------------------------------------------------------------
 # Controlled predecessor:
 # Pre(Y | S) = {q in S | exists u, Post(q,u) subset Y}

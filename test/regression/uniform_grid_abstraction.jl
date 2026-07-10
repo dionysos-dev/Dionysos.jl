@@ -1,7 +1,7 @@
 # Golden-output regression test.
 #
 # Pins *deterministic* results of the flagship UniformGridAbstraction pipeline so behaviour-preserving
-# refactors (Phase 1+) are caught if they silently change the synthesized abstraction/controller.
+# refactors are caught if they silently change the synthesized abstraction/controller.
 # We pin only order-independent, randomness-free quantities (state/transition/controllable counts,
 # success, reaches-target) — not the exact control input, which may be randomized.
 #

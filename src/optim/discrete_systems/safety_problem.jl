@@ -31,8 +31,6 @@ OptimizerSafetyProblem() = OptimizerSafetyProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.problem === nothing
 
-# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
-
 function compute_largest_invariant_set(autom::SY.AbstractAutomatonList, safelist)
     nstates = SY.get_n_state(autom)
     nsymbols = SY.get_n_input(autom)

@@ -97,7 +97,7 @@ end
 # Optimizer
 # ============================================================
 
-mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
     bisimulation_quotient::Any
@@ -141,16 +141,6 @@ end
 OptimizerCoSafeLTLOnQuotient() = OptimizerCoSafeLTLOnQuotient{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLOnQuotient) = opt.concrete_problem === nothing
-
-function MOI.set(opt::OptimizerCoSafeLTLOnQuotient, p::MOI.RawOptimizerAttribute, v)
-    return setproperty!(opt, Symbol(p.name), v)
-end
-
-function MOI.get(opt::OptimizerCoSafeLTLOnQuotient, p::MOI.RawOptimizerAttribute)
-    return getproperty(opt, Symbol(p.name))
-end
-
-MOI.get(opt::OptimizerCoSafeLTLOnQuotient, ::MOI.SolveTimeSec) = opt.solve_time_sec
 
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     t0 = time()

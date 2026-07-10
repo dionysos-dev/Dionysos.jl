@@ -73,7 +73,7 @@ for (qp_name, qp_solver) in QP_SOLVERS
             "continuous_solver" => qp_solver,
             "mixed_integer_solver" => miqp_solver,
             "indicator" => false,
-            "log_level" => 0,
+            "print_level" => 0,
             "problem" => problems_modules["gol_lazar_belta.jl"].problem(),
         )
         bench["BemporadMorari($qp_name, $miqp_name)", "gol_lazar_belta.jl"] =

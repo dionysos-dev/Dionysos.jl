@@ -1,7 +1,7 @@
 @enum ApproxMode USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
 """
-    OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+    OptimizerAlternatingSimulationProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 A solver responsible for constructing a **symbolic abstraction of the system dynamics**,
 independently of any control specification.
@@ -239,7 +239,7 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
 ```
 """
-mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOptimizer
     ## Abstraction Result
     discrete_time_system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     abstract_system::Union{Nothing, SY.SymbolicModelList}
@@ -374,23 +374,8 @@ OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{
 MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
     optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
-end
-
-function MOI.get(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-)
-    return getproperty(model, Symbol(param.name))
 end
 
 function reset!(model::OptimizerAlternatingSimulationProblem)

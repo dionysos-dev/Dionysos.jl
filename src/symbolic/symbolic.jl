@@ -22,8 +22,7 @@ const PR = Problem
 using ..Mapping
 const MP = Mapping
 
-# The finite automaton is the abstraction's transition graph; it lives here
-# (moved from System in v0.2).
+# The finite automaton is the abstraction's transition graph.
 include("automata/automaton.jl")
 include("automata/sorted_automaton_list.jl")
 include("automata/indexed_automaton_list.jl")

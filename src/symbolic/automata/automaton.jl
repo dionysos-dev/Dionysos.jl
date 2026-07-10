@@ -17,9 +17,8 @@ post(autom::AbstractAutomatonList, source::Int, symbol::Int) =
     error("implement `post` for $(typeof(autom))")
 Base.empty!(autom::AbstractAutomatonList) =
     error("implement `Base.empty!` for $(typeof(autom))")
-# Concrete subtypes implement `HybridSystems.add_state!(autom)` (returns the new state id).
-# (Do not add a separate `System.add_state!` stub here: it would shadow the real method and
-#  silently return `nothing`.)
+# Concrete subtypes implement `HybridSystems.add_state!(autom)` (returns the new state id);
+# a separate stub here would shadow that method and silently return `nothing`.
 
 finalize!(autom::AbstractAutomatonList) = autom
 

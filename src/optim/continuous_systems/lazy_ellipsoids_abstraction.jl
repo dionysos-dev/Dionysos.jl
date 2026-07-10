@@ -12,13 +12,14 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
+const OP = DI.Optim
 
 """
-    Optimizer{T} <: MOI.AbstractOptimizer
+    Optimizer{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 Abstraction-based solver using a lazy abstraction method with ellipsoidal cells (RRT-based).
 """
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, UT.Tree}
@@ -85,25 +86,15 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
 end
 
 function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    if param.name == "concrete_problem"
-        if !(value isa PR.OptimalControlProblem)
-            throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
-        end
+    if param.name == "concrete_problem" && !(value isa PR.OptimalControlProblem)
+        throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
     end
-    return setproperty!(model, Symbol(param.name), value)
-end
-
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
+    return OP.set_field_attribute!(model, param, value)
 end
 
 Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.concrete_problem === nothing
-
-function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
-    return model.solve_time_sec
-end
 
 function set_optimizer!(
     opt::Optimizer,

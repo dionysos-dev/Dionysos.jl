@@ -41,8 +41,6 @@ OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.problem === nothing
 
-# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
-
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     t0 = time()
 

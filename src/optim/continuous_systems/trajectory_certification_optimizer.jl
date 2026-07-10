@@ -11,7 +11,7 @@ const AB = OP.Abstraction
 
 export Optimizer
 
-mutable struct Optimizer{TG, TC, T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{TG, TC, T} <: OP.AbstractDionysosOptimizer
     concrete_problem::Union{Nothing, PR.ProblemType}
     trajectory_generator::TG
     trajectory_certifier::TC
@@ -39,63 +39,14 @@ end
 
 MOI.is_empty(opt::Optimizer) = opt.concrete_problem === nothing
 
-function MOI.set(opt::Optimizer, ::MOI.Silent, value::Bool)
-    opt.print_level = value ? 0 : 1
-    return
-end
-
 function MOI.set(opt::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    name = Symbol(param.name)
-
-    if name == :concrete_problem
+    if Symbol(param.name) === :concrete_problem
         opt.concrete_problem = value
         AB.set_problem!(opt.trajectory_generator, value)
         AB.set_problem!(opt.trajectory_certifier, value)
         return
     end
-
-    if name == :trajectory_generator
-        opt.trajectory_generator = value
-        return
-    end
-
-    if name == :trajectory_certifier
-        opt.trajectory_certifier = value
-        return
-    end
-
-    if hasfield(typeof(opt), name)
-        setproperty!(opt, name, value)
-        return
-    end
-
-    return error(
-        "Attribute $(param.name) is not recognized by TrajectoryCertificationOptimizer.",
-    )
-end
-
-function MOI.get(opt::Optimizer, param::MOI.RawOptimizerAttribute)
-    name = Symbol(param.name)
-
-    if hasfield(typeof(opt), name)
-        return getproperty(opt, name)
-    end
-
-    if name == :get_trajectory
-        return opt.trajectory
-    end
-
-    if name == :get_controller
-        return opt.controller
-    end
-
-    return error(
-        "Attribute $(param.name) is not recognized by TrajectoryCertificationOptimizer.",
-    )
-end
-
-function MOI.get(opt::Optimizer, ::MOI.SolveTimeSec)
-    return opt.solve_time_sec
+    return OP.set_field_attribute!(opt, param, value)
 end
 
 function MOI.optimize!(opt::Optimizer)

@@ -60,11 +60,6 @@ end
 # Constructors 
 # ----------------------------
 
-# NOTE (v0.2): two constructors taking a raw `grid::Grid` or a bare `h::SVector` were removed. Both
-# were broken (one referenced an out-of-scope `mapping`; the other used a type parameter `M` absent
-# from its `where` clause) and unused — every caller builds a `PeriodicGridMapping` from a
-# `GridMapping` via the constructor below. Add a build-from-grid path, with tests, if it is needed.
-
 function PeriodicGridMapping(
     periodic_dims::SVector{P, Int},
     periods::SVector{P, T},

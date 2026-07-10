@@ -1,5 +1,5 @@
 """
-    OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
+    OptimizerSafetyProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 An optimizer for solving **safety control problems** over symbolic system abstractions.
 
@@ -62,7 +62,7 @@ invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
 abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
 ```
 """
-mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerSafetyProblem{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
     abstract_system::Any
@@ -97,16 +97,8 @@ OptimizerSafetyProblem() = OptimizerSafetyProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.concrete_problem === nothing
 
-function MOI.set(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute, value)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerSafetyProblem, ::MOI.SolveTimeSec)
     return model.abstract_problem_time_sec
-end
-
-function MOI.get(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
 end
 
 function build_abstract_problem(

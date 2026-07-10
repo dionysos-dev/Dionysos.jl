@@ -1,5 +1,5 @@
-# Periodic-domain coordinate wrapping (single home; used by System's closed-loop
-# simulation and Mapping's periodic grid mapping).
+# Periodic-domain coordinate wrapping, shared by System (closed-loop simulation)
+# and Mapping (periodic grid).
 
 "Wrap the scalar `x` into `[start, start + period)`."
 wrap_value(x, start, period) = mod(x - start, period) + start

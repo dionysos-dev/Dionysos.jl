@@ -1,4 +1,4 @@
-mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOptimizer
     # --- user inputs ---
     alternating_simulation_problem::Union{Nothing, PR.AlternatingSimulationProblem}
 
@@ -66,23 +66,8 @@ OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{
 MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
     optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
-end
-
-function MOI.get(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-)
-    return getproperty(model, Symbol(param.name))
 end
 
 function reset!(model::OptimizerAlternatingSimulationProblem)

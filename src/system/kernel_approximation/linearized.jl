@@ -108,12 +108,6 @@ function discretize(
     return DiscreteTimeLinearized(discretized_system, linsys_map, error_map)
 end
 
-# NOTE (v0.2): `get_DiscreteTimeGrowthBound(::DiscreteTimeLinearized)` and
-# `get_ContinuousTimeGrowthBound(::ContinuousTimeLinearized)` were removed. They were dead code:
-# they referenced an undefined `error_map` global and passed 3 arguments to the 2-field growth-bound
-# constructors, so they could never run. A correct Linearized→GrowthBound conversion belongs to the
-# System-module redesign; reintroduce it with tests when the conversion is actually needed.
-
 ## Constructors
 function RungeKutta4Linearized(F, DF, x, dx, u, tstep, num_substeps::Int)
     τ = tstep / num_substeps

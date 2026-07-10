@@ -1,5 +1,5 @@
 """
-    OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
+    OptimizerCoSafeLTLProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 Abstraction-based solver for co-safe LTL control problems.
 
@@ -8,7 +8,7 @@ This optimizer:
 2. calls the generic automaton-level co-safe LTL optimizer in `SY`,
 3. stores the resulting abstract controller and solve status.
 """
-mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerCoSafeLTLProblem{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
     abstract_system::Any
@@ -40,14 +40,6 @@ end
 OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.concrete_problem === nothing
-
-function MOI.set(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute, v)
-    return setproperty!(opt, Symbol(p.name), v)
-end
-
-function MOI.get(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute)
-    return getproperty(opt, Symbol(p.name))
-end
 
 MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_problem_time_sec
 

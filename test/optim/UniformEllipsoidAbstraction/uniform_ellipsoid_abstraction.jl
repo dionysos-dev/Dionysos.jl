@@ -98,7 +98,7 @@ include("../../../problems/pwa_sys.jl")
     MOI.set(optimizer, MOI.RawOptimizerAttribute("Q_aug"), Q_aug)
 
     # ----------------------------
-    # Phase 1: Build abstraction only
+    # Step 1: Build abstraction only
     # ----------------------------
     MOI.optimize!(optimizer)
 
@@ -111,7 +111,7 @@ include("../../../problems/pwa_sys.jl")
     @test length(optimizer.abstraction_solver.transitionCost) ≥ 0
 
     # ----------------------------
-    # Phase 2: Solve control problem on the abstraction
+    # Step 2: Solve control problem on the abstraction
     # ----------------------------
     MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.optimize!(optimizer)

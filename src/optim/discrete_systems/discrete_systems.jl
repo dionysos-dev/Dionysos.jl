@@ -7,8 +7,6 @@ const PR = Dionysos.Problem
 
 import JuMP: MOI
 
-# Shared solver base (parent `Optim` module): field-backed, validated RawOptimizerAttribute get/set
-# and SolveTimeSec. Leaf solvers below only define `is_empty` / `optimize!`.
 import ..AbstractDionysosOptimizer
 
 # ------ Internal data structure for Discrete controllers ------

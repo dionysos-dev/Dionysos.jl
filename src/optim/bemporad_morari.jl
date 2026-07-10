@@ -7,6 +7,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
+const OP = DI.Optim
 
 using JuMP
 using LinearAlgebra
@@ -20,15 +21,15 @@ import Polyhedra
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
 """
-    Optimizer{T} <: MOI.AbstractOptimizer
+    Optimizer{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 Bemporad Morari solver: Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures.
 """
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any
     indicator::Bool
-    log_level::Int
+    print_level::Int
     modes::Union{Nothing, Vector{Vector{Int}}}
     problem::Union{Nothing, PR.OptimalControlProblem}
     discrete_presolve_status::DiscretePresolveStatus
@@ -71,10 +72,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, err))
         end
     end
-    return setproperty!(model, Symbol(param.name), value)
-end
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
+    return OP.set_field_attribute!(model, param, value)
 end
 
 function default_modes(system, q_T, N)
@@ -478,7 +476,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     end
     # TODO remove modes that are impossible
     if any(isempty, modes)
-        optimizer.log_level >= 1 && @warn("`modes` is empty for some time step.")
+        optimizer.print_level >= 1 && @warn("`modes` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_MODE
         return
     end
@@ -509,7 +507,7 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
         ) for t in 1:(prob.time)
     ]
     if any(isempty, transs)
-        optimizer.log_level >= 1 && @warn("`transs` is empty for some time step.")
+        optimizer.print_level >= 1 && @warn("`transs` is empty for some time step.")
         optimizer.discrete_presolve_status = NO_TRANSITION
         return
     end
@@ -591,13 +589,13 @@ function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     MOIU.reset_optimizer(model, _optimizer)
     MOIU.attach_optimizer(model)
 
-    if optimizer.log_level >= 2
+    if optimizer.print_level >= 2
         print(model)
     end
     MOI.optimize!(model)
 
     if !(MOI.get(model, MOI.TerminationStatus()) in [MOI.OPTIMAL, MOI.INFEASIBLE])
-        if optimizer.log_level >= 1
+        if optimizer.print_level >= 1
             @warn(
                 "BemporadMorari: Termination status: $(MOI.get(model, MOI.TerminationStatus())), raw status: $(MOI.get(model, MOI.RawStatusString()))"
             )
@@ -609,14 +607,6 @@ end
 
 _rows(A::Matrix) = [A[i, :] for i in 1:size(A, 1)]
 function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
-    #if optimizer.log_level >= 1
-    #    if δ_modes !== nothing
-    #        @show (x -> value.(x)).(δ_modes)
-    #    end
-    #    if δ_transs !== nothing
-    #        @show (x -> value.(x)).(δ_transs)
-    #    end
-    #end
     if optimizer.discrete_presolve_status == TRIVIAL
         return ST.ContinuousTrajectory(Vector{Float64}[], Vector{Float64}[])
     else
@@ -625,10 +615,6 @@ function MOI.get(optimizer::Optimizer, ::ST.ContinuousTrajectoryAttribute)
             _rows(_value.(optimizer.inner, optimizer.u)),
         )
     end
-end
-
-function MOI.get(optimizer::Optimizer, ::MOI.SolveTimeSec)
-    return optimizer.solve_time_sec
 end
 
 function MOI.get(optimizer::Optimizer, attr::MOI.ObjectiveValue)

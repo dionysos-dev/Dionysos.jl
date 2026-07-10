@@ -35,6 +35,7 @@ const TEST_FILES = [
     ("./symbolic/allocation.jl",),
     ("./symbolic/multithreading.jl",),
     ("./symbolic/multiprocessing.jl",),
+    ("./optim/optimizer_common.jl",),
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     ("./optim/UniformGridAbstraction/unit_test_reachability.jl",),
     ("./optim/UniformGridAbstraction/unit_test_safety.jl",),

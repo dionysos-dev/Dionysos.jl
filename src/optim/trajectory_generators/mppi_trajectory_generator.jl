@@ -39,7 +39,7 @@ mutable struct TrajectoryGenerator{RNG, FNOISE, FPROJ, FCOST, FWRAP} <:
     # Outputs
     trajectory::Union{Nothing, ST.ClosedLoopTrajectory}
     success::Bool
-    solve_time::Float64
+    solve_time_sec::Float64
     diagnostics::NamedTuple
 end
 
@@ -93,7 +93,7 @@ function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
 
     gen.trajectory = nothing
     gen.success = false
-    gen.solve_time = NaN
+    gen.solve_time_sec = NaN
     gen.diagnostics = (;)
 
     return gen
@@ -107,7 +107,7 @@ end
 get_trajectory(gen::TrajectoryGenerator) = gen.trajectory
 get_seed(gen::TrajectoryGenerator) = gen.seed_trajectory
 get_success(gen::TrajectoryGenerator) = gen.success
-get_solve_time(gen::TrajectoryGenerator) = gen.solve_time
+get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 get_diagnostics(gen::TrajectoryGenerator) = gen.diagnostics
 
 function generate!(gen::TrajectoryGenerator)
@@ -117,7 +117,7 @@ function generate!(gen::TrajectoryGenerator)
 
     gen.trajectory = nothing
     gen.success = false
-    gen.solve_time = NaN
+    gen.solve_time_sec = NaN
     gen.diagnostics = (;)
 
     t0 = time()
@@ -126,7 +126,7 @@ function generate!(gen::TrajectoryGenerator)
     gen.seed_trajectory = seed
 
     if seed === nothing
-        gen.solve_time = time() - t0
+        gen.solve_time_sec = time() - t0
         gen.diagnostics = (; seed_available = false)
         return gen
     end
@@ -170,7 +170,7 @@ function generate!(gen::TrajectoryGenerator)
     best_traj = truncate_at_target(problem, best_traj)
     gen.trajectory = best_traj
     gen.success = PR.trajectory_success(problem, best_traj.x)
-    gen.solve_time = time() - t0
+    gen.solve_time_sec = time() - t0
     gen.diagnostics = (;
         seed_available = true,
         seed_cost = seed_cost,

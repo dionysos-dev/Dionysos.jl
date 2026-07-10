@@ -1,4 +1,4 @@
-mutable struct OptimizerSafetyProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerSafetyProblem{T} <: OP.AbstractDionysosOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
     abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
@@ -33,16 +33,8 @@ OptimizerSafetyProblem() = OptimizerSafetyProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.concrete_problem === nothing
 
-function MOI.set(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute, value)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerSafetyProblem, ::MOI.SolveTimeSec)
     return model.abstract_problem_time_sec
-end
-
-function MOI.get(model::OptimizerSafetyProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
 end
 
 function reset!(model::OptimizerSafetyProblem)

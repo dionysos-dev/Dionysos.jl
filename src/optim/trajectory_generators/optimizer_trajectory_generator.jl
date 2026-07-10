@@ -36,7 +36,7 @@ mutable struct TrajectoryGenerator <: AbstractTrajectoryGenerator
     # Outputs
     trajectory::Union{Nothing, ST.ClosedLoopTrajectory}
     success::Bool
-    solve_time::Float64
+    solve_time_sec::Float64
 end
 
 function TrajectoryGenerator(
@@ -71,7 +71,7 @@ function generate!(gen::TrajectoryGenerator)
     MOI.set(gen.optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
     MOI.optimize!(gen.optimizer)
 
-    gen.solve_time = time() - t0
+    gen.solve_time_sec = time() - t0
 
     gen.trajectory =
         gen.concrete ? _generate_concrete_trajectory(gen) :
@@ -84,7 +84,7 @@ end
 
 get_trajectory(gen::TrajectoryGenerator) = gen.trajectory
 get_success(gen::TrajectoryGenerator) = gen.success
-get_solve_time(gen::TrajectoryGenerator) = gen.solve_time
+get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 
 select_initial_state(initial_set::UT.AbstractSetNode) = UT.get_center(initial_set)
 select_initial_state(initial_set::Vector{Int}) = first(initial_set)

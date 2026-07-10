@@ -40,7 +40,7 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p.system === sys
         @test p.region == region
 
-        # problems are immutable value objects (v0.2)
+        # problems are immutable value objects
         region2 = UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2))
         @test_throws ErrorException p.region = region2
     end

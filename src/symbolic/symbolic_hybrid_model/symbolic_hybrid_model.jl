@@ -82,7 +82,7 @@ end
 # - `GlobalInputMap`: The constructed mapping structure
 
 function GlobalInputMap(abstract_systems, hs::HybridSystem)
-    # Phase 1: Allocate continuous inputs
+    # Step 1: Allocate continuous inputs
     continuous_to_global = Dict{Tuple{Int, Int}, Int}()
     global_to_continuous = Dict{Int, Tuple{Int, Int}}()
     continuous_count = 0
@@ -95,7 +95,7 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
         end
         continuous_count += input_count
     end
-    # Phase 2: Allocate switching inputs et labels
+    # Step 2: Allocate switching inputs and labels
     switching_to_global = Dict{Int, Int}()
     global_to_switching = Dict{Int, Int}()
     switch_labels = String[]
@@ -110,7 +110,7 @@ function GlobalInputMap(abstract_systems, hs::HybridSystem)
         push!(switch_labels, "SWITCH $(source_id) -> $(target_id)")
         switching_count += 1
     end
-    # Phase 3: Compute ranges
+    # Step 3: Compute ranges
     continuous_range = 1:continuous_count
     switching_range = (continuous_count + 1):(continuous_count + switching_count)
     return GlobalInputMap(

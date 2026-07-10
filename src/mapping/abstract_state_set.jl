@@ -107,9 +107,7 @@ end
                 label := first_series ? label : ""
                 first_series = false
                 dims := dims
-                if proj === nothing
-                    # nothing
-                else
+                if proj !== nothing
                     v = proj[key][1]
                     vplot = isfinite(v) ? v : NaN
                     colorbar := true
@@ -136,7 +134,6 @@ end
     end
 end
 
-# ---------- Helpers ----------
 # ---------- Helpers ----------
 struct UniqueStates{I}
     iter::I

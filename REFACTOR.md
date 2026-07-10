@@ -219,7 +219,7 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
 - Kept: the `Infinity` sentinel; the `trajectory_success(::CoSafeLTLProblem)` placeholder
   (documented as such).
 
-### Phase 5 — Symbolic 🔄 (edits done, gate running)
+### Phase 5 — Symbolic ✅ (committed `5729dd4c`)
 - ✅ **`MappedStateSet{N, S, M}`** (Mapping): a state set bundled with its mapping, one-arg API
   (`contains_state(ms, q)`, `enum_states(ms)`, `add_set!(ms, set, incl)`, …) — ends the
   `(set, mapping)` argument threading (deferred here from Phase 3 for single churn).
@@ -246,10 +246,42 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
 - Kept: the execution-backend layer as-is (the house template); `SortedTupleSet` (folds into a
   future CSR redesign if benchmarks justify it — out of v0.2 scope).
 
-### Phase 6 — Optim (centerpiece) ⬜
-Adopt the Phase-0 base across all ~20 optimizers (delete the boilerplate + drifted wrappers); replace the
-`isa`-chain with a `problem → solver` registry; decouple abstraction / synthesis / concretization into
-testable stages; typed options; standardize field names; generalize `MOI_wrapper`; remove `∉` type piracy.
+### Phase 6 — Optim (centerpiece) ✅
+- ✅ **Base adopted everywhere.** All 16 remaining optimizers subtype `AbstractDionysosOptimizer`
+  (5 UniformGrid leaves, 2 UniformEllipsoid, 3 HybridSystemAbstraction, LazyEllipsoids, 2 PCLF,
+  TrajectoryCertification, BemporadMorari, BranchAndBound) — the byte-identical `MOI.set`/`MOI.get`
+  reflection copies are deleted. The base gained `MOI.set/get(::MOI.Silent)` (backed by
+  `print_level`, kills the 3 wrapper copies) and `set_field_attribute!`/`get_field_attribute`
+  helpers so leaves with extra validation (LazyEllipsoids/BemporadMorari/BranchAndBound problem
+  type checks, TrajectoryCertification's problem propagation) validate then delegate instead of
+  re-implementing the plumbing. Unknown attributes now raise `MOI.UnsupportedAttribute` uniformly.
+- ✅ **`CompositeDionysosOptimizer`** replaces the 3 drifted ~80-line wrapper set/get bodies
+  (UniformGrid / UniformEllipsoid / HybridSystemAbstraction): one shared forwarding rule — own
+  field → each `sub_solvers(model)` entry → `UnsupportedAttribute` — plus an `ensure_sub_solvers!`
+  hook for the lazy abstraction-solver creation. Wrappers keep only their genuinely different
+  `optimize!`/`reset!`/concretization.
+- ✅ **`isa`-chain → dispatch.** `MOI.set(…, "concrete_problem", p)` lands on
+  `set_concrete_problem!(model, p)`; the control-solver choice is one `control_solver_for(::PR.X)`
+  method per supported `ProblemType` per family. Adding a problem type = adding one method, not
+  editing three wrapper `if/elseif` blocks. **Healed a latent bug**: the hybrid wrapper's chain
+  referenced `OptimizerCoSafeLTLProblem`, undefined in that module — passing a `CoSafeLTLProblem`
+  would have thrown `UndefVarError`; it now errors "Unsupported problem type" like any other
+  unsupported spec.
+- ✅ **Naming standardized.** `log_level` → `print_level` (BemporadMorari, BranchAndBound,
+  q-learning + test/bench/docs callers), `log_iter` → `print_iter`; PCLF quotient's `verbose::Bool`
+  → `print_level::Int` (its unconditional `println`s now gated). BranchAndBound `solve_time` →
+  `solve_time_sec` — the field was **never assigned** (always `NaN`); `optimize!` now stamps it in
+  a `try`/`finally`, so `MOI.get(::SolveTimeSec)` works via the base. Trajectory generators' field
+  `solve_time` → `solve_time_sec` (the `get_solve_time` protocol accessor stays, matching the
+  certifiers).
+- ✅ **`MOI_wrapper`**: the `∉` `JuMP.parse_constraint_call` **type piracy is kept deliberately**
+  and documented in place — it is what powers the public `x ∉ obstacle` DSL, it is purely additive
+  (JuMP errors on `∉` otherwise), and the clean fix is upstreaming an extension point; the
+  unconditional `println`s in `setup!` are now gated on the inner solver's `print_level`.
+- Deferred (beyond v0.2 scope): typed per-solver options structs (the validated field-backed
+  attributes already reject unknown keys); further stage decoupling (the discrete-systems solvers
+  already are the synthesis stage); extending the JuMP DSL to safety/reach-stay specs (feature
+  work, needs new syntax).
 
 ## Ecosystem adoption (interface-first)
 

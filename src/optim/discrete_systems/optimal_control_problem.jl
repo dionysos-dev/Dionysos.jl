@@ -39,8 +39,6 @@ OptimizerOptimalControlProblem() = OptimizerOptimalControlProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerOptimalControlProblem) = optimizer.problem === nothing
 
-# RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
-
 function build_value_function(value_fun_tab)
     return state -> value_fun_tab[state]
 end
