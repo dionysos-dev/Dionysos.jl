@@ -40,14 +40,10 @@ const UT = DI.Utils
     @test abs(UT.get_volume(E2) - π) <= 10e-6
     @test UT.get_farthest_point(E3, [0.0; 1.0]) == [0.0; 1.0]
     @test UT.get_farthest_point(E3, [1.0; 0.0]) == [2.0; 0.0]
-    @test UT.get_min_bounding_box(E2) == UT.HyperRectangle(
-        UT.get_center(E2) .- [1.0; 1.0],
-        UT.get_center(E2) .+ [1.0; 1.0],
-    )
-    @test UT.get_min_bounding_box(E3) == UT.HyperRectangle(
-        UT.get_center(E3) .- [2.0; 1.0],
-        UT.get_center(E3) .+ [2.0; 1.0],
-    )
+    @test UT.get_min_bounding_box(E2) ==
+          UT.box(UT.get_center(E2) .- [1.0; 1.0], UT.get_center(E2) .+ [1.0; 1.0])
+    @test UT.get_min_bounding_box(E3) ==
+          UT.box(UT.get_center(E3) .- [2.0; 1.0], UT.get_center(E3) .+ [2.0; 1.0])
     @test UT.get_shape(E4) == [0.4 -0.1; -0.1 0.5]
     @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.get_sublevel_set(E1, 2.0))
     @test UT.get_axis_points(E2, 2) == ([3.0, 1.0], [5.0, 1.0])

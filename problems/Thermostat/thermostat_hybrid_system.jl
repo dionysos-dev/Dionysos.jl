@@ -19,7 +19,7 @@ Base.@kwdef struct Params{T}
 end
 
 struct ThermostatIdentityResetMap <: MS.AbstractMap
-    domain::UT.HyperRectangle
+    domain::UT.Box
 end
 
 MS.apply(reset::ThermostatIdentityResetMap, state::AbstractVector) = state
@@ -35,10 +35,10 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.HyperRectangle(SVector(17.0), SVector(25.0)),
-    _Uoff_ = UT.HyperRectangle(SVector(0.0), SVector(0.0)),
-    _Uon_ = UT.HyperRectangle(SVector(0.2), SVector(1.0)),
-    _T_ = UT.HyperRectangle(SVector(0.0), SVector(100.0)),
+    _X_ = UT.box(SVector(17.0), SVector(25.0)),
+    _Uoff_ = UT.box(SVector(0.0), SVector(0.0)),
+    _Uon_ = UT.box(SVector(0.2), SVector(1.0)),
+    _T_ = UT.box(SVector(0.0), SVector(100.0)),
 )
     off_system = MS.ConstrainedBlackBoxControlContinuousSystem(
         off_dynamics(params),
@@ -60,7 +60,7 @@ function system(;
         ST.VectorContinuousSystem([on_system, on_time_system]),
     ]
 
-    switch_domain = UT.HyperRectangle(SVector(17.0, 0.0), SVector(25.0, 100.0))
+    switch_domain = UT.box(SVector(17.0, 0.0), SVector(25.0, 100.0))
 
     reset_maps = [
         ThermostatIdentityResetMap(switch_domain),
@@ -111,9 +111,9 @@ function optimal_control_problem(;
     params::Params = Params(),
     initial_temperature = 21.5,
     initial_mode = 1,
-    target = UT.HyperRectangle(SVector(21.0), SVector(23.0)),
-    target_time = UT.HyperRectangle(SVector(15.0), SVector(50.0)),
-    time_domain = UT.HyperRectangle(SVector(0.0), SVector(50.0)),
+    target = UT.box(SVector(21.0), SVector(23.0)),
+    target_time = UT.box(SVector(15.0), SVector(50.0)),
+    time_domain = UT.box(SVector(0.0), SVector(50.0)),
 )
     hybrid_system = system(; params = params, _T_ = time_domain)
 

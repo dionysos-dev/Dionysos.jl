@@ -7,9 +7,9 @@ const DI = Dionysos
 const UT = DI.Utils
 
 @testset "Set algebra (LazySets-backed)" begin
-    A1 = UT.HyperRectangle([-1.0, -1.0], [1.0, 1.0])
-    A2 = UT.HyperRectangle([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
-    A3 = UT.HyperRectangle([0.5, 0.5], [1.5, 1.5])   # overlaps A1
+    A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
+    A2 = UT.box([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
+    A3 = UT.box([0.5, 0.5], [1.5, 1.5])   # overlaps A1
     B0 = UT.Ellipsoid([1.0 0.0; 0.0 1.0], [0.0, 0.0])
 
     # --- set_union ---
@@ -64,7 +64,7 @@ end
     periods = UT.SVector(1.0)
     start = UT.SVector(0.0)
 
-    R = UT.HyperRectangle([0.8, 0.0], [1.2, 1.0])     # crosses the period boundary
+    R = UT.box([0.8, 0.0], [1.2, 1.0])     # crosses the period boundary
     WR = UT.set_in_period(R, periodic_dims, periods, start)
     @test WR isa UT.SetUnion
     @test length(WR.array) == 2
@@ -74,7 +74,7 @@ end
     @test WU isa UT.SetUnion
     @test length(WU.array) == 2
 
-    M = UT.set_minus(U, UT.set_union([UT.HyperRectangle([2.0, 2.0], [3.0, 3.0])]))
+    M = UT.set_minus(U, UT.set_union([UT.box([2.0, 2.0], [3.0, 3.0])]))
     WM = UT.set_in_period(M, periodic_dims, periods, start)
     @test WM isa UT.SetMinus
     @test length(UT.minus_included(WM).array) == 2

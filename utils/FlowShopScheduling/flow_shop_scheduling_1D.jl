@@ -1,6 +1,7 @@
 using StaticArrays, Plots, Printf
 import HybridSystems as HS
 using JuMP
+import LazySets
 
 using Dionysos
 const DI = Dionysos
@@ -188,8 +189,8 @@ auto = concrete_system.automaton
 for (i, t) in enumerate(HS.transitions(auto))
     guard = HS.guard(concrete_system, t)
     if guard !== nothing
-        x_accepted = [guard.lb[1], guard.ub[1]]
-        t_accepted = [guard.lb[2], guard.ub[2]]
+        x_accepted = [LazySets.low(guard, 1), LazySets.high(guard, 1)]
+        t_accepted = [LazySets.low(guard, 2), LazySets.high(guard, 2)]
         color_task = region_colors[(i - 1) % length(region_colors) + 1]
         plot!(
             [t_accepted[1], t_accepted[2], t_accepted[2], t_accepted[1], t_accepted[1]],
@@ -243,8 +244,8 @@ final_x_target = Xs_target[1]
 final_t_target = Ts_target[1]
 color_final = :magenta
 if !isnothing(final_x_target) && !isnothing(final_t_target)
-    x_accepted = [final_x_target.lb[1], final_x_target.ub[1]]
-    t_accepted = [final_t_target.lb[1], final_t_target.ub[1]]
+    x_accepted = [LazySets.low(final_x_target, 1), LazySets.high(final_x_target, 1)]
+    t_accepted = [LazySets.low(final_t_target, 1), LazySets.high(final_t_target, 1)]
     plot!(
         [t_accepted[1], t_accepted[2], t_accepted[2], t_accepted[1], t_accepted[1]],
         [x_accepted[1], x_accepted[1], x_accepted[2], x_accepted[2], x_accepted[1]];

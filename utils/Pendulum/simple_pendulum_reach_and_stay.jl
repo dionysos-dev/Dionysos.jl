@@ -22,10 +22,10 @@ include("../../problems/Pendulum/simple_pendulum.jl")
 
 params = SimplePendulum.Params()
 
-_X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
-_U_ = UT.HyperRectangle(SVector(-3.5), SVector(3.5)) # SVector(-3.0), SVector(3.0) is with escaping
-_I_ = UT.HyperRectangle(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-_T_ = UT.HyperRectangle(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+_X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
+_U_ = UT.box(SVector(-3.5), SVector(3.5)) # SVector(-3.0), SVector(3.0) is with escaping
+_I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
+_T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
 _S_ = _X_
 
 concrete_system = SimplePendulum.system(; params = params, _X_ = _X_, _U_ = _U_)

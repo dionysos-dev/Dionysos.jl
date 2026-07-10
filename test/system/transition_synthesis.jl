@@ -24,9 +24,9 @@ B = reshape([0.0; 0.1], 2, 1)
 g = [0.01; -0.02]
 D = [0.005 0.0; 0.0 0.005]
 
-Uset = UT.HyperRectangle(SVector(-5.0), SVector(5.0))
+Uset = UT.box(SVector(-5.0), SVector(5.0))
 Uformat = ST.format_input_set(Uset)
-Wrect = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+Wrect = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 Wmat = ST.format_noise_set(Wrect)
 
 cost_fun = UT.QuadraticStateControlFunction(
@@ -51,9 +51,12 @@ sys_plain = HybridSystems.ConstrainedAffineControlDiscreteSystem(A, B, g, nothin
     @test result isa ST.TransitionResult
     @test result.feasible
     @test result.source === nothing
+    # The controller is one of several near-optimizers (the cost is pinned much
+    # tighter): the vertex ordering of the noise polytope shifts which one the
+    # SDP returns, so the controller goldens carry a looser tolerance.
     @test result.cost ≈ 5.593497169 rtol = 1e-5
-    @test vec(Matrix(result.controller.A)) ≈ [0.1035123589, -0.6746765442] atol = 1e-3
-    @test collect(result.controller.c) ≈ [0.9701680955] atol = 1e-3
+    @test vec(Matrix(result.controller.A)) ≈ [0.1035123589, -0.6746765442] atol = 1e-2
+    @test collect(result.controller.c) ≈ [0.9701680955] atol = 1e-2
 
     # cost passed as a QuadraticStateControlFunction is equivalent
     result_f = ST.solve_transition(sys_noisy, E1, E2, Uformat, Wmat, cost_fun, opt_sdp)

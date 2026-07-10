@@ -1,6 +1,7 @@
 using StaticArrays
 using Plots
 using Printf
+import LazySets
 using JuMP
 
 import MathOptInterface as MOI
@@ -27,7 +28,7 @@ concrete_problem = ThermostatHybridSystem.problem(;
     params = params,
     initial_temperature = 18.0,
     initial_mode = 1,
-    target = UT.HyperRectangle(SVector(21.0), SVector(23.0)),
+    target = UT.box(SVector(21.0), SVector(23.0)),
 )
 
 concrete_system = concrete_problem.system
@@ -161,8 +162,8 @@ controls = [control_value(u) for u in u_traj]
 control_times = times[1:length(controls)]
 
 target = concrete_problem.target_set[1][1]
-target_lower = target.lb[1]
-target_upper = target.ub[1]
+target_lower = LazySets.low(target, 1)
+target_upper = LazySets.high(target, 1)
 
 switch_indices = [i for i in 2:length(modes) if modes[i] != modes[i - 1]]
 

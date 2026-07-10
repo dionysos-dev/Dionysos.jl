@@ -46,44 +46,43 @@ end
     n = 2
     m = 2
 
-    X = UT.HyperRectangle([-10.0, -10.0], [10.0, 10.0])
-    U = UT.HyperRectangle([-1.0, -1.0], [1.0, 1.0])
+    X = UT.box([-10.0, -10.0], [10.0, 10.0])
+    U = UT.box([-1.0, -1.0], [1.0, 1.0])
 
     sysD = MS.ConstrainedBlackBoxControlDiscreteSystem(fd, n, m, X, U)
     sysC = MS.ConstrainedBlackBoxControlContinuousSystem(fc, n, m, X, U)
 
     # Common test set and input
-    rect = UT.HyperRectangle([-0.5, -0.5], [0.5, 0.5])
+    rect = UT.box([-0.5, -0.5], [0.5, 0.5])
     u = @SVector [0.2, -0.1]
     tstep = 0.3
 
     # ----------------------------
     # DiscreteTimeOverApproximationMap
     # ----------------------------
-    over_map_rect = (r::UT.HyperRectangle, u) -> begin
+    over_map_rect = (r, u) -> begin
         x = UT.get_center(r)
         Fx = fd(x, u)
         rad = UT.get_r(r)
-        UT.HyperRectangle(Fx - rad, Fx + rad)
+        UT.box(Fx - rad, Fx + rad)
     end
     Odisc = ST.DiscreteTimeOverApproximationMap(sysD, over_map_rect)
     @test ST.is_over_approximation(Odisc)
     @test ST.get_system(Odisc) === sysD
 
     outR = ST.get_over_approximation_map(Odisc)(rect, u)
-    @test outR isa UT.HyperRectangle
+    @test outR isa UT.Box
     @test UT.get_center(outR) ≈ fd(UT.get_center(rect), u)
 
     # ----------------------------
     # ContinuousTimeSystemOverApproximationMap + discretize
     # ----------------------------
-    over_map_cont =
-        (r::UT.HyperRectangle, u, h) -> begin
-            x = UT.get_center(r)
-            Fx = x + h*u # exact for ẋ=u
-            rad = UT.get_r(r)
-            UT.HyperRectangle(Fx - rad, Fx + rad)
-        end
+    over_map_cont = (r, u, h) -> begin
+        x = UT.get_center(r)
+        Fx = x + h*u # exact for ẋ=u
+        rad = UT.get_r(r)
+        UT.box(Fx - rad, Fx + rad)
+    end
     Ocont = ST.ContinuousTimeSystemOverApproximationMap(sysC, over_map_cont)
     @test ST.is_over_approximation(Ocont)
 
@@ -100,16 +99,16 @@ end
     gb_disc = (r, u) -> abs.(r) .+ 0.1 .* abs.(u)  # simple monotone bound
     Gdisc = ST.DiscreteTimeGrowthBound(sysD, gb_disc)
     Rg = ST.get_over_approximation_map(Gdisc)(rect, u)
-    @test Rg isa UT.HyperRectangle
+    @test Rg isa UT.Box
 
     gb_cont = (r, u, h) -> abs.(r) .+ h .* 0.1 .* abs.(u)
     Gcont = ST.ContinuousTimeGrowthBound(sysC, gb_cont)
     Rgc = ST.get_over_approximation_map(Gcont)(rect, u, tstep)
-    @test Rgc isa UT.HyperRectangle
+    @test Rgc isa UT.Box
 
     GcontD = ST.discretize(Gcont, tstep)
     Rgc2 = ST.get_over_approximation_map(GcontD)(rect, u)
-    @test Rgc2 isa UT.HyperRectangle
+    @test Rgc2 isa UT.Box
 
     # ----------------------------
     # Linearized (discrete/continuous)
@@ -120,7 +119,7 @@ end
     err_d = (e, u) -> 0.01 .* ones(SVector{2, Float64})
     Ldisc = ST.DiscreteTimeLinearized(sysD, linsys_d, err_d)
     Rl = ST.get_over_approximation_map(Ldisc)(rect, u)
-    @test Rl isa UT.HyperRectangle
+    @test Rl isa UT.Box
     @test UT.get_center(Rl) ≈ fd(UT.get_center(rect), u)
 
     linsys_c = (x, dx, u, h) -> (x + h*u, @SMatrix [1.0 0.0; 0.0 1.0])

@@ -61,7 +61,7 @@ end
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 2.0))
 
     # rectangle in REAL coords
-    rect = UT.HyperRectangle(SVector(1.0, 0.0), SVector(11.0, 10.0))
+    rect = UT.box(SVector(1.0, 0.0), SVector(11.0, 10.0))
 
     m = MP.ImplicitGridMapping(grid, rect; incl_mode = MP.OUTER)
 

@@ -79,13 +79,13 @@ function system(lib, dt, Usz, Wsz; simple = false)
 
     system = HybridSystem(a, systems, resetmaps, switchings)
 
-    simple ? rectX = UT.HyperRectangle(SVector(-2.0, -1.5), SVector(-0.5, 1.3)) :
-    rectX = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+    simple ? rectX = UT.box(SVector(-2.0, -1.5), SVector(-0.5, 1.3)) :
+    rectX = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 
-    obs = UT.HyperRectangle{2, Float64}[]
+    obs = UT.Box{2, Float64}[]
     if !simple
-        push!(obs, UT.HyperRectangle(SVector(0.0, -1.0), SVector(0.25, 1.5)))
-        push!(obs, UT.HyperRectangle(SVector(0.0, 1.25), SVector(1.0, 1.5)))
+        push!(obs, UT.box(SVector(0.0, -1.0), SVector(0.25, 1.5)))
+        push!(obs, UT.box(SVector(0.0, 1.25), SVector(1.0, 1.5)))
     end
 
     Uaux = LA.diagm(1:n_u)

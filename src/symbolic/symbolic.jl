@@ -3,6 +3,7 @@ module Symbolic
 import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import ProgressMeter
+import LazySets
 
 using JuMP
 

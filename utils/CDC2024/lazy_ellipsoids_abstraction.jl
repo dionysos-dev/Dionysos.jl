@@ -16,14 +16,14 @@ const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
 
-U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0))
+U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0))
 xnew = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.00005
 Wbound = 0.0
 λ = 0.01
 
 concrete_problem = NonLinear.problem(;
-    X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
+    X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
     obstacles = [
         UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1 / 50, [0.0; 0.0]),
         UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),
@@ -41,7 +41,7 @@ concrete_problem = NonLinear.problem(;
         zeros(2),
         1.0,
     ),
-    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
+    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
     noise = false,
     μ = ρ,
 )

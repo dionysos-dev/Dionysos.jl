@@ -17,7 +17,7 @@ Given a system and a `growthbound_map`, this approximation inflates the center t
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`
 This function simulates the image of the center and inflates it using the computed growth bound.
 """
 struct DiscreteTimeGrowthBound{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, F} <:
@@ -28,12 +28,12 @@ end
 
 get_system(approx::DiscreteTimeGrowthBound) = approx.system
 function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
-    return (rect::UT.HyperRectangle, u) -> begin
+    return (rect, u) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         Fx = get_system_map(approx)(x, u)
         Fr = approx.growthbound_map(r, u)
-        return UT.HyperRectangle(Fx - Fr, Fx + Fr)
+        return LazySets.Hyperrectangle(Fx, Fr)
     end
 end
 
@@ -52,7 +52,7 @@ It estimates how uncertainty evolves through time using a `growthbound_map` whic
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`
 This function simulates the image of the center and inflates it using the computed growth bound.
 """
 struct ContinuousTimeGrowthBound{S <: MS.ConstrainedBlackBoxControlContinuousSystem, F} <:
@@ -63,12 +63,12 @@ end
 
 get_system(approx::ContinuousTimeGrowthBound) = approx.system
 function get_over_approximation_map(approx::ContinuousTimeGrowthBound)
-    return (rect::UT.HyperRectangle, u, tstep) -> begin
+    return (rect, u, tstep) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         Fx = get_system_map(approx)(x, u, tstep)
         Fr = approx.growthbound_map(r, u, tstep)
-        return UT.HyperRectangle(Fx - Fr, Fx + Fr)
+        return LazySets.Hyperrectangle(Fx, Fr)
     end
 end
 function discretize(

@@ -27,9 +27,9 @@ params = ThermostatContinuousSystem.Params(;
 
 concrete_problem = ThermostatContinuousSystem.reach_and_stay_problem(;
     params = params,
-    _I_ = UT.HyperRectangle(SVector(18.0), SVector(18.5)),
-    _T_ = UT.HyperRectangle(SVector(21.8), SVector(22.2)),
-    _S_ = UT.HyperRectangle(SVector(17.0), SVector(25.0)),
+    _I_ = UT.box(SVector(18.0), SVector(18.5)),
+    _T_ = UT.box(SVector(21.8), SVector(22.2)),
+    _S_ = UT.box(SVector(17.0), SVector(25.0)),
 )
 
 concrete_system = concrete_problem.system

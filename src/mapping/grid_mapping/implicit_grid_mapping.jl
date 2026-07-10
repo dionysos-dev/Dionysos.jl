@@ -35,9 +35,9 @@ end
 
 function ImplicitGridMapping(
     grid::G,
-    rect::UT.HyperRectangle{N, T};
+    rect::LazySets.AbstractHyperrectangle;
     incl_mode = OUTER,
-) where {N, T, G}
+) where {G}
     ranges = get_pos_lims(grid, rect, incl_mode)
     return ImplicitGridMapping(grid, first.(ranges), last.(ranges))
 end

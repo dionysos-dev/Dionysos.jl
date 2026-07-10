@@ -17,6 +17,7 @@ const MA = MutableArithmetics
 
 using FillArrays, MathematicalSystems, HybridSystems, JuMP
 import Polyhedra
+import LazySets
 
 @enum DiscretePresolveStatus OPTIMIZE_NOT_CALLED TRIVIAL FEASIBLE NO_MODE NO_TRANSITION
 
@@ -150,15 +151,15 @@ indicator_constraint(model::JuMP.Model, δ, func, set) =
 
 function hybrid_constraints(
     model,
-    sets::Fill{<:UT.HyperRectangle},
+    sets::Fill{<:LazySets.AbstractHyperrectangle},
     x,
     algo::Optimizer{T},
     δ,
 ) where {T}
     set = first(sets)
     for i in eachindex(x)
-        add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(set.lb[i])))
-        add_constraint(model, one(T) * x[i], MOI.LessThan(T(set.ub[i])))
+        add_constraint(model, one(T) * x[i], MOI.GreaterThan(T(LazySets.low(set, i))))
+        add_constraint(model, one(T) * x[i], MOI.LessThan(T(LazySets.high(set, i))))
     end
     return δ
 end

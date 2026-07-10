@@ -51,7 +51,7 @@ end
 
 function get_states_from_set_strict(
     m::GridMapping{N},
-    rect::UT.HyperRectangle,
+    rect::LazySets.AbstractHyperrectangle,
     incl_mode::INCL_MODE,
 ) where {N}
     grid = get_grid(m)
@@ -112,7 +112,7 @@ end
 
 function get_states_from_set(
     m::GridMapping{N},
-    rect::UT.HyperRectangle,
+    rect::LazySets.AbstractHyperrectangle,
     incl_mode::INCL_MODE,
 ) where {N}
     qs, _ = get_states_from_set_strict(m, rect, incl_mode)
@@ -210,7 +210,7 @@ function intrect2_to_real_rect(grid, r::IntRect2, d1::Int, d2::Int)
         orig[d1] + r.ub[1]*h[d1] + h[d1]/2,
         orig[d2] + r.ub[2]*h[d2] + h[d2]/2,
     )
-    return UT.HyperRectangle(lb, ub)
+    return UT.box(lb, ub)
 end
 
 function project_states_on_dims(

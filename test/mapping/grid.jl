@@ -3,6 +3,7 @@ module TestMain
 using Test
 using StaticArrays
 import LinearAlgebra as LA
+import LazySets
 using Dionysos
 
 const DI = Dionysos
@@ -11,8 +12,8 @@ const MP = DI.Mapping
 
 println("Started grid tests")
 
-# Helper: check point is inside HyperRectangle (inclusive)
-_in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
+# Helper: check point is inside a box (inclusive)
+_in_rec(rect, x) = x ∈ rect
 
 @testset "Grid API" begin
     @testset "GridFree basics" begin
@@ -32,8 +33,8 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
         @test MP.get_pos_by_coord(g, SVector(0.51, 0.01)) == (1, 0)
 
         r = MP.get_rec(g, (0, 0))
-        @test r.lb == SVector(-0.5, -1.0)
-        @test r.ub == SVector(0.5, 1.0)
+        @test LazySets.low(r) == SVector(-0.5, -1.0)
+        @test LazySets.high(r) == SVector(0.5, 1.0)
 
         @test MP.get_elem_by_pos(g, (0, 0)) == r
         @test MP.get_elem_by_coord(g, SVector(0.1, -0.1)) == MP.get_rec(g, (0, 0))
@@ -47,7 +48,7 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
 
-        rect = UT.HyperRectangle(SVector(-0.51, -0.51), SVector(0.51, 0.51))
+        rect = UT.box(SVector(-0.51, -0.51), SVector(0.51, 0.51))
 
         inner = MP.get_pos_lims_inner(g, rect)
         @test first.(inner) == (0, 0)
@@ -61,10 +62,10 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
         @test MP.get_pos_lims(g, rect, MP.OUTER) == outer
     end
 
-    @testset "get_pos_from_set HyperRectangle" begin
+    @testset "get_pos_from_set box" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
-        rect = UT.HyperRectangle(SVector(-1.1, -0.1), SVector(1.1, 0.1))
+        rect = UT.box(SVector(-1.1, -0.1), SVector(1.1, 0.1))
         poss = collect(MP.get_pos_from_set(g, rect, MP.OUTER))
         @test !isempty(poss)
         @test (0, 0) in poss
@@ -73,8 +74,8 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
     @testset "get_pos_from_set set_union" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
-        r1 = UT.HyperRectangle(SVector(-0.1, -0.1), SVector(0.1, 0.1))
-        r2 = UT.HyperRectangle(SVector(2.9, -0.1), SVector(3.1, 0.1))
+        r1 = UT.box(SVector(-0.1, -0.1), SVector(0.1, 0.1))
+        r2 = UT.box(SVector(2.9, -0.1), SVector(3.1, 0.1))
         U = UT.set_union([r1, r2])
         poss = collect(MP.get_pos_from_set(g, U, MP.OUTER))
         @test (0, 0) in poss
@@ -84,8 +85,8 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
     @testset "get_pos_from_set set_minus" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
-        A = UT.HyperRectangle(SVector(-0.6, -0.6), SVector(0.6, 0.6))
-        B = UT.HyperRectangle(SVector(-0.51, -0.51), SVector(0.51, 0.51))
+        A = UT.box(SVector(-0.6, -0.6), SVector(0.6, 0.6))
+        B = UT.box(SVector(-0.51, -0.51), SVector(0.51, 0.51))
         S = UT.set_minus(A, B)
         poss = collect(MP.get_pos_from_set(g, S, MP.OUTER))
         @test (0, 0) ∉ poss
@@ -95,8 +96,8 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
     @testset "set_minus respects inverse inclusion mode" begin
         h = SVector(1.0, 1.0)
         g = MP.GridFree(h; zero_origin = true)
-        A = UT.HyperRectangle(SVector(-0.6, -0.6), SVector(0.6, 0.6))
-        Btiny = UT.HyperRectangle(SVector(-0.1, -0.1), SVector(0.1, 0.1))
+        A = UT.box(SVector(-0.6, -0.6), SVector(0.6, 0.6))
+        Btiny = UT.box(SVector(-0.1, -0.1), SVector(0.1, 0.1))
         S1 = UT.set_minus(A, Btiny)
         poss1 = collect(MP.get_pos_from_set(g, S1, MP.OUTER))
         @test (0, 0) in poss1

@@ -25,6 +25,52 @@ abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
 _outer_box(X::AbstractSetNode) = error("implement `_outer_box` for $(typeof(X))")
 
 # ------------------------------------------------------------
+# Axis-aligned boxes: `LazySets.Hyperrectangle` is the box type; an empty
+# region is `LazySets.EmptySet` (never a crossed-bounds box).
+# ------------------------------------------------------------
+
+"""
+    Box{N, T}
+
+Concrete alias of `LazySets.Hyperrectangle` backed by `SVector`s, for struct
+fields and container element types.
+"""
+const Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
+
+"""
+    box(lb, ub) -> LazySets.Hyperrectangle
+
+The axis-aligned box `{x : lb ≤ x ≤ ub}`. Errors if `lb ≰ ub` componentwise.
+"""
+box(lb::SVector{N, T}, ub::SVector{N, T}) where {N, T} =
+    LazySets.Hyperrectangle(; low = lb, high = ub)
+
+function box(lb, ub)
+    length(lb) == length(ub) || throw(
+        DimensionMismatch(
+            "lb and ub must have equal length, got $(length(lb)) and $(length(ub))",
+        ),
+    )
+    n = length(lb)
+    T = float(promote_type(eltype(lb), eltype(ub)))
+    return box(SVector{n, T}(lb), SVector{n, T}(ub))
+end
+
+get_center(S::LazySets.LazySet) = LazySets.center(S)
+get_r(H::LazySets.AbstractHyperrectangle) = LazySets.radius_hyperrectangle(H)
+get_h(H::LazySets.AbstractHyperrectangle) = 2 .* LazySets.radius_hyperrectangle(H)
+get_volume(S::LazySets.LazySet) = LazySets.volume(S)
+
+"Sample a point of `X` uniformly (LazySets rejection sampling)."
+sample(X::LazySets.LazySet) = SVector{LazySets.dim(X)}(LazySets.sample(X))
+
+"Sample `N` points of `X` uniformly (LazySets rejection sampling)."
+function samples(X::LazySets.LazySet, N::Int)
+    n = LazySets.dim(X)
+    return [SVector{n}(p) for p in LazySets.sample(X, N)]
+end
+
+# ------------------------------------------------------------
 # Composite-set constructors and dispatch aliases
 # ------------------------------------------------------------
 
@@ -119,19 +165,91 @@ remove_set(S, s) = set_minus(minus_included(S), _union_with(minus_hole(S), s))
 # Outer bounding box
 # ------------------------------------------------------------
 
+_outer_box(H::LazySets.AbstractHyperrectangle) = H
+
 function _outer_box(U::SetUnion)
     isempty(U.array) && error("cannot compute outer box of an empty union")
     boxes = [_outer_box(s) for s in U.array]
-    lb = reduce((a, b) -> min.(a, b), (B.lb for B in boxes))
-    ub = reduce((a, b) -> max.(a, b), (B.ub for B in boxes))
-    return HyperRectangle(lb, ub)
+    lb = reduce((a, b) -> min.(a, b), (LazySets.low(B) for B in boxes))
+    ub = reduce((a, b) -> max.(a, b), (LazySets.high(B) for B in boxes))
+    return box(lb, ub)
 end
 _outer_box(S::LazySets.Intersection) = _outer_box(minus_included(S))
 
 # ------------------------------------------------------------
 # Periodic wrapping (splits sets crossing a period boundary; no LazySets
-# equivalent). `set_in_period` on a leaf `HyperRectangle` lives in rectangle.jl.
+# equivalent).
 # ------------------------------------------------------------
+
+# Wrap the interval [lb, ub] into [T0, T0 + Tper); returns one interval, or two
+# when the wrapped interval straddles the period boundary.
+function one_direction(lb, ub, Tper, T0)
+    if ub - lb >= Tper
+        return [(T0, T0 + Tper)]
+    else
+        lbw = T0 + mod(lb - T0, Tper)
+        ubw = T0 + mod(ub - T0, Tper)
+        if lbw <= ubw
+            return [(lbw, ubw)]
+        else
+            return [(T0, ubw), (lbw, T0 + Tper)]
+        end
+    end
+end
+
+function _recursive_period_split!(
+    out,
+    rlow::NTuple{N},
+    rhigh::NTuple{N},
+    lb::NTuple{N},
+    ub::NTuple{N},
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P},
+    start::SVector{P},
+    i::Int,
+) where {N, P}
+    if i > P
+        push!(out, box(SVector(lb), SVector(ub)))
+        return
+    end
+    dim = periodic_dims[i]
+    intervals = one_direction(rlow[dim], rhigh[dim], periods[i], start[i])
+    for (lI, uI) in intervals
+        l = ntuple(k -> k == dim ? lI : lb[k], Val(N))
+        u = ntuple(k -> k == dim ? uI : ub[k], Val(N))
+        _recursive_period_split!(
+            out,
+            rlow,
+            rhigh,
+            l,
+            u,
+            periodic_dims,
+            periods,
+            start,
+            i + 1,
+        )
+    end
+    return
+end
+
+"""
+    set_in_period(rect, periodic_dims, periods, start) -> LazySets.UnionSetArray
+
+Split `rect` along periodic boundaries and return the union of the wrapped boxes.
+"""
+function set_in_period(
+    rect::LazySets.AbstractHyperrectangle,
+    periodic_dims::SVector{P, Int},
+    periods::SVector{P, T},
+    start::SVector{P, T},
+) where {P, T}
+    N = LazySets.dim(rect)
+    lb = ntuple(i -> LazySets.low(rect, i), N)
+    ub = ntuple(i -> LazySets.high(rect, i), N)
+    L = Box{N, T}[]
+    _recursive_period_split!(L, lb, ub, lb, ub, periodic_dims, periods, start, 1)
+    return set_union(L)
+end
 
 function set_in_period(U::SetUnion, periodic_dims, periods, start)
     arr = _region_vector(_num_type(U))
@@ -153,14 +271,17 @@ set_in_period(S::LazySets.EmptySet, periodic_dims, periods, start) = S
 # Plots
 # ------------------------------------------------------------
 
+"Project `S` onto the coordinates `dims` (identity when `dims` covers `S`)."
+project_set(S, dims) =
+    collect(dims) == collect(1:LazySets.dim(S)) ? S : LazySets.project(S, collect(dims))
+
 @recipe function f(U::SetUnion; dims = [1, 2], label = "set")
-    dims := dims
     first_series = true
     for s in U.array
         @series begin
             label := first_series ? label : ""
             first_series = false
-            return s
+            return project_set(s, dims)
         end
     end
 end
@@ -172,16 +293,15 @@ end
     hole_alpha = 1.0,
     label = "Set",
 ) where {N, S1 <: LazySets.LazySet{N}, S2 <: LazySets.Complement{N}}
-    dims := dims
     @series begin
         label := label
-        return minus_included(S)
+        return project_set(minus_included(S), dims)
     end
     @series begin
         label := ""
         seriestype := :shape
         fillcolor := hole_color
         fillalpha := hole_alpha
-        return minus_hole(S)
+        return project_set(minus_hole(S), dims)
     end
 end

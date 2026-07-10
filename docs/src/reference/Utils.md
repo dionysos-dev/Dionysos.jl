@@ -20,9 +20,11 @@ Dionysos.Utils.add_node!
 ## Geometric shapes
 
 ```@docs
-Dionysos.Utils.HyperRectangle
+Dionysos.Utils.Box
+Dionysos.Utils.box
 Dionysos.Utils.set_in_period
 Dionysos.Utils.get_min_bounding_box
+Dionysos.Utils.project_set
 ```
 
 ## Set algebra

@@ -181,7 +181,7 @@ end
             new_radius = radius * 1.1 .+ 0.01
             F_sys = concrete_system.f
             new_center = F_sys(center, u)
-            return UT.HyperRectangle(new_center - new_radius, new_center + new_radius)
+            return UT.box(new_center - new_radius, new_center + new_radius)
         end
 
         discrete_system = ST.discretize_continuous_system(concrete_system, 1.0)

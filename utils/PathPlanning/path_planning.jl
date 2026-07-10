@@ -22,8 +22,7 @@ hu = SVector(0.3, 0.3);
 periodic_dims = SVector(2); # SVector(1, 2);, 
 periods = SVector(10.0); # SVector(4.0, 10.0);
 periodic_start = SVector(0.0); # SVector(0.0, 0.0);
-mapping_region =
-    UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 11.0, pi + 0.4))
+mapping_region = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 11.0, pi + 0.4))
 
 # Intantiate the optimizer
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -150,7 +149,7 @@ plot!(x_traj; ms = 2.0, arrows = false)
 # Animation with dashboard
 # ------------------------------------------------------------
 
-_X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
+_X_ = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
 obstacles = PathPlanning.get_obstacles(_X_)
 system_plot! = PathPlanning.system_plot!(;
     obstacles = obstacles,

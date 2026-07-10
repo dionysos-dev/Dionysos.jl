@@ -69,7 +69,7 @@ is_over_approximation(approx::ContinuousTimeSystemUnderApproximation) = false
     get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximation) -> Function
 
 Returns a function that computes the underapproximation (list of points) of the system's evolution:
-    `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}) -> SVector{N,T}[]`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}) -> SVector{N,T}[]`
 """
 get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximation) =
     error("implement `get_under_approximation_map` for $(typeof(approx))")
@@ -78,7 +78,7 @@ get_under_approximation_map(approx::DiscreteTimeSystemUnderApproximation) =
     get_under_approximation_map(approx::ContinuousTimeSystemUnderApproximation) -> Function
 
 Returns a function that computes the underapproximation (list of points) of the system's evolution:
-    `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}, tstep::T) -> SVector{N,T}[]`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}, tstep::T) -> SVector{N,T}[]`
 """
 get_under_approximation_map(approx::ContinuousTimeSystemUnderApproximation) =
     error("implement `get_under_approximation_map` for $(typeof(approx))")
@@ -110,7 +110,7 @@ is_over_approximation(approx::ContinuousTimeSystemOverApproximation) = true
     get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) -> Function
 
 Returns a function that computes the overapproximation of the system's evolution:
-    `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}) -> UT.HyperRectangle{N,T}`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}) -> LazySets.Hyperrectangle`
 """
 get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) =
     error("implement `get_over_approximation_map` for $(typeof(approx))")
@@ -119,7 +119,7 @@ get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) =
     get_over_approximation_map(overApprox::ContinuousTimeSystemOverApproximation) -> Function
 
 Returns a function that computes the overapproximation of the system's evolution:
-    `f(rect::UT.HyperRectangle{N,T}, u::SVector{M,T}, tstep::T) -> UT.HyperRectangle{N,T}`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}, tstep::T) -> LazySets.Hyperrectangle`
 """
 get_over_approximation_map(approx::ContinuousTimeSystemOverApproximation) =
     error("implement `get_over_approximation_map` for $(typeof(approx))")
@@ -152,7 +152,7 @@ This type wraps a constrained discrete-time system along with an overapproximati
 # Fields
 - `system`: The underlying `ConstrainedBlackBoxControlDiscreteSystem` from `MathematicalSystems.jl`.
 - `over_approximation_map`: A function of the form  
-    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`  
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`  
     which returns an overapproximated successor set.
 """
 struct DiscreteTimeOverApproximationMap{
@@ -176,7 +176,7 @@ This type stores a constrained continuous-time system and an overapproximation f
 # Fields
 - `system`: The underlying `ConstrainedBlackBoxControlContinuousSystem` from `MathematicalSystems.jl`.
 - `over_approximation_map`: A function of the form  
-    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`  
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`  
     which returns an overapproximated reachable set over the given time interval.
 
 # Notes

@@ -16,7 +16,7 @@ This model approximates system behavior by propagating the linearized dynamics a
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`
 It evaluates the system at the center, adds linearized spread based on Jacobian, and inflates with the error bound.
 """
 struct DiscreteTimeLinearized{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, FL, FE} <:
@@ -29,7 +29,7 @@ end
 get_system(approx::DiscreteTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::DiscreteTimeLinearized)
-    return (rect::UT.HyperRectangle, u) -> begin
+    return (rect, u) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
@@ -44,7 +44,7 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
         Fx, DFx = approx.linsys_map(x, _H_, u)
 
         rad = abs.(DFx) * _ONE_ .+ Fe
-        return UT.HyperRectangle(Fx - rad, Fx + rad)
+        return LazySets.Hyperrectangle(Fx, rad)
     end
 end
 
@@ -62,7 +62,7 @@ The method propagates both the nominal trajectory and its linearized sensitivity
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`
 The result is a conservative reachable set from the center using linearization + second-order error correction.
 """
 struct ContinuousTimeLinearized{
@@ -78,7 +78,7 @@ end
 get_system(approx::ContinuousTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::ContinuousTimeLinearized)
-    return (rect::UT.HyperRectangle, u, tstep) -> begin
+    return (rect, u, tstep) -> begin
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
@@ -92,7 +92,7 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
 
         Fx, DFx = approx.linsys_map(x, _H_, u, tstep)
         rad = abs.(DFx) * _ONE_ .+ Fe
-        return UT.HyperRectangle(Fx - rad, Fx + rad)
+        return LazySets.Hyperrectangle(Fx, rad)
     end
 end
 

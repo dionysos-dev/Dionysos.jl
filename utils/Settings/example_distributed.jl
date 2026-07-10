@@ -123,8 +123,8 @@ println("Time to construct the abstraction: $(abstraction_time) sec")
 # ----------------------------------------------------------------------
 # Solve a safety problem
 # ----------------------------------------------------------------------
-_I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
-_S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
+_I_ = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61))
+_S_ = UT.box(SVector(1.16, 5.46), SVector(1.53, 5.82))
 
 concrete_problem_safety =
     DI.Problem.SafetyProblem(concrete_system, _I_, _S_, DI.Problem.Infinity())

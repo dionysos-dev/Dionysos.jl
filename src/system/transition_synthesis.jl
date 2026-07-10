@@ -51,14 +51,15 @@ _infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
 """
     format_input_set(U) -> Vector{<:AbstractMatrix}
 
-Convert the input set `U` (`UT.HyperRectangle`, `UT.Ellipsoid`, or a
-`LazySets.IntersectionArray` of those) into the list of matrices `Uᵢ` encoding
-the input constraints `|Uᵢ·u| ≤ 1` used by the transition-synthesis LMIs.
+Convert the input set `U` (`LazySets.AbstractHyperrectangle`, `UT.Ellipsoid`,
+or a `LazySets.IntersectionArray` of those) into the list of matrices `Uᵢ`
+encoding the input constraints `|Uᵢ·u| ≤ 1` used by the transition-synthesis
+LMIs.
 """
-function format_input_set(rec::UT.HyperRectangle)
+function format_input_set(rec::LazySets.AbstractHyperrectangle)
     n = UT.get_dim(rec)
     Uaux = LA.diagm(1:n)
-    U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
+    U = [(Uaux .== i) ./ LazySets.high(rec, i) for i in 1:n]
     return U
 end
 
@@ -75,20 +76,20 @@ function format_input_set(iset::LazySets.IntersectionArray)
 end
 
 """
-    format_noise_set(rec::UT.HyperRectangle) -> Matrix
+    format_noise_set(rec::LazySets.AbstractHyperrectangle) -> Matrix
 
 Vertices of the noise polytope `rec` as an `n × 2ⁿ` matrix (one vertex per
 column), the format consumed by the transition-synthesis LMIs.
 """
-function format_noise_set(rec::UT.HyperRectangle)
-    return UT.get_vertices(rec)
+function format_noise_set(rec::LazySets.AbstractHyperrectangle)
+    return reduce(hcat, LazySets.vertices_list(rec))
 end
 
 _input_matrices(U::AbstractVector) = U
 _input_matrices(U) = format_input_set(U)
 
 _noise_vertex_matrix(W::AbstractMatrix) = W
-_noise_vertex_matrix(W::UT.HyperRectangle) = format_noise_set(W)
+_noise_vertex_matrix(W::LazySets.AbstractHyperrectangle) = format_noise_set(W)
 
 # Noise vertices in state space: systems carrying a noise matrix D map the
 # noise-space vertices through it; systems without D take them as given.
@@ -224,9 +225,9 @@ vertex, while minimizing an upper bound on the worst-case transition cost
 - `affsys`: an affine system (`(Noisy)ConstrainedAffineControlDiscreteSystem`
   or `ConstrainedAffineControlMap`);
 - `source`, `target`: `UT.Ellipsoid`s;
-- `U`: input constraints — a set (`UT.HyperRectangle`, `UT.Ellipsoid`,
+- `U`: input constraints — a set (`LazySets.AbstractHyperrectangle`, `UT.Ellipsoid`,
   `LazySets.IntersectionArray`) or a preformatted list (`format_input_set`);
-- `W`: disturbance vertices — one per column, or a `UT.HyperRectangle`; mapped
+- `W`: disturbance vertices — one per column, or a box (`LazySets.AbstractHyperrectangle`); mapped
   through the system's noise matrix `D` when the system has one;
 - `cost`: the cost factor matrix `Λ` of size `(nx+nu+1) × (nx+nu+1)`, or a
   `UT.QuadraticStateControlFunction`;

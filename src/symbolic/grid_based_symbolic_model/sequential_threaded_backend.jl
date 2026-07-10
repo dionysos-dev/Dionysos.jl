@@ -312,7 +312,7 @@ end
 
 function compute_abstract_transitions_from_rectangle!(
     symmodel::GridBasedSymbolicModel,
-    reachable_set::UT.HyperRectangle,
+    reachable_set::LazySets.AbstractHyperrectangle,
     abstract_state::Int,
     abstract_input::Int,
     translist::Vector{TransitionKey},
@@ -470,7 +470,7 @@ function collect_abstract_transitions!(
         concrete_state = concrete_states[abstract_state]
 
         Fx = system_map(concrete_state, concrete_input)
-        reachable_set = UT.HyperRectangle(Fx - Fr, Fx + Fr)
+        reachable_set = LazySets.Hyperrectangle(Fx, Fr)
 
         start_len = length(transbuf)
 
@@ -550,7 +550,7 @@ function collect_abstract_transitions!(
         b = abs.(A) * Fr .+ 1.0
 
         rad = abs.(DFx) * _ONE_ .+ Fe
-        reachable_set = UT.HyperRectangle(Fx - rad, Fx + rad)
+        reachable_set = LazySets.Hyperrectangle(Fx, rad)
 
         start_len = length(transbuf)
 

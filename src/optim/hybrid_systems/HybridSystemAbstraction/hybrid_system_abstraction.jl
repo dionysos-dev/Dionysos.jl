@@ -7,6 +7,7 @@ import MathematicalSystems
 MS = MathematicalSystems
 using StaticArrays: SVector
 using Dionysos
+import LazySets
 
 const MOI = MathOptInterface
 const DI = Dionysos

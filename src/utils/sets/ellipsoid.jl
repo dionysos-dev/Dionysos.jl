@@ -152,15 +152,7 @@ function get_min_bounding_box(elli::Ellipsoid)
         ei[i] = 1
         R[i] = get_farthest_point(elli, ei)[i]
     end
-    return HyperRectangle(elli.c .- R, elli.c .+ R)
-end
-
-"Rejection-sample up to `N` points of the ellipsoid (drawn from its bounding box)."
-function samples(elli::Ellipsoid, N::Int = 500)
-    rec = get_min_bounding_box(elli)
-    points = [sample(rec) for _ in 1:N]
-    filter!(x -> x ∈ elli, points)
-    return points
+    return box(elli.c .- R, elli.c .+ R)
 end
 
 include("ellipsoid_inclusion.jl")

@@ -127,7 +127,6 @@ end
             @series begin
                 label := first_series ? label : ""
                 first_series = false
-                dims := [1, 2]
                 return intrect2_to_real_rect(grid, r, d1, d2)
             end
         end

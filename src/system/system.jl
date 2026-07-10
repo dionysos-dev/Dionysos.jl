@@ -8,6 +8,7 @@ import LinearAlgebra as LA
 
 import JuMP: MOI
 import RecipesBase: @recipe, @series
+import LazySets
 
 using ..Utils
 UT = Utils

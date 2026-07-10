@@ -247,7 +247,7 @@ function _compute_max_reachable_rect(A, x, B, Upoly, c, R)
 
     lb = min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c - R
     ub = max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c + R
-    return UT.HyperRectangle(lb, ub)
+    return UT.box(lb, ub)
 end
 
 function compute_abstract_system_from_concrete_system!(

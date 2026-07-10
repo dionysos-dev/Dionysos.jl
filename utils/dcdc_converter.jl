@@ -113,8 +113,8 @@ println(SY.get_metadata(abstract_system, tr))
 ### Solve a safety problem
 
 # concrete_system = concrete_problem.system
-_I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61))
-_S_ = UT.HyperRectangle(SVector(1.16, 5.46), SVector(1.53, 5.82))
+_I_ = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61))
+_S_ = UT.box(SVector(1.16, 5.46), SVector(1.53, 5.82))
 concrete_problem_safety =
     Dionysos.Problem.SafetyProblem(concrete_system, _I_, _S_, Dionysos.Problem.Infinity())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem_safety)
@@ -164,9 +164,9 @@ display(fig)
 # Dionysos.import_controller_csv(filename)
 
 ## Solve a reachability problem
-_T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
+_T_ = UT.box(SVector(1.20, 5.75), SVector(1.25, 5.80))
 
-# _T_ = UT.HyperRectangle(SVector(1.20, 5.75), SVector(1.25, 5.80))
+# _T_ = UT.box(SVector(1.20, 5.75), SVector(1.25, 5.80))
 concrete_problem_reachability = Dionysos.Problem.OptimalControlProblem(
     concrete_system,
     _I_,

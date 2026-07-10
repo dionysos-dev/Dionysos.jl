@@ -66,7 +66,7 @@ const MP = DI.Mapping
     # ----------------------------
     S3 = MP.ExplicitIdSet{2}()
 
-    rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    rect = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
     added = MP.add_set!(S3, m, rect, MP.OUTER)   # uses get_states_from_set(m, rect, ...)
     @test all(q -> MP.contains_state(S3, m, q), added)
     @test MP.get_n_state(S3, m) == length(Set(added))
@@ -100,13 +100,13 @@ const MP = DI.Mapping
     I = MP.ImplicitStateSet{2}()
 
     # Add a rectangle to A (allowed), no holes in B yet
-    MP.add_set!(I, m, UT.HyperRectangle(SVector(-0.4, -0.4), SVector(0.4, 0.4)), MP.OUTER)
+    MP.add_set!(I, m, UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4)), MP.OUTER)
     # The cell at pos (0,0) has center (0,0), corners (+/-0.5)
     # CENTER should be true (center in rect), INNER should be false (corners not all inside)
     @test MP.contains_state(I, m, q11)
 
     # Now remove the center region as a hole: put same rect into B
-    MP.remove_set!(I, m, UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2)))
+    MP.remove_set!(I, m, UT.box(SVector(-0.2, -0.2), SVector(0.2, 0.2)))
     @test !MP.contains_state(I, m, q11)
 
     MP.empty_states!(I)

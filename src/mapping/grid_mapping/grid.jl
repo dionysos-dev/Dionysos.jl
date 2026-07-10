@@ -42,9 +42,9 @@ function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
     h = get_h(grid)
     return ntuple(
         i ->
-            ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i] + 0.5):floor(
+            ceil(Int, (LazySets.low(rect, i) - tol - orig[i]) / h[i] + 0.5):floor(
                 Int,
-                (rect.ub[i] + tol - orig[i]) / h[i] - 0.5,
+                (LazySets.high(rect, i) + tol - orig[i]) / h[i] - 0.5,
             ),
         Val(N),
     )
@@ -55,9 +55,9 @@ function get_pos_lims_outer(grid::Grid{N}, rect; tol = 0.0) where {N}
     h = get_h(grid)
     return ntuple(
         i ->
-            ceil(Int, (rect.lb[i] + tol - orig[i]) / h[i] - 0.5):floor(
+            ceil(Int, (LazySets.low(rect, i) + tol - orig[i]) / h[i] - 0.5):floor(
                 Int,
-                (rect.ub[i] - tol - orig[i]) / h[i] + 0.5,
+                (LazySets.high(rect, i) - tol - orig[i]) / h[i] + 0.5,
             ),
         Val(N),
     )
@@ -68,9 +68,9 @@ function get_pos_center(grid::Grid{N}, rect; tol = 1e-6) where {N}
     h = get_h(grid)
     return ntuple(
         i ->
-            ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i]):floor(
+            ceil(Int, (LazySets.low(rect, i) - tol - orig[i]) / h[i]):floor(
                 Int,
-                (rect.ub[i] + tol - orig[i]) / h[i],
+                (LazySets.high(rect, i) + tol - orig[i]) / h[i],
             ),
         Val(N),
     )
@@ -89,7 +89,7 @@ end
 function get_rec(grid::Grid, pos)
     x = get_coord_by_pos(grid, pos)
     r = get_h(grid) / 2.0
-    return UT.HyperRectangle(x - r, x + r)
+    return LazySets.Hyperrectangle(x, r)
 end
 
 get_elem_by_pos(grid::Grid, pos) = get_rec(grid, pos)
@@ -97,19 +97,15 @@ get_elem_by_coord(grid::Grid, x) = get_elem_by_pos(grid, get_pos_by_coord(grid, 
 get_all_pos_by_coord(grid::Grid, x) = [get_pos_by_coord(grid, x)]
 is_state_cover(grid) = false
 
-function get_volume(grid::Grid)
-    r = get_h(grid) / 2.0
-    return UT.get_volume(UT.HyperRectangle(-r, r))
-end
+get_volume(grid::Grid) = prod(get_h(grid))
 
 @recipe function f(grid::Grid, pos; dims = [1, 2])
     @series begin
-        dims := dims
-        get_elem_by_pos(grid, pos)
+        UT.project_set(get_elem_by_pos(grid, pos), dims)
     end
 end
 
-function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
+function get_pos_from_set(grid, rect::LazySets.AbstractHyperrectangle, incl_mode::INCL_MODE)
     return Iterators.product(get_pos_lims(grid, rect, incl_mode)...)
 end
 

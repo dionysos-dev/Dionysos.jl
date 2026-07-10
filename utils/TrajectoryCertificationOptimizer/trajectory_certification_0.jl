@@ -20,8 +20,8 @@ const OPDS = OP.DiscreteSystems
 
 include("../../problems/toy_problem.jl")
 
-_X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(4.0, 4.0))
-_U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+_X_ = UT.box(SVector(-2.0, -2.0), SVector(4.0, 4.0))
+_U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
 concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
 jacobian_bound = ToyProblem.jacobian_bound()
@@ -75,10 +75,10 @@ println("Abstraction built.")
 # 3) Define optimal control problem
 # ------------------------------------------------------------
 
-_I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+_I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
-g11 = UT.HyperRectangle(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
-g12 = UT.HyperRectangle(SVector(1.0, 2.0), SVector(3.0, 3.7))
+g11 = UT.box(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
+g12 = UT.box(SVector(1.0, 2.0), SVector(3.0, 3.7))
 target_set = UT.set_union([g11, g12])
 
 state_cost = nothing
@@ -256,7 +256,7 @@ Symbolics.@variables w[1:2]
 
 fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
 
-Wformat = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0))
+Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
 
 provider = ST.SymbolicAffineApproximationProvider(
     fsymbolic,

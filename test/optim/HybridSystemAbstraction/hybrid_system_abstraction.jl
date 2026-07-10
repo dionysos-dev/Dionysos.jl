@@ -4,6 +4,7 @@ using StaticArrays, MathOptInterface
 const MOI = MathOptInterface
 
 import MathematicalSystems as MS
+import LazySets
 using HybridSystems
 
 using Dionysos
@@ -22,8 +23,8 @@ const AB = OP.Abstraction
     # ------------------------------
 
     # Define state and input sets
-    X = UT.HyperRectangle([-1.0], [1.0])
-    U = UT.HyperRectangle([-1.5], [1.5])
+    X = UT.box([-1.0], [1.0])
+    U = UT.box([-1.5], [1.5])
 
     # Define system dynamics for two modes
     mode1_f(x, u) = [0.5 * x[1] + u[1]]
@@ -33,13 +34,12 @@ const AB = OP.Abstraction
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys =
-        MS.ConstrainedLinearContinuousSystem([1.0;;], UT.HyperRectangle([0.0], [3.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [3.0]))
 
-    guard_1 = UT.HyperRectangle([0.2, 0.0], [1.0, 2.0])
+    guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
 
     struct FixedPointResetMap <: MS.AbstractMap
-        domain::UT.HyperRectangle
+        domain::UT.Box
         target::Vector{Float64}
     end
     MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
@@ -63,8 +63,8 @@ const AB = OP.Abstraction
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.HyperRectangle(SVector(1.0), SVector(2.0))]
+    Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
+    Ts_target = [UT.box(SVector(1.0), SVector(2.0))]
     Ns_target = [2]
     target_set = (Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
@@ -143,7 +143,7 @@ const AB = OP.Abstraction
         idx = findfirst(==(k), Ns_target)
         @test !isnothing(idx)
         @test x ∈ Xs_target[idx]
-        @test t ≥ Ts_target[idx].lb[1] && t ≤ Ts_target[idx].ub[1]
+        @test t ≥ LazySets.low(Ts_target[idx], 1) && t ≤ LazySets.high(Ts_target[idx], 1)
     end
 
     # Validate abstract problem
@@ -171,8 +171,8 @@ const AB = OP.Abstraction
         in_target =
             !isnothing(idx) &&
             (x ∈ Xs_target[idx]) &&
-            (t ≥ Ts_target[idx].lb[1]) &&
-            (t ≤ Ts_target[idx].ub[1])
+            (t ≥ LazySets.low(Ts_target[idx], 1)) &&
+            (t ≤ LazySets.high(Ts_target[idx], 1))
         if !in_target
             @test concrete_controller.f(aug_state) !== nothing
         end
@@ -244,8 +244,8 @@ end
     # ------------------------------
 
     # Define state and input sets
-    X = UT.HyperRectangle([-1.0], [1.0])
-    U = UT.HyperRectangle([-1.5], [1.5])
+    X = UT.box([-1.0], [1.0])
+    U = UT.box([-1.5], [1.5])
 
     # Define system dynamics for two modes
     mode1_f(x, u) = [0.5 * x[1] + u[1]]
@@ -255,13 +255,12 @@ end
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system (no time evolution)
-    time_sys =
-        MS.ConstrainedLinearContinuousSystem([0.0;;], UT.HyperRectangle([0.0], [3.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem([0.0;;], UT.box([0.0], [3.0]))
 
-    guard_1 = UT.HyperRectangle([0.2, 0.0], [1.0, 2.0])
+    guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
 
     struct FixedPointResetMap <: MS.AbstractMap
-        domain::UT.HyperRectangle
+        domain::UT.Box
         target::Vector{Float64}
     end
     MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
@@ -285,8 +284,8 @@ end
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.HyperRectangle(SVector(0.0), SVector(3.0))]
+    Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
+    Ts_target = [UT.box(SVector(0.0), SVector(3.0))]
     Ns_target = [2]
     target_set = (Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
@@ -365,7 +364,7 @@ end
         idx = findfirst(==(k), Ns_target)
         @test !isnothing(idx)
         @test x ∈ Xs_target[idx]
-        @test t ≥ Ts_target[idx].lb[1] && t ≤ Ts_target[idx].ub[1]
+        @test t ≥ LazySets.low(Ts_target[idx], 1) && t ≤ LazySets.high(Ts_target[idx], 1)
     end
 
     # Validate abstract problem
@@ -393,8 +392,8 @@ end
         in_target =
             !isnothing(idx) &&
             (x ∈ Xs_target[idx]) &&
-            (t ≥ Ts_target[idx].lb[1]) &&
-            (t ≤ Ts_target[idx].ub[1])
+            (t ≥ LazySets.low(Ts_target[idx], 1)) &&
+            (t ≤ LazySets.high(Ts_target[idx], 1))
         if !in_target
             @test concrete_controller.h(aug_state) !== nothing
         end
@@ -466,8 +465,8 @@ end
     # ------------------------------
 
     # Define a simple 1D system
-    X = UT.HyperRectangle([-10.0], [10.0])
-    U = UT.HyperRectangle([-5.5], [8.5])
+    X = UT.box([-10.0], [10.0])
+    U = UT.box([-5.5], [8.5])
 
     # Define dynamics
     mode1_f(x, u) = [-0.1 * x[1] + u[1]]
@@ -477,18 +476,17 @@ end
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys =
-        MS.ConstrainedLinearContinuousSystem([1.0;;], UT.HyperRectangle([0.0], [5.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [5.0]))
 
     # Reset map
     struct SafetyResetMap <: MS.AbstractMap
-        domain::UT.HyperRectangle
+        domain::UT.Box
         target::Vector{Float64}
     end
     MS.apply(reset::SafetyResetMap, state::AbstractVector) = [state[1], state[2]]
     MS.stateset(reset::SafetyResetMap) = reset.domain
 
-    guard_1 = UT.HyperRectangle([0.0, 0.0], [10.0, 5.0])
+    guard_1 = UT.box([0.0, 0.0], [10.0, 5.0])
     reset_map = SafetyResetMap(guard_1, [0.0, 4.0])
 
     # Automaton and hybrid system
@@ -508,8 +506,8 @@ end
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_safe = [UT.HyperRectangle([-3.0], [3.0]), UT.HyperRectangle([-1.0], [10.0])]
-    Ts_safe = [UT.HyperRectangle([0.0], [2.0]), UT.HyperRectangle([1.0], [5.0])]
+    Xs_safe = [UT.box([-3.0], [3.0]), UT.box([-1.0], [10.0])]
+    Ts_safe = [UT.box([0.0], [2.0]), UT.box([1.0], [5.0])]
     Ns_safe = [1, 2]
     safe_set = (Xs_safe, Ts_safe, Ns_safe)
     concrete_problem = PR.SafetyProblem(concrete_system, initial_state, safe_set, 10.0)
@@ -586,7 +584,7 @@ end
         idx = findfirst(==(k), Ns_safe)
         @test !isnothing(idx)
         @test x ∈ Xs_safe[idx]
-        @test t ≥ Ts_safe[idx].lb[1] && t ≤ Ts_safe[idx].ub[1]
+        @test t ≥ LazySets.low(Ts_safe[idx], 1) && t ≤ LazySets.high(Ts_safe[idx], 1)
     end
 
     # Validate abstract problem

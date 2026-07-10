@@ -81,8 +81,8 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.HyperRectangle(SVector(-5.0, -pi, -5.0, -5.0), SVector(5.0, pi, 5.0, 5.0)),
-    _U_ = UT.HyperRectangle(SVector(-10.0), SVector(10.0)),
+    _X_ = UT.box(SVector(-5.0, -pi, -5.0, -5.0), SVector(5.0, pi, 5.0, 5.0)),
+    _U_ = UT.box(SVector(-10.0), SVector(10.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
@@ -100,33 +100,33 @@ function optimal_control_problem(;
     transition_cost = nothing,
 )
     if objective == "swing_up"
-        _X_ = UT.HyperRectangle(SVector(-5.0, -pi, -5.0, -5.0), SVector(5.0, pi, 5.0, 5.0))
+        _X_ = UT.box(SVector(-5.0, -pi, -5.0, -5.0), SVector(5.0, pi, 5.0, 5.0))
 
-        _U_ = UT.HyperRectangle(SVector(-10.0), SVector(10.0))
+        _U_ = UT.box(SVector(-10.0), SVector(10.0))
 
-        _I_ = UT.HyperRectangle(
+        _I_ = UT.box(
             SVector(-0.2, -5.0*pi/180.0, -0.2, -0.2),
             SVector(0.2, 5.0*pi/180.0, 0.2, 0.2),
         )
 
-        _T_ = UT.HyperRectangle(
+        _T_ = UT.box(
             SVector(-0.5, pi - 10.0*pi/180.0, -0.5, -0.5),
             SVector(0.5, pi + 10.0*pi/180.0, 0.5, 0.5),
         )
     elseif objective == "stabilize_up"
-        _X_ = UT.HyperRectangle(
+        _X_ = UT.box(
             SVector(-2.0, pi - 30.0*pi/180.0, -3.0, -3.0),
             SVector(2.0, pi + 30.0*pi/180.0, 3.0, 3.0),
         )
 
-        _U_ = UT.HyperRectangle(SVector(-5.0), SVector(5.0))
+        _U_ = UT.box(SVector(-5.0), SVector(5.0))
 
-        _I_ = UT.HyperRectangle(
+        _I_ = UT.box(
             SVector(-0.5, pi - 15.0*pi/180.0, -0.5, -0.5),
             SVector(0.5, pi + 15.0*pi/180.0, 0.5, 0.5),
         )
 
-        _T_ = UT.HyperRectangle(
+        _T_ = UT.box(
             SVector(-0.2, pi - 5.0*pi/180.0, -0.2, -0.2),
             SVector(0.2, pi + 5.0*pi/180.0, 0.2, 0.2),
         )

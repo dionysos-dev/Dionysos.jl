@@ -27,8 +27,8 @@ using FillArrays
 
     nlmap = BlackBoxControlDiscreteSystem(f, nl_sys.nx, nl_sys.nu)
 
-    # State domain as HyperRectangle (automatic conversion to MOI constraints)
-    pX = UT.HyperRectangle([-5.0, -5.0], [5.0, 5.0])
+    # State domain as a box (automatic conversion to MOI constraints)
+    pX = UT.box([-5.0, -5.0], [5.0, 5.0])
 
     automaton = GraphAutomaton(1)
     add_transition!(automaton, 1, 1, 1)

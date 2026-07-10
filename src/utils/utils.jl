@@ -19,7 +19,6 @@ include("search/RRT.jl")
 include("numeric/scalar_optimization.jl")
 
 include("sets/set_algebra.jl")
-include("sets/rectangle.jl")
 include("sets/ellipsoid.jl")
 include("sets/semilinear_set.jl")
 

@@ -47,7 +47,7 @@ println("Started test")
     @test MP.get_n_state(m) == 2
 
     # --- add_set! using OUTER inclusion ---
-    rect = UT.HyperRectangle(SVector(1.0, 0.0), SVector(11.0, 10.0))
+    rect = UT.box(SVector(1.0, 0.0), SVector(11.0, 10.0))
     MP.add_set!(m, rect, MP.OUTER)
 
     @test MP.get_n_state(m) == 67

@@ -202,14 +202,14 @@ function build_tube(
     # 3) build union of rectangles
     N = length(xs[1])
     T = eltype(xs[1])
-    rects = UT.HyperRectangle{N, T}[]
+    rects = UT.Box{N, T}[]
     sizehint!(rects, length(xs))
 
     for x in xs
         N = length(x)
         lb = ntuple(i -> x[i] - (_rad_i(radius, i) + margin), N)
         ub = ntuple(i -> x[i] + (_rad_i(radius, i) + margin), N)
-        push!(rects, UT.HyperRectangle(SVector(lb), SVector(ub)))
+        push!(rects, UT.box(SVector(lb), SVector(ub)))
     end
 
     tube = UT.set_union(rects)

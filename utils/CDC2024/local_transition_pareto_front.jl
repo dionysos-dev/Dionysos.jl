@@ -30,8 +30,8 @@ plot_colorbar!(cm::ValueColormap) = scatter!(
 )
 
 function trial(E2, c, ρ, Ubound, Wbound, λ)
-    U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
-    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
+    U = UT.box(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
+    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
     problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
 

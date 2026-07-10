@@ -27,9 +27,9 @@ const SY = DI.Symbolic
 
 # Additionally, we will short the submodules accondingly 
 #
-# We use `HyperRectangle` to represent the boundary of the state space `rectX` and the input space `rectU`.
-rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
-rectU = UT.HyperRectangle(SVector(-5), SVector(5));
+# We use `UT.box` to represent the boundary of the state space `rectX` and the input space `rectU`.
+rectX = UT.box(SVector(-2, -2), SVector(2, 2));
+rectU = UT.box(SVector(-5), SVector(5));
 
 # A discretization of the state space is declared using the `GridFree` structure, which requires the definition of a center `x0` and 
 # a vector `hx` of discretization steps in each direction.
