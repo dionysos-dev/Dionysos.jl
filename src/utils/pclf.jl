@@ -1,7 +1,7 @@
 module PathCompleteFramework
 
-import Dionysos
-const UT = Dionysos.Utils
+import ..Utils
+const UT = Utils
 import HybridSystems
 import JuMP
 import MathOptInterface

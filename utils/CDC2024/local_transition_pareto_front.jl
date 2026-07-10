@@ -61,7 +61,7 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
-    E1, cont, max_cost = UT.transition_backward(
+    E1, cont, max_cost = ST.transition_backward(
         affineSys,
         E2,
         c,

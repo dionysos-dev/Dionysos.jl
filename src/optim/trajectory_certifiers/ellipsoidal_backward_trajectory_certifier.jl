@@ -360,7 +360,7 @@ function _transition_backward(
     use_log_det = true,
 )
     if state_scaling === nothing
-        return UT.transition_backward(
+        return ST.transition_backward(
             affsys,
             E_next,
             xk,
@@ -384,7 +384,7 @@ function _transition_backward(
     Lz = _scaled_lipschitz(L, nx, state_scaling)
     Sz = _scaled_transition_cost(S, xk, length(uk), state_scaling)
 
-    Pz, kappa_z, cost = UT.transition_backward(
+    Pz, kappa_z, cost = ST.transition_backward(
         affsys_z.A,
         affsys_z.B,
         affsys_z.c,
@@ -409,7 +409,7 @@ function _transition_backward(
 
     E_prev = _unscale_source_ellipsoid(UT.Ellipsoid(Pz, zeros(nx)), xk, state_scaling)
 
-    Kz, ell = UT.get_controller_matrices(kappa_z)
+    Kz, ell = ST.get_controller_matrices(kappa_z)
     Kx = Kz * inv(Matrix{Float64}(state_scaling))
     cont = MS.AffineMap(Kx, ell - Kx * xk)
 
@@ -463,7 +463,7 @@ function _controller_matrices(kappa::AbstractMatrix, nx::Int)
 end
 
 function _controller_matrices(kappa, nx::Int)
-    K, b = UT.get_controller_matrices(kappa)
+    K, b = ST.get_controller_matrices(kappa)
     return Matrix{Float64}(K), vec(Float64.(b))
 end
 

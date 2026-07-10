@@ -45,8 +45,8 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
     #### Format of input and noise set ####
-    Uformat = UT.format_input_set(U)
-    Wformat = UT.format_noise_set(W)
+    Uformat = ST.format_input_set(U)
+    Wformat = ST.format_noise_set(W)
 
     #### Forward and backward dynamics ####
     function f_eval(x, u, w)

@@ -156,8 +156,8 @@ provider = ST.SymbolicAffineApproximationProvider(
     collect(u),                  # symbolic input variables
     collect(w),                  # symbolic disturbance variables
     [0.0, 0.0],                  # disturbance radius ΔW
-    UT.format_input_set(_U_),    # input constraints for LMI
-    UT.format_noise_set(Wformat), # disturbance vertices for LMI
+    ST.format_input_set(_U_),    # input constraints for LMI
+    ST.format_noise_set(Wformat), # disturbance vertices for LMI
 )
 
 # These is only used if the first argument is true

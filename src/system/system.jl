@@ -31,6 +31,9 @@ include("pid_controller.jl")
 # Trajectories
 include("trajectories.jl")
 
+# Synthesis of controlled ellipsoid-to-ellipsoid transitions (S-procedure LMIs)
+include("transition_synthesis.jl")
+
 # ------------------------------------------------------------
 # Package extension hooks
 # ------------------------------------------------------------

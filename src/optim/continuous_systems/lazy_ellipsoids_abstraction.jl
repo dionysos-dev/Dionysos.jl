@@ -374,7 +374,7 @@ function new_conf(
 
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
 
-    return UT.transition_backward(
+    return ST.transition_backward(
         affineSys,
         Nnear.state,
         xnew,
@@ -465,7 +465,7 @@ function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
 
     S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
 
-    ans, cont, cost = UT.transition_fixed(
+    ans, cont, cost = ST.transition_fixed(
         affineSys,
         E1,
         E2,

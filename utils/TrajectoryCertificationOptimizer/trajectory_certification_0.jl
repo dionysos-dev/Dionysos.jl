@@ -264,8 +264,8 @@ provider = ST.SymbolicAffineApproximationProvider(
     collect(u),
     collect(w),
     [0.0, 0.0],              # ΔW radius
-    UT.format_input_set(_U_),
-    UT.format_noise_set(Wformat),
+    ST.format_input_set(_U_),
+    ST.format_noise_set(Wformat),
 )
 
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(

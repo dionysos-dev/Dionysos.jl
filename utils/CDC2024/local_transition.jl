@@ -53,7 +53,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     maxδx = 100.0
     maxδu = 100.0
 
-    E1, cont, cost = UT.transition_backward(
+    E1, cont, cost = ST.transition_backward(
         affineSys,
         E2,
         xnew,

@@ -293,7 +293,7 @@ function compute_abstract_system_from_concrete_system!(
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)
 
-            ans, cont, cost = UT._has_transition(
+            ans, cont, cost = ST._has_transition(
                 hybridsys.resetmaps[m],
                 UT.Ellipsoid(P, x),
                 UT.Ellipsoid(Pm, xm),

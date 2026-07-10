@@ -185,8 +185,8 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 #     collect(u),
 #     collect(w),
 #     [0.0, 0.0],
-#     UT.format_input_set(_U_cert_),
-#     UT.format_noise_set(Wformat),
+#     ST.format_input_set(_U_cert_),
+#     ST.format_noise_set(Wformat),
 # )
 
 Symbolics.@variables θ ω τ w1 w2 T
@@ -210,8 +210,8 @@ provider = ST.SymbolicAffineApproximationProvider(
     u,
     w,
     [0.0, 0.0],
-    UT.format_input_set(_U_cert_),
-    UT.format_noise_set(Wset),
+    ST.format_input_set(_U_cert_),
+    ST.format_noise_set(Wset),
 )
 
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(

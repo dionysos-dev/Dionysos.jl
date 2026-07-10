@@ -179,32 +179,18 @@ function get_farthest_point(elli::Ellipsoid, d)
 end
 
 """
-    get_min_bounding_box(elli, optimizer) 
+    get_min_bounding_box(elli)
 
-Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}. 
+Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}.
 """
-function get_min_bounding_box(elli::Ellipsoid; optimizer = nothing)
+function get_min_bounding_box(elli::Ellipsoid)
     P = elli.P
     n = size(P, 1)
     R = zeros(n)
-
-    if optimizer !== nothing
-        model = Model(optimizer)
-        @variable(model, x[i = 1:n])
-        @constraint(model, x'P * x <= 1)
-        for i in 1:n
-            new_model, reference_map = copy_model(model)
-            set_optimizer(new_model, optimizer)
-            @objective(new_model, Max, reference_map[x[i]])
-            optimize!(new_model)
-            R[i] = abs(value(reference_map[x[i]]))
-        end
-    else
-        for i in 1:n
-            ei = zeros(n)
-            ei[i] = 1
-            R[i] = get_farthest_point(elli, ei)[i]
-        end
+    for i in 1:n
+        ei = zeros(n)
+        ei[i] = 1
+        R[i] = get_farthest_point(elli, ei)[i]
     end
     return HyperRectangle(elli.c .- R, elli.c .+ R)
 end

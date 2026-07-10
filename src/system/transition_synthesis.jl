@@ -1,9 +1,12 @@
-import MathematicalSystems
-MS = MathematicalSystems
+# Ellipsoid-to-ellipsoid transition synthesis for affine systems: given
+# x(k+1) = Ax(k) + Bu(k) + c (+ Dw(k)), decide whether an affine controller
+# u(x) = K(x - c₁) + ℓ drives the source ellipsoid into the target ellipsoid
+# under input constraints and polytopic noise, minimizing a worst-case
+# quadratic transition cost. Each entry point solves one SDP (S-procedure
+# LMIs); see Corollary 1 of https://arxiv.org/pdf/2204.00315.pdf.
 
-import LinearAlgebra as LA
-
-import HybridSystems
+import LazySets
+using JuMP
 
 # n×n dense identity, used across the LMI builders both as identity blocks inside
 # matrix literals and as the `ε·eye` PSD regularization term.
@@ -15,15 +18,15 @@ AffineSys = Union{
     HybridSystems.HybridSystems.ConstrainedAffineControlMap,
 }
 
-function format_input_set(rec::HyperRectangle)
-    n = get_dim(rec)
+function format_input_set(rec::UT.HyperRectangle)
+    n = UT.get_dim(rec)
     Uaux = LA.diagm(1:n)
     U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
     return U
 end
 
-function format_input_set(elli::Ellipsoid)
-    return [get_root(elli)]
+function format_input_set(elli::UT.Ellipsoid)
+    return [UT.get_root(elli)]
 end
 
 function format_input_set(iset::LazySets.IntersectionArray)
@@ -34,8 +37,8 @@ function format_input_set(iset::LazySets.IntersectionArray)
     return result
 end
 
-function format_noise_set(rec::HyperRectangle)
-    return get_vertices(rec)
+function format_noise_set(rec::UT.HyperRectangle)
+    return UT.get_vertices(rec)
 end
 
 function get_controller_matrices(m)
@@ -44,162 +47,19 @@ function get_controller_matrices(m)
     return m[:, 1:(end - 1)], SVector{nu}(m[:, end])
 end
 
-function _getμν(L, subsys::AffineSys)
-    n_x = length(subsys.c)
-
-    μ = LazySets.vertices_list(LazySets.Hyperrectangle(zeros(n_x), collect(L[1:n_x])))
-
-    Wmat = subsys.D * subsys.W
-    ν = [Wmat[:, i] for i in 1:size(Wmat, 2)]
-
-    return μ, ν
-end
-
-function hasTransition(
-    c,
-    u,
-    Ep::Ellipsoid,
-    subsys::AffineSys,
-    L,
-    S,
-    U,
-    maxRadius,
-    maxΔu,
-    optimizer;
-    λ = 0.01,
-)
-    Pp = Ep.P
-    cp = Ep.c
-
-    A = subsys.A
-    B = subsys.B
-    g = subsys.c
-    n = length(g)
-    m = size(U[1], 2)
-
-    μ, ν = _getμν(L, subsys)
-    N_μ = length(μ)
-    N_ν = length(ν)
-    N_u = length(U)
-
-    model = Model(optimizer)
-    @variable(model, C[i = 1:n, j = 1:n])
-    @variable(model, X[i = 1:n, j = 1:n], PSD)
-    @variable(model, F[i = 1:m, j = 1:n])
-    @variable(model, ell[i = 1:m, j = 1:1])
-    @variable(model, bta[i = 1:N_μ, j = 1:N_ν] >= 0)
-    @variable(model, tau[i = 1:N_u] >= 0)
-    @variable(model, gamma >= 0)
-    @variable(model, ϕ >= 0)
-    @variable(model, r >= 0)
-    @variable(model, δu >= 0)
-    @variable(model, ϵ >= 0)
-    @variable(model, J >= 0)
-
-    @expressions(model, begin
-        At, A * C + B * F
-        gt, g + B * ell
-    end)
-
-    t(x) = transpose(x)
-
-    z = zeros(n, 1)
-
-    for i in 1:N_μ
-        for j in 1:N_ν
-            aux = @expression(
-                model,
-                A * hcat(c) + hcat(gt) - hcat(cp) +
-                hcat(Vector(μ[i])) * (r + δu) +
-                hcat(Vector(ν[j]))
-            )#
-            @constraint(
-                model,
-                [
-                    bta[i, j]*eye(n) z t(At)
-                    t(z) 1-bta[i, j] t(aux)
-                    At aux inv(Pp)
-                ] >= eye(2 * n + 1) * 1e-10,
-                PSDCone()
-            )
-        end
-    end
-
-    for i in 1:N_u
-        n_ui = size(U[i], 1)
-        @constraint(
-            model,
-            [
-                tau[i]*eye(n) z t(U[i] * F)
-                t(z) 1-tau[i] t(U[i] * ell)
-                U[i]*F U[i]*ell eye(n_ui)
-            ] >= eye(n + n_ui + 1) * 1e-10,
-            PSDCone()
-        )
-    end
-    n_S = size(S, 1)
-    @constraint(
-        model,
-        [
-            gamma*eye(n) z [t(C) t(F) z]*t(S)
-            t(z) J-gamma [t(c) t(ell) 1]*t(S)
-            S*t([t(C) t(F) z]) S*t([t(c) t(ell) 1]) eye(n_S)
-        ] >= eye(n + n_S + 1) * 1e-10,
-        PSDCone()
-    )
-
-    u = hcat(u)
-    @constraint(
-        model,
-        [
-            ϕ*eye(n) z t(F)
-            t(z) δu-ϕ t(ell - u)
-            (F) (ell-u) eye(m)
-        ] >= eye(n + m + 1) * 1e-10,
-        PSDCone()
-    )
-
-    @constraint(model, [
-        eye(n) t(C)
-        C r*eye(n)
-    ] >= eye(n * 2) * 1e-10, PSDCone())
-
-    # @constraint(model,diag(C).>=ones(n,1)*0.01)
-    @constraint(model, r <= maxRadius^2)
-    @constraint(model, δu <= maxΔu^2)
-    @constraint(model, diag(C) .>= ones(n, 1) * ϵ)
-
-    @objective(model, Min, -ϵ + λ * J)# -tr(C)) #TODO regularization ? 
-
-    optimize!(model)
-
-    if solution_summary(model).termination_status == MOI.OPTIMAL
-        C = value.(C)
-        El = Ellipsoid(transpose(C) \ eye(n) / C, c)
-        kappa = [value.(F) / (C) value.(ell)]
-        cost = value(J)
-    else
-        El = nothing
-        kappa = nothing
-        cost = nothing
-    end
-    # println("$(solution_summary(model).solve_time) s")
-    return El, kappa, cost
-end
-
 #     _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
 
 # Verifies whether a controller u(x)=K(x-c)+ell exists for `subsys` satisfying input requirements
 # defined by `U` ans performs a sucessful transitions from a starting set Bs = {(x-c)'P(x-c) ≤ 1}
-# to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is 
-# minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix  
-# `W` defines a vertex of the polytope from which additive disturbance are drawn. 
+# to the final set Bs = {(x-c)'P(x-c) ≤ 1}. A tight upper bound on the transition cost c(x,u) is
+# minimized where c(x,u) = |L*[x; u; 1]|^2, from the parameter `L` and each columm of the matrix
+# `W` defines a vertex of the polytope from which additive disturbance are drawn.
 
-# The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP 
+# The input restrictions are defined by the list U as |U[i]*u| ≤ 1. `optimizer` must be a JuMP
 # SDP optimizer (e.g., Mosek, SDPA, COSMO, ...).
 
 # ## Note
-# This implements the optimization problem presented in Corollary 1 of the following paper 
+# This implements the optimization problem presented in Corollary 1 of the following paper
 # https://arxiv.org/pdf/2204.00315.pdf
 function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
     n = length(c)
@@ -286,8 +146,8 @@ end
 
 function _has_transition(
     affsys::AffineSys,
-    E1::Ellipsoid,
-    E2::Ellipsoid,
+    E1::UT.Ellipsoid,
+    E2::UT.Ellipsoid,
     U,
     W,
     S,
@@ -307,26 +167,8 @@ function _has_transition(
         optimizer,
     )
     K, ℓ = get_controller_matrices(kappa)
-    cont = MS.AffineMap(K, ℓ-K*E1.c)
+    cont = MS.AffineMap(K, ℓ - K * E1.c)
     return ans, cont, cost
-end
-
-#
-#    _compute_base_cell(r::SVector{S})
-#
-# Computes a polyhedron containing the base hyperrectangular cell, centered at the origin
-# and with the i-th side lenght given by `2*r[i]`. 
-#
-function _compute_base_cell(r::SVector{S}) where {S}
-    baseCellList = []
-    for i in 1:S
-        vec = SVector{S}(1:S .== i)
-        append!(
-            baseCellList,
-            [Polyhedra.HalfSpace(-vec, r[i]) ∩ Polyhedra.HalfSpace(vec, r[i])],
-        )
-    end
-    return Polyhedra.polyhedron(intersect(baseCellList...))
 end
 
 #
@@ -370,7 +212,7 @@ end
 ###############################################################################################################################
 
 # U: each entry of U is a quadratic constraint on the input
-# W: each column is vertex of the polytopic noise 
+# W: each column is vertex of the polytopic noise
 # x(k+1) = Ax(k)+Bu(k)+g+Ew(k), with u(k)∈E(0,U^T U), w(k)∈W
 # W[:,i] = vertex i of the polytop
 function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
@@ -447,8 +289,8 @@ end
 
 function transition_fixed(
     affsys::AffineSys,
-    E1::Ellipsoid,
-    E2::Ellipsoid,
+    E1::UT.Ellipsoid,
+    E2::UT.Ellipsoid,
     U,
     W,
     S,
@@ -469,7 +311,7 @@ function transition_fixed(
         optimizer,
     )
     K, ℓ = get_controller_matrices(kappa)
-    cont = MS.AffineMap(K, ℓ-K*E1.c)
+    cont = MS.AffineMap(K, ℓ - K * E1.c)
     return ans, cont, cost
 end
 
@@ -634,7 +476,7 @@ end
 
 function transition_backward(
     affsys::AffineSys,
-    E2::Ellipsoid,
+    E2::UT.Ellipsoid,
     c1,
     u,
     U,
@@ -668,8 +510,8 @@ function transition_backward(
     )
     if P1 !== nothing
         K, ℓ = get_controller_matrices(kappa)
-        cont = MS.AffineMap(K, ℓ-K*c1)
-        return Ellipsoid(P1, c1), cont, cost
+        cont = MS.AffineMap(K, ℓ - K * c1)
+        return UT.Ellipsoid(P1, c1), cont, cost
     else
         return nothing, nothing, nothing
     end
