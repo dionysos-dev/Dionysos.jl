@@ -124,7 +124,7 @@ function _generate_abstract_trajectory(gen::TrajectoryGenerator)
 
     q0 = SY.get_abstract_state(abstract_system, _initial_state(gen, gen.problem))
 
-    traj_abs = ST.get_closed_loop_trajectory(
+    traj_abs = SY.get_closed_loop_trajectory(
         autom,
         abstract_controller,
         q0,

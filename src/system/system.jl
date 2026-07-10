@@ -12,9 +12,6 @@ import RecipesBase: @recipe, @series
 using ..Utils
 UT = Utils
 
-# Discrete systems: HybridSystems extension
-include("discrete_systems/discrete_systems.jl")
-
 # Continuous systems: MathematicalSystems extension
 include("continuous_systems/continuous_systems.jl")
 

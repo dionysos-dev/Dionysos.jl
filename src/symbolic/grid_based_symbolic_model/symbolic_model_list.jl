@@ -1,29 +1,22 @@
 """
 SymbolicModelList:
-- XMapping / UMapping define universes and conversions
-- Xset: states we build from (sources)
-- Rset: allowed states as targets (superset; "relation universe allowance")
-- Uset: inputs considered
+- `X`: source states bundled with the state mapping (`MP.MappedStateSet`)
+- `R`: allowed target states, same state mapping ("relation universe allowance")
+- `U`: inputs considered, bundled with the input mapping
 """
 mutable struct SymbolicModelList{
     N,
     M,
-    TX,
-    TU,
-    XM <: MP.AbstractMapping{N, TX},
-    UM <: MP.AbstractMapping{M, TU},
-    XS <: MP.AbstractStateSet{N},
-    RS <: MP.AbstractStateSet{N},
-    US <: MP.AbstractStateSet{M},
+    XB <: MP.MappedStateSet{N},
+    RB <: MP.MappedStateSet{N},
+    UB <: MP.MappedStateSet{M},
     A,
     OS,
     MD <: AbstractTransitionMetadata,
 } <: GridBasedSymbolicModel{N, M}
-    XMapping::XM
-    UMapping::UM
-    Xset::XS
-    Rset::RS
-    Uset::US
+    X::XB
+    R::RB
+    U::UB
     autom::A
     original_symmodel::OS
     metadata::MD
@@ -38,7 +31,7 @@ function SymbolicModelList(
     Xset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Rset::Union{Nothing, MP.AbstractStateSet{N}} = nothing,
     Uset::Union{Nothing, MP.AbstractStateSet{M}} = nothing,
-    automaton_constructor::Function = (n, m) -> ST.SortedAutomatonList(n, m),
+    automaton_constructor::Function = (n, m) -> SortedAutomatonList(n, m),
     original_symmodel = nothing,
     convert_U_to_list::Bool = true,
     metadata = NoTransitionMetadata(),
@@ -55,11 +48,9 @@ function SymbolicModelList(
     )
 
     return SymbolicModelList(
-        XMapping,
-        UMap,
-        Xset_final,
-        Rset_final,
-        Uset_final,
+        MP.MappedStateSet(Xset_final, XMapping),
+        MP.MappedStateSet(Rset_final, XMapping),
+        MP.MappedStateSet(Uset_final, UMap),
         autom,
         original_symmodel,
         metadata,
@@ -67,12 +58,16 @@ function SymbolicModelList(
 end
 
 # --- interface ---
-get_state_mapping(sym::SymbolicModelList) = sym.XMapping
-get_input_mapping(sym::SymbolicModelList) = sym.UMapping
+get_mapped_state_set(sym::SymbolicModelList) = sym.X
+get_mapped_retained_set(sym::SymbolicModelList) = sym.R
+get_mapped_input_set(sym::SymbolicModelList) = sym.U
 
-get_state_set(sym::SymbolicModelList) = sym.Xset
-get_retained_set(sym::SymbolicModelList) = sym.Rset
-get_input_set(sym::SymbolicModelList) = sym.Uset
+get_state_mapping(sym::SymbolicModelList) = MP.get_mapping(sym.X)
+get_input_mapping(sym::SymbolicModelList) = MP.get_mapping(sym.U)
+
+get_state_set(sym::SymbolicModelList) = MP.get_set(sym.X)
+get_retained_set(sym::SymbolicModelList) = MP.get_set(sym.R)
+get_input_set(sym::SymbolicModelList) = MP.get_set(sym.U)
 
 get_automaton(sym::SymbolicModelList) = sym.autom
 

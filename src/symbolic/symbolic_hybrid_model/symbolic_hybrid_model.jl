@@ -29,7 +29,7 @@ const TransitionTuple = Tuple{AugmentedState, AugmentedState, Int}
 # - `symbolic_automaton::A`: Final symbolic automaton representing the timed hybrid system
 # - `input_mapping::G`: Global input mapping system for unified input handling
 # """
-struct TimedHybridSymbolicModel{S1, A, T, G}
+struct TimedHybridSymbolicModel{S1, A, T, G} <: AbstractSymbolicModel
     mode_abstractions::Vector{S1}
     time_abstractions::Vector{T}
     state_index_to_augmented::Vector{AugmentedState}
@@ -485,13 +485,13 @@ function build_symbolic_automaton(
         augmented_to_state_index[aug_state] = i
     end
 
-    symbolic_automaton = ST.IndexedAutomatonList(nstates, ninputs)
+    symbolic_automaton = IndexedAutomatonList(nstates, ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = augmented_to_state_index[target]
         source_int = augmented_to_state_index[source]
 
-        ST.add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
+        add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
     end
 
     return state_index_to_augmented, augmented_to_state_index, symbolic_automaton

@@ -86,7 +86,7 @@ function test_multithreading_consistency(method_name, concrete_system, Xmap, Uma
         concrete_system;
         threaded = false,
     )
-    transitions_serial = Set(ST.enum_transitions(sym_serial.autom))
+    transitions_serial = Set(SY.enum_transitions(sym_serial.autom))
     n_serial = length(transitions_serial)
 
     # Threaded (if available)

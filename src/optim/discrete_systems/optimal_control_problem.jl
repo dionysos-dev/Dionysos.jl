@@ -52,7 +52,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     problem === nothing && error("problem not set")
 
     autom = problem.system
-    init_set = optimizer.early_stop ? problem.initial_set : ST.enum_states(autom)
+    init_set = optimizer.early_stop ? problem.initial_set : SY.enum_states(autom)
 
     controller, controllable_set, uncontrollable_set, value_fun_tab =
         compute_worst_case_cost_controller(
@@ -79,9 +79,9 @@ end
 
 """
     compute_worst_case_cost_controller(
-        autom::ST.AbstractAutomatonList,
+        autom::SY.AbstractAutomatonList,
         target_set;
-        initial_set = ST.enum_states(autom),
+        initial_set = SY.enum_states(autom),
         cost_function = nothing,
         sparse_input::Bool = false,
     )
@@ -96,9 +96,9 @@ This function redirects to [`compute_worst_case_uniform_cost_controller`](@ref) 
 `cost_function` is nothing and [`compute_optimal_controller`](@ref) otherwise.
 """
 function compute_worst_case_cost_controller(
-    autom::ST.AbstractAutomatonList,
+    autom::SY.AbstractAutomatonList,
     target_set;
-    initial_set = ST.enum_states(autom),
+    initial_set = SY.enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
 )
@@ -124,9 +124,9 @@ using DataStructures
 
 """
     compute_optimal_controller(
-        autom::ST.AbstractAutomatonList,
+        autom::SY.AbstractAutomatonList,
         target_set;
-        initial_set = ST.enum_states(autom),
+        initial_set = SY.enum_states(autom),
         cost_function = nothing,
         sparse_input::Bool = false,
     )
@@ -138,19 +138,19 @@ calling the specialized function [`compute_worst_case_uniform_cost_controller`](
 instead.
 """
 function compute_optimal_controller(
-    autom::ST.AbstractAutomatonList,
+    autom::SY.AbstractAutomatonList,
     target_set;
-    initial_set = ST.enum_states(autom),
+    initial_set = SY.enum_states(autom),
     cost_function = nothing,
     sparse_input::Bool = false,
 )
-    contr_tab = DiscreteControlTable(ST.get_n_state(autom))
+    contr_tab = DiscreteControlTable(SY.get_n_state(autom))
 
-    is_det = ST.is_deterministic(autom)
+    is_det = SY.is_deterministic(autom)
     uniform_cost = cost_function === nothing
     effective_cost_function = uniform_cost ? ((q, u) -> 1.0) : cost_function
-    state_set = ST.enum_states(autom)
-    value_fun_tab = fill(Inf, ST.get_n_state(autom))
+    state_set = SY.enum_states(autom)
+    value_fun_tab = fill(Inf, SY.get_n_state(autom))
     for q in target_set
         value_fun_tab[q] = 0.0
     end
@@ -170,7 +170,7 @@ function compute_optimal_controller(
             push!(optimal_controllable_set, target)
         end
 
-        for (source, symbol) in ST.pre(autom, target)
+        for (source, symbol) in SY.pre(autom, target)
             if is_det
                 total_cost = effective_cost_function(source, symbol) + cost_to_target
                 if total_cost < value_fun_tab[source]
@@ -187,7 +187,7 @@ function compute_optimal_controller(
                         worst = value_fun_tab[target]
                         push!(optimal_controllable_set, source)
                     else
-                        successors = ST.post(autom, source, symbol)
+                        successors = SY.post(autom, source, symbol)
                         worst = maximum(value_fun_tab[q′] for q′ in successors)
                     end
                     total_cost = effective_cost_function(source, symbol) + worst
@@ -227,8 +227,8 @@ function decrease_counter!(counter::Dict{Tuple{Int, Int}, Int}, source::Int, sym
 end
 
 function _compute_num_targets_unreachable(counter, autom)
-    for target in ST.enum_states(autom)
-        for (source, symbol) in ST.pre(autom, target)
+    for target in SY.enum_states(autom)
+        for (source, symbol) in SY.pre(autom, target)
             increase_counter!(counter, source, symbol)
         end
     end
@@ -238,7 +238,7 @@ function _counter(autom, sparse_input::Bool)
     if sparse_input
         num_targets_unreachable = Dict{Tuple{Int, Int}, Int}()
     else
-        num_targets_unreachable = zeros(Int, ST.get_n_state(autom), ST.get_n_input(autom))
+        num_targets_unreachable = zeros(Int, SY.get_n_state(autom), SY.get_n_input(autom))
     end
 
     _compute_num_targets_unreachable(num_targets_unreachable, autom)
@@ -247,9 +247,9 @@ end
 
 """
     function compute_worst_case_uniform_cost_controller(
-        autom::ST.AbstractAutomatonList,
+        autom::SY.AbstractAutomatonList,
         target_set;
-        initial_set = ST.enum_states(autom),
+        initial_set = SY.enum_states(autom),
         sparse_input = false,
     )
 
@@ -260,13 +260,13 @@ But for this particular case of cost, this implementation is more efficient than
 as it does not rely on a `PriorityQueue`.
 """
 function compute_worst_case_uniform_cost_controller(
-    autom::ST.AbstractAutomatonList,
+    autom::SY.AbstractAutomatonList,
     target_set;
-    initial_set = ST.enum_states(autom),
+    initial_set = SY.enum_states(autom),
     sparse_input = false,
 )
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
 
     contr_tab = DiscreteControlTable(nstates)
 
@@ -298,7 +298,7 @@ function compute_worst_case_uniform_cost_controller(
         step += 1
 
         for target in current_targets
-            for (source, symbol) in ST.pre(autom, target)
+            for (source, symbol) in SY.pre(autom, target)
                 controllable_bits[source] && continue
 
                 if decrease_counter!(counter, source, symbol) == 0

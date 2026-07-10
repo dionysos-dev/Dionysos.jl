@@ -76,7 +76,7 @@ function compute_abstract_system!(
     isempty(trans) || add_transitions!(abstract_system, trans)
 
     # Deduplicate / compress automaton after all transitions are inserted.
-    ST.finalize!(get_automaton(abstract_system))
+    finalize!(get_automaton(abstract_system))
 
     add_metadata_pairs!(abstract_system, metadata_pairs)
 

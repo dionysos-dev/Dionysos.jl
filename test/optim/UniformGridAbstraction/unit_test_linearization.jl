@@ -84,7 +84,7 @@ println("Started test")
 
     for q in SY.enum_states(symmodel)
         empty!(targetlist)
-        ST.compute_post!(targetlist, symmodel.autom, q, symbol)
+        SY.compute_post!(targetlist, symmodel.autom, q, symbol)
         if !isempty(targetlist)
             source = q
             break

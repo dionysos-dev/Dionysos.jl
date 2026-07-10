@@ -33,9 +33,9 @@ MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.problem === nothing
 
 # RawOptimizerAttribute get/set + SolveTimeSec provided by AbstractDionysosOptimizer.
 
-function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist)
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
+function compute_largest_invariant_set(autom::SY.AbstractAutomatonList, safelist)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
 
     safeset = _bitset_from_states(safelist, nstates)
 
@@ -62,7 +62,7 @@ function compute_largest_invariant_set(autom::ST.AbstractAutomatonList, safelist
         @inbounds for target in 1:nstates
             unsafeset[target] || continue
 
-            for (source, symbol) in ST.pre(autom, target)
+            for (source, symbol) in SY.pre(autom, target)
                 if pairstable[source, symbol]
                     pairstable[source, symbol] = false
                     nsymbolslist[source] -= 1

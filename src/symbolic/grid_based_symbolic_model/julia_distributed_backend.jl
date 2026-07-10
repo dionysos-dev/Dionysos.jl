@@ -10,28 +10,27 @@ import Distributed
         nparts=nothing,
         partition_strategy=:roundrobin,
         threaded_per_worker=false,
-        warmup_workers=true,
     )
 
-Distributed execution over Julia worker processes.
+Distributed execution over Julia worker processes. Each worker receives its
+share of the work in a single `remotecall` carrying the symbolic model and
+the approximation explicitly — there is no per-worker global state to
+install or clear, and workers JIT-compile in parallel inside their call.
 
 # Parameters
 - `procs`: worker IDs (defaults to `Distributed.workers()`).
 - `nparts`: number of partitions (defaults to number of workers).
 - `partition_strategy`: how to split states (`:roundrobin` or `:contiguous`).
 - `threaded_per_worker`: enable threading inside each worker.
-- `warmup_workers`: run a small warm-up to reduce compilation overhead.
 """
 struct JuliaDistributedBackend <: AbstractExecutionBackend
     procs::Union{Nothing, Vector{Int}}
     nparts::Union{Nothing, Int}
     partition_strategy::Symbol
     threaded_per_worker::Bool
-    warmup_workers::Bool
 end
 
-JuliaDistributedBackend() =
-    JuliaDistributedBackend(nothing, nothing, :roundrobin, false, true)
+JuliaDistributedBackend() = JuliaDistributedBackend(nothing, nothing, :roundrobin, false)
 
 function compute_abstract_system_from_concrete_system!(
     symmodel::GridBasedSymbolicModel,
@@ -53,14 +52,9 @@ function compute_abstract_system_from_concrete_system!(
         nparts = nparts,
         partition_strategy = execution_backend.partition_strategy,
         threaded_per_worker = execution_backend.threaded_per_worker,
-        warmup_workers = execution_backend.warmup_workers,
         kwargs...,
     )
 end
-
-const _DIST_SYMMODEL = Ref{Any}(nothing)
-const _DIST_APPROX = Ref{Any}(nothing)
-const _DIST_READY = Ref(false)
 
 function assign_states_to_workers(parts::Vector{Vector{Int}}, procs)
     isempty(procs) && return Tuple{Int, Vector{Int}}[]
@@ -74,83 +68,6 @@ function assign_states_to_workers(parts::Vector{Vector{Int}}, procs)
     return [(procs[i], buckets[i]) for i in eachindex(procs)]
 end
 
-function _install_distributed_abstraction_data!(symmodel, concrete_system_approx)
-    _DIST_SYMMODEL[] = symmodel
-    _DIST_APPROX[] = concrete_system_approx
-    _DIST_READY[] = true
-    return nothing
-end
-
-function _clear_distributed_abstraction_data!()
-    _DIST_SYMMODEL[] = nothing
-    _DIST_APPROX[] = nothing
-    _DIST_READY[] = false
-    return nothing
-end
-
-function _make_local_symmodel_from_ids(state_ids::Vector{Int})
-    _DIST_READY[] || error("Distributed abstraction worker not initialized.")
-
-    sym = _DIST_SYMMODEL[]
-    return local_symmodel_from_state_ids(sym, state_ids)
-end
-
-function _warmup_distributed_abstraction_worker!()
-    _DIST_READY[] || error("Distributed abstraction worker not initialized.")
-
-    sym = _DIST_SYMMODEL[]
-    approx = _DIST_APPROX[]
-
-    states = collect(enum_source_states(sym))
-    inputs = collect(enum_inputs(sym))
-
-    isempty(states) && return nothing
-    isempty(inputs) && return nothing
-
-    q = first(states)
-    u = first(inputs)
-
-    x = get_concrete_state(sym, q)
-    cu = get_concrete_input(sym, u)
-
-    if approx isa ST.DiscreteTimeCenteredSimulation
-        f = ST.get_system_map(approx)
-        f(x, cu)
-
-    elseif approx isa ST.DiscreteTimeGrowthBound
-        f = ST.get_system_map(approx)
-        g = approx.growthbound_map
-        f(x, cu)
-
-        XMapping = get_state_mapping(sym)
-        r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-        g(r, cu)
-
-    elseif approx isa ST.DiscreteTimeSystemOverApproximation
-        f = ST.get_over_approximation_map(approx)
-        elem = get_concrete_elem(sym, q)
-        f(elem, cu)
-
-    elseif approx isa ST.DiscreteTimeSystemUnderApproximation
-        f = ST.get_under_approximation_map(approx)
-        elem = get_concrete_elem(sym, q)
-        f(elem, cu)
-
-    elseif approx isa ST.DiscreteTimeLinearized
-        XMapping = get_state_mapping(sym)
-        N = MP.get_dim(XMapping)
-        r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-        H = SMatrix{N, N}(LA.I) .* r
-        lmap = approx.linsys_map
-        emap = approx.error_map
-        lmap(x, H, cu)
-        e = LA.norm(r, Inf)
-        emap(e, cu)
-    end
-
-    return nothing
-end
-
 struct DistributedAbstractionResult
     transitions::Vector{TransitionKey}
     metadata_pairs::Vector{Pair{TransitionKey, Any}}
@@ -158,7 +75,10 @@ struct DistributedAbstractionResult
     n_transitions::Int
 end
 
+# Worker entry point: everything it needs arrives as arguments.
 function _run_local_partition_ids(
+    symmodel::GridBasedSymbolicModel,
+    concrete_system_approx,
     state_ids::Vector{Int};
     print_level::Int = 0,
     update_interval::Int = Int(1e5),
@@ -167,12 +87,11 @@ function _run_local_partition_ids(
     state_filter = nothing,
     state_input_filter = nothing,
 )
-    local_symmodel = _make_local_symmodel_from_ids(state_ids)
-    local_approx = _DIST_APPROX[]
+    local_symmodel = local_symmodel_from_state_ids(symmodel, state_ids)
 
     transitions, metadata_pairs = collect_abstract_transitions(
         local_symmodel,
-        local_approx;
+        concrete_system_approx;
         print_level = print_level,
         update_interval = update_interval,
         progress_dt = progress_dt,
@@ -189,38 +108,6 @@ function _run_local_partition_ids(
     )
 end
 
-function init_abstraction_workers!(
-    procs,
-    symmodel::GridBasedSymbolicModel,
-    concrete_system_approx;
-    warmup::Bool = true,
-)
-    for p in procs
-        Distributed.remotecall_wait(
-            _install_distributed_abstraction_data!,
-            p,
-            symmodel,
-            concrete_system_approx,
-        )
-    end
-
-    if warmup
-        for p in procs
-            Distributed.remotecall_wait(_warmup_distributed_abstraction_worker!, p)
-        end
-    end
-
-    return nothing
-end
-
-function clear_abstraction_workers!(procs = Distributed.workers())
-    for p in procs
-        Distributed.remotecall_wait(_clear_distributed_abstraction_data!, p)
-    end
-
-    return nothing
-end
-
 function compute_abstract_system_distributed!(
     symmodel::GridBasedSymbolicModel,
     concrete_system_approx;
@@ -233,7 +120,6 @@ function compute_abstract_system_distributed!(
     progress_dt::Float64 = 0.2,
     state_filter = nothing,
     state_input_filter = nothing,
-    warmup_workers::Bool = true,
 )
     if print_level >= 1
         @info(
@@ -258,7 +144,6 @@ function compute_abstract_system_distributed!(
         progress_dt = progress_dt,
         state_filter = state_filter,
         state_input_filter = state_input_filter,
-        warmup_workers = warmup_workers,
     )
 
     isempty(transitions) || add_transitions!(symmodel, transitions)
@@ -278,7 +163,6 @@ function collect_abstract_transitions_distributed(
     progress_dt::Float64 = 0.2,
     state_filter = nothing,
     state_input_filter = nothing,
-    warmup_workers::Bool = true,
 )
     nparts >= 1 || error("nparts must be >= 1")
 
@@ -295,13 +179,6 @@ function collect_abstract_transitions_distributed(
         )
     end
 
-    init_abstraction_workers!(
-        procs,
-        symmodel,
-        concrete_system_approx;
-        warmup = warmup_workers,
-    )
-
     parts = partition_source_state_ids(symmodel, nparts; strategy = partition_strategy)
     worker_assignments = assign_states_to_workers(parts, procs)
 
@@ -317,6 +194,8 @@ function collect_abstract_transitions_distributed(
         futures[i] = Distributed.remotecall(
             _run_local_partition_ids,
             p,
+            symmodel,
+            concrete_system_approx,
             ids;
             print_level = min(print_level, 1),
             update_interval = update_interval,

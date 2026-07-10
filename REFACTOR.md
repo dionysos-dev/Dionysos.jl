@@ -219,9 +219,32 @@ no `print`/`println` in library code) · immutable value objects · reuse the ec
 - Kept: the `Infinity` sentinel; the `trajectory_success(::CoSafeLTLProblem)` placeholder
   (documented as such).
 
-### Phase 5 — Symbolic ⬜
-Slim the 12-param `SymbolicModelList`; unify `TimedHybridSymbolicModel`; own the automaton; keep the clean
-execution-backend layer as the template.
+### Phase 5 — Symbolic 🔄 (edits done, gate running)
+- ✅ **`MappedStateSet{N, S, M}`** (Mapping): a state set bundled with its mapping, one-arg API
+  (`contains_state(ms, q)`, `enum_states(ms)`, `add_set!(ms, set, incl)`, …) — ends the
+  `(set, mapping)` argument threading (deferred here from Phase 3 for single churn).
+  `SymbolicModelList` regrouped 12 → 8 type params: `X`/`R`/`U` are bundles (`R` shares `X`'s
+  mapping reference); the kwarg constructor is unchanged so no caller moved. Generic
+  `SymbolicModel` accessors got derived `get_mapped_*` defaults and their bodies now use the
+  one-arg bundle API.
+- ✅ **`AbstractSymbolicModel` root + `TimedHybridSymbolicModel` unification.** New dimensionless
+  root above `SymbolicModel{N, M}` holding the automaton-facing generics (`get_automaton`, `pre`,
+  `post`, `enum_transitions`, `add_transition[s]!`, `get_n_transitions`, `is_deterministic`).
+  `TimedHybridSymbolicModel` (per-mode dims — can't truthfully claim `{N, M}`) subtypes the root
+  and inherits that whole surface instead of re-implementing it.
+- ✅ **Automaton relocated System → Symbolic** (`src/symbolic/automata/`): it is the abstraction's
+  transition graph. Clean break, no aliases: ~90 `ST.`→`SY.` call sites across optim/tests/docs;
+  automaton-level `get_closed_loop_trajectory` moved along (`automata/closed_loop.jl`);
+  `test/system/automaton.jl` → `test/symbolic/automaton.jl`. **Healed a latent bug**: the generic
+  `pre(sym)`/`post(sym)` forwarded to *unprefixed* `pre(automaton)`, which had no method inside
+  Symbolic before the move (System doesn't export it) — dead/incorrect dispatch path now works.
+- ✅ **Distributed backend: global `Ref` handoff deleted.** `assign_states_to_workers` merges
+  partitions into one bucket per worker, so passing `(symmodel, approx)` in the single per-worker
+  `remotecall` costs the same one serialization as install-once — with fewer round-trips, parallel
+  (instead of sequential) worker JIT, and zero global state; `_install/_clear/init/clear_abstraction_workers!`
+  and the `warmup_workers` knob removed.
+- Kept: the execution-backend layer as-is (the house template); `SortedTupleSet` (folds into a
+  future CSR redesign if benchmarks justify it — out of v0.2 scope).
 
 ### Phase 6 — Optim (centerpiece) ⬜
 Adopt the Phase-0 base across all ~20 optimizers (delete the boilerplate + drifted wrappers); replace the

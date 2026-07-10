@@ -1,11 +1,21 @@
 """
+    AbstractSymbolicModel
+
+Root of the symbolic-model hierarchy: anything that owns a finite automaton
+(`get_automaton`). Models with a single concrete state/input space of fixed
+dimension subtype [`SymbolicModel{N, M}`](@ref); models whose spaces vary
+per mode (e.g. `TimedHybridSymbolicModel`) subtype this root directly.
+"""
+abstract type AbstractSymbolicModel end
+
+"""
     Abstract Type: SymbolicModel{N, M}
 
 Defines a generic symbolic model interface, where:
 - `N` is the state space dimension.
 - `M` is the input space dimension.
 """
-abstract type SymbolicModel{N, M} end
+abstract type SymbolicModel{N, M} <: AbstractSymbolicModel end
 
 # -----------------------
 # State/Input enumeration
@@ -21,23 +31,28 @@ get_retained_set(sym::SymbolicModel) =
     error("implement `get_retained_set` for $(typeof(sym))")
 get_input_set(sym::SymbolicModel) = error("implement `get_input_set` for $(typeof(sym))")
 
-get_n_state(sym::SymbolicModel) = MP.get_n_state(get_state_set(sym), get_state_mapping(sym))
-get_n_allowed_state(sym::SymbolicModel) =
-    MP.get_n_state(get_retained_set(sym), get_state_mapping(sym))
-get_n_input(sym::SymbolicModel) = MP.get_n_state(get_input_set(sym), get_input_mapping(sym))
+# Self-contained set+mapping bundles (derived by default; concrete models that
+# already store bundles override these to return them directly).
+get_mapped_state_set(sym::SymbolicModel) =
+    MP.MappedStateSet(get_state_set(sym), get_state_mapping(sym))
+get_mapped_retained_set(sym::SymbolicModel) =
+    MP.MappedStateSet(get_retained_set(sym), get_state_mapping(sym))
+get_mapped_input_set(sym::SymbolicModel) =
+    MP.MappedStateSet(get_input_set(sym), get_input_mapping(sym))
 
-enum_states(sym::SymbolicModel) = MP.enum_states(get_state_set(sym), get_state_mapping(sym))
-enum_allowed_states(sym::SymbolicModel) =
-    MP.enum_states(get_retained_set(sym), get_state_mapping(sym))
-enum_inputs(sym::SymbolicModel) = MP.enum_states(get_input_set(sym), get_input_mapping(sym))
+get_n_state(sym::SymbolicModel) = MP.get_n_state(get_mapped_state_set(sym))
+get_n_allowed_state(sym::SymbolicModel) = MP.get_n_state(get_mapped_retained_set(sym))
+get_n_input(sym::SymbolicModel) = MP.get_n_state(get_mapped_input_set(sym))
 
-is_state(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_state_set(sym), get_state_mapping(sym), q)
+enum_states(sym::SymbolicModel) = MP.enum_states(get_mapped_state_set(sym))
+enum_allowed_states(sym::SymbolicModel) = MP.enum_states(get_mapped_retained_set(sym))
+enum_inputs(sym::SymbolicModel) = MP.enum_states(get_mapped_input_set(sym))
+
+is_state(sym::SymbolicModel, q::Int) = MP.contains_state(get_mapped_state_set(sym), q)
 is_allowed_state(::SymbolicModel, ::Nothing) = false
 is_allowed_state(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_retained_set(sym), get_state_mapping(sym), q)
-is_input(sym::SymbolicModel, q::Int) =
-    MP.contains_state(get_input_set(sym), get_input_mapping(sym), q)
+    MP.contains_state(get_mapped_retained_set(sym), q)
+is_input(sym::SymbolicModel, q::Int) = MP.contains_state(get_mapped_input_set(sym), q)
 
 get_state_dim(sym::SymbolicModel) = MP.get_dim(get_state_mapping(sym))
 get_input_dim(sym::SymbolicModel) = MP.get_dim(get_input_mapping(sym))
@@ -56,16 +71,18 @@ get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapp
 get_concrete_elem(sym::SymbolicModel, q::Int) =
     MP.get_elem_by_state(get_state_mapping(sym), q)
 
-get_automaton(sym::SymbolicModel) = error("implement `get_automaton` for $(typeof(sym))")
-pre(sym::SymbolicModel, target::Int) = pre(get_automaton(sym), target)
-post(sym::SymbolicModel, source::Int, input::Int) = post(get_automaton(sym), source, input)
-enum_transitions(sym::SymbolicModel) = ST.enum_transitions(get_automaton(sym))
-add_transition!(sym::SymbolicModel, q::Int, q′::Int, u::Int) =
-    ST.add_transition!(get_automaton(sym), q, q′, u)
-add_transitions!(sym::SymbolicModel, translist) =
-    ST.add_transitions!(get_automaton(sym), translist)
-get_n_transitions(sym::SymbolicModel) = length(enum_transitions(sym))
-is_deterministic(sym::SymbolicModel) = ST.is_deterministic(get_automaton(sym))
+get_automaton(sym::AbstractSymbolicModel) =
+    error("implement `get_automaton` for $(typeof(sym))")
+pre(sym::AbstractSymbolicModel, target::Int) = pre(get_automaton(sym), target)
+post(sym::AbstractSymbolicModel, source::Int, input::Int) =
+    post(get_automaton(sym), source, input)
+enum_transitions(sym::AbstractSymbolicModel) = enum_transitions(get_automaton(sym))
+add_transition!(sym::AbstractSymbolicModel, q::Int, q′::Int, u::Int) =
+    add_transition!(get_automaton(sym), q, q′, u)
+add_transitions!(sym::AbstractSymbolicModel, translist) =
+    add_transitions!(get_automaton(sym), translist)
+get_n_transitions(sym::AbstractSymbolicModel) = length(enum_transitions(sym))
+is_deterministic(sym::AbstractSymbolicModel) = is_deterministic(get_automaton(sym))
 is_determinized(sym::SymbolicModel) =
     error("implement `is_determinized` for $(typeof(sym))")
 
@@ -92,7 +109,7 @@ by making the target part of the symbol.
 """
 function determinize_symbolic_model(
     sym::SymbolicModel{N, M};
-    AutomatonConstructor::Function = (n, m) -> ST.SortedAutomatonList(n, m),
+    AutomatonConstructor::Function = (n, m) -> SortedAutomatonList(n, m),
 ) where {N, M}
     Umap = get_input_mapping(sym)
     Xmap = get_state_mapping(sym)
@@ -128,7 +145,7 @@ function determinize_symbolic_model(
     end
 
     new_autom = AutomatonConstructor(get_n_state(sym), length(new_uint2coord))
-    ST.add_transitions!(new_autom, new_transitions)
+    add_transitions!(new_autom, new_transitions)
 
     new_Umap = MP.ListMapping(new_uint2coord)
 

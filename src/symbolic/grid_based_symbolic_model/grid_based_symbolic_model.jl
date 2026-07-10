@@ -27,11 +27,10 @@ get_retained_set(symmodel::GridBasedSymbolicModel) =
 # ------------------------------------------------------------------
 
 enum_source_states(symmodel::GridBasedSymbolicModel) =
-    MP.enum_states(get_state_set(symmodel), get_state_mapping(symmodel))
+    MP.enum_states(get_mapped_state_set(symmodel))
 
 is_allowed_state(symmodel::GridBasedSymbolicModel, q::Int) =
-    q !== nothing &&
-    MP.contains_state(get_retained_set(symmodel), get_state_mapping(symmodel), q)
+    q !== nothing && MP.contains_state(get_mapped_retained_set(symmodel), q)
 
 get_n_state(symmodel::GridBasedSymbolicModel) =
     length(collect(enum_source_states(symmodel)))

@@ -19,7 +19,7 @@ const TEST_FILES = [
     ("./utils/sets/lazy_set_operations.jl",),
     ("./utils/ellipsoidal_transitions.jl",),
     ("./utils/pclf.jl",),
-    ("./system/automaton.jl",),
+    ("./symbolic/automaton.jl",),
     ("./system/vector_continuous_system.jl",),
     ("./system/linearization.jl",),
     ("./system/kernel_approximation.jl",),

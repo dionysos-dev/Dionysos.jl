@@ -162,7 +162,7 @@ Supported execution backends:
 - `SY.ThreadedBackend(progress_dt)`  
   Multithreaded computation on the current Julia process.
 
-- `SY.JuliaDistributedBackend(procs, nparts, partition_strategy, threaded_per_worker, warmup_workers)`  
+- `SY.JuliaDistributedBackend(procs, nparts, partition_strategy, threaded_per_worker)`
   Distributed computation over Julia worker processes.
 
 - `SY.SlurmArrayBackend(nchunks, chunk_id, outdir, partition_strategy, write_only)`  
@@ -346,7 +346,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            (n, m) -> ST.SortedAutomatonList(n, m),
+            (n, m) -> SY.SortedAutomatonList(n, m),
             nothing, #USER_DEFINED
             nothing,
             nothing,
@@ -725,7 +725,7 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
 
     optimizer.print_level >= 1 && println(
         "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(HybridSystems.ntransitions(abstract_system.autom)) transitions created",
+        "$(HybridSystems.ntransitions(SY.get_automaton(abstract_system))) transitions created",
     )
 
     optimizer.abstract_system = abstract_system
