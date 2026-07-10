@@ -50,12 +50,12 @@ _in_rec(rect, x) = all(i -> rect.lb[i] <= x[i] <= rect.ub[i], 1:length(x))
         rect = UT.HyperRectangle(SVector(-0.51, -0.51), SVector(0.51, 0.51))
 
         inner = MP.get_pos_lims_inner(g, rect)
-        @test Tuple(inner.lb) == (0, 0)
-        @test Tuple(inner.ub) == (0, 0)
+        @test first.(inner) == (0, 0)
+        @test last.(inner) == (0, 0)
 
         outer = MP.get_pos_lims_outer(g, rect)
-        @test all(i -> outer.lb[i] <= inner.lb[i], 1:2)
-        @test all(i -> outer.ub[i] >= inner.ub[i], 1:2)
+        @test all(i -> first(outer[i]) <= first(inner[i]), 1:2)
+        @test all(i -> last(outer[i]) >= last(inner[i]), 1:2)
 
         @test MP.get_pos_lims(g, rect, MP.INNER) == inner
         @test MP.get_pos_lims(g, rect, MP.OUTER) == outer

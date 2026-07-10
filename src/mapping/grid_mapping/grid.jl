@@ -35,31 +35,45 @@ function get_coord_by_pos(grid::Grid, pos)
     return get_origin(grid) + pos .* get_h(grid)
 end
 
-_ranges(rect::UT.HyperRectangle{N, T}) where {N, T} =
-    ntuple(i -> (rect.lb[i]:rect.ub[i]), Val(N))
-
+# Grid-index bounds of the cells covered by `rect`, one `UnitRange` per
+# dimension; an empty range means no cell qualifies in that dimension.
 function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i] + 0.5):floor(
+                Int,
+                (rect.ub[i] + tol - orig[i]) / h[i] - 0.5,
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_lims_outer(grid::Grid{N}, rect; tol = 0.0) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (rect.lb[i] + tol - orig[i]) / h[i] - 0.5):floor(
+                Int,
+                (rect.ub[i] - tol - orig[i]) / h[i] + 0.5,
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_center(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i]), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i]), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i]):floor(
+                Int,
+                (rect.ub[i] + tol - orig[i]) / h[i],
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_lims(grid::Grid, rect, incl_mode::INCL_MODE)
@@ -96,8 +110,7 @@ end
 end
 
 function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
-    rectI = get_pos_lims(grid, rect, incl_mode)
-    return Iterators.product(_ranges(rectI)...)
+    return Iterators.product(get_pos_lims(grid, rect, incl_mode)...)
 end
 
 get_pos_from_set(grid, ::UT.EmptyRegion, incl_mode::INCL_MODE) = ()

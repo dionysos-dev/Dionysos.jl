@@ -132,8 +132,8 @@ function post_image(abstract_system, concrete_system, xpos, u)
     r = Xdom.grid.h / 2.0 + concrete_system.measnoise
     Fr = r
 
-    rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
-    ypos_iter = Iterators.product(DO._ranges(rectI)...)
+    ranges = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
+    ypos_iter = Iterators.product(ranges...)
     over_approx = []
     allin = true
     for ypos in ypos_iter

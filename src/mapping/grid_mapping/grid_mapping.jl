@@ -55,12 +55,12 @@ function get_states_from_set_strict(
     incl_mode::INCL_MODE,
 ) where {N}
     grid = get_grid(m)
-    rectI = get_pos_lims(grid, rect, incl_mode)
+    ranges = get_pos_lims(grid, rect, incl_mode)
 
     qs = Int[]
     allin = true
 
-    for pos in Iterators.product(_ranges(rectI)...)
+    for pos in Iterators.product(ranges...)
         p = pos::NTuple{N, Int}
         if is_valid_pos(m, p)
             push!(qs, get_state_by_pos(m, p))
