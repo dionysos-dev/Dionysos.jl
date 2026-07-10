@@ -55,7 +55,8 @@ end
 function get_sublevel_set(piece::EllipsoidalPiece, gamma::Float64)
     n = size(piece.P, 1)
     center = zeros(n)
-    elli = UT.Ellipsoid(piece.P, center)
+    # The PCLF piece is P-natural; one inversion at construction.
+    elli = LazySets.Ellipsoid(center, UT._symmetrize(inv(piece.P)))
     return UT.get_sublevel_set(elli, gamma)
 end
 

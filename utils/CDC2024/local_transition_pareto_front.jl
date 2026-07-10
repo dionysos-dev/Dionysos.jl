@@ -1,5 +1,6 @@
 using StaticArrays, Random
 using JuMP, Clarabel
+import LazySets
 using Plots, Colors
 Random.seed!(0)
 
@@ -86,12 +87,12 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     else
         success = true
         init_set_volume = UT.get_volume(E1)
-        ETilde = UT.affine_transformation(
-            E1,
+        ETilde = LazySets.affine_map(
             affineSys.A + affineSys.B * cont.A,
+            E1,
             affineSys.B * cont.c + affineSys.c,
         )
-        U_used = UT.affine_transformation(E1, cont.A, cont.c)
+        U_used = LazySets.affine_map(cont.A, E1, cont.c)
         input_set_volume = UT.get_volume(U_used)
     end
     return (success, max_cost, init_set_volume, input_set_volume)
@@ -310,7 +311,7 @@ function contour_plot(
     return cost ? display(fig1) : display(fig2)
 end
 
-E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [3.0; 3.0])
+E2 = LazySets.Ellipsoid([3.0; 3.0], inv([2.0 0.2; 0.2 0.5]))
 c = SVector{2, Float64}([1.0; 1.0])
 
 #########################################################################################

@@ -22,6 +22,7 @@ Dionysos.Utils.add_node!
 ```@docs
 Dionysos.Utils.Box
 Dionysos.Utils.box
+Dionysos.Utils.get_quadratic_form
 Dionysos.Utils.set_in_period
 Dionysos.Utils.get_min_bounding_box
 Dionysos.Utils.project_set
@@ -35,6 +36,8 @@ Dionysos.Utils.set_minus
 Dionysos.Utils.minus_included
 Dionysos.Utils.minus_hole
 Dionysos.Utils.empty_region
+Dionysos.Utils.is_included
+Dionysos.Utils.is_disjoint
 ```
 
 ## Discretization helpers

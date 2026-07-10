@@ -153,14 +153,26 @@ get_h(grid::GridFree) = grid.h
 
 Uniform grid on rectangular space `rect`, centered at `orig` and with steps set by the vector `h`.
 Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`.
+
+`P` (the quadratic form, hot membership loop) and its inverse `Q` (the LazySets
+shape matrix, cell construction) are both stored so neither path re-inverts.
 """
 struct GridEllipsoidalRectangular{N, T} <: Grid{N, T}
     underlying_grid::GridFree{N, T}
     P::SMatrix{N, N}
+    Q::SMatrix{N, N}
+end
+
+function GridEllipsoidalRectangular(
+    underlying_grid::GridFree{N, T},
+    P::SMatrix{N, N},
+) where {N, T}
+    Q = UT._symmetrize(inv(P))
+    return GridEllipsoidalRectangular{N, T}(underlying_grid, P, Q)
 end
 
 function GridEllipsoidalRectangular(orig::SVector{N, T}, h::SVector{N, T}, P) where {N, T}
-    return GridEllipsoidalRectangular{N, T}(GridFree(orig, h), P)
+    return GridEllipsoidalRectangular(GridFree(orig, h), SMatrix{N, N}(P))
 end
 
 get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
@@ -169,7 +181,11 @@ get_P(grid::GridEllipsoidalRectangular) = grid.P
 is_state_cover(grid::GridEllipsoidalRectangular) = true
 
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
-    return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
+    return LazySets.Ellipsoid(
+        collect(get_coord_by_pos(grid, pos)),
+        Matrix(grid.Q);
+        check_posdef = false,
+    )
 end
 
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}

@@ -6,6 +6,7 @@ import LinearAlgebra as LA
 
 import MathematicalSystems
 MS = MathematicalSystems
+import LazySets
 
 import Dionysos
 const DI = Dionysos
@@ -278,14 +279,14 @@ end
 # Default algorithm parameters
 # ----------------------------
 
-function distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid)
+function distance(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
     return UT.center_distance(E1, E2)
 end
 
 function get_candidate(
     tree::UT.Tree,
     X,
-    E0::UT.Ellipsoid;
+    E0::LazySets.Ellipsoid;
     probTarget = 0.15,
     probSkew = 0.35,
 )
@@ -293,10 +294,10 @@ function get_candidate(
     r = rand()
 
     if r < probTarget
-        return E0.c
+        return LazySets.center(E0)
     elseif r < probTarget + probSkew
         α = 0.7 + 0.3 * rand()   # strongly biased toward E0
-        return α * E0.c + (1 - α) * guess
+        return α * LazySets.center(E0) + (1 - α) * guess
     else
         return guess
     end
@@ -304,14 +305,14 @@ end
 
 function rand_state(
     tree::UT.Tree,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer,
 )
     concrete_problem = opt.concrete_problem
     xrand = get_candidate(tree, concrete_problem.system.X, EI)
-    return UT.Ellipsoid(Matrix{Float64}(LA.I(length(xrand))), xrand)
+    return LazySets.Ellipsoid(collect(float.(xrand)), Matrix{Float64}(LA.I(length(xrand))))
 end
 
 function get_closest_reachable_point(
@@ -343,7 +344,7 @@ end
 function new_conf(
     abstract_system::UT.Tree,
     Nnear::UT.NodeT,
-    Erand::UT.Ellipsoid,
+    Erand::LazySets.Ellipsoid,
     opt::Optimizer,
 )
     concrete_problem = opt.concrete_problem
@@ -351,8 +352,8 @@ function new_conf(
 
     (unew, xnew, uBestDist) = get_closest_reachable_point(
         concrete_system,
-        Nnear.state.c,
-        Erand.c,
+        LazySets.center(Nnear.state),
+        LazySets.center(Erand),
         concrete_system.U,
         concrete_system.Uformat,
     )
@@ -392,8 +393,8 @@ end
 function keep(
     abstract_system::UT.Tree,
     LSACnew,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer;
     scale_for_obstacle = true,
@@ -409,13 +410,16 @@ function keep(
 
         if Enew === nothing
             # infeasible candidate
-        elseif EI ⊆ Enew
+        elseif UT.is_included(EI, Enew)
             iMin = i
             break
-        elseif minDist > LA.norm(EI.c - Enew.c)
-            if Nnear == abstract_system.root || LA.eigmin(EI.P * 0.5 - Enew.P) > 0
+        elseif minDist > UT.center_distance(EI, Enew)
+            # Rewire heuristic in quadratic-form matrices; one small inversion
+            # per candidate, dwarfed by the SDP solve that produced it.
+            if Nnear == abstract_system.root ||
+               LA.eigmin(UT.get_quadratic_form(EI) * 0.5 - UT.get_quadratic_form(Enew)) > 0
                 iMin = i
-                minDist = LA.norm(EI.c - Enew.c)
+                minDist = UT.center_distance(EI, Enew)
             end
         end
     end
@@ -425,7 +429,7 @@ function keep(
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
 
     if ElMin !== nothing
-        if all(O -> isdisjoint(ElMin, O), obstacles)
+        if all(O -> UT.is_disjoint(ElMin, O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles
@@ -441,11 +445,11 @@ function keep(
     return []
 end
 
-function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
+function compute_transition(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid, opt::Optimizer)
     concrete_problem = opt.concrete_problem
     concrete_system = concrete_problem.system
 
-    xnew = E1.c
+    xnew = LazySets.center(E1)
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
 
@@ -478,8 +482,8 @@ end
 function stop_crit(
     abstract_system::UT.Tree,
     LNnew,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer,
 )
@@ -512,7 +516,7 @@ function stop_crit(
     end
 
     newEllipsoids = [newNode.state for newNode in LNnew]
-    return any(E -> (EI ⊆ E), newEllipsoids) && !continues
+    return any(E -> UT.is_included(EI, E), newEllipsoids) && !continues
 end
 
 end # module

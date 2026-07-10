@@ -115,7 +115,7 @@ _in_rec(rect, x) = x ∈ rect
         @test MP.is_state_cover(g)
 
         e = MP.get_elem_by_pos(g, (2, -1))
-        @test e isa UT.Ellipsoid
+        @test e isa LazySets.Ellipsoid
 
         x0 = MP.get_coord_by_pos(g, (0, 0))
         poss = MP.get_all_pos_by_coord(g, x0)

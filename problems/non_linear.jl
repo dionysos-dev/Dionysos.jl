@@ -2,6 +2,7 @@ module NonLinear
 
 using StaticArrays
 import LinearAlgebra as LA
+import LazySets
 
 import Symbolics
 import IntervalArithmetic as IA
@@ -90,13 +91,13 @@ end
 function problem(;
     X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
 
-    obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 30), [0.0; 0.0])],
+    obstacles = [LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I, 2, 2) * 30.0)],
 
     U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
 
-    E0 = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 10.0, [-10.0; -10.0]),
+    E0 = LazySets.Ellipsoid([-10.0; -10.0], Matrix{Float64}(LA.I, 2, 2) * 0.1),
 
-    Ef = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 1.0, [10.0; 10.0]),
+    Ef = LazySets.Ellipsoid([10.0; 10.0], Matrix{Float64}(LA.I, 2, 2) * 1.0),
 
     state_cost = UT.ZeroFunction(),
 

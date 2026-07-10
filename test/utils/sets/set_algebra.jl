@@ -10,7 +10,7 @@ const UT = DI.Utils
     A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
     A2 = UT.box([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
     A3 = UT.box([0.5, 0.5], [1.5, 1.5])   # overlaps A1
-    B0 = UT.Ellipsoid([1.0 0.0; 0.0 1.0], [0.0, 0.0])
+    B0 = LazySets.Ellipsoid([0.0, 0.0], [1.0 0.0; 0.0 1.0])
 
     # --- set_union ---
     U = UT.set_union([A1, A2])

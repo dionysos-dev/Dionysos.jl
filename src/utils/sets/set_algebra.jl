@@ -1,28 +1,37 @@
 # ============================================================
 # Set algebra, backed by LazySets.
 #
-# Dionysos leaf sets (rectangles, ellipsoids, …) are `LazySets.LazySet`s (see
-# `AbstractSetNode`). Composite regions reuse the ecosystem's lazy wrappers:
+# All Dionysos sets ARE LazySets: boxes are `Hyperrectangle`, ellipsoids are
+# `Ellipsoid`, and composite regions reuse the ecosystem's lazy wrappers:
 #
 #     union   ⋃ᵢ Aᵢ   → `LazySets.UnionSetArray`
 #     minus   A \ B    → `LazySets.Intersection(A, LazySets.Complement(B))`
 #
-# On top we add only what LazySets lacks and Dionysos needs: periodic-domain
+# On top we add only what LazySets lacks and Dionysos needs: exact ellipsoid
+# kernels (`is_included`/`is_disjoint` specializations), periodic-domain
 # wrapping (`set_in_period`) and incremental union/hole builders
 # (`add_set`/`remove_set`, used to grow `ImplicitStateSet`s).
 # ============================================================
 
-# The Dionysos leaf-set hierarchy is rooted in `LazySets.LazySet` so leaves
-# compose with the ecosystem's set algebra. `N` = ambient dimension, `T` = the
-# coordinate type (the `LazySet` numeric parameter).
-abstract type AbstractLazySet{N, T} <: LazySets.LazySet{T} end
-
-get_dim(::AbstractLazySet{N, T}) where {N, T} = N
 get_dim(s::LazySets.LazySet) = LazySets.dim(s)
-LazySets.dim(::AbstractLazySet{N, T}) where {N, T} = N
 
-abstract type AbstractSetNode{N, T} <: AbstractLazySet{N, T} end
-_outer_box(X::AbstractSetNode) = error("implement `_outer_box` for $(typeof(X))")
+"""
+    is_included(X, Y) -> Bool
+
+Whether `X ⊆ Y`. Generic sets delegate to LazySets; an exact analytic kernel
+runs for two `LazySets.Ellipsoid`s (see `sets/ellipsoid_inclusion.jl`) —
+Dionysos owns this verb because extending `Base.issubset` on two
+LazySets-owned types would be piracy.
+"""
+is_included(X, Y) = X ⊆ Y
+
+"""
+    is_disjoint(X, Y) -> Bool
+
+Whether `X ∩ Y = ∅`. Generic sets delegate to LazySets; an exact analytic
+kernel runs for two `LazySets.Ellipsoid`s (see `sets/ellipsoid_intersection.jl`).
+"""
+is_disjoint(X, Y) = LazySets.isdisjoint(X, Y)
 
 # ------------------------------------------------------------
 # Axis-aligned boxes: `LazySets.Hyperrectangle` is the box type; an empty
@@ -102,7 +111,7 @@ empty `UnionSetArray` has no well-defined dimension, so we use `EmptySet`).
 """
 empty_region(::Type{T}, n::Integer) where {T} = LazySets.EmptySet{T}(n)
 empty_region(n::Integer) = empty_region(Float64, n)
-empty_region_like(r::AbstractLazySet{N, T}) where {N, T} = empty_region(T, N)
+empty_region_like(r::LazySets.LazySet{T}) where {T} = empty_region(T, LazySets.dim(r))
 empty_region_like(r) = empty_region(Float64, LazySets.dim(r))
 
 set_dim(s) = LazySets.dim(s)
@@ -165,6 +174,9 @@ remove_set(S, s) = set_minus(minus_included(S), _union_with(minus_hole(S), s))
 # Outer bounding box
 # ------------------------------------------------------------
 
+# Tight outer bounding box; exact for boxes (identity) and any set with a
+# support function (via LazySets), with cheap structural cases for composites.
+_outer_box(S::LazySets.LazySet) = LazySets.box_approximation(S)
 _outer_box(H::LazySets.AbstractHyperrectangle) = H
 
 function _outer_box(U::SetUnion)

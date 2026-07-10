@@ -280,7 +280,7 @@ end
 
     for i in 1:(length(path) - 1)
         @series begin
-            DrawArrow(path[i].state.c, path[i + 1].state.c)
+            DrawArrow(LazySets.center(path[i].state), LazySets.center(path[i + 1].state))
         end
     end
 end
@@ -305,7 +305,10 @@ end
             for leave in leaves
                 if leave.parent !== nothing
                     @series begin
-                        DrawArrow(leave.state.c, leave.parent.state.c)
+                        DrawArrow(
+                            LazySets.center(leave.state),
+                            LazySets.center(leave.parent.state),
+                        )
                     end
                 end
             end

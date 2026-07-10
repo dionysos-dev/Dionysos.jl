@@ -1,158 +1,69 @@
-struct Ellipsoid{N, T, MT <: SMatrix{N, N, T}, VT <: SVector{N, T}} <: AbstractSetNode{N, T}
-    P::MT
-    c::VT
-    function Ellipsoid(
-        P::MT,
-        c::VT,
-    ) where {N, T, MT <: SMatrix{N, N, T}, VT <: SVector{N, T}}
-        M = (P + P')/2
-        isposdef(Matrix(M)) || error("matrix must be positive definite")
-        return new{N, T, MT, VT}(M, c)
-    end
-end
+# Helpers for `LazySets.Ellipsoid` — E(c, Q) = {x : (x−c)ᵀ Q⁻¹ (x−c) ≤ 1} with
+# shape matrix `Q`. Dionysos's synthesis math (S-procedure LMIs, exact
+# inclusion/intersection kernels) is written in the quadratic-form matrix
+# P = Q⁻¹; `get_quadratic_form` bridges, and the analytic kernels invert once
+# at entry.
 
-function Ellipsoid(P::AbstractMatrix{T}, c::AbstractVector{T}) where {T <: Real}
-    n, m = size(P)
-    n == m || throw(ArgumentError("P must be square, got $(size(P))"))
-    length(c) == n || throw(ArgumentError("c must have length $n, got $(length(c))"))
+_symmetrize(M) = (M + M') / 2
 
-    PS = SMatrix{n, n, T}(P)
-    cS = SVector{n, T}(c)
-    return Ellipsoid(PS, cS)
-end
+"""
+    get_quadratic_form(E::LazySets.Ellipsoid)
 
-get_center(e::Ellipsoid) = e.c
-get_shape(elli::Ellipsoid) = elli.P
+Quadratic-form matrix `P = Q⁻¹` of the ellipsoid, i.e. the matrix such that
+`E = {x : (x − c)ᵀ P (x − c) ≤ 1}`.
+"""
+get_quadratic_form(E::LazySets.Ellipsoid) = _symmetrize(inv(LazySets.shape_matrix(E)))
 
-function get_dim(elli::Ellipsoid)
-    return length(elli.c)
-end
+center_distance(S1, S2) = norm(LazySets.center(S1) - LazySets.center(S2))
+center_distance(S, x::AbstractVector) = norm(LazySets.center(S) - x)
 
-function get_root(elli::Ellipsoid)
-    return sqrt(elli.P)
-end
-
-center_distance(elli1::Ellipsoid, elli2::Ellipsoid) =
-    norm(get_center(elli1) - get_center(elli2))
-center_distance(elli::Ellipsoid, x::AbstractVector) = norm(get_center(elli) - x)
-
-LazySets.center(elli::Ellipsoid) = elli.c
-
-# Support function/vector of {x : (x-c)'P(x-c) ≤ 1}: ρ(d) = d⋅c + √(d'P⁻¹d).
-LazySets.ρ(d::AbstractVector, elli::Ellipsoid) = d ⋅ elli.c + sqrt(d' * (elli.P \ d))
-LazySets.σ(d::AbstractVector, elli::Ellipsoid) = elli.c + get_farthest_point(elli, d)
-
-# Volume of {x : (x-c)'P(x-c) ≤ 1} = π^(N/2) / Γ(N/2 + 1) · det(P)^(-1/2)
+# Volume of {x : (x-c)'Q⁻¹(x-c) ≤ 1} = π^(N/2) / Γ(N/2 + 1) · √det(Q)
 # (the volume of the unit N-ball scaled by the ellipsoid's semi-axes).
-function get_volume(elli::Ellipsoid)
-    N = size(elli.P, 1)
-    return pi^(N / 2) / SpecialFunctions.gamma(N / 2 + 1) * det(elli.P)^(-1 / 2)
+function get_volume(E::LazySets.Ellipsoid)
+    N = LazySets.dim(E)
+    return pi^(N / 2) / SpecialFunctions.gamma(N / 2 + 1) *
+           sqrt(det(LazySets.shape_matrix(E)))
 end
 
-function Base.:*(elli::Ellipsoid, r::Real)
-    return Ellipsoid(elli.P * (1 / r), elli.c)
+"Sublevel-set scaling `{x : (x−c)ᵀP(x−c) ≤ α}`, i.e. `Q ← α·Q`."
+function get_sublevel_set(E::LazySets.Ellipsoid, α)
+    return LazySets.Ellipsoid(
+        LazySets.center(E),
+        _symmetrize(α * LazySets.shape_matrix(E));
+        check_posdef = false,
+    )
 end
 
-function Base.:*(r::Real, elli::Ellipsoid)
-    return elli * r
-end
+"""
+    get_min_bounding_box(E)
 
-function Base.:/(elli::Ellipsoid, r::Real)
-    return elli * (1 / r)
-end
+Minimum axis-aligned bounding box of the ellipsoid (exact, via support
+functions).
+"""
+get_min_bounding_box(E::LazySets.Ellipsoid) = LazySets.box_approximation(E)
 
-_outer_box(elli::Ellipsoid) = get_min_bounding_box(elli)
-
-function scale(elli::Ellipsoid, α)
-    return Ellipsoid(elli.P * (1 / α), elli.c * α)
-end
-
-function get_sublevel_set(elli::Ellipsoid, α)
-    return Ellipsoid(elli.P * (1 / α), elli.c)
-end
-
-# return the ellipsoid f(Ε) where E = {x : (x-c)'P(x-c) <= 1} and f(x) = Ax+b
-# with A invertible
-function affine_transformation(elli::Ellipsoid, A, b)
-    return Ellipsoid(A' \ elli.P / A, A * elli.c + b)
-end
-
-# get the point along the i largest axis
-function get_axis_points(elli::Ellipsoid, i)
-    specDecomp = eigen(elli.P)
-    vals = specDecomp.values
-    vectors = specDecomp.vectors
-
-    # Trouver l'indice de la plus grande valeur propre
-    sorted_indices = sortperm(vals)
-    index = sorted_indices[i]
-    # Extraire le vecteur propre correspondant
-    vp = vectors[:, index]
-    # Calculer la longueur de l'axe
-    l = 1 / sqrt(vals[index])
-    # Calculer les coordonnées des deux points
-    p1 = elli.c - l * vp
-    p2 = elli.c + l * vp
-    return p1, p2
-end
-
-"Semi-axis lengths `1/√λᵢ(P)` of the ellipsoid, in the eigenvalue order of `P`."
-function get_length_semiaxis(elli::Ellipsoid)
-    specDecomp = eigen(elli.P)
-    vals = specDecomp.values
-    return 1 ./ sqrt.(vals)
-end
-
-@recipe function f(
-    e::Ellipsoid{N, T};
-    axis_plot = false,
-    color1 = :black,
-    color2 = :black,
-) where {N, T}
-    if axis_plot
-        @series begin
-            color := color1
-            p1, p2 = get_axis_points(e, 1)
-            return DrawSegment(p1, p2)
-        end
-        color := color2
-        p1, p2 = get_axis_points(e, 2)
-        return DrawSegment(p1, p2)
-    else
-        opacity := 1.0
-        label := ""
-        lw := 1
-        lc := :black
-        Pvar = get_shape(e)
-        Qvar = inv(Pvar)
-        Qvar = (Qvar + Qvar') ./ 2
-        return LazySets.Ellipsoid(Vector(get_center(e)), Matrix(Qvar))
-    end
-end
-
-# get the farthest point of the ellipsoid in direction d
-function get_farthest_point(elli::Ellipsoid, d)
+# Farthest point of the ellipsoid from its center in direction d.
+function get_farthest_point(E::LazySets.Ellipsoid, d)
     d = d / norm(d)
-    Q = inv(elli.P)
-    a = Q * d
-    return a / sqrt(d'a)
+    a = LazySets.shape_matrix(E) * d
+    return a / sqrt(d' * a)
 end
 
-"""
-    get_min_bounding_box(elli)
+# Endpoints of the i-th longest semi-axis (i-th largest eigenvalue of Q).
+function get_axis_points(E::LazySets.Ellipsoid, i)
+    specDecomp = eigen(Symmetric(Matrix(LazySets.shape_matrix(E))))
+    index = sortperm(specDecomp.values; rev = true)[i]
+    vp = specDecomp.vectors[:, index]
+    l = sqrt(specDecomp.values[index])
+    c = LazySets.center(E)
+    return c - l * vp, c + l * vp
+end
 
-Finds the minimum bounding box containing the ellipsoid {(x-c)'P(x-c) < 1}.
-"""
-function get_min_bounding_box(elli::Ellipsoid)
-    P = elli.P
-    n = size(P, 1)
-    R = zeros(n)
-    for i in 1:n
-        ei = zeros(n)
-        ei[i] = 1
-        R[i] = get_farthest_point(elli, ei)[i]
-    end
-    return box(elli.c .- R, elli.c .+ R)
+"Semi-axis lengths `√λᵢ(Q)` of the ellipsoid, longest first."
+function get_length_semiaxis(E::LazySets.Ellipsoid)
+    return sqrt.(
+        sort(eigen(Symmetric(Matrix(LazySets.shape_matrix(E)))).values; rev = true),
+    )
 end
 
 include("ellipsoid_inclusion.jl")
@@ -160,8 +71,8 @@ include("ellipsoid_intersection.jl")
 
 # compress E1 if E1∩E2≠∅
 # return nothing if impossible
-function compress_if_intersection(E1::Ellipsoid, E2::Ellipsoid)
-    if !isdisjoint(E1, E2)
+function compress_if_intersection(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
+    if !is_disjoint(E1, E2)
         return scale_for_noninclusion_contact_point(E1, E2)
     else
         return E1

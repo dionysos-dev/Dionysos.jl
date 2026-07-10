@@ -39,7 +39,7 @@ struct TransitionResult
     feasible::Bool
     controller::Union{Nothing, MS.AffineMap}
     cost::Union{Nothing, Float64}
-    source::Union{Nothing, UT.Ellipsoid}
+    source::Union{Nothing, LazySets.Ellipsoid}
 end
 
 _infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
@@ -51,10 +51,10 @@ _infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
 """
     format_input_set(U) -> Vector{<:AbstractMatrix}
 
-Convert the input set `U` (`LazySets.AbstractHyperrectangle`, `UT.Ellipsoid`,
-or a `LazySets.IntersectionArray` of those) into the list of matrices `Uᵢ`
-encoding the input constraints `|Uᵢ·u| ≤ 1` used by the transition-synthesis
-LMIs.
+Convert the input set `U` (`LazySets.AbstractHyperrectangle`,
+`LazySets.Ellipsoid`, or a `LazySets.IntersectionArray` of those) into the
+list of matrices `Uᵢ` encoding the input constraints `|Uᵢ·u| ≤ 1` used by the
+transition-synthesis LMIs.
 """
 function format_input_set(rec::LazySets.AbstractHyperrectangle)
     n = UT.get_dim(rec)
@@ -63,8 +63,8 @@ function format_input_set(rec::LazySets.AbstractHyperrectangle)
     return U
 end
 
-function format_input_set(elli::UT.Ellipsoid)
-    return [UT.get_root(elli)]
+function format_input_set(elli::LazySets.Ellipsoid)
+    return [sqrt(UT.get_quadratic_form(elli))]
 end
 
 function format_input_set(iset::LazySets.IntersectionArray)
@@ -166,7 +166,9 @@ end
 # Fixed-shape kernel: both ellipsoids given, decision variables (K, ℓ).
 # ------------------------------------------------------------
 
-function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, P2, sdp_solver)
+# The target enters the reachability blocks as its inverse quadratic form,
+# which is exactly the LazySets shape matrix Q2 — no inversion needed.
+function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, Q2, sdp_solver)
     n = length(c)
     Nw = size(Wcols, 2)
     Nu = length(U)
@@ -187,12 +189,11 @@ function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, P2, sdp_solver)
     end)
 
     z = zeros(n, 1)
-    P2inv = inv(P2)
 
     for i in 1:Nw
         w = Wcols[:, i]
         aux = A * hcat(c1) + hcat(ct) - hcat(c2) + hcat(w)
-        _reach_constraint!(model, beta[i], P1, At, aux, P2inv, n, ε)
+        _reach_constraint!(model, beta[i], P1, At, aux, Q2, n, ε)
     end
 
     for i in 1:Nu
@@ -224,8 +225,8 @@ vertex, while minimizing an upper bound on the worst-case transition cost
 # Arguments
 - `affsys`: an affine system (`(Noisy)ConstrainedAffineControlDiscreteSystem`
   or `ConstrainedAffineControlMap`);
-- `source`, `target`: `UT.Ellipsoid`s;
-- `U`: input constraints — a set (`LazySets.AbstractHyperrectangle`, `UT.Ellipsoid`,
+- `source`, `target`: `LazySets.Ellipsoid`s;
+- `U`: input constraints — a set (`LazySets.AbstractHyperrectangle`, `LazySets.Ellipsoid`,
   `LazySets.IntersectionArray`) or a preformatted list (`format_input_set`);
 - `W`: disturbance vertices — one per column, or a box (`LazySets.AbstractHyperrectangle`); mapped
   through the system's noise matrix `D` when the system has one;
@@ -235,13 +236,14 @@ vertex, while minimizing an upper bound on the worst-case transition cost
 """
 function solve_transition(
     affsys::AffineSys,
-    source::UT.Ellipsoid,
-    target::UT.Ellipsoid,
+    source::LazySets.Ellipsoid,
+    target::LazySets.Ellipsoid,
     U,
     W,
     cost,
     sdp_solver,
 )
+    c1 = LazySets.center(source)
     feasible, kappa, J = _fixed_shape_kernel(
         affsys.A,
         affsys.B,
@@ -249,15 +251,15 @@ function solve_transition(
         _state_noise(affsys, W),
         _input_matrices(U),
         _cost_matrix(cost),
-        source.c,
-        source.P,
-        target.c,
-        target.P,
+        c1,
+        UT.get_quadratic_form(source),
+        LazySets.center(target),
+        LazySets.shape_matrix(target),
         sdp_solver,
     )
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)
-    return TransitionResult(true, MS.AffineMap(K, ℓ - K * source.c), J, nothing)
+    return TransitionResult(true, MS.AffineMap(K, ℓ - K * c1), J, nothing)
 end
 
 # ------------------------------------------------------------
@@ -283,7 +285,7 @@ function _free_source_kernel(
     c1,
     u_ref,
     c2,
-    P2,
+    Q2,
     Lip,
     sdp_solver;
     maxδx,
@@ -318,7 +320,6 @@ function _free_source_kernel(
     end)
 
     z = zeros(nx, 1)
-    P2inv = inv(P2)
 
     for i in 1:Nx
         for j in 1:Nw
@@ -328,7 +329,7 @@ function _free_source_kernel(
                 hcat(Vector(μ[i])) * (δx + δu) +
                 hcat(Vector(ν[j]))
             )
-            _reach_constraint!(model, beta[i, j], eye(nx), At, aux, P2inv, nx, ε)
+            _reach_constraint!(model, beta[i, j], eye(nx), At, aux, Q2, nx, ε)
         end
     end
 
@@ -383,8 +384,9 @@ function _free_source_kernel(
     if term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
         Lval = value.(L)
-        P = inv(Lval * transpose(Lval))
-        return true, P, [value.(F) / Lval value.(ell)], value(J)
+        # L·Lᵀ is directly the shape matrix Q of the synthesized source.
+        Q1 = Lval * transpose(Lval)
+        return true, Q1, [value.(F) / Lval value.(ell)], value(J)
     end
     @debug "solve_transition_backward: infeasible SDP" term pstat raw_status(model)
     return false, nothing, nothing, nothing
@@ -411,7 +413,7 @@ is the synthesized ellipsoid.
 """
 function solve_transition_backward(
     affsys::AffineSys,
-    target::UT.Ellipsoid,
+    target::LazySets.Ellipsoid,
     source_center,
     u_ref,
     U,
@@ -424,7 +426,7 @@ function solve_transition_backward(
     λ = 0.01,
     use_log_det = true,
 )
-    feasible, P1, kappa, J = _free_source_kernel(
+    feasible, Q1, kappa, J = _free_source_kernel(
         affsys.A,
         affsys.B,
         affsys.c,
@@ -433,8 +435,8 @@ function solve_transition_backward(
         _cost_matrix(cost),
         source_center,
         u_ref,
-        target.c,
-        target.P,
+        LazySets.center(target),
+        LazySets.shape_matrix(target),
         lipschitz,
         sdp_solver;
         maxδx = maxδx,
@@ -445,7 +447,12 @@ function solve_transition_backward(
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)
     controller = MS.AffineMap(K, ℓ - K * source_center)
-    return TransitionResult(true, controller, J, UT.Ellipsoid(P1, source_center))
+    source = LazySets.Ellipsoid(
+        collect(float.(source_center)),
+        UT._symmetrize(Q1);
+        check_posdef = false,
+    )
+    return TransitionResult(true, controller, J, source)
 end
 
 # ------------------------------------------------------------

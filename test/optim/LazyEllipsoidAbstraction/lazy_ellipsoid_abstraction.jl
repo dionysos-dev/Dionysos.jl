@@ -79,8 +79,8 @@ include("../../../problems/non_linear.jl")
     reached(x) = x ∈ concrete_problem.target_set
     nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time
 
-    # initial state: you used initial_set.c (assumed ellipsoid-like)
-    x0 = concrete_problem.initial_set.c
+    # initial state: the center of the (ellipsoidal) initial set
+    x0 = UT.get_center(concrete_problem.initial_set)
 
     x_traj, u_traj = ST.get_closed_loop_trajectory(
         concrete_system,

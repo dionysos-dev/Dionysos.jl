@@ -12,6 +12,7 @@ const OPDS = OP.DiscreteSystems
 import StaticArrays: SVector, SMatrix
 import LinearAlgebra as LA
 import Polyhedra
+import LazySets
 import MathematicalSystems as MS
 
 using ProgressMeter

@@ -291,7 +291,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδx = 30,
     maxδu = 1.0,
     λ = 0.05, # This weights the transition-cost objective versus ellipsoid volume. In your current formulation,
-    terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.5^2,
+    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.5^2,
     # These define the box used to compute the affine approximation and Lipschitz bound. Larger boxes are more conservative but safer; smaller boxes are less conservative but may not contain the ellipsoid/controller image.
     linearization_δx = [0.2, 0.2],
     linearization_δu = [0.5, 0.5],

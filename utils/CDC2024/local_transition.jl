@@ -1,6 +1,7 @@
 using StaticArrays, Random
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
+import LazySets
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -13,7 +14,7 @@ const ST = DI.System
 function example_box_ellipsoid()
     c = [-10.0; -10.0]
     P = [2.0 6.0; 6.0 20.0]
-    E = UT.Ellipsoid(P, c)
+    E = LazySets.Ellipsoid(c, inv(P))
     box = UT.get_min_bounding_box(E)
     fig = plot(; aspect_ratio = :equal)
     plot!(fig, box)
@@ -70,12 +71,12 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
     # Get results
     cost_eval(x, u) = problem.transition_cost(x, u)
-    ETilde = UT.affine_transformation(
-        E1,
+    ETilde = LazySets.affine_map(
         affineSys.A + affineSys.B * cont.A,
+        E1,
         affineSys.B * cont.c + affineSys.c,
     )
-    U_used = UT.affine_transformation(E1, cont.A, cont.c)
+    U_used = LazySets.affine_map(cont.A, E1, cont.c)
     # Display results
     println()
     println("Max cost : ", cost)
@@ -135,10 +136,10 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     return
 end
 
-E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [4.0; 4.0])
+E2 = LazySets.Ellipsoid([4.0; 4.0], inv([2.0 0.2; 0.2 0.5]))
 U = UT.LazySets.IntersectionArray([
-    UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]),
-    UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
+    LazySets.Ellipsoid([0.0; 0.0], [25.0 0.0; 0.0 25.0]),
+    LazySets.Ellipsoid([0.0; 0.0], [20.0 0.0; 0.0 30.0]),
     UT.box(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
 ])
 xnew = SVector{2, Float64}([1.0; 1.0])

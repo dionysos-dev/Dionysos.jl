@@ -268,6 +268,11 @@ function compute_abstract_system_from_concrete_system!(
     Rset = SY.get_retained_set(sym)
     X = hybridsys.ext[:X]
 
+    # P/Pm are the quadratic-form matrices of the cells; the LazySets shape
+    # matrices are their inverses, computed once outside the loop.
+    Q = UT._symmetrize(inv(P))
+    Qm = UT._symmetrize(inv(Pm))
+
     trans_count = 0
 
     @showprogress 1 "Computing symbolic control system: " for q in SY.enum_states(sym)
@@ -295,8 +300,8 @@ function compute_abstract_system_from_concrete_system!(
 
             result = ST.solve_transition(
                 hybridsys.resetmaps[m],
-                UT.Ellipsoid(P, x),
-                UT.Ellipsoid(Pm, xm),
+                LazySets.Ellipsoid(collect(x), Q; check_posdef = false),
+                LazySets.Ellipsoid(collect(xm), Qm; check_posdef = false),
                 U,
                 W,
                 L,

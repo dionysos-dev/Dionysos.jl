@@ -6,6 +6,7 @@ using StaticArrays
 using Dionysos
 using Clarabel, JuMP
 import MathematicalSystems as MS
+import LazySets
 using HybridSystems
 
 const DI = Dionysos
@@ -39,8 +40,10 @@ cost_fun = UT.QuadraticStateControlFunction(
 )
 Λ = UT.get_full_psd_matrix(cost_fun)
 
-E1 = UT.Ellipsoid([2.0 0.2; 0.2 1.5], [1.0, 1.0])
-E2 = UT.Ellipsoid([1.0 0.0; 0.0 1.0], [1.08, 0.9])
+# Golden fixtures were defined in the quadratic-form convention (P); LazySets
+# stores Q = P⁻¹, so the source shape is inverted here.
+E1 = LazySets.Ellipsoid([1.0, 1.0], inv([2.0 0.2; 0.2 1.5]))
+E2 = LazySets.Ellipsoid([1.08, 0.9], [1.0 0.0; 0.0 1.0])
 
 sys_noisy =
     MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, g, D, nothing, nothing, nothing)
@@ -77,7 +80,7 @@ end
 
 @testset "solve_transition (infeasible)" begin
     # target far outside the one-step reachable set
-    E_far = UT.Ellipsoid([100.0 0.0; 0.0 100.0], [1e6, 1e6])
+    E_far = LazySets.Ellipsoid([1e6, 1e6], [0.01 0.0; 0.0 0.01])
     result = ST.solve_transition(sys_noisy, E1, E_far, Uformat, Wmat, Λ, opt_sdp)
     @test !result.feasible
     @test result.controller === nothing
@@ -101,9 +104,10 @@ end
         λ = 0.01,
     )
     @test result.feasible
-    @test result.source isa UT.Ellipsoid
-    @test collect(result.source.c) ≈ [1.0, 1.0]
-    @test Matrix(result.source.P) ≈ [3.41386039 0.0; 0.0 3.41386039] atol = 1e-3
+    @test result.source isa LazySets.Ellipsoid
+    @test collect(LazySets.center(result.source)) ≈ [1.0, 1.0]
+    @test Matrix(UT.get_quadratic_form(result.source)) ≈ [3.41386039 0.0; 0.0 3.41386039] atol =
+        1e-3
     @test result.cost ≈ 4.824287182 rtol = 1e-4
 
     # The gains are only loosely pinned by the SDP (flat objective direction),

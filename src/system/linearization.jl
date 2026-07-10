@@ -1,6 +1,6 @@
 struct EllipsoidalAffineApproximatedSystem
-    dynamics::Dict{UT.Ellipsoid, MS.NoisyConstrainedAffineControlDiscreteSystem}
-    L::Dict{UT.Ellipsoid, Float64}
+    dynamics::Dict{LazySets.Ellipsoid, MS.NoisyConstrainedAffineControlDiscreteSystem}
+    L::Dict{LazySets.Ellipsoid, Float64}
 end
 
 struct AffineApproximationDiscreteSystem{

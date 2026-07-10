@@ -238,7 +238,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδx = 1.5,
     maxδu = 3.0,
     λ = 0.001,
-    terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.8^2,
+    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.8^2, # shape matrix Q: semi-axes² on the diagonal
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
@@ -292,7 +292,7 @@ function sampled_indices(n::Int, max_items::Int)
 end
 
 function away_from_periodic_seam(E; margin = 0.25)
-    θ = E.c[1]
+    θ = LazySets.center(E)[1]
     return θ > -π + margin && θ < π - margin
 end
 
@@ -338,17 +338,10 @@ function input_image_ellipsoid(E, κ)
     K = Matrix{Float64}(κ.A)
     b = collect(Float64, κ.c)
 
-    c_x = collect(Float64, E.c)
-    P_x = Matrix{Float64}(E.P)
+    c_u = K * collect(Float64, LazySets.center(E)) + b
+    Q_u = K * Matrix{Float64}(LazySets.shape_matrix(E)) * K'
 
-    Q_x = inv(LA.Symmetric(P_x))
-
-    c_u = K * c_x + b
-    Q_u = K * Q_x * K'
-
-    P_u = inv(LA.Symmetric(Q_u))
-
-    return UT.Ellipsoid(P_u, c_u)
+    return LazySets.Ellipsoid(c_u, UT._symmetrize(Q_u))
 end
 
 function sampled_indices(n::Int, max_items::Int)
@@ -472,8 +465,8 @@ for (j, i) in enumerate(idxs)
     step = valid_steps[i]
     Uell = input_image_ellipsoid(step.ellipsoid, step.kappa)
 
-    c = Uell.c[1]
-    r = 1 / sqrt(Uell.P[1, 1])
+    c = LazySets.center(Uell)[1]
+    r = sqrt(LazySets.shape_matrix(Uell)[1, 1])
 
     plot!(
         fig_u,
@@ -492,7 +485,7 @@ end
 
 for s in cert_result.steps
     if s.ellipsoid !== nothing
-        eigs = LA.eigvals(Matrix(s.ellipsoid.P))
+        eigs = LA.eigvals(Matrix(UT.get_quadratic_form(s.ellipsoid)))
         println("k=", s.k, " min eig=", minimum(eigs), " max eig=", maximum(eigs))
     end
 end
