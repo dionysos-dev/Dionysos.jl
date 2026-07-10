@@ -136,7 +136,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 end
 
 E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [4.0; 4.0])
-U = UT.LazySetIntersection([
+U = UT.LazySets.IntersectionArray([
     UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]),
     UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
     UT.HyperRectangle(SVector(-4.0, -5.0), SVector(4.0, 5.0)),

@@ -32,16 +32,16 @@ end
     R3 = UT.HyperRectangle([1, 1], [-1, -1])
     @test UT.isempty(R3) == true
 
-    @test UT.volume(R1) == 1
-    @test UT.volume(R2) == 9
-    @test UT.volume(R3) == 0
+    @test UT.get_volume(R1) == 1
+    @test UT.get_volume(R2) == 9
+    @test UT.get_volume(R3) == 0
 
     R4 = UT.HyperRectangle([1, 1], [1, 1])
-    @test UT.volume(R4) == 0
+    @test UT.get_volume(R4) == 0
 
-    @test UT.is_intersection(R1, R2) == true
+    @test UT.is_intersecting(R1, R2) == true
     R5 = UT.HyperRectangle([3, 3], [4, 4])
-    @test UT.is_intersection(R1, R5) == false
+    @test UT.is_intersecting(R1, R5) == false
 
     @test UT.issubset(R1, R2) == true
     @test UT.issubset(R2, R5) == false
@@ -96,7 +96,7 @@ end
     D = UT.HyperRectangle([1.0, 0.0], [2.0, 1.0])
     I3 = intersect(A, D)
     @test !UT.isempty(I3)
-    @test UT.volume(I3) == 0.0
+    @test UT.get_volume(I3) == 0.0
     @test all(I3.lb .== [1.0, 0.0])
     @test all(I3.ub .== [1.0, 1.0])
 end
@@ -106,9 +106,9 @@ end
     @test all(UT.get_center(R) .== [2.0, 4.0])
     @test all(UT.get_h(R) .== [2.0, 4.0])
     @test all(UT.get_r(R) .== [1.0, 2.0])
-    @test UT.get_dims(R) == 2
+    @test UT.get_dim(R) == 2
 
-    @test UT.volume(R) == UT.get_volume(R)
+    @test UT.get_volume(R) == 8.0
 end
 
 @testset "Vertices" begin
@@ -143,7 +143,6 @@ end
 
 @testset "Periodic split (set_in_period)" begin
     # Minimal sanity tests that exercise code paths.
-    # Assumes LazySetUnion exists and has field .sets used in set_in_period.
 
     rect_nowrap = UT.HyperRectangle([0.2, 0.0], [0.8, 1.0])
     periodic_dims = UT.SVector(1)     # dim 1 periodic
@@ -151,21 +150,21 @@ end
     start = UT.SVector(0.0)
 
     U1 = UT.set_in_period(rect_nowrap, periodic_dims, periods, start)
-    @test length(U1.sets) == 1
-    @test U1.sets[1] == rect_nowrap
+    @test length(U1.array) == 1
+    @test U1.array[1] == rect_nowrap
 
     # wrapping case: [0.8, 1.2] wraps over period 1.0 -> two intervals
     rect_wrap = UT.HyperRectangle([0.8, 0.0], [1.2, 1.0])
     U2 = UT.set_in_period(rect_wrap, periodic_dims, periods, start)
-    @test length(U2.sets) == 2
-    @test all(r -> !UT.isempty(r), U2.sets)
+    @test length(U2.array) == 2
+    @test all(r -> !UT.isempty(r), U2.array)
 
     # covers full period: width >= period -> single [start, start+period]
     rect_full = UT.HyperRectangle([-0.5, 0.0], [1.5, 1.0]) # width 2.0 >= 1.0
     U3 = UT.set_in_period(rect_full, periodic_dims, periods, start)
-    @test length(U3.sets) == 1
-    @test all(U3.sets[1].lb .== [0.0, 0.0])
-    @test all(U3.sets[1].ub .== [1.0, 1.0])
+    @test length(U3.array) == 1
+    @test all(U3.array[1].lb .== [0.0, 0.0])
+    @test all(U3.array[1].ub .== [1.0, 1.0])
 end
 
 @testset "DeformedRectangle boundary sampling" begin

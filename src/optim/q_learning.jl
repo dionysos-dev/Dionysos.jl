@@ -17,13 +17,7 @@ export DiscreteLowerBoundAlgo, HybridDualDynamicProgrammingAlgo
 
 # TODO It assumes that the cost is `Fill{...}`, otherwise, we should compute a different
 #      cost for each time
-function minimum_transition_cost(
-    prob,
-    transition,
-    solver,
-    ::Type{T},
-    log_level = 0,
-) where {T}
+function minimum_transition_cost(prob, transition, solver, ::Type{T}) where {T}
     model = MOI.instantiate(solver; with_bridge_type = T)
     from = source(prob.system, transition)
     to = target(prob.system, transition)
@@ -41,7 +35,7 @@ function minimum_transition_cost(
         optimizer_with_attributes(
             BemporadMorari.Optimizer{T},
             "continuous_solver" => solver,
-            "log_level" => 0,
+            "print_level" => 0,
         ),
     )
 
@@ -155,7 +149,7 @@ struct HybridDualDynamicProgrammingAlgo{T, S, P}
     polyhedra_library::P
     new_cut_tol::T
     tight_tol::T
-    log_level::Int
+    print_level::Int
 end
 struct HybridDualDynamicProgramming{
     T,
@@ -330,11 +324,9 @@ function learn(
         MOI.optimize!(model)
         if MOI.get(model, MOI.TerminationStatus()) != MOI.OPTIMAL ||
            MOI.get(model, MOI.PrimalStatus()) != MOI.FEASIBLE_POINT
-            #if algo.log_level >= 1
             @warn(
                 "No new cut generated as termination status is $(MOI.get(model, MOI.TerminationStatus())), primal status is $(MOI.get(model, MOI.PrimalStatus())), dual status is $(MOI.get(model, MOI.DualStatus())): $(MOI.get(model, MOI.RawStatusString()))"
             )
-            #end
             return
         end
         V = value_function(Q, left + 1, mode)
@@ -343,7 +335,7 @@ function learn(
         #after = dual_objective_value(model)
         after = MOI.get(model, MOI.ObjectiveValue())
         if after < before + algo.new_cut_tol
-            if algo.log_level >= 3
+            if algo.print_level >= 3
                 @info("Cuts ignored: $after ≤ $before (difference is $(before - after)).")
             end
             return
@@ -444,7 +436,7 @@ function learn(
             β = after - a ⋅ x
             cut = UT.AffineFunction{T}(a, β)
             # without some tolerance, CDDLib often throws `Numerically inconsistent`.
-            if algo.log_level >= 2
+            if algo.print_level >= 2
                 @info("Cut added: $cut, $after > $before.")
             end
             push!(Q.cuts[left + 1, mode], cut)
@@ -452,7 +444,7 @@ function learn(
         for r in Polyhedra.rays(cuts)
             a = normalize(Polyhedra.coord(r))
             cut = Polyhedra.HalfSpace(a, a ⋅ x)
-            if algo.log_level >= 2
+            if algo.print_level >= 2
                 @info("Cut added: $cut, $after > $before.")
             end
             intersect!(Q.domains[left + 1, mode], cut)

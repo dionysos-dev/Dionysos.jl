@@ -5,6 +5,10 @@ import LinearAlgebra as LA
 
 import HybridSystems
 
+# n×n dense identity, used across the LMI builders both as identity blocks inside
+# matrix literals and as the `ε·eye` PSD regularization term.
+eye(n) = LA.diagm(ones(n))
+
 AffineSys = Union{
     HybridSystems.NoisyConstrainedAffineControlDiscreteSystem,
     HybridSystems.ConstrainedAffineControlDiscreteSystem,
@@ -12,7 +16,7 @@ AffineSys = Union{
 }
 
 function format_input_set(rec::HyperRectangle)
-    n = get_dims(rec)
+    n = get_dim(rec)
     Uaux = LA.diagm(1:n)
     U = [(Uaux .== i) ./ rec.ub[i] for i in 1:n]
     return U
@@ -22,9 +26,9 @@ function format_input_set(elli::Ellipsoid)
     return [get_root(elli)]
 end
 
-function format_input_set(iset::LazySetIntersection)
+function format_input_set(iset::LazySets.IntersectionArray)
     result = Any[]
-    for set in iset.sets
+    for set in iset.array
         Base.append!(result, format_input_set(set))
     end
     return result
@@ -67,7 +71,6 @@ function hasTransition(
     Pp = Ep.P
     cp = Ep.c
 
-    eye(n) = LA.diagm(ones(n))
     A = subsys.A
     B = subsys.B
     g = subsys.c
@@ -199,7 +202,6 @@ end
 # This implements the optimization problem presented in Corollary 1 of the following paper 
 # https://arxiv.org/pdf/2204.00315.pdf
 function _has_transition(A, B, g, U, W, L, c, P, cp, Pp, optimizer)
-    eye(n) = LA.diagm(ones(n))
     n = length(c)
     m = size(U[1], 2)
     N = size(W, 2)
@@ -335,7 +337,6 @@ end
 # of `P` is minimized. `optimizer` must be a JuMP SDP optimizer.
 
 function _provide_P(subsys::HybridSystems.ConstrainedAffineControlDiscreteSystem, optimizer)
-    eye(n) = LA.diagm(ones(n))
     A = subsys.A
     B = subsys.B
     n = size(A, 1)
@@ -374,7 +375,6 @@ end
 # W[:,i] = vertex i of the polytop
 function transition_fixed(A, B, c, D, U, W, S, c1, P1, c2, P2, optimizer)
     W = D * W
-    eye(n) = LA.diagm(ones(n))
     nx = length(c) # dimension of the state
     nu = size(U[1], 2) # dimension of the input
     nw = size(W, 1) # dimension of the noise (not use for now, we could add matrix of the noise)
@@ -503,12 +503,11 @@ function transition_backward(
     S,
     Lip,
     optimizer;
-    maxδx = maxδx,
-    maxδu = maxδu,
+    maxδx,
+    maxδu,
     λ = 0.01,
     use_log_det = true,
 )
-    eye(n) = LA.diagm(ones(n))
     nx = length(c) #dimension of the state
     nu = size(U[1], 2) #dimension of the input
     μ, ν = _getμν(Lip, nx, D, W)

@@ -21,7 +21,7 @@ function get_shape(elli::DegenerateEllipsoid)
     return elli.P
 end
 
-function get_dims(elli::DegenerateEllipsoid)
+function get_dim(elli::DegenerateEllipsoid)
     return length(elli.c)
 end
 

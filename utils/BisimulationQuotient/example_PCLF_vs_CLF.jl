@@ -52,7 +52,7 @@ function run_and_save_case(
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("bisimulation_quotient_problem"), problem)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("pclf"), pclf)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("verbose"), verbose)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), verbose ? 1 : 0)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("atol"), atol)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("level_tol"), level_tol)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("max_slices"), max_slices)

@@ -3,13 +3,20 @@ struct EllipsoidalAffineApproximatedSystem
     L::Dict{UT.Ellipsoid, Float64}
 end
 
-struct AffineApproximationDiscreteSystem
-    constrainedAffineSys::MS.NoisyConstrainedAffineControlDiscreteSystem
-    L::Any
-    f_eval::Any
-    function AffineApproximationDiscreteSystem(sys, L)
+struct AffineApproximationDiscreteSystem{
+    S <: MS.NoisyConstrainedAffineControlDiscreteSystem,
+    LT,
+    F,
+}
+    constrainedAffineSys::S
+    L::LT
+    f_eval::F
+    function AffineApproximationDiscreteSystem(
+        sys::MS.NoisyConstrainedAffineControlDiscreteSystem,
+        L,
+    )
         f_eval_fun(x, u, w) = sys.A * x + sys.B * u + sys.D * w + sys.c
-        return new(sys, L, f_eval_fun)
+        return new{typeof(sys), typeof(L), typeof(f_eval_fun)}(sys, L, f_eval_fun)
     end
 end
 
@@ -18,27 +25,51 @@ function AffineApproximationDiscreteSystem(A, B, c, E, X, U, W, L)
     return AffineApproximationDiscreteSystem(contSys, L)
 end
 
-struct SymbolicSystem
-    fsymbolicT::Any
-    fsymbolic::Any
-    Ts::Any
-    nx::Any
-    nu::Any
-    nw::Any
-    x::Any
-    u::Any
-    w::Any
-    ΔX::Any
-    ΔU::Any
-    ΔW::Any
-    X::Any
-    U::Any
-    W::Any
-    obstacles::Any
-    f_eval::Any
-    f_backward_eval::Any
-    Uformat::Any
-    Wformat::Any
+# Bundle built by the Symbolics extension (`buildAffineApproximation`): symbolic
+# dynamics + local approximation domains + evaluators. One type parameter per
+# field keeps it type-stable despite the heterogeneous contents.
+struct SymbolicSystem{
+    FT,
+    FS,
+    TS,
+    NX,
+    NU,
+    NW,
+    XT,
+    UTT,
+    WT,
+    DX,
+    DU,
+    DW,
+    XS,
+    US,
+    WS,
+    OB,
+    FE,
+    FB,
+    UF,
+    WF,
+}
+    fsymbolicT::FT
+    fsymbolic::FS
+    Ts::TS
+    nx::NX
+    nu::NU
+    nw::NW
+    x::XT
+    u::UTT
+    w::WT
+    ΔX::DX
+    ΔU::DU
+    ΔW::DW
+    X::XS
+    U::US
+    W::WS
+    obstacles::OB
+    f_eval::FE
+    f_backward_eval::FB
+    Uformat::UF
+    Wformat::WF
 end
 
 function interval_matrix_max_eig(args...)

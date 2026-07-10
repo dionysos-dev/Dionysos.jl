@@ -1,4 +1,4 @@
-mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOptimizer
     # --- user inputs ---
     alternating_simulation_problem::Union{Nothing, PR.AlternatingSimulationProblem}
 
@@ -66,23 +66,8 @@ OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{
 MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
     optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
-end
-
-function MOI.get(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-)
-    return getproperty(model, Symbol(param.name))
 end
 
 function reset!(model::OptimizerAlternatingSimulationProblem)
@@ -280,7 +265,7 @@ function compute_abstract_system_from_concrete_system!(
     incl_mode = MP.OUTER,
 )
     Xmap = SY.get_state_mapping(sym)
-    Rset = SY.get_retained_domain(sym)
+    Rset = SY.get_retained_set(sym)
     X = hybridsys.ext[:X]
 
     trans_count = 0
@@ -303,7 +288,7 @@ function compute_abstract_system_from_concrete_system!(
 
         # filter to allowed + inside X
         cand = filter(q′ -> MP.contains_state(Rset, Xmap, q′), cand)
-        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ X.A), cand)
+        cand = filter(q′ -> (SY.get_concrete_state(sym, q′) ∈ UT.minus_included(X)), cand)
 
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)

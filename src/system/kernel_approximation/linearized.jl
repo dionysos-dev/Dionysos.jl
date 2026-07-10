@@ -19,10 +19,11 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
 It evaluates the system at the center, adds linearized spread based on Jacobian, and inflates with the error bound.
 """
-struct DiscreteTimeLinearized <: DiscreteTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
-    linsys_map::Function
-    error_map::Function
+struct DiscreteTimeLinearized{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, FL, FE} <:
+       DiscreteTimeSystemOverApproximation
+    system::S
+    linsys_map::FL
+    error_map::FE
 end
 
 get_system(approx::DiscreteTimeLinearized) = approx.system
@@ -32,7 +33,7 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dims(rect)
+        N = UT.get_dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
@@ -64,10 +65,14 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
 The result is a conservative reachable set from the center using linearization + second-order error correction.
 """
-struct ContinuousTimeLinearized <: ContinuousTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
-    linsys_map::Function
-    error_map::Function
+struct ContinuousTimeLinearized{
+    S <: MS.ConstrainedBlackBoxControlContinuousSystem,
+    FL,
+    FE,
+} <: ContinuousTimeSystemOverApproximation
+    system::S
+    linsys_map::FL
+    error_map::FE
 end
 
 get_system(approx::ContinuousTimeLinearized) = approx.system
@@ -77,7 +82,7 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
         x = UT.get_center(rect)
         r = UT.get_r(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dims(rect)
+        N = UT.get_dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
@@ -91,27 +96,16 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
     end
 end
 
-function discretize(approx::ContinuousTimeLinearized, tstep::Float64)
-    discretized_system = discretize_continuous_system(get_system(approx), tstep)
+function discretize(
+    approx::ContinuousTimeLinearized,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
+    discretized_system =
+        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
     linsys_map = (x, dx, u) -> approx.linsys_map(x, dx, u, tstep)
     error_map = (r, u) -> approx.error_map(r, u, tstep)
     return DiscreteTimeLinearized(discretized_system, linsys_map, error_map)
-end
-
-function get_DiscreteTimeGrowthBound(approx::DiscreteTimeLinearized)
-    return DiscreteTimeGrowthBound(
-        get_system(approx),
-        approx.linsys_map,
-        error_map.error_map,
-    )
-end
-
-function get_ContinuousTimeGrowthBound(approx::ContinuousTimeLinearized)
-    return ContinuousTimeGrowthBound(
-        get_system(approx),
-        approx.linsys_map,
-        error_map.error_map,
-    )
 end
 
 ## Constructors
@@ -138,7 +132,7 @@ function ContinuousTimeLinearized(
     DF_sys,
     bound_DF,
     bound_DDF;
-    num_substeps = 5,
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
 )
     linsys_map =
         (x, dx, u, tstep) ->

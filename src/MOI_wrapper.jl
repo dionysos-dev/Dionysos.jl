@@ -358,17 +358,14 @@ function system(
 )
     _X_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
-    _X_ = Dionysos.Utils.LazySetMinus(
-        _X_,
-        Dionysos.Utils.LazySetUnion(obstacles(model, x_idx)),
-    )
+    _X_ = Dionysos.Utils.set_minus(_X_, Dionysos.Utils.set_union(obstacles(model, x_idx)))
     _U_ =
         Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     if model.time_type == CONTINUOUS
         return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamic(model, x_idx, u_idx),
-            Dionysos.Utils.get_dims(_X_),
-            Dionysos.Utils.get_dims(_U_),
+            Dionysos.Utils.get_dim(_X_),
+            Dionysos.Utils.get_dim(_U_),
             _X_,
             _U_,
         )
@@ -382,8 +379,8 @@ function system(
         dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
             (x, u) -> dyn(x, u),
-            Dionysos.Utils.get_dims(_X_),
-            Dionysos.Utils.get_dims(_U_),
+            Dionysos.Utils.get_dim(_X_),
+            Dionysos.Utils.get_dim(_U_),
             _X_,
             _U_,
         )
@@ -439,7 +436,8 @@ function setup!(model::SymbolicsOptimizer)
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
 
-    println(">>Setting up the model")
+    print_level = MOI.get(model.inner, MOI.RawOptimizerAttribute("print_level"))
+    print_level >= 1 && println(">>Setting up the model")
     input_index = 0
     state_index = 0
     model.nlp_model = MOI.Nonlinear.Model()
@@ -463,7 +461,7 @@ function setup!(model::SymbolicsOptimizer)
     vars = MOI.VariableIndex.(eachindex(model.lower))
     model.evaluator = MOI.Nonlinear.Evaluator(model.nlp_model, backend, vars)
     MOI.initialize(model.evaluator, Symbol[])
-    println(">>Model setup complete")
+    print_level >= 1 && println(">>Model setup complete")
     return
 end
 
@@ -484,7 +482,9 @@ function MOI.set(model::SymbolicsOptimizer, attr::MOI.RawOptimizerAttribute, val
     return MOI.set(model.inner, attr, value)
 end
 
-# Type piracy
+# Deliberate type piracy: JuMP has no parsing rule for `∉`; this method makes the public obstacle
+# syntax `@constraint(model, x ∉ obstacle)` work by wrapping the set in `OuterSet`. Purely additive
+# (JuMP errors on `∉` otherwise). Remove once JuMP exposes an extension point for it.
 function JuMP.parse_constraint_call(
     error_fn::Function,
     vectorized::Bool,

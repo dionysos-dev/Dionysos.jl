@@ -45,8 +45,11 @@ const _PAGES = [
         name = string(split(jl_file, ".")[1])
         return name => "reference/$name.md"
     end,
-    "Developer Docs" =>
-        ["Set up" => "developers/setup.md", "Git" => "developers/git.md"],
+    "Developer Docs" => [
+        "Set up" => "developers/setup.md",
+        "Conventions" => "developers/conventions.md",
+        "Git" => "developers/git.md",
+    ],
     "Bibliography" => "bibliography.md",
 ]
 

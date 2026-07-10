@@ -17,8 +17,9 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector) -> Vector{SVector}`
 which returns a singleton list with the propagated center point.
 """
-struct DiscreteTimeCenteredSimulation <: DiscreteTimeSystemUnderApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
+struct DiscreteTimeCenteredSimulation{S <: MS.ConstrainedBlackBoxControlDiscreteSystem} <:
+       DiscreteTimeSystemUnderApproximation
+    system::S
 end
 
 get_system(approx::DiscreteTimeCenteredSimulation) = approx.system
@@ -50,8 +51,10 @@ which returns a singleton list with the propagated center point.
 # Notes
 Use `discretize` to convert this approximation into a discrete-time approximation suitable for use in fixed-step abstraction pipelines.
 """
-struct ContinuousTimeCenteredSimulation <: ContinuousTimeSystemUnderApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
+struct ContinuousTimeCenteredSimulation{
+    S <: MS.ConstrainedBlackBoxControlContinuousSystem,
+} <: ContinuousTimeSystemUnderApproximation
+    system::S
 end
 
 get_system(approx::ContinuousTimeCenteredSimulation) = approx.system
@@ -65,9 +68,13 @@ function get_under_approximation_map(approx::ContinuousTimeCenteredSimulation)
     end
 end
 
-function discretize(approx::ContinuousTimeCenteredSimulation, tstep::Float64)
+function discretize(
+    approx::ContinuousTimeCenteredSimulation,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
     discretized_system =
-        discretize_continuous_system(get_system(approx), tstep; num_substeps = 5)
+        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
     return DiscreteTimeCenteredSimulation(discretized_system)
 end
 
@@ -91,8 +98,9 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector) -> Vector{SVector}`
 which returns a list of propagated samples.
 """
-struct DiscreteTimeRandomSimulation <: DiscreteTimeSystemUnderApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
+struct DiscreteTimeRandomSimulation{S <: MS.ConstrainedBlackBoxControlDiscreteSystem} <:
+       DiscreteTimeSystemUnderApproximation
+    system::S
     nsamples::Int
 end
 
@@ -124,8 +132,9 @@ which returns a list of propagated samples.
 # Notes
 Use `discretize` to convert this approximation into a discrete-time approximation suitable for use in fixed-step abstraction pipelines.
 """
-struct ContinuousTimeRandomSimulation <: ContinuousTimeSystemUnderApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
+struct ContinuousTimeRandomSimulation{S <: MS.ConstrainedBlackBoxControlContinuousSystem} <:
+       ContinuousTimeSystemUnderApproximation
+    system::S
     nsamples::Int
 end
 
@@ -138,8 +147,12 @@ function get_under_approximation_map(approx::ContinuousTimeRandomSimulation)
     end
 end
 
-function discretize(approx::ContinuousTimeRandomSimulation, tstep::Float64)
+function discretize(
+    approx::ContinuousTimeRandomSimulation,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
     discretized_system =
-        discretize_continuous_system(get_system(approx), tstep; num_substeps = 5)
+        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
     return DiscreteTimeRandomSimulation(discretized_system, approx.nsamples)
 end

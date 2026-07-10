@@ -64,7 +64,7 @@ using FillArrays
             "continuous_solver" => nlp_solver,
             "mixed_integer_solver" => miqp_solver,
             "indicator" => false,
-            "log_level" => 0,
+            "print_level" => 0,
         )
 
         optimizer = MOI.instantiate(algo)

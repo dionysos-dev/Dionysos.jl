@@ -17,7 +17,8 @@ function clean_poly(P::Poly)
     try
         return LazySets.remove_redundant_constraints(P)
     catch
-        println("Clean failed")
+        @warn "clean_poly: remove_redundant_constraints failed; returning input polytope" maxlog =
+            1
         return P
     end
 end

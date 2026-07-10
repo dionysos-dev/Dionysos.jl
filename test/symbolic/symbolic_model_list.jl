@@ -94,7 +94,7 @@ println("Started test")
     # Transitions + plotting recipe
     # -----------------------
     translist = [(1, 2, 1), (2, 1, 1)]  # (q′, q, u)
-    ST.add_transitions!(sym.autom, translist)
+    SY.add_transitions!(sym.autom, translist)
     @test SY.get_n_transitions(sym) == 2
 
     fig = plot(; aspect_ratio = :equal)

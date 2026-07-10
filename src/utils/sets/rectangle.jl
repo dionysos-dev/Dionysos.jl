@@ -14,17 +14,27 @@ end
 HyperRectangle(lb::T, ub::T) where {T <: Tuple} = HyperRectangle(SVector(lb), SVector(ub))
 
 # From vectors (runtime dimension)
-HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti} =
-    HyperRectangle(SVector{length(lb), Ti}(lb), SVector{length(ub), Ti}(ub))
+function HyperRectangle(lb::AbstractVector{Ti}, ub::AbstractVector{Ti}) where {Ti}
+    n = length(lb)
+    # Guard: without this, a length mismatch keeps re-matching this same
+    # AbstractVector method (the `SVector{length,·}` results are still vectors of
+    # unequal length) and recurses until a StackOverflowError.
+    n == length(ub) || throw(
+        DimensionMismatch(
+            "lb and ub must have equal length, got $(length(lb)) and $(length(ub))",
+        ),
+    )
+    return HyperRectangle(SVector{n, Ti}(lb), SVector{n, Ti}(ub))
+end
 
-Base.in(x, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
+Base.in(x::AbstractVector, rect::HyperRectangle) = all(rect.lb .<= x .<= rect.ub)
 Base.in(rect1::HyperRectangle, rect2::HyperRectangle) =
     all(rect1.lb .>= rect2.lb) && all(rect1.ub .<= rect2.ub)
 Base.isequal(rect1::HyperRectangle, rect2::HyperRectangle) =
     all(rect1.lb .== rect2.lb) && all(rect1.ub .== rect2.ub)
 Base.:(==)(rect1::HyperRectangle, rect2::HyperRectangle) = isequal(rect1, rect2)
 Base.isempty(rect::HyperRectangle) = any(rect.lb .> rect.ub)
-is_intersection(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
+is_intersecting(a::HyperRectangle, b::HyperRectangle) = !Base.isempty(Base.intersect(a, b))
 import Base: intersect
 function intersect(a::HyperRectangle{N, T}, b::HyperRectangle{N, T}) where {N, T}
     return HyperRectangle(max.(a.lb, b.lb), min.(a.ub, b.ub))
@@ -34,14 +44,14 @@ Base.issubset(a::HyperRectangle, b::HyperRectangle) =
 get_center(rect::HyperRectangle) = (rect.lb + rect.ub) / 2
 get_h(rect::HyperRectangle) = rect.ub - rect.lb
 get_r(rect::HyperRectangle) = get_h(rect) ./ 2.0
-get_dims(rect::HyperRectangle) = length(rect.lb)
-volume(rect::HyperRectangle) = Base.isempty(rect) ? 0.0 : prod(rect.ub - rect.lb)
+get_dim(rect::HyperRectangle) = length(rect.lb)
 scale(rect::HyperRectangle, α) = HyperRectangle(rect.lb * α, rect.ub * α)
 to_LazySets(rect::HyperRectangle) =
     LazySets.Hyperrectangle(Vector(get_center(rect)), Vector(get_r(rect)))
 affine_transformation(rect::HyperRectangle, A, b) =
     LazySets.AffineMap(Matrix(A), to_LazySets(rect), Vector(b))
-get_volume(rect::HyperRectangle) = prod(rect.ub .- rect.lb)
+get_volume(rect::HyperRectangle) =
+    Base.isempty(rect) ? zero(eltype(rect.lb)) : prod(rect.ub .- rect.lb)
 
 _outer_box(X::HyperRectangle) = X
 
@@ -129,9 +139,9 @@ function _recursive_period_split!(
 end
 
 """
-    set_in_period(rect, periodic_dims, periods, start) -> LazySetUnion{N,T}
+    set_in_period(rect, periodic_dims, periods, start) -> LazySets.UnionSetArray
 
-Split `rect` along periodic boundaries and return a `LazySetUnion` of wrapped rectangles.
+Split `rect` along periodic boundaries and return the union of the wrapped rectangles.
 """
 function set_in_period(
     rect::HyperRectangle{N, T},
@@ -150,11 +160,7 @@ function set_in_period(
         start,
         1,
     )
-
-    # you need a constructor; otherwise build explicitly:
-    U = LazySetUnion{N, T}()
-    Base.append!(U.sets, L)
-    return U
+    return set_union(L)
 end
 
 """

@@ -4,17 +4,19 @@ import StaticArrays: SVector, SMatrix
 import RecipesBase: @recipe, @series
 import Polyhedra
 import LazySets
+import SpecialFunctions
 using LinearAlgebra, JuMP
 
 include("plotting/simple_plots.jl")
 
 include("scalar_functions.jl")
+include("periodic.jl")
+include("incl_mode.jl")
 include("data_structures/sorted_vector_set.jl")
 include("data_structures/tree.jl")
 include("search/RRT.jl")
 
-include("optim/bisection.jl")
-include("optim/newton_method.jl")
+include("optim/scalar_optimization.jl")
 
 include("sets/lazy_set_operations.jl")
 include("sets/rectangle.jl")

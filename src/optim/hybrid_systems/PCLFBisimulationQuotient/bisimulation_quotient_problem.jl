@@ -28,7 +28,7 @@ include("sublevel_support.jl")
 
 include("cosafe_ltl_problem.jl")
 
-mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerBisimulationQuotient{T} <: OP.AbstractDionysosOptimizer
     # --- user inputs ---
     bisimulation_quotient_problem::Union{Nothing, PR.BisimulationQuotientProblem}
     pclf::Union{Nothing, PCLF.PCLF}
@@ -41,7 +41,7 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
     polyhedra_backend::Any
 
     atol::T
-    verbose::Bool
+    print_level::Int
 
     # --- results ---
     Γ::Union{Nothing, Vector{Float64}}
@@ -54,13 +54,13 @@ mutable struct OptimizerBisimulationQuotient{T} <: MOI.AbstractOptimizer
             nothing,    # bisimulation_quotient_problem
             nothing,    # pclf
             1e-2,       # level_tol
-            200,        # max_levels    
+            200,        # max_levels
             nothing,    # ΓX
             nothing,    # nb_levels
             200,        # max_slices
             nothing,    # polyhedra_backend
             1e-3,       # atol
-            true,       # verbose
+            1,          # print_level
             nothing,    # Γ
             nothing,    # D
             nothing,    # bisimulation_quotient
@@ -74,29 +74,8 @@ OptimizerBisimulationQuotient() = OptimizerBisimulationQuotient{Float64}()
 MOI.is_empty(opt::OptimizerBisimulationQuotient) =
     opt.bisimulation_quotient_problem === nothing
 
-function MOI.set(
-    model::OptimizerBisimulationQuotient,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    name = Symbol(param.name)
-    if !hasproperty(model, name)
-        error("Unknown optimizer attribute: $(param.name)")
-    end
-    setproperty!(model, name, value)
-    return
-end
-
 function MOI.get(model::OptimizerBisimulationQuotient, ::MOI.SolveTimeSec)
     return model.construction_time_sec
-end
-
-function MOI.get(model::OptimizerBisimulationQuotient, param::MOI.RawOptimizerAttribute)
-    name = Symbol(param.name)
-    if !hasproperty(model, name)
-        error("Unknown optimizer attribute: $(param.name)")
-    end
-    return getproperty(model, name)
 end
 
 function reset!(model::OptimizerBisimulationQuotient)
@@ -143,15 +122,17 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     opt.Γ = Γ
     opt.D = D
 
-    println("Computed levels Γ = ", Γ)
-    println("Computed terminal set D = ", D)
+    if opt.print_level >= 1
+        println("Computed levels Γ = ", Γ)
+        println("Computed terminal set D = ", D)
+    end
 
     T = bisimulation_pclf(
         system,
         opt.pclf,
         opt.Γ,
         regions;
-        verbose = opt.verbose,
+        verbose = opt.print_level >= 1,
         atol = opt.atol,
         max_slices = opt.max_slices,
     )

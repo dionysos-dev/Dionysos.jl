@@ -65,7 +65,7 @@ algo = optimizer_with_attributes(
     "continuous_solver" => qp_solver,
     "mixed_integer_solver" => miqp_solver,
     "indicator" => false,
-    "log_level" => 0,
+    "print_level" => 0,
 );
 
 # and use it to solve the given problem, with the help of the abstraction layer

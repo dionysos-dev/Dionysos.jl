@@ -1,5 +1,5 @@
 mutable struct SortedAutomatonList{S <: AbstractSet{NTuple{3, Int}}} <:
-               AbstractAutomatonList{3, 3}
+               AbstractAutomatonList
     nstates::Int
     nsymbols::Int
     transitions::S
@@ -9,7 +9,7 @@ function SortedAutomatonList{S}(nstates, nsymbols) where {S}
     return SortedAutomatonList(nstates, nsymbols, S())
 end
 
-function NewSortedAutomatonList(nstates, nsymbols)
+function SortedAutomatonList(nstates::Int, nsymbols::Int)
     return SortedAutomatonList{UT.SortedTupleSet{3, NTuple{3, Int}}}(nstates, nsymbols)
 end
 
@@ -22,7 +22,7 @@ add_transitions!(autom::SortedAutomatonList, translist) =
     UT.append_new!(autom.transitions, translist)
 pre(a::SortedAutomatonList, target::Int) = UT.fix_and_eliminate_first(a.transitions, target)
 
-compute_post!(targetlist, a::SortedAutomatonList, source, symbol) =
+compute_post!(targetlist, a::SortedAutomatonList, source::Int, symbol::Int) =
     UT.fix_and_eliminate_tail!(targetlist, a.transitions, (source, symbol))
 
 function post(a::SortedAutomatonList, source::Int, symbol::Int)

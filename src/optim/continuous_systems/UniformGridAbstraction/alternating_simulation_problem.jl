@@ -1,7 +1,7 @@
 @enum ApproxMode USER_DEFINED GROWTH LINEARIZED CENTER_SIMULATION RANDOM_SIMULATION
 
 """
-    OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+    OptimizerAlternatingSimulationProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 A solver responsible for constructing a **symbolic abstraction of the system dynamics**,
 independently of any control specification.
@@ -162,7 +162,7 @@ Supported execution backends:
 - `SY.ThreadedBackend(progress_dt)`  
   Multithreaded computation on the current Julia process.
 
-- `SY.JuliaDistributedBackend(procs, nparts, partition_strategy, threaded_per_worker, warmup_workers)`  
+- `SY.JuliaDistributedBackend(procs, nparts, partition_strategy, threaded_per_worker)`
   Distributed computation over Julia worker processes.
 
 - `SY.SlurmArrayBackend(nchunks, chunk_id, outdir, partition_strategy, write_only)`  
@@ -239,7 +239,7 @@ abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"
 discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
 ```
 """
-mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOptimizer
     ## Abstraction Result
     discrete_time_system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
     abstract_system::Union{Nothing, SY.SymbolicModelList}
@@ -346,7 +346,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: MOI.AbstractOptimizer
             nothing,
             nothing,
             nothing,
-            (n, m) -> ST.NewSortedAutomatonList(n, m),
+            (n, m) -> SY.SortedAutomatonList(n, m),
             nothing, #USER_DEFINED
             nothing,
             nothing,
@@ -374,23 +374,8 @@ OptimizerAlternatingSimulationProblem() = OptimizerAlternatingSimulationProblem{
 MOI.is_empty(optimizer::OptimizerAlternatingSimulationProblem) =
     optimizer.alternating_simulation_problem === nothing
 
-function MOI.set(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerAlternatingSimulationProblem, ::MOI.SolveTimeSec)
     return model.abstraction_construction_time_sec
-end
-
-function MOI.get(
-    model::OptimizerAlternatingSimulationProblem,
-    param::MOI.RawOptimizerAttribute,
-)
-    return getproperty(model, Symbol(param.name))
 end
 
 function reset!(model::OptimizerAlternatingSimulationProblem)
@@ -519,7 +504,7 @@ function _validate_periodic_data(opt)
     length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
     length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
 
-    N = UT.get_dims(opt.alternating_simulation_problem.system.X)
+    N = UT.get_dim(opt.alternating_simulation_problem.system.X)
     if P > 0
         all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
     end
@@ -654,7 +639,7 @@ _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
     concrete_system = optimizer.alternating_simulation_problem.system
-    return _vector_of_tuple(Dionysos.Utils.get_dims(concrete_system.X))
+    return _vector_of_tuple(Dionysos.Utils.get_dim(concrete_system.X))
 end
 
 function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProblem)
@@ -725,7 +710,7 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
 
     optimizer.print_level >= 1 && println(
         "compute_abstract_system_from_concrete_system! terminated with success: ",
-        "$(HybridSystems.ntransitions(abstract_system.autom)) transitions created",
+        "$(HybridSystems.ntransitions(SY.get_automaton(abstract_system))) transitions created",
     )
 
     optimizer.abstract_system = abstract_system

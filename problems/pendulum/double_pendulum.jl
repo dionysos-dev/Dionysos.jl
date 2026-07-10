@@ -65,8 +65,8 @@ function system(;
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dims(_X_),
-        UT.get_dims(_U_),
+        UT.get_dim(_X_),
+        UT.get_dim(_U_),
         _X_,
         _U_,
     )
@@ -110,7 +110,7 @@ function optimal_control_problem(;
             SVector(π / 2.0, π, 5.0, 5.0),
         )
 
-        _U_ = UT.LazySetMinus(
+        _U_ = UT.set_minus(
             UT.HyperRectangle(SVector(-5.5), SVector(5.5)),
             UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
         )

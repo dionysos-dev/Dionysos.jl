@@ -34,7 +34,7 @@ const UT = DI.Utils
     @test UT.isposdef(UT.get_shape(E1)) &&
           UT.isposdef(UT.get_shape(E2)) &&
           UT.isposdef(UT.get_shape(E3)) == true
-    @test UT.get_dims(E1) == 2
+    @test UT.get_dim(E1) == 2
     @test UT.centerDistance(E1, E2) == 3.0
     @test UT.pointCenterDistance(E1, [5.0; 4.0]) == 5.0
     @test abs(UT.get_volume(E2) - π) <= 10e-6
@@ -49,7 +49,7 @@ const UT = DI.Utils
         UT.get_center(E3) .+ [2.0; 1.0],
     )
     @test UT.get_shape(E4) == [0.4 -0.1; -0.1 0.5]
-    @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.expand(E1, 2.0))
+    @test UT.get_shape(UT.scale(E1, 2.0)) == UT.get_shape(UT.get_sublevel_set(E1, 2.0))
     @test UT.get_axis_points(E2, 2) == ([3.0, 1.0], [5.0, 1.0])
     @test UT.get_all_axis_points(E2) == [([4.0, 0.0], [4.0, 2.0]), ([3.0, 1.0], [5.0, 1.0])]
     @test UT.get_length_semiaxis_sorted(E2, 1) == 1.0
@@ -81,8 +81,8 @@ end
     a = 0.8
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test UT.is_intersected(E1, E)
-    @test UT.is_intersected(E, E1)
+    @test UT.is_intersecting(E1, E)
+    @test UT.is_intersecting(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err =
         LA.norm(E1scaled.c - [2.4; 2.2]) +
@@ -102,8 +102,8 @@ end
     a = 1.2
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test UT.is_intersected(E1, E)
-    @test UT.is_intersected(E, E1)
+    @test UT.is_intersecting(E1, E)
+    @test UT.is_intersecting(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err =
         LA.norm(E1scaled.c - [2.8; 2.599]) +
@@ -123,8 +123,8 @@ end
     a = 2.5
     E1 = UT.Ellipsoid(P0, c0 + [a; a])
 
-    @test !UT.is_intersected(E1, E)
-    @test !UT.is_intersected(E, E1)
+    @test !UT.is_intersecting(E1, E)
+    @test !UT.is_intersecting(E, E1)
     E1scaled = UT.scale_for_noninclusion_contact_point(E1, E)
     err =
         LA.norm(E1scaled.c - [4.1; 3.9]) +
@@ -176,7 +176,7 @@ end
         0.0 0.0
     ]
 
-    @test UT.get_dims(E0) == 2
+    @test UT.get_dim(E0) == 2
     @test UT.get_center(E0) == c0
     @test UT.get_shape(E0) == P0
     @test UT.is_degenerate(E0)

@@ -2,9 +2,12 @@ module DiscreteSystems
 
 import Dionysos
 const ST = Dionysos.System
+const SY = Dionysos.Symbolic
 const PR = Dionysos.Problem
 
 import JuMP: MOI
+
+import ..AbstractDionysosOptimizer
 
 # ------ Internal data structure for Discrete controllers ------
 mutable struct DiscreteControlTable
@@ -53,12 +56,12 @@ end
 # ------------------------------------------------------------
 
 function _compute_base_pairstable(autom)
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
 
     base_pairstable = falses(nstates, nsymbols)
 
-    for (_, source, symbol) in ST.enum_transitions(autom)
+    for (_, source, symbol) in SY.enum_transitions(autom)
         base_pairstable[source, symbol] = true
     end
 
@@ -81,10 +84,10 @@ function _compute_nsymbolslist(pairstable::BitMatrix)
 end
 
 function _counter_dense(autom)
-    counter = zeros(Int, ST.get_n_state(autom), ST.get_n_input(autom))
+    counter = zeros(Int, SY.get_n_state(autom), SY.get_n_input(autom))
 
-    for target in ST.enum_states(autom)
-        for (source, symbol) in ST.pre(autom, target)
+    for target in SY.enum_states(autom)
+        for (source, symbol) in SY.pre(autom, target)
             counter[source, symbol] += 1
         end
     end

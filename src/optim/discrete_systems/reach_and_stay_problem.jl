@@ -2,7 +2,7 @@
 # Reach-and-Stay Problem
 # ============================================================
 
-mutable struct OptimizerReachAndStayProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerReachAndStayProblem{T} <: AbstractDionysosOptimizer
     problem::Union{Nothing, PR.ReachAndStayProblem}
     early_stop::Bool
     print_level::Int
@@ -22,40 +22,26 @@ OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 
 MOI.is_empty(optimizer::OptimizerReachAndStayProblem) = optimizer.problem === nothing
 
-function MOI.set(
-    model::OptimizerReachAndStayProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
-MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec) = model.solve_time_sec
-
-function MOI.get(model::OptimizerReachAndStayProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
-end
-
 # ------------------------------------------------------------
 # Controlled predecessor:
 # Pre(Y | S) = {q in S | exists u, Post(q,u) subset Y}
 # ------------------------------------------------------------
 
 function _compute_seed(autom, Y::BitVector, S::BitVector, seen_pairs::BitMatrix)
-    nstates = ST.get_n_state(autom)
+    nstates = SY.get_n_state(autom)
     seed = falses(nstates)
 
     fill!(seen_pairs, false)
 
     for target in eachindex(Y)
         Y[target] || continue
-        for (source, symbol) in ST.pre(autom, target)
+        for (source, symbol) in SY.pre(autom, target)
             S[source] || continue
             seen_pairs[source, symbol] && continue
 
             seen_pairs[source, symbol] = true
 
-            dests = ST.post(autom, source, symbol)
+            dests = SY.post(autom, source, symbol)
 
             if !isempty(dests) && all(d -> Y[d], dests)
                 seed[source] = true
@@ -84,8 +70,8 @@ function _invariant_with_floor(
     floor_cells::BitVector,
     base_pairstable::BitMatrix,
 )
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
 
     safeset = copy(safe_cells)
     safeset .|= floor_cells
@@ -112,7 +98,7 @@ function _invariant_with_floor(
         @inbounds for target in 1:nstates
             unsafeset[target] || continue
 
-            for (source, symbol) in ST.pre(autom, target)
+            for (source, symbol) in SY.pre(autom, target)
                 if pairstable[source, symbol]
                     pairstable[source, symbol] = false
                     nsymbolslist[source] -= 1
@@ -146,14 +132,14 @@ end
 # ------------------------------------------------------------
 
 function _add_one_control_to_target!(contr, autom, cells::BitVector, target_set::BitVector)
-    nstates = ST.get_n_state(autom)
+    nstates = SY.get_n_state(autom)
 
     @inbounds for q in 1:nstates
         cells[q] || continue
         isempty(contr(q)) || continue
 
-        for u in ST.enum_inputs(autom)
-            dests = ST.post(autom, q, u)
+        for u in SY.enum_inputs(autom)
+            dests = SY.post(autom, q, u)
 
             if !isempty(dests) && all(d -> target_set[d], dests)
                 add_control!(contr, q, u)
@@ -176,8 +162,8 @@ function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
     problem === nothing && error("problem not set")
 
     autom = problem.system
-    nstates = ST.get_n_state(autom)
-    nsymbols = ST.get_n_input(autom)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
 
     T = _bitset_from_states(problem.target_set, nstates)
     S = _bitset_from_states(problem.safe_set, nstates)
@@ -226,7 +212,7 @@ function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
 
     optimizer.controller = ST.DiscreteStaticController(winning_set, contr, false)
     optimizer.winning_set = winning_set
-    optimizer.winning_set_complement = setdiff(Set(ST.enum_states(autom)), winning_set)
+    optimizer.winning_set_complement = setdiff(Set(SY.enum_states(autom)), winning_set)
     optimizer.success = all(q -> Y[q], I)
 
     optimizer.print_level >= 1 &&

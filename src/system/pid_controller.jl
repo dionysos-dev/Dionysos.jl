@@ -66,6 +66,7 @@ _apply_gain(K::Number, e) = K * e
 
 _sat(u, umin, umax) = clamp.(u, umin, umax)
 
+ST.controller_kind(::PIDController) = ST.DynamicKind()
 ST.domain(pid::PIDController) = nothing
 
 function ST.initial_state(pid::PIDController)

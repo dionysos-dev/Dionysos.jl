@@ -32,4 +32,9 @@ Dionysos.Mapping.HierarchicalGridMapping
 Dionysos.Mapping.PeriodicGridMapping
 ```
 
+## State sets
+```@docs
+Dionysos.Mapping.MappedStateSet
+```
+
 

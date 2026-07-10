@@ -95,7 +95,7 @@ println("Started test")
     safe_set = Set(safelist)
     correct = true
 
-    for source in 1:ST.get_n_state(symmodel.autom)
+    for source in 1:SY.get_n_state(symmodel.autom)
         if !(source in ST.domain(contr))
             continue
         end
@@ -104,7 +104,7 @@ println("Started test")
         symbols = contr.controller_map(source)
 
         for symbol in symbols
-            ST.compute_post!(targetlist, symmodel.autom, source, symbol)
+            SY.compute_post!(targetlist, symmodel.autom, source, symbol)
         end
 
         if !(all(t -> t in safe_set, targetlist))

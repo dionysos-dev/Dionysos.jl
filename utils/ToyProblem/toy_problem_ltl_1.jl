@@ -85,17 +85,17 @@ _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
 g11 = UT.HyperRectangle(SVector(-1.0, 1.0), SVector(-0.3, 1.7))
 g12 = UT.HyperRectangle(SVector(1.0, 1.0), SVector(1.7, 1.7))
-g1 = UT.LazySetUnion([g11, g12])
+g1 = UT.set_union([g11, g12])
 
 g2_big = UT.HyperRectangle(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
 g2_hole = UT.HyperRectangle(SVector(-1.2, -1.0), SVector(-0.9, -0.8))
-g2 = UT.LazySetMinus(g2_big, g2_hole)
+g2 = UT.set_minus(g2_big, g2_hole)
 
 g3 = UT.HyperRectangle(SVector(1.0, -1.8), SVector(1.5, -1.1))
 
 obs1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 obs2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
-obs = UT.LazySetUnion([obs1, obs2])
+obs = UT.set_union([obs1, obs2])
 
 # labeling dictionary: AP => concrete set (LazySet / HyperRectangle)
 labeling = Dict{Symbol, Any}(:g1 => g1, :g2 => g2, :g3 => g3, :obs => obs)

@@ -14,11 +14,11 @@ using JuMP
 using HybridSystems
 
 """
-    Optimizer{T} <: MOI.AbstractOptimizer
+    Optimizer{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 Branch and bound solver: Optimal control of hybrid systems via a predictive control scheme combining a branch and bound algorithm that can refine Q-functions using Lagrangian duality.
 """
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     continuous_solver::Any
     mixed_integer_solver::Any
     Q_function_init::Any
@@ -26,15 +26,15 @@ mutable struct Optimizer{T} <: MOI.AbstractOptimizer
     lower_bound::Any
     horizon::Int
     indicator::Bool
-    log_level::Int
-    log_iter::AbstractVector{Int}
+    print_level::Int
+    print_iter::AbstractVector{Int}
     max_iter::Int
     max_time::Float64
     feasible_solution_callback::Union{Nothing, Function}
     problem::Union{Nothing, PR.OptimalControlProblem}
     status::MOI.TerminationStatusCode
     upper_bound::T
-    solve_time::Float64
+    solve_time_sec::Float64
     num_total::Int
     num_iter::Int
     num_done::Int
@@ -77,10 +77,7 @@ function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
             throw(MOI.UnsupportedAttribute(param, "$(typeof(value)) not supported"))
         end
     end
-    return setproperty!(model, Symbol(param.name), value)
-end
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
+    return OP.set_field_attribute!(model, param, value)
 end
 
 struct Candidate{T, TT}
@@ -120,7 +117,7 @@ function candidate(prob, algo::Optimizer{T}, Q_function, traj) where {T}
         "continuous_solver" => algo.continuous_solver,
         "mixed_integer_solver" => algo.mixed_integer_solver,
         "indicator" => algo.indicator,
-        "log_level" => algo.log_level,
+        "print_level" => algo.print_level,
     )
     modes = [[target(prob.system, t)] for t in traj.transitions]
     state_cost = collect(prob.state_cost[1:length(traj)])
@@ -202,13 +199,13 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
     push!(num_nodes, 2 * optimizer.num_total - sum(num_nodes))
     @assert num_nodes[end] >= 0
 
-    if optimizer.log_level >= 1
+    if optimizer.print_level >= 1
         len = max(maximum(length, NUM_NODES), length(string(num_nodes[1])))
 
         padl(x, n) = lpad(string(x), n)
         padr(x, n) = rpad(string(x), n)
 
-        if optimizer.num_iter == 0 || optimizer.log_level >= 2
+        if optimizer.num_iter == 0 || optimizer.print_level >= 2
             header =
                 padr("Iter.", 5) *
                 " | " *
@@ -222,7 +219,7 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
             println("\n" * header)
         end
 
-        if last_iter || (optimizer.num_iter in optimizer.log_iter)
+        if last_iter || (optimizer.num_iter in optimizer.print_iter)
             line =
                 padl(optimizer.num_iter, 5) *
                 " | " *
@@ -244,8 +241,17 @@ function print_info(optimizer::Optimizer, last_iter::Bool, start_time, num_queue
     return nothing
 end
 
-function MOI.optimize!(optimizer::Optimizer{T}) where {T}
+function MOI.optimize!(optimizer::Optimizer)
     start_time = time()
+    try
+        _optimize!(optimizer, start_time)
+    finally
+        optimizer.solve_time_sec = time() - start_time
+    end
+    return
+end
+
+function _optimize!(optimizer::Optimizer{T}, start_time) where {T}
     prob = optimizer.problem
     if iszero(prob.time)
         if optimizer.problem.target_set == optimizer.problem.initial_set[1]

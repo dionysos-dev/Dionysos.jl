@@ -28,9 +28,9 @@ include("reach_and_stay_problem.jl")
 include("cosafe_ltl_problem.jl")
 
 """
-    Optimizer{T} <: MOI.AbstractOptimizer
+    Optimizer{T} <: Dionysos.Optim.CompositeDionysosOptimizer
 
-A high-level abstraction-based solver that automatically orchestrates system abstraction and control synthesis.  
+A high-level abstraction-based solver that automatically orchestrates system abstraction and control synthesis.
 This wrapper follows the **classical abstraction pipeline** (e.g., as in SCOTS), where the state and input spaces are discretized into hyper-rectangular cells, independent of the specific control task.
 
 It delegates responsibility to modular sub-solvers: one for abstraction and one for control, depending on the type of problem to be solved.
@@ -97,7 +97,7 @@ value_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_functio
 controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 ```
 """
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: OP.CompositeDionysosOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Union{Nothing, ST.AbstractContinuousController}
@@ -113,142 +113,54 @@ Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(optimizer::Optimizer) = optimizer.abstraction_solver === nothing
 
-function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    return model.print_level = value ? 0 : 1
-end
+OP.sub_solvers(model::Optimizer) = (model.abstraction_solver, model.control_solver)
 
-function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    param_symbol = Symbol(param.name)
-
+function OP.ensure_sub_solvers!(model::Optimizer)
     if model.abstraction_solver === nothing
         model.abstraction_solver = OptimizerAlternatingSimulationProblem()
     end
-
-    if param_symbol == :abstract_system
-        MOI.set(
-            model.abstraction_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-            value,
-        )
-        return
-    end
-
-    if param_symbol == :concrete_problem
-        old_abstraction_solver = model.abstraction_solver
-
-        if isa(value, Dionysos.Problem.AlternatingSimulationProblem)
-            model.abstraction_solver = OptimizerAlternatingSimulationProblem()
-
-            if old_abstraction_solver !== nothing
-                model.abstraction_solver.execution_backend =
-                    old_abstraction_solver.execution_backend
-                model.abstraction_solver.print_level = old_abstraction_solver.print_level
-                model.abstraction_solver.progress_update_interval =
-                    old_abstraction_solver.progress_update_interval
-                model.abstraction_solver.progress_dt = old_abstraction_solver.progress_dt
-            end
-
-            MOI.set(
-                model.abstraction_solver,
-                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
-                value,
-            )
-            model.control_solver = nothing
-
-        elseif isa(value, Dionysos.Problem.OptimalControlProblem)
-            model.control_solver = OptimizerOptimalControlProblem()
-            MOI.set(
-                model.control_solver,
-                MOI.RawOptimizerAttribute("concrete_problem"),
-                value,
-            )
-
-        elseif isa(value, Dionysos.Problem.SafetyProblem)
-            model.control_solver = OptimizerSafetyProblem()
-            MOI.set(
-                model.control_solver,
-                MOI.RawOptimizerAttribute("concrete_problem"),
-                value,
-            )
-
-        elseif isa(value, Dionysos.Problem.ReachAndStayProblem)
-            model.control_solver = OptimizerReachAndStayProblem()
-            MOI.set(
-                model.control_solver,
-                MOI.RawOptimizerAttribute("concrete_problem"),
-                value,
-            )
-
-        elseif isa(value, Dionysos.Problem.CoSafeLTLProblem)
-            model.control_solver = OptimizerCoSafeLTLProblem()
-            MOI.set(
-                model.control_solver,
-                MOI.RawOptimizerAttribute("concrete_problem"),
-                value,
-            )
-
-        else
-            error("Unsupported problem type: $(typeof(value))")
-        end
-
-        if model.abstraction_solver.alternating_simulation_problem === nothing
-            alternating_simulation_problem =
-                Dionysos.Problem.AlternatingSimulationProblem(value.system, nothing)
-            MOI.set(
-                model.abstraction_solver,
-                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
-                alternating_simulation_problem,
-            )
-        end
-
-        return
-    end
-
-    # If the attribute exists in the main optimizer, set it there
-    if hasfield(typeof(model), param_symbol)
-        return setproperty!(model, param_symbol, value)
-    end
-
-    # Try setting it in the sub-solvers
-    for solver in (model.abstraction_solver, model.control_solver)
-        if solver !== nothing && hasfield(typeof(solver), param_symbol)
-            return setproperty!(solver, param_symbol, value)
-        end
-    end
-
-    return error(
-        "Attribute $(param.name) is not recognized by the solver for the considered control problem",
-    )
+    return
 end
 
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    param_symbol = Symbol(param.name)
+"""
+    control_solver_for(problem)
 
-    # First, check if the attribute exists directly in the main optimizer
-    if hasfield(typeof(model), param_symbol)
-        return getproperty(model, param_symbol)
+Return a fresh control sub-solver matching the type of the concrete `problem`. Supporting a new
+`ProblemType` in this solver family means adding one method here.
+"""
+control_solver_for(::PR.OptimalControlProblem) = OptimizerOptimalControlProblem()
+control_solver_for(::PR.SafetyProblem) = OptimizerSafetyProblem()
+control_solver_for(::PR.ReachAndStayProblem) = OptimizerReachAndStayProblem()
+control_solver_for(::PR.CoSafeLTLProblem) = OptimizerCoSafeLTLProblem()
+control_solver_for(problem) = error("Unsupported problem type: $(typeof(problem))")
+
+function OP.set_concrete_problem!(
+    model::Optimizer,
+    problem::PR.AlternatingSimulationProblem,
+)
+    old_abstraction_solver = model.abstraction_solver
+    model.abstraction_solver = OptimizerAlternatingSimulationProblem()
+    if old_abstraction_solver !== nothing
+        model.abstraction_solver.execution_backend =
+            old_abstraction_solver.execution_backend
+        model.abstraction_solver.print_level = old_abstraction_solver.print_level
+        model.abstraction_solver.progress_update_interval =
+            old_abstraction_solver.progress_update_interval
+        model.abstraction_solver.progress_dt = old_abstraction_solver.progress_dt
     end
-
-    # If not found, try to get it from the abstraction solver
-    if model.abstraction_solver !== nothing &&
-       hasfield(typeof(model.abstraction_solver), param_symbol)
-        return getproperty(model.abstraction_solver, param_symbol)
-    end
-
-    # If not found, try to get it from the control solver
-    if model.control_solver !== nothing &&
-       hasfield(typeof(model.control_solver), param_symbol)
-        return getproperty(model.control_solver, param_symbol)
-    end
-
-    # If the attribute is not recognized, raise an error
-    return error(
-        "Attribute $(param.name) is not recognized by the solver for the considered control problem",
-    )
+    model.abstraction_solver.alternating_simulation_problem = problem
+    model.control_solver = nothing
+    return
 end
 
-function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
-    return model.solve_time_sec
+function OP.set_concrete_problem!(model::Optimizer, problem)
+    model.control_solver = control_solver_for(problem)
+    model.control_solver.concrete_problem = problem
+    if model.abstraction_solver.alternating_simulation_problem === nothing
+        model.abstraction_solver.alternating_simulation_problem =
+            PR.AlternatingSimulationProblem(problem.system, nothing)
+    end
+    return
 end
 
 function is_abstraction_computed(optimizer::Optimizer)

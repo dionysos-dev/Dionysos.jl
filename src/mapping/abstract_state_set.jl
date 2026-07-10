@@ -1,17 +1,18 @@
 abstract type AbstractStateSet{N} end
 
 contains_state(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
+    error("implement `contains_state` for $(typeof(S))")
 enum_states(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
-    error("not implemented")
+    error("implement `enum_states` for $(typeof(S))")
 get_n_state(S::AbstractStateSet{N}, m::AbstractMapping{N}) where {N} =
     length(enum_states(S, m))
 
 add_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
+    error("implement `add_state!` for $(typeof(S))")
 remove_state!(S::AbstractStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} =
-    error("not implemented")
-empty_states!(S::AbstractStateSet{N}) where {N} = error("not implemented")
+    error("implement `remove_state!` for $(typeof(S))")
+empty_states!(S::AbstractStateSet{N}) where {N} =
+    error("implement `empty_states!` for $(typeof(S))")
 
 function add_states!(S::AbstractStateSet{N}, m::AbstractMapping{N}, states) where {N}
     for q in states
@@ -106,9 +107,7 @@ end
                 label := first_series ? label : ""
                 first_series = false
                 dims := dims
-                if proj === nothing
-                    # nothing
-                else
+                if proj !== nothing
                     v = proj[key][1]
                     vplot = isfinite(v) ? v : NaN
                     colorbar := true
@@ -135,7 +134,6 @@ end
     end
 end
 
-# ---------- Helpers ----------
 # ---------- Helpers ----------
 struct UniqueStates{I}
     iter::I
@@ -209,40 +207,14 @@ empty_states!(::MappingSet{N}) where {N} = error("MappingSet is read-only")
 # -------------------------- 
 
 mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
-    set::UT.LazySetMinus
+    set::UT.Region
     incl_mode::INCL_MODE
 end
 
-# Helpers
-_to_minus(set::UT.LazySetMinus{N, T}) where {N, T} = set
+ImplicitStateSet(set, incl_mode::INCL_MODE) =
+    ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
 
-function _to_minus(set::UT.LazySetUnion{N, T}) where {N, T}
-    return UT.LazySetMinus(set, UT.LazySetUnion{N, T}())
-end
-
-function _to_minus(set::UT.AbstractSetNode{N, T}) where {N, T}
-    A = UT.LazySetUnion{N, T}()
-    UT.add_set!(A, set)
-    return UT.LazySetMinus(A, UT.LazySetUnion{N, T}())
-end
-
-function ImplicitStateSet(set::UT.LazySetMinus{N, T}, incl_mode::INCL_MODE) where {N, T}
-    return ImplicitStateSet{N}(set, incl_mode)
-end
-
-function ImplicitStateSet(set::UT.LazySetUnion{N, T}, incl_mode::INCL_MODE) where {N, T}
-    return ImplicitStateSet{N}(_to_minus(set), incl_mode)
-end
-
-function ImplicitStateSet(set::UT.AbstractSetNode{N, T}, incl_mode::INCL_MODE) where {N, T}
-    return ImplicitStateSet{N}(_to_minus(set), incl_mode)
-end
-
-function ImplicitStateSet(
-    m::AbstractMapping{N},
-    set::UT.LazySetMinus{N, T},
-    incl_mode::INCL_MODE,
-) where {N, T}
+function ImplicitStateSet(m::AbstractMapping, set, incl_mode::INCL_MODE)
     if is_periodic(m)
         set = UT.set_in_period(
             set,
@@ -251,29 +223,10 @@ function ImplicitStateSet(
             get_periodic_starts(m),
         )
     end
-    return ImplicitStateSet{N}(set, incl_mode)
+    return ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
 end
 
-function ImplicitStateSet(
-    m::AbstractMapping{N},
-    set::UT.LazySetUnion{N, T},
-    incl_mode::INCL_MODE,
-) where {N, T}
-    return ImplicitStateSet(m, _to_minus(set), incl_mode)
-end
-
-function ImplicitStateSet(
-    m::AbstractMapping{N},
-    set::UT.AbstractSetNode{N, T},
-    incl_mode::INCL_MODE,
-) where {N, T}
-    return ImplicitStateSet(m, _to_minus(set), incl_mode)
-end
-
-ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(
-    UT.LazySetMinus(UT.LazySetUnion{N, Float64}(), UT.LazySetUnion{N, Float64}()),
-    INNER,
-)
+ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(UT.empty_region(N), INNER)
 
 Base.copy(S::ImplicitStateSet{N}) where {N} = ImplicitStateSet{N}(S.set, S.incl_mode)
 
@@ -306,33 +259,35 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where
         return false
     end
     set = S.set
+    A = UT.minus_included(set)
+    B = UT.minus_hole(set)
     if S.incl_mode == CENTER
         c = _cell_center(m, q)
         return UT.point_in_set(set, c)
 
     elseif S.incl_mode == INNER
-        # conservative: all corners must be in A and not in B
+        # conservative: every corner must lie in A and outside B
         for xcorner in _cell_corner_iter(m, q)
-            UT.point_in_set(set.A, xcorner) || return false
-            UT.point_in_set(set.B, xcorner) && return false
+            UT.point_in_set(A, xcorner) || return false
+            UT.point_in_set(B, xcorner) && return false
         end
         return true
 
     elseif S.incl_mode == OUTER
-        # sufficient: some sample in A and not in B
+        # sufficient: some sample lies in A and outside B
         c = _cell_center(m, q)
-        if UT.point_in_set(set.A, c) && !UT.point_in_set(set.B, c)
+        if UT.point_in_set(A, c) && !UT.point_in_set(B, c)
             return true
         end
         for xcorner in _cell_corner_iter(m, q)
-            if UT.point_in_set(set.A, xcorner) && !UT.point_in_set(set.B, xcorner)
+            if UT.point_in_set(A, xcorner) && !UT.point_in_set(B, xcorner)
                 return true
             end
         end
         return false
 
     else
-        error("Unknown incl_mode=$incl_mode (expected CENTER/INNER/OUTER)")
+        error("Unknown incl_mode=$(S.incl_mode) (expected CENTER/INNER/OUTER)")
     end
 end
 
@@ -372,8 +327,7 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    return S.set =
-        UT.LazySetMinus(UT.LazySetUnion{N, Float64}(), UT.LazySetUnion{N, Float64}())
+    return S.set = UT.empty_region(N)
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =
@@ -410,3 +364,38 @@ contains_state(S::SetMinusStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} 
 enum_states(S::SetMinusStateSet{N}, m::AbstractMapping{N}) where {N} =
     (q for q in enum_states(S.A, m) if !contains_state(S.B, m, q))
 # --------------------------
+
+"""
+    MappedStateSet{N, S, M}
+
+A state set bundled with the mapping that gives its integer labels meaning.
+Consumers hold one self-contained object instead of threading the
+`(set, mapping)` pair through every call — which also removes the
+"wrong mapping" bug class.
+"""
+struct MappedStateSet{N, S <: AbstractStateSet{N}, M <: AbstractMapping{N}}
+    set::S
+    mapping::M
+end
+
+get_set(ms::MappedStateSet) = ms.set
+get_mapping(ms::MappedStateSet) = ms.mapping
+get_dim(::MappedStateSet{N}) where {N} = N
+
+contains_state(ms::MappedStateSet, q::Int) = contains_state(ms.set, ms.mapping, q)
+enum_states(ms::MappedStateSet) = enum_states(ms.set, ms.mapping)
+get_n_state(ms::MappedStateSet) = get_n_state(ms.set, ms.mapping)
+
+add_state!(ms::MappedStateSet, q::Int) = add_state!(ms.set, ms.mapping, q)
+remove_state!(ms::MappedStateSet, q::Int) = remove_state!(ms.set, ms.mapping, q)
+add_states!(ms::MappedStateSet, states) = add_states!(ms.set, ms.mapping, states)
+add_set!(ms::MappedStateSet, set, incl_mode::INCL_MODE) =
+    add_set!(ms.set, ms.mapping, set, incl_mode)
+remove_set!(ms::MappedStateSet, set, incl_mode::INCL_MODE) =
+    remove_set!(ms.set, ms.mapping, set, incl_mode)
+
+Base.copy(ms::MappedStateSet) = MappedStateSet(copy(ms.set), ms.mapping)
+
+@recipe function f(ms::MappedStateSet)
+    return ((ms.set, ms.mapping),) # delegates to the tuple recipe
+end

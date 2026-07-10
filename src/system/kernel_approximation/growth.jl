@@ -20,9 +20,10 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
 This function simulates the image of the center and inflates it using the computed growth bound.
 """
-struct DiscreteTimeGrowthBound <: DiscreteTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
-    growthbound_map::Function
+struct DiscreteTimeGrowthBound{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, F} <:
+       DiscreteTimeSystemOverApproximation
+    system::S
+    growthbound_map::F
 end
 
 get_system(approx::DiscreteTimeGrowthBound) = approx.system
@@ -54,9 +55,10 @@ Returns a function of the form:
     `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
 This function simulates the image of the center and inflates it using the computed growth bound.
 """
-struct ContinuousTimeGrowthBound <: ContinuousTimeSystemOverApproximation
-    system::Union{Nothing, MS.ConstrainedBlackBoxControlContinuousSystem}
-    growthbound_map::Function
+struct ContinuousTimeGrowthBound{S <: MS.ConstrainedBlackBoxControlContinuousSystem, F} <:
+       ContinuousTimeSystemOverApproximation
+    system::S
+    growthbound_map::F
 end
 
 get_system(approx::ContinuousTimeGrowthBound) = approx.system
@@ -69,9 +71,13 @@ function get_over_approximation_map(approx::ContinuousTimeGrowthBound)
         return UT.HyperRectangle(Fx - Fr, Fx + Fr)
     end
 end
-function discretize(approx::ContinuousTimeGrowthBound, tstep::Float64)
+function discretize(
+    approx::ContinuousTimeGrowthBound,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
     discretized_system =
-        discretize_continuous_system(get_system(approx), tstep; num_substeps = 5)
+        discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
     discretized_growthbound_map = (r, u) -> approx.growthbound_map(r, u, tstep)
     return DiscreteTimeGrowthBound(discretized_system, discretized_growthbound_map)
 end
@@ -79,7 +85,7 @@ end
 function ContinuousTimeGrowthBound_from_jacobian_bound(
     system::MS.ConstrainedBlackBoxControlContinuousSystem,
     jacobian_bound;
-    ngrowthbound = 5,
+    ngrowthbound::Int = DEFAULT_NUM_SUBSTEPS,
 )
     modified_jacobian_bound = (r, u) -> jacobian_bound(u) * r
     growthbound_map =
@@ -89,7 +95,7 @@ end
 
 function ContinuousTimeGrowthBound(
     system::MS.ConstrainedBlackBoxControlContinuousSystem;
-    ngrowthbound = 5,
+    ngrowthbound::Int = DEFAULT_NUM_SUBSTEPS,
 )
     jacobian_bound = compute_jacobian_bound(system)
     return ContinuousTimeGrowthBound_from_jacobian_bound(
@@ -100,5 +106,9 @@ function ContinuousTimeGrowthBound(
 end
 
 function compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
-    # TODO: Implement the logic for computing the Jacobian bound.
+    return error(
+        "Automatic Jacobian-bound computation is not implemented. " *
+        "Build the growth bound explicitly with a user-provided bound via " *
+        "`ContinuousTimeGrowthBound_from_jacobian_bound(system, jacobian_bound)`.",
+    )
 end

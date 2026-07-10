@@ -105,7 +105,7 @@ function build_optimizer(
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("automaton_constructor"),
-        (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+        (n, m) -> SY.FastIndexedAutomatonList(n, m),
     )
 
     if with_period
@@ -132,7 +132,7 @@ function plot_state_space!(
 )
     abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
     XMapping = SY.get_state_mapping(abstract_system)
-    Xset = SY.get_state_domain(abstract_system)
+    Xset = SY.get_state_set(abstract_system)
 
     X = concrete_system.X
     Xp =
@@ -270,7 +270,7 @@ function script()
         ST.discretize_continuous_system(concrete_system, Δt; num_substeps = 5)
     periodic_wrapper =
         with_period ?
-        ST.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start) :
+        UT.get_periodic_wrapper(periodic_dims, periodic_periods; start = periodic_start) :
         (x -> x)
     reached(x) = (periodic_wrapper(x) ∈ target_set)
     nstep = 100

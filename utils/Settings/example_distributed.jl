@@ -84,7 +84,6 @@ MOI.set(
         DISTRIBUTED_NPARTS,
         DISTRIBUTED_PARTITION_STRATEGY,
         USE_THREADED_PER_WORKER,
-        true,
     ),
 )
 
@@ -96,7 +95,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewIndexedAutomatonList(n, m),
+    (n, m) -> SY.IndexedAutomatonList(n, m),
 )
 
 println("distributed = ", USE_DISTRIBUTED)
@@ -162,7 +161,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 # Plot
 # ----------------------------------------------------------------------
 XMapping_plot = SY.get_state_mapping(abstract_system)
-Xset = SY.get_state_domain(abstract_system)
+Xset = SY.get_state_set(abstract_system)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem_safety; opacity = 1.0)

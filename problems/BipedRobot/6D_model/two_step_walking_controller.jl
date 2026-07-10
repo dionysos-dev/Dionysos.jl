@@ -16,6 +16,8 @@ struct TwoStepWalkingController{C1, C2, T1, T2} <: ST.AbstractContinuousControll
     target2::T2
 end
 
+ST.controller_kind(::TwoStepWalkingController) = ST.DynamicKind()
+
 function ST.initial_state(ctrl::TwoStepWalkingController)
     return TwoStepControllerState(;
         phase = 1,

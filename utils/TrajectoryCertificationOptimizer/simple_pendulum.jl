@@ -44,7 +44,7 @@ periodic_dims = SVector(1)
 periods = SVector(2π)
 periodic_start = SVector(-π)
 
-wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start)
+wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = periodic_start)
 wrap_state = (problem, x) -> wrap(x)
 
 Δt = 0.1
@@ -105,8 +105,8 @@ project_input = function (u)
 end
 
 function distance_to_target(x, target_set)
-    if target_set isa UT.LazySetUnion
-        return minimum(distance_to_target(x, S) for S in target_set.sets)
+    if target_set isa UT.LazySets.UnionSetArray
+        return minimum(distance_to_target(x, S) for S in UT.LazySets.array(target_set))
     else
         return LA.norm(x - UT.get_center(target_set))
     end

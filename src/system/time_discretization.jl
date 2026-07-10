@@ -2,6 +2,9 @@
 #  TIME DISCRETIZATION FOR CONTINUOUS SYSTEMS
 # =====================================================
 
+"Default number of RK4 substeps per time step, shared by every `discretize` path."
+const DEFAULT_NUM_SUBSTEPS = 5
+
 """
     runge_kutta4(dynamics, x, u, tstep, num_substeps::Int)
 
@@ -29,11 +32,15 @@ function runge_kutta4(dynamics, x, u, tstep, num_substeps::Int)
     return x
 end
 
-function simulate_control_map(dynamics; num_substeps = 5)
+function simulate_control_map(dynamics; num_substeps::Int = DEFAULT_NUM_SUBSTEPS)
     return (x, u, tstep) -> runge_kutta4(dynamics, x, u, tstep, num_substeps)
 end
 
-function discretize_control_map(dynamics, tstep::Float64; num_substeps = 5)
+function discretize_control_map(
+    dynamics,
+    tstep::Float64;
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
+)
     return (x, u) -> runge_kutta4(dynamics, x, u, tstep, num_substeps)
 end
 
@@ -53,7 +60,7 @@ Convert a continuous-time control system to a discrete-time system.
 function discretize_continuous_system(
     system::MS.AbstractContinuousSystem,
     tstep::Float64;
-    num_substeps = 5,
+    num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
 )
     discretized_dynamics =
         discretize_control_map(MS.mapping(system), tstep; num_substeps = num_substeps)

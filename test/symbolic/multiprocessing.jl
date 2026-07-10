@@ -64,8 +64,8 @@ end
 
         @test SY.get_state_mapping(local_sym) === SY.get_state_mapping(sym)
         @test SY.get_input_mapping(local_sym) === SY.get_input_mapping(sym)
-        @test SY.get_retained_domain(local_sym) === SY.get_retained_domain(sym)
-        @test SY.get_input_domain(local_sym) === SY.get_input_domain(sym)
+        @test SY.get_retained_set(local_sym) === SY.get_retained_set(sym)
+        @test SY.get_input_set(local_sym) === SY.get_input_set(sym)
 
         @test collect(SY.enum_source_states(local_sym)) == parts[1]
 
@@ -100,16 +100,11 @@ end
     @testset "_run_local_partition_ids" begin
         parts = SY.partition_source_state_ids(sym, 2; strategy = :roundrobin)
 
-        SY._install_distributed_abstraction_data!(sym, approx)
-        try
-            res = SY._run_local_partition_ids(parts[1]; print_level = 0)
+        res = SY._run_local_partition_ids(sym, approx, parts[1]; print_level = 0)
 
-            @test res isa SY.DistributedAbstractionResult
-            @test res.n_source_states == length(parts[1])
-            @test res.n_transitions == length(res.transitions)
-        finally
-            SY._clear_distributed_abstraction_data!()
-        end
+        @test res isa SY.DistributedAbstractionResult
+        @test res.n_source_states == length(parts[1])
+        @test res.n_transitions == length(res.transitions)
     end
 
     @testset "collect_abstract_transitions_distributed local fallback" begin
@@ -199,8 +194,6 @@ end
         ref, _ = SY.collect_abstract_transitions(sym, approx; print_level = 0)
 
         @test Set(trans) == Set(ref)
-
-        SY.clear_abstraction_workers!(procs)
     end
 end
 

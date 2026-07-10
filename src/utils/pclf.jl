@@ -915,8 +915,8 @@ function conic_partitions_2d(order::Int)
     return cones
 end
 
-function conic_partitions_dict_2d(order::Int, node_ids; offset::Float64 = 0.0)
-    cones = conic_partition_2d(order; offset = offset)
+function conic_partitions_dict_2d(order::Int, node_ids)
+    cones = conic_partitions_2d(order)
     return Dict(id => cones for id in node_ids)
 end
 

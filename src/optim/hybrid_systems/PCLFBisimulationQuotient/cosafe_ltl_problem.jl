@@ -5,7 +5,7 @@ const SY = DI.Symbolic
 # Quotient automaton wrapper
 # ============================================================
 
-struct QuotientAutomaton{QT} <: ST.AbstractAutomatonList{0, 0}
+struct QuotientAutomaton{QT} <: SY.AbstractAutomatonList
     quotient::QT
     qids::Vector{Int}
     id2idx::Dict{Int, Int}
@@ -14,15 +14,15 @@ struct QuotientAutomaton{QT} <: ST.AbstractAutomatonList{0, 0}
     ninput::Int
 end
 
-ST.get_n_state(Q::QuotientAutomaton) = length(Q.qids)
-ST.get_n_input(Q::QuotientAutomaton) = Q.ninput
-ST.post(Q::QuotientAutomaton, s::Int, u::Int) = Q.post_tab[s][u]
-ST.pre(Q::QuotientAutomaton, t::Int) = Q.pre_tab[t]
+SY.get_n_state(Q::QuotientAutomaton) = length(Q.qids)
+SY.get_n_input(Q::QuotientAutomaton) = Q.ninput
+SY.post(Q::QuotientAutomaton, s::Int, u::Int) = Q.post_tab[s][u]
+SY.pre(Q::QuotientAutomaton, t::Int) = Q.pre_tab[t]
 
-function ST.enum_transitions(Q::QuotientAutomaton)
+function SY.enum_transitions(Q::QuotientAutomaton)
     trans = Tuple{Int, Int, Int}[]
-    for s in 1:ST.get_n_state(Q), u in 1:ST.get_n_input(Q)
-        for s2 in ST.post(Q, s, u)
+    for s in 1:SY.get_n_state(Q), u in 1:SY.get_n_input(Q)
+        for s2 in SY.post(Q, s, u)
             push!(trans, (s2, s, u))
         end
     end
@@ -97,7 +97,7 @@ end
 # Optimizer
 # ============================================================
 
-mutable struct OptimizerCoSafeLTLOnQuotient{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerCoSafeLTLOnQuotient{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
     bisimulation_quotient::Any
@@ -141,16 +141,6 @@ end
 OptimizerCoSafeLTLOnQuotient() = OptimizerCoSafeLTLOnQuotient{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLOnQuotient) = opt.concrete_problem === nothing
-
-function MOI.set(opt::OptimizerCoSafeLTLOnQuotient, p::MOI.RawOptimizerAttribute, v)
-    return setproperty!(opt, Symbol(p.name), v)
-end
-
-function MOI.get(opt::OptimizerCoSafeLTLOnQuotient, p::MOI.RawOptimizerAttribute)
-    return getproperty(opt, Symbol(p.name))
-end
-
-MOI.get(opt::OptimizerCoSafeLTLOnQuotient, ::MOI.SolveTimeSec) = opt.solve_time_sec
 
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLOnQuotient)
     t0 = time()

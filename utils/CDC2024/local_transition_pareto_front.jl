@@ -10,6 +10,25 @@ const ST = DI.System
 
 include("../../problems/non_linear.jl")
 
+# Color gradient over a value range (replaces the Colormap helper removed from Utils).
+struct ValueColormap
+    vmin::Float64
+    vmax::Float64
+    grad::Plots.ColorGradient
+end
+value_colormap(span, colors) = ValueColormap(first(span), last(span), cgrad(colors))
+color_at(cm::ValueColormap, v) = get(cm.grad, (v - cm.vmin) / max(cm.vmax - cm.vmin, eps()))
+plot_colorbar!(cm::ValueColormap) = scatter!(
+    [NaN],
+    [NaN];
+    zcolor = [cm.vmin],
+    clims = (cm.vmin, cm.vmax),
+    color = cm.grad,
+    markersize = 0,
+    label = "",
+    colorbar = true,
+)
+
 function trial(E2, c, ρ, Ubound, Wbound, λ)
     U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
     W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
@@ -106,7 +125,7 @@ end
 function plot_pareto_front!(E2, c, ρ, Ubound, Wbound, λ_span, mycolorMap; lbls = false)
     max_cost_vector, init_set_volume_vector, input_set_volume_vector =
         compute_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
-    colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
+    colors = [color_at(mycolorMap, λ_val) for λ_val in λ_span]
     return plot!(
         -max_cost_vector,
         init_set_volume_vector;
@@ -119,8 +138,8 @@ end
 
 function plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
     colormap = Colors.colormap("Blues")
-    mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
-    colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
+    mycolorMap = value_colormap(λ_span, colormap)
+    colors = [color_at(mycolorMap, λ_val) for λ_val in λ_span]
 
     fig1 = plot(;
         xtickfontsize = 10,
@@ -142,14 +161,14 @@ function plot_pareto_front(E2, c, ρ, Ubound, Wbound, λ_span)
         line = :path,
         linecolor = :black,
     )
-    plot!(mycolorMap)
+    plot_colorbar!(mycolorMap)
     return display(fig1)
 end
 
 function plot_pareto_front_Wspan(E2, c, ρ, Ubound, Wbound_span, λ_span)
     colormap = Colors.colormap("Blues")
-    mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
-    colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
+    mycolorMap = value_colormap(λ_span, colormap)
+    colors = [color_at(mycolorMap, λ_val) for λ_val in λ_span]
     lColors = [:red, :green, :black, :blue, :yellow]
     fig = plot(;
         xtickfontsize = 10,
@@ -174,14 +193,14 @@ function plot_pareto_front_Wspan(E2, c, ρ, Ubound, Wbound_span, λ_span)
             label = "\$\\omega_{max} = $Wbound\$",
         )
     end
-    plot!(mycolorMap)
+    plot_colorbar!(mycolorMap)
     return display(fig)
 end
 
 function plot_pareto_front_ρspan(E2, c, ρ_span, Ubound, Wbound, λ_span)
     colormap = Colors.colormap("Blues")
-    mycolorMap = UT.Colormap([λ_span[1], λ_span[end]], colormap)
-    colors = [UT.get_color(mycolorMap, λ_val) for λ_val in λ_span]
+    mycolorMap = value_colormap(λ_span, colormap)
+    colors = [color_at(mycolorMap, λ_val) for λ_val in λ_span]
     lColors = [:red, :green, :black, :blue, :yellow]
     fig = plot(;
         xtickfontsize = 10,
@@ -206,7 +225,7 @@ function plot_pareto_front_ρspan(E2, c, ρ_span, Ubound, Wbound, λ_span)
             label = "\$\\mu = $ρ\$",
         )
     end
-    plot!(mycolorMap)
+    plot_colorbar!(mycolorMap)
     return display(fig)
 end
 

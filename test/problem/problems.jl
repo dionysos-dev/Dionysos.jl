@@ -4,6 +4,7 @@ using Test
 using StaticArrays
 using Plots
 using Dionysos
+import MathematicalSystems
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -13,10 +14,11 @@ const MP = DI.Mapping
 sleep(0.1)
 println("Started problem tests")
 
-# Minimal dummy system type: only needs field `X` for recipes
+# Minimal dummy system: the problem plot recipes require `MS.stateset(system)`.
 struct DummySystem{X}
     X::X
 end
+MathematicalSystems.stateset(s::DummySystem) = s.X
 
 @testset "Problems" begin
     @testset "Infinity" begin
@@ -38,10 +40,9 @@ end
         @test p.system === sys
         @test p.region == region
 
-        # mutation (it's mutable)
+        # problems are immutable value objects
         region2 = UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2))
-        p.region = region2
-        @test p.region == region2
+        @test_throws ErrorException p.region = region2
     end
 
     @testset "OptimalControlProblem fields" begin

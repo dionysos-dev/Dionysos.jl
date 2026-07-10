@@ -170,7 +170,7 @@ end
                 "continuous_solver" => qp_solver,
                 "mixed_integer_solver" => miqp_solver,
                 "indicator" => false,
-                "log_level" => 0,
+                "print_level" => 0,
             ),
         ]
             @testset "Depth: 0" begin

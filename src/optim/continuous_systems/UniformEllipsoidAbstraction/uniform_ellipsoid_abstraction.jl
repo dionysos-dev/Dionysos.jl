@@ -23,7 +23,7 @@ export Optimizer
 include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T} <: OP.CompositeDionysosOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Union{Nothing, ST.AbstractContinuousController}
@@ -38,104 +38,43 @@ Optimizer() = Optimizer{Float64}()
 
 MOI.is_empty(opt::Optimizer) = opt.abstraction_solver === nothing
 
-function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    return model.print_level = value ? 0 : 1
-end
+OP.sub_solvers(model::Optimizer) = (model.abstraction_solver, model.control_solver)
 
-function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
-    param_symbol = Symbol(param.name)
-
+function OP.ensure_sub_solvers!(model::Optimizer)
     if model.abstraction_solver === nothing
         model.abstraction_solver = OptimizerAlternatingSimulationProblem()
     end
-
-    if param_symbol == :abstract_system
-        MOI.set(
-            model.abstraction_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-            value,
-        )
-        return
-    end
-
-    if param_symbol == :concrete_problem
-        # Assign appropriate control solver
-        if isa(value, Dionysos.Problem.AlternatingSimulationProblem)
-            model.abstraction_solver = OptimizerAlternatingSimulationProblem()
-            MOI.set(
-                model.abstraction_solver,
-                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
-                value,
-            )
-            model.control_solver = nothing  # No control solver
-        elseif isa(value, Dionysos.Problem.OptimalControlProblem)
-            model.control_solver = OptimizerOptimalControlProblem()
-            MOI.set(
-                model.control_solver,
-                MOI.RawOptimizerAttribute("concrete_problem"),
-                value,
-            )
-        else
-            error("Unsupported problem type: $(typeof(value))")
-        end
-
-        # Instantiate an abstraction_solver if it has not already been created
-        if model.abstraction_solver.alternating_simulation_problem === nothing
-            alternating_simulation_problem =
-                Dionysos.Problem.AlternatingSimulationProblem(value.system, nothing)
-            MOI.set(
-                model.abstraction_solver,
-                MOI.RawOptimizerAttribute("alternating_simulation_problem"),
-                alternating_simulation_problem,
-            )
-        end
-        return
-    end
-
-    # If the attribute exists in the main optimizer, set it there
-    if hasfield(typeof(model), param_symbol)
-        return setproperty!(model, param_symbol, value)
-    end
-
-    # Try setting it in the sub-solvers
-    for solver in (model.abstraction_solver, model.control_solver)
-        if solver !== nothing && hasfield(typeof(solver), param_symbol)
-            return setproperty!(solver, param_symbol, value)
-        end
-    end
-
-    return error(
-        "Attribute $(param.name) is not recognized by the solver for the considered control problem",
-    )
+    return
 end
 
-function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
-    param_symbol = Symbol(param.name)
+"""
+    control_solver_for(problem)
 
-    # First, check if the attribute exists directly in the main optimizer
-    if hasfield(typeof(model), param_symbol)
-        return getproperty(model, param_symbol)
-    end
+Return a fresh control sub-solver matching the type of the concrete `problem`. Supporting a new
+`ProblemType` in this solver family means adding one method here.
+"""
+control_solver_for(::PR.OptimalControlProblem) = OptimizerOptimalControlProblem()
+control_solver_for(problem) = error("Unsupported problem type: $(typeof(problem))")
 
-    # If not found, try to get it from the abstraction solver
-    if model.abstraction_solver !== nothing &&
-       hasfield(typeof(model.abstraction_solver), param_symbol)
-        return getproperty(model.abstraction_solver, param_symbol)
-    end
-
-    # If not found, try to get it from the control solver
-    if model.control_solver !== nothing &&
-       hasfield(typeof(model.control_solver), param_symbol)
-        return getproperty(model.control_solver, param_symbol)
-    end
-
-    # If the attribute is not recognized, raise an error
-    return error(
-        "Attribute $(param.name) is not recognized by the solver for the considered control problem",
-    )
+function OP.set_concrete_problem!(
+    model::Optimizer,
+    problem::PR.AlternatingSimulationProblem,
+)
+    model.abstraction_solver = OptimizerAlternatingSimulationProblem()
+    model.abstraction_solver.alternating_simulation_problem = problem
+    model.control_solver = nothing
+    return
 end
 
-MOI.get(opt::Optimizer, ::MOI.SolveTimeSec) = opt.solve_time_sec
+function OP.set_concrete_problem!(model::Optimizer, problem)
+    model.control_solver = control_solver_for(problem)
+    model.control_solver.concrete_problem = problem
+    if model.abstraction_solver.alternating_simulation_problem === nothing
+        model.abstraction_solver.alternating_simulation_problem =
+            PR.AlternatingSimulationProblem(problem.system, nothing)
+    end
+    return
+end
 
 function is_abstraction_computed(opt::Optimizer)
     return opt.abstraction_solver !== nothing &&
@@ -245,6 +184,7 @@ function RefinedStaticController(
     )
 end
 
+ST.controller_kind(::RefinedStaticController) = ST.StaticKind()
 ST.domain(ctrl::RefinedStaticController) = ctrl.abstract_system
 ST.initial_state(::RefinedStaticController) = nothing
 ST.update_state(::RefinedStaticController, x, y) = nothing

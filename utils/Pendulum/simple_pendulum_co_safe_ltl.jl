@@ -17,7 +17,7 @@ using Spot
 include("../../problems/Pendulum/simple_pendulum.jl");
 
 _X_ = UT.HyperRectangle(SVector(-π, -5.5), SVector(π, 5.5))
-_U_ = UT.LazySetMinus(
+_U_ = UT.set_minus(
     UT.HyperRectangle(SVector(-4.5), SVector(4.5)),
     UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
 )
@@ -91,7 +91,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("automaton_constructor"),
-    (n, m) -> ST.NewFastIndexedAutomatonList(n, m),
+    (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
@@ -133,7 +133,7 @@ x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     nstep;
     update_on_next = true,
     stopping = x -> false,
-    wrap = ST.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
+    wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = periodic_start),
 )
 
 # ------------------------------------------------------------

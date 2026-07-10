@@ -141,8 +141,8 @@ function system(
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dims(_X_),
-        UT.get_dims(_U_),
+        UT.get_dim(_X_),
+        UT.get_dim(_U_),
         _X_,
         _U_,
     )
@@ -162,7 +162,7 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
 end
 function with_xy_obstacles(_X_::UT.HyperRectangle; obstacles2d = xy_obstacles())
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
-    return UT.LazySetMinus(_X_, UT.LazySetUnion(obs4d))
+    return UT.set_minus(_X_, UT.set_union(obs4d))
 end
 
 # ----------------------------

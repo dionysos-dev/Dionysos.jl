@@ -77,7 +77,7 @@ end
     periods = SVector(4.0, 10.0)
     start = SVector(0.0, 5.0)   # dim1 in [0,4), dim3 in [5,15)
 
-    w = ST.wrap_coord(x, periodic_dims, periods; start = start)
+    w = UT.wrap_coord(x, periodic_dims, periods; start = start)
 
     # dim2 unchanged
     @test w[2] == x[2]
@@ -87,7 +87,7 @@ end
     @test 5.0 <= w[3] < 15.0
 
     # wrapper function
-    wrapfun = ST.get_periodic_wrapper(periodic_dims, periods; start = start)
+    wrapfun = UT.get_periodic_wrapper(periodic_dims, periods; start = start)
     @test wrapfun(x) == w
 end
 

@@ -2,7 +2,7 @@
 # CoSafe LTL Control
 # ============================================================
 
-mutable struct OptimizerCoSafeLTLProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerCoSafeLTLProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.CoSafeLTLProblem}
     early_stop::Bool
@@ -41,16 +41,6 @@ OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
 MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.problem === nothing
 
-function MOI.set(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute, v)
-    return setproperty!(opt, Symbol(p.name), v)
-end
-
-function MOI.get(opt::OptimizerCoSafeLTLProblem, p::MOI.RawOptimizerAttribute)
-    return getproperty(opt, Symbol(p.name))
-end
-
-MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.solve_time_sec
-
 function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
     t0 = time()
 
@@ -87,7 +77,7 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     # (3) Product automaton
     construction_states =
-        optimizer.early_stop ? problem.initial_set : collect(1:ST.get_n_state(autom))
+        optimizer.early_stop ? problem.initial_set : collect(1:SY.get_n_state(autom))
     product_autom =
         build_product_automaton(autom, spec, labeling; initial_set = construction_states)
 
@@ -104,7 +94,7 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
 
     accQ = accepting_states(spec)
     product_target_set =
-        [p for p in 1:ST.get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
+        [p for p in 1:SY.get_n_state(product_autom) if product_autom.rev[p][2] in accQ]
     isempty(product_target_set) &&
         error("Empty product target_set (AP mismatch or acceptance not found).")
 
@@ -165,21 +155,21 @@ function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
         product_controllable_set,
         spec,
         labeling,
-        ST.get_n_state(autom),
+        SY.get_n_state(autom),
     )
     optimizer.uncontrollable_set = project_initial_memory_uncontrollable_set(
         product_autom,
         product_controllable_set,
         spec,
         labeling,
-        ST.get_n_state(autom),
+        SY.get_n_state(autom),
     )
     optimizer.value_fun_tab = project_initial_memory_value_function(
         product_autom,
         product_value_fun_tab,
         spec,
         labeling,
-        ST.get_n_state(autom),
+        SY.get_n_state(autom),
     )
     optimizer.success = success
     optimizer.print_level >= 1 && println("Success: ", success)
@@ -274,7 +264,7 @@ end
 # Product automaton (System × SpecStepper)
 # ============================================================
 
-struct ProductAutomaton{SYS, LAB, STEP} <: ST.AbstractAutomatonList{0, 0}
+struct ProductAutomaton{SYS, LAB, STEP} <: SY.AbstractAutomatonList
     sys::SYS
     labeling::LAB
     spec::STEP
@@ -290,16 +280,16 @@ end
 
 _product_pair_id(P::ProductAutomaton, p::Int, u::Int) = (p - 1) * P.ninput + u
 
-ST.get_n_state(P::ProductAutomaton) = length(P.rev)
-ST.get_n_input(P::ProductAutomaton) = P.ninput
-ST.pre(P::ProductAutomaton, t::Int) = P.premap[t]
-ST.post(P::ProductAutomaton, p::Int, u::Int) = P.postmap[_product_pair_id(P, p, u)]
+SY.get_n_state(P::ProductAutomaton) = length(P.rev)
+SY.get_n_input(P::ProductAutomaton) = P.ninput
+SY.pre(P::ProductAutomaton, t::Int) = P.premap[t]
+SY.post(P::ProductAutomaton, p::Int, u::Int) = P.postmap[_product_pair_id(P, p, u)]
 
-ST.enum_transitions(P::ProductAutomaton) = begin
+SY.enum_transitions(P::ProductAutomaton) = begin
     trans = Tuple{Int, Int, Int}[]
-    for p in 1:ST.get_n_state(P)
-        for u in 1:ST.get_n_input(P)
-            for p2 in ST.post(P, p, u)
+    for p in 1:SY.get_n_state(P)
+        for u in 1:SY.get_n_input(P)
+            for p2 in SY.post(P, p, u)
                 push!(trans, (p2, p, u))
             end
         end
@@ -309,13 +299,13 @@ end
 
 # build the product automaton only from the reachable states starting from the initial set:
 function build_product_automaton(
-    sys::ST.AbstractAutomatonList,
+    sys::SY.AbstractAutomatonList,
     spec::AbstractSpecStepper,
     labeling;
-    initial_set = 1:ST.get_n_state(sys),
+    initial_set = 1:SY.get_n_state(sys),
 )
-    nS = ST.get_n_state(sys)
-    nU = ST.get_n_input(sys)
+    nS = SY.get_n_state(sys)
+    nU = SY.get_n_input(sys)
     qa0 = init_state(spec)
 
     labels = Vector{Any}(undef, nS)
@@ -380,7 +370,7 @@ function build_product_automaton(
 
             stamp += 1
 
-            for qs2 in ST.post(sys, qs, u)
+            for qs2 in SY.post(sys, qs, u)
                 qa2 = step(spec, qa, labels[qs2])
                 p2 = getpid!(qs2, qa2)
 

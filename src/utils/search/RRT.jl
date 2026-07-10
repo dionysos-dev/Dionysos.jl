@@ -29,10 +29,9 @@ function RRT(
     bestDist = distance(SI, SF)
     LNnew = [tree.root]
     while !stop_crit(tree, LNnew, SI, SF, distance, data) && maxIter > 0
-        print("Iterations2Go:\t")
-        println(maxIter)
+        @debug "RRT" iterations_to_go = maxIter
         Srand = rand_state(tree, SI, SF, distance, data)
-        LNnear, ~ = kNearestNeighbors(tree, Srand, distance; k = k1)
+        LNnear, ~ = k_nearest_neighbors(tree, Srand, distance; k = k1)
         # generate state we want to add in one iteration
         LSACnew = []
         for Nnear in LNnear
@@ -49,20 +48,19 @@ function RRT(
         # RRT*
         if RRTstar
             for Nnew in LNnew
-                LNclose, ~ = kNearestNeighbors(tree, Nnew, distance; k = k2)
+                LNclose, ~ = k_nearest_neighbors(tree, Nnew, distance; k = k2)
                 for Nclose in LNclose
                     ans, action, cost = compute_transition(Nclose.state, Nnew.state, data)
                     if ans
                         if cost + Nnew.path_cost < Nclose.path_cost
-                            println("REWIRE")
+                            @debug "RRT rewire"
                             rewire(tree, Nclose, Nnew, action, cost)
                         end
                     end
                 end
             end
         end
-        print("\tClosest Dist: ")
-        println(bestDist)
+        @debug "RRT" closest_dist = bestDist
         maxIter -= 1
     end
     return tree

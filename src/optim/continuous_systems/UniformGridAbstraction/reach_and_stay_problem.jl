@@ -1,5 +1,5 @@
 """
-    OptimizerReachAndStayProblem{T} <: MOI.AbstractOptimizer
+    OptimizerReachAndStayProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
 
 An optimizer for solving **reach-and-stay control problems** over symbolic system abstractions.
 
@@ -51,7 +51,7 @@ These fields are automatically filled in by `MOI.optimize!`.
 - `success`: Boolean flag indicating whether all abstract initial states belong to the winning set.
 - `abstract_problem_time_sec`: Time taken to solve the abstract reach-and-stay problem.
 """
-mutable struct OptimizerReachAndStayProblem{T} <: MOI.AbstractOptimizer
+mutable struct OptimizerReachAndStayProblem{T} <: OP.AbstractDionysosOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.ReachAndStayProblem}
     abstract_system::Any
@@ -89,20 +89,8 @@ OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 MOI.is_empty(optimizer::OptimizerReachAndStayProblem) =
     optimizer.concrete_problem === nothing
 
-function MOI.set(
-    model::OptimizerReachAndStayProblem,
-    param::MOI.RawOptimizerAttribute,
-    value,
-)
-    return setproperty!(model, Symbol(param.name), value)
-end
-
 function MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec)
     return model.abstract_problem_time_sec
-end
-
-function MOI.get(model::OptimizerReachAndStayProblem, param::MOI.RawOptimizerAttribute)
-    return getproperty(model, Symbol(param.name))
 end
 
 function build_abstract_problem(

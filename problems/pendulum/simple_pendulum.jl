@@ -29,8 +29,8 @@ function system(;
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dims(_X_),
-        UT.get_dims(_U_),
+        UT.get_dim(_X_),
+        UT.get_dim(_U_),
         _X_,
         _U_,
     )
@@ -71,7 +71,7 @@ function optimal_control_problem(;
 
     if objective == "reachability_up_high_power"
         _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0))
-        _U_ = UT.LazySetMinus(
+        _U_ = UT.set_minus(
             UT.HyperRectangle(SVector(-10.0), SVector(10.0)),
             UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
         )
@@ -83,7 +83,7 @@ function optimal_control_problem(;
 
     elseif objective == "reachability_up_medium_power"
         _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0))
-        _U_ = UT.LazySetMinus(
+        _U_ = UT.set_minus(
             UT.HyperRectangle(SVector(-7.0), SVector(7.0)),
             UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
         )
@@ -104,7 +104,7 @@ function optimal_control_problem(;
 
     elseif objective == "reachability_up_low_power"
         _X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
-        _U_ = UT.LazySetMinus(
+        _U_ = UT.set_minus(
             UT.HyperRectangle(SVector(-2.5), SVector(2.5)),
             UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
         )
@@ -122,7 +122,7 @@ function optimal_control_problem(;
         error("Unknown objective: $objective")
     end
 
-    _X_ = _O_ === nothing ? _X_ : UT.LazySetMinus(_X_, _O_)
+    _X_ = _O_ === nothing ? _X_ : UT.set_minus(_X_, _O_)
     sys = system(; params = params, _X_ = _X_, _U_ = _U_)
 
     return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
