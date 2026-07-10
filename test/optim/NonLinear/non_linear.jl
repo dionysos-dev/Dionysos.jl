@@ -49,7 +49,7 @@ using FillArrays
         q_T = 1
 
         state_cost = Fill(UT.ZeroFunction(), nmodes(sys))
-        transition_cost = UT.QuadraticControlFunction(Matrix{T}(I, 2, 2))
+        transition_cost = UT.QuadraticFunction(Matrix{T}(I, 2, 2))
         problem = PR.OptimalControlProblem(
             sys,
             (q_0, x_0),

@@ -11,7 +11,7 @@ const TEST_FILES = [
     ("./aqua.jl", :slow),  # quality/meta gate (ambiguities, stale deps): run pre-commit / in CI
     ("./utils/data_structures/sorted_vector_set.jl",),
     ("./utils/data_structures/tree.jl",),
-    ("./utils/scalar_functions.jl",),
+    ("./utils/functions.jl",),
     ("./utils/optim/scalar_optimization.jl",),
     ("./utils/sets/rectangle.jl",),
     ("./utils/sets/ellipsoid.jl",),

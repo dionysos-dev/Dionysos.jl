@@ -344,7 +344,7 @@ function hybrid_cost(
 end
 function hybrid_cost(
     model,
-    costs::Fill{<:UT.QuadraticControlFunction},
+    costs::Fill{<:UT.QuadraticFunction},
     x,
     u,
     δ,
@@ -365,7 +365,7 @@ function hybrid_cost(
     θ = add_variable(model)
     add_constraint(model, θ, MOI.GreaterThan(cost.lower_bound))
     for piece in cost.pieces
-        add_constraint(model, θ - UT.function_value(piece, x), MOI.GreaterThan(zero(T)))
+        add_constraint(model, θ - piece(x), MOI.GreaterThan(zero(T)))
     end
     add_constraint(model, x, Polyhedra.PolyhedraOptSet(cost.domain))
     return θ, δ

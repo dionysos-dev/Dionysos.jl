@@ -9,7 +9,7 @@ using LinearAlgebra
 
 include("plotting/simple_plots.jl")
 
-include("scalar_functions.jl")
+include("functions.jl")
 include("periodic.jl")
 include("incl_mode.jl")
 include("data_structures/sorted_vector_set.jl")

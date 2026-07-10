@@ -184,7 +184,7 @@ function problem(
             UT.ConstantFunction(one(T)) for mode in modes(sys)
         ]
     end
-    transition_cost = UT.QuadraticControlFunction(ones(T, 1, 1))
+    transition_cost = UT.QuadraticFunction(ones(T, 1, 1))
     problem = PR.OptimalControlProblem(
         sys,
         (q_0, x_0),

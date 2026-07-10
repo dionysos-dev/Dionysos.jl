@@ -75,7 +75,7 @@ include("../../../problems/non_linear.jl")
     # ----------------------------
     # Simulation
     # ----------------------------
-    cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
+    cost_eval(x, u) = concrete_problem.transition_cost(x, u)
     reached(x) = x ∈ concrete_problem.target_set
     nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time
 

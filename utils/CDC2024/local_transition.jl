@@ -69,7 +69,7 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     E1, cont, cost = result.source, result.controller, result.cost
 
     # Get results
-    cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
+    cost_eval(x, u) = problem.transition_cost(x, u)
     ETilde = UT.affine_transformation(
         E1,
         affineSys.A + affineSys.B * cont.A,

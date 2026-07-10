@@ -550,7 +550,7 @@ function LazySearchProblem(
     abstract_system = abstract_problem.system
     concrete_system = concrete_problem.system
 
-    transition_cost(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
+    transition_cost(x, u) = concrete_problem.transition_cost(x, u)
     transitions_added = MutableMatrix(
         false,
         SY.get_n_input(abstract_system),
