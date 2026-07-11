@@ -6,7 +6,11 @@ get_n_state(autom::AbstractAutomatonList) =
 get_n_input(autom::AbstractAutomatonList) =
     error("implement `get_n_input` for $(typeof(autom))")
 
-# The transition enumeration should return a list of tuples (target, source, symbol)
+# Transition-tuple convention (see `TransitionKey` in metadata.jl):
+#   - stored / enumerated as `(target, source, symbol)`  ← target first
+#   - added as `add_transition!(autom, source, target, symbol)`  ← source first
+# The ordering flip is deliberate but easy to get wrong; use the
+# `transition_{target,source,symbol}` accessors on enumerated tuples.
 enum_transitions(autom::AbstractAutomatonList) =
     error("implement `enum_transitions` for $(typeof(autom))")
 add_transition!(autom::AbstractAutomatonList, source::Int, target::Int, symbol::Int) =

@@ -26,18 +26,13 @@ get_retained_set(symmodel::GridBasedSymbolicModel) =
 # Default generic behavior
 # ------------------------------------------------------------------
 
-enum_source_states(symmodel::GridBasedSymbolicModel) =
-    MP.enum_states(get_mapped_state_set(symmodel))
+# Intent-naming alias: the states enumerated as transition *sources* (as opposed
+# to the retained set of allowed *targets*). Same as `enum_states`; used at the
+# partitioning / kernel call sites where "source" carries meaning.
+enum_source_states(symmodel::GridBasedSymbolicModel) = enum_states(symmodel)
 
 is_allowed_state(symmodel::GridBasedSymbolicModel, q::Int) =
     q !== nothing && MP.contains_state(get_mapped_retained_set(symmodel), q)
-
-get_n_state(symmodel::GridBasedSymbolicModel) =
-    length(collect(enum_source_states(symmodel)))
-
-get_n_input(symmodel::GridBasedSymbolicModel) = length(collect(enum_inputs(symmodel)))
-
-enum_states(symmodel::GridBasedSymbolicModel) = enum_source_states(symmodel)
 
 @inline function _keep_state_input(
     symmodel::GridBasedSymbolicModel,

@@ -1,4 +1,12 @@
+# A transition is stored and enumerated as the tuple `(target, source, symbol)`.
+# Note the ordering flip vs. `add_transition!(autom, source, target, symbol)`: the
+# storage order puts the target first. Use the accessors below rather than raw
+# positional indexing (`t[1]`/`t[2]`/`t[3]`) at call sites.
 const TransitionKey = NTuple{3, Int}
+
+@inline transition_target(t::TransitionKey) = t[1]
+@inline transition_source(t::TransitionKey) = t[2]
+@inline transition_symbol(t::TransitionKey) = t[3]
 
 abstract type AbstractTransitionMetadata end
 

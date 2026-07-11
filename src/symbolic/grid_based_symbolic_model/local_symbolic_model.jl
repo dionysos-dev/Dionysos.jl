@@ -45,4 +45,5 @@ get_abstract_state(sym::LocalGridBasedSymbolicModel, x) = get_abstract_state(sym
 add_transitions!(sym::LocalGridBasedSymbolicModel, trans) =
     add_transitions!(sym.parent, trans)
 
-metadata(sym::LocalGridBasedSymbolicModel) = metadata(sym.parent)
+get_transition_metadata(sym::LocalGridBasedSymbolicModel) =
+    get_transition_metadata(sym.parent)
