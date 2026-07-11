@@ -23,6 +23,7 @@ import Distributed
 export Optimizer
 
 include("alternating_simulation_problem.jl")
+include("lifted_control_optimizer.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 include("reach_and_stay_problem.jl")
