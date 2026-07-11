@@ -24,6 +24,14 @@ export Optimizer
 include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 
+"""
+    Optimizer{T} <: Dionysos.Optim.AbstractionControlOptimizer
+
+Abstraction-based solver using a uniform partition of ellipsoidal cells: it builds the ellipsoidal
+abstraction, synthesizes an abstract controller (forwarding the transition-cost closure), and
+concretizes it into a [`RefinedStaticController`](@ref). Follows the shared
+[`AbstractionControlOptimizer`](@ref) pipeline.
+"""
 mutable struct Optimizer{T} <: OP.AbstractionControlOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}

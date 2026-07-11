@@ -1,5 +1,5 @@
 """
-    OptimizerSafetyProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerSafetyProblem{T} <: AbstractLiftedControlOptimizer
 
 An optimizer for solving **safety control problems** over symbolic system abstractions.
 

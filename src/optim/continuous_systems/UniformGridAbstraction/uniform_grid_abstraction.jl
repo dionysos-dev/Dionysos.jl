@@ -30,7 +30,7 @@ include("reach_and_stay_problem.jl")
 include("cosafe_ltl_problem.jl")
 
 """
-    Optimizer{T} <: Dionysos.Optim.CompositeDionysosOptimizer
+    Optimizer{T} <: Dionysos.Optim.AbstractionControlOptimizer
 
 A high-level abstraction-based solver that automatically orchestrates system abstraction and control synthesis.
 This wrapper follows the **classical abstraction pipeline** (e.g., as in SCOTS), where the state and input spaces are discretized into hyper-rectangular cells, independent of the specific control task.

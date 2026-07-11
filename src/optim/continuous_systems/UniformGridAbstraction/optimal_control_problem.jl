@@ -1,5 +1,5 @@
 """
-    OptimizerOptimalControlProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimizer
 
 An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
 

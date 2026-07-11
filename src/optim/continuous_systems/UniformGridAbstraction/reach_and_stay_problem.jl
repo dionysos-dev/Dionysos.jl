@@ -1,5 +1,5 @@
 """
-    OptimizerReachAndStayProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerReachAndStayProblem{T} <: AbstractLiftedControlOptimizer
 
 An optimizer for solving **reach-and-stay control problems** over symbolic system abstractions.
 

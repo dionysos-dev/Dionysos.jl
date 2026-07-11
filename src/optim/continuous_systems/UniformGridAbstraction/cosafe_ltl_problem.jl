@@ -1,5 +1,5 @@
 """
-    OptimizerCoSafeLTLProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerCoSafeLTLProblem{T} <: AbstractLiftedControlOptimizer
 
 Abstraction-based solver for co-safe LTL control problems.
 

@@ -26,6 +26,14 @@ include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 
+"""
+    Optimizer{T} <: Dionysos.Optim.AbstractionControlOptimizer
+
+Abstraction-based solver for timed hybrid systems: it builds the
+[`TimedHybridSymbolicModel`](@ref Dionysos.Symbolic.TimedHybridSymbolicModel) abstraction, solves the
+abstract control problem, and concretizes the controller into a `HybridQuantizedStaticController`.
+Follows the shared [`AbstractionControlOptimizer`](@ref) pipeline.
+"""
 mutable struct Optimizer{T} <: OP.AbstractionControlOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
