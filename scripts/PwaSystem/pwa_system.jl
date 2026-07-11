@@ -1,43 +1,11 @@
-using Test     #src
-# # Example: Optimal control of a PWA System by State-feedback Abstractions solved by [Ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/State-feedback Abstraction: PWA System.ipynb)
-# 
-# This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems.
-# Consider a system $\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$ with the transition function  
-# ```math
-# \begin{equation}
-#     \{A_{\psi(x)}x+B_{\psi(x)}u+g_{\psi(x)}\}\oplus\Omega_{\psi(x)}
-# \end{equation}
-# ```
-# where $\psi:\mathcal{X}\rightarrow\{1,\dots,N_p\}$ selects one of the $N_p$ subsystems defined by the matrices 
-# ```math
-# \begin{equation}
-# 	A_1=\begin{bmatrix}
-#     1.01 & 0.3\\
-#     -0.1 & 1.01
-# \end{bmatrix}, ~B_1=\begin{bmatrix}
-#     1&0\\ 0 & 1
-# \end{bmatrix},~g_1=\begin{bmatrix}
-# -0.1\\-0.1
-# \end{bmatrix},
-# \end{equation}
-# ```
-# $A_2=A_1^\top,~ A_3=A_1,~B_2=B_3=B_1,~g_2=0$ and $g_3=-g_1$. These systems are three spiral sources with unstable equilibria at $x_{e1}=[-0.9635~~0.3654]^\top,~x_{e2}=0,$ and $x_{e3}=-x_{e1}$. We also define the additive-noise sets $\Omega_1=\Omega_2=\Omega_3=[-0.05,0.05]^2$, the control-input set $\mathcal{U}=[-0.5,0.5]^2$ and the state space $\mathcal{X}=[-2,2]^2$. The $N_p=3$ partitions of $\mathcal{X}$ are $\mathcal{X}_1= \{x\in\mathcal{X}~:~x_1\leq-1 \},~\mathcal{X}_3= \{x\in\mathcal{X}~:~x_1>1 \},$ and $\mathcal{X}_2=\mathcal{X}\setminus(\mathcal{X}_1\cup\mathcal{X}_3)$. The goal is to bring the state $x$ from the initial set $\mathcal{X}_0$ to a final set $\mathcal{X}_*$, while avoiding the obstacle $\mathcal{O}$, which are to be defined. 
-
-# First, let us import 
-# [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl), 
-# [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/), 
-# [Clarabel](https://github.com/oxfordcontrol/Clarabel.jl),
-# [JuMP](https://jump.dev/JuMP.jl/stable/). We also instantiate our optimizers and CDDLib.
-
-using StaticArrays, LinearAlgebra, Plots
+using StaticArrays, LinearAlgebra
 using JuMP, Clarabel
+import MathOptInterface as MOI
 import CDDLib
-
 import Random
 Random.seed!(0)
+
+using Plots
 
 using Dionysos
 const DI = Dionysos
@@ -49,45 +17,67 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-lib = CDDLib.Library() # polyhedron lib
+# ---------------------------------------------------------
+# Load PWA system
+# ---------------------------------------------------------
 
-include(
-    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PwaSystem", "pwa_system.jl"),
-)
+lib = CDDLib.Library()
+include("../../problems/PwaSystem/pwa_system.jl")
 
-# # Problem parameters
-# Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
-Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
-Wsz = 3 # `Wsz = 5` in [1]
-dt = 0.01; # discretization step
+Usz = 70
+Wsz = 3
+dt = 0.01
 
 concrete_problem =
     PwaSystem.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
+
 concrete_system = concrete_problem.system
 
-# # Abstraction parameters
-# This is state-space is defined by the box `rectX`. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells $\mathcal{X}_d$, given it's determinism. 
-# To build this deterministic state-feedback abstraction in alternating simulation relation  with the system as described in [1, Lemma 1], a set of balls of radius 0.2 covering the state space is adopted as cells $\xi\in\mathcal{X}_d$. We assume that inside cells intersecting the boundary of partitions of $\mathcal{X}$ the selected piecewise-affine mode is the same all over its interior and given by the mode defined at its center. An alternative to this are discussed in [1]. Let us define the corresponding grid:
+# ---------------------------------------------------------
+# Build AlternatingSimulationProblem (abstraction-only)
+# ---------------------------------------------------------
+
+alternating_simulation_problem = PR.AlternatingSimulationProblem(
+    concrete_system,
+    concrete_system.ext[:X],   # region = state constraint set
+)
+
+# ---------------------------------------------------------
+# Ellipsoidal Grid
+# ---------------------------------------------------------
 
 n_step = 3
+
 origin = SVector(0.0, 0.0)
 h = SVector(1.0 / n_step, 1.0 / n_step)
+
 nx = size(concrete_system.resetmaps[1].A, 1)
+
 # Ellipsoid matrix P
 P = (1 / nx) * diagm((h ./ 2) .^ (-2))
+
 state_grid = MP.GridEllipsoidalRectangular(origin, h, P)
+
 # Overapproximation radius (same size as state)
 R = h ./ 2
+
 # Optional: same shape for source and target ellipsoids
 Pm = P
+
 # SDP solver
 opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
-# # Instantiate abstraction optimizer
+# ---------------------------------------------------------
+# Instantiate abstraction optimizer
+# ---------------------------------------------------------
 
 optimizer = MOI.instantiate(AB.UniformEllipsoidAbstraction.Optimizer)
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(
+    optimizer,
+    MOI.RawOptimizerAttribute("alternating_simulation_problem"),
+    alternating_simulation_problem,
+)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("incl_mode"), MP.INNER)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("P"), P)
@@ -100,12 +90,39 @@ MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("Q_aug"),
     Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2),
-);
+)
 
-# Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
+# ---------------------------------------------------------
+# Build abstraction
+# ---------------------------------------------------------
+
 MOI.optimize!(optimizer)
 
-# Get the results
+abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+abstraction_time =
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstraction_construction_time_sec"))
+println("Time to construct the abstraction: $(abstraction_time)")
+
+println("Abstraction built.")
+println("Number of states: ", SY.get_n_state(abstract_system))
+println("Number of transitions: ", length(optimizer.abstraction_solver.transitionCost))
+
+XMapping = SY.get_state_mapping(abstract_system)
+Xset = SY.get_state_set(abstract_system)
+
+fig = plot(; aspect_ratio = :equal);
+# plot!(XMapping; efficient=true, color=:grey)
+# plot!((Xset, XMapping); efficient=false, color=:grey)
+plot!(abstract_system; efficient = false, with_arrows = true)
+display(fig)
+
+# ---------------------------------------------------------
+# Solve control problem
+# ---------------------------------------------------------
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+
+MOI.optimize!(optimizer)
 abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
@@ -114,9 +131,10 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 concrete_value_function =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_value_function"))
 abstract_value_function =
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"));
+    MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_function"))
+println("Time to solve the abstract problem: $(abstract_problem_time)")
 
-# # Simulation
+# # ### Simulation
 
 # Return pwa mode for a given x
 get_mode(x) = findfirst(m -> (x ∈ m.X), concrete_system.resetmaps)
@@ -185,8 +203,4 @@ plot!(
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
 plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
-
-# ## References
-#
-# 1. L. N. Egidio, T. Alves Lima, R. M. Jungers, "State-feedback Abstractions for Optimal Control of Piecewise-affine Systems", IEEE 61st Conference on Decision and Control (CDC), 2022, accepted.
-# 1. D. Bertsekas, "Dynamic programming and optimal control". Volume I, Athena scientific, 2012.
+display(fig)

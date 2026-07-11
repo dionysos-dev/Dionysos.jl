@@ -1,6 +1,6 @@
 module TestMain
 include("solvers.jl")
-include("../../../problems/gol_lazar_belta.jl")
+include("../../../problems/GolLazarBelta/gol_lazar_belta.jl")
 
 import Dionysos
 const DI = Dionysos

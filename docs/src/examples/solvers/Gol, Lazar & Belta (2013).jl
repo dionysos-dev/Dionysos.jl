@@ -34,9 +34,16 @@ const ST = DI.System
 const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belta.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "GolLazarBelta",
+        "gol_lazar_belta.jl",
+    ),
+)
 
-# Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta.jl)
+# Now we instantiate our optimal control problem using the function provided by [gol_lazar_belta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta/gol_lazar_belta.jl)
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
 # Finally, we select the method presented in [2] as our optimizer

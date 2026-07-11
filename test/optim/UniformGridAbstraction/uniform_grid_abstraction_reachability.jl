@@ -15,7 +15,7 @@ const AB = OP.Abstraction
 using JuMP
 import MathOptInterface as MOI
 
-include("../../../problems/path_planning.jl")
+include("../../../problems/PathPlanning/path_planning.jl")
 
 @testset "UniformGridAbstraction PathPlanning (simple)" begin
     concrete_problem = PathPlanning.problem(; simple = true)

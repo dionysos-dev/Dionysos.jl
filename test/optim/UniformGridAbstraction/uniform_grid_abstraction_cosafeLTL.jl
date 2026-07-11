@@ -19,7 +19,14 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 const OPDS = OP.DiscreteSystems
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "toy_problem.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "ToyProblem",
+        "toy_problem.jl",
+    ),
+)
 
 sleep(0.1)
 println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")

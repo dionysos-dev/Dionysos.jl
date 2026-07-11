@@ -67,13 +67,13 @@ correct-by-construction controller on it, then *concretize* it back to the origi
 | [`ext/`](ext/) | Package extensions — optional-dependency glue (Plots, Symbolics, Spot, CSV, RigidBodyDynamics). |
 | [`test/`](test/) | Test suite; mirrors `src/` layout. Entry point [`test/runtests.jl`](test/runtests.jl). |
 | [`docs/`](docs/) | Documenter.jl site + Literate.jl examples. Build script [`docs/make.jl`](docs/make.jl). |
-| [`problems/`](problems/) | Reusable **benchmark problem library** (e.g. path planning, DC-DC, pendulum). |
-| `utils/` (root) | **Runnable case-study scripts**, grouped by example — **not** library code. |
+| [`problems/`](problems/) | Reusable **benchmark problem library** (e.g. path planning, DC-DC, pendulum), one folder per problem. |
+| [`scripts/`](scripts/) (root) | **Runnable case-study scripts**, one folder per example — **not** library code. (Formerly `utils/`.) |
 | [`bench/`](bench/) | Benchmarks (BenchmarkTools). |
 | `control_server/`, `BipedRobot/`, `paper/`, `assets/` | Auxiliary app, robot demo, paper artifacts, images. |
 
-> ⚠️ The root `utils/` folder (example drivers) is **not** the same as the `src/utils/` module (the
-> `Utils` library). Don't confuse them.
+> ⚠️ The root `scripts/` folder (example drivers) is **not** the same as the `src/utils/` module (the
+> `Utils` library). It was renamed from `utils/` precisely to avoid that confusion.
 
 ---
 
@@ -350,7 +350,7 @@ extension is loaded (`using Plots`, `using Symbolics`, …).
 - **Stale `Domain` naming.** Some docstrings/comments say `Dionysos.Domain.INNER`, but the live module
   is **`Dionysos.Mapping`** (`INNER`/`OUTER`/`CENTER`). "Domain" is a former name — verify against the
   code before trusting a comment.
-- **Two `utils/`.** Root `utils/` = case-study scripts; `src/utils/` = the `Utils` library module.
+- **`scripts/` vs `src/utils/`.** Root `scripts/` (formerly `utils/`) = case-study drivers; `src/utils/` = the `Utils` library module. Each problem/example is a folder in both `problems/` and `scripts/`.
 - **Wire new tests in.** [test/runtests.jl](test/runtests.jl) is a `TEST_FILES` list (path + optional
   `:slow` tag) run in a timed loop; its include paths are slightly flatter than the deeply nested `src/`
   tree. Add every new test file to that list, and mirror the *actual* `src/` layout for source.

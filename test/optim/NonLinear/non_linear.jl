@@ -1,7 +1,7 @@
 module TestNonLinearBemporadMorari
 
 include("../GolLazarBelta/solvers.jl")
-include("../../../problems/non_linear.jl")
+include("../../../problems/NonLinear/non_linear.jl")
 
 import Dionysos
 const DI = Dionysos

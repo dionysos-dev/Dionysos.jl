@@ -28,9 +28,9 @@ const _NO_PLOT = get(ENV, "CI", "false") == "true"
 # ------------------------------------------------------------------
 # Load PWA system
 # ------------------------------------------------------------------
-include("../../../problems/pwa_sys.jl")
+include("../../../problems/PwaSystem/pwa_system.jl")
 
-@testset "UniformEllipsoidAbstraction on PWAsys (end-to-end)" begin
+@testset "UniformEllipsoidAbstraction on PwaSystem (end-to-end)" begin
     Random.seed!(0)
 
     # ----------------------------
@@ -43,7 +43,7 @@ include("../../../problems/pwa_sys.jl")
     dt = 0.01
 
     concrete_problem =
-        PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = true)
+        PwaSystem.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = true)
     concrete_system = concrete_problem.system
 
     # ----------------------------
@@ -61,7 +61,7 @@ include("../../../problems/pwa_sys.jl")
     h = SVector(1.0 / n_step, 1.0 / n_step)
 
     nx = size(concrete_system.resetmaps[1].A, 1)
-    @test nx == 2  # this test is written for the 2D PWAsys instance
+    @test nx == 2  # this test is written for the 2D PwaSystem instance
 
     P = (1 / nx) * diagm((h ./ 2) .^ (-2))
     Pm = P

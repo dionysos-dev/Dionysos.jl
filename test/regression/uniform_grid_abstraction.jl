@@ -24,7 +24,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/path_planning.jl")
+include("../../problems/PathPlanning/path_planning.jl")
 
 const SHOW_SIG = get(ENV, "DIONYSOS_SHOW_SIG", "0") == "1"
 

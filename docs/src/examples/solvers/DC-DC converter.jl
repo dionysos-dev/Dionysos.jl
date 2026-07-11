@@ -41,7 +41,9 @@ const AB = OP.Abstraction
 
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+);
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()
@@ -103,7 +105,9 @@ plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 # # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+);
 
 # and we can instantiate the DC system with the provided system
 concrete_problem = DCDC.problem()

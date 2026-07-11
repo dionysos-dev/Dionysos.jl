@@ -21,7 +21,7 @@ const AB = OP.Abstraction
 # Don’t plot on CI (keeps tests fast + headless-safe)
 const _NO_PLOT = get(ENV, "CI", "false") == "true"
 
-include("../../../problems/non_linear.jl")
+include("../../../problems/NonLinear/non_linear.jl")
 
 @testset "LazyEllipsoidsAbstraction (NonLinear) end-to-end" begin
     # Deterministic randomness
