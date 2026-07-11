@@ -1,6 +1,7 @@
 # # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 
+import LazySets
 using StaticArrays, Plots
 using JuMP, Clarabel
 
@@ -23,6 +24,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
+obstacles = NonLinear.default_obstacles()
 
 # Optimizer's parameters
 sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
@@ -48,7 +50,8 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = obstacles,
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
@@ -68,7 +71,7 @@ cost_eval(x, u) = concrete_problem.transition_cost(x, u)
 reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 # We simulate the closed loop trajectory
-x0 = UT.get_center(concrete_problem.initial_set)
+x0 = LazySets.center(concrete_problem.initial_set)
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     concrete_system,
     concrete_controller,
@@ -130,7 +133,7 @@ xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
 
-for obs in concrete_system.obstacles
+for obs in obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; with_arrows = false, cost = true);

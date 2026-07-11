@@ -47,7 +47,7 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
 )
 
 continuous_approx =
-    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
 concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -58,7 +58,7 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
     nothing,
 )
 continuous_approx =
-    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
 abstract_system = SY.SymbolicModelList(
