@@ -138,8 +138,9 @@ When enabled, the following fields are required:
       Simulate randomly sampled points in each abstract cell.  
       Set `n_samples`.
 
-- `efficient` (optional, default = `true`):  
-  Whether to use the optimized approximation-specific abstraction kernel when available.
+- `efficient` (optional, default = `true`):
+  Deprecated and ignored — the abstraction kernel hoists approximation-specific
+  per-input work uniformly (see `Dionysos.System.input_cache` / `reach_set`).
 
 #### Continuous-time settings
 
@@ -689,19 +690,9 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     optimizer.print_level >= 1 &&
         println("compute_abstract_system_from_concrete_system!: started")
 
-    system_approximation =
-        if !optimizer.efficient &&
-           ST.is_over_approximation(optimizer.discrete_time_system_approximation)
-            ST.get_DiscreteTimeOverApproximationMap(
-                optimizer.discrete_time_system_approximation,
-            )
-        else
-            optimizer.discrete_time_system_approximation
-        end
-
     SY.compute_abstract_system_from_concrete_system!(
         abstract_system,
-        system_approximation;
+        optimizer.discrete_time_system_approximation;
         execution_backend = optimizer.execution_backend,
         print_level = optimizer.print_level,
         update_interval = optimizer.progress_update_interval,

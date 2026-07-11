@@ -92,23 +92,28 @@ Propagates multiple randomly sampled points from the input set to provide a disc
 # Fields
 - `system`: The underlying discrete-time control system.
 - `nsamples`: Number of samples to draw from the input set.
+- `rng`: Optional random number generator for reproducible sampling (`nothing` = global RNG).
 
 # Underapproximation Map
 Returns a function of the form:
     `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> Vector{SVector}`
 which returns a list of propagated samples.
 """
-struct DiscreteTimeRandomSimulation{S <: MS.ConstrainedBlackBoxControlDiscreteSystem} <:
+struct DiscreteTimeRandomSimulation{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, R} <:
        DiscreteTimeSystemUnderApproximation
     system::S
     nsamples::Int
+    rng::R
 end
+
+DiscreteTimeRandomSimulation(system, nsamples::Int) =
+    DiscreteTimeRandomSimulation(system, nsamples, nothing)
 
 get_system(approx::DiscreteTimeRandomSimulation) = approx.system
 
 function get_under_approximation_map(approx::DiscreteTimeRandomSimulation)
     return (elem, u) -> begin
-        samples = UT.samples(elem, approx.nsamples)
+        samples = UT.samples(elem, approx.nsamples; rng = approx.rng)
         return [get_system_map(approx)(x, u) for x in samples]
     end
 end
@@ -123,6 +128,7 @@ Simulates multiple samples from the input set, over a fixed time step.
 # Fields
 - `system`: The underlying continuous-time control system.
 - `nsamples`: Number of random samples.
+- `rng`: Optional random number generator for reproducible sampling (`nothing` = global RNG).
 
 # Underapproximation Map
 Returns a function of the form:
@@ -132,17 +138,23 @@ which returns a list of propagated samples.
 # Notes
 Use `discretize` to convert this approximation into a discrete-time approximation suitable for use in fixed-step abstraction pipelines.
 """
-struct ContinuousTimeRandomSimulation{S <: MS.ConstrainedBlackBoxControlContinuousSystem} <:
-       ContinuousTimeSystemUnderApproximation
+struct ContinuousTimeRandomSimulation{
+    S <: MS.ConstrainedBlackBoxControlContinuousSystem,
+    R,
+} <: ContinuousTimeSystemUnderApproximation
     system::S
     nsamples::Int
+    rng::R
 end
+
+ContinuousTimeRandomSimulation(system, nsamples::Int) =
+    ContinuousTimeRandomSimulation(system, nsamples, nothing)
 
 get_system(approx::ContinuousTimeRandomSimulation) = approx.system
 
 function get_under_approximation_map(approx::ContinuousTimeRandomSimulation)
     return (elem, u, tstep) -> begin
-        samples = UT.samples(elem, approx.nsamples)
+        samples = UT.samples(elem, approx.nsamples; rng = approx.rng)
         return [get_system_map(approx)(x, u, tstep) for x in samples]
     end
 end
@@ -154,5 +166,5 @@ function discretize(
 )
     discretized_system =
         discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
-    return DiscreteTimeRandomSimulation(discretized_system, approx.nsamples)
+    return DiscreteTimeRandomSimulation(discretized_system, approx.nsamples, approx.rng)
 end

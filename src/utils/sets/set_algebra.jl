@@ -69,10 +69,11 @@ get_h(H::LazySets.AbstractHyperrectangle) = 2 .* LazySets.radius_hyperrectangle(
 "Sample a point of `X` uniformly (LazySets rejection sampling)."
 sample(X::LazySets.LazySet) = SVector{LazySets.dim(X)}(LazySets.sample(X))
 
-"Sample `N` points of `X` uniformly (LazySets rejection sampling)."
-function samples(X::LazySets.LazySet, N::Int)
+"Sample `N` points of `X` uniformly (LazySets rejection sampling); pass `rng` for reproducibility."
+function samples(X::LazySets.LazySet, N::Int; rng = nothing)
     n = LazySets.dim(X)
-    return [SVector{n}(p) for p in LazySets.sample(X, N)]
+    pts = rng === nothing ? LazySets.sample(X, N) : LazySets.sample(X, N; rng = rng)
+    return [SVector{n}(p) for p in pts]
 end
 
 # ------------------------------------------------------------

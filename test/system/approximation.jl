@@ -167,6 +167,65 @@ end
     RcontD = ST.discretize(Rcont, tstep)
     ptsRd = ST.get_under_approximation_map(RcontD)(rect, u)
     @test length(ptsRd) == 15
+
+    # Reproducibility with an explicit rng (also survives discretize)
+    R1 = ST.DiscreteTimeRandomSimulation(sysD, 10, Random.MersenneTwister(42))
+    R2 = ST.DiscreteTimeRandomSimulation(sysD, 10, Random.MersenneTwister(42))
+    @test ST.get_under_approximation_map(R1)(rect, u) ==
+          ST.get_under_approximation_map(R2)(rect, u)
+
+    C1 = ST.ContinuousTimeRandomSimulation(sysC, 10, Random.MersenneTwister(7))
+    C2 = ST.discretize(
+        ST.ContinuousTimeRandomSimulation(sysC, 10, Random.MersenneTwister(7)),
+        tstep,
+    )
+    @test ST.get_under_approximation_map(C1)(rect, u, tstep) ==
+          ST.get_under_approximation_map(C2)(rect, u)
+end
+
+@testset "input_cache / reach_set hooks" begin
+    fd(x, u) = x + u
+    fc(x, u) = u
+    X = UT.box([-10.0, -10.0], [10.0, 10.0])
+    U = UT.box([-1.0, -1.0], [1.0, 1.0])
+    sysD = MS.ConstrainedBlackBoxControlDiscreteSystem(fd, 2, 2, X, U)
+
+    rect = UT.box([-0.5, -0.25], [0.5, 0.25])
+    r = LazySets.radius_hyperrectangle(rect)
+    u = @SVector [0.2, -0.1]
+
+    # Growth bound: hook path ≡ generic map
+    gb = (r, u) -> abs.(r) .+ 0.1 .* abs.(u)
+    G = ST.DiscreteTimeGrowthBound(sysD, gb)
+    cache = ST.input_cache(G, r, u)
+    @test cache == gb(r, u)
+    out_hook = ST.reach_set(G, rect, u, cache)
+    out_map = ST.get_over_approximation_map(G)(rect, u)
+    @test LazySets.center(out_hook) == LazySets.center(out_map)
+    @test LazySets.radius_hyperrectangle(out_hook) ==
+          LazySets.radius_hyperrectangle(out_map)
+
+    # Linearized: hook path ≡ generic map
+    linsys_d = (x, dx, u) -> (fd(x, u), @SMatrix [1.0 0.0; 0.0 1.0])
+    err_d = (e, u) -> 0.01 .* ones(SVector{2, Float64})
+    L = ST.DiscreteTimeLinearized(sysD, linsys_d, err_d)
+    cacheL = ST.input_cache(L, r, u)
+    out_hookL = ST.reach_set(L, rect, u, cacheL)
+    out_mapL = ST.get_over_approximation_map(L)(rect, u)
+    @test LazySets.center(out_hookL) == LazySets.center(out_mapL)
+    @test LazySets.radius_hyperrectangle(out_hookL) ==
+          LazySets.radius_hyperrectangle(out_mapL)
+
+    # Default hooks: cache is nothing, reach_set falls back to the generic map
+    over_map = (rc, uu) -> begin
+        x = LazySets.center(rc)
+        rad = LazySets.radius_hyperrectangle(rc)
+        UT.box(fd(x, uu) - rad, fd(x, uu) + rad)
+    end
+    O = ST.DiscreteTimeOverApproximationMap(sysD, over_map)
+    @test ST.input_cache(O, r, u) === nothing
+    out_def = ST.reach_set(O, rect, u, nothing)
+    @test LazySets.center(out_def) ≈ fd(LazySets.center(rect), u)
 end
 
 end # module

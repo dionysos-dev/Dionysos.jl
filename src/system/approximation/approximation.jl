@@ -110,7 +110,7 @@ is_over_approximation(approx::ContinuousTimeSystemOverApproximation) = true
     get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) -> Function
 
 Returns a function that computes the overapproximation of the system's evolution:
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}) -> LazySets.Hyperrectangle`
+    `f(elem::LazySets.LazySet, u::SVector{M,T}) -> bounded LazySets.LazySet`
 """
 get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) =
     error("implement `get_over_approximation_map` for $(typeof(approx))")
@@ -119,24 +119,30 @@ get_over_approximation_map(approx::DiscreteTimeSystemOverApproximation) =
     get_over_approximation_map(overApprox::ContinuousTimeSystemOverApproximation) -> Function
 
 Returns a function that computes the overapproximation of the system's evolution:
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector{M,T}, tstep::T) -> LazySets.Hyperrectangle`
+    `f(elem::LazySets.LazySet, u::SVector{M,T}, tstep::T) -> bounded LazySets.LazySet`
 """
 get_over_approximation_map(approx::ContinuousTimeSystemOverApproximation) =
     error("implement `get_over_approximation_map` for $(typeof(approx))")
 
-function get_DiscreteTimeOverApproximationMap(approx::DiscreteTimeSystemOverApproximation)
-    return DiscreteTimeOverApproximationMap(
-        get_system(approx),
-        get_over_approximation_map(approx),
-    )
-end
-function get_DiscreteTimeOverApproximationMap(
-    approx::ContinuousTimeSystemOverApproximation,
-    tstep::Float64,
-)
-    discretized = discretize(approx, tstep)
-    return get_DiscreteTimeOverApproximationMap(discretized)
-end
+"""
+    input_cache(approx::DiscreteTimeSystemOverApproximation, r, u)
+
+Data the approximation can hoist out of the per-cell loop: whatever depends only
+on the input `u` and the (uniform) cell radius `r`, computed once per input and
+reused by [`reach_set`](@ref) across all cells. Defaults to `nothing`.
+"""
+input_cache(::DiscreteTimeSystemOverApproximation, r, u) = nothing
+
+"""
+    reach_set(approx::DiscreteTimeSystemOverApproximation, elem, u, cache) -> LazySets.LazySet
+
+Over-approximation of the successor set of the cell `elem` under input `u`, using
+the per-input `cache` produced by [`input_cache`](@ref). Concrete approximations
+override both functions as a pair; the fallback ignores the cache and calls the
+generic over-approximation map.
+"""
+reach_set(approx::DiscreteTimeSystemOverApproximation, elem, u, cache) =
+    get_over_approximation_map(approx)(elem, u)
 
 # --------------------------------------------------
 #  OVERAPPROXIMATION MAP IMPLEMENTATION
@@ -151,8 +157,8 @@ This type wraps a constrained discrete-time system along with an overapproximati
 
 # Fields
 - `system`: The underlying `ConstrainedBlackBoxControlDiscreteSystem` from `MathematicalSystems.jl`.
-- `over_approximation_map`: A function of the form  
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`  
+- `over_approximation_map`: A function of the form
+    `f(elem::LazySets.LazySet, u::SVector) -> bounded LazySets.LazySet`
     which returns an overapproximated successor set.
 """
 struct DiscreteTimeOverApproximationMap{
@@ -175,8 +181,8 @@ This type stores a constrained continuous-time system and an overapproximation f
 
 # Fields
 - `system`: The underlying `ConstrainedBlackBoxControlContinuousSystem` from `MathematicalSystems.jl`.
-- `over_approximation_map`: A function of the form  
-    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`  
+- `over_approximation_map`: A function of the form
+    `f(elem::LazySets.LazySet, u::SVector, tstep::Real) -> bounded LazySets.LazySet`
     which returns an overapproximated reachable set over the given time interval.
 
 # Notes

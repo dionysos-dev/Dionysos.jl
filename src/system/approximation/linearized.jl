@@ -28,22 +28,25 @@ end
 
 get_system(approx::DiscreteTimeLinearized) = approx.system
 
+function input_cache(approx::DiscreteTimeLinearized, r, u)
+    N = length(r)
+    e = LA.norm(r, Inf)
+    Fe = approx.error_map(e, u)
+    _H_ = SMatrix{N, N}(LA.I) .* r
+    _ONE_ = ones(SVector{N})
+    return (Fe = Fe, H = _H_, ONE = _ONE_)
+end
+
+function reach_set(approx::DiscreteTimeLinearized, elem, u, cache)
+    Fx, DFx = approx.linsys_map(LazySets.center(elem), cache.H, u)
+    rad = abs.(DFx) * cache.ONE .+ cache.Fe
+    return LazySets.Hyperrectangle(Fx, rad)
+end
+
 function get_over_approximation_map(approx::DiscreteTimeLinearized)
-    return (rect, u) -> begin
-        x = LazySets.center(rect)
-        r = LazySets.radius_hyperrectangle(rect)
-        e = LA.norm(r, Inf)
-        N = LazySets.dim(rect)
-
-        _H_ = SMatrix{N, N}(LA.I) .* r
-        _ONE_ = ones(SVector{N})
-
-        Fe = approx.error_map(e, u)
-
-        Fx, DFx = approx.linsys_map(x, _H_, u)
-
-        rad = abs.(DFx) * _ONE_ .+ Fe
-        return LazySets.Hyperrectangle(Fx, rad)
+    return (elem, u) -> begin
+        r = LazySets.radius_hyperrectangle(elem)
+        return reach_set(approx, elem, u, input_cache(approx, r, u))
     end
 end
 

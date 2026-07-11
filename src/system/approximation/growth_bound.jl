@@ -27,13 +27,18 @@ struct DiscreteTimeGrowthBound{S <: MS.ConstrainedBlackBoxControlDiscreteSystem,
 end
 
 get_system(approx::DiscreteTimeGrowthBound) = approx.system
+
+input_cache(approx::DiscreteTimeGrowthBound, r, u) = approx.growthbound_map(r, u)
+
+function reach_set(approx::DiscreteTimeGrowthBound, elem, u, Fr)
+    Fx = get_system_map(approx)(LazySets.center(elem), u)
+    return LazySets.Hyperrectangle(Fx, Fr)
+end
+
 function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
-    return (rect, u) -> begin
-        x = LazySets.center(rect)
-        r = LazySets.radius_hyperrectangle(rect)
-        Fx = get_system_map(approx)(x, u)
-        Fr = approx.growthbound_map(r, u)
-        return LazySets.Hyperrectangle(Fx, Fr)
+    return (elem, u) -> begin
+        r = LazySets.radius_hyperrectangle(elem)
+        return reach_set(approx, elem, u, input_cache(approx, r, u))
     end
 end
 
@@ -117,10 +122,13 @@ function ContinuousTimeGrowthBound_from_jacobian_bound(
     )
 end
 
-function compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
+# Untyped fallback so the Symbolics extension can add the typed method without
+# overwriting it (its implementation traces the dynamics symbolically and bounds
+# the Jacobian over X with interval arithmetic).
+function compute_jacobian_bound(system)
     return error(
-        "Automatic Jacobian-bound computation is not implemented. " *
-        "Provide the bound explicitly via " *
+        "Automatic Jacobian-bound computation requires Symbolics.jl " *
+        "(load it with `using Symbolics`), or provide the bound explicitly via " *
         "`ContinuousTimeGrowthBound(system; jacobian_bound = jacobian_bound)`.",
     )
 end

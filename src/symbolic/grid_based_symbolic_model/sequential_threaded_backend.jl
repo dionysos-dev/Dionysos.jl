@@ -48,13 +48,7 @@ end
 
 function compute_abstract_system!(
     abstract_system::GridBasedSymbolicModel,
-    concrete_system_approx::Union{
-        ST.DiscreteTimeSystemOverApproximation,
-        ST.DiscreteTimeGrowthBound,
-        ST.DiscreteTimeLinearized,
-        ST.DiscreteTimeSystemUnderApproximation,
-        ST.DiscreteTimeCenteredSimulation,
-    };
+    concrete_system_approx::ST.DiscreteTimeSystemApproximation;
     print_level::Int = 0,
     update_interval::Int = Int(1e5),
     progress_dt::Float64 = 0.2,
@@ -310,9 +304,9 @@ end
 # Low-level transition helpers
 # ------------------------------------------------
 
-function compute_abstract_transitions_from_rectangle!(
+function compute_abstract_transitions_from_set!(
     symmodel::GridBasedSymbolicModel,
-    reachable_set::LazySets.AbstractHyperrectangle,
+    reachable_set::LazySets.LazySet,
     abstract_state::Int,
     abstract_input::Int,
     translist::Vector{TransitionKey},
@@ -372,6 +366,10 @@ end
 # Approximation kernels
 # ------------------------------------------------
 
+# One kernel for every over-approximation: `ST.input_cache` hoists whatever the
+# approximation can precompute per input (for the uniform cell radius `r`), and
+# `ST.reach_set` is the per-cell hot path. Approximation-specific formulas live in
+# src/system/approximation/, not here.
 function collect_abstract_transitions!(
     out::Vector{TransitionKey},
     metadata_out::Vector{Pair{TransitionKey, Any}},
@@ -384,10 +382,16 @@ function collect_abstract_transitions!(
     state_filter::Union{Nothing, Function} = nothing,
     state_input_filter::Union{Nothing, Function} = nothing,
 )
-    compute_reachable_set = ST.get_over_approximation_map(concrete_system_approx)
+    XMapping = get_state_mapping(symmodel)
+    r = MP.get_h(MP.get_grid(XMapping)) / 2.0
 
     inputs = collect(enum_inputs(symmodel))
-    concrete_inputs = Dict(u => get_concrete_input(symmodel, u) for u in inputs)
+    input_data = Dict(
+        u => begin
+            concrete_input = get_concrete_input(symmodel, u)
+            (concrete_input, ST.input_cache(concrete_system_approx, r, concrete_input))
+        end for u in inputs
+    )
 
     states = collect(enum_states(symmodel))
     concrete_elems = Dict(q => get_concrete_elem(symmodel, q) for q in states)
@@ -398,159 +402,14 @@ function collect_abstract_transitions!(
         abstract_state::Int,
         abstract_input::Int,
     )
-        concrete_input = concrete_inputs[abstract_input]
+        concrete_input, cache = input_data[abstract_input]
         concrete_elem = concrete_elems[abstract_state]
-        reachable_set = compute_reachable_set(concrete_elem, concrete_input)
+        reachable_set =
+            ST.reach_set(concrete_system_approx, concrete_elem, concrete_input, cache)
 
         start_len = length(transbuf)
 
-        allin = compute_abstract_transitions_from_rectangle!(
-            symmodel,
-            reachable_set,
-            abstract_state,
-            abstract_input,
-            transbuf,
-        )
-
-        allin || resize!(transbuf, start_len)
-        return nothing
-    end
-
-    return _collect_transitions!(
-        out,
-        metadata_out,
-        symmodel,
-        workfun!;
-        print_level = print_level,
-        update_interval = update_interval,
-        progress_dt = progress_dt,
-        threaded = threaded,
-        state_filter = state_filter,
-        state_input_filter = state_input_filter,
-    )
-end
-
-function collect_abstract_transitions!(
-    out::Vector{TransitionKey},
-    metadata_out::Vector{Pair{TransitionKey, Any}},
-    symmodel::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeGrowthBound;
-    print_level::Int = 0,
-    update_interval::Int = Int(1e5),
-    progress_dt::Float64 = 0.2,
-    threaded::Bool = false,
-    state_filter::Union{Nothing, Function} = nothing,
-    state_input_filter::Union{Nothing, Function} = nothing,
-)
-    growthbound_map = concrete_system_approx.growthbound_map
-    system_map = ST.get_system_map(concrete_system_approx)
-
-    XMapping = get_state_mapping(symmodel)
-    r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-
-    inputs = collect(enum_inputs(symmodel))
-    input_data = Dict{Int, Tuple{Any, Any}}()
-
-    for abstract_input in inputs
-        concrete_input = get_concrete_input(symmodel, abstract_input)
-        Fr = growthbound_map(r, concrete_input)
-        input_data[abstract_input] = (concrete_input, Fr)
-    end
-
-    states = collect(enum_states(symmodel))
-    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
-
-    workfun! = function (
-        transbuf::Vector{TransitionKey},
-        metadatabuf::Vector{Pair{TransitionKey, Any}},
-        abstract_state::Int,
-        abstract_input::Int,
-    )
-        concrete_input, Fr = input_data[abstract_input]
-        concrete_state = concrete_states[abstract_state]
-
-        Fx = system_map(concrete_state, concrete_input)
-        reachable_set = LazySets.Hyperrectangle(Fx, Fr)
-
-        start_len = length(transbuf)
-
-        allin = compute_abstract_transitions_from_rectangle!(
-            symmodel,
-            reachable_set,
-            abstract_state,
-            abstract_input,
-            transbuf,
-        )
-
-        allin || resize!(transbuf, start_len)
-        return nothing
-    end
-
-    return _collect_transitions!(
-        out,
-        metadata_out,
-        symmodel,
-        workfun!;
-        print_level = print_level,
-        update_interval = update_interval,
-        progress_dt = progress_dt,
-        threaded = threaded,
-        state_filter = state_filter,
-        state_input_filter = state_input_filter,
-    )
-end
-
-function collect_abstract_transitions!(
-    out::Vector{TransitionKey},
-    metadata_out::Vector{Pair{TransitionKey, Any}},
-    symmodel::GridBasedSymbolicModel,
-    concrete_system_approx::ST.DiscreteTimeLinearized;
-    print_level::Int = 0,
-    update_interval::Int = Int(1e5),
-    progress_dt::Float64 = 0.2,
-    threaded::Bool = false,
-    state_filter::Union{Nothing, Function} = nothing,
-    state_input_filter::Union{Nothing, Function} = nothing,
-)
-    XMapping = get_state_mapping(symmodel)
-    N = MP.get_dim(XMapping)
-    r = MP.get_h(MP.get_grid(XMapping)) / 2.0
-    _H_ = SMatrix{N, N}(LA.I) .* r
-    _ONE_ = ones(SVector{N})
-    e = LA.norm(r, Inf)
-
-    error_map = concrete_system_approx.error_map
-    linsys_map = concrete_system_approx.linsys_map
-
-    inputs = collect(enum_inputs(symmodel))
-    input_data = Dict{Int, Tuple{Any, Any}}()
-
-    for abstract_input in inputs
-        concrete_input = get_concrete_input(symmodel, abstract_input)
-        Fe = error_map(e, concrete_input)
-        input_data[abstract_input] = (concrete_input, Fe)
-    end
-
-    states = collect(enum_states(symmodel))
-    concrete_states = Dict(q => get_concrete_state(symmodel, q) for q in states)
-
-    workfun! = function (
-        transbuf::Vector{TransitionKey},
-        metadatabuf::Vector{Pair{TransitionKey, Any}},
-        abstract_state::Int,
-        abstract_input::Int,
-    )
-        concrete_input, Fe = input_data[abstract_input]
-        concrete_state = concrete_states[abstract_state]
-
-        Fx, DFx = linsys_map(concrete_state, _H_, concrete_input)
-
-        rad = abs.(DFx) * _ONE_ .+ Fe
-        reachable_set = LazySets.Hyperrectangle(Fx, rad)
-
-        start_len = length(transbuf)
-
-        allin = compute_abstract_transitions_from_rectangle!(
+        allin = compute_abstract_transitions_from_set!(
             symmodel,
             reachable_set,
             abstract_state,
