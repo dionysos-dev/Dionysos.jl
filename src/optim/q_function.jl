@@ -1,3 +1,7 @@
+# Q-function lower-bound algorithms (discrete lower bound + hybrid dual dynamic
+# programming) used by the BranchAndBound solver to refine cost-to-go bounds.
+# These are not a standalone MOI solver — no `Optimizer` here.
+
 using LinearAlgebra
 
 import MutableArithmetics

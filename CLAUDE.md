@@ -166,7 +166,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
 | Trajectory certifiers | [src/optim/trajectory_certifiers/](src/optim/trajectory_certifiers/) |
 | Bemporad–Morari (MIQP for PWA) | [src/optim/bemporad_morari.jl](src/optim/bemporad_morari.jl) |
 | Branch and bound | [src/optim/branch_and_bound.jl](src/optim/branch_and_bound.jl) |
-| Q-learning | [src/optim/q_learning.jl](src/optim/q_learning.jl) |
+| Q-function lower bounds (for Branch and Bound) | [src/optim/q_function.jl](src/optim/q_function.jl) |
 
 ### Checklist: adding a new solver
 
