@@ -271,30 +271,30 @@ display(fig)
 # Plot lifted trajectory and quotient states
 # ---------------------------------------------------------
 
-include("lifted_trajectory_recipes.jl")
+# include("lifted_trajectory_recipes.jl")
 
-node_z = Dict(1 => 1.0, 2 => 2.0)
-node_colors = Dict(1 => :blue, 2 => :orange)
+# node_z = Dict(1 => 1.0, 2 => 2.0)
+# node_colors = Dict(1 => :blue, 2 => :orange)
 
-fig = GLMakie.Figure(; size = (900, 700))
-ax = GLMakie.Axis3(
-    fig[1, 1];
-    xlabel = "x₁",
-    ylabel = "x₂",
-    zlabel = "node",
-    zticks = (collect(values(node_z)), string.(collect(keys(node_z)))),
-    title = "Lifted quotient states and closed-loop trajectory",
-)
+# fig = GLMakie.Figure(; size = (900, 700))
+# ax = GLMakie.Axis3(
+#     fig[1, 1];
+#     xlabel = "x₁",
+#     ylabel = "x₂",
+#     zlabel = "node",
+#     zticks = (collect(values(node_z)), string.(collect(keys(node_z)))),
+#     title = "Lifted quotient states and closed-loop trajectory",
+# )
 
-plot_lifted_bisimulation_makie!(
-    ax,
-    bisimulation;
-    node_z = node_z,
-    color_by = :state,
-    alpha = 0.2,
-    show_contours = false,
-)
+# plot_lifted_bisimulation_makie!(
+#     ax,
+#     bisimulation;
+#     node_z = node_z,
+#     color_by = :state,
+#     alpha = 0.2,
+#     show_contours = false,
+# )
 
-plot_lifted_trajectory_makie!(ax, bisimulation, X_seq, M_seq; node_z = node_z)
+# plot_lifted_trajectory_makie!(ax, bisimulation, X_seq, M_seq; node_z = node_z)
 
-display(fig)
+# display(fig)

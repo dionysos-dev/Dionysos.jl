@@ -242,7 +242,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    use_log_det = true,
+    use_log_det = false,
 )
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
@@ -539,7 +539,7 @@ Dionysos.animate_trajectory_dashboard(
     udims = (1,),        # input over time
     Δt = Δt,
     fps = 5,
-    filename = "pendulum_dashboard.mp4",
+    # filename = "pendulum_dashboard.mp4",
     xlabel_state = "θ [rad]",
     ylabel_state = "ω [rad/s]",
     xlabel_input = "time [s]",
