@@ -47,6 +47,10 @@ mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     k2::Union{Nothing, Int}
     continues::Union{Nothing, Bool}
 
+    # solver-side avoid sets (obstacles are not part of the problem specification
+    # types; they are consumed analytically by the RRT `keep` step)
+    obstacles::Vector{LazySets.LazySet}
+
     _found_initial::Bool
     _can_rewire::Bool
     _initial_node::Union{Nothing, Any}
@@ -78,6 +82,7 @@ mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
             nothing,
             nothing,
             nothing,
+            LazySets.LazySet[],
             false,
             false,
             nothing,
@@ -108,7 +113,8 @@ function set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = LazySets.LazySet[],
 )
     # reset internal state
     opt._found_initial = false
@@ -126,6 +132,7 @@ function set_optimizer!(
     MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
     MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
     MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+    MOI.set(opt, MOI.RawOptimizerAttribute("obstacles"), obstacles)
 
     # defaults (set here so your old call sites still work)
     MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
@@ -155,7 +162,8 @@ function set_optimizer!(
     new_conf,
     keep,
     stop_crit,
-    compute_transition,
+    compute_transition;
+    obstacles = LazySets.LazySet[],
 )
     opt._found_initial = false
     opt._can_rewire = false
@@ -171,6 +179,7 @@ function set_optimizer!(
     MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
     MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
     MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+    MOI.set(opt, MOI.RawOptimizerAttribute("obstacles"), obstacles)
 
     MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
     MOI.set(opt, MOI.RawOptimizerAttribute("rand_state"), rand_state)
@@ -360,28 +369,24 @@ function new_conf(
 
     wnew = zeros(concrete_system.nw)
 
-    (affineSys, L) = ST.buildAffineApproximation(
-        concrete_system.fsymbolic,
-        concrete_system.x,
-        concrete_system.u,
-        concrete_system.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(concrete_system),
         xnew,
         unew,
-        wnew,
-        xnew .+ concrete_system.ΔX,
-        unew .+ concrete_system.ΔU,
-        wnew .+ concrete_system.ΔW,
+        wnew;
+        δx = concrete_system.ΔX,
+        δu = concrete_system.ΔU,
     )
 
     result = ST.solve_transition_backward(
-        affineSys,
+        approx.system,
         Nnear.state,
         xnew,
         unew,
-        concrete_system.Uformat,
-        concrete_system.Wformat,
+        approx.Uformat,
+        approx.Wformat,
         concrete_problem.transition_cost,
-        L,
+        approx.lipschitz,
         opt.sdp_opt;
         λ = opt.λ,
         maxδx = opt.maxδx,
@@ -399,8 +404,7 @@ function keep(
     opt::Optimizer;
     scale_for_obstacle = true,
 )
-    concrete_problem = opt.concrete_problem
-    obstacles = concrete_problem.system.obstacles
+    obstacles = opt.obstacles
 
     minDist = Inf
     iMin = 0
@@ -453,25 +457,21 @@ function compute_transition(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid, opt:
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
 
-    (affineSys, L) = ST.buildAffineApproximation(
-        concrete_system.fsymbolic,
-        concrete_system.x,
-        concrete_system.u,
-        concrete_system.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(concrete_system),
         xnew,
         unew,
-        wnew,
-        xnew .+ concrete_system.ΔX,
-        unew .+ concrete_system.ΔU,
-        wnew .+ concrete_system.ΔW,
+        wnew;
+        δx = concrete_system.ΔX,
+        δu = concrete_system.ΔU,
     )
 
     result = ST.solve_transition(
-        affineSys,
+        approx.system,
         E1,
         E2,
-        concrete_system.Uformat,
-        concrete_system.Wformat,
+        approx.Uformat,
+        approx.Wformat,
         concrete_problem.transition_cost,
         opt.sdp_opt,
     )

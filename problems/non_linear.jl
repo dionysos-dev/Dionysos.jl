@@ -5,7 +5,6 @@ import LinearAlgebra as LA
 import LazySets
 
 import Symbolics
-import IntervalArithmetic as IA
 
 import Dionysos
 const DI = Dionysos
@@ -33,15 +32,13 @@ function unstableSimple(; μ = 0.00005, noise = false)
     return f, x, u, w, T
 end
 
-function system(X, U, W, obstacles, Ts, noise, μ)
+function system(X, U, W, Ts, noise, μ)
     f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
 
-    fsymbolicT = eval(Symbolics.build_function(f, x, u, w, T)[1])
-
-    #### Local approximation domains ####
-    ΔX = [IA.interval(-1.0, 1.0), IA.interval(-1.0, 1.0)]
-    ΔU = [IA.interval(-20.0, 20.0), IA.interval(-20.0, 20.0)]
-    ΔW = [IA.interval(0.0, 0.0), IA.interval(0.0, 0.0)]
+    #### Local approximation radii ####
+    ΔX = [1.0, 1.0]
+    ΔU = [20.0, 20.0]
+    ΔW = [0.0, 0.0]
 
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
@@ -65,9 +62,7 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     end
 
     return ST.SymbolicSystem(
-        fsymbolicT,
         fsymbolic,
-        Ts,
         length(x),
         length(u),
         length(w),
@@ -80,7 +75,6 @@ function system(X, U, W, obstacles, Ts, noise, μ)
         X,
         U,
         W,
-        obstacles,
         f_eval,
         f_backward_eval,
         Uformat,
@@ -88,10 +82,13 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     )
 end
 
+# Default avoid set for this benchmark. Obstacles are not part of the problem
+# specification types; pass them to the solver (e.g. the lazy-ellipsoids
+# `obstacles` attribute) and to the plots.
+default_obstacles() = [LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I, 2, 2) * 30.0)]
+
 function problem(;
     X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
-
-    obstacles = [LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I, 2, 2) * 30.0)],
 
     U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
 
@@ -115,7 +112,7 @@ function problem(;
     noise = false,
     μ = 0.00005,
 )
-    sys = system(X, U, W, obstacles, Ts, noise, μ)
+    sys = system(X, U, W, Ts, noise, μ)
     return PR.OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost)
 end
 

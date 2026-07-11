@@ -107,6 +107,21 @@ Dionysos.System.DiscreteTimeLinearized
 Dionysos.System.ContinuousTimeLinearized
 ```
 
+## Affine approximation
+
+Local affine approximations of nonlinear dynamics (linearization + Lipschitz
+error bounds), consumed by the lazy-ellipsoids abstraction and the ellipsoidal
+backward trajectory certifier.
+
+```@docs
+Dionysos.System.build_affine_approximation
+Dionysos.System.AffineApproximation
+Dionysos.System.SymbolicAffineApproximationProvider
+Dionysos.System.AnalyticAffineApproximationProvider
+Dionysos.System.SymbolicSystem
+Dionysos.System.get_affine_provider
+```
+
 ## Controllers
 ```@docs
 Dionysos.System.ControllerKind

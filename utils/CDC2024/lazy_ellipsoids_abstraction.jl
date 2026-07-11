@@ -23,13 +23,14 @@ xnew = SVector{2, Float64}([1.0; 1.0])
 Wbound = 0.0
 λ = 0.01
 
+obstacles = [
+    LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I(2)) * 50.0),
+    LazySets.Ellipsoid([15.0; -7.0], inv([0.2 0.2; 0.2 2.0] * 0.4)),
+    LazySets.Ellipsoid([20.0; 0.0], inv([2.0 0.2; 0.2 0.5] * 0.2)),
+]
+
 concrete_problem = NonLinear.problem(;
     X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
-    obstacles = [
-        LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I(2)) * 50.0),
-        LazySets.Ellipsoid([15.0; -7.0], inv([0.2 0.2; 0.2 2.0] * 0.4)),
-        LazySets.Ellipsoid([20.0; 0.0], inv([2.0 0.2; 0.2 0.5] * 0.2)),
-    ],
     U = U,
     E0 = LazySets.Ellipsoid([-10.0; -10.0], Matrix{Float64}(LA.I(2)) * 0.1),
     Ef = LazySets.Ellipsoid([10.0; 10.0], Matrix{Float64}(LA.I(2)) * 1.0),
@@ -71,7 +72,8 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = obstacles,
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
@@ -120,7 +122,7 @@ fig = plot(;
 )
 
 #Display the concrete domain
-for obs in concrete_system.obstacles
+for obs in obstacles
     plot!(obs; color = :black)
 end
 

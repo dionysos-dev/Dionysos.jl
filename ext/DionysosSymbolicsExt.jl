@@ -95,7 +95,10 @@ function ST._getLipschitzConstants(J, xi, Xi_vals)
     return L
 end
 
-function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
+# Affine system + Lipschitz bounds around the linearization point, valid on the
+# interval boxes X/U/W: symbolic Jacobians evaluated at the point; error
+# constants bounded over the boxes with interval arithmetic.
+function _affine_system_and_lipschitz(f, x, u, w, x̄, ū, w̄, X, U, W)
     n = length(x)
     m = length(u)
     p = length(w)
@@ -187,27 +190,26 @@ end
 
 function ST.build_affine_approximation(
     provider::ST.SymbolicAffineApproximationProvider,
-    k::Int,
-    xk,
-    xnext,
-    uk,
+    xbar,
+    ubar,
+    wbar = nothing;
     δx,
     δu,
 )
-    wk = zeros(length(provider.w))
+    wbar === nothing && (wbar = zeros(length(provider.w)))
 
-    Xbar = _centered_box(xk, δx)
-    Ubar = _centered_box(uk, δu)
-    Wbar = _centered_box(wk, provider.ΔW)
+    Xbar = _centered_box(xbar, δx)
+    Ubar = _centered_box(ubar, δu)
+    Wbar = _centered_box(wbar, provider.ΔW)
 
-    affineSys, L = ST.buildAffineApproximation(
+    affineSys, L = _affine_system_and_lipschitz(
         provider.fsymbolic,
         provider.x,
         provider.u,
         provider.w,
-        xk,
-        uk,
-        wk,
+        xbar,
+        ubar,
+        wbar,
         Xbar,
         Ubar,
         Wbar,
@@ -218,7 +220,7 @@ function ST.build_affine_approximation(
         L,
         provider.Uformat,
         provider.Wformat,
-        (; k, δx = copy(δx), δu = copy(δu)),
+        (; δx = copy(δx), δu = copy(δu)),
     )
 end
 

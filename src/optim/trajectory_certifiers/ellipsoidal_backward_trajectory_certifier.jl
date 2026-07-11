@@ -585,7 +585,7 @@ function _fixed_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
     end
 
     u_lin = uk # zeros(length(uk))
-    approx = ST.build_affine_approximation(ctx.affine_provider, k, xk, xnext, u_lin, δx, δu)
+    approx = ST.build_affine_approximation(ctx.affine_provider, xk, u_lin; δx = δx, δu = δu)
 
     E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
 
@@ -635,7 +635,7 @@ end
 
 function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, xnext, uk, δx, δu; atol)
     u_lin = uk # zeros(length(uk))
-    approx = ST.build_affine_approximation(ctx.affine_provider, k, xk, xnext, u_lin, δx, δu)
+    approx = ST.build_affine_approximation(ctx.affine_provider, xk, u_lin; δx = δx, δu = δu)
 
     E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
 

@@ -53,22 +53,15 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = c .+ sys.ΔX
-    Ū = unew .+ sys.ΔU
-    W̄ = wnew .+ sys.ΔW
-
-    (affineSys, L) = ST.buildAffineApproximation(
-        sys.fsymbolic,
-        sys.x,
-        sys.u,
-        sys.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(sys),
         c,
         unew,
-        wnew,
-        X̄,
-        Ū,
-        W̄,
+        wnew;
+        δx = sys.ΔX,
+        δu = sys.ΔU,
     )
+    affineSys = approx.system
 
     # Solve the control problem
 
@@ -80,10 +73,10 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
         E2,
         c,
         unew,
-        sys.Uformat,
-        sys.Wformat,
+        approx.Uformat,
+        approx.Wformat,
         problem.transition_cost,
-        L,
+        approx.lipschitz,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,

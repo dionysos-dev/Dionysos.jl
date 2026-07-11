@@ -29,6 +29,7 @@ include("../../../problems/non_linear.jl")
 
     concrete_problem = NonLinear.problem()
     concrete_system = concrete_problem.system
+    obstacles = NonLinear.default_obstacles()
 
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
@@ -54,7 +55,8 @@ include("../../../problems/non_linear.jl")
         k2,
         RRTstar,
         continues,
-        maxIter,
+        maxIter;
+        obstacles = obstacles,
     )
 
     # Build abstraction + solve
@@ -119,10 +121,8 @@ include("../../../problems/non_linear.jl")
         title!("Specifications and domains")
 
         plot!(fig1, concrete_system.X; color = :yellow, opacity = 0.5)
-        if hasproperty(concrete_system, :obstacles)
-            for obs in concrete_system.obstacles
-                plot!(fig1, obs; color = :black)
-            end
+        for obs in obstacles
+            plot!(fig1, obs; color = :black)
         end
         plot!(fig1, abstract_system; with_arrows = false, cost = false)
         plot!(fig1, concrete_problem.initial_set; color = :green)
@@ -149,10 +149,8 @@ include("../../../problems/non_linear.jl")
         ylabel!("\$x_2\$")
         title!("Trajectory and Lyapunov-like Fun.")
 
-        if hasproperty(concrete_system, :obstacles)
-            for obs in concrete_system.obstacles
-                plot!(fig3, obs; color = :black)
-            end
+        for obs in obstacles
+            plot!(fig3, obs; color = :black)
         end
         plot!(fig3, abstract_system; with_arrows = false, cost = true)
         plot!(fig3, x_traj; color = :black)

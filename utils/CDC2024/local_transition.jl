@@ -46,21 +46,15 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = xnew .+ sys.ΔX
-    Ū = unew .+ sys.ΔU
-    W̄ = wnew .+ sys.ΔW
-    (affineSys, L) = ST.buildAffineApproximation(
-        sys.fsymbolic,
-        sys.x,
-        sys.u,
-        sys.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(sys),
         xnew,
         unew,
-        wnew,
-        X̄,
-        Ū,
-        W̄,
+        wnew;
+        δx = sys.ΔX,
+        δu = sys.ΔU,
     )
+    affineSys = approx.system
 
     # Solve the control problem
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
@@ -72,10 +66,10 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
         E2,
         xnew,
         unew,
-        sys.Uformat,
-        sys.Wformat,
+        approx.Uformat,
+        approx.Wformat,
         problem.transition_cost,
-        L,
+        approx.lipschitz,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,

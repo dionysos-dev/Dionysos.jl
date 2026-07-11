@@ -24,6 +24,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
+obstacles = NonLinear.default_obstacles()
 
 # Optimizer's parameters
 sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
@@ -49,7 +50,8 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = obstacles,
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
@@ -131,7 +133,7 @@ xlabel!("\$x_1\$");
 ylabel!("\$x_2\$");
 title!("Trajectory and Lyapunov-like Fun.");
 
-for obs in concrete_system.obstacles
+for obs in obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; with_arrows = false, cost = true);
