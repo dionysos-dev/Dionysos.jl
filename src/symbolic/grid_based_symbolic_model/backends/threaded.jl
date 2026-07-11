@@ -181,7 +181,10 @@ function _collect_transitions_threaded!(
     global_done = Threads.Atomic{Int}(0)
     last_t = time_ns()
 
-    Threads.@threads for linear_idx in 1:total_work
+    # `:static` scheduling pins each iteration to a fixed thread, so indexing the
+    # per-thread buffers (sized to `maxthreadid()`) by `threadid()` is safe — under
+    # the default `:dynamic` schedule a task may resume on a different thread.
+    Threads.@threads :static for linear_idx in 1:total_work
         tid = Threads.threadid()
 
         local_transitions = transitions_by_thread[tid]
