@@ -362,8 +362,8 @@ function system(
     if model.time_type == CONTINUOUS
         return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamic(model, x_idx, u_idx),
-            LazySets.dim(_X_),
-            LazySets.dim(_U_),
+            Dionysos.LazySets.dim(_X_),
+            Dionysos.LazySets.dim(_U_),
             _X_,
             _U_,
         )
@@ -377,8 +377,8 @@ function system(
         dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
             (x, u) -> dyn(x, u),
-            LazySets.dim(_X_),
-            LazySets.dim(_U_),
+            Dionysos.LazySets.dim(_X_),
+            Dionysos.LazySets.dim(_U_),
             _X_,
             _U_,
         )

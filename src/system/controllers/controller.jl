@@ -120,6 +120,15 @@ struct PredicateDomain{F}
 end
 Base.in(x, X::PredicateDomain) = X.pred(x)
 
+"""
+    DiscreteDynamicController(x0, dom, statemap, outputmap, randomize)
+
+Dynamic feedback on abstract states with memory `x` starting at `x0`:
+`statemap(x, y)` updates the memory, `outputmap(x, y)` returns the control (or
+the list of admissible controls), `dom` contains the valid `(x, y)` pairs.
+Closure-backed and therefore not serializable — prefer
+[`AutomatonMemoryController`](@ref) for controllers meant to be saved.
+"""
 struct DiscreteDynamicController{XD, D, G, H} <: AbstractDiscreteController
     x0::XD
     dom::D

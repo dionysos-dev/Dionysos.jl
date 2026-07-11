@@ -75,7 +75,7 @@ println("Started test")
     )
 
     continuous_approx =
-        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+        ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
     symmodel = SY.SymbolicModelList(Xmap, Umap)

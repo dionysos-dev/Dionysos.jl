@@ -79,6 +79,8 @@ The following function define the `overapproximation` interface:
 
 ```@docs
 Dionysos.System.get_over_approximation_map
+Dionysos.System.input_cache
+Dionysos.System.reach_set
 ```
 
 ### Concrete implementations of abstract approximation types
@@ -116,6 +118,7 @@ backward trajectory certifier.
 ```@docs
 Dionysos.System.build_affine_approximation
 Dionysos.System.AffineApproximation
+Dionysos.System.AbstractAffineApproximationProvider
 Dionysos.System.SymbolicAffineApproximationProvider
 Dionysos.System.AnalyticAffineApproximationProvider
 Dionysos.System.SymbolicSystem
@@ -133,7 +136,10 @@ sets, struct callables), so they can be saved to JLD2 and reloaded.
 ```@docs
 Dionysos.System.ControllerKind
 Dionysos.System.DiscreteStaticController
+Dionysos.System.DiscreteDynamicController
 Dionysos.System.ControlTable
+Dionysos.System.add_control!
+Dionysos.System.set_control!
 Dionysos.System.AutomatonMemoryController
 Dionysos.System.AffineController
 Dionysos.System.as_controller
@@ -160,4 +166,6 @@ Dionysos.Utils.wrap_coord
 Dionysos.System.DiscreteTrajectory
 Dionysos.System.ContinuousTrajectory
 Dionysos.System.Trajectory
+Dionysos.System.ClosedLoopTrajectory
+Dionysos.System.get_closed_loop_trajectory
 ```
