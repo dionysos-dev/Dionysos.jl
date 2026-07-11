@@ -1,3 +1,10 @@
+"""
+    IndexedAutomatonList <: AbstractAutomatonList
+
+Automaton that maintains dictionary indices (`postmap`, `premap`) alongside the
+transition list, giving O(1) `post(q, u)` and `pre(q′)` at the cost of extra
+memory. Suited to repeated fixed-point queries on a fixed automaton.
+"""
 mutable struct IndexedAutomatonList <: AbstractAutomatonList
     nstates::Int
     nsymbols::Int
