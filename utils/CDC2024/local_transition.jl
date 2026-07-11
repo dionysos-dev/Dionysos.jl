@@ -11,6 +11,20 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 
+# `LazySets.affine_map` checks strict positive-definiteness of M*Q*M', which
+# floating-point asymmetry makes fail for near-singular closed-loop maps; map
+# the ellipsoid manually with symmetrization instead.
+function map_ellipsoid(M, E, v)
+    Q = Matrix(M * LazySets.shape_matrix(E) * transpose(M))
+    # plain Vector/Matrix storage: LazySets plot approximation mishandles
+    # SVector-centered ellipsoids (SizedVector MethodError)
+    return LazySets.Ellipsoid(
+        Vector(M * LazySets.center(E) + v),
+        (Q + transpose(Q)) / 2;
+        check_posdef = false,
+    )
+end
+
 function example_box_ellipsoid()
     c = [-10.0; -10.0]
     P = [2.0 6.0; 6.0 20.0]
@@ -71,12 +85,12 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
 
     # Get results
     cost_eval(x, u) = problem.transition_cost(x, u)
-    ETilde = LazySets.affine_map(
+    ETilde = map_ellipsoid(
         affineSys.A + affineSys.B * cont.A,
         E1,
         affineSys.B * cont.c + affineSys.c,
     )
-    U_used = LazySets.affine_map(cont.A, E1, cont.c)
+    U_used = map_ellipsoid(cont.A, E1, cont.c)
     # Display results
     println()
     println("Max cost : ", cost)
@@ -126,7 +140,18 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     xlabel!("\$u_1\$")
     ylabel!("\$u_2\$")
 
-    plot!(sys.U; color = col3, label = "", fillalpha = 0.4, linealpha = 1.0, linewidth = 2)
+    # a lazy `IntersectionArray` of ellipsoids has no exact plot algorithm in
+    # LazySets; draw each member set instead
+    for member in LazySets.array(sys.U)
+        plot!(
+            member;
+            color = col3,
+            label = "",
+            fillalpha = 0.4,
+            linealpha = 1.0,
+            linewidth = 2,
+        )
+    end
     plot!(U_used; color = :green, label = "Input set used")
     display(fig3)
 

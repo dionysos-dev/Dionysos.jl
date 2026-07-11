@@ -1,6 +1,7 @@
 module UniformGridTrajectoryCertifier
 
 using StaticArrays
+import LazySets
 import MathOptInterface as MOI
 import Dionysos
 const DI = Dionysos
@@ -213,7 +214,10 @@ function build_tube(
     end
 
     tube = UT.set_union(rects)
-    tube = X_domain !== nothing ? tube ∩ X_domain : tube
+    # concrete intersection: the lazy `∩` yields an `Intersection` whose
+    # support function needs the Optim weak dep (line search) to plot or
+    # discretize; the concrete box∩box union stays plain
+    tube = X_domain !== nothing ? LazySets.intersection(tube, X_domain) : tube
     return tube
 end
 

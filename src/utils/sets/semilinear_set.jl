@@ -63,6 +63,37 @@ function normalize_semilinear(S::SemiLinearSet)
     return semilinear_set([P for P in S.array if !isempty(P)])
 end
 
+# Concrete polytope intersection, always an `HPolytope` or `EmptySet`. The
+# fast path is `LazySets.intersection` (in 2-D an LP-free polygon algorithm —
+# refinement loops depend on that speed), but on degenerate lower-dimensional
+# intersections it can error internally (e.g. `element(::Line2D)`); the
+# fallback then stacks constraints and prunes with one LP per constraint.
+function poly_intersection(P::LazySets.HPolytope, Q::LazySets.HPolytope)
+    I = try
+        LazySets.intersection(P, Q)
+    catch
+        nothing
+    end
+    if I isa LazySets.HPolytope || I isa LazySets.EmptySet
+        return I
+    end
+    raw =
+        LazySets.HPolytope(vcat(LazySets.constraints_list(P), LazySets.constraints_list(Q)))
+    isempty(raw) && return LazySets.EmptySet{_num_type(P)}(LazySets.dim(P))
+    return clean_poly(raw)
+end
+
+# Nonempty parts of `S ∩ P0`, as a vector of `HPolytope`s (`poly_intersection`
+# already prunes empty results, so no extra feasibility LP is spent here).
+function poly_intersection_parts(S::SemiLinearSet, P0::LazySets.HPolytope)
+    out = LazySets.HPolytope[]
+    for P1 in S.array
+        I = poly_intersection(P1, P0)
+        I isa LazySets.EmptySet || push!(out, I)
+    end
+    return out
+end
+
 # ============================================================
 # Volume (via a Polyhedra backend; overlapping parts are disjointified first)
 # ============================================================

@@ -32,7 +32,7 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), MP.GridFree(u0, hu))
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("jacobian_bound"),
-    SimplePendulum.jacobian_bound(),
+    DoublePendulum.jacobian_bound(),
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
 MOI.set(

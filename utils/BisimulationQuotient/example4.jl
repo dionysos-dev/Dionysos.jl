@@ -8,6 +8,7 @@ using LazySets
 using Plots
 using Spot
 using Dionysos
+import CDDLib
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -40,7 +41,11 @@ function plot_partition_by_node(
             nd;
             state_ids = controllable_set,
         )
-        Vctrl_node = AB.PCLFBisimulationQuotient.get_volume(bisimulation, ctrl_node)
+        Vctrl_node = AB.PCLFBisimulationQuotient.get_volume(
+            bisimulation,
+            ctrl_node;
+            backend = CDDLib.Library(),
+        )
         println("Volume of controllable set in Node $nd = ", Vctrl_node)
 
         title!(fig[i], "Node $nd")
@@ -70,7 +75,11 @@ function plot_partition_by_node(
         plot!(fig[i], ST.Trajectory(X_seq); label = "Trajectory")
     end
 
-    Vctrl = AB.PCLFBisimulationQuotient.get_volume(bisimulation, controllable_set)
+    Vctrl = AB.PCLFBisimulationQuotient.get_volume(
+        bisimulation,
+        controllable_set;
+        backend = CDDLib.Library(),
+    )
     println("Volume of controllable set in all states = ", Vctrl)
 
     title!(fig[L + 1], "All states")

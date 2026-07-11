@@ -143,7 +143,7 @@ trajectory_cost = function (problem, traj)
 
     # Distance to the closest target component at each time.
     target_distances = [
-        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.sets)
+        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
         for x in xs
     ]
 

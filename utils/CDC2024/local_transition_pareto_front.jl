@@ -9,6 +9,20 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 
+# `LazySets.affine_map` checks strict positive-definiteness of M*Q*M', which
+# floating-point asymmetry makes fail for near-singular closed-loop maps; map
+# the ellipsoid manually with symmetrization instead.
+function map_ellipsoid(M, E, v)
+    Q = Matrix(M * LazySets.shape_matrix(E) * transpose(M))
+    # plain Vector/Matrix storage: LazySets plot approximation mishandles
+    # SVector-centered ellipsoids (SizedVector MethodError)
+    return LazySets.Ellipsoid(
+        Vector(M * LazySets.center(E) + v),
+        (Q + transpose(Q)) / 2;
+        check_posdef = false,
+    )
+end
+
 include("../../problems/non_linear.jl")
 
 # Color gradient over a value range (replaces the Colormap helper removed from Utils).
@@ -87,12 +101,12 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     else
         success = true
         init_set_volume = UT.get_volume(E1)
-        ETilde = LazySets.affine_map(
+        ETilde = map_ellipsoid(
             affineSys.A + affineSys.B * cont.A,
             E1,
             affineSys.B * cont.c + affineSys.c,
         )
-        U_used = LazySets.affine_map(cont.A, E1, cont.c)
+        U_used = map_ellipsoid(cont.A, E1, cont.c)
         input_set_volume = UT.get_volume(U_used)
     end
     return (success, max_cost, init_set_volume, input_set_volume)

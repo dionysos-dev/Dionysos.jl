@@ -96,7 +96,7 @@ trajectory_cost = function (problem, traj)
     us = traj.u.seq
 
     target_distances = [
-        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.sets)
+        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
         for x in xs
     ]
 

@@ -167,6 +167,26 @@ end
     @test LazySets.intersection(S, Qout) isa LazySets.EmptySet
 end
 
+@testset "poly_intersection" begin
+    P = hbox([0.0, 0.0], [2.0, 2.0])
+    Q = hbox([1.0, 1.0], [3.0, 3.0])
+    I = UT.poly_intersection(P, Q)
+    @test I isa Poly
+    @test [1.5, 1.5] ∈ I
+
+    R = hbox([5.0, 5.0], [6.0, 6.0])
+    @test UT.poly_intersection(P, R) isa LazySets.EmptySet
+
+    # touching at a face: degenerate intersection, must not throw
+    T = hbox([2.0, 0.0], [3.0, 2.0])
+    @test UT.poly_intersection(P, T) isa Union{Poly, LazySets.EmptySet}
+
+    S = UT.semilinear_set([P, R])
+    parts = UT.poly_intersection_parts(S, Q)
+    @test length(parts) == 1
+    @test [1.5, 1.5] ∈ parts[1]
+end
+
 @testset "Poly difference decomposition" begin
     P = hbox([0.0, 0.0], [2.0, 2.0])
     Q = hbox([0.5, 0.5], [1.5, 1.5])

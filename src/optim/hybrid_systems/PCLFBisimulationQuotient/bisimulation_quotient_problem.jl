@@ -107,7 +107,9 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     prob = opt.bisimulation_quotient_problem
 
     system = prob.system
-    X = prob.region
+    # the level builder works on HPolytopes; accept any polyhedral region
+    # (e.g. a Hyperrectangle) by converting at the boundary
+    X = UT._as_hpolytope(prob.region)
     regions = prob.observation_regions
 
     Γ, D = build_levels_and_terminal_set(
@@ -325,8 +327,9 @@ function refine_state_by_observation!(
     touched = false
 
     for Q in q.set.array
-        I = LazySets.intersection(Q, R)
-        if !isempty(I)
+        # `poly_intersection` prunes: an empty intersection is an `EmptySet`
+        I = UT.poly_intersection(Q, R)
+        if !(I isa LazySets.EmptySet)
             touched = true
             push!(inside_parts, I)
 
@@ -431,15 +434,13 @@ function refine_one_state!(
         Qrem = UT.semilinear_set(Q)
 
         for preP in pre_parts
-            # `intersection` on a union filters empty parts, so an empty
-            # result is an `EmptySet` — no extra feasibility LP needed.
-            I = LazySets.intersection(Qrem, preP)
-            if I isa LazySets.EmptySet
+            Ipars = UT.poly_intersection_parts(Qrem, preP)
+            if isempty(Ipars)
                 continue
             end
 
             touched = true
-            UT._collect_sets!(inside_parts, I)
+            append!(inside_parts, Ipars)
 
             # decompose only keeps nonempty pieces, so structural emptiness
             # of the remainder is exact

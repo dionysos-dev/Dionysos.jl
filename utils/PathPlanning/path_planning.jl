@@ -121,8 +121,13 @@ plot!(abstract_system; efficient = false, value_function = abstract_value_functi
 # plot!((Xset, XMapping); efficient=true, color = :yellow)
 
 # We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
-plot!(target_set; dims = [1, 2], color = :red, opacity = 0.5, label = "Target set");
+plot!(
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+);
+plot!(UT.project_set(target_set, [1, 2]); color = :red, opacity = 0.5, label = "Target set");
 plot!(
     target_set_in_periodic;
     dims = [1, 2],

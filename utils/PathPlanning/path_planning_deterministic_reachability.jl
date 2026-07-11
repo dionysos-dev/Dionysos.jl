@@ -84,10 +84,14 @@ Xmap = SY.get_state_mapping(abstract_system)
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "")
 plot!(abstract_system; value_function = abstract_value_function)
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set")
 plot!(
-    concrete_problem.target_set;
-    dims = [1, 2],
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+)
+plot!(
+    UT.project_set(concrete_problem.target_set, [1, 2]);
     color = :red,
     opacity = 0.5,
     label = "Target set",
@@ -172,10 +176,14 @@ Xmap = SY.get_state_mapping(determinized_abstract_system)
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "")
 plot!(determinized_abstract_system; value_function = abstract_value_function)
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set")
 plot!(
-    concrete_problem.target_set;
-    dims = [1, 2],
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+)
+plot!(
+    UT.project_set(concrete_problem.target_set, [1, 2]);
     color = :red,
     opacity = 0.5,
     label = "Target set",
