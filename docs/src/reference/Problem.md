@@ -2,7 +2,10 @@
 
 This module defines a set of structures used to represent different control problems.
 
-All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Problem.ProblemType), which provides a common interface for control problems.
+All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Problem.ProblemType), which provides a common interface for control problems. It splits into two categories:
+
+- [`ControlProblem`](@ref Dionysos.Problem.ControlProblem): a control objective is synthesized (reach-avoid, safety, reach-and-stay, co-safe LTL). These have an initial set and a `trajectory_success` predicate.
+- [`AbstractionProblem`](@ref Dionysos.Problem.AbstractionProblem): no control objective; the problem only parametrizes the construction of a reusable abstraction (alternating simulation, bisimulation quotient).
 
 ## Supported Problems
 
@@ -28,6 +31,12 @@ Each of these problem types is detailed below:
 
 ```@docs
 Dionysos.Problem.ProblemType
+Dionysos.Problem.ControlProblem
+Dionysos.Problem.AbstractionProblem
+Dionysos.Problem.discretize_problem
+Dionysos.Problem.trajectory_success
+Dionysos.Problem.remake
+Dionysos.Problem.Infinity
 Dionysos.Problem.AlternatingSimulationProblem
 Dionysos.Problem.BisimulationQuotientProblem
 Dionysos.Problem.OptimalControlProblem

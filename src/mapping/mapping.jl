@@ -22,20 +22,35 @@ const invert_incl_mode = UT.invert_incl_mode
 # ----------------------------
 
 """
-AbstractMapping{N,T}:
-- defines a universe of labels (1..get_n_state)
-- provides coord <-> state conversions
+    AbstractMapping{N, T}
+
+The concrete ↔ abstract discretization: a bijection between a universe of integer
+state labels `1:get_n_state(m)` and points/cells of an `N`-dimensional concrete
+space (element type `T`).
+
+# Extending
+
+Implement `get_n_state`, `get_state_by_coord`, `get_states_by_coord`,
+`get_coord_by_state`, `get_elem_by_state`, `get_elem_by_coord`,
+`has_overlapping_cells`. `enum_states`, `enum_coords`, `enum_elems`,
+`is_valid_state`, `get_dim` have generic defaults.
 """
 abstract type AbstractMapping{N, T} end
-get_n_state(m::AbstractMapping) = error("implement get_n_state")
+get_n_state(m::AbstractMapping) = error("implement `get_n_state` for $(typeof(m))")
 enum_states(m::AbstractMapping) = 1:get_n_state(m)
-get_state_by_coord(m::AbstractMapping, x) = error("implement get_state_by_coord")
-get_states_by_coord(m::AbstractMapping, x) = error("implement get_states_by_coord")
-is_state_cover(m::AbstractMapping) = error("implement is_state_cover")
+get_state_by_coord(m::AbstractMapping, x) =
+    error("implement `get_state_by_coord` for $(typeof(m))")
+get_states_by_coord(m::AbstractMapping, x) =
+    error("implement `get_states_by_coord` for $(typeof(m))")
+has_overlapping_cells(m::AbstractMapping) =
+    error("implement `has_overlapping_cells` for $(typeof(m))")
 
-get_coord_by_state(m::AbstractMapping, q::Int) = error("implement get_coord_by_state")
-get_elem_by_state(m::AbstractMapping, q::Int) = error("implement get_elem_by_state")
-get_elem_by_coord(m::AbstractMapping, x) = error("implement get_elem_by_coord")
+get_coord_by_state(m::AbstractMapping, q::Int) =
+    error("implement `get_coord_by_state` for $(typeof(m))")
+get_elem_by_state(m::AbstractMapping, q::Int) =
+    error("implement `get_elem_by_state` for $(typeof(m))")
+get_elem_by_coord(m::AbstractMapping, x) =
+    error("implement `get_elem_by_coord` for $(typeof(m))")
 enum_elems(m::AbstractMapping) = (get_elem_by_state(m, q) for q in enum_states(m))
 
 # Dimension of the concrete space associated with the mapping
@@ -48,15 +63,12 @@ is_periodic(m::AbstractMapping) = false
 Base.empty!(m::AbstractMapping) =
     error("empty!(::$(typeof(m))) not implemented (mapping is read-only or not finite)")
 
-get_states_from_set(::AbstractMapping, set, incl_mode::INCL_MODE) =
-    error("implement get_states_from_set")
-
 crop_to_mapping(m::AbstractMapping, states) = intersect(states, enum_states(m))
 convert_to_list_mapping(m::AbstractMapping) =
     error("convert_to_list_mapping(::$(typeof(m))) not implemented")
 
 @recipe function f(m::AbstractMapping{N, T}) where {N, T}
-    S = MappingSet{N}()
+    S = FullStateSet{N}()
     return ((S, m),) # delegates to the tuple recipe
 end
 
@@ -66,9 +78,15 @@ include("grid_mapping/grid.jl")
 include("grid_mapping/grid_mapping.jl")
 include("grid_mapping/explicit_grid_mapping.jl")
 include("grid_mapping/implicit_grid_mapping.jl")
-include("grid_mapping/periodic_mapping.jl")
-include("grid_mapping/hierarchical_grid_mapping.jl")
+include("grid_mapping/periodic_grid_mapping.jl")
+include("grid_mapping/multi_level_mapping.jl")
 
-include("abstract_state_set.jl")
+include("state_sets/state_set.jl")
+include("state_sets/explicit_id_set.jl")
+include("state_sets/full_state_set.jl")
+include("state_sets/implicit_state_set.jl")
+include("state_sets/combinators.jl")
+include("state_sets/mapped_state_set.jl")
+include("state_sets/recipes.jl")
 
 end

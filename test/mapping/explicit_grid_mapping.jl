@@ -46,9 +46,9 @@ println("Started test")
     @test q2 == 2
     @test MP.get_n_state(m) == 2
 
-    # --- add_set! using OUTER inclusion ---
+    # --- cover! using OUTER inclusion ---
     rect = UT.box(SVector(1.0, 0.0), SVector(11.0, 10.0))
-    MP.add_set!(m, rect, MP.OUTER)
+    MP.cover!(m, rect, MP.OUTER)
 
     @test MP.get_n_state(m) == 67
 
@@ -59,9 +59,9 @@ println("Started test")
 
     m2 = MP.ExplicitGridMapping(MP.GridFree(orig, SVector(0.1, 0.1)))
     # compile once
-    @allocated MP.add_set!(m2, rect, MP.OUTER)
+    @allocated MP.cover!(m2, rect, MP.OUTER)
 
-    alloc2 = @allocated MP.add_set!(m2, rect, MP.OUTER)
+    alloc2 = @allocated MP.cover!(m2, rect, MP.OUTER)
     @test alloc2 == 0
 end
 

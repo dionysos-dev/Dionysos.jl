@@ -10,6 +10,16 @@ const UT = Utils
 using ..System
 const ST = System
 
-include("problems.jl")
+include("horizon.jl")
+include("problem_interface.jl")
+include("control_problems.jl")
+include("abstraction_problems.jl")
+include("recipes.jl")
+
+export OptimalControlProblem
+export SafetyProblem
+export ReachAndStayProblem
+export CoSafeLTLProblem
+export Infinity
 
 end

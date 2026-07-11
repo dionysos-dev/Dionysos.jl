@@ -23,7 +23,7 @@ mutable struct SymbolicModelList{
 end
 
 # default sets = "all states of mapping"
-_default_stateset(::MP.AbstractMapping{N, TX}) where {N, TX} = MP.MappingSet{N}()
+_default_stateset(::MP.AbstractMapping{N, TX}) where {N, TX} = MP.FullStateSet{N}()
 
 function SymbolicModelList(
     XMapping::XM,

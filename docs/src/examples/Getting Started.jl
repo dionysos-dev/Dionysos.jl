@@ -46,11 +46,11 @@ Ugrid = MP.GridFree(u0, hu);
 Xmap = MP.ExplicitGridMapping(Xgrid)
 Umap = MP.ExplicitGridMapping(Ugrid)
 
-MP.add_set!(Xmap, rectX, MP.INNER)
-MP.add_set!(Umap, rectU, MP.INNER)
+MP.cover!(Xmap, rectX, MP.INNER)
+MP.cover!(Umap, rectU, MP.INNER)
 
-Xset = MP.MappingSet{2}()  # default "all states"
-Uset = MP.MappingSet{1}()
+Xset = MP.FullStateSet{2}()  # default "all states"
+Uset = MP.FullStateSet{1}()
 
 # Now we have to define our dynamical system. For the sake of simplicity, note that we consider a linear time-invariant dynamical system but the functions 
 # defining it allow the definition of a generic nonlinear and time-dependent system. We also define a step time `tstep` for discretizing the continuous-time dynamic.

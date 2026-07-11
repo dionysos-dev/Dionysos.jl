@@ -27,7 +27,7 @@ println("Started test")
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap_full, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap_full, UT.box(lbX, ubX), MP.OUTER)
 
     # The historical version had reversed x-bounds ([-1.0, -1.1]), which the old
     # sentinel semantics silently treated as an empty obstacle; boxes now reject
@@ -56,7 +56,7 @@ println("Started test")
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction

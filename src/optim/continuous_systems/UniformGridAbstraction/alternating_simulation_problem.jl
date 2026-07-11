@@ -63,7 +63,7 @@ while retaining a common global `Rset`.
 - `abstraction_region` (optional):  
   Concrete region used to define the abstraction domain.  
   If not provided, the optimizer uses:
-  1. `alternating_simulation_problem.region`, if available,
+  1. `alternating_simulation_problem.state_set`, if available,
   2. otherwise `alternating_simulation_problem.system.X`.
 
 - `incl_mode` (optional, default = `MP.INNER`):  
@@ -514,7 +514,7 @@ end
 
 function build_abstraction_region(opt::OptimizerAlternatingSimulationProblem)
     X = opt.abstraction_region
-    X === nothing && (X = opt.alternating_simulation_problem.region)
+    X === nothing && (X = opt.alternating_simulation_problem.state_set)
     X === nothing && (X = opt.alternating_simulation_problem.system.X)
     return X
 end
@@ -590,7 +590,7 @@ function build_state_mapping(opt::OptimizerAlternatingSimulationProblem{T}) wher
     end
 
     if !opt.use_implicit_mapping
-        MP.add_set!(m, opt.abstraction_region, opt.incl_mode)
+        MP.cover!(m, opt.abstraction_region, opt.incl_mode)
     end
 
     return m
@@ -633,7 +633,7 @@ function build_input_set(opt::OptimizerAlternatingSimulationProblem{T}) where {T
     end
     umap = build_input_mapping(opt)
     M = MP.get_dim(umap)
-    return MP.MappingSet{M}()
+    return MP.FullStateSet{M}()
 end
 
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))

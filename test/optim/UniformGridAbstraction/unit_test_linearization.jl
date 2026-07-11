@@ -37,14 +37,14 @@ println("Started test")
 
     # ----------------------------
     # Build symbolic model with default domains = "all states of mapping"
-    # (MappingSet = read-only set containing all mapping states)
+    # (FullStateSet = read-only set containing all mapping states)
     # ----------------------------
     symmodel = SY.SymbolicModelList(
         Xmap,
         Umap;
-        Xset = MP.MappingSet{2}(),
+        Xset = MP.FullStateSet{2}(),
         Rset = nothing,              # defaults to Xset
-        Uset = MP.MappingSet{1}(),
+        Uset = MP.FullStateSet{1}(),
         convert_U_to_list = false,   # Umap already is a ListMapping
     )
 

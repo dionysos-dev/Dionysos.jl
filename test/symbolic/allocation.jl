@@ -96,7 +96,7 @@ function test_alloc()
     cont_center = ST.ContinuousTimeCenteredSimulation(concrete_system)
     discrete_system = ST.discretize(cont_center, 1.0)
 
-    # By default SymbolicModelList uses MappingSet{N}() which is "all states of mapping"
+    # By default SymbolicModelList uses FullStateSet{N}() which is "all states of mapping"
     sym = SY.SymbolicModelList(Xmap, Umap)
     return _test_alloc(sym, discrete_system)
 end

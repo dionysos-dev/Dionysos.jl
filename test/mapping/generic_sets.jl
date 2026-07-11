@@ -47,7 +47,7 @@ end
 @testset "Reach-avoid with zonotope obstacle and ball target" begin
     Xgrid = MP.GridFree(SVector(0.0, 0.0), SVector(0.47, 0.23))
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap_full, UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)), MP.OUTER)
+    MP.cover!(Xmap_full, UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)), MP.OUTER)
 
     # thin vertical zonotope strip at x ≈ -1
     obstacle = LazySets.Zonotope([-1.0, 1.0], [0.1 0.0; 0.0 3.0])
@@ -61,7 +61,7 @@ end
 
     Ugrid = MP.GridFree(SVector(0.0), SVector(1.0))
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.box(SVector(-2.0), SVector(2.0)), MP.OUTER)
+    MP.cover!(Umap, UT.box(SVector(-2.0), SVector(2.0)), MP.OUTER)
 
     F_sys(x, u) = SVector(1.0, u[1])
     jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)

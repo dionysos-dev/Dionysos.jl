@@ -64,7 +64,7 @@ get_concrete_input(sym::SymbolicModel, input) =
 get_abstract_state(sym::SymbolicModel, x) = MP.get_state_by_coord(get_state_mapping(sym), x)
 get_abstract_states(sym::SymbolicModel, x) =
     MP.get_states_by_coord(get_state_mapping(sym), x)
-is_state_cover(sym::SymbolicModel) = MP.is_state_cover(get_state_mapping(sym))
+has_overlapping_cells(sym::SymbolicModel) = MP.has_overlapping_cells(get_state_mapping(sym))
 
 get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapping(sym), u)
 
@@ -154,7 +154,7 @@ function determinize_symbolic_model(
         new_Umap;
         Xset = Xset,
         Rset = Rset,
-        Uset = MP.MappingSet{M+1}(),
+        Uset = MP.FullStateSet{M+1}(),
         automaton_constructor = (n, m) -> new_autom,
         original_symmodel = sym,
         convert_U_to_list = true,

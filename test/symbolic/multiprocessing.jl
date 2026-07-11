@@ -36,9 +36,9 @@ function build_toy_abstraction()
     Xmap = MP.ExplicitGridMapping{1, Float64}(xgrid, X, MP.CENTER)
     Umap = MP.ExplicitGridMapping{1, Float64}(ugrid, U, MP.CENTER)
 
-    Xset = MP.MappingSet{1}()
-    Rset = MP.MappingSet{1}()
-    Uset = MP.MappingSet{1}()
+    Xset = MP.FullStateSet{1}()
+    Rset = MP.FullStateSet{1}()
+    Uset = MP.FullStateSet{1}()
 
     sym = SY.SymbolicModelList(Xmap, Umap; Xset = Xset, Rset = Rset, Uset = Uset)
 

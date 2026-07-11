@@ -95,7 +95,10 @@ end
 get_elem_by_pos(grid::Grid, pos) = get_rec(grid, pos)
 get_elem_by_coord(grid::Grid, x) = get_elem_by_pos(grid, get_pos_by_coord(grid, x))
 get_all_pos_by_coord(grid::Grid, x) = [get_pos_by_coord(grid, x)]
-is_state_cover(grid) = false
+
+# Whether cells overlap (a coordinate can belong to several cells). False for a
+# tiling grid, true for the ellipsoidal grid whose cells are overlapping balls.
+has_overlapping_cells(grid) = false
 
 get_volume(grid::Grid) = prod(get_h(grid))
 
@@ -207,7 +210,7 @@ end
 get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
 get_h(grid::GridEllipsoidalRectangular) = get_h(grid.underlying_grid)
 get_P(grid::GridEllipsoidalRectangular) = grid.P
-is_state_cover(grid::GridEllipsoidalRectangular) = true
+has_overlapping_cells(grid::GridEllipsoidalRectangular) = true
 
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
     return LazySets.Ellipsoid(
@@ -220,10 +223,13 @@ end
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
     center = get_pos_by_coord(grid, x)
     all_pos = typeof(center)[]
-    for dpos in Iterators.product(eachrow(repeat([-1 0 1], N))...)
-        coord = get_coord_by_pos(grid, dpos .+ center)
+    # Neighbouring cells within the {-1,0,1}^N offset box; tuple product avoids
+    # the per-call matrix/`eachrow` allocation of `repeat([-1 0 1], N)`.
+    for dpos in Iterators.product(ntuple(_ -> (-1, 0, 1), N)...)
+        pos = dpos .+ center
+        coord = get_coord_by_pos(grid, pos)
         if (x - coord)'grid.P * (x - coord) ≤ 1
-            push!(all_pos, (dpos .+ center))
+            push!(all_pos, pos)
         end
     end
     return all_pos

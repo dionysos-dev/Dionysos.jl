@@ -27,13 +27,26 @@ Dionysos.Mapping.ListMapping
 ```@docs
 Dionysos.Mapping.ExplicitGridMapping
 Dionysos.Mapping.ImplicitGridMapping
-Dionysos.Mapping.HierarchicalGridMapping
 Dionysos.Mapping.PeriodicGridMapping
 ```
 
+### Multi-level Mappings
+```@docs
+Dionysos.Mapping.AbstractMultiLevelMapping
+Dionysos.Mapping.HierarchicalGridMapping
+```
+
 ## State sets
+
+`MappedStateSet` is the public surface (a state set bundled with its mapping);
+the other set types are the building blocks it wraps.
+
 ```@docs
 Dionysos.Mapping.MappedStateSet
+Dionysos.Mapping.AbstractStateSet
+Dionysos.Mapping.FullStateSet
+Dionysos.Mapping.ExplicitIdSet
+Dionysos.Mapping.ImplicitStateSet
 ```
 
 

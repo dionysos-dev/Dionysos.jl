@@ -25,7 +25,7 @@ println("Started test")
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap, UT.box(lbX, ubX), MP.OUTER)
 
     # ----------------------------
     # U mapping
@@ -37,7 +37,7 @@ println("Started test")
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
@@ -62,8 +62,8 @@ println("Started test")
     symmodel = SY.SymbolicModelList(
         Xmap,
         Umap;
-        Xset = MP.MappingSet{2}(),
-        Rset = MP.MappingSet{2}(),
+        Xset = MP.FullStateSet{2}(),
+        Rset = MP.FullStateSet{2}(),
     )
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 

@@ -191,9 +191,9 @@ get_state_by_coord(m::PeriodicGridMapping, x) =
 get_coord_by_state(m::PeriodicGridMapping, q::Int) =
     get_coord_by_pos(get_grid(m), get_pos_by_state(m, q))
 
-# Only valid when underlying mappig is Explicit
+# Only valid when underlying mapping is Explicit
 add_pos!(m::PeriodicGridMapping, pos) = add_pos!(m.underlying_mapping, wrap_pos(m, pos))
-function add_set!(m::PeriodicGridMapping, set, incl_mode::INCL_MODE)
+function cover!(m::PeriodicGridMapping, set, incl_mode::INCL_MODE)
     grid = get_grid(m)
     for pos in get_pos_from_set(grid, set, incl_mode)
         add_pos!(m, pos)

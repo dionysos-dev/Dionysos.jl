@@ -32,6 +32,7 @@ const TEST_FILES = [
     ("./mapping/explicit_grid_mapping.jl",),
     ("./mapping/implicit_grid_mapping.jl",),
     ("./mapping/periodic_grid_mapping.jl",),
+    ("./mapping/multi_level_mapping.jl",),
     ("./mapping/generic_sets.jl",),
     ("./mapping/abstract_state_set.jl",),
     ("./symbolic/symbolic_model_list.jl",),

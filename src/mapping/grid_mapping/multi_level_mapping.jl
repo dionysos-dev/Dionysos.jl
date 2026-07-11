@@ -1,9 +1,23 @@
 """
-HierarchicalGridMapping:
-- multiscale grid mapping with multiple levels of resolution
-- each level is a GridMapping (e.g. ImplicitGridMapping)
+    AbstractMultiLevelMapping{N, T} <: AbstractMapping{N, T}
+
+A mapping whose labels are distributed across several resolution levels. Unlike a
+[`GridMapping`](@ref), a position is a `(level, pos)` pair and the pos-based
+methods take an explicit `level` argument — so a multi-level mapping is
+deliberately *not* a `GridMapping{N,T}` (it does not satisfy the single-grid
+`get_pos_by_state(m, q)::NTuple{N,Int}` contract).
 """
-mutable struct HierarchicalGridMapping{N, T, ML <: GridMapping{N, T}} <: GridMapping{N, T}
+abstract type AbstractMultiLevelMapping{N, T} <: AbstractMapping{N, T} end
+
+"""
+    HierarchicalGridMapping{N, T, ML} <: AbstractMultiLevelMapping{N, T}
+
+Multiscale grid mapping with several levels of resolution; each level is itself a
+`GridMapping` (e.g. an `ImplicitGridMapping`). Global labels are assigned by
+concatenating the levels (`offsets[l]` is the number of labels before level `l`).
+"""
+mutable struct HierarchicalGridMapping{N, T, ML <: GridMapping{N, T}} <:
+               AbstractMultiLevelMapping{N, T}
     levels::Vector{ML}
     offsets::Vector{Int}  # offsets[l] = sum_{k<l} n_k; offsets[1]=0
 end
@@ -39,7 +53,7 @@ end
 
 get_n_state(h::HierarchicalGridMapping) = h.offsets[end] + get_n_state(h.levels[end])
 
-# optional: expose the underlying grid at a level
+# expose the underlying grid at a level
 get_grid(h::HierarchicalGridMapping, l::Int) = get_grid(h.levels[l])
 get_grid(h::HierarchicalGridMapping) = get_grid(h, 1)
 
@@ -78,6 +92,7 @@ function get_state_by_coord(h::HierarchicalGridMapping{N}, x) where {N}
     return h.offsets[l] + qloc
 end
 
+# Multi-level position is a (level, pos) pair (not the GridMapping NTuple{N,Int}).
 function get_pos_by_state(h::HierarchicalGridMapping{N}, q::Int) where {N}
     l, qloc = _locate(h, q)
     return (l, get_pos_by_state(h.levels[l], qloc))

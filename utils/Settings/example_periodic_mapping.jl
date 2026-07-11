@@ -14,7 +14,7 @@ function visualize_explicit_mapping(m::MP.PeriodicGridMapping)
 
     # Add a rectangle that spans all x (periodic) at fixed y = 0
     rect = UT.box(SVector(4.5, 2.5), SVector(4.8, 4.5))
-    MP.add_set!(m, rect, MP.OUTER)
+    MP.cover!(m, rect, MP.OUTER)
 
     fig = plot(; aspect_ratio = :equal);
     plot!(m; label = "", color = :grey, efficient = false);

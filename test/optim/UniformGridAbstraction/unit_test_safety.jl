@@ -27,7 +27,7 @@ println("Started test")
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap, UT.box(lbX, ubX), MP.OUTER)
 
     # ----------------------------
     # Build finite U mapping
@@ -39,7 +39,7 @@ println("Started test")
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
