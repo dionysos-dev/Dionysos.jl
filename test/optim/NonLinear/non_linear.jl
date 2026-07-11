@@ -27,8 +27,8 @@ using FillArrays
 
     nlmap = BlackBoxControlDiscreteSystem(f, nl_sys.nx, nl_sys.nu)
 
-    # State domain as HyperRectangle (automatic conversion to MOI constraints)
-    pX = UT.HyperRectangle([-5.0, -5.0], [5.0, 5.0])
+    # State domain as a box (automatic conversion to MOI constraints)
+    pX = UT.box([-5.0, -5.0], [5.0, 5.0])
 
     automaton = GraphAutomaton(1)
     add_transition!(automaton, 1, 1, 1)
@@ -49,7 +49,7 @@ using FillArrays
         q_T = 1
 
         state_cost = Fill(UT.ZeroFunction(), nmodes(sys))
-        transition_cost = UT.QuadraticControlFunction(Matrix{T}(I, 2, 2))
+        transition_cost = UT.QuadraticFunction(Matrix{T}(I, 2, 2))
         problem = PR.OptimalControlProblem(
             sys,
             (q_0, x_0),

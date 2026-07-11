@@ -142,7 +142,7 @@ end
 #Plot trajectory
 x0 = problem.initial_set[2]
 x_traj = [x0, xu.x...]
-plot!(fig, UT.DrawTrajectory(x_traj));
+plot!(fig, ST.Trajectory(x_traj));
 
 #Plot initial point
 plot!(fig, UT.DrawPoint(x0); color = :blue)

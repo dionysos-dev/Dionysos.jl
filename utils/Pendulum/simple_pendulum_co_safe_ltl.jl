@@ -16,33 +16,21 @@ using Spot
 # ------------------------------------------------------------
 include("../../problems/Pendulum/simple_pendulum.jl");
 
-_X_ = UT.HyperRectangle(SVector(-π, -5.5), SVector(π, 5.5))
-_U_ = UT.set_minus(
-    UT.HyperRectangle(SVector(-4.5), SVector(4.5)),
-    UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
-)
+_X_ = UT.box(SVector(-π, -5.5), SVector(π, 5.5))
+_U_ = UT.set_minus(UT.box(SVector(-4.5), SVector(4.5)), UT.box(SVector(-0.5), SVector(0.5)))
 concrete_system = SimplePendulum.system(; _X_ = _X_, _U_ = _U_)
 
 # ------------------------------------------------------------
 # 2) Define co-safe LTL problem with sets labeling
 # ------------------------------------------------------------
 
-_I_ = UT.HyperRectangle(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
+_I_ = UT.box(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
 
-g1 = UT.HyperRectangle(
-    SVector(pi - 10.0 * pi / 180.0, -1.0),
-    SVector(pi + 15.0 * pi / 180.0, 1.0),
-)
+g1 = UT.box(SVector(pi - 10.0 * pi / 180.0, -1.0), SVector(pi + 15.0 * pi / 180.0, 1.0))
 
-g2 = UT.HyperRectangle(
-    SVector(pi/2.0-10.0 * pi / 180.0, -0.4),
-    SVector(pi/2.0+10.0 * pi / 180.0, 0.4),
-)
+g2 = UT.box(SVector(pi/2.0-10.0 * pi / 180.0, -0.4), SVector(pi/2.0+10.0 * pi / 180.0, 0.4))
 
-obs = UT.HyperRectangle(
-    SVector(-pi + 16.0 * pi / 180.0, -5.5),
-    SVector(-pi + 38.0 * pi / 180.0, 5.5),
-)
+obs = UT.box(SVector(-pi + 16.0 * pi / 180.0, -5.5), SVector(-pi + 38.0 * pi / 180.0, 5.5))
 
 φ = ltl"G(!obs) & F(g1 & F(g2))"
 spec = Dionysos.spot_stepper(φ)

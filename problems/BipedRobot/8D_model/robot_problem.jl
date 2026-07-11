@@ -159,11 +159,11 @@ function system(;
     # State/input spaces (keep your existing bounds)
     state_lower_bounds = [-0.5, -0.5, -0.2, -0.2, -0.8, -0.8, -0.8, -0.8]
     state_upper_bounds = [0.5, 0.5, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
-    state_space = UT.HyperRectangle(state_lower_bounds, state_upper_bounds)
+    state_space = UT.box(state_lower_bounds, state_upper_bounds)
 
     input_lower_bounds = [-3, -3, -3, -3]
     input_upper_bounds = [3, 3, 3, 3]
-    input_space = UT.HyperRectangle(input_lower_bounds, input_upper_bounds)
+    input_space = UT.box(input_lower_bounds, input_upper_bounds)
 
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,

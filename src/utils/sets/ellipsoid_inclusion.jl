@@ -1,24 +1,24 @@
+# Exact ellipsoid-in-ellipsoid inclusion test (an analytic kernel LazySets
+# lacks), as the Dionysos-owned verb `is_included` — a `Base.issubset` method
+# on two LazySets-owned types would be piracy. The math works in the
+# quadratic-form matrices P = Q⁻¹, inverted once at entry.
+function is_included(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
+    P1 = get_quadratic_form(E1)
+    P2 = get_quadratic_form(E2)
+    c1 = LazySets.center(E1)
+    c2 = LazySets.center(E2)
 
-function Base.in(x::AbstractVector, elli::Ellipsoid)
-    return (x - elli.c)'elli.P * (x - elli.c) ≤ 1
-end
-
-function Base.:∉(elli1::Ellipsoid, elli2::Ellipsoid)
-    return !(elli1 ∈ elli2)
-end
-
-function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
-    e_min = eigmin(elli1.P - elli2.P)
+    e_min = eigmin(P1 - P2)
     if e_min < 0
         return false
-    elseif elli1.c == elli2.c
+    elseif c1 == c2
         return e_min >= 0
-    elseif !(elli1.c ∈ elli2)
+    elseif !(c1 ∈ E2)
         return false
     else
-        L = cholesky(elli2.P).L
-        P = L \ elli1.P / L'
-        c = L' * (elli1.c - elli2.c)
+        L = cholesky(P2).L
+        P = L \ P1 / L'
+        c = L' * (c1 - c2)
         specDecomp = eigen(P)
         vals = specDecomp.values
         ct = specDecomp.vectors' * c
@@ -49,10 +49,15 @@ function Base.in(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
     end
 end
 
-function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
-    L = cholesky(elli2.P).L
-    P = L \ elli1.P / L'
-    c = L' * (elli1.c - elli2.c)
+function get_ℓ_ast_inclusion(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
+    P1 = get_quadratic_form(E1)
+    P2 = get_quadratic_form(E2)
+    c1 = LazySets.center(E1)
+    c2 = LazySets.center(E2)
+
+    L = cholesky(P2).L
+    P = L \ P1 / L'
+    c = L' * (c1 - c2)
     specDecomp = eigen(P)
     vals = specDecomp.values
     ct = specDecomp.vectors' * c
@@ -87,7 +92,7 @@ function get_ℓ_ast_inclusion(elli1::Ellipsoid, elli2::Ellipsoid; eps = 1e-10)
 end
 
 # return Enew, such that Enew is a scaled version of E1 and E2 ⊆_0 Enew
-function scale_for_inclusion_contact_point(E1::Ellipsoid, E2::Ellipsoid)
+function scale_for_inclusion_contact_point(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
     gstar, _ = get_ℓ_ast_inclusion(E2, E1)
-    return E1 * gstar
+    return get_sublevel_set(E1, gstar)
 end

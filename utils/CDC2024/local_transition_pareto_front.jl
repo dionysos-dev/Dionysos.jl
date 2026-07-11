@@ -1,5 +1,6 @@
 using StaticArrays, Random
 using JuMP, Clarabel
+import LazySets
 using Plots, Colors
 Random.seed!(0)
 
@@ -7,6 +8,20 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
+
+# `LazySets.affine_map` checks strict positive-definiteness of M*Q*M', which
+# floating-point asymmetry makes fail for near-singular closed-loop maps; map
+# the ellipsoid manually with symmetrization instead.
+function map_ellipsoid(M, E, v)
+    Q = Matrix(M * LazySets.shape_matrix(E) * transpose(M))
+    # plain Vector/Matrix storage: LazySets plot approximation mishandles
+    # SVector-centered ellipsoids (SizedVector MethodError)
+    return LazySets.Ellipsoid(
+        Vector(M * LazySets.center(E) + v),
+        (Q + transpose(Q)) / 2;
+        check_posdef = false,
+    )
+end
 
 include("../../problems/non_linear.jl")
 
@@ -30,51 +45,44 @@ plot_colorbar!(cm::ValueColormap) = scatter!(
 )
 
 function trial(E2, c, ρ, Ubound, Wbound, λ)
-    U = UT.HyperRectangle(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
-    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
+    U = UT.box(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
+    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
     problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
 
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = c .+ sys.ΔX
-    Ū = unew .+ sys.ΔU
-    W̄ = wnew .+ sys.ΔW
-
-    (affineSys, L) = ST.buildAffineApproximation(
-        sys.fsymbolic,
-        sys.x,
-        sys.u,
-        sys.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(sys),
         c,
         unew,
-        wnew,
-        X̄,
-        Ū,
-        W̄,
+        wnew;
+        δx = sys.ΔX,
+        δu = sys.ΔU,
     )
+    affineSys = approx.system
 
     # Solve the control problem
 
-    S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
-    E1, cont, max_cost = UT.transition_backward(
+    result = ST.solve_transition_backward(
         affineSys,
         E2,
         c,
         unew,
-        sys.Uformat,
-        sys.Wformat,
-        S,
-        L,
+        approx.Uformat,
+        approx.Wformat,
+        problem.transition_cost,
+        approx.lipschitz,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,
         maxδu = maxδu,
     )
+    E1, cont, max_cost = result.source, result.controller, result.cost
 
     # Get results 
     if cont == nothing
@@ -86,12 +94,12 @@ function trial(E2, c, ρ, Ubound, Wbound, λ)
     else
         success = true
         init_set_volume = UT.get_volume(E1)
-        ETilde = UT.affine_transformation(
-            E1,
+        ETilde = map_ellipsoid(
             affineSys.A + affineSys.B * cont.A,
+            E1,
             affineSys.B * cont.c + affineSys.c,
         )
-        U_used = UT.affine_transformation(E1, cont.A, cont.c)
+        U_used = map_ellipsoid(cont.A, E1, cont.c)
         input_set_volume = UT.get_volume(U_used)
     end
     return (success, max_cost, init_set_volume, input_set_volume)
@@ -310,7 +318,7 @@ function contour_plot(
     return cost ? display(fig1) : display(fig2)
 end
 
-E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [3.0; 3.0])
+E2 = LazySets.Ellipsoid([3.0; 3.0], inv([2.0 0.2; 0.2 0.5]))
 c = SVector{2, Float64}([1.0; 1.0])
 
 #########################################################################################

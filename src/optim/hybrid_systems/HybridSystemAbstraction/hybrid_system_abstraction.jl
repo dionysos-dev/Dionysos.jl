@@ -7,6 +7,7 @@ import MathematicalSystems
 MS = MathematicalSystems
 using StaticArrays: SVector
 using Dionysos
+import LazySets
 
 const MOI = MathOptInterface
 const DI = Dionysos
@@ -153,8 +154,6 @@ struct HybridQuantizedStaticController{AS, AC} <: ST.AbstractContinuousControlle
 end
 ST.controller_kind(::HybridQuantizedStaticController) = ST.StaticKind()
 ST.domain(ctrl::HybridQuantizedStaticController) = ctrl.abstract_system
-ST.initial_state(::HybridQuantizedStaticController) = nothing
-ST.update_state(::HybridQuantizedStaticController, q, y) = nothing
 
 function ST.is_defined(ctrl::HybridQuantizedStaticController, q, aug_state)
     abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)

@@ -1,5 +1,6 @@
 module SimplePendulum
 
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Plots
@@ -24,13 +25,13 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0)),
-    _U_ = UT.HyperRectangle(SVector(-6.0), SVector(6.0)),
+    _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0)),
+    _U_ = UT.box(SVector(-6.0), SVector(6.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
@@ -38,21 +39,15 @@ end
 
 function safety_problem(; params::Params = Params(), objective = "safety_up")
     if objective == "safety_down"
-        _X_ = UT.HyperRectangle(SVector(-π, -1.5), SVector(π, 1.5))
-        _U_ = UT.HyperRectangle(SVector(-4.0), SVector(4.0))
-        _I_ = UT.HyperRectangle(SVector(-3.0π / 180.0, -0.5), SVector(3.0π / 180.0, 0.5))
-        _S_ = UT.HyperRectangle(SVector(-15.0π / 180.0, -1.0), SVector(15.0π / 180.0, 1.0))
+        _X_ = UT.box(SVector(-π, -1.5), SVector(π, 1.5))
+        _U_ = UT.box(SVector(-4.0), SVector(4.0))
+        _I_ = UT.box(SVector(-3.0π / 180.0, -0.5), SVector(3.0π / 180.0, 0.5))
+        _S_ = UT.box(SVector(-15.0π / 180.0, -1.0), SVector(15.0π / 180.0, 1.0))
     elseif objective == "safety_up"
-        _X_ = UT.HyperRectangle(SVector(-π, -1.5), SVector(π, 1.5))
-        _U_ = UT.HyperRectangle(SVector(-4.0), SVector(4.0))
-        _I_ = UT.HyperRectangle(
-            SVector(π - 3.0π / 180.0, -0.5),
-            SVector(π + 3.0π / 180.0, 0.5),
-        )
-        _S_ = UT.HyperRectangle(
-            SVector(π - 15.0π / 180.0, -1.0),
-            SVector(π + 15.0π / 180.0, 1.0),
-        )
+        _X_ = UT.box(SVector(-π, -1.5), SVector(π, 1.5))
+        _U_ = UT.box(SVector(-4.0), SVector(4.0))
+        _I_ = UT.box(SVector(π - 3.0π / 180.0, -0.5), SVector(π + 3.0π / 180.0, 0.5))
+        _S_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
     else
         error("Unknown objective: $objective")
     end
@@ -70,53 +65,38 @@ function optimal_control_problem(;
     _O_ = nothing
 
     if objective == "reachability_up_high_power"
-        _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0))
+        _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0))
         _U_ = UT.set_minus(
-            UT.HyperRectangle(SVector(-10.0), SVector(10.0)),
-            UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
+            UT.box(SVector(-10.0), SVector(10.0)),
+            UT.box(SVector(-0.5), SVector(0.5)),
         )
-        _I_ = UT.HyperRectangle(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.HyperRectangle(
-            SVector(π - 15.0π / 180.0, -1.0),
-            SVector(π + 15.0π / 180.0, 1.0),
-        )
+        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
+        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
 
     elseif objective == "reachability_up_medium_power"
-        _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0))
+        _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0))
         _U_ = UT.set_minus(
-            UT.HyperRectangle(SVector(-7.0), SVector(7.0)),
-            UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
+            UT.box(SVector(-7.0), SVector(7.0)),
+            UT.box(SVector(-0.5), SVector(0.5)),
         )
-        _I_ = UT.HyperRectangle(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.HyperRectangle(
-            SVector(π - 15.0π / 180.0, -1.0),
-            SVector(π + 15.0π / 180.0, 1.0),
-        )
+        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
+        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
 
     elseif objective == "reachability_up_medium_power_no_obstacle"
-        _X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
-        _U_ = UT.HyperRectangle(SVector(-4.5), SVector(4.5))
-        _I_ = UT.HyperRectangle(SVector(-10.0π / 180.0, -0.5), SVector(10.0π / 180.0, 0.5))
-        _T_ = UT.HyperRectangle(
-            SVector(π - 15.0π / 180.0, -1.0),
-            SVector(π + 15.0π / 180.0, 1.0),
-        )
+        _X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
+        _U_ = UT.box(SVector(-4.5), SVector(4.5))
+        _I_ = UT.box(SVector(-10.0π / 180.0, -0.5), SVector(10.0π / 180.0, 0.5))
+        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
 
     elseif objective == "reachability_up_low_power"
-        _X_ = UT.HyperRectangle(SVector(-π, -7.0), SVector(π, 7.0))
+        _X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
         _U_ = UT.set_minus(
-            UT.HyperRectangle(SVector(-2.5), SVector(2.5)),
-            UT.HyperRectangle(SVector(-0.5), SVector(0.5)),
+            UT.box(SVector(-2.5), SVector(2.5)),
+            UT.box(SVector(-0.5), SVector(0.5)),
         )
-        _I_ = UT.HyperRectangle(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.HyperRectangle(
-            SVector(π - 15.0π / 180.0, -1.0),
-            SVector(π + 15.0π / 180.0, 1.0),
-        )
-        _O_ = UT.HyperRectangle(
-            SVector(-π + 16.0π / 180.0, -7.0),
-            SVector(-π + 38.0π / 180.0, 7.0),
-        )
+        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
+        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+        _O_ = UT.box(SVector(-π + 16.0π / 180.0, -7.0), SVector(-π + 38.0π / 180.0, 7.0))
 
     else
         error("Unknown objective: $objective")

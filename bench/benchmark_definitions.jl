@@ -1,3 +1,4 @@
+import LazySets
 using JuMP
 using StaticArrays
 using CDDLib
@@ -132,8 +133,8 @@ function post_image(abstract_system, concrete_system, xpos, u)
     r = Xdom.grid.h / 2.0 + concrete_system.measnoise
     Fr = r
 
-    rectI = DO.get_pos_lims_outer(Xdom.grid, UT.HyperRectangle(Fx .- Fr, Fx .+ Fr))
-    ypos_iter = Iterators.product(DO._ranges(rectI)...)
+    ranges = DO.get_pos_lims_outer(Xdom.grid, UT.box(Fx .- Fr, Fx .+ Fr))
+    ypos_iter = Iterators.product(ranges...)
     over_approx = []
     allin = true
     for ypos in ypos_iter
@@ -170,11 +171,11 @@ function pre_image(abstract_system, concrete_system, xpos, u)
     return potential
 end
 
-function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
-    r = (rect.ub - rect.lb) / 2.0 + concrete_system.measnoise
+function compute_reachable_set(rect::UT.Box, concrete_system, Udom)
+    r = LazySets.radius_hyperrectangle(rect) + concrete_system.measnoise
     Fr = r
-    x = UT.get_center(rect)
-    n = UT.get_dim(rect)
+    x = LazySets.center(rect)
+    n = LazySets.dim(rect)
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
     for upos in DO.enum_pos(Udom)
@@ -185,7 +186,7 @@ function compute_reachable_set(rect::UT.HyperRectangle, concrete_system, Udom)
     end
     lb = SVector{n}(lb)
     ub = SVector{n}(ub)
-    return UT.HyperRectangle(lb, ub)
+    return UT.box(lb, ub)
 end
 minimum_transition_cost(symmodel, contsys, source, target) = 1.0
 
@@ -220,15 +221,15 @@ bench["LazyAbstraction", "simple_problem.jl"] = solver_lazy_simple
 ###################
 
 problem_simple = problems_modules["simple_problem.jl"].problem(;
-    rectX = UT.HyperRectangle(SVector(0.0, 0.0), SVector(60.0, 60.0)),
-    obstacles = [UT.HyperRectangle(SVector(22.0, 21.0), SVector(25.0, 32.0))],
+    rectX = UT.box(SVector(0.0, 0.0), SVector(60.0, 60.0)),
+    obstacles = [UT.box(SVector(22.0, 21.0), SVector(25.0, 32.0))],
     periodic = Int[],
     periods = [30.0, 30.0],
     T0 = [0.0, 0.0],
-    rectU = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
-    Uobstacles = [UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))],
-    _I_ = UT.HyperRectangle(SVector(6.5, 6.5), SVector(7.5, 7.5)),
-    _T_ = UT.HyperRectangle(SVector(44.0, 43.0), SVector(49.0, 48.0)),
+    rectU = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
+    Uobstacles = [UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))],
+    _I_ = UT.box(SVector(6.5, 6.5), SVector(7.5, 7.5)),
+    _T_ = UT.box(SVector(44.0, 43.0), SVector(49.0, 48.0)),
     state_cost = UT.ZeroFunction(),
     transition_cost = UT.ConstantControlFunction(1.0),
     tstep = 0.8,

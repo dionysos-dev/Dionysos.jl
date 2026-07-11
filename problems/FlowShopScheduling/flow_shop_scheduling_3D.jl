@@ -14,7 +14,7 @@ const ST = DI.System
 const PR = DI.Problem
 
 struct FlowShopResetMap <: MS.AbstractMap
-    domain::UT.HyperRectangle
+    domain::UT.Box
     x_init::Vector{Float64}
     t_min::Float64
 end
@@ -46,12 +46,12 @@ function system()
     task3_dynamics(x, u) = A3 * x .+ u
 
     # State and input spaces
-    X1 = UT.HyperRectangle([-1.0, -1.0, 0.0], [5.0, 5.0, 6.0]);
-    U1 = UT.HyperRectangle([-1.0, -1.0, -0.5], [4.0, 4.0, 5.5]);
-    X2 = UT.HyperRectangle([-2.5, -2.5, 0.0], [2.5, 2.5, 3.5]);
-    U2 = UT.HyperRectangle([-1.2, -1.2, -0.7], [9.2, 6.2, 5.7]);
-    X3 = UT.HyperRectangle([-1.0, -1.0, 0.0], [5.0, 3.0, 4.0]);
-    U3 = UT.HyperRectangle([-1.5, -1.5, -1.0], [7.5, 5.5, 4.0]);
+    X1 = UT.box([-1.0, -1.0, 0.0], [5.0, 5.0, 6.0]);
+    U1 = UT.box([-1.0, -1.0, -0.5], [4.0, 4.0, 5.5]);
+    X2 = UT.box([-2.5, -2.5, 0.0], [2.5, 2.5, 3.5]);
+    U2 = UT.box([-1.2, -1.2, -0.7], [9.2, 6.2, 5.7]);
+    X3 = UT.box([-1.0, -1.0, 0.0], [5.0, 3.0, 4.0]);
+    U3 = UT.box([-1.5, -1.5, -1.0], [7.5, 5.5, 4.0]);
 
     # Continuous systems for each task
     task1_system =
@@ -62,11 +62,11 @@ function system()
         MS.ConstrainedBlackBoxControlContinuousSystem(task3_dynamics, 3, 3, X3, U3)
 
     # Time systems for each task
-    timewindow_task1 = UT.HyperRectangle([0.0], [2.0]);
+    timewindow_task1 = UT.box([0.0], [2.0]);
     task_1_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task1)
-    timewindow_task2 = UT.HyperRectangle([1.5], [4.0]);
+    timewindow_task2 = UT.box([1.5], [4.0]);
     task_2_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task2)
-    timewindow_task3 = UT.HyperRectangle([5.0], [7.0]);
+    timewindow_task3 = UT.box([5.0], [7.0]);
     task_3_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task3)
 
     # Mode systems for the automaton
@@ -77,9 +77,9 @@ function system()
     ]
 
     # Guards (acceptance regions) for each task
-    task1_target = UT.HyperRectangle([0.5, 1.5, 1.0, 0.0], [5.0, 5.0, 6.0, 2.0])
-    task2_target = UT.HyperRectangle([1.0, 0.0, 0.0, 1.5], [2.5, 2.5, 3.5, 4.0])
-    task3_target = UT.HyperRectangle([0.5, 0.5, 0.0, 5.0], [5.0, 3.0, 4.0, 7.0])
+    task1_target = UT.box([0.5, 1.5, 1.0, 0.0], [5.0, 5.0, 6.0, 2.0])
+    task2_target = UT.box([1.0, 0.0, 0.0, 1.5], [2.5, 2.5, 3.5, 4.0])
+    task3_target = UT.box([0.5, 0.5, 0.0, 5.0], [5.0, 3.0, 4.0, 7.0])
 
     # Reset maps for each transition
     t1_t2_reset_map = FlowShopResetMap(task1_target, [0.0, 0.0, 2.0], 2.0)
@@ -122,8 +122,8 @@ function problem()
     # Initial state and target set
     initial_state = ([0.0, 0.0, 1.0], 0.0, 1)
 
-    Xs_target = [UT.HyperRectangle([0.5, 0.5, 0.0], [5.0, 3.0, 4.0])]
-    Ts_target = [UT.HyperRectangle([5.0], [7.0])]
+    Xs_target = [UT.box([0.5, 0.5, 0.0], [5.0, 3.0, 4.0])]
+    Ts_target = [UT.box([5.0], [7.0])]
     Ns_target = [3]
     target_set = (Xs_target, Ts_target, Ns_target)
 

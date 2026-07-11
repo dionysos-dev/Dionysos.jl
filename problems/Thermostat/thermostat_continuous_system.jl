@@ -1,5 +1,6 @@
 module ThermostatContinuousSystem
 
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Plots
@@ -78,13 +79,13 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.HyperRectangle(SVector(18.0), SVector(24.0)),
-    _U_ = UT.HyperRectangle(SVector(1), SVector(2)),
+    _X_ = UT.box(SVector(18.0), SVector(24.0)),
+    _U_ = UT.box(SVector(1), SVector(2)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
@@ -105,8 +106,8 @@ Default:
 """
 function safety_problem(;
     params::Params = Params(),
-    _I_ = UT.HyperRectangle(SVector(20.0), SVector(21.0)),
-    _S_ = UT.HyperRectangle(SVector(18.0), SVector(24.0)),
+    _I_ = UT.box(SVector(20.0), SVector(21.0)),
+    _S_ = UT.box(SVector(18.0), SVector(24.0)),
     time = PR.Infinity(),
 )
     sys = system(; params = params, _X_ = _S_)
@@ -124,9 +125,9 @@ The costs are set to zero, so this is pure reachability.
 """
 function optimal_control_problem(;
     params::Params = Params(),
-    _I_ = UT.HyperRectangle(SVector(18.0), SVector(18.5)),
-    _T_ = UT.HyperRectangle(SVector(21.8), SVector(22.2)),
-    _X_ = UT.HyperRectangle(SVector(18.0), SVector(24.0)),
+    _I_ = UT.box(SVector(18.0), SVector(18.5)),
+    _T_ = UT.box(SVector(21.8), SVector(22.2)),
+    _X_ = UT.box(SVector(18.0), SVector(24.0)),
     time = 30.0,
 )
     sys = system(; params = params, _X_ = _X_)
@@ -145,9 +146,9 @@ while remaining inside the safe set `_S_`.
 """
 function reach_and_stay_problem(;
     params::Params = Params(),
-    _I_ = UT.HyperRectangle(SVector(18.0), SVector(18.5)),
-    _T_ = UT.HyperRectangle(SVector(21.8), SVector(22.2)),
-    _S_ = UT.HyperRectangle(SVector(18.0), SVector(24.0)),
+    _I_ = UT.box(SVector(18.0), SVector(18.5)),
+    _T_ = UT.box(SVector(21.8), SVector(22.2)),
+    _S_ = UT.box(SVector(18.0), SVector(24.0)),
     time = PR.Infinity(),
 )
     sys = system(; params = params, _X_ = _S_)

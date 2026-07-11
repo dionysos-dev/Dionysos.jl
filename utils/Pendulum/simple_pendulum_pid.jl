@@ -6,6 +6,7 @@ const UT = DI.Utils
 const ST = DI.System
 
 using MathematicalSystems
+import LazySets
 const MS = MathematicalSystems
 
 include("../../problems/Pendulum/simple_pendulum.jl")
@@ -14,8 +15,8 @@ params = SimplePendulum.Params(; l = 1.0, g = 9.81)
 
 system = SimplePendulum.system(;
     params = params,
-    _X_ = UT.HyperRectangle(SVector(-π, -5.0), SVector(π, 5.0)),
-    _U_ = UT.HyperRectangle(SVector(-10.0), SVector(10.0)),
+    _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0)),
+    _U_ = UT.box(SVector(-10.0), SVector(10.0)),
 )
 
 Δt = 0.1
@@ -31,8 +32,8 @@ pid_controller = ST.PIDControllers.PIDControllerVector(;
     error = ST.PIDControllers.WrapAnglePositionVelocityError(),
     dt = Δt,
     time_getter = ST.PIDControllers.ConstantTimeGetter(),
-    umin = input_set.lb,
-    umax = input_set.ub,
+    umin = LazySets.low(input_set),
+    umax = LazySets.high(input_set),
     e0 = SVector(0.0, 0.0),
 )
 

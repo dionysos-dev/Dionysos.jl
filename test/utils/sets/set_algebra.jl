@@ -7,14 +7,14 @@ const DI = Dionysos
 const UT = DI.Utils
 
 @testset "Set algebra (LazySets-backed)" begin
-    A1 = UT.HyperRectangle([-1.0, -1.0], [1.0, 1.0])
-    A2 = UT.HyperRectangle([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
-    A3 = UT.HyperRectangle([0.5, 0.5], [1.5, 1.5])   # overlaps A1
-    B0 = UT.Ellipsoid([1.0 0.0; 0.0 1.0], [0.0, 0.0])
+    A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
+    A2 = UT.box([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
+    A3 = UT.box([0.5, 0.5], [1.5, 1.5])   # overlaps A1
+    B0 = LazySets.Ellipsoid([0.0, 0.0], [1.0 0.0; 0.0 1.0])
 
     # --- set_union ---
     U = UT.set_union([A1, A2])
-    @test U isa UT.SetUnion
+    @test U isa LazySets.UnionSetArray
     @test length(U.array) == 2
     @test [0.0, 0.0] ∈ U        # in A1
     @test [2.5, 2.5] ∈ U        # in A2
@@ -43,20 +43,20 @@ const UT = DI.Utils
     @test !([1.2, 1.2] ∈ punched)           # now excluded (in A3)
 
     # builders are total over bare/empty regions too
-    from_empty = UT.add_set(UT.empty_region(2), A1)
+    from_empty = UT.add_set(LazySets.EmptySet(2), A1)
     @test [0.0, 0.9] ∈ from_empty
     @test !([5.0, 5.0] ∈ from_empty)
 
     # --- extractors are total ---
     @test UT.minus_included(A1) === A1
-    @test UT.minus_hole(A1) isa UT.EmptyRegion
-    e = UT.empty_region(2)
+    @test UT.minus_hole(A1) isa LazySets.EmptySet
+    e = LazySets.EmptySet(2)
     @test UT.minus_included(e) === e
     @test !([0.0, 0.0] ∈ e)
 
     # --- dimensions ---
-    @test UT.get_dim(U) == 2
-    @test UT.get_dim(M) == 2
+    @test LazySets.dim(U) == 2
+    @test LazySets.dim(M) == 2
 end
 
 @testset "Periodic wrapping" begin
@@ -64,17 +64,17 @@ end
     periods = UT.SVector(1.0)
     start = UT.SVector(0.0)
 
-    R = UT.HyperRectangle([0.8, 0.0], [1.2, 1.0])     # crosses the period boundary
+    R = UT.box([0.8, 0.0], [1.2, 1.0])     # crosses the period boundary
     WR = UT.set_in_period(R, periodic_dims, periods, start)
-    @test WR isa UT.SetUnion
+    @test WR isa LazySets.UnionSetArray
     @test length(WR.array) == 2
 
     U = UT.set_union([R])
     WU = UT.set_in_period(U, periodic_dims, periods, start)
-    @test WU isa UT.SetUnion
+    @test WU isa LazySets.UnionSetArray
     @test length(WU.array) == 2
 
-    M = UT.set_minus(U, UT.set_union([UT.HyperRectangle([2.0, 2.0], [3.0, 3.0])]))
+    M = UT.set_minus(U, UT.set_union([UT.box([2.0, 2.0], [3.0, 3.0])]))
     WM = UT.set_in_period(M, periodic_dims, periods, start)
     @test WM isa UT.SetMinus
     @test length(UT.minus_included(WM).array) == 2

@@ -138,8 +138,9 @@ When enabled, the following fields are required:
       Simulate randomly sampled points in each abstract cell.  
       Set `n_samples`.
 
-- `efficient` (optional, default = `true`):  
-  Whether to use the optimized approximation-specific abstraction kernel when available.
+- `efficient` (optional, default = `true`):
+  Deprecated and ignored — the abstraction kernel hoists approximation-specific
+  per-input work uniformly (see `Dionysos.System.input_cache` / `reach_set`).
 
 #### Continuous-time settings
 
@@ -265,7 +266,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     state_grid::Union{Nothing, MP.Grid}
     h::Union{Nothing, Any}
     use_implicit_mapping::Bool
-    mapping_region::Union{Nothing, UT.HyperRectangle}
+    mapping_region::Union{Nothing, UT.Box}
 
     Xset::Union{Nothing, MP.AbstractStateSet}
     Rset::Union{Nothing, MP.AbstractStateSet}
@@ -407,20 +408,19 @@ function build_continuous_approximation(
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
-        return ST.ContinuousTimeOverapproximationMap(
+        return ST.ContinuousTimeOverApproximationMap(
             system,
             optimizer.overapproximation_map,
         )
     elseif mode == GROWTH
         if optimizer.growthbound_map !== nothing
             return ST.ContinuousTimeGrowthBound(system, optimizer.growthbound_map)
-        elseif optimizer.jacobian_bound !== nothing
-            return ST.ContinuousTimeGrowthBound_from_jacobian_bound(
-                system,
-                optimizer.jacobian_bound,
-            )
         else
-            return ST.ContinuousTimeGrowthBound(system)
+            return ST.ContinuousTimeGrowthBound(
+                system;
+                jacobian_bound = optimizer.jacobian_bound,
+                ngrowthbound = optimizer.ngrowthbound,
+            )
         end
     elseif mode == LINEARIZED
         _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
@@ -428,7 +428,8 @@ function build_continuous_approximation(
             system,
             optimizer.DF_sys,
             optimizer.bound_DF,
-            optimizer.bound_DDF,
+            optimizer.bound_DDF;
+            num_substeps = optimizer.nsystem,
         )
     elseif mode == CENTER_SIMULATION
         return ST.ContinuousTimeCenteredSimulation(system)
@@ -448,7 +449,7 @@ function build_discrete_approximation(
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
-        return ST.DiscreteTimeOverapproximationMap(system, optimizer.overapproximation_map)
+        return ST.DiscreteTimeOverApproximationMap(system, optimizer.overapproximation_map)
     elseif mode == GROWTH
         _validate_model(optimizer, [:growthbound_map])
         return ST.DiscreteTimeGrowthBound(system, optimizer.growthbound_map)
@@ -481,7 +482,8 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
             build_continuous_approximation(optimizer, system)
         optimizer.discrete_time_system_approximation = ST.discretize(
             optimizer.continuous_time_system_approximation,
-            optimizer.time_step,
+            optimizer.time_step;
+            num_substeps = optimizer.nsystem,
         )
     elseif isa(system, MS.ConstrainedBlackBoxControlDiscreteSystem)
         optimizer.discrete_time_system_approximation =
@@ -504,7 +506,7 @@ function _validate_periodic_data(opt)
     length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
     length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
 
-    N = UT.get_dim(opt.alternating_simulation_problem.system.X)
+    N = LazySets.dim(opt.alternating_simulation_problem.system.X)
     if P > 0
         all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
     end
@@ -639,7 +641,7 @@ _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
     concrete_system = optimizer.alternating_simulation_problem.system
-    return _vector_of_tuple(Dionysos.Utils.get_dim(concrete_system.X))
+    return _vector_of_tuple(LazySets.dim(concrete_system.X))
 end
 
 function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProblem)
@@ -688,19 +690,9 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     optimizer.print_level >= 1 &&
         println("compute_abstract_system_from_concrete_system!: started")
 
-    system_approximation =
-        if !optimizer.efficient &&
-           ST.is_over_approximation(optimizer.discrete_time_system_approximation)
-            ST.get_DiscreteTimeOverApproximationMap(
-                optimizer.discrete_time_system_approximation,
-            )
-        else
-            optimizer.discrete_time_system_approximation
-        end
-
     SY.compute_abstract_system_from_concrete_system!(
         abstract_system,
-        system_approximation;
+        optimizer.discrete_time_system_approximation;
         execution_backend = optimizer.execution_backend,
         print_level = optimizer.print_level,
         update_interval = optimizer.progress_update_interval,

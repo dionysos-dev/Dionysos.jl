@@ -18,13 +18,21 @@ function literate_actions(file, output_dir)
     return Literate.script(file, output_dir)
 end
 
-for example in EXAMPLES_SOLVERS
-    literate_actions(joinpath(EXAMPLES_SOLVERS_DIR, example), OUTPUT_DIR)
+# Executing every Literate example dominates the build time; skip it for fast
+# local Documenter iterations with DIONYSOS_SKIP_LITERATE=true (reuses the
+# pages already in `src/generated`).
+if get(ENV, "DIONYSOS_SKIP_LITERATE", "false") != "true"
+    for example in EXAMPLES_SOLVERS
+        literate_actions(joinpath(EXAMPLES_SOLVERS_DIR, example), OUTPUT_DIR)
+    end
+    for example in EXAMPLES_UTILS
+        literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
+    end
+    literate_actions(
+        joinpath(@__DIR__, "src", "examples", "Getting Started.jl"),
+        OUTPUT_DIR,
+    )
 end
-for example in EXAMPLES_UTILS
-    literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
-end
-literate_actions(joinpath(@__DIR__, "src", "examples", "Getting Started.jl"), OUTPUT_DIR)
 
 const _PAGES = [
     "Index" => "index.md",

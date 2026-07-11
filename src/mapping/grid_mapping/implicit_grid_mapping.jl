@@ -35,13 +35,11 @@ end
 
 function ImplicitGridMapping(
     grid::G,
-    rect::UT.HyperRectangle{N, T};
+    rect::LazySets.AbstractHyperrectangle;
     incl_mode = OUTER,
-) where {N, T, G}
-    rectI = get_pos_lims(grid, rect, incl_mode)
-    min_pos = rectI.lb isa NTuple{N, Int} ? rectI.lb : NTuple{N, Int}(rectI.lb)
-    max_pos = rectI.ub isa NTuple{N, Int} ? rectI.ub : NTuple{N, Int}(rectI.ub)
-    return ImplicitGridMapping(grid, min_pos, max_pos)
+) where {G}
+    ranges = get_pos_lims(grid, rect, incl_mode)
+    return ImplicitGridMapping(grid, first.(ranges), last.(ranges))
 end
 
 get_grid(m::ImplicitGridMapping) = m.grid

@@ -18,8 +18,8 @@ const SY = DI.Symbolic
 end
 
 function build_toy_abstraction()
-    X = UT.HyperRectangle(SVector(-1.0), SVector(1.0))
-    U = UT.HyperRectangle(SVector(-1.0), SVector(1.0))
+    X = UT.box(SVector(-1.0), SVector(1.0))
+    U = UT.box(SVector(-1.0), SVector(1.0))
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         Main.ToyAddDynamics(),

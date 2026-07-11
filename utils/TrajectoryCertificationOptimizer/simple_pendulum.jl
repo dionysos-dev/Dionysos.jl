@@ -1,6 +1,7 @@
 using StaticArrays
 using MathematicalSystems
 using Dionysos
+import LazySets
 using JuMP
 using Random
 using Symbolics
@@ -93,7 +94,7 @@ trajectory_generator = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
 # ------------------------------------------------------------
 
 k=1.5
-_U_cert_ = UT.HyperRectangle(SVector(-7.0)*k, SVector(7.0)*k)
+_U_cert_ = UT.box(SVector(-7.0)*k, SVector(7.0)*k)
 
 noise_sampler = function (rng, u, k)
     σ = 0.5
@@ -108,7 +109,7 @@ function distance_to_target(x, target_set)
     if target_set isa UT.LazySets.UnionSetArray
         return minimum(distance_to_target(x, S) for S in UT.LazySets.array(target_set))
     else
-        return LA.norm(x - UT.get_center(target_set))
+        return LA.norm(x - LazySets.center(target_set))
     end
 end
 
@@ -177,7 +178,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 #     x[1] + Δt * (x[2] + w[1]),
 #     x[2] + Δt * (-(params.g / params.l) * Symbolics.sin(x[1]) + u[1] + w[2]),
 # ]
-# Wformat = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0))
+# Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
 
 # provider = ST.SymbolicAffineApproximationProvider(
 #     fsymbolic,
@@ -185,8 +186,8 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 #     collect(u),
 #     collect(w),
 #     [0.0, 0.0],
-#     UT.format_input_set(_U_cert_),
-#     UT.format_noise_set(Wformat),
+#     ST.format_input_set(_U_cert_),
+#     ST.format_noise_set(Wformat),
 # )
 
 Symbolics.@variables θ ω τ w1 w2 T
@@ -202,7 +203,7 @@ f_disc = ST.runge_kutta4(f_cont_expr, x, u, T, 1)
 
 fsymbolic = Symbolics.substitute([f_disc[1] + w1, f_disc[2] + w2], Dict(T => Δt))
 
-Wset = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0))
+Wset = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
 
 provider = ST.SymbolicAffineApproximationProvider(
     fsymbolic,
@@ -210,8 +211,8 @@ provider = ST.SymbolicAffineApproximationProvider(
     u,
     w,
     [0.0, 0.0],
-    UT.format_input_set(_U_cert_),
-    UT.format_noise_set(Wset),
+    ST.format_input_set(_U_cert_),
+    ST.format_noise_set(Wset),
 )
 
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
@@ -237,11 +238,11 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδx = 1.5,
     maxδu = 3.0,
     λ = 0.001,
-    terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.8^2,
+    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.8^2, # shape matrix Q: semi-axes² on the diagonal
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    use_log_det = true,
+    use_log_det = false,
 )
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
@@ -291,7 +292,7 @@ function sampled_indices(n::Int, max_items::Int)
 end
 
 function away_from_periodic_seam(E; margin = 0.25)
-    θ = E.c[1]
+    θ = LazySets.center(E)[1]
     return θ > -π + margin && θ < π - margin
 end
 
@@ -337,17 +338,10 @@ function input_image_ellipsoid(E, κ)
     K = Matrix{Float64}(κ.A)
     b = collect(Float64, κ.c)
 
-    c_x = collect(Float64, E.c)
-    P_x = Matrix{Float64}(E.P)
+    c_u = K * collect(Float64, LazySets.center(E)) + b
+    Q_u = K * Matrix{Float64}(LazySets.shape_matrix(E)) * K'
 
-    Q_x = inv(LA.Symmetric(P_x))
-
-    c_u = K * c_x + b
-    Q_u = K * Q_x * K'
-
-    P_u = inv(LA.Symmetric(Q_u))
-
-    return UT.Ellipsoid(P_u, c_u)
+    return LazySets.Ellipsoid(c_u, UT._symmetrize(Q_u))
 end
 
 function sampled_indices(n::Int, max_items::Int)
@@ -451,11 +445,11 @@ idxs = sampled_indices(length(valid_steps), 100)
 # Plot physical/certification input limits
 hline!(
     fig_u,
-    [_U_cert_.lb[1], _U_cert_.ub[1]];
+    [LazySets.low(_U_cert_, 1), LazySets.high(_U_cert_, 1)];
     label = "Certified input bounds",
     linestyle = :dash,
 )
-# hline!(fig_u, [_U_.lb[1], _U_.ub[1]]; label = "Problem input bounds", linestyle = :dot)
+# hline!(fig_u, [LazySets.low(_U_, 1), LazySets.high(_U_, 1)]; label = "Problem input bounds", linestyle = :dot)
 
 # Nominal inputs
 scatter!(
@@ -471,8 +465,8 @@ for (j, i) in enumerate(idxs)
     step = valid_steps[i]
     Uell = input_image_ellipsoid(step.ellipsoid, step.kappa)
 
-    c = Uell.c[1]
-    r = 1 / sqrt(Uell.P[1, 1])
+    c = LazySets.center(Uell)[1]
+    r = sqrt(LazySets.shape_matrix(Uell)[1, 1])
 
     plot!(
         fig_u,
@@ -491,7 +485,7 @@ end
 
 for s in cert_result.steps
     if s.ellipsoid !== nothing
-        eigs = LA.eigvals(Matrix(s.ellipsoid.P))
+        eigs = LA.eigvals(Matrix(UT.get_quadratic_form(s.ellipsoid)))
         println("k=", s.k, " min eig=", minimum(eigs), " max eig=", maximum(eigs))
     end
 end
@@ -545,7 +539,7 @@ Dionysos.animate_trajectory_dashboard(
     udims = (1,),        # input over time
     Δt = Δt,
     fps = 5,
-    filename = "pendulum_dashboard.mp4",
+    # filename = "pendulum_dashboard.mp4",
     xlabel_state = "θ [rad]",
     ylabel_state = "ω [rad/s]",
     xlabel_input = "time [s]",

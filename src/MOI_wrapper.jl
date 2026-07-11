@@ -283,16 +283,16 @@ end
 
 function obstacles(model, x_idx::Vector{Int})
     N = length(x_idx)
-    rects = Dionysos.Utils.HyperRectangle{N, Float64}[]
+    rects = Dionysos.Utils.Box{N, Float64}[]
 
-    for (vars, box) in model.obstacles
-        lb_full = _full_vec(model.lower, vars, box.lower)
-        ub_full = _full_vec(model.upper, vars, box.upper)
+    for (vars, obs) in model.obstacles
+        lb_full = _full_vec(model.lower, vars, obs.lower)
+        ub_full = _full_vec(model.upper, vars, obs.upper)
 
         lb = _svec(lb_full, x_idx)
         ub = _svec(ub_full, x_idx)
 
-        push!(rects, Dionysos.Utils.HyperRectangle(lb, ub))
+        push!(rects, Dionysos.Utils.box(lb, ub))
     end
     return rects
 end
@@ -356,16 +356,14 @@ function system(
     tstep = 0.3,
     nsys = 5,
 )
-    _X_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
+    _X_ = Dionysos.Utils.box(_svec(model.lower, x_idx), _svec(model.upper, x_idx))
     _X_ = Dionysos.Utils.set_minus(_X_, Dionysos.Utils.set_union(obstacles(model, x_idx)))
-    _U_ =
-        Dionysos.Utils.HyperRectangle(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
+    _U_ = Dionysos.Utils.box(_svec(model.lower, u_idx), _svec(model.upper, u_idx))
     if model.time_type == CONTINUOUS
         return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
             dynamic(model, x_idx, u_idx),
-            Dionysos.Utils.get_dim(_X_),
-            Dionysos.Utils.get_dim(_U_),
+            Dionysos.LazySets.dim(_X_),
+            Dionysos.LazySets.dim(_U_),
             _X_,
             _U_,
         )
@@ -379,8 +377,8 @@ function system(
         dyn = dynamic(model, x_idx, u_idx)
         return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
             (x, u) -> dyn(x, u),
-            Dionysos.Utils.get_dim(_X_),
-            Dionysos.Utils.get_dim(_U_),
+            Dionysos.LazySets.dim(_X_),
+            Dionysos.LazySets.dim(_U_),
             _X_,
             _U_,
         )
@@ -390,11 +388,11 @@ end
 function problem(model::SymbolicsOptimizer)
     x_idx = state_indices(model)
     u_idx = input_indices(model)
-    _I_ = Dionysos.Utils.HyperRectangle(
+    _I_ = Dionysos.Utils.box(
         _svec([s.lower for s in model.start], x_idx),
         _svec([s.upper for s in model.start], x_idx),
     )
-    _T_ = Dionysos.Utils.HyperRectangle(
+    _T_ = Dionysos.Utils.box(
         _svec([s.lower for s in model.target], x_idx),
         _svec([s.upper for s in model.target], x_idx),
     )

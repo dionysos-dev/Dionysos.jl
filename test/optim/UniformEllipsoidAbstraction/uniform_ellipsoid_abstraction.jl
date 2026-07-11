@@ -156,7 +156,7 @@ include("../../../problems/pwa_sys.jl")
                w
     end
 
-    cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost[1][1], x, u)
+    cost_eval(x, u) = concrete_problem.transition_cost[1][1](x, u)
 
     nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time
 

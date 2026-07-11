@@ -19,6 +19,7 @@ Arguments:
     threads      : optional comma-separated list of thread counts to orchestrate (e.g. 1,4,8)
 """
 
+import LazySets
 using Dionysos
 using MathematicalSystems
 using Statistics
@@ -63,7 +64,7 @@ function build_test_system(; n_per_dim::Int, input_step::Float64)
     h = (ub - lb) ./ (n_per_dim - 1)
     Xgrid = DO.GridFree(lb, h)
     Xfull = DO.DomainList(Xgrid)
-    DO.add_set!(Xfull, UT.HyperRectangle(lb, ub), DO.OUTER)
+    DO.add_set!(Xfull, UT.box(lb, ub), DO.OUTER)
 
     # Input domain [-1,1]^3 (uniform step)
     lb_u = SVector(-1.0, -1.0, -1.0)
@@ -71,7 +72,7 @@ function build_test_system(; n_per_dim::Int, input_step::Float64)
     h_u = SVector(input_step, input_step, input_step)
     Ugrid = DO.GridFree(lb_u, h_u)
     Ufull = DO.DomainList(Ugrid)
-    DO.add_set!(Ufull, UT.HyperRectangle(lb_u, ub_u), DO.OUTER)
+    DO.add_set!(Ufull, UT.box(lb_u, ub_u), DO.OUTER)
 
     # Continuous dynamics dx/dt = A x + B u
     A = @SMatrix [
@@ -98,11 +99,11 @@ function build_approximations(continuous_system, tstep)
     discrete_system = ST.discretize_continuous_system(continuous_system, tstep)
 
     function simple_over_approx(elem, u)
-        center = UT.get_center(elem)
-        radius = UT.get_r(elem)
+        center = LazySets.center(elem)
+        radius = LazySets.radius_hyperrectangle(elem)
         new_radius = radius * 1.1 .+ 0.01
         new_center = MS.mapping(discrete_system)(center, u)
-        return UT.HyperRectangle(new_center - new_radius, new_center + new_radius)
+        return UT.box(new_center - new_radius, new_center + new_radius)
     end
     over = ST.DiscreteTimeOverApproximationMap(discrete_system, simple_over_approx)
 

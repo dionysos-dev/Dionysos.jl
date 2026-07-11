@@ -122,7 +122,7 @@ end
     base = MP.ExplicitGridMapping(grid)
     pm = MP.PeriodicGridMapping(periodic_dims, periods, start, base)
 
-    rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(2.0, 0.0))
+    rect = UT.box(SVector(0.0, 0.0), SVector(2.0, 0.0))
     MP.add_set!(pm, rect, MP.OUTER)
 
     # should have inserted positions (0,0), (1,0), (2,0) (mod 4 in dim 1)

@@ -5,27 +5,22 @@ import RecipesBase: @recipe, @series
 import Polyhedra
 import LazySets
 import SpecialFunctions
-using LinearAlgebra, JuMP
+using LinearAlgebra
 
-include("plotting/simple_plots.jl")
+include("plotting.jl")
 
-include("scalar_functions.jl")
+include("functions.jl")
 include("periodic.jl")
 include("incl_mode.jl")
 include("data_structures/sorted_vector_set.jl")
 include("data_structures/tree.jl")
 include("search/RRT.jl")
 
-include("optim/scalar_optimization.jl")
+include("numeric/scalar_optimization.jl")
 
-include("sets/lazy_set_operations.jl")
-include("sets/rectangle.jl")
+include("sets/set_algebra.jl")
 include("sets/ellipsoid.jl")
-include("sets/degenerate_ellipsoid.jl")
-include("sets/polyhedron.jl")
 include("sets/semilinear_set.jl")
-
-include("ellipsoidal_transitions.jl")
 
 include("pclf.jl")
 

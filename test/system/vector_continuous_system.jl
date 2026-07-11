@@ -15,15 +15,15 @@ println("Started tests")
     A1 = [1.0;;]
     B1 = [1.0;;]
     c1 = [0.0]
-    X1 = UT.HyperRectangle([0.0], [1.0])
-    U1 = UT.HyperRectangle([-1.0], [1.0])
+    X1 = UT.box([0.0], [1.0])
+    U1 = UT.box([-1.0], [1.0])
     sys1 = MS.ConstrainedAffineControlContinuousSystem(A1, B1, c1, X1, U1)
 
     A2 = [2.0;;]
     B2 = [2.0;;]
     c2 = [1.0]
-    X2 = UT.HyperRectangle([1.0], [2.0])
-    U2 = UT.HyperRectangle([0.0], [2.0])
+    X2 = UT.box([1.0], [2.0])
+    U2 = UT.box([0.0], [2.0])
     sys2 = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([sys1, sys2])
@@ -39,15 +39,15 @@ end
     A1 = [1.0;;]
     B1 = [1.0;;]
     c1 = [0.0]
-    X1 = UT.HyperRectangle([0.0], [1.0])
-    U1 = UT.HyperRectangle([-1.0], [1.0])
+    X1 = UT.box([0.0], [1.0])
+    U1 = UT.box([-1.0], [1.0])
     sys1 = MS.ConstrainedAffineControlContinuousSystem(A1, B1, c1, X1, U1)
 
     A2 = [2.0;;]
     B2 = [2.0;;]
     c2 = [1.0]
-    X2 = UT.HyperRectangle([1.0], [2.0])
-    U2 = UT.HyperRectangle([0.0], [2.0])
+    X2 = UT.box([1.0], [2.0])
+    U2 = UT.box([0.0], [2.0])
     sys2 = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([sys1, sys2])
@@ -60,36 +60,34 @@ end
     A1 = [1.0;;]
     B1 = [1.0;;]
     c1 = [0.0]
-    X1 = UT.HyperRectangle([0.0], [1.0])
-    U1 = UT.HyperRectangle([-1.0], [1.0])
+    X1 = UT.box([0.0], [1.0])
+    U1 = UT.box([-1.0], [1.0])
     sys1 = MS.ConstrainedAffineControlContinuousSystem(A1, B1, c1, X1, U1)
 
     A2 = [2.0;;]
     B2 = [2.0;;]
     c2 = [1.0]
-    X2 = UT.HyperRectangle([1.0], [2.0])
-    U2 = UT.HyperRectangle([0.0], [2.0])
+    X2 = UT.box([1.0], [2.0])
+    U2 = UT.box([0.0], [2.0])
     sys2 = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([sys1, sys2])
 
-    @test MS.stateset(v_sys) ==
-          (UT.HyperRectangle([0.0], [1.0]), UT.HyperRectangle([1.0], [2.0]))
-    @test MS.inputset(v_sys) ==
-          (UT.HyperRectangle([-1.0], [1.0]), UT.HyperRectangle([0.0], [2.0]))
+    @test MS.stateset(v_sys) == (UT.box([0.0], [1.0]), UT.box([1.0], [2.0]))
+    @test MS.inputset(v_sys) == (UT.box([-1.0], [1.0]), UT.box([0.0], [2.0]))
 end
 
 @testset "VectorContinuousSystem Mixed System Types" begin
     # Test with different system types
     A1 = [1.0;;]
-    X1 = UT.HyperRectangle([0.0], [1.0])
+    X1 = UT.box([0.0], [1.0])
     linear_sys = MS.ConstrainedLinearContinuousSystem(A1, X1)
 
     A2 = [2.0;;]
     B2 = [2.0;;]
     c2 = [1.0]
-    X2 = UT.HyperRectangle([1.0], [2.0])
-    U2 = UT.HyperRectangle([0.0], [2.0])
+    X2 = UT.box([1.0], [2.0])
+    U2 = UT.box([0.0], [2.0])
     affine_sys = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([linear_sys, affine_sys])
@@ -103,8 +101,8 @@ end
     A = [1.0;;]
     B = [1.0;;]
     c = [0.0]
-    X = UT.HyperRectangle([0.0], [1.0])
-    U = UT.HyperRectangle([-1.0], [1.0])
+    X = UT.box([0.0], [1.0])
+    U = UT.box([-1.0], [1.0])
     sys = MS.ConstrainedAffineControlContinuousSystem(A, B, c, X, U)
 
     v_sys = ST.VectorContinuousSystem([sys])
@@ -120,15 +118,15 @@ end
     A1 = [1.0 0.0; 0.0 1.0]  # 2D system
     B1 = [1.0; 0.0;;]        # 2D state, 1D input (matrix format)
     c1 = [0.0, 0.0]
-    X1 = UT.HyperRectangle([0.0, 0.0], [1.0, 1.0])
-    U1 = UT.HyperRectangle([-1.0], [1.0])
+    X1 = UT.box([0.0, 0.0], [1.0, 1.0])
+    U1 = UT.box([-1.0], [1.0])
     sys1 = MS.ConstrainedAffineControlContinuousSystem(A1, B1, c1, X1, U1)
 
     A2 = [2.0;;]  # 1D system
     B2 = [1.0;;]
     c2 = [1.0]
-    X2 = UT.HyperRectangle([1.0], [2.0])
-    U2 = UT.HyperRectangle([0.0], [2.0])
+    X2 = UT.box([1.0], [2.0])
+    U2 = UT.box([0.0], [2.0])
     sys2 = MS.ConstrainedAffineControlContinuousSystem(A2, B2, c2, X2, U2)
 
     v_sys = ST.VectorContinuousSystem([sys1, sys2])

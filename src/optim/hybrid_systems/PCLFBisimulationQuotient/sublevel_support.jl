@@ -209,8 +209,7 @@ function piece_intersects_region_at_level(
 
     τeff = max(Float64(τ) - tol, 0.0)
     Pτ = PCLF.get_sublevel_set(piece, τeff)
-    I = UT.set_intersection(Pτ, R)
-    return UT.is_nonempty_set(I)
+    return !UT.is_disjoint(Pτ, R)
 end
 
 function piece_intersects_region_at_level(
@@ -241,9 +240,7 @@ function piece_intersects_region_at_level(
 
         Pτ = LazySets.HPolytope(cons)
 
-        I = UT.set_intersection(Pτ, R)
-
-        if UT.is_nonempty_set(I)
+        if !UT.is_disjoint(Pτ, R)
             return true
         end
     end
@@ -262,7 +259,7 @@ function flatten_semilinear_sets(sets)
         if S isa Poly
             push!(parts, S)
         elseif S isa UT.SemiLinearSet
-            append!(parts, S.parts)
+            append!(parts, S.array)
         else
             error("Unsupported type $(typeof(S))")
         end
@@ -276,5 +273,5 @@ function compute_D_from_tau(pclf::PCLF.PCLF, τD::Real)
     isempty(pieces) && error("PCLF has no pieces.")
 
     sublevel_sets = [PCLF.get_sublevel_set(piece, τD) for piece in pieces]
-    return UT.SemiLinearSet(flatten_semilinear_sets(sublevel_sets))
+    return UT.semilinear_set(flatten_semilinear_sets(sublevel_sets))
 end

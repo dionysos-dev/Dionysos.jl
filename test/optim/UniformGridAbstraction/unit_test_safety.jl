@@ -27,7 +27,7 @@ println("Started test")
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap, UT.HyperRectangle(lbX, ubX), MP.OUTER)
+    MP.add_set!(Xmap, UT.box(lbX, ubX), MP.OUTER)
 
     # ----------------------------
     # Build finite U mapping
@@ -39,7 +39,7 @@ println("Started test")
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.HyperRectangle(lbU, ubU), MP.OUTER)
+    MP.add_set!(Umap, UT.box(lbU, ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
@@ -58,7 +58,7 @@ println("Started test")
     )
 
     continuous_approx =
-        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+        ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
     symmodel = SY.SymbolicModelList(Xmap, Umap)
@@ -69,7 +69,7 @@ println("Started test")
     # ----------------------------
     # Initial set -> initlist (states)
     # ----------------------------
-    init_rect = UT.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
+    init_rect = UT.box(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
     initlist = collect(MP.get_states_from_set(Xmap, init_rect, MP.OUTER))
 
     @test !isempty(initlist)
@@ -79,7 +79,10 @@ println("Started test")
     # ----------------------------
     all_states = collect(MP.enum_states(Xmap))
 
-    obstacle_rect = UT.HyperRectangle(SVector(-1.0, -2.0), SVector(-1.1, 4.0))
+    # The historical version had reversed x-bounds (an accidentally empty
+    # obstacle under the old sentinel semantics); boxes now reject crossed
+    # bounds, so the obstacle is a real thin strip at x ≈ -1.
+    obstacle_rect = UT.box(SVector(-1.1, -2.0), SVector(-1.0, 4.0))
     bad_states = Set(MP.get_states_from_set(Xmap, obstacle_rect, MP.OUTER))
 
     safelist = [q for q in all_states if !(q in bad_states)]

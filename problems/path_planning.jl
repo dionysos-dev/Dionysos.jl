@@ -3,6 +3,7 @@ module PathPlanning
 using StaticArrays
 using MathematicalSystems, HybridSystems
 using Plots
+import LazySets
 
 using Dionysos
 const UT = Dionysos.Utils
@@ -74,16 +75,18 @@ function get_obstacles(
     X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6],
 )
     return [
-        UT.HyperRectangle(SVector(x1lb, x2lb, _X_.lb[3]), SVector(x1ub, x2ub, _X_.ub[3]))
-        for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
+        UT.box(
+            SVector(x1lb, x2lb, LazySets.low(_X_, 3)),
+            SVector(x1ub, x2ub, LazySets.high(_X_, 3)),
+        ) for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
     ]
 end
 
-function system(_X_; _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
+function system(_X_; _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
-        Dionysos.Utils.get_dim(_X_),
-        Dionysos.Utils.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
@@ -101,14 +104,13 @@ with the system, the initial and target domains, and null cost functions.
 """
 function problem(; simple = false, transition_cost = nothing)
     if simple
-        _X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
-        _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
-        _T_ = UT.HyperRectangle(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
+        _X_ = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
+        _I_ = UT.box(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
+        _T_ = UT.box(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
     else
-        _X_ =
-            UT.HyperRectangle(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
-        _I_ = UT.HyperRectangle(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
-        _T_ = UT.HyperRectangle(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
+        _X_ = UT.box(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
+        _I_ = UT.box(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
+        _T_ = UT.box(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
     end
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)
@@ -121,8 +123,8 @@ end
 
 function plot_xy_obstacles!(fig, obstacles; alpha = 0.25)
     for ob in obstacles
-        x1l, x2l = ob.lb[1], ob.lb[2]
-        x1u, x2u = ob.ub[1], ob.ub[2]
+        x1l, x2l = LazySets.low(ob, 1), LazySets.low(ob, 2)
+        x1u, x2u = LazySets.high(ob, 1), LazySets.high(ob, 2)
 
         xs = [x1l, x1u, x1u, x1l, x1l]
         ys = [x2l, x2l, x2u, x2u, x2l]

@@ -100,8 +100,8 @@ const AB = OP.Abstraction
 
 | Module | File | Responsibility |
 | :--- | :--- | :--- |
-| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational, dependency-free helpers: geometric sets (`HyperRectangle`, `Ellipsoid`, polyhedra), data structures, `search/RRT.jl`, scalar optimization, plotting recipes, PCLF. |
-| `System` | [src/system/system.jl](src/system/system.jl) | Concrete dynamical systems (extends MathematicalSystems / HybridSystems), time discretization, linearization, controllers, trajectories. |
+| `Utils` | [src/utils/utils.jl](src/utils/utils.jl) | Foundational helpers on top of LazySets: sets *are* LazySets (`UT.box`/`LazySets.Hyperrectangle`, `LazySets.Ellipsoid` with shape matrix `Q = P⁻¹`, unions/set-minus), plus what LazySets lacks — exact ellipsoid kernels (`is_included`/`is_disjoint`), periodic splitting (`set_in_period`), quadratic-form bridge (`get_quadratic_form`) — callable cost functions (`functions.jl`), data structures, `search/RRT.jl`, scalar optimization (`numeric/`), plotting recipes, PCLF. |
+| `System` | [src/system/system.jl](src/system/system.jl) | Concrete dynamical systems (extends MathematicalSystems / HybridSystems), time discretization, reachable-set over/under-approximations of the dynamics (`approximation/`, with the `input_cache`/`reach_set` per-input hoisting hooks the symbolic backend builds on), local affine approximations (`build_affine_approximation` + providers), controllers (trait-based protocol, plain-data/serializable), trajectories + the closed-loop simulation engine, ellipsoidal transition synthesis (`solve_transition`). |
 | `Problem` | [src/problem/problems.jl](src/problem/problems.jl) | Control-task **specifications** = `ProblemType` subtypes (solver-independent). |
 | `Mapping` | [src/mapping/mapping.jl](src/mapping/mapping.jl) | Concrete ↔ abstract **discretization**: grids, cells, `AbstractMapping`, inclusion modes `INNER/OUTER/CENTER`. |
 | `Symbolic` | [src/symbolic/symbolic_model.jl](src/symbolic/symbolic_model.jl) | Builds the finite **automaton abstraction** (`SymbolicModel`) from a system + mapping; parallel build backends (threaded / distributed / SLURM). |
@@ -199,7 +199,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
   `AlternatingSimulationProblem` / `BisimulationQuotientProblem`. See
   [src/problem/problems.jl](src/problem/problems.jl). Infinite horizons use the `Infinity()` sentinel.
 - **Growth bound** — a function over-approximating a cell's reachable set (to build sound transitions);
-  supplied via `jacobian_bound` + `ST.ContinuousTimeGrowthBound_from_jacobian_bound`. `approx_mode`
+  supplied via `ST.ContinuousTimeGrowthBound(system; jacobian_bound)`. `approx_mode`
   selects `GROWTH` vs `LINEARIZED`.
 - **Post / pre** — `post(sym, q, u)` = successor abstract states; `pre(sym, target)` = predecessors.
   Fixed-point pre-image computation drives reachability synthesis.
@@ -209,7 +209,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
   the Lyapunov functions for the ellipsoid abstractions.
 - **Controller / feedback** — `AbstractController` splits into **static** (state-feedback map `q ↦ u`)
   and **dynamic** (has internal memory). Protocol: `initial_state`, `update_state`, `output_control`,
-  `is_defined`, `domain`. See [src/system/controller.jl](src/system/controller.jl).
+  `is_defined`, `domain`. See [src/system/controllers/controller.jl](src/system/controllers/controller.jl).
 
 ---
 
@@ -237,14 +237,21 @@ concrete_controller = get_attribute(model, "concrete_controller")
   `SymbolicModel{N,M}`, `AbstractMapping{N,T}`, `OptimalControlProblem{S,XI,XT,XC,T}`.
 - **StaticArrays everywhere** for small fixed-size data — `SVector`/`SMatrix` for coordinates, grid
   steps, system matrices, ellipsoid shapes.
-- Validating/normalizing constructors (e.g. `Ellipsoid` symmetrizes and checks `isposdef`).
+- Validating/normalizing constructors (e.g. `UT.box` rejects crossed bounds; an empty
+  region is `LazySets.EmptySet`, never a sentinel).
 - Sentinel/singleton types and `@enum` instead of magic values (`struct Infinity end`,
   `@enum INCL_MODE INNER OUTER CENTER`).
 - `nothing` + short-circuit guards in hot paths (`q in domain(ctrl) || return false`).
 - Plot logic lives in `@recipe`/`@series` functions next to each type — keep it out of core logic.
 
-**Reuse before writing.** Prefer existing primitives — `UT.HyperRectangle`, `MP.GridFree`,
-`UT.Ellipsoid`, the data structures in `src/utils/` — over re-implementing.
+**Reuse before writing.** Prefer existing primitives — `UT.box` / `LazySets.Hyperrectangle`,
+`LazySets.Ellipsoid` (construct from a quadratic-form matrix `P` via `Q = inv(P)`; never swap
+the two silently), `MP.GridFree`, the LazySets API (`center`, `low`/`high`, `∈`,
+`box_approximation`, `vertices_list`, `sample`) and the data structures in `src/utils/` — over
+re-implementing. Set predicates go through `UT.is_included` / `UT.is_disjoint` (Dionysos-owned
+verbs; `Base` methods on two LazySets-owned types are piracy and fail the Aqua gate). Grid
+discretization (`MP.get_states_from_set`) accepts any bounded `LazySet` — zonotopes, balls,
+polytopes included.
 
 ---
 

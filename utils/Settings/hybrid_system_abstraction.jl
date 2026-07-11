@@ -20,8 +20,8 @@ const AB = OP.Abstraction
 # ==============================
 
 # State and input sets (1D)
-X = UT.HyperRectangle(SVector(-1.0), SVector(1.0))
-U = UT.HyperRectangle(SVector(-1.5), SVector(1.5))
+X = UT.box(SVector(-1.0), SVector(1.0))
+U = UT.box(SVector(-1.5), SVector(1.5))
 
 # Mode dynamics (return SVector for StaticArrays friendliness)
 mode1_f(x, u) = SVector(0.5 * x[1] + u[1])
@@ -31,14 +31,14 @@ mode1_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode1_f, 1, 1, X, U
 mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
 # Time system (1D time in [0,3], derivative 1)
-Tdom = UT.HyperRectangle(SVector(0.0), SVector(3.0))
+Tdom = UT.box(SVector(0.0), SVector(3.0))
 time_sys = MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(1.0), Tdom)
 
 # Guard and reset for switching (augmented state is [x; t] => 2D)
-guard_1 = UT.HyperRectangle(SVector(0.2, 0.0), SVector(0.7, 0.9))
+guard_1 = UT.box(SVector(0.2, 0.0), SVector(0.7, 0.9))
 
 struct FixedPointResetMap <: MS.AbstractMap
-    domain::UT.HyperRectangle
+    domain::UT.Box
     target::Vector{Float64}
 end
 
@@ -69,8 +69,8 @@ concrete_system =
 initial_state = (SVector(0.0), 0.0, 1)
 
 # Target: in mode 2, x ∈ [-1,1], t ∈ [1,2]
-Xs_target = [UT.HyperRectangle(SVector(-1.0), SVector(1.0))]
-Ts_target = [UT.HyperRectangle(SVector(1.0), SVector(2.0))]
+Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
+Ts_target = [UT.box(SVector(1.0), SVector(2.0))]
 Ns_target = [2]
 target_set = (Xs_target, Ts_target, Ns_target)
 

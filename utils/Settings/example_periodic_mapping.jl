@@ -13,7 +13,7 @@ function visualize_explicit_mapping(m::MP.PeriodicGridMapping)
     coord = MP.wrap_coord(m, p)
 
     # Add a rectangle that spans all x (periodic) at fixed y = 0
-    rect = UT.HyperRectangle(SVector(4.5, 2.5), SVector(4.8, 4.5))
+    rect = UT.box(SVector(4.5, 2.5), SVector(4.8, 4.5))
     MP.add_set!(m, rect, MP.OUTER)
 
     fig = plot(; aspect_ratio = :equal);
@@ -48,7 +48,7 @@ function visualize_implicit_mapping(m::MP.PeriodicGridMapping)
     coord = MP.wrap_coord(m, p)
 
     # # Add a rectangle that spans all x (periodic) at fixed y = 0
-    # rect = UT.HyperRectangle(
+    # rect = UT.box(
     #     SVector(4.5, 2.5),
     #     SVector(4.8, 4.5),
     # )
@@ -134,7 +134,7 @@ grid = MP.GridFree(origin, h)
 grid = MP.get_grid_in_periods(periodic_dims, periods, start, h)
 
 # Construct the mapping
-rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(4.0, 8.0))
+rect = UT.box(SVector(0.0, 0.0), SVector(4.0, 8.0))
 mapping = MP.ImplicitGridMapping(grid, rect; incl_mode = MP.INNER)
 m = MP.PeriodicGridMapping(periodic_dims, periods, start, mapping)
 visualize_implicit_mapping(m)

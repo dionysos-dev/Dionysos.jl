@@ -16,7 +16,7 @@ This model approximates system behavior by propagating the linearized dynamics a
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector) -> LazySets.Hyperrectangle`
 It evaluates the system at the center, adds linearized spread based on Jacobian, and inflates with the error bound.
 """
 struct DiscreteTimeLinearized{S <: MS.ConstrainedBlackBoxControlDiscreteSystem, FL, FE} <:
@@ -28,23 +28,25 @@ end
 
 get_system(approx::DiscreteTimeLinearized) = approx.system
 
+function input_cache(approx::DiscreteTimeLinearized, r, u)
+    N = length(r)
+    e = LA.norm(r, Inf)
+    Fe = approx.error_map(e, u)
+    _H_ = SMatrix{N, N}(LA.I) .* r
+    _ONE_ = ones(SVector{N})
+    return (Fe = Fe, H = _H_, ONE = _ONE_)
+end
+
+function reach_set(approx::DiscreteTimeLinearized, elem, u, cache)
+    Fx, DFx = approx.linsys_map(LazySets.center(elem), cache.H, u)
+    rad = abs.(DFx) * cache.ONE .+ cache.Fe
+    return LazySets.Hyperrectangle(Fx, rad)
+end
+
 function get_over_approximation_map(approx::DiscreteTimeLinearized)
-    return (rect::UT.HyperRectangle, u) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
-        e = LA.norm(r, Inf)
-        N = UT.get_dim(rect)
-
-        _H_ = SMatrix{N, N}(LA.I) .* r
-        _ONE_ = ones(SVector{N})
-
-        Fe = approx.error_map(e, u)
-        Fr = r .+ Fe
-
-        Fx, DFx = approx.linsys_map(x, _H_, u)
-
-        rad = abs.(DFx) * _ONE_ .+ Fe
-        return UT.HyperRectangle(Fx - rad, Fx + rad)
+    return (elem, u) -> begin
+        r = LazySets.radius_hyperrectangle(elem)
+        return reach_set(approx, elem, u, input_cache(approx, r, u))
     end
 end
 
@@ -62,7 +64,7 @@ The method propagates both the nominal trajectory and its linearized sensitivity
 
 # Overapproximation Map
 Returns a function of the form:
-    `f(rect::HyperRectangle, u::SVector, tstep::Real) -> HyperRectangle`
+    `f(rect::LazySets.AbstractHyperrectangle, u::SVector, tstep::Real) -> LazySets.Hyperrectangle`
 The result is a conservative reachable set from the center using linearization + second-order error correction.
 """
 struct ContinuousTimeLinearized{
@@ -78,21 +80,20 @@ end
 get_system(approx::ContinuousTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::ContinuousTimeLinearized)
-    return (rect::UT.HyperRectangle, u, tstep) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
+    return (rect, u, tstep) -> begin
+        x = LazySets.center(rect)
+        r = LazySets.radius_hyperrectangle(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dim(rect)
+        N = LazySets.dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u, tstep)
-        Fr = r .+ Fe
 
         Fx, DFx = approx.linsys_map(x, _H_, u, tstep)
         rad = abs.(DFx) * _ONE_ .+ Fe
-        return UT.HyperRectangle(Fx - rad, Fx + rad)
+        return LazySets.Hyperrectangle(Fx, rad)
     end
 end
 

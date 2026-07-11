@@ -6,6 +6,7 @@ import LinearAlgebra as LA
 
 import MathematicalSystems
 MS = MathematicalSystems
+import LazySets
 
 import Dionysos
 const DI = Dionysos
@@ -46,6 +47,10 @@ mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
     k2::Union{Nothing, Int}
     continues::Union{Nothing, Bool}
 
+    # solver-side avoid sets (obstacles are not part of the problem specification
+    # types; they are consumed analytically by the RRT `keep` step)
+    obstacles::Vector{LazySets.LazySet}
+
     _found_initial::Bool
     _can_rewire::Bool
     _initial_node::Union{Nothing, Any}
@@ -77,6 +82,7 @@ mutable struct Optimizer{T} <: OP.AbstractDionysosOptimizer
             nothing,
             nothing,
             nothing,
+            LazySets.LazySet[],
             false,
             false,
             nothing,
@@ -107,7 +113,8 @@ function set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = LazySets.LazySet[],
 )
     # reset internal state
     opt._found_initial = false
@@ -125,6 +132,7 @@ function set_optimizer!(
     MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
     MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
     MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+    MOI.set(opt, MOI.RawOptimizerAttribute("obstacles"), obstacles)
 
     # defaults (set here so your old call sites still work)
     MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
@@ -154,7 +162,8 @@ function set_optimizer!(
     new_conf,
     keep,
     stop_crit,
-    compute_transition,
+    compute_transition;
+    obstacles = LazySets.LazySet[],
 )
     opt._found_initial = false
     opt._can_rewire = false
@@ -170,6 +179,7 @@ function set_optimizer!(
     MOI.set(opt, MOI.RawOptimizerAttribute("RRTstar"), RRTstar)
     MOI.set(opt, MOI.RawOptimizerAttribute("continues"), continues)
     MOI.set(opt, MOI.RawOptimizerAttribute("maxIter"), maxIter)
+    MOI.set(opt, MOI.RawOptimizerAttribute("obstacles"), obstacles)
 
     MOI.set(opt, MOI.RawOptimizerAttribute("distance"), distance)
     MOI.set(opt, MOI.RawOptimizerAttribute("rand_state"), rand_state)
@@ -191,8 +201,6 @@ end
 
 ST.controller_kind(::TreeStaticController) = ST.StaticKind()
 ST.domain(ctrl::TreeStaticController) = ctrl.tree
-ST.initial_state(::TreeStaticController) = nothing
-ST.update_state(::TreeStaticController, q, x) = nothing
 
 function _best_tree_action(ctrl::TreeStaticController, x)
     compare(E, x) = x ∈ E
@@ -278,14 +286,14 @@ end
 # Default algorithm parameters
 # ----------------------------
 
-function distance(E1::UT.Ellipsoid, E2::UT.Ellipsoid)
-    return UT.centerDistance(E1, E2)
+function distance(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid)
+    return UT.center_distance(E1, E2)
 end
 
 function get_candidate(
     tree::UT.Tree,
     X,
-    E0::UT.Ellipsoid;
+    E0::LazySets.Ellipsoid;
     probTarget = 0.15,
     probSkew = 0.35,
 )
@@ -293,10 +301,10 @@ function get_candidate(
     r = rand()
 
     if r < probTarget
-        return E0.c
+        return LazySets.center(E0)
     elseif r < probTarget + probSkew
         α = 0.7 + 0.3 * rand()   # strongly biased toward E0
-        return α * E0.c + (1 - α) * guess
+        return α * LazySets.center(E0) + (1 - α) * guess
     else
         return guess
     end
@@ -304,14 +312,14 @@ end
 
 function rand_state(
     tree::UT.Tree,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer,
 )
     concrete_problem = opt.concrete_problem
     xrand = get_candidate(tree, concrete_problem.system.X, EI)
-    return UT.Ellipsoid(Matrix{Float64}(LA.I(length(xrand))), xrand)
+    return LazySets.Ellipsoid(collect(float.(xrand)), Matrix{Float64}(LA.I(length(xrand))))
 end
 
 function get_closest_reachable_point(
@@ -343,7 +351,7 @@ end
 function new_conf(
     abstract_system::UT.Tree,
     Nnear::UT.NodeT,
-    Erand::UT.Ellipsoid,
+    Erand::LazySets.Ellipsoid,
     opt::Optimizer,
 )
     concrete_problem = opt.concrete_problem
@@ -351,56 +359,50 @@ function new_conf(
 
     (unew, xnew, uBestDist) = get_closest_reachable_point(
         concrete_system,
-        Nnear.state.c,
-        Erand.c,
+        LazySets.center(Nnear.state),
+        LazySets.center(Erand),
         concrete_system.U,
         concrete_system.Uformat,
     )
 
     wnew = zeros(concrete_system.nw)
 
-    (affineSys, L) = ST.buildAffineApproximation(
-        concrete_system.fsymbolic,
-        concrete_system.x,
-        concrete_system.u,
-        concrete_system.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(concrete_system),
         xnew,
         unew,
-        wnew,
-        xnew .+ concrete_system.ΔX,
-        unew .+ concrete_system.ΔU,
-        wnew .+ concrete_system.ΔW,
+        wnew;
+        δx = concrete_system.ΔX,
+        δu = concrete_system.ΔU,
     )
 
-    S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-
-    return UT.transition_backward(
-        affineSys,
+    result = ST.solve_transition_backward(
+        approx.system,
         Nnear.state,
         xnew,
         unew,
-        concrete_system.Uformat,
-        concrete_system.Wformat,
-        S,
-        L,
+        approx.Uformat,
+        approx.Wformat,
+        concrete_problem.transition_cost,
+        approx.lipschitz,
         opt.sdp_opt;
         λ = opt.λ,
         maxδx = opt.maxδx,
         maxδu = opt.maxδu,
     )
+    return (result.source, result.controller, result.cost)
 end
 
 function keep(
     abstract_system::UT.Tree,
     LSACnew,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer;
     scale_for_obstacle = true,
 )
-    concrete_problem = opt.concrete_problem
-    obstacles = concrete_problem.system.obstacles
+    obstacles = opt.obstacles
 
     minDist = Inf
     iMin = 0
@@ -410,13 +412,16 @@ function keep(
 
         if Enew === nothing
             # infeasible candidate
-        elseif EI ∈ Enew
+        elseif UT.is_included(EI, Enew)
             iMin = i
             break
-        elseif minDist > LA.norm(EI.c - Enew.c)
-            if Nnear == abstract_system.root || LA.eigmin(EI.P * 0.5 - Enew.P) > 0
+        elseif minDist > UT.center_distance(EI, Enew)
+            # Rewire heuristic in quadratic-form matrices; one small inversion
+            # per candidate, dwarfed by the SDP solve that produced it.
+            if Nnear == abstract_system.root ||
+               LA.eigmin(UT.get_quadratic_form(EI) * 0.5 - UT.get_quadratic_form(Enew)) > 0
                 iMin = i
-                minDist = LA.norm(EI.c - Enew.c)
+                minDist = UT.center_distance(EI, Enew)
             end
         end
     end
@@ -426,7 +431,7 @@ function keep(
     ElMin, contMin, costMin, NnearMin = LSACnew[iMin]
 
     if ElMin !== nothing
-        if all(O -> !UT.is_intersecting(ElMin, O), obstacles)
+        if all(O -> UT.is_disjoint(ElMin, O), obstacles)
             return [LSACnew[iMin]]
         elseif scale_for_obstacle
             for O in obstacles
@@ -442,47 +447,41 @@ function keep(
     return []
 end
 
-function compute_transition(E1::UT.Ellipsoid, E2::UT.Ellipsoid, opt::Optimizer)
+function compute_transition(E1::LazySets.Ellipsoid, E2::LazySets.Ellipsoid, opt::Optimizer)
     concrete_problem = opt.concrete_problem
     concrete_system = concrete_problem.system
 
-    xnew = E1.c
+    xnew = LazySets.center(E1)
     unew = zeros(concrete_system.nu)
     wnew = zeros(concrete_system.nw)
 
-    (affineSys, L) = ST.buildAffineApproximation(
-        concrete_system.fsymbolic,
-        concrete_system.x,
-        concrete_system.u,
-        concrete_system.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(concrete_system),
         xnew,
         unew,
-        wnew,
-        xnew .+ concrete_system.ΔX,
-        unew .+ concrete_system.ΔU,
-        wnew .+ concrete_system.ΔW,
+        wnew;
+        δx = concrete_system.ΔX,
+        δu = concrete_system.ΔU,
     )
 
-    S = UT.get_full_psd_matrix(concrete_problem.transition_cost)
-
-    ans, cont, cost = UT.transition_fixed(
-        affineSys,
+    result = ST.solve_transition(
+        approx.system,
         E1,
         E2,
-        concrete_system.Uformat,
-        concrete_system.Wformat,
-        S,
+        approx.Uformat,
+        approx.Wformat,
+        concrete_problem.transition_cost,
         opt.sdp_opt,
     )
 
-    return ans, cont, cost
+    return result.feasible, result.controller, result.cost
 end
 
 function stop_crit(
     abstract_system::UT.Tree,
     LNnew,
-    EF::UT.Ellipsoid,
-    EI::UT.Ellipsoid,
+    EF::LazySets.Ellipsoid,
+    EI::LazySets.Ellipsoid,
     distance,
     opt::Optimizer,
 )
@@ -515,7 +514,7 @@ function stop_crit(
     end
 
     newEllipsoids = [newNode.state for newNode in LNnew]
-    return any(E -> (EI ∈ E), newEllipsoids) && !continues
+    return any(E -> UT.is_included(EI, E), newEllipsoids) && !continues
 end
 
 end # module

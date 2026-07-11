@@ -1,6 +1,7 @@
 using StaticArrays
 using MathematicalSystems
 using Dionysos
+import LazySets
 using JuMP
 using Random
 using Symbolics
@@ -23,16 +24,16 @@ include("../../problems/toy_problem.jl")
 # 1) Problem
 # ------------------------------------------------------------
 
-_X_ = UT.HyperRectangle(SVector(-3.0, -3.0), SVector(4.0, 4.0))
-_U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+_X_ = UT.box(SVector(-3.0, -3.0), SVector(4.0, 4.0))
+_U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
 concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
 jacobian_bound = ToyProblem.jacobian_bound()
 
-_I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+_I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
-g11 = UT.HyperRectangle(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
-g12 = UT.HyperRectangle(SVector(1.0, 2.0), SVector(3.0, 3.7))
+g11 = UT.box(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
+g12 = UT.box(SVector(1.0, 2.0), SVector(3.0, 3.7))
 target_set = UT.set_union([g11, g12])
 
 concrete_problem =
@@ -95,7 +96,8 @@ trajectory_cost = function (problem, traj)
     us = traj.u.seq
 
     target_distances = [
-        minimum(LA.norm(x - UT.get_center(g)) for g in problem.target_set.sets) for x in xs
+        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
+        for x in xs
     ]
 
     best_target_distance = minimum(target_distances)
@@ -147,7 +149,7 @@ Symbolics.@variables w[1:2]
 fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
 
 # Defines zero disturbance set
-Wformat = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0))
+Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
 
 # This object tells the certifier how to build local affine approximations along the trajectory.
 provider = ST.SymbolicAffineApproximationProvider(
@@ -156,8 +158,8 @@ provider = ST.SymbolicAffineApproximationProvider(
     collect(u),                  # symbolic input variables
     collect(w),                  # symbolic disturbance variables
     [0.0, 0.0],                  # disturbance radius ΔW
-    UT.format_input_set(_U_),    # input constraints for LMI
-    UT.format_noise_set(Wformat), # disturbance vertices for LMI
+    ST.format_input_set(_U_),    # input constraints for LMI
+    ST.format_noise_set(Wformat), # disturbance vertices for LMI
 )
 
 # These is only used if the first argument is true
@@ -196,7 +198,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
     maxδx = 1e6, # Upper bound on predecessor ellipsoid size. Larger makes the LMI easier. 
     maxδu = 1e6, # Upper bound on controller/input deviation (deviation from nominal input). Larger makes the LMI easier.
     λ = 0.3, # Objective tradeoff. Small λ favors larger ellipsoids; large λ favors lower transition cost.
-    terminal_shape = Matrix{Float64}(LA.I, 2, 2) / 0.5^2, # Shape matrix of the terminal ellipsoid centered at the last trajectory point.
+    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.5^2, # shape matrix Q of the terminal ellipsoid centered at the last trajectory point
     transition_cost = trans_cost,
     linearization_δx = [1.1, 1.0], # State box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
     linearization_δu = [0.5, 0.5], # Input box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
@@ -280,17 +282,10 @@ function input_image_ellipsoid(E, κ)
     K = Matrix{Float64}(κ.A)
     b = collect(Float64, κ.c)
 
-    c_x = collect(Float64, E.c)
-    P_x = Matrix{Float64}(E.P)
+    c_u = K * collect(Float64, LazySets.center(E)) + b
+    Q_u = K * Matrix{Float64}(LazySets.shape_matrix(E)) * K'
 
-    Q_x = inv(LA.Symmetric(P_x))
-
-    c_u = K * c_x + b
-    Q_u = K * Q_x * K'
-
-    P_u = inv(LA.Symmetric(Q_u))
-
-    return UT.Ellipsoid(P_u, c_u)
+    return LazySets.Ellipsoid(c_u, UT._symmetrize(Q_u))
 end
 
 function sampled_indices(n::Int, max_items::Int)
@@ -396,7 +391,7 @@ end
 
 for s in cert_result.steps
     if s.ellipsoid !== nothing
-        eigs = LA.eigvals(Matrix(s.ellipsoid.P))
+        eigs = LA.eigvals(Matrix(UT.get_quadratic_form(s.ellipsoid)))
         println("k=", s.k, " min eig=", minimum(eigs), " max eig=", maximum(eigs))
     end
 end

@@ -9,22 +9,10 @@ import JuMP: MOI
 
 import ..AbstractDionysosOptimizer
 
-# ------ Internal data structure for Discrete controllers ------
-mutable struct DiscreteControlTable
-    U::Vector{Vector{Int}}
-end
-
-DiscreteControlTable(nstates::Int) = DiscreteControlTable([Int[] for _ in 1:nstates])
-
-(C::DiscreteControlTable)(q::Int) = C.U[q]
-
-add_control!(C::DiscreteControlTable, q::Int, u::Int) = push!(C.U[q], u)
-
-function set_control!(C::DiscreteControlTable, q::Int, u::Int)
-    empty!(C.U[q])
-    push!(C.U[q], u)
-    return u
-end
+# The serializable q -> [u…] map lives in System next to DiscreteStaticController.
+const DiscreteControlTable = ST.ControlTable
+const add_control! = ST.add_control!
+const set_control! = ST.set_control!
 
 # ------------------------------------------------------------
 # Utilities

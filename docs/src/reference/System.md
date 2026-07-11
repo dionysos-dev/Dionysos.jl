@@ -79,6 +79,8 @@ The following function define the `overapproximation` interface:
 
 ```@docs
 Dionysos.System.get_over_approximation_map
+Dionysos.System.input_cache
+Dionysos.System.reach_set
 ```
 
 ### Concrete implementations of abstract approximation types
@@ -94,7 +96,7 @@ Dionysos.System.ContinuousTimeRandomSimulation
 
 ```@docs
 Dionysos.System.DiscreteTimeOverApproximationMap
-Dionysos.System.ContinuousTimeSystemOverApproximationMap
+Dionysos.System.ContinuousTimeOverApproximationMap
 ```
 
 ```@docs
@@ -107,9 +109,55 @@ Dionysos.System.DiscreteTimeLinearized
 Dionysos.System.ContinuousTimeLinearized
 ```
 
+## Affine approximation
+
+Local affine approximations of nonlinear dynamics (linearization + Lipschitz
+error bounds), consumed by the lazy-ellipsoids abstraction and the ellipsoidal
+backward trajectory certifier.
+
+```@docs
+Dionysos.System.build_affine_approximation
+Dionysos.System.AffineApproximation
+Dionysos.System.AbstractAffineApproximationProvider
+Dionysos.System.SymbolicAffineApproximationProvider
+Dionysos.System.AnalyticAffineApproximationProvider
+Dionysos.System.SymbolicSystem
+Dionysos.System.get_affine_provider
+```
+
 ## Controllers
+
+The controller protocol (argument order `(controller, memory, measurement)`):
+`controller_kind`, `output_control`, `is_defined`, and — for dynamic
+controllers — `initial_state` / `update_state`; static controllers inherit
+memoryless defaults from the trait. Controllers are **plain data** (tables,
+sets, struct callables), so they can be saved to JLD2 and reloaded.
+
 ```@docs
 Dionysos.System.ControllerKind
+Dionysos.System.DiscreteStaticController
+Dionysos.System.DiscreteDynamicController
+Dionysos.System.ControlTable
+Dionysos.System.add_control!
+Dionysos.System.set_control!
+Dionysos.System.AutomatonMemoryController
+Dionysos.System.AffineController
+Dionysos.System.as_controller
+```
+
+## Transition synthesis
+
+Synthesis of affine controllers certifying ellipsoid-to-ellipsoid transitions
+of affine systems (S-procedure LMIs), used by the ellipsoidal abstraction
+solvers and the backward trajectory certifier.
+
+```@docs
+Dionysos.System.solve_transition
+Dionysos.System.solve_transition_backward
+Dionysos.System.TransitionResult
+Dionysos.System.stabilizing_feedback
+Dionysos.System.format_input_set
+Dionysos.System.format_noise_set
 ```
 
 ## Trajectories 
@@ -118,4 +166,6 @@ Dionysos.Utils.wrap_coord
 Dionysos.System.DiscreteTrajectory
 Dionysos.System.ContinuousTrajectory
 Dionysos.System.Trajectory
+Dionysos.System.ClosedLoopTrajectory
+Dionysos.System.get_closed_loop_trajectory
 ```

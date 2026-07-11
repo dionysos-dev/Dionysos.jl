@@ -23,7 +23,7 @@ println("Started test")
     h = SVector(1.0, 2.0)
 
     Xgrid = MP.GridFree(x0, h)
-    Xrect = UT.HyperRectangle(lb, ub)
+    Xrect = UT.box(lb, ub)
 
     # Implicit universe = all grid cells covering Xrect (OUTER)
     Xmap = MP.ImplicitGridMapping(Xgrid, Xrect; incl_mode = MP.OUTER)

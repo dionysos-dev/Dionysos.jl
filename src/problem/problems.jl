@@ -3,7 +3,7 @@ Base.isfinite(::Infinity) = false
 
 discretize_time(time::Real, Δt::Real; round_up = true) =
     round_up ? ceil(Int, time / Δt) : floor(Int, time / Δt)
-discretize_time(::Infinity, Δt) = Infinity()
+discretize_time(::Infinity, Δt; round_up = true) = Infinity()
 
 """
     ProblemType

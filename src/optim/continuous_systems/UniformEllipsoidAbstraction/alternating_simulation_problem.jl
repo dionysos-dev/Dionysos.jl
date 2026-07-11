@@ -247,7 +247,7 @@ function _compute_max_reachable_rect(A, x, B, Upoly, c, R)
 
     lb = min(eachcol(Axcell)...) + min(eachcol(Bu)...) + c - R
     ub = max(eachcol(Axcell)...) + max(eachcol(Bu)...) + c + R
-    return UT.HyperRectangle(lb, ub)
+    return UT.box(lb, ub)
 end
 
 function compute_abstract_system_from_concrete_system!(
@@ -267,6 +267,11 @@ function compute_abstract_system_from_concrete_system!(
     Xmap = SY.get_state_mapping(sym)
     Rset = SY.get_retained_set(sym)
     X = hybridsys.ext[:X]
+
+    # P/Pm are the quadratic-form matrices of the cells; the LazySets shape
+    # matrices are their inverses, computed once outside the loop.
+    Q = UT._symmetrize(inv(P))
+    Qm = UT._symmetrize(inv(Pm))
 
     trans_count = 0
 
@@ -293,23 +298,23 @@ function compute_abstract_system_from_concrete_system!(
         for q′ in cand
             xm = SY.get_concrete_state(sym, q′)
 
-            ans, cont, cost = UT._has_transition(
+            result = ST.solve_transition(
                 hybridsys.resetmaps[m],
-                UT.Ellipsoid(P, x),
-                UT.Ellipsoid(Pm, xm),
+                LazySets.Ellipsoid(collect(x), Q; check_posdef = false),
+                LazySets.Ellipsoid(collect(xm), Qm; check_posdef = false),
                 U,
                 W,
                 L,
                 opt_sdp,
             )
 
-            if ans
+            if result.feasible
                 trans_count += 1
                 symbol = q′
 
                 SY.add_transition!(sym, q, q′, symbol)
-                transitionCost[(q, q′)] = cost
-                transitionCont[(q, q′)] = cont
+                transitionCost[(q, q′)] = result.cost
+                transitionCont[(q, q′)] = result.controller
             end
         end
     end

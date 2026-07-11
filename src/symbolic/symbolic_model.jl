@@ -297,9 +297,6 @@ end
 ST.controller_kind(::QuantizedStaticController) = ST.StaticKind()
 ST.domain(ctrl::QuantizedStaticController) = ctrl.sym
 
-ST.initial_state(ctrl::QuantizedStaticController) = nothing
-ST.update_state(ctrl::QuantizedStaticController, x, y) = nothing
-
 function ST.is_defined(ctrl::QuantizedStaticController, x, y)
     y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
     y_checked === nothing && return false
@@ -370,18 +367,17 @@ end
 
 #---------- Quantization -------------
 
+# Dispatch on the static/dynamic trait, so any abstract controller obeying the
+# protocol (table-backed, closure-backed, ...) can be concretized.
 function quantize_controller(
     sym::SymbolicModel,
-    ctrl::ST.DiscreteStaticController;
+    ctrl::ST.AbstractController;
     out_of_domain_handler = NoOutOfDomainHandler(),
 )
-    return QuantizedStaticController(sym, ctrl, out_of_domain_handler)
+    return _quantize_controller(ST.controller_kind(ctrl), sym, ctrl, out_of_domain_handler)
 end
 
-function quantize_controller(
-    sym::SymbolicModel,
-    ctrl::ST.DiscreteDynamicController;
-    out_of_domain_handler = NoOutOfDomainHandler(),
-)
-    return QuantizedDynamicController(sym, ctrl, out_of_domain_handler)
-end
+_quantize_controller(::ST.StaticKind, sym, ctrl, handler) =
+    QuantizedStaticController(sym, ctrl, handler)
+_quantize_controller(::ST.DynamicKind, sym, ctrl, handler) =
+    QuantizedDynamicController(sym, ctrl, handler)

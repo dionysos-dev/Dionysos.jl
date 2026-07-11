@@ -3,6 +3,7 @@ module TestMain
 using Test
 using StaticArrays
 using MathematicalSystems
+import LazySets
 using JuMP
 import MathOptInterface as MOI
 using Dionysos
@@ -27,8 +28,8 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
     # ------------------------------------------------------------
     # 1) Concrete system + AlternatingSimulationProblem abstraction build
     # ------------------------------------------------------------
-    _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-    _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+    _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+    _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
     concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
     jacobian_bound = ToyProblem.jacobian_bound()
@@ -85,15 +86,15 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
     # ------------------------------------------------------------
     # 2) Co-safe LTL labeling + monitor
     # ------------------------------------------------------------
-    _I_ = UT.HyperRectangle(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+    _I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 
-    g1 = UT.HyperRectangle(SVector(1.0, 1.0), SVector(1.7, 1.7))
-    g2 = UT.HyperRectangle(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
+    g1 = UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7))
+    g2 = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
 
-    obs = UT.HyperRectangle(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
+    obs = UT.box(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
 
-    danger1 = UT.HyperRectangle(SVector(-0.5, -0.5), SVector(0.5, 0.5))
-    danger2 = UT.HyperRectangle(SVector(1.3, -0.5), SVector(2.0, 0.5))
+    danger1 = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+    danger2 = UT.box(SVector(1.3, -0.5), SVector(2.0, 0.5))
     danger = UT.set_union([danger1, danger2])
 
     φ = ltl"G(!obs) & F(g1 & ((!danger) U g2))"
@@ -201,7 +202,10 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
     # every x should stay in domain X (soft sanity; allow boundary tol)
     X = concrete_system.X
-    @test all(x -> all(i -> X.lb[i] - 1e-8 <= x[i] <= X.ub[i] + 1e-8, 1:2), xs)
+    @test all(
+        x -> all(i -> LazySets.low(X, i) - 1e-8 <= x[i] <= LazySets.high(X, i) + 1e-8, 1:2),
+        xs,
+    )
 
     # ------------------------------------------------------------
     # 5) Optional plot smoke test (skip on CI)

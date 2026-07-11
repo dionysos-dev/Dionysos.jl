@@ -127,7 +127,6 @@ end
             @series begin
                 label := first_series ? label : ""
                 first_series = false
-                dims := [1, 2]
                 return intrect2_to_real_rect(grid, r, d1, d2)
             end
         end
@@ -207,12 +206,12 @@ empty_states!(::MappingSet{N}) where {N} = error("MappingSet is read-only")
 # -------------------------- 
 
 mutable struct ImplicitStateSet{N} <: AbstractStateSet{N}
-    set::UT.Region
+    set::LazySets.LazySet
     incl_mode::INCL_MODE
 end
 
 ImplicitStateSet(set, incl_mode::INCL_MODE) =
-    ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
+    ImplicitStateSet{LazySets.dim(set)}(set, incl_mode)
 
 function ImplicitStateSet(m::AbstractMapping, set, incl_mode::INCL_MODE)
     if is_periodic(m)
@@ -223,10 +222,10 @@ function ImplicitStateSet(m::AbstractMapping, set, incl_mode::INCL_MODE)
             get_periodic_starts(m),
         )
     end
-    return ImplicitStateSet{UT.get_dim(set)}(set, incl_mode)
+    return ImplicitStateSet{LazySets.dim(set)}(set, incl_mode)
 end
 
-ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(UT.empty_region(N), INNER)
+ImplicitStateSet{N}() where {N} = ImplicitStateSet{N}(LazySets.EmptySet(N), INNER)
 
 Base.copy(S::ImplicitStateSet{N}) where {N} = ImplicitStateSet{N}(S.set, S.incl_mode)
 
@@ -263,24 +262,24 @@ function contains_state(S::ImplicitStateSet{N}, m::GridMapping{N}, q::Int) where
     B = UT.minus_hole(set)
     if S.incl_mode == CENTER
         c = _cell_center(m, q)
-        return UT.point_in_set(set, c)
+        return c ∈ set
 
     elseif S.incl_mode == INNER
         # conservative: every corner must lie in A and outside B
         for xcorner in _cell_corner_iter(m, q)
-            UT.point_in_set(A, xcorner) || return false
-            UT.point_in_set(B, xcorner) && return false
+            xcorner ∈ A || return false
+            xcorner ∈ B && return false
         end
         return true
 
     elseif S.incl_mode == OUTER
         # sufficient: some sample lies in A and outside B
         c = _cell_center(m, q)
-        if UT.point_in_set(A, c) && !UT.point_in_set(B, c)
+        if c ∈ A && c ∉ B
             return true
         end
         for xcorner in _cell_corner_iter(m, q)
-            if UT.point_in_set(A, xcorner) && !UT.point_in_set(B, xcorner)
+            if xcorner ∈ A && xcorner ∉ B
                 return true
             end
         end
@@ -327,7 +326,7 @@ function remove_set!(S::ImplicitStateSet{N}, m::AbstractMapping, set) where {N}
 end
 
 function empty_states!(S::ImplicitStateSet{N}) where {N}
-    return S.set = UT.empty_region(N)
+    return S.set = LazySets.EmptySet(N)
 end
 
 add_state!(::ImplicitStateSet{N}, m::AbstractMapping, q::Int) where {N} =

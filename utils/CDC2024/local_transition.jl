@@ -1,6 +1,7 @@
 using StaticArrays, Random
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
+import LazySets
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -10,11 +11,25 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 
+# `LazySets.affine_map` checks strict positive-definiteness of M*Q*M', which
+# floating-point asymmetry makes fail for near-singular closed-loop maps; map
+# the ellipsoid manually with symmetrization instead.
+function map_ellipsoid(M, E, v)
+    Q = Matrix(M * LazySets.shape_matrix(E) * transpose(M))
+    # plain Vector/Matrix storage: LazySets plot approximation mishandles
+    # SVector-centered ellipsoids (SizedVector MethodError)
+    return LazySets.Ellipsoid(
+        Vector(M * LazySets.center(E) + v),
+        (Q + transpose(Q)) / 2;
+        check_posdef = false,
+    )
+end
+
 function example_box_ellipsoid()
     c = [-10.0; -10.0]
     P = [2.0 6.0; 6.0 20.0]
-    E = UT.Ellipsoid(P, c)
-    box = UT.get_min_bounding_box(E)
+    E = LazySets.Ellipsoid(c, inv(P))
+    box = LazySets.box_approximation(E)
     fig = plot(; aspect_ratio = :equal)
     plot!(fig, box)
     plot!(fig, E)
@@ -25,57 +40,51 @@ end
 include("../../problems/non_linear.jl")
 
 function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
-    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
+    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
     problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
     # Construct the linear approximation
     unew = zeros(sys.nu)
     wnew = zeros(sys.nw)
-    X̄ = xnew .+ sys.ΔX
-    Ū = unew .+ sys.ΔU
-    W̄ = wnew .+ sys.ΔW
-    (affineSys, L) = ST.buildAffineApproximation(
-        sys.fsymbolic,
-        sys.x,
-        sys.u,
-        sys.w,
+    approx = ST.build_affine_approximation(
+        ST.get_affine_provider(sys),
         xnew,
         unew,
-        wnew,
-        X̄,
-        Ū,
-        W̄,
+        wnew;
+        δx = sys.ΔX,
+        δu = sys.ΔU,
     )
+    affineSys = approx.system
 
     # Solve the control problem
-    S = UT.get_full_psd_matrix(problem.transition_cost)
     sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
     maxδx = 100.0
     maxδu = 100.0
 
-    E1, cont, cost = UT.transition_backward(
+    result = ST.solve_transition_backward(
         affineSys,
         E2,
         xnew,
         unew,
-        sys.Uformat,
-        sys.Wformat,
-        S,
-        L,
+        approx.Uformat,
+        approx.Wformat,
+        problem.transition_cost,
+        approx.lipschitz,
         sdp_opt;
         λ = λ,
         maxδx = maxδx,
         maxδu = maxδu,
     )
+    E1, cont, cost = result.source, result.controller, result.cost
 
     # Get results
-    cost_eval(x, u) = UT.function_value(problem.transition_cost, x, u)
-    ETilde = UT.affine_transformation(
-        E1,
+    cost_eval(x, u) = problem.transition_cost(x, u)
+    ETilde = map_ellipsoid(
         affineSys.A + affineSys.B * cont.A,
+        E1,
         affineSys.B * cont.c + affineSys.c,
     )
-    U_used = UT.affine_transformation(E1, cont.A, cont.c)
+    U_used = map_ellipsoid(cont.A, E1, cont.c)
     # Display results
     println()
     println("Max cost : ", cost)
@@ -125,7 +134,18 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     xlabel!("\$u_1\$")
     ylabel!("\$u_2\$")
 
-    plot!(sys.U; color = col3, label = "", fillalpha = 0.4, linealpha = 1.0, linewidth = 2)
+    # a lazy `IntersectionArray` of ellipsoids has no exact plot algorithm in
+    # LazySets; draw each member set instead
+    for member in LazySets.array(sys.U)
+        plot!(
+            member;
+            color = col3,
+            label = "",
+            fillalpha = 0.4,
+            linealpha = 1.0,
+            linewidth = 2,
+        )
+    end
     plot!(U_used; color = :green, label = "Input set used")
     display(fig3)
 
@@ -135,11 +155,11 @@ function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
     return
 end
 
-E2 = UT.Ellipsoid([2.0 0.2; 0.2 0.5], [4.0; 4.0])
+E2 = LazySets.Ellipsoid([4.0; 4.0], inv([2.0 0.2; 0.2 0.5]))
 U = UT.LazySets.IntersectionArray([
-    UT.Ellipsoid([1/25.0 0.0; 0.0 1/25.0], [0.0; 0.0]),
-    UT.Ellipsoid([1/20.0 0.0; 0.0 1/30.0], [0.0; 0.0]),
-    UT.HyperRectangle(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
+    LazySets.Ellipsoid([0.0; 0.0], [25.0 0.0; 0.0 25.0]),
+    LazySets.Ellipsoid([0.0; 0.0], [20.0 0.0; 0.0 30.0]),
+    UT.box(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
 ])
 xnew = SVector{2, Float64}([1.0; 1.0])
 #fig 1

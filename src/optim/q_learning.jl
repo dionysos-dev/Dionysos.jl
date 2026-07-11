@@ -330,7 +330,7 @@ function learn(
             return
         end
         V = value_function(Q, left + 1, mode)
-        before = UT.function_value(V, x)
+        before = V(x)
         # FIXME OSQP does not support accessing `DualObjectiveValue`
         #after = dual_objective_value(model)
         after = MOI.get(model, MOI.ObjectiveValue())

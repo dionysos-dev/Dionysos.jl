@@ -168,7 +168,7 @@ function reached(concrete_problem::PR.OptimalControlProblem, aug_state)
     X_set = Xs_target[idx]
     T_set = Ts_target[idx]
     in_X = x ∈ X_set
-    in_T = t ≥ T_set.lb[1] && t ≤ T_set.ub[1]
+    in_T = LazySets.low(T_set, 1) ≤ t ≤ LazySets.high(T_set, 1)
 
     return in_X && in_T
 end

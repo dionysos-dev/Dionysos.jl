@@ -121,7 +121,7 @@ function safe(concrete_problem::PR.SafetyProblem, aug_state)
     T_set = Ts_safe[idx]
 
     in_X = x ∈ X_set
-    in_T = T_set.lb[1] <= t <= T_set.ub[1]
+    in_T = LazySets.low(T_set, 1) <= t <= LazySets.high(T_set, 1)
 
     return in_X && in_T
 end

@@ -1,6 +1,7 @@
 module OptimizerTrajectoryGenerator
 
 import MathOptInterface as MOI
+import LazySets
 
 import ..AbstractTrajectoryGenerator
 import ..set_problem!
@@ -86,7 +87,7 @@ get_trajectory(gen::TrajectoryGenerator) = gen.trajectory
 get_success(gen::TrajectoryGenerator) = gen.success
 get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 
-select_initial_state(initial_set::UT.AbstractSetNode) = UT.get_center(initial_set)
+select_initial_state(initial_set::LazySets.LazySet) = LazySets.center(initial_set)
 select_initial_state(initial_set::Vector{Int}) = first(initial_set)
 
 function _initial_state(gen::TrajectoryGenerator, problem)
@@ -103,15 +104,13 @@ function _generate_concrete_trajectory(gen::TrajectoryGenerator)
 
     x0 = _initial_state(gen, gen.problem)
 
-    traj = ST.get_closed_loop_trajectory(
+    return ST.get_closed_loop_trajectory(
         discrete_time_system,
         concrete_controller,
         x0,
         gen.nstep;
         trajectory_success = xtraj -> PR.trajectory_success(gen.problem, xtraj),
     )
-
-    return ST.ClosedLoopTrajectory(traj.x, traj.u)
 end
 
 function _generate_abstract_trajectory(gen::TrajectoryGenerator)

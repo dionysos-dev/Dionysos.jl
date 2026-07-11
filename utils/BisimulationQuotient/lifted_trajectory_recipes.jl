@@ -63,7 +63,7 @@ function plot_lifted_bisimulation_makie!(
             color_by
         end
 
-        for part in q.set.parts
+        for part in q.set.array
             xs, ys = _vertices2d(part)
             msh = _polygon_mesh3d(xs, ys, z)
             Makie.mesh!(ax, msh; color = (c, alpha))

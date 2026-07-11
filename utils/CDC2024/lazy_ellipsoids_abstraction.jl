@@ -2,6 +2,7 @@ using StaticArrays, Random
 import LinearAlgebra as LA
 using MathematicalSystems, HybridSystems
 using JuMP, Clarabel
+import LazySets
 using Plots, Colors
 using Test
 Random.seed!(0)
@@ -16,22 +17,23 @@ const AB = OP.Abstraction
 
 include("../../problems/non_linear.jl")
 
-U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0))
+U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0))
 xnew = SVector{2, Float64}([1.0; 1.0])
 ρ = 0.00005
 Wbound = 0.0
 λ = 0.01
 
+obstacles = [
+    LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I(2)) * 50.0),
+    LazySets.Ellipsoid([15.0; -7.0], inv([0.2 0.2; 0.2 2.0] * 0.4)),
+    LazySets.Ellipsoid([20.0; 0.0], inv([2.0 0.2; 0.2 0.5] * 0.2)),
+]
+
 concrete_problem = NonLinear.problem(;
-    X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
-    obstacles = [
-        UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1 / 50, [0.0; 0.0]),
-        UT.Ellipsoid([0.2 0.2; 0.2 2.0] * 0.4, [15.0; -7.0]),
-        UT.Ellipsoid([2.0 0.2; 0.2 0.5] * 0.2, [20.0; 0.0]),
-    ],
+    X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
     U = U,
-    E0 = UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 10.0, [-10.0; -10.0]),
-    Ef = UT.Ellipsoid(Matrix{Float64}(LA.I(2)) * 1.0, [10.0; 10.0]),
+    E0 = LazySets.Ellipsoid([-10.0; -10.0], Matrix{Float64}(LA.I(2)) * 0.1),
+    Ef = LazySets.Ellipsoid([10.0; 10.0], Matrix{Float64}(LA.I(2)) * 1.0),
     state_cost = UT.ZeroFunction(),
     transition_cost = UT.QuadraticStateControlFunction(
         Matrix{Float64}(LA.I(2)),
@@ -41,7 +43,7 @@ concrete_problem = NonLinear.problem(;
         zeros(2),
         1.0,
     ),
-    W = UT.HyperRectangle(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
+    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound)),
     noise = false,
     μ = ρ,
 )
@@ -70,7 +72,8 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     k2,
     RRTstar,
     continues,
-    maxIter,
+    maxIter;
+    obstacles = obstacles,
 )
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
@@ -89,11 +92,11 @@ concrete_lyap_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_lyap_
 
 # ## Simulation
 # We define the cost and stopping criteria for a simulation
-cost_eval(x, u) = UT.function_value(concrete_problem.transition_cost, x, u)
+cost_eval(x, u) = concrete_problem.transition_cost(x, u)
 reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time;
 # We simulate the closed loop trajectory
-x0 = concrete_problem.initial_set.c
+x0 = LazySets.center(concrete_problem.initial_set)
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     concrete_system,
     concrete_controller,
@@ -119,7 +122,7 @@ fig = plot(;
 )
 
 #Display the concrete domain
-for obs in concrete_system.obstacles
+for obs in obstacles
     plot!(obs; color = :black)
 end
 

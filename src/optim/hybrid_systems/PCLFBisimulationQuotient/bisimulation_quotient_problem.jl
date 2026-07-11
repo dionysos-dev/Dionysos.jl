@@ -107,7 +107,9 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     prob = opt.bisimulation_quotient_problem
 
     system = prob.system
-    X = prob.region
+    # the level builder works on HPolytopes; accept any polyhedral region
+    # (e.g. a Hyperrectangle) by converting at the boundary
+    X = UT._as_hpolytope(prob.region)
     regions = prob.observation_regions
 
     Γ, D = build_levels_and_terminal_set(
@@ -268,14 +270,14 @@ function build_slice_sequence(
         local_slices = Vector{UT.SemiLinearSet}(undef, Ns)
 
         if Ps[1] isa Poly
-            local_slices[1] = UT.SemiLinearSet([Ps[1]])
+            local_slices[1] = UT.semilinear_set([Ps[1]])
         else
             local_slices[1] = Ps[1]
         end
 
         for i in 2:Ns
             diff_parts = UT.set_difference_decompose(Ps[i], Ps[i - 1]; atol = atol)
-            local_slices[i] = UT.SemiLinearSet(diff_parts)
+            local_slices[i] = UT.semilinear_set(diff_parts)
         end
         slices[s] = local_slices
     end
@@ -294,7 +296,7 @@ function initialize_partitions!(
     for (s, slice_list) in T.slices
         for (i, Sset) in enumerate(slice_list)
             obs = (i == 1) ? terminal_obs : neutral_obs
-            if UT.is_nonempty_set(Sset)
+            if !isempty(Sset)
                 add_state!(T, s, Sset, obs, i)
             end
         end
@@ -324,9 +326,10 @@ function refine_state_by_observation!(
     outside_parts = Poly[]
     touched = false
 
-    for Q in q.set
-        I = UT.set_intersection(Q, R)
-        if UT.is_nonempty_set(I)
+    for Q in q.set.array
+        # `poly_intersection` prunes: an empty intersection is an `EmptySet`
+        I = UT.poly_intersection(Q, R)
+        if !(I isa LazySets.EmptySet)
             touched = true
             push!(inside_parts, I)
 
@@ -345,12 +348,12 @@ function refine_state_by_observation!(
 
     if !isempty(outside_parts)
         out_id =
-            add_state!(T, old_node, UT.SemiLinearSet(outside_parts), old_obs, old_slice)
+            add_state!(T, old_node, UT.semilinear_set(outside_parts), old_obs, old_slice)
         T.states[out_id].next = old_next
     end
 
     if !isempty(inside_parts)
-        in_id = add_state!(T, old_node, UT.SemiLinearSet(inside_parts), new_obs, old_slice)
+        in_id = add_state!(T, old_node, UT.semilinear_set(inside_parts), new_obs, old_slice)
         T.states[in_id].next = old_next
     end
 
@@ -427,28 +430,28 @@ function refine_one_state!(
     outside_parts = Poly[]
     touched = false
 
-    for Q in q.set
-        Qrem = UT.SemiLinearSet(Q)
+    for Q in q.set.array
+        Qrem = UT.semilinear_set(Q)
 
         for preP in pre_parts
-            I = UT.set_intersection(Qrem, preP)
-            if !UT.is_nonempty_set(I)
+            Ipars = UT.poly_intersection_parts(Qrem, preP)
+            if isempty(Ipars)
                 continue
             end
 
             touched = true
-            append!(inside_parts, I)
+            append!(inside_parts, Ipars)
 
-            parts = UT.set_difference_decompose(Qrem, preP; atol = atol)    # modified because set_difference_decompore now returns a vector
-            Qrem = UT.SemiLinearSet(parts)
-            if !UT.is_nonempty_set(Qrem)
+            # decompose only keeps nonempty pieces, so structural emptiness
+            # of the remainder is exact
+            parts = UT.set_difference_decompose(Qrem, preP; atol = atol)
+            Qrem = UT.semilinear_set(parts)
+            if isempty(Qrem.array)
                 break
             end
         end
 
-        if UT.is_nonempty_set(Qrem)
-            append!(outside_parts, Qrem)
-        end
+        append!(outside_parts, Qrem.array)
     end
 
     touched || return false
@@ -457,11 +460,11 @@ function refine_one_state!(
 
     if !isempty(outside_parts)
         diff_id =
-            add_state!(T, old_node, UT.SemiLinearSet(outside_parts), old_obs, old_slice)
+            add_state!(T, old_node, UT.semilinear_set(outside_parts), old_obs, old_slice)
         T.states[diff_id].next = copy(old_next)
     end
 
-    inter_id = add_state!(T, old_node, UT.SemiLinearSet(inside_parts), old_obs, old_slice)
+    inter_id = add_state!(T, old_node, UT.semilinear_set(inside_parts), old_obs, old_slice)
     T.states[inter_id].next = copy(old_next)
     add_transition!(T, inter_id, mode, target_qid)
 

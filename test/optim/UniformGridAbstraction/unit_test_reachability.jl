@@ -27,10 +27,12 @@ println("Started test")
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap_full, UT.HyperRectangle(lbX, ubX), MP.OUTER)
+    MP.add_set!(Xmap_full, UT.box(lbX, ubX), MP.OUTER)
 
-    # NOTE: your old code had reversed bounds in x: [-1.0, -1.1].
-    obstacle = UT.HyperRectangle(SVector(-1.0, -2.0), SVector(-1.1, 4.0))
+    # The historical version had reversed x-bounds ([-1.0, -1.1]), which the old
+    # sentinel semantics silently treated as an empty obstacle; boxes now reject
+    # crossed bounds, so the obstacle is a real thin strip at x ≈ -1.
+    obstacle = UT.box(SVector(-1.1, -2.0), SVector(-1.0, 4.0))
     bad = Set(MP.get_states_from_set(Xmap_full, obstacle, MP.OUTER))
 
     # Build a filtered explicit mapping containing only "safe" positions
@@ -54,7 +56,7 @@ println("Started test")
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.HyperRectangle(lbU, ubU), MP.OUTER)
+    MP.add_set!(Umap, UT.box(lbU, ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
@@ -73,7 +75,7 @@ println("Started test")
     )
 
     continuous_approx =
-        ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+        ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
     discrete_approx = ST.discretize(continuous_approx, tstep)
 
     symmodel = SY.SymbolicModelList(Xmap, Umap)
@@ -82,14 +84,14 @@ println("Started test")
     # ----------------------------
     # Initial set -> initlist (states)
     # ----------------------------
-    init_rect = UT.HyperRectangle(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
+    init_rect = UT.box(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
     initlist = collect(MP.get_states_from_set(Xmap, init_rect, MP.OUTER))
     @test !isempty(initlist)
 
     # ----------------------------
     # Target set -> targetlist (states)
     # ----------------------------
-    target_rect = UT.HyperRectangle(SVector(0.0, 0.0), SVector(4.0, 4.0))
+    target_rect = UT.box(SVector(0.0, 0.0), SVector(4.0, 4.0))
     targetlist = collect(MP.get_states_from_set(Xmap, target_rect, MP.OUTER))
     @test !isempty(targetlist)
 

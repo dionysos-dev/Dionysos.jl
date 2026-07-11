@@ -3,6 +3,7 @@ module EllipsoidalBackwardTrajectoryCertifier
 import Dionysos
 import LinearAlgebra as LA
 import MathematicalSystems as MS
+import LazySets
 
 const DI = Dionysos
 const PR = DI.Problem
@@ -272,24 +273,26 @@ end
 # Scaling helpers
 # ------------------------------------------------------------
 
+# Coordinate change z = T⁻¹(x − xnext). In quadratic form Pz = TᵀPT, which in
+# shape-matrix form is Qz = T⁻¹·Q·T⁻ᵀ — no inversion of Q needed.
 function _scale_target_ellipsoid(E, xnext, scaling)
     scaling === nothing && return E
 
-    T = Matrix{Float64}(scaling)
-    Tinv = inv(T)
-    Pz = Matrix(T' * Matrix(E.P) * T)
-    cz = collect(Tinv * (collect(E.c) - collect(xnext)))
+    Tinv = inv(Matrix{Float64}(scaling))
+    Qz = UT._symmetrize(Tinv * Matrix(LazySets.shape_matrix(E)) * Tinv')
+    cz = collect(Tinv * (collect(LazySets.center(E)) - collect(xnext)))
 
-    return UT.Ellipsoid(Pz, cz)
+    return LazySets.Ellipsoid(cz, Qz; check_posdef = false)
 end
 
+# Inverse change x = T·z + center: Qx = T·Qz·Tᵀ.
 function _unscale_source_ellipsoid(Ez, center, scaling)
     scaling === nothing && return Ez
 
-    Tinv = inv(Matrix{Float64}(scaling))
-    Px = Matrix(Tinv' * Matrix(Ez.P) * Tinv)
+    T = Matrix{Float64}(scaling)
+    Qx = UT._symmetrize(T * Matrix(LazySets.shape_matrix(Ez)) * T')
 
-    return UT.Ellipsoid(Px, center)
+    return LazySets.Ellipsoid(collect(float.(center)), Qx; check_posdef = false)
 end
 
 function _scaled_affine_system(affsys, xk, xnext, scaling)
@@ -360,7 +363,7 @@ function _transition_backward(
     use_log_det = true,
 )
     if state_scaling === nothing
-        return UT.transition_backward(
+        result = ST.solve_transition_backward(
             affsys,
             E_next,
             xk,
@@ -375,6 +378,7 @@ function _transition_backward(
             λ = λ,
             use_log_det = use_log_det,
         )
+        return result.source, result.controller, result.cost
     end
 
     nx = length(xk)
@@ -384,13 +388,9 @@ function _transition_backward(
     Lz = _scaled_lipschitz(L, nx, state_scaling)
     Sz = _scaled_transition_cost(S, xk, length(uk), state_scaling)
 
-    Pz, kappa_z, cost = UT.transition_backward(
-        affsys_z.A,
-        affsys_z.B,
-        affsys_z.c,
-        affsys_z.D,
-        E_next_z.c,
-        E_next_z.P,
+    result = ST.solve_transition_backward(
+        affsys_z,
+        E_next_z,
         zeros(nx),
         uk,
         Uformat,
@@ -401,19 +401,20 @@ function _transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
+        use_log_det = use_log_det,
     )
 
-    if Pz === nothing || kappa_z === nothing
-        return nothing, nothing, nothing
-    end
+    result.feasible || return nothing, nothing, nothing
 
-    E_prev = _unscale_source_ellipsoid(UT.Ellipsoid(Pz, zeros(nx)), xk, state_scaling)
+    E_prev = _unscale_source_ellipsoid(result.source, xk, state_scaling)
 
-    Kz, ell = UT.get_controller_matrices(kappa_z)
+    # source center is the origin in scaled coordinates, so controller.c == ℓ
+    Kz = Matrix{Float64}(result.controller.A)
+    ell = vec(Float64.(result.controller.c))
     Kx = Kz * inv(Matrix{Float64}(state_scaling))
     cont = MS.AffineMap(Kx, ell - Kx * xk)
 
-    return E_prev, cont, cost
+    return E_prev, cont, result.cost
 end
 
 function _solve_transition(ctx::EllipsoidalBackwardContext, approx, E_next, xk, xnext, uk)
@@ -441,15 +442,15 @@ end
 # ------------------------------------------------------------
 
 function _ellipsoid_axis_radii(E)
-    P = Matrix{Float64}(E.P)
-    Q = inv(LA.Symmetric(P))
+    Q = Matrix{Float64}(LazySets.shape_matrix(E))
     return sqrt.(max.(0.0, LA.diag(Q)))
 end
 
+# log√det(Q) = −log√det(P): larger is a bigger ellipsoid, as before.
 function _ellipsoid_logvolume(E)
-    P = Matrix{Float64}(E.P)
-    F = LA.cholesky(LA.Symmetric(P))
-    return -sum(log, LA.diag(F.U))
+    Q = Matrix{Float64}(LazySets.shape_matrix(E))
+    F = LA.cholesky(LA.Symmetric(Q))
+    return sum(log, LA.diag(F.U))
 end
 
 function _controller_matrices(kappa::MS.AffineMap, nx::Int)
@@ -462,18 +463,13 @@ function _controller_matrices(kappa::AbstractMatrix, nx::Int)
     return K, b
 end
 
-function _controller_matrices(kappa, nx::Int)
-    K, b = UT.get_controller_matrices(kappa)
-    return Matrix{Float64}(K), vec(Float64.(b))
-end
-
 function _controller_image_axis_radii(kappa, E)
-    nx = length(E.c)
-    K, b = _controller_matrices(kappa, nx)
+    c = LazySets.center(E)
+    K, b = _controller_matrices(kappa, length(c))
 
-    Q = inv(LA.Symmetric(Matrix{Float64}(E.P)))
+    Q = Matrix{Float64}(LazySets.shape_matrix(E))
     Σu = K * Q * K'
-    uc = K * collect(Float64, E.c) + b
+    uc = K * collect(Float64, c) + b
     ru = sqrt.(max.(0.0, LA.diag(LA.Symmetric(Σu))))
 
     return uc, ru
@@ -483,7 +479,8 @@ function _required_linearization_box_radii(E_prev, kappa, xk, uk)
     rx = _ellipsoid_axis_radii(E_prev)
     uc, ru = _controller_image_axis_radii(kappa, E_prev)
 
-    required_δx = abs.(collect(Float64, E_prev.c) .- collect(Float64, xk)) .+ rx
+    required_δx =
+        abs.(collect(Float64, LazySets.center(E_prev)) .- collect(Float64, xk)) .+ rx
     required_δu = abs.(uc .- collect(Float64, uk)) .+ ru
 
     return required_δx, required_δu
@@ -559,7 +556,7 @@ function _fixed_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
     @assert !isempty(opts.linearization_δu) "Set options.linearization_δu for fixed mode."
 
     xk = collect(ctx.xs[k])
-    xnext = collect(E_next.c)
+    xnext = collect(LazySets.center(E_next))
     uk = collect(ctx.us[k])
 
     δx = collect(Float64, opts.linearization_δx)
@@ -588,7 +585,7 @@ function _fixed_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_next)
     end
 
     u_lin = uk # zeros(length(uk))
-    approx = ST.build_affine_approximation(ctx.affine_provider, k, xk, xnext, u_lin, δx, δu)
+    approx = ST.build_affine_approximation(ctx.affine_provider, xk, u_lin; δx = δx, δu = δu)
 
     E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
 
@@ -638,7 +635,7 @@ end
 
 function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, xnext, uk, δx, δu; atol)
     u_lin = uk # zeros(length(uk))
-    approx = ST.build_affine_approximation(ctx.affine_provider, k, xk, xnext, u_lin, δx, δu)
+    approx = ST.build_affine_approximation(ctx.affine_provider, xk, u_lin; δx = δx, δu = δu)
 
     E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
 
@@ -728,7 +725,7 @@ function _adaptive_backward_step!(ctx::EllipsoidalBackwardContext, k::Int, E_nex
     @assert opts !== nothing "adaptive_boxes cannot be nothing in adaptive mode."
 
     xk = collect(ctx.xs[k])
-    xnext = collect(E_next.c)
+    xnext = collect(LazySets.center(E_next))
     uk = collect(ctx.us[k])
 
     δx = _clamp_box_radii(copy(opts.ΔX_initial), opts.ΔX_min, opts.ΔX_max)
@@ -949,13 +946,15 @@ function run_backward_chain!(ctx::EllipsoidalBackwardContext)
 
     @assert opts.terminal_shape !== nothing "Set options.terminal_shape."
 
+    # `terminal_shape` is the LazySets shape matrix Q of the terminal
+    # ellipsoid {x : (x−c)ᵀQ⁻¹(x−c) ≤ 1} (semi-axes² on the diagonal).
     terminal_shape = Matrix{Float64}(opts.terminal_shape)
 
     @assert size(terminal_shape) == (nx, nx) "
     terminal_shape must have size ($nx, $nx).
     "
 
-    E_next = UT.Ellipsoid(terminal_shape, collect(ctx.xs[end]))
+    E_next = LazySets.Ellipsoid(collect(float.(ctx.xs[end])), terminal_shape)
 
     steps = BackwardStepRecord[]
     ellipsoids = [E_next]

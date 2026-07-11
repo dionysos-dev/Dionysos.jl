@@ -279,8 +279,8 @@ function system(;
         )
     end
 
-    state_space = UT.HyperRectangle(domain.x_lb, domain.x_ub)
-    input_space = UT.HyperRectangle(domain.u_lb, domain.u_ub)
+    state_space = UT.box(domain.x_lb, domain.x_ub)
+    input_space = UT.box(domain.u_lb, domain.u_ub)
 
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,
@@ -316,9 +316,9 @@ end
 function first_step_problem(concrete_system)
     x0 = SVector{6, Float64}(0, 0, 0, 0, 0, 0)
 
-    I1 = UT.HyperRectangle(x0, x0)
+    I1 = UT.box(x0, x0)
 
-    T1 = UT.HyperRectangle(
+    T1 = UT.box(
         SVector{6, Float64}(-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30),
         SVector{6, Float64}(-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75),
     )
@@ -349,9 +349,9 @@ function second_step_problem(concrete_system)
 
     I2_margin = SVector{6, Float64}(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15)
 
-    I2 = UT.HyperRectangle(x2_center .- I2_margin, x2_center .+ I2_margin)
+    I2 = UT.box(x2_center .- I2_margin, x2_center .+ I2_margin)
 
-    T2 = UT.HyperRectangle(
+    T2 = UT.box(
         SVector{6, Float64}(-1.1π / 180, -1.1π / 180, -1.1π / 180, -0.75, -0.30, -0.30),
         SVector{6, Float64}(1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75),
     )

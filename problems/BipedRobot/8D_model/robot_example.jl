@@ -83,8 +83,8 @@ function solve_and_simulate!(
     out_of_domain_handler = nothing,
 )
     # Problem
-    I = UT.HyperRectangle(xstart, xstart)   # start forced in cell of xstart
-    T = UT.HyperRectangle(target_low, target_high)
+    I = UT.box(xstart, xstart)   # start forced in cell of xstart
+    T = UT.box(target_low, target_high)
 
     problem = DI.Problem.OptimalControlProblem(
         concrete_system,

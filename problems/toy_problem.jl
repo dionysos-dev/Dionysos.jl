@@ -1,5 +1,6 @@
 module ToyProblem
 
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Plots
@@ -22,23 +23,23 @@ function jacobian_bound()
 end
 
 function system(;
-    _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
-    _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
+    _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
+    _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
 end
 
 function optimal_control_problem(;
-    _X_ = UT.HyperRectangle(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
-    _U_ = UT.HyperRectangle(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
-    _I_ = UT.HyperRectangle(SVector(-1.6, -1.6), SVector(-1.4, -1.4)),
-    _T_ = UT.HyperRectangle(SVector(-0.2, -0.2), SVector(0.2, 0.2)),
+    _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
+    _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
+    _I_ = UT.box(SVector(-1.6, -1.6), SVector(-1.4, -1.4)),
+    _T_ = UT.box(SVector(-0.2, -0.2), SVector(0.2, 0.2)),
 )
     sys = system(; _X_ = _X_, _U_ = _U_)
     return PR.OptimalControlProblem(sys, _I_, _T_, nothing, nothing)

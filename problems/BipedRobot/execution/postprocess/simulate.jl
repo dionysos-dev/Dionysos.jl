@@ -1,3 +1,4 @@
+import LazySets
 using Printf
 using StaticArrays
 using JLD2
@@ -101,7 +102,7 @@ else
     control_problem = data.control_problem
     tstep = data.tstep
 
-    x0 = UT.get_center(control_problem.initial_set) # SVector{6, Float64}(zeros(6))
+    x0 = LazySets.center(control_problem.initial_set) # SVector{6, Float64}(zeros(6))
     println("Initial state: ", x0)
 
     @info "Simulating closed loop" NSTEP

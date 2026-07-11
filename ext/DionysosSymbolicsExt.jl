@@ -95,7 +95,10 @@ function ST._getLipschitzConstants(J, xi, Xi_vals)
     return L
 end
 
-function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
+# Affine system + Lipschitz bounds around the linearization point, valid on the
+# interval boxes X/U/W: symbolic Jacobians evaluated at the point; error
+# constants bounded over the boxes with interval arithmetic.
+function _affine_system_and_lipschitz(f, x, u, w, x̄, ū, w̄, X, U, W)
     n = length(x)
     m = length(u)
     p = length(w)
@@ -128,29 +131,85 @@ function ST.buildAffineApproximation(f, x, u, w, x̄, ū, w̄, X, U, W)
     return MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, X, U, W), L
 end
 
+# Automatic growth bound: trace the dynamics symbolically, bound each Jacobian
+# entry over the state domain X with interval arithmetic (off-diagonal entries by
+# magnitude, diagonal entries by their signed supremum, as required by the
+# growth-bound ODE ṙ = L(u)·r), and return the bound as a function of the input.
+function ST.compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
+    nx = MS.statedim(system)
+    X = MS.stateset(system)
+    X === nothing && error(
+        "compute_jacobian_bound requires the system to carry a bounded state set X; " *
+        "provide `jacobian_bound` explicitly otherwise.",
+    )
+
+    xs = [Symbolics.variable(:x, i) for i in 1:nx]
+    us = [Symbolics.variable(:u, i) for i in 1:MS.inputdim(system)]
+
+    f = try
+        collect(MS.mapping(system)(xs, us))
+    catch err
+        error(
+            "compute_jacobian_bound: could not trace the dynamics symbolically " *
+            "($(sprint(showerror, err))). Provide `jacobian_bound` explicitly.",
+        )
+    end
+
+    J = Symbolics.jacobian(f, xs)
+
+    LS = Dionysos.LazySets
+    xint = [IA.interval(Float64(LS.low(X, i)), Float64(LS.high(X, i))) for i in 1:nx]
+
+    entry_funs = Matrix{Any}(undef, nx, nx)
+    for j in 1:nx, i in 1:nx
+        bf = Symbolics.build_function(
+            J[i, j],
+            vcat(xs, us)...;
+            expression = Val(false),
+            nanmath = false,
+        )
+        entry_funs[i, j] = bf isa Tuple ? bf[1] : bf
+    end
+
+    _diag_bound(v::IA.Interval) = IA.sup(v)
+    _diag_bound(v) = Float64(v)
+    _offdiag_bound(v::IA.Interval) = IA.mag(v)
+    _offdiag_bound(v) = abs(Float64(v))
+
+    function jacobian_bound(u)
+        args = vcat(xint, map(to_interval, collect(u)))
+        M = zeros(nx, nx)
+        for j in 1:nx, i in 1:nx
+            v = entry_funs[i, j](args...)
+            M[i, j] = i == j ? _diag_bound(v) : _offdiag_bound(v)
+        end
+        return ST.SMatrix{nx, nx}(M)
+    end
+    return jacobian_bound
+end
+
 function ST.build_affine_approximation(
     provider::ST.SymbolicAffineApproximationProvider,
-    k::Int,
-    xk,
-    xnext,
-    uk,
+    xbar,
+    ubar,
+    wbar = nothing;
     δx,
     δu,
 )
-    wk = zeros(length(provider.w))
+    wbar === nothing && (wbar = zeros(length(provider.w)))
 
-    Xbar = _centered_box(xk, δx)
-    Ubar = _centered_box(uk, δu)
-    Wbar = _centered_box(wk, provider.ΔW)
+    Xbar = _centered_box(xbar, δx)
+    Ubar = _centered_box(ubar, δu)
+    Wbar = _centered_box(wbar, provider.ΔW)
 
-    affineSys, L = ST.buildAffineApproximation(
+    affineSys, L = _affine_system_and_lipschitz(
         provider.fsymbolic,
         provider.x,
         provider.u,
         provider.w,
-        xk,
-        uk,
-        wk,
+        xbar,
+        ubar,
+        wbar,
         Xbar,
         Ubar,
         Wbar,
@@ -161,7 +220,7 @@ function ST.build_affine_approximation(
         L,
         provider.Uformat,
         provider.Wformat,
-        (; k, δx = copy(δx), δu = copy(δu)),
+        (; δx = copy(δx), δu = copy(δu)),
     )
 end
 

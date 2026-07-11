@@ -22,8 +22,7 @@ hu = SVector(0.3, 0.3);
 periodic_dims = SVector(2); # SVector(1, 2);, 
 periods = SVector(10.0); # SVector(4.0, 10.0);
 periodic_start = SVector(0.0); # SVector(0.0, 0.0);
-mapping_region =
-    UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 11.0, pi + 0.4))
+mapping_region = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 11.0, pi + 0.4))
 
 # Intantiate the optimizer
 optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
@@ -122,8 +121,13 @@ plot!(abstract_system; efficient = false, value_function = abstract_value_functi
 # plot!((Xset, XMapping); efficient=true, color = :yellow)
 
 # We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
-plot!(target_set; dims = [1, 2], color = :red, opacity = 0.5, label = "Target set");
+plot!(
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+);
+plot!(UT.project_set(target_set, [1, 2]); color = :red, opacity = 0.5, label = "Target set");
 plot!(
     target_set_in_periodic;
     dims = [1, 2],
@@ -150,7 +154,7 @@ plot!(x_traj; ms = 2.0, arrows = false)
 # Animation with dashboard
 # ------------------------------------------------------------
 
-_X_ = UT.HyperRectangle(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
+_X_ = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
 obstacles = PathPlanning.get_obstacles(_X_)
 system_plot! = PathPlanning.system_plot!(;
     obstacles = obstacles,

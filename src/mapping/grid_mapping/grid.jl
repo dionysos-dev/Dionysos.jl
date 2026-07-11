@@ -35,31 +35,45 @@ function get_coord_by_pos(grid::Grid, pos)
     return get_origin(grid) + pos .* get_h(grid)
 end
 
-_ranges(rect::UT.HyperRectangle{N, T}) where {N, T} =
-    ntuple(i -> (rect.lb[i]:rect.ub[i]), Val(N))
-
+# Grid-index bounds of the cells covered by `rect`, one `UnitRange` per
+# dimension; an empty range means no cell qualifies in that dimension.
 function get_pos_lims_inner(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (LazySets.low(rect, i) - tol - orig[i]) / h[i] + 0.5):floor(
+                Int,
+                (LazySets.high(rect, i) + tol - orig[i]) / h[i] - 0.5,
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_lims_outer(grid::Grid{N}, rect; tol = 0.0) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] + tol - orig[i]) / h[i] - 0.5), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] - tol - orig[i]) / h[i] + 0.5), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (LazySets.low(rect, i) + tol - orig[i]) / h[i] - 0.5):floor(
+                Int,
+                (LazySets.high(rect, i) - tol - orig[i]) / h[i] + 0.5,
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_center(grid::Grid{N}, rect; tol = 1e-6) where {N}
     orig = get_origin(grid)
     h = get_h(grid)
-    lbI = ntuple(i -> ceil(Int, (rect.lb[i] - tol - orig[i]) / h[i]), Val(N))
-    ubI = ntuple(i -> floor(Int, (rect.ub[i] + tol - orig[i]) / h[i]), Val(N))
-    return UT.HyperRectangle(lbI, ubI)
+    return ntuple(
+        i ->
+            ceil(Int, (LazySets.low(rect, i) - tol - orig[i]) / h[i]):floor(
+                Int,
+                (LazySets.high(rect, i) + tol - orig[i]) / h[i],
+            ),
+        Val(N),
+    )
 end
 
 function get_pos_lims(grid::Grid, rect, incl_mode::INCL_MODE)
@@ -75,7 +89,7 @@ end
 function get_rec(grid::Grid, pos)
     x = get_coord_by_pos(grid, pos)
     r = get_h(grid) / 2.0
-    return UT.HyperRectangle(x - r, x + r)
+    return LazySets.Hyperrectangle(x, r)
 end
 
 get_elem_by_pos(grid::Grid, pos) = get_rec(grid, pos)
@@ -83,26 +97,50 @@ get_elem_by_coord(grid::Grid, x) = get_elem_by_pos(grid, get_pos_by_coord(grid, 
 get_all_pos_by_coord(grid::Grid, x) = [get_pos_by_coord(grid, x)]
 is_state_cover(grid) = false
 
-function get_volume(grid::Grid)
-    r = get_h(grid) / 2.0
-    return UT.get_volume(UT.HyperRectangle(-r, r))
-end
+get_volume(grid::Grid) = prod(get_h(grid))
 
 @recipe function f(grid::Grid, pos; dims = [1, 2])
     @series begin
-        dims := dims
-        get_elem_by_pos(grid, pos)
+        UT.project_set(get_elem_by_pos(grid, pos), dims)
     end
 end
 
-function get_pos_from_set(grid, rect::UT.HyperRectangle, incl_mode::INCL_MODE)
-    rectI = get_pos_lims(grid, rect, incl_mode)
-    return Iterators.product(_ranges(rectI)...)
+function get_pos_from_set(grid, rect::LazySets.AbstractHyperrectangle, incl_mode::INCL_MODE)
+    return Iterators.product(get_pos_lims(grid, rect, incl_mode)...)
 end
 
-get_pos_from_set(grid, ::UT.EmptyRegion, incl_mode::INCL_MODE) = ()
+# LazySets cannot decide disjointness for every set pair; keeping an
+# undecidable candidate is sound for an over-approximation.
+function _cell_intersects(cell, S)
+    return try
+        !LazySets.isdisjoint(cell, S)
+    catch
+        true
+    end
+end
 
-function get_pos_from_set(grid, U::UT.SetUnion, incl_mode::INCL_MODE)
+# Cells covered by an arbitrary bounded `LazySet`: candidate cells come from
+# the bounding-box index ranges, then each candidate is certified per mode —
+# OUTER keeps cells intersecting `S` (sound over-approximation), INNER cells
+# fully inside (exact for convex `S`, via the cell corners), CENTER cells
+# whose center lies in `S`.
+function get_pos_from_set(grid, S::LazySets.LazySet, incl_mode::INCL_MODE)
+    candidates = Iterators.product(get_pos_lims(grid, UT._outer_box(S), OUTER)...)
+    if incl_mode == OUTER
+        return (pos for pos in candidates if _cell_intersects(get_rec(grid, pos), S))
+    elseif incl_mode == INNER
+        return (
+            pos for pos in candidates if
+            all(v ∈ S for v in LazySets.vertices_list(get_rec(grid, pos)))
+        )
+    else
+        return (pos for pos in candidates if get_coord_by_pos(grid, pos) ∈ S)
+    end
+end
+
+get_pos_from_set(grid, ::LazySets.EmptySet, incl_mode::INCL_MODE) = ()
+
+function get_pos_from_set(grid, U::LazySets.UnionSetArray, incl_mode::INCL_MODE)
     return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.array)
 end
 
@@ -144,14 +182,26 @@ get_h(grid::GridFree) = grid.h
 
 Uniform grid on rectangular space `rect`, centered at `orig` and with steps set by the vector `h`.
 Cells are (possibly overlapping) ellipsoids defined at each grid point `c` as `(x-c)'P(x-c) ≤ 1`.
+
+`P` (the quadratic form, hot membership loop) and its inverse `Q` (the LazySets
+shape matrix, cell construction) are both stored so neither path re-inverts.
 """
 struct GridEllipsoidalRectangular{N, T} <: Grid{N, T}
     underlying_grid::GridFree{N, T}
     P::SMatrix{N, N}
+    Q::SMatrix{N, N}
+end
+
+function GridEllipsoidalRectangular(
+    underlying_grid::GridFree{N, T},
+    P::SMatrix{N, N},
+) where {N, T}
+    Q = UT._symmetrize(inv(P))
+    return GridEllipsoidalRectangular{N, T}(underlying_grid, P, Q)
 end
 
 function GridEllipsoidalRectangular(orig::SVector{N, T}, h::SVector{N, T}, P) where {N, T}
-    return GridEllipsoidalRectangular{N, T}(GridFree(orig, h), P)
+    return GridEllipsoidalRectangular(GridFree(orig, h), SMatrix{N, N}(P))
 end
 
 get_origin(grid::GridEllipsoidalRectangular) = get_origin(grid.underlying_grid)
@@ -160,7 +210,11 @@ get_P(grid::GridEllipsoidalRectangular) = grid.P
 is_state_cover(grid::GridEllipsoidalRectangular) = true
 
 function get_elem_by_pos(grid::GridEllipsoidalRectangular, pos)
-    return UT.Ellipsoid(collect(grid.P), collect(get_coord_by_pos(grid, pos)))
+    return LazySets.Ellipsoid(
+        collect(get_coord_by_pos(grid, pos)),
+        Matrix(grid.Q);
+        check_posdef = false,
+    )
 end
 
 function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
@@ -173,42 +227,4 @@ function get_all_pos_by_coord(grid::GridEllipsoidalRectangular{N}, x) where {N}
         end
     end
     return all_pos
-end
-
-"""
-    DeformedGrid{N, T, F, FI, AT} <: Grid{N, T}
-
-Represents a deformed version of a `GridFree` grid, where points are mapped via an invertible transformation `f` and its inverse `fi`.
-
-# Fields
-- `underlying_grid::GridFree{N, T}` : The underlying grid.
-- `f::F` : The forward transformation (physical -> deformed).
-- `fi::FI` : The inverse transformation (deformed -> physical).
-- `A::AT` : Optional linear transformation matrix for volume calculations (`nothing` if absent).
-"""
-struct DeformedGrid{N, T, F, FI, AT} <: Grid{N, T}
-    underlying_grid::GridFree{N, T}
-    f::F
-    fi::FI
-    A::AT
-end
-
-function DeformedGrid(grid::GridFree{N, T}, f, fi; A = nothing) where {N, T}
-    return DeformedGrid{N, T, typeof(f), typeof(fi), typeof(A)}(grid, f, fi, A)
-end
-
-get_origin(grid::DeformedGrid) = grid.f(get_origin(grid.underlying_grid))
-get_h(grid::DeformedGrid) = get_h(grid.underlying_grid)
-
-get_pos_by_coord(grid::DeformedGrid, x) = get_pos_by_coord(grid.underlying_grid, grid.fi(x))
-get_coord_by_pos(grid::DeformedGrid, pos) =
-    grid.f(get_coord_by_pos(grid.underlying_grid, pos))
-get_elem_by_pos(grid::DeformedGrid, pos) =
-    UT.DeformedRectangle(get_rec(grid.underlying_grid, pos), grid.f)
-get_pos_lims(grid::DeformedGrid, rect, incl_mode::INCL_MODE) =
-    get_pos_lims(grid.underlying_grid, rect, incl_mode)
-
-function get_volume(grid::DeformedGrid)
-    return grid.A !== nothing ? abs(LA.det(grid.A)) * get_volume(grid.underlying_grid) :
-           get_volume(grid.underlying_grid)
 end

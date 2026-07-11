@@ -1,5 +1,6 @@
 module DCDC
 
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Plots
@@ -65,13 +66,13 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.HyperRectangle(SVector(1.15, 5.45), SVector(1.55, 5.85)),
-    _U_ = UT.HyperRectangle(SVector(1), SVector(2)),
+    _X_ = UT.box(SVector(1.15, 5.45), SVector(1.55, 5.85)),
+    _U_ = UT.box(SVector(1), SVector(2)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
@@ -79,7 +80,7 @@ end
 
 function problem(;
     params::Params = Params(),
-    _I_ = UT.HyperRectangle(SVector(1.19, 5.59), SVector(1.21, 5.61)),
+    _I_ = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61)),
 )
     sys = system(; params = params)
 

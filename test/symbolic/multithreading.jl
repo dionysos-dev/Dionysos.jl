@@ -1,5 +1,6 @@
 module TestMain
 
+import LazySets
 using Test
 using StaticArrays
 using MathematicalSystems
@@ -176,12 +177,12 @@ end
         Xmap, Umap, concrete_system = build_test_system(; n_per_dim = 15)
 
         function simple_over_approx(elem, u)
-            center = UT.get_center(elem)
-            radius = UT.get_r(elem)
+            center = LazySets.center(elem)
+            radius = LazySets.radius_hyperrectangle(elem)
             new_radius = radius * 1.1 .+ 0.01
             F_sys = concrete_system.f
             new_center = F_sys(center, u)
-            return UT.HyperRectangle(new_center - new_radius, new_center + new_radius)
+            return UT.box(new_center - new_radius, new_center + new_radius)
         end
 
         discrete_system = ST.discretize_continuous_system(concrete_system, 1.0)

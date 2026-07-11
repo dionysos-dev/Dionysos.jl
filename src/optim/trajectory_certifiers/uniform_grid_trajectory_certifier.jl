@@ -1,6 +1,7 @@
 module UniformGridTrajectoryCertifier
 
 using StaticArrays
+import LazySets
 import MathOptInterface as MOI
 import Dionysos
 const DI = Dionysos
@@ -202,18 +203,21 @@ function build_tube(
     # 3) build union of rectangles
     N = length(xs[1])
     T = eltype(xs[1])
-    rects = UT.HyperRectangle{N, T}[]
+    rects = UT.Box{N, T}[]
     sizehint!(rects, length(xs))
 
     for x in xs
         N = length(x)
         lb = ntuple(i -> x[i] - (_rad_i(radius, i) + margin), N)
         ub = ntuple(i -> x[i] + (_rad_i(radius, i) + margin), N)
-        push!(rects, UT.HyperRectangle(SVector(lb), SVector(ub)))
+        push!(rects, UT.box(SVector(lb), SVector(ub)))
     end
 
     tube = UT.set_union(rects)
-    tube = X_domain !== nothing ? tube ∩ X_domain : tube
+    # concrete intersection: the lazy `∩` yields an `Intersection` whose
+    # support function needs the Optim weak dep (line search) to plot or
+    # discretize; the concrete box∩box union stays plain
+    tube = X_domain !== nothing ? LazySets.intersection(tube, X_domain) : tube
     return tube
 end
 

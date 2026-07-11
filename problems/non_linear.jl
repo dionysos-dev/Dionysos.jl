@@ -2,9 +2,9 @@ module NonLinear
 
 using StaticArrays
 import LinearAlgebra as LA
+import LazySets
 
 import Symbolics
-import IntervalArithmetic as IA
 
 import Dionysos
 const DI = Dionysos
@@ -32,21 +32,19 @@ function unstableSimple(; μ = 0.00005, noise = false)
     return f, x, u, w, T
 end
 
-function system(X, U, W, obstacles, Ts, noise, μ)
+function system(X, U, W, Ts, noise, μ)
     f, x, u, w, T = unstableSimple(; noise = noise, μ = μ)
 
-    fsymbolicT = eval(Symbolics.build_function(f, x, u, w, T)[1])
-
-    #### Local approximation domains ####
-    ΔX = [IA.interval(-1.0, 1.0), IA.interval(-1.0, 1.0)]
-    ΔU = [IA.interval(-20.0, 20.0), IA.interval(-20.0, 20.0)]
-    ΔW = [IA.interval(0.0, 0.0), IA.interval(0.0, 0.0)]
+    #### Local approximation radii ####
+    ΔX = [1.0, 1.0]
+    ΔU = [20.0, 20.0]
+    ΔW = [0.0, 0.0]
 
     fsymbolic = Symbolics.substitute(f, Dict(T => Ts))
 
     #### Format of input and noise set ####
-    Uformat = UT.format_input_set(U)
-    Wformat = UT.format_noise_set(W)
+    Uformat = ST.format_input_set(U)
+    Wformat = ST.format_noise_set(W)
 
     #### Forward and backward dynamics ####
     function f_eval(x, u, w)
@@ -64,9 +62,7 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     end
 
     return ST.SymbolicSystem(
-        fsymbolicT,
         fsymbolic,
-        Ts,
         length(x),
         length(u),
         length(w),
@@ -79,7 +75,6 @@ function system(X, U, W, obstacles, Ts, noise, μ)
         X,
         U,
         W,
-        obstacles,
         f_eval,
         f_backward_eval,
         Uformat,
@@ -87,16 +82,19 @@ function system(X, U, W, obstacles, Ts, noise, μ)
     )
 end
 
+# Default avoid set for this benchmark. Obstacles are not part of the problem
+# specification types; pass them to the solver (e.g. the lazy-ellipsoids
+# `obstacles` attribute) and to the plots.
+default_obstacles() = [LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I, 2, 2) * 30.0)]
+
 function problem(;
-    X = UT.HyperRectangle(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
+    X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
 
-    obstacles = [UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * (1 / 30), [0.0; 0.0])],
+    U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
 
-    U = UT.HyperRectangle(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
+    E0 = LazySets.Ellipsoid([-10.0; -10.0], Matrix{Float64}(LA.I, 2, 2) * 0.1),
 
-    E0 = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 10.0, [-10.0; -10.0]),
-
-    Ef = UT.Ellipsoid(Matrix{Float64}(LA.I, 2, 2) * 1.0, [10.0; 10.0]),
+    Ef = LazySets.Ellipsoid([10.0; 10.0], Matrix{Float64}(LA.I, 2, 2) * 1.0),
 
     state_cost = UT.ZeroFunction(),
 
@@ -109,12 +107,12 @@ function problem(;
         1.0,
     ),
 
-    W = UT.HyperRectangle(SVector(0.0, 0.0), SVector(0.0, 0.0)),
+    W = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0)),
     Ts = 1.0,
     noise = false,
     μ = 0.00005,
 )
-    sys = system(X, U, W, obstacles, Ts, noise, μ)
+    sys = system(X, U, W, Ts, noise, μ)
     return PR.OptimalControlProblem(sys, E0, Ef, state_cost, transition_cost)
 end
 

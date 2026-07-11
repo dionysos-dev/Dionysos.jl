@@ -3,6 +3,7 @@ module ArticulatedVehicle
 using StaticArrays
 using MathematicalSystems
 using Dionysos
+import LazySets
 using Plots
 
 const UT = Dionysos.Utils
@@ -136,31 +137,46 @@ end
 # ----------------------------
 function system(
     _X_;
-    _U_ = UT.HyperRectangle(SVector(-1.0, -0.6), SVector(1.0, 0.6)),
+    _U_ = UT.box(SVector(-1.0, -0.6), SVector(1.0, 0.6)),
     params::Params = Params(),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )
 end
 
-function with_phi_limit(_X_::UT.HyperRectangle; phi_max = 0.7)
-    lb = SVector(_X_.lb[1], _X_.lb[2], _X_.lb[3], -phi_max)
-    ub = SVector(_X_.ub[1], _X_.ub[2], _X_.ub[3], phi_max)
-    return UT.HyperRectangle(lb, ub)
+function with_phi_limit(_X_::UT.Box; phi_max = 0.7)
+    lb = SVector(LazySets.low(_X_, 1), LazySets.low(_X_, 2), LazySets.low(_X_, 3), -phi_max)
+    ub = SVector(
+        LazySets.high(_X_, 1),
+        LazySets.high(_X_, 2),
+        LazySets.high(_X_, 3),
+        phi_max,
+    )
+    return UT.box(lb, ub)
 end
 
 function extrude_xy_obstacle_to_4d(ob2d, _X_)
     # ob2d has lb=[x,y], ub=[x,y]
-    lb = SVector(ob2d.lb[1], ob2d.lb[2], _X_.lb[3], _X_.lb[4])
-    ub = SVector(ob2d.ub[1], ob2d.ub[2], _X_.ub[3], _X_.ub[4])
-    return UT.HyperRectangle(lb, ub)
+    lb = SVector(
+        LazySets.low(ob2d, 1),
+        LazySets.low(ob2d, 2),
+        LazySets.low(_X_, 3),
+        LazySets.low(_X_, 4),
+    )
+    ub = SVector(
+        LazySets.high(ob2d, 1),
+        LazySets.high(ob2d, 2),
+        LazySets.high(_X_, 3),
+        LazySets.high(_X_, 4),
+    )
+    return UT.box(lb, ub)
 end
-function with_xy_obstacles(_X_::UT.HyperRectangle; obstacles2d = xy_obstacles())
+function with_xy_obstacles(_X_::UT.Box; obstacles2d = xy_obstacles())
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
     return UT.set_minus(_X_, UT.set_union(obs4d))
 end
@@ -176,36 +192,16 @@ function problem(;
 )
 
     # Example domains (edit):
-    _X_ =
-        UT.HyperRectangle(SVector(-20.0, -20.0, -pi, -pi/2), SVector(20.0, 20.0, pi, pi/2))
+    _X_ = UT.box(SVector(-20.0, -20.0, -pi, -pi/2), SVector(20.0, 20.0, pi, pi/2))
 
-    _I_ = UT.HyperRectangle(SVector(-10.0, -10.0, -0.2, 0.0), SVector(-9.0, -9.0, 0.2, 0.0))
+    _I_ = UT.box(SVector(-10.0, -10.0, -0.2, 0.0), SVector(-9.0, -9.0, 0.2, 0.0))
 
-    _T_ = UT.HyperRectangle(SVector(9.0, 9.0, -0.2, -0.2), SVector(10.0, 10.0, 0.2, 0.2))
+    _T_ = UT.box(SVector(9.0, 9.0, -0.2, -0.2), SVector(10.0, 10.0, 0.2, 0.2))
 
     sys = system(_X_; params = params)
 
     # If you want pure reachability: state_cost = nothing, transition_cost = nothing.
     return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
-end
-
-################################################
-############ Simple Controllers ################
-################################################
-
-function get_constant_controller(u_const)
-    return ST.ConstantController(u_const)
-end
-
-function get_goal_seeking_controller(xg, yg; v = 1.0, δmax = 0.5, k = 1.2)
-    f = x -> begin
-        x1, x2, θ, ϕ = x
-        desired = atan(yg - x2, xg - x1)
-        e = mod(desired - θ + pi, 2pi) - pi
-        δ = clamp(k*e, -δmax, δmax)
-        return SVector(v, δ)
-    end
-    return ST.BlackBoxContinuousController(f)
 end
 
 ################################################
@@ -380,8 +376,8 @@ end
 
 function plot_xy_obstacles!(plt, obs2d; alpha = 0.25)
     for ob in obs2d
-        x1l, y1l = ob.lb[1], ob.lb[2]
-        x1u, y1u = ob.ub[1], ob.ub[2]
+        x1l, y1l = LazySets.low(ob, 1), LazySets.low(ob, 2)
+        x1u, y1u = LazySets.high(ob, 1), LazySets.high(ob, 2)
         xs = [x1l, x1u, x1u, x1l, x1l]
         ys = [y1l, y1l, y1u, y1u, y1l]
         plot!(plt, xs, ys; lw = 1, fill = (true, alpha), label = false)

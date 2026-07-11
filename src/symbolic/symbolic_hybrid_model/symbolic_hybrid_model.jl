@@ -585,20 +585,20 @@ function find_symbolic_state(symmodel, continuous_state)
 end
 
 # extract_spatial_part(guard)
-# Extract the spatial part (all but last dimension) from a guard (assumed to be a HyperRectangle).
+# Extract the spatial part (all but last dimension) from a guard (assumed to be a box).
 function extract_spatial_part(guard)
-    if isa(guard, UT.HyperRectangle)
-        return UT.HyperRectangle(guard.lb[1:(end - 1)], guard.ub[1:(end - 1)])
+    if isa(guard, LazySets.AbstractHyperrectangle)
+        return UT.box(LazySets.low(guard)[1:(end - 1)], LazySets.high(guard)[1:(end - 1)])
     else
         error("Unsupported guard type: $(typeof(guard))")
     end
 end
 
 # extract_temporal_part(guard)
-# Extract the temporal part (last dimension) from a guard (assumed to be a HyperRectangle).
+# Extract the temporal part (last dimension) from a guard (assumed to be a box).
 function extract_temporal_part(guard)
-    if isa(guard, UT.HyperRectangle)
-        return [guard.lb[end], guard.ub[end]]
+    if isa(guard, LazySets.AbstractHyperrectangle)
+        return [LazySets.low(guard)[end], LazySets.high(guard)[end]]
     else
         error("Unsupported guard type: $(typeof(guard))")
     end
@@ -695,8 +695,8 @@ end
 
 # # Arguments
 # - `model::TimedHybridSymbolicModel`: The timed hybrid symbolic model
-# - `state_sets`: Vector of HyperRectangle (or state set) per mode
-# - `time_sets`: Vector of HyperRectangle (or time interval) per mode
+# - `state_sets`: Vector of boxes (or state sets) per mode
+# - `time_sets`: Vector of boxes (or time intervals) per mode
 # - `mode_indices`: List or set of mode indices
 # - `domain`: Domain type for state set intersection (default: INNER)
 
@@ -732,9 +732,9 @@ function get_states_from_set(
         spatial_states = get_states_from_set(dynamics_model, state_sets[idx], domain)
 
         # Get time indices in the temporal interval
-        if hasfield(typeof(time_sets[idx]), :lb) && hasfield(typeof(time_sets[idx]), :ub)
-            # HyperRectangle case
-            t_min, t_max = time_sets[idx].lb[1], time_sets[idx].ub[1]
+        if isa(time_sets[idx], LazySets.AbstractHyperrectangle)
+            t_min = LazySets.low(time_sets[idx], 1)
+            t_max = LazySets.high(time_sets[idx], 1)
         else
             # Assume it's a 2-element vector [t_min, t_max]
             t_min, t_max = time_sets[idx][1], time_sets[idx][2]
@@ -803,9 +803,9 @@ function TimeSymbolicModel(sys::MS.ConstrainedLinearContinuousSystem, tstep::Flo
     X = sys.X
 
     tmin, tmax = try
-        X.lb[1], X.ub[1]
+        LazySets.low(X, 1), LazySets.high(X, 1)
     catch
-        error("Time domain X must have .lb and .ub fields (e.g., UT.HyperRectangle)")
+        error("Time domain X must have box bounds (e.g., a `UT.box`)")
     end
 
     if _is_identity_matrix(A)  # Time evolves

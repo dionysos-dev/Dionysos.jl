@@ -8,7 +8,6 @@ Dionysos.Mapping.Grid
 Dionysos.Mapping.get_pos_by_coord
 Dionysos.Mapping.GridFree
 Dionysos.Mapping.GridEllipsoidalRectangular
-Dionysos.Mapping.DeformedGrid
 ```
 
 ## Abstract Mappings 
