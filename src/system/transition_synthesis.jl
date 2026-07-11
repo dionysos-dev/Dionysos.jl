@@ -44,6 +44,15 @@ end
 
 _infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
 
+"""
+    as_controller(result::TransitionResult) -> Union{Nothing, AffineController}
+
+The synthesized affine controller as a simulatable [`AffineController`](@ref),
+or `nothing` if the transition was infeasible.
+"""
+as_controller(result::TransitionResult) =
+    result.controller === nothing ? nothing : AffineController(result.controller)
+
 # ------------------------------------------------------------
 # Argument normalization: sets → LMI data
 # ------------------------------------------------------------

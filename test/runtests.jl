@@ -22,6 +22,8 @@ const TEST_FILES = [
     ("./system/vector_continuous_system.jl",),
     ("./system/affine_approximation.jl",),
     ("./system/approximation.jl",),
+    ("./system/controllers.jl",),
+    ("./system/controller_serialization.jl",),
     ("./system/trajectories.jl",),
     ("./system/transition_synthesis.jl",),
     ("./problem/problems.jl",),

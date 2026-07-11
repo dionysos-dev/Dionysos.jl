@@ -201,8 +201,6 @@ end
 
 ST.controller_kind(::TreeStaticController) = ST.StaticKind()
 ST.domain(ctrl::TreeStaticController) = ctrl.tree
-ST.initial_state(::TreeStaticController) = nothing
-ST.update_state(::TreeStaticController, q, x) = nothing
 
 function _best_tree_action(ctrl::TreeStaticController, x)
     compare(E, x) = x ∈ E

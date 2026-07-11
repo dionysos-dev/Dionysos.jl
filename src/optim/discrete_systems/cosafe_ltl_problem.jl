@@ -391,6 +391,9 @@ function build_product_automaton(
     return ProductAutomaton(sys, labeling, spec, pid, rev, postmap, premap, nU)
 end
 
+# Tabulate the closed-loop memory controller: the spec stepper (which may wrap a
+# non-serializable monitor) is evaluated here, once per (memory state, label),
+# so the returned controller is plain data (JLD2-serializable).
 function build_dynamic_controller(
     lab_abs::Dict{Symbol, Vector{Int}},
     spec::AbstractSpecStepper,
@@ -428,30 +431,48 @@ function build_dynamic_controller(
         return Tuple(trues)
     end
 
-    h = function (qa::Int, qs::Int)
-        p = get(pid, (qs, qa), nothing)
-        p === nothing && return nothing
+    # Intern the distinct label tuples of 1:nmax (plus the empty label used for
+    # any state outside the labeled range).
+    label_ids = Dict{Tuple{Vararg{Symbol}}, Int}(() => 1)
+    label_tuples = Tuple{Vararg{Symbol}}[()]
+    label_of_state = Vector{Int}(undef, nmax)
+    for qs in 1:nmax
+        lab = labeling_qs(qs)
+        label_of_state[qs] = get!(label_ids, lab) do
+            push!(label_tuples, lab)
+            return length(label_tuples)
+        end
+    end
+    default_label = label_ids[()]
 
-        return ST.output_control(contrP, nothing, p)
+    # Tabulate the spec automaton over the memory states reachable in the
+    # product plus every state they can step to.
+    qas = Set{Int}([qa0])
+    for (_, qa) in keys(pid)
+        push!(qas, qa)
+    end
+    step_map = Dict{Tuple{Int, Int}, Int}()
+    work = collect(qas)
+    while !isempty(work)
+        qa = pop!(work)
+        for (lid, lab) in enumerate(label_tuples)
+            qa2 = step(spec, qa, lab)
+            step_map[(qa, lid)] = qa2
+            if !(qa2 in qas)
+                push!(qas, qa2)
+                push!(work, qa2)
+            end
+        end
     end
 
-    g = function (qa::Int, qs_for_update::Int)
-        return step(spec, qa, labeling_qs(qs_for_update))
-    end
-
-    dom = ST.PredicateDomain(qaqs -> begin
-        qa, qs = qaqs
-
-        p = get(pid, (qs, qa), nothing)
-        p === nothing && return false
-
-        out = ST.output_control(contrP, nothing, p)
-        out === nothing && return false
-
-        return true
-    end)
-
-    return ST.DiscreteDynamicController(qa0, dom, g, h, false)
+    return ST.AutomatonMemoryController(
+        qa0,
+        label_of_state,
+        default_label,
+        step_map,
+        pid,
+        contrP,
+    )
 end
 
 function project_initial_memory_controllable_set(

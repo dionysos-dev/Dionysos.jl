@@ -123,8 +123,20 @@ Dionysos.System.get_affine_provider
 ```
 
 ## Controllers
+
+The controller protocol (argument order `(controller, memory, measurement)`):
+`controller_kind`, `output_control`, `is_defined`, and — for dynamic
+controllers — `initial_state` / `update_state`; static controllers inherit
+memoryless defaults from the trait. Controllers are **plain data** (tables,
+sets, struct callables), so they can be saved to JLD2 and reloaded.
+
 ```@docs
 Dionysos.System.ControllerKind
+Dionysos.System.DiscreteStaticController
+Dionysos.System.ControlTable
+Dionysos.System.AutomatonMemoryController
+Dionysos.System.AffineController
+Dionysos.System.as_controller
 ```
 
 ## Transition synthesis
