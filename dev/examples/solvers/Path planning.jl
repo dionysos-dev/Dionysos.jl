@@ -37,6 +37,7 @@ using MathOptSymbolicAD
 
 using Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
@@ -152,11 +153,15 @@ plot!(concrete_system.X; color = :grey, opacity = 1.0, label = "");
 # We display the abstract domain with worst-case cost
 plot!(abstract_system; value_function = abstract_value_function);
 
-# We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2, label = "Initial set");
+# We display the concrete specifications (projected on the plotted coordinates)
 plot!(
-    concrete_problem.target_set;
-    dims = [1, 2],
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.2,
+    label = "Initial set",
+);
+plot!(
+    UT.project_set(concrete_problem.target_set, [1, 2]);
     color = :red,
     opacity = 0.5,
     label = "Target set",

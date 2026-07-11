@@ -5,6 +5,7 @@ using MathOptSymbolicAD
 
 using Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
@@ -95,7 +96,7 @@ for obstacle in obstacles
 end
 
 function growth_bound(r, u)
-    β = u[1] * r[3]
+    β = abs(u[1]) * r[3]
     return StaticArrays.SVector{3}(β, β, 0.0)
 end
 set_attribute(model, "growthbound_map", growth_bound)
@@ -137,10 +138,14 @@ plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 plot!(abstract_system; value_function = abstract_value_function);
 
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");
 plot!(
-    concrete_problem.target_set;
-    dims = [1, 2],
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.5,
+    label = "Initial set",
+);
+plot!(
+    UT.project_set(concrete_problem.target_set, [1, 2]);
     color = :red,
     opacity = 0.5,
     label = "Target set",

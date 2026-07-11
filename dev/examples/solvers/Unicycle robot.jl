@@ -35,6 +35,7 @@ using MathOptSymbolicAD
 # At this point, we import Dionysos and JuMP.
 using Dionysos
 const DI = Dionysos
+const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
@@ -136,9 +137,10 @@ end
 
 # ### Definition of the abstraction
 
-# We define the growth bound function of $f$:
+# We define the growth bound function of $f$ (`|u₁|`: a growth bound is a
+# radius and must be nonnegative for every admissible input):
 function growth_bound(r, u)
-    β = u[1] * r[3]
+    β = abs(u[1]) * r[3]
     return StaticArrays.SVector{3}(β, β, 0.0)
 end
 set_attribute(model, "growthbound_map", growth_bound)
@@ -182,17 +184,21 @@ using Plots
 
 # Here we display the coordinate projection on the two first components of the state space along the trajectory.
 fig = plot(; aspect_ratio = :equal);
-# We display the concrete domain
+# We display the concrete domain (the set-minus recipe projects on `dims = [1, 2]`)
 plot!(concrete_system.X; color = :grey, opacity = 0.5, label = "");
 
 # We display the abstract domain
 plot!(abstract_system; value_function = abstract_value_function);
 
-# We display the concrete specifications
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.5, label = "Initial set");
+# We display the concrete specifications (projected on the plotted coordinates)
 plot!(
-    concrete_problem.target_set;
-    dims = [1, 2],
+    UT.project_set(concrete_problem.initial_set, [1, 2]);
+    color = :green,
+    opacity = 0.5,
+    label = "Initial set",
+);
+plot!(
+    UT.project_set(concrete_problem.target_set, [1, 2]);
     color = :red,
     opacity = 0.5,
     label = "Target set",

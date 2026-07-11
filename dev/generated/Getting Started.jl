@@ -9,8 +9,8 @@ const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
 
-rectX = UT.HyperRectangle(SVector(-2, -2), SVector(2, 2));
-rectU = UT.HyperRectangle(SVector(-5), SVector(5));
+rectX = UT.box(SVector(-2, -2), SVector(2, 2));
+rectU = UT.box(SVector(-5), SVector(5));
 
 x0 = SVector(0.0, 0.0)
 hx = SVector(1.0/5, 1.0/5)
@@ -47,7 +47,7 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
 )
 
 continuous_approx =
-    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
 concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -58,7 +58,7 @@ concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem
     nothing,
 )
 continuous_approx =
-    ST.ContinuousTimeGrowthBound_from_jacobian_bound(concrete_system, jacobian_bound)
+    ST.ContinuousTimeGrowthBound(concrete_system; jacobian_bound = jacobian_bound)
 discrete_approx = ST.discretize(continuous_approx, tstep)
 
 abstract_system = SY.SymbolicModelList(
