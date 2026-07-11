@@ -73,7 +73,6 @@ MOI.set(
 MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), 100)
 

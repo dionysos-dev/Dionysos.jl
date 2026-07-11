@@ -98,7 +98,6 @@ end
 set_attribute(model, "jacobian_bound", jacobian_bound_function)
 set_attribute(model, "time_step", 0.3)
 set_attribute(model, "approx_mode", AB.UniformGridAbstraction.GROWTH)
-set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);

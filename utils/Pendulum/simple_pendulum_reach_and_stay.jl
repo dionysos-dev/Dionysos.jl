@@ -84,7 +84,6 @@ MOI.set(
     (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 MOI.optimize!(optimizer)

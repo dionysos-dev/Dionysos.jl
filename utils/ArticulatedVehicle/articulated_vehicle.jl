@@ -98,7 +98,6 @@ function build_optimizer(
         MOI.RawOptimizerAttribute("execution_backend"),
         SY.ThreadedBackend(0.2),
     )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), Int(1e5))
 

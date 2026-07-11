@@ -69,7 +69,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periodic_perio
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("progress_update_interval"), 100)
 MOI.set(

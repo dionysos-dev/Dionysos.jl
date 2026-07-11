@@ -65,7 +65,6 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 
 MOI.optimize!(optimizer)
 

@@ -66,7 +66,6 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH,
 )
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
-MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(abstraction_optimizer, MOI.Silent(), true)
 
@@ -154,7 +153,6 @@ MOI.set(
 )
 
 MOI.set(local_optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
-MOI.set(local_optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(local_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(local_optimizer, MOI.Silent(), true)
 

@@ -67,7 +67,6 @@ MOI.set(
     AB.UniformGridAbstraction.CENTER_SIMULATION, # GROWTH, CENTER_SIMULATION
 )
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
-MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(abstraction_optimizer, MOI.Silent(), true)
 

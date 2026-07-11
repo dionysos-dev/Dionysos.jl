@@ -138,10 +138,6 @@ When enabled, the following fields are required:
       Simulate randomly sampled points in each abstract cell.  
       Set `n_samples`.
 
-- `efficient` (optional, default = `true`):
-  Deprecated and ignored — the abstraction kernel hoists approximation-specific
-  per-input work uniformly (see `Dionysos.System.input_cache` / `reach_set`).
-
 #### Continuous-time settings
 
 - `time_step` (required for continuous-time systems):  
@@ -311,7 +307,6 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     ### Execution settings
     execution_backend::SY.AbstractExecutionBackend
     approx_mode::ApproxMode
-    efficient::Bool
 
     ### Metadata settings
     transition_metadata::SY.AbstractTransitionMetadata
@@ -360,7 +355,6 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             5,
             SY.SequentialBackend(), # execution_backend
             GROWTH,                 # approx
-            true,                   # efficient
             SY.NoTransitionMetadata(),
             1,
             Int(1e5),

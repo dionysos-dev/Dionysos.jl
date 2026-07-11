@@ -42,6 +42,7 @@ const TEST_FILES = [
     ("./optim/optimizer_common.jl",),
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     ("./optim/UniformGridAbstraction/unit_test_reachability.jl",),
+    ("./optim/UniformGridAbstraction/unit_test_reach_and_stay.jl",),
     ("./optim/UniformGridAbstraction/unit_test_safety.jl",),
     ("./optim/UniformGridAbstraction/unit_test_growth_bound.jl",),
     ("./optim/UniformGridAbstraction/unit_test_linearization.jl",),

@@ -81,7 +81,6 @@ MOI.set(
     MOI.RawOptimizerAttribute("automaton_constructor"),
     (n, m) -> SY.FastIndexedAutomatonList(n, m),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 # ------------------------------------------------------------

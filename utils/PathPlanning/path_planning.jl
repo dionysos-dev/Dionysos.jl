@@ -60,7 +60,6 @@ MOI.set(
     AB.UniformGridAbstraction.GROWTH,
 )
 MOI.set(optimizer, MOI.RawOptimizerAttribute("early_stop"), false) # true
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 MOI.optimize!(optimizer);

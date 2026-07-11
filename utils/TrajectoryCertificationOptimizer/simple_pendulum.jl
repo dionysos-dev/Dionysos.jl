@@ -78,7 +78,6 @@ MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("periodic_periods"), pe
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
 
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("early_stop"), true)
-MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 MOI.set(abstraction_optimizer, MOI.Silent(), true)
 

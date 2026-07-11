@@ -65,7 +65,6 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
     # Make it deterministic + small for CI
     MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
     MOI.set(optimizer, MOI.Silent(), true)
 

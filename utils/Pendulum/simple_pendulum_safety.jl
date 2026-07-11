@@ -43,7 +43,6 @@ MOI.set(optimizer, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_periods"), periods)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("periodic_start"), periodic_start)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
 
 MOI.set(

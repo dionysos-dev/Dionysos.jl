@@ -87,7 +87,6 @@ MOI.set(
     ),
 )
 
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
 
 MOI.set(optimizer, MOI.Silent(), true)
