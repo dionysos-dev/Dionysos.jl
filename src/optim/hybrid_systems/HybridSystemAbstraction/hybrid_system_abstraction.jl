@@ -21,6 +21,7 @@ const OPDS = OP.DiscreteSystems
 
 export Optimizer
 
+include("hybrid_symbolic_builder.jl")
 include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")

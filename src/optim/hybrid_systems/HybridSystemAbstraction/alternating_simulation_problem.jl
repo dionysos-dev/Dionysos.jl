@@ -54,7 +54,7 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     # Build symbolic model
     optimizer.print_level >= 1 &&
         println("Construct the Hybrid System Abstraction: started")
-    optimizer.abstract_system = SY.build_timed_hybrid_symbolic_model(
+    optimizer.abstract_system = build_timed_hybrid_symbolic_model(
         optimizer.alternating_simulation_problem.system,
         optimizer.optimizer_list,
         optimizer.optimizer_kwargs_dict,
