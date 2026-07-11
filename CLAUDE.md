@@ -276,13 +276,24 @@ Julia ≥ 1.10 (CI tests 1.10 and current `1`). Commands assume the repo root.
 **Run tests — don't run the whole suite for every change; it's slow.** Prefer the narrowest scope:
 
 1. **Run only the test file(s) you touched, standalone.** Every test file is a self-contained module
-   (its own `using`) and *must be runnable on its own* in the test environment
+   and *must be runnable on its own* in the test environment
    ([test/Project.toml](test/Project.toml), which sources `Dionysos` via a relative path):
    ```
-   julia --project=test test/optim/UniformGridAbstraction/unit_test_reachability.jl
+   julia --project=test test/optim/discrete_systems/reachability.jl
    ```
    First time only: `julia --project=test -e 'using Pkg; Pkg.instantiate()'`. If a file is *not*
    standalone-runnable (e.g. a missing import), fix it — add the missing `using`/`import`.
+
+   **Shared harness.** Each file opens with `import Dionysos` then
+   `include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))`, which brings in
+   `Test`/`StaticArrays`/`MathematicalSystems`, the module aliases (`DI/UT/ST/PR/MP/SY/OP/OPDS/AB`),
+   tiny system builders (`single_integrator`, `double_integrator`) and helpers
+   (`controller_admissible`). Don't re-declare those per file. Add file-specific imports
+   (`JuMP`, `import MathOptInterface as MOI`, `Plots`, …) after the include.
+
+   **`optim/` layout.** `optim/discrete_systems/` = controller synthesis on a hand-built automaton;
+   `optim/UniformGridAbstraction/` = the grid abstraction solver (build modes + end-to-end specs);
+   one file per solver family otherwise.
 2. **Fast subset smoke check:** `julia --project -e 'using Pkg; Pkg.test(; test_args = ["--fast"])'`
    runs everything except suites tagged `:slow` in [test/runtests.jl](test/runtests.jl) (heavy
    end-to-end solver pipelines + Aqua). The driver prints per-file timings and a slowest-first summary.
