@@ -104,15 +104,13 @@ function _generate_concrete_trajectory(gen::TrajectoryGenerator)
 
     x0 = _initial_state(gen, gen.problem)
 
-    traj = ST.get_closed_loop_trajectory(
+    return ST.get_closed_loop_trajectory(
         discrete_time_system,
         concrete_controller,
         x0,
         gen.nstep;
         trajectory_success = xtraj -> PR.trajectory_success(gen.problem, xtraj),
     )
-
-    return ST.ClosedLoopTrajectory(traj.x, traj.u)
 end
 
 function _generate_abstract_trajectory(gen::TrajectoryGenerator)

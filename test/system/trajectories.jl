@@ -71,6 +71,49 @@ end
     @test_throws AssertionError ST.get_cost_trajectory(xs, bad_us, c)
 end
 
+@testset "Closed-loop engine" begin
+    # discrete dynamics x⁺ = x + u (broadcast tolerates scalar or vector u)
+    f(x, u) = x .+ u
+    sys = MS.ConstrainedBlackBoxControlDiscreteSystem(f, 1, 1, nothing, nothing)
+
+    # static controller under test: u = -x/2
+    ctrl = ST.AffineController(MS.AffineMap(hcat(-0.5), [0.0]))
+
+    traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 5)
+    @test traj isa ST.ClosedLoopTrajectory
+    @test traj.q === nothing
+    @test length(traj.x) == 6
+    @test length(traj.u) == 5
+    @test traj.x.seq[2] ≈ [0.5]              # x + (-0.5x)
+    @test eltype(traj.u.seq) == Vector{Float64}  # inputs typed from first control
+
+    # destructuring (static: two elements)
+    x_traj, u_traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 3)
+    @test length(x_traj) == 4 && length(u_traj) == 3
+
+    # stopping condition
+    traj_stop =
+        ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 50; stopping = x -> x[1] < 0.1)
+    @test traj_stop.x.seq[end][1] < 0.1
+
+    # dynamic controller: memory counts steps and cuts off after 2 controls
+    dyn = ST.DiscreteDynamicController(
+        0,
+        ST.PredicateDomain(memx -> memx[1] < 2),
+        (mem, y) -> mem + 1,
+        (mem, y) -> mem < 2 ? [0.5] : nothing,
+        false,
+    )
+    trajd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
+    @test trajd.q isa ST.Trajectory
+    @test length(trajd.u) == 2                # third output_control is undefined
+    @test trajd.q.seq == [0, 1, 2]
+
+    # dynamic destructuring: three elements
+    xd, ud, qd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
+    @test qd.seq == trajd.q.seq
+end
+
 @testset "wrap_coord + wrapper" begin
     x = @SVector [3.2, -1.0, 7.5]
     periodic_dims = SVector(1, 3)

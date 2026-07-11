@@ -1,8 +1,10 @@
-# Closed-loop simulation directly on the abstract automaton.
+# Closed-loop simulation directly on the abstract automaton: the shared
+# simulation engine in `System`, with the automaton `post` map (plus successor
+# choice) as the step function.
 
 function get_closed_loop_trajectory(
     autom::AbstractAutomatonList,
-    controller::ST.AbstractDiscreteController,
+    controller::ST.AbstractController,
     q0::Int,
     nstep::Integer;
     stopping = q -> false,
@@ -10,60 +12,20 @@ function get_closed_loop_trajectory(
     randomize_post::Bool = false,
     verbose::Bool = false,
 )
-    q = q0
-
-    qs = Int[]
-    us = Int[]
-
-    push!(qs, q)
-
-    if trajectory_success(ST.Trajectory(qs))
-        verbose &&
-            @info "Closed-loop simulation stopped: trajectory success reached" step = 0 state =
-                q
-        return (x = ST.Trajectory(qs), u = ST.Trajectory(us))
-    end
-
-    for k in 1:nstep
-        if stopping(q)
-            verbose &&
-                @info "Closed-loop simulation stopped: stopping condition reached" step = k state =
-                    q
-            break
-        end
-
-        u = ST.output_control(controller, nothing, q)
-
-        if u === nothing
-            verbose &&
-                @warn "Closed-loop simulation stopped: controller returned nothing" step = k state =
-                    q
-            break
-        end
-
+    step = (q, u) -> begin
         qnexts = post(autom, q, u)
-
-        if qnexts === nothing || isempty(qnexts)
-            verbose &&
-                @warn "Closed-loop simulation stopped: no successor state" step = k state =
-                    q input = u
-            break
-        end
-
-        qnext = randomize_post ? rand(qnexts) : first(qnexts)
-
-        push!(us, u)
-        push!(qs, qnext)
-
-        q = qnext
-
-        if trajectory_success(ST.Trajectory(qs))
-            verbose &&
-                @info "Closed-loop simulation stopped: trajectory success reached" step = k state =
-                    q
-            break
-        end
+        (qnexts === nothing || isempty(qnexts)) && return nothing
+        return randomize_post ? rand(qnexts) : first(qnexts)
     end
 
-    return (x = ST.Trajectory(qs), u = ST.Trajectory(us))
+    return ST.get_closed_loop_trajectory(
+        nothing,
+        controller,
+        q0,
+        nstep;
+        f_map_override = step,
+        stopping = stopping,
+        trajectory_success = trajectory_success,
+        verbose = verbose,
+    )
 end

@@ -49,9 +49,27 @@ struct Trajectory{T}
     seq::Vector{T}
 end
 
-struct ClosedLoopTrajectory{XT, UT}
+"""
+    ClosedLoopTrajectory
+
+Result of a closed-loop simulation: the state trajectory `x`, the input
+trajectory `u`, and — for dynamic controllers — the controller-memory
+trajectory `q` (`nothing` for static controllers). Destructures as
+`x_traj, u_traj[, q_traj] = traj`.
+"""
+struct ClosedLoopTrajectory{XT, UT, QT}
     x::Trajectory{XT}
     u::Trajectory{UT}
+    q::QT
+end
+
+ClosedLoopTrajectory(x::Trajectory, u::Trajectory) = ClosedLoopTrajectory(x, u, nothing)
+
+function Base.iterate(traj::ClosedLoopTrajectory, state::Int = 1)
+    state == 1 && return (traj.x, 2)
+    state == 2 && return (traj.u, 3)
+    state == 3 && traj.q !== nothing && return (traj.q, 4)
+    return nothing
 end
 
 Base.length(traj::Trajectory) = length(traj.seq)
