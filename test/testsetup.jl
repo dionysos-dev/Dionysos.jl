@@ -3,7 +3,7 @@
 #
 # Usage (works both under runtests.jl and when a file is run standalone):
 #
-#     using Dionysos
+#     import Dionysos
 #     include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 #
 # The path is resolved from `pathof(Dionysos)` so it is independent of the caller's depth.

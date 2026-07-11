@@ -1,12 +1,10 @@
 module TestMain
 
-using Test
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LinearAlgebra as LA
 import LazySets
-
-const DI = Dionysos
-const UT = DI.Utils
 
 distance(E1, E2) = UT.center_distance(E1, LazySets.center(E2))
 get_action(E1, E2) = (1.0, 1.0)

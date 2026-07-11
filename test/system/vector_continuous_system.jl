@@ -1,14 +1,9 @@
 module TestMain
 
-using Test
-using StaticArrays
-import MathematicalSystems as MS
-using Dionysos
-const UT = Dionysos.Utils
-const ST = Dionysos.System
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-sleep(0.1) # used for good printing
-println("Started tests")
+import MathematicalSystems as MS
 
 @testset "VectorContinuousSystem Construction" begin
     # Test basic construction with two affine control systems
@@ -136,8 +131,5 @@ end
     @test length(MS.stateset(v_sys)) == 2
     @test length(MS.inputset(v_sys)) == 2
 end
-
-sleep(0.1) # used for good printing
-println("End test")
 
 end # module

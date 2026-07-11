@@ -1,23 +1,13 @@
 module TestMain
 
-using Test
-using StaticArrays
-using MathematicalSystems
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
 using JuMP
 import MathOptInterface as MOI
-using Dionysos
 using Spot
 using Plots
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
-const OPDS = OP.DiscreteSystems
 
 include(
     joinpath(
@@ -27,9 +17,6 @@ include(
         "toy_problem.jl",
     ),
 )
-
-sleep(0.1)
-println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
 
 @testset "UniformGridAbstraction ToyProblem (CoSafeLTL monitor)" begin
     # ------------------------------------------------------------
@@ -228,7 +215,5 @@ println("Started UniformGridAbstraction ToyProblem + CoSafeLTL tests")
         @test fig isa Plots.Plot
     end
 end
-
-println("End test")
 
 end # module TestMain

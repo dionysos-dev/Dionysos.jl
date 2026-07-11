@@ -1,15 +1,9 @@
 module Allocation
 
-using Test
-using StaticArrays
-using LinearAlgebra
-using MathematicalSystems
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-const DI = Dionysos
-const MP = DI.Mapping
-const ST = DI.System
-const SY = DI.Symbolic
+using LinearAlgebra
 
 # -----------------------
 # Helper: build finite explicit grid mappings (3D)

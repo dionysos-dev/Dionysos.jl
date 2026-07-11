@@ -1,11 +1,9 @@
 module TestControllers
 
-using Test
-import MathematicalSystems as MS
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-using Dionysos
-const DI = Dionysos
-const ST = DI.System
+import MathematicalSystems as MS
 
 # Minimal protocol implementations to exercise the trait defaults.
 struct ToyStatic <: ST.AbstractController end

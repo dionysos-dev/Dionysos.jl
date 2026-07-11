@@ -3,23 +3,11 @@
 # run with a custom overapproximation map failed with an UndefVarError.
 module TestMain
 
-using Test
-using StaticArrays
-using MathematicalSystems
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
 import MathOptInterface as MOI
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
-
-sleep(0.1)
-println("Started USER_DEFINED approximation-mode tests")
 
 _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 _U_ = UT.box(SVector(-1.0), SVector(1.0))
@@ -103,8 +91,5 @@ end
         MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system_approximation"))
     @test approx isa ST.DiscreteTimeOverApproximationMap
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

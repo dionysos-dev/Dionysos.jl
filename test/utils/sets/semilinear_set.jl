@@ -1,15 +1,13 @@
 
 module TestMain
 
-using Test
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using LazySets
 using Polyhedra
 using CDDLib
 import LinearAlgebra as LA
-
-const DI = Dionysos
-const UT = DI.Utils
 
 # ------------------------------------------------------------
 # Helpers
@@ -275,5 +273,4 @@ end
     @test [2.5, 2.5] ∈ parts[1] || [2.5, 2.5] ∈ parts[2]
 end
 
-println("End test")
 end

@@ -1,18 +1,7 @@
 module TestMain
 
-using Test
-using StaticArrays
-using MathematicalSystems
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-
-sleep(0.1)
-println("Started test")
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "FromControlSystem" begin
     # ----------------------------
@@ -95,8 +84,5 @@ println("Started test")
 
     @test !isempty(targetlist)
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

@@ -1,11 +1,7 @@
 module TestPeriodicGridMapping
 
-using Test
-using StaticArrays
-using Dionysos
-const DI = Dionysos
-const MP = DI.Mapping
-const UT = DI.Utils
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 # Helper: build a grid with correct periodic origin alignment
 function _aligned_grid(periodic_dims, periods, start, h, N::Int)

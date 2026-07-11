@@ -1,11 +1,10 @@
 module TestMain
 
-using Test
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LinearAlgebra as LA
 import LazySets
-const DI = Dionysos
-const UT = DI.Utils
 
 # The golden values below are in the quadratic-form convention
 # {x : (x−c)ᵀP(x−c) ≤ 1}; LazySets stores the shape matrix Q = P⁻¹.
@@ -175,5 +174,4 @@ end
     @test isapprox(sqrt(UT.get_quadratic_form(E8)), P0, atol = 1e-6)
 end
 
-println("End test")
 end

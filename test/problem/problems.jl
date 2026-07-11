@@ -1,18 +1,10 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using Plots
-using Dionysos
 import MathematicalSystems
-
-const DI = Dionysos
-const UT = DI.Utils
-const PR = DI.Problem
-const MP = DI.Mapping
-
-sleep(0.1)
-println("Started problem tests")
 
 # Minimal dummy system: the problem plot recipes require `MS.stateset(system)`.
 struct DummySystem{X}

@@ -1,16 +1,10 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LinearAlgebra as LA
 import LazySets
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
-
-println("Started grid tests")
 
 # Helper: check point is inside a box (inclusive)
 _in_rec(rect, x) = x ∈ rect

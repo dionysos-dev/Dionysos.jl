@@ -1,10 +1,9 @@
 module TestMain
 
-using Test
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
-const DI = Dionysos
-const UT = DI.Utils
 
 @testset "Set algebra (LazySets-backed)" begin
     A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
@@ -80,5 +79,4 @@ end
     @test length(UT.minus_included(WM).array) == 2
 end
 
-println("End test")
 end # module

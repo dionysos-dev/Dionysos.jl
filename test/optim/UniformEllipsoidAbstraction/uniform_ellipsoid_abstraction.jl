@@ -1,7 +1,8 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using LinearAlgebra
 using JuMP
 using Clarabel
@@ -9,16 +10,6 @@ import MathOptInterface as MOI
 import CDDLib
 import Random
 using Plots
-
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const PR = DI.Problem
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 # ------------------------------------------------------------------
 # Optional plotting gate

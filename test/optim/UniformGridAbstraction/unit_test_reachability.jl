@@ -1,20 +1,7 @@
 module TestMain
 
-using Test
-using StaticArrays
-using MathematicalSystems
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const Optim = DI.Optim
-const OPDS = Optim.DiscreteSystems
-
-sleep(0.1)
-println("Started test")
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ControllerReach" begin
     # ----------------------------
@@ -105,8 +92,5 @@ println("Started test")
     @test !isempty(controllable_set)
     @test value_fun_tab !== nothing
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

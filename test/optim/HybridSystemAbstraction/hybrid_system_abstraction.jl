@@ -1,21 +1,13 @@
 module TestMain
-using Test
-using StaticArrays, MathOptInterface
+
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+using MathOptInterface
 const MOI = MathOptInterface
 
 import MathematicalSystems as MS
 import LazySets
 using HybridSystems
-
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const PR = DI.Problem
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 @testset "HybridSystemAbstraction - simple example, time taken into account" begin
     # ------------------------------

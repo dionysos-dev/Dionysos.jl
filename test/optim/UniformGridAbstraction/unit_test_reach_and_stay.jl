@@ -1,23 +1,9 @@
 module TestMain
 
-using Test
-using StaticArrays
-using MathematicalSystems
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathOptInterface as MOI
-
-sleep(0.1)
-println("Started test")
 
 # Fast end-to-end check of the UniformGridAbstraction reach-and-stay optimizer
 # (`OptimizerReachAndStayProblem`), which the lifted-control template drives.
@@ -83,8 +69,5 @@ println("Started test")
     u = ST.output_control(concrete_controller, nothing, x_in_target)
     @test u !== nothing
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

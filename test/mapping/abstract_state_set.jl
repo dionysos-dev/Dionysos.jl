@@ -1,11 +1,7 @@
 module TestMain
 
-using Test
-using StaticArrays
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "AbstractStateSet" begin
     # ---- Make a tiny explicit grid mapping with a known universe ----

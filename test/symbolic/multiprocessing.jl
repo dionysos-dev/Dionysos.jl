@@ -1,16 +1,9 @@
 module TestDistributedAbstraction
 
-using Test
-using Dionysos
-using MathematicalSystems
-using StaticArrays
-using Distributed
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
+using Distributed
 
 @everywhere begin
     struct ToyAddDynamics <: Function end

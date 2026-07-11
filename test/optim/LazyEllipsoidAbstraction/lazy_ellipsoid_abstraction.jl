@@ -1,22 +1,15 @@
 module TestMain
 
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
-using Test
-using StaticArrays
 using Random
-using MathematicalSystems, HybridSystems
+using HybridSystems
 using JuMP
 using Clarabel
 import MathOptInterface as MOI
 using Plots
-
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const PR = DI.Problem
-const OP = DI.Optim
-const AB = OP.Abstraction
 
 # Don’t plot on CI (keeps tests fast + headless-safe)
 const _NO_PLOT = get(ENV, "CI", "false") == "true"

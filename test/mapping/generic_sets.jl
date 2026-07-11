@@ -1,19 +1,9 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
-using MathematicalSystems
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
-const ST = DI.System
-const SY = DI.Symbolic
-const OPDS = DI.Optim.DiscreteSystems
-
-println("Started test")
 
 @testset "Generic LazySets through the grid mapping" begin
     h = SVector(0.25, 0.25)
@@ -95,7 +85,5 @@ end
     @test !isempty(controllable_set)
     @test value_fun_tab !== nothing
 end
-
-println("End test")
 
 end # module TestMain

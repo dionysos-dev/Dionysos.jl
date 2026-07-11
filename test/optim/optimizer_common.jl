@@ -1,11 +1,9 @@
 module TestOptimizerCommon
 
-using Test
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathOptInterface as MOI
-import Dionysos
-const PR = Dionysos.Problem
-const OP = Dionysos.Optim
 const UGA = OP.Abstraction.UniformGridAbstraction
 
 @testset "AbstractDionysosOptimizer (leaf contract)" begin

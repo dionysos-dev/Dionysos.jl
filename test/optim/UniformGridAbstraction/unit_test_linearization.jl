@@ -1,16 +1,7 @@
 module TestMain
 
-using Test
-using StaticArrays, MathematicalSystems
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-
-sleep(0.1)
-println("Started test")
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "FromControlSystem (Mapping-based)" begin
     # ----------------------------
@@ -108,8 +99,5 @@ println("Started test")
         @test 1 <= tgt <= MP.get_n_state(Xmap)
     end
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

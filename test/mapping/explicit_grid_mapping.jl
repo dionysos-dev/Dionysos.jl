@@ -1,14 +1,9 @@
 module TestMain
 
-using Test
-using StaticArrays, Plots
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-sleep(0.1)
-println("Started test")
+using Plots
 
 @testset "ExplicitGridMapping" begin
     orig = SVector(0.0, 0.0)
@@ -64,8 +59,5 @@ println("Started test")
     alloc2 = @allocated MP.cover!(m2, rect, MP.OUTER)
     @test alloc2 == 0
 end
-
-sleep(0.1)
-println("End test")
 
 end # module TestMain

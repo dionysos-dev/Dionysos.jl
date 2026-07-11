@@ -1,15 +1,11 @@
 module TestMain
+
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 include("solvers.jl")
 include("../../../problems/GolLazarBelta/gol_lazar_belta.jl")
 
-import Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const PR = DI.Problem
-const OP = DI.Optim
-
-using LinearAlgebra, Test
+using LinearAlgebra
 import CDDLib
 import Polyhedra
 using HybridSystems
