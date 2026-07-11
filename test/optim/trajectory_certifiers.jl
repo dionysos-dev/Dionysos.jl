@@ -8,6 +8,7 @@ import LinearAlgebra as LA
 import MathOptInterface as MOI
 using Symbolics
 import Clarabel
+using Random
 
 include("../../problems/ToyProblem/toy_problem.jl")
 
@@ -136,6 +137,35 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
     AB.certify!(eb_cert)
     @test AB.get_success(eb_cert) isa Bool
     @test EB.get_result(eb_cert) !== nothing
+
+    # 3) Combined trajectory-generation + certification optimizer: a composite generator
+    #    (optimizer seed refined by MPPI) feeding the certifier, driven through MOI.
+    discrete_problem = PR.discretize_problem(concrete_problem, Δt)
+    mppi_gen = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
+        rng = Random.MersenneTwister(0),
+        seed_trajectory = traj,
+        nstep = 20,
+        nsamples = 40,
+        niter = 3,
+        λ = 1.0,
+        noise_sampler = (rng, u, k) -> SVector(0.3 * randn(rng), 0.3 * randn(rng)),
+        project_input = u -> SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0)),
+        trajectory_cost = (problem, tr) -> sum(LA.norm(u)^2 for u in tr.u.seq),
+        hard_constraint = false,
+    )
+    combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
+        gen,
+        mppi_gen;
+        Δt = Δt,
+        num_substeps = 5,
+    )
+    tc_cert = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(combo_gen, tc_cert)
+    MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.optimize!(tc_optimizer)
+    @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("trajectory")) !== nothing
+    @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success")) isa Bool
+    @test MOI.get(tc_optimizer, MOI.SolveTimeSec()) >= 0.0
 end
 
 end # module TestMain
