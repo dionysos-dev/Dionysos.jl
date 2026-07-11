@@ -407,20 +407,19 @@ function build_continuous_approximation(
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
-        return ST.ContinuousTimeOverapproximationMap(
+        return ST.ContinuousTimeOverApproximationMap(
             system,
             optimizer.overapproximation_map,
         )
     elseif mode == GROWTH
         if optimizer.growthbound_map !== nothing
             return ST.ContinuousTimeGrowthBound(system, optimizer.growthbound_map)
-        elseif optimizer.jacobian_bound !== nothing
-            return ST.ContinuousTimeGrowthBound_from_jacobian_bound(
-                system,
-                optimizer.jacobian_bound,
-            )
         else
-            return ST.ContinuousTimeGrowthBound(system)
+            return ST.ContinuousTimeGrowthBound(
+                system;
+                jacobian_bound = optimizer.jacobian_bound,
+                ngrowthbound = optimizer.ngrowthbound,
+            )
         end
     elseif mode == LINEARIZED
         _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
@@ -428,7 +427,8 @@ function build_continuous_approximation(
             system,
             optimizer.DF_sys,
             optimizer.bound_DF,
-            optimizer.bound_DDF,
+            optimizer.bound_DDF;
+            num_substeps = optimizer.nsystem,
         )
     elseif mode == CENTER_SIMULATION
         return ST.ContinuousTimeCenteredSimulation(system)
@@ -448,7 +448,7 @@ function build_discrete_approximation(
     mode = optimizer.approx_mode
     if mode == USER_DEFINED
         _validate_model(optimizer, [:overapproximation_map])
-        return ST.DiscreteTimeOverapproximationMap(system, optimizer.overapproximation_map)
+        return ST.DiscreteTimeOverApproximationMap(system, optimizer.overapproximation_map)
     elseif mode == GROWTH
         _validate_model(optimizer, [:growthbound_map])
         return ST.DiscreteTimeGrowthBound(system, optimizer.growthbound_map)
@@ -481,7 +481,8 @@ function build_system_approximation!(optimizer::OptimizerAlternatingSimulationPr
             build_continuous_approximation(optimizer, system)
         optimizer.discrete_time_system_approximation = ST.discretize(
             optimizer.continuous_time_system_approximation,
-            optimizer.time_step,
+            optimizer.time_step;
+            num_substeps = optimizer.nsystem,
         )
     elseif isa(system, MS.ConstrainedBlackBoxControlDiscreteSystem)
         optimizer.discrete_time_system_approximation =

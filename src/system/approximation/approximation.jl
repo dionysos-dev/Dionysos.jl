@@ -1,5 +1,5 @@
 # --------------------------------------------------
-#  KERNEL APPROXIMATIONS (UNDER AND OVER APPROXIMATIONS)
+#  REACHABLE-SET APPROXIMATIONS OF THE DYNAMICS (UNDER AND OVER)
 # --------------------------------------------------
 
 # --------------------------------------------------
@@ -41,7 +41,7 @@ get_system_map(
     num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
 ) = simulate_control_map(MS.mapping(get_system(approx)); num_substeps = num_substeps)
 
-discretize(approx::ContinuousTimeSystemApproximation, tstep::Float64) =
+discretize(approx::ContinuousTimeSystemApproximation, tstep::Float64; kwargs...) =
     error("implement `discretize` for $(typeof(approx))")
 
 # --------------------------------------------------
@@ -167,7 +167,7 @@ get_over_approximation_map(approx::DiscreteTimeOverApproximationMap) =
     approx.over_approximation_map
 
 """
-    ContinuousTimeSystemOverApproximationMap <: ContinuousTimeSystemOverApproximation
+    ContinuousTimeOverApproximationMap <: ContinuousTimeSystemOverApproximation
 
 Concrete implementation of a continuous-time **overapproximation** of a control system.
 
@@ -182,18 +182,18 @@ This type stores a constrained continuous-time system and an overapproximation f
 # Notes
 Use `discretize` to convert this approximation into a discrete-time overapproximation suitable for use in fixed-step abstraction pipelines.
 """
-struct ContinuousTimeSystemOverApproximationMap{
+struct ContinuousTimeOverApproximationMap{
     S <: MS.ConstrainedBlackBoxControlContinuousSystem,
     F,
 } <: ContinuousTimeSystemOverApproximation
     system::S
     over_approximation_map::F
 end
-get_system(approx::ContinuousTimeSystemOverApproximationMap) = approx.system
-get_over_approximation_map(approx::ContinuousTimeSystemOverApproximationMap) =
+get_system(approx::ContinuousTimeOverApproximationMap) = approx.system
+get_over_approximation_map(approx::ContinuousTimeOverApproximationMap) =
     approx.over_approximation_map
 function discretize(
-    approx::ContinuousTimeSystemOverApproximationMap,
+    approx::ContinuousTimeOverApproximationMap,
     tstep::Float64;
     num_substeps::Int = DEFAULT_NUM_SUBSTEPS,
 )
@@ -203,5 +203,5 @@ function discretize(
     return DiscreteTimeOverApproximationMap(discretized_system, discrete_overapprox)
 end
 
-include("growth.jl")
+include("growth_bound.jl")
 include("linearized.jl")

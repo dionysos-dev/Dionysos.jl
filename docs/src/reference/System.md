@@ -94,7 +94,7 @@ Dionysos.System.ContinuousTimeRandomSimulation
 
 ```@docs
 Dionysos.System.DiscreteTimeOverApproximationMap
-Dionysos.System.ContinuousTimeSystemOverApproximationMap
+Dionysos.System.ContinuousTimeOverApproximationMap
 ```
 
 ```@docs

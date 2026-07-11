@@ -76,7 +76,7 @@ end
     @test LazySets.center(outR) ≈ fd(LazySets.center(rect), u)
 
     # ----------------------------
-    # ContinuousTimeSystemOverApproximationMap + discretize
+    # ContinuousTimeOverApproximationMap + discretize
     # ----------------------------
     over_map_cont = (r, u, h) -> begin
         x = LazySets.center(r)
@@ -84,7 +84,7 @@ end
         rad = LazySets.radius_hyperrectangle(r)
         UT.box(Fx - rad, Fx + rad)
     end
-    Ocont = ST.ContinuousTimeSystemOverApproximationMap(sysC, over_map_cont)
+    Ocont = ST.ContinuousTimeOverApproximationMap(sysC, over_map_cont)
     @test ST.is_over_approximation(Ocont)
 
     outRc = ST.get_over_approximation_map(Ocont)(rect, u, tstep)

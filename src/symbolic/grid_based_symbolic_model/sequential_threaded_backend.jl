@@ -523,13 +523,12 @@ function collect_abstract_transitions!(
     linsys_map = concrete_system_approx.linsys_map
 
     inputs = collect(enum_inputs(symmodel))
-    input_data = Dict{Int, Tuple{Any, Any, Any}}()
+    input_data = Dict{Int, Tuple{Any, Any}}()
 
     for abstract_input in inputs
         concrete_input = get_concrete_input(symmodel, abstract_input)
         Fe = error_map(e, concrete_input)
-        Fr = r .+ Fe
-        input_data[abstract_input] = (concrete_input, Fe, Fr)
+        input_data[abstract_input] = (concrete_input, Fe)
     end
 
     states = collect(enum_states(symmodel))
@@ -541,13 +540,10 @@ function collect_abstract_transitions!(
         abstract_state::Int,
         abstract_input::Int,
     )
-        concrete_input, Fe, Fr = input_data[abstract_input]
+        concrete_input, Fe = input_data[abstract_input]
         concrete_state = concrete_states[abstract_state]
 
         Fx, DFx = linsys_map(concrete_state, _H_, concrete_input)
-
-        A = inv(DFx)
-        b = abs.(A) * Fr .+ 1.0
 
         rad = abs.(DFx) * _ONE_ .+ Fe
         reachable_set = LazySets.Hyperrectangle(Fx, rad)

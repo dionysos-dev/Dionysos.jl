@@ -199,7 +199,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
   `AlternatingSimulationProblem` / `BisimulationQuotientProblem`. See
   [src/problem/problems.jl](src/problem/problems.jl). Infinite horizons use the `Infinity()` sentinel.
 - **Growth bound** — a function over-approximating a cell's reachable set (to build sound transitions);
-  supplied via `jacobian_bound` + `ST.ContinuousTimeGrowthBound_from_jacobian_bound`. `approx_mode`
+  supplied via `ST.ContinuousTimeGrowthBound(system; jacobian_bound)`. `approx_mode`
   selects `GROWTH` vs `LINEARIZED`.
 - **Post / pre** — `post(sym, q, u)` = successor abstract states; `pre(sym, target)` = predecessors.
   Fixed-point pre-image computation drives reachability synthesis.
@@ -209,7 +209,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
   the Lyapunov functions for the ellipsoid abstractions.
 - **Controller / feedback** — `AbstractController` splits into **static** (state-feedback map `q ↦ u`)
   and **dynamic** (has internal memory). Protocol: `initial_state`, `update_state`, `output_control`,
-  `is_defined`, `domain`. See [src/system/controller.jl](src/system/controller.jl).
+  `is_defined`, `domain`. See [src/system/controllers/controller.jl](src/system/controllers/controller.jl).
 
 ---
 

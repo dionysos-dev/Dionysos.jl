@@ -82,25 +82,37 @@ function discretize(
     return DiscreteTimeGrowthBound(discretized_system, discretized_growthbound_map)
 end
 
-function ContinuousTimeGrowthBound_from_jacobian_bound(
-    system::MS.ConstrainedBlackBoxControlContinuousSystem,
-    jacobian_bound;
+"""
+    ContinuousTimeGrowthBound(system; jacobian_bound = nothing, ngrowthbound = DEFAULT_NUM_SUBSTEPS)
+
+Build a continuous-time growth-bound overapproximation from a Jacobian bound: the
+radius dynamics `ṙ = jacobian_bound(u) * r` are integrated with `ngrowthbound` RK4
+substeps per time step. When `jacobian_bound` is not provided, it is derived from
+the system via `compute_jacobian_bound` (requires an extension providing it).
+"""
+function ContinuousTimeGrowthBound(
+    system::MS.ConstrainedBlackBoxControlContinuousSystem;
+    jacobian_bound = nothing,
     ngrowthbound::Int = DEFAULT_NUM_SUBSTEPS,
 )
+    if jacobian_bound === nothing
+        jacobian_bound = compute_jacobian_bound(system)
+    end
     modified_jacobian_bound = (r, u) -> jacobian_bound(u) * r
     growthbound_map =
         (r, u, tstep) -> runge_kutta4(modified_jacobian_bound, r, u, tstep, ngrowthbound)
     return ContinuousTimeGrowthBound(system, growthbound_map)
 end
 
-function ContinuousTimeGrowthBound(
-    system::MS.ConstrainedBlackBoxControlContinuousSystem;
+# Deprecated: use `ContinuousTimeGrowthBound(system; jacobian_bound, ngrowthbound)`.
+function ContinuousTimeGrowthBound_from_jacobian_bound(
+    system::MS.ConstrainedBlackBoxControlContinuousSystem,
+    jacobian_bound;
     ngrowthbound::Int = DEFAULT_NUM_SUBSTEPS,
 )
-    jacobian_bound = compute_jacobian_bound(system)
-    return ContinuousTimeGrowthBound_from_jacobian_bound(
-        system,
-        jacobian_bound;
+    return ContinuousTimeGrowthBound(
+        system;
+        jacobian_bound = jacobian_bound,
         ngrowthbound = ngrowthbound,
     )
 end
@@ -108,7 +120,7 @@ end
 function compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
     return error(
         "Automatic Jacobian-bound computation is not implemented. " *
-        "Build the growth bound explicitly with a user-provided bound via " *
-        "`ContinuousTimeGrowthBound_from_jacobian_bound(system, jacobian_bound)`.",
+        "Provide the bound explicitly via " *
+        "`ContinuousTimeGrowthBound(system; jacobian_bound = jacobian_bound)`.",
     )
 end

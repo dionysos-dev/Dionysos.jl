@@ -39,7 +39,6 @@ function get_over_approximation_map(approx::DiscreteTimeLinearized)
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u)
-        Fr = r .+ Fe
 
         Fx, DFx = approx.linsys_map(x, _H_, u)
 
@@ -88,7 +87,6 @@ function get_over_approximation_map(approx::ContinuousTimeLinearized)
         _ONE_ = ones(SVector{N})
 
         Fe = approx.error_map(e, u, tstep)
-        Fr = r .+ Fe
 
         Fx, DFx = approx.linsys_map(x, _H_, u, tstep)
         rad = abs.(DFx) * _ONE_ .+ Fe
