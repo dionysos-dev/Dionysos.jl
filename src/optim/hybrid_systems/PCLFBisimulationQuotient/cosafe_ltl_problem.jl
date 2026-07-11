@@ -87,8 +87,7 @@ function get_states_from_set(Q::QuotientAutomaton, X0)
     out = Int[]
     for (i, qid) in enumerate(Q.qids)
         q = Q.quotient.states[qid]
-        I = UT.set_intersection(q.set, X0h)
-        UT.is_nonempty_set(I) && push!(out, i)
+        UT.is_disjoint(q.set, X0h) || push!(out, i)
     end
     return out
 end

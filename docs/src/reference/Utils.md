@@ -32,7 +32,6 @@ Dionysos.Utils.get_quadratic_form
 Dionysos.Utils.get_sublevel_set
 Dionysos.Utils.get_length_semiaxis
 Dionysos.Utils.set_in_period
-Dionysos.Utils.get_min_bounding_box
 Dionysos.Utils.project_set
 Dionysos.Utils.sample
 Dionysos.Utils.samples
@@ -41,11 +40,12 @@ Dionysos.Utils.samples
 ## Set algebra
 
 ```@docs
+Dionysos.Utils.SemiLinearSet
+Dionysos.Utils.semilinear_set
 Dionysos.Utils.set_union
 Dionysos.Utils.set_minus
 Dionysos.Utils.minus_included
 Dionysos.Utils.minus_hole
-Dionysos.Utils.empty_region
 Dionysos.Utils.is_included
 Dionysos.Utils.is_disjoint
 ```

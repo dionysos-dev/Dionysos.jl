@@ -771,7 +771,7 @@ struct ObserverCLFPiece{U} <: AbstractPiece
 end
 
 function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64; atol::Float64 = 1e-6)
-    parts = UT.Poly[]
+    parts = LazySets.HPolytope[]
 
     for S in piece.observer_states
         isempty(S) && continue
@@ -793,13 +793,13 @@ function get_sublevel_set(piece::ObserverCLFPiece, γ::Float64; atol::Float64 = 
         if isempty(parts)
             push!(parts, P)
         else
-            prev_union = UT.SemiLinearSet(parts)
+            prev_union = UT.semilinear_set(parts)
             remainder = UT.set_difference_decompose(P, prev_union; atol = atol)
             append!(parts, remainder)
         end
     end
 
-    return UT.SemiLinearSet(parts)
+    return UT.semilinear_set(parts)
 end
 
 function piece_value(p::ObserverCLFPiece, x::AbstractVector{<:Real})

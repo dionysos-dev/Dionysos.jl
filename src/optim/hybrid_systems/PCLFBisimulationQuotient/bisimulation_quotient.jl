@@ -67,11 +67,11 @@ function semilinear_by_node(T::PCBisimulationQuotient, state_ids)
         haskey(T.states, qid) || continue
         q = T.states[qid]
         get!(parts_by_node, q.node, Poly[])
-        append!(parts_by_node[q.node], q.set.parts)
+        append!(parts_by_node[q.node], q.set.array)
     end
 
     return Dict(
-        nd => UT.normalize_semilinear(UT.SemiLinearSet(parts)) for
+        nd => UT.normalize_semilinear(UT.semilinear_set(parts)) for
         (nd, parts) in parts_by_node
     )
 end
@@ -90,7 +90,7 @@ function get_volume(
 
     if length(S_by_node) == 1
         return sum(
-            UT.get_volume(P; backend = backend) for P in first(values(S_by_node)).parts
+            LazySets.volume(P; backend = backend) for P in first(values(S_by_node)).array
         )
     end
 
@@ -98,25 +98,24 @@ function get_volume(
     accumulated_parts = Poly[]
 
     for Snode in values(S_by_node)
-        current = copy(Snode.parts)
+        current = copy(Snode.array)
 
         for Q in accumulated_parts
             isempty(current) && break
 
             new_current = Poly[]
             for P in current
-                I = UT.set_intersection(P, Q)
-                if UT.is_nonempty_set(I)
-                    append!(new_current, UT.set_difference_decompose(P, Q; atol = atol))
-                else
+                if UT.is_disjoint(P, Q)
                     push!(new_current, P)
+                else
+                    append!(new_current, UT.set_difference_decompose(P, Q; atol = atol))
                 end
             end
             current = new_current
         end
 
-        total += sum(UT.get_volume(P; backend = backend) for P in current)
-        append!(accumulated_parts, Snode.parts)
+        total += sum(LazySets.volume(P; backend = backend) for P in current)
+        append!(accumulated_parts, Snode.array)
     end
 
     return total
@@ -197,7 +196,7 @@ end
                 palette[mod1(k, length(palette))]
             end
 
-            for (j, P) in enumerate(q.set.parts)
+            for (j, P) in enumerate(q.set.array)
                 @series begin
                     seriestype := :shape
                     fillcolor := c
@@ -235,7 +234,7 @@ end
             c = palette[mod1(i, length(palette))]
             key = (nd, i)
 
-            for (j, P) in enumerate(S.parts)
+            for (j, P) in enumerate(S.array)
                 @series begin
                     seriestype := :shape
                     fillcolor := c
@@ -389,17 +388,17 @@ function self_loop_count(T::PCBisimulationQuotient)
 end
 
 function num_parts(S::UT.SemiLinearSet)
-    return length(S.parts)
+    return length(S.array)
 end
 
-function num_faces(P::UT.Poly)
+function num_faces(P::Poly)
     Q = UT.clean_poly(copy(P))
     return length(LazySets.constraints_list(Q))
 end
 
 function num_faces(S::UT.SemiLinearSet)
     total = 0
-    for P in S.parts
+    for P in S.array
         try
             total += num_faces(P)
         catch

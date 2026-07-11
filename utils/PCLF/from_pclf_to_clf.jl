@@ -97,7 +97,7 @@ plot!(Sclf_2; label = "CLF")
 
 #P1 = Sclf_2.parts[1]
 #P2 = Sclf_2.parts[2]
-#D12 = UT.SemiLinearSet(UT.set_difference_decompose(P2, P1; atol = 1e-6))
+#D12 = UT.semilinear_set(UT.set_difference_decompose(P2, P1; atol = 1e-6))
 #println(D12.parts)
 
 #fig = plot(; aspect_ratio = :equal)
