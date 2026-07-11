@@ -98,7 +98,7 @@ value_fun = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_value_functio
 controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 ```
 """
-mutable struct Optimizer{T} <: OP.CompositeDionysosOptimizer
+mutable struct Optimizer{T} <: OP.AbstractionControlOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
     control_solver::Union{Nothing, MOI.AbstractOptimizer}
     concrete_controller::Union{Nothing, ST.AbstractContinuousController}
@@ -112,16 +112,7 @@ mutable struct Optimizer{T} <: OP.CompositeDionysosOptimizer
 end
 Optimizer() = Optimizer{Float64}()
 
-MOI.is_empty(optimizer::Optimizer) = optimizer.abstraction_solver === nothing
-
-OP.sub_solvers(model::Optimizer) = (model.abstraction_solver, model.control_solver)
-
-function OP.ensure_sub_solvers!(model::Optimizer)
-    if model.abstraction_solver === nothing
-        model.abstraction_solver = OptimizerAlternatingSimulationProblem()
-    end
-    return
-end
+OP.default_abstraction_solver(::Optimizer) = OptimizerAlternatingSimulationProblem()
 
 """
     control_solver_for(problem)
@@ -164,11 +155,6 @@ function OP.set_concrete_problem!(model::Optimizer, problem)
     return
 end
 
-function is_abstraction_computed(optimizer::Optimizer)
-    return optimizer.abstraction_solver !== nothing &&
-           optimizer.abstraction_solver.abstract_system !== nothing
-end
-
 function reset!(optimizer::Optimizer)
     optimizer.concrete_controller = nothing
     optimizer.solve_time_sec = 0.0
@@ -181,55 +167,16 @@ function reset!(optimizer::Optimizer)
     return optimizer
 end
 
-function MOI.optimize!(optimizer::Optimizer)
-    t_ref = time()
-
-    optimizer.abstraction_solver === nothing &&
-        error("The concrete problem is not defined.")
-
-    if !is_abstraction_computed(optimizer)
-        MOI.set(
-            optimizer.abstraction_solver,
-            MOI.RawOptimizerAttribute("print_level"),
-            optimizer.print_level,
-        )
-        MOI.optimize!(optimizer.abstraction_solver)
-    end
-
-    if optimizer.control_solver !== nothing
-        MOI.set(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("print_level"),
-            optimizer.print_level,
-        )
-
-        abstract_system = MOI.get(
-            optimizer.abstraction_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-        )
-
-        MOI.set(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("abstract_system"),
-            abstract_system,
-        )
-
-        MOI.optimize!(optimizer.control_solver)
-
-        abstract_controller = MOI.get(
-            optimizer.control_solver,
-            MOI.RawOptimizerAttribute("abstract_controller"),
-        )
-
-        optimizer.concrete_controller = SY.quantize_controller(
-            SY.without_metadata(abstract_system), # light version of the abstract system, without metadata, for faster controller saving/loading
-            abstract_controller;
-            out_of_domain_handler = optimizer.out_of_domain_handler,
-        )
-    end
-
-    optimizer.solve_time_sec = time() - t_ref
-    return
+function OP.build_concrete_controller(
+    model::Optimizer,
+    abstract_system,
+    abstract_controller,
+)
+    return SY.quantize_controller(
+        SY.without_metadata(abstract_system), # light version of the abstract system, without metadata, for faster controller saving/loading
+        abstract_controller;
+        out_of_domain_handler = model.out_of_domain_handler,
+    )
 end
 
 end # module
