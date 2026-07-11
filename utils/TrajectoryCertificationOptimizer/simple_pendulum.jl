@@ -109,7 +109,7 @@ function distance_to_target(x, target_set)
     if target_set isa UT.LazySets.UnionSetArray
         return minimum(distance_to_target(x, S) for S in UT.LazySets.array(target_set))
     else
-        return LA.norm(x - UT.get_center(target_set))
+        return LA.norm(x - LazySets.center(target_set))
     end
 end
 

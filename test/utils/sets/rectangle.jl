@@ -40,8 +40,8 @@ end
     @test !isdisjoint(R1, R2)
     @test isdisjoint(R1, R5)
 
-    @test UT.get_volume(R1) == 1
-    @test UT.get_volume(R2) == 9
+    @test LazySets.volume(R1) == 1
+    @test LazySets.volume(R2) == 9
 
     S = LazySets.scale(0.5, R1)
     @test all(LazySets.low(S) .== [0.5, 0.5])
@@ -83,17 +83,17 @@ end
     D = UT.box([1.0, 0.0], [2.0, 1.0])
     I3 = LazySets.intersection(A, D)
     @test !isempty(I3)
-    @test UT.get_volume(I3) == 0.0
+    @test LazySets.volume(I3) == 0.0
 end
 
 @testset "Geometry helpers (center/h/r/dims/volume consistency)" begin
     R = UT.box([1.0, 2.0], [3.0, 6.0])
-    @test all(UT.get_center(R) .== [2.0, 4.0])
+    @test all(LazySets.center(R) .== [2.0, 4.0])
     @test all(UT.get_h(R) .== [2.0, 4.0])
-    @test all(UT.get_r(R) .== [1.0, 2.0])
-    @test UT.get_dim(R) == 2
+    @test all(LazySets.radius_hyperrectangle(R) .== [1.0, 2.0])
+    @test LazySets.dim(R) == 2
 
-    @test UT.get_volume(R) == 8.0
+    @test LazySets.volume(R) == 8.0
 end
 
 @testset "Vertices" begin

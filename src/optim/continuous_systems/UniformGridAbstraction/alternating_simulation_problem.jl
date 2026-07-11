@@ -504,7 +504,7 @@ function _validate_periodic_data(opt)
     length(pp) == P || error("periodic_periods must have length $P, got $(length(pp))")
     length(ps) == P || error("periodic_start must have length $P, got $(length(ps))")
 
-    N = UT.get_dim(opt.alternating_simulation_problem.system.X)
+    N = LazySets.dim(opt.alternating_simulation_problem.system.X)
     if P > 0
         all(1 .<= pd .<= N) || error("periodic_dims must be in 1:$N, got $pd")
     end
@@ -639,7 +639,7 @@ _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
     @warn("Noise is not yet accounted for in system abstraction.")
     concrete_system = optimizer.alternating_simulation_problem.system
-    return _vector_of_tuple(Dionysos.Utils.get_dim(concrete_system.X))
+    return _vector_of_tuple(LazySets.dim(concrete_system.X))
 end
 
 function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProblem)

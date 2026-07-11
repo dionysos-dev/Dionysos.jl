@@ -15,7 +15,7 @@ function example_box_ellipsoid()
     c = [-10.0; -10.0]
     P = [2.0 6.0; 6.0 20.0]
     E = LazySets.Ellipsoid(c, inv(P))
-    box = UT.get_min_bounding_box(E)
+    box = LazySets.box_approximation(E)
     fig = plot(; aspect_ratio = :equal)
     plot!(fig, box)
     plot!(fig, E)

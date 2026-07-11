@@ -1,3 +1,4 @@
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Dionysos
@@ -142,7 +143,8 @@ trajectory_cost = function (problem, traj)
 
     # Distance to the closest target component at each time.
     target_distances = [
-        minimum(LA.norm(x - UT.get_center(g)) for g in problem.target_set.sets) for x in xs
+        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.sets)
+        for x in xs
     ]
 
     best_target_distance = minimum(target_distances)

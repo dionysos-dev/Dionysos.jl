@@ -30,10 +30,10 @@ get_system(approx::DiscreteTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::DiscreteTimeLinearized)
     return (rect, u) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
+        x = LazySets.center(rect)
+        r = LazySets.radius_hyperrectangle(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dim(rect)
+        N = LazySets.dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})
@@ -79,10 +79,10 @@ get_system(approx::ContinuousTimeLinearized) = approx.system
 
 function get_over_approximation_map(approx::ContinuousTimeLinearized)
     return (rect, u, tstep) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
+        x = LazySets.center(rect)
+        r = LazySets.radius_hyperrectangle(rect)
         e = LA.norm(r, Inf)
-        N = UT.get_dim(rect)
+        N = LazySets.dim(rect)
 
         _H_ = SMatrix{N, N}(LA.I) .* r
         _ONE_ = ones(SVector{N})

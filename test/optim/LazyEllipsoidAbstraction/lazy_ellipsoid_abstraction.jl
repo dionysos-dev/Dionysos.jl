@@ -1,5 +1,6 @@
 module TestMain
 
+import LazySets
 using Test
 using StaticArrays
 using Random
@@ -80,7 +81,7 @@ include("../../../problems/non_linear.jl")
     nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time
 
     # initial state: the center of the (ellipsoidal) initial set
-    x0 = UT.get_center(concrete_problem.initial_set)
+    x0 = LazySets.center(concrete_problem.initial_set)
 
     x_traj, u_traj = ST.get_closed_loop_trajectory(
         concrete_system,

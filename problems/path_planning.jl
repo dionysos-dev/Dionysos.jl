@@ -85,8 +85,8 @@ end
 function system(_X_; _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
-        Dionysos.Utils.get_dim(_X_),
-        Dionysos.Utils.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )

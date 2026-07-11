@@ -13,8 +13,6 @@
 # (`add_set`/`remove_set`, used to grow `ImplicitStateSet`s).
 # ============================================================
 
-get_dim(s::LazySets.LazySet) = LazySets.dim(s)
-
 """
     is_included(X, Y) -> Bool
 
@@ -65,10 +63,8 @@ function box(lb, ub)
     return box(SVector{n, T}(lb), SVector{n, T}(ub))
 end
 
-get_center(S::LazySets.LazySet) = LazySets.center(S)
-get_r(H::LazySets.AbstractHyperrectangle) = LazySets.radius_hyperrectangle(H)
+# Full side lengths (2·radius); LazySets only exposes the half-widths.
 get_h(H::LazySets.AbstractHyperrectangle) = 2 .* LazySets.radius_hyperrectangle(H)
-get_volume(S::LazySets.LazySet) = LazySets.volume(S)
 
 "Sample a point of `X` uniformly (LazySets rejection sampling)."
 sample(X::LazySets.LazySet) = SVector{LazySets.dim(X)}(LazySets.sample(X))
@@ -103,28 +99,15 @@ function set_minus(A, B)
     return LazySets.Intersection(A, LazySets.Complement(B))
 end
 
-"""
-    empty_region(::Type{T}, n) -> LazySets.EmptySet{T}
+_empty_like(r::LazySets.LazySet{T}) where {T} = LazySets.EmptySet{T}(LazySets.dim(r))
+_empty_like(r) = LazySets.EmptySet(LazySets.dim(r))
 
-An empty set of dimension `n` (a typed identity for `set_union`/`set_minus`; an
-empty `UnionSetArray` has no well-defined dimension, so we use `EmptySet`).
-"""
-empty_region(::Type{T}, n::Integer) where {T} = LazySets.EmptySet{T}(n)
-empty_region(n::Integer) = empty_region(Float64, n)
-empty_region_like(r::LazySets.LazySet{T}) where {T} = empty_region(T, LazySets.dim(r))
-empty_region_like(r) = empty_region(Float64, LazySets.dim(r))
-
-set_dim(s) = LazySets.dim(s)
-
-# A `set_union` is any `UnionSetArray`; a `set_minus` is an `Intersection` whose
-# second operand is a `Complement`.
-const SetUnion = LazySets.UnionSetArray
+# A `set_minus` is an `Intersection` whose second operand is a `Complement`;
+# the pattern has no LazySets name, so Dionysos aliases it for dispatch.
 const SetMinus{T, XT, BT} = LazySets.Intersection{T, XT, LazySets.Complement{T, BT}}
-const EmptyRegion = LazySets.EmptySet
-const Region = LazySets.LazySet
 
 _is_empty_region(::LazySets.EmptySet) = true
-_is_empty_region(B::SetUnion) = isempty(B.array)
+_is_empty_region(B::LazySets.UnionSetArray) = isempty(B.array)
 _is_empty_region(B) = false
 
 # LazySets' smart constructors may simplify `set_minus` away from an `Intersection`
@@ -137,14 +120,7 @@ minus_included(S) = S
 "Hole `B` of `A \\ B`."
 minus_hole(S::LazySets.Intersection) = S.Y.X
 minus_hole(S::LazySets.EmptySet) = S
-minus_hole(S) = empty_region_like(S)
-
-# ------------------------------------------------------------
-# Membership (LazySets provides `∈` for all of these; thin alias kept for the
-# discretisation call sites that spell it out).
-# ------------------------------------------------------------
-
-point_in_set(S, x) = x ∈ S
+minus_hole(S) = _empty_like(S)
 
 # ------------------------------------------------------------
 # Incremental builders — grow the included region (`add_set`) or the holes
@@ -156,7 +132,7 @@ _num_type(::LazySets.LazySet{T}) where {T} = T
 # `UnionSetArray` needs a `Vector{<:LazySet{T}}`, not the unparametrised `LazySet`.
 _region_vector(::Type{T}) where {T} = LazySets.LazySet{T}[]
 
-_collect_sets!(arr, u::SetUnion) = (append!(arr, u.array); arr)
+_collect_sets!(arr, u::LazySets.UnionSetArray) = (append!(arr, u.array); arr)
 _collect_sets!(arr, ::LazySets.EmptySet) = arr
 _collect_sets!(arr, s) = (push!(arr, s); arr)
 
@@ -179,7 +155,7 @@ remove_set(S, s) = set_minus(minus_included(S), _union_with(minus_hole(S), s))
 _outer_box(S::LazySets.LazySet) = LazySets.box_approximation(S)
 _outer_box(H::LazySets.AbstractHyperrectangle) = H
 
-function _outer_box(U::SetUnion)
+function _outer_box(U::LazySets.UnionSetArray)
     isempty(U.array) && error("cannot compute outer box of an empty union")
     boxes = [_outer_box(s) for s in U.array]
     lb = reduce((a, b) -> min.(a, b), (LazySets.low(B) for B in boxes))
@@ -263,7 +239,7 @@ function set_in_period(
     return set_union(L)
 end
 
-function set_in_period(U::SetUnion, periodic_dims, periods, start)
+function set_in_period(U::LazySets.UnionSetArray, periodic_dims, periods, start)
     arr = _region_vector(_num_type(U))
     for s in U.array
         _collect_sets!(arr, set_in_period(s, periodic_dims, periods, start))
@@ -287,7 +263,7 @@ set_in_period(S::LazySets.EmptySet, periodic_dims, periods, start) = S
 project_set(S, dims) =
     collect(dims) == collect(1:LazySets.dim(S)) ? S : LazySets.project(S, collect(dims))
 
-@recipe function f(U::SetUnion; dims = [1, 2], label = "set")
+@recipe function f(U::LazySets.UnionSetArray; dims = [1, 2], label = "set")
     first_series = true
     for s in U.array
         @series begin

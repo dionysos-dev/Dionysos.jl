@@ -1,5 +1,6 @@
 module DoublePendulum
 
+import LazySets
 using StaticArrays
 using MathematicalSystems
 using Plots
@@ -65,8 +66,8 @@ function system(;
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
-        UT.get_dim(_X_),
-        UT.get_dim(_U_),
+        LazySets.dim(_X_),
+        LazySets.dim(_U_),
         _X_,
         _U_,
     )

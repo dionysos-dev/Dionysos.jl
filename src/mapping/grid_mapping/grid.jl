@@ -138,9 +138,9 @@ function get_pos_from_set(grid, S::LazySets.LazySet, incl_mode::INCL_MODE)
     end
 end
 
-get_pos_from_set(grid, ::UT.EmptyRegion, incl_mode::INCL_MODE) = ()
+get_pos_from_set(grid, ::LazySets.EmptySet, incl_mode::INCL_MODE) = ()
 
-function get_pos_from_set(grid, U::UT.SetUnion, incl_mode::INCL_MODE)
+function get_pos_from_set(grid, U::LazySets.UnionSetArray, incl_mode::INCL_MODE)
     return Iterators.flatten(get_pos_from_set(grid, s, incl_mode) for s in U.array)
 end
 

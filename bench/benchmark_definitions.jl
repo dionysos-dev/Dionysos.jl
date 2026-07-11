@@ -1,3 +1,4 @@
+import LazySets
 using JuMP
 using StaticArrays
 using CDDLib
@@ -171,10 +172,10 @@ function pre_image(abstract_system, concrete_system, xpos, u)
 end
 
 function compute_reachable_set(rect::UT.Box, concrete_system, Udom)
-    r = UT.get_r(rect) + concrete_system.measnoise
+    r = LazySets.radius_hyperrectangle(rect) + concrete_system.measnoise
     Fr = r
-    x = UT.get_center(rect)
-    n = UT.get_dim(rect)
+    x = LazySets.center(rect)
+    n = LazySets.dim(rect)
     lb = fill(Inf, n)
     ub = fill(-Inf, n)
     for upos in DO.enum_pos(Udom)

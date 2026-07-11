@@ -14,6 +14,7 @@ const OPDS = OP.DiscreteSystems
 import StaticArrays: SVector, SMatrix
 import MathematicalSystems as MS
 import HybridSystems
+import LazySets
 using JuMP
 import LinearAlgebra
 

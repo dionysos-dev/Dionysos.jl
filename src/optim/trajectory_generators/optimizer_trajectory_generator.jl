@@ -87,7 +87,7 @@ get_trajectory(gen::TrajectoryGenerator) = gen.trajectory
 get_success(gen::TrajectoryGenerator) = gen.success
 get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 
-select_initial_state(initial_set::LazySets.LazySet) = UT.get_center(initial_set)
+select_initial_state(initial_set::LazySets.LazySet) = LazySets.center(initial_set)
 select_initial_state(initial_set::Vector{Int}) = first(initial_set)
 
 function _initial_state(gen::TrajectoryGenerator, problem)

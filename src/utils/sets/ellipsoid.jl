@@ -34,31 +34,6 @@ function get_sublevel_set(E::LazySets.Ellipsoid, α)
     )
 end
 
-"""
-    get_min_bounding_box(E)
-
-Minimum axis-aligned bounding box of the ellipsoid (exact, via support
-functions).
-"""
-get_min_bounding_box(E::LazySets.Ellipsoid) = LazySets.box_approximation(E)
-
-# Farthest point of the ellipsoid from its center in direction d.
-function get_farthest_point(E::LazySets.Ellipsoid, d)
-    d = d / norm(d)
-    a = LazySets.shape_matrix(E) * d
-    return a / sqrt(d' * a)
-end
-
-# Endpoints of the i-th longest semi-axis (i-th largest eigenvalue of Q).
-function get_axis_points(E::LazySets.Ellipsoid, i)
-    specDecomp = eigen(Symmetric(Matrix(LazySets.shape_matrix(E))))
-    index = sortperm(specDecomp.values; rev = true)[i]
-    vp = specDecomp.vectors[:, index]
-    l = sqrt(specDecomp.values[index])
-    c = LazySets.center(E)
-    return c - l * vp, c + l * vp
-end
-
 "Semi-axis lengths `√λᵢ(Q)` of the ellipsoid, longest first."
 function get_length_semiaxis(E::LazySets.Ellipsoid)
     return sqrt.(

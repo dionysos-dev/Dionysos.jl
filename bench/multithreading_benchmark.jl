@@ -19,6 +19,7 @@ Arguments:
     threads      : optional comma-separated list of thread counts to orchestrate (e.g. 1,4,8)
 """
 
+import LazySets
 using Dionysos
 using MathematicalSystems
 using Statistics
@@ -98,8 +99,8 @@ function build_approximations(continuous_system, tstep)
     discrete_system = ST.discretize_continuous_system(continuous_system, tstep)
 
     function simple_over_approx(elem, u)
-        center = UT.get_center(elem)
-        radius = UT.get_r(elem)
+        center = LazySets.center(elem)
+        radius = LazySets.radius_hyperrectangle(elem)
         new_radius = radius * 1.1 .+ 0.01
         new_center = MS.mapping(discrete_system)(center, u)
         return UT.box(new_center - new_radius, new_center + new_radius)

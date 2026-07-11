@@ -1,6 +1,7 @@
 # # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
 #
 
+import LazySets
 using StaticArrays, Plots
 using JuMP, Clarabel
 
@@ -68,7 +69,7 @@ cost_eval(x, u) = concrete_problem.transition_cost(x, u)
 reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 # We simulate the closed loop trajectory
-x0 = UT.get_center(concrete_problem.initial_set)
+x0 = LazySets.center(concrete_problem.initial_set)
 x_traj, u_traj = ST.get_closed_loop_trajectory(
     concrete_system,
     concrete_controller,

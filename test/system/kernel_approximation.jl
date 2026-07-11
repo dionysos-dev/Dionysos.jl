@@ -1,5 +1,6 @@
 module TestKernelApproximations
 
+import LazySets
 using Test
 using Random
 using StaticArrays
@@ -61,9 +62,9 @@ end
     # DiscreteTimeOverApproximationMap
     # ----------------------------
     over_map_rect = (r, u) -> begin
-        x = UT.get_center(r)
+        x = LazySets.center(r)
         Fx = fd(x, u)
-        rad = UT.get_r(r)
+        rad = LazySets.radius_hyperrectangle(r)
         UT.box(Fx - rad, Fx + rad)
     end
     Odisc = ST.DiscreteTimeOverApproximationMap(sysD, over_map_rect)
@@ -72,26 +73,26 @@ end
 
     outR = ST.get_over_approximation_map(Odisc)(rect, u)
     @test outR isa UT.Box
-    @test UT.get_center(outR) ≈ fd(UT.get_center(rect), u)
+    @test LazySets.center(outR) ≈ fd(LazySets.center(rect), u)
 
     # ----------------------------
     # ContinuousTimeSystemOverApproximationMap + discretize
     # ----------------------------
     over_map_cont = (r, u, h) -> begin
-        x = UT.get_center(r)
+        x = LazySets.center(r)
         Fx = x + h*u # exact for ẋ=u
-        rad = UT.get_r(r)
+        rad = LazySets.radius_hyperrectangle(r)
         UT.box(Fx - rad, Fx + rad)
     end
     Ocont = ST.ContinuousTimeSystemOverApproximationMap(sysC, over_map_cont)
     @test ST.is_over_approximation(Ocont)
 
     outRc = ST.get_over_approximation_map(Ocont)(rect, u, tstep)
-    @test UT.get_center(outRc) ≈ (UT.get_center(rect) + tstep*u)
+    @test LazySets.center(outRc) ≈ (LazySets.center(rect) + tstep*u)
 
     OcontD = ST.discretize(Ocont, tstep)
     outRc2 = ST.get_over_approximation_map(OcontD)(rect, u)
-    @test UT.get_center(outRc2) ≈ UT.get_center(outRc)
+    @test LazySets.center(outRc2) ≈ LazySets.center(outRc)
 
     # ----------------------------
     # Growth bounds (discrete/continuous)
@@ -120,17 +121,17 @@ end
     Ldisc = ST.DiscreteTimeLinearized(sysD, linsys_d, err_d)
     Rl = ST.get_over_approximation_map(Ldisc)(rect, u)
     @test Rl isa UT.Box
-    @test UT.get_center(Rl) ≈ fd(UT.get_center(rect), u)
+    @test LazySets.center(Rl) ≈ fd(LazySets.center(rect), u)
 
     linsys_c = (x, dx, u, h) -> (x + h*u, @SMatrix [1.0 0.0; 0.0 1.0])
     err_c = (e, u, h) -> 0.01 .* ones(SVector{2, Float64})
     Lcont = ST.ContinuousTimeLinearized(sysC, linsys_c, err_c)
     Rlc = ST.get_over_approximation_map(Lcont)(rect, u, tstep)
-    @test UT.get_center(Rlc) ≈ (UT.get_center(rect) + tstep*u)
+    @test LazySets.center(Rlc) ≈ (LazySets.center(rect) + tstep*u)
 
     LcontD = ST.discretize(Lcont, tstep)
     Rlc2 = ST.get_over_approximation_map(LcontD)(rect, u)
-    @test UT.get_center(Rlc2) ≈ UT.get_center(Rlc)
+    @test LazySets.center(Rlc2) ≈ LazySets.center(Rlc)
 
     # ----------------------------
     # Under-approximations: centered
@@ -138,12 +139,12 @@ end
     Cdisc = ST.DiscreteTimeCenteredSimulation(sysD)
     pts = ST.get_under_approximation_map(Cdisc)(rect, u)
     @test length(pts) == 1
-    @test pts[1] ≈ fd(UT.get_center(rect), u)
+    @test pts[1] ≈ fd(LazySets.center(rect), u)
 
     Ccont = ST.ContinuousTimeCenteredSimulation(sysC)
     pts2 = ST.get_under_approximation_map(Ccont)(rect, u, tstep)
     @test length(pts2) == 1
-    @test pts2[1] ≈ (UT.get_center(rect) + tstep*u)
+    @test pts2[1] ≈ (LazySets.center(rect) + tstep*u)
 
     CcontD = ST.discretize(Ccont, tstep)
     pts3 = ST.get_under_approximation_map(CcontD)(rect, u)

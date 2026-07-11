@@ -9,6 +9,7 @@ include("optim/optim.jl")
 
 # ----- Wrapper functions for optional dependencies ---------
 import JuMP
+import LazySets
 function Optimizer end
 export ∂, Δ, final, start
 

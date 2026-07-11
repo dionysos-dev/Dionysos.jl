@@ -57,7 +57,7 @@ list of matrices `Uᵢ` encoding the input constraints `|Uᵢ·u| ≤ 1` used by
 transition-synthesis LMIs.
 """
 function format_input_set(rec::LazySets.AbstractHyperrectangle)
-    n = UT.get_dim(rec)
+    n = LazySets.dim(rec)
     Uaux = LA.diagm(1:n)
     U = [(Uaux .== i) ./ LazySets.high(rec, i) for i in 1:n]
     return U

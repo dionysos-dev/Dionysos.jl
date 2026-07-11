@@ -29,8 +29,8 @@ end
 get_system(approx::DiscreteTimeGrowthBound) = approx.system
 function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
     return (rect, u) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
+        x = LazySets.center(rect)
+        r = LazySets.radius_hyperrectangle(rect)
         Fx = get_system_map(approx)(x, u)
         Fr = approx.growthbound_map(r, u)
         return LazySets.Hyperrectangle(Fx, Fr)
@@ -64,8 +64,8 @@ end
 get_system(approx::ContinuousTimeGrowthBound) = approx.system
 function get_over_approximation_map(approx::ContinuousTimeGrowthBound)
     return (rect, u, tstep) -> begin
-        x = UT.get_center(rect)
-        r = UT.get_r(rect)
+        x = LazySets.center(rect)
+        r = LazySets.radius_hyperrectangle(rect)
         Fx = get_system_map(approx)(x, u, tstep)
         Fr = approx.growthbound_map(r, u, tstep)
         return LazySets.Hyperrectangle(Fx, Fr)
