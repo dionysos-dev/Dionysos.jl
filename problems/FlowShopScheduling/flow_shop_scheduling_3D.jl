@@ -81,9 +81,11 @@ function system()
     task2_target = UT.box([1.0, 0.0, 0.0, 1.5], [2.5, 2.5, 3.5, 4.0])
     task3_target = UT.box([0.5, 0.5, 0.0, 5.0], [5.0, 3.0, 4.0, 7.0])
 
-    # Reset maps for each transition
+    # Reset maps for each transition. `t_min` advances the clock to the start of the
+    # next task's time window (task 2: 1.5, task 3: 5.0) so the switched state lands
+    # inside the target task's clock domain.
     t1_t2_reset_map = FlowShopResetMap(task1_target, [0.0, 0.0, 2.0], 2.0)
-    t2_t3_reset_map = FlowShopResetMap(task2_target, [1.0, 1.0, 3.0], 4.0)
+    t2_t3_reset_map = FlowShopResetMap(task2_target, [1.0, 1.0, 3.0], 5.0)
 
     reset_maps = [t1_t2_reset_map, t2_t3_reset_map]
 
