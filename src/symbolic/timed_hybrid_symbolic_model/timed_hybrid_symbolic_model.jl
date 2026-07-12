@@ -7,22 +7,22 @@ const TransitionTuple = Tuple{AugmentedState, AugmentedState, Int}
     TimedHybridSymbolicModel{S1, A, T, G} <: AbstractSymbolicModel
 
 Symbolic abstraction of a timed hybrid system. Each mode contributes a spatial
-dynamics abstraction and a [`TimeSymbolicModel`](@ref); the augmented states
+dynamics abstraction and a [`ClockAbstraction`](@ref); the augmented states
 `(state_id, time_id, mode_id)` are flattened to a single integer numbering and
 wired into one automaton, with inputs unified through a [`GlobalInputMap`](@ref).
 
 # Fields
 - `mode_abstractions`: per-mode spatial dynamics symbolic models.
-- `time_abstractions`: per-mode time symbolic models.
-- `state_index_to_augmented` / `augmented_to_state_index`: integer ↔ augmented state.
+- `time_abstractions`: per-mode clock abstractions.
+- `flat`: [`FlatIndex`](@ref) bijection between the integer state numbering and the
+  augmented states `(state_id, time_id, mode_id)`.
 - `symbolic_automaton`: the flattened transition automaton.
 - `input_mapping`: the global input map.
 """
 struct TimedHybridSymbolicModel{S1, A, T, G} <: AbstractSymbolicModel
     mode_abstractions::Vector{S1}
     time_abstractions::Vector{T}
-    state_index_to_augmented::Vector{AugmentedState}
-    augmented_to_state_index::Dict{AugmentedState, Int}
+    flat::FlatIndex{AugmentedState}
     symbolic_automaton::A
     input_mapping::G
 end
@@ -34,7 +34,7 @@ get_automaton(sym::TimedHybridSymbolicModel) = sym.symbolic_automaton
 # ================================================================
 
 "Number of (flattened) augmented states."
-get_n_state(model::TimedHybridSymbolicModel) = length(model.state_index_to_augmented)
+get_n_state(model::TimedHybridSymbolicModel) = n_flat(model.flat)
 
 "Total number of global inputs (continuous + switching)."
 get_n_input(model::TimedHybridSymbolicModel) = model.input_mapping.total_inputs
@@ -53,9 +53,9 @@ end
 Concretize a flattened state index to `(continuous_state, time_value, mode_id)`.
 """
 function get_concrete_state(model::TimedHybridSymbolicModel, state_index::Int)
-    @assert 1 <= state_index <= length(model.state_index_to_augmented) "State index $state_index out of bounds"
+    @assert 1 <= state_index <= n_flat(model.flat) "State index $state_index out of bounds"
 
-    (state_id, time_id, mode_id) = model.state_index_to_augmented[state_index]
+    (state_id, time_id, mode_id) = flat_key(model.flat, state_index)
 
     @assert 1 <= mode_id <= length(model.mode_abstractions) "Mode ID $mode_id out of bounds"
 
@@ -90,7 +90,7 @@ function get_abstract_state(model::TimedHybridSymbolicModel, augmented_state)
     end
 
     augmented_key = (state_id, time_id, mode_id)::AugmentedState
-    return get(model.augmented_to_state_index, augmented_key, 0)
+    return flat_id(model.flat, augmented_key)
 end
 
 """
@@ -132,9 +132,8 @@ function get_states_from_set(
         for state_id in spatial_states, time_id in time_indices
             if time_id > 0 && time_id <= length(time_model.tsteps)
                 augmented_key = (state_id, time_id, mode_id)::AugmentedState
-                if haskey(model.augmented_to_state_index, augmented_key)
-                    push!(abstract_states, model.augmented_to_state_index[augmented_key])
-                end
+                idx = flat_id(model.flat, augmented_key)
+                idx > 0 && push!(abstract_states, idx)
             end
         end
     end

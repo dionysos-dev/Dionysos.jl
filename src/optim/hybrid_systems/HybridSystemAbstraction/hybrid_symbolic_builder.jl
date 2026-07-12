@@ -68,7 +68,7 @@ function build_mode_symbolic_abstractions(
             optimizer_kwargs = optimizer_kwargs_dict[i],
         )
 
-        symbolic_time = SY.TimeSymbolicModel(
+        symbolic_time = SY.ClockAbstraction(
             time_system,
             get(optimizer_kwargs_dict[i], "time_step", nothing),
         )
@@ -101,7 +101,7 @@ function build_timed_hybrid_symbolic_model(
     input_mapping = SY.GlobalInputMap(mode_abstractions, hs)
     transition_list = SY.build_all_transitions(hs, mode_abstractions, input_mapping)
 
-    state_index_to_augmented, augmented_to_state_index, symbolic_automaton =
+    flat, symbolic_automaton =
         SY.build_symbolic_automaton(transition_list, mode_abstractions, input_mapping)
 
     mode_dynamics_models = [abs_sys[1] for abs_sys in mode_abstractions]
@@ -110,8 +110,7 @@ function build_timed_hybrid_symbolic_model(
     return SY.TimedHybridSymbolicModel(
         mode_dynamics_models,
         mode_time_models,
-        state_index_to_augmented,
-        augmented_to_state_index,
+        flat,
         symbolic_automaton,
         input_mapping,
     )

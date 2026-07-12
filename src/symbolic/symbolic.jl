@@ -50,7 +50,8 @@ include("grid_based_symbolic_model/backends/slurm_array.jl")
 # Timed hybrid symbolic model: data structures + pure transition assembly.
 # (The optimizer-driven builders live in Optim/hybrid_systems, not here, so that
 # Symbolic does not depend on Optim.)
-include("timed_hybrid_symbolic_model/time_symbolic_model.jl")
+include("timed_hybrid_symbolic_model/flat_index.jl")
+include("timed_hybrid_symbolic_model/clock_abstraction.jl")
 include("timed_hybrid_symbolic_model/global_input_map.jl")
 include("timed_hybrid_symbolic_model/timed_hybrid_symbolic_model.jl")
 include("timed_hybrid_symbolic_model/hybrid_transition_assembly.jl")

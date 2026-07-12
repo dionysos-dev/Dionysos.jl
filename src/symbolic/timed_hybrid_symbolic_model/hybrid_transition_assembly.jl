@@ -191,7 +191,8 @@ end
     build_symbolic_automaton(transition_list, mode_abstractions, input_mapping)
 
 Flatten the augmented transitions into an [`IndexedAutomatonList`](@ref),
-returning `(state_index_to_augmented, augmented_to_state_index, automaton)`.
+returning `(flat, automaton)` where `flat` is the [`FlatIndex`](@ref) between the
+integer numbering and the augmented states.
 """
 function build_symbolic_automaton(
     transition_list,
@@ -217,28 +218,18 @@ function build_symbolic_automaton(
         push!(inputs_set, input)
     end
 
-    augmented_states = collect(states)
-    nstates = length(augmented_states)
+    flat = FlatIndex(collect(states))
+    nstates = n_flat(flat)
     ninputs = length(inputs_set)
-
-    state_index_to_augmented = Vector{AugmentedState}(undef, nstates)
-    augmented_to_state_index = Dict{AugmentedState, Int}()
-    sizehint!(augmented_to_state_index, nstates)
-
-    @inbounds for i in eachindex(augmented_states)
-        aug_state = augmented_states[i]
-        state_index_to_augmented[i] = aug_state
-        augmented_to_state_index[aug_state] = i
-    end
 
     symbolic_automaton = IndexedAutomatonList(nstates, ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
-        target_int = augmented_to_state_index[target]
-        source_int = augmented_to_state_index[source]
+        target_int = flat_id(flat, target)
+        source_int = flat_id(flat, source)
 
         add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
     end
 
-    return state_index_to_augmented, augmented_to_state_index, symbolic_automaton
+    return flat, symbolic_automaton
 end
