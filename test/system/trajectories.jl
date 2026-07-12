@@ -110,6 +110,46 @@ end
     @test qd.seq == trajd.q.seq
 end
 
+@testset "ClosedLoopTrajectory channels + accessors" begin
+    f(x, u) = x .+ u
+    sys = MS.ConstrainedBlackBoxControlDiscreteSystem(f, 1, 1, nothing, nothing)
+    ctrl = ST.AffineController(MS.AffineMap(hcat(-0.5), [0.0]))
+
+    # static rollout: state/input channels present, memory/time/mode absent
+    traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 5)
+    @test ST.states(traj) === traj.x.seq
+    @test ST.inputs(traj) === traj.u.seq
+    @test ST.memory(traj) === nothing
+    @test ST.times(traj) === nothing
+    @test ST.modes(traj) === nothing
+
+    # explicit timed/hybrid channels round-trip through the accessors
+    xs = ST.Trajectory([@SVector([0.0]), @SVector([1.0]), @SVector([2.0])])
+    us = ST.Trajectory([@SVector([1.0]), @SVector([1.0])])
+    ts = [0.0, 0.3, 0.6]
+    ks = [1, 1, 2]
+    htraj = ST.ClosedLoopTrajectory(xs, us; times = ts, modes = ks)
+    @test ST.states(htraj) == xs.seq
+    @test ST.inputs(htraj) == us.seq
+    @test ST.times(htraj) == ts
+    @test ST.modes(htraj) == ks
+
+    # channels don't disturb the legacy destructuring contract
+    x_traj, u_traj = htraj
+    @test x_traj === xs && u_traj === us
+
+    # dynamic controller memory still surfaces through `memory`
+    dyn = ST.DiscreteDynamicController(
+        0,
+        ST.PredicateDomain(memx -> memx[1] < 2),
+        (mem, y) -> mem + 1,
+        (mem, y) -> mem < 2 ? [0.5] : nothing,
+        false,
+    )
+    trajd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
+    @test ST.memory(trajd) == trajd.q.seq
+end
+
 @testset "wrap_coord + wrapper" begin
     x = @SVector [3.2, -1.0, 7.5]
     periodic_dims = SVector(1, 3)

@@ -52,18 +52,31 @@ end
 """
     ClosedLoopTrajectory
 
-Result of a closed-loop simulation: the state trajectory `x`, the input
-trajectory `u`, and — for dynamic controllers — the controller-memory
-trajectory `q` (`nothing` for static controllers). Destructures as
-`x_traj, u_traj[, q_traj] = traj`.
+Result of a closed-loop simulation, stored as parallel channels. `x` is the
+state trajectory and `u` the input trajectory (always present); `q` is the
+controller-memory trajectory for dynamic controllers (`nothing` for static
+ones). The optional `times` and `modes` channels carry, respectively, the
+physical time and the discrete mode at each step for timed / hybrid rollouts
+(`nothing` when absent). Destructures as `x_traj, u_traj[, q_traj] = traj`;
+read individual channels with `states`, `inputs`, `memory`, `times`, `modes`.
 """
-struct ClosedLoopTrajectory{XT, UT, QT}
+struct ClosedLoopTrajectory{XT, UT, QT, TT, MT}
     x::Trajectory{XT}
     u::Trajectory{UT}
     q::QT
+    times::TT
+    modes::MT
 end
 
-ClosedLoopTrajectory(x::Trajectory, u::Trajectory) = ClosedLoopTrajectory(x, u, nothing)
+function ClosedLoopTrajectory(
+    x::Trajectory,
+    u::Trajectory,
+    q = nothing;
+    times = nothing,
+    modes = nothing,
+)
+    return ClosedLoopTrajectory(x, u, q, times, modes)
+end
 
 function Base.iterate(traj::ClosedLoopTrajectory, state::Int = 1)
     state == 1 && return (traj.x, 2)
@@ -71,6 +84,20 @@ function Base.iterate(traj::ClosedLoopTrajectory, state::Int = 1)
     state == 3 && traj.q !== nothing && return (traj.q, 4)
     return nothing
 end
+
+# Channel accessors — read a single channel as a plain vector (or `nothing`
+# when absent). Deliberately unexported: `states`/`modes` would otherwise clash
+# with `HybridSystems.states`/`modes` at unqualified call sites.
+"State channel (vector of visited states) of a closed-loop trajectory."
+states(traj::ClosedLoopTrajectory) = traj.x.seq
+"Input channel (vector of applied inputs) of a closed-loop trajectory."
+inputs(traj::ClosedLoopTrajectory) = traj.u.seq
+"Controller-memory channel, or `nothing` for static controllers."
+memory(traj::ClosedLoopTrajectory) = traj.q === nothing ? nothing : traj.q.seq
+"Physical-time channel, or `nothing` when the trajectory is untimed."
+times(traj::ClosedLoopTrajectory) = traj.times
+"Discrete-mode channel, or `nothing` when the trajectory is non-hybrid."
+modes(traj::ClosedLoopTrajectory) = traj.modes
 
 Base.length(traj::Trajectory) = length(traj.seq)
 get_elem(traj::Trajectory, n::Int) = traj.seq[n]
