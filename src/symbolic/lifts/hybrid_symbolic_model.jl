@@ -27,9 +27,6 @@ struct HybridSymbolicModel{Mods, A, G} <: AbstractSymbolicModel
     input_mapping::G
 end
 
-# Transitional alias while the hybrid optimizers/tests migrate off the old name.
-const TimedHybridSymbolicModel = HybridSymbolicModel
-
 get_automaton(sym::HybridSymbolicModel) = sym.automaton
 
 # ================================================================

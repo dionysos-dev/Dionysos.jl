@@ -1,7 +1,7 @@
 mutable struct OptimizerSafetyProblem{T} <: OP.AbstractDionysosOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
+    abstract_system::Union{Nothing, SY.HybridSymbolicModel}
     print_level::Int
 
     # Outputs
@@ -88,7 +88,7 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.SafetyProblem,
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set
     abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]

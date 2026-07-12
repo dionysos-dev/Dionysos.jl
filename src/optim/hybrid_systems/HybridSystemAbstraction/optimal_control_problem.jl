@@ -1,7 +1,7 @@
 mutable struct OptimizerOptimalControlProblem{T} <: OP.AbstractDionysosOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
+    abstract_system::Union{Nothing, SY.HybridSymbolicModel}
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
@@ -109,7 +109,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 end
 
 function get_abstract_transition_cost(
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
     concrete_transition_cost,
 )
     concrete_transition_cost === nothing && return nothing
@@ -131,7 +131,7 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set # a unique augmented point
     q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)

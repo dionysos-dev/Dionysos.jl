@@ -4,7 +4,7 @@
 Root of the symbolic-model hierarchy: anything that owns a finite automaton
 (`get_automaton`). Models with a single concrete state/input space of fixed
 dimension subtype [`SymbolicModel{N, M}`](@ref); models whose spaces vary
-per mode (e.g. `TimedHybridSymbolicModel`) subtype this root directly.
+per mode (e.g. `HybridSymbolicModel`) subtype this root directly.
 """
 abstract type AbstractSymbolicModel end
 
