@@ -44,6 +44,24 @@ function ClockAbstraction(sys::MS.ConstrainedLinearContinuousSystem, tstep::Floa
     end
 end
 
+"""
+    ClockAbstraction(domain, tstep::Float64)
+
+Build an *active* [`ClockAbstraction`](@ref) directly from a 1-D time `domain`
+(a box interval) discretized with step `tstep`. Used to lift a continuous model
+with a clock (no time subsystem required).
+"""
+function ClockAbstraction(domain, tstep::Float64)
+    tmin, tmax = LazySets.low(domain, 1), LazySets.high(domain, 1)
+    tsteps_vec = collect(tmin:tstep:tmax)
+    N = length(tsteps_vec)
+    return ClockAbstraction{N, typeof(domain)}(
+        SVector{N, Float64}(tsteps_vec),
+        domain,
+        true,
+    )
+end
+
 _is_identity_matrix(A::AbstractMatrix)::Bool = A ≈ LA.I(size(A, 1))
 _is_zero_matrix(A::AbstractMatrix)::Bool = all(iszero, A)
 

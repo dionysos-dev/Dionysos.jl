@@ -251,7 +251,7 @@ end
 ProjectToNearestCellHandler(; warn::Bool = true, dims = nothing) =
     ProjectToNearestCellHandler(warn, dims)
 
-function apply_out_of_domain_handler(::NoOutOfDomainHandler, sym::SymbolicModel, x)
+function apply_out_of_domain_handler(::NoOutOfDomainHandler, sym::AbstractSymbolicModel, x)
     return x
 end
 
@@ -374,7 +374,7 @@ end
 # Dispatch on the static/dynamic trait, so any abstract controller obeying the
 # protocol (table-backed, closure-backed, ...) can be concretized.
 function quantize_controller(
-    sym::SymbolicModel,
+    sym::AbstractSymbolicModel,
     ctrl::ST.AbstractController;
     out_of_domain_handler = NoOutOfDomainHandler(),
 )

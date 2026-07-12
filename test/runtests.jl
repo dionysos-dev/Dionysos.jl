@@ -58,6 +58,7 @@ const TEST_FILES = [
     ("./optim/UniformGridAbstraction/safety.jl",),
     ("./optim/UniformGridAbstraction/reach_and_stay.jl",),
     ("./optim/UniformGridAbstraction/cosafe_ltl.jl",),
+    ("./optim/UniformGridAbstraction/clock_lifted_continuous.jl",),
     # Trajectory generators / certifiers and the PCLF bisimulation quotient.
     ("./optim/trajectory_generators.jl",),
     ("./optim/trajectory_certifiers.jl", :slow),

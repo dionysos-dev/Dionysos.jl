@@ -71,6 +71,10 @@ get_n_state(m::ClockLiftedSymbolicModel) = n_flat(m.flat)
 enum_states(m::ClockLiftedSymbolicModel) = 1:get_n_state(m)
 get_state_dim(m::ClockLiftedSymbolicModel) = get_state_dim(m.base) + 1
 
+# The lift owns no transition metadata (the automaton is rebuilt from the base's),
+# so a "light" copy for controller saving is the model itself.
+without_metadata(m::ClockLiftedSymbolicModel) = m
+
 # ---- Inputs pass through to the base ----
 
 get_n_input(m::ClockLiftedSymbolicModel) = get_n_input(m.base)

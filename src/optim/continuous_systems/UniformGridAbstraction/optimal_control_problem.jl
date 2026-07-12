@@ -157,7 +157,7 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.SymbolicModel,
+    abstract_system::SY.AbstractSymbolicModel,
 )
     @warn("The `state_cost` is not yet fully implemented")
 
@@ -195,11 +195,17 @@ function extract_results!(model::OptimizerOptimalControlProblem, abstract_optimi
     model.concrete_value_function =
         build_concrete_value_function(abs_sys, model.abstract_value_function)
 
-    model.controllable_set =
-        SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.controllable_set))
-    model.uncontrollable_set = SY.get_state_set_from_states(
-        abs_sys,
-        collect(abstract_optimizer.uncontrollable_set),
-    )
+    # The controllable/uncontrollable sets are grid-mapping-backed inspection sets;
+    # a product model (e.g. clock-lifted) has no single mapping, so they stay `nothing`.
+    if abs_sys isa SY.SymbolicModel
+        model.controllable_set = SY.get_state_set_from_states(
+            abs_sys,
+            collect(abstract_optimizer.controllable_set),
+        )
+        model.uncontrollable_set = SY.get_state_set_from_states(
+            abs_sys,
+            collect(abstract_optimizer.uncontrollable_set),
+        )
+    end
     return
 end
