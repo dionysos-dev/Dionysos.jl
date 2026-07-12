@@ -1,3 +1,11 @@
+"""
+    FastIndexedAutomatonList <: AbstractAutomatonList
+
+Automaton with dense vector indices: `postmap` is keyed by the flattened
+`(state, symbol)` pair and `premap` by target state, so `post`/`pre` are direct
+array lookups. Fastest to query and densest in memory; best for large fixed
+automata. Call [`finalize!`](@ref) after bulk insertion to deduplicate.
+"""
 mutable struct FastIndexedAutomatonList <: AbstractAutomatonList
     nstates::Int
     nsymbols::Int

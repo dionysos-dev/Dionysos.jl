@@ -1,10 +1,8 @@
 module TestMain
 
-using Test
-
 import Dionysos
-const DI = Dionysos
-const UT = DI.Utils
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 const PCLF = UT.PathCompleteFramework
 
 import HybridSystems

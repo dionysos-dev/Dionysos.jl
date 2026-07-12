@@ -1,17 +1,13 @@
 module TestNonLinearBemporadMorari
 
-include("../GolLazarBelta/solvers.jl")
-include("../../../problems/non_linear.jl")
-
 import Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const PR = DI.Problem
-const OP = DI.Optim
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-using LinearAlgebra, Test
-using MathematicalSystems, HybridSystems
+include("../GolLazarBelta/solvers.jl")
+include("../../../problems/NonLinear/non_linear.jl")
+
+using LinearAlgebra
+using HybridSystems
 using FillArrays
 
 @testset "NonLinear BemporadMorari" begin

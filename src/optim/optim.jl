@@ -13,6 +13,8 @@ end
 
 include("bemporad_morari.jl")
 include("branch_and_bound.jl")
-include("q_learning.jl")
+# Q-function / dual-dynamic-programming lower-bound algorithms consumed by BranchAndBound
+# (not reinforcement Q-learning).
+include("q_function.jl")
 
 end

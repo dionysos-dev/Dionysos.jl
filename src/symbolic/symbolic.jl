@@ -34,14 +34,25 @@ include("metadata.jl")
 include("symbolic_model.jl")
 
 include("grid_based_symbolic_model/grid_based_symbolic_model.jl")
-
-include("grid_based_symbolic_model/execution_backend.jl")
-include("grid_based_symbolic_model/sequential_threaded_backend.jl")
-include("grid_based_symbolic_model/julia_distributed_backend.jl")
-include("grid_based_symbolic_model/slurm_array_backend.jl")
-
+include("grid_based_symbolic_model/local_symbolic_model.jl")
 include("grid_based_symbolic_model/symbolic_model_list.jl")
 
-include("symbolic_hybrid_model/symbolic_hybrid_model.jl")
+# Abstraction computation: backend-agnostic orchestration + approximation kernels.
+include("grid_based_symbolic_model/abstraction.jl")
+include("grid_based_symbolic_model/transition_kernels.jl")
+
+# Execution backends (how the transition relation is computed).
+include("grid_based_symbolic_model/backends/backend.jl")
+include("grid_based_symbolic_model/backends/threaded.jl")
+include("grid_based_symbolic_model/backends/julia_distributed.jl")
+include("grid_based_symbolic_model/backends/slurm_array.jl")
+
+# Timed hybrid symbolic model: data structures + pure transition assembly.
+# (The optimizer-driven builders live in Optim/hybrid_systems, not here, so that
+# Symbolic does not depend on Optim.)
+include("timed_hybrid_symbolic_model/time_symbolic_model.jl")
+include("timed_hybrid_symbolic_model/global_input_map.jl")
+include("timed_hybrid_symbolic_model/timed_hybrid_symbolic_model.jl")
+include("timed_hybrid_symbolic_model/hybrid_transition_assembly.jl")
 
 end  # module Symbolic

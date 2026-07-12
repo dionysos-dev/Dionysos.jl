@@ -1,3 +1,18 @@
+"""
+    AbstractAutomatonList <: HybridSystems.AbstractAutomaton
+
+Interface for the finite automaton backing a symbolic model: a set of
+transitions over integer states and input symbols. Transitions are stored and
+enumerated as `(target, source, symbol)` tuples (see [`TransitionKey`](@ref)).
+
+# Extending
+
+Implement `get_n_state`, `get_n_input`, `enum_transitions`, `add_transition!`,
+`pre`, `post` and `Base.empty!`. Concrete implementations trade memory for
+`pre`/`post` speed: [`SortedAutomatonList`](@ref) (compact, sorted-set backed),
+[`IndexedAutomatonList`](@ref) (dict indices) and
+[`FastIndexedAutomatonList`](@ref) (dense vector indices).
+"""
 abstract type AbstractAutomatonList <: HybridSystems.AbstractAutomaton end
 
 # === Required Interface ===
@@ -6,7 +21,11 @@ get_n_state(autom::AbstractAutomatonList) =
 get_n_input(autom::AbstractAutomatonList) =
     error("implement `get_n_input` for $(typeof(autom))")
 
-# The transition enumeration should return a list of tuples (target, source, symbol)
+# Transition-tuple convention (see `TransitionKey` in metadata.jl):
+#   - stored / enumerated as `(target, source, symbol)`  ← target first
+#   - added as `add_transition!(autom, source, target, symbol)`  ← source first
+# The ordering flip is deliberate but easy to get wrong; use the
+# `transition_{target,source,symbol}` accessors on enumerated tuples.
 enum_transitions(autom::AbstractAutomatonList) =
     error("implement `enum_transitions` for $(typeof(autom))")
 add_transition!(autom::AbstractAutomatonList, source::Int, target::Int, symbol::Int) =
@@ -20,6 +39,13 @@ Base.empty!(autom::AbstractAutomatonList) =
 # Concrete subtypes implement `HybridSystems.add_state!(autom)` (returns the new state id);
 # a separate stub here would shadow that method and silently return `nothing`.
 
+"""
+    finalize!(autom::AbstractAutomatonList)
+
+Compact the automaton after bulk transition insertion (e.g. deduplicate index
+entries). The generic fallback is a no-op; implementations that accumulate
+duplicates override it. Returns the automaton.
+"""
 finalize!(autom::AbstractAutomatonList) = autom
 
 # === Common Default Implementations ===

@@ -1,15 +1,9 @@
 module Allocation
 
-using Test
-using StaticArrays
-using LinearAlgebra
-using MathematicalSystems
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-const DI = Dionysos
-const MP = DI.Mapping
-const ST = DI.System
-const SY = DI.Symbolic
+using LinearAlgebra
 
 # -----------------------
 # Helper: build finite explicit grid mappings (3D)
@@ -96,7 +90,7 @@ function test_alloc()
     cont_center = ST.ContinuousTimeCenteredSimulation(concrete_system)
     discrete_system = ST.discretize(cont_center, 1.0)
 
-    # By default SymbolicModelList uses MappingSet{N}() which is "all states of mapping"
+    # By default SymbolicModelList uses FullStateSet{N}() which is "all states of mapping"
     sym = SY.SymbolicModelList(Xmap, Umap)
     return _test_alloc(sym, discrete_system)
 end

@@ -109,7 +109,7 @@ function MOI.optimize!(opt::OptimizerBisimulationQuotient)
     system = prob.system
     # the level builder works on HPolytopes; accept any polyhedral region
     # (e.g. a Hyperrectangle) by converting at the boundary
-    X = UT._as_hpolytope(prob.region)
+    X = UT._as_hpolytope(prob.state_set)
     regions = prob.observation_regions
 
     Γ, D = build_levels_and_terminal_set(

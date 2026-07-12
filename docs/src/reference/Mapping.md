@@ -1,39 +1,16 @@
 # Mapping
 
-This folder contains mappings to make the link between the concrete system and the abstract system, and vice-versa.
+Handles **discretization** — the link between a concrete continuous state space and its finite
+abstract counterpart. A [`GridFree`](@ref Dionysos.Mapping.GridFree) grid (centre `x0`, step `hx`)
+defines cells, an [`AbstractMapping`](@ref Dionysos.Mapping.AbstractMapping) is the bijection between
+integer state labels and cells, and cells are collected into state sets with an inclusion mode
+`INNER` / `OUTER` / `CENTER`. [`MappedStateSet`](@ref Dionysos.Mapping.MappedStateSet) is the public
+state-set surface; the concrete mappings trade memory for lookup speed.
 
-## Grids 
-```@docs
-Dionysos.Mapping.Grid
-Dionysos.Mapping.get_pos_by_coord
-Dionysos.Mapping.GridFree
-Dionysos.Mapping.GridEllipsoidalRectangular
+## API reference
+
+```@autodocs
+Modules = [Dionysos.Mapping]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
-
-## Abstract Mappings 
-```@docs
-Dionysos.Mapping.AbstractMapping
-Dionysos.Mapping.GridMapping
-```
-
-## Concrete Mappings 
-
-### Simple Mappings
-```@docs
-Dionysos.Mapping.ListMapping
-```
-
-### Grid Mappings
-```@docs
-Dionysos.Mapping.ExplicitGridMapping
-Dionysos.Mapping.ImplicitGridMapping
-Dionysos.Mapping.HierarchicalGridMapping
-Dionysos.Mapping.PeriodicGridMapping
-```
-
-## State sets
-```@docs
-Dionysos.Mapping.MappedStateSet
-```
-
-

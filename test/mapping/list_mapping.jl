@@ -1,9 +1,7 @@
 module TestListMapping
 
-using Test
-using StaticArrays
-using Dionysos
-const MP = Dionysos.Mapping
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ListMapping" begin
     pts = [SVector(0.0, 1.0), SVector(2.0, 3.0)]

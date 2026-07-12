@@ -1,12 +1,11 @@
 module TestMain
 
-using Test
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using Random
 import LazySets
 using StaticArrays: SVector
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
 
 @testset "box constructors" begin
     # tuple constructor
@@ -144,5 +143,4 @@ end
     @test all(LazySets.high(U3.array[1]) .== [1.0, 1.0])
 end
 
-println("End test")
 end

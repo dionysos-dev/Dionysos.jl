@@ -1,16 +1,9 @@
 module TestSymbolicModelList
 
-using Test
-using StaticArrays
-using Plots
-using Dionysos
-const DI = Dionysos
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-sleep(0.1)
-println("Started test")
+using Plots
 
 @testset "SymbolicModelList (Mapping-based)" begin
     # -----------------------
@@ -106,8 +99,5 @@ println("Started test")
     plot!(fig2, sym; with_arrows = true)
     @test isa(fig2, Plots.Plot{Plots.GRBackend})
 end
-
-sleep(0.1)
-println("End test")
 
 end # module

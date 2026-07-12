@@ -1,171 +1,150 @@
 # Overview
 
-Dionysos aims to design a controller for a system $\mathcal{S}$ so that the closed-loop system satisfies the specification $\Sigma$ where:
-* the system $\mathcal{S}$ is specified by [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem) or [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem) objects;
-* the specification $\Sigma$ is specified by [`ProblemType`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Problem/#Dionysos.Problem.ProblemType) objects;
-* the solver $\mathcal{O}$ implementents the abstract type [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) of [`MathOptInterface`](https://github.com/jump-dev/MathOptInterface.jl).
+Dionysos designs a controller for a system ``\mathcal{S}`` so that the closed loop satisfies a
+specification ``\Sigma``, where:
 
-So a control problem $(\mathcal{S},\Sigma)$ can be solved by $\mathcal{O}$ via the [`JuMP`](https://github.com/jump-dev/JuMP.jl) interface, with Dionysos inheriting JuMP's powerful and practical optimization framework.
+- the system ``\mathcal{S}`` is a
+  [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem)
+  or [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem)
+  object;
+- the specification ``\Sigma`` is a [`ProblemType`](@ref Dionysos.Problem.ProblemType) object;
+- the solver ``\mathcal{O}`` implements the
+  [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer)
+  interface of [`MathOptInterface`](https://github.com/jump-dev/MathOptInterface.jl).
 
-# Overview of the code structure
-Description of the core of the Dionysos.jl package, the [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src) folder:
+A control problem ``(\mathcal{S}, \Sigma)`` is therefore solved by ``\mathcal{O}`` through the
+[`JuMP`](https://github.com/jump-dev/JuMP.jl) interface, so Dionysos inherits JuMP's optimization
+framework. For the conceptual background, see [Abstraction-based control](@ref).
 
-| Subfolder        | Description |
-| :--------------- | :---------- |
-| [`utils`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/utils) | Contains useful functions, data structures, classic search algorithms, file management, ... |
-| [`system`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/system) | Contains a description of specific systems |
-| [`problem`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/problem) | Contains control problems that can be solved by Dionysos solvers |
-| [`mapping`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/mapping) | Contains structures defining the mapping between concrete and abstract systems |
-| [`symbolic`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/symbolic) | Contains the data structures needed to encode the abstractions |
-| [`optim`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src/optim) | Contains the solvers |
+## Code structure
 
+The core of the package lives in the [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src)
+folder, split into six modules loaded in dependency order:
 
-# Systems
+| Module | Description |
+| :--- | :--- |
+| [`Utils`](@ref Utils)       | Foundational helpers on top of LazySets: sets, cost functions, data structures, search, scalar optimization. |
+| [`System`](@ref System)     | Concrete dynamical systems, their approximations, controllers, trajectories, and the simulation engine. |
+| [`Problem`](@ref Problem)    | Solver-independent control-task specifications. |
+| [`Mapping`](@ref Mapping)    | Concrete ↔ abstract discretization: grids, cells, mappings. |
+| [`Symbolic`](@ref Symbolic)  | The finite automaton abstraction built from a system and a mapping. |
+| [`Optim`](@ref Optim)       | The solver catalog. |
 
-The system types supported in Dionysos.jl are:
-* [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem), which proposes generic and flexible system definitions (e.g.     discrete-time/continuous-time, constrained, noisy systems), such that, for example, the system [`MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem) of the form $$x(k+1) = A x(k) + B u(k) + c + D w(k), \ x(k)\in\mathcal{X}, \ u(k)\in\mathcal{U},\ w(k)\in\mathcal{W}\ \forall k$$
-where $\mathcal{X}$ is the state constraint, $\mathcal{U}$ is the input constraint and $\mathcal{W}$ is the noise constraint.
-* [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem), which extends the class of systems of [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem) to hybrid systems.
+## Systems
 
+Dionysos supports the system types provided by:
 
-# Problems
+- [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem)
+  — generic, flexible system definitions (discrete-/continuous-time, constrained, noisy). For
+  instance a
+  [`NoisyConstrainedAffineControlDiscreteSystem`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.NoisyConstrainedAffineControlDiscreteSystem)
+  of the form
+  ```math
+  x(k+1) = A x(k) + B u(k) + c + D w(k), \quad x(k)\in\mathcal{X},\ u(k)\in\mathcal{U},\ w(k)\in\mathcal{W},
+  ```
+  where ``\mathcal{X}``, ``\mathcal{U}`` and ``\mathcal{W}`` are the state, input and noise
+  constraints.
+- [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem)
+  — extends the above to hybrid systems.
 
-The problem types supported in Dionysos.jl are:
+## Problems
 
-| Type         | Description |
-| :--------------- | :---------- |
-| [`Reach-avoid optimal control problem`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Problem/#Dionysos.Problem.OptimalControlProblem) | $(\mathcal{S},\mathcal{I},\mathcal{T},\mathcal{V},\mathcal{C}, T)$, where $\mathcal{S}$ is the system, $\mathcal{I}$ is the initial set, $\mathcal{T}$ is the target set, $\mathcal{V}:\mathcal{X}\rightarrow \mathbb{R}$ is the cost state function, $\mathcal{C}:\mathcal{X}\times \mathcal{U}\rightarrow \mathbb{R}$ is the transition cost function, $T$ is the time limit to satisfy the specification. |
-| [`Safety control problem`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Problem/#Dionysos.Problem.SafetyProblem) | $(\mathcal{S},\mathcal{I},\mathcal{S}, T)$, where $\mathcal{S}$ is the system, $\mathcal{I}$ is the initial set, $\mathcal{S}$ is the safe set,  $T$ is the time during which safety must be ensured. |
+The specifications currently supported are (see the [`Problem`](@ref Problem) reference for the full
+definitions):
 
-Extensions for linear temporal logic (LTL) specifications are currently being implemented.
+| Specification | Description |
+| :--- | :--- |
+| [Reach-avoid optimal control](@ref Dionysos.Problem.OptimalControlProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{T},\mathcal{V},\mathcal{C},T)``: reach a target set ``\mathcal{T}`` from an initial set ``\mathcal{I}`` within horizon ``T`` while avoiding obstacles, minimizing a state cost ``\mathcal{V}`` and a transition cost ``\mathcal{C}``. |
+| [Safety](@ref Dionysos.Problem.SafetyProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{S}_{\text{safe}},T)``: remain inside a safe set for the whole horizon ``T``. |
+| [Reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) | Eventually reach a target set and then remain in it. |
+| [Co-safe LTL](@ref Dionysos.Problem.CoSafeLTLProblem) | Satisfy a co-safe LTL formula, i.e. reach an accepting condition in finite time. |
 
-# Solvers
+Two abstraction-only problems parametrize the construction of a reusable abstraction without a control
+objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem) and
+[`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem).
 
-The following tables summarize the different solvers. 
+## Solvers
 
+**Abstraction-based solvers:**
 
-**Abstraction-based solver types implemented in Dionysos.jl:**
+| Solver | Discretization | Partition/Cover | Cell shape | Local controller | Reference |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| [Uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | [SCOTS](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
+| [Uniform ellipsoid abstraction](@ref Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piecewise affine | [State-feedback abstractions](https://arxiv.org/abs/2204.00315) |
+| [Lazy ellipsoids abstraction](@ref Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piecewise affine | — |
+| [Hybrid system abstraction](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | — |
+| [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | — | Partition | Polyhedral | — | [Branch and bound Q-learning](https://proceedings.mlr.press/v144/legat21a.html) |
 
-| Type          | Full vs partial discretization | Partition vs Cover | Shape | Local controller | Abstraction | System | Reference | 
-| :--------------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- | :---------- |
-| [`Uniform Grid Abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piece-wise constant | Non-determinisitic | Continuous-time | [`SCOTS: A Tool for the Synthesis of Symbolic Controllers`](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
-| [`Uniform Ellipsoid Abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piece-wise affine | Determinisitic | Discrete-time affine | [`State-feedback Abstractions for Optimal Control of Piecewise-affine Systems`](https://arxiv.org/abs/2204.00315) |
-| [`Lazy Ellipsoids Abstraction`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piece-wise affine | Determinisitic | Discrete-time non-linear | Not yet published |
+**Non abstraction-based solvers:**
 
-**Non abstraction-based solver types implemented in Dionysos.jl:**
+| Solver | Description | Reference |
+| :--- | :--- | :--- |
+| [Bemporad–Morari](@ref Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a mixed-integer quadratic program (MIQP). | [Bemporad & Morari (1999)](https://www.sciencedirect.com/science/article/abs/pii/S0005109898001782) |
+| [Branch and bound](@ref Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems combining branch and bound with Q-functions refined by Lagrangian duality. | [Legat et al. (2021)](https://proceedings.mlr.press/v144/legat21a.html) |
 
-| Type          | Description | Reference |
-| :--------------- | :---------- | :---------- |
-| [`Bemporad Morari`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a predictive control scheme using mixed integer quadratic programming (MIQP) online optimization procedures. | [`Control of systems integrating logic, dynamics, and constraints`](https://www.sciencedirect.com/science/article/abs/pii/S0005109898001782)
-| [`BranchAndBound`](https://dionysos-dev.github.io/Dionysos.jl/dev/reference/Optim/#Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems via a predictive control scheme combining a branch and bound algorithm that can refine Q-functions using Lagrangian duality. | [`Abstraction-based branch and bound approach to Q-learning for hybrid optimal control`](https://proceedings.mlr.press/v144/legat21a.html)
+Controller synthesis on an already-built automaton is available directly through the
+[discrete-system solvers](@ref "Discrete-system solvers").
 
+### The solver interface
 
-**Solver interface**
+Every solver is a submodule exposing an `Optimizer <: MOI.AbstractOptimizer`. It is configured with
+raw attributes and run through `MOI.optimize!`:
 
-Each solver is defined by a module which must implement the abstract type [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) and the [`Optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
-For example, for the UniformGridAbstraction solver, this structure and function are defined as follows
+1. instantiate — `optimizer = MOI.instantiate(SomeFamily.Optimizer)`;
+2. configure — `MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)` and the
+   solver-specific parameters (`"state_grid"`, `"input_grid"`, `"time_step"`, …);
+3. run — `MOI.optimize!(optimizer)`;
+4. query — `MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))`.
 
-```julia
-using JuMP
+For abstraction-based solvers, `optimize!` follows the same conceptual pipeline:
 
-mutable struct Optimizer{T} <: MOI.AbstractOptimizer
-    concrete_problem::Union{Nothing, PR.ProblemType}
-    abstract_problem::Union{Nothing, PR.OptimalControlProblem, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
-    abstract_controller::Union{Nothing, UT.SortedTupleSet{2, NTuple{2, Int}}}
-    concrete_controller::Any
-    state_grid::Union{Nothing, MP.Grid}
-    input_grid::Union{Nothing, MP.Grid}
-    function Optimizer{T}() where {T}
-        return new{T}(nothing, nothing, nothing, nothing, nothing, nothing, nothing)
-    end
-end
+```
+concrete problem → abstraction (symbolic model) → abstract problem
+                 → abstract controller → concrete controller
 ```
 
-and
+The abstraction is cached, so switching the specification on the same system (e.g. safety →
+reachability) does not recompute it. Solvers compose: a high-level optimizer holds an
+`abstraction_solver` and a `control_solver` and forwards attribute `set`/`get` to them.
+
+## Running an example
+
+The canonical entry point is a JuMP model with `Dionysos.Optimizer`, which writes the dynamics with
+the `∂` operator and the target/initial constraints with `final`/`start`:
 
 ```julia
-function MOI.optimize!(optimizer::Optimizer)
-    # Build the abstraction
-    abstract_system = build_abstraction(
-        optimizer.concrete_problem.system,
-        optimizer.state_grid,
-        optimizer.input_grid,
-    )
-    optimizer.abstract_system = abstract_system
-    # Build the abstract problem
-    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
-    optimizer.abstract_problem = abstract_problem
-    # Solve the abstract problem
-    abstract_controller = solve_abstract_problem(abstract_problem)
-    optimizer.abstract_controller = abstract_controller
-    # Solve the concrete problem
-    optimizer.concrete_controller =
-        solve_concrete_problem(abstract_system, abstract_controller)
-    return
-end
+using Dionysos, JuMP, StaticArrays
+
+model = Model(Dionysos.Optimizer)
+@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x0[i])
+@variable(model, -1 <= u[1:2] <= 1)
+@constraint(model, ∂(x[1]) == u[1] * cos(α + x[3]) * sec(α))   # dynamics
+@constraint(model, final(x[1]) in MOI.Interval(3.0, 3.6))       # target set
+set_attribute(model, "time_step", 0.3)
+set_attribute(model, "state_grid", Dionysos.Mapping.GridFree(x0, hx))
+set_attribute(model, "input_grid", Dionysos.Mapping.GridFree(u0, hu))
+optimize!(model)
+concrete_controller = get_attribute(model, "concrete_controller")
 ```
 
-# Running an example
-In this section, we outline how to define and solve a control problem with Dionsysos.
-For an executable version of this example, see [`Solvers: Path planning problem`](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Path%20planning/#Example:-Path-planning-problem) in the documentation.
+The same problem can be driven directly through MathOptInterface by instantiating a specific family
+optimizer, setting the `concrete_problem`, `state_grid` and `input_grid` attributes, and reading back
+`abstract_system`, `abstract_problem`, `abstract_controller`, and `concrete_controller`.
 
-Define a control problem, i.e., the system and the specification of the desired closed loop behaviour.
-To do this, you can define new ones yourself or directly load an existing benchmark, for example
+All structures worth plotting (trajectories, discretizations, specifications, obstacles, …) carry a
+[`@recipe`](https://github.com/JuliaPlots/RecipesBase.jl), so results are displayed with the single
+[`plot`](https://docs.juliaplots.org/latest/) function of [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl):
 
-```julia
-concrete_problem = PathPlanning.problem(; simple = true, approx_mode = PathPlanning.GROWTH);
-concrete_system = concrete_problem.system;
-```
-
-Choose the solver you wish to use
-```julia
-using JuMP
-optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-```
-
-Define the solver's meta-parameters
-```julia
-x0 = SVector(0.0, 0.0, 0.0);
-hx = SVector(0.2, 0.2, 0.2);
-state_grid = MP.GridFree(x0, hx);
-u0 = SVector(0.0, 0.0);
-hu = SVector(0.3, 0.3);
-input_grid = MP.GridFree(u0, hu);
-```
-
-Set the solver's meta-parameters
-```julia
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-```
-
-Solve the control problem
-```julia
-MOI.optimize!(optimizer)
-```
-
-Get the results
-```julia
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))
-abstract_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_controller"))
-concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-```
-
-In Dionysos, all the structures that could be relevant to plot (such as trajectories, state-space discretization, specifications, obstacles, etc.) 
-have an associated [`@recipe`](https://github.com/JuliaPlots/RecipesBase.jl) function, which makes it very easy to plot all the results using the single common [`plot`](https://docs.juliaplots.org/latest/generated/unitfulext_plots/) function of [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl).
-For example
 ```julia
 using Plots
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5);
-plot!(abstract_system; color = :blue, opacity = 0.5);
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2);
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2);
+plot!(concrete_system.X; color = :yellow, opacity = 0.5)
+plot!(abstract_system; color = :blue, opacity = 0.5)
+plot!(concrete_problem.initial_set; color = :green, opacity = 0.2)
+plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2)
 plot!(trajectory; ms = 0.5)
 ```
 
-
-
+For a complete, executable walkthrough see the
+[Path planning example](@ref "Example: Path planning problem solved by uniform grid abstraction") and
+[Getting Started](@ref "Getting Started").

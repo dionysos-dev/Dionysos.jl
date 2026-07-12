@@ -1,11 +1,7 @@
 module TestMain
 
-using Test
-using StaticArrays
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "AbstractStateSet" begin
     # ---- Make a tiny explicit grid mapping with a known universe ----
@@ -49,9 +45,9 @@ const MP = DI.Mapping
     @test Set(MP.enum_states(S2, m)) == Set([q12, q21])
 
     # ----------------------------
-    # MappingSet: read-only "all states"
+    # FullStateSet: read-only "all states"
     # ----------------------------
-    All = MP.MappingSet{2}()
+    All = MP.FullStateSet{2}()
     @test MP.get_n_state(All, m) == 4
     @test MP.contains_state(All, m, 1)
     @test MP.contains_state(All, m, 4)

@@ -1,7 +1,4 @@
-# # Example: Path planning problem solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Path planning.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Path planning.ipynb)
+# # Example: Path planning problem solved by uniform grid abstraction
 #
 # This example was borrowed from [reissig2016feedback; IX. Examples, A](@cite) whose dynamics comes from the model given in [aastrom2007feedback; Ch. 2.4](@cite).
 # This is a **reachability problem** for a **continuous system**.
@@ -86,7 +83,7 @@ for i in eachindex(x1_ub)
     )
 end
 
-# ### Definition of the abstraction
+# ## Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
@@ -98,7 +95,6 @@ end
 set_attribute(model, "jacobian_bound", jacobian_bound_function)
 set_attribute(model, "time_step", 0.3)
 set_attribute(model, "approx_mode", AB.UniformGridAbstraction.GROWTH)
-set_attribute(model, "efficient", true)
 
 x0 = SVector(0.0, 0.0, 0.0);
 hx = SVector(0.2, 0.2, 0.2);
@@ -128,7 +124,7 @@ println("Time to solve the abstract problem: $(abstract_problem_time)")
 total_time = MOI.get(model, MOI.RawOptimizerAttribute("solve_time_sec"))
 println("Total time: $(total_time)")
 
-# ### Trajectory display
+# ## Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`Δt`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
 nstep = 100

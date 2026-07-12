@@ -1,14 +1,10 @@
 module TestMain
-using Test
+
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 using Symbolics
 import IntervalArithmetic as IA
-using MathematicalSystems
-
-using Dionysos
-const DI = Dionysos
-const ST = DI.System
-const UT = DI.Utils
 
 const TOL = 1e-6
 

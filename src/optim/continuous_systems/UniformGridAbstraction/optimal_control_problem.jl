@@ -1,5 +1,5 @@
 """
-    OptimizerOptimalControlProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimizer
 
 An optimizer that solves reachability or reach-avoid **optimal control problems** using symbolic abstractions of the system.
 
@@ -73,7 +73,7 @@ concrete_value_function = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete
 concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
 ```
 """
-mutable struct OptimizerOptimalControlProblem{T} <: OP.AbstractDionysosOptimizer
+mutable struct OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Any
@@ -117,13 +117,6 @@ mutable struct OptimizerOptimalControlProblem{T} <: OP.AbstractDionysosOptimizer
 end
 
 OptimizerOptimalControlProblem() = OptimizerOptimalControlProblem{Float64}()
-
-MOI.is_empty(optimizer::OptimizerOptimalControlProblem) =
-    optimizer.concrete_problem === nothing
-
-function MOI.get(model::OptimizerOptimalControlProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec
-end
 
 function reset!(model::OptimizerOptimalControlProblem)
     model.abstract_problem = nothing
@@ -178,55 +171,35 @@ function build_abstract_problem(
     )
 end
 
-function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerOptimalControlProblem) =
+    OPDS.OptimizerOptimalControlProblem
 
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
-
-    abs_sys = optimizer.abstract_system
-    concrete_problem = optimizer.concrete_problem
-
-    abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
-    optimizer.abstract_problem = abstract_problem
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerOptimalControlProblem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("early_stop"),
-        optimizer.early_stop,
-    )
+function configure_abstract_optimizer!(
+    model::OptimizerOptimalControlProblem,
+    abstract_optimizer,
+)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("early_stop"), model.early_stop)
     MOI.set(
         abstract_optimizer,
         MOI.RawOptimizerAttribute("sparse_input"),
-        optimizer.sparse_input,
+        model.sparse_input,
     )
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
+    return
+end
 
-    MOI.optimize!(abstract_optimizer)
+function extract_results!(model::OptimizerOptimalControlProblem, abstract_optimizer)
+    abs_sys = model.abstract_system
 
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
+    model.value_fun_tab = abstract_optimizer.value_fun_tab
+    model.abstract_value_function = abstract_optimizer.value_function
+    model.concrete_value_function =
+        build_concrete_value_function(abs_sys, model.abstract_value_function)
 
-    optimizer.value_fun_tab = abstract_optimizer.value_fun_tab
-    optimizer.abstract_value_function = abstract_optimizer.value_function
-    optimizer.concrete_value_function =
-        build_concrete_value_function(abs_sys, optimizer.abstract_value_function)
-
-    optimizer.controllable_set =
+    model.controllable_set =
         SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.controllable_set))
-    optimizer.uncontrollable_set = SY.get_state_set_from_states(
+    model.uncontrollable_set = SY.get_state_set_from_states(
         abs_sys,
         collect(abstract_optimizer.uncontrollable_set),
     )
-
-    optimizer.success = abstract_optimizer.success
-    optimizer.abstract_problem_time_sec = time() - t0
-
     return
 end

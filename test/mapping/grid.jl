@@ -1,16 +1,10 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LinearAlgebra as LA
 import LazySets
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
-
-println("Started grid tests")
 
 # Helper: check point is inside a box (inclusive)
 _in_rec(rect, x) = x ∈ rect
@@ -41,7 +35,7 @@ _in_rec(rect, x) = x ∈ rect
 
         @test isapprox(MP.get_volume(g), 2.0; atol = 1e-12)
 
-        @test MP.is_state_cover(g) == false
+        @test MP.has_overlapping_cells(g) == false
     end
 
     @testset "Position limits" begin
@@ -112,7 +106,7 @@ _in_rec(rect, x) = x ∈ rect
 
         @test MP.get_origin(g) == orig
         @test MP.get_h(g) == h
-        @test MP.is_state_cover(g)
+        @test MP.has_overlapping_cells(g)
 
         e = MP.get_elem_by_pos(g, (2, -1))
         @test e isa LazySets.Ellipsoid

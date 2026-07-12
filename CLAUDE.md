@@ -67,13 +67,13 @@ correct-by-construction controller on it, then *concretize* it back to the origi
 | [`ext/`](ext/) | Package extensions — optional-dependency glue (Plots, Symbolics, Spot, CSV, RigidBodyDynamics). |
 | [`test/`](test/) | Test suite; mirrors `src/` layout. Entry point [`test/runtests.jl`](test/runtests.jl). |
 | [`docs/`](docs/) | Documenter.jl site + Literate.jl examples. Build script [`docs/make.jl`](docs/make.jl). |
-| [`problems/`](problems/) | Reusable **benchmark problem library** (e.g. path planning, DC-DC, pendulum). |
-| `utils/` (root) | **Runnable case-study scripts**, grouped by example — **not** library code. |
+| [`problems/`](problems/) | Reusable **benchmark problem library** (e.g. path planning, DC-DC, pendulum), one folder per problem. |
+| [`scripts/`](scripts/) (root) | **Runnable case-study scripts**, one folder per example — **not** library code. (Formerly `utils/`.) |
 | [`bench/`](bench/) | Benchmarks (BenchmarkTools). |
 | `control_server/`, `BipedRobot/`, `paper/`, `assets/` | Auxiliary app, robot demo, paper artifacts, images. |
 
-> ⚠️ The root `utils/` folder (example drivers) is **not** the same as the `src/utils/` module (the
-> `Utils` library). Don't confuse them.
+> ⚠️ The root `scripts/` folder (example drivers) is **not** the same as the `src/utils/` module (the
+> `Utils` library). It was renamed from `utils/` precisely to avoid that confusion.
 
 ---
 
@@ -166,7 +166,7 @@ concrete_controller = get_attribute(model, "concrete_controller")
 | Trajectory certifiers | [src/optim/trajectory_certifiers/](src/optim/trajectory_certifiers/) |
 | Bemporad–Morari (MIQP for PWA) | [src/optim/bemporad_morari.jl](src/optim/bemporad_morari.jl) |
 | Branch and bound | [src/optim/branch_and_bound.jl](src/optim/branch_and_bound.jl) |
-| Q-learning | [src/optim/q_learning.jl](src/optim/q_learning.jl) |
+| Q-function lower bounds (for Branch and Bound) | [src/optim/q_function.jl](src/optim/q_function.jl) |
 
 ### Checklist: adding a new solver
 
@@ -276,13 +276,24 @@ Julia ≥ 1.10 (CI tests 1.10 and current `1`). Commands assume the repo root.
 **Run tests — don't run the whole suite for every change; it's slow.** Prefer the narrowest scope:
 
 1. **Run only the test file(s) you touched, standalone.** Every test file is a self-contained module
-   (its own `using`) and *must be runnable on its own* in the test environment
+   and *must be runnable on its own* in the test environment
    ([test/Project.toml](test/Project.toml), which sources `Dionysos` via a relative path):
    ```
-   julia --project=test test/optim/UniformGridAbstraction/unit_test_reachability.jl
+   julia --project=test test/optim/discrete_systems/reachability.jl
    ```
    First time only: `julia --project=test -e 'using Pkg; Pkg.instantiate()'`. If a file is *not*
    standalone-runnable (e.g. a missing import), fix it — add the missing `using`/`import`.
+
+   **Shared harness.** Each file opens with `import Dionysos` then
+   `include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))`, which brings in
+   `Test`/`StaticArrays`/`MathematicalSystems`, the module aliases (`DI/UT/ST/PR/MP/SY/OP/OPDS/AB`),
+   tiny system builders (`single_integrator`, `double_integrator`) and helpers
+   (`controller_admissible`). Don't re-declare those per file. Add file-specific imports
+   (`JuMP`, `import MathOptInterface as MOI`, `Plots`, …) after the include.
+
+   **`optim/` layout.** `optim/discrete_systems/` = controller synthesis on a hand-built automaton;
+   `optim/UniformGridAbstraction/` = the grid abstraction solver (build modes + end-to-end specs);
+   one file per solver family otherwise.
 2. **Fast subset smoke check:** `julia --project -e 'using Pkg; Pkg.test(; test_args = ["--fast"])'`
    runs everything except suites tagged `:slow` in [test/runtests.jl](test/runtests.jl) (heavy
    end-to-end solver pipelines + Aqua). The driver prints per-file timings and a slowest-first summary.
@@ -350,7 +361,7 @@ extension is loaded (`using Plots`, `using Symbolics`, …).
 - **Stale `Domain` naming.** Some docstrings/comments say `Dionysos.Domain.INNER`, but the live module
   is **`Dionysos.Mapping`** (`INNER`/`OUTER`/`CENTER`). "Domain" is a former name — verify against the
   code before trusting a comment.
-- **Two `utils/`.** Root `utils/` = case-study scripts; `src/utils/` = the `Utils` library module.
+- **`scripts/` vs `src/utils/`.** Root `scripts/` (formerly `utils/`) = case-study drivers; `src/utils/` = the `Utils` library module. Each problem/example is a folder in both `problems/` and `scripts/`.
 - **Wire new tests in.** [test/runtests.jl](test/runtests.jl) is a `TEST_FILES` list (path + optional
   `:slow` tag) run in a timed loop; its include paths are slightly flatter than the deeply nested `src/`
   tree. Add every new test file to that list, and mirror the *actual* `src/` layout for source.

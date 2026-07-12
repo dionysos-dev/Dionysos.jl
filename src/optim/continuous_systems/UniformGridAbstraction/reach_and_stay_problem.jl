@@ -1,5 +1,5 @@
 """
-    OptimizerReachAndStayProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerReachAndStayProblem{T} <: AbstractLiftedControlOptimizer
 
 An optimizer for solving **reach-and-stay control problems** over symbolic system abstractions.
 
@@ -51,7 +51,7 @@ These fields are automatically filled in by `MOI.optimize!`.
 - `success`: Boolean flag indicating whether all abstract initial states belong to the winning set.
 - `abstract_problem_time_sec`: Time taken to solve the abstract reach-and-stay problem.
 """
-mutable struct OptimizerReachAndStayProblem{T} <: OP.AbstractDionysosOptimizer
+mutable struct OptimizerReachAndStayProblem{T} <: AbstractLiftedControlOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.ReachAndStayProblem}
     abstract_system::Any
@@ -86,13 +86,6 @@ end
 
 OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerReachAndStayProblem) =
-    optimizer.concrete_problem === nothing
-
-function MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec
-end
-
 function build_abstract_problem(
     concrete_problem::PR.ReachAndStayProblem,
     abstract_system::SY.SymbolicModel,
@@ -106,51 +99,23 @@ function build_abstract_problem(
     )
 end
 
-function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerReachAndStayProblem) = OPDS.OptimizerReachAndStayProblem
 
-    optimizer.abstract_system === nothing &&
-        error("Abstract system is not defined. Ensure abstraction is computed first.")
-    optimizer.concrete_problem === nothing && error("Concrete problem is not defined.")
+function configure_abstract_optimizer!(
+    model::OptimizerReachAndStayProblem,
+    abstract_optimizer,
+)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("early_stop"), model.early_stop)
+    return
+end
 
-    abstract_system = optimizer.abstract_system
-
-    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
-    optimizer.abstract_problem = abstract_problem
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerReachAndStayProblem)
-
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("early_stop"),
-        optimizer.early_stop,
-    )
-
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
-
-    MOI.optimize!(abstract_optimizer)
-
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
-
-    optimizer.winning_set = SY.get_state_set_from_states(
-        abstract_system,
-        collect(abstract_optimizer.winning_set),
-    )
-
-    optimizer.winning_set_complement = SY.get_state_set_from_states(
-        abstract_system,
+function extract_results!(model::OptimizerReachAndStayProblem, abstract_optimizer)
+    abs_sys = model.abstract_system
+    model.winning_set =
+        SY.get_state_set_from_states(abs_sys, collect(abstract_optimizer.winning_set))
+    model.winning_set_complement = SY.get_state_set_from_states(
+        abs_sys,
         collect(abstract_optimizer.winning_set_complement),
     )
-
-    optimizer.success = abstract_optimizer.success
-    optimizer.abstract_problem_time_sec = time() - t0
-
     return
 end

@@ -1,8 +1,7 @@
 module TestMain
 
-using Test
-using Dionysos
-const UT = Dionysos.Utils
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "golden_section_search" begin
     test_function(x) = x^2 - 4

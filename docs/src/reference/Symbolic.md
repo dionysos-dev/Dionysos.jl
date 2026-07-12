@@ -1,31 +1,16 @@
-# Symbolic 
+# Symbolic
 
-This folder contains the data structures needed to encode the different abstractions.
+Builds the finite **automaton abstraction** of a concrete system on top of a
+[`Mapping`](@ref Mapping). A [`SymbolicModel`](@ref Dionysos.Symbolic.SymbolicModel) (concretely a
+[`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList)) wraps an automaton whose transitions
+are a sound over-approximation of the dynamics. The transition relation is populated by an execution
+backend (sequential or parallel), and a dedicated timed-hybrid symbolic model abstracts timed hybrid
+systems.
 
-```@docs
-Dionysos.Symbolic.AbstractSymbolicModel
-Dionysos.Symbolic.SymbolicModel
-Dionysos.Symbolic.GridBasedSymbolicModel
-```
+## API reference
 
-## Automaton
-```@docs
-Dionysos.Symbolic.compute_post!
-```
-
-```@docs
-Dionysos.Symbolic.SymbolicModelList
-Dionysos.Symbolic.LocalGridBasedSymbolicModel
-```
-
-```@docs
-Dionysos.Symbolic.determinize_symbolic_model
-```
-
-```@docs
-Dionysos.Symbolic.AbstractExecutionBackend
-Dionysos.Symbolic.SequentialBackend
-Dionysos.Symbolic.ThreadedBackend
-Dionysos.Symbolic.JuliaDistributedBackend
-Dionysos.Symbolic.SlurmArrayBackend
+```@autodocs
+Modules = [Dionysos.Symbolic]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

@@ -91,7 +91,7 @@ end
 
 function _pick_state_region(opt::OptimizerAlternatingSimulationProblem)
     X = opt.abstraction_region
-    X === nothing && (X = opt.alternating_simulation_problem.region)
+    X === nothing && (X = opt.alternating_simulation_problem.state_set)
     X === nothing && (X = opt.alternating_simulation_problem.system.ext[:X])
     return X
 end
@@ -124,7 +124,7 @@ function build_state_mapping(opt::OptimizerAlternatingSimulationProblem{T}) wher
 
     N = MP.get_dim(grid)
     m = MP.ExplicitGridMapping{N, T}(grid)
-    MP.add_set!(m, X, opt.incl_mode)
+    MP.cover!(m, X, opt.incl_mode)
     return m
 end
 
@@ -132,7 +132,7 @@ function build_state_set(opt::OptimizerAlternatingSimulationProblem)
     opt.Xset !== nothing && return opt.Xset
     m = build_state_mapping(opt)
     N = MP.get_dim(m)
-    return MP.MappingSet{N}()  # all states of mapping
+    return MP.FullStateSet{N}()  # all states of mapping
 end
 
 function build_allowed_state_set(opt::OptimizerAlternatingSimulationProblem)
@@ -153,7 +153,7 @@ function build_input_set(opt::OptimizerAlternatingSimulationProblem)
     opt.Uset !== nothing && return opt.Uset
     umap = build_input_mapping(opt)
     M = MP.get_dim(umap)
-    return MP.MappingSet{M}()
+    return MP.FullStateSet{M}()
 end
 
 function build_L(opt::OptimizerAlternatingSimulationProblem, nx::Int, nu::Int)

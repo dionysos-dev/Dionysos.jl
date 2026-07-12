@@ -192,3 +192,116 @@ function MOI.get(model::CompositeDionysosOptimizer, attr::MOI.RawOptimizerAttrib
         ),
     )
 end
+
+"""
+    AbstractionControlOptimizer <: CompositeDionysosOptimizer
+
+Template for the classical abstraction-based control pipeline: a composite optimizer holding an
+`abstraction_solver` (builds the symbolic model) and an optional `control_solver` (synthesizes the
+abstract controller), then concretizing the controller. It implements the whole
+`MOI.optimize!`/`sub_solvers`/`ensure_sub_solvers!`/`is_abstraction_computed`/`MOI.is_empty`
+orchestration once — including caching the abstraction across control-task switches — so each solver
+family only supplies its family-specific pieces.
+
+A concrete subtype must have fields `abstraction_solver`, `control_solver`, `concrete_controller`,
+`print_level`, `solve_time_sec`, and implement:
+- [`default_abstraction_solver`](@ref): a fresh abstraction sub-solver;
+- [`build_concrete_controller`](@ref): concretize the abstract controller;
+- `set_concrete_problem!` (the problem→sub-solver wiring, which differs per family).
+
+Optional: [`configure_control_solver!`](@ref) to push extra attributes onto the control solver before
+it runs (e.g. a transition-cost closure).
+"""
+abstract type AbstractionControlOptimizer <: CompositeDionysosOptimizer end
+
+"""
+    default_abstraction_solver(model::AbstractionControlOptimizer)
+
+Return a fresh abstraction sub-solver for `model`'s family (called lazily by
+[`ensure_sub_solvers!`](@ref)).
+"""
+default_abstraction_solver(model::AbstractionControlOptimizer) =
+    error("default_abstraction_solver not implemented for $(typeof(model))")
+
+"""
+    build_concrete_controller(model::AbstractionControlOptimizer, abstract_system, abstract_controller)
+
+Concretize the synthesized `abstract_controller` into a controller on the original system. The hook
+may read additional results from `model.control_solver` / `model.abstraction_solver`.
+"""
+build_concrete_controller(
+    model::AbstractionControlOptimizer,
+    abstract_system,
+    abstract_controller,
+) = error("build_concrete_controller not implemented for $(typeof(model))")
+
+"""
+    configure_control_solver!(model::AbstractionControlOptimizer, control_solver, abstract_system)
+
+Push extra attributes onto `control_solver` after the abstract system is attached but before it runs
+(default: no-op). Used e.g. by the ellipsoid family to forward a transition-cost closure.
+"""
+configure_control_solver!(::AbstractionControlOptimizer, control_solver, abstract_system) =
+    nothing
+
+MOI.is_empty(model::AbstractionControlOptimizer) = model.abstraction_solver === nothing
+
+sub_solvers(model::AbstractionControlOptimizer) =
+    (model.abstraction_solver, model.control_solver)
+
+function ensure_sub_solvers!(model::AbstractionControlOptimizer)
+    if model.abstraction_solver === nothing
+        model.abstraction_solver = default_abstraction_solver(model)
+    end
+    return
+end
+
+"""
+    is_abstraction_computed(model::AbstractionControlOptimizer)
+
+Whether the abstraction has already been built (so switching the control task reuses it).
+"""
+is_abstraction_computed(model::AbstractionControlOptimizer) =
+    model.abstraction_solver !== nothing &&
+    model.abstraction_solver.abstract_system !== nothing
+
+function MOI.optimize!(model::AbstractionControlOptimizer)
+    t_ref = time()
+
+    model.abstraction_solver === nothing && error("The concrete problem is not defined.")
+
+    if !is_abstraction_computed(model)
+        MOI.set(
+            model.abstraction_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            model.print_level,
+        )
+        MOI.optimize!(model.abstraction_solver)
+    end
+
+    if model.control_solver !== nothing
+        MOI.set(
+            model.control_solver,
+            MOI.RawOptimizerAttribute("print_level"),
+            model.print_level,
+        )
+        abstract_system =
+            MOI.get(model.abstraction_solver, MOI.RawOptimizerAttribute("abstract_system"))
+        MOI.set(
+            model.control_solver,
+            MOI.RawOptimizerAttribute("abstract_system"),
+            abstract_system,
+        )
+        configure_control_solver!(model, model.control_solver, abstract_system)
+
+        MOI.optimize!(model.control_solver)
+
+        abstract_controller =
+            MOI.get(model.control_solver, MOI.RawOptimizerAttribute("abstract_controller"))
+        model.concrete_controller =
+            build_concrete_controller(model, abstract_system, abstract_controller)
+    end
+
+    model.solve_time_sec = time() - t_ref
+    return
+end

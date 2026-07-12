@@ -23,7 +23,7 @@ mutable struct SymbolicModelList{
 end
 
 # default sets = "all states of mapping"
-_default_stateset(::MP.AbstractMapping{N, TX}) where {N, TX} = MP.MappingSet{N}()
+_default_stateset(::MP.AbstractMapping{N, TX}) where {N, TX} = MP.FullStateSet{N}()
 
 function SymbolicModelList(
     XMapping::XM,
@@ -73,7 +73,7 @@ get_automaton(sym::SymbolicModelList) = sym.autom
 
 is_determinized(sym::SymbolicModelList) = !(sym.original_symmodel === nothing)
 
-metadata(sym::SymbolicModelList) = sym.metadata
+get_transition_metadata(sym::SymbolicModelList) = sym.metadata
 
 function without_metadata(sym::SymbolicModel)
     return SymbolicModelList(

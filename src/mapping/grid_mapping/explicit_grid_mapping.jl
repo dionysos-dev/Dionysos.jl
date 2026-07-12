@@ -27,7 +27,7 @@ end
 
 function ExplicitGridMapping{N, T}(grid::G, set, incl_mode::INCL_MODE) where {N, T, G}
     m = ExplicitGridMapping{N, T}(grid)
-    add_set!(m, set, incl_mode)
+    cover!(m, set, incl_mode)
     return m
 end
 
@@ -55,7 +55,9 @@ function add_pos!(m::ExplicitGridMapping{N, T}, pos::NTuple{N, Int}) where {N, T
     return q
 end
 
-function add_set!(m::ExplicitGridMapping{N, T}, set, incl_mode::INCL_MODE) where {N, T}
+# Grow the mapping's universe by every cell covered by `set` (contrast with the
+# state-set `add_set!`, which adds members to a set over a *fixed* universe).
+function cover!(m::ExplicitGridMapping{N, T}, set, incl_mode::INCL_MODE) where {N, T}
     grid = get_grid(m)
     for pos in get_pos_from_set(grid, set, incl_mode)
         add_pos!(m, pos)   # dedup happens here

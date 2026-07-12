@@ -1,19 +1,13 @@
 module TestMain
 
-using Test
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using LinearAlgebra
-using StaticArrays
-using Dionysos
 using Clarabel, JuMP
 import MathematicalSystems as MS
 import LazySets
 using HybridSystems
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-
-println("Started test")
 
 opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
@@ -141,7 +135,5 @@ end
     @test K ≈ [-2.0 -1.0 -5.0] atol = 1e-1
     @test isposdef(Symmetric(Matrix(P)))
 end
-
-println("End test")
 
 end  # module TestMain

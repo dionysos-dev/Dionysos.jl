@@ -98,7 +98,6 @@ function build_robot_abstraction_optimizer(
     )
 
     MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), execution_backend)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
     if save_concrete_traj
         MOI.set(
             optimizer,

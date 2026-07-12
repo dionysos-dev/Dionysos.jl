@@ -1,19 +1,9 @@
 module TestMain
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
-using MathematicalSystems
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const MP = DI.Mapping
-const ST = DI.System
-const SY = DI.Symbolic
-const OPDS = DI.Optim.DiscreteSystems
-
-println("Started test")
 
 @testset "Generic LazySets through the grid mapping" begin
     h = SVector(0.25, 0.25)
@@ -47,7 +37,7 @@ end
 @testset "Reach-avoid with zonotope obstacle and ball target" begin
     Xgrid = MP.GridFree(SVector(0.0, 0.0), SVector(0.47, 0.23))
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.add_set!(Xmap_full, UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)), MP.OUTER)
+    MP.cover!(Xmap_full, UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)), MP.OUTER)
 
     # thin vertical zonotope strip at x ≈ -1
     obstacle = LazySets.Zonotope([-1.0, 1.0], [0.1 0.0; 0.0 3.0])
@@ -61,7 +51,7 @@ end
 
     Ugrid = MP.GridFree(SVector(0.0), SVector(1.0))
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.add_set!(Umap, UT.box(SVector(-2.0), SVector(2.0)), MP.OUTER)
+    MP.cover!(Umap, UT.box(SVector(-2.0), SVector(2.0)), MP.OUTER)
 
     F_sys(x, u) = SVector(1.0, u[1])
     jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
@@ -95,7 +85,5 @@ end
     @test !isempty(controllable_set)
     @test value_fun_tab !== nothing
 end
-
-println("End test")
 
 end # module TestMain

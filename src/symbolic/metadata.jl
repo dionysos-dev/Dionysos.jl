@@ -1,4 +1,17 @@
+"""
+    TransitionKey = NTuple{3, Int}
+
+A transition, stored and enumerated as `(target, source, symbol)`. Note the
+ordering flip vs. `add_transition!(autom, source, target, symbol)`, whose
+arguments put the source first. Prefer the
+`transition_target`/`transition_source`/`transition_symbol` accessors over raw
+positional indexing at call sites.
+"""
 const TransitionKey = NTuple{3, Int}
+
+@inline transition_target(t::TransitionKey) = t[1]
+@inline transition_source(t::TransitionKey) = t[2]
+@inline transition_symbol(t::TransitionKey) = t[3]
 
 abstract type AbstractTransitionMetadata end
 

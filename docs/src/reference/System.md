@@ -1,171 +1,26 @@
-# System Representations and Approximations
+# System
 
-This module defines tools to represent and manipulate dynamical systems and their approximations.
+Represents and manipulates dynamical systems and their approximations, extending
+[`MathematicalSystems`](https://github.com/JuliaReach/MathematicalSystems.jl) and
+[`HybridSystems`](https://github.com/blegat/HybridSystems.jl). It covers system approximations
+(over-/under-approximations of the dynamics, growth bounds and linearizations), local affine
+approximations, the trait-based controller protocol, ellipsoidal transition synthesis
+([`solve_transition`](@ref Dionysos.System.solve_transition)), and trajectories with the closed-loop
+simulation engine ([`get_closed_loop_trajectory`](@ref Dionysos.System.get_closed_loop_trajectory)).
+Controllers are plain data, so they can be serialized and reloaded.
 
-## Concrete Systems
+## API reference
 
-The systems we aim to control are defined using types from external packages such as:
-
-- [`MathematicalSystems.jl`](https://github.com/JuliaReach/MathematicalSystems.jl) for standard (e.g., continuous/discrete-time) control systems.
-- [`HybridSystems.jl`](https://github.com/blegat/HybridSystems.jl) for hybrid automata.
-
-For example, a continuous-time system might be defined as:
-
-```julia
-concrete_system = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
-    dynamics(),  # system dynamics (function)
-    n_X,         # state dimension
-    n_U,         # input dimension
-    _X_,         # state constraints
-    _U_          # input constraints
-)
+```@autodocs
+Modules = [Dionysos.System]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-## Symbolic/Abstract Systems
+## PID controllers
 
-Symbolic models (used for abstraction-based control) are constructed separately using the symbolic abstraction module, typically resulting in a [`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList).
-
-## System Approximations
-
-To reason about the system’s behavior during abstraction, we introduce **approximations** of the system's evolution. These are grouped into:
-
-- [`DiscreteTimeSystemApproximation`](@ref Dionysos.System.DiscreteTimeSystemApproximation)
-- [`ContinuousTimeSystemApproximation`](@ref Dionysos.System.ContinuousTimeSystemApproximation)
-
-Both are subtypes of [`SystemApproximation`](@ref Dionysos.System.SystemApproximation), and can represent either **underapproximations** or **overapproximations** of the system dynamics.
-
-```@docs
-Dionysos.System.runge_kutta4
-Dionysos.System.discretize_continuous_system
-Dionysos.System.DEFAULT_NUM_SUBSTEPS
-Dionysos.System.SystemApproximation
-Dionysos.System.DiscreteTimeSystemApproximation
-Dionysos.System.ContinuousTimeSystemApproximation
-```
-
-The following functions define the `SystemApproximation` interface:
-
-- `get_system(approx::SystemApproximation)`: Returns the underlying concrete system.
-- `is_continuous_time(approx)`: Returns `true` if the approximation is continuous-time, i.e., a [`ContinuousTimeSystemApproximation`](@ref Dionysos.System.ContinuousTimeSystemApproximation).
-- `is_over_approximation(approx::SystemApproximation)`: Return `true` if `approx` is a [`DiscreteTimeSystemOverApproximation`](@ref Dionysos.System.DiscreteTimeSystemOverApproximation) or a [`ContinuousTimeSystemOverApproximation`](@ref Dionysos.System.ContinuousTimeSystemOverApproximation).
-- `discretize(approx::ContinuousTimeSystemApproximation, tstep)::DiscreteTimeSystemApproximation`: Returns a  [`DiscreteTimeSystemApproximation`](@ref Dionysos.System.DiscreteTimeSystemApproximation) with given time step.
-- `get_system_map(approx)`: Returns the map representing the system's evolution.
-
-### Underapproximations
-
-These approximations guarantee that all returned trajectories are feasible under the system dynamics.
-
-```@docs
-Dionysos.System.DiscreteTimeSystemUnderApproximation
-Dionysos.System.ContinuousTimeSystemUnderApproximation
-```
-
-The following function define the `underapproximation` interface:
-
-```@docs
-Dionysos.System.get_under_approximation_map
-```
-
-### Overapproximations
-
-These approximations guarantee that the true system evolution is **contained** in the returned set, making them useful for safety and robust control.
-
-```@docs
-Dionysos.System.DiscreteTimeSystemOverApproximation
-Dionysos.System.ContinuousTimeSystemOverApproximation
-```
-
-The following function define the `overapproximation` interface:
-
-```@docs
-Dionysos.System.get_over_approximation_map
-Dionysos.System.input_cache
-Dionysos.System.reach_set
-```
-
-### Concrete implementations of abstract approximation types
-```@docs
-Dionysos.System.DiscreteTimeCenteredSimulation
-Dionysos.System.ContinuousTimeCenteredSimulation
-```
-
-```@docs
-Dionysos.System.DiscreteTimeRandomSimulation
-Dionysos.System.ContinuousTimeRandomSimulation
-```
-
-```@docs
-Dionysos.System.DiscreteTimeOverApproximationMap
-Dionysos.System.ContinuousTimeOverApproximationMap
-```
-
-```@docs
-Dionysos.System.DiscreteTimeGrowthBound
-Dionysos.System.ContinuousTimeGrowthBound
-```
-
-```@docs
-Dionysos.System.DiscreteTimeLinearized
-Dionysos.System.ContinuousTimeLinearized
-```
-
-## Affine approximation
-
-Local affine approximations of nonlinear dynamics (linearization + Lipschitz
-error bounds), consumed by the lazy-ellipsoids abstraction and the ellipsoidal
-backward trajectory certifier.
-
-```@docs
-Dionysos.System.build_affine_approximation
-Dionysos.System.AffineApproximation
-Dionysos.System.AbstractAffineApproximationProvider
-Dionysos.System.SymbolicAffineApproximationProvider
-Dionysos.System.AnalyticAffineApproximationProvider
-Dionysos.System.SymbolicSystem
-Dionysos.System.get_affine_provider
-```
-
-## Controllers
-
-The controller protocol (argument order `(controller, memory, measurement)`):
-`controller_kind`, `output_control`, `is_defined`, and — for dynamic
-controllers — `initial_state` / `update_state`; static controllers inherit
-memoryless defaults from the trait. Controllers are **plain data** (tables,
-sets, struct callables), so they can be saved to JLD2 and reloaded.
-
-```@docs
-Dionysos.System.ControllerKind
-Dionysos.System.DiscreteStaticController
-Dionysos.System.DiscreteDynamicController
-Dionysos.System.ControlTable
-Dionysos.System.add_control!
-Dionysos.System.set_control!
-Dionysos.System.AutomatonMemoryController
-Dionysos.System.AffineController
-Dionysos.System.as_controller
-```
-
-## Transition synthesis
-
-Synthesis of affine controllers certifying ellipsoid-to-ellipsoid transitions
-of affine systems (S-procedure LMIs), used by the ellipsoidal abstraction
-solvers and the backward trajectory certifier.
-
-```@docs
-Dionysos.System.solve_transition
-Dionysos.System.solve_transition_backward
-Dionysos.System.TransitionResult
-Dionysos.System.stabilizing_feedback
-Dionysos.System.format_input_set
-Dionysos.System.format_noise_set
-```
-
-## Trajectories 
-```@docs
-Dionysos.Utils.wrap_coord
-Dionysos.System.DiscreteTrajectory
-Dionysos.System.ContinuousTrajectory
-Dionysos.System.Trajectory
-Dionysos.System.ClosedLoopTrajectory
-Dionysos.System.get_closed_loop_trajectory
+```@autodocs
+Modules = [Dionysos.System.PIDControllers]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

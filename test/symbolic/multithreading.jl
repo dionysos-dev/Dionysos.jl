@@ -1,20 +1,10 @@
 module TestMain
 
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 import LazySets
-using Test
-using StaticArrays
-using MathematicalSystems
 using LinearAlgebra
-using Dionysos
-
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-
-sleep(0.1)
-println("Started multithreading test")
 
 # ----------------------------
 # Build finite mappings + system (Mapping-based)
@@ -228,7 +218,6 @@ end
     end
 end
 
-sleep(0.1)
 println("End Test")
 
 end # module TestMain

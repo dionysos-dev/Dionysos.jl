@@ -3,19 +3,12 @@
 # session, and the reloaded controller produces the same controls.
 module TestControllerSerialization
 
-using Test
-using StaticArrays
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using JLD2
 import MathematicalSystems as MS
 import MathOptInterface as MOI
-
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const AB = DI.Optim.Abstraction
 
 function roundtrip(obj)
     path = joinpath(mktempdir(), "controller.jld2")

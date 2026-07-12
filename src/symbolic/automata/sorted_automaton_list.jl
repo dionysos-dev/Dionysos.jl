@@ -1,3 +1,10 @@
+"""
+    SortedAutomatonList <: AbstractAutomatonList
+
+Automaton backed by a sorted tuple set of `(target, source, symbol)` transitions.
+Compact and cheap to build; `pre`/`post` are answered by range queries on the
+sorted set. Good default when memory matters.
+"""
 mutable struct SortedAutomatonList{S <: AbstractSet{NTuple{3, Int}}} <:
                AbstractAutomatonList
     nstates::Int

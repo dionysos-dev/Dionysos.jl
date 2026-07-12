@@ -11,20 +11,13 @@
 
 module TestRegressionUniformGrid
 
-using Test
-using StaticArrays, MathematicalSystems
-using Dionysos
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using JuMP
 import MathOptInterface as MOI
 
-const DI = Dionysos
-const ST = DI.System
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
-
-include("../../problems/path_planning.jl")
+include("../../problems/PathPlanning/path_planning.jl")
 
 const SHOW_SIG = get(ENV, "DIONYSOS_SHOW_SIG", "0") == "1"
 

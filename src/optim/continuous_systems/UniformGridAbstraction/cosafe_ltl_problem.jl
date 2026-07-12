@@ -1,5 +1,5 @@
 """
-    OptimizerCoSafeLTLProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerCoSafeLTLProblem{T} <: AbstractLiftedControlOptimizer
 
 Abstraction-based solver for co-safe LTL control problems.
 
@@ -8,7 +8,7 @@ This optimizer:
 2. calls the generic automaton-level co-safe LTL optimizer in `SY`,
 3. stores the resulting abstract controller and solve status.
 """
-mutable struct OptimizerCoSafeLTLProblem{T} <: OP.AbstractDionysosOptimizer
+mutable struct OptimizerCoSafeLTLProblem{T} <: AbstractLiftedControlOptimizer
     # inputs
     concrete_problem::Union{Nothing, PR.CoSafeLTLProblem}
     abstract_system::Any
@@ -39,10 +39,6 @@ end
 
 OptimizerCoSafeLTLProblem() = OptimizerCoSafeLTLProblem{Float64}()
 
-MOI.is_empty(opt::OptimizerCoSafeLTLProblem) = opt.concrete_problem === nothing
-
-MOI.get(opt::OptimizerCoSafeLTLProblem, ::MOI.SolveTimeSec) = opt.abstract_problem_time_sec
-
 function build_abstract_problem(
     concrete_problem::PR.CoSafeLTLProblem,
     abstract_system::SY.SymbolicModel,
@@ -65,37 +61,13 @@ function build_abstract_problem(
     )
 end
 
-function MOI.optimize!(optimizer::OptimizerCoSafeLTLProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerCoSafeLTLProblem) = OPDS.OptimizerCoSafeLTLProblem
 
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
-
-    concrete_problem = optimizer.concrete_problem
-    abs_sys = optimizer.abstract_system
-
-    abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
-    optimizer.abstract_problem = abstract_problem
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerCoSafeLTLProblem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
+function configure_abstract_optimizer!(model::OptimizerCoSafeLTLProblem, abstract_optimizer)
     MOI.set(
         abstract_optimizer,
         MOI.RawOptimizerAttribute("sparse_input"),
-        optimizer.sparse_input,
+        model.sparse_input,
     )
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
-
-    MOI.optimize!(abstract_optimizer)
-
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.success = abstract_optimizer.success
-    optimizer.abstract_problem_time_sec = time() - t0
-
     return
 end

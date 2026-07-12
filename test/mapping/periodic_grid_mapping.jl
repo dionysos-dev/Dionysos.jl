@@ -1,11 +1,7 @@
 module TestPeriodicGridMapping
 
-using Test
-using StaticArrays
-using Dionysos
-const DI = Dionysos
-const MP = DI.Mapping
-const UT = DI.Utils
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 # Helper: build a grid with correct periodic origin alignment
 function _aligned_grid(periodic_dims, periods, start, h, N::Int)
@@ -123,7 +119,7 @@ end
     pm = MP.PeriodicGridMapping(periodic_dims, periods, start, base)
 
     rect = UT.box(SVector(0.0, 0.0), SVector(2.0, 0.0))
-    MP.add_set!(pm, rect, MP.OUTER)
+    MP.cover!(pm, rect, MP.OUTER)
 
     # should have inserted positions (0,0), (1,0), (2,0) (mod 4 in dim 1)
     @test MP.is_valid_pos(pm, (0, 0))

@@ -1,15 +1,11 @@
 module TestKernelApproximations
 
-import LazySets
-using Test
-using Random
-using StaticArrays
-import MathematicalSystems as MS
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
-const ST = DI.System
+import LazySets
+using Random
+import MathematicalSystems as MS
 
 @testset "Simulation utilities" begin
     # Simple linear dynamics: ẋ = A*x + B*u

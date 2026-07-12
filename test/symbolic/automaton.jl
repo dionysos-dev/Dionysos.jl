@@ -1,14 +1,9 @@
 module TestMain
 
-using Test
-using Dionysos
-const DI = Dionysos
-const SY = DI.Symbolic
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import HybridSystems
-
-sleep(0.1)
-println("Started tests for automata")
 
 function run_automaton_tests(AutomatonConstructor::Function)
     @testset "Automaton (impl = $(AutomatonConstructor))" begin

@@ -1,9 +1,7 @@
 module TestMain
 
-using Test
-using Dionysos
-const DI = Dionysos
-const UT = DI.Utils
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ScalarFunctions (callable contract)" begin
     x_1 = 1.0
@@ -60,5 +58,4 @@ const UT = DI.Utils
     @test f_bbc(x_2, u) == 2.25
 end
 
-println("End test")
 end

@@ -64,7 +64,7 @@ get_concrete_input(sym::SymbolicModel, input) =
 get_abstract_state(sym::SymbolicModel, x) = MP.get_state_by_coord(get_state_mapping(sym), x)
 get_abstract_states(sym::SymbolicModel, x) =
     MP.get_states_by_coord(get_state_mapping(sym), x)
-is_state_cover(sym::SymbolicModel) = MP.is_state_cover(get_state_mapping(sym))
+has_overlapping_cells(sym::SymbolicModel) = MP.has_overlapping_cells(get_state_mapping(sym))
 
 get_abstract_input(sym::SymbolicModel, u) = MP.get_state_by_coord(get_input_mapping(sym), u)
 
@@ -154,7 +154,7 @@ function determinize_symbolic_model(
         new_Umap;
         Xset = Xset,
         Rset = Rset,
-        Uset = MP.MappingSet{M+1}(),
+        Uset = MP.FullStateSet{M+1}(),
         automaton_constructor = (n, m) -> new_autom,
         original_symmodel = sym,
         convert_U_to_list = true,
@@ -167,12 +167,14 @@ end
 # MetaData (transition)
 # -----------------------
 
-metadata(sym::SymbolicModel) = error("implement `metadata` for $(typeof(sym))")
+get_transition_metadata(sym::SymbolicModel) =
+    error("implement `get_transition_metadata` for $(typeof(sym))")
 
-has_metadata(sym::SymbolicModel) = has_metadata(metadata(sym))
-get_metadata(sym::SymbolicModel, tr::TransitionKey) = get_metadata(metadata(sym), tr)
+has_metadata(sym::SymbolicModel) = has_metadata(get_transition_metadata(sym))
+get_metadata(sym::SymbolicModel, tr::TransitionKey) =
+    get_metadata(get_transition_metadata(sym), tr)
 add_metadata!(sym::SymbolicModel, tr::TransitionKey, value) =
-    add_metadata!(metadata(sym), tr, value)
+    add_metadata!(get_transition_metadata(sym), tr, value)
 
 function add_metadata_pairs!(symmodel::SymbolicModel, metadata_pairs)
     has_metadata(symmodel) || return nothing
@@ -220,14 +222,16 @@ end
         ]
 
         for t in enum_transitions(sym)
-            color = palette[mod1(t[1], length(palette))]
-            p1 = get_concrete_state(sym, t[2])
-            p2 = get_concrete_state(sym, t[1])
+            target = transition_target(t)
+            source = transition_source(t)
+            color = palette[mod1(target, length(palette))]
+            p1 = get_concrete_state(sym, source)
+            p2 = get_concrete_state(sym, target)
 
             @series begin
                 dims := dims
                 color := color
-                return t[1] == t[2] ? UT.DrawPoint(p1) : UT.DrawArrow(p1, p2)
+                return source == target ? UT.DrawPoint(p1) : UT.DrawArrow(p1, p2)
             end
         end
     end

@@ -1,37 +1,17 @@
-# Problem Types
+# Problem
 
-This module defines a set of structures used to represent different control problems.
+Solver-independent **specifications**. Every specification is a subtype of
+[`ProblemType`](@ref Dionysos.Problem.ProblemType), split into
+[`ControlProblem`](@ref Dionysos.Problem.ControlProblem) (a controller is synthesized: reach-avoid,
+safety, reach-and-stay, co-safe LTL) and
+[`AbstractionProblem`](@ref Dionysos.Problem.AbstractionProblem) (no control objective; parametrizes a
+reusable abstraction). Infinite horizons use the [`Infinity`](@ref Dionysos.Problem.Infinity)
+sentinel.
 
-All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Problem.ProblemType), which provides a common interface for control problems.
+## API reference
 
-## Supported Problems
-
-- [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem):  
-    Used to construct a sound abstraction of a dynamical system without solving a control problem.
-
-- [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem):  
-    Used to construct a quotient bisimulation of a switched system based on an observation map.
-
-- [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem):  
-    A reach-avoid optimal control problem defined over a finite time horizon, supporting state and transition costs.
-
-- [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem):  
-    A safety specification problem requiring the system to remain within a safe set for the entire time horizon.
-
-- [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem):  
-    A reach-and-stay specification problem requiring the system to eventually always satify a target set.
-
-- [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem):  
-    A co-safe LTL specification problem requiring the system to satisfy a co-safe LTL formula, i.e. to reach an accepting condition in finite time (equivalently: achieve a “good prefix” after which the specification is permanently satisfied).
-
-Each of these problem types is detailed below:
-
-```@docs
-Dionysos.Problem.ProblemType
-Dionysos.Problem.AlternatingSimulationProblem
-Dionysos.Problem.BisimulationQuotientProblem
-Dionysos.Problem.OptimalControlProblem
-Dionysos.Problem.SafetyProblem
-Dionysos.Problem.ReachAndStayProblem
-Dionysos.Problem.CoSafeLTLProblem
+```@autodocs
+Modules = [Dionysos.Problem]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

@@ -1,8 +1,9 @@
 module TestAqua
 
-using Test
+import Dionysos
+include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
+
 using Aqua
-using Dionysos
 
 @testset "Aqua" begin
     Aqua.test_all(Dionysos)
