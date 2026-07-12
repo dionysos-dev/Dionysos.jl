@@ -184,7 +184,6 @@ using HybridSystems
     aug_state = ([0.0], 0.0, 1)
     u_cont = [0.5]
     k = aug_state[3]
-    tm = abstract_system.time_abstractions[k]
     map_sys = ST.simulate_control_map(HybridSystems.mode(concrete_system, k).systems[1].f)
     next_aug_state = AB.HybridSystemAbstraction.get_next_aug_state(
         concrete_system,
@@ -405,7 +404,6 @@ end
     aug_state = ([0.0], 0.0, 1)
     u_cont = [0.5]
     k = aug_state[3]
-    tm = abstract_system.time_abstractions[k]
     map_sys = ST.simulate_control_map(HybridSystems.mode(concrete_system, k).systems[1].f)
     next_aug_state = AB.HybridSystemAbstraction.get_next_aug_state(
         concrete_system,

@@ -87,6 +87,35 @@ function get_concrete_state(m::ClockLiftedSymbolicModel, id::Int)
     return vcat(x, SVector(int2time(m.clock, p)))
 end
 
+"""
+    base_state_and_time(m::ClockLiftedSymbolicModel, id) -> (x, t)
+
+Decompose a flattened id into the base concrete state `x` (unaugmented, keeping the
+base's coordinate type) and the clock value `t`. Used by the mode composition to
+build a hybrid coordinate without re-splitting the `[x; t]` vector.
+"""
+function base_state_and_time(m::ClockLiftedSymbolicModel, id::Int)
+    (q, p) = flat_key(m.flat, id)
+    return get_concrete_state(m.base, q), int2time(m.clock, p)
+end
+
+"""
+    abstract_state_ceil_time(m::ClockLiftedSymbolicModel, xt) -> Int
+
+Abstract an augmented coordinate `[x; t]` using the *ceil* of the time value (the
+smallest clock step `≥ t`), returning `0` if the base state or time index is out of
+range. Used for guarded-switch targets, which round the reset time up.
+"""
+function abstract_state_ceil_time(m::ClockLiftedSymbolicModel, xt)
+    x = xt[1:(end - 1)]
+    t = xt[end]
+    q = get_abstract_state(m.base, x)
+    (q === nothing || q <= 0) && return 0
+    p = ceil_time2int(m.clock, t)
+    (p <= 0 || p > length(m.clock.tsteps)) && return 0
+    return flat_id(m.flat, (q, p))
+end
+
 "Abstract an augmented coordinate `[x; t]` to its flattened id (`0` if absent)."
 function get_abstract_state(m::ClockLiftedSymbolicModel, xt)
     x = xt[1:(end - 1)]

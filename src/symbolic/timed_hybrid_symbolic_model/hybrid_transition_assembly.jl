@@ -1,104 +1,42 @@
 # ================================================================
-# Guard geometry helpers (guard assumed to be a box: [spatial…, time])
-# ================================================================
-
-"Spatial part (all but the last dimension) of a box `guard`."
-function extract_spatial_part(guard)
-    if isa(guard, LazySets.AbstractHyperrectangle)
-        return UT.box(LazySets.low(guard)[1:(end - 1)], LazySets.high(guard)[1:(end - 1)])
-    else
-        error("Unsupported guard type: $(typeof(guard))")
-    end
-end
-
-"Temporal part `[t_min, t_max]` (last dimension) of a box `guard`."
-function extract_temporal_part(guard)
-    if isa(guard, LazySets.AbstractHyperrectangle)
-        return [LazySets.low(guard)[end], LazySets.high(guard)[end]]
-    else
-        error("Unsupported guard type: $(typeof(guard))")
-    end
-end
-
-"Time indices of `time_model` falling within the `[t_min, t_max]` interval."
-function get_time_indices_from_interval(time_model, temporal_interval)
-    t_min, t_max = temporal_interval
-    return findall(t -> t_min <= t <= t_max, time_model.tsteps)
-end
-
-# ================================================================
-# Transition assembly (pure: operates on already-built mode abstractions)
+# Transition assembly (pure: operates on already-built per-mode models)
 # ================================================================
 
 """
-    build_all_transitions(hs, mode_abstractions, input_mapping) -> Vector{TransitionTuple}
+    build_all_transitions(hs, mode_models, input_mapping) -> Vector{HybridTransition}
 
-Assemble every augmented transition of the timed hybrid system: intra-mode
-(dynamics × time steps within each mode) followed by inter-mode (guarded
-switches between modes).
+Assemble every hybrid transition: intra-mode (each mode model's own transitions,
+which already encode any time advance) followed by inter-mode (guarded switches
+between modes).
 """
-function build_all_transitions(
-    hs::HybridSystem,
-    mode_abstractions,
-    input_mapping::GlobalInputMap,
-)
-    intra_mode_transitions = sum(
-        get_n_transitions(abs_pair[1]) * length(abs_pair[2].tsteps) for
-        abs_pair in mode_abstractions
-    )
+function build_all_transitions(hs::HybridSystem, mode_models, input_mapping::GlobalInputMap)
+    transition_list = Vector{HybridTransition}()
+    sizehint!(transition_list, sum(get_n_transitions(m) for m in mode_models))
 
-    transition_list = Vector{TransitionTuple}()
-    sizehint!(transition_list, intra_mode_transitions)
-
-    add_intra_mode_transitions!(transition_list, mode_abstractions, input_mapping)
-    add_inter_mode_transitions!(transition_list, hs, mode_abstractions, input_mapping)
+    add_intra_mode_transitions!(transition_list, mode_models, input_mapping)
+    add_inter_mode_transitions!(transition_list, hs, mode_models, input_mapping)
 
     return transition_list
 end
 
-"Add the within-mode transitions (spatial dynamics advanced across each time step)."
+"Embed each mode model's own transitions into the global list, relabelling inputs."
 function add_intra_mode_transitions!(
     transition_list,
-    mode_abstractions,
+    mode_models,
     input_mapping::GlobalInputMap,
 )
-    n_modes = length(mode_abstractions)
-    @assert n_modes > 0 "No mode abstractions provided"
+    @assert !isempty(mode_models) "No mode models provided"
 
-    for (mode_id, (symmodel_dynamics, symmodel_time)) in enumerate(mode_abstractions)
-        time_steps = symmodel_time.tsteps
-        n_time_steps = length(time_steps)
-
-        if n_time_steps == 1
-            @inbounds for (target, source, local_input_id) in
-                          enum_transitions(symmodel_dynamics)
-                global_input_id =
-                    get_global_input_id(input_mapping, mode_id, local_input_id)
-                if global_input_id > 0  # Safety check
-                    target_state = (target, 1, mode_id)::AugmentedState
-                    source_state = (source, 1, mode_id)::AugmentedState
-                    push!(
-                        transition_list,
-                        (target_state, source_state, global_input_id)::TransitionTuple,
-                    )
-                end
-            end
-        else
-            transitions_cache = collect(enum_transitions(symmodel_dynamics))
-            @inbounds for k in 1:(n_time_steps - 1)
-                for (target, source, local_input_id) in transitions_cache
-                    global_input_id =
-                        get_global_input_id(input_mapping, mode_id, local_input_id)
-                    if global_input_id > 0  # Safety check
-                        target_state = (target, k + 1, mode_id)::AugmentedState
-                        source_state = (source, k, mode_id)::AugmentedState
-                        push!(
-                            transition_list,
-                            (target_state, source_state, global_input_id)::TransitionTuple,
-                        )
-                    end
-                end
-            end
+    for (mode_id, mode_model) in enumerate(mode_models)
+        for (target_local, source_local, local_input_id) in enum_transitions(mode_model)
+            global_input_id = get_global_input_id(input_mapping, mode_id, local_input_id)
+            global_input_id > 0 || continue
+            target_state = (target_local, mode_id)::HybridState
+            source_state = (source_local, mode_id)::HybridState
+            push!(
+                transition_list,
+                (target_state, source_state, global_input_id)::HybridTransition,
+            )
         end
     end
 end
@@ -107,7 +45,7 @@ end
 function add_inter_mode_transitions!(
     transition_list,
     hs::HybridSystem,
-    mode_abstractions,
+    mode_models,
     input_mapping::GlobalInputMap,
 )
     transitions = collect(HybridSystems.transitions(hs.automaton))
@@ -123,8 +61,8 @@ function add_inter_mode_transitions!(
         source_mode = HybridSystems.source(hs.automaton, transition)
         target_mode = HybridSystems.target(hs.automaton, transition)
 
-        @assert source_mode <= length(mode_abstractions) "Source mode $source_mode out of bounds"
-        @assert target_mode <= length(mode_abstractions) "Target mode $target_mode out of bounds"
+        @assert source_mode <= length(mode_models) "Source mode $source_mode out of bounds"
+        @assert target_mode <= length(mode_models) "Target mode $target_mode out of bounds"
 
         reset_map = HybridSystems.resetmap(hs, transition)
         guard = HybridSystems.guard(hs, transition)
@@ -134,80 +72,52 @@ function add_inter_mode_transitions!(
             continue
         end
 
-        (source_symmodel_dynamics, source_time_model) = mode_abstractions[source_mode]
-        (target_symmodel_dynamics, target_time_model) = mode_abstractions[target_mode]
+        source_model = mode_models[source_mode]
+        target_model = mode_models[target_mode]
 
-        # Split the guard into spatial and temporal parts
-        guard_spatial = extract_spatial_part(guard)
-        guard_temporal = extract_temporal_part(guard)
+        # Source states intersecting the guard (a box over the mode's `[x; t]` coord).
+        source_locals = get_states_from_set(source_model, guard, MP.INNER)
 
-        # Source states / times intersecting the guard
-        source_states =
-            get_states_from_set(source_symmodel_dynamics, guard_spatial, MP.INNER)
-        time_indices = get_time_indices_from_interval(source_time_model, guard_temporal)
-
-        if isempty(source_states) || isempty(time_indices)
+        if isempty(source_locals)
             @warn "Empty guard intersection for transition $transition_id, skipping"
             continue
         end
 
-        for source_state in source_states, source_time_idx in time_indices
-            if source_time_idx > length(source_time_model.tsteps) || source_time_idx <= 0
-                continue
-            end
+        for source_local in source_locals
+            # Concretize, apply the reset map, and abstract in the target mode.
+            source_coord = get_concrete_state(source_model, source_local)
+            reset_result = MS.apply(reset_map, source_coord)
+            target_local = abstract_state_ceil_time(target_model, reset_result)
 
-            # Build the augmented source state [x1, …, xn, t], apply the reset map
-            source_continuous_state =
-                get_concrete_state(source_symmodel_dynamics, source_state)
-            source_time_value = source_time_model.tsteps[source_time_idx]
-            augmented_source_state = vcat(source_continuous_state, source_time_value)
-
-            reset_result = MS.apply(reset_map, augmented_source_state)
-            reset_continuous_part = reset_result[1:(end - 1)]
-            reset_time_value = reset_result[end]
-
-            # Corresponding target symbolic state and time index
-            target_state =
-                find_symbolic_state(target_symmodel_dynamics, reset_continuous_part)
-            target_time_idx = ceil_time2int(target_time_model, reset_time_value)
-
-            if target_state > 0 &&
-               target_time_idx > 0 &&
-               target_time_idx <= length(target_time_model.tsteps)
-                target_aug_state =
-                    (target_state, target_time_idx, target_mode)::AugmentedState
-                source_aug_state =
-                    (source_state, source_time_idx, source_mode)::AugmentedState
-                push!(
-                    transition_list,
-                    (target_aug_state, source_aug_state, global_input_id)::TransitionTuple,
-                )
-            end
+            target_local > 0 || continue
+            target_state = (target_local, target_mode)::HybridState
+            source_state = (source_local, source_mode)::HybridState
+            push!(
+                transition_list,
+                (target_state, source_state, global_input_id)::HybridTransition,
+            )
         end
     end
 end
 
 """
-    build_symbolic_automaton(transition_list, mode_abstractions, input_mapping)
+    build_symbolic_automaton(transition_list, mode_models, input_mapping) -> (flat, automaton)
 
-Flatten the augmented transitions into an [`IndexedAutomatonList`](@ref),
-returning `(flat, automaton)` where `flat` is the [`FlatIndex`](@ref) between the
-integer numbering and the augmented states.
+Flatten the hybrid transitions into an [`IndexedAutomatonList`](@ref), returning
+`(flat, automaton)` where `flat` is the [`FlatIndex`](@ref) between the integer
+numbering and the `(local_id, mode_id)` pairs.
 """
 function build_symbolic_automaton(
     transition_list,
-    mode_abstractions,
+    mode_models,
     input_mapping::GlobalInputMap,
 )
     @assert !isempty(transition_list) "Transition list cannot be empty"
-    @assert !isempty(mode_abstractions) "Mode abstractions cannot be empty"
+    @assert !isempty(mode_models) "Mode models cannot be empty"
 
-    estimated_states = sum(
-        get_n_state(abs_pair[1]) * length(abs_pair[2].tsteps) for
-        abs_pair in mode_abstractions
-    )
+    estimated_states = sum(get_n_state(m) for m in mode_models)
 
-    states = Set{AugmentedState}()
+    states = Set{HybridState}()
     inputs_set = Set{Int}()
     sizehint!(states, estimated_states)
     sizehint!(inputs_set, input_mapping.total_inputs)
@@ -219,15 +129,13 @@ function build_symbolic_automaton(
     end
 
     flat = FlatIndex(collect(states))
-    nstates = n_flat(flat)
     ninputs = length(inputs_set)
 
-    symbolic_automaton = IndexedAutomatonList(nstates, ninputs)
+    symbolic_automaton = IndexedAutomatonList(n_flat(flat), ninputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = flat_id(flat, target)
         source_int = flat_id(flat, source)
-
         add_transition!(symbolic_automaton, source_int, target_int, abstract_input)
     end
 
