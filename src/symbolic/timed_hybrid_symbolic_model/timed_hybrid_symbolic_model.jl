@@ -50,29 +50,45 @@ function enum_inputs(model::HybridSymbolicModel, mode_id::Int)
     return enum_inputs(model.mode_models[mode_id])
 end
 
-"""
-    get_concrete_state(model::HybridSymbolicModel, state_index) -> (x, t, mode_id)
+# A mode model contributes its own concrete coordinate to the hybrid augmented
+# state: `(x, t)` when clock-lifted, `(x,)` when time-free. The hybrid appends the
+# mode id, so the augmented state is `(x, t, mode)` or `(x, mode)` accordingly.
+mode_concrete_coord(m::ClockLiftedSymbolicModel, local_id::Int) =
+    base_state_and_time(m, local_id)
+mode_concrete_coord(m::SymbolicModel, local_id::Int) = (get_concrete_state(m, local_id),)
 
-Concretize a flattened state index to `(continuous_state, time_value, mode_id)`.
+# Local abstract state id of a mode model from the hybrid augmented state (0 if absent).
+_local_abstract_state(m::ClockLiftedSymbolicModel, aug) =
+    get_abstract_state(m, vcat(aug[1], SVector(aug[2])))
+function _local_abstract_state(m::SymbolicModel, aug)
+    q = get_abstract_state(m, aug[1])
+    return (q === nothing || q <= 0) ? 0 : q
+end
+
+"""
+    get_concrete_state(model::HybridSymbolicModel, state_index) -> (x[, t], mode_id)
+
+Concretize a flattened state index to the augmented concrete state: `(x, t, mode)`
+for a clock-lifted mode, `(x, mode)` for a time-free mode.
 """
 function get_concrete_state(model::HybridSymbolicModel, state_index::Int)
     @assert 1 <= state_index <= n_flat(model.flat) "State index $state_index out of bounds"
     (local_id, mode_id) = flat_key(model.flat, state_index)
     @assert 1 <= mode_id <= length(model.mode_models) "Mode ID $mode_id out of bounds"
-    x, t = base_state_and_time(model.mode_models[mode_id], local_id)
-    return (x, t, mode_id)
+    return (mode_concrete_coord(model.mode_models[mode_id], local_id)..., mode_id)
 end
 
 """
-    get_abstract_state(model::HybridSymbolicModel, (x, t, mode_id)) -> Int
+    get_abstract_state(model::HybridSymbolicModel, augmented_state) -> Int
 
-Abstract a concrete augmented state to its flattened index (`0` if the augmented
-key is not present in the model).
+Abstract a concrete augmented state (`(x, t, mode)` or `(x, mode)`) to its flattened
+index (`0` if the augmented key is not present in the model).
 """
 function get_abstract_state(model::HybridSymbolicModel, augmented_state)
-    (x, t, mode_id) = augmented_state
+    mode_id = augmented_state[end]
     @assert 1 <= mode_id <= length(model.mode_models) "Mode ID $mode_id out of bounds"
-    local_id = get_abstract_state(model.mode_models[mode_id], vcat(x, SVector(t)))
+    mode_model = model.mode_models[mode_id]
+    local_id = _local_abstract_state(mode_model, augmented_state)
     local_id <= 0 &&
         error("No valid abstract state found for augmented_state $augmented_state")
     return flat_id(model.flat, (local_id, mode_id))

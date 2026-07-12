@@ -87,7 +87,7 @@ function add_inter_mode_transitions!(
             # Concretize, apply the reset map, and abstract in the target mode.
             source_coord = get_concrete_state(source_model, source_local)
             reset_result = MS.apply(reset_map, source_coord)
-            target_local = abstract_state_ceil_time(target_model, reset_result)
+            target_local = abstract_switch_target(target_model, reset_result)
 
             target_local > 0 || continue
             target_state = (target_local, target_mode)::HybridState

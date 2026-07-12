@@ -613,4 +613,109 @@ end
     )
 end
 
+struct TimeFreeResetMap <: MS.AbstractMap
+    domain::UT.Box
+    target::Vector{Float64}
+end
+MS.apply(reset::TimeFreeResetMap, state::AbstractVector) = reset.target
+MS.stateset(reset::TimeFreeResetMap) = reset.domain
+
+@testset "HybridSystemAbstraction - time-free hybrid (plain modes)" begin
+    # Modes are plain physical systems: NO time subsystem, so the abstraction has no
+    # time axis and the augmented state is (x, mode).
+    X = UT.box([-1.0], [1.0])
+    U = UT.box([-1.5], [1.5])
+    mode1_f(x, u) = [0.5 * x[1] + u[1]]
+    mode2_f(x, u) = [0.8 * x[1] + u[1]]
+    mode1_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode1_f, 1, 1, X, U)
+    mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
+
+    guard_1 = UT.box([0.2], [1.0])            # guard over x only
+    reset_map = TimeFreeResetMap(guard_1, [0.0])
+
+    automaton = HybridSystems.GraphAutomaton(2)
+    HybridSystems.add_transition!(automaton, 1, 2, 1)
+    modes_systems = [mode1_system, mode2_system]   # plain, not VectorContinuousSystem
+    switchings = [HybridSystems.AutonomousSwitching()]
+    concrete_system =
+        HybridSystems.HybridSystem(automaton, modes_systems, [reset_map], switchings)
+
+    # (x, mode) augmented state — no time. Target: anywhere in mode 2.
+    initial_state = ([0.0], 1)
+    target_spec = PR.HybridSpec(Dict(2 => PR.StateSpec(UT.box([-1.0], [1.0]))))
+    transition_cost = (aug_state, u) -> 1.0
+    concrete_problem = PR.OptimalControlProblem(
+        concrete_system,
+        initial_state,
+        target_spec,
+        nothing,
+        transition_cost,
+        PR.Infinity(),
+    )
+
+    optimizer_list = [
+        () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
+        () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
+    ]
+    grid = MP.GridFree(SVector(0.0), SVector(0.1))
+    make_kwargs(jac) = Dict(
+        "state_grid" => grid,
+        "input_grid" => grid,
+        "time_step" => 0.1,                    # integration step for the dynamics
+        "approx_mode" => AB.UniformGridAbstraction.GROWTH,
+        "jacobian_bound" => u -> SMatrix{1, 1}(jac),
+    )
+    optimizer_kwargs_dict = [make_kwargs(0.5), make_kwargs(0.8)]
+
+    optimizer = MOI.instantiate(AB.HybridSystemAbstraction.Optimizer)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("optimizer_list"), optimizer_list)
+    MOI.set(
+        optimizer,
+        MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
+        optimizer_kwargs_dict,
+    )
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
+    MOI.optimize!(optimizer)
+
+    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
+    concrete_controller =
+        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
+
+    # The abstraction is genuinely time-free: no mode is clock-lifted.
+    @test all(m -> m isa SY.SymbolicModelList, abstract_system.mode_models)
+
+    # Augmented states are (x, mode) 2-tuples, and no time factor inflates the count:
+    # the flattened state count equals the (local_id, mode) pairs of the plain modes.
+    q1 = first(SY.enum_states(abstract_system))
+    @test length(SY.get_concrete_state(abstract_system, q1)) == 2
+
+    # Concrete ↔ abstract round-trip on the (x, mode) state.
+    for q in SY.enum_states(abstract_system)
+        (x, k) = SY.get_concrete_state(abstract_system, q)
+        @test SY.get_abstract_state(abstract_system, (x, k)) == q
+    end
+
+    @test !isnothing(concrete_controller)
+
+    # reached uses the arity-agnostic spec membership.
+    @test AB.HybridSystemAbstraction.reached(concrete_problem, ([0.0], 2))
+    @test !AB.HybridSystemAbstraction.reached(concrete_problem, ([0.0], 1))
+
+    # Time-free closed-loop: the augmented state stays a (x, mode) 2-tuple throughout.
+    reached_fn(aug) = AB.HybridSystemAbstraction.reached(concrete_problem, aug)
+    aug_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
+        concrete_system,
+        concrete_controller,
+        [0.1, 0.1],
+        initial_state,
+        50;
+        stopping = reached_fn,
+    )
+    @test aug_traj[1] == initial_state
+    @test all(s -> length(s) == 2, aug_traj)
+    @test length(aug_traj) == length(u_traj) + 1
+    @test reached_fn(aug_traj[end])
+end
+
 end # module

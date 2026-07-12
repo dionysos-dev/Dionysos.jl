@@ -100,13 +100,14 @@ function base_state_and_time(m::ClockLiftedSymbolicModel, id::Int)
 end
 
 """
-    abstract_state_ceil_time(m::ClockLiftedSymbolicModel, xt) -> Int
+    abstract_switch_target(mode_model, reset_coord) -> Int
 
-Abstract an augmented coordinate `[x; t]` using the *ceil* of the time value (the
-smallest clock step `≥ t`), returning `0` if the base state or time index is out of
-range. Used for guarded-switch targets, which round the reset time up.
+Local abstract state of a guarded-switch target in `mode_model`, from the concrete
+coordinate produced by the reset map (`0` if out of range). For a clock-lifted mode
+the coordinate is `[x; t]` and the time is rounded *up* (the smallest clock step
+`≥ t`); for a time-free mode it is just `x`.
 """
-function abstract_state_ceil_time(m::ClockLiftedSymbolicModel, xt)
+function abstract_switch_target(m::ClockLiftedSymbolicModel, xt)
     x = xt[1:(end - 1)]
     t = xt[end]
     q = get_abstract_state(m.base, x)
@@ -114,6 +115,11 @@ function abstract_state_ceil_time(m::ClockLiftedSymbolicModel, xt)
     p = ceil_time2int(m.clock, t)
     (p <= 0 || p > length(m.clock.tsteps)) && return 0
     return flat_id(m.flat, (q, p))
+end
+
+function abstract_switch_target(m::SymbolicModel, x)
+    q = get_abstract_state(m, x)
+    return (q === nothing || q <= 0) ? 0 : q
 end
 
 "Abstract an augmented coordinate `[x; t]` to its flattened id (`0` if absent)."

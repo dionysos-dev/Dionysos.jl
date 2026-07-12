@@ -59,16 +59,26 @@ function build_mode_symbolic_models(
 
     return map(enumerate(mode_ids)) do (i, mode_id)
         mode_system = HybridSystems.mode(hs, mode_id)
+        physical, clock = _mode_physical_and_clock(mode_system, optimizer_kwargs_dict[i])
         base = build_dynamical_symbolic_model(
-            mode_system.systems[1];   # physical dynamics
+            physical;
             optimizer_factory = optimizer_list[i],
             optimizer_kwargs = optimizer_kwargs_dict[i],
         )
-        clock = SY.ClockAbstraction(
-            mode_system.systems[2],   # time dynamics
-            get(optimizer_kwargs_dict[i], "time_step", nothing),
-        )
-        return SY.lift(SY.ClockLift(clock), base)
+        # Time-free mode (plain physical system) → no clock lift → (x, mode) states.
+        return clock === nothing ? base : SY.lift(SY.ClockLift(clock), base)
+    end
+end
+
+# A mode is either a plain physical system (time-free) or a `VectorContinuousSystem`
+# pairing physical dynamics `systems[1]` with a clock subsystem `systems[2]`.
+function _mode_physical_and_clock(mode_system, kwargs)
+    if mode_system isa ST.VectorContinuousSystem
+        clock =
+            SY.ClockAbstraction(mode_system.systems[2], get(kwargs, "time_step", nothing))
+        return mode_system.systems[1], clock
+    else
+        return mode_system, nothing
     end
 end
 

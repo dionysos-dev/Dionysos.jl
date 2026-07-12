@@ -87,9 +87,16 @@ satisfies(s::StateSpec, x, _t) = x ∈ s.set
 "Whether `(x, t)` satisfies the timed spec."
 satisfies(s::TimedSpec, x, t) = (s.tmin <= t <= s.tmax) && satisfies(s.base, x)
 
-"Whether the augmented `(x, t, k)` satisfies the mode-indexed spec."
+"Whether the augmented `(x, t, k)` satisfies the mode-indexed spec (clock-lifted mode)."
 function satisfies(s::HybridSpec, x, t, k)
     sub = get(s.per_mode, k, nothing)
     sub === nothing && return false
     return satisfies(sub, x, t)
+end
+
+"Whether the augmented `(x, k)` satisfies the mode-indexed spec (time-free mode)."
+function satisfies(s::HybridSpec, x, k::Integer)
+    sub = get(s.per_mode, k, nothing)
+    sub === nothing && return false
+    return satisfies(sub, x)
 end

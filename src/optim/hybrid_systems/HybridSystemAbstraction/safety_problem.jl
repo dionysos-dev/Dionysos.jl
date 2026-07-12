@@ -104,6 +104,5 @@ function build_abstract_problem(
 end
 
 function safe(concrete_problem::PR.SafetyProblem, aug_state)
-    (x, t, k) = aug_state
-    return PR.satisfies(concrete_problem.safe_set, x, t, k)
+    return PR.satisfies(concrete_problem.safe_set, aug_state...)
 end

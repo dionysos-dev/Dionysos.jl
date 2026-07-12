@@ -115,12 +115,11 @@ function get_abstract_transition_cost(
     concrete_transition_cost === nothing && return nothing
 
     function abstract_transition_cost(state, input)
-        (x, t, k) = SY.get_concrete_state(abstract_system, state)
-        aug_concrete_state = (x, t, k)
+        aug_concrete_state = SY.get_concrete_state(abstract_system, state)
+        k = aug_concrete_state[end]
         if SY.is_switching_input(abstract_system.input_mapping, input)
             transition_id = abstract_system.input_mapping.global_to_switching[input]
-            label = abstract_system.input_mapping.switch_labels[transition_id]
-            u = label
+            u = abstract_system.input_mapping.switch_labels[transition_id]
         else
             u = SY.get_concrete_input(abstract_system, input, k)
         end
@@ -153,6 +152,5 @@ function build_abstract_problem(
 end
 
 function reached(concrete_problem::PR.OptimalControlProblem, aug_state)
-    (x, t, k) = aug_state
-    return PR.satisfies(concrete_problem.target_set, x, t, k)
+    return PR.satisfies(concrete_problem.target_set, aug_state...)
 end
