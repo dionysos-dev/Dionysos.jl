@@ -119,11 +119,7 @@ function optimal_control_problem(;
 
     initial_state = (SVector(initial_temperature), 0.0, initial_mode)
 
-    Xs_target = [target, target]
-    Ts_target = [target_time, target_time]
-    Ns_target = [1, 2]
-
-    target_set = (Xs_target, Ts_target, Ns_target)
+    target_set = PR.hybrid_reach_spec([target, target], [target_time, target_time], [1, 2])
 
     transition_cost = make_cost_function(;
     # switch_cost = 1.0,

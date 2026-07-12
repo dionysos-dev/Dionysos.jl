@@ -40,6 +40,7 @@ const TEST_FILES = [
     ("./mapping/abstract_state_set.jl",),
     ("./symbolic/symbolic_model_list.jl",),
     ("./symbolic/clock_lift.jl",),
+    ("./symbolic/states_satisfying.jl",),
     ("./symbolic/allocation.jl",),
     ("./symbolic/multithreading.jl",),
     ("./symbolic/multiprocessing.jl",),

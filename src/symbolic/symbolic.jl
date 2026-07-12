@@ -58,5 +58,6 @@ include("timed_hybrid_symbolic_model/global_input_map.jl")
 include("timed_hybrid_symbolic_model/timed_hybrid_symbolic_model.jl")
 include("timed_hybrid_symbolic_model/hybrid_transition_assembly.jl")
 include("timed_hybrid_symbolic_model/mode_lift.jl")
+include("timed_hybrid_symbolic_model/states_satisfying.jl")
 
 end  # module Symbolic

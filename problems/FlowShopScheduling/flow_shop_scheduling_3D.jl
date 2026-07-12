@@ -122,10 +122,11 @@ function problem()
     # Initial state and target set
     initial_state = ([0.0, 0.0, 1.0], 0.0, 1)
 
-    Xs_target = [UT.box([0.5, 0.5, 0.0], [5.0, 3.0, 4.0])]
-    Ts_target = [UT.box([5.0], [7.0])]
-    Ns_target = [3]
-    target_set = (Xs_target, Ts_target, Ns_target)
+    target_set = PR.hybrid_reach_spec(
+        [UT.box([0.5, 0.5, 0.0], [5.0, 3.0, 4.0])],
+        [UT.box([5.0], [7.0])],
+        [3],
+    )
 
     # Cost Function
     transition_cost_function = (x, u) -> 1.0

@@ -58,7 +58,7 @@ using HybridSystems
     Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
     Ts_target = [UT.box(SVector(1.0), SVector(2.0))]
     Ns_target = [2]
-    target_set = (Xs_target, Ts_target, Ns_target)
+    target_set = PR.hybrid_reach_spec(Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
     concrete_problem = PR.OptimalControlProblem(
         concrete_system,
@@ -128,8 +128,7 @@ using HybridSystems
     @test concrete_problem.transition_cost == transition_cost
 
     # Validate abstract target set
-    abstract_target_set =
-        SY.get_states_from_set(abstract_system, Xs_target, Ts_target, Ns_target)
+    abstract_target_set = SY.states_satisfying(abstract_system, target_set)
     for q in abstract_target_set
         (x, t, k) = SY.get_concrete_state(abstract_system, q)
         idx = findfirst(==(k), Ns_target)
@@ -278,7 +277,7 @@ end
     Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
     Ts_target = [UT.box(SVector(0.0), SVector(3.0))]
     Ns_target = [2]
-    target_set = (Xs_target, Ts_target, Ns_target)
+    target_set = PR.hybrid_reach_spec(Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
     concrete_problem = PR.OptimalControlProblem(
         concrete_system,
@@ -348,8 +347,7 @@ end
     @test concrete_problem.transition_cost == transition_cost
 
     # Validate abstract target set
-    abstract_target_set =
-        SY.get_states_from_set(abstract_system, Xs_target, Ts_target, Ns_target)
+    abstract_target_set = SY.states_satisfying(abstract_system, target_set)
     for q in abstract_target_set
         (x, t, k) = SY.get_concrete_state(abstract_system, q)
         idx = findfirst(==(k), Ns_target)
@@ -499,7 +497,7 @@ end
     Xs_safe = [UT.box([-3.0], [3.0]), UT.box([-1.0], [10.0])]
     Ts_safe = [UT.box([0.0], [2.0]), UT.box([1.0], [5.0])]
     Ns_safe = [1, 2]
-    safe_set = (Xs_safe, Ts_safe, Ns_safe)
+    safe_set = PR.hybrid_reach_spec(Xs_safe, Ts_safe, Ns_safe; incl_mode = UT.OUTER)
     concrete_problem = PR.SafetyProblem(concrete_system, initial_state, safe_set, 10.0)
 
     # ------------------------------
@@ -562,13 +560,7 @@ end
     @test isa(concrete_problem, PR.SafetyProblem)
 
     # Validate abstract safe set
-    abstract_safe_set = SY.get_states_from_set(
-        abstract_system,
-        Xs_safe,
-        Ts_safe,
-        Ns_safe,
-        domain = MP.OUTER,
-    )
+    abstract_safe_set = SY.states_satisfying(abstract_system, safe_set)
     for q in abstract_safe_set
         (x, t, k) = SY.get_concrete_state(abstract_system, q)
         idx = findfirst(==(k), Ns_safe)

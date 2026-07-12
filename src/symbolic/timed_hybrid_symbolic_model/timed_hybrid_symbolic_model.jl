@@ -78,46 +78,6 @@ function get_abstract_state(model::HybridSymbolicModel, augmented_state)
     return flat_id(model.flat, (local_id, mode_id))
 end
 
-"""
-    get_states_from_set(model, state_sets, time_sets, mode_indices; domain=MP.INNER)
-
-For each mode in `mode_indices`, collect the flattened state indices whose spatial
-part lies in `state_sets[idx]` and whose time index lies in `time_sets[idx]`.
-"""
-function get_states_from_set(
-    model::HybridSymbolicModel,
-    state_sets,
-    time_sets,
-    mode_indices;
-    domain = MP.INNER,
-)
-    @assert length(state_sets) >= length(mode_indices) "Not enough state sets provided"
-    @assert length(time_sets) >= length(mode_indices) "Not enough time sets provided"
-
-    abstract_states = Vector{Int}()
-    for (idx, mode_id) in enumerate(mode_indices)
-        @assert 1 <= mode_id <= length(model.mode_models) "Mode ID $mode_id out of bounds"
-        combined = _augment_box(state_sets[idx], time_sets[idx])
-        local_ids = get_states_from_set(model.mode_models[mode_id], combined, domain)
-        for local_id in local_ids
-            gid = flat_id(model.flat, (local_id, mode_id))
-            gid > 0 && push!(abstract_states, gid)
-        end
-    end
-    return abstract_states
-end
-
-# Combine a spatial box and a time box/interval into a single `[x; t]` box.
-function _augment_box(state_set, time_set)
-    if isa(time_set, LazySets.AbstractHyperrectangle)
-        tmin = LazySets.low(time_set, 1)
-        tmax = LazySets.high(time_set, 1)
-    else
-        tmin, tmax = time_set[1], time_set[2]
-    end
-    return UT.box(vcat(LazySets.low(state_set), tmin), vcat(LazySets.high(state_set), tmax))
-end
-
 "Concretize global input `input_id` in `mode_id` (`nothing` for switching inputs)."
 function get_concrete_input(model::HybridSymbolicModel, input_id::Int, mode_id::Int)
     @assert 1 <= mode_id <= length(model.mode_models) "Mode ID $mode_id out of bounds"

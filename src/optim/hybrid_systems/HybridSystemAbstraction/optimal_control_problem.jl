@@ -140,13 +140,7 @@ function build_abstract_problem(
         error("Initial augmented state is outside the abstract system domain.")
     abstract_initial_set = [q0]
 
-    concrete_target_set = concrete_problem.target_set
-    abstract_target_set = SY.get_states_from_set(
-        abstract_system,
-        concrete_target_set[1], # state
-        concrete_target_set[2], # time
-        concrete_target_set[3], # mode
-    )
+    abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
@@ -160,15 +154,5 @@ end
 
 function reached(concrete_problem::PR.OptimalControlProblem, aug_state)
     (x, t, k) = aug_state
-    (Xs_target, Ts_target, Ns_target) = concrete_problem.target_set
-    idx = findfirst(==(k), Ns_target)
-    if isnothing(idx)
-        return false
-    end
-    X_set = Xs_target[idx]
-    T_set = Ts_target[idx]
-    in_X = x ∈ X_set
-    in_T = LazySets.low(T_set, 1) ≤ t ≤ LazySets.high(T_set, 1)
-
-    return in_X && in_T
+    return PR.satisfies(concrete_problem.target_set, x, t, k)
 end
