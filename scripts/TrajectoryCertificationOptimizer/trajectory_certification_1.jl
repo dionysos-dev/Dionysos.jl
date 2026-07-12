@@ -90,8 +90,8 @@ project_input = function (u)
 end
 
 trajectory_cost = function (problem, traj)
-    xs = traj.x.seq
-    us = traj.u.seq
+    xs = ST.states(traj)
+    us = ST.inputs(traj)
 
     target_distances = [
         minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
@@ -207,7 +207,7 @@ plot!(fig, concrete_problem; aspect_ratio = :equal)
 
 if composite_traj !== nothing
     X_tube = UGTC.build_tube(
-        composite_traj.x,
+        composite_traj,
         ug_certifier.radius;
         margin = ug_certifier.margin,
         n_between = ug_certifier.n_between,
@@ -227,7 +227,7 @@ if composite_traj !== nothing
 
     plot!(
         fig,
-        composite_traj.x;
+        composite_traj;
         color = :green,
         dims = [1, 2],
         linewidth = 2,

@@ -42,12 +42,9 @@ x0 = SVector(0.0, 0.0)
 
 traj = ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, nstep)
 
-x_traj = traj.x
-u_traj = traj.u
-
 fig = plot(; aspect_ratio = :equal)
 plot!(system.X; color = :grey, hole_color = :black, opacity = 1.0, label = "")
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ------------------------------------------------------------
@@ -57,8 +54,7 @@ display(fig)
 system_plot! = SimplePendulum.system_plot!(; params = params)
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),      # phase plot θ vs ω
     udims = (1,),        # input over time
     Δt = Δt,

@@ -113,7 +113,7 @@ println("Total time: $(total_time)")
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
 nstep = 100
 
-x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -142,7 +142,7 @@ plot!(
     ap_colors = Dict(:g1 => :red, :g2 => :cyan, :obs => :black),
     aspect_ratio = :equal,
 )
-plot!(fig, x_traj; color = :blue, dims = [1, 2])
+plot!(fig, traj; color = :blue, dims = [1, 2])
 display(fig)
 
 # ------------------------------------------------------------
@@ -152,8 +152,7 @@ display(fig)
 system_plot! = SimplePendulum.system_plot!()
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),      # phase plot θ vs ω
     udims = (1,),        # input over time
     Δt = Δt,

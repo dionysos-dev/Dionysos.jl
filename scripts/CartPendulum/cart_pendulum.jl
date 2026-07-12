@@ -97,7 +97,7 @@ reached(x) = wrap(x) ∈ concrete_problem.target_set
 x0 = SVector(0.0, 0.0, 0.0, 0.0)
 nstep = 500
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     discrete_system,
     concrete_controller,
     x0,
@@ -139,7 +139,7 @@ plot!(fig, Iplot; dims = [2, 4], color = :green, opacity = 0.3, label = "Initial
 
 plot!(fig, Tplot; dims = [2, 4], color = :red, opacity = 0.3, label = "Target")
 
-plot!(fig, x_traj; dims = [2, 4], linewidth = 2, label = "closed-loop θ-ω")
+plot!(fig, traj; dims = [2, 4], linewidth = 2, label = "closed-loop θ-ω")
 
 xlabel!(fig, "θ")
 ylabel!(fig, "ω")
@@ -155,8 +155,7 @@ system_plot! =
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (2, 4),
     udims = (1,),
     Δt = Δt,

@@ -139,7 +139,7 @@ println("Number of self-loops: $(SY.count_self_loops(automaton))")
 
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -155,7 +155,7 @@ plot!(XMapping; efficient = true, color = :grey)
 plot!((Xset, XMapping); efficient = true, color = :grey)
 plot!((invariant_set, XMapping); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping); color = :red, linecolor = :red)
-plot!(x_traj)
+plot!(traj)
 display(fig)
 
 # Export in csv file the controller, and reload it
@@ -197,7 +197,7 @@ nstep = 300
 x0 = SVector(1.2, 5.6)
 reached(x) = x ∈ concrete_problem_reachability.target_set
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -223,7 +223,7 @@ plot!(
     linecolor = :black,
     label = "Uncontrollable set",
 )
-plot!(x_traj)
+plot!(traj)
 display(fig)
 
 # ------------------------------------------------------------
@@ -233,8 +233,7 @@ display(fig)
 system_plot! = DCDC.system_plot!()
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1,),
     Δt = Δt,

@@ -107,7 +107,7 @@ function solve_and_simulate!(
 
     # Simulate closed-loop
     stopfun = reached_target(problem)
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         concrete_system,
         controller,
         xstart,
@@ -115,7 +115,7 @@ function solve_and_simulate!(
         stopping = stopfun,
     )
 
-    return x_traj, u_traj
+    return traj
 end
 
 function make_test_trajectory_8d(; N::Int = 300, dt::Real = 0.1)
@@ -210,10 +210,8 @@ if SIMULATE
     t_low = SVector{n_state, Float64}([0.1, 0.1, -0.1, -0.1, -0.8, -0.8, -0.8, -0.8])
     t_high = SVector{n_state, Float64}([0.5, 0.5, -0.5, -0.5, 0.8, 0.8, 0.8, 0.8])
 
-    x_traj, u_traj =
-        solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
-    # x_traj = make_test_trajectory()
+    traj = solve_and_simulate!(optimizer, concrete_system, x0, t_low, t_high; nstep = 300)
 
     rs, vis = RS_tools.get_visualization_tool(; robot_urdf = robot_urdf)
-    RS_tools.animate_trajectory!(vis, x_traj.seq; dt = tstep)
+    RS_tools.animate_trajectory!(vis, ST.states(traj); dt = tstep)
 end

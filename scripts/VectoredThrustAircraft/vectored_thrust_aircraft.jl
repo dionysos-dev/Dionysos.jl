@@ -38,16 +38,14 @@ u_seq = [
     ) for k in 1:(N - 1)
 ]
 
-x_traj = ST.Trajectory(x_seq)
-u_traj = ST.Trajectory(u_seq)
+traj = ST.Trajectory(x_seq; inputs = u_seq)
 
 system_plot! =
     VectoredThrustAircraft.system_plot!(; xlims = (-6.0, 6.0), ylims = (-6.0, 6.0))
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1, 2),
     Δt = Δt,

@@ -153,7 +153,7 @@ input `u`, and active task `k`, it draws — in the `(x1, x2)` plane — every t
 acceptance region and the final target, then the current point coloured by the active task
 and annotated with the task and input.
 
-The hybrid closed-loop result is a channelled `ClosedLoopTrajectory` (via
+The hybrid closed-loop result is a channelled `Trajectory` (via
 `HybridSystemAbstraction.channelled_trajectory`), so the dashboard reads the continuous
 state, feeds the task `k` here, and adds the task-vs-time panel.
 """

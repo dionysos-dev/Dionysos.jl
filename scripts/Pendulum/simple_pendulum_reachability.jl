@@ -88,7 +88,7 @@ nstep = 100
 reached(x) = x ∈ target_set
 
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -117,7 +117,7 @@ plot!(
     label = "Initial set",
 );
 plot!(target_set; color = :red, opacity = 0.8, label = "Target set");
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ------------------------------------------------------------
@@ -127,8 +127,7 @@ display(fig)
 system_plot! = SimplePendulum.system_plot!()
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),      # phase plot θ vs ω
     udims = (1,),        # input over time
     Δt = Δt,
@@ -154,7 +153,7 @@ urdf = joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Pendulum", "Pen
 
 Dionysos.animate_mechanism_trajectory(
     urdf,
-    x_traj;
+    traj;
     joint_names = ["pendulum_joint"],
     configuration = x -> [x[1]],
     Δt = Δt,

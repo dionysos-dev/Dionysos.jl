@@ -72,7 +72,7 @@ reached(x) = x ∈ target_set
 
 zero_controller = MathematicalSystems.BlackBoxMap(4, 1, x -> SVector(0.0))
 x0 = SVector(0.0, 0.0, 0.0, 0.0)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller, # zero_controller
     x0,
@@ -101,7 +101,7 @@ plot!(
     opacity = 0.8,
     label = "Initial set",
 );
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, arrows = false)
 display(fig)
 
 # ------------------------------------------------------------
@@ -111,8 +111,7 @@ display(fig)
 system_plot! = DoublePendulum.system_plot!()
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1,),
     Δt = Δt,

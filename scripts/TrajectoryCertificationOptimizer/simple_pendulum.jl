@@ -113,8 +113,8 @@ function distance_to_target(x, target_set)
 end
 
 trajectory_cost = function (problem, traj)
-    xs = traj.x.seq
-    us = traj.u.seq
+    xs = ST.states(traj)
+    us = ST.inputs(traj)
 
     target_set =
         UT.set_in_period(problem.target_set, periodic_dims, periods, periodic_start)
@@ -267,7 +267,7 @@ println("Pendulum trajectory + certification success: ", success)
 println("Solve time: ", MOI.get(tc_optimizer, MOI.SolveTimeSec()))
 
 if pendulum_traj !== nothing
-    @show length(pendulum_traj.x.seq)
+    @show length(ST.states(pendulum_traj))
 end
 
 if cert_result !== nothing
@@ -407,7 +407,7 @@ plot!(fig, Tplot; color = :red, opacity = 0.35, label = "Target set")
 plot_ellipsoid_chain!(fig, cert_result; max_ellipsoids = 50)
 
 if pendulum_traj !== nothing
-    wrapped_xs = [wrap(x) for x in pendulum_traj.x.seq]
+    wrapped_xs = [wrap(x) for x in ST.states(pendulum_traj)]
     wrapped_traj = ST.Trajectory(wrapped_xs)
 
     plot!(
@@ -420,7 +420,7 @@ if pendulum_traj !== nothing
     )
 end
 
-planner_traj = trajectory_generator.trajectory.x
+planner_traj = trajectory_generator.trajectory
 plot!(
     fig,
     planner_traj;
@@ -454,7 +454,7 @@ hline!(
 scatter!(
     fig_u,
     [valid_steps[i].k for i in idxs],
-    [pendulum_traj.u.seq[valid_steps[i].k][1] for i in idxs];
+    [ST.inputs(pendulum_traj)[valid_steps[i].k][1] for i in idxs];
     label = "Nominal input",
     markersize = 3,
 )
@@ -514,9 +514,9 @@ if idx_fail !== nothing
 
     k = s_fail.k
 
-    xk = collect(pendulum_traj.x.seq[k])
-    xnext = collect(pendulum_traj.x.seq[k + 1])
-    uk = collect(pendulum_traj.u.seq[k])
+    xk = collect(ST.states(pendulum_traj)[k])
+    xnext = collect(ST.states(pendulum_traj)[k + 1])
+    uk = collect(ST.inputs(pendulum_traj)[k])
 
     @show k
     @show xk
@@ -532,8 +532,7 @@ end
 system_plot! = SimplePendulum.system_plot!(; params = params)
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    pendulum_traj.x,
-    pendulum_traj.u;
+    pendulum_traj;
     xdims = (1, 2),      # phase plot θ vs ω
     udims = (1,),        # input over time
     Δt = Δt,

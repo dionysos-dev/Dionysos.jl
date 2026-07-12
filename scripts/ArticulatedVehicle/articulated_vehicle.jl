@@ -274,7 +274,7 @@ function script()
     reached(x) = (periodic_wrapper(x) ∈ target_set)
     nstep = 100
 
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         discrete_time_system,
         concrete_controller,
         x0,
@@ -294,7 +294,7 @@ function script()
         concrete_system,
         _I_,
         _T_,
-        x_traj;
+        traj;
         dims = dims,
         with_period = true,
         periodic_dims = periodic_dims,
@@ -310,7 +310,7 @@ function script()
         concrete_system,
         _I_,
         _T_,
-        x_traj;
+        traj;
         dims = dims,
         with_period = true,
         periodic_dims = periodic_dims,
@@ -335,8 +335,7 @@ function script()
 
     return Dionysos.animate_trajectory_dashboard(
         system_plot!,
-        x_traj,
-        u_traj;
+        traj;
         xdims = (1, 2),        # x-y trajectory
         udims = (1,),          # velocity over time
         Δt = Δt,

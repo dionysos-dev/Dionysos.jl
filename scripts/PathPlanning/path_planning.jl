@@ -95,7 +95,7 @@ nstep = 100
 reached(x) = x ∈ target_set_in_periodic
 
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = Dionysos.System.get_closed_loop_trajectory(
+traj = Dionysos.System.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -147,7 +147,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, arrows = false)
 
 # ------------------------------------------------------------
 # Animation with dashboard
@@ -162,8 +162,7 @@ system_plot! = PathPlanning.system_plot!(;
 )
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1, 2),
     Δt = Δt,

@@ -116,8 +116,8 @@ println("Trajectory generated.")
 println("Success: ", success)
 println("Solve time: ", solve_time)
 
-xtraj = closed_loop_traj.x
-utraj = closed_loop_traj.u
+xtraj = closed_loop_traj
+utraj = ST.inputs(closed_loop_traj)
 
 # ------------------------------------------------------------
 # 5) Improve/refine trajectory with MPPI
@@ -137,8 +137,8 @@ project_input = function (u)
 end
 
 trajectory_cost = function (problem, traj)
-    xs = traj.x.seq
-    us = traj.u.seq
+    xs = ST.states(traj)
+    us = ST.inputs(traj)
 
     # Distance to the closest target component at each time.
     target_distances = [
@@ -184,7 +184,7 @@ AB.set_problem!(mppi_generator, discrete_problem)
 AB.generate!(mppi_generator)
 
 mppi_traj = AB.get_trajectory(mppi_generator)
-xtraj_mppi = mppi_traj.x
+xtraj_mppi = mppi_traj
 
 println("MPPI success: ", AB.get_success(mppi_generator))
 println("MPPI solve time: ", AB.get_solve_time(mppi_generator))
@@ -364,12 +364,12 @@ plot!(fig, xtraj_mppi; color = :red, dims = [1, 2], label = "MPPI trajectory")
 
 plot!(
     fig,
-    composite_seed.x;
+    composite_seed;
     color = :yellow,
     dims = [1, 2],
     label = "Composite seed trajectory",
 )
 
-plot!(fig, composite_traj.x; color = :green, dims = [1, 2], label = "Composite trajectory")
+plot!(fig, composite_traj; color = :green, dims = [1, 2], label = "Composite trajectory")
 
 display(fig)
