@@ -91,7 +91,9 @@ function build_abstract_problem(
     abstract_system::SY.HybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set
-    abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]
+    q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
+    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
+    abstract_initial_set = [q0]
 
     abstract_safe_set = SY.states_satisfying(abstract_system, concrete_problem.safe_set)
 

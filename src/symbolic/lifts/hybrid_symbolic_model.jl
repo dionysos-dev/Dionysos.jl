@@ -79,15 +79,15 @@ end
     get_abstract_state(model::HybridSymbolicModel, augmented_state) -> Int
 
 Abstract a concrete augmented state (`(x, t, mode)` or `(x, mode)`) to its flattened
-index (`0` if the augmented key is not present in the model).
+index, or `0` if it is out of the abstraction's domain (unknown mode, or a
+spatial/time coordinate outside the grid). Callers that require a valid state
+(e.g. an initial state) should check for `0`.
 """
 function get_abstract_state(model::HybridSymbolicModel, augmented_state)
     mode_id = augmented_state[end]
-    @assert 1 <= mode_id <= length(model.mode_models) "Mode ID $mode_id out of bounds"
-    mode_model = model.mode_models[mode_id]
-    local_id = _local_abstract_state(mode_model, augmented_state)
-    local_id <= 0 &&
-        error("No valid abstract state found for augmented_state $augmented_state")
+    (1 <= mode_id <= length(model.mode_models)) || return 0
+    local_id = _local_abstract_state(model.mode_models[mode_id], augmented_state)
+    local_id <= 0 && return 0
     return flat_id(model.flat, (local_id, mode_id))
 end
 

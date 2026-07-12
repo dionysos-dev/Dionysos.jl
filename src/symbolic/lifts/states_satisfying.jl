@@ -11,7 +11,7 @@ states_satisfying(m::SymbolicModel, s::PR.StateSpec) =
 "Clock-lifted model + base spec: matching base states at every time index."
 function states_satisfying(m::ClockLiftedSymbolicModel, s::PR.StateSpec)
     base_states = states_satisfying(m.base, s)
-    return _at_time_indices(m, base_states, 1:length(m.clock.tsteps))
+    return _clock_states_at(m, base_states, 1:length(m.clock.tsteps))
 end
 
 "Clock-lifted model + timed spec: matching base states within the time window."
@@ -19,18 +19,7 @@ function states_satisfying(m::ClockLiftedSymbolicModel, s::PR.TimedSpec)
     base_states = states_satisfying(m.base, s.base)
     pmin = ceil_time2int(m.clock, s.tmin)
     pmax = floor_time2int(m.clock, s.tmax)
-    return _at_time_indices(m, base_states, pmin:pmax)
-end
-
-function _at_time_indices(m::ClockLiftedSymbolicModel, base_states, prange)
-    result = Int[]
-    for q in base_states
-        for p in prange
-            id = flat_id(m.flat, (q, p))
-            id > 0 && push!(result, id)
-        end
-    end
-    return result
+    return _clock_states_at(m, base_states, pmin:pmax)
 end
 
 "Hybrid model + mode spec: per-mode local states mapped to global ids."

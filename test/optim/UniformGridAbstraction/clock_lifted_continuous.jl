@@ -66,6 +66,9 @@ const MOI = MathOptInterface
     @test MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
     @test !isnothing(concrete_controller)
     @test ST.output_control(concrete_controller, nothing, SVector(0.0, 0.0)) !== nothing
+
+    # Out-of-domain query (x far outside the grid) is handled gracefully, not a crash.
+    @test ST.output_control(concrete_controller, nothing, SVector(100.0, 0.0)) === nothing
 end
 
 end # module

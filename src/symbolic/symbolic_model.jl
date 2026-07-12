@@ -301,12 +301,18 @@ end
 ST.controller_kind(::QuantizedStaticController) = ST.StaticKind()
 ST.domain(ctrl::QuantizedStaticController) = ctrl.sym
 
+# A quantized controller treats an out-of-domain query as undefined. The abstraction
+# reports "no such state" differently by model: a base `SymbolicModel` returns
+# `nothing`, a lifted/product model returns the id `0`.
+_is_undefined_abstract_state(qs::Nothing) = true
+_is_undefined_abstract_state(qs::Integer) = qs <= 0
+
 function ST.is_defined(ctrl::QuantizedStaticController, x, y)
     y_checked = apply_out_of_domain_handler(ctrl.out_of_domain_handler, ctrl.sym, y)
     y_checked === nothing && return false
 
     qs = get_abstract_state(ctrl.sym, y_checked)
-    qs === nothing && return false
+    _is_undefined_abstract_state(qs) && return false
 
     return ST.is_defined(ctrl.abstract_controller, nothing, qs)
 end
@@ -316,7 +322,7 @@ function ST.output_control(ctrl::QuantizedStaticController, x, y)
     y_checked === nothing && return nothing
 
     qs = get_abstract_state(ctrl.sym, y_checked)
-    qs === nothing && return nothing
+    _is_undefined_abstract_state(qs) && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, nothing, qs)
     u_sym === nothing && return nothing
@@ -341,7 +347,7 @@ function ST.update_state(ctrl::QuantizedDynamicController, x, y)
     y_checked === nothing && return x
 
     qs = get_abstract_state(ctrl.sym, y_checked)
-    qs === nothing && return x
+    _is_undefined_abstract_state(qs) && return x
 
     return ST.update_state(ctrl.abstract_controller, x, qs)
 end
@@ -351,7 +357,7 @@ function ST.is_defined(ctrl::QuantizedDynamicController, x, y)
     y_checked === nothing && return false
 
     qs = get_abstract_state(ctrl.sym, y_checked)
-    qs === nothing && return false
+    _is_undefined_abstract_state(qs) && return false
 
     return ST.is_defined(ctrl.abstract_controller, x, qs)
 end
@@ -361,7 +367,7 @@ function ST.output_control(ctrl::QuantizedDynamicController, x, y)
     y_checked === nothing && return nothing
 
     qs = get_abstract_state(ctrl.sym, y_checked)
-    qs === nothing && return nothing
+    _is_undefined_abstract_state(qs) && return nothing
 
     u_sym = ST.output_control(ctrl.abstract_controller, x, qs)
     u_sym === nothing && return nothing

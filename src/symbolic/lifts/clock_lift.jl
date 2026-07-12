@@ -29,13 +29,10 @@ struct ClockLiftedSymbolicModel{B <: AbstractSymbolicModel, C <: ClockAbstractio
     flat::FlatIndex{Tuple{Int, Int}}
 end
 
-function lift(l::ClockLift, base::AbstractSymbolicModel)
-    clock = l.clock
-    ntime = length(clock.tsteps)
+# Flatten the (base_state, time_id) product, time-major so a slice's states are
+# grouped together. Shared by `lift` and `lift_per_slice`.
+function _clock_product_flat(base, ntime)
     base_states = collect(enum_states(base))
-
-    # Flatten the (base_state, time_id) product, time-major so that a mode's states
-    # are grouped by time slice.
     keys = Vector{Tuple{Int, Int}}(undef, length(base_states) * ntime)
     idx = 0
     for p in 1:ntime
@@ -44,7 +41,13 @@ function lift(l::ClockLift, base::AbstractSymbolicModel)
             keys[idx] = (q, p)
         end
     end
-    flat = FlatIndex(keys)
+    return FlatIndex(keys)
+end
+
+function lift(l::ClockLift, base::AbstractSymbolicModel)
+    clock = l.clock
+    ntime = length(clock.tsteps)
+    flat = _clock_product_flat(base, ntime)
 
     automaton = IndexedAutomatonList(n_flat(flat), get_n_input(base))
     for (target, source, input) in enum_transitions(base)
@@ -80,17 +83,7 @@ function lift_per_slice(bases::AbstractVector, clock::ClockAbstraction)
     ntime = length(clock.tsteps)
     @assert length(bases) == ntime "expected one base per clock step ($ntime), got $(length(bases))"
     base = first(bases)
-    base_states = collect(enum_states(base))
-
-    keys = Vector{Tuple{Int, Int}}(undef, length(base_states) * ntime)
-    idx = 0
-    for p in 1:ntime
-        for q in base_states
-            idx += 1
-            keys[idx] = (q, p)
-        end
-    end
-    flat = FlatIndex(keys)
+    flat = _clock_product_flat(base, ntime)
 
     automaton = IndexedAutomatonList(n_flat(flat), get_n_input(base))
     if clock.is_active
@@ -160,7 +153,7 @@ the coordinate is `[x; t]` and the time is rounded *up* (the smallest clock step
 `≥ t`); for a time-free mode it is just `x`.
 """
 function abstract_switch_target(m::ClockLiftedSymbolicModel, xt)
-    x = xt[1:(end - 1)]
+    x = @view xt[1:(end - 1)]
     t = xt[end]
     q = get_abstract_state(m.base, x)
     (q === nothing || q <= 0) && return 0
@@ -176,13 +169,26 @@ end
 
 "Abstract an augmented coordinate `[x; t]` to its flattened id (`0` if absent)."
 function get_abstract_state(m::ClockLiftedSymbolicModel, xt)
-    x = xt[1:(end - 1)]
+    x = @view xt[1:(end - 1)]
     t = xt[end]
     q = get_abstract_state(m.base, x)
     (q === nothing || q <= 0) && return 0
     p = floor_time2int(m.clock, t)
     p <= 0 && return 0
     return flat_id(m.flat, (q, p))
+end
+
+# Flattened ids for the product of `base_states` with clock indices `prange`
+# (dropping absent pairs). Shared by `get_states_from_set` and `states_satisfying`.
+function _clock_states_at(m::ClockLiftedSymbolicModel, base_states, prange)
+    states = Int[]
+    for q in base_states
+        for p in prange
+            id = flat_id(m.flat, (q, p))
+            id > 0 && push!(states, id)
+        end
+    end
+    return states
 end
 
 """
@@ -193,21 +199,10 @@ coordinates and whose time index lies in the projection onto the trailing (time)
 dimension. `set` is a box over `[x; t]`.
 """
 function get_states_from_set(m::ClockLiftedSymbolicModel, set, incl_mode::MP.INCL_MODE)
-    base_set = UT.box(LazySets.low(set)[1:(end - 1)], LazySets.high(set)[1:(end - 1)])
     d = LazySets.dim(set)
-    tmin = LazySets.low(set, d)
-    tmax = LazySets.high(set, d)
-
+    base_set = UT.box(LazySets.low(set)[1:(d - 1)], LazySets.high(set)[1:(d - 1)])
     base_states = get_states_from_set(m.base, base_set, incl_mode)
-    pmin = ceil_time2int(m.clock, tmin)
-    pmax = floor_time2int(m.clock, tmax)
-
-    states = Int[]
-    for q in base_states
-        for p in pmin:pmax
-            id = flat_id(m.flat, (q, p))
-            id > 0 && push!(states, id)
-        end
-    end
-    return states
+    pmin = ceil_time2int(m.clock, LazySets.low(set, d))
+    pmax = floor_time2int(m.clock, LazySets.high(set, d))
+    return _clock_states_at(m, base_states, pmin:pmax)
 end

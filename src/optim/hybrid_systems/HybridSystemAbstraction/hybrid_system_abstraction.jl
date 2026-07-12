@@ -108,13 +108,13 @@ ST.domain(ctrl::HybridQuantizedStaticController) = ctrl.abstract_system
 
 function ST.is_defined(ctrl::HybridQuantizedStaticController, q, aug_state)
     abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
-    abs_q === nothing && return false
+    abs_q <= 0 && return false
     return ST.is_defined(ctrl.abstract_controller, nothing, abs_q)
 end
 
 function ST.output_control(ctrl::HybridQuantizedStaticController, q, aug_state)
     abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
-    abs_q === nothing && return nothing
+    abs_q <= 0 && return nothing
 
     u_abs = ST.output_control(ctrl.abstract_controller, nothing, abs_q)
     u_abs === nothing && return nothing

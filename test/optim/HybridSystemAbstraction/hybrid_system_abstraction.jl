@@ -698,6 +698,10 @@ MS.stateset(reset::TimeFreeResetMap) = reset.domain
 
     @test !isnothing(concrete_controller)
 
+    # Out-of-domain query (x far outside the grid) is handled gracefully, not a crash.
+    @test !ST.is_defined(concrete_controller, nothing, ([100.0], 1))
+    @test ST.output_control(concrete_controller, nothing, ([100.0], 1)) === nothing
+
     # reached uses the arity-agnostic spec membership.
     @test AB.HybridSystemAbstraction.reached(concrete_problem, ([0.0], 2))
     @test !AB.HybridSystemAbstraction.reached(concrete_problem, ([0.0], 1))

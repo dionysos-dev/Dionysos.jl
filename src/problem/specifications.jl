@@ -66,6 +66,7 @@ function hybrid_reach_spec(
     incl_mode::UT.INCL_MODE = UT.INNER,
 )
     @assert length(state_sets) == length(time_sets) == length(mode_ids) "state/time/mode lengths must match"
+    @assert allunique(mode_ids) "mode_ids must be unique (one spec per mode); got $mode_ids"
     pairs = map(eachindex(mode_ids)) do i
         base = StateSpec(state_sets[i], incl_mode)
         timed = TimedSpec(

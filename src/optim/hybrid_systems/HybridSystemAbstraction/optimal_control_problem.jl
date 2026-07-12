@@ -135,8 +135,7 @@ function build_abstract_problem(
 )
     concrete_initial_state = concrete_problem.initial_set # a unique augmented point
     q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
-    q0 === nothing &&
-        error("Initial augmented state is outside the abstract system domain.")
+    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
     abstract_initial_set = [q0]
 
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
