@@ -63,7 +63,7 @@ end
 function learn_test(qp_solver, x0 = [-1.645833614657878, 1.7916672467705592])
     prob = _prob(1, 15, x0, false)
     t(i, j) = first(transitions(prob.system, i, j))
-    dtraj = ST.DiscreteTrajectory(15, [t(15, 20)])
+    dtraj = ST.AutomatonPath(15, [t(15, 20)])
     ctraj = ST.ContinuousTrajectory([[-0.5, 0.5]], [[-1.2916666674915085]])
     algo = OP.HybridDualDynamicProgrammingAlgo(qp_solver, CDDLib.Library(), 1e-5, 1e-4, 1)
     Q_function = OP.instantiate(prob, algo)

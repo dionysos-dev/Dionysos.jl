@@ -23,10 +23,10 @@ struct DummyTransition{Q}
 end
 HybridSystems.target(::DummyHybridSystem, t::DummyTransition) = t.tgt
 
-@testset "DiscreteTrajectory" begin
+@testset "AutomatonPath" begin
     sys = DummyHybridSystem()
 
-    traj0 = ST.DiscreteTrajectory{DummyTransition{Int}}(1)
+    traj0 = ST.AutomatonPath{DummyTransition{Int}}(1)
     @test traj0.q_0 == 1
     @test length(traj0) == 0
     @test ST.last_mode(sys, traj0) == 1

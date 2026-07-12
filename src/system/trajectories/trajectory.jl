@@ -1,31 +1,34 @@
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
-export DiscreteTrajectory
+export AutomatonPath
 export last_mode
 
 """
-    DiscreteTrajectory{Q, TT}
+    AutomatonPath{Q, TT}
 
-`q_0` is the starting mode and `transitions` is a sequence of discrete transitions in the system.
+A path through a hybrid automaton: a starting mode `q_0` and a sequence of discrete
+`transitions`. This is a *search-space object* — the partial candidate grown (via
+[`append`](@ref)) by the branch-and-bound solver — not a state/input rollout over time
+(that is a `ClosedLoopTrajectory`).
 """
-struct DiscreteTrajectory{Q, TT}
+struct AutomatonPath{Q, TT}
     q_0::Q
     transitions::Vector{TT}
 end
 
-function DiscreteTrajectory{TT}(q_0) where {TT}
-    return DiscreteTrajectory(q_0, TT[])
+function AutomatonPath{TT}(q_0) where {TT}
+    return AutomatonPath(q_0, TT[])
 end
 
-function last_mode(system, traj::DiscreteTrajectory)
+function last_mode(system, traj::AutomatonPath)
     if isempty(traj.transitions)
         return traj.q_0
     else
         return HybridSystems.target(system, traj.transitions[end])
     end
 end
-Base.length(traj::DiscreteTrajectory) = length(traj.transitions)
-function append(traj::DiscreteTrajectory, t)
-    return DiscreteTrajectory(traj.q_0, [traj.transitions; t])
+Base.length(traj::AutomatonPath) = length(traj.transitions)
+function append(traj::AutomatonPath, t)
+    return AutomatonPath(traj.q_0, [traj.transitions; t])
 end
 
 """

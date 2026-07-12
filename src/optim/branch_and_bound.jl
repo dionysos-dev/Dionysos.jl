@@ -83,7 +83,7 @@ end
 struct Candidate{T, TT}
     lower_bound::T
     upper_bound::T
-    traj::ST.DiscreteTrajectory{TT}
+    traj::ST.AutomatonPath{TT}
 end
 
 function Base.isless(a::Candidate, b::Candidate)
@@ -280,7 +280,7 @@ function _optimize!(optimizer::Optimizer{T}, start_time) where {T}
         prob,
         optimizer,
         optimizer.Q_function,
-        ST.DiscreteTrajectory{transitiontype(prob.system)}(prob.initial_set[1]),
+        ST.AutomatonPath{transitiontype(prob.system)}(prob.initial_set[1]),
     )
     candidate_0 === nothing && return
     optimizer.upper_bound = candidate_0.upper_bound
