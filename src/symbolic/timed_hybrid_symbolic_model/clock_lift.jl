@@ -64,6 +64,54 @@ function lift(l::ClockLift, base::AbstractSymbolicModel)
     return ClockLiftedSymbolicModel(base, clock, automaton, flat)
 end
 
+"""
+    lift_per_slice(bases, clock) -> ClockLiftedSymbolicModel
+
+Clock lift with **per-time-slice** dynamics: `bases[p]` is the spatial abstraction
+valid at clock step `p` — for time-varying dynamics `f(x, u, t)`, the abstraction of
+`f(·, ·, t_p)`. The transitions out of slice `p` come from `bases[p]`, advancing the
+clock to `p+1`. All bases must share the same state/input grid (only their
+transitions differ), so any of them concretizes a `(q, p)` state.
+
+For time-invariant dynamics, `lift(ClockLift(clock), base)` is the cheaper equivalent
+(one base replicated across every slice).
+"""
+function lift_per_slice(bases::AbstractVector, clock::ClockAbstraction)
+    ntime = length(clock.tsteps)
+    @assert length(bases) == ntime "expected one base per clock step ($ntime), got $(length(bases))"
+    base = first(bases)
+    base_states = collect(enum_states(base))
+
+    keys = Vector{Tuple{Int, Int}}(undef, length(base_states) * ntime)
+    idx = 0
+    for p in 1:ntime
+        for q in base_states
+            idx += 1
+            keys[idx] = (q, p)
+        end
+    end
+    flat = FlatIndex(keys)
+
+    automaton = IndexedAutomatonList(n_flat(flat), get_n_input(base))
+    if clock.is_active
+        for p in 1:(ntime - 1)
+            for (target, source, input) in enum_transitions(bases[p])
+                s = flat_id(flat, (source, p))
+                t = flat_id(flat, (target, p + 1))
+                add_transition!(automaton, s, t, input)
+            end
+        end
+    else
+        for (target, source, input) in enum_transitions(base)
+            s = flat_id(flat, (source, 1))
+            t = flat_id(flat, (target, 1))
+            add_transition!(automaton, s, t, input)
+        end
+    end
+
+    return ClockLiftedSymbolicModel(base, clock, automaton, flat)
+end
+
 # ---- AbstractSymbolicModel surface (states/automaton) ----
 
 get_automaton(m::ClockLiftedSymbolicModel) = m.automaton
