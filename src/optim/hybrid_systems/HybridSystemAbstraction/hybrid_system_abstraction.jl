@@ -191,6 +191,27 @@ _mode_dynamics(mode_system) =
 _mode_time_active(mode_system) =
     mode_system isa ST.VectorContinuousSystem && ([1.0;;] == mode_system.systems[2].A)
 
+# Build the augmented-state step map `(aug, u) -> next_aug` for a hybrid system,
+# hoisting the per-mode dynamics / clock-activity / time-step lookups once.
+function _hybrid_step_map(hs::HybridSystem, tsteps)
+    nmodes = HybridSystems.nmodes(hs.automaton)
+    mode_systems = [HybridSystems.mode(hs, k) for k in 1:nmodes]
+    maps_sys = [ST.simulate_control_map(_mode_dynamics(ms)) for ms in mode_systems]
+    times_is_active = [_mode_time_active(ms) for ms in mode_systems]
+
+    return function (aug_state, u)
+        k = aug_state[end]
+        return get_next_aug_state(
+            hs,
+            aug_state,
+            u,
+            times_is_active[k],
+            tsteps[k],
+            maps_sys[k],
+        )
+    end
+end
+
 function get_closed_loop_trajectory(
     hs::HybridSystem,
     controller::ST.AbstractController,
@@ -199,33 +220,20 @@ function get_closed_loop_trajectory(
     nstep;
     stopping = x -> false,
 )
-    q = ST.initial_state(controller)
-    aug_state_traj, u_traj = [aug_state_0], Any[]
-    aug_state = aug_state_0
-
-    nmodes = HybridSystems.nmodes(hs.automaton)
-    mode_systems = [HybridSystems.mode(hs, k) for k in 1:nmodes]
-    maps_sys = [ST.simulate_control_map(_mode_dynamics(ms)) for ms in mode_systems]
-    times_is_active = [_mode_time_active(ms) for ms in mode_systems]
-
-    for _ in 1:nstep
-        stopping(aug_state) && break
-
-        u = ST.output_control(controller, q, aug_state)
-        u === nothing && break
-
-        k = aug_state[end]
-        next_aug_state =
-            get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
-
-        q = ST.update_state(controller, q, aug_state)
-        aug_state = next_aug_state
-
-        push!(aug_state_traj, aug_state)
-        push!(u_traj, u)
-    end
-
-    return aug_state_traj, u_traj
+    # Reuse the generic closed-loop engine: the "state" is the augmented
+    # `(x[, t], mode)`, stepped by `_hybrid_step_map`, and inputs are
+    # heterogeneous (continuous inputs mixed with switching labels), hence
+    # `input_type = Any`.
+    traj = ST.get_closed_loop_trajectory(
+        hs,
+        controller,
+        aug_state_0,
+        nstep;
+        stopping = stopping,
+        f_map_override = _hybrid_step_map(hs, tsteps),
+        input_type = Any,
+    )
+    return ST.states(traj), ST.inputs(traj)
 end
 
 end # module
