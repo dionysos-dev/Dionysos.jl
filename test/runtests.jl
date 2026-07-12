@@ -39,6 +39,7 @@ const TEST_FILES = [
     ("./mapping/generic_sets.jl",),
     ("./mapping/abstract_state_set.jl",),
     ("./symbolic/symbolic_model_list.jl",),
+    ("./symbolic/clock_lift.jl",),
     ("./symbolic/allocation.jl",),
     ("./symbolic/multithreading.jl",),
     ("./symbolic/multiprocessing.jl",),
