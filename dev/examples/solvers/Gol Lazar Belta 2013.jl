@@ -1,8 +1,5 @@
 using Test     #src
-# # Example: Gol, Lazar and Belta (2013) solved by [Bemporad Morari](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Gol%2C Lazar %26 Belta (2013).ipynb)
+# # Example: Gol, Lazar and Belta (2013) solved by Bemporad–Morari
 # This example reproduces parts of the numerical results of [3]. A similar example reproducing all results of [3] is available as a codeocean capsule in [4].
 #
 # This example was borrowed from [1, Example VIII.A] and tackles
@@ -34,9 +31,16 @@ const ST = DI.System
 const OP = DI.Optim
 
 # And the file defining the hybrid system for this problem
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "gol_lazar_belta.jl"))
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "GolLazarBelta",
+        "gol_lazar_belta.jl",
+    ),
+)
 
-# Now we instantiate our optimal control problem using the function provided by [GolLazarBelta.jl](@__REPO_ROOT_URL__/problems/GolLazarBelta.jl)
+# Now we instantiate our optimal control problem using the function provided by [gol_lazar_belta.jl](https://github.com/dionysos-dev/Dionysos.jl/blob/master/problems/GolLazarBelta/gol_lazar_belta.jl)
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
 # Finally, we select the method presented in [2] as our optimizer
@@ -148,7 +152,7 @@ plot!(fig, ST.Trajectory(x_traj));
 plot!(fig, UT.DrawPoint(x0); color = :blue)
 annotate!(fig, x0[1], x0[2] - 0.5, "x0")
 
-# ### References
+# ## References
 #
 # 1. Gol, E. A., Lazar, M., & Belta, C. (2013). Language-guided controller synthesis for linear systems. IEEE Transactions on Automatic Control, 59(5), 1163-1176.
 # 1. Bemporad, A., & Morari, M. (1999). Control of systems integrating logic, dynamics, and constraints. Automatica, 35(3), 407-427.

@@ -17,14 +17,16 @@ const AB = OP.Abstraction
 
 lib = CDDLib.Library() # polyhedron lib
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "pwa_sys.jl"))
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PwaSystem", "pwa_system.jl"),
+)
 
 Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
 dt = 0.01; # discretization step
 
 concrete_problem =
-    PWAsys.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
+    PwaSystem.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
 concrete_system = concrete_problem.system
 
 n_step = 3

@@ -1,4 +1,4 @@
-# # Example: Reachability problem solved by [Lazy ellipsoid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Reachability problem solved by lazy ellipsoids abstraction
 #
 
 import LazySets
@@ -18,9 +18,11 @@ const AB = OP.Abstraction
 
 using Symbolics
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "NonLinear", "non_linear.jl"),
+)
 
-# # First example
+# ## First example
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
@@ -87,7 +89,7 @@ println("Guaranteed cost:\t $(cost_bound)")
 println("True cost:\t\t $(cost_true)")
 
 # ## Display the results
-# # Display the specifications and domains
+# ### Display the specifications and domains
 fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
@@ -110,7 +112,7 @@ plot!(abstract_system; with_arrows = false, cost = false, label = false);
 plot!(concrete_problem.initial_set; color = :green, label = false);
 plot!(concrete_problem.target_set; color = :red, label = false)
 
-# # Display the abstraction
+# ### Display the abstraction
 fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,
@@ -121,7 +123,7 @@ fig = plot(;
 title!("Abstractions");
 plot!(abstract_system; with_arrows = true)
 
-# # Display the Lyapunov function and the trajectory
+# ### Display the Lyapunov function and the trajectory
 fig = plot(;
     aspect_ratio = :equal,
     xtickfontsize = 10,

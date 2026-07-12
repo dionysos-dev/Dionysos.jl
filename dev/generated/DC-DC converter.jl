@@ -9,7 +9,9 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+);
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system
@@ -32,7 +34,6 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.GROWTH,
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("efficient"), true)
 
 MOI.optimize!(optimizer)
 
@@ -65,7 +66,9 @@ plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "dcdc_converter.jl"));
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+);
 
 concrete_problem = DCDC.problem()
 concrete_system = concrete_problem.system

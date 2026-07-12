@@ -15,7 +15,9 @@ const AB = OP.Abstraction
 
 using Symbolics
 
-include(joinpath(dirname(dirname(pathof(Dionysos))), "problems", "non_linear.jl"))
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "NonLinear", "non_linear.jl"),
+)
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system

@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Unicycle Robot solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Unicycle robot solved by uniform grid abstraction
 #
 # This example was adapted from the numerical experiments in [1, Sec. 5] from Symbolically guided Model Predictive Control (SgMPC)  [paper](https://doi.org/10.1016/j.ifacol.2022.09.039)..
 # This is a **control problem** for a **discrete-time nonlinear system**.
@@ -135,7 +135,7 @@ for obstacle in obstacles
     @constraint(model, x[1:2] ∉ obstacle)
 end
 
-# ### Definition of the abstraction
+# ## Definition of the abstraction
 
 # We define the growth bound function of $f$ (`|u₁|`: a growth bound is a
 # radius and must be nonnegative for every admissible input):
@@ -166,7 +166,7 @@ concrete_controller = get_attribute(model, "concrete_controller");
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system;
 
-# ### Trajectory display
+# ## Trajectory display
 # We choose a stopping criterion `reached` and the maximal number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`Δt`
 # as well as the true initial state `x0` which is contained in the initial state-space `_I_` defined previously.
 nstep = 100
@@ -219,5 +219,5 @@ plot!(
 # We display the concrete trajectory
 plot!(x_traj; ms = 2.0, arrows = false, lw = 2)
 
-# ### References
+# ## References
 # 1. Z. Azaki, A. Girard and S. Olaru, "Predictive and Symbolic Control: Performance and Safety for Non-linear Systems," in IFAC-PapersOnLine, 2022, vol. 55, no 16, pp. 290-295..

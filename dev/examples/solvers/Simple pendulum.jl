@@ -1,5 +1,5 @@
 using Test     #src
-# # Example: Simple Pendulum solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
+# # Example: Simple pendulum solved by uniform grid abstraction
 #
 # A simple pendulum is a typical example of a nonlinear dynamical system.
 # The pendulum's state is represented by its angular position ($x_1$ in radians) and angular velocity ($x_2$ in radians per second), and it is influenced by
@@ -71,7 +71,7 @@ x1_target, x2_target = pi .+ (5.0 * pi / 180.0) .* [-1, 1], 1.0 .* [-1, 1]
 @constraint(model, final(x[1]) in MOI.Interval(x1_target...))
 @constraint(model, final(x[2]) in MOI.Interval(x2_target...))
 
-# ### Definition of the abstraction
+# ## Definition of the abstraction
 
 # Definition of the grid of the state-space on which the abstraction is based (origin `x0` and state-space discretization `h`):
 
@@ -104,7 +104,7 @@ concrete_problem = get_attribute(model, "concrete_problem");
 concrete_system = concrete_problem.system;
 abstract_value_function = get_attribute(model, "abstract_value_function");
 
-# ### Trajectory display
+# ## Trajectory display
 nstep = 100
 reached(x) = x ∈ concrete_problem.target_set
 
