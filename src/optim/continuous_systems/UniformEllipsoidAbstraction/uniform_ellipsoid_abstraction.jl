@@ -29,8 +29,8 @@ include("optimal_control_problem.jl")
 
 Abstraction-based solver using a uniform partition of ellipsoidal cells: it builds the ellipsoidal
 abstraction, synthesizes an abstract controller (forwarding the transition-cost closure), and
-concretizes it into a [`RefinedStaticController`](@ref). Follows the shared
-[`AbstractionControlOptimizer`](@ref) pipeline.
+concretizes it into a `RefinedStaticController`. Follows the shared
+[`AbstractionControlOptimizer`](@ref Dionysos.Optim.AbstractionControlOptimizer) pipeline.
 """
 mutable struct Optimizer{T} <: OP.AbstractionControlOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}

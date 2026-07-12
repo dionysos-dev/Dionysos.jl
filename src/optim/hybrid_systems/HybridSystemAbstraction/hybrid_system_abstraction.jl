@@ -32,7 +32,7 @@ include("safety_problem.jl")
 Abstraction-based solver for timed hybrid systems: it builds the
 [`TimedHybridSymbolicModel`](@ref Dionysos.Symbolic.TimedHybridSymbolicModel) abstraction, solves the
 abstract control problem, and concretizes the controller into a `HybridQuantizedStaticController`.
-Follows the shared [`AbstractionControlOptimizer`](@ref) pipeline.
+Follows the shared [`AbstractionControlOptimizer`](@ref Dionysos.Optim.AbstractionControlOptimizer) pipeline.
 """
 mutable struct Optimizer{T} <: OP.AbstractionControlOptimizer
     abstraction_solver::Union{Nothing, OptimizerAlternatingSimulationProblem{T}}
