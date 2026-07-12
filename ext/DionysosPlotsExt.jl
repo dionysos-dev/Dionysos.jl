@@ -28,6 +28,12 @@ function Dionysos.animate_trajectory_dashboard(
     ylims_input = nothing,
     show_full_state_traj = true,
     show_full_input_traj = true,
+    # Hybrid-system support: `state_of` extracts the continuous state from each
+    # (possibly augmented) trajectory element; `modes` is the per-step mode/task and,
+    # when given, adds a mode-vs-time panel on the right.
+    state_of = identity,
+    modes = nothing,
+    ylabel_mode = "mode",
 )
     xs = collect(x_traj.seq)
     us = collect(u_traj.seq)
@@ -44,8 +50,9 @@ function Dionysos.animate_trajectory_dashboard(
     times_x = Δt .* collect(0:(N - 1))
     times_u = Δt .* collect(0:(Nu - 1))
 
-    xvals = [[Float64(x[d]) for x in xs] for d in xdims]
+    xvals = [[Float64(state_of(x)[d]) for x in xs] for d in xdims]
     uvals = [[Float64(u[d]) for u in us] for d in udims]
+    modevals = modes === nothing ? nothing : collect(modes)
 
     xlabel_state === nothing &&
         (xlabel_state = length(xdims) == 1 ? "time" : "x$(xdims[1])")
@@ -206,11 +213,44 @@ function Dionysos.animate_trajectory_dashboard(
             )
         end
 
+        # ----------------------------------------------------
+        # Extra right panel: mode / task evolution (hybrid systems)
+        # ----------------------------------------------------
+        panels = Any[p_sys, p_state, p_input]
+        if modevals !== nothing
+            p_mode = plot(;
+                xlabel = "time",
+                ylabel = ylabel_mode,
+                title = "Mode / task",
+                legend = false,
+                yticks = sort(unique(modevals)),
+            )
+            plot!(
+                p_mode,
+                times_x,
+                modevals;
+                seriestype = :steppost,
+                linewidth = 1,
+                linestyle = :dot,
+            )
+            plot!(
+                p_mode,
+                times_x[1:k],
+                modevals[1:k];
+                seriestype = :steppost,
+                linewidth = 2,
+            )
+            scatter!(p_mode, [times_x[k]], [modevals[k]]; markersize = 5)
+            vline!(p_mode, [times_x[k]]; linestyle = :dash)
+            push!(panels, p_mode)
+        end
+
+        layout =
+            modevals === nothing ? @layout([a{0.48w} [b; c]]) :
+            @layout([a{0.48w} [b; c; d]])
         plot(
-            p_sys,
-            p_state,
-            p_input;
-            layout = @layout([a{0.48w} [b; c]]),
+            panels...;
+            layout = layout,
             size = (1400, 800),
             plot_title = "t = $(round(times_x[k]; digits = 2)) s   frame $k / $N",
         )

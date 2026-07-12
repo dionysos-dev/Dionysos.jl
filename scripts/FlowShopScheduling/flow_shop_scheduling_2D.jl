@@ -5,10 +5,8 @@
 # The hybrid abstraction is (x1, x2, t) per mode, small enough to build and solve.
 # ============================================================================
 
-using StaticArrays, Plots, Printf
-import HybridSystems as HS
+using StaticArrays, Plots
 import MathOptInterface as MOI
-import LazySets
 
 using Dionysos
 const DI = Dionysos
@@ -97,58 +95,29 @@ aug_x_traj, u_traj = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
 println("Reached target: ", reached(aug_x_traj[end]), " ; final state: ", aug_x_traj[end])
 
 # -----------------------------------------------------
-# Plot: x1(t), x2(t), mode(t)
+# Dashboard animation: system view (left) + state / input / task-over-time (right)
 # -----------------------------------------------------
 
-t_traj = [s[2] for s in aug_x_traj]
-x1_traj = [s[1][1] for s in aug_x_traj]
-x2_traj = [s[1][2] for s in aug_x_traj]
-k_traj = [s[3] for s in aug_x_traj]
-switch_indices = [i for i in 2:length(k_traj) if k_traj[i] != k_traj[i - 1]]
+# Switch inputs are "SWITCH ..." labels; map them to NaN so the numeric input panel skips them.
+u_numeric =
+    [u isa AbstractString ? SVector(NaN, NaN) : SVector{2}(Float64.(u)) for u in u_traj]
 
-final_spec = first(values(concrete_problem.target_set.per_mode))  # TimedSpec of the last task
-
-fig_state = plot(;
-    title = "2-D flowshop: state over time",
-    xlabel = "time t",
-    ylabel = "state",
-    legend = :outerright,
-    size = (1100, 600),
+system_plot! = FlowShopScheduling2D.system_plot!(; problem = concrete_problem)
+Dionysos.animate_trajectory_dashboard(
+    system_plot!,
+    ST.Trajectory(aug_x_traj),
+    ST.Trajectory(u_numeric);
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = 0.2,
+    fps = 4,
+    state_of = s -> s[1],               # continuous state ([x1, x2]) of the augmented state
+    modes = [s[3] for s in aug_x_traj], # task per step -> task-vs-time panel on the right
+    ylabel_mode = "task",
+    title = "2-D flowshop scheduling",
+    xlabel_state = "x1",
+    ylabel_state = "x2",
+    xlabel_input = "u1",
+    ylabel_input = "u2",
+    # filename = "flow_shop_scheduling_2D.gif",
 )
-plot!(fig_state, t_traj, x1_traj; linewidth = 2, color = :blue, label = "x1")
-plot!(fig_state, t_traj, x2_traj; linewidth = 2, color = :orange, label = "x2")
-vspan!(
-    fig_state,
-    [final_spec.tmin, final_spec.tmax];
-    color = :green,
-    alpha = 0.1,
-    label = "target time window",
-)
-if !isempty(switch_indices)
-    scatter!(
-        fig_state,
-        t_traj[switch_indices],
-        x1_traj[switch_indices];
-        color = :red,
-        marker = :diamond,
-        markersize = 7,
-        label = "switch",
-    )
-end
-
-fig_mode = plot(
-    t_traj,
-    k_traj;
-    seriestype = :steppost,
-    linewidth = 2,
-    title = "2-D flowshop: task (mode)",
-    xlabel = "time t",
-    ylabel = "task",
-    yticks = ([1, 2, 3], ["1", "2", "3"]),
-    ylims = (0.5, 3.5),
-    legend = false,
-)
-
-fig = plot(fig_state, fig_mode; layout = (2, 1), size = (1100, 800))
-display(fig)
-# savefig(fig, "flow_shop_scheduling_2D.png")

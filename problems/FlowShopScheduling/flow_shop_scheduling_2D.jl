@@ -4,8 +4,10 @@ using StaticArrays
 
 import HybridSystems as HS
 import MathematicalSystems as MS
+import LazySets
 
 using LinearAlgebra
+using Plots
 
 using Dionysos
 const DI = Dionysos
@@ -127,6 +129,99 @@ function problem()
         nothing,
         transition_cost_function,
     )
+end
+
+# ---------------------------------------------------------------------------
+# Visualization
+# ---------------------------------------------------------------------------
+
+const TASK_COLORS = [:steelblue, :darkorange, :seagreen, :crimson, :purple]
+_task_color(k) = TASK_COLORS[mod1(k, length(TASK_COLORS))]
+
+# Draw a filled/dashed rectangle [tlo, thi] × [xlo, xhi].
+function _rectangle!(fig, tlo, thi, xlo, xhi; kwargs...)
+    plot!(fig, [tlo, thi, thi, tlo, tlo], [xlo, xlo, xhi, xhi, xlo]; kwargs...)
+    return fig
+end
+
+"""
+    system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
+
+Return a per-frame drawer `(fig, aug_state, u) -> fig` for
+[`Dionysos.animate_trajectory_dashboard`](@ref). Given an augmented state
+`([x1, x2], t, mode)` and input `u`, it draws — in the `(x1, x2)` plane — every task's
+guard acceptance region and the final target, then the current point coloured by the
+active task and annotated with the task, clock value, and input.
+
+Use it with `state_of = s -> s[1]` and `modes = [s[3] for s in trajectory]` so the
+dashboard reads the continuous state and adds the task-vs-time panel.
+"""
+function system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
+    hs = problem.system
+    transitions = collect(HS.transitions(hs.automaton))
+    task_modes = collect(HS.states(hs.automaton))
+    target = problem.target_set.per_mode[task_modes[end]]
+    xtarget = target.base.set
+
+    return function (fig, aug_state, u)
+        x, t, k = aug_state[1], aug_state[2], aug_state[3]
+
+        # Guard acceptance regions and the final target, projected to the (x1, x2) plane.
+        for tr in transitions
+            guard = HS.guard(hs, tr)
+            guard === nothing && continue
+            src = HS.source(hs.automaton, tr)
+            _rectangle!(
+                fig,
+                LazySets.low(guard, 1),
+                LazySets.high(guard, 1),   # x1 range
+                LazySets.low(guard, 2),
+                LazySets.high(guard, 2);   # x2 range
+                linecolor = _task_color(src),
+                linestyle = :dash,
+                linewidth = 2,
+                fill = (0, 0.10),
+                fillcolor = _task_color(src),
+                label = "",
+            )
+        end
+        _rectangle!(
+            fig,
+            LazySets.low(xtarget, 1),
+            LazySets.high(xtarget, 1),
+            LazySets.low(xtarget, 2),
+            LazySets.high(xtarget, 2);
+            linecolor = :magenta,
+            linewidth = 3,
+            fill = (0, 0.18),
+            fillcolor = :magenta,
+            label = "",
+        )
+
+        # Current physical state, coloured by the active task.
+        scatter!(
+            fig,
+            [x[1]],
+            [x[2]];
+            color = _task_color(k),
+            markersize = 9,
+            marker = :circle,
+            label = "",
+        )
+
+        u_str =
+            u isa AbstractString ? u :
+            "[" * join(round.(Float64.(u); digits = 2), ", ") * "]"
+        annotate!(
+            fig,
+            xlims[1] + 0.04 * (xlims[2] - xlims[1]),
+            ylims[2] - 0.06 * (ylims[2] - ylims[1]),
+            text("task $k    t = $(round(t; digits = 2))\nu = $u_str", 9, :left),
+        )
+        xlims!(fig, xlims...)
+        ylims!(fig, ylims...)
+        return fig
+    end
 end
 
 end # module
