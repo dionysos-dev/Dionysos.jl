@@ -156,15 +156,7 @@ function gamma_cover_set(piece::PCLF.ObserverCLFPiece, X::LazySets.HPolytope)
     return minimum(vals)
 end
 
-"""
-    _support_abs_row_on_hyperrectangle(g, X)
-
-Compute
-
-    max_{x ∈ X} |g' x|
-
-for a hyperrectangle `X`.
-"""
+# Compute max_{x ∈ X} |g' x| for a hyperrectangle `X`.
 function _support_abs_row_on_hyperrectangle(g::AbstractVector, X::LazySets.Hyperrectangle)
     c = LazySets.center(X)
     r = radius_hyperrectangle(X)

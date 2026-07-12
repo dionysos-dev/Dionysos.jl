@@ -1,88 +1,186 @@
-# Optim 
+# Optim
 
-This folder contains all the different (abstraction-based or not) solvers that can be used. Note that all the solvers are defined using the MathOptInterface framework as a subtype of  [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer) by implementig the [`optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!) function.
+The `Optim` module is the **solver catalog**. Every solver — abstraction-based or not — is a
+[`MathOptInterface`](https://jump.dev/MathOptInterface.jl) optimizer (a subtype of
+[`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer)
+implementing [`optimize!`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.optimize!)).
+This shared contract is the architectural keystone: a control task can be re-solved, compared, and
+benchmarked by *swapping the optimizer* rather than rewriting the model. Solvers also **compose** — a
+high-level optimizer holds sub-solvers (an abstraction solver and a control solver) and forwards
+attribute `set` / `get` to them.
+
+## JuMP frontend
+
+The canonical user entry point is a JuMP model, `Model(Dionysos.Optimizer)`. Dynamics and target /
+initial constraints are written with the `NonlinearOperator`s below; `Dionysos.Optimizer` dispatches
+the model to a concrete solver family. (`Dionysos.Optimizer` is enabled by the
+`DionysosMathOptSymbolicAD` extension.)
+
+```@autodocs
+Modules = [Dionysos]
+Filter  = _is_public
+Order   = [:function, :constant, :type]
+```
 
 ## Shared solver base
 
-```@docs
-Dionysos.Optim.AbstractDionysosOptimizer
-Dionysos.Optim.set_field_attribute!
-Dionysos.Optim.get_field_attribute
-Dionysos.Optim.CompositeDionysosOptimizer
-Dionysos.Optim.sub_solvers
-Dionysos.Optim.ensure_sub_solvers!
-Dionysos.Optim.set_concrete_problem!
+Common infrastructure for the composite solvers: attribute forwarding, sub-solver management, and the
+abstraction-based composite template (compute the abstraction, run a control sub-solver, concretize
+the controller — each family supplies only the hooks).
+
+```@autodocs
+Modules = [Dionysos.Optim]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-### Abstraction-based composite template
+## Continuous-system abstraction solvers
 
-Shared orchestration for the abstraction-based composite solvers (compute the abstraction, run a
-control sub-solver, concretize the controller). Each family supplies only the three hooks.
+The `Optim.Abstraction` namespace groups the abstraction-based solver families.
 
-```@docs
-Dionysos.Optim.AbstractionControlOptimizer
-Dionysos.Optim.default_abstraction_solver
-Dionysos.Optim.build_concrete_controller
-Dionysos.Optim.configure_control_solver!
-Dionysos.Optim.is_abstraction_computed
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-## Discrete system solvers
-```@docs
-Dionysos.Optim.DiscreteSystems.compute_worst_case_cost_controller
-Dionysos.Optim.DiscreteSystems.compute_optimal_controller
-Dionysos.Optim.DiscreteSystems.compute_worst_case_uniform_cost_controller
+### Uniform grid abstraction
+
+SCOTS-style abstraction on a uniform grid (`GROWTH` / `LINEARIZED` modes), with one control optimizer
+per supported specification.
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.UniformGridAbstraction]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-## Continuous system solvers
-### Uniform grid abstraction solver
-```@docs
-Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer
-Dionysos.Optim.Abstraction.UniformGridAbstraction.control_solver_for
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerAlternatingSimulationProblem
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerOptimalControlProblem
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerSafetyProblem
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerReachAndStayProblem
-Dionysos.Optim.Abstraction.UniformGridAbstraction.OptimizerCoSafeLTLProblem
+### Uniform ellipsoid abstraction
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-### Uniform ellipsoid abstraction solver
+### Lazy ellipsoids abstraction
 
-```@docs
-Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer
-Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.control_solver_for
+Lazy, controller-driven ellipsoidal abstraction (RRT exploration + SDP/Lyapunov transitions).
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-### PCLF Bisimulation Quotient solver
+## Hybrid-system solvers
 
-```@docs
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient.gamma_cover_set
-Dionysos.Optim.Abstraction.PCLFBisimulationQuotient._support_abs_row_on_hyperrectangle
+### Hybrid system abstraction
+
+Abstraction of timed hybrid systems (per-mode spatial + time abstractions flattened into one
+automaton).
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.HybridSystemAbstraction]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-### Lazy Ellipsoid solver
-```@docs
-Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer
+### PCLF bisimulation quotient
+
+Bisimulation-quotient synthesis for switched systems using a path-complete Lyapunov function, plus
+co-safe LTL control on the resulting quotient.
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.PCLFBisimulationQuotient]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-## Hybrid system solvers
+## Trajectory generators
 
-```@docs
-Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer
-Dionysos.Optim.Abstraction.HybridSystemAbstraction.control_solver_for
+Generators produce a candidate trajectory (open-loop input sequence) for a concrete problem; they are
+the building blocks of the lazy solvers and the certifiers.
+
+### Optimizer-based generator
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.OptimizerTrajectoryGenerator]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+### MPPI generator
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.MPPITrajectoryGenerator]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+### Composite generator
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.CompositeTrajectoryGenerator]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+## Trajectory certifiers
+
+Certifiers take a candidate trajectory and attempt to build a formally-certified tube around it.
+
+### Uniform-grid certifier
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.UniformGridTrajectoryCertifier]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+### Ellipsoidal backward certifier
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.EllipsoidalBackwardTrajectoryCertifier]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+### Trajectory certification optimizer
+
+The MOI optimizer that drives a generator into a certifier end to end.
+
+```@autodocs
+Modules = [Dionysos.Optim.Abstraction.TrajectoryCertificationOptimizer]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
+```
+
+## Discrete-system solvers
+
+Controller synthesis that operates directly on a finite automaton (no abstraction build): worst-case
+and optimal cost-to-go fixed-point solvers.
+
+```@autodocs
+Modules = [Dionysos.Optim.DiscreteSystems]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
 ## Other solvers
 
-### Bemborad-Morari MIP reformulation
+### Bemporad–Morari (MIQP for PWA systems)
 
-```@docs
-Dionysos.Optim.BemporadMorari.Optimizer
-Dionysos.Optim.BemporadMorari.julia_function_to_moi
+```@autodocs
+Modules = [Dionysos.Optim.BemporadMorari]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
 
-### Branch & Bound
+### Branch and bound
 
-```@docs
-Dionysos.Optim.BranchAndBound.Optimizer
+```@autodocs
+Modules = [Dionysos.Optim.BranchAndBound]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

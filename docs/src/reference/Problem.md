@@ -1,46 +1,37 @@
-# Problem Types
+# Problem
 
-This module defines a set of structures used to represent different control problems.
+The `Problem` module defines the **specifications** — the control tasks Dionysos can solve. A
+specification is deliberately *solver-independent*: the same problem can be handed to any compatible
+solver in [`Optim`](@ref Optim), which is what makes algorithms swappable and comparable.
 
-All problems are subtypes of the abstract type [`ProblemType`](@ref Dionysos.Problem.ProblemType), which provides a common interface for control problems. It splits into two categories:
+Every specification is a subtype of [`ProblemType`](@ref Dionysos.Problem.ProblemType), which splits
+into two families:
 
-- [`ControlProblem`](@ref Dionysos.Problem.ControlProblem): a control objective is synthesized (reach-avoid, safety, reach-and-stay, co-safe LTL). These have an initial set and a `trajectory_success` predicate.
-- [`AbstractionProblem`](@ref Dionysos.Problem.AbstractionProblem): no control objective; the problem only parametrizes the construction of a reusable abstraction (alternating simulation, bisimulation quotient).
+- [`ControlProblem`](@ref Dionysos.Problem.ControlProblem) — a controller is synthesized to meet a
+  behavioural objective. These carry an initial set and a
+  [`trajectory_success`](@ref Dionysos.Problem.trajectory_success) predicate that decides whether a
+  closed-loop run satisfies the spec:
+  - [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) — reach-avoid over a finite
+    horizon, with optional state and transition costs.
+  - [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) — stay inside a safe set for the whole
+    horizon.
+  - [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem) — eventually reach and then
+    remain in a target set.
+  - [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem) — satisfy a co-safe LTL formula
+    (reach an accepting condition in finite time, i.e. achieve a "good prefix").
+- [`AbstractionProblem`](@ref Dionysos.Problem.AbstractionProblem) — no control objective; the problem
+  only parametrizes the construction of a reusable abstraction:
+  - [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem) — build a
+    sound abstraction of a system.
+  - [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem) — build a
+    quotient bisimulation of a switched system from an observation map.
 
-## Supported Problems
+Infinite horizons are expressed with the [`Infinity`](@ref Dionysos.Problem.Infinity) sentinel.
 
-- [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem):  
-    Used to construct a sound abstraction of a dynamical system without solving a control problem.
+## API reference
 
-- [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem):  
-    Used to construct a quotient bisimulation of a switched system based on an observation map.
-
-- [`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem):  
-    A reach-avoid optimal control problem defined over a finite time horizon, supporting state and transition costs.
-
-- [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem):  
-    A safety specification problem requiring the system to remain within a safe set for the entire time horizon.
-
-- [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem):  
-    A reach-and-stay specification problem requiring the system to eventually always satify a target set.
-
-- [`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem):  
-    A co-safe LTL specification problem requiring the system to satisfy a co-safe LTL formula, i.e. to reach an accepting condition in finite time (equivalently: achieve a “good prefix” after which the specification is permanently satisfied).
-
-Each of these problem types is detailed below:
-
-```@docs
-Dionysos.Problem.ProblemType
-Dionysos.Problem.ControlProblem
-Dionysos.Problem.AbstractionProblem
-Dionysos.Problem.discretize_problem
-Dionysos.Problem.trajectory_success
-Dionysos.Problem.remake
-Dionysos.Problem.Infinity
-Dionysos.Problem.AlternatingSimulationProblem
-Dionysos.Problem.BisimulationQuotientProblem
-Dionysos.Problem.OptimalControlProblem
-Dionysos.Problem.SafetyProblem
-Dionysos.Problem.ReachAndStayProblem
-Dionysos.Problem.CoSafeLTLProblem
+```@autodocs
+Modules = [Dionysos.Problem]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

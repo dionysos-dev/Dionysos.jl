@@ -1,52 +1,26 @@
 # Mapping
 
-This folder contains mappings to make the link between the concrete system and the abstract system, and vice-versa.
+The `Mapping` module handles **discretization**: it links a concrete continuous state space to its
+abstract, finite counterpart and back. The space is covered by a **grid**
+([`GridFree`](@ref Dionysos.Mapping.GridFree) with centre `x0` and step `hx`); a **cell** is an
+integer coordinate `pos` standing for the point `x0 + hx .* pos`; and an
+[`AbstractMapping`](@ref Dionysos.Mapping.AbstractMapping) is the bijection between integer state
+labels `1:n` and cells. Cells are collected into state sets with an inclusion mode
+`INNER` / `OUTER` / `CENTER` that fixes how a continuous region is over- or under-approximated by
+cells.
 
-## Grids 
-```@docs
-Dionysos.Mapping.Grid
-Dionysos.Mapping.get_pos_by_coord
-Dionysos.Mapping.GridFree
-Dionysos.Mapping.GridEllipsoidalRectangular
+The concrete mapping implementations trade memory for lookup speed:
+[`ExplicitGridMapping`](@ref Dionysos.Mapping.ExplicitGridMapping) materializes the label ↔ cell
+table, [`ImplicitGridMapping`](@ref Dionysos.Mapping.ImplicitGridMapping) computes it on the fly,
+[`PeriodicGridMapping`](@ref Dionysos.Mapping.PeriodicGridMapping) wraps periodic coordinates, and the
+[`HierarchicalGridMapping`](@ref Dionysos.Mapping.HierarchicalGridMapping) supports multi-level
+(lazy) abstractions. [`MappedStateSet`](@ref Dionysos.Mapping.MappedStateSet) is the public state-set
+surface — a set of cells bundled with the mapping that gives them meaning.
+
+## API reference
+
+```@autodocs
+Modules = [Dionysos.Mapping]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```
-
-## Abstract Mappings 
-```@docs
-Dionysos.Mapping.AbstractMapping
-Dionysos.Mapping.GridMapping
-```
-
-## Concrete Mappings 
-
-### Simple Mappings
-```@docs
-Dionysos.Mapping.ListMapping
-```
-
-### Grid Mappings
-```@docs
-Dionysos.Mapping.ExplicitGridMapping
-Dionysos.Mapping.ImplicitGridMapping
-Dionysos.Mapping.PeriodicGridMapping
-```
-
-### Multi-level Mappings
-```@docs
-Dionysos.Mapping.AbstractMultiLevelMapping
-Dionysos.Mapping.HierarchicalGridMapping
-```
-
-## State sets
-
-`MappedStateSet` is the public surface (a state set bundled with its mapping);
-the other set types are the building blocks it wraps.
-
-```@docs
-Dionysos.Mapping.MappedStateSet
-Dionysos.Mapping.AbstractStateSet
-Dionysos.Mapping.FullStateSet
-Dionysos.Mapping.ExplicitIdSet
-Dionysos.Mapping.ImplicitStateSet
-```
-
-

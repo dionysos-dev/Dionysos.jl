@@ -1,59 +1,30 @@
-# Symbolic 
+# Symbolic
 
-This folder contains the data structures needed to encode the different abstractions:
-the finite automaton (transition graph), the symbolic models built on top of a mapping,
-the parallel execution backends that populate them, and the timed hybrid symbolic model.
+The `Symbolic` module builds the finite **automaton abstraction** of a concrete system on top of a
+[`Mapping`](@ref Mapping). A [`SymbolicModel`](@ref Dionysos.Symbolic.SymbolicModel) (concretely a
+[`SymbolicModelList`](@ref Dionysos.Symbolic.SymbolicModelList)) wraps an automaton whose transitions
+`(target, source, symbol)` form a sound over-approximation of the dynamics, so a controller
+synthesized on it is valid on the original system.
 
-## Symbolic models
+The pieces:
 
-```@docs
-Dionysos.Symbolic.AbstractSymbolicModel
-Dionysos.Symbolic.SymbolicModel
-Dionysos.Symbolic.GridBasedSymbolicModel
-Dionysos.Symbolic.SymbolicModelList
-Dionysos.Symbolic.LocalGridBasedSymbolicModel
-Dionysos.Symbolic.determinize_symbolic_model
-```
+- **Symbolic models** — the abstraction interface and its grid-based implementations.
+- **Automaton** — the transition graph; the concrete list types trade memory for `pre` / `post`
+  speed.
+- **Execution backends** — how the transition relation is populated from the concrete system,
+  sequentially or in parallel ([`ThreadedBackend`](@ref Dionysos.Symbolic.ThreadedBackend),
+  [`JuliaDistributedBackend`](@ref Dionysos.Symbolic.JuliaDistributedBackend),
+  [`SlurmArrayBackend`](@ref Dionysos.Symbolic.SlurmArrayBackend)).
+- **Timed hybrid symbolic model** — abstraction of a timed hybrid system: per-mode spatial and time
+  abstractions flattened into a single automaton, with inputs unified through a global input map. The
+  optimizer-driven builders live in
+  [`HybridSystemAbstraction`](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction); the data
+  structures live here.
 
-## Automaton
+## API reference
 
-The transition graph. Concrete implementations trade memory for `pre`/`post` speed.
-
-```@docs
-Dionysos.Symbolic.AbstractAutomatonList
-Dionysos.Symbolic.SortedAutomatonList
-Dionysos.Symbolic.IndexedAutomatonList
-Dionysos.Symbolic.FastIndexedAutomatonList
-Dionysos.Symbolic.compute_post!
-Dionysos.Symbolic.finalize!
-```
-
-## Transition metadata
-
-```@docs
-Dionysos.Symbolic.TransitionKey
-```
-
-## Execution backends
-
-How the transition relation is computed from a concrete system.
-
-```@docs
-Dionysos.Symbolic.AbstractExecutionBackend
-Dionysos.Symbolic.SequentialBackend
-Dionysos.Symbolic.ThreadedBackend
-Dionysos.Symbolic.JuliaDistributedBackend
-Dionysos.Symbolic.SlurmArrayBackend
-```
-
-## Timed hybrid symbolic model
-
-Abstraction of a timed hybrid system: per-mode spatial + time abstractions flattened into
-one automaton, with inputs unified through a global input map. The optimizer-driven builders
-live in `Optim/hybrid_systems/HybridSystemAbstraction`; the data structures live here.
-
-```@docs
-Dionysos.Symbolic.TimedHybridSymbolicModel
-Dionysos.Symbolic.TimeSymbolicModel
-Dionysos.Symbolic.GlobalInputMap
+```@autodocs
+Modules = [Dionysos.Symbolic]
+Filter  = _is_public
+Order   = [:module, :type, :function, :constant]
 ```

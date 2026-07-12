@@ -12,6 +12,19 @@ const EXAMPLES_SOLVERS = readdir(EXAMPLES_SOLVERS_DIR)
 const EXAMPLES_UTILS = readdir(EXAMPLES_UTILS_DIR)
 const REFERENCE = readdir(REFERENCE_DIR)
 
+# Public-API predicate for the `@autodocs` reference blocks: keep everything except
+# underscore-prefixed internals. Referenced by name (`Filter = _is_public`) from the
+# reference pages, so the API reference stays complete and never breaks when a new
+# public docstring is added (`checkdocs = :all` enforces coverage).
+_is_public(x) =
+    let n = try
+            string(nameof(x))
+        catch
+            return true
+        end
+        !startswith(n, "_")
+    end
+
 function literate_actions(file, output_dir)
     Literate.markdown(file, output_dir)
     Literate.notebook(file, output_dir)
