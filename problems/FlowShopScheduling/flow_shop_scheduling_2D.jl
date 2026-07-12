@@ -147,14 +147,15 @@ end
 """
     system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
 
-Return a per-frame drawer `(fig, aug_state, u) -> fig` for
-[`Dionysos.animate_trajectory_dashboard`](@ref). Given an augmented state
-`([x1, x2], t, mode)` and input `u`, it draws — in the `(x1, x2)` plane — every task's
-guard acceptance region and the final target, then the current point coloured by the
-active task and annotated with the task, clock value, and input.
+Return a per-frame drawer `(fig, x, u, k) -> fig` for
+[`Dionysos.animate_trajectory_dashboard`](@ref). Given the continuous state `x = [x1, x2]`,
+input `u`, and active task `k`, it draws — in the `(x1, x2)` plane — every task's guard
+acceptance region and the final target, then the current point coloured by the active task
+and annotated with the task and input.
 
-Use it with `state_of = s -> s[1]` and `modes = [s[3] for s in trajectory]` so the
-dashboard reads the continuous state and adds the task-vs-time panel.
+The hybrid closed-loop result is a channelled `ClosedLoopTrajectory` (via
+`HybridSystemAbstraction.channelled_trajectory`), so the dashboard reads the continuous
+state, feeds the task `k` here, and adds the task-vs-time panel.
 """
 function system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
     hs = problem.system
@@ -163,9 +164,7 @@ function system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
     target = problem.target_set.per_mode[task_modes[end]]
     xtarget = target.base.set
 
-    return function (fig, aug_state, u)
-        x, t, k = aug_state[1], aug_state[2], aug_state[3]
-
+    return function (fig, x, u, k)
         # Guard acceptance regions and the final target, projected to the (x1, x2) plane.
         for tr in transitions
             guard = HS.guard(hs, tr)
@@ -216,7 +215,7 @@ function system_plot!(; problem, xlims = (-2.5, 5.2), ylims = (-2.5, 5.2))
             fig,
             xlims[1] + 0.04 * (xlims[2] - xlims[1]),
             ylims[2] - 0.06 * (ylims[2] - ylims[1]),
-            text("task $k    t = $(round(t; digits = 2))\nu = $u_str", 9, :left),
+            text("task $k\nu = $u_str", 9, :left),
         )
         xlims!(fig, xlims...)
         ylims!(fig, ylims...)

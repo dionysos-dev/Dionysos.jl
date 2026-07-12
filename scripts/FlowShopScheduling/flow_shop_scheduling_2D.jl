@@ -102,17 +102,19 @@ println("Reached target: ", reached(aug_x_traj[end]), " ; final state: ", aug_x_
 u_numeric =
     [u isa AbstractString ? SVector(NaN, NaN) : SVector{2}(Float64.(u)) for u in u_traj]
 
+# Decompose the augmented `([x1,x2], t, task)` states into a channelled trajectory
+# (states = continuous state, modes = task, times = clock); the dashboard reads the
+# channels directly and adds the task-vs-time panel.
+trajectory = AB.HybridSystemAbstraction.channelled_trajectory(aug_x_traj, u_numeric)
+
 system_plot! = FlowShopScheduling2D.system_plot!(; problem = concrete_problem)
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    ST.Trajectory(aug_x_traj),
-    ST.Trajectory(u_numeric);
+    trajectory;
     xdims = (1, 2),
     udims = (1, 2),
     Δt = 0.2,
     fps = 4,
-    state_of = s -> s[1],               # continuous state ([x1, x2]) of the augmented state
-    modes = [s[3] for s in aug_x_traj], # task per step -> task-vs-time panel on the right
     ylabel_mode = "task",
     title = "2-D flowshop scheduling",
     xlabel_state = "x1",

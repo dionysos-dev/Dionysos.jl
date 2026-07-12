@@ -6,10 +6,25 @@ const ST = DI.System
 
 using Plots
 
+# Legacy entry point: a separate state and input `Trajectory`. Kept so the many
+# continuous-system scripts need no change; it wraps them into a channelled
+# `ClosedLoopTrajectory` (no mode channel) and forwards to the primary method.
 function Dionysos.animate_trajectory_dashboard(
     system_plot!::Function,
     x_traj::ST.Trajectory,
     u_traj::ST.Trajectory;
+    kwargs...,
+)
+    return Dionysos.animate_trajectory_dashboard(
+        system_plot!,
+        ST.ClosedLoopTrajectory(x_traj, u_traj);
+        kwargs...,
+    )
+end
+
+function Dionysos.animate_trajectory_dashboard(
+    system_plot!::Function,
+    traj::ST.ClosedLoopTrajectory;
     xdims = (1, 2),
     udims = (1,),
     Δt = 1.0, # physical time represented by each frame
@@ -28,21 +43,21 @@ function Dionysos.animate_trajectory_dashboard(
     ylims_input = nothing,
     show_full_state_traj = true,
     show_full_input_traj = true,
-    # Hybrid-system support: `state_of` extracts the continuous state from each
-    # (possibly augmented) trajectory element; `modes` is the per-step mode/task and,
-    # when given, adds a mode-vs-time panel on the right.
-    state_of = identity,
-    modes = nothing,
     ylabel_mode = "mode",
 )
-    xs = collect(x_traj.seq)
-    us = collect(u_traj.seq)
+    # The trajectory is self-describing: `states`/`inputs` are always present and
+    # the `modes` channel is `nothing` for non-hybrid systems (no mode panel) or
+    # the per-step mode otherwise (adds a mode-vs-time panel, and `system_plot!`
+    # receives the mode as a 4th argument).
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
+    modevals = ST.modes(traj) === nothing ? nothing : collect(ST.modes(traj))
 
     N = length(xs)
     Nu = length(us)
 
-    N == 0 && error("x_traj is empty")
-    Nu == 0 && error("u_traj is empty")
+    N == 0 && error("trajectory has no states")
+    Nu == 0 && error("trajectory has no inputs")
 
     length(xdims) in (1, 2) || error("xdims must contain one or two dimensions")
     length(udims) in (1, 2) || error("udims must contain one or two dimensions")
@@ -50,9 +65,8 @@ function Dionysos.animate_trajectory_dashboard(
     times_x = Δt .* collect(0:(N - 1))
     times_u = Δt .* collect(0:(Nu - 1))
 
-    xvals = [[Float64(state_of(x)[d]) for x in xs] for d in xdims]
+    xvals = [[Float64(x[d]) for x in xs] for d in xdims]
     uvals = [[Float64(u[d]) for u in us] for d in udims]
-    modevals = modes === nothing ? nothing : collect(modes)
 
     xlabel_state === nothing &&
         (xlabel_state = length(xdims) == 1 ? "time" : "x$(xdims[1])")
@@ -75,7 +89,11 @@ function Dionysos.animate_trajectory_dashboard(
         xlims_system !== nothing && xlims!(p_sys, xlims_system...)
         ylims_system !== nothing && ylims!(p_sys, ylims_system...)
 
-        system_plot!(p_sys, xs[k], us[ku])
+        if modevals === nothing
+            system_plot!(p_sys, xs[k], us[ku])
+        else
+            system_plot!(p_sys, xs[k], us[ku], modevals[k])
+        end
 
         # ----------------------------------------------------
         # Top-right: state evolution/projection
