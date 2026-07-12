@@ -1,8 +1,5 @@
 # # Getting Started
 #
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Getting Started.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Getting Started.ipynb)
-#
 # In this file we will visit the basic functionalities provided by Dionysos for the optimal control of complex systems. In summary, the topics covered are
 # - Grids and discretizations
 # - Dynamical system declaration

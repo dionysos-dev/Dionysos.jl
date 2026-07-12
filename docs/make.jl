@@ -27,7 +27,6 @@ _is_public(x) =
 
 function literate_actions(file, output_dir)
     Literate.markdown(file, output_dir)
-    Literate.notebook(file, output_dir)
     return Literate.script(file, output_dir)
 end
 

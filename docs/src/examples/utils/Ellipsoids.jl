@@ -1,8 +1,5 @@
 # # Ellipsoids
 #
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/Ellipsoids.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/Ellipsoids.ipynb)
-#
 # In this file, we will visit the basic features provided by Dionysos for manipulating ellipsoids:
 # - inclusion
 # - intersection
@@ -60,7 +57,7 @@ Q0 = inv(P0)
 vals = [4.1, 3.32, 2.8, 2.4]
 E0L = [LazySets.Ellipsoid([c0x; c0x - 0.2], Q0) for c0x in vals]
 
-# ### Case 1: non intersection
+# ## Case 1: non intersection
 fig1_1 = plot(; aspect_ratio = :equal);
 fig1_2 = plot(; aspect_ratio = :equal);
 analyze(fig1_1, fig1_2, 1)
@@ -71,7 +68,7 @@ plot!(fig1_1)
 #
 plot!(fig1_2)
 
-# ### Case 2: non intersection
+# ## Case 2: non intersection
 fig2_1 = plot(; aspect_ratio = :equal);
 fig2_2 = plot(; aspect_ratio = :equal);
 analyze(fig2_1, fig2_2, 2)
@@ -82,7 +79,7 @@ plot!(fig2_1)
 #
 plot!(fig2_2)
 
-# ### Case 3: intersection, non inclusion
+# ## Case 3: intersection, non inclusion
 fig3_1 = plot(; aspect_ratio = :equal);
 fig3_2 = plot(; aspect_ratio = :equal);
 analyze(fig3_1, fig3_2, 3)
@@ -93,7 +90,7 @@ plot!(fig3_1)
 #
 plot!(fig3_2)
 
-# ### Case 4: inclusion
+# ## Case 4: inclusion
 fig4_1 = plot(; aspect_ratio = :equal);
 fig4_2 = plot(; aspect_ratio = :equal);
 analyze(fig4_1, fig4_2, 4)

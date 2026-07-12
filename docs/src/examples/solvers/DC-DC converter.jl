@@ -1,8 +1,5 @@
 using Test     #src
-# # Example: DC-DC converter solved by [Uniform grid abstraction](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers).
-#
-#md # [![Binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/DC-DC converter.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-579ACA.svg)](@__NBVIEWER_ROOT_URL__/generated/DC-DC converter.ipynb)
+# # Example: DC-DC converter solved by uniform grid abstraction
 #
 # We consider a boost DC-DC converter which has been widely studied from the point of view of hybrid control, see for example in  [1, V.A],[2],[3].
 # This is a **safety problem** for a **switching system**.
@@ -39,7 +36,7 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-# ### Definition of the system
+# ## Definition of the system
 # we can import the module containing the DCDC problem like this 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
@@ -85,7 +82,7 @@ invariant_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set"))
 invariant_set_complement =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("invariant_set_complement"));
 
-# ### Trajectory display
+# ## Trajectory display
 # We choose the number of steps `nsteps` for the sampled system, i.e. the total elapsed time: `nstep`*`Δt`
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
@@ -102,7 +99,7 @@ plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
-# # Example: DC-DC converter solved by [Uniform grid abstraction] (https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/manual/manual.md#solvers) by exploiting the incremental stability of the system.
+# ## Variant: exploiting the incremental stability of the system
 # ### Definition of the system
 # we can import the module containing the DCDC problem like this 
 include(
@@ -174,7 +171,7 @@ plot!(
 plot!(concrete_problem.initial_set; color = :green, label = "");
 plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
 
-# ### References
+# ## References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.
 # 2. S. Mouelhi, A. Girard, and G. Gössler. “CoSyMA: a tool for controller synthesis using multi-scale abstractions”. In: HSCC. ACM. 2013, pp. 83–88.
 # 3. A. Girard. “Controller synthesis for safety and reachability via approximate bisimulation”. In: Automatica 48.5 (2012), pp. 947–953.
