@@ -168,7 +168,7 @@ include(
     x0 = SVector(-1.65, -1.65)
     nstep = 60
 
-    x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         discrete_time_system,
         concrete_controller,
         x0,
@@ -177,9 +177,9 @@ include(
         stopping = x -> false,
     )
 
-    xs = collect(ST.enum_elems(x_traj))
-    us = collect(ST.enum_elems(u_traj))
-    qs = collect(ST.enum_elems(q_traj))
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
+    qs = collect(ST.memory(traj))
 
     @test !isempty(xs)
     @test length(xs) <= nstep + 1

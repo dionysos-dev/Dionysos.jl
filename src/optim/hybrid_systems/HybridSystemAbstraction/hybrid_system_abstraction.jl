@@ -237,24 +237,20 @@ function get_closed_loop_trajectory(
 end
 
 """
-    channelled_trajectory(aug_x_traj, u_traj) -> Dionysos.System.ClosedLoopTrajectory
+    channelled_trajectory(aug_x_traj, u_traj) -> Dionysos.System.Trajectory
 
 Decompose a hybrid closed-loop result — the `(aug_x_traj, u_traj)` pair returned
 by [`get_closed_loop_trajectory`](@ref), whose augmented states are `(x[, t], mode)`
-— into a channelled `ClosedLoopTrajectory` with `states` = the continuous state,
-`modes` = the active mode, and (for clock-lifted modes) `times` = the clock value.
-This is the self-describing form consumed by `Dionysos.animate_trajectory_dashboard`.
+— into a channelled `Trajectory` with `states` = the continuous state, `inputs` = the
+applied inputs, `modes` = the active mode, and (for clock-lifted modes) `times` = the
+clock value. This is the self-describing form consumed by
+`Dionysos.animate_trajectory_dashboard`.
 """
 function channelled_trajectory(aug_x_traj, u_traj)
     xs = [aug[1] for aug in aug_x_traj]
     ks = [aug[end] for aug in aug_x_traj]
     ts = all(aug -> length(aug) == 3, aug_x_traj) ? [aug[2] for aug in aug_x_traj] : nothing
-    return ST.ClosedLoopTrajectory(
-        ST.Trajectory(xs),
-        ST.Trajectory(u_traj);
-        times = ts,
-        modes = ks,
-    )
+    return ST.Trajectory(xs; inputs = u_traj, times = ts, modes = ks)
 end
 
 end # module

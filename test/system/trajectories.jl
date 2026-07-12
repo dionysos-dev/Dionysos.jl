@@ -44,27 +44,35 @@ HybridSystems.target(::DummyHybridSystem, t::DummyTransition) = t.tgt
 end
 
 @testset "Trajectory container + cost" begin
-    xs = ST.Trajectory([@SVector([0.0, 0.0]), @SVector([1.0, 0.0]), @SVector([1.0, 2.0])])
-    us = ST.Trajectory([@SVector([1.0, 0.0]), @SVector([0.0, 2.0])])
+    xs = [@SVector([0.0, 0.0]), @SVector([1.0, 0.0]), @SVector([1.0, 2.0])]
+    us = [@SVector([1.0, 0.0]), @SVector([0.0, 2.0])]
+    traj = ST.Trajectory(xs; inputs = us)
 
-    @test length(xs) == 3
-    @test length(us) == 2
-    @test ST.get_elem(xs, 2) == @SVector([1.0, 0.0])
-    @test ST.enum_elems(us) == us.seq
+    @test length(traj) == 3
+    @test ST.states(traj) === xs
+    @test ST.inputs(traj) === us
+    @test ST.times(traj) === nothing
+    @test ST.modes(traj) === nothing
+    @test ST.memory(traj) === nothing
 
     c(x, u) = sum(abs, x) + sum(abs, u)
-    out = ST.get_cost_trajectory(xs, us, c)
-    @test out.c isa ST.Trajectory
-    @test length(out.c) == 2
+    out = ST.get_cost_trajectory(traj, c)
+    @test out.cost isa Vector
+    @test length(out.cost) == 2
 
     # manual total:
-    c1 = c(xs.seq[1], us.seq[1])
-    c2 = c(xs.seq[2], us.seq[2])
+    c1 = c(xs[1], us[1])
+    c2 = c(xs[2], us[2])
     @test out.total_cost ≈ (c1 + c2)
 
-    # mismatched lengths should assert
-    bad_us = ST.Trajectory([@SVector([0.0, 0.0])])
-    @test_throws AssertionError ST.get_cost_trajectory(xs, bad_us, c)
+    # mismatched lengths should assert (3 states but only 1 input)
+    bad = ST.Trajectory(xs; inputs = [@SVector([0.0, 0.0])])
+    @test_throws AssertionError ST.get_cost_trajectory(bad, c)
+
+    # a state-only trajectory has no input channel
+    stateonly = ST.Trajectory(xs)
+    @test ST.inputs(stateonly) === nothing
+    @test_throws ErrorException ST.get_cost_trajectory(stateonly, c)
 end
 
 @testset "Closed-loop engine" begin
@@ -76,21 +84,22 @@ end
     ctrl = ST.AffineController(MS.AffineMap(hcat(-0.5), [0.0]))
 
     traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 5)
-    @test traj isa ST.ClosedLoopTrajectory
-    @test traj.q === nothing
-    @test length(traj.x) == 6
-    @test length(traj.u) == 5
-    @test traj.x.seq[2] ≈ [0.5]              # x + (-0.5x)
-    @test eltype(traj.u.seq) == Vector{Float64}  # inputs typed from first control
+    @test traj isa ST.Trajectory
+    @test ST.memory(traj) === nothing
+    @test length(ST.states(traj)) == 6
+    @test length(ST.inputs(traj)) == 5
+    @test ST.states(traj)[2] ≈ [0.5]                # x + (-0.5x)
+    @test eltype(ST.inputs(traj)) == Vector{Float64}  # inputs typed from first control
 
-    # destructuring (static: two elements)
-    x_traj, u_traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 3)
-    @test length(x_traj) == 4 && length(u_traj) == 3
+    # channels of a plain continuous rollout
+    traj3 = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 3)
+    @test length(ST.states(traj3)) == 4 && length(ST.inputs(traj3)) == 3
+    @test ST.modes(traj3) === nothing && ST.times(traj3) === nothing
 
     # stopping condition
     traj_stop =
         ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 50; stopping = x -> x[1] < 0.1)
-    @test traj_stop.x.seq[end][1] < 0.1
+    @test ST.states(traj_stop)[end][1] < 0.1
 
     # dynamic controller: memory counts steps and cuts off after 2 controls
     dyn = ST.DiscreteDynamicController(
@@ -101,53 +110,22 @@ end
         false,
     )
     trajd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
-    @test trajd.q isa ST.Trajectory
-    @test length(trajd.u) == 2                # third output_control is undefined
-    @test trajd.q.seq == [0, 1, 2]
-
-    # dynamic destructuring: three elements
-    xd, ud, qd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
-    @test qd.seq == trajd.q.seq
+    @test length(ST.inputs(trajd)) == 2             # third output_control is undefined
+    @test ST.memory(trajd) == [0, 1, 2]
 end
 
-@testset "ClosedLoopTrajectory channels + accessors" begin
-    f(x, u) = x .+ u
-    sys = MS.ConstrainedBlackBoxControlDiscreteSystem(f, 1, 1, nothing, nothing)
-    ctrl = ST.AffineController(MS.AffineMap(hcat(-0.5), [0.0]))
-
-    # static rollout: state/input channels present, memory/time/mode absent
-    traj = ST.get_closed_loop_trajectory(sys, ctrl, [1.0], 5)
-    @test ST.states(traj) === traj.x.seq
-    @test ST.inputs(traj) === traj.u.seq
-    @test ST.memory(traj) === nothing
-    @test ST.times(traj) === nothing
-    @test ST.modes(traj) === nothing
-
+@testset "Trajectory channels + accessors" begin
     # explicit timed/hybrid channels round-trip through the accessors
-    xs = ST.Trajectory([@SVector([0.0]), @SVector([1.0]), @SVector([2.0])])
-    us = ST.Trajectory([@SVector([1.0]), @SVector([1.0])])
+    xs = [@SVector([0.0]), @SVector([1.0]), @SVector([2.0])]
+    us = [@SVector([1.0]), @SVector([1.0])]
     ts = [0.0, 0.3, 0.6]
     ks = [1, 1, 2]
-    htraj = ST.ClosedLoopTrajectory(xs, us; times = ts, modes = ks)
-    @test ST.states(htraj) == xs.seq
-    @test ST.inputs(htraj) == us.seq
+    htraj = ST.Trajectory(xs; inputs = us, times = ts, modes = ks)
+    @test ST.states(htraj) === xs
+    @test ST.inputs(htraj) === us
     @test ST.times(htraj) == ts
     @test ST.modes(htraj) == ks
-
-    # channels don't disturb the legacy destructuring contract
-    x_traj, u_traj = htraj
-    @test x_traj === xs && u_traj === us
-
-    # dynamic controller memory still surfaces through `memory`
-    dyn = ST.DiscreteDynamicController(
-        0,
-        ST.PredicateDomain(memx -> memx[1] < 2),
-        (mem, y) -> mem + 1,
-        (mem, y) -> mem < 2 ? [0.5] : nothing,
-        false,
-    )
-    trajd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
-    @test ST.memory(trajd) == trajd.q.seq
+    @test length(htraj) == 3
 end
 
 @testset "wrap_coord + wrapper" begin

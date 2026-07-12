@@ -10,7 +10,7 @@ _all_finite(x::Number) = isfinite(x)
 _all_finite(x) = all(_all_finite, x)
 
 """
-    get_closed_loop_trajectory(system, controller, x0, nstep; kwargs...) -> ClosedLoopTrajectory
+    get_closed_loop_trajectory(system, controller, x0, nstep; kwargs...) -> Trajectory
 
 Simulate the closed loop for at most `nstep` steps and return the visited
 states/inputs (plus the controller-memory trajectory `q` for dynamic
@@ -53,11 +53,7 @@ function get_closed_loop_trajectory(
     us = input_type === nothing ? nothing : Vector{input_type}()
     mems = isdyn ? Vector{typeof(mem)}([mem]) : nothing
 
-    _result() = ClosedLoopTrajectory(
-        Trajectory(xs),
-        Trajectory(us === nothing ? Any[] : us),
-        mems === nothing ? nothing : Trajectory(mems),
-    )
+    _result() = Trajectory(xs; inputs = us === nothing ? Any[] : us, memory = mems)
 
     if trajectory_success(Trajectory(xs))
         verbose &&

@@ -6,25 +6,9 @@ const ST = DI.System
 
 using Plots
 
-# Legacy entry point: a separate state and input `Trajectory`. Kept so the many
-# continuous-system scripts need no change; it wraps them into a channelled
-# `ClosedLoopTrajectory` (no mode channel) and forwards to the primary method.
 function Dionysos.animate_trajectory_dashboard(
     system_plot!::Function,
-    x_traj::ST.Trajectory,
-    u_traj::ST.Trajectory;
-    kwargs...,
-)
-    return Dionysos.animate_trajectory_dashboard(
-        system_plot!,
-        ST.ClosedLoopTrajectory(x_traj, u_traj);
-        kwargs...,
-    )
-end
-
-function Dionysos.animate_trajectory_dashboard(
-    system_plot!::Function,
-    traj::ST.ClosedLoopTrajectory;
+    traj::ST.Trajectory;
     xdims = (1, 2),
     udims = (1,),
     Δt = 1.0, # physical time represented by each frame
@@ -45,10 +29,12 @@ function Dionysos.animate_trajectory_dashboard(
     show_full_input_traj = true,
     ylabel_mode = "mode",
 )
-    # The trajectory is self-describing: `states`/`inputs` are always present and
-    # the `modes` channel is `nothing` for non-hybrid systems (no mode panel) or
-    # the per-step mode otherwise (adds a mode-vs-time panel, and `system_plot!`
-    # receives the mode as a 4th argument).
+    # The trajectory is self-describing: `states` is always present, the `inputs`
+    # channel drives the input panel, and the `modes` channel is `nothing` for
+    # non-hybrid systems (no mode panel) or the per-step mode otherwise (adds a
+    # mode-vs-time panel, and `system_plot!` receives the mode as a 4th argument).
+    ST.inputs(traj) === nothing &&
+        error("animate_trajectory_dashboard needs a trajectory with inputs")
     xs = collect(ST.states(traj))
     us = collect(ST.inputs(traj))
     modevals = ST.modes(traj) === nothing ? nothing : collect(ST.modes(traj))

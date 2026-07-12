@@ -21,7 +21,7 @@ import ..get_solve_time
 
 mutable struct TrajectoryCertifier{T} <: AbstractTrajectoryCertifier
     # Required
-    traj::Union{Nothing, ST.ClosedLoopTrajectory}
+    traj::Union{Nothing, ST.Trajectory}
 
     # Tube params
     radius::Any # control-theoretic parameter
@@ -90,7 +90,7 @@ function certify!(c::TrajectoryCertifier)
     @assert concrete_problem !== nothing "Your uniformGridOptimizer must already have concrete_problem set."
 
     # Build tube set
-    x_traj = c.traj.x
+    x_traj = c.traj
     X_local = build_tube(
         x_traj,
         c.radius;
@@ -176,7 +176,7 @@ function build_tube(
     X_domain = nothing,
 )
     # 1) collect points
-    xs = collect(ST.enum_elems(x_traj))
+    xs = collect(ST.states(x_traj))
     @assert !isempty(xs) "Cannot build tube from an empty trajectory."
 
     # compute safe limit once (independent of max_step)

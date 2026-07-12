@@ -21,7 +21,7 @@ mutable struct TrajectoryGenerator{RNG, FNOISE, FPROJ, FCOST, FWRAP} <:
     # Inputs
     problem::Union{Nothing, PR.ProblemType} # problems with system being a MS.AbstractDiscreteSystem
     seed_generator::Union{Nothing, AbstractTrajectoryGenerator}
-    seed_trajectory::Union{Nothing, ST.ClosedLoopTrajectory}
+    seed_trajectory::Union{Nothing, ST.Trajectory}
 
     # Parameters
     rng::RNG
@@ -37,7 +37,7 @@ mutable struct TrajectoryGenerator{RNG, FNOISE, FPROJ, FCOST, FWRAP} <:
     hard_constraint::Bool  # whether to enforce hard state constraints
 
     # Outputs
-    trajectory::Union{Nothing, ST.ClosedLoopTrajectory}
+    trajectory::Union{Nothing, ST.Trajectory}
     success::Bool
     solve_time_sec::Float64
     diagnostics::NamedTuple
@@ -99,7 +99,7 @@ function set_problem!(gen::TrajectoryGenerator, problem::PR.ProblemType)
     return gen
 end
 
-function set_seed_trajectory!(gen::TrajectoryGenerator, traj::ST.ClosedLoopTrajectory)
+function set_seed_trajectory!(gen::TrajectoryGenerator, traj::ST.Trajectory)
     gen.seed_trajectory = traj
     return gen
 end
@@ -131,11 +131,11 @@ function generate!(gen::TrajectoryGenerator)
         return gen
     end
 
-    isempty(seed.x.seq) && error("Seed trajectory has no state sequence.")
+    isempty(ST.states(seed)) && error("Seed trajectory has no state sequence.")
 
-    x0 = first(seed.x.seq)
+    x0 = first(ST.states(seed))
 
-    u_nom = collect(seed.u.seq)
+    u_nom = collect(ST.inputs(seed))
     u_nom = _pad_or_trim_controls(u_nom, gen.nstep)
     u_nom = [gen.project_input(u) for u in u_nom]
 
@@ -162,14 +162,14 @@ function generate!(gen::TrajectoryGenerator)
             best_traj = cand
         end
 
-        if PR.trajectory_success(problem, best_traj.x)
+        if PR.trajectory_success(problem, best_traj)
             break
         end
     end
 
     best_traj = truncate_at_target(problem, best_traj)
     gen.trajectory = best_traj
-    gen.success = PR.trajectory_success(problem, best_traj.x)
+    gen.success = PR.trajectory_success(problem, best_traj)
     gen.solve_time_sec = time() - t0
     gen.diagnostics = (;
         seed_available = true,
@@ -221,7 +221,7 @@ function _rollout_controls(
         push!(xs, x)
     end
 
-    return ST.ClosedLoopTrajectory(ST.Trajectory(xs), ST.Trajectory(us))
+    return ST.Trajectory(xs; inputs = us)
 end
 
 function _sample_perturbed_controls(gen::TrajectoryGenerator, rng, u_nom::AbstractVector)
@@ -297,16 +297,14 @@ function _get_seed_trajectory(gen::TrajectoryGenerator)
     return nothing
 end
 
-function truncate_at_target(problem, traj::ST.ClosedLoopTrajectory)
-    idx = findfirst(x -> x ∈ problem.target_set, traj.x.seq)
+function truncate_at_target(problem, traj::ST.Trajectory)
+    xs = ST.states(traj)
+    idx = findfirst(x -> x ∈ problem.target_set, xs)
 
     idx === nothing && return traj
-    idx == length(traj.x.seq) && return traj
+    idx == length(xs) && return traj
 
-    return ST.ClosedLoopTrajectory(
-        ST.Trajectory(traj.x.seq[1:idx]),
-        ST.Trajectory(traj.u.seq[1:(idx - 1)]),
-    )
+    return ST.Trajectory(xs[1:idx]; inputs = ST.inputs(traj)[1:(idx - 1)])
 end
 
 function _validate!(gen::TrajectoryGenerator)

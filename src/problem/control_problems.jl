@@ -39,10 +39,10 @@ OptimalControlProblem(system, initial_set, target_set, state_cost, transition_co
 horizon_round_up(::OptimalControlProblem) = false
 
 function trajectory_success(problem::OptimalControlProblem, traj::ST.Trajectory)
-    isempty(traj.seq) && return false
+    isempty(traj.states) && return false
 
-    return first(traj.seq) ∈ problem.initial_set &&
-           any(x -> x ∈ problem.target_set, traj.seq)
+    return first(traj.states) ∈ problem.initial_set &&
+           any(x -> x ∈ problem.target_set, traj.states)
 end
 
 """
@@ -68,9 +68,10 @@ SafetyProblem(system, initial_set, safe_set) =
     SafetyProblem(system, initial_set, safe_set, Infinity())
 
 function trajectory_success(problem::SafetyProblem, traj::ST.Trajectory)
-    isempty(traj.seq) && return false
+    isempty(traj.states) && return false
 
-    return first(traj.seq) ∈ problem.initial_set && all(x -> x ∈ problem.safe_set, traj.seq)
+    return first(traj.states) ∈ problem.initial_set &&
+           all(x -> x ∈ problem.safe_set, traj.states)
 end
 
 """
@@ -100,7 +101,7 @@ ReachAndStayProblem(system, initial_set, target_set, safe_set) =
     ReachAndStayProblem(system, initial_set, target_set, safe_set, Infinity())
 
 function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
-    xs = traj.seq
+    xs = traj.states
     first(xs) ∈ problem.initial_set || return false
     all(x -> x ∈ problem.safe_set, xs) || return false
 
@@ -171,7 +172,7 @@ function CoSafeLTLProblem(
 end
 
 function trajectory_success(problem::CoSafeLTLProblem, traj::ST.Trajectory)
-    isempty(traj.seq) && return false
+    isempty(traj.states) && return false
 
     # Placeholder until monitor/spec trajectory evaluation is implemented.
     return false

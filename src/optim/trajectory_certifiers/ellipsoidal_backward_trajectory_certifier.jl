@@ -130,7 +130,7 @@ end
 
 mutable struct TrajectoryCertifier{AP, Backend, Opts} <: AbstractTrajectoryCertifier
     problem::Union{Nothing, PR.ProblemType}
-    traj::Union{Nothing, ST.ClosedLoopTrajectory}
+    traj::Union{Nothing, ST.Trajectory}
 
     affine_provider::AP
     backend::Backend
@@ -162,7 +162,7 @@ function set_problem!(cert::TrajectoryCertifier, prob::PR.ProblemType)
     return cert
 end
 
-function set_trajectory!(cert::TrajectoryCertifier, traj::ST.ClosedLoopTrajectory)
+function set_trajectory!(cert::TrajectoryCertifier, traj::ST.Trajectory)
     cert.traj = traj
     cert.result = nothing
     cert.success = false
@@ -241,13 +241,13 @@ end
 
 function build_symbolic_context(
     problem::PR.ProblemType,
-    traj::ST.ClosedLoopTrajectory,
+    traj::ST.Trajectory,
     affine_provider,
     backend,
     options::EllipsoidalBackwardOptions,
 )
-    xs = collect(ST.enum_elems(traj.x))
-    us = collect(ST.enum_elems(traj.u))
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
 
     K = length(us)
     @assert length(xs) == K + 1 "Expected length(xs) == length(us) + 1."

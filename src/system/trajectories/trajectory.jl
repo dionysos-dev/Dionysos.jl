@@ -1,5 +1,6 @@
 export ContinuousTrajectory, ContinuousTrajectoryAttribute
 export AutomatonPath
+export Trajectory
 export last_mode
 
 """
@@ -8,7 +9,7 @@ export last_mode
 A path through a hybrid automaton: a starting mode `q_0` and a sequence of discrete
 `transitions`. This is a *search-space object* — the partial candidate grown (via
 [`append`](@ref)) by the branch-and-bound solver — not a state/input rollout over time
-(that is a `ClosedLoopTrajectory`).
+(that is a `Trajectory`).
 """
 struct AutomatonPath{Q, TT}
     q_0::Q
@@ -44,105 +45,103 @@ end
 struct ContinuousTrajectoryAttribute <: MOI.AbstractModelAttribute end
 
 """
-    Trajectory{T}
+    Trajectory{S, I, T, M, Q}
 
-provides the sequence of some elements of a trajectory.
+A system trajectory stored as parallel channels. The `states` channel is always
+present; every other channel is optional and is `nothing` when absent:
+
+- `inputs`  — applied inputs; `nothing` for an open-loop / state-only trajectory,
+- `times`   — physical time at each step (timed systems),
+- `modes`   — active discrete mode at each step (hybrid systems),
+- `memory`  — controller memory at each step (dynamic controllers).
+
+So a closed-loop rollout is just a `Trajectory` that carries `inputs`, and a plain
+state trajectory is one with `inputs === nothing`. Build it with
+`Trajectory(states; inputs = ..., times = ..., modes = ..., memory = ...)` and read
+channels with [`states`](@ref), [`inputs`](@ref), [`times`](@ref), [`modes`](@ref),
+[`memory`](@ref).
 """
-struct Trajectory{T}
-    seq::Vector{T}
+struct Trajectory{S, I, T, M, Q}
+    states::Vector{S}
+    inputs::I
+    times::T
+    modes::M
+    memory::Q
 end
 
-"""
-    ClosedLoopTrajectory
-
-Result of a closed-loop simulation, stored as parallel channels. `x` is the
-state trajectory and `u` the input trajectory (always present); `q` is the
-controller-memory trajectory for dynamic controllers (`nothing` for static
-ones). The optional `times` and `modes` channels carry, respectively, the
-physical time and the discrete mode at each step for timed / hybrid rollouts
-(`nothing` when absent). Destructures as `x_traj, u_traj[, q_traj] = traj`;
-read individual channels with `states`, `inputs`, `memory`, `times`, `modes`.
-"""
-struct ClosedLoopTrajectory{XT, UT, QT, TT, MT}
-    x::Trajectory{XT}
-    u::Trajectory{UT}
-    q::QT
-    times::TT
-    modes::MT
-end
-
-function ClosedLoopTrajectory(
-    x::Trajectory,
-    u::Trajectory,
-    q = nothing;
+function Trajectory(
+    states::AbstractVector;
+    inputs = nothing,
     times = nothing,
     modes = nothing,
+    memory = nothing,
 )
-    return ClosedLoopTrajectory(x, u, q, times, modes)
+    return Trajectory(states, inputs, times, modes, memory)
 end
 
-function Base.iterate(traj::ClosedLoopTrajectory, state::Int = 1)
-    state == 1 && return (traj.x, 2)
-    state == 2 && return (traj.u, 3)
-    state == 3 && traj.q !== nothing && return (traj.q, 4)
-    return nothing
-end
-
-# Channel accessors — read a single channel as a plain vector (or `nothing`
-# when absent). Deliberately unexported: `states`/`modes` would otherwise clash
-# with `HybridSystems.states`/`modes` at unqualified call sites.
-"State channel (vector of visited states) of a closed-loop trajectory."
-states(traj::ClosedLoopTrajectory) = traj.x.seq
-"Input channel (vector of applied inputs) of a closed-loop trajectory."
-inputs(traj::ClosedLoopTrajectory) = traj.u.seq
+# Channel accessors — read a single channel as a plain vector (or `nothing` when
+# absent). Deliberately unexported: `states`/`modes` would otherwise clash with
+# `HybridSystems.states`/`modes` at unqualified call sites.
+"State channel (vector of visited states) of a trajectory."
+states(traj::Trajectory) = traj.states
+"Input channel (vector of applied inputs), or `nothing` for an open-loop trajectory."
+inputs(traj::Trajectory) = traj.inputs
 "Controller-memory channel, or `nothing` for static controllers."
-memory(traj::ClosedLoopTrajectory) = traj.q === nothing ? nothing : traj.q.seq
+memory(traj::Trajectory) = traj.memory
 "Physical-time channel, or `nothing` when the trajectory is untimed."
-times(traj::ClosedLoopTrajectory) = traj.times
+times(traj::Trajectory) = traj.times
 "Discrete-mode channel, or `nothing` when the trajectory is non-hybrid."
-modes(traj::ClosedLoopTrajectory) = traj.modes
+modes(traj::Trajectory) = traj.modes
 
-Base.length(traj::Trajectory) = length(traj.seq)
-get_elem(traj::Trajectory, n::Int) = traj.seq[n]
-enum_elems(traj::Trajectory) = traj.seq
+Base.length(traj::Trajectory) = length(traj.states)
 
 @recipe function f(traj::Trajectory; dims = [1, 2], arrows = true)
     traj_label = get(plotattributes, :label, "")
+    xs = states(traj)
 
     # first point carries the user label, the rest stay unlabelled
     @series begin
         dims := dims
         label := traj_label
-        UT.DrawPoint(traj.seq[1])
+        UT.DrawPoint(xs[1])
     end
 
-    for k in 1:(length(traj.seq) - 1)
+    for k in 1:(length(xs) - 1)
         @series begin
             dims := dims
             label := ""
-            UT.DrawPoint(traj.seq[k + 1])
+            UT.DrawPoint(xs[k + 1])
         end
         if arrows
             @series begin
                 dims := dims
                 label := ""
-                UT.DrawArrow(traj.seq[k], traj.seq[k + 1])
+                UT.DrawArrow(xs[k], xs[k + 1])
             end
         end
     end
 end
 
-function get_cost_trajectory(x_traj::Trajectory, u_traj::Trajectory, c)
-    @assert length(x_traj) == length(u_traj) + 1
+"""
+    get_cost_trajectory(traj::Trajectory, c) -> (cost, total_cost)
+
+Evaluate the stage cost `c(state, input)` along `traj` (which must carry an
+`inputs` channel). Returns the per-step `cost` vector and the summed `total_cost`.
+"""
+function get_cost_trajectory(traj::Trajectory, c)
+    xs = states(traj)
+    us = inputs(traj)
+    us === nothing && error("get_cost_trajectory needs a trajectory with inputs")
+    @assert length(xs) == length(us) + 1
 
     cs = Float64[]
     total_cost = 0.0
 
-    for i in 1:length(u_traj)
-        ci = c(x_traj.seq[i], u_traj.seq[i])
+    for i in eachindex(us)
+        ci = c(xs[i], us[i])
         total_cost += ci
         push!(cs, ci)
     end
 
-    return (c = Trajectory(cs), total_cost)
+    return (cost = cs, total_cost = total_cost)
 end

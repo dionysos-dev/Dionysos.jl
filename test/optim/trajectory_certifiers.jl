@@ -150,7 +150,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         λ = 1.0,
         noise_sampler = (rng, u, k) -> SVector(0.3 * randn(rng), 0.3 * randn(rng)),
         project_input = u -> SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0)),
-        trajectory_cost = (problem, tr) -> sum(LA.norm(u)^2 for u in tr.u.seq),
+        trajectory_cost = (problem, tr) -> sum(LA.norm(u)^2 for u in ST.inputs(tr)),
         hard_constraint = false,
     )
     combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(

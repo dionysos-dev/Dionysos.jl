@@ -76,12 +76,9 @@ include("../../../problems/PathPlanning/path_planning.jl")
         stopping = reached,
     )
 
-    x_traj = traj.x
-    u_traj = traj.u
-
     # --- trajectory checks ---
-    xs = collect(ST.enum_elems(x_traj))
-    us = collect(ST.enum_elems(u_traj))
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
 
     @test !isempty(xs)
     @test length(xs) <= nstep + 1

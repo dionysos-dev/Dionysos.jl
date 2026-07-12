@@ -63,15 +63,15 @@ include("../../problems/ToyProblem/toy_problem.jl")
     seed = AB.get_trajectory(opt_gen)
     @test seed !== nothing
     @test AB.get_success(opt_gen) == true      # reach must succeed to seed MPPI
-    @test !isempty(seed.x.seq)
-    @test !isempty(seed.u.seq)
+    @test !isempty(ST.states(seed))
+    @test !isempty(ST.inputs(seed))
 
     # 2) MPPI generator, seeded by the optimizer trajectory (small sample budget).
     Δt = 0.3
     discrete_problem = PR.discretize_problem(concrete_problem, Δt)
     noise_sampler = (rng, u, k) -> SVector(0.3 * randn(rng), 0.3 * randn(rng))
     project_input = u -> SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0))
-    trajectory_cost = (problem, traj) -> sum(LA.norm(u)^2 for u in traj.u.seq)
+    trajectory_cost = (problem, traj) -> sum(LA.norm(u)^2 for u in ST.inputs(traj))
     mppi_gen = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
         rng = Random.MersenneTwister(0),
         seed_trajectory = seed,
