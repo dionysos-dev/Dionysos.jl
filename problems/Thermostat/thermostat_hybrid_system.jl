@@ -77,6 +77,42 @@ function system(;
     return HS.HybridSystem(automaton, modes_systems, reset_maps, switchings)
 end
 
+"""
+    system_time_free(; params, _X_, _Uoff_, _Uon_)
+
+Thermostat hybrid system whose modes are **plain physical systems** (no time
+subsystem): the abstraction therefore carries no time axis and its augmented state
+is `(temperature, mode)`. Guards and the reset act on the temperature alone.
+"""
+function system_time_free(;
+    params::Params = Params(),
+    _X_ = UT.box(SVector(17.0), SVector(25.0)),
+    _Uoff_ = UT.box(SVector(0.0), SVector(0.0)),
+    _Uon_ = UT.box(SVector(0.2), SVector(1.0)),
+)
+    off_system = MS.ConstrainedBlackBoxControlContinuousSystem(
+        off_dynamics(params),
+        1,
+        1,
+        _X_,
+        _Uoff_,
+    )
+    on_system =
+        MS.ConstrainedBlackBoxControlContinuousSystem(on_dynamics(params), 1, 1, _X_, _Uon_)
+
+    # Plain modes — no `VectorContinuousSystem`, no clock subsystem.
+    modes_systems = [off_system, on_system]
+
+    reset_maps = [ThermostatIdentityResetMap(_X_), ThermostatIdentityResetMap(_X_)]  # identity on T
+
+    automaton = HS.GraphAutomaton(2)
+    HS.add_transition!(automaton, 1, 2, 1)
+    HS.add_transition!(automaton, 2, 1, 2)
+    switchings = [HS.AutonomousSwitching(), HS.AutonomousSwitching()]
+
+    return HS.HybridSystem(automaton, modes_systems, reset_maps, switchings)
+end
+
 function jacobian_bounds(params::Params = Params())
     return [u -> SMatrix{1, 1}(-params.alpha), u -> SMatrix{1, 1}(-params.alpha)]
 end
@@ -88,9 +124,9 @@ function make_cost_function(;
     exp_gain = 1000.0,
     u_soft = 0.4,
 )
+    # `aug_state` is `(x, t, mode)` (timed) or `(x, mode)` (time-free); the cost only
+    # depends on the applied input `u`, so it is arity-agnostic.
     return function (aug_state, u)
-        (x, t, k) = aug_state
-
         if isa(u, String) && occursin("SWITCH", u)
             return switch_cost
         end
@@ -140,5 +176,36 @@ function optimal_control_problem(;
 end
 
 problem(; kwargs...) = optimal_control_problem(; kwargs...)
+
+"""
+    optimal_control_problem_time_free(; params, initial_temperature, initial_mode, target)
+
+Reach `target` (a temperature interval) in either mode, with **no time constraint**,
+over the time-free [`system_time_free`](@ref) hybrid. The augmented state is
+`(temperature, mode)` and the target is a mode-indexed [`StateSpec`](@ref) — no time
+window is involved.
+"""
+function optimal_control_problem_time_free(;
+    params::Params = Params(),
+    initial_temperature = 18.0,
+    initial_mode = 1,
+    target = UT.box(SVector(21.0), SVector(23.0)),
+)
+    hybrid_system = system_time_free(; params = params)
+
+    initial_state = (SVector(initial_temperature), initial_mode)  # (temperature, mode)
+
+    target_set = PR.HybridSpec(Dict(1 => PR.StateSpec(target), 2 => PR.StateSpec(target)))
+
+    return PR.OptimalControlProblem(
+        hybrid_system,
+        initial_state,
+        target_set,
+        nothing,
+        make_cost_function(),
+    )
+end
+
+problem_time_free(; kwargs...) = optimal_control_problem_time_free(; kwargs...)
 
 end
