@@ -114,3 +114,9 @@ function get_full_psd_matrix(f::QuadraticStateControlFunction)
         f.q' f.r' f.v
     ]
 end
+
+# Canonical `[x; u; 1]` PSD cost matrix, so every SDP/MIQP consumer converts a
+# transition cost the same way instead of re-deriving the dispatch. A raw matrix
+# is assumed to already be in this form.
+_cost_matrix(M::AbstractMatrix) = M
+_cost_matrix(f::QuadraticStateControlFunction) = get_full_psd_matrix(f)

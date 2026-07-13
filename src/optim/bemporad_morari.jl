@@ -354,6 +354,21 @@ function hybrid_cost(
     cost = first(costs)
     return u' * cost.Q * u, δ
 end
+# Joint state-input quadratic `x'Qx + u'Ru + 2(x'Nu + x'q + u'r) + v`; the one
+# cost type portable across the abstraction (callable), SDP (`_cost_matrix`) and
+# MIQP (here) solver families.
+function hybrid_cost(
+    model,
+    costs::Fill{<:UT.QuadraticStateControlFunction},
+    x,
+    u,
+    δ,
+    ::Type{T},
+) where {T}
+    c = first(costs)
+    expr = x' * c.Q * x + u' * c.R * u + 2 * (x' * c.N * u + x' * c.q + u' * c.r) + c.v
+    return expr, δ
+end
 function hybrid_cost(
     model,
     costs::Fill{<:UT.PolyhedralFunction},

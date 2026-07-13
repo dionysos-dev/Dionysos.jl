@@ -55,7 +55,8 @@ Base.@kwdef mutable struct EllipsoidalBackwardOptions
     maxδu::Float64 = 0.5
     λ::Float64 = 1.0
     terminal_shape::Union{Nothing, Matrix{Float64}} = nothing
-    transition_cost::Union{Nothing, UT.ScalarControlFunction, Matrix{Float64}} = nothing
+    transition_cost::Union{Nothing, UT.QuadraticStateControlFunction, Matrix{Float64}} =
+        nothing
     state_scaling::Union{Nothing, Matrix{Float64}} = nothing
 
     # Used when adaptive_boxes === nothing or adaptive_boxes.enabled == false
@@ -225,16 +226,9 @@ function _identity_transition_cost(nx::Int, nu::Int)
 end
 
 function _transition_cost_matrix(cost, nx, nu)
-    if cost === nothing
-        return _identity_transition_cost(nx, nu)
-    elseif cost isa Matrix
-        S = Matrix{Float64}(cost)
-    elseif cost isa UT.QuadraticStateControlFunction
-        S = Matrix{Float64}(UT.get_full_psd_matrix(cost))
-    else
-        error("Unsupported transition cost type: $(typeof(cost))")
-    end
-
+    S =
+        cost === nothing ? _identity_transition_cost(nx, nu) :
+        Matrix{Float64}(UT._cost_matrix(cost))
     @assert size(S) == (nx + nu + 1, nx + nu + 1)
     return S
 end
