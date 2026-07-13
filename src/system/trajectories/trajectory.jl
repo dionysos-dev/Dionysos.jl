@@ -28,6 +28,13 @@ function last_mode(system, traj::AutomatonPath)
     end
 end
 Base.length(traj::AutomatonPath) = length(traj.transitions)
+
+"""
+    append(traj::AutomatonPath, t) -> AutomatonPath
+
+Return a copy of `traj` with the transition `t` appended — the growth step used by
+the branch-and-bound search to extend a candidate path.
+"""
 function append(traj::AutomatonPath, t)
     return AutomatonPath(traj.q_0, [traj.transitions; t])
 end

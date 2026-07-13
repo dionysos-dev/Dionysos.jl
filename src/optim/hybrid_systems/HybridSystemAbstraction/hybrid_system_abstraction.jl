@@ -212,6 +212,14 @@ function _hybrid_step_map(hs::HybridSystem, tsteps)
     end
 end
 
+"""
+    get_closed_loop_trajectory(hs::HybridSystem, controller, tsteps, aug_state_0, nstep; stopping = x -> false)
+
+Simulate the hybrid closed loop for at most `nstep` steps and return the raw
+`(aug_x_traj, u_traj)` pair, where each augmented state is `(x[, t], mode)`. It reuses
+the generic `System.get_closed_loop_trajectory` engine; pass the result to
+`channelled_trajectory` to obtain a channelled `Trajectory`.
+"""
 function get_closed_loop_trajectory(
     hs::HybridSystem,
     controller::ST.AbstractController,
