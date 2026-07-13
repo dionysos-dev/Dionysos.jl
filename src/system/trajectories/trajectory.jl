@@ -69,6 +69,19 @@ struct Trajectory{S, I, T, M, Q}
     memory::Q
 end
 
+# Fail fast on inconsistent channels: the `states` channel sets the length `n`;
+# `inputs` is per-transition (`n - 1`), every other channel is per-state (`n`).
+# A `nothing` channel is simply absent.
+function _check_channel_length(name, channel, expected)
+    channel === nothing && return nothing
+    length(channel) == expected || throw(
+        DimensionMismatch(
+            "$name channel has length $(length(channel)); expected $expected",
+        ),
+    )
+    return nothing
+end
+
 function Trajectory(
     states::AbstractVector;
     inputs = nothing,
@@ -76,6 +89,11 @@ function Trajectory(
     modes = nothing,
     memory = nothing,
 )
+    n = length(states)
+    _check_channel_length("inputs", inputs, n - 1)
+    _check_channel_length("times", times, n)
+    _check_channel_length("modes", modes, n)
+    _check_channel_length("memory", memory, n)
     return Trajectory(states, inputs, times, modes, memory)
 end
 

@@ -102,10 +102,16 @@ ReachAndStayProblem(system, initial_set, target_set, safe_set) =
 
 function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
     xs = traj.states
+    isempty(xs) && return false
+
     first(xs) ∈ problem.initial_set || return false
     all(x -> x ∈ problem.safe_set, xs) || return false
 
-    return any(k -> all(x -> x ∈ problem.target_set, xs[k:end]), eachindex(xs))
+    # Eventually-always-in-target: some suffix `xs[k:end]` lies entirely in the
+    # target. Every such suffix contains `xs[end]`, and the length-1 suffix at
+    # `k = length(xs)` witnesses it, so this reduces to the last state being in
+    # the target.
+    return last(xs) ∈ problem.target_set
 end
 
 """

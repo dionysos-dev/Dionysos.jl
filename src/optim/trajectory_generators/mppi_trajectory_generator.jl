@@ -221,7 +221,10 @@ function _rollout_controls(
         push!(xs, x)
     end
 
-    return ST.Trajectory(xs; inputs = us)
+    # A hard-constraint break truncates the state rollout while `us` still holds
+    # the full horizon; keep only the inputs actually applied so the channel
+    # invariant (states = inputs + 1) holds.
+    return ST.Trajectory(xs; inputs = us[1:(length(xs) - 1)])
 end
 
 function _sample_perturbed_controls(gen::TrajectoryGenerator, rng, u_nom::AbstractVector)

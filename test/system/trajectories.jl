@@ -65,9 +65,9 @@ end
     c2 = c(xs[2], us[2])
     @test out.total_cost ≈ (c1 + c2)
 
-    # mismatched lengths should assert (3 states but only 1 input)
-    bad = ST.Trajectory(xs; inputs = [@SVector([0.0, 0.0])])
-    @test_throws AssertionError ST.get_cost_trajectory(bad, c)
+    # mismatched channel lengths are rejected at construction (3 states need 2 inputs)
+    @test_throws DimensionMismatch ST.Trajectory(xs; inputs = [@SVector([0.0, 0.0])])
+    @test_throws DimensionMismatch ST.Trajectory(xs; modes = [1, 1])
 
     # a state-only trajectory has no input channel
     stateonly = ST.Trajectory(xs)
