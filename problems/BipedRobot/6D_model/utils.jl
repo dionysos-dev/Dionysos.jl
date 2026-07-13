@@ -44,12 +44,12 @@ function get_concrete_trajectory_from_abstract(
 )
     concrete_state_traj, concrete_input_traj = [], []
     for k in 1:ST.length(abstract_state_trajectory)
-        abstract_state = ST.get_elem(abstract_state_trajectory, k)
+        abstract_state = ST.states(abstract_state_trajectory)[k]
         concrete_state = SY.get_concrete_state(abstract_system, abstract_state)
         push!(concrete_state_traj, concrete_state)
 
         if k<ST.length(abstract_state_trajectory)
-            abstract_input = ST.get_elem(abstract_input_trajectory, k)
+            abstract_input = ST.states(abstract_input_trajectory)[k]
             concrete_input = SY.get_concrete_input(abstract_system, abstract_input)
             push!(concrete_input_traj, concrete_input)
         end
