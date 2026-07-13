@@ -3,7 +3,11 @@ module PostProc
 using StaticArrays
 using Plots
 using LazySets
-using ..Geometry
+
+include("./robot_vcontrol.jl")
+import .RobotVelocity
+
+const Geometry = RobotVelocity.Geometry
 
 
 const PLOT = plot(aspect_ratio=:equal, xlim=(-0.5, 0.5), ylim=(-0.05, 0.45), legend=false, xlabel="x (m)", ylabel="y (m)")

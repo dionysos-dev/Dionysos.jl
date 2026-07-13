@@ -4,10 +4,14 @@ using Dionysos
 using JuMP
 using LinearAlgebra
 using JLD2
+using LazySets
 import MathOptInterface as MOI
 
 include("./robot_vcontrol.jl")
 import .RobotVelocity as RV
+
+include("./postproc.jl")
+import .PostProc
 
 const DI = Dionysos
 const UT = DI.Utils
@@ -21,16 +25,21 @@ const OPDS = OP.DiscreteSystems
 #----------------------
 # Save-load settings 
 #----------------------
-save = true
-load = false
+save = false
+load = true
 animate = true
-filename = "./problems/BipedRobot/4D_model_vcontrol/optimizer.jld2"
+# filename = "./problems/BipedRobot/4D_model_vcontrol/optimizer.jld2"
+filename = "/globalscratch/ucl/inma/rbert/optimizer.jld2"
 
 # ------------------------------------------------------------
 # 1) Define a simple 4D continuous-time system: x' = u
 # ------------------------------------------------------------
 
 robot_geometry = RV.Geometry.geometry(0.0, 0.202, 0.172)
+
+# State constraints
+# obstacle = UT.HyperRectangle(SVector(-0.03, 0.0), SVector(0.03,0.03))
+obstacle = LazySets.Polygon([SVector(-0.08, 0.0), SVector(0.0, 0.05), SVector(0.08, 0.0)])
 
 if load
     optimizer = JLD2.load(filename, "optimizer")
@@ -59,7 +68,6 @@ else
     state_grid = MP.GridFree(x0, hx)
 
     # State constraints
-    obstacle = UT.HyperRectangle(SVector(-0.03, 0.0), SVector(0.03,0.05))
 
     _X_ = RV.RobotModel.remove_infeasible_cells(
         full_X_,
@@ -67,7 +75,6 @@ else
         obstacle,
         robot_geometry, true
     )
-    # _X_ = full_X_
 
     # Input space
     u_bar = 10*dx
@@ -208,13 +215,14 @@ elseif animate
     # plot!(fig, x_traj; color = :blue, dims = [1, 2])
     # display(fig)
 
-    RV.PostProc.animate_robot(
+    PostProc.animate_robot(
         x_traj.seq,
         0.5,
         robot_geometry;
         grounded_left_foot=true,
         obstacle = obstacle,
-        add_obstacle = true
+        add_obstacle = true,
+        filename="./4D_model_vcontrol/walking_robot.gif"
     )
 
     #p = RV.PostProc.plot_configuration_interval(_T_.lb, _T_.ub, robot_geometry, true; p = p)

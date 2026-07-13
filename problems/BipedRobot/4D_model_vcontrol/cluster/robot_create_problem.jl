@@ -4,6 +4,7 @@ using Dionysos
 using JuMP
 using LinearAlgebra
 using JLD2
+using LazySets
 import MathOptInterface as MOI
 
 include("../robot_vcontrol.jl")
@@ -37,12 +38,13 @@ full_X_ = UT.HyperRectangle(
 )
 
 # State grid resolution (hx defines TOTAL CELL WIDTH)
-dx = 0.1
+dx = 0.05
 x0 = SVector(0.0, 0.0, 0.0, 0.0)
 hx = SVector(dx, dx, dx, dx)
 state_grid = MP.GridFree(x0, hx)
 
-obstacle = UT.HyperRectangle(SVector(-0.03, 0.0), SVector(0.03,0.03))
+# obstacle = UT.HyperRectangle(SVector(-0.03, 0.0), SVector(0.03,0.03))
+obstacle = LazySets.Polygon([SVector(-0.08, 0.0), SVector(0.0, 0.05), SVector(0.08, 0.0)])
 
 # State constraints
 _X_ = RV.RobotModel.remove_infeasible_cells(
@@ -75,19 +77,3 @@ _I_ = UT.HyperRectangle(
 _T_ = RV.RobotModel.compute_target_set(state_grid, SVector(0.25, 0.0), robot_geometry, true)
 
 concrete_system = RV.RobotModel.system(; _X_ = _X_, _U_ = _U_)
-
-# concrete_problem = DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
-
-# ------------------------------------------------------------
-# 3) Define co-safe LTL problem with sets labeling
-# ------------------------------------------------------------
-
-concrete_problem =
-    DI.Problem.OptimalControlProblem(
-        concrete_system,
-        _I_,
-        _T_,
-        nothing,
-        nothing,
-        0.0
-    )

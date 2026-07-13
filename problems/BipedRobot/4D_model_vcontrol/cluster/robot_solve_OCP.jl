@@ -1,3 +1,8 @@
+import Pkg
+Pkg.instantiate()
+ 
+using Printf
+
 using StaticArrays
 using MathematicalSystems
 using Dionysos
@@ -18,31 +23,61 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 const OPDS = OP.DiscreteSystems
 
-function save_optimizer(filename::AbstractString, optimizer)
-    mkpath(dirname(filename))
-    JLD2.jldopen(filename, "w") do file
-        return file["optimizer"] = optimizer
-    end
-    return filename
-end
+# function save_optimizer(filename::AbstractString, optimizer)
+#     mkpath(dirname(filename))
+#     JLD2.jldopen(filename, "w") do file
+#         return file["optimizer"] = optimizer
+#     end
+#     return filename
+# end
 
-function load_optimizer(filename::AbstractString)
-    return JLD2.jldopen(filename, "r") do file
-        return file["optimizer"]
-    end
-end
+# function load_optimizer(filename::AbstractString)
+#     return JLD2.jldopen(filename, "r") do file
+#         return file["optimizer"]
+#     end
+# end
 
-# load_optimizer(joinpath(@__DIR__, "out/optimizer.jld2"))
+# -----------------------
+# Load optimizer
+# -----------------------
 
-filename = joinpath(@__DIR__, "out/optimizer.jld2")
-optimizer = JLD2.load(filename, "optimizer")
+outfile = get(ENV, "DIONYSOS_ABSTRACTION_FILE", "")
+optimizer = JLD2.load(outfile, "optimizer")
 
-MOI.optimize!(optimizer)
+# ------------------------------------------------------------------------------
+# Problem (OCP)
+# ------------------------------------------------------------------------------
+
+include(joinpath(@__DIR__, "robot_create_problem.jl"))
+
+concrete_problem =
+    DI.Problem.OptimalControlProblem(
+        concrete_system,
+        _I_,
+        _T_,
+        nothing,
+        nothing,
+        0.0
+    )
+
+MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+
+# ------------------------------------------------------------------------------
+# Solve OCP
+# ------------------------------------------------------------------------------
+
+@info "Solving the OCP on the loaded abstraction"
+
+t_solve = @elapsed MOI.optimize!(optimizer)
 
 success = MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
-println("OptimalControlProblem success: $success")
 
 if success
-    # save_optimizer(joinpath(@__DIR__, "out/optimizer.jld2"), optimizer)
-    JLD2.jldsave(filename; optimizer = optimizer)
+    t_save = @elapsed JLD2.jldsave(outfile; optimizer = optimizer)
+    @printf("OptimalControlProblem success!")
+    @printf("Solve time:                   %.3f s\n", t_solve)
+    @printf("Save time:                    %.3f s\n", t_save)
+    @info "Saved solved optimizer" outfile
+else
+    @printf("No solution found for OptimalControlProblem")
 end

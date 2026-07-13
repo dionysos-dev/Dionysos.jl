@@ -66,10 +66,12 @@ function build_optimizer(
 end
  
 # ------------------------------------------------------------------------------
-# Problem
+# Problem (ASR)
 # ------------------------------------------------------------------------------
  
 include(joinpath(@__DIR__, "robot_create_problem.jl"))
+
+concrete_problem = DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
  
 # ------------------------------------------------------------------------------
 # Chunk parameters

@@ -85,12 +85,14 @@ end
 # ------------------------------------------------------------------------------
 
 include(joinpath(@__DIR__, "robot_create_problem.jl"))
+
+concrete_problem = DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
  
 # ------------------------------------------------------------------------------
 # Slurm Parameters
 # ------------------------------------------------------------------------------
  
-nchunks = 2
+nchunks = 100
 outdir = get(ENV, "DIONYSOS_TRANSITION_OUTDIR", "")
 outfile = get(ENV, "DIONYSOS_ABSTRACTION_FILE", "")
 

@@ -1,13 +1,13 @@
 module RobotModel
 
 using StaticArrays
-using Plots
+# using Plots
 using Dionysos
 using MathematicalSystems
 using LinearAlgebra
 
 using ..Geometry
-using ..PostProc
+# using ..PostProc
 
 const UT = Dionysos.Utils
 const PB = Dionysos.Problem
