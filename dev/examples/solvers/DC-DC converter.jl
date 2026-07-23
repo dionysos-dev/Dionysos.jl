@@ -87,7 +87,7 @@ invariant_set_complement =
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -97,7 +97,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 fig = plot(; aspect_ratio = :equal);
 plot!(concrete_system.X; label = "", color = :grey);
 plot!(concrete_problem.initial_set; color = :green, label = "");
-plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
+plot!(traj; arrows = false, ms = 2.0, color = :blue)
 
 # ## Variant: exploiting the incremental stability of the system
 # ### Definition of the system
@@ -152,7 +152,7 @@ println("Total time: $(total_time)")
 # as well as the true initial state `x0` which is contained in the initial state-space defined previously.
 nstep = 300
 x0 = SVector(1.2, 5.6)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -169,7 +169,7 @@ plot!(
     label = "Invariant set complement",
 )
 plot!(concrete_problem.initial_set; color = :green, label = "");
-plot!(x_traj; arrows = false, ms = 2.0, color = :blue)
+plot!(traj; arrows = false, ms = 2.0, color = :blue)
 
 # ## References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.

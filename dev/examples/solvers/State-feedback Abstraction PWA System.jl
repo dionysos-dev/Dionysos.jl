@@ -146,7 +146,7 @@ end
 
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     concrete_system,
     concrete_controller,
     x0,
@@ -154,7 +154,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
     f_map_override = f_eval1,
 )
-c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+c_traj, cost_true = ST.get_cost_trajectory(traj, cost_eval)
 cost_bound = concrete_value_function(x0)
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
@@ -181,7 +181,7 @@ plot!(
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
+plot!(traj; ms = 2.0, arrows = false, color = :blue)
 
 # ## References
 #

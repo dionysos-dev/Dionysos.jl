@@ -64,7 +64,7 @@ reached(x) = x ∈ concrete_problem.target_set
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time; # max num of steps
 
 x0 = LazySets.center(concrete_problem.initial_set)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     concrete_system,
     concrete_controller,
     x0,
@@ -72,7 +72,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
     stopping = reached,
     f_map_override = (x, u) -> concrete_system.f_eval(x, u, [0, 0]),
 )
-c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+c_traj, cost_true = ST.get_cost_trajectory(traj, cost_eval)
 cost_bound = concrete_lyap_fun(x0);
 println("Goal set reached")
 println("Guaranteed cost:\t $(cost_bound)")
@@ -125,6 +125,6 @@ for obs in obstacles
     plot!(obs; color = :black)
 end
 plot!(abstract_system; with_arrows = false, cost = true);
-plot!(x_traj; color = :black)
+plot!(traj; color = :black)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

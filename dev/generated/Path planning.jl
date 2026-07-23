@@ -84,7 +84,7 @@ nstep = 100
 reached(x) = x ∈ concrete_problem.target_set
 
 x0 = SVector(0.4, 0.4, 0.0)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
@@ -124,6 +124,6 @@ plot!(
     efficient = false,
 );
 
-plot!(x_traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, arrows = false)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
