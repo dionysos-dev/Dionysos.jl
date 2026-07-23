@@ -143,7 +143,7 @@ end
 function learn(
     ::DiscreteLowerBound,
     prob,
-    ::ST.DiscreteTrajectory,
+    ::ST.AutomatonPath,
     ::ST.ContinuousTrajectory,
     ::DiscreteLowerBoundAlgo,
 ) end
@@ -231,14 +231,14 @@ end
 function learn(
     ::HybridDualDynamicProgramming,
     prob,
-    ::ST.DiscreteTrajectory,
+    ::ST.AutomatonPath,
     ::ST.ContinuousTrajectory,
     ::DiscreteLowerBoundAlgo,
 ) end
 function learn(
     Q::HybridDualDynamicProgramming,
     prob,
-    dtraj::ST.DiscreteTrajectory,
+    dtraj::ST.AutomatonPath,
     ctraj::ST.ContinuousTrajectory,
     algo::HybridDualDynamicProgrammingAlgo{T},
 ) where {T}

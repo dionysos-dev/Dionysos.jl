@@ -109,7 +109,7 @@ nstep = 100
 reached(x) = x ∈ concrete_problem.target_set
 
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x0,
@@ -127,4 +127,4 @@ plot!(concrete_system.X; color = :grey, label = "");
 
 # We display the specifications
 plot!(concrete_problem);
-plot!(x_traj; markersize = 1, arrows = false)
+plot!(traj; markersize = 1, arrows = false)

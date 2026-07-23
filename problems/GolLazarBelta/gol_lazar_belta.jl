@@ -162,8 +162,8 @@ and set `N` as the search depth, i.e., the number of allowed time steps.
 
 We instantiate our Optimal Control Problem by defining the state and transition costs.
 Notice that `state_cost` is defined to be zero for each mode/discrete state
-of the system and the `transition_cost` is defined to be `u_1^2` which is defined by the
-quadratic form `u' * Q * u` with `Q = ones(1, 1)`.
+of the system and the `transition_cost` is defined to be `u_1^2`, expressed as a
+`QuadraticStateControlFunction` whose only nonzero block is the input weight `R = ones(1, 1)`.
 
 Notice that we used `Fill` for all `N` time steps as we consider time-invariant costs.
 """
@@ -184,7 +184,16 @@ function problem(
             UT.ConstantFunction(one(T)) for mode in modes(sys)
         ]
     end
-    transition_cost = UT.QuadraticFunction(ones(T, 1, 1))
+    # transition cost u₁² as the joint state-input quadratic form (portable across
+    # the abstraction, SDP and MIQP solver families): only the input block R is set.
+    transition_cost = UT.QuadraticStateControlFunction(
+        zeros(T, 2, 2),   # Q (state)
+        ones(T, 1, 1),    # R (input) -> u'Ru = u₁²
+        zeros(T, 2, 1),   # N (state-input cross)
+        zeros(T, 2),      # q (state linear)
+        zeros(T, 1),      # r (input linear)
+        zero(T),          # v (constant)
+    )
     problem = PR.OptimalControlProblem(
         sys,
         (q_0, x_0),

@@ -125,7 +125,7 @@ end
 
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -137,7 +137,7 @@ x_traj, u_traj = ST.get_closed_loop_trajectory(
 # Check finite simulated reach-and-stay behavior
 # ------------------------------------------------------------
 
-success_check = PR.trajectory_success(concrete_problem, x_traj)
+success_check = PR.trajectory_success(concrete_problem, traj)
 
 println("Simulation eventually stays in target over sampled horizon: $(success_check)")
 
@@ -167,7 +167,7 @@ plot!(
 
 plot!(target_set; color = :red, opacity = 0.8, label = "Target set")
 
-plot!(x_traj; ms = 2.0, arrows = false, label = "Closed-loop trajectory")
+plot!(traj; ms = 2.0, arrows = false, label = "Closed-loop trajectory")
 
 display(fig)
 
@@ -179,8 +179,7 @@ system_plot! = SimplePendulum.system_plot!(; params = params)
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1,),
     Δt = Δt,

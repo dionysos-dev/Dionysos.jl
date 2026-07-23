@@ -1,7 +1,9 @@
 # Overview
 
-Dionysos designs a controller for a system ``\mathcal{S}`` so that the closed loop satisfies a
-specification ``\Sigma``, where:
+Dionysos delivers **Control as a Service**: you describe a system and a specification, and it returns a
+certified controller — no bespoke, expert-crafted design required. Concretely, Dionysos designs a
+controller for a system ``\mathcal{S}`` so that the closed loop satisfies a specification ``\Sigma``,
+where:
 
 - the system ``\mathcal{S}`` is a
   [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem)

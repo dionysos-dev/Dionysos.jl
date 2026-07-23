@@ -100,7 +100,7 @@ discrete_system = ST.discretize_continuous_system(concrete_system, Δt; num_subs
 x0 = SVector(18.2)
 nstep = 50
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     discrete_system,
     concrete_controller,
     x0,
@@ -120,8 +120,7 @@ system_plot! = ThermostatContinuousSystem.system_plot!(;
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1,),
     udims = (1,),
     Δt = Δt,

@@ -63,7 +63,7 @@ end
 
 function visualize_trajectory!(x_traj; robot_urdf::AbstractString, tstep::Float64)
     rs, vis = RSVisualization.get_visualization_tool(; robot_urdf = robot_urdf)
-    RSVisualization.animate_trajectory!(vis, x_traj.seq; dt = tstep)
+    RSVisualization.animate_trajectory!(vis, ST.states(x_traj); dt = tstep)
 
     println(
         "MeshCat visualizer opened. Keep this Julia session alive to view the animation.",
@@ -73,7 +73,7 @@ end
 
 if USE_TEST_TRAJECTORY
     x_traj = make_test_trajectory(; N = NSTEP, dt = TSTEP)
-    println("Synthetic trajectory length: ", length(x_traj.seq))
+    println("Synthetic trajectory length: ", length(ST.states(x_traj)))
 else
     @info "Loading controller" CONTROLLER_FILE
     data = load_controller_data(CONTROLLER_FILE)
@@ -108,7 +108,7 @@ else
     @info "Simulating closed loop" NSTEP
 
     t_sim = @elapsed begin
-        global x_traj, u_traj = ST.get_closed_loop_trajectory(
+        global traj = ST.get_closed_loop_trajectory(
             concrete_system,
             controller,
             x0,
@@ -122,9 +122,9 @@ else
     @printf("Simulation time: %.3f s\n", t_sim)
 end
 
-println("Trajectory length: ", length(x_traj.seq))
+println("Trajectory length: ", length(ST.states(x_traj)))
 println("Final state:")
-println(last(x_traj.seq))
+println(last(ST.states(x_traj)))
 
 if VISUALIZE_TRAJECTORY
     global rs, vis =

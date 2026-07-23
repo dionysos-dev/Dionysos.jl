@@ -1,10 +1,16 @@
 # Closed-loop simulation of a system under a controller — one engine for both
 # controller kinds (static controllers run with `mem = nothing` and skip the
 # memory update) and, via `f_map_override`, for other evolution models (the
-# automaton simulation in `Symbolic` routes through here).
+# automaton simulation in `Symbolic` and the hybrid simulation both route
+# through here).
+
+# Finiteness check tolerant of nested/heterogeneous states — e.g. the augmented
+# `(x, t, mode)` tuples of the hybrid simulation, not just flat numeric vectors.
+_all_finite(x::Number) = isfinite(x)
+_all_finite(x) = all(_all_finite, x)
 
 """
-    get_closed_loop_trajectory(system, controller, x0, nstep; kwargs...) -> ClosedLoopTrajectory
+    get_closed_loop_trajectory(system, controller, x0, nstep; kwargs...) -> Trajectory
 
 Simulate the closed loop for at most `nstep` steps and return the visited
 states/inputs (plus the controller-memory trajectory `q` for dynamic
@@ -16,7 +22,10 @@ Keyword arguments: `meas` (measurement map, default `identity`), `stopping`,
 `trajectory_success`, `wrap` (state normalization, e.g. periodic wrapping),
 `update_on_next` (feed the *next* measurement to `update_state`),
 `f_map_override` (replace `MathematicalSystems.mapping(system)` as the step
-function; may return `nothing` for "no successor"), `verbose`.
+function; may return `nothing` for "no successor"), `input_type` (element type
+of the recorded input channel; defaults to the type of the first input — pass
+`Any` when inputs are heterogeneous, e.g. continuous inputs mixed with hybrid
+switching labels), `verbose`.
 """
 function get_closed_loop_trajectory(
     system,
@@ -29,6 +38,7 @@ function get_closed_loop_trajectory(
     wrap = identity,
     update_on_next::Bool = false,
     f_map_override = nothing,
+    input_type::Union{Nothing, Type} = nothing,
     verbose::Bool = false,
 )
     isdyn = controller_kind(controller) isa DynamicKind
@@ -40,14 +50,10 @@ function get_closed_loop_trajectory(
     xs = Vector{typeof(x)}()
     push!(xs, x)
 
-    us = nothing
+    us = input_type === nothing ? nothing : Vector{input_type}()
     mems = isdyn ? Vector{typeof(mem)}([mem]) : nothing
 
-    _result() = ClosedLoopTrajectory(
-        Trajectory(xs),
-        Trajectory(us === nothing ? Any[] : us),
-        mems === nothing ? nothing : Trajectory(mems),
-    )
+    _result() = Trajectory(xs; inputs = us === nothing ? Any[] : us, memory = mems)
 
     if trajectory_success(Trajectory(xs))
         verbose &&
@@ -85,7 +91,7 @@ function get_closed_loop_trajectory(
 
         xnext = wrap(xnext_raw)
 
-        if any(!isfinite, xnext)
+        if !_all_finite(xnext)
             verbose &&
                 @warn "Closed-loop simulation stopped: non-finite next state" step = k state =
                     x input = u next_state = xnext

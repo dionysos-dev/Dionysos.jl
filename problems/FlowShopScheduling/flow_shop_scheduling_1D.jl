@@ -164,10 +164,8 @@ function problem()
     # Initial state and target set
     initial_state = ([-0.5], 0.0, 1)
 
-    Xs_target = [UT.box([8.0], [10.0])]
-    Ts_target = [UT.box([10.0], [13.0])]
-    Ns_target = [5]
-    target_set = (Xs_target, Ts_target, Ns_target)
+    target_set =
+        PR.hybrid_reach_spec([UT.box([8.0], [10.0])], [UT.box([10.0], [13.0])], [5])
 
     # Cost Function
     mode_weights = [3.0, 11.0, 1.5, 1.2, 2.5]

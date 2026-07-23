@@ -27,19 +27,19 @@ struct GlobalInputMap
 end
 
 """
-    GlobalInputMap(mode_abstractions, hs::HybridSystem)
+    GlobalInputMap(mode_models, hs::HybridSystem)
 
-Build the [`GlobalInputMap`](@ref) for a hybrid system from its per-mode
-`(symbolic_dynamics, symbolic_time)` abstractions: continuous inputs are laid
-out mode by mode, then one switching input per hybrid-automaton transition.
+Build the [`GlobalInputMap`](@ref) for a hybrid system from its per-mode symbolic
+models: continuous inputs are laid out mode by mode, then one switching input per
+hybrid-automaton transition.
 """
-function GlobalInputMap(abstract_systems, hs::HybridSystem)
+function GlobalInputMap(mode_models, hs::HybridSystem)
     # Step 1: Allocate continuous inputs
     continuous_to_global = Dict{Tuple{Int, Int}, Int}()
     global_to_continuous = Dict{Int, Tuple{Int, Int}}()
     continuous_count = 0
-    for (mode_id, (symmodel_dynam, _)) in enumerate(abstract_systems)
-        input_count = get_n_input(symmodel_dynam)
+    for (mode_id, mode_model) in enumerate(mode_models)
+        input_count = get_n_input(mode_model)
         for local_input_id in 1:input_count
             global_id = continuous_count + local_input_id
             continuous_to_global[(mode_id, local_input_id)] = global_id

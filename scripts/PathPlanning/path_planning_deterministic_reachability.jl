@@ -72,7 +72,7 @@ println(
     "Worst-case (upper bound) value for the initial point: ",
     concrete_value_function(x0),
 )
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -106,7 +106,7 @@ plot!(
     color = :red,
     efficient = false,
 )
-plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
+plot!(traj; ms = 2.0, arrows = false, color = :blue)
 display(fig)
 
 ####################################################################################
@@ -164,7 +164,7 @@ println(
     concrete_value_function(x0),
 )
 
-new_x_traj, new_u_traj = ST.get_closed_loop_trajectory(
+new_traj = ST.get_closed_loop_trajectory(
     MOI.get(new_optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -198,6 +198,6 @@ plot!(
     color = :red,
     efficient = false,
 )
-plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
-plot!(new_x_traj; ms = 2.0, arrows = false, color = :red)
+plot!(traj; ms = 2.0, arrows = false, color = :blue)
+plot!(new_traj; ms = 2.0, arrows = false, color = :red)
 display(fig)

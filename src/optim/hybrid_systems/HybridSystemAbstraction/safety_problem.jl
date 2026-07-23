@@ -1,7 +1,7 @@
 mutable struct OptimizerSafetyProblem{T} <: OP.AbstractDionysosOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
-    abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
+    abstract_system::Union{Nothing, SY.HybridSymbolicModel}
     print_level::Int
 
     # Outputs
@@ -88,19 +88,14 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.SafetyProblem,
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set
-    abstract_initial_set = [SY.get_abstract_state(abstract_system, concrete_initial_state)]
+    q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
+    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
+    abstract_initial_set = [q0]
 
-    concrete_safe_set = concrete_problem.safe_set
-    abstract_safe_set = SY.get_states_from_set(
-        abstract_system,
-        concrete_safe_set[1], # state sets
-        concrete_safe_set[2], # time sets
-        concrete_safe_set[3]; # mode list
-        domain = MP.OUTER, # TODO MP.INNER
-    )
+    abstract_safe_set = SY.states_satisfying(abstract_system, concrete_problem.safe_set)
 
     return PR.SafetyProblem(
         SY.get_automaton(abstract_system),
@@ -111,17 +106,5 @@ function build_abstract_problem(
 end
 
 function safe(concrete_problem::PR.SafetyProblem, aug_state)
-    (x, t, k) = aug_state
-    (Xs_safe, Ts_safe, Ns_safe) = concrete_problem.safe_set
-
-    idx = findfirst(==(k), Ns_safe)
-    isnothing(idx) && return false
-
-    X_set = Xs_safe[idx]
-    T_set = Ts_safe[idx]
-
-    in_X = x ∈ X_set
-    in_T = LazySets.low(T_set, 1) <= t <= LazySets.high(T_set, 1)
-
-    return in_X && in_T
+    return PR.satisfies(concrete_problem.safe_set, aug_state...)
 end

@@ -65,7 +65,7 @@ _set_size(s, mapping) = s === nothing ? 0 : MP.get_n_state(s, mapping)
         100;
         stopping = reached,
     )
-    reaches_target = any(reached, collect(ST.enum_elems(traj.x)))
+    reaches_target = any(reached, collect(ST.states(traj)))
 
     if SHOW_SIG
         @info "UniformGrid reachability signature" n_state n_transitions n_controllable success reaches_target typeof(

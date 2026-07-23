@@ -165,7 +165,7 @@ concrete_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_con
 x0 = SVector(-1.65, -1.65)
 nstep = 60
 
-x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
     concrete_controller,
     x0,
@@ -174,7 +174,7 @@ x_traj, u_traj, q_traj = ST.get_closed_loop_trajectory(
     stopping = x -> false,
 )
 
-println("Trajectory length: ", length(x_traj.seq))
+println("Trajectory length: ", length(ST.states(traj)))
 
 # ------------------------------------------------------------
 # 6) Plot
@@ -187,7 +187,7 @@ plot!(
     ap_colors = Dict(:g1 => :red, :g2 => :cyan, :g3 => :orange, :obs => :black),
     aspect_ratio = :equal,
 )
-plot!(fig, x_traj; color = :blue, dims = [1, 2])
+plot!(fig, traj; color = :blue, dims = [1, 2])
 display(fig)
 
 # ------------------------------------------------------------
@@ -198,8 +198,7 @@ system_plot! = ToyProblem.system_plot!()
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
-    x_traj,
-    u_traj;
+    traj;
     xdims = (1, 2),
     udims = (1, 2),
     Δt = Δt,

@@ -35,7 +35,7 @@ mutable struct TrajectoryGenerator <: AbstractTrajectoryGenerator
     # Maximum number of closed-loop simulation steps.
 
     # Outputs
-    trajectory::Union{Nothing, ST.ClosedLoopTrajectory}
+    trajectory::Union{Nothing, ST.Trajectory}
     success::Bool
     solve_time_sec::Float64
 end
@@ -78,7 +78,7 @@ function generate!(gen::TrajectoryGenerator)
         gen.concrete ? _generate_concrete_trajectory(gen) :
         _generate_abstract_trajectory(gen)
 
-    gen.success = PR.trajectory_success(problem, gen.trajectory.x)
+    gen.success = PR.trajectory_success(problem, gen.trajectory)
 
     return gen
 end
@@ -131,11 +131,11 @@ function _generate_abstract_trajectory(gen::TrajectoryGenerator)
         trajectory_success = qtraj -> PR.trajectory_success(abstract_problem, qtraj),
     )
 
-    xs = [SY.get_concrete_state(abstract_system, q) for q in traj_abs.x.seq]
+    xs = [SY.get_concrete_state(abstract_system, q) for q in ST.states(traj_abs)]
 
-    us = [SY.get_concrete_input(abstract_system, u) for u in traj_abs.u.seq]
+    us = [SY.get_concrete_input(abstract_system, u) for u in ST.inputs(traj_abs)]
 
-    return ST.ClosedLoopTrajectory(ST.Trajectory(xs), ST.Trajectory(us))
+    return ST.Trajectory(xs; inputs = us)
 end
 
 end # end module

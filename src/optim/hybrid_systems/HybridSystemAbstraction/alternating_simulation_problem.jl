@@ -3,14 +3,14 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     # Input
     alternating_simulation_problem::Union{Nothing, PR.AlternatingSimulationProblem}
     concrete_system::Union{Nothing, HybridSystem}
-    optimizer_list::Union{Nothing, Any}
-    optimizer_kwargs_dict::Union{Nothing, Any}
+    optimizer_list::Union{Nothing, AbstractVector}
+    optimizer_kwargs_dict::Union{Nothing, AbstractVector}
 
     max_iterations::Union{Nothing, Int}
     print_level::Int
 
     # Output 
-    abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
+    abstract_system::Union{Nothing, SY.HybridSymbolicModel}
     abstraction_construction_time_sec::T
 
     function OptimizerAlternatingSimulationProblem{T}() where {T}

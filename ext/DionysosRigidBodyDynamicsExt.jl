@@ -30,7 +30,7 @@ function Dionysos.animate_mechanism_trajectory(
         end
     end
 
-    xs = collect(x_traj.seq)
+    xs = collect(ST.states(x_traj))
     isempty(xs) && error("x_traj is empty")
 
     fps === nothing && (fps = round(Int, 1 / Δt))

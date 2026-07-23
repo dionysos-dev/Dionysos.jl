@@ -236,28 +236,23 @@ for (i, t) in enumerate(HS.transitions(auto))
     end
 end
 
-# Plot the final target region
-target_set = concrete_problem.target_set
-Xs_target = target_set[1]
-Ts_target = target_set[2]
-final_x_target = Xs_target[1]
-final_t_target = Ts_target[1]
+# Plot the final target region (from the mode-indexed timed specification)
+final_spec = first(values(concrete_problem.target_set.per_mode))  # TimedSpec of the last task
+final_x_target = final_spec.base.set
 color_final = :magenta
-if !isnothing(final_x_target) && !isnothing(final_t_target)
-    x_accepted = [LazySets.low(final_x_target, 1), LazySets.high(final_x_target, 1)]
-    t_accepted = [LazySets.low(final_t_target, 1), LazySets.high(final_t_target, 1)]
-    plot!(
-        [t_accepted[1], t_accepted[2], t_accepted[2], t_accepted[1], t_accepted[1]],
-        [x_accepted[1], x_accepted[1], x_accepted[2], x_accepted[2], x_accepted[1]];
-        fill = (0, 0.25),
-        fillcolor = color_final,
-        alpha = 0.4,
-        linecolor = color_final,
-        linewidth = 3,
-        linestyle = :solid,
-        label = "Final target (problem target)",
-    )
-end
+x_accepted = [LazySets.low(final_x_target, 1), LazySets.high(final_x_target, 1)]
+t_accepted = [final_spec.tmin, final_spec.tmax]
+plot!(
+    [t_accepted[1], t_accepted[2], t_accepted[2], t_accepted[1], t_accepted[1]],
+    [x_accepted[1], x_accepted[1], x_accepted[2], x_accepted[2], x_accepted[1]];
+    fill = (0, 0.25),
+    fillcolor = color_final,
+    alpha = 0.4,
+    linecolor = color_final,
+    linewidth = 3,
+    linestyle = :solid,
+    label = "Final target (problem target)",
+)
 
 # Plot main trajectory
 plot!(

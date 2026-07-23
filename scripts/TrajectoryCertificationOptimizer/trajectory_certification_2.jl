@@ -91,8 +91,8 @@ project_input = function (u)
 end
 
 trajectory_cost = function (problem, traj)
-    xs = traj.x.seq
-    us = traj.u.seq
+    xs = ST.states(traj)
+    us = ST.inputs(traj)
 
     target_distances = [
         minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
@@ -235,7 +235,7 @@ cert_result = EB.get_result(certifier)
 
 ellipsoids = cert_result.lmi_data.ellipsoids
 
-@show length(composite_traj.x.seq)
+@show length(ST.states(composite_traj))
 @show length(ellipsoids)
 @show cert_result.success
 @show cert_result.failed_k
@@ -337,7 +337,7 @@ plot_ellipsoid_chain!(fig, cert_result; max_ellipsoids = 100)
 if composite_traj !== nothing
     plot!(
         fig,
-        composite_traj.x;
+        composite_traj;
         color = :green,
         dims = [1, 2],
         label = "Generated trajectory",

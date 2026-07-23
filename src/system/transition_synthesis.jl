@@ -106,12 +106,11 @@ _state_noise(::Any, W) = _noise_vertex_matrix(W)
 _state_noise(affsys::HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, W) =
     affsys.D * _noise_vertex_matrix(W)
 
-# The LMIs bound the cost ‖Λ·[x; u; 1]‖², i.e. the matrix argument is a
-# *factor* Λ, not the PSD matrix Λ'Λ. For a `QuadraticStateControlFunction`
-# the historical call sites pass its full PSD matrix as Λ (exact only when
-# that matrix is idempotent, e.g. the identity) — preserved verbatim here.
-_cost_matrix(Λ::AbstractMatrix) = Λ
-_cost_matrix(f::UT.QuadraticStateControlFunction) = UT.get_full_psd_matrix(f)
+# Cost conversion is centralized in `UT._cost_matrix`. Caveat specific to these
+# LMIs: they bound the cost ‖Λ·[x; u; 1]‖², i.e. the matrix argument is a
+# *factor* Λ, not the PSD matrix Λ'Λ. For a `QuadraticStateControlFunction` the
+# call sites pass its full PSD matrix as Λ (exact only when that matrix is
+# idempotent, e.g. the identity).
 
 # kappa = [K ℓ] → (K, ℓ)
 function _split_controller(kappa)
@@ -259,7 +258,7 @@ function solve_transition(
         affsys.c,
         _state_noise(affsys, W),
         _input_matrices(U),
-        _cost_matrix(cost),
+        UT._cost_matrix(cost),
         c1,
         UT.get_quadratic_form(source),
         LazySets.center(target),
@@ -441,7 +440,7 @@ function solve_transition_backward(
         affsys.c,
         _state_noise(affsys, W),
         _input_matrices(U),
-        _cost_matrix(cost),
+        UT._cost_matrix(cost),
         source_center,
         u_ref,
         LazySets.center(target),

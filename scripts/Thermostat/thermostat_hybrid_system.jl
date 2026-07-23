@@ -161,7 +161,8 @@ end
 controls = [control_value(u) for u in u_traj]
 control_times = times[1:length(controls)]
 
-target = concrete_problem.target_set[1][1]
+# Target temperature box lives in the (mode-indexed, timed) specification.
+target = concrete_problem.target_set.per_mode[1].base.set
 target_lower = LazySets.low(target, 1)
 target_upper = LazySets.high(target, 1)
 

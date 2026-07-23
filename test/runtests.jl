@@ -39,6 +39,9 @@ const TEST_FILES = [
     ("./mapping/generic_sets.jl",),
     ("./mapping/abstract_state_set.jl",),
     ("./symbolic/symbolic_model_list.jl",),
+    ("./symbolic/clock_lift.jl",),
+    ("./symbolic/lift_per_slice.jl",),
+    ("./symbolic/states_satisfying.jl",),
     ("./symbolic/allocation.jl",),
     ("./symbolic/multithreading.jl",),
     ("./symbolic/multiprocessing.jl",),
@@ -56,6 +59,7 @@ const TEST_FILES = [
     ("./optim/UniformGridAbstraction/safety.jl",),
     ("./optim/UniformGridAbstraction/reach_and_stay.jl",),
     ("./optim/UniformGridAbstraction/cosafe_ltl.jl",),
+    ("./optim/UniformGridAbstraction/clock_lifted_continuous.jl",),
     # Trajectory generators / certifiers and the PCLF bisimulation quotient.
     ("./optim/trajectory_generators.jl",),
     ("./optim/trajectory_certifiers.jl", :slow),

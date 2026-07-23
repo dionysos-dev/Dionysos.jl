@@ -41,50 +41,52 @@ function build_dynamical_symbolic_model(
 end
 
 """
-    build_mode_symbolic_abstractions(hs, optimizer_list, optimizer_kwargs_dict)
+    build_mode_symbolic_models(hs, optimizer_list, optimizer_kwargs_dict)
 
-Build the `(symbolic_dynamics, symbolic_time)` abstraction pair for every mode of
-`hs`, one optimizer configuration per mode.
+Build one symbolic model per mode of `hs`: abstract the physical dynamics, then
+lift it with the mode's clock ([`SY.ClockLift`](@ref)), one optimizer
+configuration per mode.
 """
-function build_mode_symbolic_abstractions(
+function build_mode_symbolic_models(
     hs::HybridSystem,
     optimizer_list::AbstractVector{Function},
     optimizer_kwargs_dict::AbstractVector{<:Dict},
 )
-    n_modes = length(HybridSystems.states(hs.automaton))
+    mode_ids = collect(HybridSystems.states(hs.automaton))
+    n_modes = length(mode_ids)
     @assert length(optimizer_list) == n_modes "Optimizer list length mismatch"
     @assert length(optimizer_kwargs_dict) == n_modes "Optimizer kwargs length mismatch"
 
-    mode_abstractions = Vector{Tuple{Any, Any}}(undef, n_modes)
-
-    for (i, mode_id) in enumerate(HybridSystems.states(hs.automaton))
+    return map(enumerate(mode_ids)) do (i, mode_id)
         mode_system = HybridSystems.mode(hs, mode_id)
-        dynamics_system = mode_system.systems[1]    # physical dynamics
-        time_system = mode_system.systems[2]        # time dynamics
-
-        symbolic_dynamics = build_dynamical_symbolic_model(
-            dynamics_system;
+        physical, clock = _mode_physical_and_clock(mode_system, optimizer_kwargs_dict[i])
+        base = build_dynamical_symbolic_model(
+            physical;
             optimizer_factory = optimizer_list[i],
             optimizer_kwargs = optimizer_kwargs_dict[i],
         )
-
-        symbolic_time = SY.TimeSymbolicModel(
-            time_system,
-            get(optimizer_kwargs_dict[i], "time_step", nothing),
-        )
-
-        mode_abstractions[i] = (symbolic_dynamics, symbolic_time)
+        # Time-free mode (plain physical system) → no clock lift → (x, mode) states.
+        return clock === nothing ? base : SY.lift(SY.ClockLift(clock), base)
     end
+end
 
-    return mode_abstractions
+# A mode is either a plain physical system (time-free) or a `VectorContinuousSystem`
+# pairing physical dynamics `systems[1]` with a clock subsystem `systems[2]`.
+function _mode_physical_and_clock(mode_system, kwargs)
+    if mode_system isa ST.VectorContinuousSystem
+        clock =
+            SY.ClockAbstraction(mode_system.systems[2], get(kwargs, "time_step", nothing))
+        return mode_system.systems[1], clock
+    else
+        return mode_system, nothing
+    end
 end
 
 """
     build_timed_hybrid_symbolic_model(hs, optimizer_list, optimizer_kwargs_dict)
 
-Top-level entry point: abstract every mode, then assemble the global input map,
-the augmented transition list, and the flattened automaton into a
-[`SY.TimedHybridSymbolicModel`](@ref).
+Top-level entry point: abstract and clock-lift every mode, then compose them into a
+[`SY.HybridSymbolicModel`](@ref) via a [`SY.ModeLift`](@ref).
 """
 function build_timed_hybrid_symbolic_model(
     hs::HybridSystem,
@@ -95,24 +97,8 @@ function build_timed_hybrid_symbolic_model(
     @assert length(optimizer_list) == n_modes "Number of optimizers ($(length(optimizer_list))) must match number of modes ($n_modes)"
     @assert length(optimizer_kwargs_dict) == n_modes "Number of optimizer configs ($(length(optimizer_kwargs_dict))) must match number of modes ($n_modes)"
 
-    mode_abstractions =
-        build_mode_symbolic_abstractions(hs, optimizer_list, optimizer_kwargs_dict)
+    mode_models = build_mode_symbolic_models(hs, optimizer_list, optimizer_kwargs_dict)
+    input_mapping = SY.GlobalInputMap(mode_models, hs)
 
-    input_mapping = SY.GlobalInputMap(mode_abstractions, hs)
-    transition_list = SY.build_all_transitions(hs, mode_abstractions, input_mapping)
-
-    state_index_to_augmented, augmented_to_state_index, symbolic_automaton =
-        SY.build_symbolic_automaton(transition_list, mode_abstractions, input_mapping)
-
-    mode_dynamics_models = [abs_sys[1] for abs_sys in mode_abstractions]
-    mode_time_models = [abs_sys[2] for abs_sys in mode_abstractions]
-
-    return SY.TimedHybridSymbolicModel(
-        mode_dynamics_models,
-        mode_time_models,
-        state_index_to_augmented,
-        augmented_to_state_index,
-        symbolic_automaton,
-        input_mapping,
-    )
+    return SY.lift(SY.ModeLift(hs, input_mapping), mode_models)
 end

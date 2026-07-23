@@ -8,8 +8,7 @@ using Plots
 
 function Dionysos.animate_trajectory_dashboard(
     system_plot!::Function,
-    x_traj::ST.Trajectory,
-    u_traj::ST.Trajectory;
+    traj::ST.Trajectory;
     xdims = (1, 2),
     udims = (1,),
     Δt = 1.0, # physical time represented by each frame
@@ -28,15 +27,23 @@ function Dionysos.animate_trajectory_dashboard(
     ylims_input = nothing,
     show_full_state_traj = true,
     show_full_input_traj = true,
+    ylabel_mode = "mode",
 )
-    xs = collect(x_traj.seq)
-    us = collect(u_traj.seq)
+    # The trajectory is self-describing: `states` is always present, the `inputs`
+    # channel drives the input panel, and the `modes` channel is `nothing` for
+    # non-hybrid systems (no mode panel) or the per-step mode otherwise (adds a
+    # mode-vs-time panel, and `system_plot!` receives the mode as a 4th argument).
+    ST.inputs(traj) === nothing &&
+        error("animate_trajectory_dashboard needs a trajectory with inputs")
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
+    modevals = ST.modes(traj) === nothing ? nothing : collect(ST.modes(traj))
 
     N = length(xs)
     Nu = length(us)
 
-    N == 0 && error("x_traj is empty")
-    Nu == 0 && error("u_traj is empty")
+    N == 0 && error("trajectory has no states")
+    Nu == 0 && error("trajectory has no inputs")
 
     length(xdims) in (1, 2) || error("xdims must contain one or two dimensions")
     length(udims) in (1, 2) || error("udims must contain one or two dimensions")
@@ -68,7 +75,11 @@ function Dionysos.animate_trajectory_dashboard(
         xlims_system !== nothing && xlims!(p_sys, xlims_system...)
         ylims_system !== nothing && ylims!(p_sys, ylims_system...)
 
-        system_plot!(p_sys, xs[k], us[ku])
+        if modevals === nothing
+            system_plot!(p_sys, xs[k], us[ku])
+        else
+            system_plot!(p_sys, xs[k], us[ku], modevals[k])
+        end
 
         # ----------------------------------------------------
         # Top-right: state evolution/projection
@@ -206,11 +217,44 @@ function Dionysos.animate_trajectory_dashboard(
             )
         end
 
+        # ----------------------------------------------------
+        # Extra right panel: mode / task evolution (hybrid systems)
+        # ----------------------------------------------------
+        panels = Any[p_sys, p_state, p_input]
+        if modevals !== nothing
+            p_mode = plot(;
+                xlabel = "time",
+                ylabel = ylabel_mode,
+                title = "Mode / task",
+                legend = false,
+                yticks = sort(unique(modevals)),
+            )
+            plot!(
+                p_mode,
+                times_x,
+                modevals;
+                seriestype = :steppost,
+                linewidth = 1,
+                linestyle = :dot,
+            )
+            plot!(
+                p_mode,
+                times_x[1:k],
+                modevals[1:k];
+                seriestype = :steppost,
+                linewidth = 2,
+            )
+            scatter!(p_mode, [times_x[k]], [modevals[k]]; markersize = 5)
+            vline!(p_mode, [times_x[k]]; linestyle = :dash)
+            push!(panels, p_mode)
+        end
+
+        layout =
+            modevals === nothing ? @layout([a{0.48w} [b; c]]) :
+            @layout([a{0.48w} [b; c; d]])
         plot(
-            p_sys,
-            p_state,
-            p_input;
-            layout = @layout([a{0.48w} [b; c]]),
+            panels...;
+            layout = layout,
             size = (1400, 800),
             plot_title = "t = $(round(times_x[k]; digits = 2)) s   frame $k / $N",
         )

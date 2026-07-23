@@ -78,7 +78,7 @@ include("../../../problems/NonLinear/non_linear.jl")
     # initial state: the center of the (ellipsoidal) initial set
     x0 = LazySets.center(concrete_problem.initial_set)
 
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         concrete_system,
         concrete_controller,
         x0,
@@ -87,11 +87,11 @@ include("../../../problems/NonLinear/non_linear.jl")
         f_map_override = (x, u) -> concrete_system.f_eval(x, u, [0, 0]),
     )
 
-    xs = collect(ST.enum_elems(x_traj))
+    xs = collect(ST.states(traj))
     @test !isempty(xs)
     @test any(reached, xs)
 
-    _, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+    _, cost_true = ST.get_cost_trajectory(traj, cost_eval)
     cost_bound = concrete_lyap_fun(x0)
 
     @test isfinite(cost_true)
@@ -146,7 +146,7 @@ include("../../../problems/NonLinear/non_linear.jl")
             plot!(fig3, obs; color = :black)
         end
         plot!(fig3, abstract_system; with_arrows = false, cost = true)
-        plot!(fig3, x_traj; color = :black)
+        plot!(fig3, traj; color = :black)
 
         @test isa(fig1, Plots.Plot{Plots.GRBackend})
         @test isa(fig2, Plots.Plot{Plots.GRBackend})

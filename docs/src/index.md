@@ -6,17 +6,22 @@
 # Dionysos
 
 [Dionysos](https://github.com/dionysos-dev/Dionysos.jl) is a Julia framework for **correct-by-construction
-controller synthesis** through symbolic (abstraction-based) control. It is the software of the ERC
+controller synthesis** through symbolic (abstraction-based) control. Its guiding vision is
+**Control as a Service** — making certified controller design an automated, on-demand capability
+instead of a bespoke, months-long expert effort. It is the software of the ERC
 project [Learning to Control](https://perso.uclouvain.be/raphael.jungers/content/erc-consolidator-grant)
 (L2C).
 
-## What Dionysos does
+## What Dionysos does — Control as a Service
 
 Designing a controller for a complex system traditionally requires a team of experts hand-crafting an
-ad hoc controller over months. Dionysos aims to turn that into an automatic pipeline:
+ad hoc controller over months. Dionysos pursues **Control as a Service**: turning that bespoke effort
+into an automated, on-demand pipeline usable even without a dedicated control or IT department —
 
 > **describe the system → select the specification → pick a solver → obtain a controller together with
 > a formal certificate.**
+
+You bring the model and the goal; Dionysos returns the controller and its certificate.
 
 The underlying technique is **symbolic control**: the continuous system is *abstracted* into a
 finite-state automaton by discretizing its variables, a controller is synthesized on that finite

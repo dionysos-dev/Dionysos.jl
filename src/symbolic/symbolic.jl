@@ -47,12 +47,18 @@ include("grid_based_symbolic_model/backends/threaded.jl")
 include("grid_based_symbolic_model/backends/julia_distributed.jl")
 include("grid_based_symbolic_model/backends/slurm_array.jl")
 
-# Timed hybrid symbolic model: data structures + pure transition assembly.
-# (The optimizer-driven builders live in Optim/hybrid_systems, not here, so that
-# Symbolic does not depend on Optim.)
-include("timed_hybrid_symbolic_model/time_symbolic_model.jl")
-include("timed_hybrid_symbolic_model/global_input_map.jl")
-include("timed_hybrid_symbolic_model/timed_hybrid_symbolic_model.jl")
-include("timed_hybrid_symbolic_model/hybrid_transition_assembly.jl")
+# Optional, composable lifts over a base abstraction (`AbstractLift`): the clock
+# lift `(x) → (x,t)` and the mode lift `(modes) → (x,k)`, plus the hybrid model they
+# compose into and the lifted-specification evaluation. (The optimizer-driven
+# builders live in Optim/hybrid_systems, not here, so Symbolic does not depend on Optim.)
+include("lifts/flat_index.jl")
+include("lifts/clock_abstraction.jl")
+include("lifts/lift.jl")
+include("lifts/clock_lift.jl")
+include("lifts/global_input_map.jl")
+include("lifts/hybrid_symbolic_model.jl")
+include("lifts/hybrid_transition_assembly.jl")
+include("lifts/mode_lift.jl")
+include("lifts/states_satisfying.jl")
 
 end  # module Symbolic

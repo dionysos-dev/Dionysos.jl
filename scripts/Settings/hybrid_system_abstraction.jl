@@ -69,10 +69,11 @@ concrete_system =
 initial_state = (SVector(0.0), 0.0, 1)
 
 # Target: in mode 2, x ∈ [-1,1], t ∈ [1,2]
-Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
-Ts_target = [UT.box(SVector(1.0), SVector(2.0))]
-Ns_target = [2]
-target_set = (Xs_target, Ts_target, Ns_target)
+target_set = PR.hybrid_reach_spec(
+    [UT.box(SVector(-1.0), SVector(1.0))],
+    [UT.box(SVector(1.0), SVector(2.0))],
+    [2],
+)
 
 trans_cost = (aug_state, u) -> 1.0
 

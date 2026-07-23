@@ -150,7 +150,7 @@ invariant_set_complement =
 nstep = 300
 x0 = SVector(1.2, 5.6)
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system")),
     concrete_controller,
     x0,
@@ -169,6 +169,6 @@ plot!(XMapping_plot; efficient = true, color = :grey)
 plot!((Xset, XMapping_plot); efficient = true, color = :grey)
 plot!((invariant_set, XMapping_plot); color = :blue, linecolor = :blue)
 plot!((invariant_set_complement, XMapping_plot); color = :red, linecolor = :red)
-plot!(x_traj)
+plot!(traj)
 
 display(fig)

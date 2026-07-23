@@ -158,7 +158,7 @@ include("../../../problems/PwaSystem/pwa_system.jl")
 
     x0 = concrete_problem.initial_set
 
-    x_traj, u_traj = ST.get_closed_loop_trajectory(
+    traj = ST.get_closed_loop_trajectory(
         concrete_system,
         concrete_controller,
         x0,
@@ -167,14 +167,14 @@ include("../../../problems/PwaSystem/pwa_system.jl")
         f_map_override = f_eval1,
     )
 
-    xs = collect(ST.enum_elems(x_traj))
-    us = collect(ST.enum_elems(u_traj))
+    xs = collect(ST.states(traj))
+    us = collect(ST.inputs(traj))
 
     @test !isempty(xs)
     @test length(xs) ≤ nstep + 1
     @test length(us) == length(xs) - 1 || length(us) == length(xs)
 
-    c_traj, cost_true = ST.get_cost_trajectory(x_traj, u_traj, cost_eval)
+    c_traj, cost_true = ST.get_cost_trajectory(traj, cost_eval)
     cost_bound = concrete_value_function(x0)
 
     # ----------------------------
@@ -217,7 +217,7 @@ include("../../../problems/PwaSystem/pwa_system.jl")
         )
         plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0)
         plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-        plot!(x_traj; ms = 2.0, arrows = false, color = :blue)
+        plot!(traj; ms = 2.0, arrows = false, color = :blue)
         @test isa(fig, Plots.Plot{Plots.GRBackend})
     end
 end

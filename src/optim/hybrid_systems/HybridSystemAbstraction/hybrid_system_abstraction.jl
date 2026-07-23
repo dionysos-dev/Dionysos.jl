@@ -30,7 +30,7 @@ include("safety_problem.jl")
     Optimizer{T} <: Dionysos.Optim.AbstractionControlOptimizer
 
 Abstraction-based solver for timed hybrid systems: it builds the
-[`TimedHybridSymbolicModel`](@ref Dionysos.Symbolic.TimedHybridSymbolicModel) abstraction, solves the
+[`HybridSymbolicModel`](@ref Dionysos.Symbolic.HybridSymbolicModel) abstraction, solves the
 abstract control problem, and concretizes the controller into a `HybridQuantizedStaticController`.
 Follows the shared [`AbstractionControlOptimizer`](@ref Dionysos.Optim.AbstractionControlOptimizer) pipeline.
 """
@@ -108,18 +108,18 @@ ST.domain(ctrl::HybridQuantizedStaticController) = ctrl.abstract_system
 
 function ST.is_defined(ctrl::HybridQuantizedStaticController, q, aug_state)
     abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
-    abs_q === nothing && return false
+    abs_q <= 0 && return false
     return ST.is_defined(ctrl.abstract_controller, nothing, abs_q)
 end
 
 function ST.output_control(ctrl::HybridQuantizedStaticController, q, aug_state)
     abs_q = SY.get_abstract_state(ctrl.abstract_system, aug_state)
-    abs_q === nothing && return nothing
+    abs_q <= 0 && return nothing
 
     u_abs = ST.output_control(ctrl.abstract_controller, nothing, abs_q)
     u_abs === nothing && return nothing
 
-    (_, _, k) = aug_state
+    k = aug_state[end]
     if SY.is_switching_input(ctrl.abstract_system.input_mapping, u_abs)
         transition_id = ctrl.abstract_system.input_mapping.global_to_switching[u_abs]
         return ctrl.abstract_system.input_mapping.switch_labels[transition_id]
@@ -132,45 +132,94 @@ end
 # Closed-loop simulation utilities
 # ================================================================
 
+# Locate the hybrid transition encoded by a "SWITCH src -> tgt" label.
+function _find_switch_transition(hs::HybridSystem, u)
+    m = match(r"SWITCH (\d+) -> (\d+)", String(u))
+    m === nothing && error("Unrecognized SWITCH label format: $u")
+    source_mode = parse(Int, m.captures[1])
+    target_mode = parse(Int, m.captures[2])
+
+    transitions = collect(HybridSystems.transitions(hs.automaton))
+    transition_id = findfirst(
+        tr ->
+            HybridSystems.source(hs.automaton, tr) == source_mode &&
+            HybridSystems.target(hs.automaton, tr) == target_mode,
+        transitions,
+    )
+    transition_id === nothing && error("Transition not found for $u")
+    return transitions[transition_id], target_mode
+end
+
+# Advance one closed-loop step. The augmented state is `(x, t, mode)` for a
+# clock-lifted mode or `(x, mode)` for a time-free mode; the time slot is advanced
+# (or reset by the guard's reset map) only in the timed case.
 function get_next_aug_state(hs::HybridSystem, aug_state, u, time_is_active, tstep, map_sys)
-    (x, t, k) = aug_state
+    x = aug_state[1]
+    k = aug_state[end]
+    timed = length(aug_state) == 3
 
     if isa(u, AbstractString) && occursin("SWITCH", u)
-        m = match(r"SWITCH (\d+) -> (\d+)", String(u))
-        if m === nothing
-            error("Unrecognized SWITCH label format: $u")
-        end
-        source_mode = parse(Int, m.captures[1])
-        target_mode = parse(Int, m.captures[2])
-
-        transitions = collect(HybridSystems.transitions(hs.automaton))
-        transition_id = findfirst(
-            tr ->
-                HybridSystems.source(hs.automaton, tr) == source_mode &&
-                HybridSystems.target(hs.automaton, tr) == target_mode,
-            transitions,
-        )
-        if transition_id === nothing
-            error("Transition not found for $u")
-        end
-        transition = transitions[transition_id]
-
+        transition, target_mode = _find_switch_transition(hs, u)
         reset_map = HybridSystems.resetmap(hs, transition)
-        augmented_source_state = vcat(x, t)
-        reset_result = MathematicalSystems.apply(reset_map, augmented_source_state)
-        next_x = reset_result[1:(end - 1)]
-        next_t = reset_result[end]
-        next_k = target_mode
-        next_t = round(next_t; digits = 10)
-        return (next_x, next_t, next_k)
+        if timed
+            t = aug_state[2]
+            reset_result = MathematicalSystems.apply(reset_map, vcat(x, t))
+            next_x = reset_result[1:(end - 1)]
+            next_t = round(reset_result[end]; digits = 10)
+            return (next_x, next_t, target_mode)
+        else
+            return (MathematicalSystems.apply(reset_map, x), target_mode)
+        end
     else
-        next_t = time_is_active ? t + tstep : 0.0
-        next_t = round(next_t; digits = 10)
         next_x = map_sys(x, u, tstep)
-        return (next_x, next_t, k)
+        if timed
+            t = aug_state[2]
+            next_t = round(time_is_active ? t + tstep : 0.0; digits = 10)
+            return (next_x, next_t, k)
+        else
+            return (next_x, k)
+        end
     end
 end
 
+# Physical dynamics `f` of a mode: `systems[1]` for a `VectorContinuousSystem`
+# (paired with a clock), or the mode system itself when it is time-free.
+_mode_dynamics(mode_system) =
+    mode_system isa ST.VectorContinuousSystem ? mode_system.systems[1].f : mode_system.f
+
+# Whether a mode's clock evolves (`ẋ = 1`); a time-free mode has no clock.
+_mode_time_active(mode_system) =
+    mode_system isa ST.VectorContinuousSystem && ([1.0;;] == mode_system.systems[2].A)
+
+# Build the augmented-state step map `(aug, u) -> next_aug` for a hybrid system,
+# hoisting the per-mode dynamics / clock-activity / time-step lookups once.
+function _hybrid_step_map(hs::HybridSystem, tsteps)
+    nmodes = HybridSystems.nmodes(hs.automaton)
+    mode_systems = [HybridSystems.mode(hs, k) for k in 1:nmodes]
+    maps_sys = [ST.simulate_control_map(_mode_dynamics(ms)) for ms in mode_systems]
+    times_is_active = [_mode_time_active(ms) for ms in mode_systems]
+
+    return function (aug_state, u)
+        k = aug_state[end]
+        return get_next_aug_state(
+            hs,
+            aug_state,
+            u,
+            times_is_active[k],
+            tsteps[k],
+            maps_sys[k],
+        )
+    end
+end
+
+"""
+    get_closed_loop_trajectory(hs::HybridSystem, controller, tsteps, aug_state_0, nstep; stopping = x -> false)
+
+Simulate the hybrid closed loop for at most `nstep` steps and return the raw
+`(aug_x_traj, u_traj)` pair, where each augmented state is `(x[, t], mode)`. It reuses
+the generic `System.get_closed_loop_trajectory` engine; pass the result to
+`channelled_trajectory` to obtain a channelled `Trajectory`.
+"""
 function get_closed_loop_trajectory(
     hs::HybridSystem,
     controller::ST.AbstractController,
@@ -179,34 +228,37 @@ function get_closed_loop_trajectory(
     nstep;
     stopping = x -> false,
 )
-    q = ST.initial_state(controller)
-    aug_state_traj, u_traj = [aug_state_0], Any[]
-    aug_state = aug_state_0
+    # Reuse the generic closed-loop engine: the "state" is the augmented
+    # `(x[, t], mode)`, stepped by `_hybrid_step_map`, and inputs are
+    # heterogeneous (continuous inputs mixed with switching labels), hence
+    # `input_type = Any`.
+    traj = ST.get_closed_loop_trajectory(
+        hs,
+        controller,
+        aug_state_0,
+        nstep;
+        stopping = stopping,
+        f_map_override = _hybrid_step_map(hs, tsteps),
+        input_type = Any,
+    )
+    return ST.states(traj), ST.inputs(traj)
+end
 
-    nmodes = HybridSystems.nmodes(hs.automaton)
-    dynamics = [HybridSystems.mode(hs, k).systems[1].f for k in 1:nmodes]
-    maps_sys = [ST.simulate_control_map(dynamics[i]) for i in 1:nmodes]
-    times_is_active =
-        [([1.0;;] == HybridSystems.mode(hs, k).systems[2].A) for k in 1:nmodes]
+"""
+    channelled_trajectory(aug_x_traj, u_traj) -> Dionysos.System.Trajectory
 
-    for _ in 1:nstep
-        stopping(aug_state) && break
-
-        u = ST.output_control(controller, q, aug_state)
-        u === nothing && break
-
-        (_, _, k) = aug_state
-        next_aug_state =
-            get_next_aug_state(hs, aug_state, u, times_is_active[k], tsteps[k], maps_sys[k])
-
-        q = ST.update_state(controller, q, aug_state)
-        aug_state = next_aug_state
-
-        push!(aug_state_traj, aug_state)
-        push!(u_traj, u)
-    end
-
-    return aug_state_traj, u_traj
+Decompose a hybrid closed-loop result — the `(aug_x_traj, u_traj)` pair returned
+by [`get_closed_loop_trajectory`](@ref), whose augmented states are `(x[, t], mode)`
+— into a channelled `Trajectory` with `states` = the continuous state, `inputs` = the
+applied inputs, `modes` = the active mode, and (for clock-lifted modes) `times` = the
+clock value. This is the self-describing form consumed by
+`Dionysos.animate_trajectory_dashboard`.
+"""
+function channelled_trajectory(aug_x_traj, u_traj)
+    xs = [aug[1] for aug in aug_x_traj]
+    ks = [aug[end] for aug in aug_x_traj]
+    ts = all(aug -> length(aug) == 3, aug_x_traj) ? [aug[2] for aug in aug_x_traj] : nothing
+    return ST.Trajectory(xs; inputs = u_traj, times = ts, modes = ks)
 end
 
 end # module

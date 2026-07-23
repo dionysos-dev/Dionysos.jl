@@ -239,8 +239,13 @@ discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_ti
 mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOptimizer
     ## Abstraction Result
     discrete_time_system::Union{Nothing, MS.ConstrainedBlackBoxControlDiscreteSystem}
-    abstract_system::Union{Nothing, SY.SymbolicModelList}
+    # `AbstractSymbolicModel` (not just `SymbolicModelList`) so an optional `clock`
+    # can wrap the spatial abstraction in a `ClockLiftedSymbolicModel`.
+    abstract_system::Union{Nothing, SY.AbstractSymbolicModel}
     abstraction_construction_time_sec::T
+
+    ## Optional time lift: when set, the spatial abstraction is clock-lifted to (x, t).
+    clock::Union{Nothing, SY.ClockAbstraction}
 
     ## System Approximation
     continuous_time_system_approximation::Union{
@@ -320,6 +325,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             nothing,
             nothing,
             0.0,
+            nothing, # clock
             nothing,
             nothing,
             nothing,
@@ -698,6 +704,12 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         "compute_abstract_system_from_concrete_system! terminated with success: ",
         "$(HybridSystems.ntransitions(SY.get_automaton(abstract_system))) transitions created",
     )
+
+    # Optional time lift: wrap the spatial abstraction with the clock, giving an
+    # (x, t) abstraction for quantified-time specifications on continuous systems.
+    if optimizer.clock !== nothing
+        abstract_system = SY.lift(SY.ClockLift(optimizer.clock), abstract_system)
+    end
 
     optimizer.abstract_system = abstract_system
     optimizer.abstraction_construction_time_sec = time() - t_ref

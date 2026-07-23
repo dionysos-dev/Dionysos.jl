@@ -172,7 +172,7 @@ concrete_system = concrete_problem.system;
 nstep = 100
 reached(x) = x ∈ concrete_problem.target_set
 
-x_traj, u_traj = ST.get_closed_loop_trajectory(
+traj = ST.get_closed_loop_trajectory(
     get_attribute(model, "discrete_time_system"),
     concrete_controller,
     x_initial,
@@ -217,7 +217,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(x_traj; ms = 2.0, arrows = false, lw = 2)
+plot!(traj; ms = 2.0, arrows = false, lw = 2)
 
 # ## References
 # 1. Z. Azaki, A. Girard and S. Olaru, "Predictive and Symbolic Control: Performance and Safety for Non-linear Systems," in IFAC-PapersOnLine, 2022, vol. 55, no 16, pp. 290-295..

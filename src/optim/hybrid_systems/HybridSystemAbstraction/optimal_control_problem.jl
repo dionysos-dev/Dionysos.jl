@@ -1,7 +1,7 @@
 mutable struct OptimizerOptimalControlProblem{T} <: OP.AbstractDionysosOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
-    abstract_system::Union{Nothing, SY.TimedHybridSymbolicModel}
+    abstract_system::Union{Nothing, SY.HybridSymbolicModel}
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
@@ -109,18 +109,17 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
 end
 
 function get_abstract_transition_cost(
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
     concrete_transition_cost,
 )
     concrete_transition_cost === nothing && return nothing
 
     function abstract_transition_cost(state, input)
-        (x, t, k) = SY.get_concrete_state(abstract_system, state)
-        aug_concrete_state = (x, t, k)
+        aug_concrete_state = SY.get_concrete_state(abstract_system, state)
+        k = aug_concrete_state[end]
         if SY.is_switching_input(abstract_system.input_mapping, input)
             transition_id = abstract_system.input_mapping.global_to_switching[input]
-            label = abstract_system.input_mapping.switch_labels[transition_id]
-            u = label
+            u = abstract_system.input_mapping.switch_labels[transition_id]
         else
             u = SY.get_concrete_input(abstract_system, input, k)
         end
@@ -132,21 +131,14 @@ end
 
 function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
-    abstract_system::SY.TimedHybridSymbolicModel,
+    abstract_system::SY.HybridSymbolicModel,
 )
     concrete_initial_state = concrete_problem.initial_set # a unique augmented point
     q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
-    q0 === nothing &&
-        error("Initial augmented state is outside the abstract system domain.")
+    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
     abstract_initial_set = [q0]
 
-    concrete_target_set = concrete_problem.target_set
-    abstract_target_set = SY.get_states_from_set(
-        abstract_system,
-        concrete_target_set[1], # state
-        concrete_target_set[2], # time
-        concrete_target_set[3], # mode
-    )
+    abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
@@ -159,16 +151,5 @@ function build_abstract_problem(
 end
 
 function reached(concrete_problem::PR.OptimalControlProblem, aug_state)
-    (x, t, k) = aug_state
-    (Xs_target, Ts_target, Ns_target) = concrete_problem.target_set
-    idx = findfirst(==(k), Ns_target)
-    if isnothing(idx)
-        return false
-    end
-    X_set = Xs_target[idx]
-    T_set = Ts_target[idx]
-    in_X = x ∈ X_set
-    in_T = LazySets.low(T_set, 1) ≤ t ≤ LazySets.high(T_set, 1)
-
-    return in_X && in_T
+    return PR.satisfies(concrete_problem.target_set, aug_state...)
 end
