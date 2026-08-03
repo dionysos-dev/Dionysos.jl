@@ -16,9 +16,9 @@ function visualize_explicit_mapping(m::MP.PeriodicGridMapping)
     rect = UT.box(SVector(4.5, 2.5), SVector(4.8, 4.5))
     MP.cover!(m, rect, MP.OUTER)
 
-    fig = plot(; aspect_ratio = :equal);
-    plot!(m; label = "", color = :grey, efficient = false);
-    plot!(rect; label = "", color = :blue, opacity = 0.5, efficient = false);
+    fig = plot(; aspect_ratio = :equal)
+    plot!(m; label = "", color = :grey, efficient = false)
+    plot!(rect; label = "", color = :blue, opacity = 0.5, efficient = false)
     plot!(MP.get_elem_by_coord(m, p); color = :green, label = "", efficient = false)
     scatter!(
         [p[1]],
@@ -27,7 +27,7 @@ function visualize_explicit_mapping(m::MP.PeriodicGridMapping)
         color = :red,
         marker = :cross,
         markersize = 8,
-    );
+    )
     scatter!(
         [coord[1]],
         [coord[2]];
@@ -35,7 +35,7 @@ function visualize_explicit_mapping(m::MP.PeriodicGridMapping)
         color = :green,
         marker = :star5,
         markersize = 10,
-    );
+    )
     return display(fig)
 end
 
@@ -54,8 +54,8 @@ function visualize_implicit_mapping(m::MP.PeriodicGridMapping)
     # )
     # MP.add_set!(m, rect, MP.OUTER)
 
-    fig = plot(; aspect_ratio = :equal);
-    plot!(m; label = "", color = :grey, efficient = false);
+    fig = plot(; aspect_ratio = :equal)
+    plot!(m; label = "", color = :grey, efficient = false)
     plot!(MP.get_elem_by_coord(m, p); color = :green, label = "", efficient = false)
     scatter!(
         [p[1]],
@@ -64,7 +64,7 @@ function visualize_implicit_mapping(m::MP.PeriodicGridMapping)
         color = :red,
         marker = :cross,
         markersize = 8,
-    );
+    )
     scatter!(
         [coord[1]],
         [coord[2]];
@@ -72,7 +72,7 @@ function visualize_implicit_mapping(m::MP.PeriodicGridMapping)
         color = :green,
         marker = :star5,
         markersize = 10,
-    );
+    )
     return display(fig)
 end
 

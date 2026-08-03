@@ -265,12 +265,10 @@ function in_gait_tube(x::AbstractVector{<:Real})
 
     # Enforce approximate anti-symmetry of hips
     if abs(LH + RH) > hip_sum_tol
-        ;
-        return false;
+        return false
     end
     if abs(dLH + dRH) > dhip_sum_tol
-        ;
-        return false;
+        return false
     end
 
     # Detect stance/swing configuration
@@ -279,20 +277,17 @@ function in_gait_tube(x::AbstractVector{<:Real})
     right_stance =
         (RK <= stance_knee_max) && (LK >= swing_knee_min) && ((LK - RK) >= knee_gap_min)
     if !(left_stance || right_stance)
-        ;
-        return false;
+        return false
     end
 
     # Velocity limits on knees
     if left_stance
         if abs(dLK) > stance_dk_max || abs(dRK) > swing_dk_max
-            ;
-            return false;
+            return false
         end
     else
         if abs(dRK) > stance_dk_max || abs(dLK) > swing_dk_max
-            ;
-            return false;
+            return false
         end
     end
 
@@ -338,29 +333,23 @@ function input_allowed(x::AbstractVector{<:Real}, u::AbstractVector{<:Real})
 
     if left_is_stance
         if abs(uLK) > 1
-            ;
-            return false;
+            return false
         end
         if abs(uRK) < 1
-            ;
-            return false;
+            return false
         end
         if abs(uRK) < abs(uLK)
-            ;
-            return false;
+            return false
         end
     else
         if abs(uRK) > 1
-            ;
-            return false;
+            return false
         end
         if abs(uLK) < 1
-            ;
-            return false;
+            return false
         end
         if abs(uLK) < abs(uRK)
-            ;
-            return false;
+            return false
         end
     end
 
