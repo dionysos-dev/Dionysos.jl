@@ -1,4 +1,4 @@
-module ThermostatContinuousSystem
+module ThermostatSystem
 
 import LazySets
 using StaticArrays
@@ -159,66 +159,35 @@ end
 # Keep the same naming convention as your DCDC module.
 problem(; kwargs...) = safety_problem(; kwargs...)
 
-# ------------------------------------------------------------
-# Plot callback
-# ------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Visualization
+# ---------------------------------------------------------------------------
 
-function system_plot!(;
-    params::Params = Params(),
-    xlims = (-1.0, 7.0),
-    ylims = (-1.5, 2.0),
-    show_state = true,
-    show_params = false,
-)
+include("thermostat_view.jl")
+
+"""
+    system_plot!(; problem, tlims = _THERMO_TLIMS)
+
+Return a per-frame drawer `(fig, x, u) -> fig` for
+[`Dionysos.animate_trajectory_dashboard`](@ref): the shared thermostat thermometer
+(`thermostat_view.jl`). The continuous input selects the heater (`u = 1` ON, `u = 2`
+OFF); the target band is read from `problem.target_set` (a reach / reach-and-stay
+problem).
+"""
+function system_plot!(; problem, tlims = _THERMO_TLIMS)
+    tlo = LazySets.low(problem.target_set, 1)
+    thi = LazySets.high(problem.target_set, 1)
     return function (fig, x, u)
-        T = Float64(x[1])
-        mode = Int(round(u[1]))
-
-        heater_on = mode == 1
-
-        plot!(fig, [0.0, 6.0], [0.0, 0.0]; lw = 3, color = :black, label = "")
-        plot!(fig, [0.0, 6.0], [1.0, 1.0]; lw = 3, color = :black, label = "")
-        plot!(fig, [0.0, 0.0], [0.0, 1.0]; lw = 3, color = :black, label = "")
-        plot!(fig, [6.0, 6.0], [0.0, 1.0]; lw = 3, color = :black, label = "")
-
-        annotate!(fig, 3.0, 1.25, text("Thermostat room", 11))
-
-        if heater_on
-            plot!(fig, [1.0, 5.0], [-0.4, -0.4]; lw = 5, color = :red, label = "")
-            annotate!(fig, 3.0, -0.75, text("heater ON", 10))
-        else
-            plot!(fig, [1.0, 5.0], [-0.4, -0.4]; lw = 5, color = :gray, label = "")
-            annotate!(fig, 3.0, -0.75, text("heater OFF", 10))
-        end
-
-        scatter!(fig, [3.0], [0.5]; markersize = 16, color = :white, label = "")
-        annotate!(fig, 3.0, 0.5, text("T", 10))
-
-        if show_state
-            annotate!(
-                fig,
-                0.8,
-                1.65,
-                text("mode = $mode\n" * "T = $(round(T; digits = 3)) °C", 10),
-            )
-        end
-
-        if show_params
-            annotate!(
-                fig,
-                4.8,
-                1.65,
-                text(
-                    "Ta = $(params.Ta)\n" * "α = $(params.alpha)\n" * "β = $(params.beta)",
-                    9,
-                ),
-            )
-        end
-
-        xlims!(fig, xlims...)
-        ylims!(fig, ylims...)
-
-        return fig
+        on = Int(round(u[1])) == 1   # continuous input: 1 = ON, 2 = OFF
+        return _draw_thermometer!(
+            fig,
+            Float64(x[1]),
+            on,
+            tlo,
+            thi;
+            tlims = tlims,
+            label = "heater $(on ? "ON" : "OFF")",
+        )
     end
 end
 

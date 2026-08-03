@@ -13,19 +13,19 @@ const SY = DI.Symbolic
 const OP = DI.Optim
 const AB = OP.Abstraction
 
-include("../../problems/Thermostat/thermostat_continuous_system.jl")
+include("../../problems/Thermostat/thermostat_system.jl")
 
 # ------------------------------------------------------------
 # 1) Problem
 # ------------------------------------------------------------
 
-params = ThermostatContinuousSystem.Params(;
+params = ThermostatSystem.Params(;
     Ta = 20.0,
     alpha = 0.1, # disspativity coefficient: determine switching control frequency
     beta = 2.0,
 )
 
-concrete_problem = ThermostatContinuousSystem.reach_and_stay_problem(;
+concrete_problem = ThermostatSystem.reach_and_stay_problem(;
     params = params,
     _I_ = UT.box(SVector(18.0), SVector(18.5)),
     _T_ = UT.box(SVector(21.8), SVector(22.2)),
@@ -50,7 +50,7 @@ u0 = SVector(1)
 hu = SVector(1)
 input_grid = MP.GridFree(u0, hu)
 
-jacobian_bound = ThermostatContinuousSystem.jacobian_bound(params)
+jacobian_bound = ThermostatSystem.jacobian_bound(params)
 
 # ------------------------------------------------------------
 # 3) Build abstraction and synthesize controller
@@ -112,11 +112,7 @@ traj = ST.get_closed_loop_trajectory(
 # 5) Dashboard animation
 # ------------------------------------------------------------
 
-system_plot! = ThermostatContinuousSystem.system_plot!(;
-    params = params,
-    xlims = (-1.0, 7.0),
-    ylims = (-1.5, 2.0),
-)
+system_plot! = ThermostatSystem.system_plot!(; problem = concrete_problem)
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,

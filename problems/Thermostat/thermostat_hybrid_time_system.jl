@@ -1,4 +1,4 @@
-module ThermostatHybridSystem
+module ThermostatHybridTimeSystem
 
 using StaticArrays
 using LinearAlgebra
@@ -36,18 +36,19 @@ function on_dynamics(params::Params = Params())
 end
 
 """
-    system(; params, _X_, _Uoff_, _Uon_)
+    system(; params, _X_, _Uoff_, _Uon_, _T_)
 
-Thermostat hybrid system whose modes are **plain physical systems**: the augmented
-state is `(temperature, mode)`, and guards and the reset act on the temperature alone.
-`ThermostatHybridTimeSystem` adds a clock subsystem (augmented state
-`(temperature, time, mode)`).
+Thermostat hybrid system **with the time lift**: each mode couples the physical
+temperature dynamics with a clock subsystem, so the abstraction carries a time axis and
+its augmented state is `(temperature, time, mode)`. This is the base
+`ThermostatHybridSystem` (augmented state `(temperature, mode)`) with the clock added.
 """
 function system(;
     params::Params = Params(),
     _X_ = UT.box(SVector(17.0), SVector(25.0)),
     _Uoff_ = UT.box(SVector(0.0), SVector(0.0)),
     _Uon_ = UT.box(SVector(0.2), SVector(1.0)),
+    _T_ = UT.box(SVector(0.0), SVector(100.0)),
 )
     off_system = MS.ConstrainedBlackBoxControlContinuousSystem(
         off_dynamics(params),
@@ -59,10 +60,20 @@ function system(;
     on_system =
         MS.ConstrainedBlackBoxControlContinuousSystem(on_dynamics(params), 1, 1, _X_, _Uon_)
 
-    # Plain modes — no `VectorContinuousSystem`, no clock subsystem.
-    modes_systems = [off_system, on_system]
+    off_time_system = MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(1.0), _T_)
+    on_time_system = MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(1.0), _T_)
 
-    reset_maps = [ThermostatIdentityResetMap(_X_), ThermostatIdentityResetMap(_X_)]  # identity on T
+    modes_systems = [
+        ST.VectorContinuousSystem([off_system, off_time_system]),
+        ST.VectorContinuousSystem([on_system, on_time_system]),
+    ]
+
+    switch_domain = UT.box(SVector(17.0, 0.0), SVector(25.0, 100.0))
+
+    reset_maps = [
+        ThermostatIdentityResetMap(switch_domain),
+        ThermostatIdentityResetMap(switch_domain),
+    ]
 
     automaton = HS.GraphAutomaton(2)
     HS.add_transition!(automaton, 1, 2, 1)
@@ -103,23 +114,25 @@ function make_cost_function(;
 end
 
 """
-    optimal_control_problem(; params, initial_temperature, initial_mode, target)
+    optimal_control_problem(; params, initial_temperature, initial_mode, target, target_time, time_domain)
 
-Reach `target` (a temperature interval) in either mode over the [`system`](@ref) hybrid.
-The augmented state is `(temperature, mode)` and the target is a mode-indexed `StateSpec`.
-The time-windowed variant is `ThermostatHybridTimeSystem`.
+Reach `target` (a temperature interval) within the time window `target_time` over the
+time-lifted [`system`](@ref). The augmented state is `(temperature, time, mode)` and the
+target is a mode-indexed, time-windowed spec.
 """
 function optimal_control_problem(;
     params::Params = Params(),
-    initial_temperature = 18.0,
+    initial_temperature = 21.5,
     initial_mode = 1,
     target = UT.box(SVector(21.0), SVector(23.0)),
+    target_time = UT.box(SVector(15.0), SVector(50.0)),
+    time_domain = UT.box(SVector(0.0), SVector(50.0)),
 )
-    hybrid_system = system(; params = params)
+    hybrid_system = system(; params = params, _T_ = time_domain)
 
-    initial_state = (SVector(initial_temperature), initial_mode)  # (temperature, mode)
+    initial_state = (SVector(initial_temperature), 0.0, initial_mode)
 
-    target_set = PR.HybridSpec(Dict(1 => PR.StateSpec(target), 2 => PR.StateSpec(target)))
+    target_set = PR.hybrid_reach_spec([target, target], [target_time, target_time], [1, 2])
 
     return PR.OptimalControlProblem(
         hybrid_system,
@@ -143,11 +156,11 @@ include("thermostat_view.jl")
 
 Return a per-frame drawer `(fig, x, u, k) -> fig` for
 [`Dionysos.animate_trajectory_dashboard`](@ref): the shared thermostat thermometer
-(`thermostat_view.jl`), with the heater state read from the active mode `k`
-(1 = OFF, 2 = ON) and the target band from the mode-indexed spec.
+(`thermostat_view.jl`), identical to the base `ThermostatHybridSystem` view but reading
+the target band from the time-windowed spec (`per_mode[k].base.set`).
 """
 function system_plot!(; problem, tlims = _THERMO_TLIMS)
-    target = problem.target_set.per_mode[1].set
+    target = problem.target_set.per_mode[1].base.set
     tlo = LazySets.low(target, 1)
     thi = LazySets.high(target, 1)
     return function (fig, x, u, k)

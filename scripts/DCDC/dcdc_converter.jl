@@ -106,10 +106,6 @@ abstraction_time =
 println("Time to construct the abstraction: $(abstraction_time)")
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-println(SY.has_metadata(abstract_system))
-tr = first(SY.enum_transitions(abstract_system))
-println(tr)
-println(SY.get_metadata(abstract_system, tr))
 
 ### Solve a safety problem
 
