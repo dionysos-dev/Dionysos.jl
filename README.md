@@ -4,9 +4,9 @@
   <img src="assets/images/logo.png"  height="240">
 </picture>
 
-| **Documentation & Paper** | **Build Status** | **Quality** |
-|:-----------------:|:----------------:|:------------:|
-| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url] [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Codecov][codecov-img]][codecov-url] | [![Aqua QA][aqua-img]][aqua-url] |
+| **Documentation & Paper** | **Build Status** | **Quality** | **Community** |
+|:-----------------:|:----------------:|:------------:|:-------------:|
+| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url] [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Codecov][codecov-img]][codecov-url] | [![Aqua QA][aqua-img]][aqua-url] | [![Slack][slack-img]][slack-url] |
 
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
@@ -23,6 +23,10 @@
 
 [aqua-img]: https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg
 [aqua-url]: https://github.com/JuliaTesting/Aqua.jl
+
+[slack-img]: https://img.shields.io/badge/chat-%23control-4A154B?logo=slack&logoColor=white
+[slack-url]: https://julialang.org/slack/
+[slack-control-url]: https://julialang.slack.com/archives/CKH1UTZT9
 
 **Dionysos** is a Julia framework for **correct-by-construction controller synthesis** through
 symbolic (abstraction-based) control. Its guiding vision is **Control as a Service (CaaS)**: making certified
@@ -114,6 +118,13 @@ Pkg.add("Dionysos")
 The full documentation, including the manual, examples, and API reference, is available for the
 [released version][docs-stable-url] and the [development version][docs-latest-url]. If Dionysos is
 useful in your research, please cite the [JuliaCon paper][paper-url].
+
+## Community & support
+
+Questions, ideas, and discussion are welcome in the **`#control`** channel on the
+[JuliaLang Slack](https://julialang.org/slack/) — join the workspace, then open
+[`#control`][slack-control-url]. For bug reports and feature requests, please open an
+[issue](https://github.com/dionysos-dev/Dionysos.jl/issues).
 
 ## Contributing
 
