@@ -50,12 +50,12 @@ function system()
     task3_dynamics(x, u) = A3 * x .+ u
 
     # State and input spaces (2-D)
-    X1 = UT.box([-1.0, -1.0], [5.0, 5.0]);
-    U1 = UT.box([-1.0, -1.0], [4.0, 4.0]);
-    X2 = UT.box([-2.5, -2.5], [2.5, 2.5]);
-    U2 = UT.box([-1.2, -1.2], [9.2, 6.2]);
-    X3 = UT.box([-1.0, -1.0], [5.0, 3.0]);
-    U3 = UT.box([-1.5, -1.5], [7.5, 5.5]);
+    X1 = UT.box([-1.0, -1.0], [5.0, 5.0])
+    U1 = UT.box([-1.0, -1.0], [4.0, 4.0])
+    X2 = UT.box([-2.5, -2.5], [2.5, 2.5])
+    U2 = UT.box([-1.2, -1.2], [9.2, 6.2])
+    X3 = UT.box([-1.0, -1.0], [5.0, 3.0])
+    U3 = UT.box([-1.5, -1.5], [7.5, 5.5])
 
     task1_system =
         MS.ConstrainedBlackBoxControlContinuousSystem(task1_dynamics, 2, 2, X1, U1)

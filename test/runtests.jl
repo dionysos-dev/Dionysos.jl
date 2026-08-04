@@ -13,6 +13,7 @@ const TEST_FILES = [
     ("./utils/data_structures/tree.jl",),
     ("./utils/functions.jl",),
     ("./utils/numeric/scalar_optimization.jl",),
+    ("./utils/search/RRT.jl",),
     ("./utils/sets/rectangle.jl",),
     ("./utils/sets/ellipsoid.jl",),
     ("./utils/sets/ellipsoid_intersection.jl",),
@@ -60,8 +61,10 @@ const TEST_FILES = [
     ("./optim/UniformGridAbstraction/reach_and_stay.jl",),
     ("./optim/UniformGridAbstraction/cosafe_ltl.jl",),
     ("./optim/UniformGridAbstraction/clock_lifted_continuous.jl",),
+    ("./optim/UniformGridAbstraction/alternating_simulation.jl", :slow),
     # Trajectory generators / certifiers and the PCLF bisimulation quotient.
     ("./optim/trajectory_generators.jl",),
+    ("./optim/trajectory_certifiers_tube.jl",),
     ("./optim/trajectory_certifiers.jl", :slow),
     ("./optim/PCLFBisimulationQuotient/bisimulation_quotient.jl", :slow),
     ("./optim/UniformEllipsoidAbstraction/uniform_ellipsoid_abstraction.jl", :slow),
@@ -69,6 +72,9 @@ const TEST_FILES = [
     ("./optim/GolLazarBelta/gol_lazar_belta.jl", :slow),
     ("./optim/NonLinear/non_linear.jl", :slow),
     ("./regression/uniform_grid_abstraction.jl", :slow),  # golden-output regression net
+    # Package extensions (load Plots / CSV+DataFrames; render/precompile is heavy).
+    ("./ext/plots_dashboard.jl", :slow),
+    ("./ext/csv_controller.jl", :slow),
 ]
 
 const _timings = Tuple{String, Float64}[]

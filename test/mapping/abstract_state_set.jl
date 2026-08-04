@@ -110,4 +110,55 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     @test !MP.contains_state(I, m, q11)
 end
 
+@testset "ImplicitStateSet inclusion modes" begin
+    # 1×1 cells: cell (0,0) has center (0,0) and corners (±0.5, ±0.5); cell (1,1) has
+    # center (1,1) and corners in [0.5, 1.5]².
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    m = MP.ExplicitGridMapping(grid)
+    q00 = MP.add_pos!(m, (0, 0))
+    q11 = MP.add_pos!(m, (1, 1))
+
+    # Invalid states are never contained (guard before any geometry).
+    Sc = MP.ImplicitStateSet(UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4)), MP.CENTER)
+    @test !MP.contains_state(Sc, m, 999)
+
+    # CENTER: contained iff the cell center lies in the set.
+    @test MP.contains_state(Sc, m, q00)     # center (0,0) ∈ [-0.4, 0.4]²
+    @test !MP.contains_state(Sc, m, q11)    # center (1,1) ∉
+
+    # INNER (conservative): contained iff *every* corner lies in the set.
+    Si = MP.ImplicitStateSet(UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)), MP.INNER)
+    @test MP.contains_state(Si, m, q00)     # all corners (±0.5) inside [-1, 1]²
+    @test !MP.contains_state(Si, m, q11)    # corner (1.5, 1.5) is outside
+
+    # OUTER (sufficient): contained iff *some* sample lies in the set. Here the center
+    # is outside but a corner is inside, so the corner scan decides membership.
+    So = MP.ImplicitStateSet(UT.box(SVector(0.3, 0.3), SVector(1.0, 1.0)), MP.OUTER)
+    @test MP.contains_state(So, m, q00)     # center (0,0) ∉, but corner (0.5, 0.5) ∈
+    Sfar = MP.ImplicitStateSet(UT.box(SVector(5.0, 5.0), SVector(6.0, 6.0)), MP.OUTER)
+    @test !MP.contains_state(Sfar, m, q00)  # no sample of cell (0,0) reaches the set
+end
+
+@testset "ImplicitStateSet periodic add_set!/remove_set!" begin
+    # Period 4 in dim 1; the grid origin is aligned to start + h/2 = 0.5.
+    periodic_dims = SVector(1)
+    periods = SVector(4.0)
+    start = SVector(0.0)
+    h = SVector(1.0, 1.0)
+    grid = MP.GridFree(SVector(0.5, 0.0), h)
+    pm = MP.PeriodicGridMapping(periodic_dims, periods, start, MP.ExplicitGridMapping(grid))
+
+    S = MP.ImplicitStateSet{2}()
+
+    # A box outside the fundamental period is wrapped back into it: [4.5, 5.5] → [0.5, 1.5].
+    MP.add_set!(S, pm, UT.box(SVector(4.5, 0.0), SVector(5.5, 1.0)), MP.OUTER)
+    @test SVector(1.0, 0.5) ∈ S.set     # inside the wrapped region
+    @test SVector(3.0, 0.5) ∉ S.set     # elsewhere in the period
+
+    # Removal is wrapped the same way: carve [4.5, 5.0] → [0.5, 1.0] out of the set.
+    MP.remove_set!(S, pm, UT.box(SVector(4.5, 0.0), SVector(5.0, 1.0)))
+    @test SVector(0.7, 0.5) ∉ S.set     # in the carved-out region
+    @test SVector(1.3, 0.5) ∈ S.set     # still inside the remainder
+end
+
 end # module

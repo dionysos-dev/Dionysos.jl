@@ -46,12 +46,12 @@ function system()
     task3_dynamics(x, u) = A3 * x .+ u
 
     # State and input spaces
-    X1 = UT.box([-1.0, -1.0, 0.0], [5.0, 5.0, 6.0]);
-    U1 = UT.box([-1.0, -1.0, -0.5], [4.0, 4.0, 5.5]);
-    X2 = UT.box([-2.5, -2.5, 0.0], [2.5, 2.5, 3.5]);
-    U2 = UT.box([-1.2, -1.2, -0.7], [9.2, 6.2, 5.7]);
-    X3 = UT.box([-1.0, -1.0, 0.0], [5.0, 3.0, 4.0]);
-    U3 = UT.box([-1.5, -1.5, -1.0], [7.5, 5.5, 4.0]);
+    X1 = UT.box([-1.0, -1.0, 0.0], [5.0, 5.0, 6.0])
+    U1 = UT.box([-1.0, -1.0, -0.5], [4.0, 4.0, 5.5])
+    X2 = UT.box([-2.5, -2.5, 0.0], [2.5, 2.5, 3.5])
+    U2 = UT.box([-1.2, -1.2, -0.7], [9.2, 6.2, 5.7])
+    X3 = UT.box([-1.0, -1.0, 0.0], [5.0, 3.0, 4.0])
+    U3 = UT.box([-1.5, -1.5, -1.0], [7.5, 5.5, 4.0])
 
     # Continuous systems for each task
     task1_system =
@@ -62,11 +62,11 @@ function system()
         MS.ConstrainedBlackBoxControlContinuousSystem(task3_dynamics, 3, 3, X3, U3)
 
     # Time systems for each task
-    timewindow_task1 = UT.box([0.0], [2.0]);
+    timewindow_task1 = UT.box([0.0], [2.0])
     task_1_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task1)
-    timewindow_task2 = UT.box([1.5], [4.0]);
+    timewindow_task2 = UT.box([1.5], [4.0])
     task_2_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task2)
-    timewindow_task3 = UT.box([5.0], [7.0]);
+    timewindow_task3 = UT.box([5.0], [7.0])
     task_3_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task3)
 
     # Mode systems for the automaton

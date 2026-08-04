@@ -412,8 +412,8 @@ function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     edge_list = D.edges  # expected iterable of (u,v,label)
     Mlist = Vector{Tuple{Int, Int, Int, Matrix{Float64}}}()  # (ui,vi,sigma,M)
     for (u, v, label) in edge_list
-        ui = index_of[u];
-        vi = index_of[v];
+        ui = index_of[u]
+        vi = index_of[v]
         σ = Int(label)
         M = abs.(G_by_idx[vi] * A[σ] * Ginv[ui])   # nonnegative n×n matrix
         push!(Mlist, (ui, vi, σ, M))

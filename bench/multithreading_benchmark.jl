@@ -155,8 +155,7 @@ function benchmark_method(
         )
         pool = hasproperty(result, :gcstats) ? result.gcstats.poolalloc : missing
         if i == 1
-            ;
-            first_seq_pool = pool;
+            first_seq_pool = pool
         end
         seq_results[i] = (result.time, result.bytes, result.gctime, pool)
     end
@@ -173,8 +172,7 @@ function benchmark_method(
         )
         pool = hasproperty(result, :gcstats) ? result.gcstats.poolalloc : missing
         if i == 1
-            ;
-            first_mt_pool = pool;
+            first_mt_pool = pool
         end
         mt_results[i] = (result.time, result.bytes, result.gctime, pool)
     end
@@ -186,16 +184,16 @@ function benchmark_method(
     seq_pool = [r[4] for r in seq_results if r[4] !== missing]
     mt_pool = [r[4] for r in mt_results if r[4] !== missing]
 
-    seq_mean_time = mean(seq_times);
+    seq_mean_time = mean(seq_times)
     mt_mean_time = mean(mt_times)
-    seq_std_time = std(seq_times);
+    seq_std_time = std(seq_times)
     mt_std_time = std(mt_times)
-    seq_best_time = minimum(seq_times);
+    seq_best_time = minimum(seq_times)
     mt_best_time = minimum(mt_times)
 
-    seq_mean_alloc = mean(seq_allocs);
+    seq_mean_alloc = mean(seq_allocs)
     mt_mean_alloc = mean(mt_allocs)
-    seq_min_alloc = minimum(seq_allocs);
+    seq_min_alloc = minimum(seq_allocs)
     mt_min_alloc = minimum(mt_allocs)
 
     speedup_mean = seq_mean_time / mt_mean_time
@@ -360,7 +358,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     catch e
         println("❌ Benchmark failed: $e")
-        showerror(stdout, e, catch_backtrace());
+        showerror(stdout, e, catch_backtrace())
         println()
     end
     println(@sprintf("Elapsed: %.2f s", time() - ts))

@@ -348,6 +348,13 @@ changes produced by `dev .`.
 branch per change; **format before committing**; open a PR (CI runs tests + format check). The default
 branch for PRs is `master`.
 
+**Commit message format:** `[ACTION] module: description` — description lowercase, no trailing period,
+≤ 60 chars. Actions: `ADD` (new feature), `IMP` (improvement), `FIX` (bug fix), `REF` (refactor, no
+behavior change), `REM` (removal), `MOV` (move/rename), `REV` (revert). `module` is the touched
+subsystem (`utils`/`system`/`problem`/`mapping`/`symbolic`/`optim`, or `ext/<name>`, `test`, `docs`,
+`problems/<name>`, `scripts/<name>`, `meta` for repo/CI config). E.g. `FIX ext/csv: export controller
+via the controller protocol`. The [`/commit`](.claude/commands/commit.md) command automates this.
+
 **Package extensions.** Optional features live in [ext/](ext/) behind `[weakdeps]`/`[extensions]` in
 [Project.toml](Project.toml): `DionysosPlotsExt`, `DionysosSymbolicsExt` (Symbolics + IntervalArithmetic),
 `DionysosSpotExt`, `DionysosCSVExt` (CSV + DataFrames), `DionysosMathOptSymbolicADExt`,

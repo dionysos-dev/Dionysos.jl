@@ -13,6 +13,7 @@ function Dionysos.animate_trajectory_dashboard(
     udims = (1,),
     Δt = 1.0, # physical time represented by each frame
     fps = 20,
+    frame_step::Integer = 1, # render every `frame_step`-th frame; speeds up long trajectories
     filename::Union{Nothing, String} = nothing,
     title = "System evolution",
     xlabel_state = nothing,
@@ -64,7 +65,11 @@ function Dionysos.animate_trajectory_dashboard(
     ylabel_input === nothing &&
         (ylabel_input = length(udims) == 1 ? "u$(udims[1])" : "u$(udims[2])")
 
-    anim = @animate for k in 1:N
+    # Render only every `frame_step`-th frame (always keeping the last) so long
+    # trajectories animate fast. This is what actually cuts render time — `fps` only
+    # sets playback speed, so all frames would otherwise still be drawn.
+    frame_indices = frame_step <= 1 ? collect(1:N) : unique(vcat(1:frame_step:N, N))
+    anim = @animate for k in frame_indices
         ku = min(k, Nu)
 
         # ----------------------------------------------------
@@ -218,14 +223,16 @@ function Dionysos.animate_trajectory_dashboard(
         end
 
         # ----------------------------------------------------
-        # Extra right panel: mode / task evolution (hybrid systems)
+        # Extra right panel: mode evolution (hybrid systems).
+        # When present it leads the right column: mode, then state, then input.
         # ----------------------------------------------------
-        panels = Any[p_sys, p_state, p_input]
-        if modevals !== nothing
+        if modevals === nothing
+            panels = Any[p_sys, p_state, p_input]
+        else
             p_mode = plot(;
                 xlabel = "time",
                 ylabel = ylabel_mode,
-                title = "Mode / task",
+                title = "Mode evolution",
                 legend = false,
                 yticks = sort(unique(modevals)),
             )
@@ -246,7 +253,7 @@ function Dionysos.animate_trajectory_dashboard(
             )
             scatter!(p_mode, [times_x[k]], [modevals[k]]; markersize = 5)
             vline!(p_mode, [times_x[k]]; linestyle = :dash)
-            push!(panels, p_mode)
+            panels = Any[p_sys, p_mode, p_state, p_input]
         end
 
         layout =
