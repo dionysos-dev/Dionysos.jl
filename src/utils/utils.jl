@@ -23,5 +23,6 @@ include("sets/ellipsoid.jl")
 include("sets/semilinear_set.jl")
 
 include("pclf.jl")
+include("incremental_stability.jl")
 
 end  # module Utils

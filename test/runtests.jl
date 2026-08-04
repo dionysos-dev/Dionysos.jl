@@ -21,6 +21,7 @@ const TEST_FILES = [
     ("./utils/sets/set_algebra.jl",),
     ("./utils/periodic.jl",),
     ("./utils/pclf.jl",),
+    ("./utils/incremental_stability.jl",),
     ("./symbolic/automaton.jl",),
     ("./system/vector_continuous_system.jl",),
     ("./system/affine_approximation.jl",),
