@@ -21,3 +21,7 @@ paper/paper.pdf
 *.synctex.gz
 *.log
 *.jld2
+
+# Claude Code: track shared commands, ignore personal/local config
+.claude/*
+!.claude/commands/
