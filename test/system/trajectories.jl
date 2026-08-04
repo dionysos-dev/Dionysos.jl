@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathematicalSystems as MS
 import HybridSystems
+import Suppressor
 
 # ------------------------------------------------------------
 # Minimal controller types for tests
@@ -112,6 +113,68 @@ end
     trajd = ST.get_closed_loop_trajectory(sys, dyn, [0.0], 10)
     @test length(ST.inputs(trajd)) == 2             # third output_control is undefined
     @test ST.memory(trajd) == [0, 1, 2]
+end
+
+@testset "Closed-loop engine: early-stop and verbose branches" begin
+    # x⁺ = x + u; a static feedback that would otherwise run forever.
+    f(x, u) = x .+ u
+    sys = MS.ConstrainedBlackBoxControlDiscreteSystem(f, 1, 1, nothing, nothing)
+    ctrl = ST.AffineController(MS.AffineMap(hcat(-0.5), [0.0]))
+
+    # Each scenario trips a distinct early-stop branch. `verbose = true` exercises the
+    # log-emitting paths; `@suppress` keeps their output out of the test log.
+
+    # (1) `trajectory_success` already holds for the initial one-state trajectory.
+    t = Suppressor.@suppress ST.get_closed_loop_trajectory(
+        sys,
+        ctrl,
+        [1.0],
+        5;
+        trajectory_success = _ -> true,
+        verbose = true,
+    )
+    @test length(ST.states(t)) == 1
+
+    # (2) the controller yields a valid input but the system has no successor.
+    t = Suppressor.@suppress ST.get_closed_loop_trajectory(
+        sys,
+        ctrl,
+        [1.0],
+        5;
+        f_map_override = (x, u) -> nothing,
+        verbose = true,
+    )
+    @test length(ST.states(t)) == 1
+
+    # (3) the successor state is non-finite.
+    t = Suppressor.@suppress ST.get_closed_loop_trajectory(
+        sys,
+        ctrl,
+        [1.0],
+        5;
+        f_map_override = (x, u) -> SVector(NaN),
+        verbose = true,
+    )
+    @test length(ST.states(t)) == 1
+
+    # (4) a dynamic controller whose memory update aborts the run: the output map is
+    #     always admissible, but the state map returns `nothing` on the first step.
+    dyn = ST.DiscreteDynamicController(
+        0,
+        ST.PredicateDomain(_ -> true),
+        (mem, y) -> nothing,
+        (mem, y) -> [0.5],
+        false,
+    )
+    t = Suppressor.@suppress ST.get_closed_loop_trajectory(
+        sys,
+        dyn,
+        [0.0],
+        5;
+        verbose = true,
+    )
+    @test length(ST.states(t)) == 1
+    @test isempty(ST.inputs(t))
 end
 
 @testset "Trajectory channels + accessors" begin

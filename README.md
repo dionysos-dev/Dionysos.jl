@@ -25,12 +25,12 @@
 [aqua-url]: https://github.com/JuliaTesting/Aqua.jl
 
 **Dionysos** is a Julia framework for **correct-by-construction controller synthesis** through
-symbolic (abstraction-based) control. Its guiding vision is **Control as a Service**: making certified
+symbolic (abstraction-based) control. Its guiding vision is **Control as a Service (CaaS)**: making certified
 controller design an automated, on-demand capability rather than a bespoke, months-long expert effort.
 It is the software of the ERC project
 [Learning to Control](https://perso.uclouvain.be/raphael.jungers/content/erc-consolidator-grant) (L2C).
 
-## Why Dionysos — Control as a Service
+## Why Dionysos — Control as a Service (CaaS)
 
 Controlling a complex system traditionally means a team of experts hand-crafting an ad hoc controller
 over months, at significant cost. Dionysos pursues a different paradigm — **Control as a Service** —

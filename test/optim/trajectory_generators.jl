@@ -66,6 +66,23 @@ include("../../problems/ToyProblem/toy_problem.jl")
     @test !isempty(ST.states(seed))
     @test !isempty(ST.inputs(seed))
 
+    # 1b) Same generator, concrete rollout with a default initial state: with
+    #     `initial_state = nothing` the start is picked as the center of the problem
+    #     initial set (exercises `select_initial_state` on a `LazySet`), and
+    #     `concrete = true` simulates the concrete closed loop.
+    conc_gen = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
+        optimizer;
+        initial_state = nothing,
+        concrete = true,
+        nstep = 20,
+    )
+    AB.set_problem!(conc_gen, concrete_problem)
+    AB.generate!(conc_gen)
+    conc_traj = AB.get_trajectory(conc_gen)
+    @test conc_traj !== nothing
+    @test !isempty(ST.states(conc_traj))
+    @test AB.get_success(conc_gen) isa Bool
+
     # 2) MPPI generator, seeded by the optimizer trajectory (small sample budget).
     Δt = 0.3
     discrete_problem = PR.discretize_problem(concrete_problem, Δt)

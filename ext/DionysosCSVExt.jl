@@ -7,6 +7,7 @@ import Dionysos: export_controller_csv, import_controller_csv
 
 const DI = Dionysos
 const MP = DI.Mapping
+const ST = DI.System
 const SY = DI.Symbolic
 const AB = DI.Optim.Abstraction
 
@@ -108,15 +109,13 @@ function build_controller_map_df(sym::SY.SymbolicModel, controller)
     ])
 end
 
-function get_input_symbol(controller, state; randomize = false)
-    !(state in controller.X) && return -1
-
-    u = controller.h(state)
-
-    u === nothing && return -1
-    (u isa AbstractVector && isempty(u)) && return -1
-
-    return u isa AbstractVector ? (randomize ? rand(u) : first(u)) : u
+# The abstract input symbol the controller assigns to abstract state `state`, or `-1` when
+# the controller is undefined there. Routes through the controller protocol
+# (`output_control`) so it works for any `AbstractController` (static or dynamic); a static
+# controller ignores the `nothing` memory argument.
+function get_input_symbol(controller, state)
+    u = ST.output_control(controller, nothing, state)
+    return u === nothing ? -1 : u
 end
 
 function build_input_map_df(sym::SY.SymbolicModel)
