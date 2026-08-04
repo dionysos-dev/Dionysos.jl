@@ -52,8 +52,14 @@ function _test(
         @test MOI.get(optimizer, MOI.ObjectiveValue()) ≈ obj_expected atol = 1e-2
     end
     if optimizer isa OP.BranchAndBound.Optimizer
-        @test optimizer.num_done + optimizer.num_pruned_bound + optimizer.num_pruned_inf ==
-              optimizer.num_total
+        # The node-accounting identity only holds once the search is exhausted; skip it
+        # when the run stopped early at an iteration/time limit (those budgets are tuned
+        # per solver, so a different solver version can stop with nodes still queued).
+        if !(optimizer.status in (MOI.ITERATION_LIMIT, MOI.TIME_LIMIT))
+            @test optimizer.num_done +
+                  optimizer.num_pruned_bound +
+                  optimizer.num_pruned_inf == optimizer.num_total
+        end
         if x_expected !== nothing
             return optimizer.Q_function
         end

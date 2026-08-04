@@ -340,6 +340,10 @@ where the absolute value is taken elementwise.
 - The resulting Lyapunov functions are structured and correspond to
   weighted ∞-norms in transformed coordinates.
 - This approach is computationally efficient but may be conservative.
+
+# Reference
+This symmetric `2n`-face construction of polyhedral path-complete Lyapunov
+functions follows [athanasopoulos2019polyhedral](@cite).
 """
 function compute_symmetric_2n_faces_polyhedral_pieces_pclf(
     f::HybridSystems.HybridSystem,
