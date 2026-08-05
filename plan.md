@@ -6,10 +6,11 @@ kept, its *implementation* is not (§3).
 
 User guide for the target DSL: [`src/wrapper/README.md`](src/wrapper/README.md).
 
-Status: **phases 0–8 executed** (branch `jc_issue_4`); only the optional LTL layer (phase 9)
-remains. Revision 2 — every JuMP mechanism claimed here was executed against JuMP 1.30.1 (§9), and
+Status: **all phases executed** (branch `jc_issue_4`), including the optional LTL layer.
+Revision 2 — every JuMP mechanism claimed here was executed against JuMP 1.30.1 (§9), and
 revision 1 was adversarially reviewed; the defects it found are fixed in place and recorded in §10.
-Execution notes, including five further defects the work surfaced, are in §11.
+Execution notes, including five further defects the work surfaced and one design decision taken
+*against* this plan, are in §11.
 
 ---
 
@@ -681,7 +682,24 @@ None of these were visible from reading the code; each was found by a test.
 - Expression shapes must be checked, not assumed: `∂(t) == 1` arrives as the expression `+(1.0)`,
   not the number `1`, because JuMP wraps a literal right-hand side.
 
+### One decision taken against this plan: no formula normaliser
+
+§4.4 specified a **normaliser** that would match a temporal formula against the patterns with
+specialised solvers — `F(s)` → `OptimalControlProblem`, `G(s)` → `SafetyProblem`, `F(G(s))` →
+`ReachAndStayProblem` — and reroute it, falling back to `CoSafeLTLProblem`. **It was not built.**
+
+A formula attached with `@specification` always lowers to `CoSafeLTLProblem`; the markers of
+§4.4's sugar layer remain the only way to reach the specialised fixed points. The reason is that
+recognising formula shapes reliably is a rewriting problem — `F(a & true)`, `!G(!a)` and `F(a)`
+are the same specification — and a normaliser that gets it *nearly* right silently changes which
+algorithm runs, which is exactly the class of bug this plan spent its effort eliminating. The two
+layers are therefore presented as a genuine choice in `src/wrapper/README.md` §5.3 rather than as
+a fast path and a slow path over one representation.
+
+Rerouting can be added later without touching the DSL: both layers already land in
+`build_problem`, so a normaliser would be one function between them.
+
 ### Remaining
 
-Only the optional phase 9 (the LTL formula layer of §4.4). The one `src/wrapper/README.md`
-section covering it is marked **(planned)**.
+Nothing in this plan. Open follow-ups are the library gaps of §10, the `PARAMETER`/`DISTURBANCE`
+roles deferred by D9, and mapping `@objective` onto `transition_cost` (D3).
