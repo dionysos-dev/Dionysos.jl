@@ -1,0 +1,143 @@
+module DionysosMakieExt
+
+# 3D "lifted" visualisation of a PCLF bisimulation quotient: quotient states are drawn as
+# stacked polygons, one z-layer per automaton node, with the closed-loop trajectory lifted
+# onto the layer of the node it currently sits in. Backend-agnostic — the trigger is `Makie`,
+# so any backend (`GLMakie` for interaction, `CairoMakie` for figures, …) activates it.
+
+import Dionysos
+import LazySets
+import Makie
+
+const DI = Dionysos
+const PCLFBQ = DI.Optim.Abstraction.PCLFBisimulationQuotient
+const GB = Makie.GeometryBasics
+
+# Assign each automaton node a distinct z-layer, ordered deterministically by name.
+function _make_node_zmap(bisimulation::PCLFBQ.PCBisimulationQuotient)
+    nodes = sort!(collect(keys(bisimulation.part_ids)); by = x -> string(x))
+    return Dict(node => Float64(i) for (i, node) in enumerate(nodes))
+end
+
+# Planar outline of a (possibly lazy) set as x/y vertex vectors.
+function _vertices2d(P)
+    VP = LazySets.overapproximate(P, LazySets.VPolygon)
+    verts = LazySets.vertices_list(VP)
+    xs = [v[1] for v in verts]
+    ys = [v[2] for v in verts]
+    return xs, ys
+end
+
+# A filled polygon at height `z`, triangulated as a fan (assumes a convex outline).
+function _polygon_mesh3d(xs, ys, z)
+    n = length(xs)
+    pts = GB.Point3f[(xs[i], ys[i], z) for i in 1:n]
+    faces = GB.GLTriangleFace[]
+    for i in 2:(n - 1)
+        push!(faces, GB.GLTriangleFace(1, i, i + 1))
+    end
+    return GB.Mesh(pts, faces)
+end
+
+# The controller memory is a `(mode, quotient_state_id)` tuple.
+_memory_to_qid(mem) = mem[2]
+
+function Dionysos.plot_lifted_bisimulation!(
+    ax,
+    bisimulation::PCLFBQ.PCBisimulationQuotient;
+    state_ids = nothing,
+    node_z = _make_node_zmap(bisimulation),
+    color_by = :node,
+    node_colors = Dict((1,) => :blue, (2,) => :orange),
+    strokecolor = :black,
+    strokewidth = 1.0,
+    alpha = 0.6,
+    show_contours = true,
+)
+    palette = [:red, :blue, :green, :orange, :purple, :brown, :pink, :cyan]
+
+    ids = if isnothing(state_ids)
+        sort(collect(keys(bisimulation.states)))
+    else
+        collect(state_ids)
+    end
+
+    for sid in ids
+        q = bisimulation.states[sid]
+        z = node_z[q.node]
+
+        c = if color_by == :node
+            get(node_colors, q.node, :gray)
+        elseif color_by == :slice
+            palette[mod1(q.slice, length(palette))]
+        elseif color_by == :obs
+            palette[mod1(q.obs + 2, length(palette))]
+        elseif color_by == :state
+            palette[mod1(sid, length(palette))]
+        else
+            color_by
+        end
+
+        for part in q.set.array
+            xs, ys = _vertices2d(part)
+            msh = _polygon_mesh3d(xs, ys, z)
+            Makie.mesh!(ax, msh; color = (c, alpha))
+            if show_contours
+                pts = GB.Point3f[(xs[i], ys[i], z) for i in eachindex(xs)]
+                Makie.lines!(
+                    ax,
+                    vcat(pts, pts[1:1]);
+                    color = strokecolor,
+                    linewidth = strokewidth,
+                )
+            end
+        end
+    end
+    return ax
+end
+
+function Dionysos.plot_lifted_trajectory!(
+    ax,
+    bisimulation::PCLFBQ.PCBisimulationQuotient,
+    state_seq,
+    memory_seq;
+    node_z = _make_node_zmap(bisimulation),
+    traj_color = :black,
+    traj_linewidth = 3,
+    markersize = 10,
+    show_points = true,
+    show_start_end = true,
+)
+    xs = [x[1] for x in state_seq]
+    ys = [x[2] for x in state_seq]
+
+    qids = [_memory_to_qid(m) for m in memory_seq]
+    zs = [node_z[bisimulation.states[qid].node] for qid in qids]
+
+    # The state and memory sequences can differ in length by one depending on whether the
+    # final memory update is recorded; reconcile before zipping into 3D points.
+    if length(xs) == length(zs) + 1
+        push!(zs, zs[end])
+    elseif length(zs) == length(xs) + 1
+        pop!(zs)
+    elseif length(zs) != length(xs)
+        error("Incompatible state/memory sequence lengths")
+    end
+
+    pts = GB.Point3f[(xs[i], ys[i], zs[i]) for i in eachindex(xs)]
+
+    Makie.lines!(ax, pts; color = traj_color, linewidth = traj_linewidth)
+
+    if show_points
+        Makie.scatter!(ax, pts; color = traj_color, markersize = markersize)
+    end
+
+    if show_start_end
+        Makie.scatter!(ax, [pts[1]]; color = :green, markersize = markersize * 1.5)
+        Makie.scatter!(ax, [pts[end]]; color = :red, markersize = markersize * 1.5)
+    end
+
+    return ax
+end
+
+end # module DionysosMakieExt

@@ -100,7 +100,8 @@ for the building blocks.
 | [`src/`](src/) | The `Dionysos` library (`Utils`, `System`, `Problem`, `Mapping`, `Symbolic`, `Optim`). |
 | [`ext/`](ext/) | Package extensions behind optional dependencies (Plots, Symbolics, Spot, CSV, …). |
 | [`problems/`](problems/) | Reusable benchmark problem library (path planning, DC-DC, pendulum, …). |
-| [`scripts/`](scripts/) | Runnable case-study scripts, one folder per example. |
+| [`examples/`](examples/) | Runnable example drivers (user-facing), one folder per problem. |
+| [`research/`](research/) | Our paper / experiment simulations (CDC 2024, HSCC 2027, …). |
 | [`docs/`](docs/) | Documentation site and examples. |
 | [`test/`](test/) | Test suite, mirroring the `src/` layout. |
 

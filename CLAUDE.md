@@ -68,12 +68,14 @@ correct-by-construction controller on it, then *concretize* it back to the origi
 | [`test/`](test/) | Test suite; mirrors `src/` layout. Entry point [`test/runtests.jl`](test/runtests.jl). |
 | [`docs/`](docs/) | Documenter.jl site + Literate.jl examples. Build script [`docs/make.jl`](docs/make.jl). |
 | [`problems/`](problems/) | Reusable **benchmark problem library** (e.g. path planning, DC-DC, pendulum), one folder per problem. |
-| [`scripts/`](scripts/) (root) | **Runnable case-study scripts**, one folder per example — **not** library code. (Formerly `utils/`.) |
+| [`examples/`](examples/) (root) | **Runnable example drivers** (user-facing), one folder per problem, mirroring `problems/` — **not** library code. |
+| [`research/`](research/) (root) | Our **paper / experiment sims** (`CDC2024/`, `BisimulationQuotient/` = HSCC 2027, …), superseded work under `research/Deprecated/`. |
 | [`bench/`](bench/) | Benchmarks (BenchmarkTools). |
 | `control_server/`, `BipedRobot/`, `paper/`, `assets/` | Auxiliary app, robot demo, paper artifacts, images. |
 
-> ⚠️ The root `scripts/` folder (example drivers) is **not** the same as the `src/utils/` module (the
-> `Utils` library). It was renamed from `utils/` precisely to avoid that confusion.
+> ⚠️ Top-level `examples/` and `research/` hold runnable driver scripts (they were a single
+> `scripts/` folder before, and `utils/` before that) — **not** library code. Don't confuse them with
+> the `src/utils/` module (the `Utils` library).
 
 ---
 
@@ -352,7 +354,7 @@ branch for PRs is `master`.
 ≤ 60 chars. Actions: `ADD` (new feature), `IMP` (improvement), `FIX` (bug fix), `REF` (refactor, no
 behavior change), `REM` (removal), `MOV` (move/rename), `REV` (revert). `module` is the touched
 subsystem (`utils`/`system`/`problem`/`mapping`/`symbolic`/`optim`, or `ext/<name>`, `test`, `docs`,
-`problems/<name>`, `scripts/<name>`, `meta` for repo/CI config). E.g. `FIX ext/csv: export controller
+`problems/<name>`, `examples/<name>`, `research/<name>`, `meta` for repo/CI config). E.g. `FIX ext/csv: export controller
 via the controller protocol`. The [`/commit`](.claude/commands/commit.md) command automates this.
 
 **Package extensions.** Optional features live in [ext/](ext/) behind `[weakdeps]`/`[extensions]` in
@@ -368,7 +370,7 @@ extension is loaded (`using Plots`, `using Symbolics`, …).
 - **Stale `Domain` naming.** Some docstrings/comments say `Dionysos.Domain.INNER`, but the live module
   is **`Dionysos.Mapping`** (`INNER`/`OUTER`/`CENTER`). "Domain" is a former name — verify against the
   code before trusting a comment.
-- **`scripts/` vs `src/utils/`.** Root `scripts/` (formerly `utils/`) = case-study drivers; `src/utils/` = the `Utils` library module. Each problem/example is a folder in both `problems/` and `scripts/`.
+- **`examples/`/`research/` vs `src/utils/`.** Top-level `examples/` (user drivers) and `research/` (our paper/experiment sims) were formerly one `scripts/` folder (and `utils/` before that) — driver scripts, **not** library code; `src/utils/` is the `Utils` library module. Each example problem is a folder in both `problems/` and `examples/`. Scripts load their problem via `joinpath(dirname(dirname(pathof(Dionysos))), "problems", …)` so they run from any directory.
 - **Wire new tests in.** [test/runtests.jl](test/runtests.jl) is a `TEST_FILES` list (path + optional
   `:slow` tag) run in a timed loop; its include paths are slightly flatter than the deeply nested `src/`
   tree. Add every new test file to that list, and mirror the *actual* `src/` layout for source.

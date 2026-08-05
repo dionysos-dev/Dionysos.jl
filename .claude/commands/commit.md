@@ -33,7 +33,8 @@ The subsystem the change belongs to, inferred from the touched paths:
   `src/mapping/` → `mapping`, `src/symbolic/` → `symbolic`, `src/optim/` → `optim`
   (use the solver family, e.g. `optim/uniform-grid`, when it sharpens the message).
 - `ext/` → the extension (e.g. `ext/csv`), `test/` → `test`, `docs/` → `docs`,
-  `problems/<name>/` → `problems/<name>`, `scripts/<name>/` → `scripts/<name>`.
+  `problems/<name>/` → `problems/<name>`, `examples/<name>/` → `examples/<name>`,
+  `research/<name>/` → `research/<name>`.
 - Repo config / CI / tooling → `meta`.
 
 Example: `FIX ext/csv: export controller via the controller protocol`

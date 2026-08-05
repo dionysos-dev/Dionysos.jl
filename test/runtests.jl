@@ -73,9 +73,10 @@ const TEST_FILES = [
     ("./optim/GolLazarBelta/gol_lazar_belta.jl", :slow),
     ("./optim/NonLinear/non_linear.jl", :slow),
     ("./regression/uniform_grid_abstraction.jl", :slow),  # golden-output regression net
-    # Package extensions (load Plots / CSV+DataFrames; render/precompile is heavy).
+    # Package extensions (load Plots / CSV+DataFrames / Makie; render/precompile is heavy).
     ("./ext/plots_dashboard.jl", :slow),
     ("./ext/csv_controller.jl", :slow),
+    ("./ext/makie_lifted.jl", :slow),
 ]
 
 const _timings = Tuple{String, Float64}[]
