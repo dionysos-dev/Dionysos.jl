@@ -276,7 +276,7 @@ display(fig)
 # Plot lifted trajectory and quotient states
 # ---------------------------------------------------------
 
-# include("lifted_trajectory_recipes.jl")
+# using GLMakie   # activates DionysosMakieExt (lifted 3D recipes)
 
 # node_z = Dict(1 => 1.0)
 # node_colors = Dict(1 => :blue)
@@ -291,7 +291,7 @@ display(fig)
 #     title = "Lifted quotient states and closed-loop trajectory",
 # )
 
-# plot_lifted_bisimulation_makie!(
+# DI.plot_lifted_bisimulation!(
 #     ax,
 #     bisimulation;
 #     node_z = node_z,
@@ -300,7 +300,7 @@ display(fig)
 #     show_contours = false,
 # )
 
-# plot_lifted_trajectory_makie!(
+# DI.plot_lifted_trajectory!(
 #     ax,
 #     bisimulation,
 #     X_seq,
