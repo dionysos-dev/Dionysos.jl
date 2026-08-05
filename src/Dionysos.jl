@@ -7,23 +7,16 @@ include("mapping/mapping.jl")
 include("symbolic/symbolic.jl")
 include("optim/optim.jl")
 
-# ----- Wrapper functions for optional dependencies ---------
+# ----- JuMP/MOI front-end ---------
 import JuMP
 import LazySets
-function Optimizer end
+
+include("wrapper/wrapper.jl")
+
+# Re-export the front-end vocabulary from the top level. `using` (rather than `const` aliases)
+# keeps these the *same* bindings as in `Wrapper`, so their docstrings resolve here too.
+using .Wrapper: Optimizer, simulate, ∂, Δ, final, start
 export ∂, Δ, final, start
-
-function _diff end
-const ∂ = JuMP.NonlinearOperator(_diff, :∂)
-
-function _delta end
-const Δ = JuMP.NonlinearOperator(_delta, :Δ)
-
-function _final end
-const final = JuMP.NonlinearOperator(_final, :final)
-
-function _start end
-const start = JuMP.NonlinearOperator(_start, :start)
 
 # ----- CSV functions for optional dependencies ---------
 
