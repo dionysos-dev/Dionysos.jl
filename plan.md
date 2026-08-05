@@ -6,10 +6,10 @@ kept, its *implementation* is not (§3).
 
 User guide for the target DSL: [`src/wrapper/README.md`](src/wrapper/README.md).
 
-Status: **phases 0–4 executed** (branch `jc_issue_4`); phases 5–8 remain. Revision 2 — every JuMP
-mechanism claimed here was executed against JuMP 1.30.1 (§9), and revision 1 was adversarially
-reviewed; the defects it found are fixed in place and recorded in §10. Execution notes, including
-three further defects the work surfaced, are in §11.
+Status: **phases 0–8 executed** (branch `jc_issue_4`); only the optional LTL layer (phase 9)
+remains. Revision 2 — every JuMP mechanism claimed here was executed against JuMP 1.30.1 (§9), and
+revision 1 was adversarially reviewed; the defects it found are fixed in place and recorded in §10.
+Execution notes, including five further defects the work surfaced, are in §11.
 
 ---
 
@@ -614,21 +614,26 @@ These are recorded rather than worked around, and each is a candidate standalone
 
 ## 11. Execution log
 
-Phases 0–4 are done on branch `jc_issue_4`, each formatted, gated on the `--fast` suite (57 files)
-plus the golden regression, and committed separately.
+Phases 0–8 are done on branch `jc_issue_4`, each formatted, gated on the `--fast` suite (59 files)
+plus the golden regression and the slow hybrid suites, and committed separately.
 
 | Commit | Phase | What landed |
 | :--- | :--- | :--- |
 | `b9331af1` | — | `FIX optim: no success when the initial set is empty` (see below) |
-| `f961e894` | 0 + 1 | `ModelIR`, parse/lower split, wrapper moved to `src/wrapper/`, extension reduced to the symbolic backend, rule I4, `test/wrapper/lowering.jl` |
+| `f961e894` | 0 + 1 + 2 | `ModelIR`, parse/lower split, wrapper moved to `src/wrapper/`, extension reduced to the symbolic backend, rule I4, solution status, `simulate`, `test/wrapper/lowering.jl` |
 | `816610e1` | — | this plan and `src/wrapper/README.md` |
 | `e4271f81` | 3 | spec markers, problem-type inference, horizon, L7 fix, `@objective` error, `test/wrapper/specifications.jl` |
 | `c320ddc2` | 4 | `"solver"` attribute, attribute replay, `select_solver`/`supports_problem`, `test/wrapper/solver_selection.jl` |
+| `18475055` | 5 | `ST.GuardedResetMap` + `test/system/reset_map.jl` |
+| `b7b4862a` | 5 | `Mode`/`Transition` as scopes, `@mode`, `add_transition!`, per-mode bounds and options, hybrid lowering, `test/wrapper/hybrid.jl` |
+| `dc8b9a38` | 6 | clocks (rule I2), `(x, t, mode)` states, time-windowed specs, `test/wrapper/clock.jl` |
+| `a2555969` | 7 | supplied dynamics (#510), `set_role!`, `NonlinearEvaluatorBackend`, `test/wrapper/{dynamics,no_symbolics}.jl` |
+| `3a5e38c8` | 8 | options moved off the IR (see below), `lower` entry point |
+| `2135bc76` | 8 | `docs/src/examples/solvers/Thermostat.jl`, `docs/src/reference/Wrapper.md`, Path-planning workaround deleted |
 
-Phase 2 (status + `simulate`) is folded into `f961e894`: it touches the same files and was
-developed and gated with them.
+Phase 2 is folded into `f961e894`: it touches the same files and was developed and gated with them.
 
-### Three defects the execution surfaced
+### Five defects the execution surfaced
 
 None of these were visible from reading the code; each was found by a test.
 
@@ -652,8 +657,31 @@ None of these were visible from reading the code; each was found by a test.
    silently lost. It now keeps the configured solver and clears just its cached results. This is a
    trap for direct-MOI users too, not only the wrapper.
 
+4. **Every attribute-carried option was dropped in automatic mode.** `MOI.empty!` clears the
+   model, and JuMP calls it on the optimizer before copying the model in — so the horizon,
+   supplied dynamics, declared roles and per-mode grids, all of which the wrapper stored in the
+   `ModelIR`, were silently wiped on every `optimize!`. The identical model built with
+   `direct_model` worked, which is why every wrapper test missed it: they all used
+   `direct_model` for speed, and the bug lives only in `Model(Dionysos.Optimizer)` — the
+   documented form. **It was the thermostat example that found it**, on its first run. Options
+   now live on the `Optimizer` and are folded into the IR by `_apply_options!`. The fix also
+   produced `lower`, the first half of `optimize!` exposed on its own, which the test
+   helpers now share so they cannot drift from what really runs.
+
+5. **`Δ` on a transition is not a time-domain declaration.** A reset map is an instantaneous
+   jump, so `Δ(x) == …` written on a transition says nothing about whether the *modes* evolve in
+   continuous or discrete time. Setting the domain from it made `∂` in a mode collide with `Δ`
+   in a transition — in code whose own docstring already said the right thing.
+
+### Testing lessons
+
+- `direct_model` is faster and more precise for inspecting the lowering, but it bypasses the
+  caching layer where defect 4 lived. `test/wrapper/lowering.jl` now carries one automatic-mode
+  test covering horizon, declared roles and supplied dynamics together.
+- Expression shapes must be checked, not assumed: `∂(t) == 1` arrives as the expression `+(1.0)`,
+  not the number `1`, because JuMP wraps a literal right-hand side.
+
 ### Remaining
 
-Phases 5 (modes and transitions, `ST.GuardedResetMap`), 6 (clocks), 7 (dynamics backends, #510),
-8 (docs and examples), and the optional 9 (LTL layer). The `src/wrapper/README.md` sections
-covering them are marked **(planned)**.
+Only the optional phase 9 (the LTL formula layer of §4.4). The one `src/wrapper/README.md`
+section covering it is marked **(planned)**.
