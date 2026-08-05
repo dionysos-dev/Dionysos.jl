@@ -25,6 +25,7 @@ const TEST_FILES = [
     ("./utils/incremental_stability.jl",),
     ("./symbolic/automaton.jl",),
     ("./system/vector_continuous_system.jl",),
+    ("./system/reset_map.jl",),
     ("./system/affine_approximation.jl",),
     ("./system/approximation.jl",),
     ("./system/controllers.jl",),
@@ -53,6 +54,7 @@ const TEST_FILES = [
     ("./wrapper/lowering.jl",),        # JuMP model → (system, problem)
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
+    ("./wrapper/hybrid.jl", :slow),      # modes, transitions, guards, reset maps
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),

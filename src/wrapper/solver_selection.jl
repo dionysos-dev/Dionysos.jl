@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------------------
 
 const UniformGrid = OP.Abstraction.UniformGridAbstraction.Optimizer
+const HybridAbstraction = OP.Abstraction.HybridSystemAbstraction.Optimizer
 
 """
     select_solver(system, problem) -> optimizer type
@@ -15,6 +16,7 @@ The solver family to use for a lowered `(system, problem)` pair when the user se
 `"solver"` attribute. Add a method to support a new family.
 """
 select_solver(::Any, ::Any) = UniformGrid
+select_solver(::HybridSystems.HybridSystem, ::Any) = HybridAbstraction
 
 """
     supports_problem(solver_type, problem_type) -> Bool
@@ -36,6 +38,13 @@ function supports_problem(
             PR.AlternatingSimulationProblem,
         },
     },
+)
+    return true
+end
+
+function supports_problem(
+    ::Type{<:HybridAbstraction},
+    ::Type{<:Union{PR.OptimalControlProblem, PR.SafetyProblem}},
 )
     return true
 end

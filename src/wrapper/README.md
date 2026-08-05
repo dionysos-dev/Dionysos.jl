@@ -4,9 +4,9 @@
 > — phases, gates, decisions — is [`plan.md`](../../plan.md) at the repo root.
 >
 > Landed: the model IR and the move out of the extension, variable-role inference, solution
-> status and `simulate`, the specification markers with problem-type inference, and the horizon.
-> Planned: hybrid modes and transitions, clocks, alternative dynamics backends, and the
-> temporal-formula layer.
+> status and `simulate`, the specification markers with problem-type inference, the horizon,
+> solver selection, and hybrid modes and transitions.
+> Planned: clocks, alternative dynamics backends, and the temporal-formula layer.
 
 This is the surface where a user who is not a Dionysos developer writes a control problem. You
 describe a **system**, state a **specification**, optionally pick a **solver**, and get back a
@@ -266,9 +266,6 @@ set_attribute(model, "horizon", 10.0)     # default: PR.Infinity()
 
 ## 6. Hybrid systems — modes and transitions
 
-> **(planned).** Hybrid models are not yet reachable from JuMP; build the `HybridSystem` by hand
-> and drive `HybridSystemAbstraction` through MOI in the meantime.
-
 A **mode** is a scope you attach dynamics, bounds, and specifications to. A **transition** is a
 scope you attach a guard and a reset map to. Both are ordinary JuMP models, so `@constraint` works
 on them unchanged.
@@ -345,9 +342,8 @@ time-windowed ones — reproducing `PR.hybrid_reach_spec(Xs, Ts, Ns)` from ordin
 
 ## 7. Choosing a solver
 
-Every model currently goes to the uniform grid abstraction. **(planned)** the wrapper will pick
-from the shape of the problem — a model with modes to the hybrid abstraction, everything else to
-the uniform grid — with an explicit override:
+The wrapper picks from the shape of the problem: a model with modes goes to the hybrid
+abstraction, everything else to the uniform grid. Override it explicitly:
 
 ```julia
 set_attribute(model, "solver", AB.UniformGridAbstraction.Optimizer)

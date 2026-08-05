@@ -93,17 +93,33 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
         _use_solver!(model, value)
         return
     end
+    scoped = match(_MODE_ATTRIBUTE, attr.name)
+    if scoped !== nothing
+        id = parse(Int, scoped.captures[1])
+        push!(mode!(model.ir, id).attributes, String(scoped.captures[2]) => value)
+        return
+    end
     # Set before recording, so a rejected attribute is not replayed onto the next solver.
     MOI.set(model.inner, attr, value)
     push!(model.attributes, attr.name => value)
     return
 end
 
-# Swap in a solver of type `factory` and replay every option set so far.
+# Per-mode options travel as `mode[k].name`, because a mode is not an MOI model of its own.
+const _MODE_ATTRIBUTE = r"^mode\[(\d+)\]\.(.+)$"
+
+# Swap in a solver of type `factory` and replay every option set so far. An option the new
+# solver does not know is kept in the record but not applied — for a hybrid model those are
+# the per-mode discretization options, which the hybrid solver takes through its sub-solvers
+# rather than directly. Typos are still caught when the option is first set.
 function _use_solver!(model::Optimizer, factory)
     model.inner = MOI.instantiate(factory)
     for (name, value) in model.attributes
-        MOI.set(model.inner, MOI.RawOptimizerAttribute(name), value)
+        try
+            MOI.set(model.inner, MOI.RawOptimizerAttribute(name), value)
+        catch err
+            err isa MOI.UnsupportedAttribute || rethrow()
+        end
     end
     return model.inner
 end
@@ -118,6 +134,29 @@ function _time_step(model::Optimizer)
     return nothing
 end
 
+# The hybrid solver abstracts each mode with its own sub-optimizer, configured through two
+# parallel vectors. Building them here is what lets the user write `set_attribute(mode, …)`
+# instead of assembling those vectors by hand.
+function _configure_modes!(model::Optimizer)
+    ids = mode_ids(model.ir)
+    shared = Dict{String, Any}(name => value for (name, value) in model.attributes)
+    per_mode = map(ids) do k
+        options = copy(shared)
+        for (name, value) in model.ir.modes[k].attributes
+            options[name] = value
+        end
+        return options
+    end
+
+    MOI.set(
+        model.inner,
+        MOI.RawOptimizerAttribute("optimizer_list"),
+        Function[() -> MOI.instantiate(UniformGrid) for _ in ids],
+    )
+    MOI.set(model.inner, MOI.RawOptimizerAttribute("optimizer_kwargs_dict"), per_mode)
+    return
+end
+
 # ----------------------------------------------------------------------------------------
 # Solving
 # ----------------------------------------------------------------------------------------
@@ -129,12 +168,13 @@ function MOI.optimize!(model::Optimizer)
     print_level = MOI.get(model.inner, MOI.RawOptimizerAttribute("print_level"))
     print_level >= 1 && println(">>Setting up the model")
 
-    f = compile_dynamics(model.dynamics_backend, model.ir)
-    model.problem = build_problem(model.ir, f; time_step = _time_step(model))
+    model.problem =
+        build_problem(model.ir, model.dynamics_backend; time_step = _time_step(model))
 
     solver_type = _solver_type(model, model.problem)
     _check_supported(solver_type, model.problem)
     model.inner isa solver_type || _use_solver!(model, solver_type)
+    is_hybrid(model.ir) && _configure_modes!(model)
 
     print_level >= 1 && println(">>Model setup complete")
 

@@ -24,12 +24,66 @@ per-variable dynamics expressions, obstacles, and the objective.
 Fields are populated by `parse.jl` as JuMP hands constraints over, then validated in one pass
 by [`infer_roles!`](@ref) before lowering.
 """
+const DynamicsMap = Dict{Int, MOI.ScalarNonlinearFunction}
+
+"""
+    ModeIR
+
+One discrete mode: its own dynamics, its own bound overrides (a mode may restrict the state or
+input set — the thermostat's heater is off in one mode and throttled in the other), its own
+specifications, and its own solver options.
+"""
+mutable struct ModeIR
+    id::Int
+    dynamics::DynamicsMap
+    lower::Dict{Int, Float64}
+    upper::Dict{Int, Float64}
+    specs::Vector{SpecEntry}
+    attributes::Vector{Pair{String, Any}}
+end
+
+ModeIR(id::Int) = ModeIR(
+    id,
+    DynamicsMap(),
+    Dict{Int, Float64}(),
+    Dict{Int, Float64}(),
+    SpecEntry[],
+    Pair{String, Any}[],
+)
+
+"""
+    TransitionIR
+
+One switch: the guard bounds that enable it and the reset map applied when it is taken.
+"""
+mutable struct TransitionIR
+    id::Int
+    source::Int
+    target::Int
+    switching::Any
+    guard_lower::Dict{Int, Float64}
+    guard_upper::Dict{Int, Float64}
+    resets::DynamicsMap
+end
+
+TransitionIR(id::Int, source::Int, target::Int, switching) = TransitionIR(
+    id,
+    source,
+    target,
+    switching,
+    Dict{Int, Float64}(),
+    Dict{Int, Float64}(),
+    DynamicsMap(),
+)
+
 mutable struct ModelIR
     variables::Vector{VariableInfo}
     dynamics::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     time_domain::TimeDomain
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
     specs::Vector{SpecEntry}
+    modes::Dict{Int, ModeIR}
+    transitions::Dict{Int, TransitionIR}
     horizon::Union{Nothing, Float64}
     objective_sense::MOI.OptimizationSense
     objective_function::Union{Nothing, MOI.AbstractScalarFunction}
@@ -43,11 +97,38 @@ function ModelIR()
         UNKNOWN,
         Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
         SpecEntry[],
+        Dict{Int, ModeIR}(),
+        Dict{Int, TransitionIR}(),
         nothing,
         MOI.FEASIBILITY_SENSE,
         nothing,
         0,
     )
+end
+
+"""
+    is_hybrid(ir) -> Bool
+
+Whether the model declared any mode.
+"""
+is_hybrid(ir::ModelIR) = !isempty(ir.modes)
+
+"""
+    mode_ids(ir) -> Vector{Int}
+
+Mode identifiers in declaration order. They index the `HybridSystems` automaton directly, so
+they must be `1:n`; [`infer_roles!`](@ref) checks that.
+"""
+mode_ids(ir::ModelIR) = sort!(collect(keys(ir.modes)))
+
+# The mode / transition record for `id`, created on first mention. Scopes are discovered from
+# the constraints that carry them, so there is no separate declaration channel.
+mode!(ir::ModelIR, id::Int) = get!(() -> ModeIR(id), ir.modes, id)
+
+function transition!(ir::ModelIR, scope)
+    return get!(ir.transitions, scope.id) do
+        return TransitionIR(scope.id, scope.source, scope.target, scope.switching)
+    end
 end
 
 function Base.empty!(ir::ModelIR)
@@ -56,6 +137,8 @@ function Base.empty!(ir::ModelIR)
     ir.time_domain = UNKNOWN
     empty!(ir.obstacles)
     empty!(ir.specs)
+    empty!(ir.modes)
+    empty!(ir.transitions)
     ir.horizon = nothing
     ir.objective_sense = MOI.FEASIBILITY_SENSE
     ir.objective_function = nothing
@@ -90,21 +173,43 @@ appears nowhere is an error (I4), because it would otherwise be silently discret
 input and enlarge the abstraction.
 """
 function infer_roles!(ir::ModelIR)
-    if all(isnothing, ir.dynamics)
+    _validate_modes(ir)
+
+    # A variable is a state if it carries dynamics anywhere: at the top level, or in *any*
+    # mode. A hybrid model may well leave a state undriven in one mode.
+    has_dynamics = falses(length(ir.variables))
+    for (i, d) in enumerate(ir.dynamics)
+        d === nothing || (has_dynamics[i] = true)
+    end
+    for m in values(ir.modes), i in keys(m.dynamics)
+        has_dynamics[i] = true
+    end
+
+    if !any(has_dynamics)
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
 
-    # Everything mentioned by some dynamics right-hand side.
+    # Everything mentioned by some dynamics or reset right-hand side.
     used = Set{Int}()
     for d in ir.dynamics
         d === nothing || _collect_variables!(used, d)
+    end
+    for m in values(ir.modes), d in values(m.dynamics)
+        _collect_variables!(used, d)
+    end
+    for t in values(ir.transitions), d in values(t.resets)
+        _collect_variables!(used, d)
+    end
+    for t in values(ir.transitions)
+        union!(used, keys(t.guard_lower))
+        union!(used, keys(t.guard_upper))
     end
 
     unused = Int[]
     state_index = 0
     input_index = 0
     for (i, v) in enumerate(ir.variables)
-        if ir.dynamics[i] !== nothing
+        if has_dynamics[i]
             v.role = STATE
             state_index += 1
             v.index = state_index
@@ -132,6 +237,25 @@ function infer_roles!(ir::ModelIR)
     _validate_bounds(ir)
     _validate_objective(ir)
     return ir
+end
+
+# Mode ids index the `HybridSystems` automaton directly, so they must be a contiguous 1:n.
+# `add_mode!` allocates them that way; a gap means modes were declared on two different JuMP
+# models, or one was created and never used.
+function _validate_modes(ir::ModelIR)
+    isempty(ir.modes) && return
+    ids = mode_ids(ir)
+    ids == collect(1:length(ids)) || error(
+        "Mode ids must be contiguous from 1, got $ids. Declare every mode on the same model " *
+        "with `@mode` / `add_mode!`, and give each one at least one constraint.",
+    )
+    for t in values(ir.transitions)
+        (t.source in ids && t.target in ids) || error(
+            "Transition $(t.id) runs between modes $(t.source) → $(t.target), but the model " *
+            "only has modes $ids.",
+        )
+    end
+    return
 end
 
 # The abstraction discretizes X and U, so every state and input must be boxed. Without this

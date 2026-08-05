@@ -22,6 +22,7 @@ module Wrapper
 import StaticArrays: SVector
 import MathematicalSystems as MS
 import MathOptInterface as MOI
+import HybridSystems
 import JuMP
 import LazySets
 
@@ -43,14 +44,17 @@ const OP = Optim
 include("operators.jl")
 include("variables.jl")
 include("specification.jl")
+include("modes.jl")
 include("model_ir.jl")
 include("dynamics_backend.jl")
 include("solver_selection.jl")
 # `optimizer.jl` defines the `Optimizer` type, so it precedes the files that add methods on it.
 include("optimizer.jl")
 include("parse.jl")
+include("parse_scoped.jl")
 include("lower_system.jl")
 include("lower_problem.jl")
+include("lower_hybrid.jl")
 include("results.jl")
 
 end # module Wrapper

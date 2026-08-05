@@ -27,13 +27,20 @@ the implementation lives in `DionysosMathOptSymbolicADExt`.
 struct SymbolicADBackend <: AbstractDynamicsBackend end
 
 """
-    compile_dynamics(backend, ir::ModelIR) -> f
+    compile_dynamics(backend, ir::ModelIR, dynamics = ir.dynamics) -> f
 
-Compile the dynamics of `ir` into a callable `f(x, u)` returning the state derivative
-(continuous time) or the successor state (discrete time). `x` and `u` follow the orders given
-by [`state_indices`](@ref) and [`input_indices`](@ref).
+Compile `dynamics` — one expression per variable, `nothing` for the non-states — into a
+callable `f(x, u)` returning the state derivative (continuous time) or the successor state
+(discrete time). `x` and `u` follow the orders given by [`state_indices`](@ref) and
+[`input_indices`](@ref).
+
+The dynamics are passed explicitly rather than read from `ir`, because a hybrid model compiles
+one function per mode, and a transition's reset map goes through the same path.
 """
-function compile_dynamics(backend::AbstractDynamicsBackend, ::ModelIR)
+compile_dynamics(backend::AbstractDynamicsBackend, ir::ModelIR) =
+    compile_dynamics(backend, ir, ir.dynamics)
+
+function compile_dynamics(backend::AbstractDynamicsBackend, ::ModelIR, ::AbstractVector)
     # Only a fallback: each backend's real method is more specific. `SymbolicADBackend` is
     # handled here rather than by its own stub method, because the extension defines exactly
     # that signature and Julia forbids overwriting it during precompilation.

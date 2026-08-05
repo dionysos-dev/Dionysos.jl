@@ -55,6 +55,18 @@ function _horizon(ir::ModelIR, round_up::Bool, time_step)
 end
 
 """
+    build_problem(ir::ModelIR, backend; time_step = nothing) -> Problem.ProblemType
+
+Lower the model, compiling its dynamics through `backend`. A model with modes goes to
+[`build_hybrid_problem`](@ref); everything else is monolithic.
+"""
+function build_problem(ir::ModelIR, backend::AbstractDynamicsBackend; time_step = nothing)
+    is_hybrid(ir) && return build_hybrid_problem(ir, backend; time_step = time_step)
+    f = compile_dynamics(backend, ir, ir.dynamics)
+    return build_problem(ir, f; time_step = time_step)
+end
+
+"""
     build_problem(ir::ModelIR, f; time_step = nothing) -> Problem.ProblemType
 
 Assemble the control problem. Which `ProblemType` is built follows from the specification

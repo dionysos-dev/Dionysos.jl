@@ -24,14 +24,18 @@ function _symbolic(func::MathOptSymbolicAD._Function, xu)
     return Symbolics.substitute(e, Dict(p[i] => func.data[i] for i in eachindex(p)))
 end
 
-function Wrapper.compile_dynamics(::Wrapper.SymbolicADBackend, ir::Wrapper.ModelIR)
+function Wrapper.compile_dynamics(
+    ::Wrapper.SymbolicADBackend,
+    ir::Wrapper.ModelIR,
+    dynamics::AbstractVector,
+)
     x_idx = Wrapper.state_indices(ir)
     u_idx = Wrapper.input_indices(ir)
 
     nlp_model = MOI.Nonlinear.Model()
     for i in x_idx
         # The set does not matter; the constraint is only a carrier for the expression.
-        MOI.Nonlinear.add_constraint(nlp_model, ir.dynamics[i], MOI.EqualTo(0.0))
+        MOI.Nonlinear.add_constraint(nlp_model, dynamics[i], MOI.EqualTo(0.0))
     end
 
     vars = MOI.VariableIndex.(eachindex(ir.variables))
