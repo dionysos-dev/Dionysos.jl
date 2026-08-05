@@ -234,6 +234,10 @@ function infer_roles!(ir::ModelIR)
         )
     end
 
+    # A clock is a state, but not a coordinate of the physical `x`, so it is re-labelled after
+    # the state/input split and drops out of `state_indices`.
+    detect_clock!(ir)
+
     _validate_bounds(ir)
     _validate_objective(ir)
     return ir

@@ -19,7 +19,7 @@ See `src/wrapper/README.md` for the user guide.
 """
 module Wrapper
 
-import StaticArrays: SVector
+import StaticArrays: SVector, SMatrix
 import MathematicalSystems as MS
 import MathOptInterface as MOI
 import HybridSystems
@@ -54,6 +54,7 @@ include("parse.jl")
 include("parse_scoped.jl")
 include("lower_system.jl")
 include("lower_problem.jl")
+include("clock.jl")
 include("lower_hybrid.jl")
 include("results.jl")
 

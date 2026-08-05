@@ -55,6 +55,7 @@ const TEST_FILES = [
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
     ("./wrapper/hybrid.jl", :slow),      # modes, transitions, guards, reset maps
+    ("./wrapper/clock.jl", :slow),       # clocks and time-windowed specifications
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),

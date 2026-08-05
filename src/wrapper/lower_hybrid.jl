@@ -2,8 +2,9 @@
 # Lowering a hybrid model: `ModelIR` with modes → `HybridSystems.HybridSystem` + a problem
 # over augmented states.
 #
-# Every mode is a plain physical system here, so the augmented state is `(x, mode)`. Clocks —
-# and with them `(x, t, mode)` — are a later phase.
+# The augmented state is `(x, mode)`, or `(x, t, mode)` when the model declares a clock (see
+# `clock.jl`). The clock is what decides the arity of guards and reset maps, so it is consulted
+# throughout rather than handled as a special case at the end.
 # ----------------------------------------------------------------------------------------
 
 # The bounds of `i` inside mode `m`: the model-level declaration, narrowed by any per-mode
@@ -47,16 +48,10 @@ function _build_mode_system(ir::ModelIR, m::ModeIR, backend, x_idx, u_idx)
     X = _mode_box(ir, m, x_idx)
     U = _mode_box(ir, m, u_idx)
 
-    if ir.time_domain == CONTINUOUS
-        return MS.ConstrainedBlackBoxControlContinuousSystem(
-            f,
-            LazySets.dim(X),
-            LazySets.dim(U),
-            X,
-            U,
-        )
+    physical = if ir.time_domain == CONTINUOUS
+        MS.ConstrainedBlackBoxControlContinuousSystem(f, LazySets.dim(X), LazySets.dim(U), X, U)
     else
-        return MS.ConstrainedBlackBoxControlDiscreteSystem(
+        MS.ConstrainedBlackBoxControlDiscreteSystem(
             (x, u) -> f(x, u),
             LazySets.dim(X),
             LazySets.dim(U),
@@ -64,26 +59,34 @@ function _build_mode_system(ir::ModelIR, m::ModeIR, backend, x_idx, u_idx)
             U,
         )
     end
+
+    # A clock turns the mode into the physical system paired with its time axis, which is what
+    # makes the augmented state `(x, t, mode)` instead of `(x, mode)`.
+    clock = clock_index(ir)
+    clock === nothing && return physical
+    return ST.VectorContinuousSystem([physical, clock_system(ir, m, clock)])
 end
 
-# A guard is a box over the state coordinates: the source mode's state set, narrowed by the
-# bounds written on the transition. An unconstrained coordinate stays free within the mode.
+# A guard is a box over the *augmented* state — `x`, plus the clock when there is one, since
+# that is the space `HybridSystems` applies the transition in. It is the source mode's own set,
+# narrowed by the bounds written on the transition; an unconstrained coordinate stays free.
 function _guard_box(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
     source = ir.modes[t.source]
+    clock = clock_index(ir)
+    coords = clock === nothing ? x_idx : vcat(x_idx, clock)
     lo = Float64[]
     hi = Float64[]
-    for i in x_idx
+    for i in coords
         l, h = _mode_bound(ir, source, i)
         push!(lo, max(l, get(t.guard_lower, i, -Inf)))
         push!(hi, min(h, get(t.guard_upper, i, Inf)))
     end
-    return UT.box(SVector{length(x_idx)}(lo...), SVector{length(x_idx)}(hi...))
+    return UT.box(SVector{length(coords)}(lo...), SVector{length(coords)}(hi...))
 end
 
-# The reset applied when the switch is taken. With no `Δ(x) == …` on the transition this is
-# the identity, which is what switching mode usually does to the state.
-function _reset_function(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{Int})
-    isempty(t.resets) && return identity
+# The reset of the physical coordinates, or `nothing` when the transition leaves them alone.
+function _physical_reset(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{Int})
+    any(i -> haskey(t.resets, i), x_idx) || return nothing
 
     dynamics =
         Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}(nothing, length(ir.variables))
@@ -99,7 +102,36 @@ function _reset_function(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{In
     # The compiled function takes `(x, u)`; a reset map is applied to the state alone.
     u_idx = input_indices(ir)
     u0 = SVector{length(u_idx)}(zeros(length(u_idx))...)
-    return state -> reset(state, u0)
+    return x -> reset(x, u0)
+end
+
+# The reset applied when the switch is taken. With nothing written on the transition this is
+# the identity, which is what switching mode usually does to the state.
+function _reset_function(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{Int})
+    isempty(t.resets) && return identity
+    physical = _physical_reset(ir, t, backend, x_idx)
+    clock = clock_index(ir)
+
+    if clock === nothing
+        return physical === nothing ? identity : physical
+    end
+
+    # With a clock the map runs on `[x; t]`. A clock reset must be a constant — "restart the
+    # timer at 0" — because the time axis is discretized independently of the dynamics.
+    reset_expr = get(t.resets, clock, nothing)
+    clock_value = reset_expr === nothing ? nothing : _clock_rate(reset_expr)
+    reset_expr === nothing ||
+        clock_value !== nothing ||
+        error("The clock reset on transition $(t.id) must be a constant, e.g. `Δ(t) == 0`.")
+
+    physical === nothing && clock_value === nothing && return identity
+    n = length(x_idx)
+    return function (state)
+        x = @view state[1:n]
+        next_x = physical === nothing ? collect(x) : collect(physical(x))
+        next_t = clock_value === nothing ? state[end] : clock_value
+        return vcat(next_x, next_t)
+    end
 end
 
 """
@@ -139,7 +171,12 @@ end
 # The specification set of one mode and one kind, as a box over the state coordinates: either a
 # marker set given over the whole state, or per-coordinate `final(x[i])` intervals.
 function _mode_spec_set(ir::ModelIR, m::ModeIR, kind::SpecKind, x_idx::Vector{Int})
-    entries = filter(e -> e.kind === kind, m.specs)
+    clock = clock_index(ir)
+    entries = filter(m.specs) do e
+        e.kind === kind || return false
+        # The clock carries the *time window* of the spec, not one of its state coordinates.
+        return clock === nothing || !(MOI.VariableIndex(clock) in e.variables)
+    end
     isempty(entries) && return nothing
 
     whole = filter(e -> length(e.variables) == length(x_idx), entries)
@@ -165,19 +202,50 @@ function _mode_spec_set(ir::ModelIR, m::ModeIR, kind::SpecKind, x_idx::Vector{In
     return UT.box(SVector{length(x_idx)}(lo...), SVector{length(x_idx)}(hi...))
 end
 
+# The time window of a mode's spec: the interval written on the clock with `final(t) in …`,
+# defaulting to the mode's whole time domain.
+function _mode_time_window(ir::ModelIR, m::ModeIR, kind::SpecKind, clock::Int)
+    lo, hi = _mode_bound(ir, m, clock)
+    for e in m.specs
+        e.kind === kind || continue
+        e.variables == [MOI.VariableIndex(clock)] || continue
+        interval = e.set
+        isfinite(interval.lower) && (lo = interval.lower)
+        isfinite(interval.upper) && (hi = interval.upper)
+    end
+    return lo, hi
+end
+
 function _hybrid_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
-    pairs = Pair{Int, PR.StateSpec}[]
+    clock = clock_index(ir)
+    pairs = Pair{Int, PR.AbstractSpecification}[]
     for k in mode_ids(ir)
-        set = _mode_spec_set(ir, ir.modes[k], kind, x_idx)
-        set === nothing || push!(pairs, k => PR.StateSpec(set))
+        m = ir.modes[k]
+        set = _mode_spec_set(ir, m, kind, x_idx)
+        set === nothing && continue
+        spec = PR.StateSpec(set)
+        if clock !== nothing
+            lo, hi = _mode_time_window(ir, m, kind, clock)
+            spec = PR.TimedSpec(spec, lo, hi)
+        end
+        push!(pairs, k => spec)
     end
     isempty(pairs) && return nothing
     return PR.HybridSpec(Dict(pairs))
 end
 
-# The augmented initial state `(x, mode)`. The continuous part is the centre of the declared
-# initial box — a hybrid problem starts from a point, not a region — and the mode is the one
-# carrying a `start` constraint, defaulting to the first.
+# Where the clock starts: its declared `start`, otherwise the beginning of its domain — a timer
+# normally starts at zero rather than in the middle of its range.
+function _clock_start(ir::ModelIR, clock::Int)
+    v = ir.variables[clock]
+    isfinite(v.start.lower) && return v.start.lower
+    return v.lower
+end
+
+# The augmented initial state — `(x, mode)`, or `(x, t, mode)` with a clock. The continuous
+# part is the centre of the declared initial box, since a hybrid problem starts from a point
+# rather than a region, and the mode is the one carrying a `start` constraint, defaulting to
+# the first.
 function _hybrid_initial_state(ir::ModelIR, x_idx::Vector{Int})
     box = _coordinate_box(ir, x_idx, :start)
     x0 = SVector{length(x_idx)}(LazySets.center(box)...)
@@ -186,7 +254,11 @@ function _hybrid_initial_state(ir::ModelIR, x_idx::Vector{Int})
     length(starting) <= 1 || error(
         "Several modes carry a `start` constraint ($(starting)); the model can only begin in one.",
     )
-    return (x0, isempty(starting) ? first(mode_ids(ir)) : starting[])
+    mode = isempty(starting) ? first(mode_ids(ir)) : starting[]
+
+    clock = clock_index(ir)
+    clock === nothing && return (x0, mode)
+    return (x0, _clock_start(ir, clock), mode)
 end
 
 """

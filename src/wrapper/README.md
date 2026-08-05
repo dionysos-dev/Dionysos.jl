@@ -5,8 +5,8 @@
 >
 > Landed: the model IR and the move out of the extension, variable-role inference, solution
 > status and `simulate`, the specification markers with problem-type inference, the horizon,
-> solver selection, and hybrid modes and transitions.
-> Planned: clocks, alternative dynamics backends, and the temporal-formula layer.
+> solver selection, hybrid modes and transitions, and clocks.
+> Planned: alternative dynamics backends and the temporal-formula layer.
 
 This is the surface where a user who is not a Dionysos developer writes a control problem. You
 describe a **system**, state a **specification**, optionally pick a **solver**, and get back a
