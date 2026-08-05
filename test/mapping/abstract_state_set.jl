@@ -3,6 +3,9 @@ module TestMain
 import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
+# A state set that overrides nothing, to check the abstract interface stubs error.
+struct _UnimplementedStateSet <: MP.AbstractStateSet{2} end
+
 @testset "AbstractStateSet" begin
     # ---- Make a tiny explicit grid mapping with a known universe ----
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
@@ -159,6 +162,86 @@ end
     MP.remove_set!(S, pm, UT.box(SVector(4.5, 0.0), SVector(5.0, 1.0)))
     @test SVector(0.7, 0.5) ∉ S.set     # in the carved-out region
     @test SVector(1.3, 0.5) ∈ S.set     # still inside the remainder
+end
+
+@testset "MappedStateSet (public surface)" begin
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    m = MP.ExplicitGridMapping(grid)
+    q1 = MP.add_pos!(m, (0, 0))
+    q2 = MP.add_pos!(m, (1, 0))
+    q3 = MP.add_pos!(m, (0, 1))
+    q4 = MP.add_pos!(m, (1, 1))
+
+    # bundles a set with its mapping, so calls no longer thread (set, mapping)
+    ms = MP.MappedStateSet(MP.ExplicitIdSet{2}(), m)
+    @test MP.get_dim(ms) == 2
+    @test MP.get_mapping(ms) === m
+    @test MP.get_set(ms) isa MP.ExplicitIdSet{2}
+    @test MP.get_n_state(ms) == 0
+
+    MP.add_state!(ms, q1)
+    @test MP.contains_state(ms, q1)
+    @test !MP.contains_state(ms, q2)
+    @test MP.get_n_state(ms) == 1
+
+    MP.add_states!(ms, [q2, q3])
+    @test Set(MP.enum_states(ms)) == Set([q1, q2, q3])
+    @test MP.get_n_state(ms) == 3
+
+    MP.remove_state!(ms, q1)
+    @test !MP.contains_state(ms, q1)
+
+    # add_set!/remove_set! forward through to the (set, mapping) methods
+    rect = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    MP.add_set!(ms, rect, MP.OUTER)
+    @test all(q -> MP.contains_state(ms, q), (q1, q2, q3, q4))
+    MP.remove_set!(ms, rect, MP.OUTER)
+    @test MP.get_n_state(ms) == 0
+
+    # copy is independent in its set but shares the (immutable) mapping
+    MP.add_state!(ms, q1)
+    ms2 = copy(ms)
+    MP.add_state!(ms2, q4)
+    @test MP.contains_state(ms2, q4)
+    @test !MP.contains_state(ms, q4)     # mutating the copy leaves the original alone
+    @test MP.get_mapping(ms2) === m
+end
+
+@testset "UniqueStates dedup (union get_n_state, unique_states)" begin
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    m = MP.ExplicitGridMapping(grid)
+    q1 = MP.add_pos!(m, (0, 0))
+    q2 = MP.add_pos!(m, (1, 0))
+    q3 = MP.add_pos!(m, (0, 1))
+
+    A = MP.stateset_from_states(m, [q1, q2])
+    B = MP.stateset_from_states(m, [q2, q3])   # overlaps A on q2
+
+    # get_n_state on the lazy union counts distinct states → exercises
+    # UniqueStates length (it must not double-count the shared q2).
+    U = MP.UnionStateSet{2, typeof(A), typeof(B)}(A, B)
+    @test MP.get_n_state(U, m) == 3
+
+    D = MP.SetMinusStateSet{2, typeof(A), typeof(B)}(A, B)  # A \ B = {q1}
+    @test Set(MP.enum_states(D, m)) == Set([q1])
+    @test MP.get_n_state(D, m) == 1   # SetMinus override (lazy filter has no length)
+
+    # the deduplicating iterator directly
+    dup = MP.unique_states([q1, q2, q2, q1, q3])
+    @test eltype(dup) == Int
+    @test length(dup) == 3
+    @test Set(dup) == Set([q1, q2, q3])
+end
+
+@testset "AbstractStateSet interface stubs error" begin
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    m = MP.ExplicitGridMapping(grid)
+    S = _UnimplementedStateSet()
+    @test_throws ErrorException MP.contains_state(S, m, 1)
+    @test_throws ErrorException MP.enum_states(S, m)
+    @test_throws ErrorException MP.add_state!(S, m, 1)
+    @test_throws ErrorException MP.remove_state!(S, m, 1)
+    @test_throws ErrorException MP.empty_states!(S)
 end
 
 end # module
