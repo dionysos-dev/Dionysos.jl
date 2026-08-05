@@ -6,9 +6,10 @@ kept, its *implementation* is not (§3).
 
 User guide for the target DSL: [`src/wrapper/README.md`](src/wrapper/README.md).
 
-Status: **design, not yet executed.** Revision 2 — every JuMP mechanism claimed here has been
-executed against JuMP 1.30.1 (§9), and revision 1 was adversarially reviewed; the defects it found
-are fixed in place and recorded in §10.
+Status: **phases 0–4 executed** (branch `jc_issue_4`); phases 5–8 remain. Revision 2 — every JuMP
+mechanism claimed here was executed against JuMP 1.30.1 (§9), and revision 1 was adversarially
+reviewed; the defects it found are fixed in place and recorded in §10. Execution notes, including
+three further defects the work surfaced, are in §11.
 
 ---
 
@@ -608,3 +609,51 @@ These are recorded rather than worked around, and each is a candidate standalone
 | No reset-map type; 11 copy-pasted `…ResetMap` structs | Phase 5 must add `ST.GuardedResetMap` first | add it and sweep `problems/`, `research/`, `test/` |
 | Reset/guard arity differs between clock-lifted and time-free modes; mixed hybrids unsupported | the wrapper must extend `x`-guards across the clock domain and reject mixed models | unify the reset-map calling convention in `HybridSystemAbstraction` |
 | No `MOI.TerminationStatus` on any abstraction solver | Phase 2 synthesises it from `success::Bool` at the wrapper level | push the mapping down into the solvers so direct-MOI users get it too |
+
+---
+
+## 11. Execution log
+
+Phases 0–4 are done on branch `jc_issue_4`, each formatted, gated on the `--fast` suite (57 files)
+plus the golden regression, and committed separately.
+
+| Commit | Phase | What landed |
+| :--- | :--- | :--- |
+| `b9331af1` | — | `FIX optim: no success when the initial set is empty` (see below) |
+| `f961e894` | 0 + 1 | `ModelIR`, parse/lower split, wrapper moved to `src/wrapper/`, extension reduced to the symbolic backend, rule I4, `test/wrapper/lowering.jl` |
+| `816610e1` | — | this plan and `src/wrapper/README.md` |
+| `e4271f81` | 3 | spec markers, problem-type inference, horizon, L7 fix, `@objective` error, `test/wrapper/specifications.jl` |
+| `c320ddc2` | 4 | `"solver"` attribute, attribute replay, `select_solver`/`supports_problem`, `test/wrapper/solver_selection.jl` |
+
+Phase 2 (status + `simulate`) is folded into `f961e894`: it touches the same files and was
+developed and gated with them.
+
+### Three defects the execution surfaced
+
+None of these were visible from reading the code; each was found by a test.
+
+1. **L7 is a crash, not a silent bug.** An unconstrained `final` coordinate produced the interval
+   `(-Inf, Inf)`, from which `UT.box` built a NaN centre and radius and threw
+   `AssertionError: radius must be nonnegative` from inside LazySets — with no mention of the
+   model. So the Path-planning example's `final(x[3]) in MOI.Interval(-100.0, 100.0)` was load
+   bearing, and any multi-state model had to constrain *every* coordinate. Fixed in Phase 3.
+
+2. **Success was reported vacuously.** `optimizer.success = all(q -> q in controllable_set,
+   problem.initial_set)` is `true` for an **empty** initial set, so a model whose initial region is
+   not represented in the abstraction reported success without verifying anything — reaching the
+   user as a spurious `MOI.OPTIMAL` once Phase 2 exposed the status. Fixed with
+   `DiscreteSystems.covers_initial_set`, applied to the optimal-control, safety and reach-and-stay
+   solvers.
+
+3. **Attaching an abstraction-only problem discarded the configuration.**
+   `set_concrete_problem!(::UniformGridAbstraction.Optimizer, ::AlternatingSimulationProblem)`
+   replaced the abstraction sub-solver with a fresh one, carrying over only four fields — so
+   `state_grid`, `input_grid`, `time_step` and `approx_mode` set *before* the problem were
+   silently lost. It now keeps the configured solver and clears just its cached results. This is a
+   trap for direct-MOI users too, not only the wrapper.
+
+### Remaining
+
+Phases 5 (modes and transitions, `ST.GuardedResetMap`), 6 (clocks), 7 (dynamics backends, #510),
+8 (docs and examples), and the optional 9 (LTL layer). The `src/wrapper/README.md` sections
+covering them are marked **(planned)**.
