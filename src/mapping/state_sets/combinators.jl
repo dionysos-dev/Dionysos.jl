@@ -78,3 +78,8 @@ contains_state(S::SetMinusStateSet{N}, m::AbstractMapping{N}, q::Int) where {N} 
 
 enum_states(S::SetMinusStateSet{N}, m::AbstractMapping{N}) where {N} =
     (q for q in enum_states(S.A, m) if !contains_state(S.B, m, q))
+
+# `enum_states` is a lazy filter (no `length`), so the generic
+# `get_n_state = length(enum_states(...))` cannot apply here; count directly.
+get_n_state(S::SetMinusStateSet{N}, m::AbstractMapping{N}) where {N} =
+    count(q -> !contains_state(S.B, m, q), enum_states(S.A, m))

@@ -58,6 +58,52 @@ import LazySets
     @test LazySets.dim(M) == 2
 end
 
+@testset "Inclusion verbs (generic, non-ellipsoid)" begin
+    small = UT.box([0.0, 0.0], [1.0, 1.0])
+    big = UT.box([-1.0, -1.0], [2.0, 2.0])
+    far = UT.box([5.0, 5.0], [6.0, 6.0])
+
+    @test UT.is_included(small, big)
+    @test !UT.is_included(big, small)
+    @test UT.is_disjoint(small, far)
+    @test !UT.is_disjoint(small, big)
+end
+
+@testset "Outer bounding box" begin
+    H = UT.box([1.0, 2.0], [3.0, 4.0])
+    @test UT._outer_box(H) === H                     # a box is its own outer box
+
+    # a set with only a support function goes through box_approximation
+    E = LazySets.Ellipsoid([0.0, 0.0], [1.0 0.0; 0.0 1.0])
+    BE = UT._outer_box(E)
+    @test all(LazySets.low(BE) .≈ [-1.0, -1.0])
+    @test all(LazySets.high(BE) .≈ [1.0, 1.0])
+
+    # a union is bounded by the elementwise min/max of its members' boxes
+    U = UT.set_union([UT.box([-1.0, -1.0], [1.0, 1.0]), UT.box([2.0, 2.0], [3.0, 3.0])])
+    BU = UT._outer_box(U)
+    @test all(LazySets.low(BU) .== [-1.0, -1.0])
+    @test all(LazySets.high(BU) .== [3.0, 3.0])
+
+    # a set_minus is bounded by its kept region alone
+    M = UT.set_minus(H, E)
+    @test UT._outer_box(M) === H
+
+    # an empty union has no inferable box
+    empty_union = LazySets.UnionSetArray(LazySets.LazySet{Float64}[])
+    @test_throws ErrorException UT._outer_box(empty_union)
+end
+
+@testset "project_set" begin
+    R = UT.box([0.0, 10.0], [2.0, 12.0])
+    @test UT.project_set(R, [1, 2]) === R            # dims cover R → identity
+
+    P = UT.project_set(R, [1])                        # drop to the first coordinate
+    @test LazySets.dim(P) == 1
+    @test [1.0] ∈ P
+    @test [3.0] ∉ P
+end
+
 @testset "Periodic wrapping" begin
     periodic_dims = UT.SVector(1)
     periods = UT.SVector(1.0)

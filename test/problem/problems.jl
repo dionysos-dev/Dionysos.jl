@@ -130,6 +130,186 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p2.system === p.system
     end
 
+    @testset "Horizon: Infinity and discretize_time" begin
+        @test !isfinite(PR.Infinity())
+        @test isinf(PR.Infinity())
+
+        # round_up = true → ceil ("for at least T"); false → floor ("within at most T")
+        @test PR.discretize_time(1.0, 0.3; round_up = true) == 4
+        @test PR.discretize_time(1.0, 0.3; round_up = false) == 3
+        @test PR.discretize_time(0.9, 0.3) == 3            # exact; default rounds up
+        @test PR.discretize_time(PR.Infinity(), 0.3) === PR.Infinity()  # stays infinite
+    end
+
+    @testset "Default (infinite) horizon constructors" begin
+        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        sys = DummySystem(X)
+        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
+        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
+        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+
+        @test PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0).time ===
+              PR.Infinity()
+        @test PR.SafetyProblem(sys, XI, XS).time === PR.Infinity()
+        @test PR.ReachAndStayProblem(sys, XI, XT, XS).time === PR.Infinity()
+    end
+
+    @testset "ReachAndStayProblem fields" begin
+        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        sys = DummySystem(X)
+        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
+        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
+        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+
+        p = PR.ReachAndStayProblem(sys, XI, XT, XS, 6)
+        @test p isa PR.ControlProblem
+        @test p.system === sys
+        @test p.initial_set == XI
+        @test p.target_set == XT
+        @test p.safe_set == XS
+        @test p.time == 6
+        @test PR.horizon_round_up(p) == true   # reach-and-stay is a "for at least T" spec
+    end
+
+    @testset "BisimulationQuotientProblem fields" begin
+        X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+        sys = DummySystem(X)
+        state_set = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+        regions = [
+            UT.box(SVector(-0.4, -0.4), SVector(-0.1, -0.1)),
+            UT.box(SVector(0.1, 0.1), SVector(0.4, 0.4)),
+        ]
+
+        p = PR.BisimulationQuotientProblem(sys, state_set, regions)
+        @test p isa PR.ProblemType
+        @test p isa PR.AbstractionProblem
+        @test p.system === sys
+        @test p.state_set == state_set
+        @test p.observation_regions === regions
+    end
+
+    @testset "trajectory_success semantics" begin
+        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
+        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
+        XS = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        sys = DummySystem(XS)
+
+        in_XI = SVector(-0.75, -0.75)
+        mid = SVector(0.0, 0.0)
+        in_XT = SVector(0.75, 0.75)
+        unsafe = SVector(3.0, 3.0)
+
+        traj(pts) = ST.Trajectory(pts)
+        empty_traj = ST.Trajectory(SVector{2, Float64}[])
+
+        @testset "reach-avoid (OptimalControlProblem)" begin
+            p = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 5)
+            @test PR.trajectory_success(p, traj([in_XI, mid, in_XT]))  # from XI, reaches XT
+            @test !PR.trajectory_success(p, traj([in_XI, mid]))        # never reaches XT
+            @test !PR.trajectory_success(p, traj([mid, in_XT]))        # does not start in XI
+            @test !PR.trajectory_success(p, empty_traj)
+        end
+
+        @testset "safety (SafetyProblem)" begin
+            XIs = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+            p = PR.SafetyProblem(sys, XIs, XS, 5)
+            @test PR.trajectory_success(p, traj([mid, in_XT, in_XI]))  # from XI, stays in XS
+            @test !PR.trajectory_success(p, traj([mid, unsafe]))       # leaves XS
+            @test !PR.trajectory_success(p, traj([in_XT, mid]))        # in_XT ∉ XIs
+            @test !PR.trajectory_success(p, empty_traj)
+        end
+
+        @testset "reach-and-stay (ReachAndStayProblem)" begin
+            p = PR.ReachAndStayProblem(sys, XI, XT, XS, 5)
+            @test PR.trajectory_success(p, traj([in_XI, mid, in_XT]))    # ends in XT, stays safe
+            @test !PR.trajectory_success(p, traj([in_XI, in_XT, mid]))   # ends outside XT
+            @test !PR.trajectory_success(p, traj([in_XI, unsafe, in_XT]))  # leaves XS
+            @test !PR.trajectory_success(p, empty_traj)
+        end
+
+        @testset "co-safe LTL (placeholder returns false)" begin
+            lab = Dict{Symbol, Any}(:ap => XT)
+            ap_sem = Dict{Symbol, Any}(:ap => MP.INNER)
+            p = PR.CoSafeLTLProblem(sys, XI, :spec, lab, ap_sem)
+            @test !PR.trajectory_success(p, traj([in_XI, in_XT]))       # not yet implemented
+            @test !PR.trajectory_success(p, empty_traj)
+        end
+    end
+
+    @testset "discretize_problem" begin
+        sys = single_integrator()   # a real continuous-time plant (ẋ = u)
+        XI = UT.box(SVector(-1.0), SVector(-0.5))
+        XT = UT.box(SVector(0.5), SVector(1.0))
+
+        # reach-avoid rounds the horizon down: floor(1.0 / 0.3) = 3
+        p = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 1.0)
+        pd = PR.discretize_problem(p, 0.3)
+        @test pd isa PR.OptimalControlProblem
+        @test pd.time == 3
+        @test pd.initial_set === XI       # non-system fields copied verbatim
+        @test pd.system !== sys           # the system was time-discretized
+        @test pd.system isa MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem
+
+        # safety rounds up: ceil(1.0 / 0.3) = 4
+        ps = PR.SafetyProblem(sys, XI, UT.box(SVector(-1.5), SVector(1.5)), 1.0)
+        @test PR.discretize_problem(ps, 0.3).time == 4
+
+        # abstraction problems have no generic discretization → the stub errors
+        alt = PR.AlternatingSimulationProblem(sys, XI)
+        @test_throws ErrorException PR.discretize_problem(alt, 0.3)
+    end
+
+    @testset "Specifications" begin
+        set1 = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
+        set2 = UT.box(SVector(-1.0, -1.0), SVector(0.0, 0.0))
+
+        # StateSpec: default INNER, explicit mode, and time-agnostic membership
+        s1 = PR.StateSpec(set1)
+        @test s1 isa PR.AbstractSpecification
+        @test s1.incl_mode === UT.INNER
+        @test PR.StateSpec(set1, UT.OUTER).incl_mode === UT.OUTER
+        @test PR.satisfies(s1, SVector(0.5, 0.5))
+        @test !PR.satisfies(s1, SVector(2.0, 2.0))
+        @test PR.satisfies(s1, SVector(0.5, 0.5), 99.0)   # StateSpec ignores time
+
+        # TimedSpec: base holds AND t ∈ [tmin, tmax]
+        ts = PR.TimedSpec(s1, 1.0, 3.0)
+        @test PR.satisfies(ts, SVector(0.5, 0.5), 2.0)
+        @test !PR.satisfies(ts, SVector(0.5, 0.5), 5.0)   # outside the time window
+        @test !PR.satisfies(ts, SVector(2.0, 2.0), 2.0)   # outside the set
+
+        # HybridSpec, time-free mode dispatch (per-mode StateSpec)
+        hs = PR.HybridSpec(Dict(1 => s1, 2 => PR.StateSpec(set2)))
+        @test PR.satisfies(hs, SVector(0.5, 0.5), 1)
+        @test PR.satisfies(hs, SVector(-0.5, -0.5), 2)
+        @test !PR.satisfies(hs, SVector(0.5, 0.5), 2)     # not in mode 2's set
+        @test !PR.satisfies(hs, SVector(0.5, 0.5), 99)    # absent mode → false
+
+        # hybrid_reach_spec: parallel (state, time, mode) → mode-indexed timed spec
+        H = PR.hybrid_reach_spec(
+            [set1, set2],
+            [UT.box(SVector(0.0), SVector(2.0)), UT.box(SVector(1.0), SVector(4.0))],
+            [1, 2],
+        )
+        @test H isa PR.HybridSpec
+        @test PR.satisfies(H, SVector(0.5, 0.5), 1.0, 1)    # mode 1, in set, t ∈ [0, 2]
+        @test !PR.satisfies(H, SVector(0.5, 0.5), 3.0, 1)   # t = 3 ∉ [0, 2]
+        @test PR.satisfies(H, SVector(-0.5, -0.5), 2.0, 2)  # mode 2, in set, t ∈ [1, 4]
+        @test !PR.satisfies(H, SVector(0.5, 0.5), 1.0, 9)   # absent mode → false
+
+        # validation: parallel lengths must match and modes must be unique
+        @test_throws AssertionError PR.hybrid_reach_spec(
+            [set1, set2],
+            [UT.box(SVector(0.0), SVector(2.0))],
+            [1, 2],
+        )
+        @test_throws AssertionError PR.hybrid_reach_spec(
+            [set1, set2],
+            [UT.box(SVector(0.0), SVector(2.0)), UT.box(SVector(1.0), SVector(4.0))],
+            [1, 1],
+        )
+    end
+
     @testset "Plots/recipes smoke tests" begin
         # These tests aim for coverage: ensure recipes don't throw.
         # Don't over-assert details to avoid brittleness.
