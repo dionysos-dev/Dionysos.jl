@@ -10,13 +10,13 @@ using MathOptSymbolicAD
 import MathOptInterface as MOI
 import LazySets
 
-# Characterisation suite for the JuMP front-end: it pins what the wrapper does *today*,
-# including the known defects, so the staged refactor (see `plan.md`) has a real safety net.
-# `test/optim/jump_frontend.jl` covers the happy path end to end; this file inspects the
-# lowered `(system, problem)` pair directly, which is both far faster and far more precise.
+# The core lowering contract of the JuMP front-end: how a model becomes a `(system, problem)`
+# pair. Started life as the characterisation net for the refactor (see `plan.md`), so several
+# assertions guard historical defects and are tagged FIXED-Ln.
 #
-# Assertions that pin a *defect* are tagged DEFECT-Ln and name the phase that changes them.
-# When that phase lands, the assertion flips — it is not deleted.
+# `test/optim/jump_frontend.jl` covers the happy path end to end; this file inspects the
+# lowered pair directly, which is both far faster and far more precise.
+# `test/wrapper/specifications.jl` covers the specification markers and problem inference.
 
 const WR = Dionysos.Wrapper
 
@@ -41,11 +41,9 @@ end
         return @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
     end
 
-    # DEFECT-L5 (Phase 3): the problem type is hardwired, never inferred.
+    # A `final` set alone infers a reach problem; with no horizon set it is infinite.
     @test problem isa PR.OptimalControlProblem
-    # DEFECT-L8 (Phase 3): the horizon is hardwired.
     @test problem.time === PR.Infinity()
-    # DEFECT-L9 (Phase 3): costs are never populated.
     @test problem.state_cost === nothing
     @test problem.transition_cost === nothing
 
@@ -64,48 +62,13 @@ end
     @test LazySets.high(problem.system.U, 1) == 1.0
 end
 
-@testset "lowered problem: an unconstrained target coordinate crashes the lowering" begin
-    # DEFECT-L7 (Phase 3). An unconstrained coordinate defaults to the interval (-Inf, Inf),
-    # from which `UT.box` computes a NaN centre and radius and throws deep inside LazySets:
-    #
-    #     AssertionError: radius must be nonnegative but is [0.5, NaN]
-    #
-    # So this is not the *silent* unbounded target the plan first assumed — it is an outright
-    # crash with a message that says nothing about the model. It is also why the Path planning
-    # example must carry `final(x[3]) in MOI.Interval(-100.0, 100.0)`: that line is load
-    # bearing, not cosmetic. Phase 3 defaults these coordinates to the variable's own bounds.
-    @test_throws AssertionError lowered_problem() do model
-        @variable(model, -1.0 <= x[1:2] <= 1.0, start = 0.0)
-        @variable(model, -1.0 <= u[1:2] <= 1.0)
-        @constraint(model, ∂(x[1]) == u[1])
-        @constraint(model, ∂(x[2]) == u[2])
-        # Only x[1] gets a target; x[2] is left alone on purpose.
-        return @constraint(model, final(x[1]) in MOI.Interval(-0.5, 0.5))
-    end
-
-    # Constraining every coordinate is what makes the lowering work today.
-    problem, _ = lowered_problem() do model
-        @variable(model, -1.0 <= x[1:2] <= 1.0, start = 0.0)
-        @variable(model, -1.0 <= u[1:2] <= 1.0)
-        @constraint(model, ∂(x[1]) == u[1])
-        @constraint(model, ∂(x[2]) == u[2])
-        @constraint(model, final(x[1]) in MOI.Interval(-0.5, 0.5))
-        return @constraint(model, final(x[2]) in MOI.Interval(-1.0, 1.0))
-    end
-    @test LazySets.low(problem.target_set, 1) == -0.5
-    @test LazySets.high(problem.target_set, 2) == 1.0
-end
-
 @testset "lowered problem: variable roles are inferred from dynamics alone" begin
     problem, _ = lowered_problem() do model
         @variable(model, -1.0 <= x[1:2] <= 1.0, start = 0.0)
         @variable(model, -2.0 <= u <= 2.0)
         @constraint(model, ∂(x[1]) == x[2])
         @constraint(model, ∂(x[2]) == u)
-        @constraint(model, final(x[1]) in MOI.Interval(-0.5, 0.5))
-        # Every coordinate must be constrained today, or the lowering crashes — see the
-        # DEFECT-L7 testset above.
-        return @constraint(model, final(x[2]) in MOI.Interval(-1.0, 1.0))
+        return @constraint(model, final(x[1]) in MOI.Interval(-0.5, 0.5))
     end
 
     # A variable is a STATE iff it carries dynamics; everything else is an INPUT. `u` appears
@@ -161,23 +124,6 @@ end
     @test !(problem.system.X isa LazySets.AbstractHyperrectangle)
     @test SVector(0.8, 0.8) ∉ problem.system.X
     @test SVector(0.0, 0.0) ∈ problem.system.X
-end
-
-@testset "@objective is accepted and silently discarded" begin
-    # DEFECT-L9 (Phase 3): JuMP accepts the objective, the wrapper stores it, and nothing
-    # ever reads it — the user gets no cost and no warning. Phase 3 raises an error here,
-    # and a later phase maps the separable form onto `transition_cost`.
-    problem, _ = lowered_problem() do model
-        @variable(model, -1.0 <= x <= 1.0, start = -0.75)
-        @variable(model, -1.0 <= u <= 1.0)
-        @constraint(model, ∂(x) == u)
-        @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
-        return @objective(model, Min, u)
-    end
-
-    # Accepted without complaint, then dropped on the floor.
-    @test problem.transition_cost === nothing
-    @test problem.state_cost === nothing
 end
 
 @testset "input validation" begin

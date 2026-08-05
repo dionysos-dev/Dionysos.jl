@@ -50,7 +50,8 @@ const TEST_FILES = [
     ("./symbolic/multiprocessing.jl",),
     ("./optim/optimizer_common.jl",),
     ("./optim/jump_frontend.jl",),  # canonical JuMP entry (∂/final on Dionysos.Optimizer)
-    ("./wrapper/current_behaviour.jl",),  # front-end characterisation net (see plan.md)
+    ("./wrapper/lowering.jl",),        # JuMP model → (system, problem)
+    ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),

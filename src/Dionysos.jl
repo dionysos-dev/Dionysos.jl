@@ -15,8 +15,9 @@ include("wrapper/wrapper.jl")
 
 # Re-export the front-end vocabulary from the top level. `using` (rather than `const` aliases)
 # keeps these the *same* bindings as in `Wrapper`, so their docstrings resolve here too.
-using .Wrapper: Optimizer, simulate, ∂, Δ, final, start
-export ∂, Δ, final, start
+using .Wrapper:
+    Optimizer, simulate, ∂, Δ, final, start, Start, Final, Always, EventuallyAlways
+export ∂, Δ, final, start, Start, Final, Always, EventuallyAlways
 
 # ----- CSV functions for optional dependencies ---------
 

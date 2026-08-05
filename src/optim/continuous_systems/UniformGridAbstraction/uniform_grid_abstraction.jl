@@ -131,15 +131,14 @@ function OP.set_concrete_problem!(
     model::Optimizer,
     problem::PR.AlternatingSimulationProblem,
 )
-    old_abstraction_solver = model.abstraction_solver
-    model.abstraction_solver = OptimizerAlternatingSimulationProblem()
-    if old_abstraction_solver !== nothing
-        model.abstraction_solver.execution_backend =
-            old_abstraction_solver.execution_backend
-        model.abstraction_solver.print_level = old_abstraction_solver.print_level
-        model.abstraction_solver.progress_update_interval =
-            old_abstraction_solver.progress_update_interval
-        model.abstraction_solver.progress_dt = old_abstraction_solver.progress_dt
+    # Keep the configured solver and clear only its cached results. Replacing it with a fresh
+    # one would silently discard every attribute already set on it — `state_grid`,
+    # `input_grid`, `time_step`, `approx_mode` — which is a trap whenever the problem is
+    # attached *after* the discretization is configured.
+    if model.abstraction_solver === nothing
+        model.abstraction_solver = OptimizerAlternatingSimulationProblem()
+    else
+        reset!(model.abstraction_solver)
     end
     model.abstraction_solver.alternating_simulation_problem = problem
     model.control_solver = nothing

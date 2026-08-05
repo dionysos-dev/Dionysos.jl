@@ -56,6 +56,16 @@ function MOI.add_constraint(
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.obstacles))
 end
 
+# ---- Specification sets: `@constraint(model, x in Final(S))` ----
+
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:SpecSet}) =
+    true
+
+function MOI.add_constraint(model::Optimizer, func::MOI.VectorOfVariables, set::SpecSet)
+    push!(model.ir.specs, SpecEntry(spec_kind(set), set.inner, copy(func.variables)))
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.specs))
+end
+
 # ---- `final(x) in S` / `start(x) in S` ----
 
 function MOI.supports_constraint(

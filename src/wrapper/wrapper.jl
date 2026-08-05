@@ -42,6 +42,7 @@ const OP = Optim
 
 include("operators.jl")
 include("variables.jl")
+include("specification.jl")
 include("model_ir.jl")
 include("dynamics_backend.jl")
 # `optimizer.jl` defines the `Optimizer` type, so it precedes the files that add methods on it.

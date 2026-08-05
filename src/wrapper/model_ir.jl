@@ -29,6 +29,8 @@ mutable struct ModelIR
     dynamics::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     time_domain::TimeDomain
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
+    specs::Vector{SpecEntry}
+    horizon::Union{Nothing, Float64}
     objective_sense::MOI.OptimizationSense
     objective_function::Union{Nothing, MOI.AbstractScalarFunction}
     nonlinear_index::Int
@@ -40,6 +42,8 @@ function ModelIR()
         Union{Nothing, MOI.ScalarNonlinearFunction}[],
         UNKNOWN,
         Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
+        SpecEntry[],
+        nothing,
         MOI.FEASIBILITY_SENSE,
         nothing,
         0,
@@ -51,6 +55,8 @@ function Base.empty!(ir::ModelIR)
     empty!(ir.dynamics)
     ir.time_domain = UNKNOWN
     empty!(ir.obstacles)
+    empty!(ir.specs)
+    ir.horizon = nothing
     ir.objective_sense = MOI.FEASIBILITY_SENSE
     ir.objective_function = nothing
     ir.nonlinear_index = 0
@@ -123,7 +129,35 @@ function infer_roles!(ir::ModelIR)
         )
     end
 
+    _validate_bounds(ir)
+    _validate_objective(ir)
     return ir
+end
+
+# The abstraction discretizes X and U, so every state and input must be boxed. Without this
+# the unbounded coordinate reaches `UT.box` as ±Inf and throws a NaN-radius assertion from
+# deep inside LazySets, saying nothing about which variable is at fault.
+function _validate_bounds(ir::ModelIR)
+    unbounded = findall(eachindex(ir.variables)) do i
+        v = ir.variables[i]
+        return !(isfinite(v.lower) && isfinite(v.upper))
+    end
+    isempty(unbounded) && return
+    names = join((describe(ir.variables[i], i) for i in unbounded), ", ")
+    return error(
+        "Unbounded variable(s): $names. Every state and input must have finite bounds, " *
+        "because the abstraction discretizes them; declare them as " *
+        "`@variable(model, lo <= x <= hi)`.",
+    )
+end
+
+function _validate_objective(ir::ModelIR)
+    ir.objective_sense === MOI.FEASIBILITY_SENSE && return
+    return error(
+        "`@objective` is not supported yet: the wrapper would silently ignore it. A control " *
+        "cost is set with `set_attribute(model, \"transition_cost\", (x, u) -> …)`; the " *
+        "specification itself is expressed with constraints (`Final`, `Always`, …).",
+    )
 end
 
 """

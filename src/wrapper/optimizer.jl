@@ -61,10 +61,12 @@ MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 # Attributes the wrapper consumes itself; everything else belongs to the solver.
 const _WRAPPER_ATTRIBUTES = (:dynamics_backend,)
+const _IR_ATTRIBUTES = (:horizon,)
 
 function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
     name = Symbol(attr.name)
     name in _WRAPPER_ATTRIBUTES && return getproperty(model, name)
+    name in _IR_ATTRIBUTES && return getproperty(model.ir, name)
     return MOI.get(model.inner, attr)
 end
 
@@ -72,6 +74,9 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     name = Symbol(attr.name)
     if name in _WRAPPER_ATTRIBUTES
         setproperty!(model, name, value)
+        return
+    elseif name in _IR_ATTRIBUTES
+        setproperty!(model.ir, name, value)
         return
     end
     return MOI.set(model.inner, attr, value)
@@ -81,6 +86,19 @@ end
 # Solving
 # ----------------------------------------------------------------------------------------
 
+# The abstraction step, needed to convert a continuous-time horizon into a step count. It
+# lives on the solver's abstraction sub-solver, which may not exist yet.
+function _time_step(model::Optimizer)
+    inner = model.inner
+    inner isa OP.CompositeDionysosOptimizer || return nothing
+    OP.ensure_sub_solvers!(inner)
+    for solver in OP.sub_solvers(inner)
+        solver === nothing && continue
+        hasproperty(solver, :time_step) && return getproperty(solver, :time_step)
+    end
+    return nothing
+end
+
 function MOI.optimize!(model::Optimizer)
     model.solved = false
     infer_roles!(model.ir)
@@ -89,7 +107,7 @@ function MOI.optimize!(model::Optimizer)
     print_level >= 1 && println(">>Setting up the model")
 
     f = compile_dynamics(model.dynamics_backend, model.ir)
-    model.problem = build_problem(model.ir, f)
+    model.problem = build_problem(model.ir, f; time_step = _time_step(model))
 
     print_level >= 1 && println(">>Model setup complete")
 

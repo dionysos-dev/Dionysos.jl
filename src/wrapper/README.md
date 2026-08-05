@@ -1,10 +1,12 @@
 # `Dionysos.Wrapper` — the JuMP front-end
 
-> **Status: design document.** The code described here does not exist yet; this folder currently
-> holds only this README. The implementation plan (phases, gates, decisions) is [`plan.md`](../../plan.md)
-> at the repo root. Today's front-end lives in [`src/MOI_wrapper.jl`](../MOI_wrapper.jl) and is
-> loaded from [`ext/DionysosMathOptSymbolicADExt.jl`](../../ext/DionysosMathOptSymbolicADExt.jl).
-> Sections marked **(today)** already work; everything else is the target.
+> **Status.** Everything below works unless it is marked **(planned)**. The implementation plan
+> — phases, gates, decisions — is [`plan.md`](../../plan.md) at the repo root.
+>
+> Landed: the model IR and the move out of the extension, variable-role inference, solution
+> status and `simulate`, the specification markers with problem-type inference, and the horizon.
+> Planned: hybrid modes and transitions, clocks, alternative dynamics backends, and the
+> temporal-formula layer.
 
 This is the surface where a user who is not a Dionysos developer writes a control problem. You
 describe a **system**, state a **specification**, optionally pick a **solver**, and get back a
@@ -80,13 +82,14 @@ variable is used**, and this is deliberately the wrapper's central idea.
 | I4 | appears nowhere | **error** |
 | I5 | is JuMP-fixed (`@variable(model, p == 3.0)`) and appears only on right-hand sides | `PARAMETER` — *planned, not in the first release* |
 
-Rule I4 matters most: **(today)** a leftover or mistyped variable silently becomes an input,
-enlarging the input grid — and if it is unbounded, the abstraction explodes. It becomes a hard error
-naming the variable.
+Rule I4 matters most. A leftover or mistyped variable used to be classified silently as an
+input, enlarging the input grid — and if it was unbounded, the abstraction exploded. It is now a
+hard error naming the variable.
 
 There is **no mode "role"** — a mode is a scope you write constraints on (§6), not a variable.
 
-Override when inference cannot see the truth (e.g. dynamics supplied as a raw Julia function):
+**(planned)** an escape hatch for the cases inference cannot see — e.g. an input that appears in
+no dynamics because the dynamics come from a raw Julia function:
 
 ```julia
 set_role!(w, Dionysos.DISTURBANCE)
@@ -99,7 +102,7 @@ set_role!(w, Dionysos.DISTURBANCE)
 
 ## 4. Dynamics
 
-Continuous time uses `∂`, discrete time uses `Δ`. Mixing them in one model is an error. **(today)**
+Continuous time uses `∂`, discrete time uses `Δ`. Mixing them in one model is an error.
 
 ```julia
 @constraint(model, ∂(x[1]) == u[1] * cos(x[3]))     # ẋ₁ = u₁cos(x₃)
@@ -113,13 +116,13 @@ Bounds come from the variable declaration and become the state set `X` and input
 @variable(model, -1 <= u[1:2] <= 1)       # U
 ```
 
-Obstacles are carved out of `X`: **(today)**
+Obstacles are carved out of `X`:
 
 ```julia
 @constraint(model, x[1:2] ∉ MOI.HyperRectangle([1.0, 0.0], [1.2, 9.0]))
 ```
 
-You can also hand over a Julia function instead of writing the equations
+**(planned)** hand over a Julia function instead of writing the equations
 (issue [#510](https://github.com/dionysos-dev/Dionysos.jl/issues/510)):
 
 ```julia
@@ -169,13 +172,13 @@ their own spelling, which builds the *same* internal formula:
 | Sugar | Formula | Meaning |
 | :--- | :--- | :--- |
 | `@constraint(model, x in Start(S))` | — | initial set |
-| `@variable(model, x, start = v)` **(today)** | — | singleton initial set |
+| `@variable(model, x, start = v)` | — | singleton initial set |
 | `@constraint(model, x in Final(S))` | `F(s)` | ◇ eventually reach `S` |
 | `@constraint(model, x in Always(S))` | `G(s)` | □ always stay in `S` |
 | `@constraint(model, x in EventuallyAlways(S))` | `F(G(s))` | ◇□ reach `S` and stay |
-| `@constraint(model, x ∉ O)` **(today)** | `G(!o)` | avoid `O` (carved out of `X`) |
-| `@constraint(model, final(x[i]) in MOI.Interval(a, b))` **(today)** | `F(s)` | per-coordinate reach |
-| `@constraint(model, start(x[i]) in MOI.Interval(a, b))` **(today)** | — | per-coordinate initial |
+| `@constraint(model, x ∉ O)` | `G(!o)` | avoid `O` (carved out of `X`) |
+| `@constraint(model, final(x[i]) in MOI.Interval(a, b))` | `F(s)` | per-coordinate reach |
+| `@constraint(model, start(x[i]) in MOI.Interval(a, b))` | — | per-coordinate initial |
 
 `S` is **any bounded `LazySet`** — a box, an ellipsoid, a ball, a polytope, a zonotope. The
 discretisation layer (`MP.get_states_from_set`) has always accepted these; only the front-end
@@ -223,8 +226,8 @@ names — which really do accumulate — are constraints.
 @objective(model, Min, sum(u[i]^2 for i in 1:2))    # → transition_cost
 ```
 
-**(today)** `@objective` is accepted and *silently discarded*. It will raise a clear error until the
-cost mapping lands.
+`@objective` used to be accepted and *silently discarded*; it now raises a clear error pointing
+at `transition_cost`, until the cost mapping lands.
 
 ### 5.5 Avoiding a region: `∉` and `Always` are *not* the same
 
@@ -262,6 +265,9 @@ set_attribute(model, "horizon", 10.0)     # default: PR.Infinity()
 ---
 
 ## 6. Hybrid systems — modes and transitions
+
+> **(planned).** Hybrid models are not yet reachable from JuMP; build the `HybridSystem` by hand
+> and drive `HybridSystemAbstraction` through MOI in the meantime.
 
 A **mode** is a scope you attach dynamics, bounds, and specifications to. A **transition** is a
 scope you attach a guard and a reset map to. Both are ordinary JuMP models, so `@constraint` works
@@ -339,13 +345,15 @@ time-windowed ones — reproducing `PR.hybrid_reach_spec(Xs, Ts, Ns)` from ordin
 
 ## 7. Choosing a solver
 
-By default the wrapper picks one from the shape of your problem: a model with modes goes to the
-hybrid abstraction, everything else to the uniform grid abstraction. Those two are the families
-reachable from JuMP — see the last entry in §11 for why the others are not. Override explicitly:
+Every model currently goes to the uniform grid abstraction. **(planned)** the wrapper will pick
+from the shape of the problem — a model with modes to the hybrid abstraction, everything else to
+the uniform grid — with an explicit override:
 
 ```julia
 set_attribute(model, "solver", AB.UniformGridAbstraction.Optimizer)
 ```
+
+See the last entry in §11 for why the other solver families are not reachable from JuMP.
 
 Every other `set_attribute` is forwarded to the chosen solver and its sub-solvers, so all the
 options documented on those optimizers (`approx_mode`, `jacobian_bound`, `print_level`,
@@ -357,9 +365,9 @@ here, naming both — not deep inside a sub-solver.
 
 ### Growth bounds come for free
 
-**(today)** the `GROWTH` approximation mode requires you to hand-write a `jacobian_bound`. With the
-symbolic backend loaded this is derived automatically by tracing the dynamics and bounding the
-Jacobian over `X` with interval arithmetic. Supply one only to override.
+**(planned)** the `GROWTH` approximation mode currently requires you to hand-write a
+`jacobian_bound`. `System.compute_jacobian_bound` already derives one by tracing the dynamics and
+bounding the Jacobian over `X` with interval arithmetic; wiring it in is a later phase.
 
 ---
 
@@ -453,8 +461,8 @@ front-end loadable, testable, and documentable without any optional dependency.
 | a dynamics source | one `AbstractDynamicsBackend` subtype + `compile_dynamics` |
 | a system class | one `lower_system.jl` method |
 
-Nothing in that table requires touching `parse.jl`. That is the point of the IR: **(today)** every
-new feature grows an `if/elseif` chain inside `MOI.add_constraint` that ends in
+Nothing in that table requires touching `parse.jl`. That is the point of the IR: before it, every
+new feature grew an `if/elseif` chain inside `MOI.add_constraint` ending in
 `dump(func); error("Unsupported")`.
 
 Two rules for contributors:
@@ -477,10 +485,10 @@ Two rules for contributors:
   raises `MethodError: no method matching _final(::Vector{VariableRef})`. Use the vector form
   `x in Final(S)`, or the scalar form `final(x[i]) in MOI.Interval(a, b)`.
 * **`start = v` gives a singleton initial set**, not a region. Use `x in Start(S)` for a set.
-* **(today) unconstrained `final` coordinates default to `±Inf`**, silently producing an unbounded
-  target — which is why the Path planning example carries a
-  `final(x[3]) in MOI.Interval(-100.0, 100.0)` line. They will default to the variable's own
-  declared bounds instead. This is the one intentional behaviour change in the plan.
+* **Unconstrained `final` coordinates default to the variable's own bounds.** They used to
+  default to `±Inf`, from which the box constructor produced a NaN radius and threw deep inside
+  LazySets — which is why the Path planning example carries a
+  `final(x[3]) in MOI.Interval(-100.0, 100.0)` line. That line is now removable.
 * **Nonlinear guards are rejected.** Guards must be affine so they can become a polyhedron; the
   hybrid abstraction cannot consume anything else either.
 * **A horizon on a safety problem does nothing** — the safety solver is infinite-horizon by
