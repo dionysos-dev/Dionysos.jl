@@ -93,8 +93,49 @@ markers present:
 
 A per-coordinate `final(x[i]) in …` counts as a `Final` set.
 """
+# The named regions as the two dictionaries `CoSafeLTLProblem` keeps: proposition → set, and
+# proposition → how that set is discretized.
+function _labelling(ir::ModelIR, x_idx::Vector{Int})
+    isempty(ir.labels) && error(
+        "A specification formula was given but no region was named. Introduce the atomic " *
+        "propositions with `@constraint(model, goal, x in Label(S))`.",
+    )
+
+    labelling = Dict{Symbol, Any}()
+    semantics = Dict{Symbol, Any}()
+    for entry in ir.labels
+        isempty(entry.name) && error(
+            "A `Label` needs a name — it *is* the atomic proposition the formula refers to. " *
+            "Write `@constraint(model, goal, x in Label(S))`, not `@constraint(model, x in Label(S))`.",
+        )
+        [v.value for v in entry.variables] == x_idx || error(
+            "The region `$(entry.name)` must be given over the whole state vector, in " *
+            "declaration order.",
+        )
+        name = Symbol(entry.name)
+        haskey(labelling, name) && error("Two regions are both named `$(entry.name)`.")
+        labelling[name] = entry.set
+        semantics[name] = entry.semantics
+    end
+    return labelling, semantics
+end
+
 function build_problem(ir::ModelIR, f; time_step = nothing)
     x_idx = state_indices(ir)
+
+    # A temporal formula is the general form and takes precedence over the pattern markers.
+    if ir.specification !== nothing
+        labelling, semantics = _labelling(ir, x_idx)
+        initial_set =
+            something(_unique_spec(ir, START, x_idx), _coordinate_box(ir, x_idx, :start))
+        return PR.CoSafeLTLProblem(
+            build_system(ir, f),
+            initial_set,
+            to_stepper(ir.specification),
+            labelling,
+            semantics,
+        )
+    end
 
     start_set = _unique_spec(ir, START, x_idx)
     final_set = _unique_spec(ir, FINAL, x_idx)

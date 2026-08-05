@@ -1,9 +1,8 @@
 # `Dionysos.Wrapper` — the JuMP front-end
 
-> **Status.** Everything below works unless it is marked **(planned)**. The implementation plan
-> — phases, gates, decisions — is [`plan.md`](../../plan.md) at the repo root.
->
-> Landed: everything except the temporal-formula layer of §5.1, which is still **(planned)**.
+> **Status.** Everything described below works. The implementation plan — phases, gates,
+> decisions, and the defects executing it surfaced — is [`plan.md`](../../plan.md) at the repo
+> root. The one exception is the `PARAMETER` role of §3, which is noted where it appears.
 
 This is the surface where a user who is not a Dionysos developer writes a control problem. You
 describe a **system**, state a **specification**, optionally pick a **solver**, and get back a
@@ -153,9 +152,6 @@ explicit about the design.
 
 ### 5.1 The general layer: a temporal formula over named sets
 
-> **Planned last** (Phase 9). If you only need reach, safety, reach-and-stay, or reach-avoid, §5.2
-> covers you and ships first.
-
 The truly general way to state a control specification is a **temporal-logic formula over atomic
 propositions**, where each proposition names a region of the state space. The proposition names come
 from **JuMP's own constraint naming** — no separate registration call:
@@ -167,9 +163,14 @@ from **JuMP's own constraint naming** — no separate registration call:
 @specification(model, "F(goal) & G(!hazard)")     # ◇goal ∧ □¬hazard
 ```
 
-The constraint name *is* the atomic proposition. `@constraint(model, goal, …)` already registers
-`goal` in JuMP's object dictionary and forwards the name to the optimizer through
-`MOI.ConstraintName` — verified working, so this costs no new syntax at all.
+The constraint name *is* the atomic proposition: `@constraint(model, goal, …)` registers `goal` in
+JuMP's object dictionary and forwards the name to the optimizer through `MOI.ConstraintName`, so
+naming a region costs no new syntax at all. An anonymous `Label` is an error — there would be
+nothing for the formula to refer to.
+
+`semantics` says how a region is discretized: `INNER` (the default) keeps only cells lying fully
+inside it, the conservative reading for something you must reach; `OUTER` keeps every cell that
+touches it, the conservative reading for something you must avoid.
 
 With Spot loaded you can pass a formula object instead of a string:
 
@@ -201,18 +202,25 @@ restricted you to boxes.
 
 ### 5.3 How the two layers meet
 
-Both layers produce one formula. A **normaliser** then matches it against the patterns the library
-has specialised solvers for, and routes to the fastest one:
+The two layers are **two entry points to different solvers**, and which one you pick is a real
+choice rather than a stylistic one:
 
-| Normalised formula | Problem built | Why specialised |
+| What you wrote | Problem built | How it is solved |
 | :--- | :--- | :--- |
-| `F(s)` | `OptimalControlProblem` | backward fixed point on the pre-image |
-| `F(s) & G(¬o)` | `OptimalControlProblem` (reach-avoid) | same, with `¬o` folded into `X` |
-| `G(s)` | `SafetyProblem` | maximal controlled-invariant set |
-| `F(G(s))` | `ReachAndStayProblem` | invariance then reachability |
-| any other **co-safe** formula | `CoSafeLTLProblem` | product with a deterministic automaton |
-| *(no formula at all)* | `AlternatingSimulationProblem` | just build the abstraction and return it |
-| anything else | **error**, naming the unsupported operator | — |
+| `Final(S)` | `OptimalControlProblem` | backward fixed point on the pre-image |
+| `Final(S)` + `Always(S')` | `OptimalControlProblem` (reach-avoid) | same, with `S'` folded into `X` |
+| `Always(S)` | `SafetyProblem` | maximal controlled-invariant set |
+| `EventuallyAlways(S)` | `ReachAndStayProblem` | invariance, then reachability |
+| a formula over `Label`s | `CoSafeLTLProblem` | product with a deterministic automaton |
+| nothing at all | `AlternatingSimulationProblem` | just build the abstraction and return it |
+
+A formula **takes precedence** over the markers if you write both.
+
+The markers are not sugar for the formula: they reach dedicated fixed-point algorithms that are
+much faster than an automaton product. The wrapper does *not* try to recognise `F(goal)` in a
+formula and reroute it to the reach solver — recognising formula shapes reliably is a job for a
+formula rewriter, and guessing wrong would silently change which algorithm runs. Write the marker
+when your specification is one of the four shapes; write the formula when it is not.
 
 That last row is the honest part, and it is why the general layer is *LTL* but the general *solver*
 is co-safe only. **Not every specification is co-safe.** Co-safe means "satisfied by some finite

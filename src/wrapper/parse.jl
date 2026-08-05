@@ -66,6 +66,41 @@ function MOI.add_constraint(model::Optimizer, func::MOI.VectorOfVariables, set::
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.specs))
 end
 
+# ---- Named regions: `@constraint(model, goal, x in Label(S))` ----
+
+MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:Label}) = true
+
+function MOI.add_constraint(model::Optimizer, func::MOI.VectorOfVariables, set::Label)
+    push!(model.ir.labels, LabelEntry("", set.inner, set.semantics, copy(func.variables)))
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.labels))
+end
+
+# A label's atomic proposition *is* the constraint's name, which JuMP forwards here after the
+# constraint itself. Names on any other constraint are accepted and ignored — the wrapper
+# consumes those constraints structurally, so there is nothing to name.
+MOI.supports(::Optimizer, ::MOI.ConstraintName, ::Type{<:MOI.ConstraintIndex}) = true
+
+MOI.set(::Optimizer, ::MOI.ConstraintName, ::MOI.ConstraintIndex, ::String) = nothing
+MOI.get(::Optimizer, ::MOI.ConstraintName, ::MOI.ConstraintIndex) = ""
+
+function MOI.set(
+    model::Optimizer,
+    ::MOI.ConstraintName,
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:Label},
+    name::String,
+)
+    model.ir.labels[ci.value].name = name
+    return
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintName,
+    ci::MOI.ConstraintIndex{MOI.VectorOfVariables, <:Label},
+)
+    return model.ir.labels[ci.value].name
+end
+
 # ---- `final(x) in S` / `start(x) in S` ----
 
 function MOI.supports_constraint(

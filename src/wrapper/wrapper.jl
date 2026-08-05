@@ -40,6 +40,7 @@ const MP = Mapping
 
 using ..Optim
 const OP = Optim
+const OPDS = OP.DiscreteSystems
 
 include("operators.jl")
 include("variables.jl")

@@ -99,4 +99,7 @@ function spot_stepper(
     return SpotDRAstepper(φ, dra, qa0, qa_dead, aps_use)
 end
 
+# Lets the JuMP front-end take a formula directly: `@specification(model, ltl"F(goal)")`.
+DI.Wrapper.to_stepper(φ::Spot.SpotFormula) = spot_stepper(φ)
+
 end

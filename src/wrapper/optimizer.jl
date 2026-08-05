@@ -35,6 +35,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # into the IR by `_apply_options!` once the constraints are in.
     horizon::Union{Nothing, Float64}
     user_dynamics::Any
+    specification::Any
     declared_roles::Dict{Int, VariableRole}
     mode_options::Dict{Int, Vector{Pair{String, Any}}}
     mode_dynamics::Dict{Int, Any}
@@ -50,6 +51,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Pair{String, Any}[],
             nothing,
             default_dynamics_backend(),
+            nothing,
             nothing,
             nothing,
             Dict{Int, VariableRole}(),
@@ -75,6 +77,7 @@ function _apply_options!(model::Optimizer)
     ir = model.ir
     ir.horizon = model.horizon
     ir.user_dynamics = model.user_dynamics
+    ir.specification = model.specification
 
     for (i, role) in model.declared_roles
         i <= length(ir.variables) ||
@@ -108,7 +111,7 @@ end
 MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 # Attributes the wrapper consumes itself; everything else belongs to the solver.
-const _WRAPPER_ATTRIBUTES = (:dynamics_backend, :horizon, :user_dynamics)
+const _WRAPPER_ATTRIBUTES = (:dynamics_backend, :horizon, :user_dynamics, :specification)
 
 function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
     name = Symbol(attr.name)

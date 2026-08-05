@@ -8,7 +8,7 @@
 # also what lets `S` be any bounded `LazySet` instead of a box built coordinate by coordinate.
 # ----------------------------------------------------------------------------------------
 
-export Start, Final, Always, EventuallyAlways
+export Start, Final, Always, EventuallyAlways, Label, @specification
 
 """
     SpecKind
@@ -102,4 +102,86 @@ struct SpecEntry{S}
     kind::SpecKind
     set::S
     variables::Vector{MOI.VariableIndex}
+end
+
+# ----------------------------------------------------------------------------------------
+# The general layer: a temporal formula over named regions
+# ----------------------------------------------------------------------------------------
+
+"""
+    Label(S; semantics = Mapping.INNER)
+
+Name a region of the state space so a temporal formula can refer to it. The name is the
+**constraint's own name**, so no separate registration call is needed:
+
+```julia
+@constraint(model, goal,   x in Label(target))
+@constraint(model, hazard, x in Label(obstacle; semantics = MP.OUTER))
+@specification(model, ltl"F(goal) & G(!hazard)")
+```
+
+`semantics` says how the region is discretized: `INNER` keeps only cells fully inside it — the
+conservative reading for something you must reach — while `OUTER` keeps every cell touching it,
+the conservative reading for something you must avoid.
+"""
+struct Label{S} <: MOI.AbstractVectorSet
+    inner::S
+    dim::Int
+    semantics::UT.INCL_MODE
+end
+
+Label(set; semantics::UT.INCL_MODE = UT.INNER) = Label(set, LazySets.dim(set), semantics)
+
+MOI.dimension(set::Label) = set.dim
+Base.copy(set::Label) = set
+
+"""
+    LabelEntry
+
+One named region: the atomic proposition it defines, the set, how it is discretized, and the
+variables it is written over. `name` is filled in when JuMP forwards the constraint's name.
+"""
+mutable struct LabelEntry
+    name::String
+    set::Any
+    semantics::UT.INCL_MODE
+    variables::Vector{MOI.VariableIndex}
+end
+
+"""
+    @specification(model, formula)
+
+Attach the temporal formula the trajectory must satisfy, over the regions named with
+[`Label`](@ref):
+
+```julia
+@specification(model, ltl"F(goal) & G(!hazard)")
+```
+
+`formula` may be a `Spot.SpotFormula` (with `using Spot`) or any
+`Optim.DiscreteSystems.AbstractSpecStepper` — a hand-written monitor, for instance. A model
+carrying a formula lowers to a
+[`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem).
+"""
+macro specification(model, formula)
+    return quote
+        JuMP.set_attribute($(esc(model)), "specification", $(esc(formula)))
+    end
+end
+
+"""
+    to_stepper(specification)
+
+Turn what the user attached with [`@specification`](@ref) into the automaton the co-safe solver
+steps. A stepper passes through unchanged; `DionysosSpotExt` adds the method that compiles a
+`Spot.SpotFormula`.
+"""
+to_stepper(spec::OPDS.AbstractSpecStepper) = spec
+
+function to_stepper(spec)
+    return error(
+        "Cannot turn a $(typeof(spec)) into a specification monitor. Pass a Spot formula " *
+        "(`using Spot`, then `ltl\"F(goal)\"`), or an " *
+        "`Optim.DiscreteSystems.AbstractSpecStepper` such as a `FunctionMonitor`.",
+    )
 end

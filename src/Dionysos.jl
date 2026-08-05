@@ -26,6 +26,7 @@ using .Wrapper:
     Final,
     Always,
     EventuallyAlways,
+    Label,
     add_mode!,
     add_transition!,
     set_role!,
@@ -34,7 +35,8 @@ using .Wrapper:
     CLOCK,
     PARAMETER,
     DISTURBANCE,
-    @mode
+    @mode,
+    @specification
 # The role constants stay qualified (`Dionysos.STATE`): the bare names are too generic to put
 # in a user's namespace.
 export ∂,
@@ -45,10 +47,12 @@ export ∂,
     Final,
     Always,
     EventuallyAlways,
+    Label,
     add_mode!,
     add_transition!,
     set_role!,
-    @mode
+    @mode,
+    @specification
 
 # ----- CSV functions for optional dependencies ---------
 

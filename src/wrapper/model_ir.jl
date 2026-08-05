@@ -84,6 +84,8 @@ mutable struct ModelIR
     time_domain::TimeDomain
     obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
     specs::Vector{SpecEntry}
+    labels::Vector{LabelEntry}
+    specification::Any
     modes::Dict{Int, ModeIR}
     transitions::Dict{Int, TransitionIR}
     # A Julia function supplied instead of written equations (issue #510).
@@ -101,6 +103,8 @@ function ModelIR()
         UNKNOWN,
         Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}[],
         SpecEntry[],
+        LabelEntry[],
+        nothing,
         Dict{Int, ModeIR}(),
         Dict{Int, TransitionIR}(),
         nothing,
@@ -150,6 +154,8 @@ function Base.empty!(ir::ModelIR)
     ir.time_domain = UNKNOWN
     empty!(ir.obstacles)
     empty!(ir.specs)
+    empty!(ir.labels)
+    ir.specification = nothing
     empty!(ir.modes)
     empty!(ir.transitions)
     ir.user_dynamics = nothing

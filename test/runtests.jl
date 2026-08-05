@@ -55,6 +55,7 @@ const TEST_FILES = [
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
     ("./wrapper/dynamics.jl",),          # supplied dynamics (#510) + the evaluator backend
+    ("./wrapper/ltl.jl", :slow),         # temporal formulas over named regions (needs Spot)
     ("./wrapper/hybrid.jl", :slow),      # modes, transitions, guards, reset maps
     ("./wrapper/clock.jl", :slow),       # clocks and time-windowed specifications
     ("./wrapper/no_symbolics.jl", :slow),  # subprocess: front-end with no optional deps
