@@ -51,8 +51,7 @@ end
 
 function lowered(model)
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
-    return WR.build_problem(opt.ir, opt.dynamics_backend), opt
+    return WR.lower(opt), opt
 end
 
 @testset "a constant-rate state is recognised as the clock" begin
@@ -60,7 +59,7 @@ end
     @constraint(off, [model[:T]] in Final(UT.box(SVector(19.5), SVector(21.0))))
 
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
+    WR.lower(opt)
 
     clock = WR.clock_index(opt.ir)
     @test clock !== nothing

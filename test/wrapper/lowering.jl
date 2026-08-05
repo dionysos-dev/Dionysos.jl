@@ -28,9 +28,7 @@ function lowered_problem(build!)
     set_attribute(model, "print_level", 0)
     build!(model)
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
-    f = WR.compile_dynamics(opt.dynamics_backend, opt.ir)
-    return WR.build_problem(opt.ir, f), opt
+    return WR.lower(opt), opt
 end
 
 @testset "lowered problem: shape of the reach-avoid pipeline" begin
@@ -174,6 +172,34 @@ end
 
     # An attribute no solver recognises is rejected rather than silently dropped.
     @test_throws MOI.UnsupportedAttribute set_attribute(model, "no_such_attribute", 1)
+end
+
+@testset "options survive JuMP's caching layer" begin
+    # `Model(...)` — the documented form — puts a caching layer in front of the optimizer and
+    # calls `MOI.empty!` on it before copying the model in. Anything the wrapper stored in the
+    # IR from an *attribute* was therefore wiped on every `optimize!`, while the same model
+    # built with `direct_model` worked. Options live on the optimizer for exactly this reason.
+    model = Model(Dionysos.Optimizer)
+    @variable(model, -1.0 <= x <= 1.0, start = -0.75)
+    @variable(model, -1.0 <= u <= 1.0)
+
+    set_role!(x, Dionysos.STATE)
+    set_attribute(model, "dynamics", (x, u) -> u)
+    @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
+
+    set_attribute(model, "horizon", 4.0)
+    set_attribute(model, "time_step", 1.0)
+    set_attribute(model, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
+    set_attribute(model, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+    set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+    set_attribute(model, "print_level", 0)
+
+    optimize!(model)
+
+    problem = get_attribute(model, "concrete_problem")
+    @test problem.time == 4                     # the horizon survived, in steps
+    @test LazySets.dim(problem.system.X) == 1   # the declared role survived
+    @test is_solved_and_feasible(model)         # the supplied dynamics survived
 end
 
 @testset "end-to-end: the canonical continuous reach pipeline still solves" begin

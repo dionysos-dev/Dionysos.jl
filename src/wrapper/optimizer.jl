@@ -28,6 +28,17 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     attributes::Vector{Pair{String, Any}}
     solver_factory::Any
     dynamics_backend::AbstractDynamicsBackend
+
+    # Model data that arrives as *attributes* rather than as constraints. It cannot live in the
+    # IR: `MOI.empty!` clears the model before JuMP copies it into the optimizer, so anything
+    # kept there would be silently dropped on every `optimize!` in automatic mode. It is folded
+    # into the IR by `_apply_options!` once the constraints are in.
+    horizon::Union{Nothing, Float64}
+    user_dynamics::Any
+    declared_roles::Dict{Int, VariableRole}
+    mode_options::Dict{Int, Vector{Pair{String, Any}}}
+    mode_dynamics::Dict{Int, Any}
+
     # Lowering results, kept so the status attributes and `simulate` can answer afterwards.
     problem::Union{Nothing, PR.ProblemType}
     solved::Bool
@@ -40,6 +51,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             nothing,
             default_dynamics_backend(),
             nothing,
+            nothing,
+            Dict{Int, VariableRole}(),
+            Dict{Int, Vector{Pair{String, Any}}}(),
+            Dict{Int, Any}(),
+            nothing,
             false,
         )
     end
@@ -51,6 +67,29 @@ function MOI.empty!(model::Optimizer)
     empty!(model.ir)
     model.problem = nothing
     model.solved = false
+    return
+end
+
+# Fold the attribute-carried options into the freshly copied model.
+function _apply_options!(model::Optimizer)
+    ir = model.ir
+    ir.horizon = model.horizon
+    ir.user_dynamics = model.user_dynamics
+
+    for (i, role) in model.declared_roles
+        i <= length(ir.variables) ||
+            error("A role was declared for variable #$i, which the model does not have.")
+        ir.variables[i].declared_role = role
+    end
+    # These create the mode if no constraint mentioned it, which is the normal case for a mode
+    # whose dynamics are supplied as a function: there is nothing to write on it. A mode that
+    # ends up with no dynamics at all is caught later, by name.
+    for (id, options) in model.mode_options
+        append!(mode!(ir, id).attributes, options)
+    end
+    for (id, f) in model.mode_dynamics
+        mode!(ir, id).user_dynamics = f
+    end
     return
 end
 
@@ -69,13 +108,11 @@ end
 MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 # Attributes the wrapper consumes itself; everything else belongs to the solver.
-const _WRAPPER_ATTRIBUTES = (:dynamics_backend,)
-const _IR_ATTRIBUTES = (:horizon,)
+const _WRAPPER_ATTRIBUTES = (:dynamics_backend, :horizon, :user_dynamics)
 
 function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
     name = Symbol(attr.name)
     name in _WRAPPER_ATTRIBUTES && return getproperty(model, name)
-    name in _IR_ATTRIBUTES && return getproperty(model.ir, name)
     name === :solver && return model.solver_factory
     return MOI.get(model.inner, attr)
 end
@@ -85,21 +122,17 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     if name in _WRAPPER_ATTRIBUTES
         setproperty!(model, name, value)
         return
-    elseif name in _IR_ATTRIBUTES
-        setproperty!(model.ir, name, value)
-        return
     elseif name === :solver
         model.solver_factory = value
         _use_solver!(model, value)
         return
-    end
-    if name === :dynamics
-        model.ir.user_dynamics = value
+    elseif name === :dynamics
+        model.user_dynamics = value
         return
     end
     declared = match(_ROLE_ATTRIBUTE, attr.name)
     if declared !== nothing
-        model.ir.variables[parse(Int, declared.captures[1])].declared_role = value
+        model.declared_roles[parse(Int, declared.captures[1])] = value
         return
     end
     scoped = match(_MODE_ATTRIBUTE, attr.name)
@@ -109,9 +142,9 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
         # `dynamics` is a model concept, not a solver option: it must not be forwarded to the
         # mode's sub-optimizer as an unknown keyword.
         if option == "dynamics"
-            mode!(model.ir, id).user_dynamics = value
+            model.mode_dynamics[id] = value
         else
-            push!(mode!(model.ir, id).attributes, option => value)
+            push!(get!(() -> Pair{String, Any}[], model.mode_options, id), option => value)
         end
         return
     end
@@ -179,15 +212,36 @@ end
 # Solving
 # ----------------------------------------------------------------------------------------
 
+"""
+    lower(model) -> Problem.ProblemType
+
+Compile the model into its `(system, problem)` pair without solving it: fold in the options,
+infer the variable roles, and lower. `model` may be the JuMP model or the underlying
+[`Optimizer`](@ref).
+
+This is the first half of `optimize!`, exposed so a model can be inspected — or tested —
+without paying for an abstraction.
+"""
+function lower(model::Optimizer)
+    _apply_options!(model)
+    infer_roles!(model.ir)
+    return build_problem(model.ir, model.dynamics_backend; time_step = _time_step(model))
+end
+
+function lower(model::JuMP.GenericModel)
+    inner = JuMP.unsafe_backend(model)
+    inner isa Optimizer ||
+        error("`lower` expects a model built with `Model(Dionysos.Optimizer)`.")
+    return lower(inner)
+end
+
 function MOI.optimize!(model::Optimizer)
     model.solved = false
-    infer_roles!(model.ir)
 
     print_level = MOI.get(model.inner, MOI.RawOptimizerAttribute("print_level"))
     print_level >= 1 && println(">>Setting up the model")
 
-    model.problem =
-        build_problem(model.ir, model.dynamics_backend; time_step = _time_step(model))
+    model.problem = lower(model)
 
     solver_type = _solver_type(model, model.problem)
     _check_supported(solver_type, model.problem)

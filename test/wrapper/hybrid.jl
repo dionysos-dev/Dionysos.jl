@@ -46,8 +46,7 @@ end
 
 function lowered(model)
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
-    return WR.build_problem(opt.ir, opt.dynamics_backend), opt
+    return WR.lower(opt), opt
 end
 
 @testset "modes and transitions lower to a HybridSystem" begin
@@ -153,13 +152,12 @@ end
     end
 
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
+    problem = WR.lower(opt)
     @test WR.is_hybrid(opt.ir)
     @test WR.mode_ids(opt.ir) == [1, 2]
     # The options landed on the modes, not on the model-level solver.
     @test any(p -> first(p) == "state_grid", opt.ir.modes[1].attributes)
 
-    problem = WR.build_problem(opt.ir, opt.dynamics_backend)
     @test WR.select_solver(problem.system, problem) === AB.HybridSystemAbstraction.Optimizer
 
     # The specification became a mode-indexed spec over the augmented state.

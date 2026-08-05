@@ -59,7 +59,7 @@ end
     set_attribute(model, "dynamics", (x, u) -> [x[2], u[1]])
 
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
+    WR.lower(opt)
     @test WR.state_indices(opt.ir) == [1, 2]
     @test WR.input_indices(opt.ir) == [3]
 
@@ -84,8 +84,7 @@ end
     end
 
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
-    problem = WR.build_problem(opt.ir, opt.dynamics_backend)
+    problem = WR.lower(opt)
 
     hs = problem.system
     @test MS.mapping(HybridSystems.mode(hs, 1))([0.0], [1.0])[1] ≈ 0.5
@@ -116,7 +115,7 @@ end
     end
 
     opt = backend(model)
-    WR.infer_roles!(opt.ir)
+    WR.lower(opt)
 
     @test WR.clock_index(opt.ir) == 3
     @test count(v -> v.role === Dionysos.CLOCK, opt.ir.variables) == 1
@@ -146,6 +145,7 @@ end
         @constraint(model, ∂(x[1]) == x[2] * cos(x[1]))
         @constraint(model, ∂(x[2]) == u - 0.5 * x[2])
         opt = backend_of(model)
+        WR._apply_options!(opt)
         WR.infer_roles!(opt.ir)
         return WR.compile_dynamics(backend, opt.ir, opt.ir.dynamics)
     end
