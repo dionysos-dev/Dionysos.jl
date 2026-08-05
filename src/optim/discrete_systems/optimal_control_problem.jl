@@ -66,7 +66,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     optimizer.uncontrollable_set = uncontrollable_set
     optimizer.value_fun_tab = value_fun_tab
     optimizer.value_function = build_value_function(value_fun_tab)
-    optimizer.success = all(q -> q in controllable_set, problem.initial_set)
+    optimizer.success = covers_initial_set(q -> q in controllable_set, problem.initial_set)
 
     optimizer.print_level >= 1 &&
         println("Optimal control terminated with success = $(optimizer.success)")

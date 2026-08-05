@@ -38,6 +38,20 @@ function _empty_control_table(nstates::Int)
     return DiscreteControlTable(nstates)
 end
 
+"""
+    covers_initial_set(predicate, initial_set) -> Bool
+
+Whether every abstract initial state satisfies `predicate` — the success criterion of a
+control solver.
+
+Unlike a bare `all`, an **empty** `initial_set` yields `false`. An empty set means the
+specification's initial region is not represented in the abstraction at all (a degenerate
+grid, a region outside the abstracted domain, …), so nothing was verified; reporting success
+there is a vacuous truth that reaches the user as a spurious `MOI.OPTIMAL`.
+"""
+covers_initial_set(predicate, initial_set) =
+    !isempty(initial_set) && all(predicate, initial_set)
+
 # ------------------------------------------------------------
 # Precompute existing (state,input) pairs once.
 # base_pairstable[q,u] == true iff Post(q,u) is nonempty.
