@@ -93,10 +93,26 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
         _use_solver!(model, value)
         return
     end
+    if name === :dynamics
+        model.ir.user_dynamics = value
+        return
+    end
+    declared = match(_ROLE_ATTRIBUTE, attr.name)
+    if declared !== nothing
+        model.ir.variables[parse(Int, declared.captures[1])].declared_role = value
+        return
+    end
     scoped = match(_MODE_ATTRIBUTE, attr.name)
     if scoped !== nothing
         id = parse(Int, scoped.captures[1])
-        push!(mode!(model.ir, id).attributes, String(scoped.captures[2]) => value)
+        option = String(scoped.captures[2])
+        # `dynamics` is a model concept, not a solver option: it must not be forwarded to the
+        # mode's sub-optimizer as an unknown keyword.
+        if option == "dynamics"
+            mode!(model.ir, id).user_dynamics = value
+        else
+            push!(mode!(model.ir, id).attributes, option => value)
+        end
         return
     end
     # Set before recording, so a rejected attribute is not replayed onto the next solver.
@@ -105,8 +121,10 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
     return
 end
 
-# Per-mode options travel as `mode[k].name`, because a mode is not an MOI model of its own.
+# Per-mode options travel as `mode[k].name`, because a mode is not an MOI model of its own;
+# declared roles travel as `role[i]`, since a variable is not one either.
 const _MODE_ATTRIBUTE = r"^mode\[(\d+)\]\.(.+)$"
+const _ROLE_ATTRIBUTE = r"^role\[(\d+)\]$"
 
 # Swap in a solver of type `factory` and replay every option set so far. An option the new
 # solver does not know is kept in the record but not applied — for a hybrid model those are

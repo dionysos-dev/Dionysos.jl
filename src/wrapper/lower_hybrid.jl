@@ -38,13 +38,17 @@ end
 
 function _build_mode_system(ir::ModelIR, m::ModeIR, backend, x_idx, u_idx)
     dynamics = _mode_dynamics(ir, m)
-    missing_state = findfirst(i -> dynamics[i] === nothing, x_idx)
-    missing_state === nothing || error(
-        "Mode $(m.id) has no dynamics for $(describe(ir.variables[x_idx[missing_state]], x_idx[missing_state])). " *
-        "Give every state an equation in every mode, or declare it at the model level.",
-    )
+    supplied = m.user_dynamics === nothing ? ir.user_dynamics : m.user_dynamics
 
-    f = compile_dynamics(backend, ir, dynamics)
+    if supplied === nothing
+        missing_state = findfirst(i -> dynamics[i] === nothing, x_idx)
+        missing_state === nothing || error(
+            "Mode $(m.id) has no dynamics for $(describe(ir.variables[x_idx[missing_state]], x_idx[missing_state])). " *
+            "Give every state an equation in every mode, or declare it at the model level.",
+        )
+    end
+
+    f = dynamics_function(ir, backend, dynamics, supplied)
     X = _mode_box(ir, m, x_idx)
     U = _mode_box(ir, m, u_idx)
 

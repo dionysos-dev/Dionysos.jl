@@ -28,7 +28,15 @@ using .Wrapper:
     EventuallyAlways,
     add_mode!,
     add_transition!,
+    set_role!,
+    STATE,
+    INPUT,
+    CLOCK,
+    PARAMETER,
+    DISTURBANCE,
     @mode
+# The role constants stay qualified (`Dionysos.STATE`): the bare names are too generic to put
+# in a user's namespace.
 export ∂,
     Δ,
     final,
@@ -39,6 +47,7 @@ export ∂,
     EventuallyAlways,
     add_mode!,
     add_transition!,
+    set_role!,
     @mode
 
 # ----- CSV functions for optional dependencies ---------

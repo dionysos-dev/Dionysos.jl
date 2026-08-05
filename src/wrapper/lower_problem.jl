@@ -62,8 +62,19 @@ Lower the model, compiling its dynamics through `backend`. A model with modes go
 """
 function build_problem(ir::ModelIR, backend::AbstractDynamicsBackend; time_step = nothing)
     is_hybrid(ir) && return build_hybrid_problem(ir, backend; time_step = time_step)
-    f = compile_dynamics(backend, ir, ir.dynamics)
+    f = dynamics_function(ir, backend, ir.dynamics, ir.user_dynamics)
     return build_problem(ir, f; time_step = time_step)
+end
+
+"""
+    dynamics_function(ir, backend, expressions, supplied) -> f
+
+The callable `f(x, u)` for one scope: the Julia function the user supplied, if any, otherwise
+the compiled `expressions`.
+"""
+function dynamics_function(ir::ModelIR, backend, expressions, supplied)
+    supplied === nothing || return supplied
+    return compile_dynamics(backend, ir, expressions)
 end
 
 """

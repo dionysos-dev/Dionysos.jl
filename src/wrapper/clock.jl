@@ -64,6 +64,15 @@ state. That last condition is what separates a clock from an ordinary state that
 to be held constant.
 """
 function detect_clock!(ir::ModelIR)
+    # An explicit `set_role!(t, CLOCK)` settles it. Running the inference anyway could label a
+    # *second* variable as the clock, and there is only one time axis.
+    declared = findall(v -> v.declared_role === CLOCK, ir.variables)
+    if !isempty(declared)
+        length(declared) == 1 ||
+            error("Several variables are declared `CLOCK`; a model has one time axis.")
+        return declared[]
+    end
+
     is_hybrid(ir) || return nothing
 
     # Variables appearing on some *other* variable's right-hand side: those are inputs to the

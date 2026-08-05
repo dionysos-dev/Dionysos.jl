@@ -54,8 +54,10 @@ const TEST_FILES = [
     ("./wrapper/lowering.jl",),        # JuMP model → (system, problem)
     ("./wrapper/specifications.jl",),  # spec markers, problem inference, horizon
     ("./wrapper/solver_selection.jl",),  # solver choice + attribute replay
+    ("./wrapper/dynamics.jl",),          # supplied dynamics (#510) + the evaluator backend
     ("./wrapper/hybrid.jl", :slow),      # modes, transitions, guards, reset maps
     ("./wrapper/clock.jl", :slow),       # clocks and time-windowed specifications
+    ("./wrapper/no_symbolics.jl", :slow),  # subprocess: front-end with no optional deps
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),

@@ -54,6 +54,51 @@ function compile_dynamics(backend::AbstractDynamicsBackend, ::ModelIR, ::Abstrac
 end
 
 """
+    NonlinearEvaluatorBackend <: AbstractDynamicsBackend
+
+Evaluate the dynamics expressions directly with `MOI.Nonlinear`, needing no optional
+dependency at all.
+
+This is the **test and fallback** path, not the production one: evaluation is interpreted and
+allocates on every call, and the abstraction calls it millions of times. Its purpose is to make
+the front-end loadable, testable and documentable without Symbolics —
+[`SymbolicADBackend`](@ref) is what you want for real problems.
+"""
+struct NonlinearEvaluatorBackend <: AbstractDynamicsBackend end
+
+function compile_dynamics(
+    ::NonlinearEvaluatorBackend,
+    ir::ModelIR,
+    dynamics::AbstractVector,
+)
+    x_idx = state_indices(ir)
+    u_idx = input_indices(ir)
+
+    nlp_model = MOI.Nonlinear.Model()
+    for i in x_idx
+        MOI.Nonlinear.add_constraint(nlp_model, dynamics[i], MOI.EqualTo(0.0))
+    end
+    vars = MOI.VariableIndex.(eachindex(ir.variables))
+    evaluator = MOI.Nonlinear.Evaluator(nlp_model, MOI.Nonlinear.SparseReverseMode(), vars)
+    MOI.initialize(evaluator, Symbol[])
+
+    nvars = length(ir.variables)
+    nstates = length(x_idx)
+    return function (x, u)
+        point = zeros(nvars)
+        for (j, i) in enumerate(x_idx)
+            point[i] = x[j]
+        end
+        for (j, i) in enumerate(u_idx)
+            point[i] = u[j]
+        end
+        out = zeros(nstates)
+        MOI.eval_constraint(evaluator, out, point)
+        return out
+    end
+end
+
+"""
     default_dynamics_backend()
 
 The backend used when the user sets none.

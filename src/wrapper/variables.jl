@@ -32,6 +32,9 @@ mutable struct VariableInfo
     start::MOI.Interval{Float64}
     target::MOI.Interval{Float64}
     role::Union{Nothing, VariableRole}
+    # Set by `set_role!` when inference cannot see the truth — typically because the dynamics
+    # were supplied as a Julia function rather than written as equations.
+    declared_role::Union{Nothing, VariableRole}
     index::Int
 end
 
@@ -42,6 +45,7 @@ function VariableInfo()
         Inf,
         MOI.Interval(-Inf, Inf),
         MOI.Interval(-Inf, Inf),
+        nothing,
         nothing,
         0,
     )
@@ -58,6 +62,37 @@ How to refer to variable `i` in a user-facing message: its JuMP name when JuMP g
 otherwise its MOI index.
 """
 describe(v::VariableInfo, i::Int) = isempty(v.name) ? "variable #$i" : "`$(v.name)`"
+
+"""
+    set_role!(x, role)
+
+Declare what `x` is, instead of letting the wrapper infer it. `x` may be a single variable or
+an array of them, and `role` one of `Dionysos.STATE`, `Dionysos.INPUT`, `Dionysos.CLOCK`.
+
+Needed when the dynamics are supplied as a Julia function rather than written as equations —
+there are no expressions to infer from, so the states have to be named:
+
+```julia
+set_role!(x, Dionysos.STATE)
+set_attribute(model, "dynamics", (x, u) -> [x[2], -sin(x[1]) + u[1]])
+```
+
+Variables left undeclared are inputs.
+"""
+function set_role!(x::JuMP.GenericVariableRef, role::VariableRole)
+    role in (STATE, INPUT, CLOCK) || error(
+        "`set_role!` takes STATE, INPUT or CLOCK; $(role) has no meaning for the lowering yet.",
+    )
+    JuMP.set_attribute(JuMP.owner_model(x), "role[$(JuMP.index(x).value)]", role)
+    return role
+end
+
+function set_role!(x::AbstractArray, role::VariableRole)
+    for v in x
+        set_role!(v, role)
+    end
+    return role
+end
 
 # ----------------------------------------------------------------------------------------
 # Collecting the variables referenced by an MOI function

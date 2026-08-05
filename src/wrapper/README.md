@@ -3,10 +3,7 @@
 > **Status.** Everything below works unless it is marked **(planned)**. The implementation plan
 > — phases, gates, decisions — is [`plan.md`](../../plan.md) at the repo root.
 >
-> Landed: the model IR and the move out of the extension, variable-role inference, solution
-> status and `simulate`, the specification markers with problem-type inference, the horizon,
-> solver selection, hybrid modes and transitions, and clocks.
-> Planned: alternative dynamics backends and the temporal-formula layer.
+> Landed: everything except the temporal-formula layer of §5.1, which is still **(planned)**.
 
 This is the surface where a user who is not a Dionysos developer writes a control problem. You
 describe a **system**, state a **specification**, optionally pick a **solver**, and get back a
@@ -88,12 +85,15 @@ hard error naming the variable.
 
 There is **no mode "role"** — a mode is a scope you write constraints on (§6), not a variable.
 
-**(planned)** an escape hatch for the cases inference cannot see — e.g. an input that appears in
-no dynamics because the dynamics come from a raw Julia function:
+Declare a role yourself when inference cannot see it — which is exactly the case when the
+dynamics are a Julia function rather than equations, since then there is nothing to infer from:
 
 ```julia
-set_role!(w, Dionysos.DISTURBANCE)
+set_role!(x, Dionysos.STATE)      # a single variable or a whole array
 ```
+
+Takes `Dionysos.STATE`, `Dionysos.INPUT` or `Dionysos.CLOCK`. Anything left undeclared is an
+input.
 
 **Ordering.** The state vector `x[i]` follows *declaration order*. Check it with
 `get_attribute(model, "state_variables")` rather than guessing.
@@ -122,12 +122,27 @@ Obstacles are carved out of `X`:
 @constraint(model, x[1:2] ∉ MOI.HyperRectangle([1.0, 0.0], [1.2, 9.0]))
 ```
 
-**(planned)** hand over a Julia function instead of writing the equations
-(issue [#510](https://github.com/dionysos-dev/Dionysos.jl/issues/510)):
+Hand over a Julia function instead of writing the equations — for a simulator, a lookup table,
+or anything else that is not a JuMP expression (issue
+[#510](https://github.com/dionysos-dev/Dionysos.jl/issues/510)):
 
 ```julia
+set_role!(x, Dionysos.STATE)          # nothing to infer from, so name the states
 set_attribute(model, "dynamics", (x, u) -> [x[2], -sin(x[1]) + u[1]])
 ```
+
+Bounds, specifications and solver options are unaffected — only where the equations come from
+changes. A mode can carry its own: `set_attribute(off, "dynamics", f_off)`.
+
+How the written equations become a callable is itself swappable:
+
+```julia
+set_attribute(model, "dynamics_backend", Dionysos.Wrapper.NonlinearEvaluatorBackend())
+```
+
+`SymbolicADBackend` (the default) traces them with Symbolics into one fused function and is what
+you want for real problems. `NonlinearEvaluatorBackend` evaluates them through `MOI.Nonlinear`
+with no optional dependency at all — far slower, and meant for tests and fallback.
 
 ---
 
@@ -361,9 +376,9 @@ here, naming both — not deep inside a sub-solver.
 
 ### Growth bounds come for free
 
-**(planned)** the `GROWTH` approximation mode currently requires you to hand-write a
-`jacobian_bound`. `System.compute_jacobian_bound` already derives one by tracing the dynamics and
-bounding the Jacobian over `X` with interval arithmetic; wiring it in is a later phase.
+The `GROWTH` approximation mode does not need a hand-written `jacobian_bound`: with Symbolics and
+IntervalArithmetic loaded, one is derived by tracing the dynamics and bounding the Jacobian over
+`X`. Supply your own only to override it.
 
 ---
 

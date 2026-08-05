@@ -36,6 +36,7 @@ specifications, and its own solver options.
 mutable struct ModeIR
     id::Int
     dynamics::DynamicsMap
+    user_dynamics::Any
     lower::Dict{Int, Float64}
     upper::Dict{Int, Float64}
     specs::Vector{SpecEntry}
@@ -45,6 +46,7 @@ end
 ModeIR(id::Int) = ModeIR(
     id,
     DynamicsMap(),
+    nothing,
     Dict{Int, Float64}(),
     Dict{Int, Float64}(),
     SpecEntry[],
@@ -84,6 +86,8 @@ mutable struct ModelIR
     specs::Vector{SpecEntry}
     modes::Dict{Int, ModeIR}
     transitions::Dict{Int, TransitionIR}
+    # A Julia function supplied instead of written equations (issue #510).
+    user_dynamics::Any
     horizon::Union{Nothing, Float64}
     objective_sense::MOI.OptimizationSense
     objective_function::Union{Nothing, MOI.AbstractScalarFunction}
@@ -100,6 +104,7 @@ function ModelIR()
         Dict{Int, ModeIR}(),
         Dict{Int, TransitionIR}(),
         nothing,
+        nothing,
         MOI.FEASIBILITY_SENSE,
         nothing,
         0,
@@ -112,6 +117,14 @@ end
 Whether the model declared any mode.
 """
 is_hybrid(ir::ModelIR) = !isempty(ir.modes)
+
+"""
+    has_user_dynamics(ir) -> Bool
+
+Whether any dynamics were supplied as a Julia function rather than written as equations.
+"""
+has_user_dynamics(ir::ModelIR) =
+    ir.user_dynamics !== nothing || any(m -> m.user_dynamics !== nothing, values(ir.modes))
 
 """
     mode_ids(ir) -> Vector{Int}
@@ -139,6 +152,7 @@ function Base.empty!(ir::ModelIR)
     empty!(ir.specs)
     empty!(ir.modes)
     empty!(ir.transitions)
+    ir.user_dynamics = nothing
     ir.horizon = nothing
     ir.objective_sense = MOI.FEASIBILITY_SENSE
     ir.objective_function = nothing
@@ -185,7 +199,11 @@ function infer_roles!(ir::ModelIR)
         has_dynamics[i] = true
     end
 
-    if !any(has_dynamics)
+    # Dynamics supplied as a Julia function leave no expressions to infer from, so the states
+    # are named with `set_role!` instead and the checks below stand down.
+    supplied = has_user_dynamics(ir)
+
+    if !any(has_dynamics) && !supplied
         error("Missing dynamics. i.e. ∂(x) = f(x, u) or Δ(x) = f(x, u)")
     end
 
@@ -209,19 +227,24 @@ function infer_roles!(ir::ModelIR)
     state_index = 0
     input_index = 0
     for (i, v) in enumerate(ir.variables)
-        if has_dynamics[i]
-            v.role = STATE
-            state_index += 1
-            v.index = state_index
-        else
-            v.role = INPUT
+        declared = v.declared_role
+        v.role = declared !== nothing ? declared : (has_dynamics[i] ? STATE : INPUT)
+        if v.role === INPUT
             # A variable that is referenced nowhere and constrained nowhere cannot influence
-            # the problem, so treating it as an input is never what the user meant.
-            if !(i in used) && !_has_start(v) && !_has_target(v)
+            # the problem, so treating it as an input is never what the user meant. With
+            # supplied dynamics there is nothing to be referenced by, so the check cannot run.
+            if declared === nothing &&
+               !supplied &&
+               !(i in used) &&
+               !_has_start(v) &&
+               !_has_target(v)
                 push!(unused, i)
             end
             input_index += 1
             v.index = input_index
+        else
+            state_index += 1
+            v.index = state_index
         end
     end
 
