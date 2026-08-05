@@ -45,6 +45,7 @@ include("variables.jl")
 include("specification.jl")
 include("model_ir.jl")
 include("dynamics_backend.jl")
+include("solver_selection.jl")
 # `optimizer.jl` defines the `Optimizer` type, so it precedes the files that add methods on it.
 include("optimizer.jl")
 include("parse.jl")
