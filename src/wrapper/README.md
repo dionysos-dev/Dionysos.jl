@@ -110,7 +110,12 @@ Obstacles are carved out of `X`:
 
 ```julia
 @constraint(model, x[1:2] ∉ MOI.HyperRectangle([1.0, 0.0], [1.2, 9.0]))
+@constraint(model, x[1:2] ∉ LazySets.Ball2([0.0, 0.0], 0.5))
 ```
+
+An `MOI.HyperRectangle` may be written over a subset of the coordinates and spans the variable
+bounds on the rest — `x[1] ∉ …` is a full-height wall. Any other bounded `LazySet` is taken as
+written and must span the whole state vector.
 
 ### Dynamics as a Julia function
 
@@ -150,7 +155,7 @@ shapes, and a temporal formula for anything else.
 | `@constraint(model, x in Final(S))` | ◇ eventually reach `S` |
 | `@constraint(model, x in Always(S))` | □ never leave `S` |
 | `@constraint(model, x in EventuallyAlways(S))` | ◇□ reach `S` and stay |
-| `@constraint(model, x ∉ O)` | avoid `O` (carved out of `X`) |
+| `@constraint(model, x ∉ O)` | avoid `O` (carved out of `X`) — a box or any bounded `LazySet` |
 | `@constraint(model, final(x[i]) in MOI.Interval(a, b))` | reach, one coordinate at a time |
 | `@constraint(model, start(x[i]) in MOI.Interval(a, b))` | start, one coordinate at a time |
 
@@ -215,8 +220,9 @@ by a finite prefix (`F`, `U`, `X`). `G` and `F(G)` are not of that kind — expr
 @objective(model, Min, sum(u[i]^2 for i in 1:2))
 ```
 
-It currently raises an error pointing at `transition_cost`; the mapping onto a cost function is
-not implemented yet.
+It is not implemented yet, and raises an error rather than being ignored. A control cost is the
+`transition_cost` of `Problem.OptimalControlProblem`; until the front-end can set it, build that
+problem directly and hand it to a solver through the direct-MOI entry style.
 
 ### 5.5 Avoiding a region: `∉` and `Always` differ
 
@@ -257,13 +263,16 @@ set_attribute(model, "horizon", 10.0)     # default: infinite
 A **mode** is a scope you attach dynamics, bounds and specifications to. A **transition** is a
 scope you attach a guard and a reset map to. Both accept ordinary `@constraint`s.
 
+`@mode` binds the name in your scope and registers it in the model, exactly like `@variable` —
+write `@mode(model, off)`, not `off = @mode(model, off)`.
+
 ```julia
 model = Model(Dionysos.Optimizer)
 @variable(model, 17 <= T <= 25)
 @variable(model, 0 <= u <= 1)
 
-off = @mode(model, off)
-on  = @mode(model, on)
+@mode(model, off)
+@mode(model, on)
 
 @constraint(off, ∂(T) == -α * (T - Ta))              # per-mode dynamics
 @constraint(on,  ∂(T) == -α * (T - Ta) + β * u)
@@ -287,11 +296,27 @@ end
 **Several transitions between the same two modes** are fine — each is its own object, so their
 guards and resets never get mixed up.
 
-Switching type, when you need it:
+**A guard need not be a box.** Everything written on the transition intersects:
 
 ```julia
-add_transition!(model, off => on; switching = HybridSystems.ControlledSwitching()) do t … end
+add_transition!(model, a => b) do t
+    @constraint(t, x >= 1)                              # per-coordinate bound
+    @constraint(t, x + y <= 3)                          # half-space
+    @constraint(t, [x, y] in Guard(LazySets.Ball2([0.0, 0.0], 1.0)))   # any bounded LazySet
+end
 ```
+
+A `Guard` set must span the state vector, in declaration order — same rule as `Final`/`Always`.
+The marker is needed because JuMP cannot tell a bare set apart from a bound. Guards must stay
+affine or set-valued; a *nonlinear* guard is rejected.
+
+On a **clocked** model a guard must be a plain box: a non-box guard would have to be extruded
+across the time axis, and the discretisation cannot enumerate that product.
+
+Only `HybridSystems.AutonomousSwitching` (the default) is supported — the switch is taken
+because the state entered the guard. `ControlledSwitching` is rejected rather than accepted and
+ignored, since the abstraction builds switch transitions from the guard alone. Model a
+controller-chosen switch by writing the choice into the guard.
 
 Solver options are set **per mode**, since each mode is abstracted by its own sub-solver:
 
@@ -464,8 +489,11 @@ Two rules for contributors:
   builds an expression when one of its arguments is a JuMP scalar. Use the vector form
   `x in Final(S)`, or the scalar form `final(x[i]) in MOI.Interval(a, b)`.
 * **`start = v` gives a single starting point**, not a region. Use `x in Start(S)` for a set.
-* **Nonlinear guards are rejected.** Guards must be affine so they can become a polyhedron; the
-  hybrid abstraction cannot consume anything else either.
+* **Nonlinear guards are rejected.** A guard is built from affine constraints and `Guard` sets;
+  an arbitrary nonlinear expression has no set representation the abstraction can enumerate.
+* **A mode's own bounds stay per-coordinate.** `@constraint(mode, x + y <= 1)` is rejected: a
+  mode's state and input sets are boxes the abstraction discretizes axis by axis. The same
+  constraint *on a transition* is fine — it becomes a half-space of the guard.
 * **A horizon on a safety problem does nothing** — see §5.6.
 * **Mixing clock-lifted and time-free modes in one hybrid model is rejected.** Guards and reset maps
   apply to the augmented state, whose arity differs between the two (`[x; t]` vs `x`), so a mixed

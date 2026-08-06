@@ -19,21 +19,45 @@ function _full_vec(def::Vector{Float64}, vars, vals)
 end
 
 """
-    obstacle_boxes(ir, x_idx) -> Vector{UT.Box}
+    obstacle_sets(ir, x_idx) -> Vector{LazySets.LazySet}
 
-The obstacles of `ir` as boxes over the state coordinates `x_idx`.
+The obstacles of `ir` as sets over the state coordinates `x_idx`, ready to be removed from the
+state space.
+
+An `MOI.HyperRectangle` may be written over a subset of the coordinates and is extruded across
+the variable bounds on the rest; any other bounded `LazySet` is taken as written and must span
+the whole state vector.
 """
-function obstacle_boxes(ir::ModelIR, x_idx::Vector{Int})
-    N = length(x_idx)
-    rects = UT.Box{N, Float64}[]
+function obstacle_sets(ir::ModelIR, x_idx::Vector{Int})
+    # Parameterised on the scalar type: `UnionSetArray` cannot be built from an eltype as
+    # abstract as a bare `LazySet`. The front-end is Float64 throughout.
+    sets = LazySets.LazySet{Float64}[]
     lower = _lower_vector(ir)
     upper = _upper_vector(ir)
     for (vars, obs) in ir.obstacles
-        lb = _svec(_full_vec(lower, vars, obs.lower), x_idx)
-        ub = _svec(_full_vec(upper, vars, obs.upper), x_idx)
-        push!(rects, UT.box(lb, ub))
+        push!(sets, _obstacle_set(x_idx, vars, obs, lower, upper))
     end
-    return rects
+    return sets
+end
+
+function _obstacle_set(x_idx, vars, obs::MOI.HyperRectangle, lower, upper)
+    lb = _svec(_full_vec(lower, vars, obs.lower), x_idx)
+    ub = _svec(_full_vec(upper, vars, obs.upper), x_idx)
+    return UT.box(lb, ub)
+end
+
+# A general set cannot be extruded the way a box can — there is no meaningful way to spread a
+# ball across the coordinates it does not mention — so it has to be given over the whole state.
+function _obstacle_set(x_idx, vars, obs, lower, upper)
+    idx = [v.value for v in vars]
+    idx == x_idx && LazySets.dim(obs) == length(x_idx) || error(
+        "An obstacle that is not a box must be given over the whole state vector, in " *
+        "declaration order: got a $(nameof(typeof(obs))) of dimension $(LazySets.dim(obs)) " *
+        "over $(length(idx)) variable(s), against $(length(x_idx)) state(s). Write " *
+        "`@constraint(model, x ∉ S)` with `x` the full state vector, or use " *
+        "`MOI.HyperRectangle` to constrain a subset of the coordinates.",
+    )
+    return obs
 end
 
 """
@@ -62,7 +86,7 @@ function build_system(ir::ModelIR, f)
     upper = _upper_vector(ir)
 
     X = state_box(ir, x_idx)
-    X = UT.set_minus(X, UT.set_union(obstacle_boxes(ir, x_idx)))
+    X = UT.set_minus(X, UT.set_union(obstacle_sets(ir, x_idx)))
     U = UT.box(_svec(lower, u_idx), _svec(upper, u_idx))
 
     if ir.time_domain == CONTINUOUS

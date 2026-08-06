@@ -42,17 +42,13 @@ end
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VectorOfVariables},
-    ::Type{OuterSet{MOI.HyperRectangle{Float64}}},
+    ::Type{<:OuterSet},
 )
     return true
 end
 
-function MOI.add_constraint(
-    model::Optimizer,
-    func::MOI.VectorOfVariables,
-    set::OuterSet{MOI.HyperRectangle{Float64}},
-)
-    push!(model.ir.obstacles, (func.variables, set.inner))
+function MOI.add_constraint(model::Optimizer, func::MOI.VectorOfVariables, set::OuterSet)
+    push!(model.ir.obstacles, (copy(func.variables), set.inner))
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.obstacles))
 end
 

@@ -57,6 +57,7 @@ const TEST_FILES = [
     ("./wrapper/dynamics.jl",),          # supplied dynamics (#510) + the evaluator backend
     ("./wrapper/ltl.jl", :slow),         # temporal formulas over named regions (needs Spot)
     ("./wrapper/hybrid.jl", :slow),      # modes, transitions, guards, reset maps
+    ("./wrapper/general_sets.jl", :slow),  # LazySet obstacles and guards, half-space guards
     ("./wrapper/clock.jl", :slow),       # clocks and time-windowed specifications
     ("./wrapper/no_symbolics.jl", :slow),  # subprocess: front-end with no optional deps
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),

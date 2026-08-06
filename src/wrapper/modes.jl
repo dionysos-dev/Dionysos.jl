@@ -12,7 +12,37 @@
 # whole hybrid topology is recoverable from the constraints alone.
 # ----------------------------------------------------------------------------------------
 
-export add_mode!, add_transition!, @mode
+export add_mode!, add_transition!, @mode, Guard
+
+"""
+    Guard(S)
+
+Marks `S` as the guard of a transition — the states from which the switch may be taken:
+
+```julia
+add_transition!(model, a => b) do t
+    @constraint(t, [x, y] in Guard(LazySets.Ball2([0.0, 0.0], 1.0)))
+end
+```
+
+`S` may be any bounded `LazySet` and must span the state vector, in declaration order. The
+marker is needed because JuMP has no parsing rule that would tell a bare set apart from a
+bound; it plays the same role as [`Final`](@ref) and [`Always`](@ref) do on a mode.
+
+A guard can equally be written as ordinary inequalities — `@constraint(t, x <= 1)` per
+coordinate, or a multi-variable `@constraint(t, x + y <= 1)`, which becomes a half-space. All
+of them intersect: a transition's guard is everything written on it, narrowed by the source
+mode's own state set.
+"""
+struct Guard{S} <: MOI.AbstractVectorSet
+    inner::S
+    dim::Int
+end
+
+Guard(set) = Guard(set, LazySets.dim(set))
+MOI.dimension(set::Guard) = set.dim
+Base.copy(set::Guard) = set
+JuMP.in_set_string(::MIME, set::Guard) = "in Guard($(nameof(typeof(set.inner))))"
 
 """
     ModeScope
@@ -120,7 +150,12 @@ Base.broadcastable(t::Transition) = Ref(t)
 # A scope subtypes `JuMP.AbstractModel` so that `@constraint` works on it, which also makes JuMP's
 # generic `show` apply — and that one summarises a *model*, asking for `objective_sense`,
 # `num_variables` and friends. A scope has none of those, so it prints itself.
+#
+# `print` needs its own method: JuMP defines `Base.print(::IO, ::AbstractModel)`, which is more
+# specific than the generic `Base.print` that would otherwise fall back to `show`. Without it
+# `println(mode)` and `"$mode"` still reach JuMP's model summary and throw.
 Base.show(io::IO, m::Mode) = print(io, "Mode(:", m.name, ")")
+Base.print(io::IO, m::Mode) = show(io, m)
 
 # Constraint display. Without these, JuMP prints a scoped constraint as
 # `… in Dionysos.Wrapper.ScopedSet{MathOptInterface.EqualTo{Float64}, …}(…)`, putting the
@@ -149,6 +184,8 @@ function Base.show(io::IO, t::Transition)
         ")",
     )
 end
+
+Base.print(io::IO, t::Transition) = show(io, t)
 
 _record_constraint!(::Mode) = nothing
 _record_constraint!(t::Transition) = (t.nconstraints += 1; nothing)
@@ -205,8 +242,17 @@ end
 """
     @mode(model, name)
 
-Declare a mode and bind it to `name`, registering it in the model's object dictionary:
-`off = @mode(model, off)`.
+Declare a mode. Like `@variable`, this **binds `name` in the calling scope** and registers the
+mode in the model's object dictionary — no assignment needed:
+
+```julia
+@mode(model, off)
+@constraint(off, ∂(T) == -α * (T - Ta))     # `off` is already bound
+model[:off] === off                          # and registered
+```
+
+The macro also returns the mode, so `off = @mode(model, off)` works too; it is simply
+redundant. [`add_mode!`](@ref) is the function form, for a name computed at runtime.
 """
 macro mode(model, name)
     quote
@@ -234,6 +280,11 @@ guards and resets never get mixed up.
 
 A transition needs at least a guard; an always-enabled switch is written with a guard covering
 the whole state set.
+
+Only `HybridSystems.AutonomousSwitching` is supported: the switch is taken because the state
+entered the guard, not because a controller chose it. `ControlledSwitching` is rejected — see
+[`add_transition!`](@ref)'s error — because the abstraction treats a switch as a state-driven
+event, not as an input the synthesis may pick.
 """
 function add_transition!(
     f::Function,
@@ -241,6 +292,15 @@ function add_transition!(
     pair::Pair{Mode, Mode};
     switching = HybridSystems.AutonomousSwitching(),
 )
+    # Anything else would be handed to `HybridSystems` and then quietly ignored by the
+    # abstraction, which builds switch transitions from the guard alone.
+    switching isa HybridSystems.AutonomousSwitching || error(
+        "`switching = $(typeof(switching))` is not supported; only " *
+        "`HybridSystems.AutonomousSwitching()` is. The hybrid abstraction takes a switch " *
+        "whenever the state is in the guard, so a controlled switch would silently behave " *
+        "as an autonomous one. Model a controller-chosen switch by writing the choice into " *
+        "the guard instead.",
+    )
     source, target = pair
     id = _next_scope_id!(model, :_dionysos_transitions)
     transition = Transition(model, id, source.id, target.id, switching, 0)

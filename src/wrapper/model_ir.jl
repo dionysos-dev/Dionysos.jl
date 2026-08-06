@@ -46,9 +46,25 @@ ModeIR(id::Int) = ModeIR(
 )
 
 """
+    AffineGuard
+
+A multi-variable affine guard `lower ≤ Σ aᵢ xᵢ ≤ upper`, kept as raw coefficients because the
+state ordering is only known once roles are inferred. Lowered to one or two half-spaces.
+"""
+struct AffineGuard
+    coefficients::Dict{Int, Float64}
+    lower::Float64
+    upper::Float64
+end
+
+"""
     TransitionIR
 
-One switch: the guard bounds that enable it and the reset map applied when it is taken.
+One switch: what enables it and the reset map applied when it is taken.
+
+The enabling condition accumulates from three sources, all intersected: per-coordinate bounds
+(`guard_lower`/`guard_upper`), multi-variable affine constraints (`affine_guards`), and whole
+sets written with [`Guard`](@ref) (`guard_sets`).
 """
 mutable struct TransitionIR
     id::Int
@@ -57,6 +73,8 @@ mutable struct TransitionIR
     switching::Any
     guard_lower::Dict{Int, Float64}
     guard_upper::Dict{Int, Float64}
+    affine_guards::Vector{AffineGuard}
+    guard_sets::Vector{Tuple{Vector{MOI.VariableIndex}, Any}}
     resets::DynamicsMap
 end
 
@@ -67,8 +85,18 @@ TransitionIR(id::Int, source::Int, target::Int, switching) = TransitionIR(
     switching,
     Dict{Int, Float64}(),
     Dict{Int, Float64}(),
+    AffineGuard[],
+    Tuple{Vector{MOI.VariableIndex}, Any}[],
     DynamicsMap(),
 )
+
+"""
+    has_set_guard(t::TransitionIR) -> Bool
+
+Whether the transition carries anything beyond per-coordinate bounds, i.e. whether its guard is
+more than a box.
+"""
+has_set_guard(t::TransitionIR) = !isempty(t.affine_guards) || !isempty(t.guard_sets)
 
 """
     ModelIR
@@ -83,7 +111,9 @@ mutable struct ModelIR
     variables::Vector{VariableInfo}
     dynamics::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}
     time_domain::TimeDomain
-    obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, MOI.HyperRectangle}}
+    # An obstacle is an `MOI.HyperRectangle` (possibly over a subset of the coordinates) or any
+    # bounded `LazySet` over the whole state vector; `obstacle_sets` resolves both.
+    obstacles::Vector{Tuple{Vector{MOI.VariableIndex}, Any}}
     specs::Vector{SpecEntry}
     labels::Vector{LabelEntry}
     specification::Any
@@ -312,9 +342,12 @@ end
 function _validate_objective(ir::ModelIR)
     ir.objective_sense === MOI.FEASIBILITY_SENSE && return
     return error(
-        "`@objective` is not supported yet: the wrapper would silently ignore it. A control " *
-        "cost is set with `set_attribute(model, \"transition_cost\", (x, u) -> …)`; the " *
-        "specification itself is expressed with constraints (`Final`, `Always`, …).",
+        "`@objective` is not supported yet, and the wrapper will not ignore it silently. " *
+        "The specification is written with constraints (`Final`, `Always`, " *
+        "`EventuallyAlways`, `@specification`), never as an objective. A control cost is the " *
+        "`transition_cost` of `Problem.OptimalControlProblem`; the front-end cannot set it " *
+        "yet, so build that problem directly and pass it to a solver with " *
+        "`MOI.set(optimizer, MOI.RawOptimizerAttribute(\"concrete_problem\"), problem)`.",
     )
 end
 

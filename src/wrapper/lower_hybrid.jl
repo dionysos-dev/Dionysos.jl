@@ -88,6 +88,68 @@ function _guard_box(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
     return UT.box(SVector{length(coords)}(lo...), SVector{length(coords)}(hi...))
 end
 
+# A multi-variable affine guard `lo ≤ a'x ≤ hi` as the half-spaces bounding it. `a` is spread
+# over the state coordinates in declaration order.
+function _guard_half_spaces(ir::ModelIR, g::AffineGuard, x_idx::Vector{Int})
+    a = zeros(length(x_idx))
+    for (i, c) in g.coefficients
+        j = findfirst(==(i), x_idx)
+        j === nothing && error(
+            "A guard constrains the state at the moment of the switch, but this one mentions " *
+            "$(describe(ir.variables[i], i)), which is not a state.",
+        )
+        a[j] = c
+    end
+    spaces = LazySets.HalfSpace{Float64, Vector{Float64}}[]
+    isfinite(g.upper) && push!(spaces, LazySets.HalfSpace(copy(a), g.upper))
+    isfinite(g.lower) && push!(spaces, LazySets.HalfSpace(-a, -g.lower))
+    return spaces
+end
+
+function _check_guard_set(vars, S, x_idx::Vector{Int}, t::TransitionIR)
+    idx = [v.value for v in vars]
+    idx == x_idx && LazySets.dim(S) == length(x_idx) || error(
+        "The `Guard` set on transition $(t.id) must be given over the whole state vector, in " *
+        "declaration order: got a $(nameof(typeof(S))) of dimension $(LazySets.dim(S)) over " *
+        "$(length(idx)) variable(s), against $(length(x_idx)) state(s).",
+    )
+    return
+end
+
+# The full enabling condition: the box of per-coordinate bounds, narrowed by every half-space
+# and every `Guard` set written on the transition.
+#
+# The intersections are built *binary and lazily*. `IntersectionArray` would be the obvious
+# container, but the grid discretisation resolves it by computing a concrete `intersection`,
+# which has no method for most set pairs; nested binary `Intersection` is evaluated through
+# support functions and membership instead, and enumerates correctly for every combination.
+function _guard_set(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
+    box = _guard_box(ir, t, x_idx)
+    has_set_guard(t) || return box
+
+    # With a clock the guard lives in `[x; t]`, so an `x`-only set would have to be extruded
+    # across the time axis as a Cartesian product — which the `INNER` discretisation cannot
+    # enumerate. Per-coordinate bounds already span the clock correctly, so they still work.
+    clock_index(ir) === nothing || error(
+        "Transition $(t.id) carries a guard that is not a box, but the model has a clock. " *
+        "A non-box guard would have to be extruded across the time axis, which the " *
+        "discretization does not support. Use per-coordinate bounds on a clocked model, or " *
+        "drop the clock.",
+    )
+
+    guard = box
+    for g in t.affine_guards
+        for half_space in _guard_half_spaces(ir, g, x_idx)
+            guard = LazySets.Intersection(guard, half_space)
+        end
+    end
+    for (vars, S) in t.guard_sets
+        _check_guard_set(vars, S, x_idx, t)
+        guard = LazySets.Intersection(guard, S)
+    end
+    return guard
+end
+
 # The reset of the physical coordinates, or `nothing` when the transition leaves them alone.
 function _physical_reset(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{Int})
     any(i -> haskey(t.resets, i), x_idx) || return nothing
@@ -160,7 +222,7 @@ function build_hybrid_system(ir::ModelIR, backend)
         push!(
             reset_maps,
             ST.GuardedResetMap(
-                _guard_box(ir, t, x_idx),
+                _guard_set(ir, t, x_idx),
                 _reset_function(ir, t, backend, x_idx),
             ),
         )

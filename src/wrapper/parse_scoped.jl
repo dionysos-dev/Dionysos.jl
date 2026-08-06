@@ -13,19 +13,26 @@ _set_bounds(set::MOI.GreaterThan) = (set.lower, Inf)
 _set_bounds(set::MOI.EqualTo) = (set.value, set.value)
 _set_bounds(set::MOI.Interval) = (set.lower, set.upper)
 
-# `coef * x + constant ∈ set` as bounds on `x`. Only single-variable constraints are supported:
-# a general affine guard would need a polyhedron, which the hybrid abstraction cannot consume.
+# `coef * x + constant ∈ set` as bounds on `x`, for the single-variable case.
 function _variable_bounds(func::MOI.ScalarAffineFunction, set)
-    length(func.terms) == 1 || error(
-        "Only single-variable bounds and guards are supported here, got a constraint over " *
-        "$(length(func.terms)) variables. Write one constraint per variable.",
-    )
     term = func.terms[]
     iszero(term.coefficient) && error("A bound or guard must have a non-zero coefficient.")
     lo, hi = _set_bounds(set)
     a = (lo - func.constant) / term.coefficient
     b = (hi - func.constant) / term.coefficient
     return term.variable.value, min(a, b), max(a, b)
+end
+
+# `Σ aᵢ xᵢ + constant ∈ set` with more than one variable. The constant moves to the bounds so
+# what is kept is exactly the coefficients and the interval they lie in.
+function _affine_guard(func::MOI.ScalarAffineFunction, set)
+    coefficients = Dict{Int, Float64}()
+    for term in func.terms
+        coefficients[term.variable.value] =
+            get(coefficients, term.variable.value, 0.0) + term.coefficient
+    end
+    lo, hi = _set_bounds(set)
+    return AffineGuard(coefficients, lo - func.constant, hi - func.constant)
 end
 
 function _record_bounds!(lower::Dict{Int, Float64}, upper::Dict{Int, Float64}, i, lo, hi)
@@ -51,8 +58,12 @@ function MOI.add_constraint(
     func::MOI.ScalarAffineFunction,
     set::ScopedSet{<:_BoundSet},
 )
-    i, lo, hi = _variable_bounds(func, set.inner)
-    _apply_affine!(model.ir, set.scope, i, lo, hi)
+    if length(func.terms) == 1
+        i, lo, hi = _variable_bounds(func, set.inner)
+        _apply_affine!(model.ir, set.scope, i, lo, hi)
+    else
+        _apply_multi_affine!(model.ir, set.scope, _affine_guard(func, set.inner))
+    end
     return next_constraint_index!(model.ir, func, set)
 end
 
@@ -64,6 +75,49 @@ end
 function _apply_affine!(ir::ModelIR, scope::TransitionScope, i, lo, hi)
     t = transition!(ir, scope)
     return _record_bounds!(t.guard_lower, t.guard_upper, i, lo, hi)
+end
+
+# A mode's state and input sets are boxes the abstraction discretizes coordinate by coordinate,
+# so a multi-variable constraint has nowhere to go there. On a transition it becomes a
+# half-space, which the guard — an arbitrary set — can carry.
+function _apply_multi_affine!(::ModelIR, scope::ModeScope, ::AffineGuard)
+    return error(
+        "A mode's bounds are per-coordinate, so a constraint over several variables cannot " *
+        "be written on mode $(scope.id); the state and input sets are boxes. Write one " *
+        "constraint per variable. (On a *transition* a multi-variable constraint is allowed: " *
+        "it becomes a half-space of the guard.)",
+    )
+end
+
+function _apply_multi_affine!(ir::ModelIR, scope::TransitionScope, guard::AffineGuard)
+    push!(transition!(ir, scope).affine_guards, guard)
+    return
+end
+
+# ---- `[x, y] in Guard(S)`: a set-valued guard on a transition ----
+
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VectorOfVariables},
+    ::Type{<:ScopedVectorSet{<:Guard}},
+)
+    return true
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    func::MOI.VectorOfVariables,
+    set::ScopedVectorSet{<:Guard},
+)
+    scope = set.scope
+    scope isa TransitionScope || error(
+        "`Guard` belongs to a transition, not to a mode (mode $(scope.id)). A mode's own " *
+        "region is written with `Always`.",
+    )
+    push!(transition!(model.ir, scope).guard_sets, (copy(func.variables), set.inner.inner))
+    return MOI.ConstraintIndex{typeof(func), typeof(set)}(
+        next_constraint_index!(model.ir, func, set).value,
+    )
 end
 
 # ---- nonlinear equalities: per-mode dynamics, or a transition reset map ----

@@ -25,8 +25,8 @@ function thermostat_model(; Ta = 18.0, α = 0.1, β = 2.0)
     @variable(model, 17.0 <= T <= 25.0, start = 18.0)
     @variable(model, 0.0 <= u <= 1.0)
 
-    off = @mode(model, off)
-    on = @mode(model, on)
+    @mode(model, off)
+    @mode(model, on)
 
     @constraint(off, ∂(T) == -α * (T - Ta))
     @constraint(on, ∂(T) == -α * (T - Ta) + β * u)
@@ -106,8 +106,8 @@ end
     @variable(model, -2.0 <= x <= 2.0, start = -1.0)
     @variable(model, -1.0 <= u <= 1.0)
 
-    a = @mode(model, a)
-    b = @mode(model, b)
+    @mode(model, a)
+    @mode(model, b)
     @constraint(a, ∂(x) == u)
     @constraint(b, ∂(x) == u)
     @constraint(b, [x] in Final(UT.box(SVector(-0.2), SVector(0.2))))
@@ -134,8 +134,8 @@ end
     model = Model(Dionysos.Optimizer)
     @variable(model, 17.0 <= T <= 25.0)
     @variable(model, 0.0 <= u <= 1.0)
-    off = @mode(model, off)
-    on = @mode(model, on)
+    @mode(model, off)
+    @mode(model, on)
     @constraint(off, ∂(T) == -0.1 * (T - 18.0))
     @constraint(on, ∂(T) == -0.1 * (T - 18.0) + 2.0 * u)
 
@@ -145,6 +145,13 @@ end
 
     @test sprint(show, MIME"text/plain"(), off) == "Mode(:off)"
     @test occursin("mode 2 => mode 1", sprint(show, MIME"text/plain"(), transition))
+
+    # `print` needs its own method: JuMP defines `Base.print(::IO, ::AbstractModel)`, which is
+    # more specific than the generic `Base.print` that falls back to `show`. Without it,
+    # `println(off)` and `"$off"` reach JuMP's model summary and throw.
+    @test sprint(print, off) == "Mode(:off)"
+    @test "$off" == "Mode(:off)"
+    @test occursin("mode 2 => mode 1", "$transition")
 
     # A scoped constraint shows its scope, not the wrapper's internal set types.
     scoped = @constraint(off, T <= 24.0)
@@ -213,12 +220,32 @@ end
     @test length(abstract_problem.safe_set) < nstates
 end
 
+@testset "@mode binds the name in the calling scope, like @variable" begin
+    # No assignment needed: `@mode(model, cruise)` is enough, and `cruise = @mode(...)` is
+    # merely redundant. Pinned because the documentation and every example rely on it.
+    model = direct_model(Dionysos.Optimizer())
+    @variable(model, -1.0 <= x <= 1.0)
+    @variable(model, -1.0 <= u <= 1.0)
+
+    @mode(model, cruise)
+    @test cruise isa WR.Mode
+    @test cruise.name === :cruise
+    @test model[:cruise] === cruise      # registered in the object dictionary too
+
+    @mode(model, coast)
+    @test coast.id == cruise.id + 1      # ids keep advancing
+
+    # The macro still returns the mode, so the assigned form keeps working.
+    braking = @mode(model, braking)
+    @test braking === model[:braking]
+end
+
 @testset "a transition without a guard is rejected" begin
     model = direct_model(Dionysos.Optimizer())
     @variable(model, -1.0 <= x <= 1.0)
     @variable(model, -1.0 <= u <= 1.0)
-    a = @mode(model, a)
-    b = @mode(model, b)
+    @mode(model, a)
+    @mode(model, b)
     @constraint(a, ∂(x) == u)
     @constraint(b, ∂(x) == u)
 

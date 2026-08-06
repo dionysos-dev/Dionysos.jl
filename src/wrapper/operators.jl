@@ -48,12 +48,20 @@ const start = JuMP.NonlinearOperator(_start, :start)
 
 Marks the complement of `inner`: `@constraint(model, x ∉ O)` wraps `O` in an `OuterSet`,
 and the lowering carves it out of the state space `X`.
+
+`inner` may be an `MOI.HyperRectangle` — which can be written over a subset of the
+coordinates, spanning the variable bounds on the rest — or any bounded `LazySet`, which must
+span the whole state vector.
 """
-struct OuterSet{S <: MOI.AbstractVectorSet} <: MOI.AbstractVectorSet
+struct OuterSet{S} <: MOI.AbstractVectorSet
     inner::S
 end
 
-MOI.dimension(set::OuterSet) = MOI.dimension(set.inner)
+# An obstacle is either an MOI set or a `LazySet`; the two spell "how many coordinates" apart.
+_set_dimension(set::MOI.AbstractVectorSet) = MOI.dimension(set)
+_set_dimension(set) = LazySets.dim(set)
+
+MOI.dimension(set::OuterSet) = _set_dimension(set.inner)
 Base.copy(set::OuterSet) = OuterSet(copy(set.inner))
 
 # Deliberate type piracy: JuMP has no parsing rule for `∉`; this method makes the public obstacle
