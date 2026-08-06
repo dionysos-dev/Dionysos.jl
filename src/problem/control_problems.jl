@@ -3,7 +3,7 @@
 # ----------------------------
 
 """
-    OptimalControlProblem{S, XI, XT, XC, TC, T} <: ControlProblem
+    OptimalControlProblem{S, XI, XT, XC, TC, T, XS} <: ControlProblem
 
 Encodes a **reach-avoid optimal control problem** over a finite horizon.
 
@@ -13,36 +13,113 @@ Encodes a **reach-avoid optimal control problem** over a finite horizon.
 - `XC`: A state cost function or structure.
 - `TC`: A transition cost function or structure.
 - `T`: Satisfy the property in at most time T.
+- `XS`: The safe set the trajectory must stay in until the target is reached, or `nothing`
+  for the whole state space.
 
 This problem aims to find a control strategy that reaches the target set from the initial set, minimizing the accumulated cost over time.
+
+# The safe set
+
+`safe_set` is the ◻ of a reach-avoid specification `◻ safe ∧ ◇ target`, and is optional:
+`nothing` — the default, and what the five-and six-argument constructors give — means the
+whole state space, so a problem built without it behaves exactly as before.
+
+It is *not* the same as carving the unsafe region out of `stateset(system)`. A region removed
+from the state space is never abstracted, so the synthesis cannot reason about it; a safe set
+keeps it representable and lets the synthesis actively avoid it.
+
+Semantics: `safe U target`. Every state up to **and including** the one that reaches the
+target must be safe, so the target is effectively intersected with the safe set — a target
+state outside `safe_set` does not count as reached.
+
+```julia
+PR.OptimalControlProblem(system, X0, target, nothing, nothing, PR.Infinity(); safe_set = corridor)
+```
 """
-struct OptimalControlProblem{S, XI, XT, XC, TC, T} <: ControlProblem
+struct OptimalControlProblem{S, XI, XT, XC, TC, T, XS} <: ControlProblem
     system::S
     initial_set::XI
     target_set::XT
     state_cost::XC
     transition_cost::TC
     time::T
+    safe_set::XS
 end
 
-OptimalControlProblem(system, initial_set, target_set, state_cost, transition_cost) =
-    OptimalControlProblem(
+function OptimalControlProblem(
+    system,
+    initial_set,
+    target_set,
+    state_cost,
+    transition_cost,
+    time;
+    safe_set = nothing,
+)
+    return OptimalControlProblem(
         system,
         initial_set,
         target_set,
         state_cost,
         transition_cost,
-        Infinity(),
+        time,
+        safe_set,
     )
+end
+
+function OptimalControlProblem(
+    system,
+    initial_set,
+    target_set,
+    state_cost,
+    transition_cost;
+    safe_set = nothing,
+)
+    return OptimalControlProblem(
+        system,
+        initial_set,
+        target_set,
+        state_cost,
+        transition_cost,
+        Infinity();
+        safe_set = safe_set,
+    )
+end
 
 # Reach-avoid is a "within at most T" specification: round the horizon down.
 horizon_round_up(::OptimalControlProblem) = false
 
-function trajectory_success(problem::OptimalControlProblem, traj::ST.Trajectory)
-    isempty(traj.states) && return false
+"""
+    check_safe_set_supported(problem::OptimalControlProblem, solver_name)
 
-    return first(traj.states) ∈ problem.initial_set &&
-           any(x -> x ∈ problem.target_set, traj.states)
+Raise if `problem` carries a [`safe_set`](@ref OptimalControlProblem) the caller cannot
+honour.
+
+Solvers that ignore the avoid part of a reach-avoid specification must call this. Dropping it
+silently would hand back a controller certified against a weaker specification than the one
+that was asked for, which is exactly the kind of failure a formal-methods toolbox must not
+have.
+"""
+function check_safe_set_supported(problem::OptimalControlProblem, solver_name)
+    problem.safe_set === nothing && return
+    return error(
+        "$solver_name cannot honour the `safe_set` of a reach-avoid problem, and refuses to " *
+        "ignore it silently. Remove the safe set, fold it into the system's state set, or " *
+        "use an abstraction-based solver.",
+    )
+end
+
+function trajectory_success(problem::OptimalControlProblem, traj::ST.Trajectory)
+    xs = traj.states
+    isempty(xs) && return false
+    first(xs) ∈ problem.initial_set || return false
+
+    # `safe U target`: the run stops at the target, so what happens afterwards is outside the
+    # specification — but every state up to and including it must be safe.
+    for x in xs
+        problem.safe_set === nothing || x ∈ problem.safe_set || return false
+        x ∈ problem.target_set && return true
+    end
+    return false
 end
 
 """

@@ -15,12 +15,6 @@ using HybridSystems
 
 const HSA = AB.HybridSystemAbstraction
 
-# A placeholder reset map, enough to build a HybridSystem (its `apply` is not
-# exercised by the helpers tested below).
-struct _NoResetMap <: MS.AbstractMap end
-MS.apply(::_NoResetMap, s::AbstractVector) = s
-MS.stateset(::_NoResetMap) = UT.box([-1.0], [1.0])
-
 # A tiny two-mode hybrid system with a single 1 → 2 transition.
 function _tiny_hybrid_system()
     X = UT.box([-1.0], [1.0])
@@ -32,7 +26,7 @@ function _tiny_hybrid_system()
     return HybridSystems.HybridSystem(
         automaton,
         [mode, mode],
-        [_NoResetMap()],
+        [ST.GuardedResetMap(UT.box([-1.0], [1.0]))],
         [HybridSystems.AutonomousSwitching()],
     )
 end

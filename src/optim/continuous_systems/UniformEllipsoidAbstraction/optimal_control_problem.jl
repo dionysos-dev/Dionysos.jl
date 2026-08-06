@@ -165,12 +165,20 @@ function build_abstract_problem(
 )
     @warn("The `state_cost` is not yet fully implemented")
 
+    # `INNER` for the safe set: a cell only partly inside it contains unsafe points, so it
+    # cannot be certified safe.
+    concrete_safe_set = concrete_problem.safe_set
+    abstract_safe_set =
+        concrete_safe_set === nothing ? nothing :
+        SY.get_states_from_set(abstract_system, concrete_safe_set, MP.INNER)
+
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
         SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
         concrete_problem.state_cost,
         abstract_transition_cost,
-        concrete_problem.time,
+        concrete_problem.time;
+        safe_set = abstract_safe_set,
     )
 end

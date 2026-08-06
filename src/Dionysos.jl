@@ -7,23 +7,54 @@ include("mapping/mapping.jl")
 include("symbolic/symbolic.jl")
 include("optim/optim.jl")
 
-# ----- Wrapper functions for optional dependencies ---------
+# ----- JuMP/MOI front-end ---------
 import JuMP
 import LazySets
-function Optimizer end
-export ∂, Δ, final, start
 
-function _diff end
-const ∂ = JuMP.NonlinearOperator(_diff, :∂)
+include("wrapper/wrapper.jl")
 
-function _delta end
-const Δ = JuMP.NonlinearOperator(_delta, :Δ)
-
-function _final end
-const final = JuMP.NonlinearOperator(_final, :final)
-
-function _start end
-const start = JuMP.NonlinearOperator(_start, :start)
+# Re-export the front-end vocabulary from the top level. `using` (rather than `const` aliases)
+# keeps these the *same* bindings as in `Wrapper`, so their docstrings resolve here too.
+using .Wrapper:
+    Optimizer,
+    simulate,
+    ∂,
+    Δ,
+    final,
+    start,
+    Start,
+    Final,
+    Always,
+    EventuallyAlways,
+    Label,
+    Guard,
+    add_mode!,
+    add_transition!,
+    set_role!,
+    STATE,
+    INPUT,
+    CLOCK,
+    PARAMETER,
+    DISTURBANCE,
+    @mode,
+    @specification
+# The role constants stay qualified (`Dionysos.STATE`): the bare names are too generic to put
+# in a user's namespace.
+export ∂,
+    Δ,
+    final,
+    start,
+    Start,
+    Final,
+    Always,
+    EventuallyAlways,
+    Label,
+    Guard,
+    add_mode!,
+    add_transition!,
+    set_role!,
+    @mode,
+    @specification
 
 # ----- CSV functions for optional dependencies ---------
 

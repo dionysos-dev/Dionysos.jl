@@ -125,7 +125,7 @@ function MOI.optimize!(optimizer::OptimizerSafetyProblem)
     optimizer.invariant_set = inv_set
     optimizer.invariant_set_complement = invc_set
 
-    optimizer.success = all(q -> q in inv_set, problem.initial_set)
+    optimizer.success = covers_initial_set(q -> q in inv_set, problem.initial_set)
 
     optimizer.print_level >= 1 && println("\n Safety: terminated with $(optimizer.success)")
 

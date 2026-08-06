@@ -213,7 +213,7 @@ function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
     optimizer.controller = ST.DiscreteStaticController(winning_set, contr, false)
     optimizer.winning_set = winning_set
     optimizer.winning_set_complement = setdiff(Set(SY.enum_states(autom)), winning_set)
-    optimizer.success = all(q -> Y[q], I)
+    optimizer.success = covers_initial_set(q -> Y[q], I)
 
     optimizer.print_level >= 1 &&
         println("\n Reach and Stay: terminated with $(optimizer.success)")

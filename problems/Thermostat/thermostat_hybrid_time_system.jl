@@ -20,13 +20,6 @@ Base.@kwdef struct Params{T}
     beta::T = 2.0
 end
 
-struct ThermostatIdentityResetMap <: MS.AbstractMap
-    domain::UT.Box
-end
-
-MS.apply(reset::ThermostatIdentityResetMap, state::AbstractVector) = state
-MS.stateset(reset::ThermostatIdentityResetMap) = reset.domain
-
 function off_dynamics(params::Params = Params())
     return (x, u) -> SVector(-params.alpha * (x[1] - params.Ta))
 end
@@ -70,10 +63,7 @@ function system(;
 
     switch_domain = UT.box(SVector(17.0, 0.0), SVector(25.0, 100.0))
 
-    reset_maps = [
-        ThermostatIdentityResetMap(switch_domain),
-        ThermostatIdentityResetMap(switch_domain),
-    ]
+    reset_maps = [ST.GuardedResetMap(switch_domain), ST.GuardedResetMap(switch_domain)]
 
     automaton = HS.GraphAutomaton(2)
     HS.add_transition!(automaton, 1, 2, 1)

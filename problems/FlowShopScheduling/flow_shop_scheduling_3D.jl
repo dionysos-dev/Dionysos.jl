@@ -13,15 +13,10 @@ const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
 
-struct FlowShopResetMap <: MS.AbstractMap
-    domain::UT.Box
-    x_init::Vector{Float64}
-    t_min::Float64
-end
-
-MS.apply(reset::FlowShopResetMap, state::AbstractVector) =
-    vcat(reset.x_init, max(reset.t_min, state[end]))
-MS.stateset(reset::FlowShopResetMap) = reset.domain
+# On task completion the state restarts at `x_init`, and the clock is held at `t_min` when the
+# task finished early. Guard and reset live in the augmented `[x; t]` space.
+FlowShopResetMap(domain, x_init, t_min) =
+    ST.GuardedResetMap(domain, state -> vcat(x_init, max(t_min, state[end])))
 
 function get_matrices()
     A1 = SMatrix{3, 3}(0.95, 0.01, 0.003, 0.0, 0.98, 0.01, -0.3, 0.0, 0.99)

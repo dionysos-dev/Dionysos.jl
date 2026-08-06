@@ -140,13 +140,19 @@ function build_abstract_problem(
 
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
 
+    concrete_safe_set = concrete_problem.safe_set
+    abstract_safe_set =
+        concrete_safe_set === nothing ? nothing :
+        SY.states_satisfying(abstract_system, concrete_safe_set)
+
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),
         abstract_initial_set,
         abstract_target_set,
         concrete_problem.state_cost, # TODO: Transform continuous cost into discrete abstraction
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time, # TODO: Translate continuous time into discrete steps
+        concrete_problem.time; # TODO: Translate continuous time into discrete steps
+        safe_set = abstract_safe_set,
     )
 end
 

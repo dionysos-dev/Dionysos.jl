@@ -20,13 +20,6 @@ Base.@kwdef struct Params{T}
     beta::T = 2.0
 end
 
-struct ThermostatIdentityResetMap <: MS.AbstractMap
-    domain::UT.Box
-end
-
-MS.apply(reset::ThermostatIdentityResetMap, state::AbstractVector) = state
-MS.stateset(reset::ThermostatIdentityResetMap) = reset.domain
-
 function off_dynamics(params::Params = Params())
     return (x, u) -> SVector(-params.alpha * (x[1] - params.Ta))
 end
@@ -62,7 +55,7 @@ function system(;
     # Plain modes — no `VectorContinuousSystem`, no clock subsystem.
     modes_systems = [off_system, on_system]
 
-    reset_maps = [ThermostatIdentityResetMap(_X_), ThermostatIdentityResetMap(_X_)]  # identity on T
+    reset_maps = [ST.GuardedResetMap(_X_), ST.GuardedResetMap(_X_)]  # identity on T
 
     automaton = HS.GraphAutomaton(2)
     HS.add_transition!(automaton, 1, 2, 1)

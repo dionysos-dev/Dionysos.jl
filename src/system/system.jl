@@ -16,6 +16,9 @@ UT = Utils
 # Continuous systems: MathematicalSystems extension
 include("vector_continuous_system.jl")
 
+# Hybrid transitions: the guard/reset pair stored on a HybridSystems transition
+include("reset_map.jl")
+
 # Time discretization
 include("time_discretization.jl")
 

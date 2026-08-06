@@ -66,7 +66,8 @@ x_target = [3.3, 0.5, 0]
 
 @constraint(model, final(x[1]) in MOI.Interval(3.0, 3.6))
 @constraint(model, final(x[2]) in MOI.Interval(0.3, 0.8))
-@constraint(model, final(x[3]) in MOI.Interval(-100.0, 100.0))
+# The orientation `x[3]` is left unconstrained: a coordinate with no `final` set falls back to
+# the variable's own bounds, so any orientation counts as reaching the target.
 
 # Obstacle boundaries (provided)
 x1_lb = [1.0, 2.2, 2.2]

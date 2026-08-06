@@ -13,15 +13,10 @@ const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
 
-struct FlowShopResetMap <: MS.AbstractMap
-    domain::UT.Box
-    x_init::Vector{Float64}
-    t_min::Float64
-end
-
-MS.apply(reset::FlowShopResetMap, state::AbstractVector) =
-    vcat(reset.x_init, max(reset.t_min, state[end]))
-MS.stateset(reset::FlowShopResetMap) = reset.domain
+# On task completion the state restarts at `x_init`, and the clock is held at `t_min` when the
+# task finished early. Guard and reset live in the augmented `[x; t]` space.
+FlowShopResetMap(domain, x_init, t_min) =
+    ST.GuardedResetMap(domain, state -> vcat(x_init, max(t_min, state[end])))
 
 # Generate a 1D flowshop scheduling hybrid control problem with 5 sequential tasks.
 #  - State: (x, t, k) where x ∈ ℝ¹ (system state), t ∈ ℝ (time), k ∈ {1,2,3,4,5} (mode/task index)

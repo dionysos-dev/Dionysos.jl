@@ -167,8 +167,21 @@ function build_abstract_problem(
         SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
         concrete_problem.state_cost,
         get_abstract_transition_cost(abstract_system, concrete_problem.transition_cost),
-        concrete_problem.time,
+        concrete_problem.time;
+        safe_set = get_abstract_safe_set(abstract_system, concrete_problem.safe_set),
     )
+end
+
+"""
+    get_abstract_safe_set(abstract_system, concrete_safe_set)
+
+Lift the optional safe set of a reach-avoid problem to abstract states, keeping only cells
+lying **entirely** inside it (`MP.INNER`) — a cell straddling the boundary contains unsafe
+points, so it cannot be certified safe. `nothing` passes through, meaning the whole domain.
+"""
+function get_abstract_safe_set(abstract_system, concrete_safe_set)
+    concrete_safe_set === nothing && return nothing
+    return SY.get_states_from_set(abstract_system, concrete_safe_set, MP.INNER)
 end
 
 abstract_optimizer_type(::OptimizerOptimalControlProblem) =

@@ -4,35 +4,53 @@
   <img src="assets/images/logo.png"  height="240">
 </picture>
 
-| **Documentation & Paper** | **Build Status** | **Quality** | **Community** |
+| **Documentation** | **Build Status** | **Citation** | **Community** |
 |:-----------------:|:----------------:|:------------:|:-------------:|
-| [![DOI][paper-img]][paper-url] [![][docs-latest-img]][docs-latest-url] [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Codecov][codecov-img]][codecov-url] | [![Aqua QA][aqua-img]][aqua-url] | [![Slack][slack-img]][slack-url] |
+| [![][docs-latest-img]][docs-latest-url] [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Codecov][codecov-img]][codecov-url] [![Aqua QA][aqua-img]][aqua-url] [![PkgEval][pkgeval-img]][pkgeval-url] | [![Paper DOI][paper-img]][paper-url] | [![Slack][slack-img]][slack-url] |
 
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-stable-url]: https://dionysos-dev.github.io/Dionysos.jl/stable
 [docs-latest-url]: https://dionysos-dev.github.io/Dionysos.jl/dev
-[paper-img]: https://proceedings.juliacon.org/papers/10.21105/jcon.00160/status.svg
-[paper-url]: https://doi.org/10.21105/jcon.00160
 
 [build-img]: https://github.com/dionysos-dev/Dionysos.jl/actions/workflows/ci.yml/badge.svg?branch=master
 [build-url]: https://github.com/dionysos-dev/Dionysos.jl/actions?query=workflow%3ACI
 [codecov-img]: https://codecov.io/github/dionysos-dev/Dionysos.jl/coverage.svg
 [codecov-url]: https://app.codecov.io/github/dionysos-dev/Dionysos.jl
-
 [aqua-img]: https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg
 [aqua-url]: https://github.com/JuliaTesting/Aqua.jl
+[pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/D/Dionysos.svg
+[pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html
+
+[paper-img]: https://img.shields.io/badge/Paper-10.21105%2Fjcon.00160-blue.svg
+[paper-url]: https://doi.org/10.21105/jcon.00160
+
+<!-- Software (Zenodo) DOI badge. Dionysos has no Zenodo record yet: create one by enabling the
+     GitHub–Zenodo integration for this repository and making a release, then replace ZENODO_ID
+     below with the *concept* DOI (the one that always resolves to the latest release) and add
+     `[![Software DOI][zenodo-img]][zenodo-url]` to the Citation column above.
+[zenodo-img]: https://img.shields.io/badge/Software-10.5281%2Fzenodo.ZENODO__ID-blue.svg
+[zenodo-url]: https://doi.org/10.5281/zenodo.ZENODO_ID
+-->
 
 [slack-img]: https://img.shields.io/badge/chat-%23control-4A154B?logo=slack&logoColor=white
 [slack-url]: https://julialang.org/slack/
 [slack-control-url]: https://julialang.slack.com/archives/CKH1UTZT9
 
-**Dionysos** is a Julia framework for **correct-by-construction controller synthesis** through
-symbolic (abstraction-based) control. Its guiding vision is **Control as a Service (CaaS)**: making certified
-controller design an automated, on-demand capability rather than a bespoke, months-long expert effort.
-It is the software of the ERC project
+**Dionysos** is a [Julia](https://julialang.org/) framework for **correct-by-construction controller
+synthesis** through symbolic (abstraction-based) control. Its guiding vision is
+**Control as a Service (CaaS)**: making certified controller design an automated, on-demand capability
+rather than a bespoke, months-long expert effort. It is the software of the ERC project
 [Learning to Control](https://perso.uclouvain.be/raphael.jungers/content/erc-consolidator-grant) (L2C).
+
+The following article showcases the basic functionality, highlighting some of the key design choices:
+
+> [**Dionysos.jl: a Modular Platform for Smart Symbolic Control**][paper-url]
+> Julien Calbert, Adrien Banse, Benoît Legat, Raphaël M. Jungers.
+> *JuliaCon Proceedings*, 6(66), 160, 2024.
+
+See [How to cite](#how-to-cite) below.
 
 ## Why Dionysos — Control as a Service (CaaS)
 
@@ -97,7 +115,7 @@ for the building blocks.
 
 | Path | Description |
 | :--- | :--- |
-| [`src/`](src/) | The `Dionysos` library (`Utils`, `System`, `Problem`, `Mapping`, `Symbolic`, `Optim`). |
+| [`src/`](src/) | The `Dionysos` library (`Utils`, `System`, `Problem`, `Mapping`, `Symbolic`, `Optim`) and the JuMP front-end ([`Wrapper`](src/wrapper/README.md)). |
 | [`ext/`](ext/) | Package extensions behind optional dependencies (Plots, Symbolics, Spot, CSV, …). |
 | [`problems/`](problems/) | Reusable benchmark problem library (path planning, DC-DC, pendulum, …). |
 | [`examples/`](examples/) | Runnable example drivers (user-facing), one folder per problem. |
@@ -114,11 +132,38 @@ import Pkg
 Pkg.add("Dionysos")
 ```
 
+## How to cite
+
+If you use this package in your work, please cite the paper describing Dionysos:
+
+```bibtex
+@article{Calbert2024,
+  author       = {Julien Calbert and
+                  Adrien Banse and
+                  Beno{\^\i}t Legat and
+                  Rapha{\"e}l M. Jungers},
+  title        = {{Dionysos.jl}: a Modular Platform for Smart Symbolic Control},
+  journal      = {JuliaCon Proceedings},
+  volume       = {6},
+  number       = {66},
+  pages        = {160},
+  year         = {2024},
+  month        = dec,
+  publisher    = {The Open Journal},
+  issn         = {2642-4029},
+  url          = {https://doi.org/10.21105/jcon.00160},
+  doi          = {10.21105/jcon.00160}
+}
+```
+
+To cite the *software release* you actually ran — which is what makes an experiment reproducible —
+cite the archived version of the package as well, alongside the paper above.
+
 ## Documentation
 
 The full documentation, including the manual, examples, and API reference, is available for the
 [released version][docs-stable-url] and the [development version][docs-latest-url]. If Dionysos is
-useful in your research, please cite the [JuliaCon paper][paper-url].
+useful in your research, please see [How to cite](#how-to-cite).
 
 ## Community & support
 
