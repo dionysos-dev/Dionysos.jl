@@ -50,11 +50,19 @@ end
     domain_color = :gray,
     initial_set_color = :green,
     target_set_color = :red,
+    safe_set_color = :lightgray,
 )
     @series begin
         label := "Domain"
         color := domain_color
         MS.stateset(problem.system)
+    end
+    if problem.safe_set !== nothing
+        @series begin
+            label := "Safe set"
+            color := safe_set_color
+            problem.safe_set
+        end
     end
     @series begin
         label := "Initial set"

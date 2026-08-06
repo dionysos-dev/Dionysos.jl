@@ -58,6 +58,23 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p.state_cost === state_cost
         @test p.transition_cost === transition_cost
         @test p.time == T
+        @test p.safe_set === nothing        # optional: no avoid part unless asked for
+
+        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+        avoid = PR.OptimalControlProblem(
+            sys,
+            XI,
+            XT,
+            state_cost,
+            transition_cost,
+            T;
+            safe_set = XS,
+        )
+        @test avoid.safe_set == XS
+        # The five-argument form keeps defaulting the horizon, and still takes a safe set.
+        @test PR.OptimalControlProblem(sys, XI, XT, nothing, nothing).time == PR.Infinity()
+        @test PR.OptimalControlProblem(sys, XI, XT, nothing, nothing; safe_set = XS).safe_set ==
+              XS
     end
 
     @testset "SafetyProblem fields" begin
@@ -128,6 +145,11 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p2.time == 9
         @test p2.initial_set === p.initial_set
         @test p2.system === p.system
+
+        # `remake` walks the fields generically, so it reaches `safe_set` too.
+        XS2 = UT.box(SVector(-1.8, -1.8), SVector(1.8, 1.8))
+        @test PR.remake(p; safe_set = XS2).safe_set == XS2
+        @test PR.remake(p; time = 3).safe_set === nothing
     end
 
     @testset "Horizon: Infinity and discretize_time" begin
@@ -208,6 +230,29 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
             @test !PR.trajectory_success(p, traj([in_XI, mid]))        # never reaches XT
             @test !PR.trajectory_success(p, traj([mid, in_XT]))        # does not start in XI
             @test !PR.trajectory_success(p, empty_traj)
+        end
+
+        @testset "reach-avoid with a safe set" begin
+            # A corridor that excludes `mid`, so the middle of the direct route is off limits.
+            corridor = UT.box(SVector(-1.0, -1.0), SVector(-0.25, -0.25))
+            keep_out = PR.OptimalControlProblem(
+                sys,
+                XI,
+                XT,
+                nothing,
+                nothing,
+                5;
+                safe_set = corridor,
+            )
+            @test !PR.trajectory_success(keep_out, traj([in_XI, mid, in_XT]))
+
+            wide = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+            ok = PR.OptimalControlProblem(sys, XI, XT, nothing, nothing, 5; safe_set = wide)
+            @test PR.trajectory_success(ok, traj([in_XI, mid, in_XT]))
+            @test !PR.trajectory_success(ok, traj([in_XI, unsafe, in_XT]))  # leaves the safe set
+
+            # `safe U target`: what happens after the target is reached is not constrained.
+            @test PR.trajectory_success(ok, traj([in_XI, mid, in_XT, unsafe]))
         end
 
         @testset "safety (SafetyProblem)" begin
