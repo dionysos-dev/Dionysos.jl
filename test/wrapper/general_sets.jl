@@ -242,29 +242,76 @@ end
 # Switching and objective
 # ----------------------------------------------------------------------------------------
 
-@testset "end-to-end: a half-space guard survives the abstraction" begin
-    # The guard reaches `get_states_from_set(source_model, guard, INNER)`. A lazy
-    # `Intersection` enumerates there; an `IntersectionArray` would not, because the
-    # discretisation resolves that one by computing a concrete `intersection`.
-    model = two_mode_model() do t, m
-        return @constraint(t, m[:x] + m[:y] >= 0.0)
+@testset "a degenerate guard is diagnosed, not asserted from inside LazySets" begin
+    # Coefficients that cancel leave no state in the constraint, so there is no half-space to
+    # build. `x - x <= 1` is vacuous; `x - x <= -1` can never hold.
+    vacuous = two_mode_model() do t, m
+        @constraint(t, m[:x] - m[:x] <= 1.0)
+        return @constraint(t, m[:x] >= 0.0)        # a real guard alongside it
     end
-    for name in (:a, :b)
-        mode = model[name]
-        set_attribute(mode, "state_grid", MP.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5)))
-        set_attribute(mode, "input_grid", MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0)))
-        set_attribute(mode, "time_step", 0.5)
-        set_attribute(mode, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
+    guard = _guard_of(WR.lower(backend(vacuous)))
+    @test SVector(0.5, 0.0) ∈ guard                # the vacuous constraint changed nothing
+    @test SVector(-0.5, 0.0) ∉ guard
+
+    unsatisfiable = two_mode_model() do t, m
+        return @constraint(t, m[:x] - m[:x] <= -1.0)
     end
-
-    optimize!(model)
-
-    @test get_attribute(model, "abstract_system") isa SY.HybridSymbolicModel
-    # Switch transitions were built from the non-box guard, so the two modes are connected.
-    automaton = SY.get_automaton(get_attribute(model, "abstract_system"))
-    @test SY.get_n_state(automaton) > 0
-    @test !isempty(collect(SY.enum_transitions(automaton)))
+    err = try
+        WR.lower(backend(unsatisfiable))
+        nothing
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    message = sprint(showerror, err)
+    @test occursin("cancel out", message)
+    @test occursin("Transition", message)          # names the transition, unlike the assertion
 end
+
+@testset "contradictory guard bounds are diagnosed" begin
+    # `UT.box` would build a negative radius and assert from inside LazySets, naming neither
+    # the transition nor the variable.
+    model = two_mode_model() do t, m
+        @constraint(t, m[:x] >= 1.0)
+        return @constraint(t, m[:x] <= 0.0)
+    end
+    err = try
+        WR.lower(backend(model))
+        nothing
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    message = sprint(showerror, err)
+    @test occursin("empty guard", message)
+    @test occursin("x", message)                   # names the offending variable
+
+    # A guard entirely outside the source mode's own bounds is empty for the same reason, and
+    # that intersection is the non-obvious part, so the message must mention it.
+    outside = two_mode_model() do t, m
+        return @constraint(t, m[:x] >= 99.0)
+    end
+    outside_err = try
+        WR.lower(backend(outside))
+        nothing
+    catch e
+        e
+    end
+    @test outside_err isa ErrorException
+    @test occursin("source mode", sprint(showerror, outside_err))
+end
+
+@testset "an unsupported obstacle set is refused clearly" begin
+    # `∉ MOI.Nonnegatives(2)` used to reach the lowering and raise a bare `MethodError` from
+    # `LazySets.dim`. JuMP now turns it away as an unsupported constraint.
+    model = direct_model(Dionysos.Optimizer())
+    integrator_2d!(model)
+    @test_throws Exception @constraint(model, [model[:x], model[:y]] ∉ MOI.Nonnegatives(2))
+end
+
+# The end-to-end counterpart — solving a model whose guard is a half-space — lives in
+# `hybrid.jl`, which is tagged `:slow`. Everything above inspects the lowered problem instead,
+# so this file stays cheap enough for the fast suite.
 
 @testset "controlled switching is refused, not silently ignored" begin
     model = direct_model(Dionysos.Optimizer())

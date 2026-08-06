@@ -220,6 +220,43 @@ end
     @test length(abstract_problem.safe_set) < nstates
 end
 
+@testset "end-to-end: a half-space guard survives the abstraction" begin
+    # A guard that is not a box reaches `get_states_from_set(source_model, guard, INNER)`. A
+    # lazy `Intersection` enumerates there; an `IntersectionArray` would not, because the
+    # discretisation resolves that one by computing a concrete `intersection`, which has no
+    # method for most set pairs. `general_sets.jl` checks the lowered guard; this checks that
+    # the abstraction can actually be built from it.
+    model = direct_model(Dionysos.Optimizer())
+    set_attribute(model, "print_level", 0)
+    @variable(model, -2.0 <= x <= 2.0, start = -1.5)
+    @variable(model, -2.0 <= y <= 2.0, start = -1.5)
+    @variable(model, -1.0 <= u[1:2] <= 1.0)
+
+    @mode(model, a)
+    @mode(model, b)
+    for m in (a, b)
+        @constraint(m, ∂(x) == u[1])
+        @constraint(m, ∂(y) == u[2])
+        set_attribute(m, "state_grid", MP.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5)))
+        set_attribute(m, "input_grid", MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0)))
+        set_attribute(m, "time_step", 0.5)
+        set_attribute(m, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
+    end
+    @constraint(b, [x, y] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5))))
+
+    add_transition!(model, a => b) do t
+        return @constraint(t, x + y >= 0.0)      # a half-space, not a box
+    end
+
+    optimize!(model)
+
+    @test get_attribute(model, "abstract_system") isa SY.HybridSymbolicModel
+    # Switch transitions were built from the non-box guard, so the modes are connected.
+    automaton = SY.get_automaton(get_attribute(model, "abstract_system"))
+    @test SY.get_n_state(automaton) > 0
+    @test !isempty(collect(SY.enum_transitions(automaton)))
+end
+
 @testset "@mode binds the name in the calling scope, like @variable" begin
     # No assignment needed: `@mode(model, cruise)` is enough, and `cruise = @mode(...)` is
     # merely redundant. Pinned because the documentation and every example rely on it.

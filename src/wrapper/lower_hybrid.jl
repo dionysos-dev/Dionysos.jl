@@ -82,15 +82,31 @@ function _guard_box(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
     hi = Float64[]
     for i in coords
         l, h = _mode_bound(ir, source, i)
-        push!(lo, max(l, get(t.guard_lower, i, -Inf)))
-        push!(hi, min(h, get(t.guard_upper, i, Inf)))
+        lo_i = max(l, get(t.guard_lower, i, -Inf))
+        hi_i = min(h, get(t.guard_upper, i, Inf))
+        # Crossed bounds would reach `UT.box` as a negative radius and assert from inside
+        # LazySets, naming neither the transition nor the variable.
+        lo_i <= hi_i || error(
+            "Transition $(t.id) (mode $(t.source) → mode $(t.target)) has an empty guard: on " *
+            "$(describe(ir.variables[i], i)) it asks for $(lo_i) ≤ x ≤ $(hi_i), which no " *
+            "state satisfies, so the switch could never be taken. Note the guard is " *
+            "intersected with the source mode's own bounds ([$(l), $(h)]), so a guard outside " *
+            "that range is empty even if its own bounds are consistent.",
+        )
+        push!(lo, lo_i)
+        push!(hi, hi_i)
     end
     return UT.box(SVector{length(coords)}(lo...), SVector{length(coords)}(hi...))
 end
 
 # A multi-variable affine guard `lo ≤ a'x ≤ hi` as the half-spaces bounding it. `a` is spread
 # over the state coordinates in declaration order.
-function _guard_half_spaces(ir::ModelIR, g::AffineGuard, x_idx::Vector{Int})
+function _guard_half_spaces(
+    ir::ModelIR,
+    t::TransitionIR,
+    g::AffineGuard,
+    x_idx::Vector{Int},
+)
     a = zeros(length(x_idx))
     for (i, c) in g.coefficients
         j = findfirst(==(i), x_idx)
@@ -100,7 +116,21 @@ function _guard_half_spaces(ir::ModelIR, g::AffineGuard, x_idx::Vector{Int})
         )
         a[j] = c
     end
+
     spaces = LazySets.HalfSpace{Float64, Vector{Float64}}[]
+
+    # Coefficients that cancel (`x - x <= 1`) leave a constraint mentioning no state at all.
+    # It is then either vacuous or unsatisfiable, and neither is a half-space — LazySets would
+    # assert on the zero normal vector without naming the transition.
+    if all(iszero, a)
+        g.lower <= 0.0 <= g.upper && return spaces      # vacuous: constrains nothing
+        return error(
+            "Transition $(t.id) (mode $(t.source) → mode $(t.target)) has a guard constraint " *
+            "whose coefficients cancel out, leaving $(g.lower) ≤ 0 ≤ $(g.upper) — which " *
+            "nothing satisfies, so the switch could never be taken.",
+        )
+    end
+
     isfinite(g.upper) && push!(spaces, LazySets.HalfSpace(copy(a), g.upper))
     isfinite(g.lower) && push!(spaces, LazySets.HalfSpace(-a, -g.lower))
     return spaces
@@ -139,7 +169,7 @@ function _guard_set(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
 
     guard = box
     for g in t.affine_guards
-        for half_space in _guard_half_spaces(ir, g, x_idx)
+        for half_space in _guard_half_spaces(ir, t, g, x_idx)
             guard = LazySets.Intersection(guard, half_space)
         end
     end

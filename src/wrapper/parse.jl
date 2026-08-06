@@ -39,10 +39,13 @@ end
 
 # ---- Obstacles: `@constraint(model, x ∉ O)` ----
 
+# Only the two obstacle shapes the lowering can carve out of `X`. Left as `<:OuterSet`, JuMP
+# would accept any set and the failure would surface much later, as a `MethodError` from inside
+# the lowering rather than as "this constraint is not supported".
 function MOI.supports_constraint(
     ::Optimizer,
     ::Type{MOI.VectorOfVariables},
-    ::Type{<:OuterSet},
+    ::Type{<:OuterSet{<:Union{MOI.HyperRectangle, LazySets.LazySet}}},
 )
     return true
 end

@@ -46,6 +46,17 @@ function _obstacle_set(x_idx, vars, obs::MOI.HyperRectangle, lower, upper)
     return UT.box(lb, ub)
 end
 
+# Backstop for an MOI set other than a hyperrectangle: `supports_constraint` already turns
+# these away, but reaching the generic method below would call `LazySets.dim` on it and raise a
+# bare `MethodError`.
+function _obstacle_set(x_idx, vars, obs::MOI.AbstractVectorSet, lower, upper)
+    return error(
+        "An obstacle must be an `MOI.HyperRectangle` or a bounded `LazySet`, got " *
+        "$(nameof(typeof(obs))). Write `x ∉ MOI.HyperRectangle(lo, hi)` for a box, or pass a " *
+        "`LazySet` such as `LazySets.Ball2(c, r)`.",
+    )
+end
+
 # A general set cannot be extruded the way a box can — there is no meaningful way to spread a
 # ball across the coordinates it does not mention — so it has to be given over the whole state.
 function _obstacle_set(x_idx, vars, obs, lower, upper)
