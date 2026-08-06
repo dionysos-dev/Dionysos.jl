@@ -51,7 +51,7 @@ traj = ST.get_closed_loop_trajectory(discrete_time_system, pid_controller, x0, n
 
 fig = plot(; aspect_ratio = :equal)
 plot!(system.X; color = :grey, hole_color = :black, opacity = 1.0, label = "")
-plot!(traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, with_arrows = false)
 display(fig)
 
 # ------------------------------------------------------------

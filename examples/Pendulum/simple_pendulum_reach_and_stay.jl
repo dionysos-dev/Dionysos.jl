@@ -174,7 +174,7 @@ plot!(
 
 plot!(target_set; color = :red, opacity = 0.8, label = "Target set")
 
-plot!(traj; ms = 2.0, arrows = false, label = "Closed-loop trajectory")
+plot!(traj; ms = 2.0, with_arrows = false, label = "Closed-loop trajectory")
 
 display(fig)
 
