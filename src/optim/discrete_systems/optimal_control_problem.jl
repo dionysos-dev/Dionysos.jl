@@ -57,6 +57,7 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
             autom,
             problem.target_set;
             initial_set = init_set,
+            safe_set = problem.safe_set,
             sparse_input = optimizer.sparse_input,
             cost_function = problem.transition_cost,
         )
@@ -80,6 +81,7 @@ end
         autom::SY.AbstractAutomatonList,
         target_set;
         initial_set = SY.enum_states(autom),
+        safe_set = nothing,
         cost_function = nothing,
         sparse_input::Bool = false,
     )
@@ -90,6 +92,9 @@ This means, if there are several states `x⁺` that can be the next state from s
 If the `cost_function` is `nothing`, we interpret this as a constant cost function of
 `1` for each transition.
 
+`safe_set` restricts the synthesis to a reach-avoid specification: only states in it may
+enter the controllable set. `nothing` means the whole state space.
+
 This function redirects to [`compute_worst_case_uniform_cost_controller`](@ref) if the
 `cost_function` is nothing and [`compute_optimal_controller`](@ref) otherwise.
 """
@@ -97,6 +102,7 @@ function compute_worst_case_cost_controller(
     autom::SY.AbstractAutomatonList,
     target_set;
     initial_set = SY.enum_states(autom),
+    safe_set = nothing,
     cost_function = nothing,
     sparse_input::Bool = false,
 )
@@ -105,6 +111,7 @@ function compute_worst_case_cost_controller(
             autom,
             target_set;
             initial_set = initial_set,
+            safe_set = safe_set,
             sparse_input = sparse_input,
         )
     else
@@ -112,11 +119,23 @@ function compute_worst_case_cost_controller(
             autom,
             target_set;
             initial_set = initial_set,
+            safe_set = safe_set,
             sparse_input = sparse_input,
             cost_function = cost_function,
         )
     end
 end
+
+# The safe set as a dense bit mask, so the synthesis loops stay type-stable and branch on a
+# plain `Bool`. `nothing` — no avoid part — becomes an all-true mask rather than a second code
+# path, which is why the fixed points below need no `safe_set === nothing` special case.
+_safe_bits(safe_set, nstates::Int) =
+    safe_set === nothing ? trues(nstates) : _bitset_from_states(safe_set, nstates)
+
+# A target state outside the safe set does not count as reached: the specification is
+# `safe U target`, so the safe part must still hold when the target is entered.
+_safe_targets(target_set, safe_bits::BitVector) =
+    Iterators.filter(q -> safe_bits[q], target_set)
 
 using DataStructures
 
@@ -125,12 +144,14 @@ using DataStructures
         autom::SY.AbstractAutomatonList,
         target_set;
         initial_set = SY.enum_states(autom),
+        safe_set = nothing,
         cost_function = nothing,
         sparse_input::Bool = false,
     )
 
 Implementation for [`compute_worst_case_cost_controller`](@ref) supporting any
-`cost_function` returning nonnegative values.
+`cost_function` returning nonnegative values. `safe_set` is the optional avoid part of a
+reach-avoid specification; see [`compute_worst_case_cost_controller`](@ref).
 If the cost function returns the same value across all `x` and `u`, consider
 calling the specialized function [`compute_worst_case_uniform_cost_controller`](@ref)
 instead.
@@ -139,6 +160,7 @@ function compute_optimal_controller(
     autom::SY.AbstractAutomatonList,
     target_set;
     initial_set = SY.enum_states(autom),
+    safe_set = nothing,
     cost_function = nothing,
     sparse_input::Bool = false,
 )
@@ -148,14 +170,16 @@ function compute_optimal_controller(
     uniform_cost = cost_function === nothing
     effective_cost_function = uniform_cost ? ((q, u) -> 1.0) : cost_function
     state_set = SY.enum_states(autom)
+    safe_bits = _safe_bits(safe_set, SY.get_n_state(autom))
+    seeds = collect(_safe_targets(target_set, safe_bits))
     value_fun_tab = fill(Inf, SY.get_n_state(autom))
-    for q in target_set
+    for q in seeds
         value_fun_tab[q] = 0.0
     end
-    pq = PriorityQueue{Int, Float64}(q => 0.0 for q in target_set)
+    pq = PriorityQueue{Int, Float64}(q => 0.0 for q in seeds)
 
     num_init_unreachable = length(initial_set)
-    optimal_controllable_set = Set(target_set)
+    optimal_controllable_set = Set(seeds)
     counter = is_det ? nothing : _counter(autom, sparse_input)
 
     while !isempty(pq) && num_init_unreachable > 0
@@ -169,6 +193,11 @@ function compute_optimal_controller(
         end
 
         for (source, symbol) in SY.pre(autom, target)
+            # An unsafe state can never be part of a run that satisfies `safe U target`, so it
+            # never enters the controllable set. Any input that may land in it therefore never
+            # sees its counter reach zero, and is never selected — which is precisely the
+            # worst-case avoidance the specification asks for.
+            safe_bits[source] || continue
             if is_det
                 total_cost = effective_cost_function(source, symbol) + cost_to_target
                 if total_cost < value_fun_tab[source]
@@ -248,6 +277,7 @@ end
         autom::SY.AbstractAutomatonList,
         target_set;
         initial_set = SY.enum_states(autom),
+        safe_set = nothing,
         sparse_input = false,
     )
 
@@ -261,6 +291,7 @@ function compute_worst_case_uniform_cost_controller(
     autom::SY.AbstractAutomatonList,
     target_set;
     initial_set = SY.enum_states(autom),
+    safe_set = nothing,
     sparse_input = false,
 )
     nstates = SY.get_n_state(autom)
@@ -268,13 +299,15 @@ function compute_worst_case_uniform_cost_controller(
 
     contr_tab = DiscreteControlTable(nstates)
 
+    safe_bits = _safe_bits(safe_set, nstates)
     init_bits = _bitset_from_states(initial_set, nstates)
     controllable_bits = _bitset_from_states(target_set, nstates)
+    controllable_bits .&= safe_bits
 
     counter = sparse_input ? _counter(autom, true) : _counter_dense(autom)
 
     current_targets = Int[]
-    for q in target_set
+    for q in _safe_targets(target_set, safe_bits)
         push!(current_targets, q)
     end
 
@@ -298,6 +331,9 @@ function compute_worst_case_uniform_cost_controller(
         for target in current_targets
             for (source, symbol) in SY.pre(autom, target)
                 controllable_bits[source] && continue
+                # See `compute_optimal_controller`: unsafe states stay out of the controllable
+                # set, which blocks every input that risks reaching them.
+                safe_bits[source] || continue
 
                 if decrease_counter!(counter, source, symbol) == 0
                     controllable_bits[source] = true

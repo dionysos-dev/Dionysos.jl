@@ -253,6 +253,7 @@ end
 
 function _optimize!(optimizer::Optimizer{T}, start_time) where {T}
     prob = optimizer.problem
+    PR.check_safe_set_supported(prob, "BranchAndBound")
     if iszero(prob.time)
         if optimizer.problem.target_set == optimizer.problem.initial_set[1]
             optimizer.status = MOI.OPTIMAL

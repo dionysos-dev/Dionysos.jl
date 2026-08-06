@@ -62,6 +62,7 @@ const TEST_FILES = [
     ("./optim/LazyEllipsoidAbstraction/lazy_ellipsoid_abstraction.jl", :slow),
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),
+    ("./optim/discrete_systems/reach_avoid.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # UniformGridAbstraction: abstraction-build modes + end-to-end control specs.
     ("./optim/UniformGridAbstraction/growth_bound.jl",),

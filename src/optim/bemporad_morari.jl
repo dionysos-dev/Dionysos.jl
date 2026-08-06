@@ -470,6 +470,7 @@ end
 function MOI.optimize!(optimizer::Optimizer{T}) where {T}
     t_ref = time()
     prob = optimizer.problem
+    PR.check_safe_set_supported(prob, "BemporadMorari")
     if optimizer.modes === nothing
         optimizer.modes = default_modes(prob.system, prob.target_set, prob.time)
     end
