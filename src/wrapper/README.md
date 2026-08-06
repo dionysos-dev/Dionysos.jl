@@ -114,8 +114,12 @@ Obstacles are carved out of `X`:
 ```
 
 An `MOI.HyperRectangle` may be written over a subset of the coordinates and spans the variable
-bounds on the rest — `x[1] ∉ …` is a full-height wall. Any other bounded `LazySet` is taken as
-written and must span the whole state vector.
+bounds on the rest — `x[1:1] ∉ MOI.HyperRectangle([1.0], [1.2])` is a full-height wall. Any other
+bounded `LazySet` is taken as written and must span the whole state vector.
+
+The left-hand side must be a **vector**, even for a single coordinate: `x[1] ∉ …` is a scalar
+function against a vector set, which JuMP rejects with *"we don't recognize x[1] as a valid JuMP
+function"*. Write `x[1:1]`, or `[x1]` for a scalar variable.
 
 ### Dynamics as a Julia function
 
@@ -511,6 +515,6 @@ Two rules for contributors:
 
 ## 12. See also
 
-* [`docs/src/examples/solvers/`](../../docs/src/examples/solvers/) — runnable examples.
+* [`docs/src/examples/jump/`](../../docs/src/examples/jump/) — runnable front-end examples.
 * [`docs/src/manual/abstraction-based-control.md`](../../docs/src/manual/abstraction-based-control.md) — what the solvers actually do.
 * [`docs/src/developers/conventions.md`](../../docs/src/developers/conventions.md) — house style.
