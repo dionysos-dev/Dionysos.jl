@@ -123,6 +123,41 @@ end
     @test MS.apply(reset, SVector(1.5))[1] ≈ -1.5
 end
 
+@testset "modes, transitions and scoped constraints display readably" begin
+    # A scope subtypes `JuMP.AbstractModel`, so JuMP's generic `show` would try to summarise it
+    # as a model and ask for `objective_sense`. Displaying one must work: it happens whenever a
+    # user types `off` at the REPL, and whenever Documenter renders an example block — a docs
+    # build failed on exactly this.
+    #
+    # `Model(…)` rather than `direct_model`, because that is what the documentation and the
+    # README use, and its caching layer is what lets a constraint be printed back.
+    model = Model(Dionysos.Optimizer)
+    @variable(model, 17.0 <= T <= 25.0)
+    @variable(model, 0.0 <= u <= 1.0)
+    off = @mode(model, off)
+    on = @mode(model, on)
+    @constraint(off, ∂(T) == -0.1 * (T - 18.0))
+    @constraint(on, ∂(T) == -0.1 * (T - 18.0) + 2.0 * u)
+
+    transition = add_transition!(model, on => off) do t
+        return @constraint(t, T >= 22.0)
+    end
+
+    @test sprint(show, MIME"text/plain"(), off) == "Mode(:off)"
+    @test occursin("mode 2 => mode 1", sprint(show, MIME"text/plain"(), transition))
+
+    # A scoped constraint shows its scope, not the wrapper's internal set types.
+    scoped = @constraint(off, T <= 24.0)
+    text = sprint(show, MIME"text/plain"(), scoped)
+    @test occursin("[mode 1]", text)
+    @test !occursin("ScopedSet", text)
+
+    spec = @constraint(on, [T] in Final(UT.box(SVector(21.0), SVector(23.0))))
+    spec_text = sprint(show, MIME"text/plain"(), spec)
+    @test occursin("Final(", spec_text)
+    @test !occursin("ScopedVectorSet", spec_text)
+end
+
 @testset "a transition without a guard is rejected" begin
     model = direct_model(Dionysos.Optimizer())
     @variable(model, -1.0 <= x <= 1.0)

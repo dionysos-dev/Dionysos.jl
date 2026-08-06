@@ -117,6 +117,39 @@ end
 Base.broadcastable(m::Mode) = Ref(m)
 Base.broadcastable(t::Transition) = Ref(t)
 
+# A scope subtypes `JuMP.AbstractModel` so that `@constraint` works on it, which also makes JuMP's
+# generic `show` apply — and that one summarises a *model*, asking for `objective_sense`,
+# `num_variables` and friends. A scope has none of those, so it prints itself.
+Base.show(io::IO, m::Mode) = print(io, "Mode(:", m.name, ")")
+
+# Constraint display. Without these, JuMP prints a scoped constraint as
+# `… in Dionysos.Wrapper.ScopedSet{MathOptInterface.EqualTo{Float64}, …}(…)`, putting the
+# wrapper's internal types in front of the reader; the scope is what they actually want to see.
+_scope_suffix(s::ModeScope) = "  [mode $(s.id)]"
+_scope_suffix(s::TransitionScope) = "  [transition $(s.source) → $(s.target)]"
+
+JuMP.in_set_string(mode::MIME, set::ScopedSet) =
+    JuMP.in_set_string(mode, set.inner) * _scope_suffix(set.scope)
+
+JuMP.in_set_string(mode::MIME, set::ScopedVectorSet) =
+    JuMP.in_set_string(mode, set.inner) * _scope_suffix(set.scope)
+
+function Base.show(io::IO, t::Transition)
+    plural = t.nconstraints == 1 ? "" : "s"
+    return print(
+        io,
+        "Transition(mode ",
+        t.source,
+        " => mode ",
+        t.target,
+        ", ",
+        t.nconstraints,
+        " constraint",
+        plural,
+        ")",
+    )
+end
+
 _record_constraint!(::Mode) = nothing
 _record_constraint!(t::Transition) = (t.nconstraints += 1; nothing)
 

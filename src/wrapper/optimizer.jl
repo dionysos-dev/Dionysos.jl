@@ -98,6 +98,14 @@ end
 
 MOI.add_variable(model::Optimizer) = add_variable!(model.ir)
 
+# JuMP asks before printing a reference. Constraints are deliberately *not* claimed valid: they
+# are consumed into the IR rather than stored as retrievable MOI objects, so `ConstraintFunction`
+# and `ConstraintSet` cannot be answered, and claiming validity would turn printing a constraint
+# in direct mode into a thrown error instead of a harmless placeholder. Use `Model(…)`, whose
+# caching layer keeps the originals, when you want to print constraints back.
+MOI.is_valid(model::Optimizer, vi::MOI.VariableIndex) =
+    1 <= vi.value <= length(model.ir.variables)
+
 MOI.supports_incremental_interface(::Optimizer) = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike)

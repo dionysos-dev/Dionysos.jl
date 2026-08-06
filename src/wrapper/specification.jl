@@ -92,6 +92,17 @@ spec_kind(::EventuallyAlways) = EVENTUALLY_ALWAYS
 MOI.dimension(set::SpecSet) = set.dim
 Base.copy(set::SpecSet) = set
 
+# Keep the marker, not its type signature, in front of the reader when a constraint is printed.
+_marker_name(::Start) = "Start"
+_marker_name(::Final) = "Final"
+_marker_name(::Always) = "Always"
+_marker_name(::EventuallyAlways) = "EventuallyAlways"
+
+JuMP.in_set_string(
+    ::MIME,
+    set::SpecSet,
+) = "in $(_marker_name(set))($(nameof(typeof(set.inner))))"
+
 """
     SpecEntry
 
@@ -134,6 +145,11 @@ Label(set; semantics::UT.INCL_MODE = UT.INNER) = Label(set, LazySets.dim(set), s
 
 MOI.dimension(set::Label) = set.dim
 Base.copy(set::Label) = set
+
+JuMP.in_set_string(
+    ::MIME,
+    set::Label,
+) = "in Label($(nameof(typeof(set.inner))), $(set.semantics))"
 
 """
     LabelEntry
