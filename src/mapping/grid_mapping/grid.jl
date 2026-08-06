@@ -31,8 +31,14 @@ function get_pos_by_coord(grid::Grid{N}, x) where {N}
     return ntuple(i -> round(Int, (x[i] - orig[i]) / h[i]), Val(N))
 end
 
-function get_coord_by_pos(grid::Grid, pos)
-    return get_origin(grid) + pos .* get_h(grid)
+# The element type is named rather than inferred: a zero-dimensional grid — the input space of a
+# hybrid mode whose only control is the switch — has nothing to infer it from, and
+# `pos .* get_h(grid)` would yield `SVector{0, Union{}}`. Such a grid holds exactly one cell,
+# whose coordinate is the empty vector.
+function get_coord_by_pos(grid::Grid{N, T}, pos) where {N, T}
+    orig = get_origin(grid)
+    h = get_h(grid)
+    return SVector{N, T}(ntuple(i -> orig[i] + pos[i] * h[i], Val(N)))
 end
 
 # Grid-index bounds of the cells covered by `rect`, one `UnitRange` per
