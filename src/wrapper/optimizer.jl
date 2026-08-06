@@ -223,10 +223,19 @@ end
 function _configure_modes!(model::Optimizer)
     ids = mode_ids(model.ir)
     shared = Dict{String, Any}(name => value for (name, value) in model.attributes)
+    # A mode whose only control is the switch has no continuous input, and its input space is
+    # therefore zero-dimensional — a space with exactly one point, which is the "leave the switch
+    # where it is" action that lets the state evolve. There is only one such grid, so the user
+    # should not have to spell it out.
+    empty_input = isempty(input_indices(model.ir))
     per_mode = map(ids) do k
         options = copy(shared)
         for (name, value) in model.ir.modes[k].attributes
             options[name] = value
+        end
+        if empty_input && !haskey(options, "input_grid")
+            options["input_grid"] =
+                MP.GridFree(SVector{0, Float64}(), SVector{0, Float64}())
         end
         return options
     end
