@@ -114,17 +114,15 @@ If you plan to change the documentation, it might be a good idea to use `Revise`
 julia> using Revise
 ```
 
-If you don't plan to test the examples, comment out the Literate part in `docs/make.jl`:
-```julila
- 20 # for example in EXAMPLES_SOLVERS
- 21 #     literate_actions(joinpath(EXAMPLES_SOLVERS_DIR, example), OUTPUT_DIR)
- 22 # end
- 23 # for example in EXAMPLES_UTILS
- 24 #     literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
- 25 # end
- 26 # literate_actions(joinpath(@__DIR__, "src", "Getting Started.jl"), OUTPUT_DIR)
+Executing the examples dominates the build time. If you are only editing prose, skip them:
+
 ```
-This will speed up building the documentation quite a lot.
+DIONYSOS_SKIP_LITERATE=true julia --project=docs/ docs/make.jl
+```
+
+This reuses whatever is already in `docs/src/generated` and drops from the navigation any example
+page that has not been generated yet, so the build still succeeds on a fresh checkout. Run the full
+build at least once before opening a pull request.
 
 Now, build the documentation with:
 ```julia

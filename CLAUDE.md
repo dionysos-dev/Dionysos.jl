@@ -40,7 +40,7 @@ the abstraction that is actually needed.
 interface* that lets you swap the solver and then test / compare / benchmark algorithms on the same
 control problem. Preserving that interface is the single most important thing when extending the code.
 
-Background reading: [docs/src/manual/manual.md](docs/src/manual/manual.md) and
+Background reading: [docs/src/manual/overview.md](docs/src/manual/overview.md) and
 [docs/src/manual/abstraction-based-control.md](docs/src/manual/abstraction-based-control.md).
 
 ---
@@ -140,7 +140,7 @@ system does *not* recompute it. Solvers **compose** — a high-level optimizer h
 
 ### Two user entry styles
 
-**(a) JuMP model — canonical**, see [docs/src/examples/solvers/Path planning.jl](docs/src/examples/solvers/Path%20planning.jl):
+**(a) JuMP model — canonical**, see [docs/src/examples/jump/path_planning.jl](docs/src/examples/jump/path_planning.jl):
 
 ```julia
 using Dionysos, JuMP, StaticArrays
@@ -161,7 +161,7 @@ dynamics, and co-safe LTL (`Label` + `@specification`). **Read
 [src/wrapper/README.md](src/wrapper/README.md) before touching `src/wrapper/`** — it is the user
 guide, and the docstrings in `src/wrapper/` record why the front-end is shaped this way.
 
-**(b) Direct MOI** on a specific family optimizer, see [docs/src/examples/solvers/Lazy Ellipsoids Abstraction.jl](docs/src/examples/solvers/Lazy%20Ellipsoids%20Abstraction.jl).
+**(b) Direct MOI** on a specific family optimizer, see [docs/src/examples/solvers/lazy_ellipsoids_abstraction.jl](docs/src/examples/solvers/lazy_ellipsoids_abstraction.jl).
 Solution status (`MOI.TerminationStatus`, …) is answered by the solvers themselves, so both entry
 styles report identically.
 
@@ -188,7 +188,7 @@ styles report identically.
 3. Wire the `include(...)` into [src/optim/optim.jl](src/optim/optim.jl).
 4. Add a **docstring** for every exported symbol — the docs build errors on missing docstrings.
 5. Add a test under `test/optim/…` and wire it into [test/runtests.jl](test/runtests.jl).
-6. If user-facing, add a Literate example under `docs/src/examples/solvers/`.
+6. If user-facing, add a Literate example under `docs/src/examples/jump/` (front-end) or `docs/src/examples/solvers/` (direct MOI) — see `docs/src/developers/examples.md`.
 
 ---
 

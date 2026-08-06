@@ -2,15 +2,32 @@ using Dionysos
 using Documenter, Literate
 import DocumenterCitations
 
-const EXAMPLES_SOLVERS_DIR = joinpath(@__DIR__, "src", "examples", "solvers")
-const EXAMPLES_UTILS_DIR = joinpath(@__DIR__, "src", "examples", "utils")
+const SRC_DIR = joinpath(@__DIR__, "src")
+const EXAMPLES_DIR = joinpath(SRC_DIR, "examples")
+const OUTPUT_DIR = joinpath(SRC_DIR, "generated")
+const REFERENCE_DIR = joinpath(SRC_DIR, "reference")
 
-const REFERENCE_DIR = joinpath(@__DIR__, "src", "reference")
-const OUTPUT_DIR = joinpath(@__DIR__, "src", "generated")
+# Example tiers, in nav order. `jump/` shows how a problem is *stated* through the JuMP
+# front-end; `solvers/` shows how many algorithms accept it through the MOI contract.
+# Adding a tier is one entry here; adding an example is just a file in the folder.
+const TIERS = ["jump" => "Examples", "solvers" => "Solver families"]
 
-const EXAMPLES_SOLVERS = readdir(EXAMPLES_SOLVERS_DIR)
-const EXAMPLES_UTILS = readdir(EXAMPLES_UTILS_DIR)
-const REFERENCE = readdir(REFERENCE_DIR)
+# A tier may open with a hand-written landing page, listed before its generated pages.
+const TIER_INDEX = Dict("jump" => "examples.md")
+
+# Ordering within a tier: the basenames listed here come first, in this order; anything
+# else is appended alphabetically with a notice. This keeps a new example working with no
+# edit to this file, while still letting the reading order be curated.
+const ORDER = Dict(
+    "jump" => ["path_planning", "unicycle_robot", "dcdc_converter", "thermostat"],
+    "solvers" =>
+        ["gol_lazar_belta", "lazy_ellipsoids_abstraction", "state_feedback_pwa"],
+)
+
+# Executing every Literate example dominates the build time; skip it for fast local
+# Documenter iterations with DIONYSOS_SKIP_LITERATE=true. Pages whose markdown is not
+# already in `src/generated` are then dropped from the nav rather than breaking the build.
+const SKIP_LITERATE = get(ENV, "DIONYSOS_SKIP_LITERATE", "false") == "true"
 
 # Public-API predicate for the `@autodocs` reference blocks: keep everything except
 # underscore-prefixed internals. Referenced by name (`Filter = _is_public`) from the
@@ -25,58 +42,88 @@ _is_public(x) =
         !startswith(n, "_")
     end
 
-function literate_actions(file, output_dir)
-    Literate.markdown(file, output_dir)
-    return Literate.script(file, output_dir)
+# The nav entry is the example's own `# # Title: what it achieves` line, cut at the colon.
+# That decouples the sidebar text ("DC-DC converter") from the URL (`dcdc_converter.html`),
+# so filenames can stay lowercase and space-free without the nav going with them.
+function example_title(path)
+    for line in eachline(path)
+        m = match(r"^#\s+#\s+(.*\S)\s*$", line)
+        if m !== nothing
+            return String(first(split(String(m.captures[1]), ':')))
+        end
+    end
+    return titlecase(replace(basename(path)[1:(end - 3)], '_' => ' '))
 end
 
-# Executing every Literate example dominates the build time; skip it for fast
-# local Documenter iterations with DIONYSOS_SKIP_LITERATE=true (reuses the
-# pages already in `src/generated`).
-if get(ENV, "DIONYSOS_SKIP_LITERATE", "false") != "true"
-    for example in EXAMPLES_SOLVERS
-        literate_actions(joinpath(EXAMPLES_SOLVERS_DIR, example), OUTPUT_DIR)
-    end
-    for example in EXAMPLES_UTILS
-        literate_actions(joinpath(EXAMPLES_UTILS_DIR, example), OUTPUT_DIR)
-    end
-    literate_actions(
-        joinpath(@__DIR__, "src", "examples", "Getting Started.jl"),
-        OUTPUT_DIR,
-    )
+function tier_stems(tier)
+    dir = joinpath(EXAMPLES_DIR, tier)
+    isdir(dir) || return String[]
+    stems = sort([f[1:(end - 3)] for f in readdir(dir) if endswith(f, ".jl")])
+    listed = get(ORDER, tier, String[])
+    known = filter(in(stems), listed)
+    rest = sort(setdiff(stems, known))
+    isempty(rest) ||
+        @info "docs: examples missing from ORDER[\"$tier\"] — appended alphabetically" rest
+    stale = setdiff(listed, stems)
+    isempty(stale) || @warn "docs: ORDER[\"$tier\"] lists files that do not exist" stale
+    return vcat(known, rest)
 end
 
-const _PAGES = [
-    "Index" => "index.md",
-    "Manual" => ["manual/abstraction-based-control.md", "manual/manual.md"],
-    "Getting Started" => "generated/Getting Started.md",
-    "Solvers" => map(EXAMPLES_SOLVERS) do jl_file
-        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
-        name = string(split(jl_file, ".")[1])
-        return name => "generated/$name.md"
-    end,
-    "Utils" => map(EXAMPLES_UTILS) do jl_file
-        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
-        name = string(split(jl_file, ".")[1])
-        return name => "generated/$name.md"
-    end,
-    "API Reference" => map(REFERENCE) do jl_file
-        # Need `string` as Documenter fails if `name` is a `SubString{String}`.
-        name = string(split(jl_file, ".")[1])
-        return name => "reference/$name.md"
-    end,
+literate_actions(file) =
+    (Literate.markdown(file, OUTPUT_DIR); Literate.script(file, OUTPUT_DIR))
+
+const GETTING_STARTED = joinpath(EXAMPLES_DIR, "getting_started.jl")
+
+if !SKIP_LITERATE
+    literate_actions(GETTING_STARTED)
+    for (tier, _) in TIERS, stem in tier_stems(tier)
+        literate_actions(joinpath(EXAMPLES_DIR, tier, stem * ".jl"))
+    end
+end
+
+# In skip mode only pages already present in `src/generated` can be listed.
+has_page(stem) = !SKIP_LITERATE || isfile(joinpath(OUTPUT_DIR, stem * ".md"))
+
+function tier_pages(tier)
+    pages = Pair{String, String}[]
+    index = get(TIER_INDEX, tier, nothing)
+    index === nothing || push!(pages, "Overview" => index)
+    for stem in tier_stems(tier)
+        has_page(stem) || continue
+        title = example_title(joinpath(EXAMPLES_DIR, tier, stem * ".jl"))
+        push!(pages, title => "generated/$stem.md")
+    end
+    return pages
+end
+
+const _PAGES = Any[
+    "Home" => "index.md",
+    "Manual" => ["manual/abstraction-based-control.md", "manual/overview.md"],
+]
+
+has_page("getting_started") &&
+    push!(_PAGES, "Getting Started" => "generated/getting_started.md")
+
+for (tier, label) in TIERS
+    pages = tier_pages(tier)
+    isempty(pages) || push!(_PAGES, label => pages)
+end
+
+push!(_PAGES, "API Reference" => map(sort(readdir(REFERENCE_DIR))) do file
+    # `string` because Documenter fails on a `SubString{String}` name.
+    name = string(split(file, ".")[1])
+    return name => "reference/$name.md"
+end)
+push!(
+    _PAGES,
     "Developer Docs" => [
         "Set up" => "developers/setup.md",
         "Conventions" => "developers/conventions.md",
+        "Adding an example" => "developers/examples.md",
         "Git" => "developers/git.md",
     ],
-    "Bibliography" => "bibliography.md",
-]
-
-const BIBLIO = DocumenterCitations.CitationBibliography(
-    joinpath(@__DIR__, "src", "references.bib");
-    style = :authoryear,
 )
+push!(_PAGES, "Bibliography" => "bibliography.md")
 
 makedocs(;
     sitename = "Dionysos",
@@ -92,7 +139,7 @@ makedocs(;
     modules = [Dionysos],
     plugins = [
         DocumenterCitations.CitationBibliography(
-            joinpath(@__DIR__, "src", "references.bib");
+            joinpath(SRC_DIR, "references.bib");
             style = :authoryear,
         ),
     ],

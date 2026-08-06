@@ -107,9 +107,10 @@ optimize!(model)
 concrete_controller = get_attribute(model, "concrete_controller")
 ```
 
-See the [Path planning example](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Path%20planning/)
-for the complete, runnable version, and [Getting Started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/Getting%20Started/)
-for the building blocks.
+[Getting started](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/getting_started/) walks
+through a complete run step by step, and the
+[Path planning example](https://dionysos-dev.github.io/Dionysos.jl/dev/generated/path_planning/)
+adds obstacles and a 3-D state space.
 
 ## Repository layout
 

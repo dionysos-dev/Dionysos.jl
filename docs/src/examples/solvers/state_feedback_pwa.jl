@@ -1,5 +1,14 @@
 using Test     #src
-# # Example: Optimal control of a PWA system by state-feedback abstractions (uniform ellipsoid abstraction)
+# # State-feedback PWA: optimal control by uniform ellipsoid abstraction
+#
+# | | |
+# |:--|:--|
+# | **System**        | 2-D discrete-time, piecewise affine |
+# | **Specification** | reach-avoid with a cost |
+# | **Solver**        | uniform ellipsoid abstraction |
+#
+# Driven through MathOptInterface directly: the ellipsoidal cells and the SDP solver behind the
+# local piecewise-affine controllers are not expressible in the JuMP front-end.
 # 
 # This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems.
 # Consider a system $\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$ with the transition function  
