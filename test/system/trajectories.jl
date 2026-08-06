@@ -224,10 +224,6 @@ end
     @test count(s -> s[:seriestype] === :scatter, plt.series_list) == 3
     @test count(s -> s[:seriestype] === :path, plt.series_list) == 2
 
-    # `with_arrows = false` must actually drop the arrows. It is spelled `with_arrows` and not
-    # `arrows` because Plots treats `arrows` as an alias of its own `arrow` attribute and rewrites
-    # it before the recipe runs — under the old name the option was silently ignored, and every
-    # example page asking for an arrow-free trajectory still got arrows.
     bare = plot(traj; with_arrows = false)
     @test length(bare.series_list) == 3
     @test all(s -> s[:seriestype] === :scatter, bare.series_list)
