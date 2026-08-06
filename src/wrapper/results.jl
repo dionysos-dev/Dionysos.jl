@@ -21,17 +21,59 @@ MOI.get(model::Optimizer, attr::_FORWARDED_STATUS) = MOI.get(model.inner, attr)
 # Closed-loop simulation
 # ----------------------------------------------------------------------------------------
 
+# A periodic solver folds the state space into one period, so the controller is only defined
+# there. The closed loop has to fold the same way — otherwise the state walks out of the
+# controller's domain after one revolution — and the specification sets have to be compared in
+# the same coordinates. `nothing` when the solver was not configured periodically.
+struct PeriodicFold{P, T}
+    dims::SVector{P, Int}
+    periods::SVector{P, T}
+    start::SVector{P, T}
+end
+
+(f::PeriodicFold)(x) = UT.wrap_coord(x, f.dims, f.periods; start = f.start)
+_fold_set(f::PeriodicFold, set) = UT.set_in_period(set, f.dims, f.periods, f.start)
+_fold_set(::Nothing, set) = set
+
+# Attributes are field-backed: an optimizer without periodic support throws rather than
+# answering `nothing`, so every read is guarded.
+function _raw(model::Optimizer, name, default)
+    return try
+        v = MOI.get(model.inner, MOI.RawOptimizerAttribute(name))
+        v === nothing ? default : v
+    catch
+        default
+    end
+end
+
+function _periodic_fold(model::Optimizer)
+    _raw(model, "use_periodic_mapping", false) === true || return nothing
+    dims = _raw(model, "periodic_dims", nothing)
+    periods = _raw(model, "periodic_periods", nothing)
+    (dims === nothing || periods === nothing) && return nothing
+    start = _raw(model, "periodic_start", zeros(SVector{length(dims), Float64}))
+    return PeriodicFold(SVector(dims...), SVector(periods...), SVector(start...))
+end
+
 # Stopping criterion implied by the specification: reach problems stop on reaching the
 # target, safety problems stop on leaving the safe set.
-function _stopping_for(p::PR.OptimalControlProblem)
-    p.safe_set === nothing && return x -> x ∈ p.target_set
+function _stopping_for(p::PR.OptimalControlProblem, fold = nothing)
+    target = _fold_set(fold, p.target_set)
+    p.safe_set === nothing && return x -> x ∈ target
     # Reach-avoid: the run is settled either way once the state leaves the safe set — no
     # continuation can satisfy `safe U target` — so stop there rather than simulate on.
-    return x -> x ∈ p.target_set || x ∉ p.safe_set
+    safe = _fold_set(fold, p.safe_set)
+    return x -> x ∈ target || x ∉ safe
 end
-_stopping_for(p::PR.ReachAndStayProblem) = x -> x ∈ p.target_set
-_stopping_for(p::PR.SafetyProblem) = x -> x ∉ p.safe_set
-_stopping_for(::Any) = _ -> false
+function _stopping_for(p::PR.ReachAndStayProblem, fold = nothing)
+    target = _fold_set(fold, p.target_set)
+    return x -> x ∈ target
+end
+function _stopping_for(p::PR.SafetyProblem, fold = nothing)
+    safe = _fold_set(fold, p.safe_set)
+    return x -> x ∉ safe
+end
+_stopping_for(::Any, fold = nothing) = _ -> false
 
 const HSA = OP.Abstraction.HybridSystemAbstraction
 
@@ -79,6 +121,10 @@ Run the synthesized controller in closed loop from `x0` for at most `nsteps` ste
 stopping criterion defaults to the one implied by the specification — reaching the target, or
 leaving the safe set — and can be overridden with `stopping`.
 
+When the solver was configured with `use_periodic_mapping`, the closed loop folds the state into
+the same period the abstraction used, and the specification sets are compared in those
+coordinates. Without it the state would leave the controller's domain after one revolution.
+
 Returns the channelled [`Dionysos.System.Trajectory`](@ref); read it with `System.states`,
 `System.inputs`, … or plot it directly.
 """
@@ -94,9 +140,18 @@ function simulate(model::Optimizer, x0; nsteps::Int = 100, stopping = nothing)
     end
 
     system = MOI.get(model.inner, MOI.RawOptimizerAttribute("discrete_time_system"))
-    stop = stopping === nothing ? _stopping_for(model.problem) : stopping
+    fold = _periodic_fold(model)
+    stop = stopping === nothing ? _stopping_for(model.problem, fold) : stopping
+    wrap = fold === nothing ? identity : fold
 
-    return ST.get_closed_loop_trajectory(system, controller, x0, nsteps; stopping = stop)
+    return ST.get_closed_loop_trajectory(
+        system,
+        controller,
+        x0,
+        nsteps;
+        stopping = stop,
+        wrap = wrap,
+    )
 end
 
 function simulate(model::JuMP.GenericModel, x0; kwargs...)
