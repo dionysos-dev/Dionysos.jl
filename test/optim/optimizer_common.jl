@@ -98,4 +98,85 @@ end
     @test opt.print_level == 0
 end
 
+@testset "solution status is reported by the solver itself" begin
+    # The status attributes live on the solver, not on the JuMP front-end, so a direct-MOI user
+    # gets the same answers. `ẋ = u` on [-1, 1] with a reachable target.
+    function reach_optimizer(;
+        U = UT.box(SVector(-1.0), SVector(1.0)),
+        target = UT.box(SVector(-0.5), SVector(0.5)),
+    )
+        f(x, u) = u
+        X = UT.box(SVector(-1.0), SVector(1.0))
+        system =
+            MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(f, 1, 1, X, U)
+        problem = PR.OptimalControlProblem(
+            system,
+            UT.box(SVector(-0.9), SVector(-0.8)),
+            target,
+            nothing,
+            nothing,
+            PR.Infinity(),
+        )
+
+        opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+        MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)
+        MOI.set(opt, MOI.RawOptimizerAttribute("time_step"), 1.0)
+        MOI.set(
+            opt,
+            MOI.RawOptimizerAttribute("approx_mode"),
+            AB.UniformGridAbstraction.CENTER_SIMULATION,
+        )
+        MOI.set(
+            opt,
+            MOI.RawOptimizerAttribute("state_grid"),
+            MP.GridFree(SVector(0.0), SVector(0.25)),
+        )
+        MOI.set(
+            opt,
+            MOI.RawOptimizerAttribute("input_grid"),
+            MP.GridFree(SVector(0.0), SVector(0.5)),
+        )
+        MOI.set(opt, MOI.RawOptimizerAttribute("print_level"), 0)
+        return opt
+    end
+
+    solvable = reach_optimizer()
+    @test MOI.get(solvable, MOI.TerminationStatus()) == MOI.OPTIMIZE_NOT_CALLED
+    @test MOI.get(solvable, MOI.PrimalStatus()) == MOI.NO_SOLUTION
+    @test MOI.get(solvable, MOI.ResultCount()) == 0
+
+    MOI.optimize!(solvable)
+    @test MOI.get(solvable, MOI.TerminationStatus()) == MOI.OPTIMAL
+    @test MOI.get(solvable, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(solvable, MOI.ResultCount()) == 1
+    @test MOI.get(solvable, MOI.DualStatus()) == MOI.NO_SOLUTION
+    @test occursin("controller", MOI.get(solvable, MOI.RawStatusString()))
+
+    # Every admissible input drives the state *down*, so a target above the initial set cannot
+    # be reached. Failure is LOCALLY_INFEASIBLE — never INFEASIBLE, which would claim more than
+    # a sound-but-incomplete abstraction can prove.
+    unreachable = reach_optimizer(;
+        U = UT.box(SVector(-1.0), SVector(-0.5)),
+        target = UT.box(SVector(0.7), SVector(0.9)),
+    )
+    MOI.optimize!(unreachable)
+    @test MOI.get(unreachable, MOI.TerminationStatus()) == MOI.LOCALLY_INFEASIBLE
+    @test MOI.get(unreachable, MOI.PrimalStatus()) == MOI.NO_SOLUTION
+    @test MOI.get(unreachable, MOI.ResultCount()) == 0
+    @test occursin("finer", MOI.get(unreachable, MOI.RawStatusString()))
+
+    # An abstraction-only problem has nothing to fail: building it *is* the task.
+    abstraction = reach_optimizer()
+    MOI.set(
+        abstraction,
+        MOI.RawOptimizerAttribute("concrete_problem"),
+        PR.AlternatingSimulationProblem(single_integrator(), nothing),
+    )
+    @test MOI.get(abstraction, MOI.TerminationStatus()) == MOI.OPTIMIZE_NOT_CALLED
+    MOI.optimize!(abstraction)
+    @test MOI.get(abstraction, MOI.TerminationStatus()) == MOI.OPTIMAL
+    @test MOI.get(abstraction, MOI.PrimalStatus()) == MOI.NO_SOLUTION
+    @test occursin("no control objective", MOI.get(abstraction, MOI.RawStatusString()))
+end
+
 end # module

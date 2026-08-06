@@ -265,6 +265,78 @@ is_abstraction_computed(model::AbstractionControlOptimizer) =
     model.abstraction_solver !== nothing &&
     model.abstraction_solver.abstract_system !== nothing
 
+"""
+    solver_success(control_solver) -> Bool
+
+Whether a control sub-solver reports having covered the initial set. Solvers that report
+nothing are taken to have succeeded — there is no evidence otherwise.
+"""
+solver_success(control_solver) =
+    hasproperty(control_solver, :success) ? control_solver.success : true
+
+# Whether the control sub-solver has actually run. Every one of them assigns
+# `abstract_controller` at the end of `MOI.optimize!` and clears it in `reset!`, so it doubles
+# as the "has run" flag without each solver needing to carry one.
+function _control_solver_ran(control_solver)
+    hasproperty(control_solver, :abstract_controller) || return false
+    return control_solver.abstract_controller !== nothing
+end
+
+"""
+    MOI.get(model::AbstractionControlOptimizer, ::MOI.TerminationStatus)
+
+Abstraction-based synthesis reported through the standard MOI attribute.
+
+Failure is `LOCALLY_INFEASIBLE`, never `INFEASIBLE`: the abstraction is sound but **not
+complete**, so "no controller was found" is a statement about *this* abstraction — a finer grid,
+a smaller time step or another `approx_mode` may still succeed. `INFEASIBLE` would assert
+something the method cannot prove.
+
+A model with no control objective (an [`AlternatingSimulationProblem`](@ref
+Dionysos.Problem.AlternatingSimulationProblem)) is `OPTIMAL` once its abstraction is built:
+building it *is* the task.
+"""
+function MOI.get(model::AbstractionControlOptimizer, ::MOI.TerminationStatus)
+    control_solver = model.control_solver
+    if control_solver === nothing
+        return is_abstraction_computed(model) ? MOI.OPTIMAL : MOI.OPTIMIZE_NOT_CALLED
+    end
+    _control_solver_ran(control_solver) || return MOI.OPTIMIZE_NOT_CALLED
+    return solver_success(control_solver) ? MOI.OPTIMAL : MOI.LOCALLY_INFEASIBLE
+end
+
+function MOI.get(model::AbstractionControlOptimizer, attr::MOI.PrimalStatus)
+    attr.result_index == 1 || return MOI.NO_SOLUTION
+    return _has_controller(model) ? MOI.FEASIBLE_POINT : MOI.NO_SOLUTION
+end
+
+# Abstraction-based synthesis produces no dual certificate.
+MOI.get(::AbstractionControlOptimizer, ::MOI.DualStatus) = MOI.NO_SOLUTION
+
+MOI.get(model::AbstractionControlOptimizer, ::MOI.ResultCount) =
+    _has_controller(model) ? 1 : 0
+
+function _has_controller(model::AbstractionControlOptimizer)
+    control_solver = model.control_solver
+    control_solver === nothing && return false
+    _control_solver_ran(control_solver) || return false
+    return solver_success(control_solver)
+end
+
+function MOI.get(model::AbstractionControlOptimizer, ::MOI.RawStatusString)
+    control_solver = model.control_solver
+    if control_solver === nothing
+        return is_abstraction_computed(model) ?
+               "abstraction built; the problem carries no control objective" :
+               "optimize! has not been called"
+    end
+    _control_solver_ran(control_solver) || return "optimize! has not been called"
+    solver_success(control_solver) &&
+        return "a controller was synthesized and covers the initial set"
+    return "no controller was found on this abstraction; try a finer state/input grid, a " *
+           "smaller time step, or a different approx_mode"
+end
+
 function MOI.optimize!(model::AbstractionControlOptimizer)
     t_ref = time()
 
