@@ -726,8 +726,36 @@ Shape of the change:
 It also fixed a live bug in the hybrid path: `build_hybrid_problem` **dropped** the `Always` set
 whenever a `Final` set was present, because there was nowhere to put it.
 
+### Follow-up: generality of guards, obstacles and switching (done)
+
+Four front-end limits recorded after the fact, all closed together:
+
+* **Obstacles take any bounded `LazySet`.** `∉` was typed to `MOI.HyperRectangle` while `Always`
+  accepted anything — the same operation at two levels of generality. A hyperrectangle keeps its
+  extrusion behaviour (write it over a subset of the coordinates and it spans the variable bounds
+  on the rest); any other set must span the state vector, since there is no meaningful way to
+  extrude a ball.
+* **Guards take a `Guard(S)` set and multi-variable affine constraints.** Everything written on a
+  transition intersects: per-coordinate bounds, half-spaces from `x + y <= 1`, and whole sets.
+  The `Guard` marker exists because JuMP cannot tell a bare set from a bound, and adding a
+  `build_constraint` method for `LazySet` would be the type piracy D6 forbids.
+* **Controlled switching is rejected** instead of being passed to `HybridSystems` and then ignored
+  by an abstraction that builds switch transitions from the guard alone.
+* **The `@objective` error no longer names a non-existent attribute.** It pointed at
+  `set_attribute(model, "transition_cost", …)`, which throws `MOI.UnsupportedAttribute`: raw
+  attributes are field-backed and no solver has that field.
+
+Two implementation facts, both found by probing rather than by reading:
+
+1. **Nested binary `Intersection`, never `IntersectionArray`.** The grid discretisation resolves
+   an `IntersectionArray` by computing a *concrete* `intersection`, which has no method for most
+   set pairs (`Hyperrectangle` ∩ `Ball2` fails). Binary `Intersection` goes through support
+   functions and membership instead, and enumerates correctly for every combination tried.
+2. **`CartesianProduct` cannot be enumerated under `INNER`.** That is what forces a clocked model
+   to keep box guards: lifting an `x`-only guard to `[x; t]` would need exactly that product.
+
 ### Remaining
 
 Nothing in this plan. Open follow-ups are the remaining library gaps of §10, the
 `PARAMETER`/`DISTURBANCE` roles deferred by D9, and mapping `@objective` onto `transition_cost`
-(D3) — whose error message currently names an attribute that does not exist.
+(D3).
