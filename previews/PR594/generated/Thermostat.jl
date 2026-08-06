@@ -19,8 +19,8 @@ model = Model(Dionysos.Optimizer);
 @variable(model, 17.0 <= T <= 25.0, start = 18.0);
 @variable(model, 0.0 <= u <= 1.0);
 
-off = @mode(model, off);
-on = @mode(model, on);
+@mode(model, off);
+@mode(model, on);
 
 @constraint(off, ∂(T) == -α * (T - Ta))
 @constraint(on, ∂(T) == -α * (T - Ta) + β * u)

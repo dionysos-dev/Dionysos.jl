@@ -42,9 +42,9 @@ model = Model(Dionysos.Optimizer);
 @variable(model, 17.0 <= T <= 25.0, start = 18.0);
 @variable(model, 0.0 <= u <= 1.0);
 
-# Two discrete modes. `@mode` binds the name and registers it in the model, like `@variable`.
-off = @mode(model, off);
-on = @mode(model, on);
+# Two discrete modes.
+@mode(model, off);
+@mode(model, on);
 
 # Each mode carries its own dynamics…
 @constraint(off, ∂(T) == -α * (T - Ta))
