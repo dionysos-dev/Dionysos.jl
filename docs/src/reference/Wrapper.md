@@ -24,7 +24,7 @@ What a model is made of:
   [`@mode`](@ref Dionysos.Wrapper.@mode) and
   [`add_transition!`](@ref Dionysos.Wrapper.add_transition!).
 
-The user guide is `src/wrapper/README.md`; the design and its rationale are in `plan.md`.
+The user guide is `src/wrapper/README.md`.
 
 ## API reference
 

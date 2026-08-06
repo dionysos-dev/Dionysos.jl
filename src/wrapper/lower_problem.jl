@@ -6,9 +6,9 @@
 # ----------------------------------------------------------------------------------------
 
 # The per-coordinate `start`/`final` intervals as a box over the state coordinates. A
-# coordinate the user left unconstrained falls back to the *variable's own bounds*; before
-# Phase 3 it contributed ±Inf, from which `UT.box` built a NaN radius and threw deep inside
-# LazySets (plan.md, L7).
+# coordinate the user left unconstrained falls back to the *variable's own bounds*: it used to
+# contribute ±Inf, from which `UT.box` built a NaN radius and threw deep inside LazySets, with
+# nothing in the message pointing back at the model.
 function _coordinate_box(ir::ModelIR, x_idx::Vector{Int}, field::Symbol)
     n = length(ir.variables)
     lb = Vector{Float64}(undef, n)
@@ -43,7 +43,7 @@ end
 
 # `horizon` is in seconds for a continuous-time model and in steps for a discrete-time one.
 # The conversion happens here because no abstraction solver calls `Problem.discretize_problem`
-# — they consume `problem.time` verbatim (plan.md, D7).
+# — they consume `problem.time` verbatim.
 function _horizon(ir::ModelIR, round_up::Bool, time_step)
     ir.horizon === nothing && return PR.Infinity()
     ir.time_domain === DISCRETE && return round(Int, ir.horizon)

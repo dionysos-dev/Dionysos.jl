@@ -159,7 +159,7 @@ The front-end also expresses safety / reach-and-stay (`Always`, `EventuallyAlway
 `LazySet` targets, a horizon, hybrid models (`@mode`, `add_transition!`, clocks), user-supplied
 dynamics, and co-safe LTL (`Label` + `@specification`). **Read
 [src/wrapper/README.md](src/wrapper/README.md) before touching `src/wrapper/`** — it is the user
-guide; [plan.md](plan.md) records why the front-end is shaped this way.
+guide, and the docstrings in `src/wrapper/` record why the front-end is shaped this way.
 
 **(b) Direct MOI** on a specific family optimizer, see [docs/src/examples/solvers/Lazy Ellipsoids Abstraction.jl](docs/src/examples/solvers/Lazy%20Ellipsoids%20Abstraction.jl).
 Solution status (`MOI.TerminationStatus`, …) is answered by the solvers themselves, so both entry

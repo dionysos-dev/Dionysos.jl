@@ -11,7 +11,7 @@ import MathOptInterface as MOI
 import LazySets
 
 # The core lowering contract of the JuMP front-end: how a model becomes a `(system, problem)`
-# pair. Started life as the characterisation net for the refactor (see `plan.md`), so several
+# pair. Started life as the characterisation net for the front-end refactor, so several
 # assertions guard historical defects and are tagged FIXED-Ln.
 #
 # `test/optim/jump_frontend.jl` covers the happy path end to end; this file inspects the

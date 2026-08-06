@@ -513,5 +513,4 @@ Two rules for contributors:
 
 * [`docs/src/examples/solvers/`](../../docs/src/examples/solvers/) — runnable examples.
 * [`docs/src/manual/abstraction-based-control.md`](../../docs/src/manual/abstraction-based-control.md) — what the solvers actually do.
-* [`plan.md`](../../plan.md) — the design behind this front-end, and why it is shaped this way.
 * [`docs/src/developers/conventions.md`](../../docs/src/developers/conventions.md) — house style.
