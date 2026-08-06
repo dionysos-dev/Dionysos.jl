@@ -7,8 +7,11 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 # dependency loaded. That cannot be checked from inside this session: `runtests.jl` includes
 # every file into a single process, and several of them do `using Symbolics`, which activates
 # the extension for everyone afterwards. So the check runs in a fresh subprocess.
-
-const REPO = dirname(dirname(pathof(Dionysos)))
+#
+# The subprocess must inherit the *active* environment, not `test/`: `Pkg.test()` runs in a
+# temporary sandbox, where `test/Project.toml` is not instantiated and `using Dionysos` fails.
+const PROJECT =
+    something(Base.active_project(), joinpath(dirname(dirname(pathof(Dionysos))), "test"))
 
 # Deliberately loads neither Symbolics nor MathOptSymbolicAD.
 const SCRIPT = """
@@ -44,7 +47,7 @@ println("WRAPPER-OK")
     # `∂` and `final` are written as `d`/`fin` in the script above only to keep the command
     # line free of non-ASCII quoting surprises across platforms.
     script = replace(SCRIPT, "d(x)" => "∂(x)", "fin(x)" => "final(x)")
-    command = `$(Base.julia_cmd()) --project=$(joinpath(REPO, "test")) -e $script`
+    command = `$(Base.julia_cmd()) --project=$(PROJECT) -e $script`
 
     buffer = IOBuffer()
     ok = success(pipeline(command; stdout = buffer, stderr = buffer))
