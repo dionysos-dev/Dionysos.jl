@@ -79,12 +79,13 @@ correct-by-construction controller on it, then *concretize* it back to the origi
 
 ---
 
-## 4. Core architecture — the six modules
+## 4. Core architecture — six library modules + the front-end
 
-Top-level module [`src/Dionysos.jl`](src/Dionysos.jl) includes six submodules **in dependency order**:
+Top-level module [`src/Dionysos.jl`](src/Dionysos.jl) includes six library submodules **in
+dependency order**, then the JuMP front-end on top of them:
 
 ```
-Utils → System → Problem → Mapping → Symbolic → Optim
+Utils → System → Problem → Mapping → Symbolic → Optim → Wrapper
 ```
 
 Reuse these **standard aliases** everywhere (they are established at the top of each module — match
@@ -108,9 +109,11 @@ const AB = OP.Abstraction
 | `Mapping` | [src/mapping/mapping.jl](src/mapping/mapping.jl) | Concrete ↔ abstract **discretization**: grids, cells, `AbstractMapping`, inclusion modes `INNER/OUTER/CENTER`. |
 | `Symbolic` | [src/symbolic/symbolic_model.jl](src/symbolic/symbolic_model.jl) | Builds the finite **automaton abstraction** (`SymbolicModel`) from a system + mapping; parallel build backends (threaded / distributed / SLURM). |
 | `Optim` | [src/optim/optim.jl](src/optim/optim.jl) | The **solver catalog**. |
+| `Wrapper` | [src/wrapper/wrapper.jl](src/wrapper/wrapper.jl) | The **JuMP/MOI front-end** (`Model(Dionysos.Optimizer)`): parses a JuMP model into a `ModelIR`, lowers it to a `(system, ProblemType)` pair, picks a solver, and exposes the status + `simulate`. Owns no control semantics — see §5. User guide: [src/wrapper/README.md](src/wrapper/README.md). |
 
-Also in `src/Dionysos.jl`: the JuMP `NonlinearOperator`s `∂`, `Δ`, `final`, `start` (used to express
-dynamics and reach/target constraints in a JuMP model), plus stub functions for extension-only features.
+Also in `src/Dionysos.jl`: stub functions for extension-only features, and the re-exports of the
+front-end vocabulary (`∂`, `Δ`, `final`, `start`, the specification markers, `@mode`, …) whose
+definitions live in `Wrapper`.
 
 ---
 
@@ -152,7 +155,15 @@ optimize!(model)
 concrete_controller = get_attribute(model, "concrete_controller")
 ```
 
+The front-end also expresses safety / reach-and-stay (`Always`, `EventuallyAlways`), arbitrary
+`LazySet` targets, a horizon, hybrid models (`@mode`, `add_transition!`, clocks), user-supplied
+dynamics, and co-safe LTL (`Label` + `@specification`). **Read
+[src/wrapper/README.md](src/wrapper/README.md) before touching `src/wrapper/`** — it is the user
+guide; [plan.md](plan.md) records why the front-end is shaped this way.
+
 **(b) Direct MOI** on a specific family optimizer, see [docs/src/examples/solvers/Lazy Ellipsoids Abstraction.jl](docs/src/examples/solvers/Lazy%20Ellipsoids%20Abstraction.jl).
+Solution status (`MOI.TerminationStatus`, …) is answered by the solvers themselves, so both entry
+styles report identically.
 
 ### Implemented solver families
 
@@ -353,7 +364,7 @@ branch for PRs is `master`.
 **Commit message format:** `[ACTION] module: description` — description lowercase, no trailing period,
 ≤ 60 chars. Actions: `ADD` (new feature), `IMP` (improvement), `FIX` (bug fix), `REF` (refactor, no
 behavior change), `REM` (removal), `MOV` (move/rename), `REV` (revert). `module` is the touched
-subsystem (`utils`/`system`/`problem`/`mapping`/`symbolic`/`optim`, or `ext/<name>`, `test`, `docs`,
+subsystem (`utils`/`system`/`problem`/`mapping`/`symbolic`/`optim`/`wrapper`, or `ext/<name>`, `test`, `docs`,
 `problems/<name>`, `examples/<name>`, `research/<name>`, `meta` for repo/CI config). E.g. `FIX ext/csv: export controller
 via the controller protocol`. The [`/commit`](.claude/commands/commit.md) command automates this.
 

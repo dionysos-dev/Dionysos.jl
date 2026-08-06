@@ -97,7 +97,7 @@ for the building blocks.
 
 | Path | Description |
 | :--- | :--- |
-| [`src/`](src/) | The `Dionysos` library (`Utils`, `System`, `Problem`, `Mapping`, `Symbolic`, `Optim`). |
+| [`src/`](src/) | The `Dionysos` library (`Utils`, `System`, `Problem`, `Mapping`, `Symbolic`, `Optim`) and the JuMP front-end ([`Wrapper`](src/wrapper/README.md)). |
 | [`ext/`](ext/) | Package extensions behind optional dependencies (Plots, Symbolics, Spot, CSV, …). |
 | [`problems/`](problems/) | Reusable benchmark problem library (path planning, DC-DC, pendulum, …). |
 | [`examples/`](examples/) | Runnable example drivers (user-facing), one folder per problem. |

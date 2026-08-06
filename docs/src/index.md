@@ -59,7 +59,8 @@ which returns a controller and its certificate.
   optimization-based solvers (Bemporad–Morari, branch and bound). See the [`Optim`](@ref Optim)
   reference and the [Manual](@ref Overview).
 - **Interfaces**: a canonical [JuMP](https://jump.dev/JuMP.jl) frontend (`Model(Dionysos.Optimizer)`)
-  and direct MathOptInterface access.
+  covering continuous, discrete-time and hybrid models, every specification above, and closed-loop
+  simulation — see the [`Wrapper`](@ref Wrapper) reference — plus direct MathOptInterface access.
 
 ## Structure of the documentation
 

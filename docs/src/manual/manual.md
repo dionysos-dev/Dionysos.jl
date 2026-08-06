@@ -21,7 +21,7 @@ framework. For the conceptual background, see [Abstraction-based control](@ref).
 ## Code structure
 
 The core of the package lives in the [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src)
-folder, split into six modules loaded in dependency order:
+folder, split into six library modules loaded in dependency order:
 
 | Module | Description |
 | :--- | :--- |
@@ -31,6 +31,11 @@ folder, split into six modules loaded in dependency order:
 | [`Mapping`](@ref Mapping)    | Concrete ↔ abstract discretization: grids, cells, mappings. |
 | [`Symbolic`](@ref Symbolic)  | The finite automaton abstraction built from a system and a mapping. |
 | [`Optim`](@ref Optim)       | The solver catalog. |
+
+On top of them sits [`Wrapper`](@ref Wrapper), the JuMP front-end reached through
+`Model(Dionysos.Optimizer)`. It compiles a JuMP model into a system plus a
+[`ProblemType`](@ref Dionysos.Problem.ProblemType) and hands both to a solver, so it owns no
+control semantics of its own.
 
 ## Systems
 

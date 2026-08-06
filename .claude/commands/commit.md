@@ -30,6 +30,7 @@ Commit the current changes following this project's commit convention.
 The subsystem the change belongs to, inferred from the touched paths:
 
 - `src/utils/` → `utils`, `src/system/` → `system`, `src/problem/` → `problem`,
+  `src/wrapper/` → `wrapper`,
   `src/mapping/` → `mapping`, `src/symbolic/` → `symbolic`, `src/optim/` → `optim`
   (use the solver family, e.g. `optim/uniform-grid`, when it sharpens the message).
 - `ext/` → the extension (e.g. `ext/csv`), `test/` → `test`, `docs/` → `docs`,
