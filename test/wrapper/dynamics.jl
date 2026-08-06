@@ -73,8 +73,8 @@ end
     @variable(model, -1.0 <= u <= 1.0)
     set_role!(x, Dionysos.STATE)
 
-    slow = @mode(model, slow)
-    fast = @mode(model, fast)
+    @mode(model, slow)
+    @mode(model, fast)
     set_attribute(slow, "dynamics", (x, u) -> 0.5 .* u)
     set_attribute(fast, "dynamics", (x, u) -> 2.0 .* u)
     @constraint(fast, [x] in Final(UT.box(SVector(-0.5), SVector(0.5))))
@@ -103,8 +103,8 @@ end
     set_role!(x, Dionysos.STATE)
     set_role!(t, Dionysos.CLOCK)
 
-    a = @mode(model, a)
-    b = @mode(model, b)
+    @mode(model, a)
+    @mode(model, b)
     set_attribute(a, "dynamics", (x, u) -> u)
     set_attribute(b, "dynamics", (x, u) -> u)
     @constraint(a, ∂(t) == 1)

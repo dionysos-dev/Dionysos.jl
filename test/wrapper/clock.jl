@@ -28,8 +28,8 @@ function clocked_model(; Ta = 18.0, α = 0.1, β = 2.0, tmax = 2.0)
     @variable(model, 0.0 <= u <= 1.0)
     @variable(model, 0.0 <= t <= tmax)
 
-    off = @mode(model, off)
-    on = @mode(model, on)
+    @mode(model, off)
+    @mode(model, on)
 
     @constraint(off, ∂(T) == -α * (T - Ta))
     @constraint(on, ∂(T) == -α * (T - Ta) + β * u)
