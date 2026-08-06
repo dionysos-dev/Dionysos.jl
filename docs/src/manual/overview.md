@@ -1,27 +1,14 @@
 # Overview
 
-Dionysos delivers **Control as a Service**: you describe a system and a specification, and it returns a
-certified controller — no bespoke, expert-crafted design required. Concretely, Dionysos designs a
-controller for a system ``\mathcal{S}`` so that the closed loop satisfies a specification ``\Sigma``,
-where:
-
-- the system ``\mathcal{S}`` is a
-  [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem)
-  or [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem)
-  object;
-- the specification ``\Sigma`` is a [`ProblemType`](@ref Dionysos.Problem.ProblemType) object;
-- the solver ``\mathcal{O}`` implements the
-  [`AbstractOptimizer`](https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.AbstractOptimizer)
-  interface of [`MathOptInterface`](https://github.com/jump-dev/MathOptInterface.jl).
-
-A control problem ``(\mathcal{S}, \Sigma)`` is therefore solved by ``\mathcal{O}`` through the
-[`JuMP`](https://github.com/jump-dev/JuMP.jl) interface, so Dionysos inherits JuMP's optimization
-framework. For the conceptual background, see [Abstraction-based control](@ref).
+This page is the map of the toolbox: how the code is organised, which specifications and solvers
+exist, and the one interface that ties them together. For the idea behind the method, read
+[Abstraction-based control](@ref) first; to see it used, read
+[Getting started](../generated/getting_started.md).
 
 ## Code structure
 
-The core of the package lives in the [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src)
-folder, split into six library modules loaded in dependency order:
+The library lives in [`src`](https://github.com/dionysos-dev/Dionysos.jl/tree/master/src), split into
+six modules loaded in dependency order:
 
 | Module | Description |
 | :--- | :--- |
@@ -34,12 +21,12 @@ folder, split into six library modules loaded in dependency order:
 
 On top of them sits [`Wrapper`](@ref Wrapper), the JuMP front-end reached through
 `Model(Dionysos.Optimizer)`. It compiles a JuMP model into a system plus a
-[`ProblemType`](@ref Dionysos.Problem.ProblemType) and hands both to a solver, so it owns no
-control semantics of its own.
+[`ProblemType`](@ref Dionysos.Problem.ProblemType) and hands both to a solver, so it owns no control
+semantics of its own.
 
 ## Systems
 
-Dionysos supports the system types provided by:
+Dionysos uses the system types of:
 
 - [`MathematicalSystems`](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.AbstractSystem)
   — generic, flexible system definitions (discrete-/continuous-time, constrained, noisy). For
@@ -52,11 +39,11 @@ Dionysos supports the system types provided by:
   where ``\mathcal{X}``, ``\mathcal{U}`` and ``\mathcal{W}`` are the state, input and noise
   constraints.
 - [`HybridSystems`](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem)
-  — extends the above to hybrid systems.
+  — extends the above to hybrid systems: several modes, guarded transitions, reset maps.
 
 ## Problems
 
-The specifications currently supported are (see the [`Problem`](@ref Problem) reference for the full
+The specifications currently supported (see the [`Problem`](@ref Problem) reference for the full
 definitions):
 
 | Specification | Description |
@@ -66,9 +53,9 @@ definitions):
 | [Reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) | Eventually reach a target set and then remain in it. |
 | [Co-safe LTL](@ref Dionysos.Problem.CoSafeLTLProblem) | Satisfy a co-safe LTL formula, i.e. reach an accepting condition in finite time. |
 
-Two abstraction-only problems parametrize the construction of a reusable abstraction without a control
-objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem) and
-[`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem).
+Two abstraction-only problems parametrize the construction of a reusable abstraction without a
+control objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem)
+and [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem).
 
 ## Solvers
 
@@ -78,7 +65,7 @@ objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSim
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | [Uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | [SCOTS](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
 | [Uniform ellipsoid abstraction](@ref Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piecewise affine | [State-feedback abstractions](https://arxiv.org/abs/2204.00315) |
-| [Lazy ellipsoids abstraction](@ref Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piecewise affine | — |
+| [Lazy ellipsoids abstraction](@ref Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piecewise affine | [calbert2024smart](@cite) |
 | [Hybrid system abstraction](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | — |
 | [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | — | Partition | Polyhedral | — | [Branch and bound Q-learning](https://proceedings.mlr.press/v144/legat21a.html) |
 
@@ -92,10 +79,11 @@ objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSim
 Controller synthesis on an already-built automaton is available directly through the
 [discrete-system solvers](@ref "Discrete-system solvers").
 
-### The solver interface
+## The solver interface
 
-Every solver is a submodule exposing an `Optimizer <: MOI.AbstractOptimizer`. It is configured with
-raw attributes and run through `MOI.optimize!`:
+This is the architectural keystone. Every solver is a submodule exposing an
+`Optimizer <: MOI.AbstractOptimizer`, configured with raw attributes and run through
+`MOI.optimize!`:
 
 1. instantiate — `optimizer = MOI.instantiate(SomeFamily.Optimizer)`;
 2. configure — `MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)` and the
@@ -114,44 +102,52 @@ The abstraction is cached, so switching the specification on the same system (e.
 reachability) does not recompute it. Solvers compose: a high-level optimizer holds an
 `abstraction_solver` and a `control_solver` and forwards attribute `set`/`get` to them.
 
-## Running an example
+### Why it matters: swapping the solver
 
-The canonical entry point is a JuMP model with `Dionysos.Optimizer`, which writes the dynamics with
-the `∂` operator and the target/initial constraints with `final`/`start`:
-
-```julia
-using Dionysos, JuMP, StaticArrays
-
-model = Model(Dionysos.Optimizer)
-@variable(model, x_low[i] <= x[i = 1:3] <= x_upp[i], start = x0[i])
-@variable(model, -1 <= u[1:2] <= 1)
-@constraint(model, ∂(x[1]) == u[1] * cos(α + x[3]) * sec(α))   # dynamics
-@constraint(model, final(x[1]) in MOI.Interval(3.0, 3.6))       # target set
-set_attribute(model, "time_step", 0.3)
-set_attribute(model, "state_grid", Dionysos.Mapping.GridFree(x0, hx))
-set_attribute(model, "input_grid", Dionysos.Mapping.GridFree(u0, hu))
-optimize!(model)
-concrete_controller = get_attribute(model, "concrete_controller")
-```
-
-The same problem can be driven directly through MathOptInterface by instantiating a specific family
-optimizer, setting the `concrete_problem`, `state_grid` and `input_grid` attributes, and reading back
-`abstract_system`, `abstract_problem`, `abstract_controller`, and `concrete_controller`.
-
-All structures worth plotting (trajectories, discretizations, specifications, obstacles, …) carry a
-[`@recipe`](https://github.com/JuliaPlots/RecipesBase.jl), so results are displayed with the single
-[`plot`](https://docs.juliaplots.org/latest/) function of [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl):
+Because the specification is a solver-independent object, the *same* control problem can be handed
+to a different algorithm without rewriting it. Only the optimizer and its parameters change:
 
 ```julia
-using Plots
+# One problem …
+concrete_problem = PR.OptimalControlProblem(system, initial_set, target_set, nothing, nothing)
 
-plot!(concrete_system.X; color = :yellow, opacity = 0.5)
-plot!(abstract_system; color = :blue, opacity = 0.5)
-plot!(concrete_problem.initial_set; color = :green, opacity = 0.2)
-plot!(concrete_problem.target_set; dims = [1, 2], color = :red, opacity = 0.2)
-plot!(trajectory; ms = 0.5)
+# … solved by a grid abstraction …
+grid = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(grid, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(grid, MOI.RawOptimizerAttribute("state_grid"), MP.GridFree(x0, hx))
+MOI.optimize!(grid)
+
+# … or by an ellipsoidal one, on the very same object.
+ellips = MOI.instantiate(AB.UniformEllipsoidAbstraction.Optimizer)
+MOI.set(ellips, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.set(ellips, MOI.RawOptimizerAttribute("sdp_solver"), sdp_solver)
+MOI.optimize!(ellips)
 ```
 
-For a complete, executable walkthrough see the
-[Path planning example](@ref "Example: Path planning problem solved by uniform grid abstraction") and
-[Getting Started](@ref "Getting Started").
+Both then answer `MOI.TerminationStatus` and hand back a `concrete_controller`, so results are
+directly comparable. This is what makes benchmarking algorithms — rather than re-implementing
+problems — the normal way to work in Dionysos. The [Solver families](../generated/dcdc_converter.md)
+examples each drive one optimizer this way.
+
+## The two entry styles
+
+**The JuMP front-end** is the canonical one: it writes the system and the specification as
+constraints and picks the solver for you. It reaches the uniform grid abstraction and the hybrid
+abstraction. Start from [Getting started](../generated/getting_started.md); the full vocabulary is in
+the [`Wrapper`](@ref Wrapper) reference.
+
+**Direct MathOptInterface** builds the `ProblemType` by hand and configures one family optimizer.
+It is the way to reach the solvers whose inputs the front-end cannot express — PWA systems,
+ellipsoid templates, observation regions — and the way new solvers are exercised first.
+
+Both report solution status identically, because the status is answered by the solvers themselves.
+
+## Plotting
+
+Every structure worth looking at — trajectories, discretizations, specifications, obstacles,
+abstractions — carries a [`@recipe`](https://github.com/JuliaPlots/RecipesBase.jl), so results are
+displayed with the single [`plot`](https://docs.juliaplots.org/latest/) function of
+[`Plots.jl`](https://github.com/JuliaPlots/Plots.jl). Closed-loop runs can additionally be animated
+as a multi-panel dashboard with
+[`animate_trajectory_dashboard`](@ref Dionysos.animate_trajectory_dashboard); every example ends with
+one.
