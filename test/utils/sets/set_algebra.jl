@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import LazySets
+using Plots
 
 @testset "Set algebra (LazySets-backed)" begin
     A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
@@ -123,6 +124,50 @@ end
     WM = UT.set_in_period(M, periodic_dims, periods, start)
     @test WM isa UT.SetMinus
     @test length(UT.minus_included(WM).array) == 2
+end
+
+# The recipes are asserted through the full Plots pipeline (`plot` → `plt.series_list`), which
+# expands the recipe body and everything it delegates to. See `test/utils/plotting.jl` for why.
+@testset "set_union recipe" begin
+    U = UT.set_union([UT.box([0.0, 0.0], [1.0, 1.0]), UT.box([3.0, 0.0], [4.0, 1.0])])
+
+    plt = plot(U)
+    @test length(plt.series_list) == 2
+    # One legend entry for the whole union: only the first part is labelled, so a set drawn in
+    # many pieces does not repeat itself in the legend.
+    @test [s[:label] for s in plt.series_list] == ["set", ""]
+    @test all(s -> s[:seriestype] === :shape, plt.series_list)
+
+    @test [s[:label] for s in plot(U; label = "obstacles").series_list] == ["obstacles", ""]
+
+    # A union living in 3-D is projected by `dims` before it reaches the backend — plotting the
+    # unprojected 3-D polytope would need a hull library.
+    U3 = UT.set_union([UT.box([0.0, 0.0, 0.0], [1.0, 2.0, 3.0])])
+    s = plot(U3; dims = [1, 3]).series_list[1]
+    @test maximum(s[:x]) == 1.0
+    @test maximum(s[:y]) == 3.0
+end
+
+@testset "set_minus recipe" begin
+    S = UT.set_minus(UT.box([0.0, 0.0], [4.0, 4.0]), UT.box([1.0, 1.0], [2.0, 2.0]))
+
+    plt = plot(S)
+    @test length(plt.series_list) == 2
+    # The hole is drawn on top of the enclosing set rather than subtracted from it, and carries
+    # no legend entry of its own.
+    @test [s[:label] for s in plt.series_list] == ["Set", ""]
+    hole = plt.series_list[2]
+    @test hole[:seriestype] === :shape
+    @test maximum(hole[:x]) == 2.0
+
+    @test [s[:label] for s in plot(S; label = "free space").series_list] == ["free space", ""]
+    @test plot(S; hole_alpha = 0.3).series_list[2][:fillalpha] == 0.3
+
+    S3 = UT.set_minus(
+        UT.box([0.0, 0.0, 0.0], [4.0, 4.0, 4.0]),
+        UT.box([1.0, 1.0, 1.0], [2.0, 2.0, 2.0]),
+    )
+    @test length(plot(S3; dims = [1, 3]).series_list) == 2
 end
 
 end # module

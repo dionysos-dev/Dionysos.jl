@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import LinearAlgebra as LA
 import LazySets
+using Plots
 
 distance(E1, E2) = UT.center_distance(E1, LazySets.center(E2))
 get_action(E1, E2) = (1.0, 1.0)
@@ -158,6 +159,40 @@ end
     @test !(a in nodes)
     @test !(b in nodes)
     @test c in nodes
+end
+
+# The `Tree`/`NodeT` recipes are what draws an RRT-based abstraction. Node states are ellipsoids
+# built from plain `Vector`/`Matrix` because that is what the RRT stores (see
+# `lazy_ellipsoids_abstraction.jl`) — LazySets cannot polygonize a `StaticArrays`-backed
+# ellipsoid. Assertions are on `plt.series_list`; see `test/utils/plotting.jl` for the rationale.
+@testset "Tree / NodeT recipes" begin
+    tree = UT.Tree(make_ellipsoid(1.0, [0.0; 0.0]))
+    n1 = UT.add_node!(tree, make_ellipsoid(1.0, [4.0; 0.0]), tree.root, :a, 1.0)
+    n2 = UT.add_node!(tree, make_ellipsoid(1.0, [8.0; 4.0]), n1, :b, 2.0)
+    n3 = UT.add_node!(tree, make_ellipsoid(1.0, [0.0; 8.0]), tree.root, :c, 5.0)
+    @test UT.get_n_nodes(tree) == 4
+
+    # One shape per node, plus one arrow per parent edge — the arrow walk climbs from the leaves
+    # to the root, so every edge is drawn exactly once even though two leaves share an ancestor.
+    plt = plot(tree)
+    @test length(plt.series_list) == 4 + 3
+    @test count(s -> s[:seriestype] === :shape, plt.series_list) == 4
+
+    @test length(plot(tree; with_arrows = false).series_list) == 4
+
+    # `cost = false` paints every node the same; with costs they are shaded by path cost, so the
+    # four nodes no longer agree on a colour.
+    flat = plot(tree; with_arrows = false, cost = false)
+    @test length(unique(s -> s[:fillcolor], flat.series_list)) == 1
+    shaded = plot(tree; with_arrows = false, cost = true)
+    @test length(unique(s -> s[:fillcolor], shaded.series_list)) > 1
+
+    # A node on its own is just that node; `pathB` widens it to the whole path back to the root
+    # (three nodes here) and draws the two edges between them.
+    @test length(plot(n2).series_list) == 1
+    @test length(plot(n2; pathB = true).series_list) == 3 + 2
+    @test length(plot(n2; pathB = true, cost = false).series_list) == 3 + 2
+    @test length(plot(n3).series_list) == 1
 end
 
 end # module TestMain
