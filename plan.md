@@ -604,7 +604,7 @@ These are recorded rather than worked around, and each is a candidate standalone
 
 | Gap | Consequence for the wrapper | Suggested fix |
 | :--- | :--- | :--- |
-| `OptimalControlProblem` has no `safe_set` field | reach-avoid must fold the `Always` set into `X`, so `Always` means two different things depending on context (§4.4) | add `safe_set` to `OptimalControlProblem`, or document the asymmetry as intended |
+| ~~`OptimalControlProblem` has no `safe_set` field~~ **fixed** | reach-avoid had to fold the `Always` set into `X`, so `Always` meant two different things depending on context (§4.4) | done: `safe_set` added as an optional last field, honoured by the reachability fixed points; see below |
 | `discretize_problem` is never called by the abstraction solvers | the wrapper must convert seconds→steps itself (D7); the same trap awaits any direct-MOI user | call it in the abstraction pipeline, or rename `time` to make the unit explicit |
 | `SafetyProblem.time` is ignored by the solver | `"horizon"` is inert for safety problems | implement finite-horizon safety, or type the field as `Infinity` |
 | No reset-map type; 11 copy-pasted `…ResetMap` structs | Phase 5 must add `ST.GuardedResetMap` first | add it and sweep `problems/`, `research/`, `test/` |
@@ -699,7 +699,35 @@ a fast path and a slow path over one representation.
 Rerouting can be added later without touching the DSL: both layers already land in
 `build_problem`, so a normaliser would be one function between them.
 
+### Follow-up: `safe_set` on `OptimalControlProblem` (§10, gap 1 — done)
+
+`OptimalControlProblem` gained an optional `safe_set`, closing the asymmetry where `Always`
+became a genuine safe set in a pure safety model but was folded into `X` — behaving like `∉` —
+as soon as a `Final` set was written next to it.
+
+Shape of the change:
+
+* **Field last, defaulted.** `safe_set` is the seventh field, `nothing` by default, so the 70
+  existing positional call sites are untouched and `remake` reaches it for free. Inserting it
+  next to `target_set` — where it reads better — would have rewritten all of them.
+* **Semantics: `safe U target`.** The target is intersected with the safe set, so a target state
+  outside it does not count as reached. This is the sound reading of `◻ safe ∧ ◇ target`, and it
+  is what folding into `X` used to do implicitly, since unsafe cells simply did not exist.
+* **Enforced in the fixed points, not the lifting.** Both reachability fixed points
+  (`compute_worst_case_uniform_cost_controller` and the Dijkstra `compute_optimal_controller`)
+  refuse to admit an unsafe state into the controllable set. Worst-case avoidance then follows
+  for free from the existing counter: an input that *may* land in an unsafe state never sees its
+  counter reach zero, so it is never selected.
+* **Solvers that cannot honour it must say so.** `PR.check_safe_set_supported` raises rather than
+  let `BemporadMorari` or `BranchAndBound` return a controller certified against a weaker
+  specification than the one asked for. Silent weakening is the failure mode this whole plan has
+  been chasing (§11, defects 2 and 3).
+
+It also fixed a live bug in the hybrid path: `build_hybrid_problem` **dropped** the `Always` set
+whenever a `Final` set was present, because there was nowhere to put it.
+
 ### Remaining
 
-Nothing in this plan. Open follow-ups are the library gaps of §10, the `PARAMETER`/`DISTURBANCE`
-roles deferred by D9, and mapping `@objective` onto `transition_cost` (D3).
+Nothing in this plan. Open follow-ups are the remaining library gaps of §10, the
+`PARAMETER`/`DISTURBANCE` roles deferred by D9, and mapping `@objective` onto `transition_cost`
+(D3) — whose error message currently names an attribute that does not exist.
