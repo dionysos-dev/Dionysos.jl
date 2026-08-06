@@ -15,15 +15,7 @@ two is an error.
 """
 @enum TimeDomain UNKNOWN CONTINUOUS DISCRETE
 
-"""
-    ModelIR
-
-Dependency-free description of a parsed JuMP model: variables and their inferred roles, the
-per-variable dynamics expressions, obstacles, and the objective.
-
-Fields are populated by `parse.jl` as JuMP hands constraints over, then validated in one pass
-by [`infer_roles!`](@ref) before lowering.
-"""
+# The dynamics of one scope: state index → the expression driving it.
 const DynamicsMap = Dict{Int, MOI.ScalarNonlinearFunction}
 
 """
@@ -78,6 +70,15 @@ TransitionIR(id::Int, source::Int, target::Int, switching) = TransitionIR(
     DynamicsMap(),
 )
 
+"""
+    ModelIR
+
+Dependency-free description of a parsed JuMP model: variables and their inferred roles, the
+per-variable dynamics expressions, obstacles, and the objective.
+
+Fields are populated by `parse.jl` as JuMP hands constraints over, then validated in one pass
+by [`infer_roles!`](@ref) before lowering.
+"""
 mutable struct ModelIR
     variables::Vector{VariableInfo}
     dynamics::Vector{Union{Nothing, MOI.ScalarNonlinearFunction}}

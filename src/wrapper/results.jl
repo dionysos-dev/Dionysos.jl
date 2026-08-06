@@ -33,18 +33,6 @@ _stopping_for(p::PR.ReachAndStayProblem) = x -> x ∈ p.target_set
 _stopping_for(p::PR.SafetyProblem) = x -> x ∉ p.safe_set
 _stopping_for(::Any) = _ -> false
 
-"""
-    simulate(model, x0; nsteps = 100, stopping = nothing) -> System.Trajectory
-
-Run the synthesized controller in closed loop from `x0` for at most `nsteps` steps.
-
-`model` is the JuMP model (or the underlying [`Optimizer`](@ref)) *after* `optimize!`. The
-stopping criterion defaults to the one implied by the specification — reaching the target, or
-leaving the safe set — and can be overridden with `stopping`.
-
-Returns the channelled [`Dionysos.System.Trajectory`](@ref); read it with `System.states`,
-`System.inputs`, … or plot it directly.
-"""
 const HSA = OP.Abstraction.HybridSystemAbstraction
 
 # A hybrid closed loop steps the augmented state `(x[, t], mode)` and needs the abstraction
@@ -82,6 +70,18 @@ function _mode_time_step(model::Optimizer, id::Int)
     return step
 end
 
+"""
+    simulate(model, x0; nsteps = 100, stopping = nothing) -> System.Trajectory
+
+Run the synthesized controller in closed loop from `x0` for at most `nsteps` steps.
+
+`model` is the JuMP model (or the underlying [`Optimizer`](@ref)) *after* `optimize!`. The
+stopping criterion defaults to the one implied by the specification — reaching the target, or
+leaving the safe set — and can be overridden with `stopping`.
+
+Returns the channelled [`Dionysos.System.Trajectory`](@ref); read it with `System.states`,
+`System.inputs`, … or plot it directly.
+"""
 function simulate(model::Optimizer, x0; nsteps::Int = 100, stopping = nothing)
     model.solved || error("`simulate` needs a solved model: call `optimize!` first.")
 
