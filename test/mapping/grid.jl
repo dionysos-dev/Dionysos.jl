@@ -123,4 +123,25 @@ _in_rec(rect, x) = x ∈ rect
     end
 end
 
+# A zero-dimensional grid is the input space of a hybrid mode whose only control is the switch.
+# Mathematically such a space has exactly one point, and that matters: it is the "leave the
+# switch where it is" action, without which the state could never evolve inside the mode. The
+# cell count is the assertion that pins the semantics — zero cells would still build a model,
+# and it would be silently wrong.
+@testset "zero-dimensional grid" begin
+    grid = MP.GridFree(SVector{0, Float64}(), SVector{0, Float64}())
+
+    @test MP.get_dim(grid) == 0
+    # The element type cannot be inferred from an empty coordinate, so it is named; getting this
+    # wrong yields `SVector{0, Union{}}`, which cannot be constructed.
+    coord = MP.get_coord_by_pos(grid, ())
+    @test coord isa SVector{0, Float64}
+    @test isempty(coord)
+    @test MP.get_pos_by_coord(grid, coord) == ()
+
+    mapping = MP.ExplicitGridMapping(grid)
+    MP.cover!(mapping, UT.box(SVector{0, Float64}(), SVector{0, Float64}()), MP.INNER)
+    @test length(mapping.id2pos) == 1
+end
+
 end
