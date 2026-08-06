@@ -32,7 +32,6 @@ x_target = [3.3, 0.5, 0]
 
 @constraint(model, final(x[1]) in MOI.Interval(3.0, 3.6))
 @constraint(model, final(x[2]) in MOI.Interval(0.3, 0.8))
-@constraint(model, final(x[3]) in MOI.Interval(-100.0, 100.0))
 
 x1_lb = [1.0, 2.2, 2.2]
 x1_ub = [1.2, 2.4, 2.4]
