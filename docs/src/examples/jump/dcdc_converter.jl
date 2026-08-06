@@ -25,6 +25,10 @@
 
 using StaticArrays, JuMP, Plots
 
+# The first model supplies its dynamics as a Julia function and needs no symbolic backend; the
+# hybrid model at the end writes them as `∂` expressions, which does.
+using Symbolics, MathOptSymbolicAD
+
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -187,6 +191,89 @@ traj2 = ST.get_closed_loop_trajectory(
 fig2 = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
 plot!(traj2; arrows = false, ms = 2.0, color = :blue)
+
+# ## The same plant, a different model
+#
+# Everything above treats the converter as **one continuous system whose input selects the
+# dynamics**. But the plant is just as honestly described as a **hybrid automaton**: two modes,
+# one per switch position, each carrying its own affine dynamics, with transitions between them.
+#
+# Neither reading is a workaround for the other — they are two ways of saying the same thing,
+# and the front-end expresses both. What changes is not the plant but the vocabulary: `@mode`
+# instead of an input dimension, and `add_transition!` instead of `if u == 1`.
+#
+# Note what is *absent*: no input variable. Here the switch is the only control, so no mode has a
+# continuous input at all. Its input space is zero-dimensional — a space with exactly one point,
+# which is the action "leave the switch where it is" and is what lets the state evolve inside a
+# mode. Nothing needs to be declared for it.
+
+hybrid = Model(Dionysos.Optimizer);
+@variable(hybrid, 1.15 <= xh[i = 1:2] <= 1.55)
+set_lower_bound(xh[2], 5.45)
+set_upper_bound(xh[2], 5.85)
+
+@mode(hybrid, closed)
+@mode(hybrid, opened);
+
+# One mode per switch position, each with its own affine dynamics.
+
+A1, A2 = DCDC.A1(), DCDC.A2()
+bvec = SVector(DCDC.Params().vs / DCDC.Params().xL, 0.0)
+
+@constraint(closed, ∂(xh[1]) == A1[1, 1] * xh[1] + A1[1, 2] * xh[2] + bvec[1])
+@constraint(closed, ∂(xh[2]) == A1[2, 1] * xh[1] + A1[2, 2] * xh[2] + bvec[2])
+@constraint(opened, ∂(xh[1]) == A2[1, 1] * xh[1] + A2[1, 2] * xh[2] + bvec[1])
+@constraint(opened, ∂(xh[2]) == A2[2, 1] * xh[1] + A2[2, 2] * xh[2] + bvec[2]);
+
+# A guard spanning the whole safe set means the switch is always available — which is exactly
+# what a converter's switch is: the controller decides, the state does not gate it.
+
+add_transition!(hybrid, closed => opened) do t
+    return @constraint(t, xh in Guard(safe))
+end
+add_transition!(hybrid, opened => closed) do t
+    return @constraint(t, xh in Guard(safe))
+end
+
+@constraint(closed, xh in Always(safe))
+@constraint(opened, xh in Always(safe));
+
+# The discretisation is per mode, as always for a hybrid model. This one is deliberately four
+# times coarser than the grid used above: the point of this section is the *encoding*, and the
+# fine grid is already exercised by the first model.
+
+for md in (closed, opened)
+    set_attribute(md, "state_grid", MP.GridFree(SVector(0.0, 0.0), 4 .* hx))
+    set_attribute(md, "time_step", 0.5)
+    set_attribute(md, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+    set_attribute(md, "jacobian_bound", u -> DCDC.jacobian_bound()(SVector(1)))
+    set_attribute(md, "print_level", 0)
+end
+
+optimize!(hybrid);
+
+#-
+
+termination_status(hybrid)
+
+#-
+
+@test is_solved_and_feasible(hybrid)     #src
+
+# The abstract input alphabet shows the encoding: one continuous input per mode — holding the
+# switch — and one switching input per transition.
+
+input_map = get_attribute(hybrid, "abstract_system").input_mapping;
+(input_map.continuous_inputs, input_map.switching_inputs)
+
+# The augmented state of a hybrid model is `(x, mode)`, so the closed loop reports which switch
+# position the controller chose at each step.
+
+hybrid_traj = Dionysos.simulate(hybrid, (SVector(1.2, 5.6), 1); nsteps = 200)
+
+@test all(x ∈ safe for x in ST.states(hybrid_traj))     #src
+
+sort(unique(ST.modes(hybrid_traj)))
 
 # ## References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.
