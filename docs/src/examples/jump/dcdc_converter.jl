@@ -117,7 +117,7 @@ trajectory = Dionysos.simulate(model, SVector(1.2, 5.6); nsteps = 300)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; arrows = false, ms = 2.0, color = :blue)
+plot!(trajectory; with_arrows = false, ms = 2.0, color = :blue)
 
 # The converter circuit alongside the state and the switching signal. `frame_step` keeps a
 # 300-step trajectory to a manageable number of frames, and `fps` is chosen so the animation
@@ -190,7 +190,7 @@ traj2 = ST.get_closed_loop_trajectory(
 
 fig2 = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(traj2; arrows = false, ms = 2.0, color = :blue)
+plot!(traj2; with_arrows = false, ms = 2.0, color = :blue)
 
 # ## The same plant, a different model
 #

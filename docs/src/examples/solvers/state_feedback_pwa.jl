@@ -190,7 +190,7 @@ plot!(
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-plot!(traj; ms = 2.0, arrows = false, color = :blue)
+plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
 
 # ## References
 #

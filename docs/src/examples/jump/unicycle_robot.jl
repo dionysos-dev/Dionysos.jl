@@ -166,7 +166,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, arrows = false, lw = 2, color = :blue)
+plot!(trajectory; ms = 2.0, with_arrows = false, lw = 2, color = :blue)
 
 # The cart is drawn inline: unlike the other examples this one has no problem module in
 # `problems/` to borrow a view from, and a dozen lines of `plot!` is not worth a new one.

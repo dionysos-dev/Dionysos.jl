@@ -167,7 +167,7 @@ trajectory = Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 200)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; ms = 1.0, arrows = false, color = :blue)
+plot!(trajectory; ms = 1.0, with_arrows = false, color = :blue)
 
 # The same run as an animation — the pendulum itself on the left, the phase portrait and the
 # applied torque on the right. The swinging is easiest to see here: the trajectory spirals
