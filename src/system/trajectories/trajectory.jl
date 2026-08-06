@@ -120,7 +120,10 @@ modes(traj::Trajectory) = traj.modes
 
 Base.length(traj::Trajectory) = length(traj.states)
 
-@recipe function f(traj::Trajectory; dims = [1, 2], arrows = true)
+# `with_arrows`, not `arrows`: Plots treats `arrows` as an alias of its own `arrow` attribute and
+# rewrites it before the recipe runs, so a keyword by that name can never be read here. The name
+# also matches the `Tree` and `SymbolicModel` recipes.
+@recipe function f(traj::Trajectory; dims = [1, 2], with_arrows = true)
     traj_label = get(plotattributes, :label, "")
     xs = states(traj)
 
@@ -137,7 +140,7 @@ Base.length(traj::Trajectory) = length(traj.states)
             label := ""
             UT.DrawPoint(xs[k + 1])
         end
-        if arrows
+        if with_arrows
             @series begin
                 dims := dims
                 label := ""
