@@ -30,13 +30,7 @@ using HybridSystems
 
     guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
 
-    struct FixedPointResetMap <: MS.AbstractMap
-        domain::UT.Box
-        target::Vector{Float64}
-    end
-    MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
-    MS.stateset(reset::FixedPointResetMap) = reset.domain
-    reset_map = FixedPointResetMap(guard_1, [0.0, 0.0])
+    reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0, 0.0])
 
     # Automaton and hybrid system
     automaton = HybridSystems.GraphAutomaton(2)
@@ -249,13 +243,7 @@ end
 
     guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
 
-    struct FixedPointResetMap <: MS.AbstractMap
-        domain::UT.Box
-        target::Vector{Float64}
-    end
-    MS.apply(reset::FixedPointResetMap, state::AbstractVector) = reset.target
-    MS.stateset(reset::FixedPointResetMap) = reset.domain
-    reset_map = FixedPointResetMap(guard_1, [0.0, 0.0])
+    reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0, 0.0])
 
     # Automaton and hybrid system
     automaton = HybridSystems.GraphAutomaton(2)
@@ -466,16 +454,8 @@ end
     # Time system
     time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [5.0]))
 
-    # Reset map
-    struct SafetyResetMap <: MS.AbstractMap
-        domain::UT.Box
-        target::Vector{Float64}
-    end
-    MS.apply(reset::SafetyResetMap, state::AbstractVector) = [state[1], state[2]]
-    MS.stateset(reset::SafetyResetMap) = reset.domain
-
     guard_1 = UT.box([0.0, 0.0], [10.0, 5.0])
-    reset_map = SafetyResetMap(guard_1, [0.0, 4.0])
+    reset_map = ST.GuardedResetMap(guard_1)      # identity on the augmented [x; t]
 
     # Automaton and hybrid system
     automaton = HybridSystems.GraphAutomaton(2)
@@ -613,13 +593,6 @@ end
     )
 end
 
-struct TimeFreeResetMap <: MS.AbstractMap
-    domain::UT.Box
-    target::Vector{Float64}
-end
-MS.apply(reset::TimeFreeResetMap, state::AbstractVector) = reset.target
-MS.stateset(reset::TimeFreeResetMap) = reset.domain
-
 @testset "HybridSystemAbstraction - time-free hybrid (plain modes)" begin
     # Modes are plain physical systems: NO time subsystem, so the abstraction has no
     # time axis and the augmented state is (x, mode).
@@ -631,7 +604,7 @@ MS.stateset(reset::TimeFreeResetMap) = reset.domain
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     guard_1 = UT.box([0.2], [1.0])            # guard over x only
-    reset_map = TimeFreeResetMap(guard_1, [0.0])
+    reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0])
 
     automaton = HybridSystems.GraphAutomaton(2)
     HybridSystems.add_transition!(automaton, 1, 2, 1)

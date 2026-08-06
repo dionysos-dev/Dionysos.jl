@@ -37,15 +37,8 @@ time_sys = MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(1.0), Tdom)
 # Guard and reset for switching (augmented state is [x; t] => 2D)
 guard_1 = UT.box(SVector(0.2, 0.0), SVector(0.7, 0.9))
 
-struct FixedPointResetMap <: MS.AbstractMap
-    domain::UT.Box
-    target::Vector{Float64}
-end
-
-MS.apply(reset::FixedPointResetMap, state::AbstractVector) = [reset.target[1], state[2]]
-MS.stateset(reset::FixedPointResetMap) = reset.domain
-
-reset_map = FixedPointResetMap(guard_1, SVector(0.0, 0.0))  # reset to (x,t)=(0, t)
+# Reset to (x, t) = (0, t): the state restarts, the clock carries over.
+reset_map = ST.GuardedResetMap(guard_1, state -> [0.0, state[2]])
 
 # Automaton + hybrid system
 automaton = HybridSystems.GraphAutomaton(2)
