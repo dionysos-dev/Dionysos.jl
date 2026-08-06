@@ -22,7 +22,12 @@ function _mode_box(ir::ModelIR, m::ModeIR, idx::Vector{Int})
         push!(lo, l)
         push!(hi, h)
     end
-    return UT.box(SVector{length(idx)}(lo...), SVector{length(idx)}(hi...))
+    # The element type is spelled out because `idx` may be empty: a mode whose only control is
+    # the switch itself has no continuous input, and `SVector{0}()` would infer `Union{}`.
+    return UT.box(
+        SVector{length(idx), Float64}(lo...),
+        SVector{length(idx), Float64}(hi...),
+    )
 end
 
 # The dynamics of one mode as the dense vector the backend expects: the mode's own equation
@@ -197,7 +202,7 @@ function _physical_reset(ir::ModelIR, t::TransitionIR, backend, x_idx::Vector{In
     reset = compile_dynamics(backend, ir, dynamics)
     # The compiled function takes `(x, u)`; a reset map is applied to the state alone.
     u_idx = input_indices(ir)
-    u0 = SVector{length(u_idx)}(zeros(length(u_idx))...)
+    u0 = SVector{length(u_idx), Float64}(zeros(length(u_idx))...)
     return x -> reset(x, u0)
 end
 
@@ -237,6 +242,7 @@ Assemble the hybrid automaton: one system per mode, and one
 [`GuardedResetMap`](@ref Dionysos.System.GuardedResetMap) per transition.
 """
 function build_hybrid_system(ir::ModelIR, backend)
+    check_time_domain(ir)
     ids = mode_ids(ir)
     x_idx = state_indices(ir)
     u_idx = input_indices(ir)
