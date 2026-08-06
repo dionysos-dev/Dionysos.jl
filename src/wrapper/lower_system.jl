@@ -81,6 +81,26 @@ function state_box(ir::ModelIR, x_idx::Vector{Int})
 end
 
 """
+    check_time_domain(ir::ModelIR)
+
+Refuse to lower a model whose time domain is unknown.
+
+`∂` and `Δ` say which one a model is in. Dynamics supplied as a Julia function say nothing —
+`f(x, u)` is equally readable as a vector field `ẋ = f(x, u)` or as a one-step map
+`x⁺ = f(x, u)`, and the two describe *different plants*. Guessing produced a model that lowered
+happily and simulated the wrong system, so the front-end asks instead.
+"""
+function check_time_domain(ir::ModelIR)
+    ir.time_domain === UNKNOWN || return
+    return error(
+        "This model's time domain is unknown: its dynamics were supplied as a function, so " *
+        "there is no `∂` or `Δ` to read. Say which one it is:\n\n" *
+        "    set_attribute(model, \"time_domain\", Dionysos.CONTINUOUS)   # ẋ = f(x, u)\n" *
+        "    set_attribute(model, \"time_domain\", Dionysos.DISCRETE)     # x⁺ = f(x, u)\n",
+    )
+end
+
+"""
     build_system(ir::ModelIR, f) -> MathematicalSystems.AbstractSystem
 
 Assemble the concrete system: the state box `X` (minus the obstacles), the input box `U`, and
@@ -91,6 +111,7 @@ problem, so it stays representable and the synthesis can reason about it. Only `
 are carved out of `X`.
 """
 function build_system(ir::ModelIR, f)
+    check_time_domain(ir)
     x_idx = state_indices(ir)
     u_idx = input_indices(ir)
     lower = _lower_vector(ir)

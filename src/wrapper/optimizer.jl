@@ -36,6 +36,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     horizon::Union{Nothing, Float64}
     user_dynamics::Any
     specification::Any
+    # Only needed when the dynamics are supplied as a function: with no `∂`/`Δ` to read, there
+    # is nothing else that says whether `f` is a vector field or a one-step map.
+    time_domain::Union{Nothing, TimeDomain}
     declared_roles::Dict{Int, VariableRole}
     mode_options::Dict{Int, Vector{Pair{String, Any}}}
     mode_dynamics::Dict{Int, Any}
@@ -51,6 +54,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             Pair{String, Any}[],
             nothing,
             default_dynamics_backend(),
+            nothing,
             nothing,
             nothing,
             nothing,
@@ -78,6 +82,22 @@ function _apply_options!(model::Optimizer)
     ir.horizon = model.horizon
     ir.user_dynamics = model.user_dynamics
     ir.specification = model.specification
+
+    # An explicit `time_domain` names what `∂`/`Δ` would otherwise have said. When both are
+    # present they have to agree — silently overriding written dynamics would be worse than
+    # refusing.
+    if model.time_domain !== nothing
+        model.time_domain === UNKNOWN &&
+            error("`time_domain` must be `Dionysos.CONTINUOUS` or `Dionysos.DISCRETE`.")
+        if ir.time_domain !== UNKNOWN && ir.time_domain !== model.time_domain
+            error(
+                "`time_domain` was set to $(model.time_domain), but the model writes " *
+                "$(ir.time_domain === CONTINUOUS ? "`∂`" : "`Δ`") dynamics. Drop the attribute, " *
+                "or write the other operator.",
+            )
+        end
+        ir.time_domain = model.time_domain
+    end
 
     for (i, role) in model.declared_roles
         i <= length(ir.variables) ||
@@ -119,7 +139,8 @@ end
 MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 
 # Attributes the wrapper consumes itself; everything else belongs to the solver.
-const _WRAPPER_ATTRIBUTES = (:dynamics_backend, :horizon, :user_dynamics, :specification)
+const _WRAPPER_ATTRIBUTES =
+    (:dynamics_backend, :horizon, :user_dynamics, :specification, :time_domain)
 
 function MOI.get(model::Optimizer, attr::MOI.RawOptimizerAttribute)
     name = Symbol(attr.name)
