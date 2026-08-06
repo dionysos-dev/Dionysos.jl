@@ -86,7 +86,7 @@ markers present:
 | `Final` | `Always` | `EventuallyAlways` | problem |
 | :-: | :-: | :-: | :--- |
 | ✓ | | | `OptimalControlProblem` (reach) |
-| ✓ | ✓ | | `OptimalControlProblem`, avoid-set folded into `X` |
+| ✓ | ✓ | | `OptimalControlProblem` (reach-avoid), `Always` as its `safe_set` |
 | | ✓ | | `SafetyProblem` |
 | | opt | ✓ | `ReachAndStayProblem` |
 | | | | `AlternatingSimulationProblem` — build the abstraction only |
@@ -164,12 +164,13 @@ function build_problem(ir::ModelIR, f; time_step = nothing)
         )
     elseif target_set !== nothing
         return PR.OptimalControlProblem(
-            build_system(ir, f; restrict_to = always_set),
+            build_system(ir, f),
             initial_set,
             target_set,
             nothing,
             nothing,
-            _horizon(ir, false, time_step),
+            _horizon(ir, false, time_step);
+            safe_set = always_set,
         )
     elseif always_set !== nothing
         return PR.SafetyProblem(

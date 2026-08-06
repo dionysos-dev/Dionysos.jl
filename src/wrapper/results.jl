@@ -23,7 +23,12 @@ MOI.get(model::Optimizer, attr::_FORWARDED_STATUS) = MOI.get(model.inner, attr)
 
 # Stopping criterion implied by the specification: reach problems stop on reaching the
 # target, safety problems stop on leaving the safe set.
-_stopping_for(p::PR.OptimalControlProblem) = x -> x ∈ p.target_set
+function _stopping_for(p::PR.OptimalControlProblem)
+    p.safe_set === nothing && return x -> x ∈ p.target_set
+    # Reach-avoid: the run is settled either way once the state leaves the safe set — no
+    # continuation can satisfy `safe U target` — so stop there rather than simulate on.
+    return x -> x ∈ p.target_set || x ∉ p.safe_set
+end
 _stopping_for(p::PR.ReachAndStayProblem) = x -> x ∈ p.target_set
 _stopping_for(p::PR.SafetyProblem) = x -> x ∉ p.safe_set
 _stopping_for(::Any) = _ -> false
@@ -50,6 +55,8 @@ function _simulate_hybrid(model::Optimizer, controller, aug0, nsteps, stopping)
         stopping
     elseif problem isa PR.SafetyProblem
         aug -> !HSA.safe(problem, aug)
+    elseif problem isa PR.OptimalControlProblem && problem.safe_set !== nothing
+        aug -> HSA.reached(problem, aug) || !PR.satisfies(problem.safe_set, aug...)
     else
         aug -> HSA.reached(problem, aug)
     end

@@ -49,7 +49,8 @@ end
 Marks `S` as an invariant — □, the trajectory must never leave `S`:
 `@constraint(model, x in Always(S))`. On its own it lowers to a
 [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem); together with a [`Final`](@ref) set it
-becomes a reach-avoid problem, where it is folded into the state space.
+becomes the `safe_set` of a reach-avoid
+[`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem), read as `safe U target`.
 
 This is *not* the same as `x ∉ O`: `∉` removes a region from the state space so it is never
 abstracted, whereas `Always` keeps it representable so synthesis can actively avoid it.

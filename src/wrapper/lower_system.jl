@@ -45,35 +45,23 @@ function state_box(ir::ModelIR, x_idx::Vector{Int})
     return UT.box(_svec(_lower_vector(ir), x_idx), _svec(_upper_vector(ir), x_idx))
 end
 
-# Intersection of two boxes, used to fold a reach-avoid safe set into the state space.
-_box_intersect(a, b) =
-    UT.box(max.(LazySets.low(a), LazySets.low(b)), min.(LazySets.high(a), LazySets.high(b)))
-
 """
-    build_system(ir::ModelIR, f; restrict_to = nothing) -> MathematicalSystems.AbstractSystem
+    build_system(ir::ModelIR, f) -> MathematicalSystems.AbstractSystem
 
 Assemble the concrete system: the state box `X` (minus the obstacles), the input box `U`, and
 the compiled dynamics `f`. `ir.time_domain` selects a continuous- or discrete-time system.
 
-`restrict_to` narrows `X` before the obstacles are removed. It carries the `Always` set of a
-reach-avoid model, which has nowhere else to go — `Problem.OptimalControlProblem` has no
-`safe_set` field.
+An `Always` set is **not** folded in here — it travels as the `safe_set` of the lowered
+problem, so it stays representable and the synthesis can reason about it. Only `∉` obstacles
+are carved out of `X`.
 """
-function build_system(ir::ModelIR, f; restrict_to = nothing)
+function build_system(ir::ModelIR, f)
     x_idx = state_indices(ir)
     u_idx = input_indices(ir)
     lower = _lower_vector(ir)
     upper = _upper_vector(ir)
 
     X = state_box(ir, x_idx)
-    if restrict_to !== nothing
-        restrict_to isa LazySets.AbstractHyperrectangle || error(
-            "In a reach-avoid model the `Always` set is folded into the state space, so it " *
-            "must be a box; got $(typeof(restrict_to)). Use a box here, or drop the `Final` " *
-            "set to state a pure safety problem, where any bounded `LazySet` is accepted.",
-        )
-        X = _box_intersect(X, restrict_to)
-    end
     X = UT.set_minus(X, UT.set_union(obstacle_boxes(ir, x_idx)))
     U = UT.box(_svec(lower, u_idx), _svec(upper, u_idx))
 

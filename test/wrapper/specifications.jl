@@ -78,21 +78,47 @@ state(model) = [model[:x]]
     @test abstraction isa PR.AlternatingSimulationProblem
 end
 
-@testset "reach-avoid folds the Always set into the state space" begin
-    # `OptimalControlProblem` has no `safe_set` field, so a reach model's `Always` set has
-    # nowhere else to go. The state space narrows to the intersection.
+@testset "reach-avoid carries the Always set as the problem's safe set" begin
+    # The `Always` set travels as `safe_set` rather than being folded into `X`. That keeps the
+    # unsafe region representable, so the synthesis can reason about it instead of it simply
+    # not existing — the distinction between `Always` and `∉`.
+    safe = UT.box(SVector(-1.0), SVector(1.0))
     problem = lowered_problem() do model
         integrator!(model)
         @constraint(model, state(model) in Final(UT.box(SVector(-0.5), SVector(0.5))))
-        return @constraint(
-            model,
-            state(model) in Always(UT.box(SVector(-1.0), SVector(1.0)))
-        )
+        return @constraint(model, state(model) in Always(safe))
     end
 
     @test problem isa PR.OptimalControlProblem
+    @test problem.safe_set == safe
+    # The state space is the declared variable bounds, untouched by the `Always` set.
     @test SVector(0.0) ∈ problem.system.X
-    @test SVector(1.5) ∉ problem.system.X      # outside the Always set, though inside [-2, 2]
+    @test SVector(1.5) ∈ problem.system.X
+end
+
+@testset "a reach-avoid safe set may be any bounded LazySet" begin
+    # Folding into `X` demanded a box. Now that the set has a field of its own, the only
+    # requirement is that the discretisation can handle it — which it always could.
+    ball = LazySets.Ball2(zeros(1), 1.0)
+    problem = lowered_problem() do model
+        integrator!(model)
+        @constraint(model, state(model) in Final(UT.box(SVector(-0.5), SVector(0.5))))
+        return @constraint(model, state(model) in Always(ball))
+    end
+
+    @test problem isa PR.OptimalControlProblem
+    @test problem.safe_set === ball
+end
+
+@testset "a reach model without Always has no safe set" begin
+    problem = lowered_problem() do model
+        integrator!(model)
+        return @constraint(
+            model,
+            state(model) in Final(UT.box(SVector(-0.5), SVector(0.5)))
+        )
+    end
+    @test problem.safe_set === nothing
 end
 
 @testset "the initial set comes from Start, start(...) or the start keyword" begin
@@ -266,6 +292,42 @@ end
     traj = Dionysos.simulate(model, SVector(0.0); nsteps = 20)
     safe_set = get_attribute(model, "concrete_problem").safe_set
     @test all(x -> x ∈ safe_set, ST.states(traj))
+end
+
+@testset "end-to-end: a reach-avoid model avoids the unsafe region" begin
+    # `ẋ = u` on [-2, 2], driving to a target around the origin. Whether the `Always` set is
+    # present must change the *synthesized controller*, not just the lowered problem: with it,
+    # states outside the safe set are no longer controllable, even though the target is still
+    # perfectly reachable from them.
+    function reach_avoid(safe)
+        model = direct_model(Dionysos.Optimizer())
+        @variable(model, -2.0 <= x <= 2.0, start = -1.5)
+        @variable(model, -1.0 <= u <= 1.0)
+        @constraint(model, ∂(x) == u)
+        @constraint(model, state(model) in Final(UT.box(SVector(-0.25), SVector(0.25))))
+        safe === nothing || @constraint(model, state(model) in Always(safe))
+
+        set_attribute(model, "time_step", 0.5)
+        set_attribute(model, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
+        set_attribute(model, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+        set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+        set_attribute(model, "print_level", 0)
+
+        optimize!(model)
+        return model, get_attribute(model, "concrete_controller")
+    end
+
+    open_model, open_ctrl = reach_avoid(nothing)
+    @test is_solved_and_feasible(open_model)
+    @test controller_admissible(open_ctrl, SVector(-1.5))
+    @test controller_admissible(open_ctrl, SVector(1.5))   # reachable from the right too
+
+    fenced, fenced_ctrl = reach_avoid(UT.box(SVector(-1.8), SVector(0.5)))
+    @test get_attribute(fenced, "concrete_problem").safe_set !== nothing
+    @test is_solved_and_feasible(fenced)                   # the start is still safe
+    @test controller_admissible(fenced_ctrl, SVector(-1.5))
+    # x = 1.5 lies outside the safe set, so it is no longer part of the winning region.
+    @test !controller_admissible(fenced_ctrl, SVector(1.5))
 end
 
 @testset "end-to-end: an abstraction-only model" begin

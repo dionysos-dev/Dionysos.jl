@@ -280,13 +280,16 @@ function build_hybrid_problem(ir::ModelIR, backend; time_step = nothing)
     safe = _hybrid_spec(ir, ALWAYS, x_idx)
 
     if target !== nothing
+        # With both markers this is reach-avoid: before `safe_set` existed the `Always` set was
+        # dropped here, since the hybrid path has no state space to fold it into.
         return PR.OptimalControlProblem(
             system,
             initial_state,
             target,
             nothing,
             nothing,
-            _horizon(ir, false, time_step),
+            _horizon(ir, false, time_step);
+            safe_set = safe,
         )
     elseif safe !== nothing
         return PR.SafetyProblem(system, initial_state, safe, _horizon(ir, true, time_step))

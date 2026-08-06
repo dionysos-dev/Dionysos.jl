@@ -193,7 +193,7 @@ The two forms reach different solvers:
 | What you wrote | Problem built | How it is solved |
 | :--- | :--- | :--- |
 | `Final(S)` | `OptimalControlProblem` | backward fixed point on the pre-image |
-| `Final(S)` + `Always(S')` | `OptimalControlProblem` (reach-avoid) | same, with `S'` folded into `X` |
+| `Final(S)` + `Always(S')` | `OptimalControlProblem` (reach-avoid) | same, restricted to the `safe_set` `S'` |
 | `Always(S)` | `SafetyProblem` | maximal controlled-invariant set |
 | `EventuallyAlways(S)` | `ReachAndStayProblem` | invariance, then reachability |
 | a formula over `Label`s | `CoSafeLTLProblem` | product with a deterministic automaton |
@@ -231,9 +231,10 @@ not implemented yet.
 
 Rule of thumb: `∉` describes the **world**, `Always` describes the **requirement**.
 
-One asymmetry: `Dionysos.Problem.OptimalControlProblem` has no safe-set field, so in a *reach-avoid*
-model (`Final` together with `Always`) the `Always` set is folded into `X` and behaves like `∉`. In
-a pure safety model (`Always` alone) it becomes a genuine `safe_set`.
+`Always` means the same thing everywhere it appears: it becomes the `safe_set` of the problem —
+`SafetyProblem` on its own, `OptimalControlProblem` when written together with a `Final` set. The
+reach-avoid reading is `safe U target`: every state up to and including the one that reaches the
+target must be safe, and what happens afterwards is not constrained.
 
 ### 5.6 Horizon
 

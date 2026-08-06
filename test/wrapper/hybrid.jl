@@ -158,6 +158,61 @@ end
     @test !occursin("ScopedVectorSet", spec_text)
 end
 
+@testset "a hybrid reach-avoid model keeps its Always set" begin
+    # `Final` and `Always` on the same hybrid model. The hybrid path has no state space to fold
+    # an `Always` set into, so before `OptimalControlProblem` gained a `safe_set` it was simply
+    # dropped here and the avoid part of the specification went unsynthesized.
+    function thermostat_reach_avoid(; safe_low = nothing)
+        model, off, on = thermostat_model()          # starts at T = 18
+        target = UT.box(SVector(21.0), SVector(23.0))
+        for m in (off, on)
+            @constraint(m, [model[:T]] in Final(target))
+            safe_low === nothing || @constraint(
+                m,
+                [model[:T]] in Always(UT.box(SVector(safe_low), SVector(25.0)))
+            )
+            set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+            set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+            set_attribute(m, "time_step", 0.5)
+            set_attribute(m, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+            set_attribute(m, "jacobian_bound", u -> SMatrix{1, 1}(-0.1))
+        end
+        return model
+    end
+
+    open_problem, _ = lowered(thermostat_reach_avoid())
+    @test open_problem.safe_set === nothing
+
+    problem = WR.lower(backend(thermostat_reach_avoid(; safe_low = 20.0)))
+    @test problem isa PR.OptimalControlProblem
+    @test problem.safe_set isa PR.HybridSpec
+    @test PR.satisfies(problem.safe_set, SVector(22.0), 1)
+    @test !PR.satisfies(problem.safe_set, SVector(18.0), 1)   # below the safe band
+
+    # The model starts at T = 18, so a safe band that excludes it has no solution at all —
+    # which is itself the proof that the set is enforced rather than dropped. Without the
+    # `Always` constraint the very same model solves.
+    fenced = thermostat_reach_avoid(; safe_low = 20.0)
+    optimize!(fenced)
+    @test !is_solved_and_feasible(fenced)
+
+    open_model = thermostat_reach_avoid()
+    optimize!(open_model)
+    @test is_solved_and_feasible(open_model)
+
+    # Widen the band to cover the start and it is feasible again, with the safe set reaching
+    # the abstract problem and genuinely restricting it.
+    reachable = thermostat_reach_avoid(; safe_low = 17.5)
+    optimize!(reachable)
+    @test is_solved_and_feasible(reachable)
+
+    abstract_problem = backend(reachable).inner.control_solver.abstract_problem
+    @test abstract_problem.safe_set !== nothing
+    @test !isempty(abstract_problem.safe_set)
+    nstates = SY.get_n_state(SY.get_automaton(get_attribute(reachable, "abstract_system")))
+    @test length(abstract_problem.safe_set) < nstates
+end
+
 @testset "a transition without a guard is rejected" begin
     model = direct_model(Dionysos.Optimizer())
     @variable(model, -1.0 <= x <= 1.0)
