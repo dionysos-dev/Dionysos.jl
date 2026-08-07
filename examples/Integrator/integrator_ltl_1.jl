@@ -20,19 +20,14 @@ with_spot = true
 # 1) Define a simple 2D continuous-time system: x' = u
 # ------------------------------------------------------------
 include(
-    joinpath(
-        dirname(dirname(pathof(Dionysos))),
-        "problems",
-        "ToyProblem",
-        "toy_problem.jl",
-    ),
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Integrator", "integrator.jl"),
 )
 
 _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
 _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
-concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
-jacobian_bound = ToyProblem.jacobian_bound()
+concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+jacobian_bound = Integrator.jacobian_bound()
 
 # ------------------------------------------------------------
 # 2) Abstraction construction (AlternatingSimulationProblem)
@@ -201,7 +196,7 @@ display(fig)
 # Animation with dashboard
 # ------------------------------------------------------------
 
-system_plot! = ToyProblem.system_plot!()
+system_plot! = Integrator.system_plot!()
 
 Dionysos.animate_trajectory_dashboard(
     system_plot!,
@@ -210,7 +205,7 @@ Dionysos.animate_trajectory_dashboard(
     udims = (1, 2),
     Δt = Δt,
     fps = 5,
-    # filename = "toy_problem_dashboard.gif",
+    # filename = "integrator_dashboard.gif",
     xlabel_state = "x₁",
     ylabel_state = "x₂",
     xlabel_input = "u₁",

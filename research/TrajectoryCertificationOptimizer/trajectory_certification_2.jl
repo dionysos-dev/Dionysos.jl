@@ -19,12 +19,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 include(
-    joinpath(
-        dirname(dirname(pathof(Dionysos))),
-        "problems",
-        "ToyProblem",
-        "toy_problem.jl",
-    ),
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Integrator", "integrator.jl"),
 )
 
 # ------------------------------------------------------------
@@ -34,8 +29,8 @@ include(
 _X_ = UT.box(SVector(-3.0, -3.0), SVector(4.0, 4.0))
 _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
-concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
-jacobian_bound = ToyProblem.jacobian_bound()
+concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+jacobian_bound = Integrator.jacobian_bound()
 
 _I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
 

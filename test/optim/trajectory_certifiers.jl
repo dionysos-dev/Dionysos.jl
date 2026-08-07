@@ -10,7 +10,7 @@ using Symbolics
 import Clarabel
 using Random
 
-include("../../problems/ToyProblem/toy_problem.jl")
+include("../../problems/Integrator/integrator.jl")
 
 const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 
@@ -21,8 +21,8 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
     Δt = 0.3
     _X_ = UT.box(SVector(-2.0, -2.0), SVector(4.0, 4.0))
     _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
-    concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
-    jacobian_bound = ToyProblem.jacobian_bound()
+    concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+    jacobian_bound = Integrator.jacobian_bound()
 
     build_optimizer = function ()
         opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
