@@ -6,6 +6,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
+const SY = DI.Symbolic;
 
 l, g = 1.0, 9.81
 
@@ -16,28 +17,31 @@ model = Model(Dionysos.Optimizer);
 @variable(model, -3.0 <= u <= 3.0);
 
 @constraint(model, ∂(x1) == x2)
-@constraint(model, ∂(x2) == -(g / l) * sin(x1) + u)
+@constraint(model, ∂(x2) == -(g / l) * sin(x1) + u);
 
 @constraint(model, start(x1) in MOI.Interval(-0.09, 0.09))
-@constraint(model, start(x2) in MOI.Interval(-0.5, 0.5))
+@constraint(model, start(x2) in MOI.Interval(-0.5, 0.5));
 
-@constraint(model, final(x1) in MOI.Interval(π - 15π / 180, π + 15π / 180))
-@constraint(model, final(x2) in MOI.Interval(-1.0, 1.0))
+upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
+
+@constraint(model, [x1, x2] in EventuallyAlways(upright));
 
 @constraint(model, [x1] ∉ MOI.HyperRectangle([-π + 16π / 180], [-π + 38π / 180]));
 
 set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, 1.0, g / l, 0.0))
-set_attribute(model, "time_step", 0.1)
+set_attribute(model, "time_step", 0.1);
 
 h = SVector(3π / 180, 0.05)
 set_attribute(model, "state_grid", MP.GridFree(SVector(-π + h[1] / 2, 0.0), h))
-set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.3)))
+set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.3)));
 
 set_attribute(model, "use_periodic_mapping", true)
 set_attribute(model, "periodic_dims", SVector(1))
 set_attribute(model, "periodic_periods", SVector(2π))
 set_attribute(model, "periodic_start", SVector(-π))
 set_attribute(model, "print_level", 0);
+
+set_attribute(model, "automaton_constructor", (n, m) -> SY.FastIndexedAutomatonList(n, m));
 
 optimize!(model);
 
@@ -46,13 +50,21 @@ termination_status(model)
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_controller = get_attribute(model, "concrete_controller");
 abstract_system = get_attribute(model, "abstract_system");
-abstract_value_function = get_attribute(model, "abstract_value_function");
+winning_set = get_attribute(model, "winning_set");
 
-trajectory = Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 200)
+trajectory =
+    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 124, stopping = _ -> false);
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; ms = 1.0, with_arrows = false, color = :blue)
+plot!(
+    (winning_set, SY.get_state_mapping(abstract_system));
+    color = :purple,
+    opacity = 0.25,
+    linecolor = :purple,
+    label = "Winning set",
+)
+plot!(trajectory; ms = 1.0, color = :blue)
 
 include(
     joinpath(
@@ -61,7 +73,7 @@ include(
         "Pendulum",
         "simple_pendulum.jl",
     ),
-)
+);
 
 anim = Dionysos.animate_trajectory_dashboard(
     SimplePendulum.system_plot!(),
@@ -73,8 +85,8 @@ anim = Dionysos.animate_trajectory_dashboard(
     xlabel_state = "θ [rad]",
     ylabel_state = "ω [rad/s]",
     ylabel_input = "τ [N·m]",
-)
+);
 
-gif(anim; fps = 4)
+gif(anim; fps = 6)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

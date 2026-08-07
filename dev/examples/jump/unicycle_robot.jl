@@ -28,7 +28,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const MP = DI.Mapping
+const MP = DI.Mapping;
 
 using Test     #src
 
@@ -47,7 +47,7 @@ model = Model(Dionysos.Optimizer);
 
 @constraint(model, Δ(x[1]) == x[1] + u[1] * cos(x[3]))
 @constraint(model, Δ(x[2]) == x[2] + u[1] * sin(x[3]))
-@constraint(model, Δ(x[3]) == x[3] + u[2])
+@constraint(model, Δ(x[3]) == x[3] + u[2]);
 
 x_initial = [1.0, -1.7, 0.0]
 x_target = [sqrt(32) / 3, sqrt(20) / 3, -pi]
@@ -58,7 +58,7 @@ x_target = [sqrt(32) / 3, sqrt(20) / 3, -pi]
 
 @constraint(model, final(x[1]) in MOI.Interval(x_target[1] - hx, x_target[1] + hx))
 @constraint(model, final(x[2]) in MOI.Interval(x_target[2] - hx, x_target[2] + hx))
-@constraint(model, final(x[3]) in MOI.Interval{Float64}(-pi, pi))
+@constraint(model, final(x[3]) in MOI.Interval{Float64}(-pi, pi));
 
 # The admissible region is described by two quadratic inequalities. `∉` takes boxes and
 # bounded `LazySet`s, not arbitrary sublevel sets, so the *forbidden* region is rasterised on
@@ -141,7 +141,7 @@ concrete_problem = get_attribute(model, "concrete_problem");
 
 # ## Closed loop
 
-trajectory = Dionysos.simulate(model, SVector(x_initial...); nsteps = 100)
+trajectory = Dionysos.simulate(model, SVector(x_initial...); nsteps = 100);
 
 @test last(ST.states(trajectory)) ∈ concrete_problem.target_set     #src
 
@@ -166,24 +166,25 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, with_arrows = false, lw = 2, color = :blue)
+plot!(trajectory; ms = 2.0, lw = 2, color = :blue)
 
-# The cart is drawn inline: unlike the other examples this one has no problem module in
-# `problems/` to borrow a view from, and a dozen lines of `plot!` is not worth a new one.
+# The same run as an animation: the cart and its heading on the left, the state and input
+# channels on the right.
 
-function cart_plot!(fig, x, u)
-    θ = Float64(x[3])
-    c = SVector(Float64(x[1]), Float64(x[2]))
-    head = c + 0.5 * SVector(cos(θ), sin(θ))
-    scatter!(fig, [c[1]], [c[2]]; markersize = 7, color = :blue, label = "")
-    plot!(fig, [c[1], head[1]], [c[2], head[2]]; lw = 3, color = :blue, label = "")
-    xlims!(fig, x_low[1], x_upp[1])
-    ylims!(fig, x_low[2], x_upp[2])
-    return fig
-end
+include(
+    joinpath(
+        dirname(dirname(pathof(Dionysos))),
+        "problems",
+        "UnicycleRobot",
+        "unicycle_robot.jl",
+    ),
+);
 
 anim = Dionysos.animate_trajectory_dashboard(
-    cart_plot!,
+    UnicycleRobot.system_plot!(;
+        xlims = (x_low[1], x_upp[1]),
+        ylims = (x_low[2], x_upp[2]),
+    ),
     trajectory;
     xdims = (1, 2),
     udims = (1, 2),
@@ -191,5 +192,5 @@ anim = Dionysos.animate_trajectory_dashboard(
     xlabel_state = "x₁",
     ylabel_state = "x₂",
     xlabel_input = "step",
-)
+);
 gif(anim; fps = 8)

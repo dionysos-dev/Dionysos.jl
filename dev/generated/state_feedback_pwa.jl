@@ -19,7 +19,7 @@ lib = CDDLib.Library() # polyhedron lib
 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PwaSystem", "pwa_system.jl"),
-)
+);
 
 Usz = 70 # upper limit on |u|, `Usz = 50` in [1]
 Wsz = 3 # `Wsz = 5` in [1]
@@ -27,7 +27,7 @@ dt = 0.01; # discretization step
 
 concrete_problem =
     PwaSystem.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
-concrete_system = concrete_problem.system
+concrete_system = concrete_problem.system;
 
 n_step = 3
 origin = SVector(0.0, 0.0)
@@ -41,7 +41,7 @@ R = h ./ 2
 
 Pm = P
 
-opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true);
 
 optimizer = MOI.instantiate(AB.UniformEllipsoidAbstraction.Optimizer)
 
@@ -60,7 +60,7 @@ MOI.set(
     Matrix{Float64}(LinearAlgebra.I, naug, naug)*(dt^2),
 );
 
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 abstract_problem_time =
     MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem_time_sec"))
@@ -86,7 +86,7 @@ function f_eval1(x, u)
            concrete_system.resetmaps[m].c +
            w
 end
-cost_eval(x, u) = concrete_problem.transition_cost[1][1](x, u)
+cost_eval(x, u) = concrete_problem.transition_cost[1][1](x, u);
 
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time;
 function reached(x)
@@ -96,7 +96,7 @@ function reached(x)
     else
         return false
     end
-end
+end;
 
 x0 = concrete_problem.initial_set
 traj = ST.get_closed_loop_trajectory(
@@ -132,6 +132,6 @@ plot!(
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
+plot!(traj; ms = 2.0, color = :blue)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

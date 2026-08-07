@@ -59,7 +59,7 @@ lib = CDDLib.Library() # polyhedron lib
 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "PwaSystem", "pwa_system.jl"),
-)
+);
 
 # ## Problem parameters
 # Notice that in [1] it was used `Wsz = 5` and `Usz = 50`. These, and other values were changed here to speed up the build time of the documentation.
@@ -69,7 +69,7 @@ dt = 0.01; # discretization step
 
 concrete_problem =
     PwaSystem.problem(; lib = lib, dt = dt, Usz = Usz, Wsz = Wsz, simple = false)
-concrete_system = concrete_problem.system
+concrete_system = concrete_problem.system;
 
 # ## Abstraction parameters
 # This is state-space is defined by the box `rectX`. We also define a control space with the same bounds. This is done because, for a state-feedback abstraction, selecting a controller out of the set of controllers is the same as selecting a destination state out of the set of cells $\mathcal{X}_d$, given it's determinism. 
@@ -87,7 +87,7 @@ R = h ./ 2
 # Optional: same shape for source and target ellipsoids
 Pm = P
 # SDP solver
-opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
+opt_sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true);
 
 # ## Instantiate abstraction optimizer
 
@@ -109,7 +109,7 @@ MOI.set(
 );
 
 # Build the state-feedback abstraction and solve the optimal control problem by through Dijkstra's algorithm [2, p.86].
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 # Get the results
 abstract_problem_time =
@@ -140,7 +140,7 @@ function f_eval1(x, u)
            concrete_system.resetmaps[m].c +
            w
 end
-cost_eval(x, u) = concrete_problem.transition_cost[1][1](x, u)
+cost_eval(x, u) = concrete_problem.transition_cost[1][1](x, u);
 
 # We define the stopping criteria for a simulation
 nstep = typeof(concrete_problem.time) == PR.Infinity ? 100 : concrete_problem.time;
@@ -151,7 +151,7 @@ function reached(x)
     else
         return false
     end
-end
+end;
 
 # We simulate the closed loop trajectory
 x0 = concrete_problem.initial_set
@@ -190,7 +190,7 @@ plot!(
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
+plot!(traj; ms = 2.0, color = :blue)
 
 # ## References
 #

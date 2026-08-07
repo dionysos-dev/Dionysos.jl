@@ -6,7 +6,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
-const AB = DI.Optim.Abstraction
+const AB = DI.Optim.Abstraction;
 
 model = Model(Dionysos.Optimizer);
 
@@ -52,7 +52,7 @@ abstract_value_function = get_attribute(model, "abstract_value_function");
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_controller = get_attribute(model, "concrete_controller");
 
-trajectory = Dionysos.simulate(model, SVector(0.4, 0.4, 0.0); nsteps = 100)
+trajectory = Dionysos.simulate(model, SVector(0.4, 0.4, 0.0); nsteps = 100);
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem.system.X; color = :grey, opacity = 1.0, label = "")
@@ -69,7 +69,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, with_arrows = false, color = :blue)
+plot!(trajectory; ms = 2.0, color = :blue)
 
 include(
     joinpath(
@@ -78,9 +78,9 @@ include(
         "PathPlanning",
         "path_planning.jl",
     ),
-)
+);
 
-obstacles = [UT.box(SVector(lo...), SVector(hi...)) for (lo, hi) in walls]
+obstacles = [UT.box(SVector(lo...), SVector(hi...)) for (lo, hi) in walls];
 
 anim = Dionysos.animate_trajectory_dashboard(
     PathPlanning.system_plot!(; obstacles = obstacles, xlims = (0, 4), ylims = (0, 10)),
@@ -93,7 +93,7 @@ anim = Dionysos.animate_trajectory_dashboard(
     ylims_state = (0, 10),
     xlabel_state = "x₁",
     ylabel_state = "x₂",
-)
+);
 gif(anim; fps = 5)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

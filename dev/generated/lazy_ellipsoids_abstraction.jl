@@ -17,11 +17,11 @@ using Symbolics
 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "NonLinear", "non_linear.jl"),
-)
+);
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
-obstacles = NonLinear.default_obstacles()
+obstacles = NonLinear.default_obstacles();
 
 sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
 
@@ -48,9 +48,9 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     continues,
     maxIter;
     obstacles = obstacles,
-)
+);
 
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
 abstract_problem = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_problem"))

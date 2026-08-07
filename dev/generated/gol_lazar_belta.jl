@@ -10,7 +10,7 @@ using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
-const OP = DI.Optim
+const OP = DI.Optim;
 
 include(
     joinpath(
@@ -19,7 +19,7 @@ include(
         "GolLazarBelta",
         "gol_lazar_belta.jl",
     ),
-)
+);
 
 problem = GolLazarBelta.problem(CDDLib.Library(), Float64);
 
@@ -74,7 +74,7 @@ function text_in_set_plot!(fig, po::Polyhedra.Rep, t)
         c, r = Polyhedra.hchebyshevcenter(Polyhedra.hrep(po), solver; verbose = 0)
         annotate!(fig, c[1], c[2], t)
     end
-end
+end;
 
 #Initialize our canvas
 fig = plot(;
@@ -85,7 +85,7 @@ fig = plot(;
     titlefontsize = 14,
 );
 xlims!(-10.5, 3.0)
-ylims!(-10.5, 3.0)
+ylims!(-10.5, 3.0);
 
 #Plot the discrete modes
 for mode in states(problem.system)
