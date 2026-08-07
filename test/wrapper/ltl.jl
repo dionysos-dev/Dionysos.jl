@@ -140,6 +140,17 @@ end
     @test get_attribute(model, "concrete_problem") isa PR.CoSafeLTLProblem
     @test get_attribute(model, "abstract_controller") !== nothing
     @test get_attribute(model, "success") isa Bool
+
+    # `simulate` must advance the specification automaton on the *next* measurement: the monitor
+    # reads the labels of the state the system lands in. Feeding it the current state instead
+    # desynchronises it by one step, which does not throw — the run just stops early and never
+    # satisfies the formula. So this pins the behaviour, not the flag.
+    goal = UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8))
+    hazard = UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4))
+    traj = Dionysos.simulate(model, SVector(-1.5, -1.5); nsteps = 40)
+
+    @test any(x -> x ∈ goal, ST.states(traj))
+    @test !any(x -> x ∈ hazard, ST.states(traj))
 end
 
 end # module TestMain

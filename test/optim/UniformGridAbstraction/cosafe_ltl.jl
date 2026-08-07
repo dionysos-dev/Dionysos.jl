@@ -10,23 +10,18 @@ using Spot
 using Plots
 
 include(
-    joinpath(
-        dirname(dirname(pathof(Dionysos))),
-        "problems",
-        "ToyProblem",
-        "toy_problem.jl",
-    ),
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Integrator", "integrator.jl"),
 )
 
-@testset "UniformGridAbstraction ToyProblem (CoSafeLTL monitor)" begin
+@testset "UniformGridAbstraction Integrator (CoSafeLTL monitor)" begin
     # ------------------------------------------------------------
     # 1) Concrete system + AlternatingSimulationProblem abstraction build
     # ------------------------------------------------------------
     _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
     _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
 
-    concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
-    jacobian_bound = ToyProblem.jacobian_bound()
+    concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+    jacobian_bound = Integrator.jacobian_bound()
 
     alternating_simulation_problem =
         DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)

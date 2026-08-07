@@ -154,7 +154,7 @@ plot!(
 );
 
 # We display the concrete trajectory
-plot!(traj; ms = 2.0, with_arrows = false)
+plot!(traj; ms = 2.0)
 
 # ------------------------------------------------------------
 # Animation with dashboard

@@ -6,7 +6,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 import MathOptInterface as MOI
 import Suppressor
 
-include("../../../problems/ToyProblem/toy_problem.jl")
+include("../../../problems/Integrator/integrator.jl")
 
 # Directly exercises the abstraction-only optimizer `OptimizerAlternatingSimulationProblem`
 # across its approximation modes and mapping options. Only the GROWTH continuous path is hit
@@ -49,7 +49,7 @@ end
 const _STATE_GRID = MP.GridFree(SVector(-2.0, -2.0), SVector(0.5, 0.5))
 
 @testset "AlternatingSimulation: continuous approx modes" begin
-    csys = ToyProblem.system()
+    csys = Integrator.system()
     asp = PR.AlternatingSimulationProblem(csys, csys.X)
 
     # CENTER_SIMULATION: no extra data required.
@@ -116,7 +116,7 @@ end
 end
 
 @testset "AlternatingSimulation: implicit mapping and state set" begin
-    csys = ToyProblem.system()
+    csys = Integrator.system()
     asp = PR.AlternatingSimulationProblem(csys, csys.X)
 
     opt = _base_optimizer(asp; approx_mode = UGA.CENTER_SIMULATION)
@@ -135,7 +135,7 @@ end
 end
 
 @testset "AlternatingSimulation: periodic mapping built from h" begin
-    csys = ToyProblem.system()   # domain [-2, 2]² — width 4 in each dim
+    csys = Integrator.system()   # domain [-2, 2]² — width 4 in each dim
     asp = PR.AlternatingSimulationProblem(csys, csys.X)
 
     # No explicit state_grid: the grid is built from `h`, periodic in dim 1 with period 4.

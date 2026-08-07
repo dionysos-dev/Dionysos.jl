@@ -8,15 +8,15 @@ import LinearAlgebra as LA
 import MathOptInterface as MOI
 using Random
 
-include("../../problems/ToyProblem/toy_problem.jl")
+include("../../problems/Integrator/integrator.jl")
 
 # Contract test for the three trajectory generators (optimizer-based, MPPI, composite).
-# Tiny ToyProblem instance; each generator must run and expose the expected result API.
+# Tiny Integrator instance; each generator must run and expose the expected result API.
 @testset "trajectory generators (optimizer / MPPI / composite)" begin
     _X_ = UT.box(SVector(-2.0, -2.0), SVector(4.0, 4.0))
     _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
-    concrete_system = ToyProblem.system(; _X_ = _X_, _U_ = _U_)
-    jacobian_bound = ToyProblem.jacobian_bound()
+    concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+    jacobian_bound = Integrator.jacobian_bound()
 
     # Abstraction (alternating simulation) on a coarse grid.
     asp = PR.AlternatingSimulationProblem(concrete_system, concrete_system.X)

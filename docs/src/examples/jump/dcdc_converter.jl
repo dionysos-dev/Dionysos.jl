@@ -2,7 +2,7 @@
 #
 # | | |
 # |:--|:--|
-# | **System**        | 2-D [continuous](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem), switched by the input |
+# | **System**        | 2-D [continuous](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem), [switched](https://blegat.github.io/HybridSystems.jl/stable/lib/types/#HybridSystems.AbstractHybridSystem) by the input |
 # | **Specification** | [safety](@ref Dionysos.Problem.SafetyProblem) |
 # | **Solver**        | [uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer), twice |
 #
@@ -35,22 +35,46 @@ const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
 const SY = DI.Symbolic
-const AB = DI.Optim.Abstraction
+const AB = DI.Optim.Abstraction;
 
 using Test     #src
 
-# The matrices and the switched vector field come from the problem library, so this page and
-# the benchmark drivers describe the same converter.
+# ## The model
+#
+# The circuit constants, and the two affine vector fields the switch selects between:
+# ``\dot{x} = A_p x + b``, with ``p = 1`` for the closed switch and ``p = 2`` for the open one.
 
-include(
-    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+vs, xL, xC, r0, rL, rC = 1.0, 3.0, 70.0, 1.0, 0.05, 0.005
+
+A1 = SMatrix{2, 2}(-rL / xL, 0.0, 0.0, -1.0 / (xC * (r0 + rC)))
+A2 = SMatrix{2, 2}(
+    -(rL + r0 * rC / (r0 + rC)) / xL,
+    5.0 * r0 / ((r0 + rC) * xC),
+    -r0 / ((r0 + rC) * xL * 5.0),
+    -1.0 / (xC * (r0 + rC)),
+)
+b = SVector(vs / xL, 0.0)
+
+dynamic = (x, u) -> u[1] == 1 ? A1 * x + b : A2 * x + b;
+
+# The growth bound needs a *nonnegative* off-diagonal — it bounds how fast neighbouring
+# trajectories separate, which is a magnitude — so mode 2 contributes `A2` with that entry
+# made positive. Mode 1 is already diagonal and non-positive, so it is used as is.
+
+A2_abs = SMatrix{2, 2}(
+    -(rL + r0 * rC / (r0 + rC)) / xL,
+    5.0 * r0 / ((r0 + rC) * xC),
+    r0 / ((r0 + rC) * xL * 5.0),
+    -1.0 / (xC * (r0 + rC)),
 )
 
-# ## The model
+jacobian_bound = u -> u[1] == 1 ? A1 : A2_abs;
+
+#-
 
 x_low, x_upp = [1.15, 5.45], [1.55, 5.85]
 safe = UT.box(SVector(x_low...), SVector(x_upp...))
-initial = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61))
+initial = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61));
 
 # `direct_model` rather than `Model`: the roles below are recorded against the optimizer, and a
 # cached model has not handed it the variables yet.
@@ -65,7 +89,7 @@ model = direct_model(Dionysos.Optimizer());
 # are states, and whether `f` is a vector field or a one-step map.
 
 set_role!(x, Dionysos.STATE)
-set_attribute(model, "dynamics", DCDC.dynamic())
+set_attribute(model, "dynamics", dynamic)
 set_attribute(model, "time_domain", Dionysos.CONTINUOUS);
 
 # Safety: start in a small box around the operating point, and never leave the band. `Always`
@@ -83,7 +107,7 @@ set_attribute(model, "time_domain", Dionysos.CONTINUOUS);
 hx = SVector(2.0 / 4.0e3, 2.0 / 4.0e3)
 set_attribute(model, "state_grid", MP.GridFree(SVector(0.0, 0.0), hx))
 set_attribute(model, "input_grid", MP.GridFree(SVector(1), SVector(1)))
-set_attribute(model, "jacobian_bound", DCDC.jacobian_bound())
+set_attribute(model, "jacobian_bound", jacobian_bound)
 set_attribute(model, "time_step", 0.5)
 set_attribute(model, "approx_mode", AB.UniformGridAbstraction.GROWTH)
 set_attribute(model, "print_level", 0);
@@ -109,7 +133,7 @@ invariant_set = get_attribute(model, "invariant_set");
 
 # ## Closed loop
 
-trajectory = Dionysos.simulate(model, SVector(1.2, 5.6); nsteps = 300)
+trajectory = Dionysos.simulate(model, SVector(1.2, 5.6); nsteps = 150);
 
 @test all(x ∈ safe for x in ST.states(trajectory))     #src
 
@@ -117,11 +141,18 @@ trajectory = Dionysos.simulate(model, SVector(1.2, 5.6); nsteps = 300)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; with_arrows = false, ms = 2.0, color = :blue)
+plot!(trajectory; ms = 2.0, color = :blue)
 
-# The converter circuit alongside the state and the switching signal. `frame_step` keeps a
-# 300-step trajectory to a manageable number of frames, and `fps` is chosen so the animation
-# runs for about ten seconds.
+# The converter circuit alongside the state and the switching signal. Only the drawing is
+# borrowed from the problem library — everything above is defined on this page.
+
+include(
+    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "DCDC", "dcdc_converter.jl"),
+);
+
+# `frame_step` and `fps` trade smoothness against file size. Two steps per frame keeps the
+# state moving a small distance between frames — at six it jumped far enough to read as
+# stuttering — and `fps` is chosen so the run lasts about ten seconds.
 
 anim = Dionysos.animate_trajectory_dashboard(
     DCDC.system_plot!(),
@@ -129,12 +160,12 @@ anim = Dionysos.animate_trajectory_dashboard(
     xdims = (1, 2),
     udims = (1,),
     Δt = 0.5,
-    frame_step = 6,
+    frame_step = 2,
     xlabel_state = "iL [A]",
     ylabel_state = "vC [V]",
     ylabel_input = "switch position",
-)
-gif(anim; fps = 5)
+);
+gif(anim; fps = 8)
 
 # ## The same problem, a different abstraction
 #
@@ -160,7 +191,7 @@ MOI.set(
     MOI.RawOptimizerAttribute("input_grid"),
     MP.GridFree(SVector(1), SVector(1)),
 )
-MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), DCDC.jacobian_bound())
+MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.5)
 MOI.set(
     optimizer,
@@ -190,7 +221,7 @@ traj2 = ST.get_closed_loop_trajectory(
 
 fig2 = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(traj2; with_arrows = false, ms = 2.0, color = :blue)
+plot!(traj2; ms = 2.0, color = :blue)
 
 # ## The same plant, a different model
 #
@@ -217,13 +248,10 @@ set_upper_bound(xh[2], 5.85)
 
 # One mode per switch position, each with its own affine dynamics.
 
-A1, A2 = DCDC.A1(), DCDC.A2()
-bvec = SVector(DCDC.Params().vs / DCDC.Params().xL, 0.0)
-
-@constraint(closed, ∂(xh[1]) == A1[1, 1] * xh[1] + A1[1, 2] * xh[2] + bvec[1])
-@constraint(closed, ∂(xh[2]) == A1[2, 1] * xh[1] + A1[2, 2] * xh[2] + bvec[2])
-@constraint(opened, ∂(xh[1]) == A2[1, 1] * xh[1] + A2[1, 2] * xh[2] + bvec[1])
-@constraint(opened, ∂(xh[2]) == A2[2, 1] * xh[1] + A2[2, 2] * xh[2] + bvec[2]);
+@constraint(closed, ∂(xh[1]) == A1[1, 1] * xh[1] + A1[1, 2] * xh[2] + b[1])
+@constraint(closed, ∂(xh[2]) == A1[2, 1] * xh[1] + A1[2, 2] * xh[2] + b[2])
+@constraint(opened, ∂(xh[1]) == A2[1, 1] * xh[1] + A2[1, 2] * xh[2] + b[1])
+@constraint(opened, ∂(xh[2]) == A2[2, 1] * xh[1] + A2[2, 2] * xh[2] + b[2]);
 
 # A guard spanning the whole safe set means the switch is always available — which is exactly
 # what a converter's switch is: the controller decides, the state does not gate it.
@@ -242,13 +270,18 @@ end
 # times coarser than the grid used above: the point of this section is the *encoding*, and the
 # fine grid is already exercised by the first model.
 
-for md in (closed, opened)
+for (md, Ab) in ((closed, A1), (opened, A2_abs))
     set_attribute(md, "state_grid", MP.GridFree(SVector(0.0, 0.0), 4 .* hx))
     set_attribute(md, "time_step", 0.5)
     set_attribute(md, "approx_mode", AB.UniformGridAbstraction.GROWTH)
-    set_attribute(md, "jacobian_bound", u -> DCDC.jacobian_bound()(SVector(1)))
+    set_attribute(md, "jacobian_bound", u -> Ab)
     set_attribute(md, "print_level", 0)
 end
+
+# `print_level` on a mode silences that mode's sub-solver; the hybrid solver above them has
+# its own, set on the model.
+
+set_attribute(hybrid, "print_level", 0)
 
 optimize!(hybrid);
 
@@ -260,20 +293,44 @@ termination_status(hybrid)
 
 @test is_solved_and_feasible(hybrid)     #src
 
-# The abstract input alphabet shows the encoding: one continuous input per mode — holding the
-# switch — and one switching input per transition.
+# The augmented state of a hybrid model is `(x, mode)`, so the closed loop starts from a state
+# *and* a switch position, and carries the mode the controller chose at each step alongside the
+# usual state and input channels.
 
-input_map = get_attribute(hybrid, "abstract_system").input_mapping;
-(input_map.continuous_inputs, input_map.switching_inputs)
-
-# The augmented state of a hybrid model is `(x, mode)`, so the closed loop reports which switch
-# position the controller chose at each step.
-
-hybrid_traj = Dionysos.simulate(hybrid, (SVector(1.2, 5.6), 1); nsteps = 200)
+hybrid_traj = Dionysos.simulate(hybrid, (SVector(1.2, 5.6), 1); nsteps = 200);
 
 @test all(x ∈ safe for x in ST.states(hybrid_traj))     #src
 
-sort(unique(ST.modes(hybrid_traj)))
+# Projected back onto the state plane, the hybrid closed loop is directly comparable with the
+# two above: same band, same operating point, a third route to staying inside it.
+
+fig3 = plot(; aspect_ratio = :equal)
+plot!(concrete_problem)
+plot!(hybrid_traj; ms = 2.0, color = :blue)
+
+# And the same dashboard as the first model. One translation is needed first: the *inputs* of a
+# hybrid closed loop are symbolic — an empty vector for "hold the switch", a `"SWITCH 1 -> 2"`
+# marker when it flips — so there is no numeric channel for the input panel to draw. What the
+# panel should show is the switch *position*, and that is the `modes` channel. Re-expressing the
+# mode as a one-dimensional input gives back exactly the signal the continuous model plotted.
+
+hybrid_switch = ST.Trajectory(
+    ST.states(hybrid_traj);
+    inputs = [SVector(Float64(m)) for m in ST.modes(hybrid_traj)[1:(end - 1)]],
+);
+
+anim_hybrid = Dionysos.animate_trajectory_dashboard(
+    DCDC.system_plot!(),
+    hybrid_switch;
+    xdims = (1, 2),
+    udims = (1,),
+    Δt = 0.5,
+    frame_step = 2,
+    xlabel_state = "iL [A]",
+    ylabel_state = "vC [V]",
+    ylabel_input = "switch position",
+);
+gif(anim_hybrid; fps = 8)
 
 # ## References
 # 1. A. Girard, G. Pola and P. Tabuada, "Approximately Bisimilar Symbolic Models for Incrementally Stable Switched Systems," in IEEE Transactions on Automatic Control, vol. 55, no. 1, pp. 116-126, Jan. 2010.

@@ -1,4 +1,4 @@
-module ToyProblem
+module Integrator
 
 import LazySets
 using StaticArrays

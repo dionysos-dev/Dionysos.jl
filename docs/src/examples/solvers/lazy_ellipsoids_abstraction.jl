@@ -34,13 +34,13 @@ using Symbolics
 
 include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "NonLinear", "non_linear.jl"),
-)
+);
 
 # ## First example
 
 concrete_problem = NonLinear.problem()
 concrete_system = concrete_problem.system
-obstacles = NonLinear.default_obstacles()
+obstacles = NonLinear.default_obstacles();
 
 # Optimizer's parameters
 sdp_opt = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
@@ -68,10 +68,10 @@ AB.LazyEllipsoidsAbstraction.set_optimizer!(
     continues,
     maxIter;
     obstacles = obstacles,
-)
+);
 
 # Build the state feedback abstraction and solve the optimal control problem using RRT algorithm.
-MOI.optimize!(optimizer)
+MOI.optimize!(optimizer);
 
 # Get the results
 abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))

@@ -34,7 +34,7 @@ end
     marker --> :circle
     markeralpha --> 0.0
     color --> :black
-    arrow --> (:closed, 2.0)
+    arrow --> (:closed, 0.8)
     label := ""
     return [a.p1.p[i], a.p2.p[i]], [a.p1.p[j], a.p2.p[j]]
 end

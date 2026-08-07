@@ -32,7 +32,7 @@ const UT = DI.Utils
 const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
-const AB = DI.Optim.Abstraction
+const AB = DI.Optim.Abstraction;
 
 using Test     #src
 
@@ -51,18 +51,18 @@ model = Model(Dionysos.Optimizer);
 # `@mode` binds the name and registers it in the model, exactly like `@variable`.
 
 @mode(model, off)
-@mode(model, on)
+@mode(model, on);
 
 # Each mode carries its own dynamics…
 
 @constraint(off, ∂(T) == -α * (T - Ta))
-@constraint(on, ∂(T) == -α * (T - Ta) + β * u)
+@constraint(on, ∂(T) == -α * (T - Ta) + β * u);
 
 # …and its own input set: the heater is off in one mode and throttled in the other. This is
 # an ordinary bound constraint — it is *scoped* to the mode simply by being written on it.
 
 @constraint(off, u == 0.0)
-@constraint(on, 0.2 <= u <= 1.0)
+@constraint(on, 0.2 <= u <= 1.0);
 
 # A transition is a scope too. A constraint written on it is a **guard** — which states let
 # the switch happen — unless it contains `∂`/`Δ`, in which case it is the **reset map**. With
@@ -74,7 +74,7 @@ end
 
 add_transition!(model, on => off) do t
     return @constraint(t, T >= 21.0)
-end
+end;
 
 # The goal is to reach a comfortable band, in either mode. A specification written on a mode
 # applies in that mode only, so stating it on both means "comfortable, whatever the heater
@@ -83,7 +83,7 @@ end
 comfortable = UT.box(SVector(20.5), SVector(23.0))
 
 @constraint(off, [T] in Final(comfortable))
-@constraint(on, [T] in Final(comfortable))
+@constraint(on, [T] in Final(comfortable));
 
 # ## The abstraction
 #
@@ -111,7 +111,7 @@ termination_status(model)
 
 #-
 
-concrete_problem = get_attribute(model, "concrete_problem")
+concrete_problem = get_attribute(model, "concrete_problem");
 
 @test is_solved_and_feasible(model)     #src
 
@@ -125,7 +125,7 @@ concrete_problem.system
 # The augmented state of a hybrid model is `(x, mode)`, so the simulation starts from a
 # temperature *and* a mode: the room at 18 °C with the heater off.
 
-trajectory = Dionysos.simulate(model, (SVector(18.0), 1); nsteps = 60)
+trajectory = Dionysos.simulate(model, (SVector(18.0), 1); nsteps = 60);
 
 T_end, mode_end = last(ST.states(trajectory)), last(ST.modes(trajectory))   #src
 @test PR.satisfies(concrete_problem.target_set, T_end, mode_end)           #src
@@ -151,7 +151,7 @@ include(
         "Thermostat",
         "thermostat_hybrid_system.jl",
     ),
-)
+);
 
 anim = Dionysos.animate_trajectory_dashboard(
     ThermostatHybridSystem.system_plot!(; problem = concrete_problem),
@@ -162,5 +162,5 @@ anim = Dionysos.animate_trajectory_dashboard(
     xlabel_state = "time [s]",
     ylabel_state = "T [°C]",
     ylabel_input = "heating power",
-)
+);
 gif(anim; fps = 6)

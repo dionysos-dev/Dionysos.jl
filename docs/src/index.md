@@ -88,7 +88,8 @@ julia> import Pkg; Pkg.add("Dionysos")
 ## How to cite
 
 If you use Dionysos in your research, please cite the paper describing the toolbox and the software
-release you used.
+release you actually ran. The BibTeX entry is in
+[How to cite](https://github.com/dionysos-dev/Dionysos.jl#how-to-cite).
 
 ## Need help?
 
