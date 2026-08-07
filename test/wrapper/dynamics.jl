@@ -31,9 +31,12 @@ end
     @variable(model, -1.0 <= x <= 1.0, start = -0.75)
     @variable(model, -1.0 <= u <= 1.0)
 
-    # No `∂` anywhere: the states are named instead, and the equations are a Julia function.
+    # No `∂` anywhere: the states are named instead, the equations are a Julia function, and the
+    # time domain is named too — `f(x, u)` alone does not say whether it is a vector field or a
+    # one-step map.
     set_role!(x, Dionysos.STATE)
     set_attribute(model, "dynamics", (x, u) -> u)
+    set_attribute(model, "time_domain", Dionysos.DISCRETE)
     @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
     grid_options!(model)
 
@@ -57,6 +60,7 @@ end
 
     set_role!(x, Dionysos.STATE)        # a whole array at once
     set_attribute(model, "dynamics", (x, u) -> [x[2], u[1]])
+    set_attribute(model, "time_domain", Dionysos.DISCRETE)
 
     opt = backend(model)
     WR.lower(opt)
@@ -75,6 +79,7 @@ end
 
     @mode(model, slow)
     @mode(model, fast)
+    set_attribute(model, "time_domain", Dionysos.DISCRETE)
     set_attribute(slow, "dynamics", (x, u) -> 0.5 .* u)
     set_attribute(fast, "dynamics", (x, u) -> 2.0 .* u)
     @constraint(fast, [x] in Final(UT.box(SVector(-0.5), SVector(0.5))))
@@ -181,6 +186,48 @@ end
 
     optimize!(model)
     @test is_solved_and_feasible(model)
+end
+
+# `f(x, u)` is equally readable as a vector field or as a one-step map, and the two describe
+# different plants. Before this was checked, a supplied-dynamics model lowered silently as
+# discrete-time — it built and simulated, just not the system the user wrote.
+@testset "supplied dynamics must declare their time domain" begin
+    function supplied_model(; domain = nothing)
+        model = direct_model(Dionysos.Optimizer())
+        @variable(model, -1.0 <= x <= 1.0, start = -0.75)
+        @variable(model, -1.0 <= u <= 1.0)
+        set_role!(x, Dionysos.STATE)
+        set_attribute(model, "dynamics", (x, u) -> u)
+        domain === nothing || set_attribute(model, "time_domain", domain)
+        @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
+        return model
+    end
+
+    # Unknown: refused, and the message says what to write.
+    err = try
+        WR.lower(backend(supplied_model()))
+        nothing
+    catch e
+        sprint(showerror, e)
+    end
+    @test err !== nothing
+    @test occursin("time domain is unknown", err)
+    @test occursin("time_domain", err)
+
+    @test WR.lower(backend(supplied_model(; domain = Dionysos.CONTINUOUS))).system isa
+          MS.ConstrainedBlackBoxControlContinuousSystem
+    @test WR.lower(backend(supplied_model(; domain = Dionysos.DISCRETE))).system isa
+          MS.ConstrainedBlackBoxControlDiscreteSystem
+
+    # Written dynamics already fix the domain; an attribute contradicting them is refused
+    # rather than silently overriding what the model says.
+    written = direct_model(Dionysos.Optimizer())
+    @variable(written, -1.0 <= y <= 1.0, start = 0.0)
+    @variable(written, -1.0 <= v <= 1.0)
+    @constraint(written, ∂(y) == v)
+    set_attribute(written, "time_domain", Dionysos.DISCRETE)
+    @constraint(written, final(y) in MOI.Interval(-0.5, 0.5))
+    @test_throws ErrorException WR.lower(backend(written))
 end
 
 end # module TestMain

@@ -100,4 +100,48 @@ using Plots
     @test isa(fig2, Plots.Plot{Plots.GRBackend})
 end
 
+# Asserted through the full Plots pipeline (`plot` → `plt.series_list`); see
+# `test/utils/plotting.jl` for why that is the level that exercises a recipe.
+@testset "SymbolicModel recipe" begin
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    Xmap = MP.ExplicitGridMapping(grid)
+    MP.add_pos!(Xmap, (1, 1))
+    MP.add_pos!(Xmap, (2, 1))   # adjacent, so the two cells can merge into one rectangle
+    Umap = MP.ExplicitGridMapping(MP.GridFree(SVector(0.0), SVector(0.5)))
+    MP.add_pos!(Umap, (0,))
+
+    sym = SY.SymbolicModelList(Xmap, Umap)
+    # (target, source, symbol) — the last one is a self-loop.
+    SY.add_transitions!(sym.autom, [(2, 1, 1), (1, 2, 1), (1, 1, 1)])
+    @test SY.get_n_transitions(sym) == 3
+
+    # By default only the state set is drawn, merged into as few rectangles as possible.
+    @test length(plot(sym).series_list) == 1
+
+    # `with_arrows` adds one series per transition. A self-loop has nowhere to point, so it is
+    # drawn as a marker instead of an arrow — otherwise it would collapse to a zero-length arrow
+    # and vanish.
+    plt = plot(sym; with_arrows = true)
+    @test length(plt.series_list) == 1 + 3
+    @test count(s -> s[:seriestype] === :path, plt.series_list) == 2
+    @test count(s -> s[:seriestype] === :scatter, plt.series_list) == 1
+
+    # A value function colours each cell by its cost, which forces the per-cell path: the cells
+    # can no longer be merged, because merged cells would have no single value.
+    @test length(plot(sym; value_function = q -> Float64(q)).series_list) == 2
+
+    # Only a *callable* value function colours anything. A lookup table is accepted and ignored
+    # rather than erroring mid-plot.
+    @test length(plot(sym; value_function = Dict(1 => 1.0, 2 => 2.0)).series_list) == 2
+
+    # `dims` selects the plane for both the cells and the transitions.
+    grid3 = MP.GridFree(SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0))
+    X3 = MP.ExplicitGridMapping(grid3)
+    MP.add_pos!(X3, (0, 0, 0))
+    MP.add_pos!(X3, (0, 0, 1))
+    sym3 = SY.SymbolicModelList(X3, Umap)
+    SY.add_transitions!(sym3.autom, [(2, 1, 1)])
+    @test length(plot(sym3; dims = [1, 3], with_arrows = true).series_list) == 1 + 1
+end
+
 end # module

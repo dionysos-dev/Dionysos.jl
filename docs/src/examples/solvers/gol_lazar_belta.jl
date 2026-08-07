@@ -1,5 +1,14 @@
 using Test     #src
-# # Example: Gol, Lazar and Belta (2013) solved by Bemporad–Morari
+# # Gol–Lazar–Belta: optimal control of a PWA system by MIQP
+#
+# | | |
+# |:--|:--|
+# | **System**        | 2-D discrete-time, piecewise affine |
+# | **Specification** | reach-avoid with a cost |
+# | **Solver**        | Bemporad–Morari (mixed-integer quadratic program) |
+#
+# Driven through MathOptInterface directly: a PWA system with an explicit cost is not
+# something the JuMP front-end can express.
 # This example reproduces parts of the numerical results of [3]. A similar example reproducing all results of [3] is available as a codeocean capsule in [4].
 #
 # This example was borrowed from [1, Example VIII.A] and tackles

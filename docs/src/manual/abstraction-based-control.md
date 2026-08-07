@@ -1,16 +1,78 @@
 # Abstraction-based control
 
-Given a mathematical description of the system dynamics and the specifications describing the desired closed-loop behavior of the system, **abstraction-based control** techniques involve synthesizing a **correct-by-construction** controller through a **systematic** three-step procedure.
-First, both the original system and the specifications are transposed into an abstract domain, resulting in an abstract system and corresponding abstract specifications.
-We refer to the original system as the concrete system as opposed to the abstract system.
-Next, an abstract controller is synthesized to solve this abstract control problem. Finally, in the third step, called **concretization** as opposed to **abstraction**, a controller for the original control problem is derived from the abstract controller.
+## The problem
 
-In practice, the abstract domain is constructed by discretizing the concrete state space of the concrete system into subsets (called **cells**).
-The value of this approach lies in the substitution of the concrete system (often a system with an infinite number of states) with a finite state system, which makes it possible to leverage powerful control tools from the graph-theoretic field, such as Dijkstra or the A-star algorithm.
-This three steps procedure is illustrated on the following figure.
+Designing a controller for a nonlinear system, with constraints, and *proving* that the closed loop
+meets its specification is hard. Classical control gives excellent tools for stability and tracking,
+but a specification like "reach this region within 20 seconds while never entering that one, and stay
+there afterwards" is not naturally expressed as a gain to tune. In practice such controllers are
+hand-crafted by experts and validated by simulation — which shows the absence of failure on the
+trajectories tried, not on the ones that were not.
+
+**Abstraction-based control** takes a different route: replace the system by a finite object, solve
+the problem exactly on that object with graph algorithms, and carry the solution back with a
+guarantee attached.
+
+## The three steps
 
 ![Abstraction-based control.](https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/assets/abstraction.png?raw=true)
 
-Although this approach offers a safety-critical framework, it suffers from the curse of dimensionality due to the exponential growth of the number of states with respect to the dimension.
-In order to render these techniques practical, it is necessary to construct **smart abstractions**, i.e., they differ from classical techniques in that the partitioning is designed smartly, using optimization-based design techniques, and computed iteratively, unlike the classical approach which uses an a priori defined approach, sub-optimal and subject to the curse of dimensionality.
-To this end, we propose solvers called **lazy solvers** (i.e. postponing heavier numerical operations) that co-design the abstraction and the controller to reduce the computed part of the abstraction.
+1. **Abstraction.** The state space is partitioned into **cells**, and each cell becomes one state of
+   a finite automaton. For every cell and every quantized input, the automaton gets a transition to
+   *every* cell the real system could land in. The specification is transposed the same way.
+2. **Synthesis.** The abstract problem is a game on a finite graph, and finite graphs are something
+   computers are very good at: Dijkstra, A\*, and fixed-point iterations over predecessor sets solve
+   it exactly, with no local minima and no tuning.
+3. **Concretization.** The abstract controller — a map from cells to quantized inputs — is turned
+   back into a controller for the original system: measure the state, find its cell, apply the input
+   the abstract controller assigns to it.
+
+Throughout, everything comes in pairs, and the vocabulary is used consistently across the toolbox:
+
+| Concrete | Abstract |
+| :--- | :--- |
+| the real system ``\dot x = f(x,u)`` | a finite automaton (the **symbolic model**) |
+| a state ``x \in \mathbb{R}^n`` | the **cell** containing it |
+| an input ``u \in \mathcal{U}`` | one of finitely many quantized inputs |
+| the specification | its transposition onto cells |
+| the controller you deploy | the map from cells to inputs |
+
+## What you get: soundness
+
+The transitions are built by **over-approximation**: a transition from cell ``c`` under input ``u``
+exists whenever the real system *could* move from somewhere in ``c`` into the target cell. The
+abstraction therefore admits at least every behaviour the real system has, and usually more.
+
+That is what makes the method **correct-by-construction**. A controller that wins the abstract game
+wins against a *more adversarial* opponent than reality, so it also works on the concrete system —
+and this is a theorem, not a simulation campaign. The relation that formalises it is an *alternating
+simulation*; when it holds in both directions the two systems are *bisimilar*.
+
+## What it costs
+
+Soundness is not free, and the two prices are what most of the research in Dionysos is about.
+
+**The curse of dimensionality.** The number of cells grows exponentially with the state dimension.
+Halving the grid step of a 3-D system multiplies the state count by 8 — and the transition count by
+more.
+
+**Spurious non-determinism.** Over-approximation adds behaviours the real system does not have. Push
+it too far and the abstract game becomes unwinnable even though the concrete problem is perfectly
+solvable. This is why a failure is reported as `LOCALLY_INFEASIBLE` rather than `INFEASIBLE`: it says
+*this abstraction* admits no controller, never that no controller exists.
+
+The two pull against each other. A finer grid means less spurious non-determinism and a better chance
+of success, at exponentially more work; a coarser grid is cheap and may prove nothing. Choosing the
+discretization is therefore the central modelling decision, not an implementation detail — which is
+why it is written explicitly in every Dionysos model.
+
+## The research direction: smart, lazy abstractions
+
+The uniform grid is the obvious construction, and the wasteful one: it spends the same effort
+everywhere, including in regions the controller will never visit. **Smart abstractions** design the
+partition instead of fixing it a priori — using optimization-based cell shapes, or refining only
+where the coarse abstraction turned out to be too coarse.
+
+**Lazy solvers** go further and co-design the abstraction with the controller, postponing the
+expensive numerical work and computing only the fragment of the abstraction that synthesis actually
+needs. Both are first-class solver families in [Overview](@ref).

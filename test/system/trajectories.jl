@@ -6,6 +6,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 import MathematicalSystems as MS
 import HybridSystems
 import Suppressor
+using Plots
 
 # ------------------------------------------------------------
 # Minimal controller types for tests
@@ -209,6 +210,35 @@ end
     # wrapper function
     wrapfun = UT.get_periodic_wrapper(periodic_dims, periods; start = start)
     @test wrapfun(x) == w
+end
+
+# Asserted through the full Plots pipeline (`plot` → `plt.series_list`); see
+# `test/utils/plotting.jl` for why that is the level that actually exercises a recipe.
+@testset "Trajectory recipe" begin
+    xs = [SVector(0.0, 0.0, 9.0), SVector(1.0, 0.5, 8.0), SVector(2.0, 1.0, 7.0)]
+    traj = ST.Trajectory(xs)
+
+    # One marker per state, plus one arrow per step.
+    plt = plot(traj)
+    @test length(plt.series_list) == 3 + 2
+    @test count(s -> s[:seriestype] === :scatter, plt.series_list) == 3
+    @test count(s -> s[:seriestype] === :path, plt.series_list) == 2
+
+    bare = plot(traj; with_arrows = false)
+    @test length(bare.series_list) == 3
+    @test all(s -> s[:seriestype] === :scatter, bare.series_list)
+
+    # Only the first point carries the label, so a trajectory is one legend entry, not 2n-1.
+    @test [s[:label] for s in plot(traj; label = "closed loop").series_list] == ["closed loop"; fill("", 4)]
+    @test [s[:label] for s in plot(traj).series_list] == fill("", 5)
+
+    # `dims` chooses the plane, markers and arrows alike.
+    proj = plot(traj; dims = [1, 3])
+    @test proj.series_list[1][:y] == [9.0]
+    @test proj.series_list[3][:y] == [9.0, 8.0]   # the first arrow
+
+    # A single-state trajectory has no steps at all: one marker, no arrows.
+    @test length(plot(ST.Trajectory([SVector(0.0, 0.0)])).series_list) == 1
 end
 
 end # module

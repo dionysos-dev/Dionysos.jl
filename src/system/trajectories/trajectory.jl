@@ -120,7 +120,7 @@ modes(traj::Trajectory) = traj.modes
 
 Base.length(traj::Trajectory) = length(traj.states)
 
-@recipe function f(traj::Trajectory; dims = [1, 2], arrows = true)
+@recipe function f(traj::Trajectory; dims = [1, 2], with_arrows = true)
     traj_label = get(plotattributes, :label, "")
     xs = states(traj)
 
@@ -137,7 +137,7 @@ Base.length(traj::Trajectory) = length(traj.states)
             label := ""
             UT.DrawPoint(xs[k + 1])
         end
-        if arrows
+        if with_arrows
             @series begin
                 dims := dims
                 label := ""

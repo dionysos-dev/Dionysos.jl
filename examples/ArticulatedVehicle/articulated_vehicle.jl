@@ -149,7 +149,7 @@ function plot_state_space!(
     plot!(Ip; dims = dims, color = :green, opacity = 0.2, label = "I")
     plot!(Tp; dims = dims, color = :red, opacity = 0.5, label = "T")
 
-    return plot!(x_traj; dims = dims, ms = 2.0, arrows = false)
+    return plot!(x_traj; dims = dims, ms = 2.0, with_arrows = false)
 end
 
 function script()

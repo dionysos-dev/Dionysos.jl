@@ -108,7 +108,7 @@ plot!(
     opacity = 0.8,
     label = "Initial set",
 );
-plot!(traj; ms = 2.0, arrows = false)
+plot!(traj; ms = 2.0, with_arrows = false)
 display(fig)
 
 # ------------------------------------------------------------

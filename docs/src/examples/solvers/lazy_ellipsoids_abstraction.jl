@@ -1,4 +1,18 @@
-# # Example: Reachability problem solved by lazy ellipsoids abstraction
+# # Lazy ellipsoids: building only the abstraction that synthesis needs
+#
+# | | |
+# |:--|:--|
+# | **System**        | 2-D continuous, nonlinear |
+# | **Specification** | reach |
+# | **Solver**        | lazy ellipsoids abstraction (RRT + SDP) |
+#
+# A *lazy* solver co-designs the abstraction with the controller: instead of gridding the whole
+# state space up front, it grows ellipsoidal cells along an RRT search and solves an SDP for the
+# local feedback in each one — computing only the fragment of the abstraction the search actually
+# reaches [calbert2024smart](@cite).
+#
+# Driven through MathOptInterface directly: the ellipsoid templates and the SDP solver it needs
+# are not expressible in the JuMP front-end.
 #
 
 import LazySets

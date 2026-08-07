@@ -347,4 +347,48 @@ end
     @test first(ST.modes(traj)) == 1
 end
 
+# A switched system — the switch *is* the control, so no mode carries a continuous input. Its
+# input space is zero-dimensional, which holds exactly one point: the action of leaving the
+# switch alone. Nothing needs to be declared for it; the front-end supplies that grid.
+@testset "a mode whose only control is the switch" begin
+    safe = UT.box(SVector(-2.0), SVector(2.0))
+
+    model = Model(Dionysos.Optimizer)
+    @variable(model, -2.0 <= x <= 2.0)
+    @mode(model, up)
+    @mode(model, down)
+    @constraint(up, ∂(x) == 1.0 - 0.5 * x)
+    @constraint(down, ∂(x) == -1.0 - 0.5 * x)
+
+    add_transition!(model, up => down) do t
+        return @constraint(t, [x] in Guard(safe))
+    end
+    add_transition!(model, down => up) do t
+        return @constraint(t, [x] in Guard(safe))
+    end
+
+    @constraint(up, [x] in Always(safe))
+    @constraint(down, [x] in Always(safe))
+
+    for m in (up, down)
+        set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.1)))
+        set_attribute(m, "time_step", 0.1)
+        set_attribute(m, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+        set_attribute(m, "jacobian_bound", u -> SMatrix{1, 1}(-0.5))
+        set_attribute(m, "print_level", 0)
+    end
+
+    optimize!(model)                     # no `input_grid` set anywhere
+    @test is_solved_and_feasible(model)
+
+    # One continuous input per mode — the "hold the switch" action, without which the state
+    # could not evolve — plus one switching input per transition.
+    gim = get_attribute(model, "abstract_system").input_mapping
+    @test gim.continuous_inputs == 2
+    @test gim.switching_inputs == 2
+
+    traj = Dionysos.simulate(model, (SVector(0.0), 1); nsteps = 40)
+    @test all(x ∈ safe for x in ST.states(traj))
+end
+
 end # module TestMain

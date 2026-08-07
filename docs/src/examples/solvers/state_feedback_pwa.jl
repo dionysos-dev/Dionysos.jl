@@ -1,5 +1,14 @@
 using Test     #src
-# # Example: Optimal control of a PWA system by state-feedback abstractions (uniform ellipsoid abstraction)
+# # State-feedback PWA: optimal control by uniform ellipsoid abstraction
+#
+# | | |
+# |:--|:--|
+# | **System**        | 2-D discrete-time, piecewise affine |
+# | **Specification** | reach-avoid with a cost |
+# | **Solver**        | uniform ellipsoid abstraction |
+#
+# Driven through MathOptInterface directly: the ellipsoidal cells and the SDP solver behind the
+# local piecewise-affine controllers are not expressible in the JuMP front-end.
 # 
 # This document reproduces [1, Example 2], which is a possible application of state-feedback transition system for the optimal control of piecewise-affine systems.
 # Consider a system $\mathcal{S}:=(\mathcal{X}, \mathcal{U},\rightarrow_F)$ with the transition function  
@@ -181,7 +190,7 @@ plot!(
 )
 plot!(UT.DrawPoint(concrete_problem.initial_set); color = :green, opacity = 1.0);
 plot!(UT.DrawPoint(concrete_problem.target_set); color = :red, opacity = 1.0)
-plot!(traj; ms = 2.0, arrows = false, color = :blue)
+plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
 
 # ## References
 #

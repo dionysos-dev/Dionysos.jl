@@ -124,10 +124,12 @@ end
 # ------------------------------------------------------------
 # Single abstract state
 # ------------------------------------------------------------
-@recipe function f(q::PCAbstractState; color = :blue, fillalpha = 0.25, show_label = true)
-    linecolor := color
-    fillcolor := color
-    fillalpha := fillalpha
+# The styling is declared with `-->` rather than taken as keyword arguments: Plots rewrites its
+# own attribute aliases (`color` becomes `seriescolor`) before a recipe runs, so a keyword named
+# `color` here could never be read. As defaults they behave the ordinary way — the caller wins.
+@recipe function f(q::PCAbstractState; show_label = true)
+    seriescolor --> :blue
+    fillalpha --> 0.25
     label := show_label ? "q$(q.id) [node=$(q.node), slice=$(q.slice), obs=$(q.obs)]" : ""
     return q.set
 end

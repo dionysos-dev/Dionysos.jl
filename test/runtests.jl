@@ -23,6 +23,7 @@ const TEST_FILES = [
     ("./utils/periodic.jl",),
     ("./utils/pclf.jl",),
     ("./utils/incremental_stability.jl",),
+    ("./utils/plotting.jl",),  # the DrawPoint/DrawArrow/DrawSegment recipes
     ("./symbolic/automaton.jl",),
     ("./system/vector_continuous_system.jl",),
     ("./system/reset_map.jl",),
@@ -42,6 +43,7 @@ const TEST_FILES = [
     ("./mapping/multi_level_mapping.jl",),
     ("./mapping/generic_sets.jl",),
     ("./mapping/abstract_state_set.jl",),
+    ("./mapping/recipes.jl",),  # plotting a state set over a grid mapping, + its helpers
     ("./symbolic/symbolic_model_list.jl",),
     ("./symbolic/clock_lift.jl",),
     ("./symbolic/lift_per_slice.jl",),
@@ -80,6 +82,8 @@ const TEST_FILES = [
     ("./optim/trajectory_certifiers_tube.jl",),
     ("./optim/trajectory_certifiers.jl", :slow),
     ("./optim/PCLFBisimulationQuotient/bisimulation_quotient.jl", :slow),
+    # The quotient recipes, on a hand-built quotient: no SDP solver, so not slow.
+    ("./optim/PCLFBisimulationQuotient/recipes.jl",),
     ("./optim/UniformEllipsoidAbstraction/uniform_ellipsoid_abstraction.jl", :slow),
     ("./optim/HybridSystemAbstraction/hybrid_helpers.jl",),
     ("./optim/HybridSystemAbstraction/hybrid_system_abstraction.jl", :slow),

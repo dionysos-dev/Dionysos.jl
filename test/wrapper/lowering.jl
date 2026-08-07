@@ -185,6 +185,7 @@ end
 
     set_role!(x, Dionysos.STATE)
     set_attribute(model, "dynamics", (x, u) -> u)
+    set_attribute(model, "time_domain", Dionysos.DISCRETE)
     @constraint(model, final(x) in MOI.Interval(-0.5, 0.5))
 
     set_attribute(model, "horizon", 4.0)

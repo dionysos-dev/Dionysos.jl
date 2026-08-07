@@ -355,31 +355,53 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         )
     end
 
-    @testset "Plots/recipes smoke tests" begin
-        # These tests aim for coverage: ensure recipes don't throw.
-        # Don't over-assert details to avoid brittleness.
-
+    # A problem recipe draws the sets that define the specification, one labelled series each.
+    # The labels *are* the contract — they tell the reader which region is which — so they are
+    # asserted rather than merely checking that nothing threw. Run through the full Plots
+    # pipeline; see `test/utils/plotting.jl` for why that is the level that exercises a recipe.
+    @testset "Plots recipes" begin
         X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
         sys = DummySystem(X)
-
-        region = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
-        p_empty = PR.AlternatingSimulationProblem(sys, region)
-
         XI = UT.box(SVector(-0.9, -0.9), SVector(-0.8, -0.8))
         XT = UT.box(SVector(0.8, 0.8), SVector(0.9, 0.9))
-        p_opt = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 3)
-
         XS = UT.box(SVector(-0.7, -0.7), SVector(0.7, 0.7))
-        p_safe = PR.SafetyProblem(sys, XI, XS, 4)
+        region = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
 
-        lab = Dict{Symbol, Any}(:ap => UT.box(SVector(0.2, 0.2), SVector(0.3, 0.3)))
-        ap_sem = Dict{Symbol, Any}(:ap => MP.INNER)
+        labels(p; kw...) = [s[:label] for s in plot(p; kw...).series_list]
+
+        @test labels(PR.AlternatingSimulationProblem(sys, region)) == ["Domain", "Region"]
+
+        # A reach-avoid problem only grows a "Safe set" series when it actually has one.
+        p_opt = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 3)
+        @test labels(p_opt) == ["Domain", "Initial set", "Target set"]
+        p_avoid =
+            PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 3; safe_set = XS)
+        @test labels(p_avoid) == ["Domain", "Safe set", "Initial set", "Target set"]
+
+        @test labels(PR.SafetyProblem(sys, XI, XS, 4)) ==
+              ["Domain", "Safe set", "Initial set"]
+
+        @test labels(PR.ReachAndStayProblem(sys, XI, XT, XS, PR.Infinity())) ==
+              ["Domain", "Safe set", "Target set", "Initial set"]
+
+        # One series per observation region, numbered; the enclosing region is optional.
+        p_bisim = PR.BisimulationQuotientProblem(sys, XS, [XI, XT])
+        @test labels(p_bisim) == ["Region", "O 1", "O 2"]
+        @test labels(p_bisim; plot_region = false) == ["O 1", "O 2"]
+
+        # A co-safe LTL problem draws one series per atomic proposition. The labelling is a
+        # `Dict`, so only the set of names is well defined, not their order.
+        lab = Dict{Symbol, Any}(
+            :goal => UT.box(SVector(0.2, 0.2), SVector(0.3, 0.3)),
+            :hazard => UT.box(SVector(-0.3, -0.3), SVector(-0.2, -0.2)),
+        )
+        ap_sem = Dict{Symbol, Any}(:goal => MP.INNER, :hazard => MP.OUTER)
         p_ltl = PR.CoSafeLTLProblem(sys, XI, :spec, lab, ap_sem)
+        @test Set(labels(p_ltl)) == Set(["Domain", "Initial set", "goal", "hazard"])
 
-        @test_nowarn plot(p_empty)
-        @test_nowarn plot(p_opt)
-        @test_nowarn plot(p_safe)
-        @test_nowarn plot(p_ltl)
+        plt = plot(p_ltl; ap_colors = Dict{Symbol, Any}(:goal => :magenta))
+        goal = plt.series_list[findfirst(s -> s[:label] == "goal", plt.series_list)]
+        @test goal[:fillcolor] == Plots.plot_color(:magenta)
     end
 end
 
