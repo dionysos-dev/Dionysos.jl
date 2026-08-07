@@ -26,7 +26,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
-const AB = DI.Optim.Abstraction
+const AB = DI.Optim.Abstraction;
 
 using Test     #src
 
@@ -115,7 +115,7 @@ concrete_controller = get_attribute(model, "concrete_controller");
 #
 # `simulate` takes the stopping criterion from the specification — here, reaching the target.
 
-trajectory = Dionysos.simulate(model, SVector(0.4, 0.4, 0.0); nsteps = 100)
+trajectory = Dionysos.simulate(model, SVector(0.4, 0.4, 0.0); nsteps = 100);
 
 @test last(ST.states(trajectory)) ∈ concrete_problem.target_set     #src
 
@@ -140,7 +140,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, with_arrows = false, color = :blue)
+plot!(trajectory; ms = 2.0, color = :blue)
 
 # The same run as an animation: the vehicle in its maze on the left, the state and input
 # channels on the right.
@@ -152,9 +152,9 @@ include(
         "PathPlanning",
         "path_planning.jl",
     ),
-)
+);
 
-obstacles = [UT.box(SVector(lo...), SVector(hi...)) for (lo, hi) in walls]
+obstacles = [UT.box(SVector(lo...), SVector(hi...)) for (lo, hi) in walls];
 
 anim = Dionysos.animate_trajectory_dashboard(
     PathPlanning.system_plot!(; obstacles = obstacles, xlims = (0, 4), ylims = (0, 10)),
@@ -167,5 +167,5 @@ anim = Dionysos.animate_trajectory_dashboard(
     ylims_state = (0, 10),
     xlabel_state = "x₁",
     ylabel_state = "x₂",
-)
+);
 gif(anim; fps = 5)
