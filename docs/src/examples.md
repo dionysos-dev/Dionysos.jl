@@ -15,11 +15,12 @@ guard.
 
 | Example | System | Specification | Front-end features |
 | :--- | :--- | :--- | :--- |
-| [Getting started](generated/getting_started.md) | 2-D continuous, nonlinear | reach-avoid | `∂`, `start`, `final`, `∉` |
+| [Getting started](generated/getting_started.md) | 2-D continuous, nonlinear | reach-and-stay | `∂`, `start`, `EventuallyAlways`, `∉` |
 | [Path planning](generated/path_planning.md) | 3-D continuous, nonlinear | reach-avoid | `∉` over several coordinates, `@expression` |
 | [Unicycle robot](generated/unicycle_robot.md) | 3-D discrete-time, nonlinear | reach-avoid | `Δ`, custom `growthbound_map` |
-| [DC-DC converter](generated/dcdc_converter.md) | 2-D continuous, switched by the input | safety | `Always`, dynamics as a Julia function, `time_domain`, two solvers on one problem |
+| [DC-DC converter](generated/dcdc_converter.md) | 2-D continuous, switched by the input | safety | `Always`, dynamics as a Julia function, `time_domain`, two solvers on one problem, the same plant re-encoded as a hybrid automaton with no continuous input |
 | [Thermostat](generated/thermostat.md) | 1-D hybrid, 2 modes with guards | reach | `@mode`, `add_transition!`, guards, per-mode bounds |
+| [Integrator](generated/integrator_ltl.md) | 2-D continuous, linear | co-safe LTL | `Label`, `@specification` — both a Spot formula and a hand-written monitor, `Start` over a region |
 
 ## Not covered yet
 
@@ -29,11 +30,7 @@ is a page worth writing, and the feature itself works today.
 | Missing example | Specification | Front-end features |
 | :--- | :--- | :--- |
 | a timed hybrid system | reach within a time window | clocks, reset maps, timed specifications |
-| an LTL task | co-safe LTL | `Label`, `@specification` |
-| a stabilisation task | reach-and-stay | `EventuallyAlways` |
 | a deadline | reach within a horizon | the `horizon` attribute |
-| a set-valued initial condition | any | `Start` over a region rather than a point |
-| a mode controlled only by switching | any | a hybrid mode with no continuous input — needs zero-dimensional input spaces in `Mapping`/`Symbolic` |
 
 ## Beyond the front-end
 

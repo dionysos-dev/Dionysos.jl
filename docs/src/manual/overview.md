@@ -43,15 +43,24 @@ Dionysos uses the system types of:
 
 ## Problems
 
-The specifications currently supported (see the [`Problem`](@ref Problem) reference for the full
-definitions):
+The specifications currently supported. Each is a system ``\mathcal{S}`` plus an initial set
+``\mathcal{I}``, a horizon ``T``, and whatever sets the property itself needs: a target
+``\mathcal{T}``, a safe set ``\mathcal{S}_{\text{safe}}``, a state cost ``\mathcal{V}`` and a
+transition cost ``\mathcal{C}``. See the [`Problem`](@ref Problem) reference for the full
+definitions.
 
-| Specification | Description |
-| :--- | :--- |
-| [Reach-avoid optimal control](@ref Dionysos.Problem.OptimalControlProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{T},\mathcal{V},\mathcal{C},T)``: reach a target set ``\mathcal{T}`` from an initial set ``\mathcal{I}`` within horizon ``T`` while avoiding obstacles, minimizing a state cost ``\mathcal{V}`` and a transition cost ``\mathcal{C}``. |
-| [Safety](@ref Dionysos.Problem.SafetyProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{S}_{\text{safe}},T)``: remain inside a safe set for the whole horizon ``T``. |
-| [Reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) | Eventually reach a target set and then remain in it. |
-| [Co-safe LTL](@ref Dionysos.Problem.CoSafeLTLProblem) | Satisfy a co-safe LTL formula, i.e. reach an accepting condition in finite time. |
+| Specification | Data | Property | Description |
+| :--- | :--- | :--- | :--- |
+| [Reach-avoid optimal control](@ref Dionysos.Problem.OptimalControlProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{T},\mathcal{V},\mathcal{C},T,\mathcal{S}_{\text{safe}})`` | ``\Box\,\mathcal{S}_{\text{safe}} \wedge \Diamond\,\mathcal{T}`` | Reach the target ``\mathcal{T}`` within horizon ``T`` without leaving ``\mathcal{S}_{\text{safe}}``, minimizing the accumulated cost. |
+| [Safety](@ref Dionysos.Problem.SafetyProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{S}_{\text{safe}},T)`` | ``\Box\,\mathcal{S}_{\text{safe}}`` | Never leave ``\mathcal{S}_{\text{safe}}``, for the whole horizon ``T``. |
+| [Reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) | ``(\mathcal{S},\mathcal{I},\mathcal{T},\mathcal{S}_{\text{safe}},T)`` | ``\Box\,\mathcal{S}_{\text{safe}} \wedge \Diamond\Box\,\mathcal{T}`` | Reach the target ``\mathcal{T}`` and remain in it from then on, without leaving ``\mathcal{S}_{\text{safe}}`` on the way. |
+| [Co-safe LTL](@ref Dionysos.Problem.CoSafeLTLProblem) | ``(\mathcal{S},\mathcal{I},\varphi,L)`` | ``\varphi`` | Satisfy a co-safe LTL formula ``\varphi`` over the regions named by the labelling ``L``, i.e. reach an accepting condition in finite time. |
+
+The safe set of a reach-avoid problem is optional (`nothing` means the whole state space), and it is
+**not** the same as carving the unsafe region out of the state set: a region removed from the state
+space is never abstracted, so the synthesis cannot reason about it, whereas a safe set keeps it
+representable and lets the controller actively avoid it. The front-end writes the first as `∉` and
+the second as `Always`.
 
 Two abstraction-only problems parametrize the construction of a reusable abstraction without a
 control objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem)
@@ -63,18 +72,18 @@ and [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientPr
 
 | Solver | Discretization | Partition/Cover | Cell shape | Local controller | Reference |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| [Uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | [SCOTS](https://dl.acm.org/doi/abs/10.1145/2883817.2883834) |
-| [Uniform ellipsoid abstraction](@ref Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piecewise affine | [State-feedback abstractions](https://arxiv.org/abs/2204.00315) |
+| [Uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | [rungger2016scots](@cite) |
+| [Uniform ellipsoid abstraction](@ref Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piecewise affine | [egidio2022state](@cite) |
 | [Lazy ellipsoids abstraction](@ref Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piecewise affine | [calbert2024smart](@cite) |
 | [Hybrid system abstraction](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | — |
-| [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | — | Partition | Polyhedral | — | [Branch and bound Q-learning](https://proceedings.mlr.press/v144/legat21a.html) |
+| [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | — | Partition | [Semi-linear set](@ref Dionysos.Utils.SemiLinearSet) | — | — |
 
 **Non abstraction-based solvers:**
 
 | Solver | Description | Reference |
 | :--- | :--- | :--- |
-| [Bemporad–Morari](@ref Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a mixed-integer quadratic program (MIQP). | [Bemporad & Morari (1999)](https://www.sciencedirect.com/science/article/abs/pii/S0005109898001782) |
-| [Branch and bound](@ref Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems combining branch and bound with Q-functions refined by Lagrangian duality. | [Legat et al. (2021)](https://proceedings.mlr.press/v144/legat21a.html) |
+| [Bemporad–Morari](@ref Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a mixed-integer quadratic program (MIQP). | [bemporad1999control](@cite) |
+| [Branch and bound](@ref Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems combining branch and bound with Q-functions refined by Lagrangian duality. | [legat2021abstraction](@cite) |
 
 Controller synthesis on an already-built automaton is available directly through the
 [discrete-system solvers](@ref "Discrete-system solvers").
