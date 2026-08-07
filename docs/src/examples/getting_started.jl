@@ -1,4 +1,10 @@
-# # Getting started: swinging up a pendulum
+# # Getting started: swinging up a pendulum and holding it there
+#
+# | | |
+# |:--|:--|
+# | **System**        | 2-D [continuous, nonlinear](https://juliareach.github.io/MathematicalSystems.jl/latest/lib/types/#MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem), with a periodic coordinate |
+# | **Specification** | [reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) |
+# | **Solver**        | [uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) |
 #
 # This page is one complete run of Dionysos, from a differential equation to a controller
 # with a certificate and a simulation of the closed loop. Every other example is the same
@@ -12,9 +18,11 @@
 # ```
 #
 # The torque is too weak to lift the pendulum directly, so the controller has to *swing* it:
-# rock back and forth to pump in energy, then catch it upright at $x_1 = \pi$. Nothing below
-# tells it to do that. We state where it starts, where it must end up, and how finely to
-# discretise; the swing-up comes out of the synthesis.
+# rock back and forth to pump in energy, then catch it upright at $x_1 = \pi$ — and **keep it
+# there**, which is the harder half. Balancing at $\pi$ is an unstable equilibrium: left alone
+# the pendulum falls straight back down, so staying up is an active, permanent task rather than
+# something that happens once. Nothing below tells the controller to swing. We state where it
+# starts, where it must end up and remain, and how finely to discretise; the rest is synthesis.
 
 using StaticArrays, JuMP, Plots
 using Symbolics, MathOptSymbolicAD
@@ -24,6 +32,7 @@ const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
 const MP = DI.Mapping
+const SY = DI.Symbolic;
 
 using Test     #src
 
@@ -52,21 +61,27 @@ model = Model(Dionysos.Optimizer);
 # side is an input.
 
 @constraint(model, ∂(x1) == x2)
-@constraint(model, ∂(x2) == -(g / l) * sin(x1) + u)
+@constraint(model, ∂(x2) == -(g / l) * sin(x1) + u);
 
 # ## Step 2 — state the specification
 #
-# `start` and `final` are **sets**, not points. Here: start near the bottom with a little
-# velocity, finish near the top having nearly stopped.
+# `start` is a **set**, not a point: begin near the bottom with a little velocity.
 
 @constraint(model, start(x1) in MOI.Interval(-0.09, 0.09))
-@constraint(model, start(x2) in MOI.Interval(-0.5, 0.5))
+@constraint(model, start(x2) in MOI.Interval(-0.5, 0.5));
 
-# The upright position sits exactly on the seam of the period, so the target box straddles it.
-# That is fine: the periodic mapping splits it into the two pieces at either end of the turn.
+# The goal is a *region* of the state space — near the top, having nearly stopped. The upright
+# position sits exactly on the seam of the period, so this box straddles it. That is fine: the
+# periodic mapping splits it into the two pieces at either end of the turn.
 
-@constraint(model, final(x1) in MOI.Interval(π - 15π / 180, π + 15π / 180))
-@constraint(model, final(x2) in MOI.Interval(-1.0, 1.0))
+upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
+
+# `EventuallyAlways` is ◇□ — *reach* the region and then *never leave it*. That is a stronger
+# demand than `Final`, which would be satisfied by a trajectory that touches the target once
+# and falls over immediately afterwards. Here the controller must find states from which it can
+# hold the pendulum up forever, and steer into those.
+
+@constraint(model, [x1, x2] in EventuallyAlways(upright));
 
 # One more thing makes the task interesting: a band of angles the pendulum is not allowed to
 # pass through. Written over a single coordinate, `∉` is a full-height wall — the box spans
@@ -79,8 +94,9 @@ model = Model(Dionysos.Optimizer);
 # space, so those cells are never built. The alternative, `x in Always(S)`, keeps the cells
 # and asks the controller to avoid them — use that when staying inside `S` is the *goal*.
 #
-# Beyond `Final` and `Always`, the front-end also expresses `EventuallyAlways(S)` (reach `S`
-# and stay) and co-safe LTL formulas over named regions — see the [manual](@ref Overview).
+# Beyond `EventuallyAlways`, `Final` and `Always`, the front-end also expresses co-safe LTL
+# formulas over named regions — see [Integrator: co-safe LTL](integrator_ltl.md) and the
+# [manual](@ref Overview).
 
 # ## Step 3 — choose the abstraction
 #
@@ -92,7 +108,7 @@ model = Model(Dionysos.Optimizer);
 # one `time_step`.
 
 set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, 1.0, g / l, 0.0))
-set_attribute(model, "time_step", 0.1)
+set_attribute(model, "time_step", 0.1);
 
 # A periodic coordinate constrains its grid: the period must be a whole number of cells, and the
 # origin must sit half a cell inside it, so that the two ends of the turn line up exactly. A 3°
@@ -100,7 +116,7 @@ set_attribute(model, "time_step", 0.1)
 
 h = SVector(3π / 180, 0.05)
 set_attribute(model, "state_grid", MP.GridFree(SVector(-π + h[1] / 2, 0.0), h))
-set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.3)))
+set_attribute(model, "input_grid", MP.GridFree(SVector(0.0), SVector(0.3)));
 
 # Declaring the angle periodic makes the abstraction identify the two ends of the turn, so a
 # swing through $\pi$ costs nothing extra. `print_level = 0` keeps the solver quiet; raise it to
@@ -111,6 +127,14 @@ set_attribute(model, "periodic_dims", SVector(1))
 set_attribute(model, "periodic_periods", SVector(2π))
 set_attribute(model, "periodic_start", SVector(-π))
 set_attribute(model, "print_level", 0);
+
+# One more choice, and on this problem it is worth a factor of fifty. The automaton backing the
+# abstraction can be stored several ways, which trade memory against the speed of `pre` — the
+# predecessor query. Reach-and-stay synthesis is a fixed point over `pre`, so it makes that query
+# millions of times, and the default compact backend turns out to be the wrong trade here: with
+# it this page takes half an hour, with dense indices it takes half a minute.
+
+set_attribute(model, "automaton_constructor", (n, m) -> SY.FastIndexedAutomatonList(n, m));
 
 # The grid step is the one number to reach for when a problem does not solve. Finer cells
 # mean a less conservative over-approximation and a better chance of success — at a cost
@@ -139,39 +163,48 @@ termination_status(model)
 concrete_problem = get_attribute(model, "concrete_problem");
 concrete_controller = get_attribute(model, "concrete_controller");
 abstract_system = get_attribute(model, "abstract_system");
-abstract_value_function = get_attribute(model, "abstract_value_function");
+winning_set = get_attribute(model, "winning_set");
 
-# The controller does not come alone. `abstract_value_function` is its **certificate**: for
-# every cell from which the target is reachable, it bounds the worst-case cost of getting
-# there. Cells absent from it are the ones no input sequence can steer to the target — the
-# controller is honest about where it does not work.
-
-# Drawing that value function over the abstraction is the clearest picture of what synthesis
-# produced, but this grid has tens of thousands of cells and each one is a separate shape;
-# [Path planning](path_planning.md) shows it on a coarser abstraction where it renders
-# quickly.
+# The controller does not come alone. For a reach-and-stay task the certificate is the
+# **winning set**: the cells from which the specification can be enforced. Every state in it can
+# be driven to the upright region and held there indefinitely, and no state outside it can. A
+# controller that works only somewhere is useless unless you know where — that set is the
+# "where", and it is what makes the result a guarantee rather than a demonstration.
 
 # ## Step 5 — run the closed loop
 #
-# `simulate` takes the stopping criterion from the specification, so it stops on reaching the
-# target set rather than after a fixed number of steps.
+# `simulate` normally takes its stopping criterion from the specification, which for
+# reach-and-stay means "stop on first entering the target". That would cut the run at the
+# instant the pendulum arrives, hiding the half of the task we care about, so we override it and
+# choose the horizon by hand: long enough to show the swing-up, the catch and a stretch of
+# balancing, and no longer.
 
-trajectory = Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 200)
+trajectory =
+    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 124, stopping = _ -> false);
 
-@test last(ST.states(trajectory)) ∈ concrete_problem.target_set     #src
+@test last(ST.states(trajectory)) ∈                                                      #src
+      UT.set_in_period(upright, SVector(1), SVector(2π), SVector(-π))                    #src
 
 # In the phase plane: the state space with the forbidden band cut out of it, the initial and
-# target sets, and the closed-loop trajectory running between them. The trajectory has to
-# spiral outwards to build up energy before it can be caught at the top — and it does so
-# without ever entering the wall.
+# target sets, the winning set, and the closed-loop trajectory. The trajectory has to spiral
+# outwards to build up energy before it can be caught at the top — without ever entering the
+# wall — and the run ends on the last step it is still balanced there.
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; ms = 1.0, with_arrows = false, color = :blue)
+plot!(
+    (winning_set, SY.get_state_mapping(abstract_system));
+    color = :purple,
+    opacity = 0.25,
+    linecolor = :purple,
+    label = "Winning set",
+)
+plot!(trajectory; ms = 1.0, color = :blue)
 
 # The same run as an animation — the pendulum itself on the left, the phase portrait and the
 # applied torque on the right. The swinging is easiest to see here: the trajectory spirals
-# outwards, gaining energy, before it is caught at the top.
+# outwards, gaining energy, is caught at the top, and then the torque keeps working in small
+# corrections to hold it there.
 
 include(
     joinpath(
@@ -180,7 +213,7 @@ include(
         "Pendulum",
         "simple_pendulum.jl",
     ),
-)
+);
 
 anim = Dionysos.animate_trajectory_dashboard(
     SimplePendulum.system_plot!(),
@@ -192,12 +225,12 @@ anim = Dionysos.animate_trajectory_dashboard(
     xlabel_state = "θ [rad]",
     ylabel_state = "ω [rad/s]",
     ylabel_input = "τ [N·m]",
-)
+);
 
 # `fps` is playback speed, not render cost — pick it from the frame count so the animation runs
 # for roughly ten seconds rather than flashing past.
 
-gif(anim; fps = 4)
+gif(anim; fps = 6)
 
 # ## Where to go next
 #
