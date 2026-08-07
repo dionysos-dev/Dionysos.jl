@@ -19,7 +19,13 @@ const TIER_INDEX = Dict("jump" => "examples.md")
 # else is appended alphabetically with a notice. This keeps a new example working with no
 # edit to this file, while still letting the reading order be curated.
 const ORDER = Dict(
-    "jump" => ["path_planning", "unicycle_robot", "dcdc_converter", "thermostat"],
+    "jump" => [
+        "path_planning",
+        "unicycle_robot",
+        "dcdc_converter",
+        "thermostat",
+        "integrator_ltl",
+    ],
     "solvers" =>
         ["gol_lazar_belta", "lazy_ellipsoids_abstraction", "state_feedback_pwa"],
 )
