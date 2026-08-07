@@ -75,6 +75,14 @@ function _stopping_for(p::PR.SafetyProblem, fold = nothing)
 end
 _stopping_for(::Any, fold = nothing) = _ -> false
 
+# Whether the closed loop must feed the *next* measurement to the controller's memory update.
+# A co-safe controller's memory is the specification automaton, and that automaton reads the
+# labels of the state the system lands in. Handing it the current state instead desynchronises
+# the monitor by one step, which does not fail loudly — it silently truncates the run and
+# reports a trajectory that never satisfies the formula.
+_update_on_next(::PR.CoSafeLTLProblem) = true
+_update_on_next(::Any) = false
+
 const HSA = OP.Abstraction.HybridSystemAbstraction
 
 # A hybrid closed loop steps the augmented state `(x[, t], mode)` and needs the abstraction
@@ -151,6 +159,7 @@ function simulate(model::Optimizer, x0; nsteps::Int = 100, stopping = nothing)
         nsteps;
         stopping = stop,
         wrap = wrap,
+        update_on_next = _update_on_next(model.problem),
     )
 end
 
