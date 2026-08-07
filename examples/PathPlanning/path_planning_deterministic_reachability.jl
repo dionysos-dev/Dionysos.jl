@@ -113,7 +113,7 @@ plot!(
     color = :red,
     efficient = false,
 )
-plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
+plot!(traj; ms = 2.0, color = :blue)
 display(fig)
 
 ####################################################################################
@@ -205,6 +205,6 @@ plot!(
     color = :red,
     efficient = false,
 )
-plot!(traj; ms = 2.0, with_arrows = false, color = :blue)
-plot!(new_traj; ms = 2.0, with_arrows = false, color = :red)
+plot!(traj; ms = 2.0, color = :blue)
+plot!(new_traj; ms = 2.0, color = :red)
 display(fig)

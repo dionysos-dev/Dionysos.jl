@@ -125,11 +125,6 @@ safe_set =
     UT.set_in_period(concrete_problem.safe_set, periodic_dims, periods, periodic_start)
 
 nstep = 150
-
-function stayed_in_target_after(x_traj, k)
-    return all(x -> x ∈ target_set, x_traj[k:end])
-end
-
 x0 = SVector(UT.sample(concrete_problem.initial_set)...)
 
 traj = ST.get_closed_loop_trajectory(
@@ -174,7 +169,7 @@ plot!(
 
 plot!(target_set; color = :red, opacity = 0.8, label = "Target set")
 
-plot!(traj; ms = 2.0, with_arrows = false, label = "Closed-loop trajectory")
+plot!(traj; ms = 2.0, label = "Closed-loop trajectory")
 
 display(fig)
 
