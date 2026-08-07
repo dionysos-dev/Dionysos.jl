@@ -639,8 +639,13 @@ end
 _vector_of_tuple(size, value = 0.0) = SVector(ntuple(_ -> value, Val(size)))
 
 function build_noise(optimizer::OptimizerAlternatingSimulationProblem)
-    @warn("Noise is not yet accounted for in system abstraction.")
     concrete_system = optimizer.alternating_simulation_problem.system
+    # Only a system that actually carries noise loses anything here, so only that case is
+    # worth a warning — every abstraction build used to emit one, once per mode. `isnoisy`
+    # falls back to `nothing` on a type that declares no trait, hence the `=== true`.
+    if concrete_system isa MS.AbstractSystem && MS.isnoisy(concrete_system) === true
+        @warn("Noise is not yet accounted for in system abstraction.")
+    end
     return _vector_of_tuple(LazySets.dim(concrete_system.X))
 end
 
