@@ -140,7 +140,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, arrows = false, color = :blue)
+plot!(trajectory; ms = 2.0, with_arrows = false, color = :blue)
 
 # The same run as an animation: the vehicle in its maze on the left, the state and input
 # channels on the right.

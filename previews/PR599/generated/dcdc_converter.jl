@@ -1,5 +1,7 @@
 using StaticArrays, JuMP, Plots
 
+using Symbolics, MathOptSymbolicAD
+
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -47,7 +49,7 @@ trajectory = Dionysos.simulate(model, SVector(1.2, 5.6); nsteps = 300)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; arrows = false, ms = 2.0, color = :blue)
+plot!(trajectory; with_arrows = false, ms = 2.0, color = :blue)
 
 anim = Dionysos.animate_trajectory_dashboard(
     DCDC.system_plot!(),
@@ -101,6 +103,52 @@ traj2 = ST.get_closed_loop_trajectory(
 
 fig2 = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(traj2; arrows = false, ms = 2.0, color = :blue)
+plot!(traj2; with_arrows = false, ms = 2.0, color = :blue)
+
+hybrid = Model(Dionysos.Optimizer);
+@variable(hybrid, 1.15 <= xh[i = 1:2] <= 1.55)
+set_lower_bound(xh[2], 5.45)
+set_upper_bound(xh[2], 5.85)
+
+@mode(hybrid, closed)
+@mode(hybrid, opened);
+
+A1, A2 = DCDC.A1(), DCDC.A2()
+bvec = SVector(DCDC.Params().vs / DCDC.Params().xL, 0.0)
+
+@constraint(closed, ∂(xh[1]) == A1[1, 1] * xh[1] + A1[1, 2] * xh[2] + bvec[1])
+@constraint(closed, ∂(xh[2]) == A1[2, 1] * xh[1] + A1[2, 2] * xh[2] + bvec[2])
+@constraint(opened, ∂(xh[1]) == A2[1, 1] * xh[1] + A2[1, 2] * xh[2] + bvec[1])
+@constraint(opened, ∂(xh[2]) == A2[2, 1] * xh[1] + A2[2, 2] * xh[2] + bvec[2]);
+
+add_transition!(hybrid, closed => opened) do t
+    return @constraint(t, xh in Guard(safe))
+end
+add_transition!(hybrid, opened => closed) do t
+    return @constraint(t, xh in Guard(safe))
+end
+
+@constraint(closed, xh in Always(safe))
+@constraint(opened, xh in Always(safe));
+
+for md in (closed, opened)
+    set_attribute(md, "state_grid", MP.GridFree(SVector(0.0, 0.0), 4 .* hx))
+    set_attribute(md, "time_step", 0.5)
+    set_attribute(md, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+    set_attribute(md, "jacobian_bound", u -> DCDC.jacobian_bound()(SVector(1)))
+    set_attribute(md, "print_level", 0)
+end
+
+optimize!(hybrid);
+
+termination_status(hybrid)
+
+input_map = get_attribute(hybrid, "abstract_system").input_mapping;
+(input_map.continuous_inputs, input_map.switching_inputs)
+
+hybrid_traj = Dionysos.simulate(hybrid, (SVector(1.2, 5.6), 1); nsteps = 200)
+
+
+sort(unique(ST.modes(hybrid_traj)))
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl

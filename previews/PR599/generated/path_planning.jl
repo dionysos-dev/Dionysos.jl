@@ -69,7 +69,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, arrows = false, color = :blue)
+plot!(trajectory; ms = 2.0, with_arrows = false, color = :blue)
 
 include(
     joinpath(

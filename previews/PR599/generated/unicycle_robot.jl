@@ -108,7 +108,7 @@ plot!(
     opacity = 0.5,
     label = "Target set",
 )
-plot!(trajectory; ms = 2.0, arrows = false, lw = 2, color = :blue)
+plot!(trajectory; ms = 2.0, with_arrows = false, lw = 2, color = :blue)
 
 function cart_plot!(fig, x, u)
     θ = Float64(x[3])

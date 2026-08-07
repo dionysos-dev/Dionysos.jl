@@ -52,7 +52,7 @@ trajectory = Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 200)
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)
-plot!(trajectory; ms = 1.0, arrows = false, color = :blue)
+plot!(trajectory; ms = 1.0, with_arrows = false, color = :blue)
 
 include(
     joinpath(
