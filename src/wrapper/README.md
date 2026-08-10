@@ -177,10 +177,12 @@ Name regions of the state space, then write a formula over them. The atomic prop
 **constraint's name**:
 
 ```julia
+using Spot
+
 @constraint(model, goal,   x in Label(LazySets.Hyperrectangle(; low = [3.0, 0.3], high = [3.6, 0.8])))
 @constraint(model, hazard, x in Label(obstacle_region; semantics = MP.OUTER))
 
-@specification(model, "F(goal) & G(!hazard)")     # ◇goal ∧ □¬hazard
+@specification(model, ltl"F(goal) & G(!hazard)")     # ◇goal ∧ □¬hazard
 ```
 
 An anonymous `Label` is an error — the formula would have nothing to refer to.
@@ -189,14 +191,9 @@ An anonymous `Label` is an error — the formula would have nothing to refer to.
 inside it, which is the conservative reading for something you must reach; `OUTER` keeps every cell
 that touches it, the conservative reading for something you must avoid.
 
-With Spot loaded you can pass a formula object instead of a string:
-
-```julia
-using Spot
-@specification(model, ltl"F(goal) & G(!hazard)")
-```
-
-A hand-written monitor — any `Optim.DiscreteSystems.AbstractSpecStepper` — is accepted too.
+`@specification` takes either a **`Spot.SpotFormula`** — that is the `ltl"…"` macro, so `using
+Spot` is required — or any `Optim.DiscreteSystems.AbstractSpecStepper`, such as a hand-written
+`FunctionMonitor`. A plain `String` is *not* accepted; there is no built-in LTL parser.
 
 ### 5.3 Which one to use
 
