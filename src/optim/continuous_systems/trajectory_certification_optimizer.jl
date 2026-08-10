@@ -16,10 +16,18 @@ mutable struct Optimizer{TG, TC, T} <: OP.AbstractDionysosOptimizer
     trajectory_generator::TG
     trajectory_certifier::TC
 
+    # Generate ⇄ certify loop (plan.md §6): on a failed certification, `replan!`
+    # (a `(generator, certifier) -> Nothing` hook, e.g. re-seeding or retargeting
+    # the prefix at the certified suffix's entry ellipsoid) reconfigures the
+    # generator and another round runs, up to `max_rounds` in total.
+    max_rounds::Int
+    replan!::Any
+
     trajectory::Any
     controller::Any
 
     success::Bool
+    rounds::Int
     solve_time_sec::T
     print_level::Int
 end
@@ -29,9 +37,12 @@ function Optimizer(trajectory_generator, trajectory_certifier)
         nothing,
         trajectory_generator,
         trajectory_certifier,
+        1,
+        nothing,
         nothing,
         nothing,
         false,
+        0,
         0.0,
         1,
     )
@@ -57,28 +68,36 @@ function MOI.optimize!(opt::Optimizer)
     opt.trajectory = nothing
     opt.controller = nothing
     opt.success = false
+    opt.rounds = 0
     opt.solve_time_sec = 0.0
 
     AB.set_problem!(opt.trajectory_generator, opt.concrete_problem)
     AB.set_problem!(opt.trajectory_certifier, opt.concrete_problem)
 
-    AB.generate!(opt.trajectory_generator)
+    for round in 1:max(opt.max_rounds, 1)
+        opt.rounds = round
 
-    gen_success = AB.get_success(opt.trajectory_generator)
-    opt.trajectory = AB.get_trajectory(opt.trajectory_generator)
+        AB.generate!(opt.trajectory_generator)
 
-    if !gen_success
-        opt.solve_time_sec = time() - t0
-        return
+        gen_success = AB.get_success(opt.trajectory_generator)
+        opt.trajectory = AB.get_trajectory(opt.trajectory_generator)
+
+        if gen_success
+            AB.set_trajectory!(opt.trajectory_certifier, opt.trajectory)
+            AB.certify!(opt.trajectory_certifier)
+
+            if AB.get_success(opt.trajectory_certifier)
+                opt.controller = AB.get_controller(opt.trajectory_certifier)
+                opt.success = true
+                break
+            end
+        end
+
+        round == opt.max_rounds && break
+        opt.replan! === nothing ||
+            opt.replan!(opt.trajectory_generator, opt.trajectory_certifier)
     end
 
-    AB.set_trajectory!(opt.trajectory_certifier, opt.trajectory)
-    AB.certify!(opt.trajectory_certifier)
-
-    cert_success = AB.get_success(opt.trajectory_certifier)
-
-    opt.controller = AB.get_controller(opt.trajectory_certifier)
-    opt.success = gen_success && cert_success
     opt.solve_time_sec = time() - t0
 
     return

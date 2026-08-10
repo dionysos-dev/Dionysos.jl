@@ -160,6 +160,20 @@ const EB = AB.EllipsoidalTrajectoryCertifier
     @test length(fw_res.lmi_data.ellipsoids) == length(ST.states(traj)) ||
           fw_res.failed_k !== nothing
 
+    # 2c) Bidirectional handoff: certified as soon as the forward tube at some
+    #     state is contained in the backward funnel there; on success the spliced
+    #     funnel controller covers the whole horizon.
+    bi_fw = EB.ForwardCertifier(provider, Clarabel.Optimizer, fwd_opts)
+    bi_bw = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    handoff = EB.bidirectional_certify!(bi_fw, bi_bw, concrete_problem, traj)
+    @test handoff.success isa Bool
+    @test handoff.forward_result !== nothing
+    @test handoff.backward_result !== nothing
+    if handoff.success
+        @test handoff.controller isa ST.FunnelController
+        @test 1 <= handoff.k_handoff <= length(ST.states(traj))
+    end
+
     # 3) Combined trajectory-generation + certification optimizer: a composite generator
     #    (optimizer seed refined by MPPI) feeding the certifier, driven through MOI.
     discrete_problem = PR.discretize_problem(concrete_problem, Δt)
@@ -184,10 +198,22 @@ const EB = AB.EllipsoidalTrajectoryCertifier
     tc_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(combo_gen, tc_cert)
     MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("max_rounds"), 2)
+    replan_calls = Ref(0)
+    MOI.set(
+        tc_optimizer,
+        MOI.RawOptimizerAttribute("replan!"),
+        (gen, cert) -> (replan_calls[] += 1),
+    )
     MOI.optimize!(tc_optimizer)
     @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("trajectory")) !== nothing
     @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success")) isa Bool
     @test MOI.get(tc_optimizer, MOI.SolveTimeSec()) >= 0.0
+    rounds = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("rounds"))
+    @test 1 <= rounds <= 2
+    # the hook fires exactly between failed rounds
+    @test replan_calls[] == rounds - 1 ||
+          MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success"))
 end
 
 end # module TestMain

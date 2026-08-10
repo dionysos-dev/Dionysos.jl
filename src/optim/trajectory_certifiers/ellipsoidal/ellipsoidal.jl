@@ -43,7 +43,8 @@ export BackwardCertifier,
     build_context,
     backward_step!,
     forward_step!,
-    run_chain!
+    run_chain!,
+    bidirectional_certify!
 
 include("options.jl")
 include("diagnostics.jl")
@@ -54,5 +55,6 @@ include("gates.jl")
 include("chain.jl")
 include("certifier.jl")
 include("forward.jl")
+include("bidirectional.jl")
 
 end # module
