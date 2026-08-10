@@ -142,22 +142,6 @@ plot!(
 )
 plot!(trajectory; ms = 2.0, color = :blue)
 
-# Plotting the plane hides a third of the state. The orientation $x_3$ is not decoration here —
-# it is why the vehicle cannot simply slide sideways past a wall, and why the route through the
-# corridor looks longer than it needs to. Drawing it as a short arrow at every few steps puts
-# that back on the picture: where the ticks fan out, the vehicle is turning on the spot; where
-# they line up with the path, it is driving straight.
-
-for x in ST.states(trajectory)[1:4:end]
-    base = SVector(x[1], x[2])
-    plot!(
-        UT.DrawArrow(base, base + 0.4 * SVector(cos(x[3]), sin(x[3])));
-        color = :black,
-        lw = 1,
-    )
-end
-fig
-
 # The same run as an animation: the vehicle in its maze on the left, the state and input
 # channels on the right.
 
