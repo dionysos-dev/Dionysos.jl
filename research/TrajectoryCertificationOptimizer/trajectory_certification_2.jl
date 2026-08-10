@@ -140,7 +140,7 @@ combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
 # 5) Ellipsoidal backward certifier
 # ------------------------------------------------------------
 
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 Symbolics.@variables x[1:2]
 Symbolics.@variables u[1:2]
@@ -195,7 +195,7 @@ trans_cost = UT.QuadraticStateControlFunction(
 # therefore the local affine approximation is exact. The Jacobians are constant, the Lipschitz remainder is identically zero, and the nonlinear error bounds vanish. Consequently, the parameters linearization_δx and linearization_δu do not affect the accuracy of the model approximation itself. Their only role is through the consistency checks used by the certification algorithm.
 # In particular, when adaptive linearization boxes are enabled, the algorithm computes the state and input radii required to certify a transition. Since the dynamics are exactly linear, these radii are not needed to control any linearization error; they only determine whether the current linearization domain is large enough to contain the certified state and input deviations. Failures such as :inconsistent_at_max_box therefore indicate that the certified ellipsoid requires a larger admissible state or input region than allowed by the current box limits, rather than any issue with the quality of the linear approximation.
 # As a result, this toy example is useful for debugging the LMI formulation and controller synthesis independently of nonlinear approximation effects. Any certification failure can be attributed to feasibility, numerical conditioning, input constraints, or box-consistency checks, but not to linearization error.
-ellip_opts = EB.EllipsoidalBackwardOptions(;
+ellip_opts = EB.ChainOptions(;
     maxδx = 1e6, # Upper bound on predecessor ellipsoid size. Larger makes the LMI easier. 
     maxδu = 1e6, # Upper bound on controller/input deviation (deviation from nominal input). Larger makes the LMI easier.
     λ = 0.3, # Objective tradeoff. Small λ favors larger ellipsoids; large λ favors lower transition cost.
@@ -211,7 +211,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
 
-certifier = EB.TrajectoryCertifier(provider, sdp_optimizer, ellip_opts)
+certifier = EB.BackwardCertifier(provider, sdp_optimizer, ellip_opts)
 
 # ------------------------------------------------------------
 # 6) Modular trajectory-generation + certification optimizer

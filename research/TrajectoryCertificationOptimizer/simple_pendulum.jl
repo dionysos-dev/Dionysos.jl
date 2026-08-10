@@ -174,7 +174,7 @@ combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
 # 5) Ellipsoidal backward certifier
 # ------------------------------------------------------------
 
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 # Symbolics.@variables x[1:2]
 # Symbolics.@variables u[1:1]
@@ -240,7 +240,7 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,                 # Verbose/debug output
 )
 
-ellip_opts = EB.EllipsoidalBackwardOptions(;
+ellip_opts = EB.ChainOptions(;
     maxδx = 1.5,
     maxδu = 3.0,
     λ = 0.001,
@@ -253,7 +253,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
 
-certifier = EB.TrajectoryCertifier(provider, sdp_optimizer, ellip_opts)
+certifier = EB.BackwardCertifier(provider, sdp_optimizer, ellip_opts)
 
 # ------------------------------------------------------------
 # 6) Modular trajectory-generation + certification optimizer

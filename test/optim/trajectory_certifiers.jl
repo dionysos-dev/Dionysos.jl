@@ -12,7 +12,7 @@ using Random
 
 include("../../problems/Integrator/integrator.jl")
 
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 # Contract test for the trajectory certifiers. Builds a tiny reach trajectory with the
 # optimizer-based generator, then certifies it with both the uniform-grid certifier and
@@ -121,7 +121,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         :first_consistent,
         true,
     )
-    ellip_opts = EB.EllipsoidalBackwardOptions(;
+    ellip_opts = EB.ChainOptions(;
         maxδx = 30,
         maxδu = 1.0,
         λ = 0.05,
@@ -131,7 +131,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         adaptive_boxes = adaptive_opts,
         use_log_det = false,
     )
-    eb_cert = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    eb_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     AB.set_problem!(eb_cert, concrete_problem)
     AB.set_trajectory!(eb_cert, traj)
     AB.certify!(eb_cert)
@@ -159,7 +159,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         Δt = Δt,
         num_substeps = 5,
     )
-    tc_cert = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    tc_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(combo_gen, tc_cert)
     MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
     MOI.optimize!(tc_optimizer)

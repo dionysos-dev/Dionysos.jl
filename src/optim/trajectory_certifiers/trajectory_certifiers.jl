@@ -21,4 +21,4 @@ get_success(cert::AbstractTrajectoryCertifier) = false
 get_solve_time(cert::AbstractTrajectoryCertifier) = NaN
 
 include("uniform_grid_trajectory_certifier.jl")
-include("ellipsoidal_backward_trajectory_certifier.jl")
+include("ellipsoidal/ellipsoidal.jl")

@@ -249,7 +249,7 @@ end
 
 using Symbolics
 
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 Symbolics.@variables x[1:2]
 Symbolics.@variables u[1:2]
@@ -289,7 +289,7 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,                   # keep_first_consistent
 )
 
-ellip_opts = EB.EllipsoidalBackwardOptions(;
+ellip_opts = EB.ChainOptions(;
     # These limit the size of the computed predecessor ellipsoid and controller deviation. Larger values make certification easier.
     maxδx = 30,
     maxδu = 1.0,
@@ -305,7 +305,7 @@ ellip_opts = EB.EllipsoidalBackwardOptions(;
 using Clarabel
 backend = Clarabel.Optimizer
 
-certifier = EB.TrajectoryCertifier(provider, backend, ellip_opts)
+certifier = EB.BackwardCertifier(provider, backend, ellip_opts)
 
 AB.set_problem!(certifier, concrete_problem)
 AB.set_trajectory!(certifier, composite_traj)
@@ -321,7 +321,7 @@ cert_result = EB.get_result(certifier)
 # 8) Trajectory-generation + certification optimizer
 # ------------------------------------------------------------
 
-certifier = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+certifier = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
 
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
     trajectory_generator,

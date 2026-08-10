@@ -42,7 +42,7 @@ const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
 const AB = DI.Optim.Abstraction
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 const PROBLEMS = joinpath(dirname(dirname(pathof(Dionysos))), "problems")
 include(joinpath(PROBLEMS, "Integrator", "integrator.jl"))
@@ -218,7 +218,7 @@ function integrator_rows()
         :first_consistent,
         true,
     )
-    ellip_opts = EB.EllipsoidalBackwardOptions(;
+    ellip_opts = EB.ChainOptions(;
         maxδx = 30,
         maxδu = 1.0,
         λ = 0.05,
@@ -229,7 +229,7 @@ function integrator_rows()
         use_log_det = false,
     )
     sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
-    cert = EB.TrajectoryCertifier(provider, sdp, ellip_opts)
+    cert = EB.BackwardCertifier(provider, sdp, ellip_opts)
     AB.set_problem!(cert, concrete_problem)
     AB.set_trajectory!(cert, traj)
     chain_stats = @timed AB.certify!(cert)
@@ -435,7 +435,7 @@ function pendulum_rows()
         :max_volume,
         true,
     )
-    ellip_opts = EB.EllipsoidalBackwardOptions(;
+    ellip_opts = EB.ChainOptions(;
         maxδx = 1.5,
         maxδu = 3.0,
         λ = 0.001,
@@ -446,7 +446,7 @@ function pendulum_rows()
         use_log_det = false,
     )
     sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
-    cert = EB.TrajectoryCertifier(provider, sdp, ellip_opts)
+    cert = EB.BackwardCertifier(provider, sdp, ellip_opts)
     AB.set_problem!(cert, concrete_problem)
     AB.set_trajectory!(cert, traj)
     chain_stats = @timed AB.certify!(cert)
