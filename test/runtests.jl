@@ -29,12 +29,16 @@ const TEST_FILES = [
     ("./system/reset_map.jl",),
     ("./system/affine_approximation.jl",),
     ("./system/approximation.jl",),
+    # The three precision levels of the derived Jacobian bound (needs Symbolics).
+    ("./system/jacobian_bound_precision.jl",),
     ("./system/controllers.jl",),
     ("./system/pid_controller.jl",),
     ("./system/controller_serialization.jl",),
     ("./system/trajectories.jl",),
     ("./system/transition_synthesis.jl",),
     ("./problem/problems.jl",),
+    # Every hand-written growth bound in `problems/`, checked against its own dynamics.
+    ("./problems/growth_bounds.jl",),
     ("./mapping/list_mapping.jl",),
     ("./mapping/grid.jl",),
     ("./mapping/explicit_grid_mapping.jl",),
