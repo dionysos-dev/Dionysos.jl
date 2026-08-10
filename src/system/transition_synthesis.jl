@@ -91,7 +91,9 @@ Vertices of the noise polytope `rec` as an `n × 2ⁿ` matrix (one vertex per
 column), the format consumed by the transition-synthesis LMIs.
 """
 function format_noise_set(rec::LazySets.AbstractHyperrectangle)
-    return reduce(hcat, LazySets.vertices_list(rec))
+    # `vertices_list` repeats vertices on degenerate (zero-radius) axes; each
+    # duplicate would add an identical PSD block to every transition SDP.
+    return reduce(hcat, unique(LazySets.vertices_list(rec)))
 end
 
 _input_matrices(U::AbstractVector) = U
@@ -106,11 +108,16 @@ _state_noise(::Any, W) = _noise_vertex_matrix(W)
 _state_noise(affsys::HybridSystems.NoisyConstrainedAffineControlDiscreteSystem, W) =
     affsys.D * _noise_vertex_matrix(W)
 
-# Cost conversion is centralized in `UT._cost_matrix`. Caveat specific to these
-# LMIs: they bound the cost ‖Λ·[x; u; 1]‖², i.e. the matrix argument is a
-# *factor* Λ, not the PSD matrix Λ'Λ. For a `QuadraticStateControlFunction` the
-# call sites pass its full PSD matrix as Λ (exact only when that matrix is
-# idempotent, e.g. the identity).
+# The LMIs bound ‖Λ·[x; u; 1]‖² = [x;u;1]'·Λ'Λ·[x;u;1]: they consume a *factor* Λ
+# of the PSD cost matrix S = Λ'Λ. Cost conversion is centralized in
+# `UT._cost_matrix` (the PSD matrix); the factor is taken here — a symmetric
+# square root, so for idempotent S (identity, projections) the factor is S itself
+# and the historical golden values are preserved.
+function _cost_factor(cost)
+    S = LA.Symmetric(Matrix{Float64}(UT._cost_matrix(cost)))
+    E = LA.eigen(S)
+    return LA.Diagonal(sqrt.(clamp.(E.values, 0.0, Inf))) * transpose(E.vectors)
+end
 
 # kappa = [K ℓ] → (K, ℓ)
 function _split_controller(kappa)
@@ -121,53 +128,102 @@ end
 # ------------------------------------------------------------
 # Shared S-procedure PSD blocks. `shape` is the source-set shape matrix
 # (P₁ when the source is fixed, I when its square root is the variable).
+#
+# Each block has a *builder* returning the matrix — used both to pose the JuMP
+# constraint and, with the returned numbers plugged back in, to validate the
+# certificate independently of the solver (`_validate_blocks`). Keeping one
+# builder per block is what guarantees the validator checks exactly what the
+# SDP promised.
 # ------------------------------------------------------------
 
 # Reachability: the closed loop maps {ξ: ξ'·shape·ξ ≤ 1} into the target
 # ellipsoid, for one disturbance vertex (`aux` collects the affine part).
-function _reach_constraint!(model, β, shape, At, aux, P2inv, n, ε)
+function _reach_block(β, shape, At, aux, P2inv, n)
     z = zeros(n, 1)
-    return @constraint(
-        model,
-        [
-            β*shape z transpose(At)
-            transpose(z) 1-β transpose(aux)
-            At aux P2inv
-        ] >= eye(2 * n + 1) * ε,
-        PSDCone()
-    )
+    return [
+        β*shape z transpose(At)
+        transpose(z) 1-β transpose(aux)
+        At aux P2inv
+    ]
 end
+
+_reach_constraint!(model, β, shape, At, aux, P2inv, n, ε) = @constraint(
+    model,
+    _reach_block(β, shape, At, aux, P2inv, n) >= eye(2 * n + 1) * ε,
+    PSDCone()
+)
 
 # Input feasibility: |Uᵢ·u(x)| ≤ 1 on the source set, for one constraint
 # matrix (UK = Uᵢ·K, Uℓ = Uᵢ·ℓ).
-function _input_constraint!(model, τ, shape, UK, Uℓ, n, ε)
+function _input_block(τ, shape, UK, Uℓ, n)
     n_ui = size(UK, 1)
     z = zeros(n, 1)
-    return @constraint(
-        model,
-        [
-            τ*shape z transpose(UK)
-            transpose(z) 1-τ transpose(Uℓ)
-            UK Uℓ eye(n_ui)
-        ] >= eye(n + n_ui + 1) * ε,
-        PSDCone()
-    )
+    return [
+        τ*shape z transpose(UK)
+        transpose(z) 1-τ transpose(Uℓ)
+        UK Uℓ eye(n_ui)
+    ]
 end
+
+_input_constraint!(model, τ, shape, UK, Uℓ, n, ε) = @constraint(
+    model,
+    _input_block(τ, shape, UK, Uℓ, n) >= eye(n + size(UK, 1) + 1) * ε,
+    PSDCone()
+)
 
 # Cost bound: ‖Λ·[x; u(x); 1]‖² ≤ J on the source set, with
 # [x; u(x); 1]' = ξ'·G + d for ξ in the source set.
-function _cost_constraint!(model, γ, J, shape, G, d, Λ, n, ε)
+function _cost_block(γ, J, shape, G, d, Λ, n)
     nS = size(Λ, 1)
     z = zeros(n, 1)
-    return @constraint(
-        model,
-        [
-            γ*shape z G*transpose(Λ)
-            transpose(z) J-γ d*transpose(Λ)
-            Λ*transpose(G) Λ*transpose(d) eye(nS)
-        ] >= eye(n + nS + 1) * ε,
-        PSDCone()
-    )
+    return [
+        γ*shape z G*transpose(Λ)
+        transpose(z) J-γ d*transpose(Λ)
+        Λ*transpose(G) Λ*transpose(d) eye(nS)
+    ]
+end
+
+_cost_constraint!(model, γ, J, shape, G, d, Λ, n, ε) = @constraint(
+    model,
+    _cost_block(γ, J, shape, G, d, Λ, n) >= eye(n + size(Λ, 1) + 1) * ε,
+    PSDCone()
+)
+
+# ------------------------------------------------------------
+# A-posteriori certificate validation. A solver status is not a certificate:
+# `ALMOST_OPTIMAL` / `NEARLY_FEASIBLE_POINT` solutions may violate the PSD
+# blocks, and then the S-procedure guarantee simply does not hold. Every kernel
+# therefore rebuilds its blocks numerically at the returned solution and
+# requires them PSD. `_VALIDATION_TOL` absorbs eigensolver roundoff only — the
+# posed constraints demanded ⪰ ε·I with ε ≥ 1e-10, so genuinely feasible
+# solutions clear 0 with margin.
+# ------------------------------------------------------------
+
+const _VALIDATION_TOL = 1e-9
+
+function _validate_blocks(blocks)
+    for M in blocks
+        LA.eigmin(LA.Symmetric(Matrix{Float64}(M))) >= -_VALIDATION_TOL || return false
+    end
+    return true
+end
+
+# Input proximity: ‖u(x) − u_ref‖² ≤ δu on the unit-ball source (`ellmu` = ℓ − u_ref).
+function _input_proximity_block(ϕ, F, ellmu, δu, nx, nu)
+    z = zeros(nx, 1)
+    return [
+        ϕ*eye(nx) z transpose(F)
+        transpose(z) δu-ϕ transpose(ellmu)
+        F ellmu eye(nu)
+    ]
+end
+
+# Source-radius bound: L·L' ⪯ δx·I.
+function _source_radius_block(L, δx, nx)
+    return [
+        eye(nx) L
+        transpose(L) δx*eye(nx)
+    ]
 end
 
 # ------------------------------------------------------------
@@ -216,9 +272,44 @@ function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, Q2, sdp_solver)
 
     optimize!(model)
 
-    feasible = solution_summary(model).termination_status == MOI.OPTIMAL
-    feasible || return false, nothing, nothing
-    return true, [value.(K) value.(ell)], value(J)
+    term = termination_status(model)
+    pstat = primal_status(model)
+    if !(
+        term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
+        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+    )
+        return false, nothing, nothing
+    end
+
+    Kv = value.(K)
+    ellv = value.(ell)
+    βv = value.(beta)
+    τv = value.(tau)
+
+    Atv = A + B * Kv
+    ctv = c + B * ellv
+    blocks = Any[]
+    for i in 1:Nw
+        aux = A * hcat(c1) + hcat(ctv) - hcat(c2) + hcat(Wcols[:, i])
+        push!(blocks, _reach_block(βv[i], P1, Atv, aux, Q2, n))
+    end
+    for i in 1:Nu
+        push!(blocks, _input_block(τv[i], P1, U[i] * Kv, U[i] * ellv, n))
+    end
+    Gv = [LA.I transpose(Kv) z]
+    dv = [transpose(c1) transpose(ellv) 1]
+    push!(blocks, _cost_block(value(γ), value(J), P1, Gv, dv, Λ, n))
+
+    validated =
+        all(βv .>= -_VALIDATION_TOL) &&
+        all(τv .>= -_VALIDATION_TOL) &&
+        _validate_blocks(blocks)
+    if !validated
+        @debug "solve_transition: solver-accepted solution failed validation" term pstat
+        return false, nothing, nothing
+    end
+
+    return true, [Kv ellv], value(J)
 end
 
 """
@@ -238,9 +329,14 @@ vertex, while minimizing an upper bound on the worst-case transition cost
   `LazySets.IntersectionArray`) or a preformatted list (`format_input_set`);
 - `W`: disturbance vertices — one per column, or a box (`LazySets.AbstractHyperrectangle`); mapped
   through the system's noise matrix `D` when the system has one;
-- `cost`: the cost factor matrix `Λ` of size `(nx+nu+1) × (nx+nu+1)`, or a
-  `UT.QuadraticStateControlFunction`;
+- `cost`: the PSD cost matrix `S` of size `(nx+nu+1) × (nx+nu+1)` bounding
+  `[x; u; 1]ᵀ·S·[x; u; 1]`, or a `UT.QuadraticStateControlFunction`; the factor
+  the LMIs consume is taken internally (`_cost_factor`);
 - `sdp_solver`: a JuMP-compatible SDP optimizer (Clarabel, Mosek, …).
+
+Every returned certificate is re-validated numerically at the solver's solution
+(`_validate_blocks`) — a transition reported feasible is PSD-certified
+independently of the solver's termination status.
 """
 function solve_transition(
     affsys::AffineSys,
@@ -258,7 +354,7 @@ function solve_transition(
         affsys.c,
         _state_noise(affsys, W),
         _input_matrices(U),
-        UT._cost_matrix(cost),
+        _cost_factor(cost),
         c1,
         UT.get_quadratic_form(source),
         LazySets.center(target),
@@ -353,19 +449,12 @@ function _free_source_kernel(
     u = hcat(u_ref)
     @constraint(
         model,
-        [
-            ϕ*eye(nx) z transpose(F)
-            transpose(z) δu-ϕ transpose(ell - u)
-            (F) (ell-u) eye(nu)
-        ] >= eye(nx + nu + 1) * ε,
+        _input_proximity_block(ϕ, F, ell - u, δu, nx, nu) >= eye(nx + nu + 1) * ε,
         PSDCone()
     )
 
     # Source-radius bound: L·L' ⪯ δx·I.
-    @constraint(model, [
-        eye(nx) L
-        transpose(L) δx * eye(nx)
-    ] >= eye(nx * 2) * ε, PSDCone())
+    @constraint(model, _source_radius_block(L, δx, nx) >= eye(nx * 2) * ε, PSDCone())
 
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)
@@ -389,15 +478,61 @@ function _free_source_kernel(
     term = termination_status(model)
     pstat = primal_status(model)
 
-    if term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
-       pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
-        Lval = value.(L)
-        # L·Lᵀ is directly the shape matrix Q of the synthesized source.
-        Q1 = Lval * transpose(Lval)
-        return true, Q1, [value.(F) / Lval value.(ell)], value(J)
+    if !(
+        term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
+        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+    )
+        @debug "solve_transition_backward: infeasible SDP" term pstat raw_status(model)
+        return false, nothing, nothing, nothing
     end
-    @debug "solve_transition_backward: infeasible SDP" term pstat raw_status(model)
-    return false, nothing, nothing, nothing
+
+    Lval = value.(L)
+    Fval = value.(F)
+    ellv = value.(ell)
+    βv = value.(beta)
+    τv = value.(tau)
+    δxv = value(δx)
+    δuv = value(δu)
+    ϕv = value(ϕ)
+
+    Atv = A * Lval + B * Fval
+    ctv = c + B * ellv
+    blocks = Any[]
+    for i in 1:Nx, j in 1:Nw
+        aux =
+            A * hcat(c1) + hcat(ctv) - hcat(c2) +
+            hcat(Vector(μ[i])) * (δxv + δuv) +
+            hcat(Vector(ν[j]))
+        push!(blocks, _reach_block(βv[i, j], eye(nx), Atv, aux, Q2, nx))
+    end
+    for i in 1:Nu
+        push!(blocks, _input_block(τv[i], eye(nx), U[i] * Fval, U[i] * ellv, nx))
+    end
+    Gv = [transpose(Lval) transpose(Fval) z]
+    dv = [transpose(c1) transpose(ellv) 1]
+    push!(blocks, _cost_block(value(γ), value(J), eye(nx), Gv, dv, Λ, nx))
+    push!(blocks, _input_proximity_block(ϕv, Fval, ellv - hcat(u_ref), δuv, nx, nu))
+    push!(blocks, _source_radius_block(Lval, δxv, nx))
+
+    validated =
+        all(βv .>= -_VALIDATION_TOL) &&
+        all(τv .>= -_VALIDATION_TOL) &&
+        δxv <= maxδx^2 + _VALIDATION_TOL &&
+        δuv <= maxδu^2 + _VALIDATION_TOL &&
+        _validate_blocks(blocks)
+    if !validated
+        @debug "solve_transition_backward: solver-accepted solution failed validation" term pstat
+        return false, nothing, nothing, nothing
+    end
+
+    # L·Lᵀ is directly the shape matrix Q of the synthesized source.
+    Q1 = Lval * transpose(Lval)
+    kappa = [Fval / Lval ellv]
+    if !all(isfinite, kappa)
+        @debug "solve_transition_backward: near-singular source shape, K = F·L⁻¹ blew up"
+        return false, nothing, nothing, nothing
+    end
+    return true, Q1, kappa, value(J)
 end
 
 """
@@ -440,7 +575,7 @@ function solve_transition_backward(
         affsys.c,
         _state_noise(affsys, W),
         _input_matrices(U),
-        UT._cost_matrix(cost),
+        _cost_factor(cost),
         source_center,
         u_ref,
         LazySets.center(target),
