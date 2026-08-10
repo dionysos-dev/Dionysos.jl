@@ -27,35 +27,59 @@ function dynamic(params::Params = Params())
         return SVector{4}(
             x[3],
             x[4],
-            -sin(Δθ) * (
-                params.m2 * params.l1 * x[3]^2 * cos(Δθ) + params.m2 * params.l2 * x[4]^2
-            ) -
-            params.g * (M * sin(x[1]) - params.m2 * sin(x[2]) * cos(Δθ)) / (params.l1 * α) + u[1],
-            sin(Δθ) * (M * params.l1 * x[3]^2 + params.m2 * params.l2 * x[4]^2 * cos(Δθ)) +
-            params.g * (M * sin(x[1]) * cos(Δθ) - M * sin(x[2])) / (params.l2 * α),
+            (
+                -sin(Δθ) * (
+                    params.m2 * params.l1 * x[3]^2 * cos(Δθ) +
+                    params.m2 * params.l2 * x[4]^2
+                ) - params.g * (M * sin(x[1]) - params.m2 * sin(x[2]) * cos(Δθ))
+            ) / (params.l1 * α) + u[1],
+            (
+                sin(Δθ) *
+                (M * params.l1 * x[3]^2 + params.m2 * params.l2 * x[4]^2 * cos(Δθ)) +
+                params.g * M * (sin(x[1]) * cos(Δθ) - sin(x[2]))
+            ) / (params.l2 * α),
         )
     end
 end
 
+"""
+    jacobian_bound(params) -> u -> SMatrix{4,4}
+
+Entrywise bound on `∂f/∂x`, as the growth-bound ODE `ṙ = L·r` requires: `L[i,j] ≥ |J[i,j]|`
+off the diagonal and `L[i,i] ≥ J[i,i]` on it.
+
+The coupled accelerations have no tidy closed form, so this was obtained by bounding each
+symbolic Jacobian entry with interval arithmetic over the state set of [`system`](@ref) and
+padding by 2%. That domain contains the ones used by [`safety_problem`](@ref) and
+[`optimal_control_problem`](@ref), and a bound valid on a set stays valid on its subsets, so
+the same matrix serves all of them. It does not depend on `u`, which enters `f₃` additively.
+
+Passing no `jacobian_bound` at all makes Dionysos derive one the same way at solve time
+(`Dionysos.System.compute_jacobian_bound`, needs `Symbolics` loaded); this constant is the
+cheaper, pre-computed equivalent.
+"""
 function jacobian_bound(params::Params = Params())
-    # Conservative placeholder bound.
     return u -> SMatrix{4, 4}(
+        # column 1 (θ₁)
         0.0,
         0.0,
-        1.0,
+        268.556,
+        375.075,
+        # column 2 (θ₂)
         0.0,
         0.0,
+        258.55,
+        375.075,
+        # column 3 (ω₁)
+        1.02,
         0.0,
+        10.2,
+        20.4,
+        # column 4 (ω₂)
         0.0,
-        1.0,
-        20.0,
-        20.0,
-        10.0,
-        10.0,
-        20.0,
-        20.0,
-        10.0,
-        10.0,
+        1.02,
+        10.2,
+        10.2,
     )
 end
 
