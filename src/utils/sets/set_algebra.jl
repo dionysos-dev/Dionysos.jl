@@ -39,8 +39,12 @@ is_disjoint(X, Y) = LazySets.isdisjoint(X, Y)
 """
     Box{N, T}
 
-Concrete alias of `LazySets.Hyperrectangle` backed by `SVector`s, for struct
-fields and container element types.
+Concrete alias of `LazySets.Hyperrectangle` backed by `SVector`s — note the
+parameter order is not `Hyperrectangle`'s.
+
+Use it where concreteness pays: container element types and struct fields. To
+*accept* a box, annotate `LazySets.AbstractHyperrectangle` instead — this alias
+is one backing among several, and excludes the rest.
 """
 const Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
 

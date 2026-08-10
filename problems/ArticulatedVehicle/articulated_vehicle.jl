@@ -155,7 +155,7 @@ function system(
     )
 end
 
-function with_phi_limit(_X_::UT.Box; phi_max = 0.7)
+function with_phi_limit(_X_::LazySets.AbstractHyperrectangle; phi_max = 0.7)
     lb = SVector(LazySets.low(_X_, 1), LazySets.low(_X_, 2), LazySets.low(_X_, 3), -phi_max)
     ub = SVector(
         LazySets.high(_X_, 1),
@@ -182,7 +182,10 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
     )
     return UT.box(lb, ub)
 end
-function with_xy_obstacles(_X_::UT.Box; obstacles2d = xy_obstacles())
+function with_xy_obstacles(
+    _X_::LazySets.AbstractHyperrectangle;
+    obstacles2d = xy_obstacles(),
+)
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
     return UT.set_minus(_X_, UT.set_union(obs4d))
 end

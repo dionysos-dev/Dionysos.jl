@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 using Symbolics
 import IntervalArithmetic as IA
+import LazySets
 
 const TOL = 1e-6
 
@@ -118,7 +119,7 @@ end
     @test approx isa ST.ContinuousTimeGrowthBound
     out =
         ST.get_over_approximation_map(approx)(UT.box([-0.1, -0.1], [0.1, 0.1]), [0.5], 0.1)
-    @test out isa UT.Box || out isa Dionysos.LazySets.Hyperrectangle
+    @test out isa LazySets.AbstractHyperrectangle
 end
 
 end

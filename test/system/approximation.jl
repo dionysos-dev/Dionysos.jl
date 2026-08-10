@@ -68,7 +68,7 @@ end
     @test ST.get_system(Odisc) === sysD
 
     outR = ST.get_over_approximation_map(Odisc)(rect, u)
-    @test outR isa UT.Box
+    @test outR isa LazySets.AbstractHyperrectangle
     @test LazySets.center(outR) ≈ fd(LazySets.center(rect), u)
 
     # ----------------------------
@@ -96,16 +96,16 @@ end
     gb_disc = (r, u) -> abs.(r) .+ 0.1 .* abs.(u)  # simple monotone bound
     Gdisc = ST.DiscreteTimeGrowthBound(sysD, gb_disc)
     Rg = ST.get_over_approximation_map(Gdisc)(rect, u)
-    @test Rg isa UT.Box
+    @test Rg isa LazySets.AbstractHyperrectangle
 
     gb_cont = (r, u, h) -> abs.(r) .+ h .* 0.1 .* abs.(u)
     Gcont = ST.ContinuousTimeGrowthBound(sysC, gb_cont)
     Rgc = ST.get_over_approximation_map(Gcont)(rect, u, tstep)
-    @test Rgc isa UT.Box
+    @test Rgc isa LazySets.AbstractHyperrectangle
 
     GcontD = ST.discretize(Gcont, tstep)
     Rgc2 = ST.get_over_approximation_map(GcontD)(rect, u)
-    @test Rgc2 isa UT.Box
+    @test Rgc2 isa LazySets.AbstractHyperrectangle
 
     # ----------------------------
     # Linearized (discrete/continuous)
@@ -116,7 +116,7 @@ end
     err_d = (e, u) -> 0.01 .* ones(SVector{2, Float64})
     Ldisc = ST.DiscreteTimeLinearized(sysD, linsys_d, err_d)
     Rl = ST.get_over_approximation_map(Ldisc)(rect, u)
-    @test Rl isa UT.Box
+    @test Rl isa LazySets.AbstractHyperrectangle
     @test LazySets.center(Rl) ≈ fd(LazySets.center(rect), u)
 
     linsys_c = (x, dx, u, h) -> (x + h*u, @SMatrix [1.0 0.0; 0.0 1.0])

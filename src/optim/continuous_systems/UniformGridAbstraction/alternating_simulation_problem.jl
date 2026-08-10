@@ -272,7 +272,7 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     state_grid::Union{Nothing, MP.Grid}
     h::Union{Nothing, Any}
     use_implicit_mapping::Bool
-    mapping_region::Union{Nothing, UT.Box}
+    mapping_region::Union{Nothing, LazySets.AbstractHyperrectangle}
 
     Xset::Union{Nothing, MP.AbstractStateSet}
     Rset::Union{Nothing, MP.AbstractStateSet}
