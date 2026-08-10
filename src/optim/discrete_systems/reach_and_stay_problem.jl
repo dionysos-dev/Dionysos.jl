@@ -152,24 +152,17 @@ function _add_one_control_to_target!(contr, autom, cells::BitVector, target_set:
 end
 
 # ------------------------------------------------------------
-# Main solver: Algorithm (3) from the paper.
+# ◇□ (the default): Algorithm (3) from the paper.
+#
+# The nested μ/ν fixed point. The inner ν recomputes the invariant inside `Ω ∪ Y_i` — the
+# target *together with* what is already winning — so a target cell may be certified by
+# leaving the target into won territory and coming back. Finitely many such departures are
+# allowed, which is exactly what ◇□ means and why this winning set is the larger one.
 # ------------------------------------------------------------
 
-function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
-    t0 = time()
-
-    problem = optimizer.problem
-    problem === nothing && error("problem not set")
-
-    autom = problem.system
+function _solve_eventually_always(autom, T, S, I, early_stop)
     nstates = SY.get_n_state(autom)
     nsymbols = SY.get_n_input(autom)
-
-    T = _bitset_from_states(problem.target_set, nstates)
-    S = _bitset_from_states(problem.safe_set, nstates)
-    I = collect(problem.initial_set)
-
-    optimizer.print_level >= 1 && println("compute_reach_and_stay! started")
 
     base_pairstable = _compute_base_pairstable(autom)
     seen_pairs = falses(nstates, nsymbols)
@@ -201,12 +194,87 @@ function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
         Y = Y_next
         X_prev = X_star
 
-        if optimizer.early_stop && all(q -> Y[q], I)
+        if early_stop && all(q -> Y[q], I)
             break
         end
 
         Y == Y_old && break
     end
+
+    return Y, contr
+end
+
+# ------------------------------------------------------------
+# "Stay from the first entry": safety, then reachability.
+#
+# The invariant core `X∞` is the maximal controlled invariant subset of the target **alone**
+# — no floor, so it is computed once and never widened by what becomes winning later. The run
+# is then steered to `X∞` and stays there from the moment it arrives.
+#
+# Target cells outside `X∞` are removed from the region the reachability may use. Such a cell
+# is *in* the target but can only continue by leaving it, so routing through it would break
+# the very property this variant exists to enforce — and counting it as winning would promise
+# something the controller cannot deliver.
+# ------------------------------------------------------------
+
+function _solve_stay_on_first_entry(autom, T, S, I, early_stop)
+    nstates = SY.get_n_state(autom)
+    nsymbols = SY.get_n_input(autom)
+
+    base_pairstable = _compute_base_pairstable(autom)
+    seen_pairs = falses(nstates, nsymbols)
+
+    contr = _empty_control_table(nstates)
+
+    X_inf, _ = _invariant_with_floor(autom, T, falses(nstates), base_pairstable)
+    _add_one_control_to_target!(contr, autom, X_inf, X_inf)
+
+    # Reachability may not pass through the target outside its invariant core.
+    S_reach = S .& .!(T .& .!X_inf)
+
+    Y = falses(nstates)
+
+    while true
+        Y_old = copy(Y)
+
+        reach_target = X_inf .| Y
+        Y_next = _compute_seed(autom, reach_target, S_reach, seen_pairs)
+        Y_next .|= Y
+
+        new_reach_cells = Y_next .& .!Y .& .!X_inf
+        _add_one_control_to_target!(contr, autom, new_reach_cells, reach_target)
+
+        Y = Y_next
+
+        if early_stop && all(q -> Y[q], I)
+            break
+        end
+
+        Y == Y_old && break
+    end
+
+    # The core is winning too: it is where the run ends up and stays.
+    return Y .| X_inf, contr
+end
+
+function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
+    t0 = time()
+
+    problem = optimizer.problem
+    problem === nothing && error("problem not set")
+
+    autom = problem.system
+    nstates = SY.get_n_state(autom)
+
+    T = _bitset_from_states(problem.target_set, nstates)
+    S = _bitset_from_states(problem.safe_set, nstates)
+    I = collect(problem.initial_set)
+
+    optimizer.print_level >= 1 && println("compute_reach_and_stay! started")
+
+    solve =
+        problem.stay_on_first_entry ? _solve_stay_on_first_entry : _solve_eventually_always
+    Y, contr = solve(autom, T, S, I, optimizer.early_stop)
 
     winning_set = _set_from_bitset(Y)
 

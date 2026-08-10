@@ -64,6 +64,18 @@ state(model) = [model[:x]]
     # With no `Always`, the safe set defaults to the whole state box.
     @test LazySets.low(stay.safe_set, 1) == -2.0
 
+    # The marker's option has to survive being unwrapped to its bare set at parse time.
+    @test !stay.stay_on_first_entry
+    strict = lowered_problem() do model
+        integrator!(model)
+        return @constraint(
+            model,
+            state(model) in EventuallyAlways(target; stay_on_first_entry = true)
+        )
+    end
+    @test strict isa PR.ReachAndStayProblem
+    @test strict.stay_on_first_entry
+
     stay_safe = lowered_problem() do model
         integrator!(model)
         @constraint(model, state(model) in EventuallyAlways(target))

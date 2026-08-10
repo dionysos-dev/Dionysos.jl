@@ -61,7 +61,15 @@ MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:Spe
     true
 
 function MOI.add_constraint(model::Optimizer, func::MOI.VectorOfVariables, set::SpecSet)
-    push!(model.ir.specs, SpecEntry(spec_kind(set), set.inner, copy(func.variables)))
+    push!(
+        model.ir.specs,
+        SpecEntry(
+            spec_kind(set),
+            set.inner,
+            copy(func.variables),
+            stay_on_first_entry(set),
+        ),
+    )
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(length(model.ir.specs))
 end
 

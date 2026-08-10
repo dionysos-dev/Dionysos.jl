@@ -272,6 +272,29 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
             @test !PR.trajectory_success(p, empty_traj)
         end
 
+        @testset "reach-and-stay with stay_on_first_entry" begin
+            loose = PR.ReachAndStayProblem(sys, XI, XT, XS, 5)
+            strict = PR.ReachAndStayProblem(sys, XI, XT, XS, 5; stay_on_first_entry = true)
+            @test !loose.stay_on_first_entry
+            @test strict.stay_on_first_entry
+            # The keyword survives the 4-argument (infinite-horizon) constructor too.
+            @test PR.ReachAndStayProblem(sys, XI, XT, XS; stay_on_first_entry = true).stay_on_first_entry
+
+            # The case that separates the two readings: enter the target, leave, come back.
+            # ◇□ accepts it — some suffix is in the target. "Stay from first entry" does not.
+            reentry = traj([in_XI, in_XT, mid, in_XT])
+            @test PR.trajectory_success(loose, reentry)
+            @test !PR.trajectory_success(strict, reentry)
+
+            # A run that arrives and holds satisfies both.
+            settles = traj([in_XI, mid, in_XT, in_XT])
+            @test PR.trajectory_success(loose, settles)
+            @test PR.trajectory_success(strict, settles)
+
+            # Never reaching the target fails the strict reading for want of a first entry.
+            @test !PR.trajectory_success(strict, traj([in_XI, mid, mid]))
+        end
+
         @testset "co-safe LTL (placeholder returns false)" begin
             lab = Dict{Symbol, Any}(:ap => XT)
             ap_sem = Dict{Symbol, Any}(:ap => MP.INNER)

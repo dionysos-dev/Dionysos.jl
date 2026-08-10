@@ -226,7 +226,12 @@ function MOI.add_constraint(
     scope isa ModeScope || error(
         "A specification set belongs to a mode, not to a transition (transition $(scope.id)).",
     )
-    entry = SpecEntry(spec_kind(set.inner), set.inner.inner, copy(func.variables))
+    entry = SpecEntry(
+        spec_kind(set.inner),
+        set.inner.inner,
+        copy(func.variables),
+        stay_on_first_entry(set.inner),
+    )
     push!(mode!(model.ir, scope.id).specs, entry)
     return MOI.ConstraintIndex{typeof(func), typeof(set)}(
         next_constraint_index!(model.ir, func, set).value,

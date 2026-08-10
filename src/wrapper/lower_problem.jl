@@ -41,6 +41,14 @@ function _unique_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
     return entry.set
 end
 
+# `_unique_spec` hands back the bare set, so the `EventuallyAlways` option is read separately.
+function _stay_on_first_entry(ir::ModelIR)
+    for entry in ir.specs
+        entry.kind === EVENTUALLY_ALWAYS && return entry.stay_on_first_entry
+    end
+    return false
+end
+
 # `horizon` is in seconds for a continuous-time model and in steps for a discrete-time one.
 # The conversion happens here because no abstraction solver calls `Problem.discretize_problem`
 # — they consume `problem.time` verbatim.
@@ -160,7 +168,8 @@ function build_problem(ir::ModelIR, f; time_step = nothing)
             initial_set,
             stay_set,
             safe_set,
-            _horizon(ir, true, time_step),
+            _horizon(ir, true, time_step);
+            stay_on_first_entry = _stay_on_first_entry(ir),
         )
     elseif target_set !== nothing
         return PR.OptimalControlProblem(
