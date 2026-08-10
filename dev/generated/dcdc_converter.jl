@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 
 using Symbolics, MathOptSymbolicAD
 
@@ -33,8 +34,8 @@ A2_abs = SMatrix{2, 2}(
 jacobian_bound = u -> u[1] == 1 ? A1 : A2_abs;
 
 x_low, x_upp = [1.15, 5.45], [1.55, 5.85]
-safe = UT.box(SVector(x_low...), SVector(x_upp...))
-initial = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61));
+safe = LazySets.Hyperrectangle(; low = SVector(x_low...), high = SVector(x_upp...))
+initial = LazySets.Hyperrectangle(; low = SVector(1.19, 5.59), high = SVector(1.21, 5.61));
 
 model = direct_model(Dionysos.Optimizer());
 @variable(model, x_low[i] <= x[i = 1:2] <= x_upp[i])

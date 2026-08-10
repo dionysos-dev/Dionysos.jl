@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -22,13 +23,16 @@ model = Model(Dionysos.Optimizer);
 @constraint(model, start(x1) in MOI.Interval(-0.09, 0.09))
 @constraint(model, start(x2) in MOI.Interval(-0.5, 0.5));
 
-upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
+upright = LazySets.Hyperrectangle(;
+    low = SVector(π - 15π / 180, -1.0),
+    high = SVector(π + 15π / 180, 1.0),
+);
 
-@constraint(model, [x1, x2] in EventuallyAlways(upright));
+@constraint(model, [x1, x2] in EventuallyAlways(upright; stay_on_first_entry = true));
 
 @constraint(model, [x1] ∉ MOI.HyperRectangle([-π + 16π / 180], [-π + 38π / 180]));
 
-set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, 1.0, g / l, 0.0))
+set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, g / l, 1.0, 0.0))
 set_attribute(model, "time_step", 0.1);
 
 h = SVector(3π / 180, 0.05)
@@ -53,7 +57,7 @@ abstract_system = get_attribute(model, "abstract_system");
 winning_set = get_attribute(model, "winning_set");
 
 trajectory =
-    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 124, stopping = _ -> false);
+    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 120, stopping = _ -> false);
 
 fig = plot(; aspect_ratio = :equal)
 plot!(concrete_problem)

@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Spot
@@ -26,20 +27,21 @@ function integrator_model()
     return model, x
 end;
 
-start_region = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+start_region =
+    LazySets.Hyperrectangle(; low = SVector(-1.7, -1.7), high = SVector(-1.6, -1.6))
 x0 = SVector(-1.65, -1.65);
 
-model, x = integrator_model()
+model, x = integrator_model();
 
 roomA = UT.set_union([
-    UT.box(SVector(-1.0, 1.0), SVector(-0.3, 1.7)),
-    UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7)),
+    LazySets.Hyperrectangle(; low = SVector(-1.0, 1.0), high = SVector(-0.3, 1.7)),
+    LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.7, 1.7)),
 ])
-roomB = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
-roomC = UT.box(SVector(1.0, -1.8), SVector(1.5, -1.1))
+roomB = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.2), high = SVector(-0.6, -0.2))
+roomC = LazySets.Hyperrectangle(; low = SVector(1.0, -1.8), high = SVector(1.5, -1.1))
 wall = UT.set_union([
-    UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5)),
-    UT.box(SVector(1.3, -0.5), SVector(2.0, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(1.3, -0.5), high = SVector(2.0, 0.5)),
 ]);
 
 @constraint(model, roomA_visited, x in Label(roomA))
@@ -100,14 +102,15 @@ end
 
 until_monitor = OPDS.FunctionMonitor(1, Set([3]), until_step);
 
-model2, x2 = integrator_model()
+model2, x2 = integrator_model();
 
-first_stop = UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7))
-second_stop = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
-barrier = UT.box(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
+first_stop = LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.7, 1.7))
+second_stop =
+    LazySets.Hyperrectangle(; low = SVector(-1.5, -1.2), high = SVector(-0.6, -0.2))
+barrier = LazySets.Hyperrectangle(; low = SVector(-1.8, 0.0), high = SVector(-0.6, 1.0))
 danger = UT.set_union([
-    UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5)),
-    UT.box(SVector(1.3, -0.5), SVector(2.0, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(1.3, -0.5), high = SVector(2.0, 0.5)),
 ]);
 
 @constraint(model2, first_stop_reached, x2 in Label(first_stop))
