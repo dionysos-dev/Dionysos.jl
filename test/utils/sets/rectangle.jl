@@ -7,32 +7,30 @@ using Random
 import LazySets
 using StaticArrays: SVector
 
-@testset "box constructors" begin
-    # tuple constructor
-    Rtu = UT.box((1.0, 2.0), (3.0, 4.0))
-    @test all(LazySets.low(Rtu) .== [1.0, 2.0])
-    @test all(LazySets.high(Rtu) .== [3.0, 4.0])
+@testset "Hyperrectangle from bounds" begin
+    R = LazySets.Hyperrectangle(; low = [1.0, 2.0], high = [3.0, 4.0])
+    @test all(LazySets.low(R) .== [1.0, 2.0])
+    @test all(LazySets.high(R) .== [3.0, 4.0])
 
-    # vector constructor promotes Int
-    Rv = UT.box([1, 2], [3, 4])
-    @test all(LazySets.low(Rv) .== [1.0, 2.0])
-    @test all(LazySets.high(Rv) .== [3.0, 4.0])
+    # Why the repo always writes the keyword form: positionally, the arguments are the *centre
+    # and the radius*, so the same numbers build a different box and nothing complains.
+    Rpos = LazySets.Hyperrectangle([1.0, 2.0], [3.0, 4.0])
+    @test all(LazySets.low(Rpos) .== [-2.0, -2.0])
+    @test all(LazySets.high(Rpos) .== [4.0, 6.0])
 
-    # SVector constructor keeps static storage
-    Rs = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
-    @test Rs isa UT.Box{2, Float64}
-
-    # dimension mismatch throws
-    @test_throws DimensionMismatch UT.box([1, 2], [3, 4, 5])
+    # SVector bounds give SVector storage — the internal `_Box{N,T}` containers
+    # (`set_in_period`, the certifier's tube) are typed on exactly this.
+    Rs = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0))
+    @test Rs isa UT._Box{2, Float64}
 
     # crossed bounds throw (an empty region is LazySets.EmptySet, never a box)
-    @test_throws Exception UT.box([1.0, 1.0], [-1.0, -1.0])
+    @test_throws Exception LazySets.Hyperrectangle(; low = [1.0, 1.0], high = [-1.0, -1.0])
 end
 
 @testset "Ecosystem verbs (LazySets)" begin
-    R1 = UT.box([1, 1], [2, 2])
-    R2 = UT.box([0, 0], [3, 3])
-    R5 = UT.box([3, 3], [4, 4])
+    R1 = LazySets.Hyperrectangle(; low = [1.0, 1.0], high = [2.0, 2.0])
+    R2 = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [3.0, 3.0])
+    R5 = LazySets.Hyperrectangle(; low = [3.0, 3.0], high = [4.0, 4.0])
 
     @test R1 ⊆ R2
     @test !(R2 ⊆ R5)
@@ -48,7 +46,7 @@ end
 end
 
 @testset "Membership (points and boundaries)" begin
-    R = UT.box([0.0, 0.0], [1.0, 2.0])
+    R = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 2.0])
 
     @test [0.0, 0.0] ∈ R
     @test [1.0, 2.0] ∈ R  # boundary
@@ -57,36 +55,36 @@ end
     # clearly outside the set.
     @test [-1e-6, 1.0] ∉ R
 
-    Rin = UT.box([0.2, 0.3], [0.8, 1.9])
+    Rin = LazySets.Hyperrectangle(; low = [0.2, 0.3], high = [0.8, 1.9])
     @test Rin ⊆ R
     @test !(R ⊆ Rin)
 end
 
 @testset "Concrete intersection returns box or EmptySet" begin
-    A = UT.box([0.0, 0.0], [1.0, 1.0])
+    A = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 1.0])
 
     # overlap
-    B = UT.box([0.5, 0.5], [2.0, 2.0])
+    B = LazySets.Hyperrectangle(; low = [0.5, 0.5], high = [2.0, 2.0])
     I = LazySets.intersection(A, B)
     @test all(LazySets.low(I) .== [0.5, 0.5])
     @test all(LazySets.high(I) .== [1.0, 1.0])
     @test !isempty(I)
 
     # disjoint -> EmptySet
-    C = UT.box([2.0, 2.0], [3.0, 3.0])
+    C = LazySets.Hyperrectangle(; low = [2.0, 2.0], high = [3.0, 3.0])
     I2 = LazySets.intersection(A, C)
     @test I2 isa LazySets.EmptySet
     @test isempty(I2)
 
     # touching at edge -> zero volume but not empty
-    D = UT.box([1.0, 0.0], [2.0, 1.0])
+    D = LazySets.Hyperrectangle(; low = [1.0, 0.0], high = [2.0, 1.0])
     I3 = LazySets.intersection(A, D)
     @test !isempty(I3)
     @test LazySets.volume(I3) == 0.0
 end
 
 @testset "Geometry helpers (center/h/r/dims/volume consistency)" begin
-    R = UT.box([1.0, 2.0], [3.0, 6.0])
+    R = LazySets.Hyperrectangle(; low = [1.0, 2.0], high = [3.0, 6.0])
     @test all(LazySets.center(R) .== [2.0, 4.0])
     @test all(UT.get_h(R) .== [2.0, 4.0])
     @test all(LazySets.radius_hyperrectangle(R) .== [1.0, 2.0])
@@ -96,7 +94,7 @@ end
 end
 
 @testset "Vertices" begin
-    R = UT.box([0.0, 10.0], [2.0, 12.0])
+    R = LazySets.Hyperrectangle(; low = [0.0, 10.0], high = [2.0, 12.0])
     verts = LazySets.vertices_list(R)
     @test length(verts) == 4
     @test all(v -> (v ∈ R), verts)
@@ -109,7 +107,7 @@ end
 
 @testset "Sampling" begin
     Random.seed!(1234)
-    R = UT.box([0.0, 0.0], [1.0, 2.0])
+    R = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 2.0])
 
     x = UT.sample(R)
     @test length(x) == 2
@@ -121,7 +119,7 @@ end
 end
 
 @testset "Periodic split (set_in_period)" begin
-    rect_nowrap = UT.box([0.2, 0.0], [0.8, 1.0])
+    rect_nowrap = LazySets.Hyperrectangle(; low = [0.2, 0.0], high = [0.8, 1.0])
     periodic_dims = SVector(1)     # dim 1 periodic
     periods = SVector(1.0)
     start = SVector(0.0)
@@ -131,12 +129,12 @@ end
     @test U1.array[1] == rect_nowrap
 
     # wrapping case: [0.8, 1.2] wraps over period 1.0 -> two intervals
-    rect_wrap = UT.box([0.8, 0.0], [1.2, 1.0])
+    rect_wrap = LazySets.Hyperrectangle(; low = [0.8, 0.0], high = [1.2, 1.0])
     U2 = UT.set_in_period(rect_wrap, periodic_dims, periods, start)
     @test length(U2.array) == 2
 
     # covers full period: width >= period -> single [start, start+period]
-    rect_full = UT.box([-0.5, 0.0], [1.5, 1.0]) # width 2.0 >= 1.0
+    rect_full = LazySets.Hyperrectangle(; low = [-0.5, 0.0], high = [1.5, 1.0]) # width 2.0 >= 1.0
     U3 = UT.set_in_period(rect_full, periodic_dims, periods, start)
     @test length(U3.array) == 1
     @test all(LazySets.low(U3.array[1]) .== [0.0, 0.0])

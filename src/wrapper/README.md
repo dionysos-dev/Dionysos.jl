@@ -19,7 +19,7 @@ model = Model(Dionysos.Optimizer)
 @constraint(model, ∂(x[1]) == u[1])                          # ẋ = u
 @constraint(model, ∂(x[2]) == u[2])
 
-@constraint(model, x in Final(UT.box([-0.5, -0.5], [0.5, 0.5])))   # ◇ reach this box
+@constraint(model, x in Final(LazySets.Hyperrectangle(; low = [-0.5, -0.5], high = [0.5, 0.5])))  # ◇ reach this box
 
 set_attribute(model, "time_step", 1.0)
 set_attribute(model, "state_grid", MP.GridFree(SVector(0.0, 0.0), SVector(0.25, 0.25)))
@@ -163,7 +163,10 @@ shapes, and a temporal formula for anything else.
 | `@constraint(model, final(x[i]) in MOI.Interval(a, b))` | reach, one coordinate at a time |
 | `@constraint(model, start(x[i]) in MOI.Interval(a, b))` | start, one coordinate at a time |
 
-`S` is **any bounded `LazySet`** — a box, an ellipsoid, a ball, a polytope, a zonotope.
+`S` is **any bounded `LazySet`** — a box, an ellipsoid, a ball, a polytope, a zonotope. A box is
+`LazySets.Hyperrectangle(; low = lb, high = ub)`; always give bounds by keyword, because the
+positional `Hyperrectangle(c, r)` takes a *centre and a radius* and will happily build a different
+box from the same numbers.
 
 A coordinate with no `final` constraint falls back to that variable's own bounds, so leaving one
 unconstrained means "any value counts as reaching the target".
@@ -174,10 +177,12 @@ Name regions of the state space, then write a formula over them. The atomic prop
 **constraint's name**:
 
 ```julia
-@constraint(model, goal,   x in Label(UT.box([3.0, 0.3], [3.6, 0.8])))
+using Spot
+
+@constraint(model, goal,   x in Label(LazySets.Hyperrectangle(; low = [3.0, 0.3], high = [3.6, 0.8])))
 @constraint(model, hazard, x in Label(obstacle_region; semantics = MP.OUTER))
 
-@specification(model, "F(goal) & G(!hazard)")     # ◇goal ∧ □¬hazard
+@specification(model, ltl"F(goal) & G(!hazard)")     # ◇goal ∧ □¬hazard
 ```
 
 An anonymous `Label` is an error — the formula would have nothing to refer to.
@@ -186,14 +191,9 @@ An anonymous `Label` is an error — the formula would have nothing to refer to.
 inside it, which is the conservative reading for something you must reach; `OUTER` keeps every cell
 that touches it, the conservative reading for something you must avoid.
 
-With Spot loaded you can pass a formula object instead of a string:
-
-```julia
-using Spot
-@specification(model, ltl"F(goal) & G(!hazard)")
-```
-
-A hand-written monitor — any `Optim.DiscreteSystems.AbstractSpecStepper` — is accepted too.
+`@specification` takes either a **`Spot.SpotFormula`** — that is the `ltl"…"` macro, so `using
+Spot` is required — or any `Optim.DiscreteSystems.AbstractSpecStepper`, such as a hand-written
+`FunctionMonitor`. A plain `String` is *not* accepted; there is no built-in LTL parser.
 
 ### 5.3 Which one to use
 

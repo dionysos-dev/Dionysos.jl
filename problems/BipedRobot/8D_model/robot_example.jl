@@ -10,6 +10,7 @@ using JuMP
 using JLD2
 
 using Dionysos
+import LazySets
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -82,8 +83,8 @@ function solve_and_simulate!(
     out_of_domain_handler = nothing,
 )
     # Problem
-    I = UT.box(xstart, xstart)   # start forced in cell of xstart
-    T = UT.box(target_low, target_high)
+    I = LazySets.Hyperrectangle(; low = xstart, high = xstart)   # start forced in cell of xstart
+    T = LazySets.Hyperrectangle(; low = target_low, high = target_high)
 
     problem = DI.Problem.OptimalControlProblem(
         concrete_system,

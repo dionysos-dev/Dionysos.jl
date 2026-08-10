@@ -4,14 +4,15 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 using MathOptInterface
+import LazySets
 const MOI = MathOptInterface
 
 @testset "Continuous quantified-time via the reusable ClockLift" begin
     sys = single_integrator(; n = 1, xbound = 2.0, ubound = 1.0)   # ẋ = u
 
     # Specification over (x, t): reach x ∈ [0.5, 2] within t ∈ [1, 2], from x ≈ 0 at t = 0.
-    initial_set = UT.box([-0.1, 0.0], [0.1, 0.0])
-    target_set = UT.box([0.5, 1.0], [2.0, 2.0])
+    initial_set = LazySets.Hyperrectangle(; low = [-0.1, 0.0], high = [0.1, 0.0])
+    target_set = LazySets.Hyperrectangle(; low = [0.5, 1.0], high = [2.0, 2.0])
     concrete_problem = PR.OptimalControlProblem(
         sys,
         initial_set,
@@ -45,7 +46,7 @@ const MOI = MathOptInterface
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("clock"),
-        SY.ClockAbstraction(UT.box([0.0], [2.0]), 0.5),   # tsteps [0,.5,1,1.5,2]
+        SY.ClockAbstraction(LazySets.Hyperrectangle(; low = [0.0], high = [2.0]), 0.5),   # tsteps [0,.5,1,1.5,2]
     )
 
     MOI.optimize!(optimizer)

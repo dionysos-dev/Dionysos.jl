@@ -43,7 +43,7 @@ concrete_problem = ThermostatHybridSystem.problem(;
     params = params,
     initial_temperature = 18.0,
     initial_mode = 1,                       # start OFF and cold; must switch ON to heat
-    target = UT.box(SVector(21.0), SVector(23.0)),
+    target = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)),
 )
 concrete_system = concrete_problem.system
 

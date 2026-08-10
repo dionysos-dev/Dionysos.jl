@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "FromControlSystem" begin
@@ -14,7 +15,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap = MP.ExplicitGridMapping(Xgrid)
-    MP.cover!(Xmap, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap, LazySets.Hyperrectangle(; low = lbX, high = ubX), MP.OUTER)
 
     # ----------------------------
     # U mapping
@@ -26,7 +27,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, LazySets.Hyperrectangle(; low = lbU, high = ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction

@@ -75,14 +75,17 @@ function get_obstacles(
     X2_ub = [9.0, 5.0, 10.0, 9.0, 10.0, 6.0, 10.0, 10.0, 8.5, 8.6, 7.4, 6.2, 5.0, 3.8, 2.6],
 )
     return [
-        UT.box(
-            SVector(x1lb, x2lb, LazySets.low(_X_, 3)),
-            SVector(x1ub, x2ub, LazySets.high(_X_, 3)),
+        LazySets.Hyperrectangle(;
+            low = SVector(x1lb, x2lb, LazySets.low(_X_, 3)),
+            high = SVector(x1ub, x2ub, LazySets.high(_X_, 3)),
         ) for (x1lb, x2lb, x1ub, x2ub) in zip(X1_lb, X2_lb, X1_ub, X2_ub)
     ]
 end
 
-function system(_X_; _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)))
+function system(
+    _X_;
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0)),
+)
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(),
         LazySets.dim(_X_),
@@ -104,13 +107,31 @@ with the system, the initial and target domains, and null cost functions.
 """
 function problem(; simple = false, transition_cost = nothing)
     if simple
-        _X_ = UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4))
-        _I_ = UT.box(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
-        _T_ = UT.box(SVector(3.0, 0.3, -100.0), SVector(3.6, 0.8, 100.0))
+        _X_ = LazySets.Hyperrectangle(;
+            low = SVector(0.0, 0.0, -pi - 0.4),
+            high = SVector(4.0, 10.0, pi + 0.4),
+        )
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(0.4, 0.4, 0.0),
+            high = SVector(0.4, 0.4, 0.0),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(3.0, 0.3, -100.0),
+            high = SVector(3.6, 0.8, 100.0),
+        )
     else
-        _X_ = UT.box(SVector(-0.1, -0.1, -pi - 0.4), SVector(10.1, 10.1, pi + 0.4))
-        _I_ = UT.box(SVector(0.4, 0.4, 0.0), SVector(0.4, 0.4, 0.0))
-        _T_ = UT.box(SVector(9.0, 0.3, -100.0), SVector(9.6, 0.8, 100.0))
+        _X_ = LazySets.Hyperrectangle(;
+            low = SVector(-0.1, -0.1, -pi - 0.4),
+            high = SVector(10.1, 10.1, pi + 0.4),
+        )
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(0.4, 0.4, 0.0),
+            high = SVector(0.4, 0.4, 0.0),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(9.0, 0.3, -100.0),
+            high = SVector(9.6, 0.8, 100.0),
+        )
     end
     obs = get_obstacles(_X_)
     obstacles_LU = filter_obstacles(_X_, _I_, _T_, obs)

@@ -7,6 +7,7 @@ using MathOptInterface
 const MOI = MathOptInterface
 import MathematicalSystems as MS
 using HybridSystems
+import LazySets
 
 # Fast unit tests for the HybridSystemAbstraction helpers and dispatch logic —
 # the parts the (slow) end-to-end suite either never touches (channelled_trajectory)
@@ -17,8 +18,8 @@ const HSA = AB.HybridSystemAbstraction
 
 # A tiny two-mode hybrid system with a single 1 → 2 transition.
 function _tiny_hybrid_system()
-    X = UT.box([-1.0], [1.0])
-    U = UT.box([-1.0], [1.0])
+    X = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
+    U = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
     f(x, u) = x
     mode = MS.ConstrainedBlackBoxControlContinuousSystem(f, 1, 1, X, U)
     automaton = HybridSystems.GraphAutomaton(2)
@@ -26,14 +27,14 @@ function _tiny_hybrid_system()
     return HybridSystems.HybridSystem(
         automaton,
         [mode, mode],
-        [ST.GuardedResetMap(UT.box([-1.0], [1.0]))],
+        [ST.GuardedResetMap(LazySets.Hyperrectangle(; low = [-1.0], high = [1.0]))],
         [HybridSystems.AutonomousSwitching()],
     )
 end
 
 function _dummy_ocp()
-    XI = UT.box(SVector(-1.0), SVector(-0.5))
-    XT = UT.box(SVector(0.5), SVector(1.0))
+    XI = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(-0.5))
+    XT = LazySets.Hyperrectangle(; low = SVector(0.5), high = SVector(1.0))
     return PR.OptimalControlProblem(
         single_integrator(),
         XI,
@@ -63,9 +64,9 @@ end
 end
 
 @testset "control_solver_for dispatch" begin
-    XI = UT.box(SVector(-1.0), SVector(-0.5))
-    XT = UT.box(SVector(0.5), SVector(1.0))
-    XS = UT.box(SVector(-1.0), SVector(1.0))
+    XI = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(-0.5))
+    XT = LazySets.Hyperrectangle(; low = SVector(0.5), high = SVector(1.0))
+    XS = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
     sys = single_integrator()
 
     ocp = PR.OptimalControlProblem(sys, XI, XT, nothing, (a, u) -> 1.0, PR.Infinity())
@@ -141,8 +142,8 @@ end
 @testset "reached / safe predicates" begin
     # reach spec: mode 2, x ∈ [-1, 1], t ∈ [1, 2]
     reach_spec = PR.hybrid_reach_spec(
-        [UT.box(SVector(-1.0), SVector(1.0))],
-        [UT.box(SVector(1.0), SVector(2.0))],
+        [LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))],
+        [LazySets.Hyperrectangle(; low = SVector(1.0), high = SVector(2.0))],
         [2],
     )
     ocp = PR.OptimalControlProblem(
@@ -159,8 +160,8 @@ end
     @test !HSA.reached(ocp, ([0.5], 3.0, 2))    # t outside the window
 
     safe_spec = PR.hybrid_reach_spec(
-        [UT.box(SVector(-3.0), SVector(3.0))],
-        [UT.box(SVector(0.0), SVector(5.0))],
+        [LazySets.Hyperrectangle(; low = SVector(-3.0), high = SVector(3.0))],
+        [LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(5.0))],
         [1];
         incl_mode = UT.OUTER,
     )

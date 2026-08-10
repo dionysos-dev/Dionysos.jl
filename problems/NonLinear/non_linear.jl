@@ -88,9 +88,9 @@ end
 default_obstacles() = [LazySets.Ellipsoid([0.0; 0.0], Matrix{Float64}(LA.I, 2, 2) * 30.0)]
 
 function problem(;
-    X = UT.box(SVector(-20.0, -20.0), SVector(20.0, 20.0)),
+    X = LazySets.Hyperrectangle(; low = SVector(-20.0, -20.0), high = SVector(20.0, 20.0)),
 
-    U = UT.box(SVector(-10.0, -10.0), SVector(10.0, 10.0)),
+    U = LazySets.Hyperrectangle(; low = SVector(-10.0, -10.0), high = SVector(10.0, 10.0)),
 
     E0 = LazySets.Ellipsoid([-10.0; -10.0], Matrix{Float64}(LA.I, 2, 2) * 0.1),
 
@@ -107,7 +107,7 @@ function problem(;
         1.0,
     ),
 
-    W = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0)),
+    W = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0)),
     Ts = 1.0,
     noise = false,
     μ = 0.00005,

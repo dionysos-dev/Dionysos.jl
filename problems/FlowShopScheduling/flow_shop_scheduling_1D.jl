@@ -8,6 +8,7 @@ import MathematicalSystems as MS
 using LinearAlgebra
 
 using Dionysos
+import LazySets
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -42,16 +43,16 @@ function system()
     task5_dynamics(x, u) = task2_dynamics(x, u)
 
     # State and input spaces
-    X1 = UT.box([-1.0], [10.0])
-    U1 = UT.box([-1.5], [5.5])
-    X2 = UT.box([-1.0], [12.0])
-    U2 = UT.box([-1.5], [5.5])
-    X3 = UT.box([1.0], [11.0])
-    U3 = UT.box([-1.5], [6.5])
-    X4 = UT.box([0.0], [10.0])
-    U4 = UT.box([-1.5], [6.5])
-    X5 = UT.box([-2.0], [10.0])
-    U5 = UT.box([-1.5], [5.5])
+    X1 = LazySets.Hyperrectangle(; low = [-1.0], high = [10.0])
+    U1 = LazySets.Hyperrectangle(; low = [-1.5], high = [5.5])
+    X2 = LazySets.Hyperrectangle(; low = [-1.0], high = [12.0])
+    U2 = LazySets.Hyperrectangle(; low = [-1.5], high = [5.5])
+    X3 = LazySets.Hyperrectangle(; low = [1.0], high = [11.0])
+    U3 = LazySets.Hyperrectangle(; low = [-1.5], high = [6.5])
+    X4 = LazySets.Hyperrectangle(; low = [0.0], high = [10.0])
+    U4 = LazySets.Hyperrectangle(; low = [-1.5], high = [6.5])
+    X5 = LazySets.Hyperrectangle(; low = [-2.0], high = [10.0])
+    U5 = LazySets.Hyperrectangle(; low = [-1.5], high = [5.5])
 
     # Continuous systems for each task
     task1_system =
@@ -66,15 +67,15 @@ function system()
         MS.ConstrainedBlackBoxControlContinuousSystem(task5_dynamics, 1, 1, X5, U5)
 
     # Time systems for each task
-    timewindow_task1 = UT.box([0.0], [3.0])
+    timewindow_task1 = LazySets.Hyperrectangle(; low = [0.0], high = [3.0])
     task_1_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task1)
-    timewindow_task2 = UT.box([1.0], [5.0])
+    timewindow_task2 = LazySets.Hyperrectangle(; low = [1.0], high = [5.0])
     task_2_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task2)
-    timewindow_task3 = UT.box([7.0], [9.0])
+    timewindow_task3 = LazySets.Hyperrectangle(; low = [7.0], high = [9.0])
     task_3_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task3)
-    timewindow_task4 = UT.box([8.0], [11.0])
+    timewindow_task4 = LazySets.Hyperrectangle(; low = [8.0], high = [11.0])
     task_4_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task4)
-    timewindow_task5 = UT.box([10.0], [13.0])
+    timewindow_task5 = LazySets.Hyperrectangle(; low = [10.0], high = [13.0])
     task_5_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], timewindow_task5)
 
     # Mode systems for the automaton
@@ -87,11 +88,11 @@ function system()
     ]
 
     # Guards (acceptance regions) for each task
-    task1_target = UT.box([6.0, 0.0], [10.0, 3.0])
-    task2_target = UT.box([8.0, 1.0], [12.0, 5.0])
-    task3_target = UT.box([10.0, 7.0], [11.0, 9.0])
-    task4_target = UT.box([7.0, 8.0], [10.0, 11.0])
-    task5_target = UT.box([8.0], [10.0])
+    task1_target = LazySets.Hyperrectangle(; low = [6.0, 0.0], high = [10.0, 3.0])
+    task2_target = LazySets.Hyperrectangle(; low = [8.0, 1.0], high = [12.0, 5.0])
+    task3_target = LazySets.Hyperrectangle(; low = [10.0, 7.0], high = [11.0, 9.0])
+    task4_target = LazySets.Hyperrectangle(; low = [7.0, 8.0], high = [10.0, 11.0])
+    task5_target = LazySets.Hyperrectangle(; low = [8.0], high = [10.0])
 
     # Reset maps for each transition
     t1_t2_reset_map = FlowShopResetMap(task1_target, [0.0], 1.0)
@@ -159,8 +160,11 @@ function problem()
     # Initial state and target set
     initial_state = ([-0.5], 0.0, 1)
 
-    target_set =
-        PR.hybrid_reach_spec([UT.box([8.0], [10.0])], [UT.box([10.0], [13.0])], [5])
+    target_set = PR.hybrid_reach_spec(
+        [LazySets.Hyperrectangle(; low = [8.0], high = [10.0])],
+        [LazySets.Hyperrectangle(; low = [10.0], high = [13.0])],
+        [5],
+    )
 
     # Cost Function
     mode_weights = [3.0, 11.0, 1.5, 1.2, 2.5]

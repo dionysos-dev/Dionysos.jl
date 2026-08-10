@@ -3,6 +3,52 @@
 # --------------------------------------------------
 
 """
+    JacobianBoundPrecision
+
+How much of the state and input space a single evaluation of a derived Jacobian bound has to
+cover at once. Every level is rigorous; they differ in tightness and in how often the bound is
+recomputed. See [`compute_jacobian_bound`](@ref).
+
+- `GLOBAL_BOUND` — one matrix for all of `X` and `U`.
+- `INPUT_BOUND` — over all of `X`, re-derived per input.
+- `REGIONWISE_BOUND` — over one region of `X` at a time, per (region, input).
+"""
+@enum JacobianBoundPrecision GLOBAL_BOUND INPUT_BOUND REGIONWISE_BOUND
+
+"""
+    RegionwiseBound(bound, region_of, nregions)
+
+A Jacobian bound that is **piecewise constant over the state space**: `bound(i, u)` is the
+matrix valid throughout region `i`, and `region_of(x)` says which region a point falls in.
+
+A bound covering the whole state set must be as large as its worst point. On a nonlinear
+system that is usually far larger than any one region needs — `|-(g/l)cos x₁|` is `g/l` over a
+full turn but near zero on most slices of it — so splitting the state space buys tightness,
+and tightness is what decides whether synthesis succeeds at a given grid size.
+
+Crucially the regions are *few and fixed*, not one per cell: the radius can still be
+integrated once per (region, input) and hoisted out of the cell loop by
+[`input_cache`](@ref), leaving only an array lookup on the per-cell hot path.
+"""
+struct RegionwiseBound{F, R}
+    bound::F        # (region::Int, u) -> SMatrix
+    region_of::R    # x -> region::Int
+    nregions::Int
+end
+
+"""
+    RegionwiseGrowth(radius, region_of, nregions)
+
+The growth-bound map produced by a [`RegionwiseBound`](@ref): `radius(i, r, u[, tstep])` is the
+inflated radius for a cell of radius `r` sitting in region `i`.
+"""
+struct RegionwiseGrowth{F, R}
+    radius::F
+    region_of::R
+    nregions::Int
+end
+
+"""
     DiscreteTimeGrowthBound <: DiscreteTimeSystemOverApproximation
 
 A discrete-time overapproximation based on **growth bounds**.
@@ -28,11 +74,23 @@ end
 
 get_system(approx::DiscreteTimeGrowthBound) = approx.system
 
-input_cache(approx::DiscreteTimeGrowthBound, r, u) = approx.growthbound_map(r, u)
+# The cell radius is uniform across the grid, so a regionwise bound is still hoistable: the
+# radius is integrated once per region here, not once per cell, and the per-cell work drops to
+# a region lookup and an array index.
+input_cache(approx::DiscreteTimeGrowthBound, r, u) =
+    _input_cache(approx.growthbound_map, r, u)
+
+_input_cache(g, r, u) = g(r, u)
+_input_cache(g::RegionwiseGrowth, r, u) = [g.radius(i, r, u) for i in 1:(g.nregions)]
+
+# For a plain map the cache *is* the radius; for a regionwise one it is the table to index.
+_radius_from_cache(g, cache, x) = cache
+_radius_from_cache(g::RegionwiseGrowth, cache, x) = cache[g.region_of(x)]
 
 function reach_set(approx::DiscreteTimeGrowthBound, elem, u, Fr)
-    Fx = get_system_map(approx)(LazySets.center(elem), u)
-    return LazySets.Hyperrectangle(Fx, Fr)
+    x = LazySets.center(elem)
+    Fx = get_system_map(approx)(x, u)
+    return LazySets.Hyperrectangle(Fx, _radius_from_cache(approx.growthbound_map, Fr, x))
 end
 
 function get_over_approximation_map(approx::DiscreteTimeGrowthBound)
@@ -72,7 +130,9 @@ function get_over_approximation_map(approx::ContinuousTimeGrowthBound)
         x = LazySets.center(rect)
         r = LazySets.radius_hyperrectangle(rect)
         Fx = get_system_map(approx)(x, u, tstep)
-        Fr = approx.growthbound_map(r, u, tstep)
+        g = approx.growthbound_map
+        Fr =
+            g isa RegionwiseGrowth ? g.radius(g.region_of(x), r, u, tstep) : g(r, u, tstep)
         return LazySets.Hyperrectangle(Fx, Fr)
     end
 end
@@ -83,7 +143,12 @@ function discretize(
 )
     discretized_system =
         discretize_continuous_system(get_system(approx), tstep; num_substeps = num_substeps)
-    discretized_growthbound_map = (r, u) -> approx.growthbound_map(r, u, tstep)
+    g = approx.growthbound_map
+    discretized_growthbound_map = if g isa RegionwiseGrowth
+        RegionwiseGrowth((i, r, u) -> g.radius(i, r, u, tstep), g.region_of, g.nregions)
+    else
+        (r, u) -> g(r, u, tstep)
+    end
     return DiscreteTimeGrowthBound(discretized_system, discretized_growthbound_map)
 end
 
@@ -102,6 +167,22 @@ function ContinuousTimeGrowthBound(
 )
     if jacobian_bound === nothing
         jacobian_bound = compute_jacobian_bound(system)
+    end
+    if jacobian_bound isa RegionwiseBound
+        # `L` differs from region to region, so the radius ODE is integrated per region — a
+        # handful of integrations, not one per cell.
+        growthbound_map = RegionwiseGrowth(
+            (i, r, u, tstep) -> runge_kutta4(
+                (rr, uu) -> jacobian_bound.bound(i, uu) * rr,
+                r,
+                u,
+                tstep,
+                ngrowthbound,
+            ),
+            jacobian_bound.region_of,
+            jacobian_bound.nregions,
+        )
+        return ContinuousTimeGrowthBound(system, growthbound_map)
     end
     modified_jacobian_bound = (r, u) -> jacobian_bound(u) * r
     growthbound_map =
@@ -122,10 +203,35 @@ function ContinuousTimeGrowthBound_from_jacobian_bound(
     )
 end
 
-# Untyped fallback so the Symbolics extension can add the typed method without
-# overwriting it (its implementation traces the dynamics symbolically and bounds
-# the Jacobian over X with interval arithmetic).
-function compute_jacobian_bound(system)
+"""
+    compute_jacobian_bound(system; precision = INPUT_BOUND, nsplit = 4)
+
+Derive a Jacobian bound from the dynamics instead of writing one by hand: the extension traces
+`f` symbolically and bounds each entry with interval arithmetic, which is a proof rather than a
+sample. Requires `Symbolics` to be loaded.
+
+A hand-written bound is still worth having — it can exploit structure the interval arithmetic
+cannot see, and costs nothing at runtime — but it is also the single input whose being wrong
+invalidates every guarantee downstream, silently. This is the alternative.
+
+`precision` (a [`JacobianBoundPrecision`](@ref)) trades tightness against work:
+
+| | state ranged over | re-derived per | returns |
+| :--- | :--- | :--- | :--- |
+| `GLOBAL_BOUND` | all of `X`, all of `U` | never | `u -> SMatrix` |
+| `INPUT_BOUND` | all of `X` | input | `u -> SMatrix` |
+| `REGIONWISE_BOUND` | one of `nsplit^n` sub-boxes of `X` | (region, input) | [`RegionwiseBound`](@ref) |
+
+`GLOBAL_BOUND` is enough when the Jacobian barely varies. `INPUT_BOUND` — the default — is free
+in the abstraction's hot loop, because the radius map is hoisted out of the cell loop by
+[`input_cache`](@ref). `REGIONWISE_BOUND` stays hoisted too: the regions are few and fixed, so
+the radius is integrated once per (region, input) and the per-cell work is a lookup. Reach for
+it when a bound taken over the whole state space is too conservative for synthesis to succeed —
+on a pendulum it cut spurious transitions by 5–10% at `nsplit ≥ 8`.
+
+Note `nsplit^n` grows with the state dimension `n`, so lower `nsplit` above 2–3 states.
+"""
+function compute_jacobian_bound(system; kwargs...)
     return error(
         "Automatic Jacobian-bound computation requires Symbolics.jl " *
         "(load it with `using Symbolics`), or provide the bound explicitly via " *

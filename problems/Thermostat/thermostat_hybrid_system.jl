@@ -38,9 +38,9 @@ state is `(temperature, mode)`, and guards and the reset act on the temperature 
 """
 function system(;
     params::Params = Params(),
-    _X_ = UT.box(SVector(17.0), SVector(25.0)),
-    _Uoff_ = UT.box(SVector(0.0), SVector(0.0)),
-    _Uon_ = UT.box(SVector(0.2), SVector(1.0)),
+    _X_ = LazySets.Hyperrectangle(; low = SVector(17.0), high = SVector(25.0)),
+    _Uoff_ = LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(0.0)),
+    _Uon_ = LazySets.Hyperrectangle(; low = SVector(0.2), high = SVector(1.0)),
 )
     off_system = MS.ConstrainedBlackBoxControlContinuousSystem(
         off_dynamics(params),
@@ -106,7 +106,7 @@ function optimal_control_problem(;
     params::Params = Params(),
     initial_temperature = 18.0,
     initial_mode = 1,
-    target = UT.box(SVector(21.0), SVector(23.0)),
+    target = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)),
 )
     hybrid_system = system(; params = params)
 

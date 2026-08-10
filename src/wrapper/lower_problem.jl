@@ -7,7 +7,7 @@
 
 # The per-coordinate `start`/`final` intervals as a box over the state coordinates. A
 # coordinate the user left unconstrained falls back to the *variable's own bounds*: it used to
-# contribute ±Inf, from which `UT.box` built a NaN radius and threw deep inside LazySets, with
+# contribute ±Inf, from which `Hyperrectangle` built a NaN radius and threw deep inside it, with
 # nothing in the message pointing back at the model.
 function _coordinate_box(ir::ModelIR, x_idx::Vector{Int}, field::Symbol)
     n = length(ir.variables)
@@ -18,7 +18,7 @@ function _coordinate_box(ir::ModelIR, x_idx::Vector{Int}, field::Symbol)
         lb[i] = isfinite(interval.lower) ? interval.lower : v.lower
         ub[i] = isfinite(interval.upper) ? interval.upper : v.upper
     end
-    return UT.box(_svec(lb, x_idx), _svec(ub, x_idx))
+    return LazySets.Hyperrectangle(; low = _svec(lb, x_idx), high = _svec(ub, x_idx))
 end
 
 # The single specification set of kind `kind`, or `nothing`. A specification set must span
@@ -39,6 +39,14 @@ function _unique_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
         "coordinates with `final(x[i]) in MOI.Interval(a, b)` instead.",
     )
     return entry.set
+end
+
+# `_unique_spec` hands back the bare set, so the `EventuallyAlways` option is read separately.
+function _stay_on_first_entry(ir::ModelIR)
+    for entry in ir.specs
+        entry.kind === EVENTUALLY_ALWAYS && return entry.stay_on_first_entry
+    end
+    return false
 end
 
 # `horizon` is in seconds for a continuous-time model and in steps for a discrete-time one.
@@ -160,7 +168,8 @@ function build_problem(ir::ModelIR, f; time_step = nothing)
             initial_set,
             stay_set,
             safe_set,
-            _horizon(ir, true, time_step),
+            _horizon(ir, true, time_step);
+            stay_on_first_entry = _stay_on_first_entry(ir),
         )
     elseif target_set !== nothing
         return PR.OptimalControlProblem(

@@ -44,7 +44,12 @@ end
         @constraint(model, [model[:x], model[:y]] ∉ ball)
         return @constraint(
             model,
-            [model[:x], model[:y]] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+            [model[:x], model[:y]] in Final(
+                LazySets.Hyperrectangle(;
+                    low = SVector(1.0, 1.0),
+                    high = SVector(1.5, 1.5),
+                ),
+            )
         )
     end
 
@@ -62,7 +67,12 @@ end
         @constraint(model, [model[:x]] ∉ MOI.HyperRectangle([-0.25], [0.25]))
         return @constraint(
             model,
-            [model[:x], model[:y]] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+            [model[:x], model[:y]] in Final(
+                LazySets.Hyperrectangle(;
+                    low = SVector(1.0, 1.0),
+                    high = SVector(1.5, 1.5),
+                ),
+            )
         )
     end
 
@@ -80,8 +90,12 @@ end
             @constraint(model, [model[:x]] ∉ ball)
             return @constraint(
                 model,
-                [model[:x], model[:y]] in
-                Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+                [model[:x], model[:y]] in Final(
+                    LazySets.Hyperrectangle(;
+                        low = SVector(1.0, 1.0),
+                        high = SVector(1.5, 1.5),
+                    ),
+                )
             )
         end
         nothing
@@ -110,7 +124,8 @@ function two_mode_model(guard!)
     end
     @constraint(
         b,
-        [model[:x], model[:y]] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+        [model[:x], model[:y]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.5, 1.5)))
     )
 
     add_transition!(model, a => b) do t
@@ -222,7 +237,8 @@ end
     end
     @constraint(
         b,
-        [model[:x], model[:y]] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+        [model[:x], model[:y]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.5, 1.5)))
     )
     add_transition!(model, a => b) do t
         return @constraint(t, model[:x] + model[:y] <= 1.0)
@@ -269,7 +285,7 @@ end
 end
 
 @testset "contradictory guard bounds are diagnosed" begin
-    # `UT.box` would build a negative radius and assert from inside LazySets, naming neither
+    # `Hyperrectangle` would build a negative radius and assert from inside LazySets, naming neither
     # the transition nor the variable.
     model = two_mode_model() do t, m
         @constraint(t, m[:x] >= 1.0)
@@ -342,8 +358,12 @@ end
             integrator_2d!(model)
             @constraint(
                 model,
-                [model[:x], model[:y]] in
-                Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5)))
+                [model[:x], model[:y]] in Final(
+                    LazySets.Hyperrectangle(;
+                        low = SVector(1.0, 1.0),
+                        high = SVector(1.5, 1.5),
+                    ),
+                )
             )
             return @objective(model, Min, model[:u][1])
         end

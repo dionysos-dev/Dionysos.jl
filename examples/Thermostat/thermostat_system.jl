@@ -4,6 +4,7 @@ using Plots
 using JuMP
 
 import MathOptInterface as MOI
+import LazySets
 
 const DI = Dionysos
 const ST = DI.System
@@ -34,9 +35,9 @@ params = ThermostatSystem.Params(;
 
 concrete_problem = ThermostatSystem.reach_and_stay_problem(;
     params = params,
-    _I_ = UT.box(SVector(18.0), SVector(18.5)),
-    _T_ = UT.box(SVector(21.8), SVector(22.2)),
-    _S_ = UT.box(SVector(17.0), SVector(25.0)),
+    _I_ = LazySets.Hyperrectangle(; low = SVector(18.0), high = SVector(18.5)),
+    _T_ = LazySets.Hyperrectangle(; low = SVector(21.8), high = SVector(22.2)),
+    _S_ = LazySets.Hyperrectangle(; low = SVector(17.0), high = SVector(25.0)),
 )
 
 concrete_system = concrete_problem.system

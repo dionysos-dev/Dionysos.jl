@@ -165,6 +165,24 @@ Encodes a **reach-and-stay control problem** (eventually always).
 This problem aims to synthesize a controller that drives the system from the initial set
 into the target set and keeps it there indefinitely, while remaining within the safe set
 during the approach phase.
+
+# Two readings of "and stay"
+
+`stay_on_first_entry` picks which one is required.
+
+`false` (the default) is ◇□ in the literal sense: *eventually* the run is in the target
+forever. A run may enter the target, leave it, and come back — any number of times, as long
+as it is finite. That is the weaker property, so it admits the **larger** winning set.
+
+`true` additionally forbids those departures: from the first moment the run is in the target
+it must stay. This is what you want when a departure would be visible or unacceptable — a
+balancing task that must not fall back, a device that must not leave its operating band once
+it is in it. It is a strictly stronger requirement, so the winning set is **smaller**, and a
+problem solvable under the default may be infeasible here.
+
+```julia
+PR.ReachAndStayProblem(system, X0, target, safe; stay_on_first_entry = true)
+```
 """
 struct ReachAndStayProblem{S, XI, XT, XS, T} <: ControlProblem
     system::S
@@ -172,10 +190,43 @@ struct ReachAndStayProblem{S, XI, XT, XS, T} <: ControlProblem
     target_set::XT
     safe_set::XS
     time::T
+    stay_on_first_entry::Bool
 end
 
-ReachAndStayProblem(system, initial_set, target_set, safe_set) =
-    ReachAndStayProblem(system, initial_set, target_set, safe_set, Infinity())
+function ReachAndStayProblem(
+    system,
+    initial_set,
+    target_set,
+    safe_set,
+    time;
+    stay_on_first_entry::Bool = false,
+)
+    return ReachAndStayProblem(
+        system,
+        initial_set,
+        target_set,
+        safe_set,
+        time,
+        stay_on_first_entry,
+    )
+end
+
+function ReachAndStayProblem(
+    system,
+    initial_set,
+    target_set,
+    safe_set;
+    stay_on_first_entry::Bool = false,
+)
+    return ReachAndStayProblem(
+        system,
+        initial_set,
+        target_set,
+        safe_set,
+        Infinity();
+        stay_on_first_entry = stay_on_first_entry,
+    )
+end
 
 function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
     xs = traj.states
@@ -183,6 +234,14 @@ function trajectory_success(problem::ReachAndStayProblem, traj::ST.Trajectory)
 
     first(xs) ∈ problem.initial_set || return false
     all(x -> x ∈ problem.safe_set, xs) || return false
+
+    if problem.stay_on_first_entry
+        # Stronger: the run must not leave the target once it is in it, so the witness suffix
+        # is pinned to the *first* entry rather than being free to start later.
+        k = findfirst(x -> x ∈ problem.target_set, xs)
+        k === nothing && return false
+        return all(x -> x ∈ problem.target_set, @view xs[k:end])
+    end
 
     # Eventually-always-in-target: some suffix `xs[k:end]` lies entirely in the
     # target. Every such suffix contains `xs[end]`, and the length-1 suffix at

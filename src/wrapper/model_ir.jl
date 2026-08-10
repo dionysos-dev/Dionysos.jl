@@ -323,7 +323,7 @@ function _validate_modes(ir::ModelIR)
 end
 
 # The abstraction discretizes X and U, so every state and input must be boxed. Without this
-# the unbounded coordinate reaches `UT.box` as ±Inf and throws a NaN-radius assertion from
+# the unbounded coordinate reaches `Hyperrectangle` as ±Inf and throws a NaN-radius assertion from
 # deep inside LazySets, saying nothing about which variable is at fault.
 function _validate_bounds(ir::ModelIR)
     unbounded = findall(eachindex(ir.variables)) do i

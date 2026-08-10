@@ -7,9 +7,9 @@ import LazySets
 using Plots
 
 @testset "Set algebra (LazySets-backed)" begin
-    A1 = UT.box([-1.0, -1.0], [1.0, 1.0])
-    A2 = UT.box([2.0, 2.0], [3.0, 3.0])   # disjoint from A1
-    A3 = UT.box([0.5, 0.5], [1.5, 1.5])   # overlaps A1
+    A1 = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0])
+    A2 = LazySets.Hyperrectangle(; low = [2.0, 2.0], high = [3.0, 3.0])   # disjoint from A1
+    A3 = LazySets.Hyperrectangle(; low = [0.5, 0.5], high = [1.5, 1.5])   # overlaps A1
     B0 = LazySets.Ellipsoid([0.0, 0.0], [1.0 0.0; 0.0 1.0])
 
     # --- set_union ---
@@ -60,9 +60,9 @@ using Plots
 end
 
 @testset "Inclusion verbs (generic, non-ellipsoid)" begin
-    small = UT.box([0.0, 0.0], [1.0, 1.0])
-    big = UT.box([-1.0, -1.0], [2.0, 2.0])
-    far = UT.box([5.0, 5.0], [6.0, 6.0])
+    small = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 1.0])
+    big = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [2.0, 2.0])
+    far = LazySets.Hyperrectangle(; low = [5.0, 5.0], high = [6.0, 6.0])
 
     @test UT.is_included(small, big)
     @test !UT.is_included(big, small)
@@ -71,7 +71,7 @@ end
 end
 
 @testset "Outer bounding box" begin
-    H = UT.box([1.0, 2.0], [3.0, 4.0])
+    H = LazySets.Hyperrectangle(; low = [1.0, 2.0], high = [3.0, 4.0])
     @test UT._outer_box(H) === H                     # a box is its own outer box
 
     # a set with only a support function goes through box_approximation
@@ -81,7 +81,10 @@ end
     @test all(LazySets.high(BE) .≈ [1.0, 1.0])
 
     # a union is bounded by the elementwise min/max of its members' boxes
-    U = UT.set_union([UT.box([-1.0, -1.0], [1.0, 1.0]), UT.box([2.0, 2.0], [3.0, 3.0])])
+    U = UT.set_union([
+        LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0]),
+        LazySets.Hyperrectangle(; low = [2.0, 2.0], high = [3.0, 3.0]),
+    ])
     BU = UT._outer_box(U)
     @test all(LazySets.low(BU) .== [-1.0, -1.0])
     @test all(LazySets.high(BU) .== [3.0, 3.0])
@@ -96,7 +99,7 @@ end
 end
 
 @testset "project_set" begin
-    R = UT.box([0.0, 10.0], [2.0, 12.0])
+    R = LazySets.Hyperrectangle(; low = [0.0, 10.0], high = [2.0, 12.0])
     @test UT.project_set(R, [1, 2]) === R            # dims cover R → identity
 
     P = UT.project_set(R, [1])                        # drop to the first coordinate
@@ -110,7 +113,7 @@ end
     periods = UT.SVector(1.0)
     start = UT.SVector(0.0)
 
-    R = UT.box([0.8, 0.0], [1.2, 1.0])     # crosses the period boundary
+    R = LazySets.Hyperrectangle(; low = [0.8, 0.0], high = [1.2, 1.0])     # crosses the period boundary
     WR = UT.set_in_period(R, periodic_dims, periods, start)
     @test WR isa LazySets.UnionSetArray
     @test length(WR.array) == 2
@@ -120,7 +123,10 @@ end
     @test WU isa LazySets.UnionSetArray
     @test length(WU.array) == 2
 
-    M = UT.set_minus(U, UT.set_union([UT.box([2.0, 2.0], [3.0, 3.0])]))
+    M = UT.set_minus(
+        U,
+        UT.set_union([LazySets.Hyperrectangle(; low = [2.0, 2.0], high = [3.0, 3.0])]),
+    )
     WM = UT.set_in_period(M, periodic_dims, periods, start)
     @test WM isa UT.SetMinus
     @test length(UT.minus_included(WM).array) == 2
@@ -129,7 +135,10 @@ end
 # The recipes are asserted through the full Plots pipeline (`plot` → `plt.series_list`), which
 # expands the recipe body and everything it delegates to. See `test/utils/plotting.jl` for why.
 @testset "set_union recipe" begin
-    U = UT.set_union([UT.box([0.0, 0.0], [1.0, 1.0]), UT.box([3.0, 0.0], [4.0, 1.0])])
+    U = UT.set_union([
+        LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [1.0, 1.0]),
+        LazySets.Hyperrectangle(; low = [3.0, 0.0], high = [4.0, 1.0]),
+    ])
 
     plt = plot(U)
     @test length(plt.series_list) == 2
@@ -142,14 +151,19 @@ end
 
     # A union living in 3-D is projected by `dims` before it reaches the backend — plotting the
     # unprojected 3-D polytope would need a hull library.
-    U3 = UT.set_union([UT.box([0.0, 0.0, 0.0], [1.0, 2.0, 3.0])])
+    U3 = UT.set_union([
+        LazySets.Hyperrectangle(; low = [0.0, 0.0, 0.0], high = [1.0, 2.0, 3.0]),
+    ])
     s = plot(U3; dims = [1, 3]).series_list[1]
     @test maximum(s[:x]) == 1.0
     @test maximum(s[:y]) == 3.0
 end
 
 @testset "set_minus recipe" begin
-    S = UT.set_minus(UT.box([0.0, 0.0], [4.0, 4.0]), UT.box([1.0, 1.0], [2.0, 2.0]))
+    S = UT.set_minus(
+        LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [4.0, 4.0]),
+        LazySets.Hyperrectangle(; low = [1.0, 1.0], high = [2.0, 2.0]),
+    )
 
     plt = plot(S)
     @test length(plt.series_list) == 2
@@ -164,8 +178,8 @@ end
     @test plot(S; hole_alpha = 0.3).series_list[2][:fillalpha] == 0.3
 
     S3 = UT.set_minus(
-        UT.box([0.0, 0.0, 0.0], [4.0, 4.0, 4.0]),
-        UT.box([1.0, 1.0, 1.0], [2.0, 2.0, 2.0]),
+        LazySets.Hyperrectangle(; low = [0.0, 0.0, 0.0], high = [4.0, 4.0, 4.0]),
+        LazySets.Hyperrectangle(; low = [1.0, 1.0, 1.0], high = [2.0, 2.0, 2.0]),
     )
     @test length(plot(S3; dims = [1, 3]).series_list) == 2
 end

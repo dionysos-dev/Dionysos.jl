@@ -52,17 +52,20 @@ function jacobian(p::Params = Params())
         tδ = tan(δ)
 
         d4dϕ = -(v / (p.L1 * p.L2)) * (p.L1 * cos(ϕ) - p.Lc * sin(ϕ) * tδ)
+        # `SMatrix` fills column by column. Only θ = x[3] and ϕ = x[4] appear on a right-hand
+        # side, so the non-zero entries are ∂f1/∂θ, ∂f2/∂θ and ∂f4/∂ϕ — that is, the *third*
+        # and fourth columns.
         return SMatrix{4, 4}(
             0.0,
             0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
             -v*sin(θ),
-            0.0,
-            0.0,
-            0.0,
             v*cos(θ),
-            0.0,
-            0.0,
-            0.0,
             0.0,
             0.0,
             0.0,
@@ -90,17 +93,20 @@ function jacobian_bound(p::Params = Params())
         bθ = v
         bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
 
+        # `bθ` bounds ∂f1/∂θ and ∂f2/∂θ, so it belongs in the *third column* (θ = x[3]) —
+        # `SMatrix` fills column by column, and putting it in the first two columns instead
+        # leaves the real sensitivity unbounded.
         return SMatrix{4, 4}(
             0.0,
             0.0,
-            bθ,
+            0.0,
+            0.0,
+            0.0,
             0.0,
             0.0,
             0.0,
             bθ,
-            0.0,
-            0.0,
-            0.0,
+            bθ,
             0.0,
             0.0,
             0.0,
@@ -137,7 +143,7 @@ end
 # ----------------------------
 function system(
     _X_;
-    _U_ = UT.box(SVector(-1.0, -0.6), SVector(1.0, 0.6)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -0.6), high = SVector(1.0, 0.6)),
     params::Params = Params(),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -149,7 +155,7 @@ function system(
     )
 end
 
-function with_phi_limit(_X_::UT.Box; phi_max = 0.7)
+function with_phi_limit(_X_::LazySets.AbstractHyperrectangle; phi_max = 0.7)
     lb = SVector(LazySets.low(_X_, 1), LazySets.low(_X_, 2), LazySets.low(_X_, 3), -phi_max)
     ub = SVector(
         LazySets.high(_X_, 1),
@@ -157,7 +163,7 @@ function with_phi_limit(_X_::UT.Box; phi_max = 0.7)
         LazySets.high(_X_, 3),
         phi_max,
     )
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 
 function extrude_xy_obstacle_to_4d(ob2d, _X_)
@@ -174,9 +180,12 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
         LazySets.high(_X_, 3),
         LazySets.high(_X_, 4),
     )
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
-function with_xy_obstacles(_X_::UT.Box; obstacles2d = xy_obstacles())
+function with_xy_obstacles(
+    _X_::LazySets.AbstractHyperrectangle;
+    obstacles2d = xy_obstacles(),
+)
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
     return UT.set_minus(_X_, UT.set_union(obs4d))
 end
@@ -192,11 +201,20 @@ function problem(;
 )
 
     # Example domains (edit):
-    _X_ = UT.box(SVector(-20.0, -20.0, -pi, -pi/2), SVector(20.0, 20.0, pi, pi/2))
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-20.0, -20.0, -pi, -pi/2),
+        high = SVector(20.0, 20.0, pi, pi/2),
+    )
 
-    _I_ = UT.box(SVector(-10.0, -10.0, -0.2, 0.0), SVector(-9.0, -9.0, 0.2, 0.0))
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-10.0, -10.0, -0.2, 0.0),
+        high = SVector(-9.0, -9.0, 0.2, 0.0),
+    )
 
-    _T_ = UT.box(SVector(9.0, 9.0, -0.2, -0.2), SVector(10.0, 10.0, 0.2, 0.2))
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(9.0, 9.0, -0.2, -0.2),
+        high = SVector(10.0, 10.0, 0.2, 0.2),
+    )
 
     sys = system(_X_; params = params)
 

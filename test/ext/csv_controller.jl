@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import CSV
 import DataFrames   # importing both loads the DionysosCSVExt extension
+import LazySets
 
 # The DionysosCSVExt controller export/import: a full export → import round-trip against a
 # real symbolic model + `DiscreteStaticController`, plus a hand-built import case exercising
@@ -56,7 +57,10 @@ end
 @testset "CSV controller export/import round-trip" begin
     # A small grid-backed symbolic model with three inputs.
     Xgrid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
-    Xmap = MP.ImplicitGridMapping(Xgrid, UT.box(SVector(0.0, 0.0), SVector(2.0, 2.0)))
+    Xmap = MP.ImplicitGridMapping(
+        Xgrid,
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(2.0, 2.0)),
+    )
     Umap = MP.ListMapping([SVector(-1.0), SVector(0.0), SVector(1.0)])
     symmodel = SY.SymbolicModelList(
         Xmap,

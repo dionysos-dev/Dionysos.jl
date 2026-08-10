@@ -24,9 +24,9 @@ function _mode_box(ir::ModelIR, m::ModeIR, idx::Vector{Int})
     end
     # The element type is spelled out because `idx` may be empty: a mode whose only control is
     # the switch itself has no continuous input, and `SVector{0}()` would infer `Union{}`.
-    return UT.box(
-        SVector{length(idx), Float64}(lo...),
-        SVector{length(idx), Float64}(hi...),
+    return LazySets.Hyperrectangle(;
+        low = SVector{length(idx), Float64}(lo...),
+        high = SVector{length(idx), Float64}(hi...),
     )
 end
 
@@ -89,7 +89,7 @@ function _guard_box(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
         l, h = _mode_bound(ir, source, i)
         lo_i = max(l, get(t.guard_lower, i, -Inf))
         hi_i = min(h, get(t.guard_upper, i, Inf))
-        # Crossed bounds would reach `UT.box` as a negative radius and assert from inside
+        # Crossed bounds would reach `Hyperrectangle` as a negative radius and assert from inside
         # LazySets, naming neither the transition nor the variable.
         lo_i <= hi_i || error(
             "Transition $(t.id) (mode $(t.source) → mode $(t.target)) has an empty guard: on " *
@@ -101,7 +101,10 @@ function _guard_box(ir::ModelIR, t::TransitionIR, x_idx::Vector{Int})
         push!(lo, lo_i)
         push!(hi, hi_i)
     end
-    return UT.box(SVector{length(coords)}(lo...), SVector{length(coords)}(hi...))
+    return LazySets.Hyperrectangle(;
+        low = SVector{length(coords)}(lo...),
+        high = SVector{length(coords)}(hi...),
+    )
 end
 
 # A multi-variable affine guard `lo ≤ a'x ≤ hi` as the half-spaces bounding it. `a` is spread
@@ -301,7 +304,10 @@ function _mode_spec_set(ir::ModelIR, m::ModeIR, kind::SpecKind, x_idx::Vector{In
         push!(lo, l)
         push!(hi, h)
     end
-    return UT.box(SVector{length(x_idx)}(lo...), SVector{length(x_idx)}(hi...))
+    return LazySets.Hyperrectangle(;
+        low = SVector{length(x_idx)}(lo...),
+        high = SVector{length(x_idx)}(hi...),
+    )
 end
 
 # The time window of a mode's spec: the interval written on the clock with `final(t) in …`,

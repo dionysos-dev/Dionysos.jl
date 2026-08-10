@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ControllerSafe" begin
@@ -14,7 +15,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap = MP.ExplicitGridMapping(Xgrid)
-    MP.cover!(Xmap, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap, LazySets.Hyperrectangle(; low = lbX, high = ubX), MP.OUTER)
 
     # ----------------------------
     # Build finite U mapping
@@ -26,7 +27,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, LazySets.Hyperrectangle(; low = lbU, high = ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
@@ -56,7 +57,8 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     # ----------------------------
     # Initial set -> initlist (states)
     # ----------------------------
-    init_rect = UT.box(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
+    init_rect =
+        LazySets.Hyperrectangle(; low = SVector(-3.0, -3.0), high = SVector(-2.9, -2.9))
     initlist = collect(MP.get_states_from_set(Xmap, init_rect, MP.OUTER))
 
     @test !isempty(initlist)
@@ -69,7 +71,8 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     # The historical version had reversed x-bounds (an accidentally empty
     # obstacle under the old sentinel semantics); boxes now reject crossed
     # bounds, so the obstacle is a real thin strip at x ≈ -1.
-    obstacle_rect = UT.box(SVector(-1.1, -2.0), SVector(-1.0, 4.0))
+    obstacle_rect =
+        LazySets.Hyperrectangle(; low = SVector(-1.1, -2.0), high = SVector(-1.0, 4.0))
     bad_states = Set(MP.get_states_from_set(Xmap, obstacle_rect, MP.OUTER))
 
     safelist = [q for q in all_states if !(q in bad_states)]

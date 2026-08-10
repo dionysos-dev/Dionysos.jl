@@ -35,7 +35,11 @@ end
 @testset "state-set over grid-mapping recipe" begin
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
     m = MP.ExplicitGridMapping(grid)
-    MP.cover!(m, UT.box(SVector(0.0, 0.0), SVector(2.0, 2.0)), MP.OUTER)
+    MP.cover!(
+        m,
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(2.0, 2.0)),
+        MP.OUTER,
+    )
     @test MP.get_n_state(m) == 9
 
     # Default (`efficient`): the 3×3 block of cells is merged into a single rectangle, which is
@@ -79,7 +83,11 @@ end
 @testset "MappedStateSet recipe" begin
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 1.0))
     m = MP.ExplicitGridMapping(grid)
-    MP.cover!(m, UT.box(SVector(0.0, 0.0), SVector(2.0, 2.0)), MP.OUTER)
+    MP.cover!(
+        m,
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(2.0, 2.0)),
+        MP.OUTER,
+    )
 
     adjacent = [MP.get_state_by_pos(m, (0, 0)), MP.get_state_by_pos(m, (1, 0))]
     ms = MP.MappedStateSet(MP.stateset_from_states(m, adjacent), m)
@@ -129,7 +137,14 @@ end
     # Two layers along the third axis, so several cells project onto the same 2-D pixel.
     grid = MP.GridFree(SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0))
     m = MP.ExplicitGridMapping(grid)
-    MP.cover!(m, UT.box(SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0)), MP.OUTER)
+    MP.cover!(
+        m,
+        LazySets.Hyperrectangle(;
+            low = SVector(0.0, 0.0, 0.0),
+            high = SVector(1.0, 1.0, 1.0),
+        ),
+        MP.OUTER,
+    )
     @test MP.get_n_state(m) == 8
 
     # Without a value function the projection is a plain dedup: one representative cell per

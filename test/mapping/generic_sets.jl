@@ -34,10 +34,36 @@ import LazySets
     @test MP.get_pos_by_coord(grid, SVector(1.0, 1.0)) in zouter
 end
 
+@testset "The box's backing does not change the discretization" begin
+    # Bounds given as `SVector` give `SVector` storage, but the docs promise a user may write any
+    # bounded `LazySet` instead — including a plain `Hyperrectangle(; low, high)`, which keeps
+    # `Vector` storage. Three spellings of the same box must discretize identically, or that
+    # promise is false and the static backing is a hidden requirement, not an implementation detail.
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.1))
+    ambient = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
+
+    spellings = [
+        LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0)),          # SVector-backed
+        LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0]),  # Vector-backed
+        LazySets.BallInf([0.0, 0.0], 1.0),                       # not a Hyperrectangle at all
+    ]
+
+    counts = map(spellings) do X
+        m = MP.ImplicitGridMapping(grid, ambient)
+        return Set(MP.get_states_from_set(m, X, MP.OUTER))
+    end
+    @test !isempty(first(counts))
+    @test all(c -> c == first(counts), counts)
+end
+
 @testset "Reach-avoid with zonotope obstacle and ball target" begin
     Xgrid = MP.GridFree(SVector(0.0, 0.0), SVector(0.47, 0.23))
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.cover!(Xmap_full, UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)), MP.OUTER)
+    MP.cover!(
+        Xmap_full,
+        LazySets.Hyperrectangle(; low = SVector(-5.0, -5.0), high = SVector(5.0, 5.0)),
+        MP.OUTER,
+    )
 
     # thin vertical zonotope strip at x ≈ -1
     obstacle = LazySets.Zonotope([-1.0, 1.0], [0.1 0.0; 0.0 3.0])
@@ -51,7 +77,11 @@ end
 
     Ugrid = MP.GridFree(SVector(0.0), SVector(1.0))
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.cover!(Umap, UT.box(SVector(-2.0), SVector(2.0)), MP.OUTER)
+    MP.cover!(
+        Umap,
+        LazySets.Hyperrectangle(; low = SVector(-2.0), high = SVector(2.0)),
+        MP.OUTER,
+    )
 
     F_sys(x, u) = SVector(1.0, u[1])
     jacobian_bound(u) = SMatrix{2, 2}(0.0, 0.0, 0.0, 0.0)
@@ -69,7 +99,8 @@ end
     symmodel = SY.SymbolicModelList(Xmap, Umap)
     SY.compute_abstract_system_from_concrete_system!(symmodel, discrete_approx)
 
-    init_rect = UT.box(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
+    init_rect =
+        LazySets.Hyperrectangle(; low = SVector(-3.0, -3.0), high = SVector(-2.9, -2.9))
     initlist = collect(MP.get_states_from_set(Xmap, init_rect, MP.OUTER))
     @test !isempty(initlist)
 

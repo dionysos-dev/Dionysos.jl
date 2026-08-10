@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "HierarchicalGridMapping" begin
@@ -32,7 +33,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
           MP.get_coord_by_state(h.levels[2], q2_local)
 
     # Set-based query on a level, offset into the global label space.
-    rect = UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4))
+    rect = LazySets.Hyperrectangle(; low = SVector(-0.4, -0.4), high = SVector(0.4, 0.4))
     qs = MP.get_states_from_set(h, 1, rect, MP.OUTER)
     @test !isempty(qs)
     @test all(q -> q <= MP.get_n_state(h.levels[1]) + h.offsets[1], qs)

@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathematicalSystems as MS
+import LazySets
 
 # Small hand-built base abstraction: 2 states, 1 input (as in the ClockLift test).
 function build_base()
@@ -18,12 +19,15 @@ function build_base()
 end
 
 active_clock(tmax, tstep) = SY.ClockAbstraction(
-    MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [tmax])),
+    MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [tmax]),
+    ),
     tstep,
 )
 
 @testset "satisfies - concrete-point membership" begin
-    box = UT.box(SVector(-1.0), SVector(1.0))
+    box = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
     s = PR.StateSpec(box)
     @test PR.satisfies(s, SVector(0.0))
     @test !PR.satisfies(s, SVector(2.0))
@@ -34,7 +38,11 @@ active_clock(tmax, tstep) = SY.ClockAbstraction(
     @test !PR.satisfies(ts, SVector(0.0), 0.5)        # outside time window
     @test !PR.satisfies(ts, SVector(2.0), 1.5)        # outside state set
 
-    hs = PR.hybrid_reach_spec([box], [UT.box(SVector(1.0), SVector(2.0))], [2])
+    hs = PR.hybrid_reach_spec(
+        [box],
+        [LazySets.Hyperrectangle(; low = SVector(1.0), high = SVector(2.0))],
+        [2],
+    )
     @test PR.satisfies(hs, SVector(0.0), 1.5, 2)
     @test !PR.satisfies(hs, SVector(0.0), 1.5, 1)     # mode not in spec
     @test !PR.satisfies(hs, SVector(0.0), 0.5, 2)     # outside time window
@@ -42,7 +50,7 @@ end
 
 @testset "states_satisfying - clock-lifted model + lifted specs" begin
     m = SY.lift(SY.ClockLift(active_clock(2.0, 1.0)), build_base())  # tsteps [0,1,2]
-    s = PR.StateSpec(UT.box(SVector(-0.5), SVector(1.5)))            # both cells
+    s = PR.StateSpec(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(1.5)))            # both cells
 
     # Base spec on a clock-lifted model: matching base states at every time index.
     all_states = SY.states_satisfying(m, s)

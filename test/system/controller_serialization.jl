@@ -9,6 +9,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 using JLD2
 import MathematicalSystems as MS
 import MathOptInterface as MOI
+import LazySets
 
 function roundtrip(obj)
     path = joinpath(mktempdir(), "controller.jld2")
@@ -56,14 +57,14 @@ end
 @testset "Synthesized UGA controller round-trip" begin
     # Small reachability problem end to end, then save/load the concrete controller.
     F_sys(x, u) = SVector(u[1], -0.5 * x[1])
-    _X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-    _U_ = UT.box(SVector(-1.0), SVector(1.0))
+    _X_ = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
     concrete_system = MS.ConstrainedBlackBoxControlContinuousSystem(F_sys, 2, 1, _X_, _U_)
 
-    target = UT.box(SVector(0.5, -0.5), SVector(1.5, 0.5))
+    target = LazySets.Hyperrectangle(; low = SVector(0.5, -0.5), high = SVector(1.5, 0.5))
     problem = DI.Problem.OptimalControlProblem(
         concrete_system,
-        UT.box(SVector(-1.5, -0.5), SVector(-0.5, 0.5)),
+        LazySets.Hyperrectangle(; low = SVector(-1.5, -0.5), high = SVector(-0.5, 0.5)),
         target,
         nothing,
         nothing,

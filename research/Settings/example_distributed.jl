@@ -24,6 +24,7 @@ const AB = OP.Abstraction
 using JuMP
 using MathOptInterface
 using Plots
+import LazySets
 @everywhere using StaticArrays
 
 const MOI = MathOptInterface
@@ -123,8 +124,8 @@ println("Time to construct the abstraction: $(abstraction_time) sec")
 # ----------------------------------------------------------------------
 # Solve a safety problem
 # ----------------------------------------------------------------------
-_I_ = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61))
-_S_ = UT.box(SVector(1.16, 5.46), SVector(1.53, 5.82))
+_I_ = LazySets.Hyperrectangle(; low = SVector(1.19, 5.59), high = SVector(1.21, 5.61))
+_S_ = LazySets.Hyperrectangle(; low = SVector(1.16, 5.46), high = SVector(1.53, 5.82))
 
 concrete_problem_safety =
     DI.Problem.SafetyProblem(concrete_system, _I_, _S_, DI.Problem.Infinity())

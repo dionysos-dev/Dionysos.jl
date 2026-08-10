@@ -61,15 +61,21 @@ struct Always{S} <: MOI.AbstractVectorSet
 end
 
 """
-    EventuallyAlways(S)
+    EventuallyAlways(S; stay_on_first_entry = false)
 
 Marks `S` as a reach-and-stay target — ◇□, the trajectory must reach `S` and remain there:
 `@constraint(model, x in EventuallyAlways(S))`. Lowers to a
+[`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem).
+
+`stay_on_first_entry = true` forbids the departures that plain ◇□ allows: the run must stay
+from the moment it first enters `S`, rather than being free to leave and return finitely often
+before settling. Stronger requirement, smaller winning set — see
 [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem).
 """
 struct EventuallyAlways{S} <: MOI.AbstractVectorSet
     inner::S
     dim::Int
+    stay_on_first_entry::Bool
 end
 
 """
@@ -83,7 +89,8 @@ const SpecSet = Union{Start, Final, Always, EventuallyAlways}
 Start(set) = Start(set, LazySets.dim(set))
 Final(set) = Final(set, LazySets.dim(set))
 Always(set) = Always(set, LazySets.dim(set))
-EventuallyAlways(set) = EventuallyAlways(set, LazySets.dim(set))
+EventuallyAlways(set; stay_on_first_entry::Bool = false) =
+    EventuallyAlways(set, LazySets.dim(set), stay_on_first_entry)
 
 spec_kind(::Start) = START
 spec_kind(::Final) = FINAL
@@ -114,7 +121,15 @@ struct SpecEntry{S}
     kind::SpecKind
     set::S
     variables::Vector{MOI.VariableIndex}
+    stay_on_first_entry::Bool
 end
+
+SpecEntry(kind, set, variables) = SpecEntry(kind, set, variables, false)
+
+# The markers are unwrapped to their bare set here, so any option they carry has to be lifted
+# out with them. Only `EventuallyAlways` has one.
+stay_on_first_entry(set::EventuallyAlways) = set.stay_on_first_entry
+stay_on_first_entry(::SpecSet) = false
 
 # ----------------------------------------------------------------------------------------
 # The general layer: a temporal formula over named regions

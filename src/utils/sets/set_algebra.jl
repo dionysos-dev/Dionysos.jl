@@ -36,32 +36,12 @@ is_disjoint(X, Y) = LazySets.isdisjoint(X, Y)
 # region is `LazySets.EmptySet` (never a crossed-bounds box).
 # ------------------------------------------------------------
 
-"""
-    Box{N, T}
-
-Concrete alias of `LazySets.Hyperrectangle` backed by `SVector`s, for struct
-fields and container element types.
-"""
-const Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
-
-"""
-    box(lb, ub) -> LazySets.Hyperrectangle
-
-The axis-aligned box `{x : lb ≤ x ≤ ub}`. Errors if `lb ≰ ub` componentwise.
-"""
-box(lb::SVector{N, T}, ub::SVector{N, T}) where {N, T} =
-    LazySets.Hyperrectangle(; low = lb, high = ub)
-
-function box(lb, ub)
-    length(lb) == length(ub) || throw(
-        DimensionMismatch(
-            "lb and ub must have equal length, got $(length(lb)) and $(length(ub))",
-        ),
-    )
-    n = length(lb)
-    T = float(promote_type(eltype(lb), eltype(ub)))
-    return box(SVector{n, T}(lb), SVector{n, T}(ub))
-end
+# Internal. `Hyperrectangle` pinned to `SVector` storage — note the parameter order is not
+# `Hyperrectangle`'s. It exists so a container of boxes has a *concrete* element type, which
+# propagates into `UnionSetArray`'s parameters and keeps membership statically dispatched
+# (measured ~5× on `x ∈ U`). Never annotate an argument or field with it: it is one backing
+# among several, and `LazySets.AbstractHyperrectangle` is what code should accept.
+const _Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
 
 # Full side lengths (2·radius); LazySets only exposes the half-widths.
 get_h(H::LazySets.AbstractHyperrectangle) = 2 .* LazySets.radius_hyperrectangle(H)
@@ -161,7 +141,7 @@ function _outer_box(U::LazySets.UnionSetArray)
     boxes = [_outer_box(s) for s in U.array]
     lb = reduce((a, b) -> min.(a, b), (LazySets.low(B) for B in boxes))
     ub = reduce((a, b) -> max.(a, b), (LazySets.high(B) for B in boxes))
-    return box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 _outer_box(S::LazySets.Intersection) = _outer_box(minus_included(S))
 
@@ -198,7 +178,7 @@ function _recursive_period_split!(
     i::Int,
 ) where {N, P}
     if i > P
-        push!(out, box(SVector(lb), SVector(ub)))
+        push!(out, LazySets.Hyperrectangle(; low = SVector(lb), high = SVector(ub)))
         return
     end
     dim = periodic_dims[i]
@@ -235,7 +215,7 @@ function set_in_period(
     N = LazySets.dim(rect)
     lb = ntuple(i -> LazySets.low(rect, i), N)
     ub = ntuple(i -> LazySets.high(rect, i), N)
-    L = Box{N, T}[]
+    L = _Box{N, T}[]
     _recursive_period_split!(L, lb, ub, lb, ub, periodic_dims, periods, start, 1)
     return set_union(L)
 end

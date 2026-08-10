@@ -28,8 +28,8 @@ end
 
 @testset "a Label's atomic proposition is the constraint's name" begin
     model, x = reach_avoid_model()
-    goal = UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8))
-    hazard = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+    goal = LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8))
+    hazard = LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5))
 
     @constraint(model, goal_region, x in Label(goal))
     @constraint(model, hazard_region, x in Label(hazard; semantics = MP.OUTER))
@@ -53,7 +53,8 @@ end
     @constraint(
         model,
         goal_region,
-        x in Label(UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8)))
+        x in
+        Label(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8)))
     )
 
     monitor = OPDS.FunctionMonitor(1, Set([2]), (q, ap) -> (:goal_region in ap) ? 2 : q)
@@ -69,10 +70,15 @@ end
     @constraint(
         model,
         goal_region,
-        x in Label(UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8)))
+        x in
+        Label(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8)))
     )
     # A `Final` marker as well: the formula is the general form and wins.
-    @constraint(model, x in Final(UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))))
+    @constraint(
+        model,
+        x in
+        Final(LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0)))
+    )
     @specification(model, ltl"F(goal_region)")
 
     @test WR.lower(model) isa PR.CoSafeLTLProblem
@@ -81,7 +87,11 @@ end
 @testset "validation" begin
     # An anonymous label has no proposition to be referred to by.
     model, x = reach_avoid_model()
-    @constraint(model, x in Label(UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8))))
+    @constraint(
+        model,
+        x in
+        Label(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8)))
+    )
     @specification(model, ltl"F(goal_region)")
     err = try
         WR.lower(model)
@@ -102,7 +112,8 @@ end
     @constraint(
         wrong,
         goal_region,
-        y in Label(UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8)))
+        y in
+        Label(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8)))
     )
     @specification(wrong, 42)
     @test_throws ErrorException WR.lower(wrong)
@@ -121,12 +132,16 @@ end
     @constraint(
         model,
         goal_region,
-        x in Label(UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8)))
+        x in
+        Label(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8)))
     )
     @constraint(
         model,
         hazard_region,
-        x in Label(UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4)); semantics = MP.OUTER)
+        x in Label(
+            LazySets.Hyperrectangle(; low = SVector(-0.4, -0.4), high = SVector(0.4, 0.4));
+            semantics = MP.OUTER,
+        )
     )
     @specification(model, ltl"F(goal_region) & G(!hazard_region)")
 
@@ -145,8 +160,8 @@ end
     # reads the labels of the state the system lands in. Feeding it the current state instead
     # desynchronises it by one step, which does not throw — the run just stops early and never
     # satisfies the formula. So this pins the behaviour, not the flag.
-    goal = UT.box(SVector(1.0, 1.0), SVector(1.8, 1.8))
-    hazard = UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4))
+    goal = LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.8, 1.8))
+    hazard = LazySets.Hyperrectangle(; low = SVector(-0.4, -0.4), high = SVector(0.4, 0.4))
     traj = Dionysos.simulate(model, SVector(-1.5, -1.5); nsteps = 40)
 
     @test any(x -> x ∈ goal, ST.states(traj))

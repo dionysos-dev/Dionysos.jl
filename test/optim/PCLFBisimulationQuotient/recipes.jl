@@ -15,7 +15,9 @@ const PCQ = AB.PCLFBisimulationQuotient
 
 ENV["GKSwstype"] = "100"
 
-sls(boxes...) = UT.semilinear_set([UT.box(lo, hi) for (lo, hi) in boxes])
+sls(boxes...) = UT.semilinear_set([
+    LazySets.Hyperrectangle(; low = lo, high = hi) for (lo, hi) in boxes
+])
 
 # Two nodes, two slices each. State 3 is deliberately made of two pieces, which is the case that
 # distinguishes "one legend entry per abstract state" from "one per polytope".

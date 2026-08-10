@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 using Plots
 import MathematicalSystems
+import LazySets
 
 # Minimal dummy system: the problem plot recipes require `MS.stateset(system)`.
 struct DummySystem{X}
@@ -22,9 +23,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "AlternatingSimulationProblem fields" begin
-        X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
         sys = DummySystem(X)
-        state_set = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+        state_set =
+            LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5))
 
         p = PR.AlternatingSimulationProblem(sys, state_set)
 
@@ -34,16 +36,18 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p.state_set == state_set
 
         # problems are immutable value objects
-        state_set2 = UT.box(SVector(-0.2, -0.2), SVector(0.2, 0.2))
+        state_set2 =
+            LazySets.Hyperrectangle(; low = SVector(-0.2, -0.2), high = SVector(0.2, 0.2))
         @test_throws ErrorException p.state_set = state_set2
     end
 
     @testset "OptimalControlProblem fields" begin
-        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         sys = DummySystem(X)
 
-        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
-        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(-0.5, -0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5, 0.5), high = SVector(1.0, 1.0))
 
         state_cost = x -> 0.0
         transition_cost = (x, u) -> 1.0
@@ -60,7 +64,7 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p.time == T
         @test p.safe_set === nothing        # optional: no avoid part unless asked for
 
-        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+        XS = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.5), high = SVector(1.5, 1.5))
         avoid = PR.OptimalControlProblem(
             sys,
             XI,
@@ -78,11 +82,11 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "SafetyProblem fields" begin
-        X = UT.box(SVector(-3.0, -3.0), SVector(3.0, 3.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-3.0, -3.0), high = SVector(3.0, 3.0))
         sys = DummySystem(X)
 
-        XI = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
-        XS = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        XI = LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5))
+        XS = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         T = 7
 
         p = PR.SafetyProblem(sys, XI, XS, T)
@@ -95,10 +99,11 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "CoSafeLTLProblem fields" begin
-        X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
         sys = DummySystem(X)
 
-        XI = UT.box(SVector(-0.9, -0.9), SVector(-0.8, -0.8))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-0.9, -0.9), high = SVector(-0.8, -0.8))
 
         # SPEC can be anything; use a Symbol or String as stand-in
         spec = :F_target
@@ -106,8 +111,14 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         # Label payload can be sets (concrete) or abstract states;
         # here use sets to match your recipe expectation.
         lab = Dict{Symbol, Any}(
-            :goal => UT.box(SVector(0.4, 0.4), SVector(0.6, 0.6)),
-            :avoid => UT.box(SVector(-0.2, -0.2), SVector(0.2, 0.2)),
+            :goal => LazySets.Hyperrectangle(;
+                low = SVector(0.4, 0.4),
+                high = SVector(0.6, 0.6),
+            ),
+            :avoid => LazySets.Hyperrectangle(;
+                low = SVector(-0.2, -0.2),
+                high = SVector(0.2, 0.2),
+            ),
         )
 
         ap_sem = Dict{Symbol, Any}(:goal => MP.INNER, :avoid => MP.OUTER)
@@ -123,10 +134,11 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "Problem hierarchy and interface" begin
-        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         sys = DummySystem(X)
-        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
-        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(-0.5, -0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5, 0.5), high = SVector(1.0, 1.0))
 
         p = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 5)
         @test p isa PR.ControlProblem
@@ -134,11 +146,11 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
 
         # reach-avoid rounds the horizon down; the others round up
         @test PR.horizon_round_up(p) == false
-        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+        XS = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.5), high = SVector(1.5, 1.5))
         @test PR.horizon_round_up(PR.SafetyProblem(sys, XI, XS, 5)) == true
 
         # remake swaps fields, re-infers type parameters, copies the rest
-        XT2 = UT.box(SVector(0.6, 0.6), SVector(1.1, 1.1))
+        XT2 = LazySets.Hyperrectangle(; low = SVector(0.6, 0.6), high = SVector(1.1, 1.1))
         p2 = PR.remake(p; target_set = XT2, time = 9)
         @test p2 isa PR.OptimalControlProblem
         @test p2.target_set == XT2
@@ -147,7 +159,7 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test p2.system === p.system
 
         # `remake` walks the fields generically, so it reaches `safe_set` too.
-        XS2 = UT.box(SVector(-1.8, -1.8), SVector(1.8, 1.8))
+        XS2 = LazySets.Hyperrectangle(; low = SVector(-1.8, -1.8), high = SVector(1.8, 1.8))
         @test PR.remake(p; safe_set = XS2).safe_set == XS2
         @test PR.remake(p; time = 3).safe_set === nothing
     end
@@ -164,11 +176,12 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "Default (infinite) horizon constructors" begin
-        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         sys = DummySystem(X)
-        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
-        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
-        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(-0.5, -0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5, 0.5), high = SVector(1.0, 1.0))
+        XS = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.5), high = SVector(1.5, 1.5))
 
         @test PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0).time ===
               PR.Infinity()
@@ -177,11 +190,12 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "ReachAndStayProblem fields" begin
-        X = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         sys = DummySystem(X)
-        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
-        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
-        XS = UT.box(SVector(-1.5, -1.5), SVector(1.5, 1.5))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(-0.5, -0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5, 0.5), high = SVector(1.0, 1.0))
+        XS = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.5), high = SVector(1.5, 1.5))
 
         p = PR.ReachAndStayProblem(sys, XI, XT, XS, 6)
         @test p isa PR.ControlProblem
@@ -194,12 +208,16 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "BisimulationQuotientProblem fields" begin
-        X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
         sys = DummySystem(X)
-        state_set = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+        state_set =
+            LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5))
         regions = [
-            UT.box(SVector(-0.4, -0.4), SVector(-0.1, -0.1)),
-            UT.box(SVector(0.1, 0.1), SVector(0.4, 0.4)),
+            LazySets.Hyperrectangle(;
+                low = SVector(-0.4, -0.4),
+                high = SVector(-0.1, -0.1),
+            ),
+            LazySets.Hyperrectangle(; low = SVector(0.1, 0.1), high = SVector(0.4, 0.4)),
         ]
 
         p = PR.BisimulationQuotientProblem(sys, state_set, regions)
@@ -211,9 +229,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "trajectory_success semantics" begin
-        XI = UT.box(SVector(-1.0, -1.0), SVector(-0.5, -0.5))
-        XT = UT.box(SVector(0.5, 0.5), SVector(1.0, 1.0))
-        XS = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(-0.5, -0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5, 0.5), high = SVector(1.0, 1.0))
+        XS = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
         sys = DummySystem(XS)
 
         in_XI = SVector(-0.75, -0.75)
@@ -234,7 +253,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
 
         @testset "reach-avoid with a safe set" begin
             # A corridor that excludes `mid`, so the middle of the direct route is off limits.
-            corridor = UT.box(SVector(-1.0, -1.0), SVector(-0.25, -0.25))
+            corridor = LazySets.Hyperrectangle(;
+                low = SVector(-1.0, -1.0),
+                high = SVector(-0.25, -0.25),
+            )
             keep_out = PR.OptimalControlProblem(
                 sys,
                 XI,
@@ -246,7 +268,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
             )
             @test !PR.trajectory_success(keep_out, traj([in_XI, mid, in_XT]))
 
-            wide = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+            wide = LazySets.Hyperrectangle(;
+                low = SVector(-2.0, -2.0),
+                high = SVector(2.0, 2.0),
+            )
             ok = PR.OptimalControlProblem(sys, XI, XT, nothing, nothing, 5; safe_set = wide)
             @test PR.trajectory_success(ok, traj([in_XI, mid, in_XT]))
             @test !PR.trajectory_success(ok, traj([in_XI, unsafe, in_XT]))  # leaves the safe set
@@ -256,7 +281,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         end
 
         @testset "safety (SafetyProblem)" begin
-            XIs = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+            XIs = LazySets.Hyperrectangle(;
+                low = SVector(-0.5, -0.5),
+                high = SVector(0.5, 0.5),
+            )
             p = PR.SafetyProblem(sys, XIs, XS, 5)
             @test PR.trajectory_success(p, traj([mid, in_XT, in_XI]))  # from XI, stays in XS
             @test !PR.trajectory_success(p, traj([mid, unsafe]))       # leaves XS
@@ -272,6 +300,29 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
             @test !PR.trajectory_success(p, empty_traj)
         end
 
+        @testset "reach-and-stay with stay_on_first_entry" begin
+            loose = PR.ReachAndStayProblem(sys, XI, XT, XS, 5)
+            strict = PR.ReachAndStayProblem(sys, XI, XT, XS, 5; stay_on_first_entry = true)
+            @test !loose.stay_on_first_entry
+            @test strict.stay_on_first_entry
+            # The keyword survives the 4-argument (infinite-horizon) constructor too.
+            @test PR.ReachAndStayProblem(sys, XI, XT, XS; stay_on_first_entry = true).stay_on_first_entry
+
+            # The case that separates the two readings: enter the target, leave, come back.
+            # ◇□ accepts it — some suffix is in the target. "Stay from first entry" does not.
+            reentry = traj([in_XI, in_XT, mid, in_XT])
+            @test PR.trajectory_success(loose, reentry)
+            @test !PR.trajectory_success(strict, reentry)
+
+            # A run that arrives and holds satisfies both.
+            settles = traj([in_XI, mid, in_XT, in_XT])
+            @test PR.trajectory_success(loose, settles)
+            @test PR.trajectory_success(strict, settles)
+
+            # Never reaching the target fails the strict reading for want of a first entry.
+            @test !PR.trajectory_success(strict, traj([in_XI, mid, mid]))
+        end
+
         @testset "co-safe LTL (placeholder returns false)" begin
             lab = Dict{Symbol, Any}(:ap => XT)
             ap_sem = Dict{Symbol, Any}(:ap => MP.INNER)
@@ -283,8 +334,8 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
 
     @testset "discretize_problem" begin
         sys = single_integrator()   # a real continuous-time plant (ẋ = u)
-        XI = UT.box(SVector(-1.0), SVector(-0.5))
-        XT = UT.box(SVector(0.5), SVector(1.0))
+        XI = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(-0.5))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.5), high = SVector(1.0))
 
         # reach-avoid rounds the horizon down: floor(1.0 / 0.3) = 3
         p = PR.OptimalControlProblem(sys, XI, XT, x -> 0.0, (x, u) -> 1.0, 1.0)
@@ -296,7 +347,12 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         @test pd.system isa MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem
 
         # safety rounds up: ceil(1.0 / 0.3) = 4
-        ps = PR.SafetyProblem(sys, XI, UT.box(SVector(-1.5), SVector(1.5)), 1.0)
+        ps = PR.SafetyProblem(
+            sys,
+            XI,
+            LazySets.Hyperrectangle(; low = SVector(-1.5), high = SVector(1.5)),
+            1.0,
+        )
         @test PR.discretize_problem(ps, 0.3).time == 4
 
         # abstraction problems have no generic discretization → the stub errors
@@ -305,8 +361,9 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     end
 
     @testset "Specifications" begin
-        set1 = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
-        set2 = UT.box(SVector(-1.0, -1.0), SVector(0.0, 0.0))
+        set1 = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0))
+        set2 =
+            LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(0.0, 0.0))
 
         # StateSpec: default INNER, explicit mode, and time-agnostic membership
         s1 = PR.StateSpec(set1)
@@ -333,7 +390,10 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         # hybrid_reach_spec: parallel (state, time, mode) → mode-indexed timed spec
         H = PR.hybrid_reach_spec(
             [set1, set2],
-            [UT.box(SVector(0.0), SVector(2.0)), UT.box(SVector(1.0), SVector(4.0))],
+            [
+                LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(2.0)),
+                LazySets.Hyperrectangle(; low = SVector(1.0), high = SVector(4.0)),
+            ],
             [1, 2],
         )
         @test H isa PR.HybridSpec
@@ -345,12 +405,15 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         # validation: parallel lengths must match and modes must be unique
         @test_throws AssertionError PR.hybrid_reach_spec(
             [set1, set2],
-            [UT.box(SVector(0.0), SVector(2.0))],
+            [LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(2.0))],
             [1, 2],
         )
         @test_throws AssertionError PR.hybrid_reach_spec(
             [set1, set2],
-            [UT.box(SVector(0.0), SVector(2.0)), UT.box(SVector(1.0), SVector(4.0))],
+            [
+                LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(2.0)),
+                LazySets.Hyperrectangle(; low = SVector(1.0), high = SVector(4.0)),
+            ],
             [1, 1],
         )
     end
@@ -360,12 +423,14 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
     # asserted rather than merely checking that nothing threw. Run through the full Plots
     # pipeline; see `test/utils/plotting.jl` for why that is the level that exercises a recipe.
     @testset "Plots recipes" begin
-        X = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
         sys = DummySystem(X)
-        XI = UT.box(SVector(-0.9, -0.9), SVector(-0.8, -0.8))
-        XT = UT.box(SVector(0.8, 0.8), SVector(0.9, 0.9))
-        XS = UT.box(SVector(-0.7, -0.7), SVector(0.7, 0.7))
-        region = UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5))
+        XI =
+            LazySets.Hyperrectangle(; low = SVector(-0.9, -0.9), high = SVector(-0.8, -0.8))
+        XT = LazySets.Hyperrectangle(; low = SVector(0.8, 0.8), high = SVector(0.9, 0.9))
+        XS = LazySets.Hyperrectangle(; low = SVector(-0.7, -0.7), high = SVector(0.7, 0.7))
+        region =
+            LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5))
 
         labels(p; kw...) = [s[:label] for s in plot(p; kw...).series_list]
 
@@ -392,8 +457,14 @@ MathematicalSystems.stateset(s::DummySystem) = s.X
         # A co-safe LTL problem draws one series per atomic proposition. The labelling is a
         # `Dict`, so only the set of names is well defined, not their order.
         lab = Dict{Symbol, Any}(
-            :goal => UT.box(SVector(0.2, 0.2), SVector(0.3, 0.3)),
-            :hazard => UT.box(SVector(-0.3, -0.3), SVector(-0.2, -0.2)),
+            :goal => LazySets.Hyperrectangle(;
+                low = SVector(0.2, 0.2),
+                high = SVector(0.3, 0.3),
+            ),
+            :hazard => LazySets.Hyperrectangle(;
+                low = SVector(-0.3, -0.3),
+                high = SVector(-0.2, -0.2),
+            ),
         )
         ap_sem = Dict{Symbol, Any}(:goal => MP.INNER, :hazard => MP.OUTER)
         p_ltl = PR.CoSafeLTLProblem(sys, XI, :spec, lab, ap_sem)

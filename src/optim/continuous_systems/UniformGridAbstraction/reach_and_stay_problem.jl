@@ -95,7 +95,8 @@ function build_abstract_problem(
         SY.get_states_from_set(abstract_system, concrete_problem.initial_set, MP.OUTER),
         SY.get_states_from_set(abstract_system, concrete_problem.target_set, MP.INNER),
         SY.get_states_from_set(abstract_system, concrete_problem.safe_set, MP.INNER),
-        concrete_problem.time,
+        concrete_problem.time;
+        stay_on_first_entry = concrete_problem.stay_on_first_entry,
     )
 end
 

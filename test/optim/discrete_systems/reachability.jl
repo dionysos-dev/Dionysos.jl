@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ControllerReach" begin
@@ -14,12 +15,13 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Xgrid = MP.GridFree(x0, hx)
     Xmap_full = MP.ExplicitGridMapping(Xgrid)
-    MP.cover!(Xmap_full, UT.box(lbX, ubX), MP.OUTER)
+    MP.cover!(Xmap_full, LazySets.Hyperrectangle(; low = lbX, high = ubX), MP.OUTER)
 
     # The historical version had reversed x-bounds ([-1.0, -1.1]), which the old
     # sentinel semantics silently treated as an empty obstacle; boxes now reject
     # crossed bounds, so the obstacle is a real thin strip at x ≈ -1.
-    obstacle = UT.box(SVector(-1.1, -2.0), SVector(-1.0, 4.0))
+    obstacle =
+        LazySets.Hyperrectangle(; low = SVector(-1.1, -2.0), high = SVector(-1.0, 4.0))
     bad = Set(MP.get_states_from_set(Xmap_full, obstacle, MP.OUTER))
 
     # Build a filtered explicit mapping containing only "safe" positions
@@ -43,7 +45,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
     Ugrid = MP.GridFree(u0, hu)
     Umap = MP.ExplicitGridMapping(Ugrid)
-    MP.cover!(Umap, UT.box(lbU, ubU), MP.OUTER)
+    MP.cover!(Umap, LazySets.Hyperrectangle(; low = lbU, high = ubU), MP.OUTER)
 
     # ----------------------------
     # Concrete system + abstraction
@@ -71,14 +73,16 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     # ----------------------------
     # Initial set -> initlist (states)
     # ----------------------------
-    init_rect = UT.box(SVector(-3.0, -3.0), SVector(-2.9, -2.9))
+    init_rect =
+        LazySets.Hyperrectangle(; low = SVector(-3.0, -3.0), high = SVector(-2.9, -2.9))
     initlist = collect(MP.get_states_from_set(Xmap, init_rect, MP.OUTER))
     @test !isempty(initlist)
 
     # ----------------------------
     # Target set -> targetlist (states)
     # ----------------------------
-    target_rect = UT.box(SVector(0.0, 0.0), SVector(4.0, 4.0))
+    target_rect =
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(4.0, 4.0))
     targetlist = collect(MP.get_states_from_set(Xmap, target_rect, MP.OUTER))
     @test !isempty(targetlist)
 

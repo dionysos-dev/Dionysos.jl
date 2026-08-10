@@ -13,6 +13,7 @@
 using Test
 using StaticArrays
 using MathematicalSystems
+import LazySets
 
 # Standard module aliases (match src/Dionysos.jl and the house style).
 const DI = Dionysos
@@ -37,8 +38,14 @@ The simplest controllable test plant; drive to a target and stay with `u = 0`.
 """
 function single_integrator(; n::Int = 1, xbound = 2.0, ubound = 1.0)
     f(x, u) = u
-    X = UT.box(SVector{n}(fill(-xbound, n)...), SVector{n}(fill(xbound, n)...))
-    U = UT.box(SVector{n}(fill(-ubound, n)...), SVector{n}(fill(ubound, n)...))
+    X = LazySets.Hyperrectangle(;
+        low = SVector{n}(fill(-xbound, n)...),
+        high = SVector{n}(fill(xbound, n)...),
+    )
+    U = LazySets.Hyperrectangle(;
+        low = SVector{n}(fill(-ubound, n)...),
+        high = SVector{n}(fill(ubound, n)...),
+    )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(f, n, n, X, U)
 end
 
@@ -49,8 +56,11 @@ end
 """
 function double_integrator(; xbound = 2.0, vbound = 2.0, ubound = 1.0)
     f(x, u) = SVector(x[2], u[1])
-    X = UT.box(SVector(-xbound, -vbound), SVector(xbound, vbound))
-    U = UT.box(SVector(-ubound), SVector(ubound))
+    X = LazySets.Hyperrectangle(;
+        low = SVector(-xbound, -vbound),
+        high = SVector(xbound, vbound),
+    )
+    U = LazySets.Hyperrectangle(; low = SVector(-ubound), high = SVector(ubound))
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(f, 2, 1, X, U)
 end
 

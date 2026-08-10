@@ -27,6 +27,7 @@
 # when the formula cannot be compiled — as happens to the second task below.
 
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 # The formula is parsed by [Spot](https://spot.lre.epita.fr/) and compiled into the deterministic
@@ -69,7 +70,8 @@ end;
 
 # Both runs start from the same corner.
 
-start_region = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+start_region =
+    LazySets.Hyperrectangle(; low = SVector(-1.7, -1.7), high = SVector(-1.6, -1.6))
 x0 = SVector(-1.65, -1.65);
 
 # ## Task 1 — visit three rooms in order
@@ -78,21 +80,21 @@ x0 = SVector(-1.65, -1.65);
 # start looking for `b`, and only then for `c`. Nesting is what encodes the order — a flat
 # `F(a) & F(b) & F(c)` would be satisfied by visiting them in any order at all.
 
-model, x = integrator_model()
+model, x = integrator_model();
 
 # `roomA` is deliberately **two** disjoint boxes. `Label` takes any bounded `LazySet`, so a
 # region can be a union, and the task then reads "reach either of these two rooms" — the
 # controller picks whichever is cheaper from where it happens to be.
 
 roomA = UT.set_union([
-    UT.box(SVector(-1.0, 1.0), SVector(-0.3, 1.7)),
-    UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7)),
+    LazySets.Hyperrectangle(; low = SVector(-1.0, 1.0), high = SVector(-0.3, 1.7)),
+    LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.7, 1.7)),
 ])
-roomB = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
-roomC = UT.box(SVector(1.0, -1.8), SVector(1.5, -1.1))
+roomB = LazySets.Hyperrectangle(; low = SVector(-1.5, -1.2), high = SVector(-0.6, -0.2))
+roomC = LazySets.Hyperrectangle(; low = SVector(1.0, -1.8), high = SVector(1.5, -1.1))
 wall = UT.set_union([
-    UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5)),
-    UT.box(SVector(1.3, -0.5), SVector(2.0, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(1.3, -0.5), high = SVector(2.0, 0.5)),
 ]);
 
 # `semantics` is how a region is turned into cells, and it is the *conservative* choice in both
@@ -196,14 +198,15 @@ until_monitor = OPDS.FunctionMonitor(1, Set([3]), until_step);
 
 #-
 
-model2, x2 = integrator_model()
+model2, x2 = integrator_model();
 
-first_stop = UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7))
-second_stop = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))
-barrier = UT.box(SVector(-1.8, 0.0), SVector(-0.6, 1.0))
+first_stop = LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.7, 1.7))
+second_stop =
+    LazySets.Hyperrectangle(; low = SVector(-1.5, -1.2), high = SVector(-0.6, -0.2))
+barrier = LazySets.Hyperrectangle(; low = SVector(-1.8, 0.0), high = SVector(-0.6, 1.0))
 danger = UT.set_union([
-    UT.box(SVector(-0.5, -0.5), SVector(0.5, 0.5)),
-    UT.box(SVector(1.3, -0.5), SVector(2.0, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(0.5, 0.5)),
+    LazySets.Hyperrectangle(; low = SVector(1.3, -0.5), high = SVector(2.0, 0.5)),
 ]);
 
 #-

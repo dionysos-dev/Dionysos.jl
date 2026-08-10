@@ -23,8 +23,8 @@ include(
     joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Integrator", "integrator.jl"),
 )
 
-_X_ = UT.box(SVector(-2.0, -2.0), SVector(4.0, 4.0))
-_U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+_X_ = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(4.0, 4.0))
+_U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
 
 concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
 jacobian_bound = Integrator.jacobian_bound()
@@ -77,10 +77,10 @@ println("Abstraction built.")
 # 3) Define optimal control problem
 # ------------------------------------------------------------
 
-_I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+_I_ = LazySets.Hyperrectangle(; low = SVector(-1.7, -1.7), high = SVector(-1.6, -1.6))
 
-g11 = UT.box(SVector(-1.0, 3.0), SVector(-0.3, 3.7))
-g12 = UT.box(SVector(1.0, 2.0), SVector(3.0, 3.7))
+g11 = LazySets.Hyperrectangle(; low = SVector(-1.0, 3.0), high = SVector(-0.3, 3.7))
+g12 = LazySets.Hyperrectangle(; low = SVector(1.0, 2.0), high = SVector(3.0, 3.7))
 target_set = UT.set_union([g11, g12])
 
 state_cost = nothing
@@ -259,7 +259,7 @@ Symbolics.@variables w[1:2]
 
 fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
 
-Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
+Wformat = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
 
 provider = ST.SymbolicAffineApproximationProvider(
     fsymbolic,

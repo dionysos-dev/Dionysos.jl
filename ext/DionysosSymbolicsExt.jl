@@ -135,7 +135,11 @@ end
 # entry over the state domain X with interval arithmetic (off-diagonal entries by
 # magnitude, diagonal entries by their signed supremum, as required by the
 # growth-bound ODE ṙ = L(u)·r), and return the bound as a function of the input.
-function ST.compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuousSystem)
+function ST.compute_jacobian_bound(
+    system::MS.ConstrainedBlackBoxControlContinuousSystem;
+    precision::ST.JacobianBoundPrecision = ST.INPUT_BOUND,
+    nsplit::Int = 4,
+)
     nx = MS.statedim(system)
     X = MS.stateset(system)
     X === nothing && error(
@@ -176,8 +180,9 @@ function ST.compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuo
     _offdiag_bound(v::IA.Interval) = IA.mag(v)
     _offdiag_bound(v) = abs(Float64(v))
 
-    function jacobian_bound(u)
-        args = vcat(xint, map(to_interval, collect(u)))
+    # Bound every entry with the state ranged over `xbox` and the input over `ubox`.
+    function bound_over(xbox, ubox)
+        args = vcat(xbox, ubox)
         M = zeros(nx, nx)
         for j in 1:nx, i in 1:nx
             v = entry_funs[i, j](args...)
@@ -185,7 +190,69 @@ function ST.compute_jacobian_bound(system::MS.ConstrainedBlackBoxControlContinuo
         end
         return ST.SMatrix{nx, nx}(M)
     end
-    return jacobian_bound
+
+    precision === ST.GLOBAL_BOUND && return _global_bound(system, bound_over, xint)
+    precision === ST.INPUT_BOUND &&
+        return u -> bound_over(xint, map(to_interval, collect(u)))
+    precision === ST.REGIONWISE_BOUND &&
+        return _regionwise_bound(system, bound_over, nsplit, to_interval)
+
+    return error("unhandled JacobianBoundPrecision $(precision).")
+end
+
+# `:global` — one matrix for the whole of X and U. Nothing to recompute, and nothing adapts.
+function _global_bound(system, bound_over, xint)
+    U = MS.inputset(system)
+    LS = Dionysos.LazySets
+    uint = [
+        IA.interval(Float64(LS.low(U, i)), Float64(LS.high(U, i))) for
+        i in 1:MS.inputdim(system)
+    ]
+    L = bound_over(xint, uint)
+    return u -> L
+end
+
+# `REGIONWISE_BOUND` — split X into `nsplit` boxes per dimension and bound each separately, so
+# a region where the dynamics are mild is no longer penalised for the worst corner of the whole
+# state space. The regions are addressed by a single linear index, which lets the growth-bound
+# layer integrate the radius once per region and reduce the per-cell cost to `region_of(x)`
+# plus an array lookup.
+function _regionwise_bound(system, bound_over, nsplit::Int, to_interval)
+    nsplit >= 1 || error("`nsplit` must be at least 1, got $nsplit.")
+    LS = Dionysos.LazySets
+    X = MS.stateset(system)
+    nx = MS.statedim(system)
+
+    lo = [Float64(LS.low(X, i)) for i in 1:nx]
+    hi = [Float64(LS.high(X, i)) for i in 1:nx]
+    step = (hi .- lo) ./ nsplit
+    dims = ntuple(_ -> nsplit, nx)
+    linear = LinearIndices(dims)
+    cartesian = CartesianIndices(dims)
+
+    # Which region a point falls in; clamped so the upper faces of X still land inside.
+    function region_of(x)
+        idx = ntuple(nx) do i
+            step[i] <= 0 && return 1
+            return clamp(floor(Int, (Float64(x[i]) - lo[i]) / step[i]) + 1, 1, nsplit)
+        end
+        return linear[idx...]
+    end
+
+    box_of(region) = [
+        IA.interval(
+            lo[i] + (cartesian[region][i] - 1) * step[i],
+            lo[i] + cartesian[region][i] * step[i],
+        ) for i in 1:nx
+    ]
+
+    # Asked for one (region, input) at a time; the caller hoists it out of the cell loop, so
+    # there is nothing to memoise here.
+    return ST.RegionwiseBound(
+        (region, u) -> bound_over(box_of(region), map(to_interval, collect(u))),
+        region_of,
+        nsplit^nx,
+    )
 end
 
 function ST.build_affine_approximation(

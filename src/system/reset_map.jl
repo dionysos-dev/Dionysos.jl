@@ -18,7 +18,7 @@ The state it is applied to is the *augmented* state of the mode: `x` for a plain
 
 ```julia
 # switch enabled on T ≤ 19, leaving the temperature unchanged
-GuardedResetMap(UT.box([17.0], [19.0]))
+GuardedResetMap(LazySets.Hyperrectangle(; low = [17.0], high = [19.0]))
 
 # switch enabled on the target box, resetting x and clamping the clock
 GuardedResetMap(target, state -> vcat([0.0], max(1.0, state[end])))

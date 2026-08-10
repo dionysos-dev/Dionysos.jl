@@ -75,40 +75,49 @@ function jacobian_bound(params::Params = Params())
         bθ = params.g + (u1 + u2) / params.m
         bv = params.c / params.m
 
+        # `SMatrix` fills column by column, so each group of six below is a *column*:
+        #
+        #   row 1..3 : ẋ = vx, ẏ = vy, θ̇ = ω          → 1 in columns 4, 5, 6
+        #   row 4    : bθ in column 3 (θ), -bv in column 4 (vx)
+        #   row 5    : bθ in column 3 (θ), -bv in column 5 (vy)
+        #
+        # The velocity terms sit on the diagonal, where the bound is on the *signed* entry
+        # rather than its magnitude — drag is stabilising, so -c/m is both correct and
+        # tighter than +c/m.
         return SMatrix{6, 6}(
             0.0,
             0.0,
             0.0,
-            1.0,
             0.0,
             0.0,
             0.0,
             0.0,
             0.0,
             0.0,
-            1.0,
             0.0,
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            bθ,
-            bv,
             0.0,
             0.0,
             0.0,
             0.0,
             bθ,
+            bθ,
             0.0,
-            bv,
+            1.0,
+            0.0,
+            0.0,
+            -bv,
             0.0,
             0.0,
             0.0,
+            1.0,
             0.0,
+            0.0,
+            -bv,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
             0.0,
             0.0,
             0.0,
@@ -118,11 +127,11 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.box(
-        SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
-        SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
+        high = SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
     ),
-    _U_ = UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -5.0), high = SVector(5.0, 5.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
@@ -135,18 +144,18 @@ end
 
 function optimal_control_problem(;
     params::Params = Params(),
-    _X_ = UT.box(
-        SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
-        SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
+        high = SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
     ),
-    _U_ = UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)),
-    _I_ = UT.box(
-        SVector(-4.5, -4.5, -0.1, -0.2, -0.2, -0.2),
-        SVector(-4.0, -4.0, 0.1, 0.2, 0.2, 0.2),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -5.0), high = SVector(5.0, 5.0)),
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-4.5, -4.5, -0.1, -0.2, -0.2, -0.2),
+        high = SVector(-4.0, -4.0, 0.1, 0.2, 0.2, 0.2),
     ),
-    _T_ = UT.box(
-        SVector(4.0, 4.0, -0.1, -0.3, -0.3, -0.3),
-        SVector(4.5, 4.5, 0.1, 0.3, 0.3, 0.3),
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(4.0, 4.0, -0.1, -0.3, -0.3, -0.3),
+        high = SVector(4.5, 4.5, 0.1, 0.3, 0.3, 0.3),
     ),
     state_cost = nothing,
     transition_cost = nothing,

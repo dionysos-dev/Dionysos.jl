@@ -56,7 +56,11 @@ end
 
 @testset "a constant-rate state is recognised as the clock" begin
     model, off, on = clocked_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(19.5), SVector(21.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(19.5), high = SVector(21.0)))
+    )
 
     opt = backend(model)
     WR.lower(opt)
@@ -71,7 +75,11 @@ end
 
 @testset "a clock makes each mode a physical system paired with its time axis" begin
     model, off, on = clocked_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(19.5), SVector(21.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(19.5), high = SVector(21.0)))
+    )
 
     problem, _ = lowered(model)
     hs = problem.system
@@ -89,7 +97,11 @@ end
 
 @testset "guards and resets live in the augmented (x, t) space" begin
     model, off, on = clocked_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(19.5), SVector(21.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(19.5), high = SVector(21.0)))
+    )
 
     problem, _ = lowered(model)
     hs = problem.system
@@ -106,7 +118,11 @@ end
 
 @testset "a clock reset restarts the timer" begin
     model, off, on = clocked_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(19.5), SVector(21.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(19.5), high = SVector(21.0)))
+    )
 
     # A second on → off transition, distinct from the one the helper declared: several
     # transitions may share a (source, target) pair, and each keeps its own guard and reset.
@@ -127,7 +143,7 @@ end
 
 @testset "a target on the clock becomes a time window" begin
     model, off, on = clocked_model()
-    target = UT.box(SVector(19.5), SVector(21.0))
+    target = LazySets.Hyperrectangle(; low = SVector(19.5), high = SVector(21.0))
     @constraint(off, [model[:T]] in Final(target))
     @constraint(off, final(model[:t]) in MOI.Interval(0.5, 1.5))
 
@@ -150,7 +166,7 @@ end
 
 @testset "end-to-end: a clocked hybrid model solved from JuMP" begin
     model, off, on = clocked_model(; tmax = 1.0)
-    target = UT.box(SVector(19.0), SVector(21.0))
+    target = LazySets.Hyperrectangle(; low = SVector(19.0), high = SVector(21.0))
     @constraint(on, [model[:T]] in Final(target))
 
     for m in (off, on)

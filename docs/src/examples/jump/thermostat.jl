@@ -24,6 +24,7 @@
 # attach them to a model.
 
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -80,7 +81,7 @@ end;
 # applies in that mode only, so stating it on both means "comfortable, whatever the heater
 # happens to be doing".
 
-comfortable = UT.box(SVector(20.5), SVector(23.0))
+comfortable = LazySets.Hyperrectangle(; low = SVector(20.5), high = SVector(23.0))
 
 @constraint(off, [T] in Final(comfortable))
 @constraint(on, [T] in Final(comfortable));
@@ -129,14 +130,6 @@ trajectory = Dionysos.simulate(model, (SVector(18.0), 1); nsteps = 60);
 
 T_end, mode_end = last(ST.states(trajectory)), last(ST.modes(trajectory))   #src
 @test PR.satisfies(concrete_problem.target_set, T_end, mode_end)           #src
-
-# The temperature over the run, and the mode it was in at each step:
-
-ST.states(trajectory)
-
-#-
-
-ST.modes(trajectory)
 
 # ## Visualisation
 #

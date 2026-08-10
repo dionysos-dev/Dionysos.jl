@@ -10,6 +10,7 @@ const OP = DI.Optim
 const AB = OP.Abstraction
 
 using Spot
+import LazySets
 
 # ------------------------------------------------------------
 # 1) Define System
@@ -23,21 +24,36 @@ include(
     ),
 );
 
-_X_ = UT.box(SVector(-π, -5.5), SVector(π, 5.5))
-_U_ = UT.set_minus(UT.box(SVector(-4.5), SVector(4.5)), UT.box(SVector(-0.5), SVector(0.5)))
+_X_ = LazySets.Hyperrectangle(; low = SVector(-π, -5.5), high = SVector(π, 5.5))
+_U_ = UT.set_minus(
+    LazySets.Hyperrectangle(; low = SVector(-4.5), high = SVector(4.5)),
+    LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)),
+)
 concrete_system = SimplePendulum.system(; _X_ = _X_, _U_ = _U_)
 
 # ------------------------------------------------------------
 # 2) Define co-safe LTL problem with sets labeling
 # ------------------------------------------------------------
 
-_I_ = UT.box(SVector(-5.0 * pi / 180.0, -0.2), SVector(5.0 * pi / 180.0, 0.2))
+_I_ = LazySets.Hyperrectangle(;
+    low = SVector(-5.0 * pi / 180.0, -0.2),
+    high = SVector(5.0 * pi / 180.0, 0.2),
+)
 
-g1 = UT.box(SVector(pi - 10.0 * pi / 180.0, -1.0), SVector(pi + 15.0 * pi / 180.0, 1.0))
+g1 = LazySets.Hyperrectangle(;
+    low = SVector(pi - 10.0 * pi / 180.0, -1.0),
+    high = SVector(pi + 15.0 * pi / 180.0, 1.0),
+)
 
-g2 = UT.box(SVector(pi/2.0-10.0 * pi / 180.0, -0.4), SVector(pi/2.0+10.0 * pi / 180.0, 0.4))
+g2 = LazySets.Hyperrectangle(;
+    low = SVector(pi/2.0-10.0 * pi / 180.0, -0.4),
+    high = SVector(pi/2.0+10.0 * pi / 180.0, 0.4),
+)
 
-obs = UT.box(SVector(-pi + 16.0 * pi / 180.0, -5.5), SVector(-pi + 38.0 * pi / 180.0, 5.5))
+obs = LazySets.Hyperrectangle(;
+    low = SVector(-pi + 16.0 * pi / 180.0, -5.5),
+    high = SVector(-pi + 38.0 * pi / 180.0, 5.5),
+)
 
 φ = ltl"G(!obs) & F(g1 & F(g2))"
 spec = Dionysos.spot_stepper(φ)

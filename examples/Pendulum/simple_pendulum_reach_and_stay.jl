@@ -13,6 +13,7 @@ const AB = OP.Abstraction
 const PR = DI.Problem
 
 import MathOptInterface as MOI
+import LazySets
 
 include(
     joinpath(
@@ -29,10 +30,16 @@ include(
 
 params = SimplePendulum.Params()
 
-_X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
-_U_ = UT.box(SVector(-3.5), SVector(3.5)) # SVector(-3.0), SVector(3.0) is with escaping
-_I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-_T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+_X_ = LazySets.Hyperrectangle(; low = SVector(-π, -7.0), high = SVector(π, 7.0))
+_U_ = LazySets.Hyperrectangle(; low = SVector(-3.5), high = SVector(3.5)) # SVector(-3.0), SVector(3.0) is with escaping
+_I_ = LazySets.Hyperrectangle(;
+    low = SVector(-5.0π / 180.0, -0.2),
+    high = SVector(5.0π / 180.0, 0.2),
+)
+_T_ = LazySets.Hyperrectangle(;
+    low = SVector(π - 15.0π / 180.0, -1.0),
+    high = SVector(π + 15.0π / 180.0, 1.0),
+)
 _S_ = _X_
 
 concrete_system = SimplePendulum.system(; params = params, _X_ = _X_, _U_ = _U_)
