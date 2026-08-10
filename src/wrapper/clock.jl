@@ -131,6 +131,6 @@ function clock_system(ir::ModelIR, m::ModeIR, index::Int)
         "runs: add `∂(t) == 1` or `∂(t) == 0` to it.",
     )
     lo, hi = _mode_bound(ir, m, index)
-    domain = UT.box(SVector(lo), SVector(hi))
+    domain = LazySets.Hyperrectangle(; low = SVector(lo), high = SVector(hi))
     return MS.ConstrainedLinearContinuousSystem(SMatrix{1, 1}(rate), domain)
 end

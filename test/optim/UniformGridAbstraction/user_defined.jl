@@ -9,8 +9,8 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 import LazySets
 import MathOptInterface as MOI
 
-_X_ = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
-_U_ = UT.box(SVector(-1.0), SVector(1.0))
+_X_ = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
+_U_ = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
 
 state_grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.5, 0.5))
 input_grid = MP.GridFree(SVector(0.0), SVector(0.5))

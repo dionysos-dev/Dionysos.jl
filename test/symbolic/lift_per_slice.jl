@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathematicalSystems as MS
+import LazySets
 
 # Base on a shared 2-state / 1-input grid with the given transitions (q′, q, u).
 function build_base(transitions)
@@ -18,7 +19,10 @@ function build_base(transitions)
 end
 
 active_clock(tmax, tstep) = SY.ClockAbstraction(
-    MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [tmax])),
+    MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [tmax]),
+    ),
     tstep,
 )
 

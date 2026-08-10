@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 using Distributed
+import LazySets
 
 @everywhere begin
     struct ToyAddDynamics <: Function end
@@ -11,8 +12,8 @@ using Distributed
 end
 
 function build_toy_abstraction()
-    X = UT.box(SVector(-1.0), SVector(1.0))
-    U = UT.box(SVector(-1.0), SVector(1.0))
+    X = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
+    U = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         Main.ToyAddDynamics(),

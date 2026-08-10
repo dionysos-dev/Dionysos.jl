@@ -7,27 +7,30 @@ lacks for symbolic control — callable cost functions, exact ellipsoid predicat
 periodic splitting, data structures, [`RRT`](@ref Dionysos.Utils.RRT) search, and scalar optimization.
 The `PathCompleteFramework` submodule provides path-complete Lyapunov functions.
 
-## `UT.box` is a shorthand, not a set type
+## Sets are LazySets, with no Dionysos wrapper
 
-The examples write [`UT.box(lb, ub)`](@ref Dionysos.Utils.box) everywhere, which can read as though
-Dionysos had a box type of its own. It does not. `UT.box` returns a plain
-`LazySets.Hyperrectangle`; it is `LazySets.Hyperrectangle(; low, high)` with the bounds normalised to
-`SVector`, and it exists mainly because the *positional* `Hyperrectangle(c, r)` takes a **centre and
-a radius**, so passing bounds to it silently builds a different box.
+There is no Dionysos box type and no Dionysos box constructor. A box is a
+`LazySets.Hyperrectangle`, written from its bounds:
 
 ```@example utils_box
 import Dionysos
-const UT = Dionysos.Utils
 const LS = Dionysos.LazySets
 
-a = UT.box([-1.0, -2.0], [1.0, 3.0])
-b = LS.Hyperrectangle(; low = [-1.0, -2.0], high = [1.0, 3.0])
-
-(LS.low(a), LS.high(a)) == (LS.low(b), LS.high(b))
+LS.Hyperrectangle(; low = [-1.0, -2.0], high = [1.0, 3.0])
 ```
 
-So anywhere Dionysos asks for a set — a target, a safe set, an obstacle, a guard — you may hand it
-any bounded `LazySet` and skip `UT.box` entirely:
+Always the **keyword** form. Positionally, `Hyperrectangle(c, r)` takes a *centre and a radius*, so
+the same numbers build a different box and nothing warns you:
+
+```@example utils_box
+box = LS.Hyperrectangle(; low = [-1.0, -2.0], high = [1.0, 3.0])
+trap = LS.Hyperrectangle([-1.0, -2.0], [1.0, 3.0])
+
+(LS.low(box), LS.high(box)), (LS.low(trap), LS.high(trap))
+```
+
+Anywhere Dionysos asks for a set — a target, a safe set, an obstacle, a guard — any bounded
+`LazySet` will do:
 
 ```@example utils_box
 LS.BallInf([0.0, 0.0], 1.0), LS.Ball2([0.0, 0.0], 1.0), LS.Zonotope([1.0, 1.0], [0.3 0.1; 0.0 0.2])

@@ -28,7 +28,7 @@ function ClockAbstraction(sys::MS.ConstrainedLinearContinuousSystem, tstep::Floa
     tmin, tmax = try
         LazySets.low(X, 1), LazySets.high(X, 1)
     catch
-        error("Time domain X must have box bounds (e.g., a `UT.box`)")
+        error("Time domain X must have box bounds (e.g., a `LazySets.Hyperrectangle`)")
     end
 
     if _is_identity_matrix(A)  # Time evolves

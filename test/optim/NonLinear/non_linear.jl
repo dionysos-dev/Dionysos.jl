@@ -9,6 +9,7 @@ include("../../../problems/NonLinear/non_linear.jl")
 using LinearAlgebra
 using HybridSystems
 using FillArrays
+import LazySets
 
 @testset "NonLinear BemporadMorari" begin
     T = Float64
@@ -24,7 +25,7 @@ using FillArrays
     nlmap = BlackBoxControlDiscreteSystem(f, nl_sys.nx, nl_sys.nu)
 
     # State domain as a box (automatic conversion to MOI constraints)
-    pX = UT.box([-5.0, -5.0], [5.0, 5.0])
+    pX = LazySets.Hyperrectangle(; low = [-5.0, -5.0], high = [5.0, 5.0])
 
     automaton = GraphAutomaton(1)
     add_transition!(automaton, 1, 1, 1)

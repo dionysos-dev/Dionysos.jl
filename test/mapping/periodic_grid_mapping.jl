@@ -1,6 +1,7 @@
 module TestPeriodicGridMapping
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 # Helper: build a grid with correct periodic origin alignment
@@ -118,7 +119,7 @@ end
     base = MP.ExplicitGridMapping(grid)
     pm = MP.PeriodicGridMapping(periodic_dims, periods, start, base)
 
-    rect = UT.box(SVector(0.0, 0.0), SVector(2.0, 0.0))
+    rect = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(2.0, 0.0))
     MP.cover!(pm, rect, MP.OUTER)
 
     # should have inserted positions (0,0), (1,0), (2,0) (mod 4 in dim 1)

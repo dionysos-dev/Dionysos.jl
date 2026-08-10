@@ -51,8 +51,16 @@ end
 
 @testset "modes and transitions lower to a HybridSystem" begin
     model, off, on = thermostat_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(21.0), SVector(23.0))))
-    @constraint(on, [model[:T]] in Final(UT.box(SVector(21.0), SVector(23.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)))
+    )
+    @constraint(
+        on,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)))
+    )
 
     problem, _ = lowered(model)
     hs = problem.system
@@ -78,7 +86,11 @@ end
 
 @testset "guards and reset maps" begin
     model, off, on = thermostat_model()
-    @constraint(off, [model[:T]] in Final(UT.box(SVector(21.0), SVector(23.0))))
+    @constraint(
+        off,
+        [model[:T]] in
+        Final(LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)))
+    )
 
     problem, _ = lowered(model)
     hs = problem.system
@@ -110,7 +122,10 @@ end
     @mode(model, b)
     @constraint(a, ∂(x) == u)
     @constraint(b, ∂(x) == u)
-    @constraint(b, [x] in Final(UT.box(SVector(-0.2), SVector(0.2))))
+    @constraint(
+        b,
+        [x] in Final(LazySets.Hyperrectangle(; low = SVector(-0.2), high = SVector(0.2)))
+    )
 
     add_transition!(model, a => b) do t
         @constraint(t, x >= 1.0)
@@ -159,7 +174,10 @@ end
     @test occursin("[mode 1]", text)
     @test !occursin("ScopedSet", text)
 
-    spec = @constraint(on, [T] in Final(UT.box(SVector(21.0), SVector(23.0))))
+    spec = @constraint(
+        on,
+        [T] in Final(LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)))
+    )
     spec_text = sprint(show, MIME"text/plain"(), spec)
     @test occursin("Final(", spec_text)
     @test !occursin("ScopedVectorSet", spec_text)
@@ -171,12 +189,17 @@ end
     # dropped here and the avoid part of the specification went unsynthesized.
     function thermostat_reach_avoid(; safe_low = nothing)
         model, off, on = thermostat_model()          # starts at T = 18
-        target = UT.box(SVector(21.0), SVector(23.0))
+        target = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0))
         for m in (off, on)
             @constraint(m, [model[:T]] in Final(target))
             safe_low === nothing || @constraint(
                 m,
-                [model[:T]] in Always(UT.box(SVector(safe_low), SVector(25.0)))
+                [model[:T]] in Always(
+                    LazySets.Hyperrectangle(;
+                        low = SVector(safe_low),
+                        high = SVector(25.0),
+                    ),
+                )
             )
             set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
             set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
@@ -242,7 +265,11 @@ end
         set_attribute(m, "time_step", 0.5)
         set_attribute(m, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
     end
-    @constraint(b, [x, y] in Final(UT.box(SVector(1.0, 1.0), SVector(1.5, 1.5))))
+    @constraint(
+        b,
+        [x, y] in
+        Final(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.5, 1.5)))
+    )
 
     add_transition!(model, a => b) do t
         return @constraint(t, x + y >= 0.0)      # a half-space, not a box
@@ -293,7 +320,7 @@ end
 
 @testset "the hybrid solver is selected, and modes carry their own options" begin
     model, off, on = thermostat_model()
-    target = UT.box(SVector(21.0), SVector(23.0))
+    target = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0))
     @constraint(off, [model[:T]] in Final(target))
     @constraint(on, [model[:T]] in Final(target))
 
@@ -324,7 +351,7 @@ end
 
 @testset "end-to-end: a hybrid model solved from JuMP" begin
     model, off, on = thermostat_model()
-    target = UT.box(SVector(20.5), SVector(23.0))
+    target = LazySets.Hyperrectangle(; low = SVector(20.5), high = SVector(23.0))
     @constraint(off, [model[:T]] in Final(target))
     @constraint(on, [model[:T]] in Final(target))
 
@@ -351,7 +378,7 @@ end
 # input space is zero-dimensional, which holds exactly one point: the action of leaving the
 # switch alone. Nothing needs to be declared for it; the front-end supplies that grid.
 @testset "a mode whose only control is the switch" begin
-    safe = UT.box(SVector(-2.0), SVector(2.0))
+    safe = LazySets.Hyperrectangle(; low = SVector(-2.0), high = SVector(2.0))
 
     model = Model(Dionysos.Optimizer)
     @variable(model, -2.0 <= x <= 2.0)

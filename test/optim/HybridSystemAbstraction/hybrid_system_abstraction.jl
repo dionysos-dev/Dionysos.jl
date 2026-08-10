@@ -15,8 +15,8 @@ using HybridSystems
     # ------------------------------
 
     # Define state and input sets
-    X = UT.box([-1.0], [1.0])
-    U = UT.box([-1.5], [1.5])
+    X = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
+    U = LazySets.Hyperrectangle(; low = [-1.5], high = [1.5])
 
     # Define system dynamics for two modes
     mode1_f(x, u) = [0.5 * x[1] + u[1]]
@@ -26,9 +26,12 @@ using HybridSystems
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [3.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [3.0]),
+    )
 
-    guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
+    guard_1 = LazySets.Hyperrectangle(; low = [0.2, 0.0], high = [1.0, 2.0])
 
     reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0, 0.0])
 
@@ -49,8 +52,8 @@ using HybridSystems
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.box(SVector(1.0), SVector(2.0))]
+    Xs_target = [LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))]
+    Ts_target = [LazySets.Hyperrectangle(; low = SVector(1.0), high = SVector(2.0))]
     Ns_target = [2]
     target_set = PR.hybrid_reach_spec(Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
@@ -228,8 +231,8 @@ end
     # ------------------------------
 
     # Define state and input sets
-    X = UT.box([-1.0], [1.0])
-    U = UT.box([-1.5], [1.5])
+    X = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
+    U = LazySets.Hyperrectangle(; low = [-1.5], high = [1.5])
 
     # Define system dynamics for two modes
     mode1_f(x, u) = [0.5 * x[1] + u[1]]
@@ -239,9 +242,12 @@ end
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system (no time evolution)
-    time_sys = MS.ConstrainedLinearContinuousSystem([0.0;;], UT.box([0.0], [3.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem(
+        [0.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [3.0]),
+    )
 
-    guard_1 = UT.box([0.2, 0.0], [1.0, 2.0])
+    guard_1 = LazySets.Hyperrectangle(; low = [0.2, 0.0], high = [1.0, 2.0])
 
     reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0, 0.0])
 
@@ -262,8 +268,8 @@ end
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_target = [UT.box(SVector(-1.0), SVector(1.0))]
-    Ts_target = [UT.box(SVector(0.0), SVector(3.0))]
+    Xs_target = [LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))]
+    Ts_target = [LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(3.0))]
     Ns_target = [2]
     target_set = PR.hybrid_reach_spec(Xs_target, Ts_target, Ns_target)
     transition_cost = (aug_state, u) -> 1.0
@@ -441,8 +447,8 @@ end
     # ------------------------------
 
     # Define a simple 1D system
-    X = UT.box([-10.0], [10.0])
-    U = UT.box([-5.5], [8.5])
+    X = LazySets.Hyperrectangle(; low = [-10.0], high = [10.0])
+    U = LazySets.Hyperrectangle(; low = [-5.5], high = [8.5])
 
     # Define dynamics
     mode1_f(x, u) = [-0.1 * x[1] + u[1]]
@@ -452,9 +458,12 @@ end
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
     # Time system
-    time_sys = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [5.0]))
+    time_sys = MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [5.0]),
+    )
 
-    guard_1 = UT.box([0.0, 0.0], [10.0, 5.0])
+    guard_1 = LazySets.Hyperrectangle(; low = [0.0, 0.0], high = [10.0, 5.0])
     reset_map = ST.GuardedResetMap(guard_1)      # identity on the augmented [x; t]
 
     # Automaton and hybrid system
@@ -474,8 +483,14 @@ end
     # ------------------------------
 
     initial_state = ([0.0], 0.0, 1) # (state, time, mode)
-    Xs_safe = [UT.box([-3.0], [3.0]), UT.box([-1.0], [10.0])]
-    Ts_safe = [UT.box([0.0], [2.0]), UT.box([1.0], [5.0])]
+    Xs_safe = [
+        LazySets.Hyperrectangle(; low = [-3.0], high = [3.0]),
+        LazySets.Hyperrectangle(; low = [-1.0], high = [10.0]),
+    ]
+    Ts_safe = [
+        LazySets.Hyperrectangle(; low = [0.0], high = [2.0]),
+        LazySets.Hyperrectangle(; low = [1.0], high = [5.0]),
+    ]
     Ns_safe = [1, 2]
     safe_set = PR.hybrid_reach_spec(Xs_safe, Ts_safe, Ns_safe; incl_mode = UT.OUTER)
     concrete_problem = PR.SafetyProblem(concrete_system, initial_state, safe_set, 10.0)
@@ -596,14 +611,14 @@ end
 @testset "HybridSystemAbstraction - time-free hybrid (plain modes)" begin
     # Modes are plain physical systems: NO time subsystem, so the abstraction has no
     # time axis and the augmented state is (x, mode).
-    X = UT.box([-1.0], [1.0])
-    U = UT.box([-1.5], [1.5])
+    X = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
+    U = LazySets.Hyperrectangle(; low = [-1.5], high = [1.5])
     mode1_f(x, u) = [0.5 * x[1] + u[1]]
     mode2_f(x, u) = [0.8 * x[1] + u[1]]
     mode1_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode1_f, 1, 1, X, U)
     mode2_system = MS.ConstrainedBlackBoxControlContinuousSystem(mode2_f, 1, 1, X, U)
 
-    guard_1 = UT.box([0.2], [1.0])            # guard over x only
+    guard_1 = LazySets.Hyperrectangle(; low = [0.2], high = [1.0])            # guard over x only
     reset_map = ST.GuardedResetMap(guard_1, _ -> [0.0])
 
     automaton = HybridSystems.GraphAutomaton(2)
@@ -615,7 +630,9 @@ end
 
     # (x, mode) augmented state — no time. Target: anywhere in mode 2.
     initial_state = ([0.0], 1)
-    target_spec = PR.HybridSpec(Dict(2 => PR.StateSpec(UT.box([-1.0], [1.0]))))
+    target_spec = PR.HybridSpec(
+        Dict(2 => PR.StateSpec(LazySets.Hyperrectangle(; low = [-1.0], high = [1.0]))),
+    )
     transition_cost = (aug_state, u) -> 1.0
     concrete_problem = PR.OptimalControlProblem(
         concrete_system,

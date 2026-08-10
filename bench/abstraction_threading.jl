@@ -68,14 +68,14 @@ function build_test_system(; n_per_dim::Int, input_step::Float64)
     ub = SVector(1.0, 1.0, 1.0)
     h = (ub - lb) ./ (n_per_dim - 1)
     Xmap = MP.ExplicitGridMapping(MP.GridFree(lb, h))
-    MP.cover!(Xmap, UT.box(lb, ub), MP.OUTER)
+    MP.cover!(Xmap, LazySets.Hyperrectangle(; low = lb, high = ub), MP.OUTER)
 
     # Input domain [-1,1]^3 on a uniform grid.
     lb_u = SVector(-1.0, -1.0, -1.0)
     ub_u = SVector(1.0, 1.0, 1.0)
     h_u = SVector(input_step, input_step, input_step)
     Umap = MP.ExplicitGridMapping(MP.GridFree(lb_u, h_u))
-    MP.cover!(Umap, UT.box(lb_u, ub_u), MP.OUTER)
+    MP.cover!(Umap, LazySets.Hyperrectangle(; low = lb_u, high = ub_u), MP.OUTER)
 
     # Continuous dynamics dx/dt = A x + B u.
     A = @SMatrix [
@@ -106,7 +106,10 @@ function build_approximations(continuous_system, tstep)
         radius = LazySets.radius_hyperrectangle(elem)
         new_radius = radius * 1.1 .+ 0.01
         new_center = MS.mapping(discrete_system)(center, u)
-        return UT.box(new_center - new_radius, new_center + new_radius)
+        return LazySets.Hyperrectangle(;
+            low = new_center - new_radius,
+            high = new_center + new_radius,
+        )
     end
     over = ST.DiscreteTimeOverApproximationMap(discrete_system, simple_over_approx)
 

@@ -171,9 +171,12 @@ function build_affine_approximation(
     E = provider.E(x̄, ū, w̄)
     c = provider.f(x̄, ū, w̄) - A * collect(x̄) - B * collect(ū) - E * collect(w̄)
 
-    Xbar = UT.box(collect(x̄) .- δx, collect(x̄) .+ δx)
-    Ubar = UT.box(collect(ū) .- δu, collect(ū) .+ δu)
-    Wbar = UT.box(collect(w̄) .- provider.ΔW, collect(w̄) .+ provider.ΔW)
+    Xbar = LazySets.Hyperrectangle(; low = collect(x̄) .- δx, high = collect(x̄) .+ δx)
+    Ubar = LazySets.Hyperrectangle(; low = collect(ū) .- δu, high = collect(ū) .+ δu)
+    Wbar = LazySets.Hyperrectangle(;
+        low = collect(w̄) .- provider.ΔW,
+        high = collect(w̄) .+ provider.ΔW,
+    )
 
     system = MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, Xbar, Ubar, Wbar)
     L = _lipschitz_bound(provider.lipschitz, x̄, ū, w̄, δx, δu)

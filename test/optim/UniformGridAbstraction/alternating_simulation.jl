@@ -5,6 +5,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathOptInterface as MOI
 import Suppressor
+import LazySets
 
 include("../../../problems/Integrator/integrator.jl")
 
@@ -96,8 +97,8 @@ end
         f,
         2,
         2,
-        UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0)),
-        UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)),
+        LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0)),
+        LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0)),
     )
     asp = PR.AlternatingSimulationProblem(dsys, dsys.X)
 
@@ -128,7 +129,10 @@ end
             "use_implicit_mapping" => true,
             "use_implicit_stateset" => true,
             # must enclose the abstraction region (the system domain [-2, 2]²)
-            "mapping_region" => UT.box(SVector(-2.5, -2.5), SVector(2.5, 2.5)),
+            "mapping_region" => LazySets.Hyperrectangle(;
+                low = SVector(-2.5, -2.5),
+                high = SVector(2.5, 2.5),
+            ),
         ],
     )
     @test SY.get_n_state(_build(opt)) > 0

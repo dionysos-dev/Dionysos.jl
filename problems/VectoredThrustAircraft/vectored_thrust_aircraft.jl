@@ -127,11 +127,11 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.box(
-        SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
-        SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
+        high = SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
     ),
-    _U_ = UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -5.0), high = SVector(5.0, 5.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
@@ -144,18 +144,18 @@ end
 
 function optimal_control_problem(;
     params::Params = Params(),
-    _X_ = UT.box(
-        SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
-        SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-5.0, -5.0, -pi / 2, -4.0, -4.0, -4.0),
+        high = SVector(5.0, 5.0, pi / 2, 4.0, 4.0, 4.0),
     ),
-    _U_ = UT.box(SVector(-5.0, -5.0), SVector(5.0, 5.0)),
-    _I_ = UT.box(
-        SVector(-4.5, -4.5, -0.1, -0.2, -0.2, -0.2),
-        SVector(-4.0, -4.0, 0.1, 0.2, 0.2, 0.2),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -5.0), high = SVector(5.0, 5.0)),
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-4.5, -4.5, -0.1, -0.2, -0.2, -0.2),
+        high = SVector(-4.0, -4.0, 0.1, 0.2, 0.2, 0.2),
     ),
-    _T_ = UT.box(
-        SVector(4.0, 4.0, -0.1, -0.3, -0.3, -0.3),
-        SVector(4.5, 4.5, 0.1, 0.3, 0.3, 0.3),
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(4.0, 4.0, -0.1, -0.3, -0.3, -0.3),
+        high = SVector(4.5, 4.5, 0.1, 0.3, 0.3, 0.3),
     ),
     state_cost = nothing,
     transition_cost = nothing,

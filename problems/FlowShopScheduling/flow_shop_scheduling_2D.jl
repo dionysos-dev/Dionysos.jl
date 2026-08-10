@@ -45,12 +45,12 @@ function system()
     task3_dynamics(x, u) = A3 * x .+ u
 
     # State and input spaces (2-D)
-    X1 = UT.box([-1.0, -1.0], [5.0, 5.0])
-    U1 = UT.box([-1.0, -1.0], [4.0, 4.0])
-    X2 = UT.box([-2.5, -2.5], [2.5, 2.5])
-    U2 = UT.box([-1.2, -1.2], [9.2, 6.2])
-    X3 = UT.box([-1.0, -1.0], [5.0, 3.0])
-    U3 = UT.box([-1.5, -1.5], [7.5, 5.5])
+    X1 = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [5.0, 5.0])
+    U1 = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [4.0, 4.0])
+    X2 = LazySets.Hyperrectangle(; low = [-2.5, -2.5], high = [2.5, 2.5])
+    U2 = LazySets.Hyperrectangle(; low = [-1.2, -1.2], high = [9.2, 6.2])
+    X3 = LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [5.0, 3.0])
+    U3 = LazySets.Hyperrectangle(; low = [-1.5, -1.5], high = [7.5, 5.5])
 
     task1_system =
         MS.ConstrainedBlackBoxControlContinuousSystem(task1_dynamics, 2, 2, X1, U1)
@@ -60,9 +60,18 @@ function system()
         MS.ConstrainedBlackBoxControlContinuousSystem(task3_dynamics, 2, 2, X3, U3)
 
     # Time systems (clocks) for each task
-    task_1_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [2.0]))
-    task_2_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([1.5], [4.0]))
-    task_3_time_system = MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([5.0], [7.0]))
+    task_1_time_system = MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [2.0]),
+    )
+    task_2_time_system = MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [1.5], high = [4.0]),
+    )
+    task_3_time_system = MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [5.0], high = [7.0]),
+    )
 
     modes_systems = [
         ST.VectorContinuousSystem([task1_system, task_1_time_system]),
@@ -71,8 +80,8 @@ function system()
     ]
 
     # Guards (acceptance regions) over [x1, x2, t]
-    task1_target = UT.box([0.5, 1.5, 0.0], [5.0, 5.0, 2.0])
-    task2_target = UT.box([1.0, 0.0, 1.5], [2.5, 2.5, 4.0])
+    task1_target = LazySets.Hyperrectangle(; low = [0.5, 1.5, 0.0], high = [5.0, 5.0, 2.0])
+    task2_target = LazySets.Hyperrectangle(; low = [1.0, 0.0, 1.5], high = [2.5, 2.5, 4.0])
 
     # Reset maps for each transition. The reset's `t_min` advances the clock to the
     # start of the next task's time window (task 2: 1.5, task 3: 5.0), so the switched
@@ -112,8 +121,11 @@ function problem()
 
     initial_state = ([0.0, 0.0], 0.0, 1)   # (x1, x2, t, mode) -> ([x1,x2], t, mode)
 
-    target_set =
-        PR.hybrid_reach_spec([UT.box([0.5, 0.5], [5.0, 3.0])], [UT.box([5.0], [7.0])], [3])
+    target_set = PR.hybrid_reach_spec(
+        [LazySets.Hyperrectangle(; low = [0.5, 0.5], high = [5.0, 3.0])],
+        [LazySets.Hyperrectangle(; low = [5.0], high = [7.0])],
+        [3],
+    )
 
     transition_cost_function = (aug_state, u) -> 1.0
 

@@ -57,7 +57,7 @@ end
     @test !isnothing(tube_warn)
 
     # Intersecting with a bounded domain keeps the tube within it.
-    dom = UT.box(SVector(-1.0, -1.0), SVector(2.0, 2.0))
+    dom = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(2.0, 2.0))
     tube_dom = UGC.build_tube(traj, 0.2; enforce_safe_max_step = true, X_domain = dom)
     @test !isnothing(tube_dom)
 end

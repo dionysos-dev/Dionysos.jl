@@ -143,7 +143,7 @@ end
 # ----------------------------
 function system(
     _X_;
-    _U_ = UT.box(SVector(-1.0, -0.6), SVector(1.0, 0.6)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -0.6), high = SVector(1.0, 0.6)),
     params::Params = Params(),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -163,7 +163,7 @@ function with_phi_limit(_X_::LazySets.AbstractHyperrectangle; phi_max = 0.7)
         LazySets.high(_X_, 3),
         phi_max,
     )
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 
 function extrude_xy_obstacle_to_4d(ob2d, _X_)
@@ -180,7 +180,7 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
         LazySets.high(_X_, 3),
         LazySets.high(_X_, 4),
     )
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 function with_xy_obstacles(
     _X_::LazySets.AbstractHyperrectangle;
@@ -201,11 +201,20 @@ function problem(;
 )
 
     # Example domains (edit):
-    _X_ = UT.box(SVector(-20.0, -20.0, -pi, -pi/2), SVector(20.0, 20.0, pi, pi/2))
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-20.0, -20.0, -pi, -pi/2),
+        high = SVector(20.0, 20.0, pi, pi/2),
+    )
 
-    _I_ = UT.box(SVector(-10.0, -10.0, -0.2, 0.0), SVector(-9.0, -9.0, 0.2, 0.0))
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-10.0, -10.0, -0.2, 0.0),
+        high = SVector(-9.0, -9.0, 0.2, 0.0),
+    )
 
-    _T_ = UT.box(SVector(9.0, 9.0, -0.2, -0.2), SVector(10.0, 10.0, 0.2, 0.2))
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(9.0, 9.0, -0.2, -0.2),
+        high = SVector(10.0, 10.0, 0.2, 0.2),
+    )
 
     sys = system(_X_; params = params)
 

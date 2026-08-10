@@ -9,7 +9,7 @@ import MathematicalSystems as MS
 # the per-problem `…ResetMap` structs that every hybrid model used to define for itself.
 
 @testset "GuardedResetMap: guard is the state set, reset is the map" begin
-    guard = UT.box(SVector(0.2), SVector(1.0))
+    guard = LazySets.Hyperrectangle(; low = SVector(0.2), high = SVector(1.0))
 
     # The reset defaults to the identity — switching mode usually leaves the state alone.
     identity_map = ST.GuardedResetMap(guard)
@@ -22,7 +22,8 @@ import MathematicalSystems as MS
     @test MS.stateset(fixed) === guard
 
     # A reset over the augmented `[x; t]` state, as a clock-lifted mode uses: reset x, clamp t.
-    timed_guard = UT.box(SVector(0.0, 0.0), SVector(1.0, 5.0))
+    timed_guard =
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 5.0))
     timed = ST.GuardedResetMap(timed_guard, s -> vcat(0.0, max(2.0, s[end])))
     @test MS.apply(timed, [0.8, 1.0]) == [0.0, 2.0]
     @test MS.apply(timed, [0.8, 3.0]) == [0.0, 3.0]
@@ -30,14 +31,15 @@ end
 
 @testset "GuardedResetMap drives a HybridSystem transition" begin
     import HybridSystems
+    import LazySets
 
-    X = UT.box(SVector(-1.0), SVector(1.0))
-    U = UT.box(SVector(-1.0), SVector(1.0))
+    X = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
+    U = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
     mode = MS.ConstrainedBlackBoxControlContinuousSystem((x, u) -> u, 1, 1, X, U)
 
     automaton = HybridSystems.GraphAutomaton(2)
     HybridSystems.add_transition!(automaton, 1, 2, 1)
-    guard = UT.box(SVector(0.5), SVector(1.0))
+    guard = LazySets.Hyperrectangle(; low = SVector(0.5), high = SVector(1.0))
     hs = HybridSystems.HybridSystem(
         automaton,
         [mode, mode],

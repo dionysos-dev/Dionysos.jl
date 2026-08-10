@@ -24,6 +24,7 @@
 # which is the point of putting every solver behind the same interface.
 
 using StaticArrays, JuMP, Plots
+import LazySets
 
 # The first model supplies its dynamics as a Julia function and needs no symbolic backend; the
 # hybrid model at the end writes them as `∂` expressions, which does.
@@ -73,8 +74,8 @@ jacobian_bound = u -> u[1] == 1 ? A1 : A2_abs;
 #-
 
 x_low, x_upp = [1.15, 5.45], [1.55, 5.85]
-safe = UT.box(SVector(x_low...), SVector(x_upp...))
-initial = UT.box(SVector(1.19, 5.59), SVector(1.21, 5.61));
+safe = LazySets.Hyperrectangle(; low = SVector(x_low...), high = SVector(x_upp...))
+initial = LazySets.Hyperrectangle(; low = SVector(1.19, 5.59), high = SVector(1.21, 5.61));
 
 # `direct_model` rather than `Model`: the roles below are recorded against the optimizer, and a
 # cached model has not handed it the variables yet.

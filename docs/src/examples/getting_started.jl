@@ -25,6 +25,7 @@
 # starts, where it must end up and remain, and how finely to discretise; the rest is synthesis.
 
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -74,7 +75,10 @@ model = Model(Dionysos.Optimizer);
 # position sits exactly on the seam of the period, so this box straddles it. That is fine: the
 # periodic mapping splits it into the two pieces at either end of the turn.
 
-upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
+upright = LazySets.Hyperrectangle(;
+    low = SVector(π - 15π / 180, -1.0),
+    high = SVector(π + 15π / 180, 1.0),
+);
 
 # `EventuallyAlways` is ◇□ — *reach* the region and then *never leave it*. That is a stronger
 # demand than `Final`, which would be satisfied by a trajectory that touches the target once

@@ -23,11 +23,12 @@ pendulum(X) = MS.ConstrainedBlackBoxControlContinuousSystem(
     2,
     1,
     X,
-    UT.box(SVector(-3.0), SVector(3.0)),
+    LazySets.Hyperrectangle(; low = SVector(-3.0), high = SVector(3.0)),
 )
 
 @testset "compute_jacobian_bound precision levels" begin
-    sys = pendulum(UT.box(SVector(-π, -5.0), SVector(π, 5.0)))
+    sys =
+        pendulum(LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0)))
 
     Lglobal = ST.compute_jacobian_bound(sys; precision = ST.GLOBAL_BOUND)
     Linput = ST.compute_jacobian_bound(sys; precision = ST.INPUT_BOUND)
@@ -53,7 +54,8 @@ end
 @testset "regionwise bound stays sound" begin
     # Whatever the level, the bound must dominate the real Jacobian at every sampled point of
     # the region it is claimed for — that is the whole contract.
-    sys = pendulum(UT.box(SVector(-π, -5.0), SVector(π, 5.0)))
+    sys =
+        pendulum(LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0)))
     L = ST.compute_jacobian_bound(sys; precision = ST.REGIONWISE_BOUND, nsplit = 8)
     rng = Random.MersenneTwister(1)
     worst = -Inf
@@ -71,7 +73,8 @@ end
     # The efficiency property: the radius must be integrated once per *region*, not once per
     # cell. `input_cache` therefore still returns a table — one entry per region — and the
     # per-cell work is a lookup.
-    sys = pendulum(UT.box(SVector(-π, -5.0), SVector(π, 5.0)))
+    sys =
+        pendulum(LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0)))
     L = ST.compute_jacobian_bound(sys; precision = ST.REGIONWISE_BOUND, nsplit = 8)
     disc = ST.discretize(ST.ContinuousTimeGrowthBound(sys; jacobian_bound = L), 0.1)
 
@@ -102,7 +105,7 @@ end
     import MathOptInterface as MOI
 
     function abstraction(; precision = nothing, nsplit = nothing)
-        X = UT.box(SVector(-π, -5.0), SVector(π, 5.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0))
         problem = PR.AlternatingSimulationProblem(pendulum(X), X)
         opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
         MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)

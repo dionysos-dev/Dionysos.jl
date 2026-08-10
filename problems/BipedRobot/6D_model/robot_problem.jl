@@ -6,6 +6,7 @@ using RigidBodyDynamics
 using Base.Threads
 
 using Dionysos
+import LazySets
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -279,8 +280,8 @@ function system(;
         )
     end
 
-    state_space = UT.box(domain.x_lb, domain.x_ub)
-    input_space = UT.box(domain.u_lb, domain.u_ub)
+    state_space = LazySets.Hyperrectangle(; low = domain.x_lb, high = domain.x_ub)
+    input_space = LazySets.Hyperrectangle(; low = domain.u_lb, high = domain.u_ub)
 
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
         vectorFieldBipedRobot,
@@ -316,11 +317,11 @@ end
 function first_step_problem(concrete_system)
     x0 = SVector{6, Float64}(0, 0, 0, 0, 0, 0)
 
-    I1 = UT.box(x0, x0)
+    I1 = LazySets.Hyperrectangle(; low = x0, high = x0)
 
-    T1 = UT.box(
-        SVector{6, Float64}(-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30),
-        SVector{6, Float64}(-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75),
+    T1 = LazySets.Hyperrectangle(;
+        low = SVector{6, Float64}(-12π / 180, 7π / 180, 8π / 180, -0.75, -0.30, -0.30),
+        high = SVector{6, Float64}(-8π / 180, 9π / 180, 12π / 180, 0.30, 0.75, 0.75),
     )
 
     return DI.Problem.OptimalControlProblem(
@@ -349,11 +350,21 @@ function second_step_problem(concrete_system)
 
     I2_margin = SVector{6, Float64}(2π / 180, 2π / 180, 2π / 180, 0.15, 0.15, 0.15)
 
-    I2 = UT.box(x2_center .- I2_margin, x2_center .+ I2_margin)
+    I2 = LazySets.Hyperrectangle(;
+        low = x2_center .- I2_margin,
+        high = x2_center .+ I2_margin,
+    )
 
-    T2 = UT.box(
-        SVector{6, Float64}(-1.1π / 180, -1.1π / 180, -1.1π / 180, -0.75, -0.30, -0.30),
-        SVector{6, Float64}(1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75),
+    T2 = LazySets.Hyperrectangle(;
+        low = SVector{6, Float64}(
+            -1.1π / 180,
+            -1.1π / 180,
+            -1.1π / 180,
+            -0.75,
+            -0.30,
+            -0.30,
+        ),
+        high = SVector{6, Float64}(1.1π / 180, 1.1π / 180, 1.1π / 180, 0.30, 0.75, 0.75),
     )
 
     return DI.Problem.OptimalControlProblem(

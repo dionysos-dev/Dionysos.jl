@@ -43,33 +43,6 @@ is_disjoint(X, Y) = LazySets.isdisjoint(X, Y)
 # among several, and `LazySets.AbstractHyperrectangle` is what code should accept.
 const _Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
 
-"""
-    box(lb, ub) -> LazySets.Hyperrectangle
-
-The axis-aligned box `{x : lb ≤ x ≤ ub}`.
-
-Shorthand for `LazySets.Hyperrectangle(; low = lb, high = ub)` — same type out, same cost —
-that additionally accepts plain `Vector`s, tuples and integer bounds, normalising them to
-`SVector`. Dionysos consumes any bounded `LazySet`, so the LazySets constructor works
-everywhere this one does; both reject `lb ≰ ub`.
-
-Prefer either to the positional `LazySets.Hyperrectangle(c, r)`, whose arguments are *centre
-and radius*: passing bounds there builds a different box without complaining.
-"""
-box(lb::SVector{N, T}, ub::SVector{N, T}) where {N, T} =
-    LazySets.Hyperrectangle(; low = lb, high = ub)
-
-function box(lb, ub)
-    length(lb) == length(ub) || throw(
-        DimensionMismatch(
-            "lb and ub must have equal length, got $(length(lb)) and $(length(ub))",
-        ),
-    )
-    n = length(lb)
-    T = float(promote_type(eltype(lb), eltype(ub)))
-    return box(SVector{n, T}(lb), SVector{n, T}(ub))
-end
-
 # Full side lengths (2·radius); LazySets only exposes the half-widths.
 get_h(H::LazySets.AbstractHyperrectangle) = 2 .* LazySets.radius_hyperrectangle(H)
 
@@ -168,7 +141,7 @@ function _outer_box(U::LazySets.UnionSetArray)
     boxes = [_outer_box(s) for s in U.array]
     lb = reduce((a, b) -> min.(a, b), (LazySets.low(B) for B in boxes))
     ub = reduce((a, b) -> max.(a, b), (LazySets.high(B) for B in boxes))
-    return box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 _outer_box(S::LazySets.Intersection) = _outer_box(minus_included(S))
 
@@ -205,7 +178,7 @@ function _recursive_period_split!(
     i::Int,
 ) where {N, P}
     if i > P
-        push!(out, box(SVector(lb), SVector(ub)))
+        push!(out, LazySets.Hyperrectangle(; low = SVector(lb), high = SVector(ub)))
         return
     end
     dim = periodic_dims[i]

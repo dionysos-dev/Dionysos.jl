@@ -19,9 +19,9 @@ B = reshape([0.0; 0.1], 2, 1)
 g = [0.01; -0.02]
 D = [0.005 0.0; 0.0 0.005]
 
-Uset = UT.box(SVector(-5.0), SVector(5.0))
+Uset = LazySets.Hyperrectangle(; low = SVector(-5.0), high = SVector(5.0))
 Uformat = ST.format_input_set(Uset)
-Wrect = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+Wrect = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
 Wmat = ST.format_noise_set(Wrect)
 
 cost_fun = UT.QuadraticStateControlFunction(

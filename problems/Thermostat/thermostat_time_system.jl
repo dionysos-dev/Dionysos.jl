@@ -41,8 +41,8 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.box(SVector(17.0, 0.0), SVector(25.0, 5.0)),   # (T, t)
-    _U_ = UT.box(SVector(1), SVector(2)),
+    _X_ = LazySets.Hyperrectangle(; low = SVector(17.0, 0.0), high = SVector(25.0, 5.0)),   # (T, t)
+    _U_ = LazySets.Hyperrectangle(; low = SVector(1), high = SVector(2)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
@@ -68,19 +68,19 @@ integration step** (`h_t < Δt`); otherwise the GROWTH over-approximation lets t
 """
 function optimal_control_problem(;
     params::Params = Params(),
-    _I_ = UT.box(SVector(18.0, 0.0), SVector(18.5, 0.05)),
-    _T_target = UT.box(SVector(21.0), SVector(23.0)),   # temperature band
+    _I_ = LazySets.Hyperrectangle(; low = SVector(18.0, 0.0), high = SVector(18.5, 0.05)),
+    _T_target = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(23.0)),   # temperature band
     min_time = 3.0,
     max_time = 4.0,
-    _X_ = UT.box(SVector(17.0, 0.0), SVector(25.0, 5.0)),
+    _X_ = LazySets.Hyperrectangle(; low = SVector(17.0, 0.0), high = SVector(25.0, 5.0)),
     time = DI.Problem.Infinity(),
 )
     sys = system(; params = params, _X_ = _X_)
 
     # Target in `(T, t)`: reach the temperature band with the clock in `[min_time, max_time]`.
-    target = UT.box(
-        SVector(LazySets.low(_T_target, 1), min_time),
-        SVector(LazySets.high(_T_target, 1), max_time),
+    target = LazySets.Hyperrectangle(;
+        low = SVector(LazySets.low(_T_target, 1), min_time),
+        high = SVector(LazySets.high(_T_target, 1), max_time),
     )
 
     state_cost = x -> 0.0

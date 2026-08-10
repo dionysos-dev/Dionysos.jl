@@ -149,7 +149,7 @@ function intrect2_to_real_rect(grid, r::IntRect2, d1::Int, d2::Int)
         orig[d1] + r.ub[1]*h[d1] + h[d1]/2,
         orig[d2] + r.ub[2]*h[d2] + h[d2]/2,
     )
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 
 function project_states_on_dims(

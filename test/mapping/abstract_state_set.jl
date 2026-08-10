@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 # A state set that overrides nothing, to check the abstract interface stubs error.
@@ -65,7 +66,7 @@ struct _UnimplementedStateSet <: MP.AbstractStateSet{2} end
     # ----------------------------
     S3 = MP.ExplicitIdSet{2}()
 
-    rect = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    rect = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0))
     added = MP.add_set!(S3, m, rect, MP.OUTER)   # uses get_states_from_set(m, rect, ...)
     @test all(q -> MP.contains_state(S3, m, q), added)
     @test MP.get_n_state(S3, m) == length(Set(added))
@@ -99,13 +100,22 @@ struct _UnimplementedStateSet <: MP.AbstractStateSet{2} end
     I = MP.ImplicitStateSet{2}()
 
     # Add a rectangle to A (allowed), no holes in B yet
-    MP.add_set!(I, m, UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4)), MP.OUTER)
+    MP.add_set!(
+        I,
+        m,
+        LazySets.Hyperrectangle(; low = SVector(-0.4, -0.4), high = SVector(0.4, 0.4)),
+        MP.OUTER,
+    )
     # The cell at pos (0,0) has center (0,0), corners (+/-0.5)
     # CENTER should be true (center in rect), INNER should be false (corners not all inside)
     @test MP.contains_state(I, m, q11)
 
     # Now remove the center region as a hole: put same rect into B
-    MP.remove_set!(I, m, UT.box(SVector(-0.2, -0.2), SVector(0.2, 0.2)))
+    MP.remove_set!(
+        I,
+        m,
+        LazySets.Hyperrectangle(; low = SVector(-0.2, -0.2), high = SVector(0.2, 0.2)),
+    )
     @test !MP.contains_state(I, m, q11)
 
     MP.empty_states!(I)
@@ -122,7 +132,10 @@ end
     q11 = MP.add_pos!(m, (1, 1))
 
     # Invalid states are never contained (guard before any geometry).
-    Sc = MP.ImplicitStateSet(UT.box(SVector(-0.4, -0.4), SVector(0.4, 0.4)), MP.CENTER)
+    Sc = MP.ImplicitStateSet(
+        LazySets.Hyperrectangle(; low = SVector(-0.4, -0.4), high = SVector(0.4, 0.4)),
+        MP.CENTER,
+    )
     @test !MP.contains_state(Sc, m, 999)
 
     # CENTER: contained iff the cell center lies in the set.
@@ -130,15 +143,24 @@ end
     @test !MP.contains_state(Sc, m, q11)    # center (1,1) ∉
 
     # INNER (conservative): contained iff *every* corner lies in the set.
-    Si = MP.ImplicitStateSet(UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)), MP.INNER)
+    Si = MP.ImplicitStateSet(
+        LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0)),
+        MP.INNER,
+    )
     @test MP.contains_state(Si, m, q00)     # all corners (±0.5) inside [-1, 1]²
     @test !MP.contains_state(Si, m, q11)    # corner (1.5, 1.5) is outside
 
     # OUTER (sufficient): contained iff *some* sample lies in the set. Here the center
     # is outside but a corner is inside, so the corner scan decides membership.
-    So = MP.ImplicitStateSet(UT.box(SVector(0.3, 0.3), SVector(1.0, 1.0)), MP.OUTER)
+    So = MP.ImplicitStateSet(
+        LazySets.Hyperrectangle(; low = SVector(0.3, 0.3), high = SVector(1.0, 1.0)),
+        MP.OUTER,
+    )
     @test MP.contains_state(So, m, q00)     # center (0,0) ∉, but corner (0.5, 0.5) ∈
-    Sfar = MP.ImplicitStateSet(UT.box(SVector(5.0, 5.0), SVector(6.0, 6.0)), MP.OUTER)
+    Sfar = MP.ImplicitStateSet(
+        LazySets.Hyperrectangle(; low = SVector(5.0, 5.0), high = SVector(6.0, 6.0)),
+        MP.OUTER,
+    )
     @test !MP.contains_state(Sfar, m, q00)  # no sample of cell (0,0) reaches the set
 end
 
@@ -154,12 +176,21 @@ end
     S = MP.ImplicitStateSet{2}()
 
     # A box outside the fundamental period is wrapped back into it: [4.5, 5.5] → [0.5, 1.5].
-    MP.add_set!(S, pm, UT.box(SVector(4.5, 0.0), SVector(5.5, 1.0)), MP.OUTER)
+    MP.add_set!(
+        S,
+        pm,
+        LazySets.Hyperrectangle(; low = SVector(4.5, 0.0), high = SVector(5.5, 1.0)),
+        MP.OUTER,
+    )
     @test SVector(1.0, 0.5) ∈ S.set     # inside the wrapped region
     @test SVector(3.0, 0.5) ∉ S.set     # elsewhere in the period
 
     # Removal is wrapped the same way: carve [4.5, 5.0] → [0.5, 1.0] out of the set.
-    MP.remove_set!(S, pm, UT.box(SVector(4.5, 0.0), SVector(5.0, 1.0)))
+    MP.remove_set!(
+        S,
+        pm,
+        LazySets.Hyperrectangle(; low = SVector(4.5, 0.0), high = SVector(5.0, 1.0)),
+    )
     @test SVector(0.7, 0.5) ∉ S.set     # in the carved-out region
     @test SVector(1.3, 0.5) ∈ S.set     # still inside the remainder
 end
@@ -192,7 +223,7 @@ end
     @test !MP.contains_state(ms, q1)
 
     # add_set!/remove_set! forward through to the (set, mapping) methods
-    rect = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
+    rect = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0))
     MP.add_set!(ms, rect, MP.OUTER)
     @test all(q -> MP.contains_state(ms, q), (q1, q2, q3, q4))
     MP.remove_set!(ms, rect, MP.OUTER)

@@ -22,8 +22,8 @@ params = SimplePendulum.Params(; l = 1.0, g = 9.81)
 
 system = SimplePendulum.system(;
     params = params,
-    _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0)),
-    _U_ = UT.box(SVector(-10.0), SVector(10.0)),
+    _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-10.0), high = SVector(10.0)),
 )
 
 Δt = 0.1

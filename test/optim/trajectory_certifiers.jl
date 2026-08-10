@@ -19,8 +19,8 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 # the ellipsoidal backward certifier. Adapted from the certification case-study script.
 @testset "trajectory certifiers" begin
     Δt = 0.3
-    _X_ = UT.box(SVector(-2.0, -2.0), SVector(4.0, 4.0))
-    _U_ = UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0))
+    _X_ = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(4.0, 4.0))
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
     concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
     jacobian_bound = Integrator.jacobian_bound()
 
@@ -54,10 +54,10 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         return opt
     end
 
-    _I_ = UT.box(SVector(-1.7, -1.7), SVector(-1.6, -1.6))
+    _I_ = LazySets.Hyperrectangle(; low = SVector(-1.7, -1.7), high = SVector(-1.6, -1.6))
     target_set = UT.set_union([
-        UT.box(SVector(-1.0, 3.0), SVector(-0.3, 3.7)),
-        UT.box(SVector(1.0, 2.0), SVector(3.0, 3.7)),
+        LazySets.Hyperrectangle(; low = SVector(-1.0, 3.0), high = SVector(-0.3, 3.7)),
+        LazySets.Hyperrectangle(; low = SVector(1.0, 2.0), high = SVector(3.0, 3.7)),
     ])
     concrete_problem =
         PR.OptimalControlProblem(concrete_system, _I_, target_set, nothing, nothing, 20)
@@ -94,7 +94,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
     Symbolics.@variables u[1:2]
     Symbolics.@variables w[1:2]
     fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
-    Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
+    Wformat = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
     provider = ST.SymbolicAffineApproximationProvider(
         fsymbolic,
         collect(x),

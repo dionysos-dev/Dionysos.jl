@@ -47,8 +47,14 @@ plot_colorbar!(cm::ValueColormap) = scatter!(
 )
 
 function trial(E2, c, ρ, Ubound, Wbound, λ)
-    U = UT.box(SVector(-Ubound, -Ubound), SVector(Ubound, Ubound))
-    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
+    U = LazySets.Hyperrectangle(;
+        low = SVector(-Ubound, -Ubound),
+        high = SVector(Ubound, Ubound),
+    )
+    W = LazySets.Hyperrectangle(;
+        low = SVector(-Wbound, -Wbound),
+        high = SVector(Wbound, Wbound),
+    )
     problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
 

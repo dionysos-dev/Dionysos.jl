@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathematicalSystems as MS
+import LazySets
 
 # Small hand-built base abstraction: 2 states, 1 input, 2 transitions (1→2, 2→2).
 function build_base()
@@ -18,11 +19,17 @@ function build_base()
 end
 
 active_clock(tmax, tstep) = SY.ClockAbstraction(
-    MS.ConstrainedLinearContinuousSystem([1.0;;], UT.box([0.0], [tmax])),
+    MS.ConstrainedLinearContinuousSystem(
+        [1.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [tmax]),
+    ),
     tstep,
 )
 frozen_clock(tmax) = SY.ClockAbstraction(
-    MS.ConstrainedLinearContinuousSystem([0.0;;], UT.box([0.0], [tmax])),
+    MS.ConstrainedLinearContinuousSystem(
+        [0.0;;],
+        LazySets.Hyperrectangle(; low = [0.0], high = [tmax]),
+    ),
     1.0,
 )
 
@@ -60,7 +67,7 @@ end
     m = SY.lift(SY.ClockLift(active_clock(2.0, 1.0)), base)
 
     # Box covers both cells (x ∈ {0,1}) and time steps p=1,2 (t ∈ {0,1}); excludes t=2.
-    box = UT.box(SVector(-0.5, -0.5), SVector(1.5, 1.5))
+    box = LazySets.Hyperrectangle(; low = SVector(-0.5, -0.5), high = SVector(1.5, 1.5))
     states = SY.get_states_from_set(m, box, MP.INNER)
 
     @test length(states) == 2 * 2

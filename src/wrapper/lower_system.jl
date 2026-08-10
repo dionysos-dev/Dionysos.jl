@@ -43,7 +43,7 @@ end
 function _obstacle_set(x_idx, vars, obs::MOI.HyperRectangle, lower, upper)
     lb = _svec(_full_vec(lower, vars, obs.lower), x_idx)
     ub = _svec(_full_vec(upper, vars, obs.upper), x_idx)
-    return UT.box(lb, ub)
+    return LazySets.Hyperrectangle(; low = lb, high = ub)
 end
 
 # Backstop for an MOI set other than a hyperrectangle: `supports_constraint` already turns
@@ -77,7 +77,10 @@ end
 The state box declared by the variable bounds, before obstacles are carved out.
 """
 function state_box(ir::ModelIR, x_idx::Vector{Int})
-    return UT.box(_svec(_lower_vector(ir), x_idx), _svec(_upper_vector(ir), x_idx))
+    return LazySets.Hyperrectangle(;
+        low = _svec(_lower_vector(ir), x_idx),
+        high = _svec(_upper_vector(ir), x_idx),
+    )
 end
 
 """
@@ -119,7 +122,7 @@ function build_system(ir::ModelIR, f)
 
     X = state_box(ir, x_idx)
     X = UT.set_minus(X, UT.set_union(obstacle_sets(ir, x_idx)))
-    U = UT.box(_svec(lower, u_idx), _svec(upper, u_idx))
+    U = LazySets.Hyperrectangle(; low = _svec(lower, u_idx), high = _svec(upper, u_idx))
 
     if ir.time_domain == CONTINUOUS
         return MS.ConstrainedBlackBoxControlContinuousSystem(

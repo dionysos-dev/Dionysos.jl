@@ -42,7 +42,10 @@ include(
 )
 
 function test_backward_transition(Wbound, E2, xnew, U, λ, ρ)
-    W = UT.box(SVector(-Wbound, -Wbound), SVector(Wbound, Wbound))
+    W = LazySets.Hyperrectangle(;
+        low = SVector(-Wbound, -Wbound),
+        high = SVector(Wbound, Wbound),
+    )
     problem = NonLinear.problem(; U = U, W = W, noise = true, μ = ρ)
     sys = problem.system
     # Construct the linear approximation
@@ -161,7 +164,7 @@ E2 = LazySets.Ellipsoid([4.0; 4.0], inv([2.0 0.2; 0.2 0.5]))
 U = UT.LazySets.IntersectionArray([
     LazySets.Ellipsoid([0.0; 0.0], [25.0 0.0; 0.0 25.0]),
     LazySets.Ellipsoid([0.0; 0.0], [20.0 0.0; 0.0 30.0]),
-    UT.box(SVector(-4.0, -5.0), SVector(4.0, 5.0)),
+    LazySets.Hyperrectangle(; low = SVector(-4.0, -5.0), high = SVector(4.0, 5.0)),
 ])
 xnew = SVector{2, Float64}([1.0; 1.0])
 #fig 1

@@ -18,6 +18,7 @@ using JLD2
 # --------------------------------------- #
 
 using JLD2
+import LazySets
 
 function export_abstraction_jld2(opt, filename::AbstractString)
     abs_opt = opt.abstraction_solver
@@ -161,20 +162,20 @@ function script()
     # ------------------------------------------------------------
     # System 
     # ------------------------------------------------------------
-    _X_ = UT.box(
-        SVector(-1.0, -1.0, -pi, -pi), # x1, x2, θ1, ϕ
-        SVector(10.0, 9.0, pi, pi),
+    _X_ = LazySets.Hyperrectangle(;
+        low = SVector(-1.0, -1.0, -pi, -pi), # x1, x2, θ1, ϕ
+        high = SVector(10.0, 9.0, pi, pi),
     )
     _X_ = AV.with_phi_limit(_X_; phi_max = 50*(pi/180.0))
     obs = [
-        UT.box(SVector(4.0, -1.0), SVector(10.0, 4.7)),
-        UT.box(SVector(4.0, 6.0), SVector(10.0, 9.0)),
+        LazySets.Hyperrectangle(; low = SVector(4.0, -1.0), high = SVector(10.0, 4.7)),
+        LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
     ]
     _X_ = AV.with_xy_obstacles(_X_; obstacles2d = obs)
 
-    _U_ = UT.box(
-        SVector(-2.0, -0.6), # v1, δ
-        SVector(2.0, 0.6),
+    _U_ = LazySets.Hyperrectangle(;
+        low = SVector(-2.0, -0.6), # v1, δ
+        high = SVector(2.0, 0.6),
     )
 
     params = AV.Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
@@ -184,14 +185,17 @@ function script()
     # Problem 
     # ------------------------------------------------------------
 
-    _I_ = UT.box(SVector(-0.2, -0.2, -0.2, -0.2), SVector(0.2, 0.2, 0.2, 0.2))
-    _T_ = UT.box(
-        SVector(9.0, 5.5, -5*(pi/180), -5*(pi/180)),
-        SVector(10.0, 6.0, 5*(pi/180), 5*(pi/180)),
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-0.2, -0.2, -0.2, -0.2),
+        high = SVector(0.2, 0.2, 0.2, 0.2),
+    )
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(9.0, 5.5, -5*(pi/180), -5*(pi/180)),
+        high = SVector(10.0, 6.0, 5*(pi/180), 5*(pi/180)),
     ) # forward
-    _T_ = UT.box(
-        SVector(9.0, 5.0, pi-5*(pi/180), -5*(pi/180)),
-        SVector(10.0, 5.5, pi+5*(pi/180), 5*(pi/180)),
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(9.0, 5.0, pi-5*(pi/180), -5*(pi/180)),
+        high = SVector(10.0, 5.5, pi+5*(pi/180), 5*(pi/180)),
     ) # backward
 
     concrete_problem = DI.Problem.OptimalControlProblem(

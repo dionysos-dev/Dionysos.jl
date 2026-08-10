@@ -1,6 +1,7 @@
 module TestImplicitGridMapping
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "ImplicitGridMapping basic indexing" begin
@@ -57,7 +58,7 @@ end
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 2.0))
 
     # rectangle in REAL coords
-    rect = UT.box(SVector(1.0, 0.0), SVector(11.0, 10.0))
+    rect = LazySets.Hyperrectangle(; low = SVector(1.0, 0.0), high = SVector(11.0, 10.0))
 
     m = MP.ImplicitGridMapping(grid, rect; incl_mode = MP.OUTER)
 

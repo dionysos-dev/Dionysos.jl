@@ -7,7 +7,7 @@
 
 # The per-coordinate `start`/`final` intervals as a box over the state coordinates. A
 # coordinate the user left unconstrained falls back to the *variable's own bounds*: it used to
-# contribute ±Inf, from which `UT.box` built a NaN radius and threw deep inside LazySets, with
+# contribute ±Inf, from which `Hyperrectangle` built a NaN radius and threw deep inside it, with
 # nothing in the message pointing back at the model.
 function _coordinate_box(ir::ModelIR, x_idx::Vector{Int}, field::Symbol)
     n = length(ir.variables)
@@ -18,7 +18,7 @@ function _coordinate_box(ir::ModelIR, x_idx::Vector{Int}, field::Symbol)
         lb[i] = isfinite(interval.lower) ? interval.lower : v.lower
         ub[i] = isfinite(interval.upper) ? interval.upper : v.upper
     end
-    return UT.box(_svec(lb, x_idx), _svec(ub, x_idx))
+    return LazySets.Hyperrectangle(; low = _svec(lb, x_idx), high = _svec(ub, x_idx))
 end
 
 # The single specification set of kind `kind`, or `nothing`. A specification set must span

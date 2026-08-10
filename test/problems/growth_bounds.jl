@@ -108,7 +108,10 @@ const TOL = 1e-5
     @testset "PathPlanning" begin
         include(joinpath(PROBLEMS, "PathPlanning", "path_planning.jl"))
         s = PathPlanning.system(
-            UT.box(SVector(0.0, 0.0, -pi - 0.4), SVector(4.0, 10.0, pi + 0.4)),
+            LazySets.Hyperrectangle(;
+                low = SVector(0.0, 0.0, -pi - 0.4),
+                high = SVector(4.0, 10.0, pi + 0.4),
+            ),
         )
         @test worst_violation(
             PathPlanning.dynamic(),
@@ -132,7 +135,10 @@ const TOL = 1e-5
     @testset "ArticulatedVehicle" begin
         include(joinpath(PROBLEMS, "ArticulatedVehicle", "articulated_vehicle.jl"))
         s = ArticulatedVehicle.system(
-            UT.box(SVector(-5.0, -5.0, -pi, -pi), SVector(5.0, 5.0, pi, pi)),
+            LazySets.Hyperrectangle(;
+                low = SVector(-5.0, -5.0, -pi, -pi),
+                high = SVector(5.0, 5.0, pi, pi),
+            ),
         )
         @test worst_violation(
             ArticulatedVehicle.dynamic(),

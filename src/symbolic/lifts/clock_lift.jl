@@ -200,7 +200,10 @@ dimension. `set` is a box over `[x; t]`.
 """
 function get_states_from_set(m::ClockLiftedSymbolicModel, set, incl_mode::MP.INCL_MODE)
     d = LazySets.dim(set)
-    base_set = UT.box(LazySets.low(set)[1:(d - 1)], LazySets.high(set)[1:(d - 1)])
+    base_set = LazySets.Hyperrectangle(;
+        low = LazySets.low(set)[1:(d - 1)],
+        high = LazySets.high(set)[1:(d - 1)],
+    )
     base_states = get_states_from_set(m.base, base_set, incl_mode)
     pmin = ceil_time2int(m.clock, LazySets.low(set, d))
     pmax = floor_time2int(m.clock, LazySets.high(set, d))

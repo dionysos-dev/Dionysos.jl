@@ -100,7 +100,7 @@ trajectory_generator = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
 # ------------------------------------------------------------
 
 k=1.5
-_U_cert_ = UT.box(SVector(-7.0)*k, SVector(7.0)*k)
+_U_cert_ = LazySets.Hyperrectangle(; low = SVector(-7.0)*k, high = SVector(7.0)*k)
 
 noise_sampler = function (rng, u, k)
     σ = 0.5
@@ -184,7 +184,7 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
 #     x[1] + Δt * (x[2] + w[1]),
 #     x[2] + Δt * (-(params.g / params.l) * Symbolics.sin(x[1]) + u[1] + w[2]),
 # ]
-# Wformat = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
+# Wformat = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
 
 # provider = ST.SymbolicAffineApproximationProvider(
 #     fsymbolic,
@@ -209,7 +209,7 @@ f_disc = ST.runge_kutta4(f_cont_expr, x, u, T, 1)
 
 fsymbolic = Symbolics.substitute([f_disc[1] + w1, f_disc[2] + w2], Dict(T => Δt))
 
-Wset = UT.box(SVector(0.0, 0.0), SVector(0.0, 0.0))
+Wset = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
 
 provider = ST.SymbolicAffineApproximationProvider(
     fsymbolic,

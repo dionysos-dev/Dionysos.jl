@@ -1,6 +1,7 @@
 module TestMain
 
 import Dionysos
+import LazySets
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 @testset "FromControlSystem (Mapping-based)" begin
@@ -14,7 +15,7 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     h = SVector(1.0, 2.0)
 
     Xgrid = MP.GridFree(x0, h)
-    Xrect = UT.box(lb, ub)
+    Xrect = LazySets.Hyperrectangle(; low = lb, high = ub)
 
     # Implicit universe = all grid cells covering Xrect (OUTER)
     Xmap = MP.ImplicitGridMapping(Xgrid, Xrect; incl_mode = MP.OUTER)

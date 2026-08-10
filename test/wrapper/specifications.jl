@@ -38,8 +38,8 @@ end
 state(model) = [model[:x]]
 
 @testset "problem type is inferred from the specification markers" begin
-    target = UT.box(SVector(-0.5), SVector(0.5))
-    safe = UT.box(SVector(-1.8), SVector(1.8))
+    target = LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5))
+    safe = LazySets.Hyperrectangle(; low = SVector(-1.8), high = SVector(1.8))
 
     reach = lowered_problem() do model
         integrator!(model)
@@ -94,10 +94,14 @@ end
     # The `Always` set travels as `safe_set` rather than being folded into `X`. That keeps the
     # unsafe region representable, so the synthesis can reason about it instead of it simply
     # not existing — the distinction between `Always` and `∉`.
-    safe = UT.box(SVector(-1.0), SVector(1.0))
+    safe = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
     problem = lowered_problem() do model
         integrator!(model)
-        @constraint(model, state(model) in Final(UT.box(SVector(-0.5), SVector(0.5))))
+        @constraint(
+            model,
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
+        )
         return @constraint(model, state(model) in Always(safe))
     end
 
@@ -114,7 +118,11 @@ end
     ball = LazySets.Ball2(zeros(1), 1.0)
     problem = lowered_problem() do model
         integrator!(model)
-        @constraint(model, state(model) in Final(UT.box(SVector(-0.5), SVector(0.5))))
+        @constraint(
+            model,
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
+        )
         return @constraint(model, state(model) in Always(ball))
     end
 
@@ -127,7 +135,8 @@ end
         integrator!(model)
         return @constraint(
             model,
-            state(model) in Final(UT.box(SVector(-0.5), SVector(0.5)))
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
         )
     end
     @test problem.safe_set === nothing
@@ -139,17 +148,22 @@ end
         integrator!(model)
         return @constraint(
             model,
-            state(model) in Final(UT.box(SVector(-0.5), SVector(0.5)))
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
         )
     end
     @test LazySets.low(singleton.initial_set, 1) == -1.5
     @test LazySets.high(singleton.initial_set, 1) == -1.5
 
     # A `Start` marker gives a region and takes precedence.
-    region = UT.box(SVector(-1.9), SVector(-1.1))
+    region = LazySets.Hyperrectangle(; low = SVector(-1.9), high = SVector(-1.1))
     problem = lowered_problem() do model
         integrator!(model)
-        @constraint(model, state(model) in Final(UT.box(SVector(-0.5), SVector(0.5))))
+        @constraint(
+            model,
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
+        )
         return @constraint(model, state(model) in Start(region))
     end
     @test problem.initial_set === region
@@ -171,7 +185,7 @@ end
 
 @testset "unconstrained final coordinates fall back to the variable bounds" begin
     # FIXED-L7 (Phase 3). Before Phase 3 the unconstrained coordinate contributed ±Inf, from
-    # which `UT.box` built a NaN radius and threw inside LazySets.
+    # which `Hyperrectangle` built a NaN radius and threw inside LazySets.
     problem = lowered_problem() do model
         @variable(model, -1.0 <= x[1:2] <= 1.0, start = 0.0)
         @variable(model, -1.0 <= u[1:2] <= 1.0)
@@ -188,7 +202,7 @@ end
 end
 
 @testset "horizon: seconds in continuous time, steps in discrete time" begin
-    target = UT.box(SVector(-0.5), SVector(0.5))
+    target = LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5))
 
     # No horizon ⇒ infinite.
     infinite = lowered_problem() do model
@@ -208,7 +222,11 @@ end
     # Safety is "for at least T", so the same horizon rounds *up*.
     safety = lowered_problem(; time_step = 0.3) do model
         integrator!(model)
-        @constraint(model, state(model) in Always(UT.box(SVector(-1.8), SVector(1.8))))
+        @constraint(
+            model,
+            state(model) in
+            Always(LazySets.Hyperrectangle(; low = SVector(-1.8), high = SVector(1.8)))
+        )
         return set_attribute(model, "horizon", 1.0)
     end
     @test safety.time == 4
@@ -232,7 +250,7 @@ end
 end
 
 @testset "validation" begin
-    target = UT.box(SVector(-0.5), SVector(0.5))
+    target = LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5))
 
     # FIXED-L9 (Phase 3): an objective is rejected instead of being silently dropped.
     err = try
@@ -271,14 +289,22 @@ end
         @variable(model, -1.0 <= u[1:2] <= 1.0)
         @constraint(model, ∂(x[1]) == u[1])
         @constraint(model, ∂(x[2]) == u[2])
-        return @constraint(model, [x[1]] in Final(UT.box(SVector(-0.5), SVector(0.5))))
+        return @constraint(
+            model,
+            [x[1]] in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)))
+        )
     end
 
     # Two sets of the same kind are ambiguous.
     @test_throws ErrorException lowered_problem() do model
         integrator!(model)
         @constraint(model, state(model) in Final(target))
-        return @constraint(model, state(model) in Final(UT.box(SVector(0.0), SVector(1.0))))
+        return @constraint(
+            model,
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(1.0)))
+        )
     end
 end
 
@@ -288,7 +314,11 @@ end
     @variable(model, -2.0 <= x <= 2.0, start = 0.0)
     @variable(model, -1.0 <= u <= 1.0)
     @constraint(model, ∂(x) == u)
-    @constraint(model, state(model) in Always(UT.box(SVector(-1.5), SVector(1.5))))
+    @constraint(
+        model,
+        state(model) in
+        Always(LazySets.Hyperrectangle(; low = SVector(-1.5), high = SVector(1.5)))
+    )
 
     set_attribute(model, "time_step", 0.5)
     set_attribute(model, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
@@ -316,7 +346,11 @@ end
         @variable(model, -2.0 <= x <= 2.0, start = -1.5)
         @variable(model, -1.0 <= u <= 1.0)
         @constraint(model, ∂(x) == u)
-        @constraint(model, state(model) in Final(UT.box(SVector(-0.25), SVector(0.25))))
+        @constraint(
+            model,
+            state(model) in
+            Final(LazySets.Hyperrectangle(; low = SVector(-0.25), high = SVector(0.25)))
+        )
         safe === nothing || @constraint(model, state(model) in Always(safe))
 
         set_attribute(model, "time_step", 0.5)
@@ -334,7 +368,8 @@ end
     @test controller_admissible(open_ctrl, SVector(-1.5))
     @test controller_admissible(open_ctrl, SVector(1.5))   # reachable from the right too
 
-    fenced, fenced_ctrl = reach_avoid(UT.box(SVector(-1.8), SVector(0.5)))
+    fenced, fenced_ctrl =
+        reach_avoid(LazySets.Hyperrectangle(; low = SVector(-1.8), high = SVector(0.5)))
     @test get_attribute(fenced, "concrete_problem").safe_set !== nothing
     @test is_solved_and_feasible(fenced)                   # the start is still safe
     @test controller_admissible(fenced_ctrl, SVector(-1.5))

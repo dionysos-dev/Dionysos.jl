@@ -8,6 +8,7 @@ using FillArrays, CDDLib
 
 import Dionysos
 using Dionysos.Problem
+import LazySets
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
@@ -79,8 +80,10 @@ function system(lib, dt, Usz, Wsz; simple = false)
 
     system = HybridSystem(a, systems, resetmaps, switchings)
 
-    simple ? rectX = UT.box(SVector(-2.0, -1.5), SVector(-0.5, 1.3)) :
-    rectX = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+    simple ?
+    rectX =
+        LazySets.Hyperrectangle(; low = SVector(-2.0, -1.5), high = SVector(-0.5, 1.3)) :
+    rectX = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(2.0, 2.0))
 
     Uaux = LA.diagm(1:n_u)
     U = [(Uaux .== i) ./ Usz for i in 1:n_u] # matrices U_i
@@ -90,8 +93,8 @@ function system(lib, dt, Usz, Wsz; simple = false)
     ] * dt # polytope of disturbances 
     if !simple
         obs = [
-            UT.box(SVector(0.0, -1.0), SVector(0.25, 1.5)),
-            UT.box(SVector(0.0, 1.25), SVector(1.0, 1.5)),
+            LazySets.Hyperrectangle(; low = SVector(0.0, -1.0), high = SVector(0.25, 1.5)),
+            LazySets.Hyperrectangle(; low = SVector(0.0, 1.25), high = SVector(1.0, 1.5)),
         ]
         rectX = UT.set_minus(rectX, UT.set_union(obs))
     end

@@ -91,8 +91,8 @@ end
     # ẋ₁ = x₂, ẋ₂ = -sin(x₁) + u₁ over x₁ ∈ [-π/3, π/3]:
     # |∂f₂/∂x₁| = |-cos(x₁)| ∈ [1/2, 1] → bound 1; diagonal entries are 0.
     F_sys(x, u) = [x[2], -sin(x[1]) + u[1]]
-    X = UT.box([-π / 3, -1.0], [π / 3, 1.0])
-    U = UT.box([-1.0], [1.0])
+    X = LazySets.Hyperrectangle(; low = [-π / 3, -1.0], high = [π / 3, 1.0])
+    U = LazySets.Hyperrectangle(; low = [-1.0], high = [1.0])
     sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(F_sys, 2, 1, X, U)
 
     jb = ST.compute_jacobian_bound(sys)
@@ -108,7 +108,7 @@ end
         F_dec,
         1,
         1,
-        UT.box([1.0], [2.0]),
+        LazySets.Hyperrectangle(; low = [1.0], high = [2.0]),
         U,
     )
     Md = ST.compute_jacobian_bound(sysd)([0.0])
@@ -117,8 +117,11 @@ end
     # The automatic bound plugs straight into the growth-bound constructor.
     approx = ST.ContinuousTimeGrowthBound(sys)
     @test approx isa ST.ContinuousTimeGrowthBound
-    out =
-        ST.get_over_approximation_map(approx)(UT.box([-0.1, -0.1], [0.1, 0.1]), [0.5], 0.1)
+    out = ST.get_over_approximation_map(approx)(
+        LazySets.Hyperrectangle(; low = [-0.1, -0.1], high = [0.1, 0.1]),
+        [0.5],
+        0.1,
+    )
     @test out isa LazySets.AbstractHyperrectangle
 end
 

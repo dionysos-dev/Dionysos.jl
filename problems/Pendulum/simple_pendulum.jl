@@ -33,8 +33,8 @@ end
 
 function system(;
     params::Params = Params(),
-    _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0)),
-    _U_ = UT.box(SVector(-6.0), SVector(6.0)),
+    _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0)),
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-6.0), high = SVector(6.0)),
 )
     return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
         dynamic(params),
@@ -47,15 +47,27 @@ end
 
 function safety_problem(; params::Params = Params(), objective = "safety_up")
     if objective == "safety_down"
-        _X_ = UT.box(SVector(-π, -1.5), SVector(π, 1.5))
-        _U_ = UT.box(SVector(-4.0), SVector(4.0))
-        _I_ = UT.box(SVector(-3.0π / 180.0, -0.5), SVector(3.0π / 180.0, 0.5))
-        _S_ = UT.box(SVector(-15.0π / 180.0, -1.0), SVector(15.0π / 180.0, 1.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -1.5), high = SVector(π, 1.5))
+        _U_ = LazySets.Hyperrectangle(; low = SVector(-4.0), high = SVector(4.0))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(-3.0π / 180.0, -0.5),
+            high = SVector(3.0π / 180.0, 0.5),
+        )
+        _S_ = LazySets.Hyperrectangle(;
+            low = SVector(-15.0π / 180.0, -1.0),
+            high = SVector(15.0π / 180.0, 1.0),
+        )
     elseif objective == "safety_up"
-        _X_ = UT.box(SVector(-π, -1.5), SVector(π, 1.5))
-        _U_ = UT.box(SVector(-4.0), SVector(4.0))
-        _I_ = UT.box(SVector(π - 3.0π / 180.0, -0.5), SVector(π + 3.0π / 180.0, 0.5))
-        _S_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -1.5), high = SVector(π, 1.5))
+        _U_ = LazySets.Hyperrectangle(; low = SVector(-4.0), high = SVector(4.0))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 3.0π / 180.0, -0.5),
+            high = SVector(π + 3.0π / 180.0, 0.5),
+        )
+        _S_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 15.0π / 180.0, -1.0),
+            high = SVector(π + 15.0π / 180.0, 1.0),
+        )
     else
         error("Unknown objective: $objective")
     end
@@ -73,38 +85,65 @@ function optimal_control_problem(;
     _O_ = nothing
 
     if objective == "reachability_up_high_power"
-        _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0))
         _U_ = UT.set_minus(
-            UT.box(SVector(-10.0), SVector(10.0)),
-            UT.box(SVector(-0.5), SVector(0.5)),
+            LazySets.Hyperrectangle(; low = SVector(-10.0), high = SVector(10.0)),
+            LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)),
         )
-        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(-5.0π / 180.0, -0.2),
+            high = SVector(5.0π / 180.0, 0.2),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 15.0π / 180.0, -1.0),
+            high = SVector(π + 15.0π / 180.0, 1.0),
+        )
 
     elseif objective == "reachability_up_medium_power"
-        _X_ = UT.box(SVector(-π, -5.0), SVector(π, 5.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -5.0), high = SVector(π, 5.0))
         _U_ = UT.set_minus(
-            UT.box(SVector(-7.0), SVector(7.0)),
-            UT.box(SVector(-0.5), SVector(0.5)),
+            LazySets.Hyperrectangle(; low = SVector(-7.0), high = SVector(7.0)),
+            LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)),
         )
-        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(-5.0π / 180.0, -0.2),
+            high = SVector(5.0π / 180.0, 0.2),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 15.0π / 180.0, -1.0),
+            high = SVector(π + 15.0π / 180.0, 1.0),
+        )
 
     elseif objective == "reachability_up_medium_power_no_obstacle"
-        _X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
-        _U_ = UT.box(SVector(-4.5), SVector(4.5))
-        _I_ = UT.box(SVector(-10.0π / 180.0, -0.5), SVector(10.0π / 180.0, 0.5))
-        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -7.0), high = SVector(π, 7.0))
+        _U_ = LazySets.Hyperrectangle(; low = SVector(-4.5), high = SVector(4.5))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(-10.0π / 180.0, -0.5),
+            high = SVector(10.0π / 180.0, 0.5),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 15.0π / 180.0, -1.0),
+            high = SVector(π + 15.0π / 180.0, 1.0),
+        )
 
     elseif objective == "reachability_up_low_power"
-        _X_ = UT.box(SVector(-π, -7.0), SVector(π, 7.0))
+        _X_ = LazySets.Hyperrectangle(; low = SVector(-π, -7.0), high = SVector(π, 7.0))
         _U_ = UT.set_minus(
-            UT.box(SVector(-2.5), SVector(2.5)),
-            UT.box(SVector(-0.5), SVector(0.5)),
+            LazySets.Hyperrectangle(; low = SVector(-2.5), high = SVector(2.5)),
+            LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)),
         )
-        _I_ = UT.box(SVector(-5.0π / 180.0, -0.2), SVector(5.0π / 180.0, 0.2))
-        _T_ = UT.box(SVector(π - 15.0π / 180.0, -1.0), SVector(π + 15.0π / 180.0, 1.0))
-        _O_ = UT.box(SVector(-π + 16.0π / 180.0, -7.0), SVector(-π + 38.0π / 180.0, 7.0))
+        _I_ = LazySets.Hyperrectangle(;
+            low = SVector(-5.0π / 180.0, -0.2),
+            high = SVector(5.0π / 180.0, 0.2),
+        )
+        _T_ = LazySets.Hyperrectangle(;
+            low = SVector(π - 15.0π / 180.0, -1.0),
+            high = SVector(π + 15.0π / 180.0, 1.0),
+        )
+        _O_ = LazySets.Hyperrectangle(;
+            low = SVector(-π + 16.0π / 180.0, -7.0),
+            high = SVector(-π + 38.0π / 180.0, 7.0),
+        )
 
     else
         error("Unknown objective: $objective")

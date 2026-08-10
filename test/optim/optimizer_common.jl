@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathOptInterface as MOI
+import LazySets
 const UGA = OP.Abstraction.UniformGridAbstraction
 
 @testset "AbstractDionysosOptimizer (leaf contract)" begin
@@ -102,16 +103,16 @@ end
     # The status attributes live on the solver, not on the JuMP front-end, so a direct-MOI user
     # gets the same answers. `ẋ = u` on [-1, 1] with a reachable target.
     function reach_optimizer(;
-        U = UT.box(SVector(-1.0), SVector(1.0)),
-        target = UT.box(SVector(-0.5), SVector(0.5)),
+        U = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0)),
+        target = LazySets.Hyperrectangle(; low = SVector(-0.5), high = SVector(0.5)),
     )
         f(x, u) = u
-        X = UT.box(SVector(-1.0), SVector(1.0))
+        X = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(1.0))
         system =
             MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(f, 1, 1, X, U)
         problem = PR.OptimalControlProblem(
             system,
-            UT.box(SVector(-0.9), SVector(-0.8)),
+            LazySets.Hyperrectangle(; low = SVector(-0.9), high = SVector(-0.8)),
             target,
             nothing,
             nothing,
@@ -156,8 +157,8 @@ end
     # be reached. Failure is LOCALLY_INFEASIBLE — never INFEASIBLE, which would claim more than
     # a sound-but-incomplete abstraction can prove.
     unreachable = reach_optimizer(;
-        U = UT.box(SVector(-1.0), SVector(-0.5)),
-        target = UT.box(SVector(0.7), SVector(0.9)),
+        U = LazySets.Hyperrectangle(; low = SVector(-1.0), high = SVector(-0.5)),
+        target = LazySets.Hyperrectangle(; low = SVector(0.7), high = SVector(0.9)),
     )
     MOI.optimize!(unreachable)
     @test MOI.get(unreachable, MOI.TerminationStatus()) == MOI.LOCALLY_INFEASIBLE

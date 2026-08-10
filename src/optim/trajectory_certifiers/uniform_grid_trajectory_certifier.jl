@@ -210,7 +210,7 @@ function build_tube(
         N = length(x)
         lb = ntuple(i -> x[i] - (_rad_i(radius, i) + margin), N)
         ub = ntuple(i -> x[i] + (_rad_i(radius, i) + margin), N)
-        push!(rects, UT.box(SVector(lb), SVector(ub)))
+        push!(rects, LazySets.Hyperrectangle(; low = SVector(lb), high = SVector(ub)))
     end
 
     tube = UT.set_union(rects)
