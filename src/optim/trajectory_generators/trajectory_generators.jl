@@ -1,7 +1,22 @@
 export AbstractTrajectoryGenerator,
-    set_problem!, generate!, get_trajectory, get_success, get_solve_time
+    set_problem!,
+    set_seed_trajectory!,
+    generate!,
+    get_trajectory,
+    get_success,
+    get_solve_time
 
 abstract type AbstractTrajectoryGenerator end
+
+"""
+    set_seed_trajectory!(gen::AbstractTrajectoryGenerator, traj)
+
+Warm-start `gen` with a seed trajectory. Part of the generator interface so a
+composite (seed → refine) chain works with *any* refiner, not one hardcoded type.
+"""
+function set_seed_trajectory!(gen::AbstractTrajectoryGenerator, traj)
+    return error("set_seed_trajectory! not implemented for $(typeof(gen))")
+end
 
 function set_problem!(gen::AbstractTrajectoryGenerator, concrete_problem)
     return error("set_problem! not implemented for $(typeof(gen))")

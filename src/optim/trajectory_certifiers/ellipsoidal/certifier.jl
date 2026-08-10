@@ -82,5 +82,13 @@ get_result(cert::BackwardCertifier) = cert.result
 get_success(cert::BackwardCertifier) = cert.success
 get_solve_time(cert::BackwardCertifier) = cert.solve_time_sec
 
-get_controller(cert::BackwardCertifier) =
-    cert.result === nothing ? nothing : cert.result.controller
+# The certified controller is a real controller (`ST.FunnelController`), usable by
+# the closed-loop simulation protocol — not a bare vector of gains.
+function get_controller(cert::BackwardCertifier)
+    res = cert.result
+    (res === nothing || !res.success) && return nothing
+    return ST.FunnelController(
+        collect(res.lmi_data.kappas),
+        collect(res.lmi_data.ellipsoids),
+    )
+end

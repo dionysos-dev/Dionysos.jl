@@ -10,6 +10,7 @@ using StaticArrays
 
 import ..AbstractTrajectoryGenerator
 import ..set_problem!
+import ..set_seed_trajectory!
 import ..generate!
 import ..get_trajectory
 import ..get_success

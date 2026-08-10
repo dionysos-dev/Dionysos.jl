@@ -9,7 +9,7 @@ import ..get_trajectory
 import ..get_success
 import ..get_solve_time
 
-import ..MPPITrajectoryGenerator: set_seed_trajectory!
+import ..set_seed_trajectory!
 
 const DI = Dionysos
 const PR = DI.Problem

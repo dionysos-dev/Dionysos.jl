@@ -205,8 +205,15 @@ end
 get_result(cert::ForwardCertifier) = cert.result
 get_success(cert::ForwardCertifier) = cert.success
 get_solve_time(cert::ForwardCertifier) = cert.solve_time_sec
-get_controller(cert::ForwardCertifier) =
-    cert.result === nothing ? nothing : cert.result.controller
+
+function get_controller(cert::ForwardCertifier)
+    res = cert.result
+    (res === nothing || !res.success) && return nothing
+    return ST.FunnelController(
+        collect(res.lmi_data.kappas),
+        collect(res.lmi_data.ellipsoids),
+    )
+end
 
 function certify!(cert::ForwardCertifier)
     @assert cert.problem !== nothing "Call set_problem!(cert, problem) first."
