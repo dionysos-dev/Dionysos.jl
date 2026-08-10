@@ -78,7 +78,7 @@ x0 = SVector(-1.65, -1.65);
 # start looking for `b`, and only then for `c`. Nesting is what encodes the order — a flat
 # `F(a) & F(b) & F(c)` would be satisfied by visiting them in any order at all.
 
-model, x = integrator_model()
+model, x = integrator_model();
 
 # `roomA` is deliberately **two** disjoint boxes. `Label` takes any bounded `LazySet`, so a
 # region can be a union, and the task then reads "reach either of these two rooms" — the
@@ -196,7 +196,7 @@ until_monitor = OPDS.FunctionMonitor(1, Set([3]), until_step);
 
 #-
 
-model2, x2 = integrator_model()
+model2, x2 = integrator_model();
 
 first_stop = UT.box(SVector(1.0, 1.0), SVector(1.7, 1.7))
 second_stop = UT.box(SVector(-1.5, -1.2), SVector(-0.6, -0.2))

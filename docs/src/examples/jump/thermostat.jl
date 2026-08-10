@@ -130,14 +130,6 @@ trajectory = Dionysos.simulate(model, (SVector(18.0), 1); nsteps = 60);
 T_end, mode_end = last(ST.states(trajectory)), last(ST.modes(trajectory))   #src
 @test PR.satisfies(concrete_problem.target_set, T_end, mode_end)           #src
 
-# The temperature over the run, and the mode it was in at each step:
-
-ST.states(trajectory)
-
-#-
-
-ST.modes(trajectory)
-
 # ## Visualisation
 #
 # A hybrid trajectory carries a `modes` channel, so the dashboard adds a mode panel of its
