@@ -122,10 +122,15 @@ When enabled, the following fields are required:
       Use a custom over-approximation map.  
       Set `overapproximation_map`.
 
-    - [`GROWTH`](@ref Dionysos.System.DiscreteTimeGrowthBound):  
-      Use growth-bound based approximation.  
-      Set `jacobian_bound`, or directly `growthbound_map`.  
+    - [`GROWTH`](@ref Dionysos.System.DiscreteTimeGrowthBound):
+      Use growth-bound based approximation.
+      Set `jacobian_bound`, or directly `growthbound_map`.
       `ngrowthbound` controls the internal growth-bound discretization parameter.
+      With neither supplied the bound is derived from the dynamics (needs `Symbolics`);
+      `jacobian_bound_precision` — a
+      [`JacobianBoundPrecision`](@ref Dionysos.System.JacobianBoundPrecision) — chooses how
+      tight, and `jacobian_bound_nsplit` how finely the state space is split for
+      `REGIONWISE_BOUND`.
 
     - [`LINEARIZED`](@ref Dionysos.System.DiscreteTimeLinearized):  
       Use linearization and derivative bounds.  
@@ -296,6 +301,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     growthbound_map::Union{Nothing, Function}
     jacobian_bound::Union{Nothing, Function}
     ngrowthbound::Int
+    # Only consulted when no `jacobian_bound` is supplied and one has to be derived.
+    jacobian_bound_precision::ST.JacobianBoundPrecision
+    jacobian_bound_nsplit::Int
 
     ### LINEARIZED
     DF_sys::Union{Nothing, Function}  # Jacobian function
@@ -353,6 +361,8 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             nothing,
             nothing,
             5, #GROWTH
+            ST.INPUT_BOUND,         # jacobian_bound_precision
+            4,                      # jacobian_bound_nsplit
             nothing,
             nothing,
             nothing, #LINEARIZED
@@ -415,13 +425,20 @@ function build_continuous_approximation(
     elseif mode == GROWTH
         if optimizer.growthbound_map !== nothing
             return ST.ContinuousTimeGrowthBound(system, optimizer.growthbound_map)
-        else
-            return ST.ContinuousTimeGrowthBound(
-                system;
-                jacobian_bound = optimizer.jacobian_bound,
-                ngrowthbound = optimizer.ngrowthbound,
-            )
         end
+        # With no hand-written bound, derive one — at the precision the caller asked for.
+        jacobian_bound =
+            optimizer.jacobian_bound === nothing ?
+            ST.compute_jacobian_bound(
+                system;
+                precision = optimizer.jacobian_bound_precision,
+                nsplit = optimizer.jacobian_bound_nsplit,
+            ) : optimizer.jacobian_bound
+        return ST.ContinuousTimeGrowthBound(
+            system;
+            jacobian_bound = jacobian_bound,
+            ngrowthbound = optimizer.ngrowthbound,
+        )
     elseif mode == LINEARIZED
         _validate_model(optimizer, [:DF_sys, :bound_DF, :bound_DDF])
         return ST.ContinuousTimeLinearized(
