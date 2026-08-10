@@ -310,6 +310,23 @@ from the same shared S-procedure blocks — the shared-block design was made for
 
 ### 4.5 Efficiency budget — where the time goes, what removes it
 
+**P0 baseline (measured 2026-08-10, Clarabel, single thread, fixed rng —
+`bench/trajectory_pipeline.jl`; `bench/results/` is gitignored so the reference lives
+here):**
+
+| System | seed | mppi | provider cold/warm | chain | status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| integrator | 4.0 s | 0.39 s (2555 rollouts/s) | 11.6 s / 1.3 ms per call | 21.7 s (1671 ms/step, incl. JuMP+Clarabel JIT) | certified |
+| pendulum | 8.1 s | 0.86 s (1157 rollouts/s) | 2.4 s / 5.5 ms per call | 140 ms/step | **failed_k = 19** |
+
+Two P0 lessons that correct earlier assumptions: (i) RuntimeGeneratedFunctions cache
+compiled code, so warm provider calls cost only the per-call symbolic
+re-differentiation (1.3–5.5 ms) — the precompilation lever is a 2–4× on the pendulum
+chain, not 10×; the multi-second "cold" numbers are one-time JIT. (ii) The pendulum
+certification **fails at k=19 deterministically** under the baseline config — a
+reproducible instance of the reported "pipeline not performing well", now the standing
+test case for P1–P5.
+
 PR measurements (single-thread Mosek): LMI chain dominates everywhere; the abstraction
 seed is 5–50× the MPPI cost.
 
