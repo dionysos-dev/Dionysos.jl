@@ -94,4 +94,25 @@ end
     @test ST.update_state(ctrl, 1, 5) == 1
 end
 
+@testset "FunnelController" begin
+    import LazySets
+    import LinearAlgebra as LA
+    E1 = LazySets.Ellipsoid([0.0, 0.0], Matrix{Float64}(LA.I, 2, 2))
+    E2 = LazySets.Ellipsoid([1.0, 0.0], Matrix{Float64}(LA.I, 2, 2))
+    κ = MS.AffineMap(zeros(1, 2), [0.5])
+    ctrl = ST.FunnelController([κ], [E1, E2])
+
+    @test ST.controller_kind(ctrl) == ST.DynamicKind()
+    mem = ST.initial_state(ctrl)
+    @test mem == 1
+    @test ST.is_defined(ctrl, mem, [0.1, 0.0])
+    @test ST.output_control(ctrl, mem, [0.1, 0.0]) ≈ [0.5]
+    @test !ST.is_defined(ctrl, mem, [5.0, 0.0])          # outside E_1
+    mem = ST.update_state(ctrl, mem, [0.1, 0.0])
+    @test mem == 2
+    @test ST.output_control(ctrl, mem, [1.0, 0.0]) === nothing  # past the last κ
+    @test ST.domain(ctrl) === ctrl.ellipsoids
+    @test_throws Exception ST.FunnelController([κ], [E1])  # length invariant
+end
+
 end # module

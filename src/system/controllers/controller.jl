@@ -216,3 +216,41 @@ end
 
 controller_kind(::AffineController) = StaticKind()
 output_control(ctrl::AffineController, mem, x) = MS.apply(ctrl.map, x)
+
+# --------------- Funnel Controller --------------------------
+
+"""
+    FunnelController(kappas, ellipsoids)
+
+Time-indexed funnel-tracking controller, the simulatable form of an ellipsoidal
+certification chain `(E_1, κ_1, …, E_K, κ_K, E_{K+1})`: the memory is the step
+index `k`, the output at step `k` is `κ_k(x)` (an absolute-coordinates
+`MathematicalSystems.AffineMap`), and the controller is defined while the measured
+state lies in the certified ellipsoid `E_k`. The certificate guarantees that a
+defined step stays defined: `x ∈ E_k ⟹ x⁺ ∈ E_{k+1}`. Plain data — serializable.
+"""
+struct FunnelController{TK, TE} <: AbstractContinuousController
+    kappas::Vector{TK}
+    ellipsoids::Vector{TE}
+
+    function FunnelController(kappas::Vector{TK}, ellipsoids::Vector{TE}) where {TK, TE}
+        length(ellipsoids) == length(kappas) + 1 ||
+            error("need length(ellipsoids) == length(kappas) + 1 (E_1..E_{K+1}, κ_1..κ_K)")
+        return new{TK, TE}(kappas, ellipsoids)
+    end
+end
+
+controller_kind(::FunnelController) = DynamicKind()
+initial_state(::FunnelController) = 1
+update_state(ctrl::FunnelController, k, x) = k + 1
+domain(ctrl::FunnelController) = ctrl.ellipsoids
+
+function is_defined(ctrl::FunnelController, k, x)
+    1 <= k <= length(ctrl.kappas) || return false
+    return collect(x) ∈ ctrl.ellipsoids[k]
+end
+
+function output_control(ctrl::FunnelController, k, x)
+    is_defined(ctrl, k, x) || return nothing
+    return MS.apply(ctrl.kappas[k], x)
+end
