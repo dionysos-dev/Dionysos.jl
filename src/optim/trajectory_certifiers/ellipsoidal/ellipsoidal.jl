@@ -33,13 +33,16 @@ import ..get_success
 import ..get_solve_time
 
 export BackwardCertifier,
+    ForwardCertifier,
     AdaptiveLinearizationBoxOptions,
     ChainOptions,
+    ForwardOptions,
     StepRecord,
     CertificationResult,
     get_result,
     build_context,
     backward_step!,
+    forward_step!,
     run_chain!
 
 include("options.jl")
@@ -50,5 +53,6 @@ include("adaptive_boxes.jl")
 include("gates.jl")
 include("chain.jl")
 include("certifier.jl")
+include("forward.jl")
 
 end # module

@@ -138,6 +138,28 @@ const EB = AB.EllipsoidalTrajectoryCertifier
     @test AB.get_success(eb_cert) isa Bool
     @test EB.get_result(eb_cert) !== nothing
 
+    # 2b) Ellipsoidal forward certifier: propagate the tube from a small entry
+    #     ellipsoid along the same trajectory (exactly affine dynamics, so the
+    #     remainder is zero and per-step certification must go through).
+    fwd_opts = EB.ForwardOptions(;
+        maxδu = 1.0,
+        linearization_δu = [0.5, 0.5],
+        entry_shape = Matrix{Float64}(LA.I, 2, 2) * 0.05^2,
+        target_mode = :free,
+        q_min = 1e-8,
+        q_max = 1e4,
+    )
+    fw_cert = EB.ForwardCertifier(provider, Clarabel.Optimizer, fwd_opts)
+    AB.set_problem!(fw_cert, concrete_problem)
+    AB.set_trajectory!(fw_cert, traj)
+    AB.certify!(fw_cert)
+    fw_res = EB.get_result(fw_cert)
+    @test AB.get_success(fw_cert) isa Bool
+    @test fw_res !== nothing
+    @test fw_res.initial_coverage == 1.0     # exact by construction in forward mode
+    @test length(fw_res.lmi_data.ellipsoids) == length(ST.states(traj)) ||
+          fw_res.failed_k !== nothing
+
     # 3) Combined trajectory-generation + certification optimizer: a composite generator
     #    (optimizer seed refined by MPPI) feeding the certifier, driven through MOI.
     discrete_problem = PR.discretize_problem(concrete_problem, Δt)
