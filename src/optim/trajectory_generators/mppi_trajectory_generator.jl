@@ -55,7 +55,7 @@ function TrajectoryGenerator(;
     project_input,
     trajectory_cost,
     wrap_state = _identity_wrap_state,
-    hard_constraint::Bool = true,
+    hard_constraint::Bool = false,
 )
     return TrajectoryGenerator{
         typeof(rng),

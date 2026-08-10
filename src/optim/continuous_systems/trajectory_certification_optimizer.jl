@@ -41,9 +41,9 @@ MOI.is_empty(opt::Optimizer) = opt.concrete_problem === nothing
 
 function MOI.set(opt::Optimizer, param::MOI.RawOptimizerAttribute, value)
     if Symbol(param.name) === :concrete_problem
+        # Storage only — `optimize!` propagates the problem to the generator and
+        # certifier (propagating here too would run e.g. `discretize_problem` twice).
         opt.concrete_problem = value
-        AB.set_problem!(opt.trajectory_generator, value)
-        AB.set_problem!(opt.trajectory_certifier, value)
         return
     end
     return OP.set_field_attribute!(opt, param, value)
