@@ -36,22 +36,25 @@ is_disjoint(X, Y) = LazySets.isdisjoint(X, Y)
 # region is `LazySets.EmptySet` (never a crossed-bounds box).
 # ------------------------------------------------------------
 
-"""
-    Box{N, T}
-
-Concrete alias of `LazySets.Hyperrectangle` backed by `SVector`s — note the
-parameter order is not `Hyperrectangle`'s.
-
-Use it where concreteness pays: container element types and struct fields. To
-*accept* a box, annotate `LazySets.AbstractHyperrectangle` instead — this alias
-is one backing among several, and excludes the rest.
-"""
-const Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
+# Internal. `Hyperrectangle` pinned to `SVector` storage — note the parameter order is not
+# `Hyperrectangle`'s. It exists so a container of boxes has a *concrete* element type, which
+# propagates into `UnionSetArray`'s parameters and keeps membership statically dispatched
+# (measured ~5× on `x ∈ U`). Never annotate an argument or field with it: it is one backing
+# among several, and `LazySets.AbstractHyperrectangle` is what code should accept.
+const _Box{N, T} = LazySets.Hyperrectangle{T, SVector{N, T}, SVector{N, T}}
 
 """
     box(lb, ub) -> LazySets.Hyperrectangle
 
-The axis-aligned box `{x : lb ≤ x ≤ ub}`. Errors if `lb ≰ ub` componentwise.
+The axis-aligned box `{x : lb ≤ x ≤ ub}`.
+
+Shorthand for `LazySets.Hyperrectangle(; low = lb, high = ub)` — same type out, same cost —
+that additionally accepts plain `Vector`s, tuples and integer bounds, normalising them to
+`SVector`. Dionysos consumes any bounded `LazySet`, so the LazySets constructor works
+everywhere this one does; both reject `lb ≰ ub`.
+
+Prefer either to the positional `LazySets.Hyperrectangle(c, r)`, whose arguments are *centre
+and radius*: passing bounds there builds a different box without complaining.
 """
 box(lb::SVector{N, T}, ub::SVector{N, T}) where {N, T} =
     LazySets.Hyperrectangle(; low = lb, high = ub)
@@ -239,7 +242,7 @@ function set_in_period(
     N = LazySets.dim(rect)
     lb = ntuple(i -> LazySets.low(rect, i), N)
     ub = ntuple(i -> LazySets.high(rect, i), N)
-    L = Box{N, T}[]
+    L = _Box{N, T}[]
     _recursive_period_split!(L, lb, ub, lb, ub, periodic_dims, periods, start, 1)
     return set_union(L)
 end

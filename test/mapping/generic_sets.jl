@@ -34,6 +34,28 @@ import LazySets
     @test MP.get_pos_by_coord(grid, SVector(1.0, 1.0)) in zouter
 end
 
+@testset "The box's backing does not change the discretization" begin
+    # `UT.box` normalises its bounds to `SVector`, but the docs promise a user may write any
+    # bounded `LazySet` instead — including a plain `Hyperrectangle(; low, high)`, which keeps
+    # `Vector` storage. Three spellings of the same box must discretize identically, or that
+    # promise is false and `UT.box` is a hidden requirement rather than a convenience.
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.1))
+    ambient = UT.box(SVector(-2.0, -2.0), SVector(2.0, 2.0))
+
+    spellings = [
+        UT.box(SVector(-1.0, -1.0), SVector(1.0, 1.0)),          # SVector-backed
+        LazySets.Hyperrectangle(; low = [-1.0, -1.0], high = [1.0, 1.0]),  # Vector-backed
+        LazySets.BallInf([0.0, 0.0], 1.0),                       # not a Hyperrectangle at all
+    ]
+
+    counts = map(spellings) do X
+        m = MP.ImplicitGridMapping(grid, ambient)
+        return Set(MP.get_states_from_set(m, X, MP.OUTER))
+    end
+    @test !isempty(first(counts))
+    @test all(c -> c == first(counts), counts)
+end
+
 @testset "Reach-avoid with zonotope obstacle and ball target" begin
     Xgrid = MP.GridFree(SVector(0.0, 0.0), SVector(0.47, 0.23))
     Xmap_full = MP.ExplicitGridMapping(Xgrid)

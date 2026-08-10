@@ -163,7 +163,9 @@ shapes, and a temporal formula for anything else.
 | `@constraint(model, final(x[i]) in MOI.Interval(a, b))` | reach, one coordinate at a time |
 | `@constraint(model, start(x[i]) in MOI.Interval(a, b))` | start, one coordinate at a time |
 
-`S` is **any bounded `LazySet`** — a box, an ellipsoid, a ball, a polytope, a zonotope.
+`S` is **any bounded `LazySet`** — a box, an ellipsoid, a ball, a polytope, a zonotope. `UT.box(lb,
+ub)` is only a shorthand for `LazySets.Hyperrectangle(; low = lb, high = ub)`; write the LazySets
+constructor directly if you prefer, it goes down the same path.
 
 A coordinate with no `final` constraint falls back to that variable's own bounds, so leaving one
 unconstrained means "any value counts as reaching the target".

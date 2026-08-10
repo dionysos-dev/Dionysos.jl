@@ -72,7 +72,7 @@ function _obstacle_set(x_idx, vars, obs, lower, upper)
 end
 
 """
-    state_box(ir, x_idx) -> UT.Box
+    state_box(ir, x_idx) -> LazySets.Hyperrectangle
 
 The state box declared by the variable bounds, before obstacles are carved out.
 """

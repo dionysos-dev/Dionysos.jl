@@ -18,9 +18,19 @@ using StaticArrays: SVector
     @test all(LazySets.low(Rv) .== [1.0, 2.0])
     @test all(LazySets.high(Rv) .== [3.0, 4.0])
 
-    # SVector constructor keeps static storage
+    # SVector constructor keeps static storage — `set_in_period` and friends build
+    # `_Box{N,T}[]` containers on the strength of this.
     Rs = UT.box(SVector(0.0, 0.0), SVector(1.0, 1.0))
-    @test Rs isa UT.Box{2, Float64}
+    @test Rs isa UT._Box{2, Float64}
+
+    # `box` is exactly `Hyperrectangle(; low, high)` with the bounds normalised to `SVector`.
+    # Users may write either, so the two must not drift apart.
+    @test typeof(Rs) === typeof(
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(1.0, 1.0)),
+    )
+    Rkw = LazySets.Hyperrectangle(; low = [1.0, 2.0], high = [3.0, 4.0])
+    @test LazySets.low(Rkw) == LazySets.low(UT.box([1.0, 2.0], [3.0, 4.0]))
+    @test LazySets.high(Rkw) == LazySets.high(UT.box([1.0, 2.0], [3.0, 4.0]))
 
     # dimension mismatch throws
     @test_throws DimensionMismatch UT.box([1, 2], [3, 4, 5])
