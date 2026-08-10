@@ -80,8 +80,15 @@ upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
 # demand than `Final`, which would be satisfied by a trajectory that touches the target once
 # and falls over immediately afterwards. Here the controller must find states from which it can
 # hold the pendulum up forever, and steer into those.
+#
+# ◇□ read literally still allows a run to enter the target, fall out, and be caught again, so
+# long as it settles *eventually*. `stay_on_first_entry` rules that out: the pendulum must hold
+# from the moment it is first caught. Asking for it changes how the problem is solved — the
+# invariant core of the target is computed once and then reached, rather than being re-derived
+# as the winning region grows — which here costs a fraction of a percent of the winning set and
+# is several times faster.
 
-@constraint(model, [x1, x2] in EventuallyAlways(upright));
+@constraint(model, [x1, x2] in EventuallyAlways(upright; stay_on_first_entry = true));
 
 # One more thing makes the task interesting: a band of angles the pendulum is not allowed to
 # pass through. Written over a single coordinate, `∉` is a full-height wall — the box spans
@@ -107,7 +114,13 @@ upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
 # how fast neighbouring trajectories can separate, and therefore how far a cell can spread in
 # one `time_step`.
 
-set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, 1.0, g / l, 0.0))
+# `SMatrix` fills column by column, so this is $\begin{smallmatrix} 0 & 1 \\ g/l & 0
+# \end{smallmatrix}$ — it must dominate $\partial f/\partial x$ entry by entry, and the only
+# non-trivial entry is $|-(g/l)\cos x_1| \le g/l$. Writing the two off-diagonal terms the other
+# way round type-checks, runs, and quietly under-bounds how fast the velocity can spread; the
+# abstraction then stops covering the real dynamics and the "guarantee" is worthless.
+
+set_attribute(model, "jacobian_bound", u -> SMatrix{2, 2}(0.0, g / l, 1.0, 0.0))
 set_attribute(model, "time_step", 0.1);
 
 # A periodic coordinate constrains its grid: the period must be a whole number of cells, and the
@@ -176,11 +189,10 @@ winning_set = get_attribute(model, "winning_set");
 # `simulate` normally takes its stopping criterion from the specification, which for
 # reach-and-stay means "stop on first entering the target". That would cut the run at the
 # instant the pendulum arrives, hiding the half of the task we care about, so we override it and
-# choose the horizon by hand: long enough to show the swing-up, the catch and a stretch of
-# balancing, and no longer.
+# run a fixed horizon: the swing-up takes about sixty steps, and the rest is balancing.
 
 trajectory =
-    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 124, stopping = _ -> false);
+    Dionysos.simulate(model, SVector(0.0, 0.0); nsteps = 120, stopping = _ -> false);
 
 @test last(ST.states(trajectory)) ∈                                                      #src
       UT.set_in_period(upright, SVector(1), SVector(2π), SVector(-π))                    #src
