@@ -19,8 +19,16 @@ function dynamic(params::Params = Params())
     return (x, u) -> SVector{2}(x[2], -(params.g / params.l) * sin(x[1]) + u[1])
 end
 
+# The growth bound drives `ṙ = L * r`, so `L` must dominate the Jacobian entrywise:
+#
+#     J = [0                  1]        |J| ≤ L = [0      1]
+#         [-(g/l)cos(x₁)      0]                  [g/l    0]
+#
+# `SMatrix` fills column by column, so the second and third arguments are the *lower-left* and
+# *upper-right* entries — transposing them here silently under-bounds the velocity radius and
+# the abstraction stops covering the real dynamics.
 function jacobian_bound(params::Params = Params())
-    return u -> SMatrix{2, 2}(0.0, 1.0, params.g / params.l, 0.0)
+    return u -> SMatrix{2, 2}(0.0, params.g / params.l, 1.0, 0.0)
 end
 
 function system(;
