@@ -18,6 +18,8 @@ end
 get_success(gen::AbstractTrajectoryGenerator) = false
 get_solve_time(gen::AbstractTrajectoryGenerator) = NaN
 
+include("costs.jl")
+include("rollout.jl")
 include("optimizer_trajectory_generator.jl")
-include("mppi_trajectory_generator.jl")
+include("mppi/mppi.jl")
 include("composite_trajectory_generator.jl")
