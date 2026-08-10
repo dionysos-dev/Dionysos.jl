@@ -52,17 +52,20 @@ function jacobian(p::Params = Params())
         tδ = tan(δ)
 
         d4dϕ = -(v / (p.L1 * p.L2)) * (p.L1 * cos(ϕ) - p.Lc * sin(ϕ) * tδ)
+        # `SMatrix` fills column by column. Only θ = x[3] and ϕ = x[4] appear on a right-hand
+        # side, so the non-zero entries are ∂f1/∂θ, ∂f2/∂θ and ∂f4/∂ϕ — that is, the *third*
+        # and fourth columns.
         return SMatrix{4, 4}(
             0.0,
             0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
             -v*sin(θ),
-            0.0,
-            0.0,
-            0.0,
             v*cos(θ),
-            0.0,
-            0.0,
-            0.0,
             0.0,
             0.0,
             0.0,
@@ -90,17 +93,20 @@ function jacobian_bound(p::Params = Params())
         bθ = v
         bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
 
+        # `bθ` bounds ∂f1/∂θ and ∂f2/∂θ, so it belongs in the *third column* (θ = x[3]) —
+        # `SMatrix` fills column by column, and putting it in the first two columns instead
+        # leaves the real sensitivity unbounded.
         return SMatrix{4, 4}(
             0.0,
             0.0,
-            bθ,
+            0.0,
+            0.0,
+            0.0,
             0.0,
             0.0,
             0.0,
             bθ,
-            0.0,
-            0.0,
-            0.0,
+            bθ,
             0.0,
             0.0,
             0.0,

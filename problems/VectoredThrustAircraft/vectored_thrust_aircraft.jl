@@ -75,40 +75,49 @@ function jacobian_bound(params::Params = Params())
         bθ = params.g + (u1 + u2) / params.m
         bv = params.c / params.m
 
+        # `SMatrix` fills column by column, so each group of six below is a *column*:
+        #
+        #   row 1..3 : ẋ = vx, ẏ = vy, θ̇ = ω          → 1 in columns 4, 5, 6
+        #   row 4    : bθ in column 3 (θ), -bv in column 4 (vx)
+        #   row 5    : bθ in column 3 (θ), -bv in column 5 (vy)
+        #
+        # The velocity terms sit on the diagonal, where the bound is on the *signed* entry
+        # rather than its magnitude — drag is stabilising, so -c/m is both correct and
+        # tighter than +c/m.
         return SMatrix{6, 6}(
             0.0,
             0.0,
             0.0,
-            1.0,
             0.0,
             0.0,
             0.0,
             0.0,
             0.0,
             0.0,
-            1.0,
             0.0,
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            bθ,
-            bv,
             0.0,
             0.0,
             0.0,
             0.0,
             bθ,
+            bθ,
             0.0,
-            bv,
+            1.0,
+            0.0,
+            0.0,
+            -bv,
             0.0,
             0.0,
             0.0,
+            1.0,
             0.0,
+            0.0,
+            -bv,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
             0.0,
             0.0,
             0.0,

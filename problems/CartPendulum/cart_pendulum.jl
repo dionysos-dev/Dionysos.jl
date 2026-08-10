@@ -55,29 +55,41 @@ function dynamic(params::Params = Params())
     end
 end
 
+"""
+    jacobian_bound(params) -> u -> SMatrix{4,4}
+
+Entrywise bound on `∂f/∂x`, as the growth-bound ODE `ṙ = L·r` requires: `L[i,j] ≥ |J[i,j]|`
+off the diagonal and `L[i,i] ≥ J[i,i]` on it — the diagonal is signed, so a stabilising term
+may legitimately be negative.
+
+Obtained by bounding each symbolic Jacobian entry with interval arithmetic over the state set
+of [`system`](@ref) and padding by 2%, the coupled cart–pendulum accelerations having no tidy
+closed form. Passing no `jacobian_bound` makes Dionysos derive one the same way at solve time
+(`Dionysos.System.compute_jacobian_bound`, needs `Symbolics` loaded).
+"""
 function jacobian_bound(params::Params = Params())
-    return u -> begin
-        # Conservative placeholder bound.
-        # You can tighten this later if needed for abstraction growth.
-        return SMatrix{4, 4}(
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            20.0,
-            2.0,
-            10.0,
-            0.0,
-            30.0,
-            2.0,
-            10.0,
-        )
-    end
+    return u -> SMatrix{4, 4}(
+        # column 1 (cart position — the dynamics do not depend on it)
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        # column 2 (pole angle)
+        0.0,
+        0.0,
+        12.504,
+        30.377,
+        # column 3 (cart velocity)
+        1.02,
+        0.0,
+        -0.081,
+        0.103,
+        # column 4 (pole angular velocity)
+        0.0,
+        1.02,
+        2.092,
+        1.735,
+    )
 end
 
 function system(;
