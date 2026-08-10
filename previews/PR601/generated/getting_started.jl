@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -22,7 +23,10 @@ model = Model(Dionysos.Optimizer);
 @constraint(model, start(x1) in MOI.Interval(-0.09, 0.09))
 @constraint(model, start(x2) in MOI.Interval(-0.5, 0.5));
 
-upright = UT.box(SVector(π - 15π / 180, -1.0), SVector(π + 15π / 180, 1.0));
+upright = LazySets.Hyperrectangle(;
+    low = SVector(π - 15π / 180, -1.0),
+    high = SVector(π + 15π / 180, 1.0),
+);
 
 @constraint(model, [x1, x2] in EventuallyAlways(upright; stay_on_first_entry = true));
 

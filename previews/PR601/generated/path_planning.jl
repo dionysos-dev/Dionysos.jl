@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -80,7 +81,10 @@ include(
     ),
 );
 
-obstacles = [UT.box(SVector(lo...), SVector(hi...)) for (lo, hi) in walls];
+obstacles = [
+    LazySets.Hyperrectangle(; low = SVector(lo...), high = SVector(hi...)) for
+    (lo, hi) in walls
+];
 
 anim = Dionysos.animate_trajectory_dashboard(
     PathPlanning.system_plot!(; obstacles = obstacles, xlims = (0, 4), ylims = (0, 10)),

@@ -24,6 +24,7 @@
 # attach them to a model.
 
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -80,7 +81,7 @@ end;
 # applies in that mode only, so stating it on both means "comfortable, whatever the heater
 # happens to be doing".
 
-comfortable = UT.box(SVector(20.5), SVector(23.0))
+comfortable = LazySets.Hyperrectangle(; low = SVector(20.5), high = SVector(23.0))
 
 @constraint(off, [T] in Final(comfortable))
 @constraint(on, [T] in Final(comfortable));

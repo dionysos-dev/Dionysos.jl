@@ -1,4 +1,5 @@
 using StaticArrays, JuMP, Plots
+import LazySets
 using Symbolics, MathOptSymbolicAD
 
 using Dionysos
@@ -33,7 +34,7 @@ add_transition!(model, on => off) do t
     return @constraint(t, T >= 21.0)
 end;
 
-comfortable = UT.box(SVector(20.5), SVector(23.0))
+comfortable = LazySets.Hyperrectangle(; low = SVector(20.5), high = SVector(23.0))
 
 @constraint(off, [T] in Final(comfortable))
 @constraint(on, [T] in Final(comfortable));
