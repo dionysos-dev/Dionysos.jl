@@ -156,6 +156,80 @@ end
     end
 end
 
+@testset "solve_transition_forward (duality with backward)" begin
+    Lip = [1.0, 1.0, 0.5, 0.1]
+    result_b = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+    )
+    @test result_b.feasible
+
+    # Duality: backward certified that its synthesized source reaches E2, and its
+    # remainder bound dominates forward's (δx_const = λ_max(Q₁) ≤ backward's δx
+    # variable) — so the forward SDP from that source, with E2's shape, must be
+    # feasible with contraction α ≤ 1 (mod solver tolerance). This cross-validates
+    # both kernels, both remainder models, and the shared S-procedure blocks.
+    Qhat = Matrix(LazySets.shape_matrix(E2))
+    result_f = ST.solve_transition_forward(
+        sys_noisy,
+        result_b.source,
+        collect(LazySets.center(E2)),
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        target_shape = Qhat,
+        maxδu = 2.0,
+    )
+    @test result_f.feasible
+    @test result_f.target isa LazySets.Ellipsoid
+    α = tr(Matrix(LazySets.shape_matrix(result_f.target))) / tr(Qhat)
+    @test α <= 1.0 + 1e-6
+
+    # Certified property, forward direction: every sampled source state lands in
+    # the synthesized target under the forward controller, for every noise vertex.
+    K = Matrix(result_f.controller.A)
+    b = collect(result_f.controller.c)
+    for x in UT.samples(result_b.source, 50)
+        u = K * x + b
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ result_f.target
+        end
+    end
+
+    # Free-shape mode: tighter or equal (in trace) than the α-scaled fixed shape,
+    # inside the conditioning sandwich.
+    result_free = ST.solve_transition_forward(
+        sys_noisy,
+        result_b.source,
+        collect(LazySets.center(E2)),
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδu = 2.0,
+        q_min = 1e-6,
+        q_max = 1e6,
+    )
+    @test result_free.feasible
+    @test tr(Matrix(LazySets.shape_matrix(result_free.target))) <=
+          tr(Matrix(LazySets.shape_matrix(result_f.target))) + 1e-6
+end
+
 @testset "stabilizing_feedback" begin
     A3 = [
         0.0 1.0 0.0

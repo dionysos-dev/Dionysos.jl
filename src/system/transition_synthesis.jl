@@ -33,16 +33,21 @@ Outcome of one transition-synthesis SDP (`solve_transition` /
 - `controller` — the affine controller as a `MathematicalSystems.AffineMap`
   `x ↦ Kx + b` (with `b = ℓ − K·c₁`), or `nothing` if infeasible;
 - `cost` — upper bound on the worst-case transition cost, or `nothing`;
-- `source` — the synthesized source ellipsoid (backward mode only), or `nothing`.
+- `source` — the synthesized source ellipsoid (backward mode only), or `nothing`;
+- `target` — the synthesized target ellipsoid (forward mode only), or `nothing`.
 """
 struct TransitionResult
     feasible::Bool
     controller::Union{Nothing, MS.AffineMap}
     cost::Union{Nothing, Float64}
     source::Union{Nothing, LazySets.Ellipsoid}
+    target::Union{Nothing, LazySets.Ellipsoid}
 end
 
-_infeasible_transition() = TransitionResult(false, nothing, nothing, nothing)
+TransitionResult(feasible, controller, cost, source) =
+    TransitionResult(feasible, controller, cost, source, nothing)
+
+_infeasible_transition() = TransitionResult(false, nothing, nothing, nothing, nothing)
 
 """
     as_controller(result::TransitionResult) -> Union{Nothing, AffineController}
@@ -208,11 +213,13 @@ function _validate_blocks(blocks)
     return true
 end
 
-# Input proximity: ‖u(x) − u_ref‖² ≤ δu on the unit-ball source (`ellmu` = ℓ − u_ref).
-function _input_proximity_block(ϕ, F, ellmu, δu, nx, nu)
+# Input proximity: ‖u(x) − u_ref‖² ≤ δu on the source set {ξ : ξ'·shape·ξ ≤ 1}
+# (`ellmu` = ℓ − u_ref; `shape` = I when the source square root is the variable,
+# P₁ when the source is fixed).
+function _input_proximity_block(ϕ, shape, F, ellmu, δu, nx, nu)
     z = zeros(nx, 1)
     return [
-        ϕ*eye(nx) z transpose(F)
+        ϕ*shape z transpose(F)
         transpose(z) δu-ϕ transpose(ellmu)
         F ellmu eye(nu)
     ]
@@ -449,7 +456,7 @@ function _free_source_kernel(
     u = hcat(u_ref)
     @constraint(
         model,
-        _input_proximity_block(ϕ, F, ell - u, δu, nx, nu) >= eye(nx + nu + 1) * ε,
+        _input_proximity_block(ϕ, eye(nx), F, ell - u, δu, nx, nu) >= eye(nx + nu + 1) * ε,
         PSDCone()
     )
 
@@ -521,7 +528,10 @@ function _free_source_kernel(
     Gv = [transpose(Lval) transpose(Fval) z]
     dv = [transpose(c1) transpose(ellv) 1]
     push!(blocks, _cost_block(value(γ), value(J), eye(nx), Gv, dv, Λ, nx))
-    push!(blocks, _input_proximity_block(ϕv, Fval, ellv - hcat(u_ref), δuv, nx, nu))
+    push!(
+        blocks,
+        _input_proximity_block(ϕv, eye(nx), Fval, ellv - hcat(u_ref), δuv, nx, nu),
+    )
     push!(blocks, _source_radius_block(Lval, δxv, nx))
     r === nothing || push!(blocks, Lval - value(r) * eye(nx))
 
@@ -613,6 +623,225 @@ function solve_transition_backward(
         check_posdef = false,
     )
     return TransitionResult(true, controller, J, source)
+end
+
+# ------------------------------------------------------------
+# Free-target kernel (forward direction): the source ellipsoid is data — so the
+# linearization deviation δx is a *constant* and the remainder is known before
+# solving — and the target enters the reach blocks only as its shape matrix Q₂,
+# where it is linear. A free target is the naturally convex direction of ellipsoid
+# calculus: no L-congruence, no volume cone, no adaptive boxes (plan.md §4.4).
+# ------------------------------------------------------------
+
+function _free_target_kernel(
+    A,
+    B,
+    c,
+    Wcols,
+    U,
+    Λ,
+    c1,
+    P1,
+    δx_const,
+    u_ref,
+    c2,
+    Qhat,          # target shape matrix for the α-mode; `nothing` = free-shape mode
+    Lip,
+    sdp_solver;
+    maxδu,
+    λ,
+    q_min,
+    q_max,
+)
+    nx = length(c)
+    nu = size(U[1], 2)
+    μ = _lipschitz_vertices(Lip, nx)
+    ν = [Wcols[:, i] for i in 1:size(Wcols, 2)]
+    Nx = length(μ)
+    Nw = length(ν)
+    Nu = length(U)
+    ε = 1e-8
+
+    model = Model(sdp_solver)
+    @variable(model, K[i = 1:nu, j = 1:nx])
+    @variable(model, ell[i = 1:nu, j = 1:1])
+    @variable(model, beta[i = 1:Nx, j = 1:Nw] >= 0)
+    @variable(model, tau[i = 1:Nu] >= 0)
+    @variable(model, δu >= 0)
+    @variable(model, ϕ >= 0)
+    @variable(model, γ >= 0)
+    @variable(model, J >= 0)
+
+    local α, Q2
+    if Qhat !== nothing
+        @variable(model, α >= 0)
+        Q2 = α .* Qhat
+    else
+        @variable(model, Q2[i = 1:nx, j = 1:nx], PSD)
+        # Conditioning sandwich: thin targets are fine for the certificate but the
+        # next step inverts Q₂ into its source form.
+        @constraint(model, Q2 >= q_min * eye(nx), PSDCone())
+        @constraint(model, q_max * eye(nx) >= Q2, PSDCone())
+    end
+
+    @expressions(model, begin
+        At, A + B * K
+        ct, c + B * ell
+    end)
+
+    z = zeros(nx, 1)
+
+    for i in 1:Nx, j in 1:Nw
+        aux = @expression(
+            model,
+            A * hcat(c1) + hcat(ct) - hcat(c2) +
+            hcat(Vector(μ[i])) * (δx_const + δu) +
+            hcat(Vector(ν[j]))
+        )
+        _reach_constraint!(model, beta[i, j], P1, At, aux, Q2, nx, ε)
+    end
+
+    for i in 1:Nu
+        _input_constraint!(model, tau[i], P1, U[i] * K, U[i] * ell, nx, ε)
+    end
+
+    G = [LA.I transpose(K) z]
+    d = [transpose(c1) transpose(ell) 1]
+    _cost_constraint!(model, γ, J, P1, G, d, Λ, nx, ε)
+
+    # Input proximity feeds the u-part of the remainder: ‖u(x) − u_ref‖² ≤ δu.
+    u = hcat(u_ref)
+    @constraint(
+        model,
+        _input_proximity_block(ϕ, P1, K, ell - u, δu, nx, nu) >= eye(nx + nu + 1) * ε,
+        PSDCone()
+    )
+
+    @constraint(model, δu <= maxδu^2)
+
+    size_term = Qhat !== nothing ? α : sum(Q2[i, i] for i in 1:nx)
+    @objective(model, Min, λ * J + (1.0 - λ) * size_term)
+
+    optimize!(model)
+
+    term = termination_status(model)
+    pstat = primal_status(model)
+    if !(
+        term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
+        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+    )
+        @debug "solve_transition_forward: infeasible SDP" term pstat raw_status(model)
+        return false, nothing, nothing, nothing
+    end
+
+    Kv = value.(K)
+    ellv = value.(ell)
+    βv = value.(beta)
+    τv = value.(tau)
+    δuv = value(δu)
+    ϕv = value(ϕ)
+    Q2v = Qhat !== nothing ? value(α) .* Qhat : value.(Q2)
+
+    Atv = A + B * Kv
+    ctv = c + B * ellv
+    blocks = Any[]
+    for i in 1:Nx, j in 1:Nw
+        aux =
+            A * hcat(c1) + hcat(ctv) - hcat(c2) +
+            hcat(Vector(μ[i])) * (δx_const + δuv) +
+            hcat(Vector(ν[j]))
+        push!(blocks, _reach_block(βv[i, j], P1, Atv, aux, Q2v, nx))
+    end
+    for i in 1:Nu
+        push!(blocks, _input_block(τv[i], P1, U[i] * Kv, U[i] * ellv, nx))
+    end
+    Gv = [LA.I transpose(Kv) z]
+    dv = [transpose(c1) transpose(ellv) 1]
+    push!(blocks, _cost_block(value(γ), value(J), P1, Gv, dv, Λ, nx))
+    push!(blocks, _input_proximity_block(ϕv, P1, Kv, ellv - hcat(u_ref), δuv, nx, nu))
+
+    validated =
+        all(βv .>= -_VALIDATION_TOL) &&
+        all(τv .>= -_VALIDATION_TOL) &&
+        δuv <= maxδu^2 + _VALIDATION_TOL &&
+        _validate_blocks(blocks)
+    if !validated
+        @debug "solve_transition_forward: solver-accepted solution failed validation" term pstat
+        return false, nothing, nothing, nothing
+    end
+
+    return true, Q2v, [Kv ellv], value(J)
+end
+
+"""
+    solve_transition_forward(affsys, source, target_center, u_ref, U, W, cost,
+                             lipschitz, sdp_solver;
+                             target_shape = nothing, maxδu = 20.0, λ = 0.01,
+                             q_min = 1e-9, q_max = 1e9) -> TransitionResult
+
+Synthesize an affine controller *and the smallest target ellipsoid* centered at
+`target_center` that the controller certifiably reaches from the **given** `source`
+ellipsoid in one step of `affsys`, robustly to the disturbance vertices and to the
+linearization error bounded by `lipschitz` — whose state deviation is the *known*
+`λ_max(Q₁)` of the source, so the remainder is fixed data (no adaptive boxes).
+
+Target modes: with `target_shape` (a LazySets shape matrix `Q̂`) only the scale `α`
+is free (`min λ·J + (1−λ)·α` — `α` is the per-step contraction number); without it
+the shape `Q₂` itself is a decision variable (`min λ·J + (1−λ)·tr(Q₂)`) inside the
+conditioning sandwich `q_min·I ⪯ Q₂ ⪯ q_max·I`. Both are single convex SDPs — the
+target enters the reach blocks linearly. Certificates are validated at the returned
+solution as in [`solve_transition`](@ref). Returns a [`TransitionResult`](@ref)
+whose `target` is the synthesized ellipsoid.
+"""
+function solve_transition_forward(
+    affsys::AffineSys,
+    source::LazySets.Ellipsoid,
+    target_center,
+    u_ref,
+    U,
+    W,
+    cost,
+    lipschitz,
+    sdp_solver;
+    target_shape = nothing,
+    maxδu = 20.0,
+    λ = 0.01,
+    q_min = 1e-9,
+    q_max = 1e9,
+)
+    c1 = LazySets.center(source)
+    P1 = Matrix{Float64}(UT.get_quadratic_form(source))
+    δx_const = LA.eigmax(LA.Symmetric(Matrix{Float64}(LazySets.shape_matrix(source))))
+
+    feasible, Q2, kappa, J = _free_target_kernel(
+        affsys.A,
+        affsys.B,
+        affsys.c,
+        _state_noise(affsys, W),
+        _input_matrices(U),
+        _cost_factor(cost),
+        c1,
+        P1,
+        δx_const,
+        u_ref,
+        target_center,
+        target_shape,
+        lipschitz,
+        sdp_solver;
+        maxδu = maxδu,
+        λ = λ,
+        q_min = q_min,
+        q_max = q_max,
+    )
+    feasible || return _infeasible_transition()
+    K, ℓ = _split_controller(kappa)
+    controller = MS.AffineMap(K, ℓ - K * c1)
+    target = LazySets.Ellipsoid(
+        collect(float.(target_center)),
+        UT._symmetrize(Matrix{Float64}(Q2));
+        check_posdef = false,
+    )
+    return TransitionResult(true, controller, J, nothing, target)
 end
 
 # ------------------------------------------------------------
