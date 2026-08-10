@@ -42,7 +42,8 @@ Options of the ellipsoidal certification chain.
   for its soundness caveat; prefer globally normalized dynamics);
 - `linearization_δx/δu` — fixed linearization-box radii (fixed mode);
 - `adaptive_boxes` — [`AdaptiveLinearizationBoxOptions`](@ref) or `nothing`;
-- `use_log_det` — exact log-det volume term vs the trace proxy in the SDP objective.
+- `objective` — size term of the SDP objective: `:maximin` (largest smallest
+  semi-axis — collapse-proof, the default), `:logdet` (true volume), or `:trace`.
 
 Soundness gates (plan.md §4.2):
 
@@ -67,7 +68,7 @@ Base.@kwdef mutable struct ChainOptions
     linearization_δu::Vector{Float64} = Float64[]
 
     adaptive_boxes::Union{Nothing, AdaptiveLinearizationBoxOptions} = nothing
-    use_log_det::Bool = true
+    objective::Symbol = :maximin
 
     r_min::Float64 = 0.0
     check_state_domain::Bool = true

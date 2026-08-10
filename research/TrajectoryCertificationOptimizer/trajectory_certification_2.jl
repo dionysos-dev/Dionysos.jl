@@ -204,7 +204,7 @@ ellip_opts = EB.ChainOptions(;
     linearization_δx = [1.1, 1.0], # State box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
     linearization_δu = [0.5, 0.5], # Input box radius used to compute local affine approximation and Lipschitz bounds. used if not using adaptive boxes
     adaptive_boxes = adaptive_opts,
-    use_log_det = false,
+    objective = :trace,
 )
 
 # So ell is allowed to move away from nominal u, but only within the allowed δu budget.

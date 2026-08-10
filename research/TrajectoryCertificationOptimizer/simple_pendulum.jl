@@ -248,7 +248,7 @@ ellip_opts = EB.ChainOptions(;
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    use_log_det = false,
+    objective = :trace,
 )
 
 sdp_optimizer = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)

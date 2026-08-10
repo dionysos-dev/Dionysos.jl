@@ -120,6 +120,42 @@ end
     end
 end
 
+@testset "solve_transition_backward (:maximin objective)" begin
+    Lip = [1.0, 1.0, 0.5, 0.1]
+    result = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+        objective = :maximin,
+    )
+    @test result.feasible
+    Q = Matrix(LazySets.shape_matrix(result.source))
+    evals = eigvals(Symmetric(Q))
+    # The whole point of :maximin — no pancake: the smallest semi-axis is genuinely
+    # positive and the aspect ratio stays modest.
+    @test sqrt(minimum(evals)) > 1e-3
+    @test maximum(evals) / minimum(evals) < 100.0
+
+    # Same certified property as the :logdet golden testset.
+    K = Matrix(result.controller.A)
+    b = collect(result.controller.c)
+    for x in UT.samples(result.source, 50)
+        u = K * x + b
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ E2
+        end
+    end
+end
+
 @testset "stabilizing_feedback" begin
     A3 = [
         0.0 1.0 0.0

@@ -395,7 +395,7 @@ function _free_source_kernel(
     maxδx,
     maxδu,
     λ,
-    use_log_det,
+    objective::Symbol,
 )
     nx = length(c)
     nu = size(U[1], 2)
@@ -459,7 +459,16 @@ function _free_source_kernel(
     @constraint(model, δx <= maxδx^2)
     @constraint(model, δu <= maxδu^2)
 
-    if use_log_det && λ < 1.0
+    # Volume term of the objective. `:maximin` maximizes the smallest semi-axis
+    # (eig(L) are the semi-axes since Q = L·Lᵀ): a pancake ellipsoid — the observed
+    # collapse mode of long chains — is worthless under it, and it needs no exotic
+    # cone. `:logdet` is true volume; `:trace` its stable proxy.
+    r = nothing
+    if objective === :maximin && λ < 1.0
+        r = @variable(model, lower_bound = 0.0)
+        @constraint(model, L >= r * eye(nx), PSDCone())
+        @objective(model, Min, λ * J - (1.0 - λ) * r)
+    elseif objective === :logdet && λ < 1.0
         @variable(model, t)
 
         # Lower-triangular entries of symmetric PSD matrix L
@@ -468,9 +477,10 @@ function _free_source_kernel(
         @constraint(model, vcat(t, 1.0, L_tri) in MOI.LogDetConeTriangle(nx),)
 
         @objective(model, Min, λ * J - (1.0 - λ) * t)
-    else
-        # Stable proxy for volume
+    elseif objective in (:trace, :logdet, :maximin)
         @objective(model, Min, λ * J - (1.0 - λ) * sum(L[i, i] for i in 1:nx),)
+    else
+        error("objective must be :maximin, :logdet, or :trace, got $objective.")
     end
 
     optimize!(model)
@@ -513,6 +523,7 @@ function _free_source_kernel(
     push!(blocks, _cost_block(value(γ), value(J), eye(nx), Gv, dv, Λ, nx))
     push!(blocks, _input_proximity_block(ϕv, Fval, ellv - hcat(u_ref), δuv, nx, nu))
     push!(blocks, _source_radius_block(Lval, δxv, nx))
+    r === nothing || push!(blocks, Lval - value(r) * eye(nx))
 
     validated =
         all(βv .>= -_VALIDATION_TOL) &&
@@ -547,8 +558,11 @@ ellipsoid in one step of `affsys`, robustly to the disturbance vertices `W` and
 to the linearization error bounded by `lipschitz` (the Lipschitz radii of
 `[x; u; 1]`, scaled by the synthesized state/input deviations `δx + δu`).
 
-The objective trades the transition-cost bound against the source volume:
-`min λ·J − (1−λ)·logdet(L)` (a trace proxy when `use_log_det = false`).
+The `objective` trades the transition-cost bound against the source size:
+`:maximin` maximizes the smallest semi-axis (`min λ·J − (1−λ)·r` with `L ⪰ r·I` —
+collapse-proof and cone-free, the certifier's default), `:logdet` the true volume,
+`:trace` its stable proxy. (`use_log_det = true/false` is the deprecated spelling of
+`:logdet`/`:trace` and wins when passed.)
 `u_ref` is the reference input the controller stays `δu`-close to; `maxδx` /
 `maxδu` cap the synthesized deviations. Other arguments as in
 [`solve_transition`](@ref). Returns a [`TransitionResult`](@ref) whose `source`
@@ -567,8 +581,11 @@ function solve_transition_backward(
     maxδx = 100.0,
     maxδu = 20.0,
     λ = 0.01,
-    use_log_det = true,
+    objective::Symbol = :logdet,
+    use_log_det = nothing,
 )
+    # `use_log_det` is the pre-maximin spelling; it wins when passed explicitly.
+    use_log_det !== nothing && (objective = use_log_det ? :logdet : :trace)
     feasible, Q1, kappa, J = _free_source_kernel(
         affsys.A,
         affsys.B,
@@ -585,7 +602,7 @@ function solve_transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
-        use_log_det = use_log_det,
+        objective = objective,
     )
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)

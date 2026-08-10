@@ -226,7 +226,7 @@ function integrator_rows()
         linearization_δx = [0.2, 0.2],
         linearization_δu = [0.5, 0.5],
         adaptive_boxes = adaptive_opts,
-        use_log_det = false,
+        objective = :trace,
     )
     sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
     cert = EB.BackwardCertifier(provider, sdp, ellip_opts)
@@ -443,7 +443,7 @@ function pendulum_rows()
         linearization_δx = [0.2, 0.4],
         linearization_δu = [1.0],
         adaptive_boxes = adaptive_opts,
-        use_log_det = false,
+        objective = :trace,
     )
     sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
     cert = EB.BackwardCertifier(provider, sdp, ellip_opts)

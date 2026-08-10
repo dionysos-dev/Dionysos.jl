@@ -157,7 +157,7 @@ function _transition_backward(
     maxδu,
     λ,
     state_scaling,
-    use_log_det = true,
+    objective = :maximin,
 )
     if state_scaling === nothing
         result = ST.solve_transition_backward(
@@ -173,7 +173,7 @@ function _transition_backward(
             maxδx = maxδx,
             maxδu = maxδu,
             λ = λ,
-            use_log_det = use_log_det,
+            objective = objective,
         )
         return result.source, result.controller, result.cost
     end
@@ -198,7 +198,7 @@ function _transition_backward(
         maxδx = maxδx,
         maxδu = maxδu,
         λ = λ,
-        use_log_det = use_log_det,
+        objective = objective,
     )
 
     result.feasible || return nothing, nothing, nothing
@@ -230,6 +230,6 @@ function _solve_transition(ctx::ChainContext, approx, E_next, xk, xnext, uk)
         maxδu = ctx.options.maxδu,
         λ = ctx.options.λ,
         state_scaling = ctx.options.state_scaling,
-        use_log_det = ctx.options.use_log_det,
+        objective = ctx.options.objective,
     )
 end

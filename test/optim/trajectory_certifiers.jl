@@ -129,7 +129,7 @@ const EB = AB.EllipsoidalTrajectoryCertifier
         linearization_δx = [0.2, 0.2],
         linearization_δu = [0.5, 0.5],
         adaptive_boxes = adaptive_opts,
-        use_log_det = false,
+        objective = :trace,
     )
     eb_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     AB.set_problem!(eb_cert, concrete_problem)

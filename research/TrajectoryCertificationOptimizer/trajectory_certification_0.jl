@@ -299,7 +299,7 @@ ellip_opts = EB.ChainOptions(;
     linearization_δx = [0.2, 0.2],
     linearization_δu = [0.5, 0.5],
     adaptive_boxes = adaptive_opts,
-    use_log_det = false,
+    objective = :trace,
 )
 
 using Clarabel
