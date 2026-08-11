@@ -213,6 +213,27 @@ function _validate_blocks(blocks)
     return true
 end
 
+# Ball-remainder reach block (plan.md §4.4-★2): the linearization error enters as
+# one norm-bounded uncertainty ‖e‖₂ ≤ ρ (the circumscribing ball of the Lipschitz
+# box — mildly conservative) instead of 2ⁿ box vertices. By Petersen's lemma the
+# robust condition M₀ + q·eᵀ·Pᵀ + P·e·qᵀ ⪰ 0 ∀‖e‖ ≤ ρ (with P selecting the
+# target block-row and q the middle row) is, Schur-completed to stay linear in ρ
+# and the multiplier μ:
+#
+#     [ M₀ − μ·P·Pᵀ   ρ·q ]
+#     [ ρ·qᵀ           μ  ]  ⪰ 0
+#
+# — one extra multiplier and one border row per noise vertex, constant in n.
+function _reach_ball_block(β, shape, At, aux0, P2inv, ρ, μ, n)
+    z = zeros(n, 1)
+    return [
+        β*shape z transpose(At) z
+        transpose(z) 1-β transpose(aux0) ρ
+        At aux0 P2inv-μ*eye(n) z
+        transpose(z) ρ transpose(z) μ
+    ]
+end
+
 # Input proximity: ‖u(x) − u_ref‖² ≤ δu on the source set {ξ : ξ'·shape·ξ ≤ 1}
 # (`ellmu` = ℓ − u_ref; `shape` = I when the source square root is the variable,
 # P₁ when the source is fixed).
@@ -403,12 +424,14 @@ function _free_source_kernel(
     maxδu,
     λ,
     objective::Symbol,
+    remainder_model::Symbol,
 )
     nx = length(c)
     nu = size(U[1], 2)
-    μ = _lipschitz_vertices(Lip, nx)
+    μ = remainder_model === :ball ? nothing : _lipschitz_vertices(Lip, nx)
+    ρnorm = LA.norm(collect(Float64, Lip[1:nx]))
     ν = [Wcols[:, i] for i in 1:size(Wcols, 2)]
-    Nx = length(μ)
+    Nx = remainder_model === :ball ? 1 : length(μ)
     Nw = length(ν)
     Nu = length(U)
     ε = 1e-8
@@ -432,8 +455,22 @@ function _free_source_kernel(
 
     z = zeros(nx, 1)
 
-    for i in 1:Nx
+    local muball
+    if remainder_model === :ball
+        @variable(model, muball[j = 1:Nw] >= 0)
         for j in 1:Nw
+            aux0 =
+                @expression(model, A * hcat(c1) + hcat(ct) - hcat(c2) + hcat(Vector(ν[j])))
+            ρ = @expression(model, ρnorm * (δx + δu))
+            @constraint(
+                model,
+                _reach_ball_block(beta[1, j], eye(nx), At, aux0, Q2, ρ, muball[j], nx) >=
+                eye(2 * nx + 2) * ε,
+                PSDCone()
+            )
+        end
+    else
+        for i in 1:Nx, j in 1:Nw
             aux = @expression(
                 model,
                 A * hcat(c1) + hcat(ct) - hcat(c2) +
@@ -515,12 +552,28 @@ function _free_source_kernel(
     Atv = A * Lval + B * Fval
     ctv = c + B * ellv
     blocks = Any[]
-    for i in 1:Nx, j in 1:Nw
-        aux =
-            A * hcat(c1) + hcat(ctv) - hcat(c2) +
-            hcat(Vector(μ[i])) * (δxv + δuv) +
-            hcat(Vector(ν[j]))
-        push!(blocks, _reach_block(βv[i, j], eye(nx), Atv, aux, Q2, nx))
+    if remainder_model === :ball
+        mbv = value.(muball)
+        all(mbv .>= -_VALIDATION_TOL) || begin
+            @debug "solve_transition_backward: negative ball multiplier"
+            return false, nothing, nothing, nothing
+        end
+        for j in 1:Nw
+            aux0 = A * hcat(c1) + hcat(ctv) - hcat(c2) + hcat(Vector(ν[j]))
+            ρv = ρnorm * (δxv + δuv)
+            push!(
+                blocks,
+                _reach_ball_block(βv[1, j], eye(nx), Atv, aux0, Q2, ρv, mbv[j], nx),
+            )
+        end
+    else
+        for i in 1:Nx, j in 1:Nw
+            aux =
+                A * hcat(c1) + hcat(ctv) - hcat(c2) +
+                hcat(Vector(μ[i])) * (δxv + δuv) +
+                hcat(Vector(ν[j]))
+            push!(blocks, _reach_block(βv[i, j], eye(nx), Atv, aux, Q2, nx))
+        end
     end
     for i in 1:Nu
         push!(blocks, _input_block(τv[i], eye(nx), U[i] * Fval, U[i] * ellv, nx))
@@ -592,6 +645,7 @@ function solve_transition_backward(
     maxδu = 20.0,
     λ = 0.01,
     objective::Symbol = :logdet,
+    remainder_model::Symbol = :vertices,
     use_log_det = nothing,
 )
     # `use_log_det` is the pre-maximin spelling; it wins when passed explicitly.
@@ -613,6 +667,7 @@ function solve_transition_backward(
         maxδu = maxδu,
         λ = λ,
         objective = objective,
+        remainder_model = remainder_model,
     )
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)
@@ -652,12 +707,14 @@ function _free_target_kernel(
     λ,
     q_min,
     q_max,
+    remainder_model::Symbol,
 )
     nx = length(c)
     nu = size(U[1], 2)
-    μ = _lipschitz_vertices(Lip, nx)
+    μ = remainder_model === :ball ? nothing : _lipschitz_vertices(Lip, nx)
+    ρnorm = LA.norm(collect(Float64, Lip[1:nx]))
     ν = [Wcols[:, i] for i in 1:size(Wcols, 2)]
-    Nx = length(μ)
+    Nx = remainder_model === :ball ? 1 : length(μ)
     Nw = length(ν)
     Nu = length(U)
     ε = 1e-8
@@ -691,14 +748,30 @@ function _free_target_kernel(
 
     z = zeros(nx, 1)
 
-    for i in 1:Nx, j in 1:Nw
-        aux = @expression(
-            model,
-            A * hcat(c1) + hcat(ct) - hcat(c2) +
-            hcat(Vector(μ[i])) * (δx_const + δu) +
-            hcat(Vector(ν[j]))
-        )
-        _reach_constraint!(model, beta[i, j], P1, At, aux, Q2, nx, ε)
+    local muball
+    if remainder_model === :ball
+        @variable(model, muball[j = 1:Nw] >= 0)
+        for j in 1:Nw
+            aux0 =
+                @expression(model, A * hcat(c1) + hcat(ct) - hcat(c2) + hcat(Vector(ν[j])))
+            ρ = @expression(model, ρnorm * (δx_const + δu))
+            @constraint(
+                model,
+                _reach_ball_block(beta[1, j], P1, At, aux0, Q2, ρ, muball[j], nx) >=
+                eye(2 * nx + 2) * ε,
+                PSDCone()
+            )
+        end
+    else
+        for i in 1:Nx, j in 1:Nw
+            aux = @expression(
+                model,
+                A * hcat(c1) + hcat(ct) - hcat(c2) +
+                hcat(Vector(μ[i])) * (δx_const + δu) +
+                hcat(Vector(ν[j]))
+            )
+            _reach_constraint!(model, beta[i, j], P1, At, aux, Q2, nx, ε)
+        end
     end
 
     for i in 1:Nu
@@ -745,12 +818,25 @@ function _free_target_kernel(
     Atv = A + B * Kv
     ctv = c + B * ellv
     blocks = Any[]
-    for i in 1:Nx, j in 1:Nw
-        aux =
-            A * hcat(c1) + hcat(ctv) - hcat(c2) +
-            hcat(Vector(μ[i])) * (δx_const + δuv) +
-            hcat(Vector(ν[j]))
-        push!(blocks, _reach_block(βv[i, j], P1, Atv, aux, Q2v, nx))
+    if remainder_model === :ball
+        mbv = value.(muball)
+        all(mbv .>= -_VALIDATION_TOL) || begin
+            @debug "solve_transition_forward: negative ball multiplier"
+            return false, nothing, nothing, nothing
+        end
+        for j in 1:Nw
+            aux0 = A * hcat(c1) + hcat(ctv) - hcat(c2) + hcat(Vector(ν[j]))
+            ρv = ρnorm * (δx_const + δuv)
+            push!(blocks, _reach_ball_block(βv[1, j], P1, Atv, aux0, Q2v, ρv, mbv[j], nx))
+        end
+    else
+        for i in 1:Nx, j in 1:Nw
+            aux =
+                A * hcat(c1) + hcat(ctv) - hcat(c2) +
+                hcat(Vector(μ[i])) * (δx_const + δuv) +
+                hcat(Vector(ν[j]))
+            push!(blocks, _reach_block(βv[i, j], P1, Atv, aux, Q2v, nx))
+        end
     end
     for i in 1:Nu
         push!(blocks, _input_block(τv[i], P1, U[i] * Kv, U[i] * ellv, nx))
@@ -808,6 +894,7 @@ function solve_transition_forward(
     λ = 0.01,
     q_min = 1e-9,
     q_max = 1e9,
+    remainder_model::Symbol = :vertices,
 )
     c1 = LazySets.center(source)
     P1 = Matrix{Float64}(UT.get_quadratic_form(source))
@@ -832,6 +919,7 @@ function solve_transition_forward(
         λ = λ,
         q_min = q_min,
         q_max = q_max,
+        remainder_model = remainder_model,
     )
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)

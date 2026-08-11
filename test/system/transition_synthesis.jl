@@ -230,6 +230,57 @@ end
           tr(Matrix(LazySets.shape_matrix(result_f.target))) + 1e-6
 end
 
+@testset "remainder_model = :ball (backward + forward)" begin
+    Lip = [1.0, 1.0, 0.5, 0.1]
+    rb = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+        remainder_model = :ball,
+    )
+    @test rb.feasible
+    # Same certified property as the :vertices golden testset: the ball model is a
+    # sound over-approximation, so every sampled source state must land in the
+    # target under every noise vertex.
+    K = Matrix(rb.controller.A)
+    b = collect(rb.controller.c)
+    for x in UT.samples(rb.source, 50)
+        u = K * x + b
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ E2
+        end
+    end
+
+    # Duality holds under the ball model too (forward's constant δx is dominated
+    # by backward's δx variable, same remainder model on both sides).
+    rf = ST.solve_transition_forward(
+        sys_noisy,
+        rb.source,
+        collect(LazySets.center(E2)),
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        target_shape = Matrix(LazySets.shape_matrix(E2)),
+        maxδu = 2.0,
+        remainder_model = :ball,
+    )
+    @test rf.feasible
+    α = tr(Matrix(LazySets.shape_matrix(rf.target))) / tr(Matrix(LazySets.shape_matrix(E2)))
+    @test α <= 1.0 + 1e-6
+end
+
 @testset "stabilizing_feedback" begin
     A3 = [
         0.0 1.0 0.0

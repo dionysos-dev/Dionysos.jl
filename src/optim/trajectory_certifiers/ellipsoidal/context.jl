@@ -158,6 +158,7 @@ function _transition_backward(
     λ,
     state_scaling,
     objective = :maximin,
+    remainder_model = :vertices,
 )
     if state_scaling === nothing
         result = ST.solve_transition_backward(
@@ -174,6 +175,7 @@ function _transition_backward(
             maxδu = maxδu,
             λ = λ,
             objective = objective,
+            remainder_model = remainder_model,
         )
         return result.source, result.controller, result.cost
     end
@@ -199,6 +201,7 @@ function _transition_backward(
         maxδu = maxδu,
         λ = λ,
         objective = objective,
+        remainder_model = remainder_model,
     )
 
     result.feasible || return nothing, nothing, nothing
@@ -231,5 +234,6 @@ function _solve_transition(ctx::ChainContext, approx, E_next, xk, xnext, uk)
         λ = ctx.options.λ,
         state_scaling = ctx.options.state_scaling,
         objective = ctx.options.objective,
+        remainder_model = ctx.options.remainder_model,
     )
 end

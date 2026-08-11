@@ -38,6 +38,7 @@ Base.@kwdef mutable struct ForwardOptions
     r_min::Float64 = 0.0
     check_state_domain::Bool = true
     check_terminal::Bool = true
+    remainder_model::Symbol = :vertices
 end
 
 # Circumscribed ellipsoid of the initial set, centered at the trajectory start:
@@ -97,6 +98,7 @@ function forward_step!(
         λ = opts.λ,
         q_min = opts.q_min,
         q_max = opts.q_max,
+        remainder_model = opts.remainder_model,
     )
 
     if !result.feasible
