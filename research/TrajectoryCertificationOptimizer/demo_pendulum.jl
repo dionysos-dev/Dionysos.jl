@@ -28,10 +28,12 @@
 # boundary endpoints ⟹ sliver seeds (measured: θ-radius 0.017 ≈ 1°). Deepest-hit
 # truncation + optimizing past success (`stop_on_success = false`) drives the
 # endpoint to [2.95, 0.01] ⟹ the box-centered inscribed terminal ENGAGES
-# (center [π, 0], radii [0.249, 0.95], margin 0.594 ≤ 0.64): terminal seed 3.5×
-# (Vmax 0.212 → 0.742), Vmed +24%. V0/coverage hold at 0.212/5.47 — by mid-chain
-# the high-|ω| swing pinch contracts the funnel to its dynamics limit, proving
-# the entry cap is the swing bottleneck, not terminal geometry.
+# (center [π, 0], radii [0.249, 0.95]): terminal seed 3.5× (Vmax 0.212 → 0.742).
+# Adding the wrap-aware `WrapTerminalPull` endpoint cost (the reach cost scores
+# the closest pass, not the endpoint) makes the engagement robust (margin 0.594 →
+# 0.317, round 1) and feeds the whole chain: V0 0.212 → 0.2296 (+8%), Vmin
+# +16%, Vmed +5%, coverage 5.48 → 4.81. The high-|ω| swing pinch remains the
+# entry's dynamics cap.
 # Earlier ablations: per-step scaling ⟹ tiny funnels; no scaling ⟹ infeasible at
 # k≈63; :maximin equalizes the chain (V0 = Vmin) — the safety choice, not the
 # size choice. Remaining: coverage margin 5.5 > 1 (entry semi-axes ~2.3× short of
@@ -140,8 +142,22 @@ u_max = 4.5
 # fit in ±u_max, so whatever the plan does not use, the certificate can.
 u_plan = 0.6 * u_max
 
+# The reach cost scores the trajectory's closest pass and rewards early hits —
+# nothing pulls the ENDPOINT to the target center, so CEM stalls it near the
+# θ-face (measured: 73% of the half-width out). This wrap-aware terminal pull
+# scores the endpoint in the inscribed-ellipsoid metric centered at [π, 0].
+struct WrapTerminalPull <: AB.AbstractCostTerm
+    w::Float64
+end
+function AB.cost_final(term::WrapTerminalPull, acc, xT)
+    xw = wrap(xT)
+    dθ = rem(xw[1] - π, 2π, RoundNearest)
+    return acc + term.w * ((dθ / 0.249)^2 + (xw[2] / 0.95)^2)
+end
+
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(T_split; wrap = wrap),
+    WrapTerminalPull(500.0),
     AB.InputEffortCost(0.001),
     AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
     AB.DomainPenaltyCost(problem.system.X; wrap = wrap),
