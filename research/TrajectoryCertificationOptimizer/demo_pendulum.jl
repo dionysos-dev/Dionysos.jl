@@ -38,6 +38,7 @@ using Random
 using Symbolics
 import Clarabel
 using JuMP: optimizer_with_attributes
+using Plots
 
 const PROBLEMS = joinpath(dirname(dirname(pathof(Dionysos))), "problems")
 include(joinpath(PROBLEMS, "Pendulum", "simple_pendulum.jl"))
@@ -275,3 +276,60 @@ if handoff.success || loop_success
         "$(length(ctrl.kappas)) steps —",
     )
 end
+
+# ------------------------------------------------------------
+# 6) Plot: trajectory + certified sets in the lifted (θ, ω) plane
+# ------------------------------------------------------------
+
+fig = plot(;
+    xlabel = "θ  [rad]",
+    ylabel = "ω  [rad/s]",
+    title = "Certified pendulum swing-up",
+    legend = :topleft,
+    size = (900, 600),
+)
+
+plot!(fig, problem.initial_set; color = :gray, alpha = 0.5, label = "initial set")
+plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = "target set")
+
+if fres !== nothing
+    for (i, E) in enumerate(fres.lmi_data.ellipsoids)
+        plot!(
+            fig,
+            E;
+            color = :orange,
+            alpha = 0.25,
+            linewidth = 0,
+            label = i == 1 ? "forward tube" : "",
+        )
+    end
+end
+
+if bres !== nothing
+    for (i, E) in enumerate(bres.lmi_data.ellipsoids)
+        plot!(
+            fig,
+            E;
+            color = :steelblue,
+            alpha = 0.2,
+            linewidth = 0,
+            label = i == 1 ? "backward funnel" : "",
+        )
+    end
+end
+
+xs_plot = collect(ST.states(lifted))
+plot!(
+    fig,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 2,
+    label = "nominal trajectory",
+)
+
+plot_path = joinpath(@__DIR__, "demo_pendulum.png")
+savefig(fig, plot_path)
+println("— plot saved: $plot_path —")

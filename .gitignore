@@ -28,3 +28,5 @@ bench/results/
 # Claude Code: track shared commands, ignore personal/local config
 .claude/*
 !.claude/commands/
+
+research/TrajectoryCertificationOptimizer/*.png
