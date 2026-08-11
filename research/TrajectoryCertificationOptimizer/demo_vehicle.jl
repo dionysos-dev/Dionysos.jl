@@ -14,9 +14,16 @@
 # PARTIAL: the backward chain certifies steps 110→41 (69 steps, terminal gate
 # passing, domain gate active) and fails mid-turn at k = 41 with
 # `lmi_infeasible_at_max_box` — peak curvature + steering near the planning bound
-# leaves too little feedback headroom. Next levers (plan.md): more steering
-# reserve (u_plan δ 0.5 → 0.4), smaller Δt through the turn, the ball remainder
-# model (16 vertex blocks per 4-D step), and prefix re-planning into E_42.
+# leaves too little feedback headroom.
+#
+# Reserve-frontier ablation (measured, probe-driven): δ ≤ 0.4 starves the
+# *generator* (no reach); δ ≤ 0.45 generates (needs annealed CEM, nstep 120) but
+# certifies FEWER steps (fail at k = 84 — the tighter trajectory is harder
+# elsewhere); δ ≤ 0.5 (this config) is the best single-shot result. Conclusion:
+# parameter tuning is exhausted — the structural fixes are prefix re-planning
+# into the certified suffix's entry E_42 (needs per-round retargeting in the
+# driver, plan.md §6-2) and the ball remainder model (16 vertex blocks per 4-D
+# step, plan.md §4.4-★2).
 
 import Dionysos
 const DI = Dionysos
