@@ -19,11 +19,17 @@
 # Reserve-frontier ablation (measured, probe-driven): δ ≤ 0.4 starves the
 # *generator* (no reach); δ ≤ 0.45 generates (needs annealed CEM, nstep 120) but
 # certifies FEWER steps (fail at k = 84 — the tighter trajectory is harder
-# elsewhere); δ ≤ 0.5 (this config) is the best single-shot result. Conclusion:
-# parameter tuning is exhausted — the structural fixes are prefix re-planning
-# into the certified suffix's entry E_42 (needs per-round retargeting in the
-# driver, plan.md §6-2) and the ball remainder model (16 vertex blocks per 4-D
-# step, plan.md §4.4-★2).
+# elsewhere); δ ≤ 0.5 (this config) is the best single-shot result.
+#
+# Prefix re-planning (§6-2) is implemented and wired below
+# (`EB.prefix_replan_certify!` + the generator's `stop_on_success = false` so the
+# already-through-the-entry seed does not stop exploration) — and it does NOT
+# recover this particular failure: the mid-turn transition is REMAINDER-limited
+# (any path through the turn carries the curvature; the prefix terminal, a shrunk
+# copy of the small entry funnel, is intrinsically harder than the failed
+# transition). The levers for this class are a smaller Δt through the turn and
+# the ball remainder model (plan.md §4.4-★2); re-planning is the right tool for
+# trajectory-local failures (saturation, approach angles) like the pendulum's.
 
 import Dionysos
 const DI = Dionysos
@@ -204,7 +210,7 @@ bw = EB.BackwardCertifier(zprovider, sdp, back_opts)
 driver = AB.TrajectoryCertificationOptimizer.Optimizer(mppi, bw)
 MOI.set(driver, MOI.RawOptimizerAttribute("concrete_problem"), base)
 MOI.set(driver, MOI.RawOptimizerAttribute("certifier_problem"), zproblem)
-MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 3)
+MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 1)
 MOI.set(driver, MOI.RawOptimizerAttribute("prepare_trajectory"), ztraj)
 loop_time = @elapsed MOI.optimize!(driver)
 
@@ -240,6 +246,56 @@ if loop_success
 end
 
 # ------------------------------------------------------------
+# 4b) Prefix re-planning (plan.md §6-2): keep the certified suffix, re-plan the
+# prefix into its entry ellipsoid, splice.
+# ------------------------------------------------------------
+
+if !loop_success && bres.failed_k !== nothing && !isempty(bres.lmi_data.ellipsoids)
+    println(
+        "— prefix re-planning into the certified suffix (entry at state ",
+        "$(bres.failed_k + 1)) —",
+    )
+
+    denormE(E) = LazySets.Ellipsoid(
+        t .* collect(LazySets.center(E)),
+        Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
+    )
+    term_cost = cost.terms[2]        # the TerminalEllipsoidCost — arrays are mutable
+    retarget! = function (Ex)
+        term_cost.c .= collect(LazySets.center(Ex))
+        term_cost.P .= Matrix(UT.get_quadratic_form(Ex))
+        return nothing
+    end
+
+    replan_time = @elapsed pr = EB.prefix_replan_certify!(
+        mppi,
+        bw,
+        bres;
+        gen_problem = base,
+        seed = traj,
+        prepare = ztraj,
+        backmap = denormE,
+        retarget_cost! = retarget!,
+        margin = 6,
+        terminal_shrink = 0.5,
+        max_rounds = 3,
+    )
+    println(
+        "  $(round(replan_time; digits = 1)) s, success = $(pr.success) after ",
+        "$(pr.rounds) round(s)",
+    )
+    if pr.success
+        println(
+            "— spliced certified controller: FunnelController with ",
+            "$(length(pr.controller.kappas)) steps ",
+            "($(pr.k_prefix) re-planned + $(length(bres.lmi_data.kappas)) suffix) —",
+        )
+        global loop_success = true
+        global traj = AB.get_trajectory(mppi)   # the re-planned prefix, for the plot
+    end
+end
+
+# ------------------------------------------------------------
 # 5) Plot in the (x, y) plane: trajectory + funnel shadows
 # ------------------------------------------------------------
 
@@ -267,17 +323,17 @@ function funnel_shadow(E)
     return LazySets.Ellipsoid(c[1:2], LA.Symmetric(Q[1:2, 1:2]) |> Matrix)
 end
 
-if bres !== nothing
-    for (i, E) in enumerate(bres.lmi_data.ellipsoids)
-        plot!(
-            fig,
-            funnel_shadow(E);
-            color = :steelblue,
-            alpha = 0.2,
-            linewidth = 0,
-            label = i == 1 ? "funnel (xy shadow)" : "",
-        )
-    end
+funnel_ellipsoids =
+    (@isdefined(pr)) && pr.success ? pr.controller.ellipsoids : bres.lmi_data.ellipsoids
+for (i, E) in enumerate(funnel_ellipsoids)
+    plot!(
+        fig,
+        funnel_shadow(E);
+        color = :steelblue,
+        alpha = 0.2,
+        linewidth = 0,
+        label = i == 1 ? "funnel (xy shadow)" : "",
+    )
 end
 
 xs_plot = collect(ST.states(traj))
