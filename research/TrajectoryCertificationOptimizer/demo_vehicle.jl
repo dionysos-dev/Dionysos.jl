@@ -37,6 +37,17 @@
 # certified 35 s tail as the capture region. Side result: the :ball chain ran 220
 # 4-D steps at ~0.58 s/step vs ~1 s/step for :vertices — its headline validation.
 #
+# WALL CAMPAIGN VERDICT (2026-08-11, seven interventions): reserve frontier,
+# Δt halving, :ball remainder, prefix re-planning, terminal-seed engagement,
+# curvature-speed cost, and a δ ≲ 0.4 steering barrier ALL leave the mid-turn
+# wall in the 45–55% region of the maneuver (best: 144/220 certified). Neither
+# pace, nor remainder size, nor static headroom, nor a wider arc cracks it — the
+# residual hypothesis is the joint 4-D tube structure through the turn (the weak
+# hitch channel: robustly steering a 4-D tube with 2 inputs mid-arc), possibly
+# compounded by per-step SDP conservatism. The SHIPPABLE result is the
+# capture-region certificate: a ~35 s certified tail into the target with the
+# ×120 terminal seed — the §8.3-style fallback, honest and sound.
+#
 # TERMINAL-SEED ENGAGEMENT (user's mechanism, transferred from the pendulum):
 # `stop_on_success = false` lets CEM ride the TerminalEllipsoidCost pull — the
 # endpoint centers to [9.515, 9.495, 0.013, 0.018] (φ relaxes 0.195 → 0.018 in the
@@ -97,9 +108,9 @@ f = MS.mapping(base.system)
 
 x0 = SVector(-9.5, -9.5, 0.0, 0.0)
 # ≥ 26.9 m diagonal at v·Δt ≤ 0.2125 m per step ⟹ ≥ 127 straight-line steps; the
-# curve and the straight final approach that relaxes the hitch angle (~28-step
-# relaxation constant at this Δt) need margin.
-nstep = 220
+# curve, the slow-turn speed profile, and the straight final approach that relaxes
+# the hitch angle (~28-step relaxation constant at this Δt) need margin.
+nstep = 260
 seed_traj = begin
     u0 = SVector(0.85, 0.05)
     xs = [x0]
@@ -124,9 +135,30 @@ E_T = LazySets.Ellipsoid(
     Matrix(LA.Diagonal([0.5, 0.5, 0.12, 0.12] .^ 2)),
 )
 
+# Speed-profile shaping (the authority-wall endgame): the certification wall is
+# mid-turn where steering saturates, and slowing down there wins twice — more
+# steering authority per meter of arc, and a smaller per-step remainder (the
+# dynamics scale with v). Penalizing v·δ makes CEM take the turn slowly and the
+# straights fast.
+struct CurvatureSpeedCost <: AB.AbstractCostTerm
+    w::Float64
+end
+AB.cost_step(t::CurvatureSpeedCost, acc, x, u, k) = acc + t.w * (u[1] * u[2])^2
+
+# Steering barrier — the sharper fix: the wall is the arc's CURVATURE, not its
+# pace (measured: slowing the turn multiplies the hard steps, net wash). A steep
+# barrier keeps the nominal δ ≲ 0.4 (radius ≈ 4.7 m, fits the arena), forcing a
+# wider arc with a genuine 0.2 rad of defendable headroom through the turn.
+struct SteeringBarrier <: AB.AbstractCostTerm
+    w::Float64
+end
+AB.cost_step(t::SteeringBarrier, acc, x, u, k) = acc + t.w * (u[2] / 0.4)^8
+
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(problem.target_set),
     AB.TerminalEllipsoidCost(E_T; w_outside = 1e5, w_center = 1e4),
+    CurvatureSpeedCost(30.0),
+    SteeringBarrier(5.0),
     AB.InputEffortCost(0.01),
     AB.InputSmoothnessCost(; w_du = 0.5, w_ddu = 0.1),
     AB.DomainPenaltyCost(problem.system.X),
