@@ -23,6 +23,15 @@
 # Normalized coordinates + the volume objective + the box line-search give entry
 # funnels 132× the PR's best, with no collapse (Vmin healthy) and the initial-set
 # coverage margin down from 4021 to 5.5 — gap D nearly closed as a byproduct.
+#
+# TERMINAL-SEED CHAIN (user's insight, fully verified): first-hit truncation ⟹
+# boundary endpoints ⟹ sliver seeds (measured: θ-radius 0.017 ≈ 1°). Deepest-hit
+# truncation + optimizing past success (`stop_on_success = false`) drives the
+# endpoint to [2.95, 0.01] ⟹ the box-centered inscribed terminal ENGAGES
+# (center [π, 0], radii [0.249, 0.95], margin 0.594 ≤ 0.64): terminal seed 3.5×
+# (Vmax 0.212 → 0.742), Vmed +24%. V0/coverage hold at 0.212/5.47 — by mid-chain
+# the high-|ω| swing pinch contracts the funnel to its dynamics limit, proving
+# the entry cap is the swing bottleneck, not terminal geometry.
 # Earlier ablations: per-step scaling ⟹ tiny funnels; no scaling ⟹ infeasible at
 # k≈63; :maximin equalizes the chain (V0 = Vmin) — the safety choice, not the
 # size choice. Remaining: coverage margin 5.5 > 1 (entry semi-axes ~2.3× short of
@@ -153,6 +162,11 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     update_rule = :cem,
     elite_frac = 0.05,
     antithetic = true,
+    # Keep optimizing past the first success: the reach cost pulls the endpoint
+    # toward the target center [π, 0], which is what lets the box-centered
+    # terminal seed engage (first-success endpoints stall at θ ≈ 2.90, a 1°
+    # sliver from the face — measured).
+    stop_on_success = false,
 )
 # x-frame lift: periodic unwrap, shifted so the endpoint lands in the target's
 # θ-range.
@@ -299,6 +313,21 @@ lifted_x = lift(traj)
 # Backward-only: the certificate needs no forward chain — the funnel controller
 # below is the complete product. (`κ_z(z) = K_z·z + b` maps back to the physical
 # frame as `κ_x(x) = K_z·D⁻¹·x + b`.)
+# Terminal-seed diagnostics: did the box-centered branch engage?
+if bres.success
+    E_term = bres.lmi_data.ellipsoids[end]
+    c_term = t .* collect(LazySets.center(E_term))
+    r_term = t .* sqrt.(LA.diag(Matrix(LazySets.shape_matrix(E_term))))
+    xend = collect(ST.states(lifted_x))[end]
+    r_box = 0.95 .* [15.0 * π / 180.0, 1.0]
+    margin = sum(((xend .- [π, 0.0]) ./ r_box) .^ 2)
+    println(
+        "  terminal: center = $(round.(c_term; digits = 3)), radii = ",
+        "$(round.(r_term; digits = 3)); endpoint = $(round.(xend; digits = 3)); ",
+        "box-centered margin = $(round(margin; digits = 3)) (engages iff ≤ 0.64)",
+    )
+end
+
 # Funnel sizes in the physical frame, comparable to the PR's sweep report
 # (V = π·√det(Q), the ellipse area; his best: V0 = 1.6e-3, Vmin = 2.1e-4).
 if bres.success
