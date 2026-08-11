@@ -37,6 +37,14 @@
 # certified 35 s tail as the capture region. Side result: the :ball chain ran 220
 # 4-D steps at ~0.58 s/step vs ~1 s/step for :vertices — its headline validation.
 #
+# TERMINAL-SEED ENGAGEMENT (user's mechanism, transferred from the pendulum):
+# `stop_on_success = false` lets CEM ride the TerminalEllipsoidCost pull — the
+# endpoint centers to [9.515, 9.495, 0.013, 0.018] (φ relaxes 0.195 → 0.018 in the
+# tail; margin 0.017), the box-centered 4-D seed ENGAGES (Vmax 2.7e-4 → 0.0324,
+# ~120×), and the wall moves k = 81 → 76 (144/220 certified). The entry-side
+# funnels still shrink to slivers approaching the mid-turn authority wall — the
+# speed profile remains the endgame lever.
+#
 # VOLUME ABLATION (2026-08-11, vs the PR's marche_avant sweep — his best entry
 # 7.9e-5 / median 3.0e-4 are INFORMAL: box violations on every config, no terminal
 # gate, 32-step chain): :logdet collapses here (V ≈ 1.6e-14 pancake at the 2nd
@@ -138,6 +146,10 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     update_rule = :cem,
     elite_frac = 0.05,
     antithetic = true,
+    # Keep optimizing past the first success so the TerminalEllipsoidCost pull can
+    # center the endpoint — first-success endpoints stall at φ ≈ 0.19 of ±0.2,
+    # starving the terminal seed (the pendulum's measured pattern).
+    stop_on_success = false,
 )
 
 # ------------------------------------------------------------
@@ -261,6 +273,17 @@ if !bres.success && !isempty(bres.steps)
             :gate_reason,
             get(last_step.summary, :adaptive_box_status, "?"),
         ),
+    )
+end
+
+# Terminal-seed diagnostics: endpoint depth and whether the box-centered branch
+# engaged (visible as terminal volume ≈ 0.021 vs endpoint-centered slivers ~1e-4).
+let xe = collect(ST.states(traj))[end], Tc = LazySets.center(problem.target_set)
+    r_box = 0.9 .* [0.5, 0.5, 0.2, 0.2]
+    margin = sum(((collect(xe) .- collect(Tc)) ./ r_box) .^ 2)
+    println(
+        "  endpoint = $(round.(collect(xe); digits = 3)); box-centered margin = ",
+        "$(round(margin; digits = 3)) (engages iff ≤ 0.64)",
     )
 end
 
