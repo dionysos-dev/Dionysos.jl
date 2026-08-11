@@ -10,13 +10,15 @@
 #
 #     julia --project=bench research/TrajectoryCertificationOptimizer/demo_pendulum.jl
 #
-# Status (2026-08-11, Clarabel, fixed rng): seed 34 states in ~20 s; CEM-MPPI finds
-# the swing-up (48 steps, ~6 s); backward chain certifies steps 48→2 with the
-# terminal gate PASSING (the P0 baseline failed at k≈19 with an unsound ±10.5
-# input set); forward certifies 25 steps from the entry tube. Open: steps 1–2
-# (`lmi_infeasible_at_max_box` — the entry region, the same first-steps failure
-# mode the PR's Monte-Carlo exposed) — the driver's `replan!` hook and entry-region
-# handling are the designed next move (plan.md §6).
+# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED. Seed 34 states in
+# ~23 s; the driver loop certifies in round 1 (~56 s): CEM-MPPI finds the 48-step
+# swing-up and the backward chain certifies ALL 48 steps with the terminal gate
+# passing, on the plant's true ±4.5 input set — the P0 baseline failed at k≈19
+# against an unsound ±10.5 input set. The demo ends with a 48-step
+# ST.FunnelController. Honest open item, reported by the gates: initial coverage
+# ≫ 1 (the entry funnel does not cover the full ±10°×±0.5 initial set — gap D;
+# the forward direction / entry enlargement is the designed answer), and the
+# forward↔backward handoff does not yet nest on this config.
 
 import Dionysos
 const DI = Dionysos
@@ -141,26 +143,15 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     elite_frac = 0.05,
     antithetic = true,
 )
-AB.set_problem!(mppi, discrete_problem)
-mppi_time = @elapsed AB.generate!(mppi)
-traj = AB.get_trajectory(mppi)
-d = AB.MPPITrajectoryGenerator.get_diagnostics(mppi)
-println(
-    "  $(round(mppi_time; digits = 1)) s, success = $(AB.get_success(mppi)), ",
-    "steps = $(length(ST.inputs(traj))), ess = $(round(d.ess; digits = 1)), ",
-    "λ_used = $(round(d.λ_used; sigdigits = 2))",
-)
-
-# ------------------------------------------------------------
-# 3) Periodic unwrap + shift so the endpoint lies in the target's θ-range
-# ------------------------------------------------------------
-
-lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
-θN = collect(ST.states(lifted))[end][1]
-shift = 2π * round((θN - π) / (2π))
-if shift != 0.0
+# The driver runs generation; between generation and certification it applies the
+# periodic lift, shifted so the endpoint lands in the target's θ-range.
+prepare = function (traj)
+    lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
+    θN = collect(ST.states(lifted))[end][1]
+    shift = 2π * round((θN - π) / (2π))
+    shift == 0.0 && return lifted
     xs = [SVector(x[1] - shift, x[2]) for x in ST.states(lifted)]
-    global lifted = ST.Trajectory(xs; inputs = collect(ST.inputs(lifted)))
+    return ST.Trajectory(xs; inputs = collect(ST.inputs(lifted)))
 end
 
 # ------------------------------------------------------------
@@ -221,16 +212,24 @@ back_opts = EB.ChainOptions(;
     check_state_domain = false,
 )
 
-println("— backward certification —")
+println("— generate ⇄ certify loop (retry ladder, up to 5 rounds) —")
 bw = EB.BackwardCertifier(provider, sdp, back_opts)
-AB.set_problem!(bw, problem)
-AB.set_trajectory!(bw, lifted)
-bw_time = @elapsed AB.certify!(bw)
+driver = AB.TrajectoryCertificationOptimizer.Optimizer(mppi, bw)
+MOI.set(driver, MOI.RawOptimizerAttribute("concrete_problem"), discrete_problem)
+MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 5)
+MOI.set(driver, MOI.RawOptimizerAttribute("prepare_trajectory"), prepare)
+loop_time = @elapsed MOI.optimize!(driver)
+
+rounds = MOI.get(driver, MOI.RawOptimizerAttribute("rounds"))
+loop_success = MOI.get(driver, MOI.RawOptimizerAttribute("success"))
+traj = MOI.get(driver, MOI.RawOptimizerAttribute("trajectory"))
 bres = EB.get_result(bw)
+d = AB.MPPITrajectoryGenerator.get_diagnostics(mppi)
+println("  $(round(loop_time; digits = 1)) s, rounds = $rounds, certified = $loop_success")
 println(
-    "  $(round(bw_time; digits = 1)) s, success = $(bres.success), ",
-    "failed_k = $(bres.failed_k), terminal ⊆ target: $(bres.terminal_contained), ",
-    "initial coverage: $(bres.initial_coverage)",
+    "  last round: mppi steps = $(length(ST.inputs(traj))), ",
+    "backward failed_k = $(bres.failed_k), terminal ⊆ target: ",
+    "$(bres.terminal_contained), initial coverage: $(bres.initial_coverage)",
 )
 if !bres.success && !isempty(bres.steps)
     last_step = bres.steps[1]
@@ -243,6 +242,7 @@ if !bres.success && !isempty(bres.steps)
         ),
     )
 end
+lifted = prepare(traj)
 
 println("— forward certification + handoff —")
 fwd_opts = EB.ForwardOptions(;
@@ -268,8 +268,8 @@ println(
     ", handoff = $(handoff.success) at k = $(handoff.k_handoff)",
 )
 
-if handoff.success || bres.success
-    ctrl = handoff.success ? handoff.controller : AB.get_controller(bw)
+if handoff.success || loop_success
+    ctrl = loop_success ? AB.get_controller(bw) : handoff.controller
     println(
         "— certified controller: $(typeof(ctrl).name.name) with ",
         "$(length(ctrl.kappas)) steps —",
