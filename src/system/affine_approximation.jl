@@ -107,6 +107,13 @@ function interval_matrix_max_eig(args...)
     )
 end
 
+function normalized_symbolic_provider(args...)
+    return error(
+        "normalized_symbolic_provider requires Symbolics.jl. " *
+        "Load it with `using Symbolics` to enable this feature.",
+    )
+end
+
 function _getLipschitzConstants(args...)
     return error(
         "_getLipschitzConstants requires Symbolics.jl. " *

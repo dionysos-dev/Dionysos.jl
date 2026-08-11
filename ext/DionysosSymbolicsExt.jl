@@ -255,6 +255,37 @@ function _regionwise_bound(system, bound_over, nsplit::Int, to_interval)
     )
 end
 
+"""
+    ST.normalized_symbolic_provider(provider, t) -> SymbolicAffineApproximationProvider
+
+Provider for the globally normalized coordinates `z = x ./ t` (plan.md §4.3): the
+scaled dynamics `f_z(z, u, w) = f_x(t .* z, u, w) ./ t` are built symbolically
+*once*, so Jacobians and interval Hessian bounds are computed **exactly** in the
+working frame — this replaces the per-step `state_scaling` transform and its
+`~1/σ_min(T)²` remainder conservatism while keeping its conditioning benefit.
+The input and noise encodings carry over unchanged (the noise matrix `E` rescales
+automatically through differentiation of `f_z`). Certify the `z`-trajectory
+against `z`-scaled sets, then map ellipsoids back with `Q_x = D·Q_z·D`,
+`D = Diagonal(t)`.
+"""
+function ST.normalized_symbolic_provider(
+    provider::ST.SymbolicAffineApproximationProvider,
+    t::AbstractVector,
+)
+    x = provider.x
+    sub = Dict(x[i] => t[i] * x[i] for i in eachindex(x))
+    fz = [Symbolics.substitute(fi, sub) / t[i] for (i, fi) in enumerate(provider.fsymbolic)]
+    return ST.SymbolicAffineApproximationProvider(
+        fz,
+        provider.x,
+        provider.u,
+        provider.w,
+        provider.ΔW,
+        provider.Uformat,
+        provider.Wformat,
+    )
+end
+
 # Differentiate and compile once per system (plan.md §4.4-★1): the Jacobian and
 # Hessian *expressions* depend only on the dynamics, yet the certification chain
 # calls the provider once per step and per adaptive box candidate. All symbolic
