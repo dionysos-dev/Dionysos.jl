@@ -10,15 +10,17 @@
 #
 #     julia --project=bench research/TrajectoryCertificationOptimizer/demo_pendulum.jl
 #
-# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED. Seed 34 states in
-# ~23 s; the driver loop certifies in round 1 (~56 s): CEM-MPPI finds the 48-step
-# swing-up and the backward chain certifies ALL 48 steps with the terminal gate
-# passing, on the plant's true ±4.5 input set — the P0 baseline failed at k≈19
-# against an unsound ±10.5 input set. The demo ends with a 48-step
-# ST.FunnelController. Honest open item, reported by the gates: initial coverage
-# ≫ 1 (the entry funnel does not cover the full ±10°×±0.5 initial set — gap D;
-# the forward direction / entry enlargement is the designed answer), and the
-# forward↔backward handoff does not yet nest on this config.
+# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED in globally
+# normalized coordinates, backward-only. Round 1 of the driver loop (~46 s after
+# a ~17 s seed): CEM-MPPI finds the 71-step swing-up, the backward chain
+# certifies ALL 71 steps, terminal gate passing, on the plant's true ±4.5 input
+# set (the P0 baseline failed at k≈19 against an unsound ±10.5 set). Measured
+# ablations along the way: per-step contractive scaling certifies but with tiny
+# funnels (coverage margin ~116k); NO scaling is infeasible at k≈63; globally
+# normalized dynamics (`ST.normalized_symbolic_provider`) certify with 29× better
+# entry coverage (~4k) — exact remainder, same conditioning. Input reserve and
+# box caps were measured NOT binding. Remaining gap D: the entry funnel still
+# does not cover the full ±10°×±0.5 initial set (margin 4021 > 1).
 
 import Dionysos
 const DI = Dionysos
@@ -146,9 +148,9 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     elite_frac = 0.05,
     antithetic = true,
 )
-# The driver runs generation; between generation and certification it applies the
-# periodic lift, shifted so the endpoint lands in the target's θ-range.
-prepare = function (traj)
+# x-frame lift: periodic unwrap, shifted so the endpoint lands in the target's
+# θ-range.
+lift = function (traj)
     lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
     θN = collect(ST.states(lifted))[end][1]
     shift = 2π * round((θN - π) / (2π))
@@ -181,14 +183,47 @@ provider = ST.SymbolicAffineApproximationProvider(
 
 sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
 
+# ------------------------------------------------------------
+# 5) Globally normalized coordinates (plan.md §4.3): certify in z = x ./ t.
+# The scaled dynamics f_z(z,u) = f_x(t.*z, u) ./ t are built symbolically once,
+# so the Hessian bounds are EXACT in the working frame — the conditioning benefit
+# of the per-step state_scaling without its ~1/σ_min(T)² remainder tax (measured:
+# scaling off ⇒ infeasible at k≈63; per-step scaling on ⇒ tiny funnels).
+# ------------------------------------------------------------
+
+t = [0.85 * 15.0 * π / 180.0, 0.25]
+zprovider = ST.normalized_symbolic_provider(provider, t)
+D = LA.Diagonal(t)
+
+zbox(H) = LazySets.Hyperrectangle(;
+    low = SVector{2}(LazySets.low(H) ./ t),
+    high = SVector{2}(LazySets.high(H) ./ t),
+)
+zproblem = PR.OptimalControlProblem(
+    base.system,
+    zbox(problem.initial_set),
+    zbox(problem.target_set),
+    nothing,
+    nothing,
+    base.time,
+    nothing,
+)
+
+ztraj(traj) = ST.Trajectory(
+    [SVector{2}(collect(x) ./ t) for x in ST.states(traj)];
+    inputs = collect(ST.inputs(traj)),
+)
+prepare = traj -> ztraj(lift(traj))
+
 # The unwrapped cover has no θ seam and the objective has no obstacle; θ spans the
 # full period, so the domain gate would only re-check |ω| ≤ 7 while flagging the
-# lifted θ — disable it here and rely on the generous ω margin.
+# lifted θ — disable it here and rely on the generous ω margin. Box radii are in
+# z-units (x-units ./ t).
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,
-    [0.05, 0.10],
-    [0.005, 0.005],
-    [2.5, 3.5],
+    [0.05, 0.10] ./ t,
+    [0.005, 0.005] ./ t,
+    [2.5, 3.5] ./ t,
     [0.25],
     [0.01],
     [4.5],
@@ -202,17 +237,13 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,
 )
 back_opts = EB.ChainOptions(;
-    maxδx = 2.5,
+    maxδx = 12.0,
     maxδu = 3.0,
     λ = 0.001,
     terminal_shape = nothing,            # default: inscribed ellipsoid of the target
     terminal_shrink = 0.95,
-    # Contractive scaling is sound but conservative (~1/σ_min(T)² remainder tax per
-    # unit of physical radius) — yet REQUIRED: without it the chain goes infeasible
-    # around k≈63 (measured; matches the PR's no-scaling ablation). The tax-free fix
-    # is globally normalized dynamics (plan.md §4.3), not dropping the scaling.
-    state_scaling = LA.diagm([0.85 * 15.0 * π / 180.0, 0.25]),
-    linearization_δx = [0.2, 0.4],
+    state_scaling = nothing,             # exact: the dynamics are already normalized
+    linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
     objective = :maximin,
@@ -220,9 +251,10 @@ back_opts = EB.ChainOptions(;
 )
 
 println("— generate ⇄ certify loop (retry ladder, up to 5 rounds) —")
-bw = EB.BackwardCertifier(provider, sdp, back_opts)
+bw = EB.BackwardCertifier(zprovider, sdp, back_opts)
 driver = AB.TrajectoryCertificationOptimizer.Optimizer(mppi, bw)
 MOI.set(driver, MOI.RawOptimizerAttribute("concrete_problem"), discrete_problem)
+MOI.set(driver, MOI.RawOptimizerAttribute("certifier_problem"), zproblem)
 MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 5)
 MOI.set(driver, MOI.RawOptimizerAttribute("prepare_trajectory"), prepare)
 loop_time = @elapsed MOI.optimize!(driver)
@@ -251,36 +283,24 @@ if !bres.success && !isempty(bres.steps)
         ),
     )
 end
-lifted = prepare(traj)
+lifted_x = lift(traj)
 
-println("— forward certification + handoff —")
-fwd_opts = EB.ForwardOptions(;
-    target_mode = :free,
-    q_min = 1e-8,
-    q_max = 1e2,
-    maxδu = 3.0,
-    linearization_δu = [1.0],
-    λ = 0.001,
-    # A realistic entry tube: the full circumscribed initial set (radius ≈ 0.7 in
-    # ω) is not one-step certifiable with this input authority — the handoff demo
-    # starts from a tighter but non-trivial entry neighbourhood.
-    entry_shape = LA.diagm([0.05^2, 0.1^2]),
-    check_state_domain = false,
-)
-fw = EB.ForwardCertifier(provider, sdp, fwd_opts)
-bw2 = EB.BackwardCertifier(provider, sdp, back_opts)
-ho_time = @elapsed handoff = EB.bidirectional_certify!(fw, bw2, problem, lifted)
-fres = handoff.forward_result
-println(
-    "  $(round(ho_time; digits = 1)) s, forward steps certified: ",
-    fres.failed_k === nothing ? length(ST.inputs(lifted)) : fres.failed_k - 1,
-    ", handoff = $(handoff.success) at k = $(handoff.k_handoff)",
-)
-
-if handoff.success || loop_success
-    ctrl = loop_success ? AB.get_controller(bw) : handoff.controller
+# Backward-only: the certificate needs no forward chain — the funnel controller
+# below is the complete product. (`κ_z(z) = K_z·z + b` maps back to the physical
+# frame as `κ_x(x) = K_z·D⁻¹·x + b`.)
+if loop_success
+    zctrl = AB.get_controller(bw)
+    ctrl = ST.FunnelController(
+        [MS.AffineMap(Matrix(κ.A) / Matrix(D), collect(κ.c)) for κ in zctrl.kappas],
+        [
+            LazySets.Ellipsoid(
+                t .* collect(LazySets.center(E)),
+                Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
+            ) for E in zctrl.ellipsoids
+        ],
+    )
     println(
-        "— certified controller: $(typeof(ctrl).name.name) with ",
+        "— certified controller (physical frame): FunnelController with ",
         "$(length(ctrl.kappas)) steps —",
     )
 end
@@ -300,24 +320,17 @@ fig = plot(;
 plot!(fig, problem.initial_set; color = :gray, alpha = 0.5, label = "initial set")
 plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = "target set")
 
-if fres !== nothing
-    for (i, E) in enumerate(fres.lmi_data.ellipsoids)
-        plot!(
-            fig,
-            E;
-            color = :orange,
-            alpha = 0.25,
-            linewidth = 0,
-            label = i == 1 ? "forward tube" : "",
-        )
-    end
-end
+# De-normalize the certified funnel back to the physical frame for the plot.
+denorm(E) = LazySets.Ellipsoid(
+    t .* collect(LazySets.center(E)),
+    Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
+)
 
 if bres !== nothing
     for (i, E) in enumerate(bres.lmi_data.ellipsoids)
         plot!(
             fig,
-            E;
+            denorm(E);
             color = :steelblue,
             alpha = 0.2,
             linewidth = 0,
@@ -326,7 +339,7 @@ if bres !== nothing
     end
 end
 
-xs_plot = collect(ST.states(lifted))
+xs_plot = collect(ST.states(lifted_x))
 plot!(
     fig,
     [x[1] for x in xs_plot],
