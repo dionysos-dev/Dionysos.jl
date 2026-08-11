@@ -29,6 +29,12 @@ mutable struct Optimizer{TG, TC, T} <: OP.AbstractDionysosOptimizer
     # certifiers (linearizing in ℝⁿ) require (plan.md §4.2-H).
     prepare_trajectory::Any
 
+    # Optional problem override for the certifier: generation and certification may
+    # consume different framings of the same task (discrete-time vs continuous,
+    # globally normalized coordinates, seam-split target sets). `nothing` means the
+    # certifier gets `concrete_problem` like the generator.
+    certifier_problem::Any
+
     trajectory::Any
     controller::Any
 
@@ -44,6 +50,7 @@ function Optimizer(trajectory_generator, trajectory_certifier)
         trajectory_generator,
         trajectory_certifier,
         1,
+        nothing,
         nothing,
         nothing,
         nothing,
@@ -79,7 +86,10 @@ function MOI.optimize!(opt::Optimizer)
     opt.solve_time_sec = 0.0
 
     AB.set_problem!(opt.trajectory_generator, opt.concrete_problem)
-    AB.set_problem!(opt.trajectory_certifier, opt.concrete_problem)
+    AB.set_problem!(
+        opt.trajectory_certifier,
+        opt.certifier_problem === nothing ? opt.concrete_problem : opt.certifier_problem,
+    )
 
     for round in 1:max(opt.max_rounds, 1)
         opt.rounds = round
