@@ -119,7 +119,9 @@ discrete_problem = PR.OptimalControlProblem(
 )
 
 u_max = 4.5
-u_plan = 0.75 * u_max            # input reserve: leave headroom for the feedback
+# Input reserve is the main lever on funnel size: the feedback image κ(E_k) must
+# fit in ±u_max, so whatever the plan does not use, the certificate can.
+u_plan = 0.6 * u_max
 
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(T_split; wrap = wrap),
@@ -133,7 +135,7 @@ cost = AB.CompositeCost(
 mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     rng = Random.MersenneTwister(1),
     seed_trajectory = seed_traj,
-    nstep = 60,
+    nstep = 90,
     nsamples = 1000,
     niter = 40,
     noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.8)),
@@ -186,7 +188,7 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,
     [0.05, 0.10],
     [0.005, 0.005],
-    [1.8, 2.5],
+    [2.5, 3.5],
     [0.25],
     [0.01],
     [4.5],
@@ -200,11 +202,15 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,
 )
 back_opts = EB.ChainOptions(;
-    maxδx = 1.5,
+    maxδx = 2.5,
     maxδu = 3.0,
     λ = 0.001,
     terminal_shape = nothing,            # default: inscribed ellipsoid of the target
-    terminal_shrink = 0.85,
+    terminal_shrink = 0.95,
+    # Contractive scaling is sound but conservative (~1/σ_min(T)² remainder tax per
+    # unit of physical radius) — yet REQUIRED: without it the chain goes infeasible
+    # around k≈63 (measured; matches the PR's no-scaling ablation). The tax-free fix
+    # is globally normalized dynamics (plan.md §4.3), not dropping the scaling.
     state_scaling = LA.diagm([0.85 * 15.0 * π / 180.0, 0.25]),
     linearization_δx = [0.2, 0.4],
     linearization_δu = [1.0],
@@ -225,6 +231,8 @@ rounds = MOI.get(driver, MOI.RawOptimizerAttribute("rounds"))
 loop_success = MOI.get(driver, MOI.RawOptimizerAttribute("success"))
 traj = MOI.get(driver, MOI.RawOptimizerAttribute("trajectory"))
 bres = EB.get_result(bw)
+bres === nothing &&
+    error("the generator failed in every round — no certification was attempted")
 d = AB.MPPITrajectoryGenerator.get_diagnostics(mppi)
 println("  $(round(loop_time; digits = 1)) s, rounds = $rounds, certified = $loop_success")
 println(
