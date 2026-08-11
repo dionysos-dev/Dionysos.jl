@@ -22,14 +22,20 @@
 # elsewhere); δ ≤ 0.5 (this config) is the best single-shot result.
 #
 # Prefix re-planning (§6-2) is implemented and wired below
-# (`EB.prefix_replan_certify!` + the generator's `stop_on_success = false` so the
-# already-through-the-entry seed does not stop exploration) — and it does NOT
-# recover this particular failure: the mid-turn transition is REMAINDER-limited
-# (any path through the turn carries the curvature; the prefix terminal, a shrunk
-# copy of the small entry funnel, is intrinsically harder than the failed
-# transition). The levers for this class are a smaller Δt through the turn and
-# the ball remainder model (plan.md §4.4-★2); re-planning is the right tool for
-# trajectory-local failures (saturation, approach angles) like the pendulum's.
+# (`EB.prefix_replan_certify!` + the generator's `stop_on_success = false`), and
+# does not recover the mid-turn failure.
+#
+# DECISIVE Δt ABLATION (2026-08-11): at Δt = 0.25 (this config, :ball remainder,
+# probe-tuned 220-step generation) the chain certifies 139/220 — the SAME 63%
+# fraction, failing at the SAME physical location (k = 81 ≈ t ≈ 20 s ≈ old k = 41)
+# as Δt = 0.5. Halving the per-step remainder did not move the wall ⟹ the failure
+# is NOT remainder-limited: it is INPUT-AUTHORITY-limited (the δ-channel feedback
+# headroom, 0.6 − 0.5 = 0.1 rad, is Δt-invariant and binds mid-turn where 2 inputs
+# must control 4 states through a weak hitch-angle channel). Candidate levers: a
+# slower speed profile through the turn (more control authority per meter of arc,
+# discoverable by CEM with a curvature-coupled speed cost), or accepting the
+# certified 35 s tail as the capture region. Side result: the :ball chain ran 220
+# 4-D steps at ~0.58 s/step vs ~1 s/step for :vertices — its headline validation.
 
 import Dionysos
 const DI = Dionysos
@@ -56,7 +62,11 @@ const AV = ArticulatedVehicle
 
 params = AV.Params()
 problem = AV.problem(; params = params)
-Δt = 0.5
+# Half the original step: the mid-turn failure is remainder-limited and the
+# per-step linearization error scales with Δt; the :ball remainder model (one
+# Petersen block instead of 16 vertex blocks per step) keeps the 2× longer chain
+# affordable. Generation at 220 dims needs finer per-step noise (probe-tuned).
+Δt = 0.25
 
 base = PR.discretize_problem(problem, Δt; num_substeps = 5)
 f = MS.mapping(base.system)
@@ -66,10 +76,10 @@ f = MS.mapping(base.system)
 # ------------------------------------------------------------
 
 x0 = SVector(-9.5, -9.5, 0.0, 0.0)
-# ≥ 26.9 m diagonal at v ≤ 0.85·Δt per step ⟹ ≥ 64 straight-line steps; the curve
-# and the straight final approach that relaxes the hitch angle need margin (the
-# trailer's φ has a ~14-step relaxation constant at this speed).
-nstep = 110
+# ≥ 26.9 m diagonal at v·Δt ≤ 0.2125 m per step ⟹ ≥ 127 straight-line steps; the
+# curve and the straight final approach that relaxes the hitch angle (~28-step
+# relaxation constant at this Δt) need margin.
+nstep = 220
 seed_traj = begin
     u0 = SVector(0.85, 0.05)
     xs = [x0]
@@ -107,8 +117,9 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     seed_trajectory = seed_traj,
     nstep = nstep,
     nsamples = 1000,
-    niter = 70,
-    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.2, 0.15)),
+    niter = 150,
+    anneal = 0.99,
+    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.12, 0.08)),
     project_input = u ->
         SVector(clamp(u[1], -u_plan[1], u_plan[1]), clamp(u[2], -u_plan[2], u_plan[2])),
     cost = cost,
@@ -202,6 +213,7 @@ back_opts = EB.ChainOptions(;
     linearization_δu = [0.3, 0.2],
     adaptive_boxes = adaptive_opts,
     objective = :maximin,
+    remainder_model = :ball,
     check_state_domain = true,
 )
 
