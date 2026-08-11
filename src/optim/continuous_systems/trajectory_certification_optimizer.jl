@@ -19,9 +19,15 @@ mutable struct Optimizer{TG, TC, T} <: OP.AbstractDionysosOptimizer
     # Generate ⇄ certify loop (plan.md §6): on a failed certification, `replan!`
     # (a `(generator, certifier) -> Nothing` hook, e.g. re-seeding or retargeting
     # the prefix at the certified suffix's entry ellipsoid) reconfigures the
-    # generator and another round runs, up to `max_rounds` in total.
+    # generator and another round runs, up to `max_rounds` in total. Even with no
+    # hook, rounds differ: the generator's rng advances between rounds.
     max_rounds::Int
     replan!::Any
+
+    # Optional `traj -> traj` transform applied between generation and
+    # certification — e.g. `ST.unwrap_trajectory` for periodic states, which the
+    # certifiers (linearizing in ℝⁿ) require (plan.md §4.2-H).
+    prepare_trajectory::Any
 
     trajectory::Any
     controller::Any
@@ -38,6 +44,7 @@ function Optimizer(trajectory_generator, trajectory_certifier)
         trajectory_generator,
         trajectory_certifier,
         1,
+        nothing,
         nothing,
         nothing,
         nothing,
@@ -83,7 +90,10 @@ function MOI.optimize!(opt::Optimizer)
         opt.trajectory = AB.get_trajectory(opt.trajectory_generator)
 
         if gen_success
-            AB.set_trajectory!(opt.trajectory_certifier, opt.trajectory)
+            cert_traj =
+                opt.prepare_trajectory === nothing ? opt.trajectory :
+                opt.prepare_trajectory(opt.trajectory)
+            AB.set_trajectory!(opt.trajectory_certifier, cert_traj)
             AB.certify!(opt.trajectory_certifier)
 
             if AB.get_success(opt.trajectory_certifier)
