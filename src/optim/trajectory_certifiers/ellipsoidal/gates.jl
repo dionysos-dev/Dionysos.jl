@@ -112,14 +112,31 @@ end
 # union member containing xN), shrunk by `shrink`. Returns (ellipsoid, nothing) or
 # (nothing, reason).
 function _default_terminal_ellipsoid(target_set, xN, shrink::Float64)
+    # Prefer the box-centered inscription (maximal seed for the backward chain —
+    # an endpoint-centered one is nearly minimal when the trajectory was truncated
+    # at its first target hit, i.e. on the boundary). But the box-centered
+    # ellipsoid excludes the box's corner shell: it is only usable when the
+    # endpoint actually lies well inside it (margin 0.8), else the last backward
+    # transition may be unreachable — fall back to the endpoint-centered
+    # inscription. Ending trajectories centrally (deepest-hit truncation) is what
+    # unlocks the big seed.
     for member in _each_member(target_set)
         member isa LazySets.AbstractHyperrectangle || continue
-        collect(xN) ∈ member || continue
+        v = Vector{Float64}(collect(xN))
+        v ∈ member || continue
+        c = Vector{Float64}(LazySets.center(member))
+        r =
+            shrink .*
+            [LazySets.radius_hyperrectangle(member, i) for i in 1:LazySets.dim(member)]
+        all(r .> 0) || continue
+        if sum(((v .- c) ./ r) .^ 2) <= 0.8^2
+            return LazySets.Ellipsoid(c, Matrix(LA.Diagonal(r .^ 2))), nothing
+        end
         lo = LazySets.low(member)
         hi = LazySets.high(member)
-        r = shrink .* min.(hi .- collect(xN), collect(xN) .- lo)
-        all(r .> 0) || continue
-        return LazySets.Ellipsoid(collect(float.(xN)), Matrix(LA.Diagonal(r .^ 2))), nothing
+        re = shrink .* min.(hi .- v, v .- lo)
+        all(re .> 0) || continue
+        return LazySets.Ellipsoid(v, Matrix(LA.Diagonal(re .^ 2))), nothing
     end
     return nothing,
     "no default terminal ellipsoid: the trajectory endpoint is not strictly inside " *
