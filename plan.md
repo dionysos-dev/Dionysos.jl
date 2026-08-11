@@ -39,6 +39,9 @@ adaptation research.
 **Acceptance targets** (measured by the P0 bench harness, single machine, Clarabel):
 - Pendulum end-to-end (seed + MPPI + certification, formal gates on) **≥ 5×** faster
   than the P0 baseline; target < 15 s.
+  *Status 2026-08-11: the qualitative bar is cleared — the baseline never certified
+  at all; the pipeline now fully certifies the swing-up (§8.1) in ~79 s end-to-end.
+  The wall-time target stands for the remaining optimization passes.*
 - Vehicle forward maneuver end-to-end < 5 min with all formal gates passing.
 - MPPI sampling throughput (rollouts/s on the pendulum) ≥ 10× baseline single-thread,
   ~linear thread scaling.
@@ -556,7 +559,18 @@ build-then-move churn).
 
 ## 8. Per-system battle plans (PR's proven parameters as starting points)
 
-### 8.1 Simple pendulum — reference demo (low risk)
+### 8.1 Simple pendulum — reference demo (low risk) — **ACHIEVED 2026-08-11**
+
+`research/TrajectoryCertificationOptimizer/demo_pendulum.jl`: the driver loop
+certifies the complete 48-step swing-up in round 1 (~56 s + 23 s seed, Clarabel,
+fixed rng) — all soundness gates passing, terminal ⊆ target, on the plant's true
+±4.5 input set (the P0 baseline failed at k≈19 against an unsound ±10.5 set),
+ending in a 48-step `ST.FunnelController`. Decisive ingredients: seam-aware target
+(`UT.set_in_period`), the `:cem` update (softmin averaging failed the multimodal
+energy pumping), unwrap + 2π-shift via the driver's `prepare_trajectory` hook, and
+the `:maximin` objective across 48 chained funnels. Gate-reported residuals:
+entry-funnel coverage of the initial set (gap D — forward direction / entry
+enlargement is the designed answer) and the handoff not yet nesting here.
 
 Florentin certified 66/66 with adaptive boxes + scaling. Start: Δt=0.1, H=55–75,
 `nsamples`≈3–8k (expect far fewer after P2), `niter`=20, MPPI λ=1.75 until ESS-λ, σ_u
