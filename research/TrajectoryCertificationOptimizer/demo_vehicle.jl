@@ -36,6 +36,18 @@
 # discoverable by CEM with a curvature-coupled speed cost), or accepting the
 # certified 35 s tail as the capture region. Side result: the :ball chain ran 220
 # 4-D steps at ~0.58 s/step vs ~1 s/step for :vertices — its headline validation.
+#
+# VOLUME ABLATION (2026-08-11, vs the PR's marche_avant sweep — his best entry
+# 7.9e-5 / median 3.0e-4 are INFORMAL: box violations on every config, no terminal
+# gate, 32-step chain): :logdet collapses here (V ≈ 1.6e-14 pancake at the 2nd
+# backward step — degenerate axes are profitable through the weak hitch channel);
+# :maximin + :max_volume certifies 128 steps with V_entry ≈ 8e-10 — sound but tiny.
+# Conclusion: on this system funnel volume is bounded by the SAME input-authority
+# wall as chain length; objective tuning cannot buy what the actuator cannot
+# defend. The volume levers here are the speed profile (authority per meter) —
+# unlike the pendulum, where :logdet+:max_volume beat the PR 132× (see
+# demo_pendulum.jl). Per-system rule: :logdet for strongly-actuated low-dim
+# systems, :maximin(+:max_volume) where weak channels invite pancakes.
 
 import Dionysos
 const DI = Dionysos
@@ -249,6 +261,20 @@ if !bres.success && !isempty(bres.steps)
             :gate_reason,
             get(last_step.summary, :adaptive_box_status, "?"),
         ),
+    )
+end
+
+# 4-D funnel volumes in the physical frame (V = π²/2·√det Q).
+if !isempty(bres.lmi_data.ellipsoids)
+    vols = [
+        π^2 / 2 * sqrt(LA.det(D * Matrix(LazySets.shape_matrix(E)) * D)) for
+        E in bres.lmi_data.ellipsoids
+    ]
+    sv = sort(vols)
+    println(
+        "  funnel volumes (certified segment): V_entry = $(round(vols[1]; sigdigits = 4)), ",
+        "Vmin = $(round(sv[1]; sigdigits = 4)), Vmed = $(round(sv[div(end, 2)]; sigdigits = 4)), ",
+        "Vmax = $(round(sv[end]; sigdigits = 4))",
     )
 end
 
