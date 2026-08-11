@@ -323,14 +323,45 @@ function _get_seed_trajectory(gen::TrajectoryGenerator)
     return nothing
 end
 
+# Normalized depth of x inside a box target (min face distance over the half-widths),
+# −Inf outside; unions take the best member; non-box members count as depth 0 when
+# they contain x (admissible but unranked).
+_target_members(S) = S isa LazySets.UnionSetArray ? LazySets.array(S) : (S,)
+
+function _target_depth(x, target_set)
+    best = -Inf
+    for m in _target_members(target_set)
+        if m isa LazySets.AbstractHyperrectangle
+            c = LazySets.center(m)
+            d = minimum(
+                1 - abs(x[i] - c[i]) / LazySets.radius_hyperrectangle(m, i) for
+                i in 1:LazySets.dim(m)
+            )
+            d >= 0 && (best = max(best, d))
+        elseif x ∈ m
+            best = max(best, 0.0)
+        end
+    end
+    return best
+end
+
+# Truncate at the DEEPEST in-target state, not the first hit: a first-hit endpoint
+# sits on the target boundary by construction, which starves the certifier's
+# terminal seed — the box-centered inscription needs a central endpoint
+# (plan.md gap-D / terminal-seed insight).
 function truncate_at_target(problem, traj::ST.Trajectory)
     xs = ST.states(traj)
-    idx = findfirst(x -> x ∈ problem.target_set, xs)
+    depths = [_target_depth(x, problem.target_set) for x in xs]
+    idx = findfirst(d -> d >= 0, depths)
 
     idx === nothing && return traj
-    idx == length(xs) && return traj
+    best_idx = idx
+    for k in (idx + 1):length(xs)
+        depths[k] > depths[best_idx] && (best_idx = k)
+    end
+    best_idx == length(xs) && return traj
 
-    return ST.Trajectory(xs[1:idx]; inputs = ST.inputs(traj)[1:(idx - 1)])
+    return ST.Trajectory(xs[1:best_idx]; inputs = ST.inputs(traj)[1:(best_idx - 1)])
 end
 
 function _validate!(gen::TrajectoryGenerator)

@@ -6,6 +6,7 @@ module MPPITrajectoryGenerator
 
 import MathematicalSystems as MS
 import Dionysos
+import LazySets
 using StaticArrays
 
 import ..AbstractTrajectoryGenerator
