@@ -10,17 +10,23 @@
 #
 #     julia --project=bench research/TrajectoryCertificationOptimizer/demo_pendulum.jl
 #
-# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED in globally
-# normalized coordinates, backward-only. Round 1 of the driver loop (~46 s after
-# a ~17 s seed): CEM-MPPI finds the 71-step swing-up, the backward chain
-# certifies ALL 71 steps, terminal gate passing, on the plant's true ±4.5 input
-# set (the P0 baseline failed at k≈19 against an unsound ±10.5 set). Measured
-# ablations along the way: per-step contractive scaling certifies but with tiny
-# funnels (coverage margin ~116k); NO scaling is infeasible at k≈63; globally
-# normalized dynamics (`ST.normalized_symbolic_provider`) certify with 29× better
-# entry coverage (~4k) — exact remainder, same conditioning. Input reserve and
-# box caps were measured NOT binding. Remaining gap D: the entry funnel still
-# does not cover the full ±10°×±0.5 initial set (margin 4021 > 1).
+# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED (71/71, terminal gate
+# passing, true ±4.5 input set) in globally normalized coordinates, backward-only,
+# VOLUME-TUNED. Funnel-size ladder, measured (V = π·√det Q, physical units;
+# PR benchmark = Florentin's best sweep config, `trajectory_std` scaling):
+#
+#   config                          V0 (entry)   Vmin       Vmed      coverage
+#   PR best (:logdet+:max_volume)   0.001605     0.000213   0.000767  —
+#   ours :maximin,:first_consistent 0.000209     0.000209   0.000267  4021
+#   ours :logdet+:max_volume        0.2124       0.01254    0.03673   5.48   ← this file
+#
+# Normalized coordinates + the volume objective + the box line-search give entry
+# funnels 132× the PR's best, with no collapse (Vmin healthy) and the initial-set
+# coverage margin down from 4021 to 5.5 — gap D nearly closed as a byproduct.
+# Earlier ablations: per-step scaling ⟹ tiny funnels; no scaling ⟹ infeasible at
+# k≈63; :maximin equalizes the chain (V0 = Vmin) — the safety choice, not the
+# size choice. Remaining: coverage margin 5.5 > 1 (entry semi-axes ~2.3× short of
+# the full ±10°×±0.5 initial set).
 
 import Dionysos
 const DI = Dionysos
@@ -219,6 +225,9 @@ prepare = traj -> ztraj(lift(traj))
 # full period, so the domain gate would only re-check |ω| ≤ 7 while flagging the
 # lifted θ — disable it here and rely on the generous ω margin. Box radii are in
 # z-units (x-units ./ t).
+# The :max_volume line search (Florentin's contribution) re-solves each step over
+# several box scales and keeps the biggest certified ellipsoid — the volume
+# analogue of :first_consistent, ~4× the SDPs per step.
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     true,
     [0.05, 0.10] ./ t,
@@ -232,9 +241,9 @@ adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
     30,
     1e-8,
     false,
-    [1.0],
-    :first_consistent,
-    true,
+    [0.75, 1.0, 1.5, 2.0],
+    :max_volume,
+    false,
 )
 back_opts = EB.ChainOptions(;
     maxδx = 12.0,
@@ -246,7 +255,9 @@ back_opts = EB.ChainOptions(;
     linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    objective = :maximin,
+    # :logdet maximizes true volume — the robustness objective; the collapse risk
+    # it carries (vs :maximin) is monitored by the funnel-area stats below.
+    objective = :logdet,
     check_state_domain = false,
 )
 
@@ -288,6 +299,22 @@ lifted_x = lift(traj)
 # Backward-only: the certificate needs no forward chain — the funnel controller
 # below is the complete product. (`κ_z(z) = K_z·z + b` maps back to the physical
 # frame as `κ_x(x) = K_z·D⁻¹·x + b`.)
+# Funnel sizes in the physical frame, comparable to the PR's sweep report
+# (V = π·√det(Q), the ellipse area; his best: V0 = 1.6e-3, Vmin = 2.1e-4).
+if bres.success
+    areas = [
+        π * sqrt(LA.det(D * Matrix(LazySets.shape_matrix(E)) * D)) for
+        E in bres.lmi_data.ellipsoids
+    ]
+    sorted_areas = sort(areas)
+    println(
+        "  funnel areas: V0 = $(round(areas[1]; sigdigits = 4)), ",
+        "Vmin = $(round(sorted_areas[1]; sigdigits = 4)), ",
+        "Vmed = $(round(sorted_areas[div(end, 2)]; sigdigits = 4)), ",
+        "Vmax = $(round(sorted_areas[end]; sigdigits = 4))",
+    )
+end
+
 if loop_success
     zctrl = AB.get_controller(bw)
     ctrl = ST.FunnelController(
@@ -326,17 +353,17 @@ denorm(E) = LazySets.Ellipsoid(
     Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
 )
 
-if bres !== nothing
-    for (i, E) in enumerate(bres.lmi_data.ellipsoids)
-        plot!(
-            fig,
-            denorm(E);
-            color = :steelblue,
-            alpha = 0.2,
-            linewidth = 0,
-            label = i == 1 ? "backward funnel" : "",
-        )
-    end
+funnel = [denorm(E) for E in bres.lmi_data.ellipsoids]
+for (i, E) in enumerate(funnel)
+    plot!(
+        fig,
+        E;
+        color = :steelblue,
+        alpha = 0.25,
+        linewidth = 1.2,
+        linecolor = :steelblue,
+        label = i == 1 ? "backward funnel" : "",
+    )
 end
 
 xs_plot = collect(ST.states(lifted_x))
@@ -351,6 +378,31 @@ plot!(
     label = "nominal trajectory",
 )
 
+# Zoom panel: the funnel up close on the mid-swing segment, where the ellipsoids
+# are actually visible at scale.
+mid = xs_plot[div(length(xs_plot), 2)]
+figz = plot(;
+    xlabel = "θ  [rad]",
+    ylabel = "ω  [rad/s]",
+    title = "zoom: mid-swing ellipsoids",
+    legend = false,
+    xlims = (mid[1] - 1.0, mid[1] + 1.0),
+    ylims = (mid[2] - 1.6, mid[2] + 1.6),
+)
+for E in funnel
+    plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
+end
+plot!(
+    figz,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 3,
+)
+
+final = plot(fig, figz; layout = (1, 2), size = (1500, 620))
 plot_path = joinpath(@__DIR__, "demo_pendulum.png")
-savefig(fig, plot_path)
+savefig(final, plot_path)
 println("— plot saved: $plot_path —")

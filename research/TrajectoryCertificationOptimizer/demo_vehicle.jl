@@ -337,13 +337,15 @@ end
 
 funnel_ellipsoids =
     (@isdefined(pr)) && pr.success ? pr.controller.ellipsoids : bres.lmi_data.ellipsoids
-for (i, E) in enumerate(funnel_ellipsoids)
+shadows = [funnel_shadow(E) for E in funnel_ellipsoids]
+for (i, E) in enumerate(shadows)
     plot!(
         fig,
-        funnel_shadow(E);
+        E;
         color = :steelblue,
-        alpha = 0.2,
-        linewidth = 0,
+        alpha = 0.25,
+        linewidth = 1.0,
+        linecolor = :steelblue,
         label = i == 1 ? "funnel (xy shadow)" : "",
     )
 end
@@ -360,6 +362,32 @@ plot!(
     label = "nominal trajectory",
 )
 
+# Zoom panel: the certified corridor up close (a window inside the certified
+# range, where the ellipsoid shadows are visible at scale).
+zc = collect(LazySets.center(shadows[max(1, div(length(shadows), 2))]))
+figz = plot(;
+    xlabel = "x  [m]",
+    ylabel = "y  [m]",
+    title = "zoom: funnel corridor",
+    legend = false,
+    aspect_ratio = :equal,
+    xlims = (zc[1] - 3.0, zc[1] + 3.0),
+    ylims = (zc[2] - 3.0, zc[2] + 3.0),
+)
+for E in shadows
+    plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
+end
+plot!(
+    figz,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 3,
+)
+
+final = plot(fig, figz; layout = (1, 2), size = (1500, 680))
 plot_path = joinpath(@__DIR__, "demo_vehicle.png")
-savefig(fig, plot_path)
+savefig(final, plot_path)
 println("— plot saved: $plot_path —")
