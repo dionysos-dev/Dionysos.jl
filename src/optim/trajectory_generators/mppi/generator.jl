@@ -31,6 +31,9 @@ mutable struct TrajectoryGenerator{RNG, FNOISE, FPROJ, FCOST, FWRAP} <:
     elite_frac::Float64
     anneal::Float64        # per-iteration σ multiplier (structured noise only)
     antithetic::Bool       # mirrored ± noise pairs
+    stop_on_success::Bool  # false: keep optimizing the cost after reaching the
+    # target — what re-planning needs when the seed already "succeeds" but is
+    # not certifiable
 
     # Outputs
     trajectory::Union{Nothing, ST.Trajectory}
@@ -61,6 +64,7 @@ function TrajectoryGenerator(;
     elite_frac::Real = 0.1,
     anneal::Real = 1.0,
     antithetic::Bool = false,
+    stop_on_success::Bool = true,
 )
     noise_model = noise === nothing ? noise_sampler : noise
     noise_model === nothing &&
@@ -96,6 +100,7 @@ function TrajectoryGenerator(;
         Float64(elite_frac),
         Float64(anneal),
         antithetic,
+        stop_on_success,
         nothing,
         false,
         NaN,
@@ -261,7 +266,7 @@ function generate!(gen::TrajectoryGenerator)
             best_traj, _ = rollout_trajectory(f, x0, u_new, wrapf, X, gen.hard_constraint)
         end
 
-        if PR.trajectory_success(problem, best_traj)
+        if gen.stop_on_success && PR.trajectory_success(problem, best_traj)
             break
         end
     end

@@ -31,6 +31,10 @@ import ..certify!
 import ..get_controller
 import ..get_success
 import ..get_solve_time
+# Generator half of the interface, used by the re-planning loop.
+import ..set_seed_trajectory!
+import ..generate!
+import ..get_trajectory
 
 export BackwardCertifier,
     ForwardCertifier,
@@ -44,7 +48,8 @@ export BackwardCertifier,
     backward_step!,
     forward_step!,
     run_chain!,
-    bidirectional_certify!
+    bidirectional_certify!,
+    prefix_replan_certify!
 
 include("options.jl")
 include("diagnostics.jl")
@@ -56,5 +61,6 @@ include("chain.jl")
 include("certifier.jl")
 include("forward.jl")
 include("bidirectional.jl")
+include("replan.jl")
 
 end # module
