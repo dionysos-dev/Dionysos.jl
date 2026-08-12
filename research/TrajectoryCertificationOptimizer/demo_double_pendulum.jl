@@ -53,15 +53,17 @@
 # needle at the 1.4 s cliff), and the FunnelController is validated closed-loop
 # on samples from the meaningful-region depth.
 #
-# vs PR #569 (Florentin, run_double_pendulum_mppi): his chain died at k=34/66
-# via logdet pancake collapse (radii ~3e-8) after fixed-box steps whose own
-# audit shows required radii exceeding the box 14.8× near the terminal
-# (consistency not enforced ⇒ those steps are informal). His plant also
+# vs PR #569 (Florentin, run_double_pendulum_mppi) — NOT the same task: his
+# MPPI experiment ran `benchmark_up_convex`, the UP-UP HANDSTAND (both angles
+# in π ± 25°, torque ±8.5, ω domain ±6, both angles periodic), where his chain
+# died at k=34/66 via logdet pancake collapse (radii ~3e-8) after fixed-box
+# steps whose own audit shows required radii exceeding the box 14.8× near the
+# terminal (consistency not enforced ⇒ those steps are informal). This demo
+# ships the swing_up objective (second link up, shoulder in ±π/2); the up-up
+# head-to-head with our stack is a separate experiment. His plant also
 # differs: an operator-precedence slip leaves the Coriolis term undivided by
 # (l·α) in BOTH his dynamic and his symbolic model (internally consistent,
-# but not the textbook double pendulum this demo certifies). Our chain is
-# consistency-enforced, collapse-proofed (:maximin), domain-capped, and runs
-# 57 certified steps on the corrected plant before the intrinsic wall.
+# but not the textbook double pendulum this demo certifies).
 
 import Dionysos
 const DI = Dionysos

@@ -621,10 +621,14 @@ Shipped: 57-step capture chain certified standalone (terminal ⊆ target, domain
 gates green), reported as a depth profile — guaranteed recovery region
 [0.06, 0.06, 0.3, 0.3] (rad, rad, rad/s, rad/s) at 0.12 s out, [0.014, …, 0.07] at
 0.5 s out — with closed-loop FunnelController validation (50/50) from the
-meaningful depth. Note vs the PR: its plant has an operator-precedence slip
-(Coriolis term not divided by l·α in both `dynamic` and the symbolic model), so
-its k=34/66 numbers are on a different — internally consistent but non-textbook —
-system, with unenforced fixed boxes (14.8× violations per its own audit).
+meaningful depth. Note vs the PR — different task: its MPPI experiment ran
+`benchmark_up_convex`, the UP-UP handstand (both angles π ± 25°, torque ±8.5,
+ω ∈ ±6, both angles periodic) — that is where k=34/66 collapsed; our shipped demo
+is the swing_up objective, and the up-up head-to-head is a follow-up experiment.
+Its plant also has an operator-precedence slip (Coriolis term not divided by l·α
+in both `dynamic` and the symbolic model), so its numbers are on an internally
+consistent but non-textbook system, with unenforced fixed boxes (14.8× violations
+per its own audit).
 Untried conservatism levers if the wall is ever revisited: region-selective
 `:vertices` in the pinch, per-axis remainder weighting, adaptive Δt schedules
 (volume/compute win — measured 16× terminal volume at fine Δt — but not a
