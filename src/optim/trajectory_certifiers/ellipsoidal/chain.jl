@@ -2,13 +2,46 @@
 # apply the soundness gates, and assemble the result.
 
 """
+    FunnelData
+
+The (possibly partial) certified funnel of a chain, forward-ordered.
+
+- `ellipsoids` — funnel ellipsoids. On SUCCESS they cover states `1..K+1`. On a
+  BACKWARD failure at `failed_k` they cover states `failed_k+1 .. K+1` — i.e.
+  `ellipsoids[1]` is the funnel at state `failed_k + 1` (`failed_k` doubles as
+  the index offset; `bidirectional_certify!` and `prefix_replan_certify!` rely
+  on this). On a FORWARD failure at `failed_k` they cover states `1..failed_k`;
+- `kappas` — the matching controllers (`|ellipsoids| = |kappas| + 1` whenever
+  at least one step certified);
+- `reason` — why the chain could not even start (no terminal/entry ellipsoid,
+  endpoint gate failure), or `nothing`.
+"""
+struct FunnelData{TE, TK}
+    ellipsoids::Vector{TE}
+    kappas::Vector{TK}
+    reason::Union{Nothing, String}
+end
+
+FunnelData(ellipsoids, kappas) = FunnelData(ellipsoids, kappas, nothing)
+
+_empty_funnel(reason) = FunnelData(
+    LazySets.Ellipsoid{Float64, Vector{Float64}, Matrix{Float64}}[],
+    MS.AffineMap[],
+    reason,
+)
+
+"""
     CertificationResult
 
 Outcome of a certification chain.
 
 - `success` — every step certified *and* every enabled gate passed (including
   terminal containment when checked);
-- `failed_k` — first failing step index, or `nothing`;
+- `failed_k` — first failing step index, or `nothing`. Backward chains fail AT
+  step `failed_k` (states `failed_k+1..K+1` stay certified — see
+  [`FunnelData`](@ref)); forward chains fail at step `failed_k` with states
+  `1..failed_k` certified; `failed_k == K + 1` is a complete chain whose
+  terminal gate failed;
 - `steps` — forward-ordered [`StepRecord`](@ref)s;
 - `controller` — the per-step affine controllers `κ_1..κ_K` on success, else `nothing`;
 - `terminal_contained` — whether the terminal ellipsoid lies inside the problem's
@@ -16,7 +49,7 @@ Outcome of a certification chain.
 - `initial_coverage` — max of `(v − c₁)ᵀP₁(v − c₁)` over the initial set's vertices
   (≤ 1 means the entry funnel covers the initial set; `nothing` if unavailable);
 - `state_domain_checked` — whether the reach-avoid gate could run on this domain type;
-- `lmi_data` — `(; ellipsoids, kappas)` with the forward-ordered funnel.
+- `lmi_data` — the [`FunnelData`](@ref).
 """
 struct CertificationResult{S, CTRL, LMI}
     success::Bool
@@ -35,6 +68,47 @@ function _collect_kappas(steps::AbstractVector{<:StepRecord})
     return [step.kappa for step in valid_steps]
 end
 
+# The ONE assembler both directions use: takes forward-ordered steps and
+# ellipsoids (backward chains reverse before calling).
+function _assemble_result(
+    success,
+    failed_k,
+    t0,
+    steps_forward,
+    ellipsoids_forward,
+    terminal_contained,
+    initial_cov,
+    domain_checked;
+    reason = nothing,
+)
+    kappas = _collect_kappas(steps_forward)
+    return CertificationResult(
+        success,
+        failed_k,
+        Float64(time() - t0),
+        steps_forward,
+        success ? kappas : nothing,
+        terminal_contained,
+        initial_cov,
+        domain_checked,
+        FunnelData(ellipsoids_forward, kappas, reason),
+    )
+end
+
+function _failed_before_start(failed_k, t0, terminal_contained, reason)
+    return CertificationResult(
+        false,
+        failed_k,
+        Float64(time() - t0),
+        StepRecord[],
+        nothing,
+        terminal_contained,
+        nothing,
+        false,
+        _empty_funnel(reason),
+    )
+end
+
 function _terminal_ellipsoid(ctx::ChainContext)
     opts = ctx.options
     nx = length(ctx.xs[end])
@@ -51,51 +125,23 @@ function _terminal_ellipsoid(ctx::ChainContext)
     return _default_terminal_ellipsoid(ctx.problem.target_set, xN, opts.terminal_shrink)
 end
 
-function _assemble_result(
-    success,
-    failed_k,
-    t0,
-    steps,
-    ellipsoids,
-    terminal_contained,
-    initial_cov,
-    domain_checked,
-)
-    steps_forward = reverse(steps)
-    ellipsoids_forward = reverse(ellipsoids)
-    kappas = _collect_kappas(steps_forward)
-
-    return CertificationResult(
-        success,
-        failed_k,
-        Float64(time() - t0),
-        steps_forward,
-        success ? kappas : nothing,
-        terminal_contained,
-        initial_cov,
-        domain_checked,
-        (; ellipsoids = ellipsoids_forward, kappas),
-    )
-end
-
 function run_chain!(ctx::ChainContext)
     t0 = time()
     opts = ctx.options
 
     E_next, terminal_reason = _terminal_ellipsoid(ctx)
-    if E_next === nothing
-        return CertificationResult(
-            false,
-            ctx.K,
-            Float64(time() - t0),
-            StepRecord[],
-            nothing,
-            false,
-            nothing,
-            false,
-            (; ellipsoids = [], kappas = [], terminal_reason),
+    if E_next !== nothing && terminal_reason === nothing
+        # The terminal enters no StepRecord — gate it here or never.
+        terminal_reason = endpoint_gate(
+            E_next,
+            ctx.problem.system.X,
+            opts.r_min,
+            opts.check_state_domain,
+            "terminal",
         )
+        terminal_reason === nothing || (E_next = nothing)
     end
+    E_next === nothing && return _failed_before_start(ctx.K, t0, false, terminal_reason)
 
     terminal_contained =
         opts.check_terminal ? terminal_containment(E_next, ctx.problem.target_set) : nothing
@@ -131,8 +177,8 @@ function run_chain!(ctx::ChainContext)
                 false,
                 k,
                 t0,
-                steps,
-                ellipsoids,
+                reverse(steps),
+                reverse(ellipsoids),
                 terminal_contained,
                 nothing,
                 domain_checked,
@@ -151,8 +197,8 @@ function run_chain!(ctx::ChainContext)
         success,
         success ? nothing : ctx.K + 1,
         t0,
-        steps,
-        ellipsoids,
+        reverse(steps),
+        reverse(ellipsoids),
         terminal_contained,
         initial_cov,
         domain_checked,

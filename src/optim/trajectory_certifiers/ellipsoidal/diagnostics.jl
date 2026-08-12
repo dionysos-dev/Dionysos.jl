@@ -1,5 +1,8 @@
-# Step-level diagnostics: everything recorded about a step beyond its certificate.
-# Nothing here is load-bearing for soundness — the gates are (gates.jl).
+# Step-level geometry helpers and diagnostics summaries. The radii helpers ARE
+# load-bearing: `_required_linearization_box_radii` / `_box_contains_required_radii`
+# back the box-consistency gate, `_ellipsoid_axis_radii` sizes the forward
+# linearization box, and `_controller_image_axis_radii` backs the forward u-side
+# consistency check. Only the `_step_summary` machinery is pure reporting.
 
 function _ellipsoid_axis_radii(E)
     Q = Matrix{Float64}(LazySets.shape_matrix(E))

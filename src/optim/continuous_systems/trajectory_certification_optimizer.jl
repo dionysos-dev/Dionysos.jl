@@ -40,6 +40,9 @@ mutable struct Optimizer{TG, TC, T} <: OP.AbstractDionysosOptimizer
 
     success::Bool
     rounds::Int
+    # One entry per round: (; round, gen_success, gen_time, cert_run,
+    # cert_success, cert_time) — the generate-vs-certify split per round.
+    round_log::Vector{NamedTuple}
     solve_time_sec::T
     print_level::Int
 end
@@ -57,6 +60,7 @@ function Optimizer(trajectory_generator, trajectory_certifier)
         nothing,
         false,
         0,
+        NamedTuple[],
         0.0,
         1,
     )
@@ -83,6 +87,7 @@ function MOI.optimize!(opt::Optimizer)
     opt.controller = nothing
     opt.success = false
     opt.rounds = 0
+    empty!(opt.round_log)
     opt.solve_time_sec = 0.0
 
     AB.set_problem!(opt.trajectory_generator, opt.concrete_problem)
@@ -97,23 +102,41 @@ function MOI.optimize!(opt::Optimizer)
         AB.generate!(opt.trajectory_generator)
 
         gen_success = AB.get_success(opt.trajectory_generator)
-        opt.trajectory = AB.get_trajectory(opt.trajectory_generator)
+        # Keep the best-so-far candidate: a later round whose generator produced
+        # nothing must not erase an earlier trajectory.
+        traj = AB.get_trajectory(opt.trajectory_generator)
+        traj === nothing || (opt.trajectory = traj)
 
-        if gen_success
+        cert_run = false
+        cert_success = false
+        if gen_success && traj !== nothing
             cert_traj =
-                opt.prepare_trajectory === nothing ? opt.trajectory :
-                opt.prepare_trajectory(opt.trajectory)
+                opt.prepare_trajectory === nothing ? traj : opt.prepare_trajectory(traj)
             AB.set_trajectory!(opt.trajectory_certifier, cert_traj)
             AB.certify!(opt.trajectory_certifier)
-
-            if AB.get_success(opt.trajectory_certifier)
-                opt.controller = AB.get_controller(opt.trajectory_certifier)
-                opt.success = true
-                break
-            end
+            cert_run = true
+            cert_success = AB.get_success(opt.trajectory_certifier)
         end
 
-        round == opt.max_rounds && break
+        push!(
+            opt.round_log,
+            (;
+                round,
+                gen_success,
+                gen_time = AB.get_solve_time(opt.trajectory_generator),
+                cert_run,
+                cert_success,
+                cert_time = cert_run ? AB.get_solve_time(opt.trajectory_certifier) : NaN,
+            ),
+        )
+
+        if cert_success
+            opt.controller = AB.get_controller(opt.trajectory_certifier)
+            opt.success = true
+            break
+        end
+
+        round >= opt.max_rounds && break
         opt.replan! === nothing ||
             opt.replan!(opt.trajectory_generator, opt.trajectory_certifier)
     end
@@ -121,6 +144,17 @@ function MOI.optimize!(opt::Optimizer)
     opt.solve_time_sec = time() - t0
 
     return
+end
+
+function MOI.get(opt::Optimizer, ::MOI.TerminationStatus)
+    opt.rounds == 0 && return MOI.OPTIMIZE_NOT_CALLED
+    return opt.success ? MOI.LOCALLY_SOLVED : MOI.LOCALLY_INFEASIBLE
+end
+
+function MOI.get(opt::Optimizer, ::MOI.RawStatusString)
+    opt.rounds == 0 && return "optimize! not called"
+    opt.success && return "certified in $(opt.rounds) round(s)"
+    return "no certified trajectory after $(opt.rounds) round(s)"
 end
 
 end # module

@@ -72,22 +72,32 @@ function prefix_replan_certify!(
 
     set_problem!(gen, prefix_problem)
     seed === nothing || set_seed_trajectory!(gen, seed)
-    gen.nstep = k_f + margin
+    set_horizon!(gen, k_f + margin)
 
     # The warm-start seed passes through the entry's center, so it already
     # "succeeds" against the prefix target — the generator must keep optimizing
     # (smoothness, terminal centering) past success or no exploration happens.
-    restore_stop = hasproperty(gen, :stop_on_success) ? gen.stop_on_success : nothing
-    restore_stop === nothing || (gen.stop_on_success = false)
+    # `set_stop_on_success!` returns the previous value (or `nothing` when the
+    # generator has no such switch) so `restore!` can undo it.
+    restore_stop = set_stop_on_success!(gen, false)
 
     # The prefix chain's own terminal: a shrunk copy of the entry ellipsoid — the
     # chain centers it at the prefix endpoint, so containment in E_entry is what
-    # the splice gate verifies afterwards.
+    # the splice gate verifies afterwards. BOTH option mutations are transient:
+    # they must be restored on every exit, or the caller's certifier is left
+    # reporting success without ever checking the target set again.
+    restore_terminal_shape = cert.options.terminal_shape
+    restore_check_terminal = cert.options.check_terminal
     cert.options.terminal_shape =
         terminal_shrink^2 .* Matrix{Float64}(LazySets.shape_matrix(E_entry))
     cert.options.check_terminal = false           # the suffix already closes the spec
 
-    restore!() = restore_stop === nothing || (gen.stop_on_success = restore_stop)
+    function restore!()
+        restore_stop === nothing || set_stop_on_success!(gen, restore_stop)
+        cert.options.terminal_shape = restore_terminal_shape
+        cert.options.check_terminal = restore_check_terminal
+        return nothing
+    end
 
     for round in 1:max_rounds
         generate!(gen)

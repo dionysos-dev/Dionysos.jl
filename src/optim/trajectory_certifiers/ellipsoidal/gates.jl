@@ -77,28 +77,52 @@ end
 
 _state_domain_supported(X) = X isa LazySets.AbstractHyperrectangle || X isa UT.SetMinus
 
-function state_domain_gate(rec::StepRecord, X)
-    rec.status == :ok || return nothing
-    E = rec.ellipsoid
-
+# Ellipsoid-level domain check, shared by the per-step gate and the endpoint gate.
+function _domain_reason(E, X)
     if X isa LazySets.AbstractHyperrectangle
         _ellipsoid_in_box(E, X) && return nothing
-        return "funnel ellipsoid at k=$(rec.k) is not contained in the state domain"
+        return "is not contained in the state domain"
     end
 
     if X isa UT.SetMinus
         included = UT.minus_included(X)
         included isa LazySets.AbstractHyperrectangle || return nothing
-        _ellipsoid_in_box(E, included) ||
-            return "funnel ellipsoid at k=$(rec.k) is not contained in the state domain"
+        _ellipsoid_in_box(E, included) || return "is not contained in the state domain"
         for hole in _each_member(UT.minus_hole(X))
             _provably_disjoint(E, hole) ||
-                return "funnel ellipsoid at k=$(rec.k) is not provably disjoint " *
-                       "from a domain hole (obstacle)"
+                return "is not provably disjoint from a domain hole (obstacle)"
         end
         return nothing
     end
 
+    return nothing
+end
+
+function state_domain_gate(rec::StepRecord, X)
+    rec.status == :ok || return nothing
+    reason = _domain_reason(rec.ellipsoid, X)
+    reason === nothing && return nothing
+    return "funnel ellipsoid at k=$(rec.k) " * reason
+end
+
+# ------------------------------------------------------------
+# Endpoint gate. The chain's data endpoint — the backward terminal E_{K+1} or the
+# forward entry E_1 — enters no StepRecord, so the per-step gates never see it;
+# without this gate a certificate could end in (or start from) an ellipsoid that
+# leaves the domain or crosses an obstacle.
+# ------------------------------------------------------------
+
+function endpoint_gate(E, X, r_min::Float64, check_state_domain::Bool, label::String)
+    if r_min > 0.0
+        Q = LA.Symmetric(Matrix{Float64}(LazySets.shape_matrix(E)))
+        rmin = sqrt(max(0.0, LA.eigmin(Q)))
+        rmin >= r_min || return "$label ellipsoid collapsed: min semi-axis " *
+               "$(round(rmin; sigdigits = 3)) < r_min $(r_min)"
+    end
+    if check_state_domain
+        reason = _domain_reason(E, X)
+        reason === nothing || return "$label ellipsoid " * reason
+    end
     return nothing
 end
 
@@ -187,6 +211,9 @@ function _gate_failure(rec::StepRecord, gate::Symbol, reason::String)
     )
 end
 
+# Backward records carry the box-consistency evidence (required_X/U radii);
+# forward boxes are known before solving, so their records carry none and get
+# the tube-inflation guard instead.
 function apply_gates(rec::StepRecord, ctx::ChainContext)
     rec.status == :ok || return rec
 
@@ -198,6 +225,31 @@ function apply_gates(rec::StepRecord, ctx::ChainContext)
 
     if ctx.options.check_state_domain
         reason = state_domain_gate(rec, ctx.problem.system.X)
+        reason === nothing || return _gate_failure(rec, :state_domain, reason)
+    end
+
+    return rec
+end
+
+function apply_gates(rec::StepRecord, problem, opts::ForwardOptions)
+    rec.status == :ok || return rec
+
+    reason = collapse_gate(rec, opts.r_min)
+    reason === nothing || return _gate_failure(rec, :collapse, reason)
+
+    if isfinite(opts.α_max) &&
+       rec.summary.contraction isa Float64 &&
+       !isnan(rec.summary.contraction) &&
+       rec.summary.contraction > opts.α_max
+        return _gate_failure(
+            rec,
+            :tube_inflation,
+            "tube scale $(round(rec.summary.contraction; sigdigits = 3)) exceeds α_max",
+        )
+    end
+
+    if opts.check_state_domain
+        reason = state_domain_gate(rec, problem.system.X)
         reason === nothing || return _gate_failure(rec, :state_domain, reason)
     end
 

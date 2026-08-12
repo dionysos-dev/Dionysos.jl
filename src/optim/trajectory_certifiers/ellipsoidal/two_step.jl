@@ -18,7 +18,10 @@ function _two_step_rescue!(ctx::ChainContext, k::Int, steps, ellipsoids)
     opts = ctx.options
     aopts = opts.adaptive_boxes
     aopts === nothing && return nothing
-    opts.state_scaling === nothing || return nothing   # v1: normalized frames only
+    # The 2-step kernel is :vertices-only (documented on ChainOptions and on
+    # `ST.solve_transition_backward_2step`); other remainder chains skip the
+    # rescue instead of crashing mid-chain or being silently downgraded.
+    opts.remainder_model === :vertices || return nothing
     k <= ctx.K - 1 || return nothing                   # needs κ_{k+1}
     length(ellipsoids) >= 2 || return nothing          # needs E_{k+2}
 

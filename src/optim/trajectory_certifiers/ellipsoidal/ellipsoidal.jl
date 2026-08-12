@@ -2,18 +2,21 @@ module EllipsoidalTrajectoryCertifier
 
 # Ellipsoidal funnel certification of a nominal trajectory (plan.md §4–§5): one
 # transition-synthesis SDP per step chains ellipsoids (E_1, κ_1, …, E_{K+1}) with the
-# guarantee x ∈ E_k, u = κ_k(x) ⟹ x⁺ ∈ E_{k+1}. The module is split by concern:
+# guarantee x ∈ E_k, u = κ_k(x) ⟹ x⁺ ∈ E_{k+1}. The module is split by concern,
+# and BOTH directions run on the same context, gates, and result assembly:
 #
-#   options.jl        — ChainOptions + AdaptiveLinearizationBoxOptions
-#   diagnostics.jl    — step summaries, radii/volume helpers (out of the hot path)
-#   context.jl        — ChainContext (problem + trajectory + provider), state scaling
+#   options.jl        — ChainOptions + ForwardOptions + AdaptiveLinearizationBoxOptions
+#   diagnostics.jl    — step summaries, radii/volume helpers
+#   context.jl        — ChainContext (problem + trajectory data + provider)
 #   steps.jl          — StepRecord and the fixed-box backward step
 #   adaptive_boxes.jl — the adaptive linearization-box search (backward only)
 #   two_step.jl       — the two-step rescue (skip a needle intermediate funnel)
-#   gates.jl          — soundness gates: box consistency, collapse, state domain,
+#   gates.jl          — soundness gates (per-step AND chain endpoints): box
+#                       consistency, collapse, tube inflation, state domain,
 #                       terminal containment, initial coverage
-#   chain.jl          — run_chain! + CertificationResult
-#   certifier.jl      — BackwardCertifier (the AbstractTrajectoryCertifier front)
+#   chain.jl          — FunnelData + CertificationResult + the backward chain
+#   forward.jl        — the forward chain (entry ellipsoid, tube propagation)
+#   certifier.jl      — BackwardCertifier / ForwardCertifier (one shared front)
 
 import Dionysos
 import LinearAlgebra as LA
@@ -32,8 +35,11 @@ import ..certify!
 import ..get_controller
 import ..get_success
 import ..get_solve_time
+import ..get_result
 # Generator half of the interface, used by the re-planning loop.
 import ..set_seed_trajectory!
+import ..set_horizon!
+import ..set_stop_on_success!
 import ..generate!
 import ..get_trajectory
 
@@ -44,11 +50,8 @@ export BackwardCertifier,
     ForwardOptions,
     StepRecord,
     CertificationResult,
+    FunnelData,
     get_result,
-    build_context,
-    backward_step!,
-    forward_step!,
-    run_chain!,
     bidirectional_certify!,
     prefix_replan_certify!
 

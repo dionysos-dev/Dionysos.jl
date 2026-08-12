@@ -8,7 +8,7 @@ _grow_infeasible_box_radii(δ, δmax, growth) = min.(growth .* δ, δmax)
 _grow_to_required_box_radii(required, δmin, δmax, safety) =
     min.(max.(safety .* required, δmin), δmax)
 
-function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, xnext, uk, δx, δu; atol)
+function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, uk, δx, δu; atol)
     approx = ST.build_affine_approximation(ctx.affine_provider, xk, uk; δx = δx, δu = δu)
 
     E_prev, kappa, cost = _solve_transition(
@@ -16,7 +16,6 @@ function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, xnext, uk, δx, δ
         approx,
         E_next,
         xk,
-        xnext,
         uk;
         box_cap = ctx.options.domain_cap ? δx : nothing,
     )
@@ -88,7 +87,6 @@ function _adaptive_backward_step!(ctx::ChainContext, k::Int, E_next)
     @assert opts !== nothing "adaptive_boxes cannot be nothing in adaptive mode."
 
     xk = collect(ctx.xs[k])
-    xnext = collect(LazySets.center(E_next))
     uk = collect(ctx.us[k])
 
     δx = _clamp_box_radii(copy(opts.ΔX_initial), opts.ΔX_min, opts.ΔX_max)
@@ -105,7 +103,6 @@ function _adaptive_backward_step!(ctx::ChainContext, k::Int, E_next)
             E_next,
             k,
             xk,
-            xnext,
             uk,
             δx,
             δu;
@@ -132,7 +129,7 @@ function _adaptive_backward_step!(ctx::ChainContext, k::Int, E_next)
         if result.status == :ok
             base = (; δx = copy(δx), δu = copy(δu), result, iter)
 
-            if opts.keep_first_consistent || opts.objective == :first_consistent
+            if opts.objective == :first_consistent
                 return StepRecord(
                     k,
                     :ok,
@@ -204,7 +201,6 @@ function _adaptive_backward_step!(ctx::ChainContext, k::Int, E_next)
                 E_next,
                 k,
                 xk,
-                xnext,
                 uk,
                 δx_candidate,
                 δu_candidate;

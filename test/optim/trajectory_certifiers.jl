@@ -104,22 +104,16 @@ const EB = AB.EllipsoidalTrajectoryCertifier
         ST.format_input_set(_U_),
         ST.format_noise_set(Wformat),
     )
-    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-        false,
-        [0.2, 0.2],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        [0.5, 0.5],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        2.0,
-        1.05,
-        1,
-        1e-8,
-        false,
-        [1.0],
-        :first_consistent,
-        true,
+    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+        enabled = false,
+        ΔX_initial = [0.2, 0.2],
+        ΔX_min = [0.01, 0.01],
+        ΔX_max = [1.0, 1.0],
+        ΔU_initial = [0.5, 0.5],
+        ΔU_min = [0.01, 0.01],
+        ΔU_max = [1.0, 1.0],
+        growth = 2.0,
+        max_iters = 1,
     )
     ellip_opts = EB.ChainOptions(;
         maxδx = 30,
@@ -156,7 +150,11 @@ const EB = AB.EllipsoidalTrajectoryCertifier
     fw_res = EB.get_result(fw_cert)
     @test AB.get_success(fw_cert) isa Bool
     @test fw_res !== nothing
-    @test fw_res.initial_coverage == 1.0     # exact by construction in forward mode
+    # With a user-supplied entry_shape the coverage is REAL, not assumed: this
+    # 0.05-radius entry provably does not cover the 0.05-half-width initial box
+    # (half-diagonal ≈ 0.0707), so the margin must exceed 1.
+    @test fw_res.initial_coverage isa Float64
+    @test fw_res.initial_coverage > 1.0
     @test length(fw_res.lmi_data.ellipsoids) == length(ST.states(traj)) ||
           fw_res.failed_k !== nothing
 

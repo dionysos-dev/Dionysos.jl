@@ -43,7 +43,6 @@ function _fixed_backward_step!(ctx::ChainContext, k::Int, E_next)
     @assert !isempty(opts.linearization_δu) "Set options.linearization_δu for fixed mode."
 
     xk = collect(ctx.xs[k])
-    xnext = collect(LazySets.center(E_next))
     uk = collect(ctx.us[k])
 
     δx = collect(Float64, opts.linearization_δx)
@@ -56,7 +55,6 @@ function _fixed_backward_step!(ctx::ChainContext, k::Int, E_next)
         approx,
         E_next,
         xk,
-        xnext,
         uk;
         box_cap = ctx.options.domain_cap ? δx : nothing,
     )
