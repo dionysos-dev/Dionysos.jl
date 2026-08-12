@@ -663,13 +663,29 @@ immediately (the saturated nominal leaves ~1.0 of correction headroom against
 characterized bidirectionally with seven null ablations around it — the clean
 signature of a per-step certificate on a rank-1-B plant: u defends one direction
 per step, the expansion lives in the other three. Remaining research levers (not
-tuning): (1) MULTI-STEP (lifted) transitions — certify E_k → E_{k+2} in one LMI
-with composed maps and two gains, giving the certificate the 2-step coupling
-channel u → ω₁ → ω₂ that per-step chains can never see (helps both directions);
-(2) anti-greedy windowed chain optimization (~5-step joint SDPs — both audits
-show per-step greed contributes); (3) adaptive Δt schedules (volume/compute win —
-measured 16× terminal volume at fine Δt — but not a wall-breaker: runway is
-Δt-invariant).
+tuning): (1) anti-greedy windowed chain optimization (~5-step joint SDPs — both
+audits show per-step greed contributes); (2) adaptive Δt schedules
+(volume/compute win — measured 16× terminal volume at fine Δt — but not a
+wall-breaker: runway is Δt-invariant); (3) joint bilinear multi-gain synthesis
+(the only route left to the multi-step coupling channel — nonconvex, see below).
+
+**MULTI-STEP (LIFTED) TRANSITIONS — BUILT AND MEASURED NEGATIVE (machinery
+kept)**: `ST.solve_transition_backward_2step` certifies E_k → E_{k+2} in one LMI
+through a FIXED second controller (composed maps M = A₂+B₂K₁, aligned remainder
+boxes M·e₁ ⊕ e₂ as 2ⁿ affine vertices, u₁-feasibility over the true intermediate
+excursion, full a-posteriori validation; 155 test assertions) + the
+`two_step_rescue` chain mode. Three measured mechanisms kill the convexified
+variants on the double pendulum: (a) needle-targeted rescue — by the first
+failure the downstream funnels are ~1.4e-3-radius needles whose margin the
+composition's ℓ-offset and any constant e₂ budget already consume (e₂ sizing
+from adaptive maxima was 6 orders too big; even excursion-sized budgets at
+6e-5..8e-4 fail); (b) the fixed κ₁ is NOT the problem — chain gains are modest
+(|κ|≈1.9) and a moderate LQR mid-κ (|K|≈22) fails identically; (c) stride-2
+from the terminal (whole chain as 2-step pairs through stabilizing mid-κs,
+bottom-up joint box ladder) certifies 2 transitions vs the 1-step chain's 32 —
+the fixed-mid-κ + worst-case-constant-e₂ composition loses far more than the
+skipped intermediate containment saves. The genuine 2-step coupling advantage
+requires joint (bilinear) synthesis of both gains.
 
 ---
 
