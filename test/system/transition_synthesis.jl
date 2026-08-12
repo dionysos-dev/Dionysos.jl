@@ -156,6 +156,54 @@ end
     end
 end
 
+@testset "solve_transition_backward (source_cap slab)" begin
+    Lip = [1.0, 1.0, 0.5, 0.1]
+    common = (; maxδx = 2.0, maxδu = 2.0, λ = 0.01, objective = :maximin)
+    free = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        common...,
+    )
+    @test free.feasible
+    # Cap the second axis well below the uncapped radius so the constraint binds.
+    r_free = sqrt.(diag(Matrix(LazySets.shape_matrix(free.source))))
+    cap = [r_free[1] * 2.0, r_free[2] / 2.0]
+    capped = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        source_cap = cap,
+        common...,
+    )
+    @test capped.feasible
+    Qc = Matrix(LazySets.shape_matrix(capped.source))
+    # Q[i,i] ≤ dᵢ² is exactly "ellipsoid ⊆ slab |xᵢ − c₁ᵢ| ≤ dᵢ".
+    @test all(sqrt.(diag(Qc)) .<= cap .+ 1e-6)
+
+    # The capped source still certifies the transition.
+    K = Matrix(capped.controller.A)
+    b = collect(capped.controller.c)
+    for x in UT.samples(capped.source, 50)
+        u = K * x + b
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ E2
+        end
+    end
+end
+
 @testset "solve_transition_forward (duality with backward)" begin
     Lip = [1.0, 1.0, 0.5, 0.1]
     result_b = ST.solve_transition_backward(

@@ -11,7 +11,15 @@ _grow_to_required_box_radii(required, δmin, δmax, safety) =
 function _evaluate_adaptive_box_candidate(ctx, E_next, k, xk, xnext, uk, δx, δu; atol)
     approx = ST.build_affine_approximation(ctx.affine_provider, xk, uk; δx = δx, δu = δu)
 
-    E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
+    E_prev, kappa, cost = _solve_transition(
+        ctx,
+        approx,
+        E_next,
+        xk,
+        xnext,
+        uk;
+        box_cap = ctx.options.domain_cap ? δx : nothing,
+    )
 
     if E_prev === nothing || kappa === nothing
         return (;

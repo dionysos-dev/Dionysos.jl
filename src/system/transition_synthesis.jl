@@ -425,6 +425,7 @@ function _free_source_kernel(
     λ,
     objective::Symbol,
     remainder_model::Symbol,
+    source_cap = nothing,
 )
     nx = length(c)
     nu = size(U[1], 2)
@@ -439,6 +440,15 @@ function _free_source_kernel(
     model = Model(sdp_solver)
     @variable(model, L[i = 1:nx, j = 1:nx], PSD)
     @variable(model, F[i = 1:nu, j = 1:nx])
+
+    # Per-axis cap on the source: Q₁ = L·Lᵀ, so Q₁[i,i] = ‖L[i,:]‖² and the slab
+    # containment |xᵢ − c₁ᵢ| ≤ dᵢ over the ellipsoid is the SOC row ‖L[i,:]‖ ≤ dᵢ.
+    if source_cap !== nothing
+        @assert length(source_cap) == nx "source_cap must have one entry per state."
+        for i in 1:nx
+            @constraint(model, vcat(source_cap[i], L[i, :]) in SecondOrderCone())
+        end
+    end
     @variable(model, ell[i = 1:nu, j = 1:1])
     @variable(model, beta[i = 1:Nx, j = 1:Nw] >= 0)
     @variable(model, tau[i = 1:Nu] >= 0)
@@ -593,6 +603,10 @@ function _free_source_kernel(
         all(τv .>= -_VALIDATION_TOL) &&
         δxv <= maxδx^2 + _VALIDATION_TOL &&
         δuv <= maxδu^2 + _VALIDATION_TOL &&
+        (
+            source_cap === nothing ||
+            all(sum(abs2, Lval[i, :]) <= source_cap[i]^2 + _VALIDATION_TOL for i in 1:nx)
+        ) &&
         _validate_blocks(blocks)
     if !validated
         @debug "solve_transition_backward: solver-accepted solution failed validation" term pstat
@@ -627,7 +641,10 @@ collapse-proof and cone-free, the certifier's default), `:logdet` the true volum
 `:trace` its stable proxy. (`use_log_det = true/false` is the deprecated spelling of
 `:logdet`/`:trace` and wins when passed.)
 `u_ref` is the reference input the controller stays `δu`-close to; `maxδx` /
-`maxδu` cap the synthesized deviations. Other arguments as in
+`maxδu` cap the synthesized deviations. `source_cap` (a per-state vector `d`)
+additionally confines the source to the axis-aligned slab `|xᵢ − c₁ᵢ| ≤ dᵢ` —
+one SOC row per state on the shape factor — so a chain can keep its funnels
+inside a state domain by construction. Other arguments as in
 [`solve_transition`](@ref). Returns a [`TransitionResult`](@ref) whose `source`
 is the synthesized ellipsoid.
 """
@@ -646,6 +663,7 @@ function solve_transition_backward(
     λ = 0.01,
     objective::Symbol = :logdet,
     remainder_model::Symbol = :vertices,
+    source_cap = nothing,
     use_log_det = nothing,
 )
     # `use_log_det` is the pre-maximin spelling; it wins when passed explicitly.
@@ -668,6 +686,7 @@ function solve_transition_backward(
         λ = λ,
         objective = objective,
         remainder_model = remainder_model,
+        source_cap = source_cap,
     )
     feasible || return _infeasible_transition()
     K, ℓ = _split_controller(kappa)

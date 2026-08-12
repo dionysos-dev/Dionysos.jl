@@ -51,7 +51,15 @@ function _fixed_backward_step!(ctx::ChainContext, k::Int, E_next)
 
     approx = ST.build_affine_approximation(ctx.affine_provider, xk, uk; δx = δx, δu = δu)
 
-    E_prev, kappa, cost = _solve_transition(ctx, approx, E_next, xk, xnext, uk)
+    E_prev, kappa, cost = _solve_transition(
+        ctx,
+        approx,
+        E_next,
+        xk,
+        xnext,
+        uk;
+        box_cap = ctx.options.domain_cap ? δx : nothing,
+    )
 
     if E_prev === nothing || kappa === nothing
         return StepRecord(

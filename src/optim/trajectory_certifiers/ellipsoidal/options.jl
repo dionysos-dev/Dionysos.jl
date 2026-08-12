@@ -43,7 +43,15 @@ Options of the ellipsoidal certification chain.
 - `linearization_δx/δu` — fixed linearization-box radii (fixed mode);
 - `adaptive_boxes` — [`AdaptiveLinearizationBoxOptions`](@ref) or `nothing`;
 - `objective` — size term of the SDP objective: `:maximin` (largest smallest
-  semi-axis — collapse-proof, the default), `:logdet` (true volume), or `:trace`.
+  semi-axis — collapse-proof, the default), `:logdet` (true volume), or `:trace`;
+- `domain_cap` — make the synthesis domain- and box-aware: cap every funnel
+  inside the state domain AND inside the current linearization box by
+  construction (per-step SOC slabs, `source_cap` of
+  `ST.solve_transition_backward`). Without it a size-maximizing objective grows
+  funnels past `X` (state-domain gate rejects a posteriori) or past the box
+  (state-side inconsistency drives the adaptive search into ever-bigger boxes
+  whose Hessian bounds kill the LMI); with it, box scales become a clean
+  line-search dial for the largest certifiable funnel.
 
 Soundness gates (plan.md §4.2):
 
@@ -72,6 +80,7 @@ Base.@kwdef mutable struct ChainOptions
     # :vertices enumerates the 2ⁿ Lipschitz-box corners (exact); :ball wraps them in
     # one norm-bounded uncertainty (constant block count — the sane choice at n ≥ 4).
     remainder_model::Symbol = :vertices
+    domain_cap::Bool = false
 
     r_min::Float64 = 0.0
     check_state_domain::Bool = true

@@ -159,6 +159,7 @@ function _transition_backward(
     state_scaling,
     objective = :maximin,
     remainder_model = :vertices,
+    source_cap = nothing,
 )
     if state_scaling === nothing
         result = ST.solve_transition_backward(
@@ -176,6 +177,7 @@ function _transition_backward(
             λ = λ,
             objective = objective,
             remainder_model = remainder_model,
+            source_cap = source_cap,
         )
         return result.source, result.controller, result.cost
     end
@@ -186,6 +188,18 @@ function _transition_backward(
     E_next_z = _scale_target_ellipsoid(E_next, xnext, state_scaling)
     Lz = _scaled_lipschitz(L, nx, state_scaling)
     Sz = _scaled_transition_cost(S, xk, length(uk), state_scaling)
+
+    # The kernel's slab cap is axis-aligned; only a diagonal per-step scaling maps
+    # an axis-aligned slab in x to one in z.
+    source_cap_z = nothing
+    if source_cap !== nothing
+        T = Matrix{Float64}(state_scaling)
+        LA.isdiag(T) || error(
+            "domain_cap with a non-diagonal state_scaling is unsupported: the " *
+            "state-domain slab does not stay axis-aligned in scaled coordinates.",
+        )
+        source_cap_z = collect(Float64, source_cap) ./ LA.diag(T)
+    end
 
     result = ST.solve_transition_backward(
         affsys_z,
@@ -202,6 +216,7 @@ function _transition_backward(
         λ = λ,
         objective = objective,
         remainder_model = remainder_model,
+        source_cap = source_cap_z,
     )
 
     result.feasible || return nothing, nothing, nothing
@@ -217,7 +232,39 @@ function _transition_backward(
     return E_prev, cont, result.cost
 end
 
-function _solve_transition(ctx::ChainContext, approx, E_next, xk, xnext, uk)
+# Per-step slab cap from the state domain: the distance from the nominal center to
+# each domain face, shaved so solver-tolerance solutions still pass the state-domain
+# gate. `nothing` when the domain is unsupported or the nominal sits outside it (the
+# gate then reports the violation as before).
+function _domain_cap(X, xk)
+    box = X isa UT.SetMinus ? UT.minus_included(X) : X
+    box isa LazySets.AbstractHyperrectangle || return nothing
+    cap = min.(LazySets.high(box) .- xk, xk .- LazySets.low(box))
+    all(cap .> 0) || return nothing
+    return cap .* (1 - 1e-6)
+end
+
+function _solve_transition(
+    ctx::ChainContext,
+    approx,
+    E_next,
+    xk,
+    xnext,
+    uk;
+    box_cap = nothing,
+)
+    source_cap =
+        ctx.options.domain_cap ? _domain_cap(ctx.problem.system.X, collect(Float64, xk)) :
+        nothing
+    # Cap the source to the linearization box as well: state-side box consistency
+    # holds by construction, so the adaptive search line-searches box scales for
+    # the largest certifiable funnel instead of chasing a size-maximizing SDP with
+    # ever-bigger boxes (whose Hessian bounds eventually kill the LMI — measured
+    # `lmi_infeasible_at_max_box` on the double pendulum's mid-swing).
+    if box_cap !== nothing
+        shaved = collect(Float64, box_cap) .* (1 - 1e-6)
+        source_cap = source_cap === nothing ? shaved : min.(source_cap, shaved)
+    end
     return _transition_backward(
         approx.system,
         E_next,
@@ -235,5 +282,6 @@ function _solve_transition(ctx::ChainContext, approx, E_next, xk, xnext, uk)
         state_scaling = ctx.options.state_scaling,
         objective = ctx.options.objective,
         remainder_model = ctx.options.remainder_model,
+        source_cap = source_cap,
     )
 end
