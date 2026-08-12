@@ -130,18 +130,15 @@ discrete_problem = PR.OptimalControlProblem(
 u_max = 4.5
 u_plan = 0.6 * u_max
 
-struct WrapTerminalPull <: AB.AbstractCostTerm
-    w::Float64
-end
-function AB.cost_final(term::WrapTerminalPull, acc, xT)
-    xw = wrap(xT)
-    dθ = rem(xw[1] - π, 2π, RoundNearest)
-    return acc + term.w * ((dθ / 0.249)^2 + (xw[2] / 0.95)^2)
-end
-
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(T_split; wrap = wrap),
-    WrapTerminalPull(500.0),
+    AB.TerminalPullCost(
+        [π, 0.0],
+        [0.249, 0.95];
+        w = 500.0,
+        wrap = wrap,
+        periods = [2π, nothing],
+    ),
     AB.InputEffortCost(0.001),
     AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
     AB.DomainPenaltyCost(problem.system.X; wrap = wrap),
@@ -203,47 +200,32 @@ provider = ST.SymbolicAffineApproximationProvider(
 
 t = [0.85 * 15.0 * π / 180.0, 0.25]
 zprovider = ST.normalized_symbolic_provider(provider, t)
-D = LA.Diagonal(t)
 
-zbox(H) = LazySets.Hyperrectangle(;
-    low = SVector{2}(LazySets.low(H) ./ t),
-    high = SVector{2}(LazySets.high(H) ./ t),
-)
 zproblem = PR.OptimalControlProblem(
     base.system,
-    zbox(problem.initial_set),
-    zbox(problem.target_set),
+    ST.normalize_box(problem.initial_set, t),
+    ST.normalize_box(problem.target_set, t),
     nothing,
     nothing,
     base.time,
     nothing,
 )
-ztraj = ST.Trajectory(
-    [SVector{2}(collect(x) ./ t) for x in ST.states(lifted)];
-    inputs = collect(ST.inputs(lifted)),
-);
+ztraj = ST.normalize_trajectory(lifted, t);
 
 # The backward chain starts from an ellipsoid inscribed in the target around the
 # endpoint and synthesizes each ``(E_k, κ_k)`` against ``E_{k+1}``, searching
 # linearization-box scales for the largest certified ellipsoid (`:logdet`
 # objective + `:max_volume` line search — the volume-tuned configuration).
 
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    true,
-    [0.05, 0.10] ./ t,
-    [0.005, 0.005] ./ t,
-    [2.5, 3.5] ./ t,
-    [0.25],
-    [0.01],
-    [4.5],
-    1.5,
-    1.05,
-    30,
-    1e-8,
-    false,
-    [0.75, 1.0, 1.5, 2.0],
-    :max_volume,
-    false,
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.10] ./ t,
+    ΔX_min = [0.005, 0.005] ./ t,
+    ΔX_max = [2.5, 3.5] ./ t,
+    ΔU_initial = [0.25],
+    ΔU_min = [0.01],
+    ΔU_max = [4.5],
+    search_scales = [0.75, 1.0, 1.5, 2.0],
+    objective = :max_volume,
 )
 back_opts = EB.ChainOptions(;
     maxδx = 12.0,
@@ -291,7 +273,7 @@ end
 f_z(z, u) = SVector{2}(f_x(SVector{2}(t .* z), u) ./ t)
 
 E_entry = res.lmi_data.ellipsoids[1]
-zT = zbox(problem.target_set)
+zT = ST.normalize_box(problem.target_set, t)
 n_samples = 25
 n_ok = 0
 rng_val = Random.MersenneTwister(7)
@@ -310,11 +292,6 @@ end
 # The certified corridor in the lifted ``(θ, ω)`` plane: every state inside a
 # blue ellipsoid is provably steered along the chain into the target.
 
-denorm(E) = LazySets.Ellipsoid(
-    t .* collect(LazySets.center(E)),
-    Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
-)
-
 fig = plot(;
     xlabel = "θ  [rad]",
     ylabel = "ω  [rad/s]",
@@ -327,7 +304,7 @@ plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = "target set
 for (i, E) in enumerate(res.lmi_data.ellipsoids)
     plot!(
         fig,
-        denorm(E);
+        ST.denormalize_ellipsoid(E, t);
         color = :steelblue,
         alpha = 0.25,
         linewidth = 1.2,
