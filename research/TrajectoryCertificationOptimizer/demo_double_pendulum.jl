@@ -49,9 +49,17 @@
 # certified suffix re-certified standalone as a complete chain — a ~1.4 s funnel
 # corridor into the upright target, terminal ⊆ target, domain gates green. The
 # corridor is reported as a DEPTH PROFILE (guaranteed recovery region vs time
-# before target: ~[0.06, 0.06, 0.3, 0.3] physical semi-axes at ~0.1 s out,
+# before target: ~[0.073, 0.073, 0.36, 0.36] physical semi-axes at ~0.1 s out,
 # needle at the 1.4 s cliff), and the FunnelController is validated closed-loop
 # on samples from the meaningful-region depth.
+#
+# REMAINDER-MODEL LADDER (measured on the up-up trajectory, transfers here):
+# :ball and :john_ball are equivalent (both ball covers are corner-tight; the
+# per-axis radii buy nothing), :vertices is strictly tighter (exact joint
+# corner support). Regime dependence: at Δt = 0.05 (up-up) :vertices moves the
+# WALL (+33% runway); at Δt = 0.025 (here) the per-step box is small enough
+# that the wall is physics-dominated — runway unchanged, but the guaranteed
+# regions DOUBLE at every depth. 16 blocks/SDP is affordable at n = 4.
 #
 # vs PR #569 (Florentin, run_double_pendulum_mppi) — NOT the same task: his
 # MPPI experiment ran `benchmark_up_convex`, the UP-UP HANDSTAND (both angles
@@ -338,7 +346,11 @@ back_opts = EB.ChainOptions(;
     linearization_δu = [0.2],
     adaptive_boxes = adaptive_opts,
     objective = :maximin,
-    remainder_model = :ball,
+    # Measured remainder ladder on the up-up trajectory (same chain machinery):
+    # :ball wall k=32, :john_ball k=32 (per-axis radii buy nothing — both balls
+    # are corner-tight; the win is the exact joint corner support), :vertices
+    # k=24 (+33% runway). 2⁴ = 16 blocks/SDP is affordable at this chain length.
+    remainder_model = :vertices,
     domain_cap = true,
     check_state_domain = true,
 )

@@ -12,20 +12,23 @@
 # [3.01, 2.85, 1.45, 1.23] — both angles inside π ± 25° (his flip: 2.55 s).
 #
 # Certification (same machinery as demo_double_pendulum.jl: RK2 certified
-# plant, normalized coordinates, :maximin, :ball, domain_cap, box-scale
-# ladder): 24 enforced transitions (k=56→33), V_max ≈ 1.9 at the terminal,
-# wall mid-flip at k=32 — the same per-unit-time ballistic funnel bleed as the
-# swing_up (certified runway 1.2 s vs 1.4 s there). The capture-phase
-# certificate is re-derived standalone below with the depth profile and
-# closed-loop validation.
+# plant, normalized coordinates, :maximin, domain_cap, box-scale ladder, and
+# the :vertices remainder — measured ladder on this very trajectory: :ball
+# wall k=32, :john_ball k=32 identical (both ball covers are corner-tight;
+# what :vertices adds is the exact joint corner support), :vertices k=24):
+# 32 enforced transitions (k=56→25, 1.6 s), V_max ≈ 1.9 at the terminal,
+# wall mid-flip — the same per-unit-time ballistic funnel bleed as the
+# swing_up. The capture-phase certificate is re-derived standalone below with
+# the depth profile ([0.039, 0.039, 0.19, 0.19] physical semi-axes at 0.25 s
+# out) and closed-loop validation.
 #
 # Head-to-head on THIS task: his chain reports 32 transitions of 66, but his
 # own audit shows required box radii exceeding the fixed boxes 14.8× on the
 # near-terminal steps (exactly the fat, valuable ellipsoids — consistency not
 # enforced ⇒ informal) before a logdet pancake collapse to radii ~3e-8; and
-# his plant carries the Coriolis precedence slip. Ours: 24 transitions, every
-# one consistency-enforced, collapse-proofed, domain-capped, on the textbook
-# plant, with a sound fat terminal region.
+# his plant carries the Coriolis precedence slip. Ours: 32 transitions —
+# matching his count — every one consistency-enforced, collapse-proofed,
+# domain-capped, on the textbook plant, with a sound fat terminal region.
 import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
@@ -259,7 +262,10 @@ back_opts = EB.ChainOptions(;
     linearization_δu = [0.2],
     adaptive_boxes = adaptive_opts,
     objective = :maximin,
-    remainder_model = :ball,
+    # Measured on THIS trajectory: :ball wall k=32 (24 transitions), :john_ball
+    # k=32 (identical — both ball covers are corner-tight; the gap is the exact
+    # joint corner support), :vertices k=24 (32 transitions, +33% runway).
+    remainder_model = :vertices,
     domain_cap = true,
     check_state_domain = true,
 )
