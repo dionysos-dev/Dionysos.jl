@@ -624,11 +624,23 @@ gates green), reported as a depth profile — guaranteed recovery region
 meaningful depth. Note vs the PR — different task: its MPPI experiment ran
 `benchmark_up_convex`, the UP-UP handstand (both angles π ± 25°, torque ±8.5,
 ω ∈ ±6, both angles periodic) — that is where k=34/66 collapsed; our shipped demo
-is the swing_up objective, and the up-up head-to-head is a follow-up experiment.
-Its plant also has an operator-precedence slip (Coriolis term not divided by l·α
-in both `dynamic` and the symbolic model), so its numbers are on an internally
-consistent but non-textbook system, with unenforced fixed boxes (14.8× violations
-per its own audit).
+is the swing_up objective. Its plant also has an operator-precedence slip
+(Coriolis term not divided by l·α in both `dynamic` and the symbolic model), so
+its numbers are on an internally consistent but non-textbook system, with
+unenforced fixed boxes (14.8× violations per its own audit).
+
+**UP-UP HEAD-TO-HEAD DONE (`demo_double_pendulum_upup.jl`)**: our stack on his
+exact benchmark. Generation transfers with three deltas (both-links height
+shaping, NO pace cost — the flip needs ω near the ±6 wall, SHORT 3 s horizon —
+6 s dilutes CEM and fails, measured): a 56-step / 2.8 s double inversion, both
+angles inside π ± 25° (his: 2.55 s). Certification: **24 enforced transitions**
+(k=56→33, V_max ≈ 1.9, wall mid-flip at k=32 — the same per-unit-time ballistic
+bleed; certified runway 1.2 s vs swing_up's 1.4 s), capture chain re-certified
+standalone, depth profile ([0.03, 0.03, 0.15, 0.15] physical semi-axes at
+0.25 s out), 50/50 closed-loop from the meaningful depth. Verdict vs his
+32-of-66: every one of our transitions is consistency-enforced,
+collapse-proofed, and domain-capped on the textbook plant — his near-terminal
+(fat, valuable) ellipsoids are exactly the informal ones.
 Untried conservatism levers if the wall is ever revisited: region-selective
 `:vertices` in the pinch, per-axis remainder weighting, adaptive Δt schedules
 (volume/compute win — measured 16× terminal volume at fine Δt — but not a
