@@ -604,6 +604,32 @@ samples, Δt=0.05, H=51, plus his two-stage terminal-refinement MPPI as an optio
 into upright) end-to-end with the abstraction handling energy pumping — an honest
 partial certificate beats a fake full one.
 
+**OUTCOME (shipped, `demo_double_pendulum.jl`)**: the capture-phase certificate, at
+a much deeper level of understanding than planned. Generation solved raw-CEM (no
+abstraction): resonant seed scan u = A·sin(ωt+φ) + height shaping (1 + cos θ₂) +
+terminal pull — a direct ~6 s swing. Certified plant = the **RK2 map** (RK4's four
+symbolic self-compositions stack-overflow the Hessian compiler — measured; RK2
+compiles in ~20 s and generation ≡ certification map, zero mismatch). New machinery
+shipped en route: `source_cap` SOC rows in `solve_transition_backward` +
+`ChainOptions.domain_cap` (funnels confined to X and to the linearization box by
+construction — the box-scale ladder becomes the funnel-size dial). The wall: a
+**four-lever ablation, all null** (input headroom ×2, ω₂ pace cap, Δt 0.05→0.025 —
+runway 1.35→1.43 s, Δt-invariant — and the free-angle domain: the optimal swing
+never leaves θ₁ ∈ ±π/2). Funnel bleed through the ballistic ascent is per-unit-time
+intrinsic (one saturated input vs four states): volumes 14.9 → 1e-12 over ~1.4 s.
+Shipped: 57-step capture chain certified standalone (terminal ⊆ target, domain
+gates green), reported as a depth profile — guaranteed recovery region
+[0.06, 0.06, 0.3, 0.3] (rad, rad, rad/s, rad/s) at 0.12 s out, [0.014, …, 0.07] at
+0.5 s out — with closed-loop FunnelController validation (50/50) from the
+meaningful depth. Note vs the PR: its plant has an operator-precedence slip
+(Coriolis term not divided by l·α in both `dynamic` and the symbolic model), so
+its k=34/66 numbers are on a different — internally consistent but non-textbook —
+system, with unenforced fixed boxes (14.8× violations per its own audit).
+Untried conservatism levers if the wall is ever revisited: region-selective
+`:vertices` in the pinch, per-axis remainder weighting, adaptive Δt schedules
+(volume/compute win — measured 16× terminal volume at fine Δt — but not a
+wall-breaker: runway is Δt-invariant).
+
 ---
 
 ## 9. PR #569 measured results worth remembering (do not re-learn these)
@@ -628,8 +654,11 @@ partial certificate beats a fake full one.
    partial-chain re-planning (§6-2), and the bidirectional handoff (§6-3) as driver
    modes.
 
+**Decided (was open):**
+3. Double pendulum: the capture-phase certificate is the shipped demo (user-approved;
+   see §8.3 OUTCOME). The full-chain wall survived a four-lever ablation and is
+   characterized as intrinsic per-unit-time funnel bleed through the ballistic ascent.
+
 **Open:**
-3. Double pendulum: is the capture-phase certificate (§8.3) acceptable as the shipped
-   demo if the full chain resists?
 4. Should the tube-based `UniformGridTrajectoryCertifier` get showcase treatment (a
    genuinely different certificate), or stay a tested-but-quiet alternative?
