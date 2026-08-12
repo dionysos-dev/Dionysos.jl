@@ -641,8 +641,18 @@ standalone, depth profile ([0.03, 0.03, 0.15, 0.15] physical semi-axes at
 32-of-66: every one of our transitions is consistency-enforced,
 collapse-proofed, and domain-capped on the textbook plant — his near-terminal
 (fat, valuable) ellipsoids are exactly the informal ones.
-Untried conservatism levers if the wall is ever revisited: region-selective
-`:vertices` in the pinch, per-axis remainder weighting, adaptive Δt schedules
+**REMAINDER-MODEL LADDER (measured, controlled — same trajectory, only the
+model changes)**: on the up-up chain at Δt = 0.05, `:ball` wall k=32 (24
+transitions), `:john_ball` (NEW — the box's John ellipsoid √n·diag(Lip)·B as a
+shaped Petersen ball, per-axis radii at :ball's single-block cost) k=32 —
+IDENTICAL, because both ball covers are corner-tight and the win lies in the
+exact joint corner support — and `:vertices` k=24 (32 transitions, **+33%
+runway**). On the swing_up chain at Δt = 0.025, `:vertices` leaves the runway
+unchanged (wall physics-dominated at fine steps) but **doubles the guaranteed
+recovery regions at every depth**. Rule: `:vertices` whenever n ≤ 4 (16
+blocks/SDP is affordable); `:ball` for long chains in higher dimension
+(`:john_ball` kept — sound, tested — but no measured advantage). Both DP demos
+ship with `:vertices`. Remaining untried lever: adaptive Δt schedules
 (volume/compute win — measured 16× terminal volume at fine Δt — but not a
 wall-breaker: runway is Δt-invariant).
 
