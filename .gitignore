@@ -30,3 +30,6 @@ bench/results/
 !.claude/commands/
 
 research/TrajectoryCertificationOptimizer/*.png
+
+# Regenerable per-seed trajectory cache shared by the certification campaigns
+research/TrajectoryCertificationOptimizer/campaigns/cache/

@@ -22,8 +22,13 @@ import DataFrames
 
 export run_campaign
 
-_quantiles(v) =
-    isempty(v) ? (NaN, NaN, NaN) : (quantile(v, 0.25), median(v), quantile(v, 0.75))
+# NaN entries are legitimate (a failed run has no volume/time to report) —
+# quantiles are taken over the defined values only.
+function _quantiles(v)
+    defined = filter(!isnan, v)
+    isempty(defined) && return (NaN, NaN, NaN)
+    return (quantile(defined, 0.25), median(defined), quantile(defined, 0.75))
+end
 
 """
     run_campaign(; name, configs, run_one, nseeds = 20, results_dir = nothing)
