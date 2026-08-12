@@ -201,22 +201,16 @@ function integrator_rows()
     )
 
     # --- chain ---
-    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-        false,
-        [0.2, 0.2],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        [0.5, 0.5],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        2.0,
-        1.05,
-        1,
-        1e-8,
-        false,
-        [1.0],
-        :first_consistent,
-        true,
+    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+        enabled = false,
+        ΔX_initial = [0.2, 0.2],
+        ΔX_min = [0.01, 0.01],
+        ΔX_max = [1.0, 1.0],
+        ΔU_initial = [0.5, 0.5],
+        ΔU_min = [0.01, 0.01],
+        ΔU_max = [1.0, 1.0],
+        growth = 2.0,
+        max_iters = 1,
     )
     ellip_opts = EB.ChainOptions(;
         maxδx = 30,
@@ -418,22 +412,13 @@ function pendulum_rows()
     )
 
     # --- chain ---
-    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-        true,
-        [0.05, 0.10],
-        [0.005, 0.005],
-        [1.8, 2.5],
-        [0.25],
-        [0.01],
-        [10.0],
-        1.5,
-        1.05,
-        30,
-        1e-8,
-        false,
-        [0.75, 1.0, 1.25, 1.5, 2.0],
-        :max_volume,
-        true,
+    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+        ΔX_initial = [0.05, 0.10],
+        ΔX_min = [0.005, 0.005],
+        ΔX_max = [1.8, 2.5],
+        ΔU_initial = [0.25],
+        ΔU_min = [0.01],
+        ΔU_max = [10.0],
     )
     ellip_opts = EB.ChainOptions(;
         maxδx = 1.5,

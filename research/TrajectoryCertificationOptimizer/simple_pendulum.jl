@@ -221,23 +221,13 @@ provider = ST.SymbolicAffineApproximationProvider(
     ST.format_noise_set(Wset),
 )
 
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    true,                  # Enable adaptive box search
-    [0.05, 0.10],          # Initial state box radius δx
-    [0.005, 0.005],        # Minimum allowed δx
-    [1.8, 2.5],            # Maximum allowed δx
-    [0.25],                # Initial input box radius δu
-    [0.01],                # Minimum allowed δu
-    [10.0],                 # Maximum allowed δu
-    1.5,                   # Grow factor
-    1.05,                  # Shrink factor
-    30,                    # Maximum adaptive iterations
-    1e-8,                  # Numerical tolerance
-    false,                 # Do not use explicit candidate scales
-    [0.75, 1.0, 1.25, 1.5, 2.0],  # Candidate scale list
-    # (ignored when previous flag=false)
-    :max_volume,           # Select feasible candidate with largest volume
-    true,                 # Verbose/debug output
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.10],
+    ΔX_min = [0.005, 0.005],
+    ΔX_max = [1.8, 2.5],
+    ΔU_initial = [0.25],
+    ΔU_min = [0.01],
+    ΔU_max = [10.0],
 )
 
 ellip_opts = EB.ChainOptions(;
@@ -309,7 +299,6 @@ function plot_ellipsoid_chain!(
     label_prefix = "Backward ellipsoid",
 )
     cert_result === nothing && return fig
-    cert_result.lmi_data === nothing && return fig
 
     ellipsoids = cert_result.lmi_data.ellipsoids
     isempty(ellipsoids) && return fig

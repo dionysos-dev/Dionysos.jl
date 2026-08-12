@@ -102,18 +102,15 @@ const pend_discrete = PR.OptimalControlProblem(
     pend_base.safe_set,
 )
 
-struct WrapTerminalPull <: AB.AbstractCostTerm
-    w::Float64
-end
-function AB.cost_final(term::WrapTerminalPull, acc, xT)
-    xw = pend_wrap(xT)
-    dθ = rem(xw[1] - π, 2π, RoundNearest)
-    return acc + term.w * ((dθ / 0.249)^2 + (xw[2] / 0.95)^2)
-end
-
 const pend_cost = AB.CompositeCost(
     AB.ReachObjectiveCost(T_split; wrap = pend_wrap),
-    WrapTerminalPull(500.0),
+    AB.TerminalPullCost(
+        [π, 0.0],
+        [0.249, 0.95];
+        w = 500.0,
+        wrap = pend_wrap,
+        periods = [2π, nothing],
+    ),
     AB.InputEffortCost(0.001),
     AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
     AB.DomainPenaltyCost(pend_problem.system.X; wrap = pend_wrap),
@@ -235,29 +232,18 @@ function zprovider(t)
     )
 end
 
-function zbox(H, t)
-    return LazySets.Hyperrectangle(;
-        low = SVector{2}(LazySets.low(H) ./ t),
-        high = SVector{2}(LazySets.high(H) ./ t),
-    )
-end
 function zproblem(t)
     return PR.OptimalControlProblem(
         pend_base.system,
-        zbox(pend_problem.initial_set, t),
-        zbox(pend_problem.target_set, t),
+        ST.normalize_box(pend_problem.initial_set, t),
+        ST.normalize_box(pend_problem.target_set, t),
         nothing,
         nothing,
         pend_base.time,
         nothing,
     )
 end
-function ztraj(traj, t)
-    return ST.Trajectory(
-        [SVector{2}(collect(x) ./ t) for x in ST.states(traj)];
-        inputs = collect(ST.inputs(traj)),
-    )
-end
+ztraj(traj, t) = ST.normalize_trajectory(traj, t)
 
 # Florentin's `trajectory_std` normalization: t from the per-dimension spread of
 # the trajectory itself (floored — a flat dimension must not blow the frame up).
@@ -276,22 +262,15 @@ function pend_backward_options(
     remainder_model = :vertices,
     box_search = :max_volume,
 )
-    adaptive = EB.AdaptiveLinearizationBoxOptions(
-        true,
-        [0.05, 0.10] ./ t,
-        [0.005, 0.005] ./ t,
-        [2.5, 3.5] ./ t,
-        [0.25],
-        [0.01],
-        [4.5],
-        1.5,
-        1.05,
-        30,
-        1e-8,
-        false,
-        [0.75, 1.0, 1.5, 2.0],
-        box_search,
-        false,
+    adaptive = EB.AdaptiveLinearizationBoxOptions(;
+        ΔX_initial = [0.05, 0.10] ./ t,
+        ΔX_min = [0.005, 0.005] ./ t,
+        ΔX_max = [2.5, 3.5] ./ t,
+        ΔU_initial = [0.25],
+        ΔU_min = [0.01],
+        ΔU_max = [4.5],
+        search_scales = [0.75, 1.0, 1.5, 2.0],
+        objective = box_search,
     )
     return EB.ChainOptions(;
         maxδx = 12.0,
@@ -299,7 +278,6 @@ function pend_backward_options(
         λ = 0.001,
         terminal_shape = nothing,
         terminal_shrink = 0.95,
-        state_scaling = nothing,
         linearization_δx = [0.05, 0.10] ./ t,
         linearization_δu = [1.0],
         adaptive_boxes = adaptive,
@@ -334,7 +312,7 @@ end
 # The certifier's circumscribed entry (√n·halfwidths), scaled: the forward
 # entry ladder — how much of the initial set can a forward tube defend?
 function pend_entry_shape(t, scale)
-    zI = zbox(pend_problem.initial_set, t)
+    zI = ST.normalize_box(pend_problem.initial_set, t)
     a = sqrt(2.0) .* scale .* collect(LazySets.radius_hyperrectangle(zI))
     return Matrix(LA.Diagonal(a .^ 2))
 end

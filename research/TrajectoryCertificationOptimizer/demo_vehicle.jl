@@ -241,22 +241,13 @@ ztraj(traj) = ST.Trajectory(
 
 sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
 
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    true,
-    [0.05, 0.05, 0.05, 0.05] ./ t,
-    [0.005, 0.005, 0.005, 0.005] ./ t,
-    [3.0, 3.0, 1.0, 1.0] ./ t,
-    [0.2, 0.15],
-    [0.02, 0.015],
-    [1.0, 0.6],
-    1.5,
-    1.05,
-    30,
-    1e-8,
-    false,
-    [1.0],
-    :first_consistent,
-    true,
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.05, 0.05, 0.05] ./ t,
+    ΔX_min = [0.005, 0.005, 0.005, 0.005] ./ t,
+    ΔX_max = [3.0, 3.0, 1.0, 1.0] ./ t,
+    ΔU_initial = [0.2, 0.15],
+    ΔU_min = [0.02, 0.015],
+    ΔU_max = [1.0, 0.6],
 )
 back_opts = EB.ChainOptions(;
     maxδx = 8.0,
@@ -264,7 +255,6 @@ back_opts = EB.ChainOptions(;
     λ = 0.001,
     terminal_shape = nothing,
     terminal_shrink = 0.9,
-    state_scaling = nothing,                 # exact: dynamics already normalized
     linearization_δx = [0.05, 0.05, 0.05, 0.05] ./ t,
     linearization_δu = [0.3, 0.2],
     adaptive_boxes = adaptive_opts,

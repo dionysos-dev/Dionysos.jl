@@ -220,8 +220,6 @@ function plot_ellipsoid_chain!(
     label_prefix = "Backward ellipsoid",
 )
     cert_result === nothing && return fig
-    cert_result.lmi_data === nothing && return fig
-    !haskey(cert_result.lmi_data, :ellipsoids) && return fig
 
     ellipsoids = cert_result.lmi_data.ellipsoids
     isempty(ellipsoids) && return fig
@@ -271,22 +269,16 @@ provider = ST.SymbolicAffineApproximationProvider(
     ST.format_noise_set(Wformat),
 )
 
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    false,                  # enabled
-    [0.2, 0.2],              # ΔX_initial
-    [0.01, 0.01],            # ΔX_min
-    [1.0, 1.0],              # ΔX_max
-    [0.5, 0.5],              # ΔU_initial
-    [0.01, 0.01],            # ΔU_min
-    [1.0, 1.0],              # ΔU_max
-    2.0,                    # growth
-    1.05,                   # safety
-    1,                      # max_iters
-    1e-8,                   # atol
-    false,                  # verbose
-    [1.0],                  # search_scales
-    :first_consistent,      # objective
-    true,                   # keep_first_consistent
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    enabled = false,
+    ΔX_initial = [0.2, 0.2],
+    ΔX_min = [0.01, 0.01],
+    ΔX_max = [1.0, 1.0],
+    ΔU_initial = [0.5, 0.5],
+    ΔU_min = [0.01, 0.01],
+    ΔU_max = [1.0, 1.0],
+    growth = 2.0,
+    max_iters = 1,
 )
 
 ellip_opts = EB.ChainOptions(;

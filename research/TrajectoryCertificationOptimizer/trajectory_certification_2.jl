@@ -164,22 +164,16 @@ provider = ST.SymbolicAffineApproximationProvider(
 )
 
 # These is only used if the first argument is true
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    false,        # enabled
-    [0.2, 0.2],  # initial state linearization box radius
-    [0.01, 0.01], # minimum state box radius
-    [2.0, 2.0] * 10000,  # maximum state box radius
-    [0.5, 0.5],  # initial input linearization box radius
-    [0.01, 0.01], # minimum input box radius
-    [2.0, 2.0],  # maximum input box radius
-    2.0,         # growth factor if box is too small
-    1.05,        # safety factor around required box size
-    10,          # maximum adaptive iterations
-    1e-8,        # numerical tolerance
-    false,       # verbose
-    [0.5, 0.75, 1.0, 1.25, 1.5], # candidate rescaling factors
-    :first_consistent,
-    true,        # accept first consistent box
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    enabled = false,
+    ΔX_initial = [0.2, 0.2],
+    ΔX_min = [0.01, 0.01],
+    ΔX_max = [2.0, 2.0] * 10000,
+    ΔU_initial = [0.5, 0.5],
+    ΔU_min = [0.01, 0.01],
+    ΔU_max = [2.0, 2.0],
+    growth = 2.0,
+    max_iters = 10,
 )
 
 trans_cost = UT.QuadraticStateControlFunction(
@@ -253,7 +247,6 @@ function plot_ellipsoid_chain!(
     label_prefix = "Backward ellipsoid",
 )
     cert_result === nothing && return fig
-    cert_result.lmi_data === nothing && return fig
 
     ellipsoids = cert_result.lmi_data.ellipsoids
     isempty(ellipsoids) && return fig

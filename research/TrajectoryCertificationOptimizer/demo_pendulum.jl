@@ -144,20 +144,17 @@ u_plan = 0.6 * u_max
 
 # The reach cost scores the trajectory's closest pass and rewards early hits —
 # nothing pulls the ENDPOINT to the target center, so CEM stalls it near the
-# θ-face (measured: 73% of the half-width out). This wrap-aware terminal pull
+# θ-face (measured: 73% of the half-width out). The wrap-aware terminal pull
 # scores the endpoint in the inscribed-ellipsoid metric centered at [π, 0].
-struct WrapTerminalPull <: AB.AbstractCostTerm
-    w::Float64
-end
-function AB.cost_final(term::WrapTerminalPull, acc, xT)
-    xw = wrap(xT)
-    dθ = rem(xw[1] - π, 2π, RoundNearest)
-    return acc + term.w * ((dθ / 0.249)^2 + (xw[2] / 0.95)^2)
-end
-
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(T_split; wrap = wrap),
-    WrapTerminalPull(500.0),
+    AB.TerminalPullCost(
+        [π, 0.0],
+        [0.249, 0.95];
+        w = 500.0,
+        wrap = wrap,
+        periods = [2π, nothing],
+    ),
     AB.InputEffortCost(0.001),
     AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
     AB.DomainPenaltyCost(problem.system.X; wrap = wrap),
@@ -231,25 +228,17 @@ t = [0.85 * 15.0 * π / 180.0, 0.25]
 zprovider = ST.normalized_symbolic_provider(provider, t)
 D = LA.Diagonal(t)
 
-zbox(H) = LazySets.Hyperrectangle(;
-    low = SVector{2}(LazySets.low(H) ./ t),
-    high = SVector{2}(LazySets.high(H) ./ t),
-)
 zproblem = PR.OptimalControlProblem(
     base.system,
-    zbox(problem.initial_set),
-    zbox(problem.target_set),
+    ST.normalize_box(problem.initial_set, t),
+    ST.normalize_box(problem.target_set, t),
     nothing,
     nothing,
     base.time,
     nothing,
 )
 
-ztraj(traj) = ST.Trajectory(
-    [SVector{2}(collect(x) ./ t) for x in ST.states(traj)];
-    inputs = collect(ST.inputs(traj)),
-)
-prepare = traj -> ztraj(lift(traj))
+prepare = traj -> ST.normalize_trajectory(lift(traj), t)
 
 # The unwrapped cover has no θ seam and the objective has no obstacle; θ spans the
 # full period, so the domain gate would only re-check |ω| ≤ 7 while flagging the
@@ -258,22 +247,15 @@ prepare = traj -> ztraj(lift(traj))
 # The :max_volume line search (Florentin's contribution) re-solves each step over
 # several box scales and keeps the biggest certified ellipsoid — the volume
 # analogue of :first_consistent, ~4× the SDPs per step.
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-    true,
-    [0.05, 0.10] ./ t,
-    [0.005, 0.005] ./ t,
-    [2.5, 3.5] ./ t,
-    [0.25],
-    [0.01],
-    [4.5],
-    1.5,
-    1.05,
-    30,
-    1e-8,
-    false,
-    [0.75, 1.0, 1.5, 2.0],
-    :max_volume,
-    false,
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.10] ./ t,
+    ΔX_min = [0.005, 0.005] ./ t,
+    ΔX_max = [2.5, 3.5] ./ t,
+    ΔU_initial = [0.25],
+    ΔU_min = [0.01],
+    ΔU_max = [4.5],
+    search_scales = [0.75, 1.0, 1.5, 2.0],
+    objective = :max_volume,
 )
 back_opts = EB.ChainOptions(;
     maxδx = 12.0,
@@ -281,7 +263,6 @@ back_opts = EB.ChainOptions(;
     λ = 0.001,
     terminal_shape = nothing,            # default: inscribed ellipsoid of the target
     terminal_shrink = 0.95,
-    state_scaling = nothing,             # exact: the dynamics are already normalized
     linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
@@ -306,7 +287,7 @@ traj = MOI.get(driver, MOI.RawOptimizerAttribute("trajectory"))
 bres = EB.get_result(bw)
 bres === nothing &&
     error("the generator failed in every round — no certification was attempted")
-d = AB.MPPITrajectoryGenerator.get_diagnostics(mppi)
+d = AB.get_diagnostics(mppi)
 println("  $(round(loop_time; digits = 1)) s, rounds = $rounds, certified = $loop_success")
 println(
     "  last round: mppi steps = $(length(ST.inputs(traj))), ",
@@ -361,16 +342,7 @@ if bres.success
 end
 
 if loop_success
-    zctrl = AB.get_controller(bw)
-    ctrl = ST.FunnelController(
-        [MS.AffineMap(Matrix(κ.A) / Matrix(D), collect(κ.c)) for κ in zctrl.kappas],
-        [
-            LazySets.Ellipsoid(
-                t .* collect(LazySets.center(E)),
-                Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
-            ) for E in zctrl.ellipsoids
-        ],
-    )
+    ctrl = ST.denormalize_funnel(AB.get_controller(bw), t)
     println(
         "— certified controller (physical frame): FunnelController with ",
         "$(length(ctrl.kappas)) steps —",
@@ -393,12 +365,7 @@ plot!(fig, problem.initial_set; color = :gray, alpha = 0.5, label = "initial set
 plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = "target set")
 
 # De-normalize the certified funnel back to the physical frame for the plot.
-denorm(E) = LazySets.Ellipsoid(
-    t .* collect(LazySets.center(E)),
-    Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
-)
-
-funnel = [denorm(E) for E in bres.lmi_data.ellipsoids]
+funnel = [ST.denormalize_ellipsoid(E, t) for E in bres.lmi_data.ellipsoids]
 for (i, E) in enumerate(funnel)
     plot!(
         fig,
