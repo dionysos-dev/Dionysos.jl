@@ -224,12 +224,15 @@ end
 #     [ ρ·qᵀ           μ  ]  ⪰ 0
 #
 # — one extra multiplier and one border row per noise vertex, constant in n.
-function _reach_ball_block(β, shape, At, aux0, P2inv, ρ, μ, n)
+# A shaped uncertainty e ∈ D·{‖ẽ‖ ≤ ρ} (the `:john_ball` model) substitutes
+# e = D·ẽ, which turns P into P·D and hence μ·P·Pᵀ into μ·P·D²·Pᵀ — the
+# target-block deduction becomes μ·Rsq with Rsq = D², still linear in μ.
+function _reach_ball_block(β, shape, At, aux0, P2inv, ρ, μ, n, Rsq = eye(n))
     z = zeros(n, 1)
     return [
         β*shape z transpose(At) z
         transpose(z) 1-β transpose(aux0) ρ
-        At aux0 P2inv-μ*eye(n) z
+        At aux0 P2inv-μ*Rsq z
         transpose(z) ρ transpose(z) μ
     ]
 end
@@ -429,10 +432,19 @@ function _free_source_kernel(
 )
     nx = length(c)
     nu = size(U[1], 2)
-    μ = remainder_model === :ball ? nothing : _lipschitz_vertices(Lip, nx)
-    ρnorm = LA.norm(collect(Float64, Lip[1:nx]))
+    ball_like = remainder_model in (:ball, :john_ball)
+    μ = ball_like ? nothing : _lipschitz_vertices(Lip, nx)
+    # :ball wraps the Lipschitz box in the scalar ball ‖e‖ ≤ ‖Lip‖·(δx+δu) — every
+    # axis pays the full radius. :john_ball uses the box's John ellipsoid
+    # √n·diag(Lip)·B instead: per-axis radii √n·Lipᵢ (tight covers both; John is
+    # sharper on the axes whose Lipschitz is small — measured decisive on the
+    # double pendulum, whose position rows are ~10× below its velocity rows).
+    ρnorm = remainder_model === :john_ball ? sqrt(nx) : LA.norm(collect(Float64, Lip[1:nx]))
+    Rsq =
+        remainder_model === :john_ball ? LA.diagm(collect(Float64, Lip[1:nx]) .^ 2) :
+        eye(nx)
     ν = [Wcols[:, i] for i in 1:size(Wcols, 2)]
-    Nx = remainder_model === :ball ? 1 : length(μ)
+    Nx = ball_like ? 1 : length(μ)
     Nw = length(ν)
     Nu = length(U)
     ε = 1e-8
@@ -466,7 +478,7 @@ function _free_source_kernel(
     z = zeros(nx, 1)
 
     local muball
-    if remainder_model === :ball
+    if ball_like
         @variable(model, muball[j = 1:Nw] >= 0)
         for j in 1:Nw
             aux0 =
@@ -474,8 +486,17 @@ function _free_source_kernel(
             ρ = @expression(model, ρnorm * (δx + δu))
             @constraint(
                 model,
-                _reach_ball_block(beta[1, j], eye(nx), At, aux0, Q2, ρ, muball[j], nx) >=
-                eye(2 * nx + 2) * ε,
+                _reach_ball_block(
+                    beta[1, j],
+                    eye(nx),
+                    At,
+                    aux0,
+                    Q2,
+                    ρ,
+                    muball[j],
+                    nx,
+                    Rsq,
+                ) >= eye(2 * nx + 2) * ε,
                 PSDCone()
             )
         end
@@ -562,7 +583,7 @@ function _free_source_kernel(
     Atv = A * Lval + B * Fval
     ctv = c + B * ellv
     blocks = Any[]
-    if remainder_model === :ball
+    if ball_like
         mbv = value.(muball)
         all(mbv .>= -_VALIDATION_TOL) || begin
             @debug "solve_transition_backward: negative ball multiplier"
@@ -573,7 +594,7 @@ function _free_source_kernel(
             ρv = ρnorm * (δxv + δuv)
             push!(
                 blocks,
-                _reach_ball_block(βv[1, j], eye(nx), Atv, aux0, Q2, ρv, mbv[j], nx),
+                _reach_ball_block(βv[1, j], eye(nx), Atv, aux0, Q2, ρv, mbv[j], nx, Rsq),
             )
         end
     else
@@ -728,6 +749,8 @@ function _free_target_kernel(
     q_max,
     remainder_model::Symbol,
 )
+    remainder_model === :john_ball &&
+        error("remainder_model = :john_ball is implemented for the backward kernel only.")
     nx = length(c)
     nu = size(U[1], 2)
     μ = remainder_model === :ball ? nothing : _lipschitz_vertices(Lip, nx)

@@ -308,6 +308,48 @@ end
         end
     end
 
+    # :john_ball — the box's John ellipsoid (per-axis radii √n·Lipᵢ) instead of
+    # the scalar ball: a sound cover, so the same certified property must hold.
+    rj = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+        remainder_model = :john_ball,
+    )
+    @test rj.feasible
+    Kj = Matrix(rj.controller.A)
+    bj = collect(rj.controller.c)
+    for x in UT.samples(rj.source, 50)
+        u = Kj * x + bj
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ E2
+        end
+    end
+    # The forward kernel does not implement :john_ball — it must say so.
+    @test_throws ErrorException ST.solve_transition_forward(
+        sys_noisy,
+        rb.source,
+        collect(LazySets.center(E2)),
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        target_shape = Matrix(LazySets.shape_matrix(E2)),
+        maxδu = 2.0,
+        remainder_model = :john_ball,
+    )
+
     # Duality holds under the ball model too (forward's constant δx is dominated
     # by backward's δx variable, same remainder model on both sides).
     rf = ST.solve_transition_forward(

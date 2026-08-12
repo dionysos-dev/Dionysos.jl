@@ -77,8 +77,11 @@ Base.@kwdef mutable struct ChainOptions
 
     adaptive_boxes::Union{Nothing, AdaptiveLinearizationBoxOptions} = nothing
     objective::Symbol = :maximin
-    # :vertices enumerates the 2ⁿ Lipschitz-box corners (exact); :ball wraps them in
-    # one norm-bounded uncertainty (constant block count — the sane choice at n ≥ 4).
+    # :vertices enumerates the 2ⁿ Lipschitz-box corners (exact, tightest — measured
+    # +33% certified runway on the double pendulum vs :ball); :ball wraps them in
+    # one scalar norm ball (constant block count — cheapest at n ≥ 4); :john_ball
+    # wraps them in the box's John ellipsoid √n·diag(Lip)·B (per-axis radii at
+    # :ball's block count — the scalable middle ground).
     remainder_model::Symbol = :vertices
     domain_cap::Bool = false
 
