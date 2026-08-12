@@ -371,6 +371,89 @@ end
     @test α <= 1.0 + 1e-6
 end
 
+@testset "solve_transition_backward_2step" begin
+    Lip = [1.0, 1.0, 0.5, 0.1]
+    # The fixed second-step controller comes from a certified one-step backward
+    # transition into E2.
+    Wz = zeros(2, 1)     # the two-step kernel requires a single noise vertex
+    rb1 = ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        [1.0, 1.0],
+        [0.0],
+        Uformat,
+        Wz,
+        Λ,
+        Lip,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+        objective = :maximin,
+    )
+    @test rb1.feasible
+
+    # Two-step transition from a DIFFERENT center, through κ₁, into E2 — with no
+    # containment requirement at the intermediate state.
+    e2_hw = 0.2 .* Lip[1:2]
+    r2 = ST.solve_transition_backward_2step(
+        sys_noisy,
+        sys_noisy,
+        rb1.controller,
+        E2,
+        [0.9, 1.1],
+        [0.0],
+        Uformat,
+        Wz,
+        Wz,
+        Λ,
+        Lip,
+        e2_hw,
+        opt_sdp;
+        maxδx = 2.0,
+        maxδu = 2.0,
+        λ = 0.01,
+        objective = :maximin,
+    )
+    @test r2.feasible
+    @test r2.source isa LazySets.Ellipsoid
+    @test collect(LazySets.center(r2.source)) ≈ [0.9, 1.1]
+
+    # Certified property, sampled: apply κ₀ then the fixed κ₁ through the exact
+    # affine plant (zero linearization error, zero noise — the certificate must
+    # hold a fortiori) and land in E2, with both inputs feasible.
+    K0 = Matrix(r2.controller.A)
+    b0 = collect(r2.controller.c)
+    K1 = Matrix(rb1.controller.A)
+    b1 = collect(rb1.controller.c)
+    for x0 in UT.samples(r2.source, 50)
+        u0 = K0 * x0 + b0
+        @test all(abs.(u0) .<= 5.0 + 1e-6)
+        x1 = A * x0 + B * u0 + g
+        u1 = K1 * x1 + b1
+        @test all(abs.(u1) .<= 5.0 + 1e-6)
+        x2 = A * x1 + B * u1 + g
+        @test x2 ∈ E2
+    end
+
+    # Multi-vertex noise is rejected explicitly.
+    @test_throws ErrorException ST.solve_transition_backward_2step(
+        sys_noisy,
+        sys_noisy,
+        rb1.controller,
+        E2,
+        [0.9, 1.1],
+        [0.0],
+        Uformat,
+        Wmat,
+        Wz,
+        Λ,
+        Lip,
+        e2_hw,
+        opt_sdp,
+    )
+end
+
 @testset "stabilizing_feedback" begin
     A3 = [
         0.0 1.0 0.0

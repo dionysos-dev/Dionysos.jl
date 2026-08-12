@@ -109,6 +109,21 @@ function run_chain!(ctx::ChainContext)
     for k in ctx.K:-1:1
         rec = backward_step!(ctx, k, E_next)
         rec = apply_gates(rec, ctx)
+
+        # Two-step rescue: when the one-step transition dies, retry as a single
+        # two-step transition into E_{k+2} through the already-synthesized
+        # κ_{k+1} — no intermediate containment (see two_step.jl). The funnel
+        # invariant then holds across the pair as a composition: from E_k the
+        # state is guaranteed in E_{k+2} after two steps (E_{k+1} membership is
+        # NOT claimed), and the step-indexed controller replay is unaffected.
+        if rec.status != :ok && opts.two_step_rescue
+            rec2 = _two_step_rescue!(ctx, k, steps, ellipsoids)
+            if rec2 !== nothing
+                rec2 = apply_gates(rec2, ctx)
+                rec2.status == :ok && (rec = rec2)
+            end
+        end
+
         push!(steps, rec)
 
         if rec.status != :ok

@@ -84,6 +84,18 @@ Base.@kwdef mutable struct ChainOptions
     # :ball's block count — the scalable middle ground).
     remainder_model::Symbol = :vertices
     domain_cap::Bool = false
+    # Retry a failed step as ONE two-step transition into E_{k+2} through the
+    # already-synthesized κ_{k+1}, skipping the intermediate containment. Across
+    # a rescued pair the funnel guarantee is the composition E_k → (2 steps) →
+    # E_{k+2}; E_{k+1} membership is not claimed. Requires adaptive_boxes and no
+    # per-step state_scaling. MEASURED NEGATIVE on the double pendulum (kept as
+    # machinery): by the first failure the downstream funnels are needles whose
+    # margin the composition's ℓ-offset and constant e₂ budget already consume,
+    # and a stride-2 chain from the terminal is strictly worse than 1-step
+    # (fixed mid-κ + worst-case e₂ lose more than the skipped containment
+    # saves). The true 2-step coupling advantage needs joint bilinear gain
+    # synthesis — nonconvex, out of scope.
+    two_step_rescue::Bool = false
 
     r_min::Float64 = 0.0
     check_state_domain::Bool = true

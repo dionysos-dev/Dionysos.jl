@@ -9,6 +9,7 @@ module EllipsoidalTrajectoryCertifier
 #   context.jl        — ChainContext (problem + trajectory + provider), state scaling
 #   steps.jl          — StepRecord and the fixed-box backward step
 #   adaptive_boxes.jl — the adaptive linearization-box search (backward only)
+#   two_step.jl       — the two-step rescue (skip a needle intermediate funnel)
 #   gates.jl          — soundness gates: box consistency, collapse, state domain,
 #                       terminal containment, initial coverage
 #   chain.jl          — run_chain! + CertificationResult
@@ -56,6 +57,7 @@ include("diagnostics.jl")
 include("context.jl")
 include("steps.jl")
 include("adaptive_boxes.jl")
+include("two_step.jl")
 include("gates.jl")
 include("chain.jl")
 include("certifier.jl")

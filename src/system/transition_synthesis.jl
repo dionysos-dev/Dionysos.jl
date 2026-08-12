@@ -721,6 +721,321 @@ function solve_transition_backward(
 end
 
 # ------------------------------------------------------------
+# Two-step backward kernel: certify E_source → (κ₀, then the FIXED κ₁) → target
+# in ONE LMI, with NO containment requirement at the intermediate state. This is
+# the lever against the per-step bottleneck on rank-deficient-B plants: a
+# per-step chain forces the one-step image inside the (possibly needle-thin)
+# intermediate funnel, while the two-step transition only needs the TWO-step
+# image inside the target — the certificate gains the 2-step coupling channel
+# u → (coupled states). Convexity comes from κ₁ being data (the backward chain
+# has already synthesized it): with M = A₂ + B₂K₁ constant, the composed system
+# Ā = M·A₁, B̄ = M·B₁, c̄ = M·c₁ + B₂b₁ + c₂ stays linear in (L, F).
+#
+# Uncertainty bookkeeping: step-1's remainder e₁ (box Lip₁·(δx+δu), variable
+# scale) passes through M, step-2's remainder e₂ is a CONSTANT box (its
+# linearization box is fixed by the caller, who must verify a posteriori that
+# the realized intermediate excursion stays inside it — the same consistency
+# contract as the adaptive boxes). Aligned boxes sum: the combined vertex set is
+# the usual 2ⁿ corners with per-axis half-widths |M|·Lip₁·(δx+δu) + e₂hw. The
+# second input constraint |U·u₁| ≤ 1 is enforced over the true intermediate
+# reach (u₁ = K₁x₁ + b₁ with x₁ affine in ξ and e₁): one block per (Uᵢ, e₁
+# vertex). The cost block covers (x₀, u₀) only — the two-step transition cost
+# of u₁ is not charged (documented limitation).
+# ------------------------------------------------------------
+
+function _two_step_kernel(
+    A1,
+    B1,
+    c1v,
+    A2,
+    B2,
+    c2v,
+    K1,
+    b1,
+    Wcols1,
+    Wcols2,
+    U,
+    Λ,
+    c0,
+    u_ref0,
+    cT,
+    Q2,
+    Lip1,
+    e2_hw,
+    sdp_solver;
+    maxδx,
+    maxδu,
+    λ,
+    objective::Symbol,
+    source_cap = nothing,
+)
+    nx = length(c1v)
+    nu = size(U[1], 2)
+    size(Wcols1, 2) == 1 && size(Wcols2, 2) == 1 || error(
+        "the two-step kernel currently supports a single noise vertex per step " *
+        "(deterministic or fixed-offset noise).",
+    )
+
+    M = A2 + B2 * K1
+    Ā = M * A1
+    B̄ = M * B1
+    c̄ = M * c1v + B2 * vec(b1) + c2v
+    ν = vec(M * Wcols1[:, 1] + Wcols2[:, 1])
+
+    # Combined remainder box: variable part |M|·Lip₁ (scaled by δx+δu), constant
+    # part e₂hw. Corners are enumerated on the unit box once.
+    hvar = abs.(M) * collect(Float64, Lip1[1:nx])
+    hconst = collect(Float64, e2_hw)
+    σs = collect.(LazySets.vertices_list(LazySets.Hyperrectangle(zeros(nx), ones(nx))))
+    Nx = length(σs)
+    Nu = length(U)
+    ε = 1e-8
+
+    model = Model(sdp_solver)
+    @variable(model, L[i = 1:nx, j = 1:nx], PSD)
+    @variable(model, F[i = 1:nu, j = 1:nx])
+    @variable(model, ell[i = 1:nu, j = 1:1])
+    @variable(model, beta[i = 1:Nx] >= 0)
+    @variable(model, tau[i = 1:Nu] >= 0)
+    @variable(model, tau2[i = 1:Nu, v = 1:Nx] >= 0)
+    @variable(model, δx >= 0)
+    @variable(model, δu >= 0)
+    @variable(model, ϕ >= 0)
+    @variable(model, γ >= 0)
+    @variable(model, J >= 0)
+
+    if source_cap !== nothing
+        @assert length(source_cap) == nx "source_cap must have one entry per state."
+        for i in 1:nx
+            @constraint(model, vcat(source_cap[i], L[i, :]) in SecondOrderCone())
+        end
+    end
+
+    @expressions(model, begin
+        At, Ā * L + B̄ * F
+        ct, c̄ + B̄ * ell
+    end)
+
+    for (i, σ) in enumerate(σs)
+        aux = @expression(
+            model,
+            Ā * hcat(c0) + hcat(ct) - hcat(cT) +
+            hcat(σ .* hvar) * (δx + δu) +
+            hcat(σ .* hconst .+ ν)
+        )
+        _reach_constraint!(model, beta[i], eye(nx), At, aux, Q2, nx, ε)
+    end
+
+    # Input feasibility of u₀ over the source.
+    for i in 1:Nu
+        _input_constraint!(model, tau[i], eye(nx), U[i] * F, U[i] * ell, nx, ε)
+    end
+
+    # Input feasibility of u₁ = K₁x₁ + b₁ over the intermediate reach:
+    # x₁ = A₁x₀ + B₁u₀ + c₁ + e₁, so the ξ-gain is K₁(A₁L + B₁F) and the offset
+    # carries the nominal-with-ℓ intermediate state plus each e₁ corner.
+    K1AL = @expression(model, K1 * (A1 * L + B1 * F))
+    x1ℓ = @expression(model, A1 * hcat(c0) + B1 * ell + hcat(c1v))
+    Lip1v = collect(Float64, Lip1[1:nx])
+    for i in 1:Nu, (v, σ) in enumerate(σs)
+        Uoff = @expression(
+            model,
+            U[i] * (K1 * x1ℓ + hcat(vec(b1)) + hcat(K1 * (σ .* Lip1v)) * (δx + δu))
+        )
+        _input_constraint!(model, tau2[i, v], eye(nx), U[i] * K1AL, Uoff, nx, ε)
+    end
+
+    z = zeros(nx, 1)
+    G = [transpose(L) transpose(F) z]
+    d = [transpose(c0) transpose(ell) 1]
+    _cost_constraint!(model, γ, J, eye(nx), G, d, Λ, nx, ε)
+
+    u = hcat(u_ref0)
+    @constraint(
+        model,
+        _input_proximity_block(ϕ, eye(nx), F, ell - u, δu, nx, nu) >= eye(nx + nu + 1) * ε,
+        PSDCone()
+    )
+
+    @constraint(model, _source_radius_block(L, δx, nx) >= eye(nx * 2) * ε, PSDCone())
+    @constraint(model, δx <= maxδx^2)
+    @constraint(model, δu <= maxδu^2)
+
+    r = nothing
+    if objective === :maximin && λ < 1.0
+        r = @variable(model, lower_bound = 0.0)
+        @constraint(model, L >= r * eye(nx), PSDCone())
+        @objective(model, Min, λ * J - (1.0 - λ) * r)
+    elseif objective === :logdet && λ < 1.0
+        @variable(model, t)
+        L_tri = [L[i, j] for j in 1:nx for i in j:nx]
+        @constraint(model, vcat(t, 1.0, L_tri) in MOI.LogDetConeTriangle(nx),)
+        @objective(model, Min, λ * J - (1.0 - λ) * t)
+    elseif objective in (:trace, :logdet, :maximin)
+        @objective(model, Min, λ * J - (1.0 - λ) * sum(L[i, i] for i in 1:nx),)
+    else
+        error("objective must be :maximin, :logdet, or :trace, got $objective.")
+    end
+
+    optimize!(model)
+
+    term = termination_status(model)
+    pstat = primal_status(model)
+    if !(
+        term in (MOI.OPTIMAL, MOI.ALMOST_OPTIMAL) &&
+        pstat in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+    )
+        @debug "solve_transition_backward_2step: infeasible SDP" term pstat
+        return false, nothing, nothing, nothing
+    end
+
+    Lval = value.(L)
+    Fval = value.(F)
+    ellv = value.(ell)
+    βv = value.(beta)
+    τv = value.(tau)
+    τ2v = value.(tau2)
+    δxv = value(δx)
+    δuv = value(δu)
+    ϕv = value(ϕ)
+
+    Atv = Ā * Lval + B̄ * Fval
+    ctv = c̄ + B̄ * ellv
+    blocks = Any[]
+    for (i, σ) in enumerate(σs)
+        aux =
+            Ā * hcat(c0) + hcat(ctv) - hcat(cT) +
+            hcat(σ .* hvar) * (δxv + δuv) +
+            hcat(σ .* hconst .+ ν)
+        push!(blocks, _reach_block(βv[i], eye(nx), Atv, aux, Q2, nx))
+    end
+    for i in 1:Nu
+        push!(blocks, _input_block(τv[i], eye(nx), U[i] * Fval, U[i] * ellv, nx))
+    end
+    K1ALv = K1 * (A1 * Lval + B1 * Fval)
+    x1ℓv = A1 * hcat(c0) + B1 * ellv + hcat(c1v)
+    for i in 1:Nu, (v, σ) in enumerate(σs)
+        Uoffv = U[i] * (K1 * x1ℓv + hcat(vec(b1)) + hcat(K1 * (σ .* Lip1v)) * (δxv + δuv))
+        push!(blocks, _input_block(τ2v[i, v], eye(nx), U[i] * K1ALv, Uoffv, nx))
+    end
+    Gv = [transpose(Lval) transpose(Fval) z]
+    dv = [transpose(c0) transpose(ellv) 1]
+    push!(blocks, _cost_block(value(γ), value(J), eye(nx), Gv, dv, Λ, nx))
+    push!(
+        blocks,
+        _input_proximity_block(ϕv, eye(nx), Fval, ellv - hcat(u_ref0), δuv, nx, nu),
+    )
+    push!(blocks, _source_radius_block(Lval, δxv, nx))
+    r === nothing || push!(blocks, Lval - value(r) * eye(nx))
+
+    validated =
+        all(βv .>= -_VALIDATION_TOL) &&
+        all(τv .>= -_VALIDATION_TOL) &&
+        all(τ2v .>= -_VALIDATION_TOL) &&
+        δxv <= maxδx^2 + _VALIDATION_TOL &&
+        δuv <= maxδu^2 + _VALIDATION_TOL &&
+        (
+            source_cap === nothing ||
+            all(sum(abs2, Lval[i, :]) <= source_cap[i]^2 + _VALIDATION_TOL for i in 1:nx)
+        ) &&
+        _validate_blocks(blocks)
+    if !validated
+        @debug "solve_transition_backward_2step: solution failed validation" term pstat
+        return false, nothing, nothing, nothing
+    end
+
+    Q1 = Lval * transpose(Lval)
+    kappa = [Fval / Lval ellv]
+    if !all(isfinite, kappa)
+        @debug "solve_transition_backward_2step: near-singular source shape"
+        return false, nothing, nothing, nothing
+    end
+    return true, Q1, kappa, value(J)
+end
+
+"""
+    solve_transition_backward_2step(affsys1, affsys2, κ1, target, source_center,
+                                    u_ref0, U, W1, W2, cost, lipschitz1,
+                                    e2_halfwidths, sdp_solver;
+                                    maxδx = 100.0, maxδu = 20.0, λ = 0.01,
+                                    objective = :maximin, source_cap = nothing)
+        -> TransitionResult
+
+Synthesize a first-step controller `κ₀` *and the largest source ellipsoid*
+centered at `source_center` that reaches `target` in TWO steps: one step of
+`affsys1` under `κ₀`, then one step of `affsys2` under the **fixed** controller
+`κ1` (a `MathematicalSystems.AffineMap`, `u₁ = K₁x₁ + b₁`). No containment is
+required at the intermediate state — the lever against per-step chain
+bottlenecks on underactuated plants (the certificate gains the two-step
+coupling channel).
+
+`lipschitz1` bounds step 1's linearization error (scaled by the synthesized
+`δx + δu`, as in [`solve_transition_backward`](@ref)); `e2_halfwidths` is the
+CONSTANT per-axis half-width vector of step 2's remainder box — the caller
+fixes step 2's linearization box in advance and must verify a posteriori that
+the realized intermediate excursion stays inside it. Both steps currently
+require a single noise vertex. The transition-cost bound covers `(x₀, u₀)`
+only. Returns a [`TransitionResult`](@ref) whose `controller` is `κ₀` and whose
+`source` is the synthesized two-step funnel entry.
+"""
+function solve_transition_backward_2step(
+    affsys1::AffineSys,
+    affsys2::AffineSys,
+    κ1::MS.AffineMap,
+    target::LazySets.Ellipsoid,
+    source_center,
+    u_ref0,
+    U,
+    W1,
+    W2,
+    cost,
+    lipschitz1,
+    e2_halfwidths,
+    sdp_solver;
+    maxδx = 100.0,
+    maxδu = 20.0,
+    λ = 0.01,
+    objective::Symbol = :maximin,
+    source_cap = nothing,
+)
+    feasible, Q1, kappa, J = _two_step_kernel(
+        affsys1.A,
+        affsys1.B,
+        affsys1.c,
+        affsys2.A,
+        affsys2.B,
+        affsys2.c,
+        Matrix(κ1.A),
+        collect(κ1.c),
+        _state_noise(affsys1, W1),
+        _state_noise(affsys2, W2),
+        _input_matrices(U),
+        _cost_factor(cost),
+        source_center,
+        u_ref0,
+        LazySets.center(target),
+        LazySets.shape_matrix(target),
+        lipschitz1,
+        e2_halfwidths,
+        sdp_solver;
+        maxδx = maxδx,
+        maxδu = maxδu,
+        λ = λ,
+        objective = objective,
+        source_cap = source_cap,
+    )
+    feasible || return _infeasible_transition()
+    K, ℓ = _split_controller(kappa)
+    controller = MS.AffineMap(K, ℓ - K * source_center)
+    source = LazySets.Ellipsoid(
+        collect(float.(source_center)),
+        UT._symmetrize(Q1);
+        check_posdef = false,
+    )
+    return TransitionResult(true, controller, J, source)
+end
+
+# ------------------------------------------------------------
 # Free-target kernel (forward direction): the source ellipsoid is data — so the
 # linearization deviation δx is a *constant* and the remainder is known before
 # solving — and the target enters the reach blocks only as its shape matrix Q₂,
