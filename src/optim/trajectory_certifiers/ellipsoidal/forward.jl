@@ -18,7 +18,16 @@ Options of the forward certification chain.
   entry shape) is rejected (`Inf` disables);
 - `entry_shape` — LazySets shape matrix of the entry ellipsoid `E₁`, or `nothing`
   to circumscribe the problem's initial set (centered at the trajectory start);
-- `maxδu`, `λ`, `transition_cost`, `linearization_δu` as in [`ChainOptions`](@ref);
+- `maxδu`, `λ`, `transition_cost`, `linearization_δu` as in [`ChainOptions`](@ref).
+  The two target modes want OPPOSITE λ regimes (measured on a linear system):
+  in `:fixed` mode α is dimensionless, and λ ≪ 1 polishes the min-α solution
+  onto the strict-PSD boundary where the solver tolerance eats the ε margin and
+  the a-posteriori validation rejects a "solved" step — use λ ≈ 0.5; in `:free`
+  mode the trace term is in absolute tube units, and a large λ lets the cost
+  term buy input effort by drifting the tube off the nominal until input
+  feasibility dies — keep λ small (the 0.01 default) and instead set `q_min`
+  near the entry scale, since at the loose default floor the trace objective
+  needle-collapses the tube and the next step dies of source conditioning;
   `linearization_δx_margin ≥ 1` inflates the (known) state box handed to the
   Hessian bound, buying u-side slack;
 - gates: `r_min`, `check_state_domain`, `check_terminal` as in [`ChainOptions`](@ref).
