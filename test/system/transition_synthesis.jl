@@ -468,6 +468,76 @@ end
     @test feasible
     @test K ≈ [-2.0 -1.0 -5.0] atol = 1e-1
     @test isposdef(Symmetric(Matrix(P)))
+
+    # Unsuccessful solve (iteration-starved solver): NO values may be extracted
+    # from the failed model — the old code inverted `value.(S)` before checking.
+    opt_starved =
+        optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true, "max_iter" => 1)
+    feas_bad, K_bad, P_bad, γ_bad = ST.stabilizing_feedback(sys, opt_starved)
+    @test !feas_bad
+    @test K_bad === nothing && P_bad === nothing && γ_bad === nothing
+end
+
+@testset "argument validation" begin
+    x0 = [1.0, 1.0]
+    Lip = [0.1, 0.1, 0.0, 0.0]
+
+    # Unknown remainder models must error loudly, never silently fall back.
+    @test_throws ErrorException ST.solve_transition_backward(
+        sys_noisy,
+        E2,
+        x0,
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        remainder_model = :box,
+    )
+    @test_throws ErrorException ST.solve_transition_forward(
+        sys_noisy,
+        E1,
+        [1.08, 0.9],
+        [0.0],
+        Uformat,
+        Wmat,
+        Λ,
+        Lip,
+        opt_sdp;
+        remainder_model = :Ball,
+    )
+
+    # An empty disturbance-vertex set would drop every reachability constraint.
+    W_empty = zeros(2, 0)
+    @test_throws ErrorException ST.solve_transition(
+        sys_noisy,
+        E1,
+        E2,
+        Uformat,
+        W_empty,
+        Λ,
+        opt_sdp,
+    )
+
+    # The two-step kernel is :vertices-only and says so.
+    κ1 = MS.AffineMap([0.0 0.0], [0.0])
+    @test_throws ErrorException ST.solve_transition_backward_2step(
+        sys_plain,
+        sys_plain,
+        κ1,
+        E2,
+        x0,
+        [0.0],
+        Uformat,
+        zeros(2, 1),
+        zeros(2, 1),
+        Λ,
+        Lip,
+        [0.01, 0.01],
+        opt_sdp;
+        remainder_model = :ball,
+    )
 end
 
 end  # module TestMain

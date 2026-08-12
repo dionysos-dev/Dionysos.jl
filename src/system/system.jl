@@ -36,7 +36,14 @@ include("controllers/pid_controller.jl")
 include("trajectories/trajectory.jl")
 include("trajectories/closed_loop.jl")
 
+# Normalized certification frame z = x ./ t (set/trajectory/controller half;
+# the dynamics half is `normalized_symbolic_provider` in the Symbolics ext)
+include("normalized_frame.jl")
+
 # Synthesis of controlled ellipsoid-to-ellipsoid transitions (S-procedure LMIs)
-include("transition_synthesis.jl")
+include("transition_synthesis/transition_synthesis.jl")
+
+# Lyapunov state feedback (stabilizability LMI)
+include("stabilizing_feedback.jl")
 
 end
