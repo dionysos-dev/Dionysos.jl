@@ -652,9 +652,24 @@ unchanged (wall physics-dominated at fine steps) but **doubles the guaranteed
 recovery regions at every depth**. Rule: `:vertices` whenever n ≤ 4 (16
 blocks/SDP is affordable); `:ball` for long chains in higher dimension
 (`:john_ball` kept — sound, tested — but no measured advantage). Both DP demos
-ship with `:vertices`. Remaining untried lever: adaptive Δt schedules
-(volume/compute win — measured 16× terminal volume at fine Δt — but not a
-wall-breaker: runway is Δt-invariant).
+ship with `:vertices`.
+
+**BIDIRECTIONAL VERDICT (measured, entry-scale ladder ×1.0/×0.5/×0.25/×0.1 of
+I)**: the forward tube explodes at the same physical stretch where the backward
+funnel bleeds — at entry ×0.1 (±0.02 rad) it survives 8 steps (~×2.7 growth)
+then inflates ×7 in 3 steps through the pump ascent and dies; larger entries die
+immediately (the saturated nominal leaves ~1.0 of correction headroom against
+±1.7 rad/s deviations). No handoff exists at any scale. The wall is now
+characterized bidirectionally with seven null ablations around it — the clean
+signature of a per-step certificate on a rank-1-B plant: u defends one direction
+per step, the expansion lives in the other three. Remaining research levers (not
+tuning): (1) MULTI-STEP (lifted) transitions — certify E_k → E_{k+2} in one LMI
+with composed maps and two gains, giving the certificate the 2-step coupling
+channel u → ω₁ → ω₂ that per-step chains can never see (helps both directions);
+(2) anti-greedy windowed chain optimization (~5-step joint SDPs — both audits
+show per-step greed contributes); (3) adaptive Δt schedules (volume/compute win —
+measured 16× terminal volume at fine Δt — but not a wall-breaker: runway is
+Δt-invariant).
 
 ---
 
