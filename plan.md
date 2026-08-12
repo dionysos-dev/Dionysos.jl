@@ -479,6 +479,54 @@ are single-seed; treat them as anecdotes until reproduced.
 | **C5 — seed comparison** | P5 | fine vs coarse abstraction vs RRT — seed time vs downstream MPPI effort and certification success |
 | **C6 — disturbance robustness** | P6/stretch | certify with `W ≠ 0`; Monte-Carlo replay under process noise; `planning_input_scale` (input reserve) front |
 
+**C2 OUTCOME (2026-08-12, pendulum swing-up, 8 paired seeds).** Certification is
+deterministic given the trajectory, so the runner's per-seed rng makes every config
+certify the SAME eight trajectories (cache keyed on the seed's first draw) — the
+comparison is paired, which buys more contrast power than the 20-unpaired-seed rule
+this table was written for. One factor at a time around the mainline config (fixed
+global normalization, `:vertices`, `:maximin`; box search fixed at `:max_volume`):
+
+- **Normalization is load-bearing, and only the fixed physical frame survives**:
+  `none` = 0/8, dying at the same 31% of the chain every time (iqr 0.002 — a
+  deterministic conditioning wall, not bad luck); Florentin's `trajectory_std` = 0/8
+  with bimodal depth (chain_frac median 0.57, iqr 0.43) — the trajectory's spread is
+  the wrong scale, the target's is the right one. His preferred scaling never
+  certifies under sound gates. Mainline fixed-t: 8/8, V0 = Vmin = 0.0036 (maximin
+  equalization replicated), iqr ≈ 1.6% — trajectory-shape variance is negligible.
+- **Remainder ladder at n = 2**: `:vertices` 8/8 V0 0.00363; `:john_ball` 8/8 at
+  75% of that volume (0.00274) — the per-axis John ball recovers most of the exact
+  corner support here, unlike the n = 4 double pendulum where it tied `:ball`
+  (anisotropy of Lip decides); `:ball` 8/8 at 7% (0.00024, coverage 3510 vs 232).
+- **Size objectives are high-reward, 25%-fragile**: `:logdet` certifies 2/8 (when it
+  does: V0 0.237 = 65× maximin, coverage 4.4 — the demo's 132× headline was one of
+  the lucky trajectories); `:trace` 2/8 with early deaths (median 12% of the chain)
+  and collapse (Vmin 2.4e-4). Rule: `:maximin` is the robustness default;
+  volume-tuned configs belong behind the driver's retry loop, not in it.
+
+**C3 OUTCOME (2026-08-12, integrator + pendulum, 8 paired seeds).** Backward
+dominates on both systems; the forward direction is a verifier, not a synthesizer:
+
+- **Integrator (linear, fully actuated)**: backward 8/8 with a SYNTHESIZED entry of
+  0.385 — 25× the forward tube's entry (0.0157, circumscribing the given initial
+  set). Forward `:fixed` 7/8 (the min-α razor still nicks one seed at λ = 0.5),
+  `:free` 4/8 even after floor calibration. Bidirectional 8/8 — but the handoff is
+  degenerate at s = 1 (the backward funnel simply covers the entry; forward adds
+  nothing).
+- **Pendulum (underactuated)**: backward 8/8; the forward tube dies within 1–3 steps
+  from the FULL initial set (0/8, chain_frac 0.006) and STILL within ~3 steps from a
+  quarter-scale entry (0/8, chain_frac 0.022) — the energy-pumping phase amplifies
+  any tube one input direction cannot defend, exactly the double pendulum's
+  bidirectional verdict. The handoff never nests (0/8 both scales): the backward
+  ENTRY funnel (area 0.0036) is orders below any useful forward entry (0.63 / 0.034),
+  and nesting is only checked where both chains exist — here that is the chain start.
+- **Calibration traps burned down en route** (measured on the exactly-linear step,
+  recorded in `ForwardOptions`' docstring): `:fixed` needs λ ≈ 0.5 or the min-α
+  solution lands on the strict-PSD razor edge and validation rejects a "solved"
+  step; `:free` needs the small shipped λ AND `q_min` near the entry scale — loose
+  floor = needle collapse then source-conditioning death, large λ = the cost term
+  buys input effort by drifting the tube off the nominal until input feasibility
+  dies (×2.5 growth per step).
+
 ---
 
 ## 7. Roadmap
