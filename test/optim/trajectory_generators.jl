@@ -241,4 +241,33 @@ end
     end
 end
 
+@testset "truncate_at_target picks the DEEPEST hit, not the first" begin
+    T = LazySets.Hyperrectangle(; low = SVector(-0.3, -0.3), high = SVector(0.3, 0.3))
+    prob = PR.OptimalControlProblem(
+        MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(
+            (x, u) -> x,
+            2,
+            2,
+            nothing,
+            nothing,
+        ),
+        nothing,
+        T,
+        nothing,
+        nothing,
+    )
+    xs = [
+        SVector(-1.0, -1.0),
+        SVector(-0.5, -0.5),
+        SVector(0.25, 0.25),   # first hit (shallow: 83% of the half-width out)
+        SVector(0.0, 0.0),     # deepest hit
+        SVector(0.5, 0.5),     # back outside
+    ]
+    tr = ST.Trajectory(xs; inputs = fill(SVector(0.0, 0.0), 4))
+    truncated = AB.MPPITrajectoryGenerator.truncate_at_target(prob, tr)
+    states_t = collect(ST.states(truncated))
+    @test states_t[end] == SVector(0.0, 0.0)
+    @test length(states_t) == 4
+end
+
 end # module TestMain

@@ -8,13 +8,15 @@ import ..generate!
 import ..get_trajectory
 import ..get_success
 import ..get_solve_time
+import ..get_seed
+import ..get_diagnostics
 
 import ..set_seed_trajectory!
 
 const DI = Dionysos
 const PR = DI.Problem
 
-export TrajectoryGenerator, get_seed, get_diagnostics
+export TrajectoryGenerator
 
 mutable struct TrajectoryGenerator{
     GSEED <: AbstractTrajectoryGenerator,

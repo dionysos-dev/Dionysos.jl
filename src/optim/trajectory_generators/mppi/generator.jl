@@ -134,6 +134,17 @@ get_success(gen::TrajectoryGenerator) = gen.success
 get_solve_time(gen::TrajectoryGenerator) = gen.solve_time_sec
 get_diagnostics(gen::TrajectoryGenerator) = gen.diagnostics
 
+function set_horizon!(gen::TrajectoryGenerator, nstep::Int)
+    gen.nstep = nstep
+    return gen
+end
+
+function set_stop_on_success!(gen::TrajectoryGenerator, flag::Bool)
+    previous = gen.stop_on_success
+    gen.stop_on_success = flag
+    return previous
+end
+
 # ------------------------------------------------------------
 # Cost evaluation (function barrier over the two cost styles)
 # ------------------------------------------------------------

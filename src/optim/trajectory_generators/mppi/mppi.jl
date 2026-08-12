@@ -12,10 +12,14 @@ using StaticArrays
 import ..AbstractTrajectoryGenerator
 import ..set_problem!
 import ..set_seed_trajectory!
+import ..set_horizon!
+import ..set_stop_on_success!
 import ..generate!
 import ..get_trajectory
 import ..get_success
 import ..get_solve_time
+import ..get_seed
+import ..get_diagnostics
 import ..AbstractCostTerm
 import ..CompositeCost
 import ..rollout_cost

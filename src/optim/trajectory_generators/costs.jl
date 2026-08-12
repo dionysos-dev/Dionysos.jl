@@ -16,14 +16,30 @@ import Dionysos
 const UT = Dionysos.Utils
 const ST = Dionysos.System
 
-export CompositeCost,
+export AbstractCostTerm,
+    CompositeCost,
     TrackingCost,
     TerminalEllipsoidCost,
+    TerminalPullCost,
     InputEffortCost,
     InputSmoothnessCost,
     DomainPenaltyCost,
     ReachObjectiveCost
 
+"""
+    AbstractCostTerm
+
+One term of a rollout cost, evaluated ONLINE by the accumulator protocol:
+
+- `cost_init(term)` — the term's initial accumulator (any value);
+- `cost_step(term, acc, x, u, k)` — fold step `k` (1-based); `x` is the state
+  BEFORE `u` is applied; returns the updated accumulator;
+- `cost_final(term, acc, xT)` — fold the terminal state and return the term's
+  scalar cost (a `Real` — terms whose accumulator is not already the cost MUST
+  implement this).
+
+Terms are summed by [`CompositeCost`](@ref).
+"""
 abstract type AbstractCostTerm end
 
 cost_init(::AbstractCostTerm) = 0.0
@@ -39,6 +55,51 @@ struct CompositeCost{T <: Tuple}
     terms::T
 end
 CompositeCost(terms...) = CompositeCost(terms)
+
+"""
+    TerminalPullCost(center, radii; w = 1.0, wrap = identity, periods = nothing)
+
+Endpoint pull in a scaled metric: `w · Σᵢ (dᵢ / radiiᵢ)²` with
+`dᵢ = xT,ᵢ − centerᵢ` taken modulo `periods[i]` when given (nearest-period
+difference — the wrap-aware pull that keeps a periodic endpoint engaged with a
+target straddling the seam). The reach shaping scores a trajectory's CLOSEST
+pass; this term is what drives the ENDPOINT to the target center, which is what
+lets a large box-centered terminal ellipsoid be inscribed (measured on the
+pendulum swing-up).
+"""
+struct TerminalPullCost{FW, P} <: AbstractCostTerm
+    center::Vector{Float64}
+    radii::Vector{Float64}
+    w::Float64
+    wrap::FW
+    periods::P
+end
+
+function TerminalPullCost(center, radii; w = 1.0, wrap = identity, periods = nothing)
+    return TerminalPullCost(
+        collect(Float64, center),
+        collect(Float64, radii),
+        Float64(w),
+        wrap,
+        periods,
+    )
+end
+
+_periodic_diff(d, ::Nothing) = d
+_periodic_diff(d, period::Real) = rem(d, period, RoundNearest)
+
+function cost_final(t::TerminalPullCost, acc, xT)
+    xw = t.wrap(xT)
+    total = 0.0
+    for i in eachindex(t.center)
+        d = _periodic_diff(
+            xw[i] - t.center[i],
+            t.periods === nothing ? nothing : t.periods[i],
+        )
+        total += (d / t.radii[i])^2
+    end
+    return acc + t.w * total
+end
 
 """
     TrackingCost(reference, weights)
@@ -178,21 +239,25 @@ function ReachObjectiveCost(
     )
 end
 
-cost_init(::ReachObjectiveCost) = (Inf, 0)
+# Accumulator: (closest distance, first in-target index, last index seen). The
+# last index gives the terminal state its true index K+1 in `cost_final` — with a
+# sentinel like `typemax(Int)` a first hit AT the endpoint (the most common
+# success case) would earn a bonus of ~0.
+cost_init(::ReachObjectiveCost) = (Inf, 0, 0)
 
 function _reach_acc(t::ReachObjectiveCost, acc, x, k)
-    best, hit = acc
+    best, hit, _ = acc
     xw = t.wrap(x)
     d = minimum(LA.norm(collect(xw) - c) for c in t.centers)
     best = min(best, d)
     hit = (hit == 0 && xw ∈ t.target_set) ? k : hit
-    return (best, hit)
+    return (best, hit, k)
 end
 
 cost_step(t::ReachObjectiveCost, acc, x, u, k) = _reach_acc(t, acc, x, k)
 
 function cost_final(t::ReachObjectiveCost, acc, xT)
-    best, hit = _reach_acc(t, acc, xT, typemax(Int))
+    best, hit, _ = _reach_acc(t, acc, xT, acc[3] + 1)
     return t.w_distance * best - (hit == 0 ? 0.0 : t.hit_bonus / hit)
 end
 
