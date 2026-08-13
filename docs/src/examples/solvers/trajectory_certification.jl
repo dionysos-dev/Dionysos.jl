@@ -24,10 +24,9 @@
 
 import LazySets
 import LinearAlgebra as LA
-import MathOptInterface as MOI
 import MathematicalSystems as MS
 using StaticArrays, Plots
-using JuMP, Clarabel
+using JuMP, Clarabel # JuMP exports `MOI`; the docs environment has no direct MathOptInterface dependency
 using Symbolics
 using Random, Test
 
