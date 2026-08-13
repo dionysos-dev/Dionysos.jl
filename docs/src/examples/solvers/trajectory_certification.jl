@@ -213,8 +213,10 @@ ztraj = ST.normalize_trajectory(lifted, t);
 
 # The backward chain starts from an ellipsoid inscribed in the target around the
 # endpoint and synthesizes each ``(E_k, κ_k)`` against ``E_{k+1}``, searching
-# linearization-box scales for the largest certified ellipsoid (`:logdet`
-# objective + `:max_volume` line search — the volume-tuned configuration).
+# linearization-box scales for the largest certified ellipsoid. The chain
+# maximizes the smallest semi-axis (`:maximin`) — the robust size objective: a
+# pancake-collapsed ellipsoid is worthless under it, so long chains keep genuine
+# volume in every direction.
 
 adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
     ΔX_initial = [0.05, 0.10] ./ t,
@@ -234,7 +236,7 @@ back_opts = EB.ChainOptions(;
     linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    objective = :logdet,
+    objective = :maximin,
     check_state_domain = false,
 )
 
