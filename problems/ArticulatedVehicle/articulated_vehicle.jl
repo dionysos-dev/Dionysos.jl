@@ -184,10 +184,80 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
 end
 function with_xy_obstacles(
     _X_::LazySets.AbstractHyperrectangle;
-    obstacles2d = xy_obstacles(),
+    obstacles2d = parking_obstacles(),
 )
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
     return UT.set_minus(_X_, UT.set_union(obs4d))
+end
+
+# ----------------------------
+# Reverse-parking benchmark ("Permis" scenario, PR #569)
+# ----------------------------
+# Two walls leave a dead-end bay (the free corridor y ∈ [4.7, 6.0] for
+# x ∈ [4, 10]) opening to the west. The vehicle starts near the origin heading
+# east and must end INSIDE the bay facing back out (θ ≈ π) — it has to turn
+# around in the open area and then back the trailer in, reversing trailer-first:
+# the jackknife-unstable maneuver a funnel controller exists to stabilize.
+parking_obstacles() = [
+    LazySets.Hyperrectangle(; low = SVector(4.0, -1.0), high = SVector(10.0, 4.7)),
+    LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
+]
+
+# Parallel-parking variant sketched (commented out, never validated) in the same
+# PR: a curb along the bottom plus a parked car on each side of the slot.
+parallel_parking_obstacles() = [
+    LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(10.0, 0.8)),
+    LazySets.Hyperrectangle(; low = SVector(5.2, 0.8), high = SVector(10.0, 2.6)),
+    LazySets.Hyperrectangle(; low = SVector(-2.0, 0.8), high = SVector(0.5, 2.6)),
+]
+
+# The benchmark's compact rig — short tractor, short trailer, mid off-axle hitch.
+parking_params() = Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+
+"""
+    parking_problem(; params, obstacles2d, phi_max, theta_lims) -> OptimalControlProblem
+
+The reverse-parking control problem: domain `[-1,10] × [-1,9]` minus the
+`obstacles2d` walls, hitch angle limited to `±phi_max`, inputs
+`v ∈ [-5, 5]` (reverse allowed), `δ ∈ [-π/4, π/4]`. Initial states around the
+origin heading east; target = the bay `[9,10] × [5,6]` with `θ ∈ π ± 5°`
+(facing back out) and `ϕ ∈ ±5°` (rig straight). `theta_lims` widens the θ box
+when the caller works on a periodic-unwrapped cover.
+"""
+function parking_problem(;
+    params::Params = parking_params(),
+    obstacles2d = parking_obstacles(),
+    phi_max = deg2rad(50.0),
+    theta_lims = (-pi, pi),
+    transition_cost = nothing,
+    state_cost = nothing,
+)
+    box = LazySets.Hyperrectangle(;
+        low = SVector(-1.0, -1.0, theta_lims[1], -phi_max),
+        high = SVector(10.0, 9.0, theta_lims[2], phi_max),
+    )
+    _X_ = with_xy_obstacles(box; obstacles2d = obstacles2d)
+
+    _U_ =
+        LazySets.Hyperrectangle(; low = SVector(-5.0, -pi / 4), high = SVector(5.0, pi / 4))
+
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-1.0, -1.0, -0.4, -0.4),
+        high = SVector(1.0, 1.0, 0.4, 0.4),
+    )
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(9.0, 5.0, pi - deg2rad(5.0), -deg2rad(5.0)),
+        high = SVector(10.0, 6.0, pi + deg2rad(5.0), deg2rad(5.0)),
+    )
+
+    sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+        dynamic(params),
+        4,
+        2,
+        _X_,
+        _U_,
+    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 # ----------------------------
@@ -392,13 +462,13 @@ function draw_articulated!(
     return plt
 end
 
-function plot_xy_obstacles!(plt, obs2d; alpha = 0.25)
+function plot_xy_obstacles!(plt, obs2d; alpha = 0.25, kwargs...)
     for ob in obs2d
         x1l, y1l = LazySets.low(ob, 1), LazySets.low(ob, 2)
         x1u, y1u = LazySets.high(ob, 1), LazySets.high(ob, 2)
         xs = [x1l, x1u, x1u, x1l, x1l]
         ys = [y1l, y1l, y1u, y1u, y1l]
-        plot!(plt, xs, ys; lw = 1, fill = (true, alpha), label = false)
+        plot!(plt, xs, ys; lw = 1, fill = (true, alpha), label = false, kwargs...)
     end
     return plt
 end
