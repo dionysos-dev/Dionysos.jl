@@ -266,9 +266,12 @@ back_opts = EB.ChainOptions(;
     linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    # :maximin maximizes the smallest semi-axis — the campaign-measured robust
-    # size objective (:logdet dies mid-chain in the adaptive box search).
-    objective = :maximin,
+    # :logdet maximizes true volume — the big-funnel objective this demo is
+    # about (132× the PR's volumes). It is per-trajectory fragile (C2: 2/8
+    # seeds; a razor step dies in the adaptive box search), which is what the
+    # retry ladder below is for: a fresh MPPI trajectory re-rolls the dice.
+    # If the ladder exhausts its rounds, :maximin is the robust fallback.
+    objective = :logdet,
     check_state_domain = false,
 )
 
