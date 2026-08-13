@@ -203,16 +203,68 @@ parking_obstacles() = [
     LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
 ]
 
-# Parallel-parking variant sketched (commented out, never validated) in the same
-# PR: a curb along the bottom plus a parked car on each side of the slot.
-parallel_parking_obstacles() = [
-    LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(10.0, 0.8)),
-    LazySets.Hyperrectangle(; low = SVector(5.2, 0.8), high = SVector(10.0, 2.6)),
-    LazySets.Hyperrectangle(; low = SVector(-2.0, 0.8), high = SVector(0.5, 2.6)),
-]
-
 # The benchmark's compact rig — short tractor, short trailer, mid off-axle hitch.
 parking_params() = Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+
+# ----------------------------
+# Parallel-parking benchmark (the "créneau" scenario of the same PR)
+# ----------------------------
+# A 21 × 5.6 m street: two parked cars along the bottom curb leave an 8 m slot
+# between them. The rig starts in the traffic lane AHEAD of the slot, heading
+# along the street, and must reverse trailer-first through the classic S-curve
+# back into the slot, ending parallel-parked (θ ≈ 0, rig straight).
+parallel_parking_obstacles() = [
+    LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(6.3, 2.1)),
+    LazySets.Hyperrectangle(; low = SVector(14.3, 0.0), high = SVector(21.0, 2.1)),
+]
+
+# The créneau's realistic rig — car-sized tractor towing a longer trailer.
+parallel_parking_params() = Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9)
+
+"""
+    parallel_parking_problem(; params, obstacles2d, phi_max) -> OptimalControlProblem
+
+The parallel-parking (créneau) control problem: street `[0,21] × [0,5.6]` minus
+the two parked cars, hitch angle limited to `±phi_max`, inputs `v ∈ [-5, 5]`
+(reverse allowed), `δ ∈ ±0.96`. Initial states in the lane ahead of the slot
+(`[18,20.6] × [3.5,4.5]`, θ ∈ ±3°), target = the slot `[10,12.8] × [0.5,1.6]`
+with θ ∈ ±6° and ϕ ∈ ±3°. θ never approaches the ±π seam, so no periodic
+cover is needed.
+"""
+function parallel_parking_problem(;
+    params::Params = parallel_parking_params(),
+    obstacles2d = parallel_parking_obstacles(),
+    phi_max = deg2rad(65.0),
+    transition_cost = nothing,
+    state_cost = nothing,
+)
+    box = LazySets.Hyperrectangle(;
+        low = SVector(0.0, 0.0, -pi, -phi_max),
+        high = SVector(21.0, 5.6, pi, phi_max),
+    )
+    _X_ = with_xy_obstacles(box; obstacles2d = obstacles2d)
+
+    δ_max = 0.959931
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -δ_max), high = SVector(5.0, δ_max))
+
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
+        high = SVector(20.6, 4.5, deg2rad(3.0), deg2rad(2.0)),
+    )
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(10.0, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
+        high = SVector(12.8, 1.6, deg2rad(6.0), deg2rad(3.0)),
+    )
+
+    sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+        dynamic(params),
+        4,
+        2,
+        _X_,
+        _U_,
+    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
+end
 
 """
     parking_problem(; params, obstacles2d, phi_max, theta_lims) -> OptimalControlProblem
