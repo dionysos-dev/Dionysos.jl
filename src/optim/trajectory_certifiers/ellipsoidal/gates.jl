@@ -15,12 +15,24 @@ function _ellipsoid_bbox(E)
     return LazySets.Hyperrectangle(collect(Float64, LazySets.center(E)), r)
 end
 
-function _ellipsoid_in_box(E, H::LazySets.AbstractHyperrectangle)
+# Per-axis support excess over the box faces (> 0 on the violated axes).
+function _box_excess(E, H::LazySets.AbstractHyperrectangle)
     c = collect(Float64, LazySets.center(E))
     Q = Matrix{Float64}(LazySets.shape_matrix(E))
     cH = collect(Float64, LazySets.center(H))
     rH = [LazySets.radius_hyperrectangle(H, i) for i in 1:LazySets.dim(H)]
-    return all(abs.(c .- cH) .+ sqrt.(max.(0.0, LA.diag(Q))) .<= rH .+ 1e-12)
+    return abs.(c .- cH) .+ sqrt.(max.(0.0, LA.diag(Q))) .- rH
+end
+
+_ellipsoid_in_box(E, H::LazySets.AbstractHyperrectangle) = all(_box_excess(E, H) .<= 1e-12)
+
+# Failure text naming the violated axes — a domain rejection without the axes is
+# undebuggable from the outside (the gate drops the uncertified ellipsoid).
+function _box_violation_reason(E, H)
+    excess = _box_excess(E, H)
+    axes = findall(excess .> 1e-12)
+    return "is not contained in the state domain (axis " *
+           "$(join(axes, ", ")): support excess $(round.(excess[axes]; sigdigits = 3)))"
 end
 
 _provably_disjoint(E, S) = UT.is_disjoint(_ellipsoid_bbox(E), S)
@@ -81,13 +93,13 @@ _state_domain_supported(X) = X isa LazySets.AbstractHyperrectangle || X isa UT.S
 function _domain_reason(E, X)
     if X isa LazySets.AbstractHyperrectangle
         _ellipsoid_in_box(E, X) && return nothing
-        return "is not contained in the state domain"
+        return _box_violation_reason(E, X)
     end
 
     if X isa UT.SetMinus
         included = UT.minus_included(X)
         included isa LazySets.AbstractHyperrectangle || return nothing
-        _ellipsoid_in_box(E, included) || return "is not contained in the state domain"
+        _ellipsoid_in_box(E, included) || return _box_violation_reason(E, included)
         for hole in _each_member(UT.minus_hole(X))
             _provably_disjoint(E, hole) ||
                 return "is not provably disjoint from a domain hole (obstacle)"
