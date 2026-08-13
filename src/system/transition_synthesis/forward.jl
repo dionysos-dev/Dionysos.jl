@@ -35,7 +35,7 @@ function _free_target_kernel(
     Nw = length(νs)
     Nu = length(U)
 
-    km = _KernelModel(sdp_solver, 1e-8)
+    km = _KernelModel(sdp_solver, _PSD_STRICTNESS)
     model = km.model
     @variable(model, K[i = 1:nu, j = 1:nx])
     @variable(model, ell[i = 1:nu, j = 1:1])

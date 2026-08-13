@@ -48,12 +48,20 @@ sys_plain = HybridSystems.ConstrainedAffineControlDiscreteSystem(A, B, g, nothin
     @test result isa ST.TransitionResult
     @test result.feasible
     @test result.source === nothing
-    # The controller is one of several near-optimizers (the cost is pinned much
-    # tighter): the vertex ordering of the noise polytope shifts which one the
-    # SDP returns, so the controller goldens carry a looser tolerance.
     @test result.cost ≈ 5.593497169 rtol = 1e-5
-    @test vec(Matrix(result.controller.A)) ≈ [0.1035123589, -0.6746765442] atol = 1e-2
-    @test collect(result.controller.c) ≈ [0.9701680955] atol = 1e-2
+    # The controller is one of several near-optimizers (only the cost is pinned
+    # tight), and which one the SDP returns shifts with the platform and the
+    # PSD strictness margin — so check the certified property instead of golden
+    # gain values: the controller maps every sampled source state into the
+    # target, for every noise vertex.
+    K = Matrix(result.controller.A)
+    b = collect(result.controller.c)
+    for x in UT.samples(E1, 100)
+        u = K * x + b
+        for j in 1:size(Wmat, 2)
+            @test A * x + B * u + g + D * Wmat[:, j] ∈ E2
+        end
+    end
 
     # cost passed as a QuadraticStateControlFunction is equivalent
     result_f = ST.solve_transition(sys_noisy, E1, E2, Uformat, Wmat, cost_fun, opt_sdp)
@@ -69,7 +77,15 @@ end
     result = ST.solve_transition(sys_plain, E1, E2, Uformat, Wsmall, Λ, opt_sdp)
     @test result.feasible
     @test result.cost ≈ 5.59349717 rtol = 1e-5
-    @test vec(Matrix(result.controller.A)) ≈ [0.1031962696, -0.674806461] atol = 1e-2
+    # Certified property in place of golden gains (see the noisy testset).
+    K = Matrix(result.controller.A)
+    b = collect(result.controller.c)
+    for x in UT.samples(E1, 100)
+        u = K * x + b
+        for j in 1:size(Wsmall, 2)
+            @test A * x + B * u + g + Wsmall[:, j] ∈ E2
+        end
+    end
 end
 
 @testset "solve_transition (infeasible)" begin

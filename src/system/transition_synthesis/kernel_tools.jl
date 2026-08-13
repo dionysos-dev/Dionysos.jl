@@ -10,10 +10,18 @@
 # multiplier signs are recorded the same way (`_check!`, `_require_nonneg!`).
 #
 # `_VALIDATION_TOL` absorbs eigensolver roundoff only — the posed constraints
-# demanded ⪰ ε·I with ε ≥ 1e-10, so genuinely feasible solutions clear 0 with
-# margin.
+# demand ⪰ ε·I with ε = `_PSD_STRICTNESS`, so genuinely feasible solutions
+# clear 0 with margin.
 
 const _VALIDATION_TOL = 1e-9
+
+# Strictness margin of every posed PSD block. It must DOMINATE the SDP
+# solver's feasibility tolerance (Clarabel default 1e-8): the solver returns
+# solutions violating posed constraints by up to that tolerance, so an active
+# block lands at ε ± tol — with ε ≫ tol it stays PSD and validation only has
+# to absorb eigensolver roundoff. At ε ≤ tol the margin is platform roundoff
+# luck (measured: same problem validated on Windows, rejected on Linux).
+const _PSD_STRICTNESS = 1e-7
 
 # Solution values of numbers, JuMP objects, and (possibly mixed) arrays thereof.
 _solved(x::Number) = x
@@ -21,13 +29,11 @@ _solved(x::AbstractArray{<:Number}) = x
 _solved(x::AbstractArray) = _solved.(x)
 _solved(x) = value(x)
 
-"""
-    _KernelModel(sdp_solver, ε)
-
-One transition-synthesis SDP under construction: the JuMP model, the strictness
-margin `ε` of its PSD constraints, and the recorded rebuild closures / scalar
-checks that re-validate the certificate at the solution.
-"""
+# One transition-synthesis SDP under construction: the JuMP model, the
+# strictness margin `ε` of its PSD constraints, and the recorded rebuild
+# closures / scalar checks that re-validate the certificate at the solution.
+# (Comment, not docstring: underscore-internals are excluded from the docs'
+# @autodocs blocks, and a docstring outside the manual fails `checkdocs`.)
 struct _KernelModel
     model::Model
     ε::Float64
@@ -78,8 +84,9 @@ function _validated(km::_KernelModel, label::String)
     end
     for rebuild in km.rebuilds
         M = rebuild()
-        if LA.eigmin(LA.Symmetric(Matrix{Float64}(M))) < -_VALIDATION_TOL
-            @debug "$label: solver-accepted solution failed block validation"
+        margin = LA.eigmin(LA.Symmetric(Matrix{Float64}(M)))
+        if margin < -_VALIDATION_TOL
+            @debug "$label: solver-accepted solution failed block validation" margin
             return false
         end
     end
@@ -228,7 +235,11 @@ end
 function _pose_source_size_objective!(km::_KernelModel, objective, λ, L, J, nx)
     if objective === :maximin && λ < 1.0
         r = @variable(km.model, lower_bound = 0.0)
-        _pose_psd!(km, _size_floor_block, L, r, nx; ε = 0.0)
+        # The floor is ACTIVE at the optimum (r is maximized onto it), so it
+        # must carry the full strictness margin like every validated block —
+        # posed at ε = 0 its rebuilt eigmin is pure solver noise and validation
+        # becomes a coin flip. The reported floor only understates by ε.
+        _pose_psd!(km, _size_floor_block, L, r, nx)
         @objective(km.model, Min, λ * J - (1.0 - λ) * r)
     elseif objective === :logdet && λ < 1.0
         t = @variable(km.model)

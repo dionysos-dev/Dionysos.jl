@@ -8,7 +8,7 @@ function _fixed_shape_kernel(A, B, c, Wcols, U, Λ, c1, P1, c2, Q2, sdp_solver)
     Nu = length(U)
     m = size(U[1], 2)
 
-    km = _KernelModel(sdp_solver, 1e-10)
+    km = _KernelModel(sdp_solver, _PSD_STRICTNESS)
     model = km.model
     @variable(model, K[i = 1:m, j = 1:n])
     @variable(model, ell[i = 1:m, j = 1:1])
