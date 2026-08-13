@@ -266,9 +266,9 @@ back_opts = EB.ChainOptions(;
     linearization_δx = [0.05, 0.10] ./ t,
     linearization_δu = [1.0],
     adaptive_boxes = adaptive_opts,
-    # :logdet maximizes true volume — the robustness objective; the collapse risk
-    # it carries (vs :maximin) is monitored by the funnel-area stats below.
-    objective = :logdet,
+    # :maximin maximizes the smallest semi-axis — the campaign-measured robust
+    # size objective (:logdet dies mid-chain in the adaptive box search).
+    objective = :maximin,
     check_state_domain = false,
 )
 
