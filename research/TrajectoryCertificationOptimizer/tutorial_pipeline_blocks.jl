@@ -1,369 +1,274 @@
-import LazySets
-using StaticArrays
-using MathematicalSystems
-using Dionysos
-using JuMP
-import MathOptInterface as MOI
-import LinearAlgebra as LA
+# Tutorial 0 — the modular pipeline, block by block, on the 2-D integrator.
+#
+# Every block of the trajectory-certification pipeline is instantiated and run
+# on the simplest possible system (ẋ = u, exactly affine — zero linearization
+# error), so each interface can be inspected in isolation:
+#
+#   1) abstraction-based trajectory generator (uniform grid + Dijkstra),
+#   2) MPPI refinement (typed stage costs, fixed rng),
+#   3) composite generator (abstraction seed → MPPI polish),
+#   4) ellipsoidal backward certifier, standalone,
+#   5) the generate ⇄ certify driver tying them together,
+#   6) static plot + dashboard animation.
+#
+#     julia --project=test research/TrajectoryCertificationOptimizer/tutorial_pipeline_blocks.jl
+#
+# Companions: tutorial_grid_tube_certifier.jl (uniform-grid TUBE certifier),
+# tutorial_ellipsoidal_knobs.jl (the ellipsoidal LMI knobs, annotated).
 
+import Dionysos
 const DI = Dionysos
 const UT = DI.Utils
 const ST = DI.System
+const PR = DI.Problem
 const MP = DI.Mapping
-const SY = DI.Symbolic
-const OP = DI.Optim
-const AB = OP.Abstraction
-const OPDS = OP.DiscreteSystems
+const AB = DI.Optim.Abstraction
+const EB = AB.EllipsoidalTrajectoryCertifier
+
+import LazySets
+import LinearAlgebra as LA
+import MathOptInterface as MOI
+import MathematicalSystems as MS
+using StaticArrays
+using Random
+using Symbolics
+import Clarabel
+using JuMP: optimizer_with_attributes
+using Plots
+
+const PROBLEMS = joinpath(dirname(dirname(pathof(Dionysos))), "problems")
+include(joinpath(PROBLEMS, "Integrator", "integrator.jl"))
 
 # ------------------------------------------------------------
-# 1) Define a simple 2D continuous-time system: x' = u
+# 0) Problem: box domain, two-component target, no obstacles
 # ------------------------------------------------------------
-
-include(
-    joinpath(dirname(dirname(pathof(Dionysos))), "problems", "Integrator", "integrator.jl"),
-)
 
 _X_ = LazySets.Hyperrectangle(; low = SVector(-2.0, -2.0), high = SVector(4.0, 4.0))
 _U_ = LazySets.Hyperrectangle(; low = SVector(-1.0, -1.0), high = SVector(1.0, 1.0))
-
-concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
-jacobian_bound = Integrator.jacobian_bound()
-
-# ------------------------------------------------------------
-# 2) Build abstraction
-# ------------------------------------------------------------
-
-alternating_simulation_problem =
-    DI.Problem.AlternatingSimulationProblem(concrete_system, concrete_system.X)
-
-x0_grid = SVector(-2.0, -2.0)
-hx = SVector(0.2, 0.2)
-state_grid = MP.GridFree(x0_grid, hx)
-
-u0_grid = SVector(-1.0, -1.0)
-hu = SVector(0.5, 0.5)
-input_grid = MP.GridFree(u0_grid, hu)
-
-optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
-
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("concrete_problem"),
-    alternating_simulation_problem,
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("state_grid"), state_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("input_grid"), input_grid)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("time_step"), 0.3)
-
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("approx_mode"),
-    AB.UniformGridAbstraction.GROWTH, # CENTER_SIMULATION GROWTH
-)
-
-MOI.set(optimizer, MOI.RawOptimizerAttribute("jacobian_bound"), jacobian_bound)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("n_samples"), 1)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 2)
-MOI.set(optimizer, MOI.Silent(), true)
-
-MOI.optimize!(optimizer)
-
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-discrete_time_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("discrete_time_system"))
-
-println("Abstraction built.")
-
-# ------------------------------------------------------------
-# 3) Define optimal control problem
-# ------------------------------------------------------------
-
 _I_ = LazySets.Hyperrectangle(; low = SVector(-1.7, -1.7), high = SVector(-1.6, -1.6))
-
 g11 = LazySets.Hyperrectangle(; low = SVector(-1.0, 3.0), high = SVector(-0.3, 3.7))
 g12 = LazySets.Hyperrectangle(; low = SVector(1.0, 2.0), high = SVector(3.0, 3.7))
 target_set = UT.set_union([g11, g12])
 
-state_cost = nothing
-trans_cost = nothing
-time_horizon = 20
+concrete_system = Integrator.system(; _X_ = _X_, _U_ = _U_)
+concrete_problem =
+    PR.OptimalControlProblem(concrete_system, _I_, target_set, nothing, nothing, 20)
 
-concrete_problem = DI.Problem.OptimalControlProblem(
-    concrete_system,
-    _I_,
-    target_set,
-    state_cost,
-    trans_cost,
-    time_horizon,
+Δt = 0.3
+
+# ------------------------------------------------------------
+# 1) Trajectory generator block 1: abstraction-based (uniform grid)
+# ------------------------------------------------------------
+
+println("— abstraction generator —")
+abstraction_optimizer = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+MOI.set(
+    abstraction_optimizer,
+    MOI.RawOptimizerAttribute("concrete_problem"),
+    PR.AlternatingSimulationProblem(concrete_system, concrete_system.X),
 )
+MOI.set(
+    abstraction_optimizer,
+    MOI.RawOptimizerAttribute("state_grid"),
+    MP.GridFree(SVector(-2.0, -2.0), SVector(0.2, 0.2)),
+)
+MOI.set(
+    abstraction_optimizer,
+    MOI.RawOptimizerAttribute("input_grid"),
+    MP.GridFree(SVector(-1.0, -1.0), SVector(0.5, 0.5)),
+)
+MOI.set(abstraction_optimizer, MOI.RawOptimizerAttribute("time_step"), Δt)
+MOI.set(
+    abstraction_optimizer,
+    MOI.RawOptimizerAttribute("approx_mode"),
+    AB.UniformGridAbstraction.GROWTH,
+)
+MOI.set(
+    abstraction_optimizer,
+    MOI.RawOptimizerAttribute("jacobian_bound"),
+    Integrator.jacobian_bound(),
+)
+MOI.set(abstraction_optimizer, MOI.Silent(), true)
 
-# ------------------------------------------------------------
-# 4) Generate closed-loop trajectory
-# ------------------------------------------------------------
-
-trajectory_generator = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
-    optimizer;
+abstraction_generator = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
+    abstraction_optimizer;
     initial_state = SVector(-1.65, -1.65),
     concrete = false,
     nstep = 50,
 )
-
-AB.set_problem!(trajectory_generator, concrete_problem)
-AB.generate!(trajectory_generator)
-
-closed_loop_traj = AB.get_trajectory(trajectory_generator)
-success = AB.get_success(trajectory_generator)
-solve_time = AB.get_solve_time(trajectory_generator)
-
-println("Trajectory generated.")
-println("Success: ", success)
-println("Solve time: ", solve_time)
-
-xtraj = closed_loop_traj
-utraj = ST.inputs(closed_loop_traj)
+AB.set_problem!(abstraction_generator, concrete_problem)
+AB.generate!(abstraction_generator)
+println(
+    "  success = $(AB.get_success(abstraction_generator)), ",
+    "time = $(round(AB.get_solve_time(abstraction_generator); digits = 2)) s",
+)
+abstraction_traj = AB.get_trajectory(abstraction_generator)
 
 # ------------------------------------------------------------
-# 5) Improve/refine trajectory with MPPI
+# 2) Trajectory generator block 2: MPPI refinement (typed stage costs)
 # ------------------------------------------------------------
 
-Δt = 0.3
-discrete_system = ST.discretize_continuous_system(concrete_problem.system, Δt)
-discrete_problem = DI.Problem.discretize_problem(concrete_problem, Δt)
-
-noise_sampler = function (rng, u, k)
-    σ = 0.3
-    return SVector(σ * randn(rng), σ * randn(rng))
-end
-
-project_input = function (u)
-    return SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0))
-end
-
-trajectory_cost = function (problem, traj)
-    xs = ST.states(traj)
-    us = ST.inputs(traj)
-
-    # Distance to the closest target component at each time.
-    target_distances = [
-        minimum(LA.norm(x - LazySets.center(g)) for g in problem.target_set.array)
-        for x in xs
-    ]
-
-    best_target_distance = minimum(target_distances)
-
-    # Prefer reaching the target early.
-    hit_idx = findfirst(x -> x ∈ problem.target_set, xs)
-    target_bonus = hit_idx === nothing ? 0.0 : -1000.0 / hit_idx
-
-    # Penalize leaving the domain.
-    domain_violation_cost = sum(x -> x ∈ problem.system.X ? 0.0 : 1000.0, xs)
-
-    # Small control regularization.
-    control_cost = sum(LA.norm(u)^2 for u in us)
-
-    return 100.0 * best_target_distance +
-           0.01 * control_cost +
-           domain_violation_cost +
-           target_bonus
-end
-
-using Random
-rng = Random.default_rng()
+println("— MPPI —")
+discrete_problem = PR.discretize_problem(concrete_problem, Δt)
 
 mppi_generator = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
-    rng = rng,
-    seed_trajectory = closed_loop_traj,
+    rng = Random.MersenneTwister(1),
+    seed_trajectory = abstraction_traj,
     nstep = 50,
     nsamples = 1000,
     niter = 20,
-    λ = 1.0,
-    noise_sampler = noise_sampler,
-    project_input = project_input,
-    trajectory_cost = trajectory_cost,
-    hard_constraint = false,
+    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.3, 0.3)),
+    project_input = u -> SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0)),
+    cost = AB.CompositeCost(
+        AB.ReachObjectiveCost(target_set),
+        AB.InputEffortCost(0.01),
+        AB.DomainPenaltyCost(concrete_system.X),
+    ),
 )
-
 AB.set_problem!(mppi_generator, discrete_problem)
 AB.generate!(mppi_generator)
-
+println(
+    "  success = $(AB.get_success(mppi_generator)), ",
+    "time = $(round(AB.get_solve_time(mppi_generator); digits = 2)) s",
+)
 mppi_traj = AB.get_trajectory(mppi_generator)
-xtraj_mppi = mppi_traj
-
-println("MPPI success: ", AB.get_success(mppi_generator))
-println("MPPI solve time: ", AB.get_solve_time(mppi_generator))
-println("MPPI diagnostics: ", AB.MPPITrajectoryGenerator.get_diagnostics(mppi_generator))
 
 # ------------------------------------------------------------
-# 6) Composite trajectory generator: use the closed-loop trajectory as a seed for MPPI
+# 3) Composite generator: abstraction seed → MPPI polish, one block
 # ------------------------------------------------------------
 
+println("— composite generator —")
 combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
-    trajectory_generator,
+    abstraction_generator,
     mppi_generator;
-    Δt = 0.3,
+    Δt = Δt,
     num_substeps = 5,
 )
-
 AB.set_problem!(combo_gen, concrete_problem)
 AB.generate!(combo_gen)
-
 composite_traj = AB.get_trajectory(combo_gen)
-composite_seed = AB.CompositeTrajectoryGenerator.get_seed(combo_gen)
+composite_seed = AB.get_seed(combo_gen)
+println("  success = $(AB.get_success(combo_gen))")
 
 # ------------------------------------------------------------
-# 7) Certify trajectory with ellipsoidal backward certifier
+# 4) Ellipsoidal backward certifier, standalone
 # ------------------------------------------------------------
 
-function plot_ellipsoid_chain!(
-    fig,
-    cert_result;
-    max_ellipsoids = 100,
-    label_prefix = "Backward ellipsoid",
+println("— ellipsoidal certifier (standalone) —")
+Symbolics.@variables x[1:2] u[1:2] w[1:2]
+fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
+Wset = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
+provider = ST.SymbolicAffineApproximationProvider(
+    fsymbolic,
+    collect(x),
+    collect(u),
+    collect(w),
+    [0.0, 0.0],
+    ST.format_input_set(_U_),
+    ST.format_noise_set(Wset),
 )
-    cert_result === nothing && return fig
 
+# Fixed linearization boxes: the integrator is exactly affine, so the boxes
+# carry no approximation content — only the box-consistency checks see them.
+ellip_opts = EB.ChainOptions(;
+    maxδx = 30.0,
+    maxδu = 1.0,
+    λ = 0.05,
+    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.5^2,
+    linearization_δx = [0.2, 0.2],
+    linearization_δu = [0.5, 0.5],
+    objective = :maximin,          # :logdet (volume) and :trace are the alternatives
+)
+
+sdp = optimizer_with_attributes(Clarabel.Optimizer, MOI.Silent() => true)
+certifier = EB.BackwardCertifier(provider, sdp, ellip_opts)
+AB.set_problem!(certifier, concrete_problem)
+AB.set_trajectory!(certifier, composite_traj)
+AB.certify!(certifier)
+println(
+    "  success = $(AB.get_success(certifier)), ",
+    "time = $(round(AB.get_solve_time(certifier); digits = 2)) s",
+)
+cert_result = EB.get_result(certifier)
+
+# ------------------------------------------------------------
+# 5) The generate ⇄ certify driver: same blocks, one optimizer
+# ------------------------------------------------------------
+
+println("— trajectory-certification driver —")
+tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(
+    AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
+        abstraction_generator,
+        mppi_generator;
+        Δt = Δt,
+        num_substeps = 5,
+    ),
+    EB.BackwardCertifier(provider, sdp, ellip_opts),
+)
+MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+MOI.optimize!(tc_optimizer)
+driver_traj = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("trajectory"))
+controller = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("controller"))
+println(
+    "  success = $(MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success"))), ",
+    "status = $(MOI.get(tc_optimizer, MOI.TerminationStatus())), ",
+    "time = $(round(MOI.get(tc_optimizer, MOI.SolveTimeSec()); digits = 2)) s, ",
+    "controller = $(typeof(controller))",
+)
+
+# ------------------------------------------------------------
+# 6) Static plot + dashboard animation
+# ------------------------------------------------------------
+
+function plot_ellipsoid_chain!(fig, cert_result; max_ellipsoids = 100)
+    cert_result === nothing && return fig
     ellipsoids = cert_result.lmi_data.ellipsoids
     isempty(ellipsoids) && return fig
-
     idxs = unique(
         round.(
             Int,
             range(1, length(ellipsoids); length = min(max_ellipsoids, length(ellipsoids))),
         ),
     )
-
     for (j, idx) in enumerate(idxs)
         plot!(
             fig,
             ellipsoids[idx];
-            label = j == 1 ? label_prefix : "",
+            label = j == 1 ? "backward funnel" : "",
             linewidth = 1.5,
             linestyle = :dash,
             alpha = 0.7,
         )
     end
-
     return fig
 end
 
-using Symbolics
-
-const EB = AB.EllipsoidalTrajectoryCertifier
-
-Symbolics.@variables x[1:2]
-Symbolics.@variables u[1:2]
-Symbolics.@variables w[1:2]
-
-Δt = 0.3
-
-fsymbolic = [x[1] + Δt * (u[1] + w[1]), x[2] + Δt * (u[2] + w[2])]
-
-Wformat = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
-
-provider = ST.SymbolicAffineApproximationProvider(
-    fsymbolic,
-    collect(x),
-    collect(u),
-    collect(w),
-    [0.0, 0.0],              # ΔW radius
-    ST.format_input_set(_U_),
-    ST.format_noise_set(Wformat),
-)
-
-adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
-    enabled = false,
-    ΔX_initial = [0.2, 0.2],
-    ΔX_min = [0.01, 0.01],
-    ΔX_max = [1.0, 1.0],
-    ΔU_initial = [0.5, 0.5],
-    ΔU_min = [0.01, 0.01],
-    ΔU_max = [1.0, 1.0],
-    growth = 2.0,
-    max_iters = 1,
-)
-
-ellip_opts = EB.ChainOptions(;
-    # These limit the size of the computed predecessor ellipsoid and controller deviation. Larger values make certification easier.
-    maxδx = 30,
-    maxδu = 1.0,
-    λ = 0.05, # This weights the transition-cost objective versus ellipsoid volume. In your current formulation,
-    terminal_shape = Matrix{Float64}(LA.I, 2, 2) * 0.5^2,
-    # These define the box used to compute the affine approximation and Lipschitz bound. Larger boxes are more conservative but safer; smaller boxes are less conservative but may not contain the ellipsoid/controller image.
-    linearization_δx = [0.2, 0.2],
-    linearization_δu = [0.5, 0.5],
-    adaptive_boxes = adaptive_opts,
-    objective = :trace,
-)
-
-using Clarabel
-backend = Clarabel.Optimizer
-
-certifier = EB.BackwardCertifier(provider, backend, ellip_opts)
-
-AB.set_problem!(certifier, concrete_problem)
-AB.set_trajectory!(certifier, composite_traj)
-AB.certify!(certifier)
-
-println("Certification success: ", AB.get_success(certifier))
-println("Certification time: ", AB.get_solve_time(certifier))
-
-controller = AB.get_controller(certifier)
-cert_result = EB.get_result(certifier)
-
-# ------------------------------------------------------------
-# 8) Trajectory-generation + certification optimizer
-# ------------------------------------------------------------
-
-certifier = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
-
-combo_gen = AB.CompositeTrajectoryGenerator.TrajectoryGenerator(
-    trajectory_generator,
-    mppi_generator;
-    Δt = 0.3,
-    num_substeps = 5,
-)
-
-tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(combo_gen, certifier)
-
-MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
-
-MOI.optimize!(tc_optimizer)
-
-composite_traj = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("trajectory"))
-controller = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("controller"))
-
-println(
-    "Trajectory generation + certification success: ",
-    MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success")),
-)
-
-println(
-    "Trajectory generation + certification time: ",
-    MOI.get(tc_optimizer, MOI.SolveTimeSec()),
-)
-
-# ------------------------------------------------------------
-# 8) Plot
-# ------------------------------------------------------------
-
-using Plots
-
-fig = plot(; aspect_ratio = :equal)
-
+fig = plot(; aspect_ratio = :equal, title = "Modular pipeline on the 2-D integrator")
 plot!(fig, concrete_problem; aspect_ratio = :equal)
-
 plot_ellipsoid_chain!(fig, cert_result; max_ellipsoids = 10)
+plot!(fig, abstraction_traj; color = :blue, dims = [1, 2], label = "abstraction trajectory")
+plot!(fig, mppi_traj; color = :red, dims = [1, 2], label = "MPPI trajectory")
+plot!(fig, composite_seed; color = :orange, dims = [1, 2], label = "composite seed")
+plot!(fig, driver_traj; color = :green, dims = [1, 2], label = "certified trajectory")
+plot_path = joinpath(@__DIR__, "tutorial_pipeline_blocks.png")
+savefig(fig, plot_path)
+println("— plot saved: $plot_path —")
 
-plot!(fig, xtraj; color = :blue, dims = [1, 2], label = "Closed-loop trajectory")
-plot!(fig, xtraj_mppi; color = :red, dims = [1, 2], label = "MPPI trajectory")
-
-plot!(
-    fig,
-    composite_seed;
-    color = :yellow,
-    dims = [1, 2],
-    label = "Composite seed trajectory",
+sys_plot = Integrator.system_plot!(; xlims = (-2.2, 4.2), ylims = (-2.2, 4.2))
+dash_plot! = (f, xk, uk) -> begin
+    plot!(f, _I_; color = :gray, alpha = 0.4)
+    plot!(f, g11; color = :green, alpha = 0.4)
+    plot!(f, g12; color = :green, alpha = 0.4)
+    sys_plot(f, xk, uk)
+end
+dash_path = DI.animate_trajectory_dashboard(
+    dash_plot!,
+    driver_traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 10,
+    filename = joinpath(@__DIR__, "tutorial_pipeline_blocks_dashboard.gif"),
+    title = "2-D integrator, certified",
 )
-
-plot!(fig, composite_traj; color = :green, dims = [1, 2], label = "Composite trajectory")
-
-display(fig)
+println("— dashboard saved: $dash_path —")
