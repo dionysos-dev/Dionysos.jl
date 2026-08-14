@@ -106,9 +106,13 @@ _I_ = LazySets.Hyperrectangle(;
     low = SVector(-3π / 180, -3π / 180, -0.5, -0.5),
     high = SVector(3π / 180, 3π / 180, 0.5, 0.5),
 )
+# Target half-widths, named once and used by the pull cost and the plots.
+# Sharp enough that the goal reads on the plots — the rig must arrive
+# near-upright AND near-settled (was θ₁ ±90°, θ₂ π±50°, ω ±4.5).
+T_r = SVector(π / 4, 30π / 180, 2.5, 2.5)
 _T_ = LazySets.Hyperrectangle(;
-    low = SVector(-π / 2, π - 50π / 180, -4.5, -4.5),
-    high = SVector(π / 2, π + 50π / 180, 4.5, 4.5),
+    low = SVector(0.0 - T_r[1], π - T_r[2], -T_r[3], -T_r[4]),
+    high = SVector(0.0 + T_r[1], π + T_r[2], T_r[3], T_r[4]),
 )
 
 Δt = 0.025
@@ -141,7 +145,7 @@ function rollout_inputs(us)
 end
 
 # Wrap-aware terminal pull in the target's inscribed-ellipsoid metric.
-rT = 0.9 .* [π / 2, 50π / 180, 4.5, 4.5]
+rT = 0.9 .* collect(T_r)
 struct DPTerminalPull <: AB.AbstractCostTerm
     w::Float64
 end
@@ -457,8 +461,8 @@ fig1 = plot(;
     size = (900, 650),
 )
 Tbox2 = LazySets.Hyperrectangle(;
-    low = SVector(π - 50π / 180, -4.5),
-    high = SVector(π + 50π / 180, 4.5),
+    low = SVector(π - T_r[2], -T_r[4]),
+    high = SVector(π + T_r[2], T_r[4]),
 )
 plot!(fig1, Tbox2; color = :green, alpha = 0.3, label = "target (θ₂, ω₂)")
 for (i, E) in enumerate(ells)
@@ -497,7 +501,10 @@ fig2 = plot(;
 )
 plot!(
     fig2,
-    LazySets.Hyperrectangle(; low = SVector(-π / 2, -4.5), high = SVector(π / 2, 4.5));
+    LazySets.Hyperrectangle(;
+        low = SVector(-T_r[1], -T_r[3]),
+        high = SVector(T_r[1], T_r[3]),
+    );
     color = :green,
     alpha = 0.3,
     label = "target (θ₁, ω₁)",
@@ -534,3 +541,20 @@ final_fig = plot(fig1, fig2; layout = (1, 2), size = (1500, 650))
 plot_path = joinpath(@__DIR__, "demo_double_pendulum.png")
 savefig(final_fig, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 8) Dashboard animation: double pendulum + swing-plane and torque panels
+# ------------------------------------------------------------
+
+dash_path = DI.animate_trajectory_dashboard(
+    DP.system_plot!(; params = params),
+    lifted_traj;
+    xdims = (2, 4),
+    udims = (1,),
+    Δt = Δt,
+    fps = 20,
+    frame_step = 2,
+    filename = joinpath(@__DIR__, "demo_double_pendulum_dashboard.gif"),
+    title = "Certified double-pendulum swing-up",
+)
+println("— dashboard saved: $dash_path —")

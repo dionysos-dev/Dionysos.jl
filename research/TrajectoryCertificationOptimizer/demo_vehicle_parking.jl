@@ -455,7 +455,7 @@ box2(H) = LazySets.Hyperrectangle(;
     low = SVector(LazySets.low(H, 1), LazySets.low(H, 2)),
     high = SVector(LazySets.high(H, 1), LazySets.high(H, 2)),
 )
-AV.plot_xy_obstacles!(fig, AV.parking_obstacles(); alpha = 0.6, color = :dimgray)
+AV.plot_xy_obstacles!(fig, AV.parking_obstacles())
 plot!(fig, box2(problem.initial_set); color = :gray, alpha = 0.5, label = "initial set")
 plot!(fig, box2(problem.target_set); color = :green, alpha = 0.35, label = "target (bay)")
 
@@ -498,7 +498,7 @@ figz = plot(;
     xlims = (6.0, 10.3),
     ylims = (4.3, 6.7),
 )
-AV.plot_xy_obstacles!(figz, AV.parking_obstacles(); alpha = 0.6, color = :dimgray)
+AV.plot_xy_obstacles!(figz, AV.parking_obstacles())
 plot!(figz, box2(problem.target_set); color = :green, alpha = 0.35)
 for E in shadows
     plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
@@ -517,3 +517,31 @@ final = plot(fig, figz; layout = (1, 2), size = (1500, 680))
 plot_path = joinpath(@__DIR__, "demo_vehicle_parking.png")
 savefig(final, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 7) Dashboard animation: rig in the parking lot + xy and input panels
+# ------------------------------------------------------------
+
+av_plot = AV.system_plot!(;
+    params = params,
+    obstacles2d = AV.parking_obstacles(),
+    xlims = (-4.0, 10.5),
+    ylims = (-2.0, 9.5),
+)
+dash_plot! =
+    (f, xk, uk) -> begin
+        plot!(f, box2(problem.initial_set); color = :gray, alpha = 0.4)
+        plot!(f, box2(problem.target_set); color = :green, alpha = 0.4)
+        av_plot(f, xk, uk)
+    end
+dash_path = DI.animate_trajectory_dashboard(
+    dash_plot!,
+    lifted;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 12,
+    filename = joinpath(@__DIR__, "demo_vehicle_parking_dashboard.gif"),
+    title = "Certified reverse parking",
+)
+println("— dashboard saved: $dash_path —")

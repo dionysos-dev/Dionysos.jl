@@ -462,3 +462,29 @@ final = plot(fig, figz; layout = (1, 2), size = (1500, 680))
 plot_path = joinpath(@__DIR__, "demo_vehicle.png")
 savefig(final, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 6) Dashboard animation: articulated vehicle + xy and input panels
+# ------------------------------------------------------------
+
+# The scenario has no obstacles — the dashboard context is the task itself:
+# initial box, target box, then the rig.
+av_plot = AV.system_plot!(; params = params, xlims = (-14.0, 14.0), ylims = (-14.0, 14.0))
+dash_plot! =
+    (f, xk, uk) -> begin
+        plot!(f, box2(problem.initial_set); color = :gray, alpha = 0.4)
+        plot!(f, box2(problem.target_set); color = :green, alpha = 0.4)
+        av_plot(f, xk, uk)
+    end
+dash_path = DI.animate_trajectory_dashboard(
+    dash_plot!,
+    traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 20,
+    frame_step = 2,
+    filename = joinpath(@__DIR__, "demo_vehicle_dashboard.gif"),
+    title = "Certified articulated-vehicle maneuver",
+)
+println("— dashboard saved: $dash_path —")

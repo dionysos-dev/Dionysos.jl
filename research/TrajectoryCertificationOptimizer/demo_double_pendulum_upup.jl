@@ -462,3 +462,19 @@ final_fig = plot(fig1, fig2; layout = (1, 2), size = (1500, 650))
 plot_path = joinpath(@__DIR__, "demo_double_pendulum_upup.png")
 savefig(final_fig, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# Dashboard animation: double pendulum + swing-plane and torque panels
+# ------------------------------------------------------------
+
+dash_path = DI.animate_trajectory_dashboard(
+    DP.system_plot!(; params = params),
+    lifted_ref;
+    xdims = (2, 4),
+    udims = (1,),
+    Δt = Δt,
+    fps = 20,
+    filename = joinpath(@__DIR__, "demo_double_pendulum_upup_dashboard.gif"),
+    title = "Certified up-up handstand",
+)
+println("— dashboard saved: $dash_path —")

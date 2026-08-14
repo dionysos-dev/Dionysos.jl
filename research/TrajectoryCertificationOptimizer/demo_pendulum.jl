@@ -421,3 +421,19 @@ final = plot(fig, figz; layout = (1, 2), size = (1500, 620))
 plot_path = joinpath(@__DIR__, "demo_pendulum.png")
 savefig(final, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 7) Dashboard animation: pendulum + phase-plane and torque panels
+# ------------------------------------------------------------
+
+dash_path = DI.animate_trajectory_dashboard(
+    SimplePendulum.system_plot!(; params = params),
+    lifted_x;
+    xdims = (1, 2),
+    udims = (1,),
+    Δt = Δt,
+    fps = 15,
+    filename = joinpath(@__DIR__, "demo_pendulum_dashboard.gif"),
+    title = "Certified pendulum swing-up",
+)
+println("— dashboard saved: $dash_path —")

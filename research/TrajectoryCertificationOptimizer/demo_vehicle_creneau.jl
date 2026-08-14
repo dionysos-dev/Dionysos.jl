@@ -2,7 +2,7 @@
 # PR #569, on the refactored pipeline.
 #
 # 4-D tractor-trailer with a realistic rig (L1 = 2.2, L2 = 2.8, Lc = 0.9) on a
-# 21 × 5.6 m street: two parked cars along the curb leave an 8 m slot. The rig
+# 21 × 5.6 m street: two parked cars along the curb leave a 9 m slot. The rig
 # starts in the traffic lane AHEAD of the slot heading along the street and
 # reverses trailer-first through the classic S-curve back into the slot,
 # ending parallel-parked (θ ≈ 0). Unlike the reverse-bay demo, θ never
@@ -16,13 +16,27 @@
 # against the parked cars → capture-phase fallback → closed-loop
 # falsification.
 #
-# Status (2026-08-13, Clarabel, fixed rng): FULL-CHAIN certificate, round 1 —
-# the entire 53-step maneuver certifies end-to-end (failed_k = nothing,
+# Status (2026-08-14, Clarabel, fixed rng): FULL-CHAIN certificate, round 1 —
+# the entire 70-step maneuver certifies end-to-end (failed_k = nothing,
 # terminal ⊆ target, wall-aware domain gates green), no capture fallback
-# needed; closed-loop 50/50. The funnels are thin tubes (V_entry ≈ 2e-11):
-# reversing an articulated rig is open-loop unstable, so certified tubes pay
-# the same authority price as demo_vehicle — and :logdet pancake-collapses in
-# 4-D there (measured), which is why this demo ships :maximin.
+# needed; endpoint (11.30, 1.05, 0.00, 0.00) = the slot center exactly
+# (box-centered terminal engaged); closed-loop 50/50. The funnels are thin
+# tubes (V_entry ≈ 2e-11): reversing an articulated rig is open-loop unstable,
+# so certified tubes pay the same authority price as demo_vehicle — and
+# :logdet pancake-collapses in 4-D there (measured), which is why this demo
+# ships :maximin.
+#
+# Body-clearance lessons (each measured via the rig-body sweep probe):
+# - The POINT domain hides the body: the trailer ends ≈ 3.9 m behind the
+#   state, so the rear car carries a TRAILER-SHADOW extension (east face
+#   x = 10.5) and the target's faces are set by the parked BODY (left 10.6 for
+#   the trailer, right 12.0 for the 2.75 m tractor nose).
+# - The PR's 8 m slot leaves 1.3 m of spare for the 6.7 m rig — parkable only
+#   by multi-shunt maneuvers; the benchmark ships a 9 m slot (2.3 m spare),
+#   the tightest a one-shot S enters cleanly.
+# - The terminal pull is a SEARCH metric: with the true ±5.5° angular radii
+#   the seed's residual θ outprices a 1.5 m altitude error and CEM settles
+#   into a hover ABOVE the slot; ±15° radii keep the basin pointing down.
 
 import Dionysos
 const DI = Dionysos
@@ -48,7 +62,35 @@ include(joinpath(PROBLEMS, "ArticulatedVehicle", "articulated_vehicle.jl"))
 const AV = ArticulatedVehicle
 
 params = AV.parallel_parking_params()
-problem = AV.parallel_parking_problem(; params = params)
+# The benchmark's collision model is the tractor rear axle POINT; the drawn
+# bodies are wider AND the trailer ends Lc + L2 (+ wheels) ≈ 3.9 m BEHIND the
+# point. Two corrections make the certified point trajectory keep the drawn
+# rig clear of the TRUE cars (plots show the true cars):
+# - a lateral body-clearance margin (trailer half-width 0.44 m + slack), and
+# - the rear car's TRAILER SHADOW: in the low-y slot band a tractor west of
+#   x = 10.5 parks the trailer INTO the rear car (measured: the un-shadowed
+#   optimum dives to x ≈ 10.3 mid-settle, trailer kissing the car), so the
+#   rear obstacle extends east to 10.5 for the domain.
+obstacle_margin = 0.5
+domain_obstacles = [
+    # Rear car + TRAILER shadow: the trailer ends Lc + L2 (+ wheels) ≈ 3.9 m
+    # BEHIND the tractor point, so in the low-y slot band the point must stay
+    # east of x = 10.5 for the drawn trailer to clear the TRUE rear car
+    # (measured: without the shadow the optimum dives to x ≈ 10.3, trailer
+    # kissing the car). The east face is a LONGITUDINAL bound on the point and
+    # takes no lateral margin. The tractor NOSE (2.75 m ahead) needs no shadow
+    # in the 9 m slot: the target's right face (12.0) already keeps it ≥ 0.55 m
+    # clear of the front car.
+    LazySets.Hyperrectangle(;
+        low = SVector(-obstacle_margin, -obstacle_margin),
+        high = SVector(10.5, 2.1 + obstacle_margin),
+    ),
+    AV._inflate(
+        LazySets.Hyperrectangle(; low = SVector(15.3, 0.0), high = SVector(21.0, 2.1)),
+        obstacle_margin,
+    ),
+]
+problem = AV.parallel_parking_problem(; params = params, obstacles2d = domain_obstacles)
 
 Δt = 0.2
 base = PR.discretize_problem(problem, Δt; num_substeps = 4)
@@ -62,9 +104,9 @@ f = MS.mapping(base.system)
 # ------------------------------------------------------------
 
 x0 = SVector(19.3, 4.0, 0.0, 0.0)
-x_goal = SVector(11.4, 1.05, 0.0, 0.0)
+x_goal = SVector(11.3, 1.05, 0.0, 0.0)         # center of the slot target
 
-function rollout_script(n0, δ1, n1, δ2, n2, n3)
+function rollout_script(n0, δ1, n1, δ2, n2, n3, n4)
     xs = [x0]
     us = SVector{2, Float64}[]
     step!(u) = (push!(us, u); push!(xs, f(xs[end], u)))
@@ -79,30 +121,46 @@ function rollout_script(n0, δ1, n1, δ2, n2, n3)
     end
     for _ in 1:n3
         x = xs[end]
-        step!(SVector(-1.0, clamp(-2.0 * x[4] - x[3], -0.6, 0.6)))
+        step!(SVector(-1.0, clamp(-2.0 * x[4] - x[3], -0.85, 0.85)))
+    end
+    # Forward correction — the human move: back up to the shadow limit, then
+    # pull forward to center in the slot (forward driving is the ϕ-stable
+    # direction, so a simple heading feedback settles the rig).
+    for _ in 1:n4
+        x = xs[end]
+        step!(SVector(1.0, clamp(-1.5 * x[3], -0.5, 0.5)))
     end
     return xs, us
 end
 
 score(x) = (x[1] - x_goal[1])^2 + (x[2] - x_goal[2])^2 + 4 * x[3]^2 + 4 * x[4]^2
 
-best = (Inf, 0, 0.4, 10, 0.4, 10, 8)
-for n0 in 0:3:12, δ1 in 0.2:0.1:0.6, n1 in 6:2:18, n2 in 6:2:18, n3 in 0:4:12
-    xs, _ = rollout_script(n0, δ1, n1, δ1, n2, n3)
+# Asymmetric S (δ1 ≠ δ2): under the trailer-shadow domain the settle cannot
+# dive west to fix the alignment, so the arcs themselves must place y and θ.
+best = (Inf, 0, 0.4, 10, 0.4, 10, 8, 0)
+for n0 in 0:3:12,
+    δ1 in 0.3:0.1:0.8,
+    n1 in 6:2:20,
+    δ2 in 0.3:0.1:0.8,
+    n2 in 6:2:20,
+    n3 in 0:6:24,
+    n4 in 0:6:18
+
+    xs, _ = rollout_script(n0, δ1, n1, δ2, n2, n3, n4)
     all(x -> collect(x) ∈ problem.system.X, xs) || continue
     s = score(xs[end])
-    s < best[1] && (global best = (s, n0, δ1, n1, δ1, n2, n3))
+    s < best[1] && (global best = (s, n0, δ1, n1, δ2, n2, n3, n4))
 end
 isfinite(best[1]) || error("seed scan: no domain-clean script found")
-_, n0, δ1, n1, δ2, n2, n3 = best
+_, n0, δ1, n1, δ2, n2, n3, n4 = best
 println(
     "— seed scan: n0 = $n0, arc δ = $δ1 × $n1, counter-arc × $n2, settle × $n3, " *
-    "endpoint score = $(round(best[1]; digits = 3)) —",
+    "forward × $n4, endpoint score = $(round(best[1]; digits = 3)) —",
 )
 
-nstep = n0 + n1 + n2 + n3 + 12                 # slack for CEM to reshape
+nstep = n0 + n1 + n2 + n3 + n4 + 12            # slack for CEM to reshape
 seed_traj = begin
-    xs, us = rollout_script(n0, δ1, n1, δ2, n2, n3)
+    xs, us = rollout_script(n0, δ1, n1, δ2, n2, n3, n4)
     while length(us) < nstep                   # v = 0 freezes the rig in place
         push!(us, SVector(0.0, 0.0))
         push!(xs, f(xs[end], us[end]))
@@ -119,7 +177,15 @@ u_plan = SVector(2.0, 0.6)                     # reserve vs the plant's [±5, ±
 
 cost = AB.CompositeCost(
     AB.ReachObjectiveCost(problem.target_set),
-    AB.TerminalPullCost(collect(x_goal), [1.25, 0.5, deg2rad(5.5), deg2rad(2.5)]; w = 1e4),
+    # The pull is a SEARCH metric, not the target box: with tight angular radii
+    # the seed's residual θ error outprices a 1.5 m altitude error and CEM
+    # abandons the slot for a hover above it (measured). Wide angles keep the
+    # basin pointing DOWN; the reach cost still enforces the true box.
+    AB.TerminalPullCost(
+        collect(x_goal),
+        [0.63, 0.5, deg2rad(15.0), deg2rad(15.0)];
+        w = 1e4,
+    ),
     AB.InputEffortCost(0.01),
     AB.InputSmoothnessCost(; w_du = 0.5, w_ddu = 0.1),
     # Dominates the terminal pull so domain adherence is never traded away —
@@ -132,7 +198,7 @@ mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
     seed_trajectory = seed_traj,
     nstep = nstep,
     nsamples = 800,
-    niter = 120,
+    niter = 180,
     anneal = 0.99,
     noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.12, 0.08)),
     project_input = u ->
@@ -185,8 +251,7 @@ street_box = LazySets.Hyperrectangle(;
 zX = UT.set_minus(
     zbox(street_box),
     UT.set_union([
-        zbox(AV.extrude_xy_obstacle_to_4d(ob, street_box)) for
-        ob in AV.parallel_parking_obstacles()
+        zbox(AV.extrude_xy_obstacle_to_4d(ob, street_box)) for ob in domain_obstacles
     ]),
 )
 zsys = MS.ConstrainedBlackBoxControlContinuousSystem(
@@ -282,7 +347,7 @@ let xs = collect(ST.states(traj)), out = findall(x -> collect(x) ∉ problem.sys
     end
 end
 let xe = collect(ST.states(traj))[end]
-    r_box = 0.9 .* [1.4, 0.55, deg2rad(6.0), deg2rad(3.0)]
+    r_box = 0.9 .* [0.7, 0.55, deg2rad(6.0), deg2rad(3.0)]
     margin = sum(((collect(xe) .- collect(x_goal)) ./ r_box) .^ 2)
     println(
         "  endpoint = $(round.(collect(xe); digits = 3)); box-centered margin = ",
@@ -374,7 +439,14 @@ box2(H) = LazySets.Hyperrectangle(;
     low = SVector(LazySets.low(H, 1), LazySets.low(H, 2)),
     high = SVector(LazySets.high(H, 1), LazySets.high(H, 2)),
 )
-AV.plot_xy_obstacles!(fig, AV.parallel_parking_obstacles(); alpha = 0.6, color = :dimgray)
+AV.plot_xy_obstacles!(fig, AV.parallel_parking_obstacles())
+AV.plot_xy_obstacles!(
+    fig,
+    domain_obstacles;
+    alpha = 0.0,
+    linestyle = :dash,
+    linecolor = :gray,
+)
 plot!(fig, box2(problem.initial_set); color = :gray, alpha = 0.5, label = "initial set")
 plot!(fig, box2(problem.target_set); color = :green, alpha = 0.35, label = "target (slot)")
 
@@ -417,7 +489,7 @@ figz = plot(;
     xlims = (8.0, 16.0),
     ylims = (0.0, 3.2),
 )
-AV.plot_xy_obstacles!(figz, AV.parallel_parking_obstacles(); alpha = 0.6, color = :dimgray)
+AV.plot_xy_obstacles!(figz, AV.parallel_parking_obstacles())
 plot!(figz, box2(problem.target_set); color = :green, alpha = 0.35)
 for E in shadows
     plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
@@ -436,3 +508,31 @@ final = plot(fig, figz; layout = (1, 2), size = (1500, 520))
 plot_path = joinpath(@__DIR__, "demo_vehicle_creneau.png")
 savefig(final, plot_path)
 println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 7) Dashboard animation: rig in the street + xy and input panels
+# ------------------------------------------------------------
+
+av_plot = AV.system_plot!(;
+    params = params,
+    obstacles2d = AV.parallel_parking_obstacles(),
+    xlims = (-0.5, 21.5),
+    ylims = (-2.0, 7.0),
+)
+dash_plot! =
+    (f, xk, uk) -> begin
+        plot!(f, box2(problem.initial_set); color = :gray, alpha = 0.4)
+        plot!(f, box2(problem.target_set); color = :green, alpha = 0.4)
+        av_plot(f, xk, uk)
+    end
+dash_path = DI.animate_trajectory_dashboard(
+    dash_plot!,
+    traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 12,
+    filename = joinpath(@__DIR__, "demo_vehicle_creneau_dashboard.gif"),
+    title = "Certified parallel parking",
+)
+println("— dashboard saved: $dash_path —")
