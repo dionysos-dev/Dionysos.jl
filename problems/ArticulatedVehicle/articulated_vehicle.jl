@@ -198,9 +198,24 @@ end
 # east and must end INSIDE the bay facing back out (θ ≈ π) — it has to turn
 # around in the open area and then back the trailer in, reversing trailer-first:
 # the jackknife-unstable maneuver a funnel controller exists to stabilize.
-parking_obstacles() = [
-    LazySets.Hyperrectangle(; low = SVector(4.0, -1.0), high = SVector(10.0, 4.7)),
-    LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
+# `margin` inflates every obstacle uniformly: the benchmark's collision model
+# is the POINT (x, y) — the tractor rear axle — so a body-clearance margin
+# (≈ half the rig's width plus slack) makes the certified point trajectory
+# keep the drawn bodies clear of the true obstacles.
+_inflate(ob, margin) = LazySets.Hyperrectangle(;
+    low = SVector(LazySets.low(ob, 1) - margin, LazySets.low(ob, 2) - margin),
+    high = SVector(LazySets.high(ob, 1) + margin, LazySets.high(ob, 2) + margin),
+)
+
+parking_obstacles(; margin = 0.0) = [
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(4.0, -1.0), high = SVector(10.0, 4.7)),
+        margin,
+    ),
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
+        margin,
+    ),
 ]
 
 # The benchmark's compact rig — short tractor, short trailer, mid off-axle hitch.
@@ -213,9 +228,19 @@ parking_params() = Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
 # between them. The rig starts in the traffic lane AHEAD of the slot, heading
 # along the street, and must reverse trailer-first through the classic S-curve
 # back into the slot, ending parallel-parked (θ ≈ 0, rig straight).
-parallel_parking_obstacles() = [
-    LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(6.3, 2.1)),
-    LazySets.Hyperrectangle(; low = SVector(14.3, 0.0), high = SVector(21.0, 2.1)),
+# The slot is 9 m for the 6.7 m rig (nose-to-trailer-rear). The PR's original
+# slot was 8 m — 1.3 m of spare, which its POINT collision model tolerated but
+# a body-aware pose analysis shows is parkable only by multi-shunt maneuvers;
+# 9 m (2.3 m spare) is the tightest slot the one-shot S enters cleanly.
+parallel_parking_obstacles(; margin = 0.0) = [
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(6.3, 2.1)),
+        margin,
+    ),
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(15.3, 0.0), high = SVector(21.0, 2.1)),
+        margin,
+    ),
 ]
 
 # The créneau's realistic rig — car-sized tractor towing a longer trailer.
@@ -251,9 +276,15 @@ function parallel_parking_problem(;
         low = SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
         high = SVector(20.6, 4.5, deg2rad(3.0), deg2rad(2.0)),
     )
+    # The state is the TRACTOR REAR AXLE; the body extends BOTH ways — the
+    # trailer ends Lc + L2 (3.7 m for the default rig) behind it and the
+    # tractor nose 1.25·L1 (2.75 m) ahead. In the 9 m slot between the cars
+    # (x ∈ [6.3, 15.3]) the parked point must sit in x ∈ ~[10.5, 12.3]: left
+    # face 10.6 keeps the trailer rear ≥ 6.9, right face 12.0 keeps the
+    # tractor nose ≤ 14.75.
     _T_ = LazySets.Hyperrectangle(;
-        low = SVector(10.0, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
-        high = SVector(12.8, 1.6, deg2rad(6.0), deg2rad(3.0)),
+        low = SVector(10.6, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
+        high = SVector(12.0, 1.6, deg2rad(6.0), deg2rad(3.0)),
     )
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -267,23 +298,33 @@ function parallel_parking_problem(;
 end
 
 """
-    parking_problem(; params, obstacles2d, phi_max, theta_lims) -> OptimalControlProblem
+    parking_problem(; params, obstacles2d, phi_max, theta_lims, heading) -> OptimalControlProblem
 
-The reverse-parking control problem: domain `[-1,10] × [-1,9]` minus the
+The bay-parking control problem: domain `[-1,10] × [-1,9]` minus the
 `obstacles2d` walls, hitch angle limited to `±phi_max`, inputs
 `v ∈ [-5, 5]` (reverse allowed), `δ ∈ [-π/4, π/4]`. Initial states around the
-origin heading east; target = the bay `[9,10] × [5,6]` with `θ ∈ π ± 5°`
-(facing back out) and `ϕ ∈ ±5°` (rig straight). `theta_lims` widens the θ box
-when the caller works on a periodic-unwrapped cover.
+origin heading east. `heading` picks the parked pose in the bay corridor:
+
+- `:back_in` (the PR benchmark) — backed in trailer-first, `θ ∈ π ± 5°`
+  (facing back out), target `[9,10] × [5,6]`;
+- `:nose_in` — driven in forward, `θ ∈ ±5°`, target `[8.0,8.7] × [5,6]`
+  (shallower: the tractor nose extends 1.25·L1 ahead of the state point and
+  must stay inside the bay).
+
+`theta_lims` widens the θ box when the caller works on a periodic-unwrapped
+cover.
 """
 function parking_problem(;
     params::Params = parking_params(),
     obstacles2d = parking_obstacles(),
     phi_max = deg2rad(50.0),
     theta_lims = (-pi, pi),
+    heading::Symbol = :back_in,
     transition_cost = nothing,
     state_cost = nothing,
 )
+    heading in (:back_in, :nose_in) ||
+        error("heading must be :back_in or :nose_in, got $heading.")
     box = LazySets.Hyperrectangle(;
         low = SVector(-1.0, -1.0, theta_lims[1], -phi_max),
         high = SVector(10.0, 9.0, theta_lims[2], phi_max),
@@ -297,9 +338,11 @@ function parking_problem(;
         low = SVector(-1.0, -1.0, -0.4, -0.4),
         high = SVector(1.0, 1.0, 0.4, 0.4),
     )
+    θT = heading === :back_in ? Float64(pi) : 0.0
+    xT = heading === :back_in ? (9.0, 10.0) : (8.0, 8.7)
     _T_ = LazySets.Hyperrectangle(;
-        low = SVector(9.0, 5.0, pi - deg2rad(5.0), -deg2rad(5.0)),
-        high = SVector(10.0, 6.0, pi + deg2rad(5.0), deg2rad(5.0)),
+        low = SVector(xT[1], 5.0, θT - deg2rad(5.0), -deg2rad(5.0)),
+        high = SVector(xT[2], 6.0, θT + deg2rad(5.0), deg2rad(5.0)),
     )
 
     sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
@@ -514,13 +557,22 @@ function draw_articulated!(
     return plt
 end
 
-function plot_xy_obstacles!(plt, obs2d; alpha = 0.25, kwargs...)
+function plot_xy_obstacles!(plt, obs2d; alpha = 0.8, color = :black, kwargs...)
     for ob in obs2d
         x1l, y1l = LazySets.low(ob, 1), LazySets.low(ob, 2)
         x1u, y1u = LazySets.high(ob, 1), LazySets.high(ob, 2)
         xs = [x1l, x1u, x1u, x1l, x1l]
         ys = [y1l, y1l, y1u, y1u, y1l]
-        plot!(plt, xs, ys; lw = 1, fill = (true, alpha), label = false, kwargs...)
+        plot!(
+            plt,
+            xs,
+            ys;
+            lw = 1,
+            color = color,
+            fill = (true, alpha),
+            label = false,
+            kwargs...,
+        )
     end
     return plt
 end
