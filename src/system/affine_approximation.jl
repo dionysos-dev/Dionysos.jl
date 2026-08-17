@@ -81,11 +81,35 @@ struct SymbolicAffineApproximationProvider{F, X, U, W, DW, UF, WF} <:
     ΔW::DW
     Uformat::UF
     Wformat::WF
+    # Compiled-callable cache, filled by the Symbolics extension on first use:
+    # symbolic differentiation and `build_function` run once per *system*, not per
+    # call — the certification chain calls the provider hundreds of times.
+    compiled::Base.RefValue{Any}
+end
+
+function SymbolicAffineApproximationProvider(fsymbolic, x, u, w, ΔW, Uformat, Wformat)
+    return SymbolicAffineApproximationProvider(
+        fsymbolic,
+        x,
+        u,
+        w,
+        ΔW,
+        Uformat,
+        Wformat,
+        Base.RefValue{Any}(nothing),
+    )
 end
 
 function interval_matrix_max_eig(args...)
     return error(
         "interval_matrix_max_eig requires Symbolics.jl. " *
+        "Load it with `using Symbolics` to enable this feature.",
+    )
+end
+
+function normalized_symbolic_provider(args...)
+    return error(
+        "normalized_symbolic_provider requires Symbolics.jl. " *
         "Load it with `using Symbolics` to enable this feature.",
     )
 end

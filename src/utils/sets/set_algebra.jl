@@ -56,6 +56,27 @@ function samples(X::LazySets.LazySet, N::Int; rng = nothing)
     return [SVector{n}(p) for p in pts]
 end
 
+# Ellipsoids are sampled DIRECTLY — uniform in the unit ball, mapped through a
+# square root of the shape matrix. Rejection sampling degenerates on the
+# needle-thin ellipsoids funnel chains produce (LazySets' sampler then dies in
+# a `vertices_list` fallback with no Ellipsoid method); the direct map is exact
+# for any positive semi-definite shape, degenerate included.
+function _sample_in_ellipsoid(E::LazySets.Ellipsoid, rng)
+    c = collect(Float64, LazySets.center(E))
+    n = length(c)
+    F = eigen(Symmetric(Matrix{Float64}(LazySets.shape_matrix(E))))
+    A = F.vectors * Diagonal(sqrt.(max.(F.values, 0.0)))
+    u = rng === nothing ? randn(n) : randn(rng, n)
+    nu = norm(u)
+    nu == 0.0 && return SVector{n}(c)
+    r = (rng === nothing ? rand() : rand(rng))^(1 / n)
+    return SVector{n}(c .+ A * ((r / nu) .* u))
+end
+
+sample(E::LazySets.Ellipsoid) = _sample_in_ellipsoid(E, nothing)
+samples(E::LazySets.Ellipsoid, N::Int; rng = nothing) =
+    [_sample_in_ellipsoid(E, rng) for _ in 1:N]
+
 # ------------------------------------------------------------
 # Composite-set constructors and dispatch aliases
 # ------------------------------------------------------------

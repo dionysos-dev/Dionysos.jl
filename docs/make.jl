@@ -26,8 +26,12 @@ const ORDER = Dict(
         "thermostat",
         "integrator_ltl",
     ],
-    "solvers" =>
-        ["gol_lazar_belta", "lazy_ellipsoids_abstraction", "state_feedback_pwa"],
+    "solvers" => [
+        "gol_lazar_belta",
+        "lazy_ellipsoids_abstraction",
+        "trajectory_certification",
+        "state_feedback_pwa",
+    ],
 )
 
 # Executing every Literate example dominates the build time; skip it for fast local

@@ -241,4 +241,24 @@ end
     @test length(plot(ST.Trajectory([SVector(0.0, 0.0)])).series_list) == 1
 end
 
+@testset "unwrap_trajectory" begin
+    # Wrapped pendulum-style angle crossing the seam at ±π: the lift must follow
+    # the small increment, not the ±2π jump, and leave other dims untouched.
+    xs = [
+        SVector(3.0, 1.0),
+        SVector(3.1, 2.0),
+        SVector(-3.08, 3.0),   # ≡ 3.2 (mod 2π): a seam crossing
+        SVector(-2.98, 4.0),
+    ]
+    traj = ST.Trajectory(xs; inputs = [SVector(0.0) for _ in 1:3])
+    lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
+    lx = collect(ST.states(lifted))
+    @test lx[1] ≈ [3.0, 1.0]
+    @test lx[3][1] ≈ -3.08 + 2π atol = 1e-9   # lifted past the seam
+    @test lx[4][1] ≈ -2.98 + 2π atol = 1e-9
+    @test all(lx[k][2] == xs[k][2] for k in 1:4)  # non-periodic dim unchanged
+    @test length(ST.inputs(lifted)) == 3
+    @test lx[1] isa SVector                       # container preserved
+end
+
 end # module
