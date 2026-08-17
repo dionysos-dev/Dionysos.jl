@@ -53,7 +53,9 @@ export BackwardCertifier,
     FunnelData,
     get_result,
     bidirectional_certify!,
-    prefix_replan_certify!
+    prefix_replan_certify!,
+    inflation_stress,
+    print_inflation_stress
 
 include("options.jl")
 include("diagnostics.jl")
@@ -67,5 +69,6 @@ include("certifier.jl")
 include("forward.jl")
 include("bidirectional.jl")
 include("replan.jl")
+include("stress.jl")
 
 end # module

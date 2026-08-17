@@ -100,6 +100,49 @@ adaptive(objective) = EB.AdaptiveLinearizationBoxOptions(;
     end
 end
 
+@testset "inflation stress: α = 1 is the guarantee, α > 1 is measurement" begin
+    opts = EB.ChainOptions(;
+        maxδx = 5.0,
+        maxδu = 2.0,
+        linearization_δu = [0.5, 0.5],
+        adaptive_boxes = adaptive(:first_consistent),
+        objective = :maximin,
+        domain_cap = true,
+    )
+    cert = EB.BackwardCertifier(provider, sdp, opts)
+    AB.set_problem!(cert, problem)
+    AB.set_trajectory!(cert, traj)
+    AB.certify!(cert)
+    res = EB.get_result(cert)
+    @test res.success
+
+    rows = EB.inflation_stress(
+        f,
+        res.lmi_data.kappas,
+        res.lmi_data.ellipsoids,
+        problem.target_set;
+        alphas = [1.0, 3.0],
+        n_samples = 100,
+        rng = Random.MersenneTwister(3),
+        input_set = _U_,
+        project_input = u -> SVector(clamp(u[1], -1.0, 1.0), clamp(u[2], -1.0, 1.0)),
+        domain = _X_,
+    )
+    @test length(rows) == 2
+    # Everything sampled INSIDE the certified entry ellipsoid must stay in the
+    # funnel and reach the target — that is what the certificate says.
+    @test rows[1].alpha == 1.0
+    @test rows[1].certified_rate == 1.0
+    @test rows[1].success_rate == 1.0
+    @test rows[1].tube_exit_rate == 0.0
+    # The α = 3 shell is measurement, not guarantee: rates are well-formed and
+    # the failure modes decompose the misses.
+    @test 0.0 <= rows[2].success_rate <= 1.0
+    @test rows[2].tube_exit_rate > 0.0        # far outside the entry ⟹ not in E₁
+    @test rows[2].first_exit_median == 1
+    EB.print_inflation_stress(rows; io = devnull)  # smoke the printer
+end
+
 @testset "two-step rescue stays inert on a healthy chain" begin
     opts = EB.ChainOptions(;
         maxδx = 5.0,
