@@ -88,10 +88,12 @@ function jacobian_bound(p::Params = Params())
 
         # Bounds:
         # |∂f1/∂θ| ≤ |v|, |∂f2/∂θ| ≤ |v|
-        # |∂f4/∂ϕ| ≤ |v|/(L1 L2)*(L1*|cosϕ| + |Lc|*|sinϕ|*|tanδ|)
-        #          ≤ |v|/(L1 L2)*(L1 + |Lc|*|tanδ|)
+        # |∂f4/∂ϕ| = |v|/(L1 L2)·|L1 cosϕ − Lc tanδ sinϕ|
+        #          ≤ |v|/(L1 L2)·√(L1² + (Lc tanδ)²)
+        # (harmonic amplitude |a cosϕ + b sinϕ| ≤ √(a² + b²) — strictly tighter
+        # than the triangle bound L1 + |Lc tanδ|; from PR #569's 2-trailer file)
         bθ = v
-        bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        bϕ = v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
 
         # `bθ` bounds ∂f1/∂θ and ∂f2/∂θ, so it belongs in the *third column* (θ = x[3]) —
         # `SMatrix` fills column by column, and putting it in the first two columns instead
@@ -122,7 +124,7 @@ function bound_norm_jacobian(p::Params = Params())
     return u -> begin
         v = abs(u[1])
         tδ = abs(tan(u[2]))
-        bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        bϕ = v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
         # crude but monotone (you can replace by something tighter)
         return v + bϕ
     end
@@ -133,8 +135,9 @@ function bound_norm_hessian_tensor(p::Params = Params())
     return u -> begin
         v = abs(u[1])
         tδ = abs(tan(u[2]))
-        # |∂²f4/∂ϕ²| ≤ |v|/(L1 L2)*(L1 + |Lc|*|tanδ|)
-        return v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        # ∂²f4/∂ϕ² = −(v/(L1 L2))·(−L1 sinϕ − Lc tanδ cosϕ): same harmonic
+        # amplitude √(L1² + (Lc tanδ)²) as the Jacobian entry.
+        return v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
     end
 end
 
