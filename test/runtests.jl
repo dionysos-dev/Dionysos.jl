@@ -84,6 +84,7 @@ const TEST_FILES = [
     # Trajectory generators / certifiers and the PCLF bisimulation quotient.
     ("./optim/trajectory_generators.jl",),
     ("./optim/trajectory_certifiers_tube.jl",),
+    ("./optim/trajectory_pipeline_fast.jl",),
     ("./optim/trajectory_certifiers.jl", :slow),
     ("./optim/PCLFBisimulationQuotient/bisimulation_quotient.jl", :slow),
     # The quotient recipes, on a hand-built quotient: no SDP solver, so not slow.

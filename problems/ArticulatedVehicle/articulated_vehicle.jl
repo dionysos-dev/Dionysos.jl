@@ -88,10 +88,12 @@ function jacobian_bound(p::Params = Params())
 
         # Bounds:
         # |∂f1/∂θ| ≤ |v|, |∂f2/∂θ| ≤ |v|
-        # |∂f4/∂ϕ| ≤ |v|/(L1 L2)*(L1*|cosϕ| + |Lc|*|sinϕ|*|tanδ|)
-        #          ≤ |v|/(L1 L2)*(L1 + |Lc|*|tanδ|)
+        # |∂f4/∂ϕ| = |v|/(L1 L2)·|L1 cosϕ − Lc tanδ sinϕ|
+        #          ≤ |v|/(L1 L2)·√(L1² + (Lc tanδ)²)
+        # (harmonic amplitude |a cosϕ + b sinϕ| ≤ √(a² + b²) — strictly tighter
+        # than the triangle bound L1 + |Lc tanδ|; from PR #569's 2-trailer file)
         bθ = v
-        bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        bϕ = v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
 
         # `bθ` bounds ∂f1/∂θ and ∂f2/∂θ, so it belongs in the *third column* (θ = x[3]) —
         # `SMatrix` fills column by column, and putting it in the first two columns instead
@@ -122,7 +124,7 @@ function bound_norm_jacobian(p::Params = Params())
     return u -> begin
         v = abs(u[1])
         tδ = abs(tan(u[2]))
-        bϕ = v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        bϕ = v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
         # crude but monotone (you can replace by something tighter)
         return v + bϕ
     end
@@ -133,8 +135,9 @@ function bound_norm_hessian_tensor(p::Params = Params())
     return u -> begin
         v = abs(u[1])
         tδ = abs(tan(u[2]))
-        # |∂²f4/∂ϕ²| ≤ |v|/(L1 L2)*(L1 + |Lc|*|tanδ|)
-        return v/(p.L1*p.L2) * (p.L1 + abs(p.Lc)*tδ)
+        # ∂²f4/∂ϕ² = −(v/(L1 L2))·(−L1 sinϕ − Lc tanδ cosϕ): same harmonic
+        # amplitude √(L1² + (Lc tanδ)²) as the Jacobian entry.
+        return v/(p.L1*p.L2) * sqrt(p.L1^2 + (p.Lc*tδ)^2)
     end
 end
 
@@ -184,10 +187,175 @@ function extrude_xy_obstacle_to_4d(ob2d, _X_)
 end
 function with_xy_obstacles(
     _X_::LazySets.AbstractHyperrectangle;
-    obstacles2d = xy_obstacles(),
+    obstacles2d = parking_obstacles(),
 )
     obs4d = [extrude_xy_obstacle_to_4d(ob, _X_) for ob in obstacles2d]
     return UT.set_minus(_X_, UT.set_union(obs4d))
+end
+
+# ----------------------------
+# Reverse-parking benchmark ("Permis" scenario, PR #569)
+# ----------------------------
+# Two walls leave a dead-end bay (the free corridor y ∈ [4.7, 6.0] for
+# x ∈ [4, 10]) opening to the west. The vehicle starts near the origin heading
+# east and must end INSIDE the bay facing back out (θ ≈ π) — it has to turn
+# around in the open area and then back the trailer in, reversing trailer-first:
+# the jackknife-unstable maneuver a funnel controller exists to stabilize.
+# `margin` inflates every obstacle uniformly: the benchmark's collision model
+# is the POINT (x, y) — the tractor rear axle — so a body-clearance margin
+# (≈ half the rig's width plus slack) makes the certified point trajectory
+# keep the drawn bodies clear of the true obstacles.
+_inflate(ob, margin) = LazySets.Hyperrectangle(;
+    low = SVector(LazySets.low(ob, 1) - margin, LazySets.low(ob, 2) - margin),
+    high = SVector(LazySets.high(ob, 1) + margin, LazySets.high(ob, 2) + margin),
+)
+
+parking_obstacles(; margin = 0.0) = [
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(4.0, -1.0), high = SVector(10.0, 4.7)),
+        margin,
+    ),
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(4.0, 6.0), high = SVector(10.0, 9.0)),
+        margin,
+    ),
+]
+
+# The benchmark's compact rig — short tractor, short trailer, mid off-axle hitch.
+parking_params() = Params(; L1 = 1.0, L2 = 1.0, Lc = 0.5)
+
+# ----------------------------
+# Parallel-parking benchmark (the "créneau" scenario of the same PR)
+# ----------------------------
+# A 21 × 5.6 m street: two parked cars along the bottom curb leave an 8 m slot
+# between them. The rig starts in the traffic lane AHEAD of the slot, heading
+# along the street, and must reverse trailer-first through the classic S-curve
+# back into the slot, ending parallel-parked (θ ≈ 0, rig straight).
+# The slot is 9 m for the 6.7 m rig (nose-to-trailer-rear). The PR's original
+# slot was 8 m — 1.3 m of spare, which its POINT collision model tolerated but
+# a body-aware pose analysis shows is parkable only by multi-shunt maneuvers;
+# 9 m (2.3 m spare) is the tightest slot the one-shot S enters cleanly.
+parallel_parking_obstacles(; margin = 0.0) = [
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(6.3, 2.1)),
+        margin,
+    ),
+    _inflate(
+        LazySets.Hyperrectangle(; low = SVector(15.3, 0.0), high = SVector(21.0, 2.1)),
+        margin,
+    ),
+]
+
+# The créneau's realistic rig — car-sized tractor towing a longer trailer.
+parallel_parking_params() = Params(; L1 = 2.2, L2 = 2.8, Lc = 0.9)
+
+"""
+    parallel_parking_problem(; params, obstacles2d, phi_max) -> OptimalControlProblem
+
+The parallel-parking (créneau) control problem: street `[0,21] × [0,5.6]` minus
+the two parked cars, hitch angle limited to `±phi_max`, inputs `v ∈ [-5, 5]`
+(reverse allowed), `δ ∈ ±0.96`. Initial states in the lane ahead of the slot
+(`[18,20.6] × [3.5,4.5]`, θ ∈ ±3°), target = the slot `[10,12.8] × [0.5,1.6]`
+with θ ∈ ±6° and ϕ ∈ ±3°. θ never approaches the ±π seam, so no periodic
+cover is needed.
+"""
+function parallel_parking_problem(;
+    params::Params = parallel_parking_params(),
+    obstacles2d = parallel_parking_obstacles(),
+    phi_max = deg2rad(65.0),
+    transition_cost = nothing,
+    state_cost = nothing,
+)
+    box = LazySets.Hyperrectangle(;
+        low = SVector(0.0, 0.0, -pi, -phi_max),
+        high = SVector(21.0, 5.6, pi, phi_max),
+    )
+    _X_ = with_xy_obstacles(box; obstacles2d = obstacles2d)
+
+    δ_max = 0.959931
+    _U_ = LazySets.Hyperrectangle(; low = SVector(-5.0, -δ_max), high = SVector(5.0, δ_max))
+
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(18.0, 3.5, -deg2rad(3.0), -deg2rad(2.0)),
+        high = SVector(20.6, 4.5, deg2rad(3.0), deg2rad(2.0)),
+    )
+    # The state is the TRACTOR REAR AXLE; the body extends BOTH ways — the
+    # trailer ends Lc + L2 (3.7 m for the default rig) behind it and the
+    # tractor nose 1.25·L1 (2.75 m) ahead. In the 9 m slot between the cars
+    # (x ∈ [6.3, 15.3]) the parked point must sit in x ∈ ~[10.5, 12.3]: left
+    # face 10.6 keeps the trailer rear ≥ 6.9, right face 12.0 keeps the
+    # tractor nose ≤ 14.75.
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(10.6, 0.5, -deg2rad(6.0), -deg2rad(3.0)),
+        high = SVector(12.0, 1.6, deg2rad(6.0), deg2rad(3.0)),
+    )
+
+    sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+        dynamic(params),
+        4,
+        2,
+        _X_,
+        _U_,
+    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
+end
+
+"""
+    parking_problem(; params, obstacles2d, phi_max, theta_lims, heading) -> OptimalControlProblem
+
+The bay-parking control problem: domain `[-1,10] × [-1,9]` minus the
+`obstacles2d` walls, hitch angle limited to `±phi_max`, inputs
+`v ∈ [-5, 5]` (reverse allowed), `δ ∈ [-π/4, π/4]`. Initial states around the
+origin heading east. `heading` picks the parked pose in the bay corridor:
+
+- `:back_in` (the PR benchmark) — backed in trailer-first, `θ ∈ π ± 5°`
+  (facing back out), target `[9,10] × [5,6]`;
+- `:nose_in` — driven in forward, `θ ∈ ±5°`, target `[8.0,8.7] × [5,6]`
+  (shallower: the tractor nose extends 1.25·L1 ahead of the state point and
+  must stay inside the bay).
+
+`theta_lims` widens the θ box when the caller works on a periodic-unwrapped
+cover.
+"""
+function parking_problem(;
+    params::Params = parking_params(),
+    obstacles2d = parking_obstacles(),
+    phi_max = deg2rad(50.0),
+    theta_lims = (-pi, pi),
+    heading::Symbol = :back_in,
+    transition_cost = nothing,
+    state_cost = nothing,
+)
+    heading in (:back_in, :nose_in) ||
+        error("heading must be :back_in or :nose_in, got $heading.")
+    box = LazySets.Hyperrectangle(;
+        low = SVector(-1.0, -1.0, theta_lims[1], -phi_max),
+        high = SVector(10.0, 9.0, theta_lims[2], phi_max),
+    )
+    _X_ = with_xy_obstacles(box; obstacles2d = obstacles2d)
+
+    _U_ =
+        LazySets.Hyperrectangle(; low = SVector(-5.0, -pi / 4), high = SVector(5.0, pi / 4))
+
+    _I_ = LazySets.Hyperrectangle(;
+        low = SVector(-1.0, -1.0, -0.4, -0.4),
+        high = SVector(1.0, 1.0, 0.4, 0.4),
+    )
+    θT = heading === :back_in ? Float64(pi) : 0.0
+    xT = heading === :back_in ? (9.0, 10.0) : (8.0, 8.7)
+    _T_ = LazySets.Hyperrectangle(;
+        low = SVector(xT[1], 5.0, θT - deg2rad(5.0), -deg2rad(5.0)),
+        high = SVector(xT[2], 6.0, θT + deg2rad(5.0), deg2rad(5.0)),
+    )
+
+    sys = MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+        dynamic(params),
+        4,
+        2,
+        _X_,
+        _U_,
+    )
+    return PR.OptimalControlProblem(sys, _I_, _T_, state_cost, transition_cost)
 end
 
 # ----------------------------
@@ -392,13 +560,22 @@ function draw_articulated!(
     return plt
 end
 
-function plot_xy_obstacles!(plt, obs2d; alpha = 0.25)
+function plot_xy_obstacles!(plt, obs2d; alpha = 0.8, color = :black, kwargs...)
     for ob in obs2d
         x1l, y1l = LazySets.low(ob, 1), LazySets.low(ob, 2)
         x1u, y1u = LazySets.high(ob, 1), LazySets.high(ob, 2)
         xs = [x1l, x1u, x1u, x1l, x1l]
         ys = [y1l, y1l, y1u, y1u, y1l]
-        plot!(plt, xs, ys; lw = 1, fill = (true, alpha), label = false)
+        plot!(
+            plt,
+            xs,
+            ys;
+            lw = 1,
+            color = color,
+            fill = (true, alpha),
+            label = false,
+            kwargs...,
+        )
     end
     return plt
 end

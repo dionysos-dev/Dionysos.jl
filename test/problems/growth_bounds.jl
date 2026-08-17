@@ -155,6 +155,30 @@ const TOL = 1e-5
             1e-5
     end
 
+    @testset "ArticulatedVehicle2Trailers" begin
+        include(
+            joinpath(PROBLEMS, "ArticulatedVehicle", "articulated_vehicle_2trailers.jl"),
+        )
+        s = ArticulatedVehicle2Trailers.system(
+            LazySets.Hyperrectangle(;
+                low = SVector(-5.0, -5.0, -pi, -pi, -pi),
+                high = SVector(5.0, 5.0, pi, pi, pi),
+            ),
+        )
+        # The harmonic-amplitude bound must still dominate the sampled Jacobian.
+        @test worst_violation(
+            ArticulatedVehicle2Trailers.dynamic(),
+            ArticulatedVehicle2Trailers.jacobian_bound(),
+            s.X,
+            s.U,
+        ) <= TOL
+        J = ArticulatedVehicle2Trailers.jacobian()
+        x = SVector(1.0, -2.0, 0.7, -0.4, 0.5)
+        u = SVector(0.8, 0.3)
+        @test Matrix(J(x, u)) ≈
+              numerical_jacobian(ArticulatedVehicle2Trailers.dynamic(), x, u) atol = 1e-5
+    end
+
     @testset "DCDC" begin
         include(joinpath(PROBLEMS, "DCDC", "dcdc_converter.jl"))
         s = DCDC.system()

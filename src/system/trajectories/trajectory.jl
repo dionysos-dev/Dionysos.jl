@@ -111,6 +111,33 @@ end
 states(traj::Trajectory) = traj.states
 "Input channel (vector of applied inputs), or `nothing` for an open-loop trajectory."
 inputs(traj::Trajectory) = traj.inputs
+
+"""
+    unwrap_trajectory(traj::Trajectory, periodic_dims, periods) -> Trajectory
+
+Lift a trajectory with wrapped periodic coordinates to its continuous cover: each
+periodic dimension follows the increment closest to the previous state, so the
+±period jumps at the seam disappear. The certifiers linearize in ℝⁿ and cannot
+represent a seam jump — certify the unwrapped trajectory, wrap only for
+plotting/replay.
+"""
+function unwrap_trajectory(traj::Trajectory, periodic_dims, periods)
+    xs = collect(states(traj))
+    length(xs) <= 1 && return traj
+    n = length(xs[1])
+    out = Vector{Vector{Float64}}(undef, length(xs))
+    out[1] = Vector{Float64}(xs[1])
+    for k in 2:length(xs)
+        v = Vector{Float64}(xs[k])
+        for (d, p) in zip(periodic_dims, periods)
+            δ = v[d] - out[k - 1][d]
+            v[d] = out[k - 1][d] + (δ - p * round(δ / p))
+        end
+        out[k] = v
+    end
+    lifted = xs[1] isa SVector ? [SVector{n}(v) for v in out] : out
+    return Trajectory(lifted; inputs = collect(inputs(traj)))
+end
 "Controller-memory channel, or `nothing` for static controllers."
 memory(traj::Trajectory) = traj.memory
 "Physical-time channel, or `nothing` when the trajectory is untimed."

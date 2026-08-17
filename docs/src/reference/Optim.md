@@ -110,7 +110,7 @@ Order   = [:module, :type, :function, :constant]
 ```
 
 ```@autodocs
-Modules = [Dionysos.Optim.Abstraction.EllipsoidalBackwardTrajectoryCertifier]
+Modules = [Dionysos.Optim.Abstraction.EllipsoidalTrajectoryCertifier]
 Filter  = _is_public
 Order   = [:module, :type, :function, :constant]
 ```

@@ -255,6 +255,69 @@ function _regionwise_bound(system, bound_over, nsplit::Int, to_interval)
     )
 end
 
+"""
+    ST.normalized_symbolic_provider(provider, t) -> SymbolicAffineApproximationProvider
+
+Provider for the globally normalized coordinates `z = x ./ t` (plan.md §4.3): the
+scaled dynamics `f_z(z, u, w) = f_x(t .* z, u, w) ./ t` are built symbolically
+*once*, so Jacobians and interval Hessian bounds are computed **exactly** in the
+working frame — this replaces the per-step `state_scaling` transform and its
+`~1/σ_min(T)²` remainder conservatism while keeping its conditioning benefit.
+The input and noise encodings carry over unchanged (the noise matrix `E` rescales
+automatically through differentiation of `f_z`). Certify the `z`-trajectory
+against `z`-scaled sets, then map ellipsoids back with `Q_x = D·Q_z·D`,
+`D = Diagonal(t)`.
+"""
+function ST.normalized_symbolic_provider(
+    provider::ST.SymbolicAffineApproximationProvider,
+    t::AbstractVector,
+)
+    x = provider.x
+    sub = Dict(x[i] => t[i] * x[i] for i in eachindex(x))
+    fz = [Symbolics.substitute(fi, sub) / t[i] for (i, fi) in enumerate(provider.fsymbolic)]
+    return ST.SymbolicAffineApproximationProvider(
+        fz,
+        provider.x,
+        provider.u,
+        provider.w,
+        provider.ΔW,
+        provider.Uformat,
+        provider.Wformat,
+    )
+end
+
+# Differentiate and compile once per system (plan.md §4.4-★1): the Jacobian and
+# Hessian *expressions* depend only on the dynamics, yet the certification chain
+# calls the provider once per step and per adaptive box candidate. All symbolic
+# work is memoized on the provider; per call is pure (interval) evaluation.
+function _compiled_provider!(provider::ST.SymbolicAffineApproximationProvider)
+    provider.compiled[] === nothing || return provider.compiled[]
+
+    x, u, w = provider.x, provider.u, provider.w
+    f = provider.fsymbolic
+    xi = vcat(x, u, w)
+
+    bf = function (expr)
+        b = Symbolics.build_function(expr, xi...; expression = Val(false), nanmath = false)
+        return b isa Tuple ? b[1] : b
+    end
+
+    Jx = Symbolics.jacobian(f, x)
+    Ju = Symbolics.jacobian(f, u)
+    Jw = Symbolics.jacobian(f, w)
+    Jxi = hcat(Jx, Ju, Jw)
+
+    hessians = map(1:size(Jxi, 1)) do i
+        Hg = Symbolics.jacobian(Jxi[i, :], xi)
+        return [bf(Hg[r, c]) for r in axes(Hg, 1), c in axes(Hg, 2)]
+    end
+
+    compiled =
+        (; fA = bf(Jx), fB = bf(Ju), fE = bf(Jw), ff = bf(f), hessians, nξ = length(xi))
+    provider.compiled[] = compiled
+    return compiled
+end
+
 function ST.build_affine_approximation(
     provider::ST.SymbolicAffineApproximationProvider,
     xbar,
@@ -265,22 +328,38 @@ function ST.build_affine_approximation(
 )
     wbar === nothing && (wbar = zeros(length(provider.w)))
 
+    compiled = _compiled_provider!(provider)
+
     Xbar = _centered_box(xbar, δx)
     Ubar = _centered_box(ubar, δu)
     Wbar = _centered_box(wbar, provider.ΔW)
-
-    affineSys, L = _affine_system_and_lipschitz(
-        provider.fsymbolic,
-        provider.x,
-        provider.u,
-        provider.w,
-        xbar,
-        ubar,
-        wbar,
-        Xbar,
-        Ubar,
-        Wbar,
+    Xi_vals = vcat(
+        _as_interval_vector(Xbar),
+        _as_interval_vector(Ubar),
+        _as_interval_vector(Wbar),
     )
+
+    x̄i = vcat(xbar, ubar, wbar)
+    A = Float64.(compiled.fA(x̄i...))
+    B = Float64.(compiled.fB(x̄i...))
+    E = Float64.(compiled.fE(x̄i...))
+    f0 = vec(Float64.(compiled.ff(x̄i...)))
+    c = f0 - A * xbar - B * ubar - E * wbar
+
+    L = zeros(compiled.nξ)
+    for (i, H) in enumerate(compiled.hessians)
+        mat = Matrix{Any}(undef, size(H)...)
+        for r in axes(H, 1), col in axes(H, 2)
+            mat[r, col] = H[r, col](Xi_vals...)
+        end
+        if any(v -> v isa IA.Interval, mat)
+            L[i] = ST.interval_matrix_max_eig(map(to_interval, mat))
+        else
+            L[i] = maximum(abs, LA.eigen(Float64.(mat)).values)
+        end
+    end
+
+    affineSys = MS.NoisyConstrainedAffineControlDiscreteSystem(A, B, c, E, Xbar, Ubar, Wbar)
 
     return ST.AffineApproximation(
         affineSys,

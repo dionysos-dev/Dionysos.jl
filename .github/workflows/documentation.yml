@@ -5,6 +5,11 @@ on:
     tags: '*'
   pull_request:
     types: [opened, synchronize, reopened]
+# Two docs runs racing (back-to-back pushes) fight over the gh-pages push and
+# the loser fails with "fetch first" — cancel the superseded run instead.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest

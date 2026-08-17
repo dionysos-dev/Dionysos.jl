@@ -1,0 +1,439 @@
+# Certified pendulum swing-up — the P6 pendulum demo (plan.md §8.1).
+#
+# The modern pipeline end-to-end: abstraction seed → MPPI (stage costs,
+# ESS-adaptive temperature, antithetic sampling, input reserve) → periodic unwrap
+# → ellipsoidal certification (maximin objective, adaptive boxes, default
+# inscribed terminal) in both directions + the bidirectional handoff. The
+# convex objective ("reachability_up_medium_power_no_obstacle") has a plain box
+# input set, so the certifier's input set IS the plant's input set — no ±10.5
+# fiction (plan.md §4.2-E).
+#
+#     julia --project=bench research/TrajectoryCertificationOptimizer/demo_pendulum.jl
+#
+# Status (2026-08-11, Clarabel, fixed rng): FULLY CERTIFIED (71/71, terminal gate
+# passing, true ±4.5 input set) in globally normalized coordinates, backward-only,
+# VOLUME-TUNED. Funnel-size ladder, measured (V = π·√det Q, physical units;
+# PR benchmark = Florentin's best sweep config, `trajectory_std` scaling):
+#
+#   config                          V0 (entry)   Vmin       Vmed      coverage
+#   PR best (:logdet+:max_volume)   0.001605     0.000213   0.000767  —
+#   ours :maximin,:first_consistent 0.000209     0.000209   0.000267  4021
+#   ours :logdet+:max_volume        0.2124       0.01254    0.03673   5.48   ← this file
+#
+# Normalized coordinates + the volume objective + the box line-search give entry
+# funnels 132× the PR's best, with no collapse (Vmin healthy) and the initial-set
+# coverage margin down from 4021 to 5.5 — gap D nearly closed as a byproduct.
+#
+# TERMINAL-SEED CHAIN (user's insight, fully verified): first-hit truncation ⟹
+# boundary endpoints ⟹ sliver seeds (measured: θ-radius 0.017 ≈ 1°). Deepest-hit
+# truncation + optimizing past success (`stop_on_success = false`) drives the
+# endpoint to [2.95, 0.01] ⟹ the box-centered inscribed terminal ENGAGES
+# (center [π, 0], radii [0.249, 0.95]): terminal seed 3.5× (Vmax 0.212 → 0.742).
+# Adding the wrap-aware `WrapTerminalPull` endpoint cost (the reach cost scores
+# the closest pass, not the endpoint) makes the engagement robust (margin 0.594 →
+# 0.317, round 1) and feeds the whole chain: V0 0.212 → 0.2296 (+8%), Vmin
+# +16%, Vmed +5%, coverage 5.48 → 4.81. The high-|ω| swing pinch remains the
+# entry's dynamics cap.
+# Earlier ablations: per-step scaling ⟹ tiny funnels; no scaling ⟹ infeasible at
+# k≈63; :maximin equalizes the chain (V0 = Vmin) — the safety choice, not the
+# size choice. Remaining: coverage margin 5.5 > 1 (entry semi-axes ~2.3× short of
+# the full ±10°×±0.5 initial set).
+
+import Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const ST = DI.System
+const PR = DI.Problem
+const MP = DI.Mapping
+const AB = DI.Optim.Abstraction
+const EB = AB.EllipsoidalTrajectoryCertifier
+
+import LazySets
+import LinearAlgebra as LA
+import MathOptInterface as MOI
+import MathematicalSystems as MS
+using StaticArrays
+using Random
+using Symbolics
+import Clarabel
+using JuMP: optimizer_with_attributes
+using Plots
+
+const PROBLEMS = joinpath(dirname(dirname(pathof(Dionysos))), "problems")
+include(joinpath(PROBLEMS, "Pendulum", "simple_pendulum.jl"))
+
+params = SimplePendulum.Params(; l = 1.0, g = 9.81)
+problem = SimplePendulum.optimal_control_problem(;
+    params = params,
+    objective = "reachability_up_medium_power_no_obstacle",
+)
+Δt = 0.1
+
+periodic_dims = SVector(1)
+periods = SVector(2π)
+wrap = UT.get_periodic_wrapper(periodic_dims, periods; start = SVector(-π))
+
+# ------------------------------------------------------------
+# 1) Abstraction seed
+# ------------------------------------------------------------
+
+println("— seed (uniform grid abstraction) —")
+seed_time = @elapsed begin
+    opt = MOI.instantiate(AB.UniformGridAbstraction.Optimizer)
+    MOI.set(opt, MOI.RawOptimizerAttribute("concrete_problem"), problem)
+    MOI.set(opt, MOI.RawOptimizerAttribute("h"), SVector(3.0 * π / 180.0, 0.1))
+    MOI.set(
+        opt,
+        MOI.RawOptimizerAttribute("input_grid"),
+        MP.GridFree(SVector(0.0), SVector(0.3)),
+    )
+    MOI.set(opt, MOI.RawOptimizerAttribute("time_step"), Δt)
+    MOI.set(opt, MOI.RawOptimizerAttribute("approx_mode"), AB.UniformGridAbstraction.GROWTH)
+    MOI.set(
+        opt,
+        MOI.RawOptimizerAttribute("jacobian_bound"),
+        SimplePendulum.jacobian_bound(params),
+    )
+    MOI.set(opt, MOI.RawOptimizerAttribute("use_periodic_mapping"), true)
+    MOI.set(opt, MOI.RawOptimizerAttribute("periodic_dims"), periodic_dims)
+    MOI.set(opt, MOI.RawOptimizerAttribute("periodic_periods"), periods)
+    MOI.set(opt, MOI.RawOptimizerAttribute("periodic_start"), SVector(-π))
+    MOI.set(opt, MOI.RawOptimizerAttribute("early_stop"), true)
+    MOI.set(opt, MOI.Silent(), true)
+
+    seed_gen = AB.OptimizerTrajectoryGenerator.TrajectoryGenerator(
+        opt;
+        initial_state = SVector(0.0, 0.0),
+        concrete = false,
+        nstep = 100,
+    )
+    AB.set_problem!(seed_gen, problem)
+    AB.generate!(seed_gen)
+    global seed_traj = AB.get_trajectory(seed_gen)
+end
+println(
+    "  $(round(seed_time; digits = 1)) s, seed states: ",
+    seed_traj === nothing ? "NONE" : length(ST.states(seed_traj)),
+)
+
+# ------------------------------------------------------------
+# 2) MPPI refinement (modern stack)
+# ------------------------------------------------------------
+
+println("— MPPI —")
+base = PR.discretize_problem(problem, Δt; num_substeps = 5)
+
+# The target box [π−15°, π+15°] straddles the ±π seam: wrapped states near
+# upright land on the −π side and would miss its upper half. Split the target
+# into its in-period copies so membership (success, truncation, cost) works.
+T_split = UT.set_in_period(problem.target_set, periodic_dims, periods, SVector(-π))
+discrete_problem = PR.OptimalControlProblem(
+    base.system,
+    base.initial_set,
+    T_split,
+    base.state_cost,
+    base.transition_cost,
+    base.time,
+    base.safe_set,
+)
+
+u_max = 4.5
+# Input reserve is the main lever on funnel size: the feedback image κ(E_k) must
+# fit in ±u_max, so whatever the plan does not use, the certificate can.
+u_plan = 0.6 * u_max
+
+# The reach cost scores the trajectory's closest pass and rewards early hits —
+# nothing pulls the ENDPOINT to the target center, so CEM stalls it near the
+# θ-face (measured: 73% of the half-width out). The wrap-aware terminal pull
+# scores the endpoint in the inscribed-ellipsoid metric centered at [π, 0].
+cost = AB.CompositeCost(
+    AB.ReachObjectiveCost(T_split; wrap = wrap),
+    AB.TerminalPullCost(
+        [π, 0.0],
+        [0.249, 0.95];
+        w = 500.0,
+        wrap = wrap,
+        periods = [2π, nothing],
+    ),
+    AB.InputEffortCost(0.001),
+    AB.InputSmoothnessCost(; w_du = 0.05, w_ddu = 0.01),
+    AB.DomainPenaltyCost(problem.system.X; wrap = wrap),
+)
+
+# CEM update (campaign C1's winner for directed one-shot tasks): elite refit
+# handles the multimodal energy-pumping landscape better than softmin averaging.
+mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
+    rng = Random.MersenneTwister(1),
+    seed_trajectory = seed_traj,
+    nstep = 90,
+    nsamples = 1000,
+    niter = 40,
+    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.8)),
+    project_input = u -> SVector(clamp(u[1], -u_plan, u_plan)),
+    cost = cost,
+    wrap_state = (problem, x) -> wrap(x),
+    update_rule = :cem,
+    elite_frac = 0.05,
+    antithetic = true,
+    # Keep optimizing past the first success: the reach cost pulls the endpoint
+    # toward the target center [π, 0], which is what lets the box-centered
+    # terminal seed engage (first-success endpoints stall at θ ≈ 2.90, a 1°
+    # sliver from the face — measured).
+    stop_on_success = false,
+)
+# x-frame lift: periodic unwrap, shifted so the endpoint lands in the target's
+# θ-range.
+lift = function (traj)
+    lifted = ST.unwrap_trajectory(traj, (1,), (2π,))
+    θN = collect(ST.states(lifted))[end][1]
+    shift = 2π * round((θN - π) / (2π))
+    shift == 0.0 && return lifted
+    xs = [SVector(x[1] - shift, x[2]) for x in ST.states(lifted)]
+    return ST.Trajectory(xs; inputs = collect(ST.inputs(lifted)))
+end
+
+# ------------------------------------------------------------
+# 4) Symbolic provider on the true input set
+# ------------------------------------------------------------
+
+Symbolics.@variables θ ω τ w1 w2 T
+xsym = [θ, ω]
+usym = [τ]
+wsym = [w1, w2]
+f_cont(xloc, uloc) = collect(SimplePendulum.dynamic(params)(xloc, uloc))
+f_disc = ST.runge_kutta4(f_cont, xsym, usym, T, 1)
+fsymbolic = Symbolics.substitute([f_disc[1] + w1, f_disc[2] + w2], Dict(T => Δt))
+Wset = LazySets.Hyperrectangle(; low = SVector(0.0, 0.0), high = SVector(0.0, 0.0))
+provider = ST.SymbolicAffineApproximationProvider(
+    fsymbolic,
+    xsym,
+    usym,
+    wsym,
+    [0.0, 0.0],
+    ST.format_input_set(problem.system.U),   # the PLANT's input set
+    ST.format_noise_set(Wset),
+)
+
+sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
+
+# ------------------------------------------------------------
+# 5) Globally normalized coordinates (plan.md §4.3): certify in z = x ./ t.
+# The scaled dynamics f_z(z,u) = f_x(t.*z, u) ./ t are built symbolically once,
+# so the Hessian bounds are EXACT in the working frame — the conditioning benefit
+# of the per-step state_scaling without its ~1/σ_min(T)² remainder tax (measured:
+# scaling off ⇒ infeasible at k≈63; per-step scaling on ⇒ tiny funnels).
+# ------------------------------------------------------------
+
+t = [0.85 * 15.0 * π / 180.0, 0.25]
+zprovider = ST.normalized_symbolic_provider(provider, t)
+D = LA.Diagonal(t)
+
+zproblem = PR.OptimalControlProblem(
+    base.system,
+    ST.normalize_box(problem.initial_set, t),
+    ST.normalize_box(problem.target_set, t),
+    nothing,
+    nothing,
+    base.time,
+    nothing,
+)
+
+prepare = traj -> ST.normalize_trajectory(lift(traj), t)
+
+# The unwrapped cover has no θ seam and the objective has no obstacle; θ spans the
+# full period, so the domain gate would only re-check |ω| ≤ 7 while flagging the
+# lifted θ — disable it here and rely on the generous ω margin. Box radii are in
+# z-units (x-units ./ t).
+# The :max_volume line search (Florentin's contribution) re-solves each step over
+# several box scales and keeps the biggest certified ellipsoid — the volume
+# analogue of :first_consistent, ~4× the SDPs per step.
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.10] ./ t,
+    ΔX_min = [0.005, 0.005] ./ t,
+    ΔX_max = [2.5, 3.5] ./ t,
+    ΔU_initial = [0.25],
+    ΔU_min = [0.01],
+    ΔU_max = [4.5],
+    search_scales = [0.75, 1.0, 1.5, 2.0],
+    objective = :max_volume,
+)
+back_opts = EB.ChainOptions(;
+    maxδx = 12.0,
+    maxδu = 3.0,
+    λ = 0.001,
+    terminal_shape = nothing,            # default: inscribed ellipsoid of the target
+    terminal_shrink = 0.95,
+    linearization_δx = [0.05, 0.10] ./ t,
+    linearization_δu = [1.0],
+    adaptive_boxes = adaptive_opts,
+    # :logdet maximizes true volume — the big-funnel objective this demo is
+    # about (132× the PR's volumes). It is per-trajectory fragile (C2: 2/8
+    # seeds; a razor step dies in the adaptive box search), which is what the
+    # retry ladder below is for: a fresh MPPI trajectory re-rolls the dice.
+    # If the ladder exhausts its rounds, :maximin is the robust fallback.
+    objective = :logdet,
+    check_state_domain = false,
+)
+
+println("— generate ⇄ certify loop (retry ladder, up to 5 rounds) —")
+bw = EB.BackwardCertifier(zprovider, sdp, back_opts)
+driver = AB.TrajectoryCertificationOptimizer.Optimizer(mppi, bw)
+MOI.set(driver, MOI.RawOptimizerAttribute("concrete_problem"), discrete_problem)
+MOI.set(driver, MOI.RawOptimizerAttribute("certifier_problem"), zproblem)
+MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 5)
+MOI.set(driver, MOI.RawOptimizerAttribute("prepare_trajectory"), prepare)
+loop_time = @elapsed MOI.optimize!(driver)
+
+rounds = MOI.get(driver, MOI.RawOptimizerAttribute("rounds"))
+loop_success = MOI.get(driver, MOI.RawOptimizerAttribute("success"))
+traj = MOI.get(driver, MOI.RawOptimizerAttribute("trajectory"))
+bres = EB.get_result(bw)
+bres === nothing &&
+    error("the generator failed in every round — no certification was attempted")
+d = AB.get_diagnostics(mppi)
+println("  $(round(loop_time; digits = 1)) s, rounds = $rounds, certified = $loop_success")
+println(
+    "  last round: mppi steps = $(length(ST.inputs(traj))), ",
+    "backward failed_k = $(bres.failed_k), terminal ⊆ target: ",
+    "$(bres.terminal_contained), initial coverage: $(bres.initial_coverage)",
+)
+if !bres.success && !isempty(bres.steps)
+    last_step = bres.steps[1]
+    println(
+        "  first failing record: k = $(last_step.k), ",
+        get(
+            last_step.summary,
+            :gate_reason,
+            get(last_step.summary, :adaptive_box_status, "?"),
+        ),
+    )
+end
+lifted_x = lift(traj)
+
+# Backward-only: the certificate needs no forward chain — the funnel controller
+# below is the complete product. (`κ_z(z) = K_z·z + b` maps back to the physical
+# frame as `κ_x(x) = K_z·D⁻¹·x + b`.)
+# Terminal-seed diagnostics: did the box-centered branch engage?
+if bres.success
+    E_term = bres.lmi_data.ellipsoids[end]
+    c_term = t .* collect(LazySets.center(E_term))
+    r_term = t .* sqrt.(LA.diag(Matrix(LazySets.shape_matrix(E_term))))
+    xend = collect(ST.states(lifted_x))[end]
+    r_box = 0.95 .* [15.0 * π / 180.0, 1.0]
+    margin = sum(((xend .- [π, 0.0]) ./ r_box) .^ 2)
+    println(
+        "  terminal: center = $(round.(c_term; digits = 3)), radii = ",
+        "$(round.(r_term; digits = 3)); endpoint = $(round.(xend; digits = 3)); ",
+        "box-centered margin = $(round(margin; digits = 3)) (engages iff ≤ 0.64)",
+    )
+end
+
+# Funnel sizes in the physical frame, comparable to the PR's sweep report
+# (V = π·√det(Q), the ellipse area; his best: V0 = 1.6e-3, Vmin = 2.1e-4).
+if bres.success
+    areas = [
+        π * sqrt(LA.det(D * Matrix(LazySets.shape_matrix(E)) * D)) for
+        E in bres.lmi_data.ellipsoids
+    ]
+    sorted_areas = sort(areas)
+    println(
+        "  funnel areas: V0 = $(round(areas[1]; sigdigits = 4)), ",
+        "Vmin = $(round(sorted_areas[1]; sigdigits = 4)), ",
+        "Vmed = $(round(sorted_areas[div(end, 2)]; sigdigits = 4)), ",
+        "Vmax = $(round(sorted_areas[end]; sigdigits = 4))",
+    )
+end
+
+if loop_success
+    ctrl = ST.denormalize_funnel(AB.get_controller(bw), t)
+    println(
+        "— certified controller (physical frame): FunnelController with ",
+        "$(length(ctrl.kappas)) steps —",
+    )
+end
+
+# ------------------------------------------------------------
+# 6) Plot: trajectory + certified sets in the lifted (θ, ω) plane
+# ------------------------------------------------------------
+
+fig = plot(;
+    xlabel = "θ  [rad]",
+    ylabel = "ω  [rad/s]",
+    title = "Certified pendulum swing-up",
+    legend = :topleft,
+    size = (900, 600),
+)
+
+plot!(fig, problem.initial_set; color = :gray, alpha = 0.5, label = "initial set")
+plot!(fig, problem.target_set; color = :green, alpha = 0.35, label = "target set")
+
+# De-normalize the certified funnel back to the physical frame for the plot.
+funnel = [ST.denormalize_ellipsoid(E, t) for E in bres.lmi_data.ellipsoids]
+for (i, E) in enumerate(funnel)
+    plot!(
+        fig,
+        E;
+        color = :steelblue,
+        alpha = 0.25,
+        linewidth = 1.2,
+        linecolor = :steelblue,
+        label = i == 1 ? "backward funnel" : "",
+    )
+end
+
+xs_plot = collect(ST.states(lifted_x))
+plot!(
+    fig,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 2,
+    label = "nominal trajectory",
+)
+
+# Zoom panel: the funnel up close on the mid-swing segment, where the ellipsoids
+# are actually visible at scale.
+mid = xs_plot[div(length(xs_plot), 2)]
+figz = plot(;
+    xlabel = "θ  [rad]",
+    ylabel = "ω  [rad/s]",
+    title = "zoom: mid-swing ellipsoids",
+    legend = false,
+    xlims = (mid[1] - 1.0, mid[1] + 1.0),
+    ylims = (mid[2] - 1.6, mid[2] + 1.6),
+)
+for E in funnel
+    plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
+end
+plot!(
+    figz,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 3,
+)
+
+final = plot(fig, figz; layout = (1, 2), size = (1500, 620))
+plot_path = joinpath(@__DIR__, "demo_pendulum.png")
+savefig(final, plot_path)
+println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 7) Dashboard animation: pendulum + phase-plane and torque panels
+# ------------------------------------------------------------
+
+dash_path = DI.animate_trajectory_dashboard(
+    SimplePendulum.system_plot!(; params = params),
+    lifted_x;
+    xdims = (1, 2),
+    udims = (1,),
+    Δt = Δt,
+    fps = 15,
+    filename = joinpath(@__DIR__, "demo_pendulum_dashboard.gif"),
+    title = "Certified pendulum swing-up",
+)
+println("— dashboard saved: $dash_path —")

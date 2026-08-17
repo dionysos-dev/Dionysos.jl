@@ -12,7 +12,7 @@ using Random
 
 include("../../problems/Integrator/integrator.jl")
 
-const EB = AB.EllipsoidalBackwardTrajectoryCertifier
+const EB = AB.EllipsoidalTrajectoryCertifier
 
 # Contract test for the trajectory certifiers. Builds a tiny reach trajectory with the
 # optimizer-based generator, then certifies it with both the uniform-grid certifier and
@@ -104,24 +104,18 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         ST.format_input_set(_U_),
         ST.format_noise_set(Wformat),
     )
-    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(
-        false,
-        [0.2, 0.2],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        [0.5, 0.5],
-        [0.01, 0.01],
-        [1.0, 1.0],
-        2.0,
-        1.05,
-        1,
-        1e-8,
-        false,
-        [1.0],
-        :first_consistent,
-        true,
+    adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+        enabled = false,
+        ΔX_initial = [0.2, 0.2],
+        ΔX_min = [0.01, 0.01],
+        ΔX_max = [1.0, 1.0],
+        ΔU_initial = [0.5, 0.5],
+        ΔU_min = [0.01, 0.01],
+        ΔU_max = [1.0, 1.0],
+        growth = 2.0,
+        max_iters = 1,
     )
-    ellip_opts = EB.EllipsoidalBackwardOptions(;
+    ellip_opts = EB.ChainOptions(;
         maxδx = 30,
         maxδu = 1.0,
         λ = 0.05,
@@ -129,14 +123,54 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         linearization_δx = [0.2, 0.2],
         linearization_δu = [0.5, 0.5],
         adaptive_boxes = adaptive_opts,
-        use_log_det = false,
+        objective = :trace,
     )
-    eb_cert = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    eb_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     AB.set_problem!(eb_cert, concrete_problem)
     AB.set_trajectory!(eb_cert, traj)
     AB.certify!(eb_cert)
     @test AB.get_success(eb_cert) isa Bool
     @test EB.get_result(eb_cert) !== nothing
+
+    # 2b) Ellipsoidal forward certifier: propagate the tube from a small entry
+    #     ellipsoid along the same trajectory (exactly affine dynamics, so the
+    #     remainder is zero and per-step certification must go through).
+    fwd_opts = EB.ForwardOptions(;
+        maxδu = 1.0,
+        linearization_δu = [0.5, 0.5],
+        entry_shape = Matrix{Float64}(LA.I, 2, 2) * 0.05^2,
+        target_mode = :free,
+        q_min = 1e-8,
+        q_max = 1e4,
+    )
+    fw_cert = EB.ForwardCertifier(provider, Clarabel.Optimizer, fwd_opts)
+    AB.set_problem!(fw_cert, concrete_problem)
+    AB.set_trajectory!(fw_cert, traj)
+    AB.certify!(fw_cert)
+    fw_res = EB.get_result(fw_cert)
+    @test AB.get_success(fw_cert) isa Bool
+    @test fw_res !== nothing
+    # With a user-supplied entry_shape the coverage is REAL, not assumed: this
+    # 0.05-radius entry provably does not cover the 0.05-half-width initial box
+    # (half-diagonal ≈ 0.0707), so the margin must exceed 1.
+    @test fw_res.initial_coverage isa Float64
+    @test fw_res.initial_coverage > 1.0
+    @test length(fw_res.lmi_data.ellipsoids) == length(ST.states(traj)) ||
+          fw_res.failed_k !== nothing
+
+    # 2c) Bidirectional handoff: certified as soon as the forward tube at some
+    #     state is contained in the backward funnel there; on success the spliced
+    #     funnel controller covers the whole horizon.
+    bi_fw = EB.ForwardCertifier(provider, Clarabel.Optimizer, fwd_opts)
+    bi_bw = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    handoff = EB.bidirectional_certify!(bi_fw, bi_bw, concrete_problem, traj)
+    @test handoff.success isa Bool
+    @test handoff.forward_result !== nothing
+    @test handoff.backward_result !== nothing
+    if handoff.success
+        @test handoff.controller isa ST.FunnelController
+        @test 1 <= handoff.k_handoff <= length(ST.states(traj))
+    end
 
     # 3) Combined trajectory-generation + certification optimizer: a composite generator
     #    (optimizer seed refined by MPPI) feeding the certifier, driven through MOI.
@@ -159,13 +193,25 @@ const EB = AB.EllipsoidalBackwardTrajectoryCertifier
         Δt = Δt,
         num_substeps = 5,
     )
-    tc_cert = EB.TrajectoryCertifier(provider, Clarabel.Optimizer, ellip_opts)
+    tc_cert = EB.BackwardCertifier(provider, Clarabel.Optimizer, ellip_opts)
     tc_optimizer = AB.TrajectoryCertificationOptimizer.Optimizer(combo_gen, tc_cert)
     MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("concrete_problem"), concrete_problem)
+    MOI.set(tc_optimizer, MOI.RawOptimizerAttribute("max_rounds"), 2)
+    replan_calls = Ref(0)
+    MOI.set(
+        tc_optimizer,
+        MOI.RawOptimizerAttribute("replan!"),
+        (gen, cert) -> (replan_calls[] += 1),
+    )
     MOI.optimize!(tc_optimizer)
     @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("trajectory")) !== nothing
     @test MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success")) isa Bool
     @test MOI.get(tc_optimizer, MOI.SolveTimeSec()) >= 0.0
+    rounds = MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("rounds"))
+    @test 1 <= rounds <= 2
+    # the hook fires exactly between failed rounds
+    @test replan_calls[] == rounds - 1 ||
+          MOI.get(tc_optimizer, MOI.RawOptimizerAttribute("success"))
 end
 
 end # module TestMain

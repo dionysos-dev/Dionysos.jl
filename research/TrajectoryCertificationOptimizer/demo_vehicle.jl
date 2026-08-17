@@ -1,0 +1,490 @@
+# Certified articulated-vehicle maneuver — the P6 vehicle demo (plan.md §8.2).
+#
+# 4-D tractor-trailer (x, y, θ, ϕ) driving from the lower-left corner to the
+# upper-right target. The pipeline runs without an abstraction seed: a constant-
+# input rollout seeds CEM-MPPI, and certification happens backward-only in
+# globally normalized coordinates with the state-domain gate ACTIVE (every funnel
+# ellipsoid must stay inside X). Certified against the plant's true input set.
+#
+#     julia --project=bench research/TrajectoryCertificationOptimizer/demo_vehicle.jl
+#
+# Status (2026-08-11, Clarabel, fixed rng): generation SOLVED (110 steps reaching
+# the target with |θ|, |ϕ| ≤ 0.2 — needed the terminal-ellipsoid shaping and a
+# horizon long enough for the hitch angle's ~14-step relaxation), certification
+# PARTIAL: the backward chain certifies steps 110→41 (69 steps, terminal gate
+# passing, domain gate active) and fails mid-turn at k = 41 with
+# `lmi_infeasible_at_max_box` — peak curvature + steering near the planning bound
+# leaves too little feedback headroom.
+#
+# Reserve-frontier ablation (measured, probe-driven): δ ≤ 0.4 starves the
+# *generator* (no reach); δ ≤ 0.45 generates (needs annealed CEM, nstep 120) but
+# certifies FEWER steps (fail at k = 84 — the tighter trajectory is harder
+# elsewhere); δ ≤ 0.5 (this config) is the best single-shot result.
+#
+# Prefix re-planning (§6-2) is implemented and wired below
+# (`EB.prefix_replan_certify!` + the generator's `stop_on_success = false`), and
+# does not recover the mid-turn failure.
+#
+# DECISIVE Δt ABLATION (2026-08-11): at Δt = 0.25 (this config, :ball remainder,
+# probe-tuned 220-step generation) the chain certifies 139/220 — the SAME 63%
+# fraction, failing at the SAME physical location (k = 81 ≈ t ≈ 20 s ≈ old k = 41)
+# as Δt = 0.5. Halving the per-step remainder did not move the wall ⟹ the failure
+# is NOT remainder-limited: it is INPUT-AUTHORITY-limited (the δ-channel feedback
+# headroom, 0.6 − 0.5 = 0.1 rad, is Δt-invariant and binds mid-turn where 2 inputs
+# must control 4 states through a weak hitch-angle channel). Candidate levers: a
+# slower speed profile through the turn (more control authority per meter of arc,
+# discoverable by CEM with a curvature-coupled speed cost), or accepting the
+# certified 35 s tail as the capture region. Side result: the :ball chain ran 220
+# 4-D steps at ~0.58 s/step vs ~1 s/step for :vertices — its headline validation.
+#
+# WALL CAMPAIGN VERDICT (2026-08-11, seven interventions): reserve frontier,
+# Δt halving, :ball remainder, prefix re-planning, terminal-seed engagement,
+# curvature-speed cost, and a δ ≲ 0.4 steering barrier ALL leave the mid-turn
+# wall in the 45–55% region of the maneuver (best: 144/220 certified). Neither
+# pace, nor remainder size, nor static headroom, nor a wider arc cracks it — the
+# residual hypothesis is the joint 4-D tube structure through the turn (the weak
+# hitch channel: robustly steering a 4-D tube with 2 inputs mid-arc), possibly
+# compounded by per-step SDP conservatism. The SHIPPABLE result is the
+# capture-region certificate: a ~35 s certified tail into the target with the
+# ×120 terminal seed — the §8.3-style fallback, honest and sound.
+#
+# TERMINAL-SEED ENGAGEMENT (user's mechanism, transferred from the pendulum):
+# `stop_on_success = false` lets CEM ride the TerminalEllipsoidCost pull — the
+# endpoint centers to [9.515, 9.495, 0.013, 0.018] (φ relaxes 0.195 → 0.018 in the
+# tail; margin 0.017), the box-centered 4-D seed ENGAGES (Vmax 2.7e-4 → 0.0324,
+# ~120×), and the wall moves k = 81 → 76 (144/220 certified). The entry-side
+# funnels still shrink to slivers approaching the mid-turn authority wall — the
+# speed profile remains the endgame lever.
+#
+# VOLUME ABLATION (2026-08-11, vs the PR's marche_avant sweep — his best entry
+# 7.9e-5 / median 3.0e-4 are INFORMAL: box violations on every config, no terminal
+# gate, 32-step chain): :logdet collapses here (V ≈ 1.6e-14 pancake at the 2nd
+# backward step — degenerate axes are profitable through the weak hitch channel);
+# :maximin + :max_volume certifies 128 steps with V_entry ≈ 8e-10 — sound but tiny.
+# Conclusion: on this system funnel volume is bounded by the SAME input-authority
+# wall as chain length; objective tuning cannot buy what the actuator cannot
+# defend. The volume levers here are the speed profile (authority per meter) —
+# unlike the pendulum, where :logdet+:max_volume beat the PR 132× (see
+# demo_pendulum.jl). Per-system rule: :logdet for strongly-actuated low-dim
+# systems, :maximin(+:max_volume) where weak channels invite pancakes.
+
+import Dionysos
+const DI = Dionysos
+const UT = DI.Utils
+const ST = DI.System
+const PR = DI.Problem
+const AB = DI.Optim.Abstraction
+const EB = AB.EllipsoidalTrajectoryCertifier
+
+import LazySets
+import LinearAlgebra as LA
+import MathOptInterface as MOI
+import MathematicalSystems as MS
+using StaticArrays
+using Random
+using Symbolics
+import Clarabel
+using JuMP: optimizer_with_attributes
+using Plots
+
+const PROBLEMS = joinpath(dirname(dirname(pathof(Dionysos))), "problems")
+include(joinpath(PROBLEMS, "ArticulatedVehicle", "articulated_vehicle.jl"))
+const AV = ArticulatedVehicle
+
+params = AV.Params()
+problem = AV.problem(; params = params)
+# Half the original step: the mid-turn failure is remainder-limited and the
+# per-step linearization error scales with Δt; the :ball remainder model (one
+# Petersen block instead of 16 vertex blocks per step) keeps the 2× longer chain
+# affordable. Generation at 220 dims needs finer per-step noise (probe-tuned).
+Δt = 0.25
+
+base = PR.discretize_problem(problem, Δt; num_substeps = 5)
+f = MS.mapping(base.system)
+
+# ------------------------------------------------------------
+# 1) Seed: constant-input rollout (no abstraction needed for this task)
+# ------------------------------------------------------------
+
+x0 = SVector(-9.5, -9.5, 0.0, 0.0)
+# ≥ 26.9 m diagonal at v·Δt ≤ 0.2125 m per step ⟹ ≥ 127 straight-line steps; the
+# curve, the slow-turn speed profile, and the straight final approach that relaxes
+# the hitch angle (~28-step relaxation constant at this Δt) need margin.
+nstep = 260
+seed_traj = begin
+    u0 = SVector(0.85, 0.05)
+    xs = [x0]
+    for _ in 1:nstep
+        push!(xs, f(xs[end], u0))
+    end
+    ST.Trajectory(xs; inputs = fill(u0, nstep))
+end
+
+# ------------------------------------------------------------
+# 2) CEM-MPPI
+# ------------------------------------------------------------
+
+println("— MPPI —")
+u_plan = SVector(0.85, 0.5)      # input reserve vs U = [-1,1]×[-0.6,0.6]
+
+# Terminal shaping through the target's inscribed ellipsoid: the reach distance is
+# position-dominated, but the target also demands θ, ϕ ∈ [−0.2, 0.2] — arriving
+# along the diagonal means θ ≈ π/4 unless the endpoint alignment is *rewarded*.
+E_T = LazySets.Ellipsoid(
+    collect(LazySets.center(problem.target_set)),
+    Matrix(LA.Diagonal([0.5, 0.5, 0.12, 0.12] .^ 2)),
+)
+
+# Speed-profile shaping (the authority-wall endgame): the certification wall is
+# mid-turn where steering saturates, and slowing down there wins twice — more
+# steering authority per meter of arc, and a smaller per-step remainder (the
+# dynamics scale with v). Penalizing v·δ makes CEM take the turn slowly and the
+# straights fast.
+struct CurvatureSpeedCost <: AB.AbstractCostTerm
+    w::Float64
+end
+AB.cost_step(t::CurvatureSpeedCost, acc, x, u, k) = acc + t.w * (u[1] * u[2])^2
+
+# Steering barrier — the sharper fix: the wall is the arc's CURVATURE, not its
+# pace (measured: slowing the turn multiplies the hard steps, net wash). A steep
+# barrier keeps the nominal δ ≲ 0.4 (radius ≈ 4.7 m, fits the arena), forcing a
+# wider arc with a genuine 0.2 rad of defendable headroom through the turn.
+struct SteeringBarrier <: AB.AbstractCostTerm
+    w::Float64
+end
+AB.cost_step(t::SteeringBarrier, acc, x, u, k) = acc + t.w * (u[2] / 0.4)^8
+
+cost = AB.CompositeCost(
+    AB.ReachObjectiveCost(problem.target_set),
+    AB.TerminalEllipsoidCost(E_T; w_outside = 1e5, w_center = 1e4),
+    CurvatureSpeedCost(30.0),
+    SteeringBarrier(5.0),
+    AB.InputEffortCost(0.01),
+    AB.InputSmoothnessCost(; w_du = 0.5, w_ddu = 0.1),
+    AB.DomainPenaltyCost(problem.system.X),
+)
+
+mppi = AB.MPPITrajectoryGenerator.TrajectoryGenerator(;
+    rng = Random.MersenneTwister(1),
+    seed_trajectory = seed_traj,
+    nstep = nstep,
+    nsamples = 1000,
+    niter = 150,
+    anneal = 0.99,
+    noise = AB.MPPITrajectoryGenerator.GaussianMPPINoise(SVector(0.12, 0.08)),
+    project_input = u ->
+        SVector(clamp(u[1], -u_plan[1], u_plan[1]), clamp(u[2], -u_plan[2], u_plan[2])),
+    cost = cost,
+    update_rule = :cem,
+    elite_frac = 0.05,
+    antithetic = true,
+    # Keep optimizing past the first success so the TerminalEllipsoidCost pull can
+    # center the endpoint — first-success endpoints stall at φ ≈ 0.19 of ±0.2,
+    # starving the terminal seed (the pendulum's measured pattern).
+    stop_on_success = false,
+)
+
+# ------------------------------------------------------------
+# 3) Normalized symbolic provider (plan.md §4.3)
+# ------------------------------------------------------------
+
+Symbolics.@variables xv[1:4] uv[1:2] wv[1:4] T
+xsym = collect(xv)
+usym = collect(uv)
+wsym = collect(wv)
+f_cont(xloc, uloc) = collect(AV.dynamic(params)(xloc, uloc))
+f_disc = ST.runge_kutta4(f_cont, xsym, usym, T, 1)
+fsymbolic = Symbolics.substitute([f_disc[i] + wsym[i] for i in 1:4], Dict(T => Δt))
+Wset = LazySets.Hyperrectangle(;
+    low = zero(SVector{4, Float64}),
+    high = zero(SVector{4, Float64}),
+)
+provider = ST.SymbolicAffineApproximationProvider(
+    fsymbolic,
+    xsym,
+    usym,
+    wsym,
+    zeros(4),
+    ST.format_input_set(problem.system.U),   # the plant's true input set
+    ST.format_noise_set(Wset),
+)
+
+t = [2.0, 2.0, 0.35, 0.35]                   # characteristic scales (m, m, rad, rad)
+zprovider = ST.normalized_symbolic_provider(provider, t)
+D = LA.Diagonal(t)
+
+zbox(H) = LazySets.Hyperrectangle(;
+    low = SVector{4}(LazySets.low(H) ./ t),
+    high = SVector{4}(LazySets.high(H) ./ t),
+)
+# The z-frame problem carries the scaled domain so the state-domain gate checks
+# every funnel ellipsoid against X in the same coordinates it was certified in.
+zsys = AV.system(zbox(problem.system.X); params = params)
+zproblem = PR.OptimalControlProblem(
+    zsys,
+    zbox(problem.initial_set),
+    zbox(problem.target_set),
+    nothing,
+    nothing,
+    base.time,
+    nothing,
+)
+
+ztraj(traj) = ST.Trajectory(
+    [SVector{4}(collect(x) ./ t) for x in ST.states(traj)];
+    inputs = collect(ST.inputs(traj)),
+)
+
+# ------------------------------------------------------------
+# 4) Backward certification with the domain gate ON
+# ------------------------------------------------------------
+
+sdp = optimizer_with_attributes(Clarabel.Optimizer, "verbose" => false)
+
+adaptive_opts = EB.AdaptiveLinearizationBoxOptions(;
+    ΔX_initial = [0.05, 0.05, 0.05, 0.05] ./ t,
+    ΔX_min = [0.005, 0.005, 0.005, 0.005] ./ t,
+    ΔX_max = [3.0, 3.0, 1.0, 1.0] ./ t,
+    ΔU_initial = [0.2, 0.15],
+    ΔU_min = [0.02, 0.015],
+    ΔU_max = [1.0, 0.6],
+)
+back_opts = EB.ChainOptions(;
+    maxδx = 8.0,
+    maxδu = 1.0,
+    λ = 0.001,
+    terminal_shape = nothing,
+    terminal_shrink = 0.9,
+    linearization_δx = [0.05, 0.05, 0.05, 0.05] ./ t,
+    linearization_δu = [0.3, 0.2],
+    adaptive_boxes = adaptive_opts,
+    objective = :maximin,
+    remainder_model = :ball,
+    check_state_domain = true,
+)
+
+println("— generate ⇄ certify loop (retry ladder, up to 3 rounds) —")
+bw = EB.BackwardCertifier(zprovider, sdp, back_opts)
+driver = AB.TrajectoryCertificationOptimizer.Optimizer(mppi, bw)
+MOI.set(driver, MOI.RawOptimizerAttribute("concrete_problem"), base)
+MOI.set(driver, MOI.RawOptimizerAttribute("certifier_problem"), zproblem)
+MOI.set(driver, MOI.RawOptimizerAttribute("max_rounds"), 1)
+MOI.set(driver, MOI.RawOptimizerAttribute("prepare_trajectory"), ztraj)
+loop_time = @elapsed MOI.optimize!(driver)
+
+rounds = MOI.get(driver, MOI.RawOptimizerAttribute("rounds"))
+loop_success = MOI.get(driver, MOI.RawOptimizerAttribute("success"))
+traj = MOI.get(driver, MOI.RawOptimizerAttribute("trajectory"))
+bres = EB.get_result(bw)
+bres === nothing &&
+    error("the generator failed in every round — no certification was attempted")
+d = AB.MPPITrajectoryGenerator.get_diagnostics(mppi)
+println("  $(round(loop_time; digits = 1)) s, rounds = $rounds, certified = $loop_success")
+println(
+    "  last round: mppi steps = $(length(ST.inputs(traj))), ",
+    "backward failed_k = $(bres.failed_k), terminal ⊆ target: ",
+    "$(bres.terminal_contained), initial coverage: $(bres.initial_coverage), ",
+    "domain gate ran: $(bres.state_domain_checked)",
+)
+if !bres.success && !isempty(bres.steps)
+    last_step = bres.steps[1]
+    println(
+        "  first failing record: k = $(last_step.k), ",
+        get(
+            last_step.summary,
+            :gate_reason,
+            get(last_step.summary, :adaptive_box_status, "?"),
+        ),
+    )
+end
+
+# Terminal-seed diagnostics: endpoint depth and whether the box-centered branch
+# engaged (visible as terminal volume ≈ 0.021 vs endpoint-centered slivers ~1e-4).
+let xe = collect(ST.states(traj))[end], Tc = LazySets.center(problem.target_set)
+    r_box = 0.9 .* [0.5, 0.5, 0.2, 0.2]
+    margin = sum(((collect(xe) .- collect(Tc)) ./ r_box) .^ 2)
+    println(
+        "  endpoint = $(round.(collect(xe); digits = 3)); box-centered margin = ",
+        "$(round(margin; digits = 3)) (engages iff ≤ 0.64)",
+    )
+end
+
+# 4-D funnel volumes in the physical frame (V = π²/2·√det Q).
+if !isempty(bres.lmi_data.ellipsoids)
+    vols = [
+        π^2 / 2 * sqrt(LA.det(D * Matrix(LazySets.shape_matrix(E)) * D)) for
+        E in bres.lmi_data.ellipsoids
+    ]
+    sv = sort(vols)
+    println(
+        "  funnel volumes (certified segment): V_entry = $(round(vols[1]; sigdigits = 4)), ",
+        "Vmin = $(round(sv[1]; sigdigits = 4)), Vmed = $(round(sv[div(end, 2)]; sigdigits = 4)), ",
+        "Vmax = $(round(sv[end]; sigdigits = 4))",
+    )
+end
+
+if loop_success
+    zctrl = AB.get_controller(bw)
+    println("— certified controller: FunnelController with $(length(zctrl.kappas)) steps —")
+end
+
+# ------------------------------------------------------------
+# 4b) Prefix re-planning (plan.md §6-2): keep the certified suffix, re-plan the
+# prefix into its entry ellipsoid, splice.
+# ------------------------------------------------------------
+
+if !loop_success && bres.failed_k !== nothing && !isempty(bres.lmi_data.ellipsoids)
+    println(
+        "— prefix re-planning into the certified suffix (entry at state ",
+        "$(bres.failed_k + 1)) —",
+    )
+
+    denormE(E) = LazySets.Ellipsoid(
+        t .* collect(LazySets.center(E)),
+        Matrix(D * Matrix(LazySets.shape_matrix(E)) * D),
+    )
+    term_cost = cost.terms[2]        # the TerminalEllipsoidCost — arrays are mutable
+    retarget! = function (Ex)
+        term_cost.c .= collect(LazySets.center(Ex))
+        term_cost.P .= Matrix(UT.get_quadratic_form(Ex))
+        return nothing
+    end
+
+    replan_time = @elapsed pr = EB.prefix_replan_certify!(
+        mppi,
+        bw,
+        bres;
+        gen_problem = base,
+        seed = traj,
+        prepare = ztraj,
+        backmap = denormE,
+        retarget_cost! = retarget!,
+        margin = 6,
+        terminal_shrink = 0.5,
+        max_rounds = 3,
+    )
+    println(
+        "  $(round(replan_time; digits = 1)) s, success = $(pr.success) after ",
+        "$(pr.rounds) round(s)",
+    )
+    if pr.success
+        println(
+            "— spliced certified controller: FunnelController with ",
+            "$(length(pr.controller.kappas)) steps ",
+            "($(pr.k_prefix) re-planned + $(length(bres.lmi_data.kappas)) suffix) —",
+        )
+        global loop_success = true
+        global traj = AB.get_trajectory(mppi)   # the re-planned prefix, for the plot
+    end
+end
+
+# ------------------------------------------------------------
+# 5) Plot in the (x, y) plane: trajectory + funnel shadows
+# ------------------------------------------------------------
+
+fig = plot(;
+    xlabel = "x  [m]",
+    ylabel = "y  [m]",
+    title = "Certified articulated-vehicle maneuver",
+    legend = :topleft,
+    size = (900, 700),
+    aspect_ratio = :equal,
+)
+
+box2(H) = LazySets.Hyperrectangle(;
+    low = SVector(LazySets.low(H, 1), LazySets.low(H, 2)),
+    high = SVector(LazySets.high(H, 1), LazySets.high(H, 2)),
+)
+plot!(fig, box2(problem.initial_set); color = :gray, alpha = 0.5, label = "initial set")
+plot!(fig, box2(problem.target_set); color = :green, alpha = 0.35, label = "target set")
+
+# xy-shadow of a 4-D funnel ellipsoid: the principal 2×2 block of the
+# de-normalized shape matrix.
+function funnel_shadow(E)
+    Q = LA.Diagonal(t) * Matrix(LazySets.shape_matrix(E)) * LA.Diagonal(t)
+    c = t .* collect(LazySets.center(E))
+    return LazySets.Ellipsoid(c[1:2], LA.Symmetric(Q[1:2, 1:2]) |> Matrix)
+end
+
+funnel_ellipsoids =
+    (@isdefined(pr)) && pr.success ? pr.controller.ellipsoids : bres.lmi_data.ellipsoids
+shadows = [funnel_shadow(E) for E in funnel_ellipsoids]
+for (i, E) in enumerate(shadows)
+    plot!(
+        fig,
+        E;
+        color = :steelblue,
+        alpha = 0.25,
+        linewidth = 1.0,
+        linecolor = :steelblue,
+        label = i == 1 ? "funnel (xy shadow)" : "",
+    )
+end
+
+xs_plot = collect(ST.states(traj))
+plot!(
+    fig,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 2,
+    label = "nominal trajectory",
+)
+
+# Zoom panel: the certified corridor up close (a window inside the certified
+# range, where the ellipsoid shadows are visible at scale).
+zc = collect(LazySets.center(shadows[max(1, div(length(shadows), 2))]))
+figz = plot(;
+    xlabel = "x  [m]",
+    ylabel = "y  [m]",
+    title = "zoom: funnel corridor",
+    legend = false,
+    aspect_ratio = :equal,
+    xlims = (zc[1] - 3.0, zc[1] + 3.0),
+    ylims = (zc[2] - 3.0, zc[2] + 3.0),
+)
+for E in shadows
+    plot!(figz, E; color = :steelblue, alpha = 0.3, linewidth = 1.5, linecolor = :navy)
+end
+plot!(
+    figz,
+    [x[1] for x in xs_plot],
+    [x[2] for x in xs_plot];
+    color = :black,
+    linewidth = 2,
+    marker = :circle,
+    markersize = 3,
+)
+
+final = plot(fig, figz; layout = (1, 2), size = (1500, 680))
+plot_path = joinpath(@__DIR__, "demo_vehicle.png")
+savefig(final, plot_path)
+println("— plot saved: $plot_path —")
+
+# ------------------------------------------------------------
+# 6) Dashboard animation: articulated vehicle + xy and input panels
+# ------------------------------------------------------------
+
+# The scenario has no obstacles — the dashboard context is the task itself:
+# initial box, target box, then the rig.
+av_plot = AV.system_plot!(; params = params, xlims = (-14.0, 14.0), ylims = (-14.0, 14.0))
+dash_plot! =
+    (f, xk, uk) -> begin
+        plot!(f, box2(problem.initial_set); color = :gray, alpha = 0.4)
+        plot!(f, box2(problem.target_set); color = :green, alpha = 0.4)
+        av_plot(f, xk, uk)
+    end
+dash_path = DI.animate_trajectory_dashboard(
+    dash_plot!,
+    traj;
+    xdims = (1, 2),
+    udims = (1, 2),
+    Δt = Δt,
+    fps = 20,
+    frame_step = 2,
+    filename = joinpath(@__DIR__, "demo_vehicle_dashboard.gif"),
+    title = "Certified articulated-vehicle maneuver",
+)
+println("— dashboard saved: $dash_path —")
