@@ -410,32 +410,35 @@ loop_success && println(
 )
 
 # ------------------------------------------------------------
-# 5) Closed-loop falsification: sample a meaningful-volume funnel ellipsoid,
-# replay the certified feedbacks on the plant map, count target hits.
+# 5) Closed-loop falsification + inflation stress: replay the certified
+# feedbacks from the meaningful-volume depth (α = 1 must be 100% — that IS the
+# certificate), then measure the empirical success basin beyond the guarantee
+# on inflated-entry shells (α > 1 rows are measurements, NOT certificates),
+# with the failures decomposed by mode.
 # ------------------------------------------------------------
 
 if !isempty(ells) && length(ells) > 1
     i_val = min(something(findfirst(v -> v >= 1e-6, vols), 1), length(ells) - 1)
-    E_val = ells[i_val]
     f_z(z, u) = SVector{4}(f(SVector{4}(t .* z), u) ./ t)
-    zT = zbox(T_plus)
-    n_ok = 0
-    n_samples = 50
-    rng_val = Random.MersenneTwister(7)
-    for zs0 in UT.samples(E_val, n_samples; rng = rng_val)
-        z = SVector{4}(zs0)
-        for κ in bres.lmi_data.kappas[i_val:end]
-            u = Matrix(κ.A) * collect(z) .+ collect(κ.c)
-            u = SVector(clamp(u[1], -5.0, 5.0), clamp(u[2], -pi / 4, pi / 4))
-            z = f_z(z, u)
-        end
-        global n_ok += (z ∈ zT)
-    end
-    println(
-        "  closed-loop from the $(round((length(ells) - i_val) * Δt; digits = 2))-s-out ",
-        "region (V = $(round(vols[i_val]; sigdigits = 3))): ",
-        "$(n_ok)/$(n_samples) samples reach the target",
+    rows = EB.inflation_stress(
+        f_z,
+        bres.lmi_data.kappas[i_val:end],
+        bres.lmi_data.ellipsoids[i_val:end],
+        zbox(T_plus);
+        alphas = [1.0, 1.5, 2.0, 3.0],
+        n_samples = 100,
+        rng = Random.MersenneTwister(7),
+        input_set = problem.system.U,
+        project_input = u ->
+            SVector(clamp(u[1], -5.0, 5.0), clamp(u[2], -pi / 4, pi / 4)),
+        domain = zX,
     )
+    println(
+        "  closed-loop + inflation stress from the ",
+        "$(round((length(ells) - i_val) * Δt; digits = 2))-s-out region ",
+        "(V = $(round(vols[i_val]; sigdigits = 3))):",
+    )
+    EB.print_inflation_stress(rows)
 end
 
 # ------------------------------------------------------------

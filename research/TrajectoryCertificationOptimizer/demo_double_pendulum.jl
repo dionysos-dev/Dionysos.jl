@@ -414,31 +414,31 @@ zctrl = EB.get_controller(capture_bw)
 println("— certified controller: FunnelController with $(length(zctrl.kappas)) steps —")
 
 # ------------------------------------------------------------
-# 6) Closed-loop validation from the MEANINGFUL-region depth: sample the last
-# funnel with volume ≥ 1e-3 (a real region, not the cliff needle) and run the
-# remaining controller steps.
+# 6) Closed-loop validation + inflation stress from the MEANINGFUL-region depth
+# (the last funnel with volume ≥ 1e-3, not the cliff needle): α = 1 must be
+# 100% — that IS the certificate; the α > 1 shells measure the empirical
+# recovery basin beyond it, with failures decomposed by mode.
 # ------------------------------------------------------------
 
 i_val = min(something(findfirst(v -> v >= 1e-3, vols), 1), length(ells) - 1)
-E_val = ells[i_val]
 f_z(z, u) = SVector{4}(f(SVector{4}(t .* z), u) ./ t)
-zT = zbox(_T_)
-n_ok = 0
-n_samples = 50
-rng_val = Random.MersenneTwister(7)
-for zs0 in UT.samples(E_val, n_samples; rng = rng_val)
-    z = SVector{4}(zs0)
-    for κ in cres.lmi_data.kappas[i_val:end]
-        u = SVector{1}(clamp.(Matrix(κ.A) * collect(z) .+ collect(κ.c), -5.5, 5.5))
-        z = f_z(z, u)
-    end
-    global n_ok += (z ∈ zT)
-end
-println(
-    "  closed-loop from the $(round((length(ells) - i_val) * Δt; digits = 2))-s-out ",
-    "region (V = $(round(vols[i_val]; sigdigits = 3))): ",
-    "$(n_ok)/$(n_samples) samples reach the target",
+stress_rows = EB.inflation_stress(
+    f_z,
+    cres.lmi_data.kappas[i_val:end],
+    cres.lmi_data.ellipsoids[i_val:end],
+    zbox(_T_);
+    alphas = [1.0, 1.5, 2.0, 3.0],
+    n_samples = 100,
+    rng = Random.MersenneTwister(7),
+    input_set = _U_,
+    project_input = u -> SVector{1}(clamp.(u, -5.5, 5.5)),
 )
+println(
+    "  closed-loop + inflation stress from the ",
+    "$(round((length(ells) - i_val) * Δt; digits = 2))-s-out region ",
+    "(V = $(round(vols[i_val]; sigdigits = 3))):",
+)
+EB.print_inflation_stress(stress_rows)
 
 # ------------------------------------------------------------
 # 7) Plots: swing plane (θ₂, ω₂) + shoulder plane (θ₁, ω₁), with funnel shadows
