@@ -61,10 +61,15 @@ const X_BOX = LazySets.Hyperrectangle(;
         MOI.RawOptimizerAttribute("approx_mode"),
         AB.UniformGridAbstraction.CENTER_SIMULATION,
     )
+    # One joint per step keeps the abstraction cheap (17 effective input
+    # combinations out of 5⁴) while still producing the two-cell steps this
+    # suite is about; diagonal sweeps are covered by the unit tests of
+    # `MP.cells_on_segment` in `test/mapping/carving.jl`.
+    swept = MP.swept_input_filter(disc2.state_grid, disc2.tstep, removed)
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("state_input_filter"),
-        MP.swept_input_filter(disc2.state_grid, disc2.tstep, removed),
+        (x, u) -> count(v -> abs(v) > 1e-9, u) <= 1 && swept(x, u),
     )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("intersample_checked"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
