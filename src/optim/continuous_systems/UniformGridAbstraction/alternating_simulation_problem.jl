@@ -691,6 +691,42 @@ function build_empty_abstraction!(optimizer::OptimizerAlternatingSimulationProbl
     return optimizer.abstract_system
 end
 
+# The abstraction only validates the reach set *at* the sampling time; nothing
+# checks the trajectory during [0, τ]. When the admissible set has holes
+# (obstacles carved out of `X`) and some transition moves more than one cell
+# per axis, the continuous trajectory may cross an excluded region between two
+# valid samples ("obstacle jump"). Measured on the built transitions, so it is
+# honest for any dynamics — see `MP.intersample_safe_time_step` for the bound
+# that prevents it.
+function _warn_intersample_jump(
+    optimizer::OptimizerAlternatingSimulationProblem,
+    abstract_system,
+)
+    system = optimizer.alternating_simulation_problem.system
+    system.X isa UT.SetMinus || return
+    mapping = optimizer.XMapping
+    mapping isa MP.GridMapping || return
+    MP.is_periodic(mapping) && return # coordinate differences wrap; skip
+    h = MP.get_h(MP.get_grid(mapping))
+    max_jump = 0.0
+    for (target, source, _) in SY.enum_transitions(abstract_system)
+        xs = SY.get_concrete_state(abstract_system, source)
+        xt = SY.get_concrete_state(abstract_system, target)
+        max_jump = max(max_jump, maximum(abs.(xt .- xs) ./ h))
+    end
+    if max_jump > 1 + 1e-9
+        @warn(
+            "Some transitions jump $(round(max_jump; digits = 2)) cells per step while " *
+            "the state domain has holes: the trajectory between two samples may cross " *
+            "an excluded region unchecked. Consider a time step below " *
+            "`MP.intersample_safe_time_step(state_grid, velocity_bound)` (one cell per " *
+            "axis per step) so that inter-sample trajectories stay in certified cells.",
+            maxlog = 1,
+        )
+    end
+    return
+end
+
 function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     t_ref = time()
 
@@ -726,6 +762,8 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         "compute_abstract_system_from_concrete_system! terminated with success: ",
         "$(HybridSystems.ntransitions(SY.get_automaton(abstract_system))) transitions created",
     )
+
+    _warn_intersample_jump(optimizer, abstract_system)
 
     # Optional time lift: wrap the spatial abstraction with the clock, giving an
     # (x, t) abstraction for quantified-time specifications on continuous systems.
