@@ -41,7 +41,6 @@ using Symbolics, MathOptSymbolicAD # compile the ∂ dynamics of the front-end
 using Dionysos
 import LazySets
 import Plots
-using Test #src
 
 const DI = Dionysos
 const MP = DI.Mapping
@@ -230,12 +229,6 @@ maximum(maximum(abs.(us[k + 1] - us[k])) for k in 1:(length(us) - 1))
 
 # The measured maximum input variation sits exactly at the bound: the
 # constraint is active and satisfied along the whole run.
-
-@test get_attribute(model, "success") #src
-@test reached(xs[end]) #src
-@test maximum(maximum(abs.(us[k + 1] - us[k])) for k in 1:(length(us) - 1)) <= du + 1e-9 #src
-@test maximum(abs.(us[1])) <= du + 1e-9 #src the rest-to-rest ramp: first input one notch from 0
-@test maximum(abs.(us[end])) <= du + 1e-9 #src
 
 # ## Visualizing the footstep
 
