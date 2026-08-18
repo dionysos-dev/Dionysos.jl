@@ -39,8 +39,12 @@ const TEST_FILES = [
     ("./problem/problems.jl",),
     # Every hand-written growth bound in `problems/`, checked against its own dynamics.
     ("./problems/growth_bounds.jl",),
+    # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
+    ("./problems/biped_robot_4d.jl",),
     ("./mapping/list_mapping.jl",),
     ("./mapping/grid.jl",),
+    # Inter-sample safety helpers + the jump warning.
+    ("./mapping/lattice.jl",),
     ("./mapping/explicit_grid_mapping.jl",),
     ("./mapping/implicit_grid_mapping.jl",),
     ("./mapping/periodic_grid_mapping.jl",),
@@ -71,6 +75,8 @@ const TEST_FILES = [
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
     ("./optim/discrete_systems/safety.jl",),
+    # Input slew-rate constrained synthesis (pair-keyed Dijkstra).
+    ("./optim/discrete_systems/bounded_input_variation.jl",),
     # UniformGridAbstraction: abstraction-build modes + end-to-end control specs.
     ("./optim/UniformGridAbstraction/growth_bound.jl",),
     ("./optim/UniformGridAbstraction/linearized.jl",),
