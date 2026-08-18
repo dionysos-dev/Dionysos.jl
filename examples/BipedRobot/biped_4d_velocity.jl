@@ -71,8 +71,9 @@ import .RobotProblem as RP
 #   step        — 8 cm × 3 cm step, |θ| ≤ 1.2 (the default; ~52 steps)
 #   riccardo    — the original 16 cm × 5 cm step: infeasible on a symmetric
 #                 domain, feasible once the swing leg gets ±1.4 rad (~58 steps)
-#   double_bump — two 6 cm × 2 cm steps, landing beyond both (~51 steps)
-#   window      — step + ceiling at 12 cm: the foot threads a certified
+#   wall        — a thin 10 cm wall: the certified clearance (~12.7 cm with
+#                 the Lipschitz margin) is close to the kinematic maximum
+#   window      — step + ceiling at 10 cm: the foot threads a certified
 #                 vertical slot (~52 steps)
 
 _triangle(cx, hw, h) =
@@ -91,17 +92,17 @@ const SCENARIOS = Dict(
         x_ub = SVector(0.8, 0.8, 1.4, 1.4),
         foothold = SVector(0.2, 0.0),
     ),
-    :double_bump => (;
-        obstacles = [_triangle(-0.06, 0.03, 0.02), _triangle(0.10, 0.03, 0.02)],
+    :wall => (;
+        obstacles = [_triangle(0.0, 0.02, 0.10)],
         x_lb = SVector(-1.2, -1.2, -1.2, -1.2),
         x_ub = SVector(1.2, 1.2, 1.2, 1.2),
-        foothold = SVector(0.25, 0.0),
+        foothold = SVector(0.2, 0.0),
     ),
     :window => (;
         obstacles = [
             _triangle(0.0, 0.04, 0.03),
             LazySets.Hyperrectangle(;
-                low = SVector(-0.05, 0.12),
+                low = SVector(-0.05, 0.10),
                 high = SVector(0.05, 0.30),
             ),
         ],
@@ -292,12 +293,45 @@ end
 Plots.savefig(fig, png_file)
 println("saved ", png_file)
 
+# State panel = the swing angles (θ3, θ4) — where the obstacle preimage lives.
+# The carved region is 4-D, so drawing its raw projection would be misleading;
+# instead each frame shows its *slice*: the (θ3, θ4) cells that are blocked
+# given the current stance angles (θ1, θ2).
+h3, h4 = MP.get_h(disc.state_grid)[3], MP.get_h(disc.state_grid)[4]
+k3_range = round(Int, scenario.x_lb[3] / h3):round(Int, scenario.x_ub[3] / h3)
+k4_range = round(Int, scenario.x_lb[4] / h4):round(Int, scenario.x_ub[4] / h4)
+blocked_slice! = function (p_state, x)
+    pos = MP.get_pos_by_coord(disc.state_grid, x)
+    shapes = Plots.Shape[]
+    for k3 in k3_range, k4 in k4_range
+        (pos[1], pos[2], k3, k4) in removed || continue
+        c = MP.get_coord_by_pos(disc.state_grid, (pos[1], pos[2], k3, k4))
+        push!(
+            shapes,
+            Plots.Shape(
+                [c[3] - h3 / 2, c[3] + h3 / 2, c[3] + h3 / 2, c[3] - h3 / 2],
+                [c[4] - h4 / 2, c[4] - h4 / 2, c[4] + h4 / 2, c[4] + h4 / 2],
+            ),
+        )
+    end
+    isempty(shapes) ||
+        Plots.plot!(p_state, shapes; color = :black, alpha = 0.35, lw = 0, label = "")
+    return p_state
+end
+
 DI.animate_trajectory_dashboard(
     plot_robot,
     slew_traj;
     Δt = disc.tstep,
-    xdims = (1, 3),
-    udims = (1, 3),
+    xdims = (3, 4),
+    udims = (3, 4),
+    xlabel_state = "θ3 (swing hip)",
+    ylabel_state = "θ4 (swing knee)",
+    xlabel_input = "u3 (swing hip)",
+    ylabel_input = "u4 (swing knee)",
+    xlims_state = (scenario.x_lb[3], scenario.x_ub[3]),
+    ylims_state = (scenario.x_lb[4], scenario.x_ub[4]),
+    state_background! = blocked_slice!,
     title = "4-D velocity-controlled biped — certified footstep ($(scenario_name))",
     filename = gif_file,
 )
