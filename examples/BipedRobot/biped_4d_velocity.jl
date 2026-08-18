@@ -66,13 +66,16 @@ import .RobotProblem as RP
 # ------------------------------------------------------------
 # 1) Scenario
 # ------------------------------------------------------------
-# Pick with the BIPED_SCENARIO environment variable. All four are BFS-verified
+# Pick with the BIPED_SCENARIO environment variable. All five are BFS-verified
 # connected under sound carving at dx = 0.05:
 #   step        — 8 cm × 3 cm step, |θ| ≤ 1.2 (the default; ~52 steps)
 #   riccardo    — the original 16 cm × 5 cm step: infeasible on a symmetric
 #                 domain, feasible once the swing leg gets ±1.4 rad (~58 steps)
 #   wall        — a thin 10 cm wall: the certified clearance (~12.7 cm with
 #                 the Lipschitz margin) is close to the kinematic maximum
+#   limbo       — a bar at 0.34 m constrains the HIP (second image map in the
+#                 carving): the whole step happens crouched, bending the
+#                 stance knee that stays straight in every other scenario
 #   window      — step + ceiling at 10 cm: the foot threads a certified
 #                 vertical slot (~52 steps)
 
@@ -97,6 +100,22 @@ const SCENARIOS = Dict(
         x_lb = SVector(-1.2, -1.2, -1.2, -1.2),
         x_ub = SVector(1.2, 1.2, 1.2, 1.2),
         foothold = SVector(0.2, 0.0),
+    ),
+    :limbo => (;
+        obstacles = [
+            _triangle(0.0, 0.03, 0.02),
+            LazySets.Hyperrectangle(; low = SVector(-0.6, 0.34), high = SVector(0.6, 0.40)),
+        ],
+        # The bar also constrains the HIP (see the carving below): the standing
+        # hip sits at 0.373 m, so the whole step happens crouched — the stance
+        # knee, straight in every other scenario, has to bend here.
+        hip_obstacles = [
+            LazySets.Hyperrectangle(; low = SVector(-0.6, 0.34), high = SVector(0.6, 0.40)),
+        ],
+        x_lb = SVector(-1.2, -1.2, -1.2, -1.2),
+        x_ub = SVector(1.2, 1.2, 1.2, 1.2),
+        foothold = SVector(0.2, 0.0),
+        x0 = SVector(0.4, 0.4, -0.6, 0.0), # crouched start, swing foot behind
     ),
     :window => (;
         obstacles = [
@@ -136,12 +155,29 @@ domain = RP.RobotDomainConfig(;
     u_ub = SVector(disc.u_max, disc.u_max, disc.u_max, disc.u_max),
 )
 
-x0 = SVector(0.2, 0.0, -0.2, 0.0)
+x0 = get(scenario, :x0, SVector(0.2, 0.0, -0.2, 0.0))
 foothold = scenario.foothold
 
 println("Carving the obstacle out of the joint-space domain…")
 X_box = LazySets.Hyperrectangle(; low = scenario.x_lb, high = scenario.x_ub)
 removed = RP.infeasible_cells(X_box, disc.state_grid, obstacle, geometry)
+
+# A scenario may constrain the HIP too (the `limbo` bar): same generic
+# machinery, second image map — the hip depends only on the stance angles.
+hip_obstacles = get(scenario, :hip_obstacles, nothing)
+if hip_obstacles !== nothing
+    hip_map(x) = RP.cartesian_coordinates(SVector{4}(x), geometry, true)[1]
+    hip_grad = SVector(
+        geometry.hip_to_knee + geometry.knee_to_foot,
+        geometry.knee_to_foot,
+        0.0,
+        0.0,
+    )
+    blocked_hip =
+        MP.image_blocked_cells(hip_map, hip_grad, disc.state_grid, X_box, hip_obstacles)
+    removed = MP.CellUnion(disc.state_grid, union(Set(removed), Set(blocked_hip)))
+end
+
 concrete_system = RP.system(;
     tstep = disc.tstep,
     domain = domain,
