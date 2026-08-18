@@ -25,12 +25,12 @@ const ORDER = Dict(
         "dcdc_converter",
         "thermostat",
         "integrator_ltl",
+        "biped_velocity_control",
     ],
     "solvers" => [
         "gol_lazar_belta",
         "lazy_ellipsoids_abstraction",
         "trajectory_certification",
-        "biped_velocity_control",
         "state_feedback_pwa",
     ],
 )
