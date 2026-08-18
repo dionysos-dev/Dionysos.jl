@@ -48,6 +48,8 @@ const TEST_FILES = [
     ("./mapping/grid.jl",),
     # Inter-sample safety helpers + the jump warning.
     ("./mapping/lattice.jl",),
+    # CellUnion, predicate carving, Lipschitz image pullback.
+    ("./mapping/carving.jl",),
     ("./mapping/explicit_grid_mapping.jl",),
     ("./mapping/implicit_grid_mapping.jl",),
     ("./mapping/periodic_grid_mapping.jl",),

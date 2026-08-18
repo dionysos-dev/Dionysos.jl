@@ -81,6 +81,30 @@ function cells_on_segment(grid::Grid{N}, a, b) where {N}
 end
 
 """
+    swept_input_filter(grid, tstep, blocked)
+
+`(x, u) -> Bool` predicate keeping a transition only when every cell crossed
+by the inter-sample segment from `x` to `x + tstep · u` avoids the `blocked`
+cells (a [`CellUnion`](@ref) or an iterable of grid positions).
+
+For integrator dynamics `ẋ = u` the inter-sample trajectory *is* that segment,
+so wiring this as the abstraction's `state_input_filter` restores inter-sample
+soundness for multi-cell steps, lifting the one-cell-per-step speed cap of
+[`intersample_safe_time_step`](@ref); set the solver's `intersample_checked`
+attribute alongside, so the multi-cell jump warning knows the sweep is
+covered.
+"""
+function swept_input_filter(grid::Grid, tstep::Real, blocked)
+    blocked_set = blocked isa CellUnion ? blocked.positions : Set(blocked)
+    return function (x, u)
+        for pos in cells_on_segment(grid, x, x .+ tstep .* u)
+            pos in blocked_set && return false
+        end
+        return true
+    end
+end
+
+"""
     is_lattice_exact(state_grid, input_grid, tstep; rtol = 1e-9)
 
 For integrator dynamics `ẋ = u`, check that every input-grid point `u`
