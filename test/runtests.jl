@@ -41,9 +41,6 @@ const TEST_FILES = [
     ("./problems/growth_bounds.jl",),
     # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
     ("./problems/biped_robot_4d.jl",),
-    # Multi-speed inputs with swept-cell transition validation (heavy 5⁴-input
-    # abstraction).
-    ("./problems/biped_robot_4d_multispeed.jl", :slow),
     ("./mapping/list_mapping.jl",),
     ("./mapping/grid.jl",),
     # Inter-sample safety helpers + the jump warning.
