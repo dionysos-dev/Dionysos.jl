@@ -142,6 +142,11 @@ function _inflated_cell(grid, pos; ε = 1e-8)
     return LazySets.Hyperrectangle(LazySets.center(cell), (1 + ε) .* cell.radius)
 end
 
+# `nothing`, a single set, or a vector of sets → vector of sets.
+_obstacle_list(::Nothing) = LazySets.LazySet[]
+_obstacle_list(obstacle::LazySets.LazySet) = [obstacle]
+_obstacle_list(obstacles::AbstractVector) = obstacles
+
 """
     infeasible_cells(X, state_grid, obstacle, geometry; grounded_left_foot = true)
 
@@ -161,11 +166,6 @@ must exclude:
 
 Returns a `Vector` of grid positions (integer tuples).
 """
-# `nothing`, a single set, or a vector of sets → vector of sets.
-_obstacle_list(::Nothing) = LazySets.LazySet[]
-_obstacle_list(obstacle::LazySets.LazySet) = [obstacle]
-_obstacle_list(obstacles::AbstractVector) = obstacles
-
 function infeasible_cells(
     X::LazySets.AbstractHyperrectangle,
     state_grid::MP.GridFree,
@@ -206,11 +206,27 @@ function infeasible_cells(
 end
 
 """
+    remove_cells(X, state_grid, positions)
+
+State domain with the cells at `positions` removed: `X ∖ ⋃ cells`. The removed
+boxes are slightly shrunk so that only the intended cells drop out of the grid
+mapping.
+"""
+function remove_cells(
+    X::LazySets.AbstractHyperrectangle,
+    state_grid::MP.GridFree,
+    positions,
+)
+    isempty(positions) && return X
+    holes = [_shrunk_cell(state_grid, pos) for pos in positions]
+    return UT.set_minus(X, UT.set_union(holes))
+end
+
+"""
     carve_domain(X, state_grid, obstacle, geometry; grounded_left_foot = true)
 
 State domain with the infeasible cells removed:
-`X ∖ ⋃ cells(infeasible_cells(...))`. The removed boxes are slightly shrunk so
-that only the intended cells drop out of the grid mapping.
+`X ∖ ⋃ cells(infeasible_cells(...))` (see [`remove_cells`](@ref)).
 """
 function carve_domain(
     X::LazySets.AbstractHyperrectangle,
@@ -226,9 +242,7 @@ function carve_domain(
         geometry;
         grounded_left_foot = grounded_left_foot,
     )
-    isempty(removed) && return X
-    holes = [_shrunk_cell(state_grid, pos) for pos in removed]
-    return UT.set_minus(X, UT.set_union(holes))
+    return remove_cells(X, state_grid, removed)
 end
 
 # ============================================================
@@ -318,18 +332,28 @@ end
 # ============================================================
 
 """
-    default_discretization(; dx = 0.1, tstep = 0.1, speed_levels = 1)
+    default_discretization(; dx = 0.1, tstep = 0.1, speed_levels = 1, swept_transitions = false)
 
 State grid, input grid and sampling time such that `tstep * du = dx`: every
 admissible input translates the state grid exactly onto itself, so the
-abstraction is deterministic and exact (checked with `MP.is_lattice_exact`) and
-each step moves the state by at most one cell per axis (`speed_levels` speed
-levels per direction and axis), which closes the inter-sample soundness gap
-over carved domains (`MP.intersample_safe_time_step`).
+abstraction is deterministic and exact (checked with `MP.is_lattice_exact`).
+
+With `speed_levels = 1` each step moves the state by at most one cell per
+axis, which closes the inter-sample soundness gap over carved domains by
+itself (`MP.intersample_safe_time_step`). Higher `speed_levels` (a richer
+velocity alphabet, up to `speed_levels · du` per joint) move up to
+`speed_levels` cells per axis per step and therefore **require** swept-cell
+transition validation: pass `swept_transitions = true` to acknowledge it and
+wire [`swept_state_input_filter`](@ref) into the abstraction.
 
 Returns `(; state_grid, input_grid, tstep, u_max)`.
 """
-function default_discretization(; dx = 0.1, tstep = 0.1, speed_levels::Int = 1)
+function default_discretization(;
+    dx = 0.1,
+    tstep = 0.1,
+    speed_levels::Int = 1,
+    swept_transitions::Bool = false,
+)
     du = dx / tstep
     state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(dx, dx, dx, dx))
     input_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(du, du, du, du))
@@ -339,12 +363,41 @@ function default_discretization(; dx = 0.1, tstep = 0.1, speed_levels::Int = 1)
         "state grid, input grid and tstep are not commensurable: " *
         "CENTER_SIMULATION would be unsound. Use tstep * du = dx.",
     )
-    tstep <= MP.intersample_safe_time_step(state_grid, SVector(fill(u_max, 4)...)) || error(
-        "tstep exceeds one cell of displacement per axis per step: " *
-        "inter-sample obstacle crossings become possible.",
-    )
+    if !swept_transitions
+        tstep <= MP.intersample_safe_time_step(state_grid, SVector(fill(u_max, 4)...)) ||
+            error(
+                "tstep exceeds one cell of displacement per axis per step: " *
+                "inter-sample obstacle crossings become possible. Either use " *
+                "speed_levels = 1, or validate multi-cell steps with " *
+                "`swept_state_input_filter` and pass `swept_transitions = true`.",
+            )
+    end
 
-    return (; state_grid, input_grid, tstep, u_max)
+    return (; state_grid, input_grid, tstep, u_max, du)
+end
+
+"""
+    swept_state_input_filter(state_grid, tstep, removed)
+
+`(x, u) -> Bool` filter for the abstraction (`state_input_filter` attribute):
+keeps a transition only when **every** grid cell crossed by the inter-sample
+segment from `x` to `x + tstep · u` avoids the `removed` cells (an iterable of
+grid positions, e.g. from [`infeasible_cells`](@ref)).
+
+For the integrator dynamics `ẋ = u` the inter-sample trajectory *is* that
+segment, so this check restores inter-sample soundness for multi-cell steps
+(`speed_levels ≥ 2`), lifting the one-cell-per-step speed cap. Set the
+`intersample_checked` attribute of the abstraction solver to `true` alongside,
+so the multi-cell jump warning knows the sweep is covered.
+"""
+function swept_state_input_filter(state_grid::MP.GridFree, tstep::Real, removed)
+    removed_set = removed isa Set ? removed : Set(removed)
+    return function (x, u)
+        for pos in MP.cells_on_segment(state_grid, x, x .+ tstep .* u)
+            pos in removed_set && return false
+        end
+        return true
+    end
 end
 
 # ============================================================
@@ -393,11 +446,15 @@ function system(;
     state_grid = nothing,
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
+    removed_cells = nothing, # precomputed `infeasible_cells` result, to carve once
 )
     _ = (robot_urdf, Δt_simu, simulator)
 
     X = LazySets.Hyperrectangle(; low = domain.x_lb, high = domain.x_ub)
-    if obstacle !== nothing || state_grid !== nothing
+    if removed_cells !== nothing
+        state_grid === nothing && error("`removed_cells` requires `state_grid`")
+        X = remove_cells(X, state_grid, removed_cells)
+    elseif obstacle !== nothing || state_grid !== nothing
         state_grid === nothing &&
             error("carving the obstacle out of the domain requires `state_grid`")
         X = carve_domain(
