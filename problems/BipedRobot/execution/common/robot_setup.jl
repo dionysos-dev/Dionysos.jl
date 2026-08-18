@@ -10,12 +10,14 @@ end
 function selected_robot_problem_path()
     model = selected_robot_model()
 
-    if model == "6D"
+    if model == "4D"
+        return joinpath(BIPED_ROOT, "4D_model", "robot_problem.jl")
+    elseif model == "6D"
         return joinpath(BIPED_ROOT, "6D_model", "robot_problem.jl")
     elseif model == "8D"
         return joinpath(BIPED_ROOT, "8D_model", "robot_problem.jl")
     else
-        error("Unknown DIONYSOS_ROBOT_MODEL=$model. Expected 6D or 8D.")
+        error("Unknown DIONYSOS_ROBOT_MODEL=$model. Expected 4D, 6D or 8D.")
     end
 end
 

@@ -97,6 +97,7 @@ function _counter_dense(autom)
     return counter
 end
 
+include("bounded_input_variation.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
 include("reach_and_stay_problem.jl")

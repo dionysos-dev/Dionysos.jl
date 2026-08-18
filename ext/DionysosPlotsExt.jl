@@ -28,6 +28,10 @@ function Dionysos.animate_trajectory_dashboard(
     ylims_input = nothing,
     show_full_state_traj = true,
     show_full_input_traj = true,
+    # Optional `(p_state, x) -> p_state` background for the state panel, drawn
+    # each frame before the trajectory — e.g. the slice of a carved state
+    # region at the current state.
+    state_background! = nothing,
     ylabel_mode = "mode",
 )
     # The trajectory is self-describing: `states` is always present, the `inputs`
@@ -98,6 +102,8 @@ function Dionysos.animate_trajectory_dashboard(
 
         xlims_state !== nothing && xlims!(p_state, xlims_state...)
         ylims_state !== nothing && ylims!(p_state, ylims_state...)
+
+        state_background! !== nothing && state_background!(p_state, xs[k])
 
         if length(xdims) == 1
             if show_full_state_traj

@@ -139,6 +139,9 @@ Available only when Plots.jl is loaded (`using Plots`); the method is provided b
   `ylims_state`, `xlims_input`, `ylims_input`.
 - `show_full_state_traj`, `show_full_input_traj`: draw the whole trajectory faintly behind
   the part played so far.
+- `state_background!`: optional `(p_state, x) -> p_state` closure drawn on the state panel
+  each frame before the trajectory — e.g. the slice of a carved state region at the current
+  state.
 
 ```julia
 using Plots

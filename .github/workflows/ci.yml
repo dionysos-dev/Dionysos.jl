@@ -4,6 +4,12 @@ on:
     branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
+# Consecutive pushes to a branch otherwise leave every superseded test run
+# alive, and they queue for the same runners — the newest commit then waits
+# behind results nobody reads. Keep only the latest run per ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -12,12 +18,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Coverage instrumentation roughly doubles the test time, and only
+          # one job's results are uploaded — so the compatibility job runs
+          # without it.
           - version: '1.10'
             os: ubuntu-latest
             arch: x64
+            coverage: false
           - version: '1'
             os: ubuntu-latest
             arch: x64
+            coverage: true
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v2
@@ -27,8 +38,12 @@ jobs:
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: ${{ matrix.coverage }}
       - uses: julia-actions/julia-processcoverage@v1
+        if: matrix.coverage
       - uses: codecov/codecov-action@v7
+        if: matrix.coverage
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

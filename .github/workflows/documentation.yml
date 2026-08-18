@@ -21,6 +21,10 @@ jobs:
       with:
         # Build documentation on the latest Julia 1.x
         version: '1'
+    # Without it every build re-resolves and re-precompiles the whole docs
+    # environment — including JuMP from git master, which is never a cached
+    # registry version. That step dominates the job.
+    - uses: julia-actions/cache@v3
     - name: Install dependencies
       shell: julia --project=docs/ {0}
       run: |
