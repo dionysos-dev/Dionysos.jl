@@ -4,6 +4,12 @@ on:
     branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
+# Consecutive pushes to a branch otherwise leave every superseded test run
+# alive, and they queue for the same runners — the newest commit then waits
+# behind results nobody reads. Keep only the latest run per ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
