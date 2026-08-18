@@ -8,6 +8,9 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
+    # Optional input slew-rate constraint; routes the synthesis to
+    # `compute_bounded_input_variation_controller`.
+    bounded_input_variation::Union{Nothing, BoundedInputVariation}
 
     # outputs
     controller::Union{Nothing, ST.AbstractDiscreteController}
@@ -24,6 +27,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
             false,   # early_stop
             false,   # sparse_input
             1,       # print_level
+            nothing, # bounded_input_variation
             nothing, # controller
             nothing, # controllable_set
             nothing, # uncontrollable_set
@@ -52,15 +56,27 @@ function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
     autom = problem.system
     init_set = optimizer.early_stop ? problem.initial_set : SY.enum_states(autom)
 
-    controller, controllable_set, uncontrollable_set, value_fun_tab =
-        compute_worst_case_cost_controller(
-            autom,
-            problem.target_set;
-            initial_set = init_set,
-            safe_set = problem.safe_set,
-            sparse_input = optimizer.sparse_input,
-            cost_function = problem.transition_cost,
-        )
+    if optimizer.bounded_input_variation !== nothing
+        controller, controllable_set, uncontrollable_set, value_fun_tab =
+            compute_bounded_input_variation_controller(
+                autom,
+                problem.target_set,
+                optimizer.bounded_input_variation;
+                initial_set = init_set,
+                safe_set = problem.safe_set,
+                cost_function = problem.transition_cost,
+            )
+    else
+        controller, controllable_set, uncontrollable_set, value_fun_tab =
+            compute_worst_case_cost_controller(
+                autom,
+                problem.target_set;
+                initial_set = init_set,
+                safe_set = problem.safe_set,
+                sparse_input = optimizer.sparse_input,
+                cost_function = problem.transition_cost,
+            )
+    end
 
     optimizer.controller = controller
     optimizer.controllable_set = controllable_set
