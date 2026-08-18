@@ -126,22 +126,6 @@ swing_foot_deviation_bound(geometry::Geometry, radius::AbstractVector) =
 # Domain carving: Cartesian obstacle + ground → joint-space cells
 # ============================================================
 
-# Boxes passed to `UT.set_minus` are shrunk by a relative ε around their own
-# center: a full cell box shares its faces with the neighboring cells, and the
-# (closed-boundary) OUTER hole discretization would then also swallow every
-# face-adjacent neighbor — a 3ⁿ over-removal. The shrink only excludes the
-# intended cell. (This replaces an origin-anchored `0.95 * bounds` shrink in
-# the original code, which shifted the removed boxes away from their cells.)
-function _shrunk_cell(grid, pos; ε = 1e-8)
-    cell = MP.get_elem_by_pos(grid, pos)
-    return LazySets.Hyperrectangle(LazySets.center(cell), (1 - ε) .* cell.radius)
-end
-
-function _inflated_cell(grid, pos; ε = 1e-8)
-    cell = MP.get_elem_by_pos(grid, pos)
-    return LazySets.Hyperrectangle(LazySets.center(cell), (1 + ε) .* cell.radius)
-end
-
 # `nothing`, a single set, or a vector of sets → vector of sets.
 _obstacle_list(::Nothing) = LazySets.LazySet[]
 _obstacle_list(obstacle::LazySets.LazySet) = [obstacle]
@@ -150,21 +134,19 @@ _obstacle_list(obstacles::AbstractVector) = obstacles
 """
     infeasible_cells(X, state_grid, obstacle, geometry; grounded_left_foot = true)
 
-Positions of the grid cells of `X` (a hyperrectangle) that a sound abstraction
-must exclude:
+The `MP.CellUnion` of the cells of `X` (a hyperrectangle) that a sound
+abstraction must exclude:
 
-- **obstacle** (sound, OUTER): a cell is removed as soon as *some* configuration
-  in it *might* place the swing foot inside the Cartesian `obstacle` — tested
-  as `foot(center)` within the Lipschitz deviation bound of the obstacle, so a
-  kept cell is certified obstacle-free. Accepts a single `LazySet`, a vector of
-  them (e.g. a step plus a ceiling), or `nothing` to skip.
+- **obstacle** (sound, via `MP.image_blocked_cells` on the swing-foot map): a
+  cell is removed as soon as *some* configuration in it *might* place the
+  swing foot inside the Cartesian `obstacle`, so a kept cell is certified
+  obstacle-free. Accepts a single `LazySet`, a vector of them (e.g. a step
+  plus a ceiling), or `nothing` to skip.
 - **ground** (tolerant): a cell is removed only when *every* configuration in
   it surely puts the swing foot strictly below the ground. The ground `y ≥ 0`
   is a closed contact constraint — the target foothold lies *on* it — so sound
   OUTER carving would remove the target cells themselves; boundary cells are
   deliberately kept, accurate to the grid resolution.
-
-Returns a `Vector` of grid positions (integer tuples).
 """
 function infeasible_cells(
     X::LazySets.AbstractHyperrectangle,
@@ -173,60 +155,26 @@ function infeasible_cells(
     geometry::Geometry;
     grounded_left_foot::Bool = true,
 )
+    foot(x) = swing_foot_position(SVector{4}(x), geometry, grounded_left_foot)
+    grad = swing_foot_gradient_bound(geometry)
     dev = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2)
-    obstacles = _obstacle_list(obstacle)
-    # Cheap prefilter: the swing foot must be within `dev` of an obstacle's
-    # bounding box for the exact disjointness test to be worth running.
-    obstacle_boxes = [UT._outer_box(ob) for ob in obstacles]
 
-    removed = NTuple{4, Int}[]
-    for pos in MP.get_pos_from_set(state_grid, X, MP.INNER)
-        center = MP.get_coord_by_pos(state_grid, pos)
-        foot = swing_foot_position(SVector{4}(center), geometry, grounded_left_foot)
-
-        if foot[2] < -dev # surely below ground everywhere in the cell
-            push!(removed, pos)
-            continue
-        end
-
-        for (ob, box) in zip(obstacles, obstacle_boxes)
-            near_box = all(
-                abs(foot[i] - LazySets.center(box)[i]) <= dev + box.radius[i] for i in 1:2
-            )
-            # Box over-approximation of the deviation ball: conservative, and
-            # box vs set disjointness is robust for any LazySet obstacle.
-            if near_box &&
-               !UT.is_disjoint(LazySets.Hyperrectangle(foot, SVector(dev, dev)), ob)
-                push!(removed, pos)
-                break
-            end
-        end
+    below_ground = MP.cells_where(state_grid, X) do pos
+        return foot(MP.get_coord_by_pos(state_grid, pos))[2] < -dev
     end
-    return removed
-end
 
-"""
-    remove_cells(X, state_grid, positions)
+    obstacles = _obstacle_list(obstacle)
+    isempty(obstacles) && return below_ground
 
-State domain with the cells at `positions` removed: `X ∖ ⋃ cells`. The removed
-boxes are slightly shrunk so that only the intended cells drop out of the grid
-mapping.
-"""
-function remove_cells(
-    X::LazySets.AbstractHyperrectangle,
-    state_grid::MP.GridFree,
-    positions,
-)
-    isempty(positions) && return X
-    holes = [_shrunk_cell(state_grid, pos) for pos in positions]
-    return UT.set_minus(X, UT.set_union(holes))
+    blocked = MP.image_blocked_cells(foot, grad, state_grid, X, obstacles)
+    return MP.CellUnion(state_grid, union(below_ground.positions, blocked.positions))
 end
 
 """
     carve_domain(X, state_grid, obstacle, geometry; grounded_left_foot = true)
 
 State domain with the infeasible cells removed:
-`X ∖ ⋃ cells(infeasible_cells(...))` (see [`remove_cells`](@ref)).
+`X ∖ infeasible_cells(...)` (exact cell-aligned holes — see `MP.CellUnion`).
 """
 function carve_domain(
     X::LazySets.AbstractHyperrectangle,
@@ -242,7 +190,7 @@ function carve_domain(
         geometry;
         grounded_left_foot = grounded_left_foot,
     )
-    return remove_cells(X, state_grid, removed)
+    return UT.set_minus(X, removed)
 end
 
 # ============================================================
@@ -312,8 +260,8 @@ end
 """
     target_set(state_grid, foothold, geometry, X; kwargs...)
 
-Union of the (slightly inflated, so that INNER discretization robustly recovers
-them) cells of [`target_cells`](@ref).
+The `MP.CellUnion` of the cells of [`target_cells`](@ref) (recovered exactly
+by the INNER discretization).
 """
 function target_set(
     state_grid::MP.GridFree,
@@ -324,7 +272,7 @@ function target_set(
 )
     cells = target_cells(state_grid, foothold, geometry, X; kwargs...)
     isempty(cells) && error("no reachable target configuration for foothold $foothold")
-    return UT.set_union([_inflated_cell(state_grid, pos) for pos in cells])
+    return MP.CellUnion(state_grid, cells)
 end
 
 # ============================================================
@@ -344,7 +292,7 @@ itself (`MP.intersample_safe_time_step`). Higher `speed_levels` (a richer
 velocity alphabet, up to `speed_levels · du` per joint) move up to
 `speed_levels` cells per axis per step and therefore **require** swept-cell
 transition validation: pass `swept_transitions = true` to acknowledge it and
-wire [`swept_state_input_filter`](@ref) into the abstraction.
+wire `MP.swept_input_filter` into the abstraction.
 
 Returns `(; state_grid, input_grid, tstep, u_max)`.
 """
@@ -369,35 +317,11 @@ function default_discretization(;
                 "tstep exceeds one cell of displacement per axis per step: " *
                 "inter-sample obstacle crossings become possible. Either use " *
                 "speed_levels = 1, or validate multi-cell steps with " *
-                "`swept_state_input_filter` and pass `swept_transitions = true`.",
+                "`MP.swept_input_filter` and pass `swept_transitions = true`.",
             )
     end
 
     return (; state_grid, input_grid, tstep, u_max, du)
-end
-
-"""
-    swept_state_input_filter(state_grid, tstep, removed)
-
-`(x, u) -> Bool` filter for the abstraction (`state_input_filter` attribute):
-keeps a transition only when **every** grid cell crossed by the inter-sample
-segment from `x` to `x + tstep · u` avoids the `removed` cells (an iterable of
-grid positions, e.g. from [`infeasible_cells`](@ref)).
-
-For the integrator dynamics `ẋ = u` the inter-sample trajectory *is* that
-segment, so this check restores inter-sample soundness for multi-cell steps
-(`speed_levels ≥ 2`), lifting the one-cell-per-step speed cap. Set the
-`intersample_checked` attribute of the abstraction solver to `true` alongside,
-so the multi-cell jump warning knows the sweep is covered.
-"""
-function swept_state_input_filter(state_grid::MP.GridFree, tstep::Real, removed)
-    removed_set = removed isa Set ? removed : Set(removed)
-    return function (x, u)
-        for pos in MP.cells_on_segment(state_grid, x, x .+ tstep .* u)
-            pos in removed_set && return false
-        end
-        return true
-    end
 end
 
 # ============================================================
@@ -446,14 +370,13 @@ function system(;
     state_grid = nothing,
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
-    removed_cells = nothing, # precomputed `infeasible_cells` result, to carve once
+    removed_cells = nothing, # precomputed `infeasible_cells` CellUnion, to carve once
 )
     _ = (robot_urdf, Δt_simu, simulator)
 
     X = LazySets.Hyperrectangle(; low = domain.x_lb, high = domain.x_ub)
     if removed_cells !== nothing
-        state_grid === nothing && error("`removed_cells` requires `state_grid`")
-        X = remove_cells(X, state_grid, removed_cells)
+        isempty(removed_cells) || (X = UT.set_minus(X, removed_cells))
     elseif obstacle !== nothing || state_grid !== nothing
         state_grid === nothing &&
             error("carving the obstacle out of the domain requires `state_grid`")

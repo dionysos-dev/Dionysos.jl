@@ -117,25 +117,21 @@ X_box = LazySets.Hyperrectangle(;
 grad = SVector(L1 + L2, L2, L1 + L2, L2)          # per-joint Lipschitz bound
 dev = sum(grad .* MP.get_h(state_grid) ./ 2)
 
-## A removed cell is shrunk by ε around its center so the (closed-boundary)
-## OUTER hole discretization drops exactly that cell, not its face-adjacent
-## neighbors; target cells are inflated for the symmetric INNER reason.
-resize_cell(grid, pos, s) =
-    LazySets.Hyperrectangle(MP.get_coord_by_pos(grid, pos), s .* MP.get_h(grid) ./ 2)
-
-removed = [
-    resize_cell(state_grid, pos, 1 - 1e-8) for
-    pos in MP.get_pos_from_set(state_grid, X_box, MP.INNER) if begin
-        foot = swing_foot(SVector{4}(MP.get_coord_by_pos(state_grid, pos)))
-        below_ground = foot[2] < -dev
-        hits_obstacle =
-            !Dionysos.Utils.is_disjoint(
-                LazySets.Hyperrectangle(foot, SVector(dev, dev)),
-                obstacle,
-            )
-        below_ground || hits_obstacle
-    end
-]
+## `MP.cells_where` collects grid cells by predicate into a `MP.CellUnion` — a
+## cell-aligned set whose discretization is exact (a hole removes exactly its
+## cells, a target is recovered exactly). The obstacle test could also use
+## `MP.image_blocked_cells(swing_foot, grad, ...)` directly; it is spelled out
+## here to keep every ingredient visible.
+removed = MP.cells_where(state_grid, X_box) do pos
+    foot = swing_foot(SVector{4}(MP.get_coord_by_pos(state_grid, pos)))
+    below_ground = foot[2] < -dev
+    hits_obstacle =
+        !Dionysos.Utils.is_disjoint(
+            LazySets.Hyperrectangle(foot, SVector(dev, dev)),
+            obstacle,
+        )
+    return below_ground || hits_obstacle
+end
 length(removed)
 
 # ## The objective: place the swing foot on the target foothold
@@ -159,8 +155,7 @@ for θ1 in range(-x_bar, x_bar; step = dx / 3), θ2 in range(-x_bar, x_bar; step
     all(abs.(θ) .<= x_bar) || continue
     push!(target_cells, MP.get_pos_by_coord(state_grid, θ))
 end
-target_set =
-    Dionysos.Utils.set_union([resize_cell(state_grid, p, 1 + 1e-8) for p in target_cells])
+target_set = MP.CellUnion(state_grid, target_cells)
 length(target_cells)
 
 # ## The JuMP model
@@ -175,7 +170,7 @@ model = Model(Dionysos.Optimizer)
 @variable(model, -x_bar <= x[i = 1:4] <= x_bar, start = x0[i])
 @variable(model, -du <= u[1:4] <= du)
 @constraint(model, [i = 1:4], ∂(x[i]) == u[i])
-@constraint(model, x ∉ Dionysos.Utils.set_union(removed))
+@constraint(model, x ∉ removed)
 @constraint(model, x in Final(target_set))
 
 set_attribute(model, "time_step", τ)

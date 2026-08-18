@@ -34,7 +34,7 @@ const X_BOX = LazySets.Hyperrectangle(;
         speed_levels = 2,
         swept_transitions = true,
     )
-    removed = Set(RP.infeasible_cells(X_BOX, disc2.state_grid, OBSTACLE, GEOM))
+    removed = RP.infeasible_cells(X_BOX, disc2.state_grid, OBSTACLE, GEOM)
     domain = RP.RobotDomainConfig(;
         x_lb = SVector{4}(LazySets.low(X_BOX)),
         x_ub = SVector{4}(LazySets.high(X_BOX)),
@@ -64,7 +64,7 @@ const X_BOX = LazySets.Hyperrectangle(;
     MOI.set(
         optimizer,
         MOI.RawOptimizerAttribute("state_input_filter"),
-        RP.swept_state_input_filter(disc2.state_grid, disc2.tstep, removed),
+        MP.swept_input_filter(disc2.state_grid, disc2.tstep, removed),
     )
     MOI.set(optimizer, MOI.RawOptimizerAttribute("intersample_checked"), true)
     MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)

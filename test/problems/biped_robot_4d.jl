@@ -63,7 +63,8 @@ const X_BOX = LazySets.Hyperrectangle(;
 )
 
 @testset "obstacle carving is sound (adversarial sampling)" begin
-    removed = Set(RP.infeasible_cells(X_BOX, DISC.state_grid, OBSTACLE, GEOM))
+    removed = RP.infeasible_cells(X_BOX, DISC.state_grid, OBSTACLE, GEOM)
+    @test removed isa MP.CellUnion
     @test !isempty(removed)
     # The domain only holds the INNER cells of the box (boundary cells are not
     # states at all), so soundness is claimed — and tested — on those.
@@ -175,7 +176,7 @@ end
     xs = collect(ST.states(traj))
     @test reached(xs[end])
 
-    removed = Set(RP.infeasible_cells(X_BOX, DISC.state_grid, OBSTACLE, GEOM))
+    removed = RP.infeasible_cells(X_BOX, DISC.state_grid, OBSTACLE, GEOM)
     for k in 1:(length(xs) - 1)
         # Bisimulation witness: each concrete step lands exactly on a grid
         # point, one cell away at most.

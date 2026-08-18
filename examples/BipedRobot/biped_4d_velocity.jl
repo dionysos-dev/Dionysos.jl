@@ -119,7 +119,7 @@ geometry = RP.default_geometry()
 
 # Two speed levels per joint (`u ∈ {-1, -0.5, 0, 0.5, 1}` rad/s): steps of up
 # to two cells per axis, made sound by the swept-cell transition validation
-# below (`RP.swept_state_input_filter`).
+# below (`MP.swept_input_filter`).
 disc = RP.default_discretization(;
     dx = 0.05,
     tstep = 0.1,
@@ -140,7 +140,7 @@ foothold = scenario.foothold
 
 println("Carving the obstacle out of the joint-space domain…")
 X_box = LazySets.Hyperrectangle(; low = scenario.x_lb, high = scenario.x_ub)
-removed = Set(RP.infeasible_cells(X_box, disc.state_grid, obstacle, geometry))
+removed = RP.infeasible_cells(X_box, disc.state_grid, obstacle, geometry)
 concrete_system = RP.system(;
     tstep = disc.tstep,
     domain = domain,
@@ -171,7 +171,7 @@ MOI.set(
 # - the swept-cell check: a multi-cell step is kept only when every grid cell
 #   crossed by its inter-sample segment is admissible — the sound replacement
 #   for the one-cell-per-step speed cap.
-swept = RP.swept_state_input_filter(disc.state_grid, disc.tstep, removed)
+swept = MP.swept_input_filter(disc.state_grid, disc.tstep, removed)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("state_input_filter"),
