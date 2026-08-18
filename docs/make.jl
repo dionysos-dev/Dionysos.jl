@@ -30,6 +30,7 @@ const ORDER = Dict(
         "gol_lazar_belta",
         "lazy_ellipsoids_abstraction",
         "trajectory_certification",
+        "biped_velocity_control",
         "state_feedback_pwa",
     ],
 )
