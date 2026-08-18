@@ -4,6 +4,7 @@ import Dionysos
 include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
 
 import MathOptInterface as MOI
+import Logging
 
 @testset "intersample_safe_time_step" begin
     grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.2))
@@ -80,6 +81,43 @@ end
 @testset "inter-sample jump warning" begin
     optimizer = _integrator_optimizer(; tstep = 0.3)
     @test_logs (:warn, r"jump.*cells per step") match_mode = :any MOI.optimize!(optimizer)
+end
+
+@testset "intersample_checked silences the warning" begin
+    optimizer = _integrator_optimizer(; tstep = 0.3)
+    MOI.set(optimizer, MOI.RawOptimizerAttribute("intersample_checked"), true)
+    @test_logs min_level = Logging.Warn MOI.optimize!(optimizer)
+end
+
+@testset "cells_on_segment" begin
+    grid = MP.GridFree(SVector(0.0, 0.0), SVector(0.1, 0.1))
+
+    # Degenerate segment: the single containing cell.
+    @test MP.cells_on_segment(grid, SVector(0.0, 0.0), SVector(0.0, 0.0)) == [(0, 0)]
+
+    # Axis moves of one and two cells (cell centers to cell centers).
+    @test MP.cells_on_segment(grid, SVector(0.0, 0.0), SVector(0.1, 0.0)) ==
+          [(0, 0), (1, 0)]
+    @test MP.cells_on_segment(grid, SVector(0.0, 0.0), SVector(0.2, 0.0)) ==
+          [(0, 0), (1, 0), (2, 0)]
+
+    # A (2, 1)-cell move visits the staircase cells in order.
+    @test MP.cells_on_segment(grid, SVector(0.0, 0.0), SVector(0.2, 0.1)) ==
+          [(0, 0), (1, 0), (1, 1), (2, 1)]
+
+    # An exact corner crossing yields the two diagonal cells (the corner point
+    # lies in the closure of both).
+    @test MP.cells_on_segment(grid, SVector(0.0, 0.0), SVector(0.1, 0.1)) ==
+          [(0, 0), (1, 1)]
+
+    # Every sampled point of a random segment lies in the closure of a
+    # returned cell (soundness), for segments not starting on cell centers.
+    a, b = SVector(0.031, -0.017), SVector(-0.24, 0.113)
+    cells = MP.cells_on_segment(grid, a, b)
+    for λ in range(0.0, 1.0; length = 101)
+        p = (1 - λ) .* a + λ .* b
+        @test any(all(abs(p[i] - 0.1 * c[i]) <= 0.05 + 1e-12 for i in 1:2) for c in cells)
+    end
 end
 
 end # module

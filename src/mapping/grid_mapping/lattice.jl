@@ -36,6 +36,51 @@ function intersample_safe_time_step(grid::Grid, velocity_bound::AbstractVector)
 end
 
 """
+    cells_on_segment(grid, a, b)
+
+Positions of every grid cell whose closure the straight segment from `a` to
+`b` passes through, in traversal order. Boundary crossings are enumerated
+exactly (one interval per pair of consecutive crossing times, quantized at the
+interval midpoint), so each segment point lies in the closure of a returned
+cell.
+
+This is the sound validation for *multi-cell* steps of integrator-type
+dynamics: their inter-sample trajectory is exactly this segment, so a
+transition whose swept cells are all admissible cannot cross an excluded
+region between samples — lifting the one-cell-per-step restriction of
+[`intersample_safe_time_step`](@ref).
+"""
+function cells_on_segment(grid::Grid{N}, a, b) where {N}
+    d = b .- a
+    orig = get_origin(grid)
+    h = get_h(grid)
+
+    ts = [0.0, 1.0]
+    for i in 1:N
+        d[i] == 0 && continue
+        lo, hi = minmax(a[i], b[i])
+        # Cell faces of axis `i` lie at orig + (k + 1/2)·h.
+        kmin = ceil(Int, (lo - orig[i]) / h[i] - 0.5)
+        kmax = floor(Int, (hi - orig[i]) / h[i] + 0.5)
+        for k in kmin:kmax
+            face = orig[i] + (k + 0.5) * h[i]
+            t = (face - a[i]) / d[i]
+            0.0 < t < 1.0 && push!(ts, t)
+        end
+    end
+    sort!(ts)
+
+    cells = NTuple{N, Int}[]
+    for j in 1:(length(ts) - 1)
+        ts[j + 1] - ts[j] > 1e-12 || continue
+        tm = (ts[j] + ts[j + 1]) / 2
+        pos = get_pos_by_coord(grid, a .+ tm .* d)
+        (isempty(cells) || cells[end] != pos) && push!(cells, pos)
+    end
+    return cells
+end
+
+"""
     is_lattice_exact(state_grid, input_grid, tstep; rtol = 1e-9)
 
 For integrator dynamics `ẋ = u`, check that every input-grid point `u`

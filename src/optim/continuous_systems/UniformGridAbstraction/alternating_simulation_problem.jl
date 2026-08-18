@@ -280,6 +280,10 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
 
     state_filter::Union{Nothing, Function}
     state_input_filter::Union{Nothing, Function}
+    # Set to `true` when the user's `state_input_filter` already validates the
+    # inter-sample trajectory (e.g. a swept-cell check via
+    # `MP.cells_on_segment`): silences the multi-cell jump warning.
+    intersample_checked::Bool
 
     ## UMapping & Uset
     UMapping::Union{Nothing, MP.GridMapping, MP.ListMapping}
@@ -347,8 +351,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
             nothing,
             nothing,
             false, # use implicit stateset
-            nothing, # state_filter 
+            nothing, # state_filter
             nothing, # state_input_filter
+            false, # intersample_checked
             nothing,
             nothing,
             nothing,
@@ -702,6 +707,7 @@ function _warn_intersample_jump(
     optimizer::OptimizerAlternatingSimulationProblem,
     abstract_system,
 )
+    optimizer.intersample_checked && return
     system = optimizer.alternating_simulation_problem.system
     system.X isa UT.SetMinus || return
     mapping = optimizer.XMapping
