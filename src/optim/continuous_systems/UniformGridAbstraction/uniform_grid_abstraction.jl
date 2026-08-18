@@ -146,7 +146,12 @@ function OP.set_concrete_problem!(
 end
 
 function OP.set_concrete_problem!(model::Optimizer, problem)
-    model.control_solver = control_solver_for(problem)
+    fresh = control_solver_for(problem)
+    if model.control_solver isa typeof(fresh) && hasmethod(reset!, Tuple{typeof(fresh)})
+        reset!(model.control_solver)
+    else
+        model.control_solver = fresh
+    end
     model.control_solver.concrete_problem = problem
     if model.abstraction_solver.alternating_simulation_problem === nothing
         model.abstraction_solver.alternating_simulation_problem =

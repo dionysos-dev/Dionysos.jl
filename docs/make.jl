@@ -25,6 +25,7 @@ const ORDER = Dict(
         "dcdc_converter",
         "thermostat",
         "integrator_ltl",
+        "biped_velocity_control",
     ],
     "solvers" => [
         "gol_lazar_belta",

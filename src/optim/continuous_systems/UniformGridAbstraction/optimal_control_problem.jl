@@ -80,6 +80,10 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimiz
     early_stop::Bool
     sparse_input::Bool
     print_level::Int
+    # Optional input slew-rate constraint, expressed on *concrete* inputs
+    # (distance and boundary inputs); lifted to abstract input symbols and
+    # forwarded to the discrete solver.
+    bounded_input_variation::Union{Nothing, OPDS.BoundedInputVariation}
 
     # outputs
     abstract_optimizer::Union{Nothing, OPDS.OptimizerOptimalControlProblem}
@@ -102,6 +106,7 @@ mutable struct OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimiz
             false,   # early_stop
             false,   # sparse_input
             1,       # print_level
+            nothing, # bounded_input_variation
             nothing, # abstract_optimizer
             nothing, # abstract_problem
             nothing, # abstract_controller
@@ -197,7 +202,43 @@ function configure_abstract_optimizer!(
         MOI.RawOptimizerAttribute("sparse_input"),
         model.sparse_input,
     )
+    if model.bounded_input_variation !== nothing
+        MOI.set(
+            abstract_optimizer,
+            MOI.RawOptimizerAttribute("bounded_input_variation"),
+            lift_bounded_input_variation(
+                model.abstract_system,
+                model.bounded_input_variation,
+            ),
+        )
+    end
     return
+end
+
+"""
+    lift_bounded_input_variation(abstract_system, constraint)
+
+Express a concrete-input [`OPDS.BoundedInputVariation`](@ref) on abstract input
+symbols: the distance reads the symbols' concrete inputs, and the boundary
+inputs are quantized with `SY.get_abstract_input`.
+"""
+function lift_bounded_input_variation(
+    abstract_system,
+    constraint::OPDS.BoundedInputVariation,
+)
+    d = constraint.input_distance
+    lifted_distance =
+        (s1::Int, s2::Int) -> d(
+            SY.get_concrete_input(abstract_system, s1),
+            SY.get_concrete_input(abstract_system, s2),
+        )
+    lift(u) = u === nothing ? nothing : SY.get_abstract_input(abstract_system, u)
+    return OPDS.BoundedInputVariation(
+        lifted_distance,
+        constraint.max_variation;
+        target_input = lift(constraint.target_input),
+        initial_input = lift(constraint.initial_input),
+    )
 end
 
 function extract_results!(model::OptimizerOptimalControlProblem, abstract_optimizer)
