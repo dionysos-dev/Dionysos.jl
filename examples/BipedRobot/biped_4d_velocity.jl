@@ -16,10 +16,13 @@
 #    stance foot that the swing foot must climb over) is pulled back to joint
 #    space with a Lipschitz margin — a kept cell provably keeps the swing foot
 #    clear (`RobotProblem.carve_domain`).
-# 3. **One cell per axis per step** (`MP.intersample_safe_time_step`): between
-#    two samples the joint-space segment stays in the union of two certified
-#    cells, so the swing foot cannot cross the obstacle *between* samples
-#    either.
+# 3. **Swept-cell transitions** (`MP.cells_on_segment`): the inter-sample
+#    trajectory of the integrator is the straight joint-space segment, and a
+#    transition is kept only when *every* grid cell that segment crosses is
+#    admissible — so the swing foot cannot cross the obstacle *between*
+#    samples either. This lifts the one-cell-per-step speed cap: the input
+#    alphabet has two speed levels per joint (`±0.5, ±1.0` rad/s), and the
+#    fast inputs move two cells per step.
 #
 # Resolution matters: at `dx = 0.1` the Lipschitz margin (~5.5 cm) provably
 # disconnects the free space — no controller exists. At `dx = 0.05` the margin
@@ -113,7 +116,16 @@ scenario = SCENARIOS[scenario_name]
 println("scenario: ", scenario_name)
 
 geometry = RP.default_geometry()
-disc = RP.default_discretization(; dx = 0.05, tstep = 0.1, speed_levels = 1)
+
+# Two speed levels per joint (`u ∈ {-1, -0.5, 0, 0.5, 1}` rad/s): steps of up
+# to two cells per axis, made sound by the swept-cell transition validation
+# below (`RP.swept_state_input_filter`).
+disc = RP.default_discretization(;
+    dx = 0.05,
+    tstep = 0.1,
+    speed_levels = 2,
+    swept_transitions = true,
+)
 
 obstacle = scenario.obstacles
 domain = RP.RobotDomainConfig(;
@@ -127,12 +139,13 @@ x0 = SVector(0.2, 0.0, -0.2, 0.0)
 foothold = scenario.foothold
 
 println("Carving the obstacle out of the joint-space domain…")
+X_box = LazySets.Hyperrectangle(; low = scenario.x_lb, high = scenario.x_ub)
+removed = Set(RP.infeasible_cells(X_box, disc.state_grid, obstacle, geometry))
 concrete_system = RP.system(;
     tstep = disc.tstep,
     domain = domain,
-    obstacle = obstacle,
     state_grid = disc.state_grid,
-    geometry = geometry,
+    removed_cells = removed,
 )
 
 # ------------------------------------------------------------
@@ -152,13 +165,19 @@ MOI.set(
     MOI.RawOptimizerAttribute("approx_mode"),
     AB.UniformGridAbstraction.CENTER_SIMULATION,
 )
-# One joint per step: keeps the automaton at 9 effective inputs (≈ 22 M
-# transitions) instead of 3⁴ = 81 (≈ 200 M — beyond laptop memory).
+# Two combined restrictions on (state, input) pairs:
+# - one joint per step, which keeps the automaton at 17 effective inputs
+#   (≈ 40 M transitions) instead of 5⁴ = 625 (beyond laptop memory);
+# - the swept-cell check: a multi-cell step is kept only when every grid cell
+#   crossed by its inter-sample segment is admissible — the sound replacement
+#   for the one-cell-per-step speed cap.
+swept = RP.swept_state_input_filter(disc.state_grid, disc.tstep, removed)
 MOI.set(
     optimizer,
     MOI.RawOptimizerAttribute("state_input_filter"),
-    (x, u) -> count(v -> abs(v) > 1e-9, u) <= 1,
+    (x, u) -> count(v -> abs(v) > 1e-9, u) <= 1 && swept(x, u),
 )
+MOI.set(optimizer, MOI.RawOptimizerAttribute("intersample_checked"), true)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("execution_backend"), SY.ThreadedBackend())
 MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
 
@@ -211,13 +230,13 @@ println("steps: ", length(xs) - 1, ", reached: ", reached(xs[end]))
 # 4) Same footstep with the acceleration (slew-rate) limit
 # ------------------------------------------------------------
 
-# Consecutive velocity commands within one speed notch per joint, starting
-# from and ramping down to rest: no instant reversals — a joint must pass
-# through zero speed to change direction.
+# Consecutive velocity commands within one speed notch (`du`, not `u_max`!)
+# per joint, starting from and ramping down to rest: reaching full speed takes
+# two steps (0 → 0.5 → 1.0 rad/s) and reversals must ramp back through zero.
 rest = SVector(0.0, 0.0, 0.0, 0.0)
 slew = OPDS.BoundedInputVariation(
     (u1, u2) -> maximum(abs.(u1 - u2)),
-    disc.u_max;
+    disc.du;
     target_input = rest,
     initial_input = rest,
 )
@@ -247,7 +266,8 @@ println(
 )
 max_slew =
     maximum(maximum(abs.(slew_us[k + 1] - slew_us[k])) for k in 1:(length(slew_us) - 1))
-println("max input variation along the run: ", max_slew, " (bound: ", disc.u_max, ")")
+println("max input variation along the run: ", max_slew, " (bound: ", disc.du, ")")
+println("max input magnitude along the run: ", maximum(maximum(abs.(u)) for u in slew_us))
 
 # ------------------------------------------------------------
 # 5) Visualization
