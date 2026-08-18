@@ -184,6 +184,23 @@ set_attribute(
 optimize!(model)
 get_attribute(model, "success")
 
+# Closed loop of this unconstrained controller, to compare against the
+# slew-rate-limited one below:
+
+controller_free = get_attribute(model, "concrete_controller")
+discrete_time_system = get_attribute(model, "discrete_time_system")
+
+reached(xk) = xk ∈ target_set
+traj_free = ST.get_closed_loop_trajectory(
+    discrete_time_system,
+    controller_free,
+    x0,
+    100;
+    stopping = reached,
+)
+xs_free = collect(ST.states(traj_free))
+(length(xs_free) - 1, reached(xs_free[end]))
+
 # ## The acceleration constraint
 #
 # Because the inputs are velocities, bounding the difference between
@@ -206,12 +223,10 @@ set_attribute(model, "bounded_input_variation", slew)
 optimize!(model)
 get_attribute(model, "success")
 
-# Closed loop on the discrete-time abstraction model, stopping on the target:
+# Closed loop of the constrained controller — a few steps longer than the
+# unconstrained one: the difference is the acceleration ramps.
 
 controller = get_attribute(model, "concrete_controller")
-discrete_time_system = get_attribute(model, "discrete_time_system")
-
-reached(xk) = xk ∈ target_set
 traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
     controller,
@@ -280,3 +295,14 @@ fig
 # re-importing it as a bounded disturbance is the natural next step — the
 # growth-bound machinery accepts it directly, at the price of an abstraction
 # that is no longer exact but remains sound.
+#
+# ## Going further
+#
+# The packaged driver `examples/BipedRobot/biped_4d_velocity.jl` extends this
+# page with a finer grid, a two-level velocity alphabet (multi-cell steps made
+# sound by swept-cell validation, `MP.swept_input_filter`), harder scenarios —
+# stepping over a 16 cm × 5 cm block, threading a 1.6 cm certified window,
+# clearing a thin 10 cm wall, a crouched *limbo* step where a low bar
+# constrains the hip through a second image map — and an animated dashboard
+# whose state panel shows the moving slice of the carved region
+# (`Dionysos.animate_trajectory_dashboard` with `state_background!`).

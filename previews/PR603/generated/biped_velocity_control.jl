@@ -95,6 +95,20 @@ set_attribute(
 optimize!(model)
 get_attribute(model, "success")
 
+controller_free = get_attribute(model, "concrete_controller")
+discrete_time_system = get_attribute(model, "discrete_time_system")
+
+reached(xk) = xk ∈ target_set
+traj_free = ST.get_closed_loop_trajectory(
+    discrete_time_system,
+    controller_free,
+    x0,
+    100;
+    stopping = reached,
+)
+xs_free = collect(ST.states(traj_free))
+(length(xs_free) - 1, reached(xs_free[end]))
+
 rest = SVector(0.0, 0.0, 0.0, 0.0)
 slew = DI.Optim.DiscreteSystems.BoundedInputVariation(
     (u1, u2) -> maximum(abs.(u1 - u2)),
@@ -107,9 +121,6 @@ optimize!(model)
 get_attribute(model, "success")
 
 controller = get_attribute(model, "concrete_controller")
-discrete_time_system = get_attribute(model, "discrete_time_system")
-
-reached(xk) = xk ∈ target_set
 traj = ST.get_closed_loop_trajectory(
     discrete_time_system,
     controller,
