@@ -29,17 +29,9 @@
 
 using StaticArrays
 using Dionysos
-import MathOptInterface as MOI
-import HybridSystems
-import LazySets
 import Plots
 
 const DI = Dionysos
-const ST = DI.System
-const PR = DI.Problem
-const MP = DI.Mapping
-const SY = DI.Symbolic
-const AB = DI.Optim.Abstraction
 
 include(
     joinpath(
@@ -59,119 +51,35 @@ import .RobotProblem as RP
 geometry = RP.default_geometry()
 disc = RP.default_discretization(; dx = 0.1, tstep = 0.1, speed_levels = 1)
 
-x_bar = 0.6
-X = LazySets.Hyperrectangle(;
-    low = SVector(-x_bar, -x_bar, -x_bar, -x_bar),
-    high = SVector(x_bar, x_bar, x_bar, x_bar),
-)
-domain = RP.RobotDomainConfig(;
-    x_lb = SVector{4}(LazySets.low(X)),
-    x_ub = SVector{4}(LazySets.high(X)),
-    u_lb = SVector(-disc.u_max, -disc.u_max, -disc.u_max, -disc.u_max),
-    u_ub = SVector(disc.u_max, disc.u_max, disc.u_max, disc.u_max),
-)
-
-println("Carving the domain (ground constraint only — flat terrain)…")
-removed = RP.infeasible_cells(X, disc.state_grid, nothing, geometry)
-
-# A mode carries the vector field `ẋ = u`: the hybrid machinery integrates the
-# dynamics itself over the mode's time step, so it needs the field, not the
-# one-step map. Both forms give the same abstraction — integrating a constant
-# field is exact — but only this one simulates correctly.
-concrete_system = RP.system(;
-    tstep = disc.tstep,
-    domain = domain,
-    state_grid = disc.state_grid,
-    removed_cells = removed,
-    continuous_time = true,
-)
-
 # `min_advance` is the stride the guard demands. The synthesis minimises the
 # number of steps, so it strides exactly as little as the guard allows: asking
 # for 5 cm gives a certified but mincing gait. 15 cm is a stride worth watching,
 # and still well inside the leg's ~37 cm reach.
-guard = RP.strike_guard(X, disc.state_grid, geometry; min_advance = 0.15)
-hs = RP.walking_hybrid_system(concrete_system, guard)
-println("guard cells: ", length(guard))
+println("Building the walking model (ground constraint only — flat terrain)…")
+w = RP.walking_problem(; geometry = geometry, disc = disc, x_bar = 0.6, min_advance = 0.15)
+println("guard cells: ", length(w.guard))
 
 # ------------------------------------------------------------
 # 2) Synthesis: reach the guard
 # ------------------------------------------------------------
 
-x0 = SVector(0.2, 0.0, -0.2, 0.0)
-target = PR.HybridSpec(Dict(1 => PR.StateSpec(guard), 2 => PR.StateSpec(guard)))
-problem =
-    PR.OptimalControlProblem(hs, (x0, 1), target, nothing, (aug, u) -> 1.0, PR.Infinity())
-
-kwargs = Dict(
-    "state_grid" => disc.state_grid,
-    "input_grid" => disc.input_grid,
-    "time_step" => disc.tstep,
-    "approx_mode" => AB.UniformGridAbstraction.CENTER_SIMULATION,
-    "print_level" => 0,
-)
-
-optimizer = MOI.instantiate(AB.HybridSystemAbstraction.Optimizer)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("optimizer_list"),
-    Function[
-        () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
-        () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
-    ],
-)
-MOI.set(
-    optimizer,
-    MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
-    [copy(kwargs), copy(kwargs)],
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 1)
-
-@time MOI.optimize!(optimizer)
-println(
-    "reach-the-guard success: ",
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("success")),
-)
-
-abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-controllable = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
+@time sol = RP.solve_walking(w; print_level = 1)
+println("reach-the-guard success: ", sol.success)
 
 # ------------------------------------------------------------
 # 3) The recurrence certificate
 # ------------------------------------------------------------
 
-n_post_strike, n_not_recurrent = 0, 0
-for pos in guard, (mode, next_mode) in ((1, 2), (2, 1))
-    swapped = RP.leg_swap(SVector{4}(MP.get_coord_by_pos(disc.state_grid, pos)))
-    q = SY.get_abstract_state(abstract_system, (swapped, next_mode))
-    (q === nothing || q <= 0) && continue
-    global n_post_strike += 1
-    q in controllable || (global n_not_recurrent += 1)
-end
-println(
-    "recurrence: $(n_post_strike - n_not_recurrent)/$n_post_strike post-strike states ",
-    "can reach the guard again",
-)
-n_not_recurrent == 0 && println("  ⟹ the robot can strike forever")
+checked, failed =
+    RP.gait_recurrence(sol.abstract_system, w.guard, disc.state_grid, sol.controllable)
+println("recurrence: $(checked - failed)/$checked post-strike states reach the guard again")
+failed == 0 && println("  ⟹ the robot can strike forever")
 
 # ------------------------------------------------------------
 # 4) Walk
 # ------------------------------------------------------------
 
-walker = RP.WalkingController(
-    MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller")),
-    guard,
-    disc.state_grid,
-)
-
-aug_xs, us = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
-    hs,
-    walker,
-    [disc.tstep, disc.tstep],
-    (x0, 1),
-    60,
-)
+aug_xs, us = RP.walk(w, sol, 60)
 
 strikes = count(u -> u isa AbstractString, us)
 offsets, left_stance = RP.walk_world_offsets(aug_xs, us, geometry)

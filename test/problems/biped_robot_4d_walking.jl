@@ -141,83 +141,14 @@ end
     # state `π(G)` lies in `Reach(G)`, then by induction the robot can strike
     # forever — one reachability synthesis, no Büchi machinery.
     disc = RP.default_discretization(; dx = 0.1, tstep = 0.1, speed_levels = 1)
-    x_bar = 0.6
-    X = LazySets.Hyperrectangle(;
-        low = SVector(-x_bar, -x_bar, -x_bar, -x_bar),
-        high = SVector(x_bar, x_bar, x_bar, x_bar),
-    )
-    domain = RP.RobotDomainConfig(;
-        x_lb = SVector{4}(LazySets.low(X)),
-        x_ub = SVector{4}(LazySets.high(X)),
-        u_lb = SVector(-disc.u_max, -disc.u_max, -disc.u_max, -disc.u_max),
-        u_ub = SVector(disc.u_max, disc.u_max, disc.u_max, disc.u_max),
-    )
-    sys = RP.system(;
-        tstep = disc.tstep,
-        domain = domain,
-        state_grid = disc.state_grid,
-        removed_cells = RP.infeasible_cells(X, disc.state_grid, nothing, GEOM),
-        # The hybrid machinery integrates a mode's dynamics itself, so a mode
-        # carries the vector field `ẋ = u`, not the one-step map.
-        continuous_time = true,
-    )
-    guard = RP.strike_guard(X, disc.state_grid, GEOM; min_advance = 0.05)
-    hs = RP.walking_hybrid_system(sys, guard)
+    w = RP.walking_problem(; geometry = GEOM, disc = disc, x_bar = 0.6, min_advance = 0.05)
+    sol = RP.solve_walking(w)
+    @test sol.success
+    @test sol.controllable !== nothing
 
-    # Reach the guard, in either mode.
-    target = PR.HybridSpec(Dict(1 => PR.StateSpec(guard), 2 => PR.StateSpec(guard)))
-    x0 = SVector(0.2, 0.0, -0.2, 0.0)
-    problem = PR.OptimalControlProblem(
-        hs,
-        (x0, 1),
-        target,
-        nothing,
-        (aug, u) -> 1.0,
-        PR.Infinity(),
-    )
-
-    kwargs = Dict(
-        "state_grid" => disc.state_grid,
-        "input_grid" => disc.input_grid,
-        "time_step" => disc.tstep,
-        "approx_mode" => AB.UniformGridAbstraction.CENTER_SIMULATION,
-        "print_level" => 0,
-    )
-    optimizer = MOI.instantiate(AB.HybridSystemAbstraction.Optimizer)
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), problem)
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("optimizer_list"),
-        Function[
-            () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
-            () -> MOI.instantiate(AB.UniformGridAbstraction.Optimizer),
-        ],
-    )
-    MOI.set(
-        optimizer,
-        MOI.RawOptimizerAttribute("optimizer_kwargs_dict"),
-        [copy(kwargs), copy(kwargs)],
-    )
-    MOI.set(optimizer, MOI.RawOptimizerAttribute("print_level"), 0)
-    MOI.optimize!(optimizer)
-
-    @test MOI.get(optimizer, MOI.RawOptimizerAttribute("success"))
-
-    abstract_system = MOI.get(optimizer, MOI.RawOptimizerAttribute("abstract_system"))
-    controllable = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-    @test controllable !== nothing
-
-    # The recurrence certificate: every post-strike state can reach the guard
-    # again. A strike in mode 1 lands in mode 2 (and back), hence the swapped mode.
-    n_post_strike = 0
-    n_not_recurrent = 0
-    for pos in guard, (mode, next_mode) in ((1, 2), (2, 1))
-        swapped = RP.leg_swap(SVector{4}(MP.get_coord_by_pos(disc.state_grid, pos)))
-        q = SY.get_abstract_state(abstract_system, (swapped, next_mode))
-        (q === nothing || q <= 0) && continue
-        n_post_strike += 1
-        q in controllable || (n_not_recurrent += 1)
-    end
+    # The recurrence certificate, computed by the model rather than restated here.
+    n_post_strike, n_not_recurrent =
+        RP.gait_recurrence(sol.abstract_system, w.guard, disc.state_grid, sol.controllable)
     @test n_post_strike > 0
     @test n_not_recurrent == 0
 
@@ -225,18 +156,8 @@ end
     # Walk: chain the reachability controller with the strike and check that
     # several steps actually happen in closed loop.
     # ------------------------------------------------------------------
-    walker = RP.WalkingController(
-        MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller")),
-        guard,
-        disc.state_grid,
-    )
-    aug_xs, us = AB.HybridSystemAbstraction.get_closed_loop_trajectory(
-        hs,
-        walker,
-        [disc.tstep, disc.tstep],
-        (x0, 1),
-        120,
-    )
+    X, guard, x0 = w.X, w.guard, w.x0
+    aug_xs, us = RP.walk(w, sol, 120)
 
     strikes = count(u -> u isa AbstractString, us)
     @test strikes >= 3
