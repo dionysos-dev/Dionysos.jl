@@ -15,8 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
-    - name: Install LaTeX
-      run:  sudo apt-get update && sudo apt-get -y install ghostscript texlive texlive-latex-extra texlive-fonts-recommended cm-super dvipng     
+    # No TeX toolchain is installed on purpose. The site is HTML-only
+    # (`Documenter.HTML`, math rendered by KaTeX in the browser) and no example
+    # uses pgfplots or a `usetex` plotting backend, so nothing invokes a TeX
+    # binary at build time. Installing texlive here used to dominate the job and
+    # was wildly unreliable: 22 min on one run, 46 min on another, against a
+    # 1.4 min nominal — all of it apt download time. Restore this step only if a
+    # build actually fails for want of a TeX binary, and say which page needs it.
     - uses: julia-actions/setup-julia@latest
       with:
         # Build documentation on the latest Julia 1.x
