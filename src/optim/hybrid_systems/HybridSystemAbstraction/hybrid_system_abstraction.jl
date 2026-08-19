@@ -122,7 +122,10 @@ function ST.output_control(ctrl::HybridQuantizedStaticController, q, aug_state)
     k = aug_state[end]
     if SY.is_switching_input(ctrl.abstract_system.input_mapping, u_abs)
         transition_id = ctrl.abstract_system.input_mapping.global_to_switching[u_abs]
-        return ctrl.abstract_system.input_mapping.switch_labels[transition_id]
+        return SY.get_switch_label(
+            SY.get_global_input_map(ctrl.abstract_system),
+            transition_id,
+        )
     else
         return SY.get_concrete_input(ctrl.abstract_system, u_abs, k)
     end
