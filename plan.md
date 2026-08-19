@@ -1,283 +1,255 @@
-# Plan — Integration of Riccardo's velocity-control biped work
+# Plan — Multi-step walking as a hybrid system
 
-> **Status (2026-08-17): implemented, all phases.** `problems/BipedRobot/4D_model/robot_problem.jl`
-> (model, sound carving, IK target, commensurable grids), `src/mapping/grid_mapping/lattice.jl`
-> (`intersample_safe_time_step`, `is_lattice_exact`), the measured inter-sample jump `@warn` in the
-> UGA solver, `src/optim/discrete_systems/bounded_input_variation.jl` (pair-keyed Dijkstra +
-> `BoundedInputVariation` attribute, lifted concrete→symbols by the UGA front-end), the laptop driver
-> `examples/BipedRobot/biped_4d_velocity.jl`, and tests (`test/problems/biped_robot_4d.jl`,
-> `test/mapping/lattice.jl`, `test/optim/discrete_systems/bounded_input_variation.jl`).
->
-> Findings from the implementation worth keeping:
-> - **Sound carving proves Riccardo's resolution was too coarse**: at `dx = 0.1` the Lipschitz margin
->   (~5.5 cm) provably disconnects the free space around his obstacle — the "obstacle jumps" he saw
->   were the unsound center-test masking an infeasible discretization. At `dx = 0.05` (margin
->   ~2.7 cm, `|θ| ≤ 1.2`) the footstep over an 8 cm × 3 cm step is feasible: BFS-connected, and the
->   synthesized controller crosses in 52 steps (the BFS optimum).
-> - **Memory bound, not time bound**: 3⁴ = 81 inputs × 2.5 M cells ≈ 200 M transitions exceed laptop
->   RAM; restricting to one-joint-per-step inputs (`state_input_filter`, 9 effective inputs, 21 M
->   transitions) keeps the whole run under 30 s of abstraction time on 14 threads.
-> - The slew-rate-limited synthesis reaches the same 52 steps with the measured max input variation
->   exactly at the bound — the constraint is active and satisfied, with rest-to-rest ramps.
-
-Branches analyzed: `robot-velocity-control`, `state-constraints` (superset of the former),
-`robot-graph-algorithm`, `robot-abstraction-test` (already absorbed into master — nothing to take).
-All are based on pre-refactor-v0.2 master (June 2026), so everything must be ported to the
-current API. Scope decided with Julien: **laptop simulation only, no cluster work** (the generic
-SLURM infra already exists under `problems/BipedRobot/execution/`).
+Goal: turn the certified *single* footstep of `problems/BipedRobot/4D_model` into
+**walking** — a certified infinite sequence of steps — by modelling the foot strike as
+a discrete transition with a guard and a reset map.
 
 ---
 
-## 1. What Riccardo did
+## 1. The modelling insight: the state does not grow
 
-### 1.1 The velocity-control model (`robot-velocity-control` → `state-constraints`)
+Keep the state **role-relative** — `x = (hip_stance, knee_stance, hip_swing, knee_swing)`,
+the stance foot pinned at the origin — and put the leg identity in the **mode**:
 
-`problems/BipedRobot/4D_model_vcontrol/` (~1100 lines):
-
-- **4-D kinematic model**: states = 4 joint angles (left/right hip and knee), inputs = joint
-  angular velocities, dynamics `ẋ = u`. The torque level is delegated to the motors' low-level
-  velocity controllers. This halves the dimension vs the 8-D torque model (and removes the
-  stiff multibody integration entirely — `f(x,u)` is trivial instead of a 0.1 s RigidBodyDynamics
-  roll-out per transition).
-- `geometry.jl`: forward/inverse kinematics of the two-leg mechanism (stance/swing legs,
-  grounded-foot convention).
-- **Physical obstacle in the domain model** (`state-constraints`): a Cartesian obstacle (a
-  triangular step, `LazySets.Polygon`, in the swing-foot plane) is pulled back into joint space
-  by `remove_infeasible_cells` (cell-by-cell preimage test), together with the ground
-  constraint (swing foot `y ≥ 0`). The state domain becomes `X_full ∖ ⋃ infeasible cells`.
-- `compute_target_set`: inverse kinematics sweep producing the set of joint configurations
-  that place the swing foot at the next footstep location (a 2-D manifold gridded into cells).
-- Two-phase solver use = the canonical abstraction-caching pattern
-  (`AlternatingSimulationProblem` to build the abstraction once, then swap in the
-  `OptimalControlProblem`), with `ThreadedBackend`, JLD2 save/load, and a gif animation.
-
-**The hidden gem (implicit in his constants, never stated):** he chose the input grid
-*commensurable* with the state grid — `du = 10·dx`, `τ = 0.1` ⟹ `τ·du = dx`. Every step
-translates the state grid exactly onto itself, so the abstraction is **exact and deterministic**
-(a bisimulation, not just an alternating simulation): zero spurious transitions. The
-discretization-nondeterminism curse — the main killer for the 8-D torque abstraction — vanishes
-by construction. This is the scientific core of the velocity-control approach and must be made
-explicit, checked, and documented in the integration.
-
-### 1.2 Input-rate-constrained synthesis (`robot-graph-algorithm`)
-
-A backward Dijkstra in `src/optim/discrete_systems/` enforcing `d(u⁻, u) ≤ Δ` between
-consecutive inputs along the path, plus a final target input `target_u`. Since inputs are
-velocities, this is an **acceleration limit**: it makes the synthesized velocity profile
-trackable by the motors' low-level controllers — exactly the assumption the whole approach
-rests on. Wired in by adding 3 fields to `OptimalControlProblem` and a branch in the discrete
-OCP solver. Includes a 3×3 toy example (`low_acceleration_path.jl`).
-
----
-
-## 2. Assessment — is it nice? Is it the right direction?
-
-**Yes on both counts.** The direction is sound and well-matched to Dionysos:
-
-- Velocity-level control is the standard answer to abstraction-based control of
-  high-dimensional mechanical systems: the abstraction lives where the curse of dimensionality
-  is manageable (4-D kinematics) and the certified/uncertified boundary is explicit (the
-  low-level velocity tracking is the uncertified layer — its tracking error can later be
-  re-imported as a disturbance bound, see §5).
-- The commensurable-lattice design makes the abstraction *exact* — the strongest possible
-  soundness relation, at the cheapest possible cost (`f` is a translation). Very few
-  abstraction papers get to work with an actual bisimulation.
-- The obstacle work is the right formulation: physical constraint in Cartesian task space,
-  pulled back to the state-space domain model, solved with unchanged solver machinery.
-- The input-rate Dijkstra closes the loop with the physical motors. The three pieces together
-  form a coherent story: *reduce → abstract exactly → synthesize with actuator-aware
-  constraints*.
-
-**But the code cannot be merged as-is.** It predates the v0.2 refactor, and it has one
-correctness gap (the "obstacle jump" Riccardo observed himself) plus several bugs — all
-fixable, see §3.
-
----
-
-## 3. Issues found (and what the fixes are)
-
-### 3.1 The obstacle jump — root cause and the correct sampling-time bound
-
-Audit result: the abstraction pipeline computes, per (cell, input), **only the reach set at
-time τ** (`transition_kernels.jl:43`); nothing anywhere constrains the trajectory during
-`[0, τ]`. On top of that, two problems specific to Riccardo's code:
-
-1. **Center-only infeasibility test**: a cell is removed iff the *center's* swing-foot position
-   hits the obstacle. The obstacle's joint-space preimage is a thin shell (≈ 5 cm obstacle /
-   ≈ 0.37 m kinematic Lipschitz ≈ 0.13 rad ≈ one cell at `dx = 0.1`), so it crosses cells
-   without containing their centers → those cells survive → the abstract trajectory passes
-   "through" the obstacle. Unsound.
-2. `CENTER_SIMULATION` is an **under-approximation** mode (the `src/` docstring misleadingly
-   says "very conservative"). In the exact-lattice design it happens to be exact, but nothing
-   verifies the lattice property.
-
-**Which approx mode to use? → `CENTER_SIMULATION`, guarded by an explicit lattice check.**
-When the lattice property holds (`τ·u ∈ hx·ℤ` for every input-grid point), simulating the
-center is *exact*: the cell's true reach set is exactly one cell, and the center lands in it —
-the abstraction is a bisimulation, deterministic, one transition per (cell, input). `GROWTH`
-with `jacobian_bound = 0` is **not** an acceptable substitute here: the reach box then
-coincides exactly with a cell, and the OUTER index-range discretization uses closed boundaries
-(`get_pos_lims_outer`, `tol = 0.0`, `grid.jl:59-70`) — a face-aligned box picks up all its
-neighbors, i.e. **3ⁿ = 81 successors instead of 1**. Sound, but it destroys both determinism
-(killing the input-rate Dijkstra) and tightness (worst-case over 81 successors). So:
-`CENTER_SIMULATION` + an `assert`-style commensurability check at problem construction
-(`τ·du ≈ hx` within fp tolerance, input grid centered on multiples of `du`) is *both* the fast
-and the sound choice — the check is precisely what upgrades it from unsound-in-general to
-exact-here. If a user breaks commensurability, fail loudly with a message pointing to `GROWTH`.
-
-**Riccardo's suggested fix (τ ≤ obstacle_width / v_max) is the right instinct but not sound**:
-it prevents jumping fully *over* the obstacle, yet still allows *grazing* — between two free
-endpoints the continuous path can clip an obstacle corner. The correct bound is
-grid-referenced, not obstacle-referenced:
-
-> **No-jump theorem.** If (i) cell removal is **OUTER** — every cell *intersecting* the
-> obstacle preimage is removed — and (ii) **τ · u_max,i ≤ hx_i on every axis** (at most one
-> cell of displacement per axis per step), then the continuous segment between consecutive
-> states stays inside `source_cell ∪ target_cell`, both certified obstacle-free. No
-> intermediate-time check is needed.
->
-> Hence the sampling-time upper bound: **τ_max = min_i hx_i / u_max,i.**
-> The exact-lattice design satisfies it with equality.
-
-Exact OUTER preimage removal is hard (nonlinear kinematics), but a Lipschitz
-over-approximation suffices and stays cheap: remove the cell when
-`dist(foot(center), obstacle) ≤ L_FK · half_diagonal`, with `L_FK` the segment-length-weighted
-Lipschitz constant of the forward kinematics. (Precedent in-repo: the tube certifier's
-anti-gap rule `max_step ≤ 0.5·rmin`, `uniform_grid_trajectory_certifier.jl:185`.)
-
-### 3.2 Point bugs in his code
-
-| Where | Bug | Fix |
+| | mode `L` (left foot planted) | mode `R` (right foot planted) |
 | :--- | :--- | :--- |
-| `remove_infeasible_cells` | `HyperRectangle(rec.lb*0.95, rec.ub*0.95)` scales toward the **origin**, not the cell center — removed boxes are shifted for any cell away from 0 | shrink around the cell center (or drop the shrink entirely once removal is OUTER) |
-| `remove_infeasible_cells` | O(n⁴) sweep over ~10⁶–10⁷ cells | decompose: swing foot = hip(θ₁,θ₂) + swing leg(θ₃,θ₄) → two O(n²) precomputations |
-| `compute_target_set` | same cell pushed hundreds of times (1e-3 IK sweep, no dedup); `inflated_rec` computed then dead (`rec` pushed instead) | accumulate a `Set` of cell indices; decide inflation deliberately |
-| Dijkstra (`compute_optimal_controller_bounded_var`) | PQ keyed on `(q, u)` but value table and controller keyed on `q` alone — paths reaching `q` with different `u` overwrite each other → sub-optimal and possibly incomplete | true DP on the product `(q, u_prev)` (§4.3) |
-| Problem struct | 3 untyped fields bolted onto `OptimalControlProblem`; `target_u === Nothing` compares to a *type* | leave `OptimalControlProblem` untouched; constraint becomes a solver attribute |
-| Simulation script | `CENTER_SIMULATION` used with no justification — unsound in general, exact here only by an unchecked accident of the constants | keep `CENTER_SIMULATION`, add the explicit lattice-exactness assertion (see §3.1) — do **not** switch to `GROWTH` (3ⁿ face-aligned fanout) |
+| dynamics | `ẋ = u` | `ẋ = u` — **identical** |
+| carved domain | `D` = "swing foot clear of ground and obstacles" | **the same `D`** |
+| guard | swing foot in the ground band, ahead | the same |
+| transition | `L → R`, reset `π` | `R → L`, reset `π` |
 
-### 3.3 API port (pre-refactor → current)
+with the pair swap `π(x) = (x₃,x₄,x₁,x₂)`, obtained by rewriting the old swing chain from its
+own foot once that foot becomes the new stance foot.
 
-| Old (his branches) | Current |
-| :--- | :--- |
-| `UT.HyperRectangle(lb, ub)` | `LazySets.Hyperrectangle(; low, high)` (keyword! positional = center/radius) |
-| `UT.LazySetMinus` / `UT.LazySetUnion` | `UT.set_minus` / `UT.set_union` (grid layer consumes them natively, hole mode inverted → sound) |
-| `UT.get_dims` | `LazySets.dim` |
-| `x_traj, u_traj = get_closed_loop_trajectory(...)` | single `ST.Trajectory`; `ST.states(traj)` / `ST.inputs(traj)` |
-| `"efficient"` attribute | removed — setting it now throws |
-| grid/mapping/problem/backend APIs | unchanged (`GridFree`, `get_states_from_set`, `AlternatingSimulationProblem`, `ThreadedBackend`, all UGA attributes) |
+The point of this encoding: **the two modes are literally the same system**. Same dynamics,
+same domain, same grid — because "the swing foot is clear" is the same predicate whichever
+physical leg currently swings. So the abstraction is built **once** and used by both modes,
+and the whole leg swap is carried by the reset map. Three consequences:
 
----
+1. **No new dimension.** Neither the horizontal position `x` nor its derivative `ẋ` belongs
+   in the state. `ẋ` has no meaning in a quasi-static, velocity-controlled model (there is
+   no momentum for it to act on); `x` is a *derived* quantity (the real robot's boom
+   position is reconstructed from the joint angles in `RSCore.x_to_mechanism_state`).
+2. **The reset is exact on the abstraction.** Our grid has the same step on all four axes, so
+   `π` maps cells bijectively onto cells: centres map to centres, `round` is exact, and the
+   bisimulation survives the strike.
+3. **The mode is the right home for the leg bit.** It is discrete, free for the synthesis,
+   and it is what the driver and the real robot need to know.
 
-## 4. Integration plan
-
-### Phase 1 — `problems/BipedRobot/4D_model/robot_problem.jl` (library)
-
-Module `RobotProblem` following the 6D template exactly (same factory surface —
-`system(; robot_urdf, tstep, domain, Δt_simu, simulator)` even where kwargs are ignored,
-`problem()`, `warmup_robot_problem!`, `default_robot_domain()`), so the whole existing
-`execution/` infra becomes reusable via a 3-line `elseif "4D"` in
-`execution/common/robot_setup.jl`. Contents:
-
-- Geometry + FK/IK ported from Riccardo (harmonize leg lengths with the canonical 6D
-  constants: he uses `0.202/0.172` vs `Lthigh = 0.20125`, `Lleg = 0.172` elsewhere — confirm
-  with him, default to the canonical values). **Do not trust the ported formulas**: property
-  tests are part of the port (see Phase 4).
-- **Sound obstacle carving**: OUTER-Lipschitz cell removal, 2-D × 2-D decomposed; ground
-  constraint included; returns `UT.set_minus(X, UT.set_union(cells))`.
-- **Deduplicated target set** (Set of cell indices).
-- **Commensurable-grid constructor**: takes `(hx, τ)`, builds `du = hx/τ`, and *checks* the
-  exact-lattice property explicitly; docstring states the bisimulation claim.
-- `CENTER_SIMULATION` kept as the approx mode, made legitimate by the lattice check (§3.1) —
-  exact, deterministic, one successor per (cell, input), and the cheapest mode available.
-- Visualization in the house style: `system_plot!` closure + robot animation
-  (port `postproc.jl`), compatible with `animate_trajectory_dashboard`.
-
-### Phase 2 — sampling-time bound (`src/`)
-
-Small documented helper implementing the no-jump theorem (§3.1) — e.g.
-`intersample_safe_time_step(hx, U)` — plus a `@warn` in the UGA solver when
-`time_step · u_max > hx` while the domain has holes (`SetMinus`). Generic value beyond the
-robot; this is the clean, corrected answer to Riccardo's suggestion.
-
-### Phase 3 — input-rate-constrained Dijkstra (`src/optim/discrete_systems/`)
-
-**Is this standard? Yes — it is a classical construction**, which is reassuring:
-
-- In graph terms, constraining consecutive edge labels (`d(u⁻,u) ≤ Δ`) is exactly the
-  **turn-restriction / turn-penalty shortest path** problem from road routing, solved since
-  Caldwell (1961, *On finding minimum routes in a network with turn penalties*) by running
-  Dijkstra on the **line graph** (nodes = edges `(q, u)`), a.k.a. the edge-based or dual
-  graph (Winter 2002). Riccardo's per-*node* value table is precisely the known pitfall that
-  this literature warns about — labels must live on edges, not nodes.
-- In control terms, a bound on `Δu` is the standard **input slew-rate constraint**, handled in
-  MPC textbooks (Maciejowski; Rawlings–Mayne) by **state augmentation** `x⁺ = (x, u_prev)` —
-  the Δu formulation. Our product automaton is the symbolic-control instance of the same
-  augmentation, and the resulting memory-one controller is the textbook outcome.
-
-So we are not inventing an algorithm; we are instantiating a standard one on our automata,
-which also extends beyond Riccardo's version (his requires determinism; worst-case Dijkstra on
-the product handles non-deterministic automata unchanged).
-
-Correct implementation via the **product automaton** `(q, u_prev)`:
-
-- reuse the existing Dijkstra/value machinery unchanged on the lifted automaton;
-- result = a **dynamic controller** (memory = last input), fitting the existing
-  `AbstractController` protocol;
-- `OptimalControlProblem` stays untouched — the constraint `(d, Δ, target_u)` becomes a
-  discrete-solver attribute (e.g. `input_rate_bound`);
-- works for non-deterministic automata too (worst-case over successors), unlike his version;
-- his 3×3 toy example becomes a unit test.
-
-### Phase 4 — laptop driver + tests
-
-- Driver at `examples/BipedRobot/biped_4d_velocity.jl` (root env — the pure-kinematic model
-  needs neither RigidBodyDynamics nor MeshCat): abstraction, obstacle, synthesis, closed-loop
-  trajectory, robot animation. Optionally an input-rate-constrained variant once Phase 3 lands.
-- Fast tests wired into `test/runtests.jl`: obstacle-carving soundness (a cell grazing the
-  preimage must be removed), lattice-exactness check, τ-bound helper, product-Dijkstra on the
-  toy automaton, mini end-to-end (small 4-D grid).
-
-**Error vigilance — the port is test-first.** Riccardo's code was never reviewed or tested;
-beyond the bugs already found (§3.2), assume more are hiding. Every ported formula gets a
-property test *before* the driver relies on it:
-
-- FK/IK round-trip: `get_angular_coordinates ∘ get_cartesian_coordinates = id` on random
-  configurations, both stance conventions;
-- target set validated *semantically*: for every cell in `compute_target_set`, apply the FK to
-  the cell center and check the swing foot lands within tolerance of the requested foothold
-  (this cross-checks his hand-derived two-link IK, including the `atan`/matrix-inverse branch);
-- obstacle carving validated adversarially: sample points inside carved cells, map through FK,
-  assert none hits the (uninflated) obstacle or the ground;
-- lattice exactness asserted, then one closed-loop trajectory checked step-by-step against the
-  abstract path (bisimulation witnessed numerically);
-- code style per the house rules: typed struct fields (his `geometry` struct is untyped and
-  lowercase → `Base.@kwdef struct Geometry{T}` with `SVector`-friendly fields), `snake_case`
-  functions, docstrings on every exported symbol (docs build errors otherwise), JuliaFormatter
-  before each commit.
-
-**Extensibility guardrails**: the obstacle carving is written against a generic
-`foot_map(x) -> SVector{2}` + Lipschitz bound rather than hardcoding the biped FK, so the same
-helper serves any task-space constraint (and later the moving-obstacle clock product, §5); the
-commensurable-grid constructor and the τ-bound helper are model-agnostic from day one.
-
-### Ordering & effort
-
-Phases are independent except 4-depends-on-1 (and the driver variant on 3). Suggested order:
-1 → 2 → 4 → 3 (the model + driver give visible results first; the Dijkstra is the largest
-new-code item). One commit per phase, `--fast` gate at each phase end.
+The alternative — physical joint coordinates `(hipL, kneeL, hipR, kneeR)`, identity reset,
+the permutation moving into the *domains* (`D` and `π(D)`) — is equally correct and closer to
+the raw sensors, but the two modes then have different domains, so it needs a symmetry-aware
+relabelling lift to avoid abstracting twice. The role-relative form gets the same reuse for
+free.
 
 ---
 
-## 5. Beyond the integration (later, with Riccardo)
+## 2. The route: model it as a genuine hybrid system, and finish the machinery
 
-- **Close the certification gap**: the low-level velocity tracking error `‖v_real − u‖ ≤ ε`
-  can be re-imported as a bounded disturbance → `jacobian_bound = 0` stays, growth radius
-  becomes `ε·τ`; the abstraction degrades gracefully from bisimulation to alternating
-  simulation with a quantified margin. This would make the reduced approach *certified
-  end-to-end*.
-- Multi-step walking: chain footstep targets (`compute_target_set` at successive footholds)
-  with the swap of stance/swing legs — the 6D two-step controller pattern already shows how.
-- Moving obstacle: the current carving is static; a time-varying obstacle means product with a
-  clock (the UGA `clock`/periodic machinery exists) — natural follow-up once the static case
-  is merged.
+The walking model *is* a hybrid system, and Dionysos already has the right concepts —
+modes, guards, reset maps, per-mode grids. The machinery is simply **partial**, and the
+gaps are small, well-identified, and useful beyond this problem. So the route is to build
+the model the intended way and complete the library where it stops, rather than to route
+around it with a bespoke lift.
+
+What already works and needs nothing:
+
+- self-transitions and multi-mode automata; per-mode dynamics, grids, time steps,
+  `approx_mode`, `state_input_filter`;
+- **per-mode carved domains** (`UT.SetMinus`) at the solver level — `build_mode_symbolic_models`
+  passes each mode's own `X`, and holes are enumerated with the inverted inclusion mode,
+  which is the sound choice;
+- guards as boxes, half-spaces or arbitrary `LazySet`s, discretized `INNER` (exact for a
+  `MP.CellUnion` guard);
+- reachability, reach-avoid and safety on the flattened product automaton, which is an
+  ordinary automaton the standard discrete solvers accept.
+
+The missing pieces are listed in §5 and each is a self-contained improvement.
+
+**One semantic point to settle rather than patch.** The abstraction turns a switch into an
+*input the synthesis may decline*, while the front-end documentation describes it as taken
+automatically inside the guard. For a foot strike, the controlled reading is the right one:
+the impossibility of sinking through the ground is already enforced by the carved domain,
+and *when* to put the foot down genuinely is a control decision in quasi-static walking. The
+fix is to the documentation, not to the semantics.
+
+---
+
+## 3. The formal model
+
+- **Continuous mode** (unchanged): `ẋ = u` on the carved domain `X ∖ infeasible_cells`,
+  exact lattice (`τ·du = dx`), `CENTER_SIMULATION`, swept multi-cell steps.
+- **Guard** `G` — the strike is available when the swing foot is on the ground and ahead of
+  the stance foot:
+  `G = cells_where(pos -> foot_y(centre) ≤ ground_band ∧ foot_x(centre) ≥ x_min)`.
+  A `MP.CellUnion`, so its discretization is exact under any inclusion mode — no
+  measure-zero manifold problem (an equality guard `foot_y = 0` would have no `INNER` cell
+  at all; the band is the standard remedy and the ground carving already keeps that layer).
+- **Reset** `π(θ) = (θ₃,θ₄,θ₁,θ₂)`, applied on grid *positions*, not coordinates:
+  `π(p) = (p₃,p₄,p₁,p₂)`. Exact provided the four axes share the same step — asserted, not
+  assumed.
+- **Strike input**: one new abstract input symbol `σ_strike`, enabled **only** on `G`, with
+  the deterministic transition `q → π(q)`.
+
+**Why controlled switching is acceptable here.** The audit notes that Dionysos treats a
+switch as an input the synthesis may decline. Physically the foot *cannot* sink through the
+ground — but that constraint is already enforced by the ground carving. What remains is
+"when do I put the foot down", which in quasi-static walking genuinely *is* a control
+decision. So the controlled-switch semantics is the right one for this model, not a gap to
+patch.
+
+---
+
+## 4. The specification: a gait is a *recurrence*, not an invariant
+
+Chaining `N` single-step problems certifies `N` steps. The right infinite statement is that
+the strike can always be taken again.
+
+**Safety is the wrong specification, and cheaply so**: `u = 0` is an admissible input, so
+staying inside the domain forever is satisfied by standing still. The largest
+controlled-invariant set is essentially the whole domain, and certifies nothing about
+walking. Reach-and-stay fails for the same reason.
+
+Recurrence — "strike infinitely often" — is a Büchi condition, and the discrete solvers cover
+co-safe LTL (finite words), not full LTL. But a **finite** computation certifies it. Let `G`
+be the guard and `Reach(G)` the set of states from which `G` is reachable. Then
+
+> if `π(G) ⊆ Reach(G)`, the robot can strike forever
+
+by induction: from a post-strike state reach the guard again, strike, repeat. That is one
+reachability synthesis on the hybrid product, with the solvers already wired in and no Büchi
+machinery. The controller is the reachability controller re-targeted after each strike —
+exactly the shape of the 6D model's two-step walking controller.
+
+This also exposes, rather than hides, the classical sequential-composition condition
+(Burridge–Rizzi–Koditschek): the post-strike image must land in the basin of the next swing.
+When the inclusion fails, the check *names* the post-strike states that are not recurrent,
+and the remedy is a wider guard or a finer grid — not a change of model.
+
+**Verified** on the coarse model (`dx = 0.1`, `|θ| ≤ 0.6`, no obstacle): the synthesis
+succeeds and every post-strike state is recurrent, in both stance modes.
+
+---
+
+## 5. The missing pieces, and the phases that add them
+
+Each phase is independently useful and independently testable. Sizes are rough.
+
+### Phase 0 — two soundness/robustness fixes (small, no new feature)
+
+| Piece | Where | Why |
+| :--- | :--- | :--- |
+| flat automaton sized by the **alphabet**, not by the count of *used* inputs | `symbolic/lifts/hybrid_transition_assembly.jl` (`ninputs = length(inputs_set)`) | a `state_input_filter` leaves gaps in the used-id set, so `max(used_id) > nsymbols` and the discrete solvers index a dense `nstates × nsymbols` table out of bounds. We *will* use such a filter. One line, plus a regression test. |
+| assert the reset is **lattice-exact**, else refuse | same file, next to the reset application | the reset is applied to the *cell centre* and rounded to the nearest target cell. That is exact iff the reset is a lattice automorphism (identity and pair-swap are, when the permuted axes share a step). Off-lattice by half a cell you silently get a plausible-looking, wrong abstraction. Mirror `MP.is_lattice_exact`. |
+
+Optional follow-up, larger: a genuinely **over-approximated reset** (image box →
+`get_states_from_set(..., MP.OUTER)`, several transitions per source cell) so that nonlinear
+or off-lattice resets become sound instead of forbidden. The plumbing already accepts several
+transitions per source.
+
+### Phase 1 — modes that share one abstraction
+
+Today `build_mode_symbolic_models` is an unconditional `map`: every mode gets a full
+`MOI.optimize!`, even when two modes are *the same object* — the existing test passes
+`[mode, mode]` and abstracts it twice. With `N` modes over `M < N` distinct dynamics you pay
+`N` abstractions. For the walking model, whose two modes are the same system, that is exactly
+a factor two on the dominant cost.
+
+The feature: **let the user declare which modes share an abstraction**, e.g. a per-mode
+`shared_abstraction` entry (`[nothing, 1]` = "mode 2 reuses mode 1's model"), resolved in
+topological order before the build. Explicit beats implicit here — the user knows two modes
+are the same system, and a declaration is checkable and self-documenting.
+
+Worth adding underneath as a safety net: memoize on `(objectid(physical system), kwargs)`, so
+that passing literally the same system with the same configuration is never abstracted twice
+even without a declaration. That alone fixes the `[mode, mode]` case.
+
+Validation when a declaration is made: the two modes' systems must agree on dynamics, state
+set and grid configuration — otherwise refuse, rather than silently abstract the wrong thing.
+
+Tests: a 2-mode system whose modes share one abstraction builds the underlying abstraction
+once, and its flattened automaton is identical to the one obtained without sharing.
+
+**Known residual cost, to measure rather than assume.** Sharing removes the duplicated
+*build*, not the duplicated *product*: `add_intra_mode_transitions!` still copies each mode's
+transitions into the flat automaton, so the flat automaton stays ~2× at ~40 M transitions per
+mode. If that proves to be the binding constraint, the options are a lazy/shared product
+representation, or the single-mode variant (one mode, one self-transition, leg bit tracked by
+the driver) which avoids the product entirely — at the cost of losing the declarative mode
+structure and hitting the parallel-transition label bug if two strike variants are ever
+needed.
+
+### Phase 2 — the walking model (direct MOI)
+
+Two modes `L`/`R`, identical dynamics, domains `D` and `π(D)`, guards as `MP.CellUnion`s
+(swing foot in the ground band and ahead), **identity** resets, mode `R` derived from mode
+`L` by `PermutationLift`. Specification: `SafetyProblem` for the gait invariant of §4 — it is
+already supported end to end, so this phase needs no further library work.
+
+Test: the invariant set is non-empty, contains the nominal posture, and a closed loop of ≥ 5
+strikes stays in it.
+
+### Phase 3 — make it expressible in JuMP (finish the wrapper)
+
+The front-end is partial on the hybrid path; three gaps, in order of importance:
+
+| Gap | Where | Fix |
+| :--- | :--- | :--- |
+| `x ∉ O` **silently dropped** for hybrid models — a mode's domain is built from its box bounds only | `wrapper/lower_hybrid.jl` `_build_mode_system`; `obstacle_sets` is only called on the monolithic path | carve per mode, and allow the `∉` constraint to be mode-scoped so each mode gets its own obstacles |
+| specification vocabulary limited to `Final` / `Always` | `build_hybrid_problem` | accept `EventuallyAlways` (reach-and-stay) once Phase 4 wires the solver |
+| initial state must be a **single point** | `_hybrid_initial_state` | accept a region, as the monolithic path does — needed to state a basin or an invariant set as the initial condition |
+
+Then the model of Phase 2 is written declaratively: `@mode`, `add_transition!` with a
+`Guard(...)`, identity reset, `set_attribute(mode, "state_grid", …)`.
+
+### Phase 4 — reach-and-stay on hybrid models
+
+`control_solver_for` accepts only `OptimalControlProblem` and `SafetyProblem`. The flattened
+automaton is an ordinary automaton, so `OPDS.OptimizerReachAndStayProblem` runs on it
+already; what is missing is two lines of wiring **and** a dynamic controller concretizer —
+today `build_concrete_controller` always builds the static `HybridQuantizedStaticController`,
+which cannot represent a controller whose output depends on a specification-automaton state.
+
+### Phase 5 — driver, and obstacles at absolute positions
+
+`examples/BipedRobot/biped_4d_walking.jl`: closed loop over several strikes, accumulating the
+world position driver-side (not a state) so the robot visibly advances; the dashboard's
+`state_background!` hook already draws the carved slice.
+
+Then the genuinely position-dependent case: with a fixed obstacle the carved domain depends
+on where the stance foot is relative to it, so the world position enters as a **discrete**
+index — a short chain of modes (far, approach ×k, straddle, past), each with its own carved
+domain, chained by the same identity reset. Only the modes whose swing workspace actually
+meets the obstacle need their own abstraction; the rest are permutation-derived.
+
+Cheap alternative to evaluate first: a **step-primitive library** — the abstraction does not
+depend on the target, so one abstraction plus one cheap synthesis per relative foothold Δ
+gives a certified catalogue of steps for a footstep planner to chain. A Δ with a vertical
+component gives stairs and uneven terrain for free, since `target_set` already accepts an
+arbitrary Cartesian foothold.
+
+---
+
+## 6. Known traps (from the audits)
+
+| Trap | Where | Status |
+| :--- | :--- | :--- |
+| Hybrid front-end silently drops `x ∉ O` | `wrapper/lower_hybrid.jl` | fixed in Phase 3; until then use direct MOI, which carves correctly |
+| Reset is centre-point, never over-approximated | `hybrid_transition_assembly.jl` | identity/permutation are exact on our grid — asserted in Phase 0 |
+| Flat automaton sized by *used* inputs | `hybrid_transition_assembly.jl` | fixed in Phase 0 (we trigger it via `state_input_filter`) |
+| Parallel transitions share a label `"SWITCH s -> t"` | `hybrid_system_abstraction.jl` `_find_switch_transition` | avoided: `L→R` and `R→L` are distinct pairs. Would bite the one-mode variant |
+| Reset image outside the domain ⇒ edge dropped silently | `hybrid_transition_assembly.jl` | count and report; a fully dropped guard must be an error, not a warning |
+| Hybrid initial set must be a single point | `lower_hybrid.jl`, `optimal_control_problem.jl` | Phase 3 |
+| Flat state ids depend on `Set` iteration order | `flat_index.jl` | never key a test or artifact on flat ids |
+| Switch documented autonomous, implemented controlled | `wrapper/modes.jl` vs `global_input_map.jl` | documentation fix — the controlled reading is the correct one here (§2) |
+
+---
+
+## 7. What this does *not* do
+
+No dynamic walking: no momentum, no impact law, no balance criterion (ZMP, capture point).
+The quasi-static assumption is what makes the kinematic model legitimate, and it is the
+assumption to revisit — with the torque models — before claiming anything about a fast gait.
+The certified statement here is: *the joint trajectory reaches successive footholds while
+keeping the swing foot clear of ground and obstacles, at sampling instants and in between,
+with a trackable velocity profile.*
