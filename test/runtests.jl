@@ -41,6 +41,8 @@ const TEST_FILES = [
     ("./problems/growth_bounds.jl",),
     # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
     ("./problems/biped_robot_4d.jl",),
+    # Walking: the foot strike as a guarded reset, and the shared stance phases.
+    ("./problems/biped_robot_4d_walking.jl",),
     ("./mapping/list_mapping.jl",),
     ("./mapping/grid.jl",),
     # Inter-sample safety helpers + the jump warning.
@@ -99,6 +101,8 @@ const TEST_FILES = [
     ("./optim/PCLFBisimulationQuotient/recipes.jl",),
     ("./optim/UniformEllipsoidAbstraction/uniform_ellipsoid_abstraction.jl", :slow),
     ("./optim/HybridSystemAbstraction/hybrid_helpers.jl",),
+    # Modes sharing one abstraction (declared, and the automatic identical case).
+    ("./optim/HybridSystemAbstraction/shared_abstraction.jl",),
     ("./optim/HybridSystemAbstraction/hybrid_system_abstraction.jl", :slow),
     ("./optim/GolLazarBelta/gol_lazar_belta.jl", :slow),
     ("./optim/NonLinear/non_linear.jl", :slow),

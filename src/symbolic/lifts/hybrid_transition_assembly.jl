@@ -83,13 +83,23 @@ function add_inter_mode_transitions!(
             continue
         end
 
+        n_dropped = 0
+        max_offset = 0.0
+
         for source_local in source_locals
             # Concretize, apply the reset map, and abstract in the target mode.
             source_coord = get_concrete_state(source_model, source_local)
             reset_result = MS.apply(reset_map, source_coord)
             target_local = abstract_switch_target(target_model, reset_result)
 
-            target_local > 0 || continue
+            if target_local <= 0
+                n_dropped += 1
+                continue
+            end
+
+            offset = _reset_quantization_offset(target_model, target_local, reset_result)
+            offset === nothing || (max_offset = max(max_offset, offset))
+
             target_state = (target_local, target_mode)::HybridState
             source_state = (source_local, source_mode)::HybridState
             push!(
@@ -97,7 +107,51 @@ function add_inter_mode_transitions!(
                 (target_state, source_state, global_input_id)::HybridTransition,
             )
         end
+
+        _warn_reset_not_lattice_exact(transition_id, max_offset)
+
+        if n_dropped == length(source_locals)
+            @warn(
+                "Transition $transition_id: the reset image of every guard cell falls " *
+                "outside the target mode's domain, so the switch can never be taken.",
+            )
+        elseif n_dropped > 0
+            @warn(
+                "Transition $transition_id: $n_dropped of $(length(source_locals)) guard " *
+                "cells reset outside the target mode's domain; those switches are dropped.",
+                maxlog = 1,
+            )
+        end
     end
+end
+
+# The reset is applied to the source cell *centre* and the image is quantized to
+# the nearest target cell, so the abstract switch is exact only when the reset is
+# a lattice automorphism — an identity, or a permutation of axes sharing a step,
+# or an integer lattice shift. Off the lattice the image is silently snapped by up
+# to half a cell, which yields a plausible-looking but unsound abstraction. The
+# offset between the image and the centre it snapped to measures exactly that.
+function _reset_quantization_offset(m::SymbolicModel, target_local::Int, reset_result)
+    target_coord = get_concrete_state(m, target_local)
+    scale = max(1.0, maximum(abs, reset_result))
+    return maximum(abs, target_coord .- reset_result) / scale
+end
+
+# A clock-lifted target rounds the time coordinate *up* by design, so the offset
+# is not a soundness signal there.
+_reset_quantization_offset(::ClockLiftedSymbolicModel, ::Int, _) = nothing
+
+function _warn_reset_not_lattice_exact(transition_id, max_offset; rtol = 1e-9)
+    max_offset <= rtol && return
+    return @warn(
+        "Transition $transition_id: the reset map is not lattice-exact (relative " *
+        "offset $(round(max_offset; sigdigits = 3)) between a reset image and the cell " *
+        "centre it was quantized to). The switch is applied to cell centres and " *
+        "snapped to the nearest cell, so the abstraction may be unsound. Align the " *
+        "reset with the grid (identity, permutation of axes sharing a step, or an " *
+        "integer lattice shift), or refine the grid.",
+        maxlog = 1,
+    )
 end
 
 """
@@ -118,20 +172,21 @@ function build_symbolic_automaton(
     estimated_states = sum(get_n_state(m) for m in mode_models)
 
     states = Set{HybridState}()
-    inputs_set = Set{Int}()
     sizehint!(states, estimated_states)
-    sizehint!(inputs_set, input_mapping.total_inputs)
 
-    for (target, source, input) in transition_list
+    for (target, source, _) in transition_list
         push!(states, target)
         push!(states, source)
-        push!(inputs_set, input)
     end
 
     flat = FlatIndex(collect(states))
-    ninputs = length(inputs_set)
 
-    symbolic_automaton = IndexedAutomatonList(n_flat(flat), ninputs)
+    # The automaton is sized by the *alphabet*, not by the inputs that happen to
+    # appear: global ids index the whole alphabet, so a mode whose input is never
+    # used (a `state_input_filter` pruning it, say) leaves a gap and the largest
+    # used id then exceeds a count-based `nsymbols` — the discrete solvers size
+    # dense `nstates × nsymbols` tables and index them by symbol.
+    symbolic_automaton = IndexedAutomatonList(n_flat(flat), input_mapping.total_inputs)
 
     @inbounds for (target, source, abstract_input) in transition_list
         target_int = flat_id(flat, target)

@@ -1,12 +1,5 @@
 # # Velocity-controlled biped: a certified footstep
 #
-# This example is **self-contained**: the whole pipeline — model, physical
-# constraints, objective, synthesis — is written here with the JuMP front-end
-# (`Model(Dionysos.Optimizer)`), so every assumption is visible on the page.
-# A packaged version of the same model (with its test suite and the heavier
-# obstacle-crossing scenarios) lives in `problems/BipedRobot/4D_model/` and
-# `examples/BipedRobot/biped_4d_velocity.jl`.
-#
 # ## The model and its assumptions
 #
 # The robot is a planar biped: two legs (hip + knee joints each), the stance
@@ -25,10 +18,11 @@
 # velocity controllers** and certify the kinematic layer above them. The
 # assumptions are:
 #
-# 1. the low-level controllers track the commanded velocity within the
-#    sampling period (a bounded tracking error `ε` can later be re-imported as
-#    a disturbance, degrading the abstraction from exact to alternating
-#    simulation with a quantified margin);
+# 1. the low-level controllers track the commanded velocity within the sampling
+#    period. A bounded tracking error `ε` can later be re-imported as a
+#    disturbance: the abstraction then stops being a **bisimulation** and
+#    becomes an alternating simulation with a quantified margin — still sound,
+#    no longer exact;
 # 2. the motion is quasi-static (balance is not part of the specification) and
 #    the stance foot stays pinned.
 #
@@ -65,44 +59,86 @@ end
 
 swing_foot(θ::SVector{4}) = joint_positions(θ).foot
 
-# ## Discretization: the exact lattice
+# ## Discretization: an abstraction that is a bisimulation
 #
-# The grids are chosen **commensurable**: `τ · du = dx`, so every admissible
-# input translates the state grid exactly onto itself. The abstraction is then
-# deterministic and *exact* (a bisimulation — zero spurious transitions),
-# which is what legitimizes the `CENTER_SIMULATION` approximation mode below
-# (unsound in general, exact here); `MP.is_lattice_exact` checks the property,
-# and `MP.intersample_safe_time_step` gives the one-cell-per-step time bound.
+# Pick the input grid so that one sampling period moves the state by a whole
+# number of cells: `τ · du = dx`. Every admissible input then translates the
+# state grid exactly onto itself, so the reach set of a cell *is* a cell —
+# no over-approximation, no spurious transition. The abstraction is then a
+# **bisimulation** of the concrete system rather than merely an alternating
+# simulation, which is what makes the `CENTER_SIMULATION` approximation mode
+# legitimate here: propagating the cell centre is unsound in general, and exact
+# under this choice of grids.
+#
+# ("Commensurable grids" below is the ordinary mathematical sense of the word —
+# the ratio `dx / (τ·du)` is an integer. The term of art is the *result*:
+# bisimulation.)
 
 dx, τ = 0.1, 0.1
 du = dx / τ                       # one speed notch; u ∈ {-du, 0, du} per joint
 state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(dx, dx, dx, dx))
 input_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(du, du, du, du))
-MP.is_lattice_exact(state_grid, input_grid, τ)
 
 # ## Physical constraints, pulled back to joint space
 #
-# The ground (`foot_y ≥ 0`) and a Cartesian obstacle (a triangular step) are
-# constraints on the *swing foot*, a nonlinear image of the state. They enter
-# the state space by removing every grid cell in which some configuration
-# *might* violate them. The test is sound thanks to a Lipschitz bound of the
-# kinematics: within a cell of half-widths `h/2`, the foot moves by at most
-# `dev = Σᵢ gᵢ hᵢ/2` from the center's foot (`gᵢ = L1 + L2` for a hip angle,
-# `L2` for a knee), so testing the center against the obstacle **inflated by
-# `dev`** certifies the whole cell.
+# The constraints are not on the state: they are on the swing foot, a nonlinear
+# image of it,
+# ```math
+# g : \mathbb{R}^4 \to \mathbb{R}^2, \qquad g(θ) = \text{swing foot position}.
+# ```
+# The abstraction, however, reasons about *cells*. So each constraint must be
+# pulled back: a grid cell is dropped from the state space when some
+# configuration inside it could violate the constraint. Testing the cell centre
+# alone would be unsound — the obstacle preimage is a thin shell that crosses
+# cells without containing their centres, and a trajectory would then walk
+# straight through it.
 #
-# Combined with the one-cell-per-step bound, this closes the **inter-sample
-# gap**: between two samples the joint-space segment stays inside two
-# certified cells, so the foot cannot cross the obstacle between samples
-# either. (Bounding `τ` by the obstacle width instead is *not* sound — it
-# prevents jumping fully over, but still allows grazing a corner.)
+# ### The Lipschitz bound
 #
-# The margin is also an honest feasibility detector: at `dx = 0.1` it is
-# `dev ≈ 5.5 cm`, and an obstacle placed *under* the swing path provably
-# disconnects the free space — no controller exists at this resolution
-# (refining to `dx = 0.05` halves the margin and makes stepping over
-# feasible; see the packaged scenarios). To keep this documentation build
-# light the obstacle sits *behind* the start, off the swing path.
+# What makes a centre test sound is a bound on how far `g` can move inside one
+# cell. For a cell of half-widths `h/2` centred at `c`,
+# ```math
+# \|g(θ) - g(c)\|_\infty \;\le\; \sum_i L_i \, \frac{h_i}{2} \;=:\; \mathrm{dev},
+# \qquad L_i = \sup \left| \frac{\partial g}{\partial θ_i} \right| .
+# ```
+# The `Lᵢ` are read off the kinematic chain, no differentiation required — each
+# joint rotates everything below it, so the foot moves at most the length of
+# that sub-chain per radian:
+#
+# * `θ₁` (stance hip) rotates both stance segments, lever `L1 + L2`;
+# * `θ₂` (stance knee) rotates only the stance shank, lever `L2`;
+# * `θ₃` (swing hip) rotates both swing segments, lever `L1 + L2`;
+# * `θ₄` (swing knee) rotates only the swing shank, lever `L2`.
+#
+# Hence `L = (L1+L2, L2, L1+L2, L2)`, and the whole leg being rigid below each
+# joint, the bound is tight up to the `∞`-norm relaxation.
+#
+# ### Removing cells soundly
+#
+# With that bound, two constraints are carved out of the state space:
+#
+# * **the ground**, `g(θ)_y ≥ 0` — active along the *entire* swing, since the
+#   foot travels at floor level from behind the robot to the foothold. It is a
+#   closed contact constraint (the target foothold lies *on* the floor), so a
+#   cell is removed only when every configuration in it is surely below ground,
+#   `g(c)_y < -\mathrm{dev}`. Boundary cells are deliberately kept, accurate to
+#   the grid resolution;
+# * **a Cartesian obstacle** `O` — a cell is removed as soon as *some*
+#   configuration in it might reach it:
+#   ```math
+#   \text{remove } C \iff \big( g(c) \oplus [-\mathrm{dev}, \mathrm{dev}]^2 \big) \cap O \neq \emptyset .
+#   ```
+#   Contrapositive, which is the certificate: a **kept** cell satisfies
+#   `g(θ) ∉ O` for *every* `θ` in it.
+#
+# The margin is also an honest feasibility detector. At `dx = 0.1` it is
+# `dev ≈ 5.5 cm`; an obstacle sitting under the swing path then provably
+# disconnects the free space, and no controller exists at this resolution —
+# stepping over one needs a finer grid and a wider joint range (that run is
+# `examples/BipedRobot/biped_4d_velocity.jl`, ≈ 2.5 M cells). Here the obstacle
+# is placed just behind the start, so the run stays a few seconds; the ground,
+# which is the constraint that actually shapes this motion, is carved all the
+# same.
 
 obstacle =
     LazySets.VPolygon([SVector(-0.39, 0.0), SVector(-0.35, 0.02), SVector(-0.31, 0.0)])
@@ -113,14 +149,14 @@ X_box = LazySets.Hyperrectangle(;
     high = SVector(x_bar, x_bar, x_bar, x_bar),
 )
 
-grad = SVector(L1 + L2, L2, L1 + L2, L2)          # per-joint Lipschitz bound
+grad = SVector(L1 + L2, L2, L1 + L2, L2)
 dev = sum(grad .* MP.get_h(state_grid) ./ 2)
 
 ## `MP.cells_where` collects grid cells by predicate into a `MP.CellUnion` — a
-## cell-aligned set whose discretization is exact (a hole removes exactly its
-## cells, a target is recovered exactly). The obstacle test could also use
-## `MP.image_blocked_cells(swing_foot, grad, ...)` directly; it is spelled out
-## here to keep every ingredient visible.
+## cell-aligned set whose discretization is exact, so a hole removes exactly its
+## own cells and a target is recovered exactly. `MP.image_blocked_cells(g, L, …)`
+## packages this same Lipschitz pullback for any nonlinear image map; it is
+## spelled out here to keep every ingredient visible.
 removed = MP.cells_where(state_grid, X_box) do pos
     foot = swing_foot(SVector{4}(MP.get_coord_by_pos(state_grid, pos)))
     below_ground = foot[2] < -dev
@@ -132,6 +168,37 @@ removed = MP.cells_where(state_grid, X_box) do pos
     return below_ground || hits_obstacle
 end
 length(removed)
+
+# ### Between two samples
+#
+# Carving certifies the *cells*; the abstraction only ever checks the state at
+# sampling instants. What forbids the trajectory from cutting a corner **between**
+# two samples is a second, independent ingredient — and the two together are what
+# make the run sound.
+#
+# For `ẋ = u` the inter-sample trajectory is the straight segment joining two
+# consecutive states. Two regimes:
+#
+# * **one cell per axis per step** (`τ·|u| ≤ h`, the case below): the segment
+#   cannot leave the union of the source and target cells, both certified, so
+#   nothing more is needed. `MP.intersample_safe_time_step` returns the largest
+#   `τ` respecting this;
+# * **larger inputs**, which move several cells per step: the segment then
+#   crosses intermediate cells that no endpoint check ever looks at.
+#   `MP.cells_on_segment` enumerates exactly those crossed cells, and
+#   `MP.swept_input_filter` keeps a transition only when *all* of them are
+#   admissible. That is what lets the input alphabet carry several speeds
+#   without giving up soundness.
+#
+# Bounding `τ` by the obstacle *width* instead — the natural first idea — is not
+# sound: it prevents stepping fully over an obstacle, yet still allows grazing a
+# corner between two free endpoints.
+
+MP.cells_on_segment(
+    state_grid,
+    SVector(0.0, 0.0, 0.0, 0.0),
+    SVector(0.2, 0.1, 0.0, 0.0), # a two-cell step along θ₁, one along θ₂
+)
 
 # ## The objective: place the swing foot on the target foothold
 #
@@ -208,9 +275,9 @@ xs_free = collect(ST.states(traj_free))
 # what makes the command trackable by the motors, closing the loop with
 # assumption 1. The value function of this constrained synthesis lives on
 # (state, input) *pairs* (the classical turn-restricted shortest path), and
-# the controller is dynamic: its memory is the previously played input. Here:
-# at most one speed notch of change per joint per step, starting from and
-# ramping down to rest.
+# the controller is dynamic: its memory is the previously played input.
+# (`OPDS.BoundedInputVariation`.) Here: at most one speed notch of change per
+# joint per step, starting from and ramping down to rest.
 
 rest = SVector(0.0, 0.0, 0.0, 0.0)
 slew = DI.Optim.DiscreteSystems.BoundedInputVariation(
@@ -282,27 +349,41 @@ fig
 # The blue stance leg stays planted, the red swing leg travels from behind to
 # the green foothold.
 #
+# The same trajectory as an animation, with the state and input panels beside
+# it — the swing angles `(θ₃, θ₄)` and the velocities commanded to them:
+
+function system_plot!(fig, xk, uk)
+    Plots.plot!(fig, [-0.6, 0.6], [0.0, 0.0]; color = :black, lw = 1, label = "")
+    Plots.plot!(fig, obstacle; color = :black, alpha = 0.8, label = "")
+    Plots.scatter!(fig, [foothold[1]], [foothold[2]]; marker = :xcross, color = :green)
+    draw_robot!(fig, SVector{4}(xk))
+    Plots.plot!(fig; xlims = (-0.6, 0.6), ylims = (-0.05, 0.5))
+    return fig
+end
+
+anim = DI.animate_trajectory_dashboard(
+    system_plot!,
+    traj;
+    Δt = τ,
+    xdims = (3, 4),
+    udims = (3, 4),
+    xlabel_state = "θ3 (swing hip)",
+    ylabel_state = "θ4 (swing knee)",
+    xlabel_input = "u3 (swing hip)",
+    ylabel_input = "u4 (swing knee)",
+    title = "Certified footstep",
+)
+Plots.gif(anim; fps = 8)
+
 # ## What is certified, and what is not
 #
 # **Certified**: the closed-loop joint trajectory reaches the target foothold
 # manifold, never drives the swing foot into the obstacle or below the ground
-# — at sampling instants *and* in between (exact lattice + sound carving +
-# one cell per axis per step) — and respects the input slew-rate limit with
-# rest-to-rest ramps.
+# — at sampling instants *and* in between — and respects the input slew-rate
+# limit with rest-to-rest ramps.
 #
 # **Assumed**: the low-level velocity tracking (assumption 1) and the
 # quasi-static regime (assumption 2). Quantifying the tracking error and
 # re-importing it as a bounded disturbance is the natural next step — the
 # growth-bound machinery accepts it directly, at the price of an abstraction
-# that is no longer exact but remains sound.
-#
-# ## Going further
-#
-# The packaged driver `examples/BipedRobot/biped_4d_velocity.jl` extends this
-# page with a finer grid, a two-level velocity alphabet (multi-cell steps made
-# sound by swept-cell validation, `MP.swept_input_filter`), harder scenarios —
-# stepping over a 16 cm × 5 cm block, threading a 1.6 cm certified window,
-# clearing a thin 10 cm wall, a crouched *limbo* step where a low bar
-# constrains the hip through a second image map — and an animated dashboard
-# whose state panel shows the moving slice of the carved region
-# (`Dionysos.animate_trajectory_dashboard` with `state_background!`).
+# that is no longer a bisimulation but remains sound.

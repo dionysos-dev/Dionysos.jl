@@ -24,14 +24,18 @@ module RobotProblem
 
 using StaticArrays
 using MathematicalSystems
+import HybridSystems
 import LazySets
+import MathOptInterface as MOI
 import Plots
 
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
+const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
+const SY = DI.Symbolic
 
 # ============================================================
 # Geometry & kinematics
@@ -342,7 +346,20 @@ Joint angles within ±π/3, joint velocities within ±`u_max` (which must match
 the input grid: `u_max = speed_levels * du`).
 """
 function default_robot_domain(; u_max = 1.0)
-    x_bar = π / 3
+    return domain_for(; x_bar = π / 3, u_max = u_max)
+end
+
+"""
+    domain_for(disc; x_bar)
+    domain_for(; x_bar, u_max)
+
+Joint angles within `±x_bar`, joint velocities within `±u_max`. Given a
+discretization, the velocity bound is *its* `u_max` — the two must agree with the
+input grid, so deriving one from the other beats repeating it at every call site.
+"""
+domain_for(disc; x_bar::Real) = domain_for(; x_bar = x_bar, u_max = disc.u_max)
+
+function domain_for(; x_bar::Real, u_max::Real)
     return RobotDomainConfig(;
         x_lb = SVector(-x_bar, -x_bar, -x_bar, -x_bar),
         x_ub = SVector(x_bar, x_bar, x_bar, x_bar),
@@ -359,6 +376,11 @@ Discrete-time velocity-controlled system `x⁺ = x + tstep · u` (exact for
 carved (see [`carve_domain`](@ref)); the extra keyword arguments (`robot_urdf`,
 `Δt_simu`, `simulator`) are accepted for drop-in compatibility with the 6D/8D
 execution drivers and ignored — the model is purely kinematic.
+
+`continuous_time = true` returns the vector field `ẋ = u` instead of the one-step
+map, which is what the hybrid machinery needs: it integrates a mode's dynamics
+itself over the mode's time step. The two forms give the same abstraction, since
+integrating a constant field is exact.
 """
 function system(;
     robot_urdf = nothing,
@@ -371,6 +393,7 @@ function system(;
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
     removed_cells = nothing, # precomputed `infeasible_cells` CellUnion, to carve once
+    continuous_time::Bool = false,
 )
     _ = (robot_urdf, Δt_simu, simulator)
 
@@ -390,6 +413,18 @@ function system(;
     end
     U = LazySets.Hyperrectangle(; low = domain.u_lb, high = domain.u_ub)
 
+    if continuous_time
+        # `ẋ = u`. Identical to the discrete form after one step — RK4 of a
+        # constant field is exact — but the hybrid machinery integrates a mode's
+        # dynamics itself, so it needs the vector field rather than the map.
+        return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            (x, u) -> u,
+            4,
+            4,
+            X,
+            U,
+        )
+    end
     step(x, u) = x + tstep * u
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(step, 4, 4, X, U)
 end
@@ -464,25 +499,50 @@ function robot_segments(θ::SVector{4}, geometry::Geometry, grounded_left_foot::
 end
 
 """
-    draw_robot!(fig, θ; geometry, grounded_left_foot)
+    draw_robot!(fig, θ; geometry, grounded_left_foot, origin, alpha)
 
-Draw the two legs (and the hip joint) of configuration `θ` on `fig`.
+Draw the two legs (and the hip joint) of configuration `θ` on `fig`, with the
+stance foot placed at `origin` — walking accumulates that offset step by step, so
+the robot advances across the plot instead of marching on the spot.
 """
 function draw_robot!(
     fig,
     θ::SVector{4};
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
+    origin::Real = 0.0,
+    alpha::Real = 1.0,
 )
     (lx, ly), (rx, ry) = robot_segments(θ, geometry, grounded_left_foot)
-    Plots.plot!(fig, lx, ly; lw = 4, marker = :circle, color = :steelblue, label = "")
-    Plots.plot!(fig, rx, ry; lw = 4, marker = :circle, color = :indianred, label = "")
+    lx = lx .+ origin
+    rx = rx .+ origin
+    Plots.plot!(
+        fig,
+        lx,
+        ly;
+        lw = 4,
+        marker = :circle,
+        color = :steelblue,
+        alpha = alpha,
+        label = "",
+    )
+    Plots.plot!(
+        fig,
+        rx,
+        ry;
+        lw = 4,
+        marker = :circle,
+        color = :indianred,
+        alpha = alpha,
+        label = "",
+    )
     Plots.plot!(
         fig,
         [lx[end], rx[end]],
         [ly[end], ry[end]];
         lw = 4,
         color = :gray,
+        alpha = alpha,
         label = "",
     )
     return fig
@@ -534,5 +594,8 @@ function system_plot!(;
         return fig
     end
 end
+
+# Multi-step walking: the strike as a guarded reset, and the pieces a gait needs.
+include("walking.jl")
 
 end # module
