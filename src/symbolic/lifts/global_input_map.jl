@@ -92,6 +92,18 @@ function get_switching_global_id(gim::GlobalInputMap, transition_id::Int)
 end
 
 """
+    get_switch_label(gim::GlobalInputMap, transition_id) -> String
+
+The label a controller must emit to take hybrid transition `transition_id`.
+
+Always ask for it rather than formatting one: the label is the control input of a
+mode switch, and its spelling is a contract between this map, the simulation that
+parses it back, and every controller that issues one. Rebuilding the string
+elsewhere silently breaks the day the format changes.
+"""
+get_switch_label(gim::GlobalInputMap, transition_id::Int) = gim.switch_labels[transition_id]
+
+"""
     get_local_input_info(gim::GlobalInputMap, global_id) -> (kind, info)
 
 Classify a global input id: returns `(:continuous, (mode_id, local_input_id))`,

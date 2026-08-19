@@ -119,7 +119,7 @@ function get_abstract_transition_cost(
         k = aug_concrete_state[end]
         if SY.is_switching_input(abstract_system.input_mapping, input)
             transition_id = abstract_system.input_mapping.global_to_switching[input]
-            u = abstract_system.input_mapping.switch_labels[transition_id]
+            u = SY.get_switch_label(SY.get_global_input_map(abstract_system), transition_id)
         else
             u = SY.get_concrete_input(abstract_system, input, k)
         end

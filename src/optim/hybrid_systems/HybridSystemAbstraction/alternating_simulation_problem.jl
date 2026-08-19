@@ -5,6 +5,9 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     concrete_system::Union{Nothing, HybridSystem}
     optimizer_list::Union{Nothing, AbstractVector}
     optimizer_kwargs_dict::Union{Nothing, AbstractVector}
+    # Per-mode `nothing` (build) or the index of an earlier mode whose abstraction
+    # this mode reuses — see `build_mode_symbolic_models`.
+    shared_abstraction::Union{Nothing, AbstractVector}
 
     max_iterations::Union{Nothing, Int}
     print_level::Int
@@ -14,7 +17,8 @@ mutable struct OptimizerAlternatingSimulationProblem{T} <: OP.AbstractDionysosOp
     abstraction_construction_time_sec::T
 
     function OptimizerAlternatingSimulationProblem{T}() where {T}
-        optimizer = new{T}(nothing, nothing, nothing, nothing, 1000, 1, nothing, 0.0)
+        optimizer =
+            new{T}(nothing, nothing, nothing, nothing, nothing, 1000, 1, nothing, 0.0)
         return optimizer
     end
 end
@@ -57,7 +61,8 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
     optimizer.abstract_system = build_timed_hybrid_symbolic_model(
         optimizer.alternating_simulation_problem.system,
         optimizer.optimizer_list,
-        optimizer.optimizer_kwargs_dict,
+        optimizer.optimizer_kwargs_dict;
+        shared_abstraction = optimizer.shared_abstraction,
     )
 
     optimizer.print_level >= 1 && println(

@@ -29,6 +29,9 @@ end
 
 get_automaton(sym::HybridSymbolicModel) = sym.automaton
 
+"The [`GlobalInputMap`](@ref) unifying the modes' inputs and the mode switches."
+get_global_input_map(sym::HybridSymbolicModel) = sym.input_mapping
+
 # ================================================================
 # Accessors
 # ================================================================
