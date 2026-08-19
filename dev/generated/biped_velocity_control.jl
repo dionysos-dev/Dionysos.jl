@@ -26,7 +26,6 @@ dx, τ = 0.1, 0.1
 du = dx / τ                       # one speed notch; u ∈ {-du, 0, du} per joint
 state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(dx, dx, dx, dx))
 input_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(du, du, du, du))
-MP.is_lattice_exact(state_grid, input_grid, τ)
 
 obstacle =
     LazySets.VPolygon([SVector(-0.39, 0.0), SVector(-0.35, 0.02), SVector(-0.31, 0.0)])
@@ -37,14 +36,14 @@ X_box = LazySets.Hyperrectangle(;
     high = SVector(x_bar, x_bar, x_bar, x_bar),
 )
 
-grad = SVector(L1 + L2, L2, L1 + L2, L2)          # per-joint Lipschitz bound
+grad = SVector(L1 + L2, L2, L1 + L2, L2)
 dev = sum(grad .* MP.get_h(state_grid) ./ 2)
 
 # `MP.cells_where` collects grid cells by predicate into a `MP.CellUnion` — a
-# cell-aligned set whose discretization is exact (a hole removes exactly its
-# cells, a target is recovered exactly). The obstacle test could also use
-# `MP.image_blocked_cells(swing_foot, grad, ...)` directly; it is spelled out
-# here to keep every ingredient visible.
+# cell-aligned set whose discretization is exact, so a hole removes exactly its
+# own cells and a target is recovered exactly. `MP.image_blocked_cells(g, L, …)`
+# packages this same Lipschitz pullback for any nonlinear image map; it is
+# spelled out here to keep every ingredient visible.
 removed = MP.cells_where(state_grid, X_box) do pos
     foot = swing_foot(SVector{4}(MP.get_coord_by_pos(state_grid, pos)))
     below_ground = foot[2] < -dev
@@ -56,6 +55,12 @@ removed = MP.cells_where(state_grid, X_box) do pos
     return below_ground || hits_obstacle
 end
 length(removed)
+
+MP.cells_on_segment(
+    state_grid,
+    SVector(0.0, 0.0, 0.0, 0.0),
+    SVector(0.2, 0.1, 0.0, 0.0), # a two-cell step along θ₁, one along θ₂
+)
 
 foothold = SVector(0.2, 0.0)
 
@@ -165,5 +170,28 @@ for (k, xk) in enumerate(xs)
     (k % 4 == 1 || k == length(xs)) && draw_robot!(fig, xk)
 end
 fig
+
+function system_plot!(fig, xk, uk)
+    Plots.plot!(fig, [-0.6, 0.6], [0.0, 0.0]; color = :black, lw = 1, label = "")
+    Plots.plot!(fig, obstacle; color = :black, alpha = 0.8, label = "")
+    Plots.scatter!(fig, [foothold[1]], [foothold[2]]; marker = :xcross, color = :green)
+    draw_robot!(fig, SVector{4}(xk))
+    Plots.plot!(fig; xlims = (-0.6, 0.6), ylims = (-0.05, 0.5))
+    return fig
+end
+
+anim = DI.animate_trajectory_dashboard(
+    system_plot!,
+    traj;
+    Δt = τ,
+    xdims = (3, 4),
+    udims = (3, 4),
+    xlabel_state = "θ3 (swing hip)",
+    ylabel_state = "θ4 (swing knee)",
+    xlabel_input = "u3 (swing hip)",
+    ylabel_input = "u4 (swing knee)",
+    title = "Certified footstep",
+)
+Plots.gif(anim; fps = 8)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
