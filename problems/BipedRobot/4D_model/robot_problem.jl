@@ -24,12 +24,14 @@ module RobotProblem
 
 using StaticArrays
 using MathematicalSystems
+import HybridSystems
 import LazySets
 import Plots
 
 using Dionysos
 const DI = Dionysos
 const UT = DI.Utils
+const ST = DI.System
 const PR = DI.Problem
 const MP = DI.Mapping
 
@@ -359,6 +361,11 @@ Discrete-time velocity-controlled system `x⁺ = x + tstep · u` (exact for
 carved (see [`carve_domain`](@ref)); the extra keyword arguments (`robot_urdf`,
 `Δt_simu`, `simulator`) are accepted for drop-in compatibility with the 6D/8D
 execution drivers and ignored — the model is purely kinematic.
+
+`continuous_time = true` returns the vector field `ẋ = u` instead of the one-step
+map, which is what the hybrid machinery needs: it integrates a mode's dynamics
+itself over the mode's time step. The two forms give the same abstraction, since
+integrating a constant field is exact.
 """
 function system(;
     robot_urdf = nothing,
@@ -371,6 +378,7 @@ function system(;
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
     removed_cells = nothing, # precomputed `infeasible_cells` CellUnion, to carve once
+    continuous_time::Bool = false,
 )
     _ = (robot_urdf, Δt_simu, simulator)
 
@@ -390,6 +398,18 @@ function system(;
     end
     U = LazySets.Hyperrectangle(; low = domain.u_lb, high = domain.u_ub)
 
+    if continuous_time
+        # `ẋ = u`. Identical to the discrete form after one step — RK4 of a
+        # constant field is exact — but the hybrid machinery integrates a mode's
+        # dynamics itself, so it needs the vector field rather than the map.
+        return MathematicalSystems.ConstrainedBlackBoxControlContinuousSystem(
+            (x, u) -> u,
+            4,
+            4,
+            X,
+            U,
+        )
+    end
     step(x, u) = x + tstep * u
     return MathematicalSystems.ConstrainedBlackBoxControlDiscreteSystem(step, 4, 4, X, U)
 end
@@ -454,6 +474,125 @@ function step_problem(
 end
 
 # ============================================================
+# Walking: the foot strike as a hybrid transition
+# ============================================================
+#
+# The state is *role-relative* — `(hip_stance, knee_stance, hip_swing, knee_swing)`
+# with the stance foot at the origin — so a step is one continuous swing phase
+# followed by a discrete strike. Writing the old swing chain from its own foot,
+# once that foot becomes the new stance foot, gives the reset exactly:
+#
+#     (θ₁,θ₂,θ₃,θ₄) ↦ (θ₃,θ₄,θ₁,θ₂)
+#
+# with no translation term in the state — the frame hop lives in the world, which
+# is not a state. Two consequences: the reset is an exact lattice automorphism
+# when the four axes share a grid step (so the abstraction stays exact through the
+# strike), and both stance phases are *the same system*, so they share one
+# abstraction. Which physical leg is planted is the mode, not a state.
+
+"""
+    LEG_SWAP
+
+The strike reset `(θ₁,θ₂,θ₃,θ₄) ↦ (θ₃,θ₄,θ₁,θ₂)`: the swing leg becomes the stance
+leg. An involution, and an exact grid automorphism when all four axes share a step.
+"""
+leg_swap(θ) = SVector(θ[3], θ[4], θ[1], θ[2])
+
+"""
+    strike_guard(X, state_grid, geometry; ground_band, min_advance, grounded_left_foot = true)
+
+Cells where the strike is available: the swing foot is within `ground_band` of the
+ground and at least `min_advance` ahead of the stance foot.
+
+A band, not the surface `foot_y = 0`: an equality guard has measure zero, so no
+cell lies *inside* it and the guard would discretize to nothing. `ground_band`
+should be at least the Lipschitz deviation of a cell
+([`swing_foot_deviation_bound`](@ref)), which is the resolution at which "the foot
+is on the ground" is decidable at all.
+"""
+function strike_guard(
+    X::LazySets.AbstractHyperrectangle,
+    state_grid::MP.GridFree,
+    geometry::Geometry;
+    ground_band::Real = swing_foot_deviation_bound(geometry, MP.get_h(state_grid) ./ 2),
+    min_advance::Real = 0.05,
+    grounded_left_foot::Bool = true,
+)
+    return MP.cells_where(state_grid, X) do pos
+        foot = swing_foot_position(
+            SVector{4}(MP.get_coord_by_pos(state_grid, pos)),
+            geometry,
+            grounded_left_foot,
+        )
+        return abs(foot[2]) <= ground_band && foot[1] >= min_advance
+    end
+end
+
+"""
+    walking_hybrid_system(concrete_system, guard)
+
+Two-mode hybrid system for walking: mode 1 = left foot planted, mode 2 = right
+foot planted, both carrying `concrete_system` — *the same object*, so the two
+modes share one abstraction — and both transitions guarded by `guard` with the
+[`leg_swap`](@ref) reset.
+
+The switch is offered to the synthesis rather than forced: the impossibility of
+sinking through the ground is already carried by the carved domain, and in
+quasi-static walking *when* to put the foot down is genuinely a control decision.
+"""
+function walking_hybrid_system(concrete_system, guard)
+    automaton = HybridSystems.GraphAutomaton(2)
+    HybridSystems.add_transition!(automaton, 1, 2, 1)
+    HybridSystems.add_transition!(automaton, 2, 1, 2)
+    strike = ST.GuardedResetMap(guard, leg_swap)
+    return HybridSystems.HybridSystem(
+        automaton,
+        [concrete_system, concrete_system],
+        [strike, strike],
+        [HybridSystems.AutonomousSwitching(), HybridSystems.AutonomousSwitching()],
+    )
+end
+
+"""
+    WalkingController(reach_controller, guard, state_grid)
+
+Chains footsteps: strike whenever the guard is reached, and otherwise follow
+`reach_controller`, the controller synthesized to *reach* the guard.
+
+Nothing more is needed to walk forever. The reachability controller is defined on
+every state from which the guard is reachable, and the recurrence certificate is
+exactly the statement that the post-strike image lands back in that set — so the
+same controller applies after every strike, with no re-synthesis. This is the 4-D
+counterpart of the 6D model's two-step walking controller: a phase wrapper around
+already-synthesized pieces.
+"""
+struct WalkingController{C, G, S} <: ST.AbstractContinuousController
+    reach_controller::C
+    guard::G
+    state_grid::S
+end
+
+ST.controller_kind(::WalkingController) = ST.StaticKind()
+
+# `aug_state` is the hybrid `(x, mode)`; the strike is offered as the switching
+# input labelled by the transition it takes.
+_in_guard(ctrl::WalkingController, aug_state) =
+    MP.get_pos_by_coord(ctrl.state_grid, SVector{4}(aug_state[1])) in ctrl.guard
+
+function ST.is_defined(ctrl::WalkingController, mem, aug_state)
+    _in_guard(ctrl, aug_state) && return true
+    return ST.is_defined(ctrl.reach_controller, mem, aug_state)
+end
+
+function ST.output_control(ctrl::WalkingController, mem, aug_state)
+    if _in_guard(ctrl, aug_state)
+        mode = aug_state[end]
+        return "SWITCH $mode -> $(mode == 1 ? 2 : 1)"
+    end
+    return ST.output_control(ctrl.reach_controller, mem, aug_state)
+end
+
+# ============================================================
 # Visualization
 # ============================================================
 
@@ -464,28 +603,99 @@ function robot_segments(θ::SVector{4}, geometry::Geometry, grounded_left_foot::
 end
 
 """
-    draw_robot!(fig, θ; geometry, grounded_left_foot)
+    draw_robot!(fig, θ; geometry, grounded_left_foot, origin, alpha)
 
-Draw the two legs (and the hip joint) of configuration `θ` on `fig`.
+Draw the two legs (and the hip joint) of configuration `θ` on `fig`, with the
+stance foot placed at `origin` — walking accumulates that offset step by step, so
+the robot advances across the plot instead of marching on the spot.
 """
 function draw_robot!(
     fig,
     θ::SVector{4};
     geometry::Geometry = default_geometry(),
     grounded_left_foot::Bool = true,
+    origin::Real = 0.0,
+    alpha::Real = 1.0,
 )
     (lx, ly), (rx, ry) = robot_segments(θ, geometry, grounded_left_foot)
-    Plots.plot!(fig, lx, ly; lw = 4, marker = :circle, color = :steelblue, label = "")
-    Plots.plot!(fig, rx, ry; lw = 4, marker = :circle, color = :indianred, label = "")
+    lx = lx .+ origin
+    rx = rx .+ origin
+    Plots.plot!(
+        fig,
+        lx,
+        ly;
+        lw = 4,
+        marker = :circle,
+        color = :steelblue,
+        alpha = alpha,
+        label = "",
+    )
+    Plots.plot!(
+        fig,
+        rx,
+        ry;
+        lw = 4,
+        marker = :circle,
+        color = :indianred,
+        alpha = alpha,
+        label = "",
+    )
     Plots.plot!(
         fig,
         [lx[end], rx[end]],
         [ly[end], ry[end]];
         lw = 4,
         color = :gray,
+        alpha = alpha,
         label = "",
     )
     return fig
+end
+
+"""
+    physical_pose(θ, left_stance) -> (θ_drawn, grounded_left_foot)
+
+Arguments for the kinematics from a role-relative state and the physical stance
+side.
+
+The state always carries the stance leg in `θ[1:2]`, whereas
+[`cartesian_coordinates`](@ref) reads the stance from `θ[3:4]` when the *right*
+foot is planted. Passing the state through unchanged would therefore plant the
+swinging leg every other step — the posture comes out mirrored, and the walk
+looks like it steps backwards half the time. Swapping the pairs realigns the two
+conventions.
+"""
+physical_pose(θ::SVector{4}, left_stance::Bool) =
+    left_stance ? (θ, true) : (leg_swap(θ), false)
+
+"""
+    walk_world_offsets(aug_states, inputs, geometry)
+
+Cumulative world position of the stance foot along a walking trajectory: the
+frame hops forward by the landing position of the swing foot at every strike.
+The offset is *driver-side bookkeeping*, not a state — the model is
+stance-relative, which is exactly why one abstraction serves every step.
+
+Returns one offset per state, and the physical `grounded_left_foot` flag per
+state (it alternates at each strike, so the legs keep their identity on screen).
+"""
+function walk_world_offsets(aug_states, inputs, geometry::Geometry = default_geometry())
+    offsets = zeros(length(aug_states))
+    left_stance = trues(length(aug_states))
+    offset = 0.0
+    left = true
+    for k in eachindex(aug_states)
+        offsets[k] = offset
+        left_stance[k] = left
+        k <= length(inputs) || continue
+        if inputs[k] isa AbstractString
+            # The strike: the new stance foot is where the swing foot just landed.
+            foot = swing_foot_position(SVector{4}(aug_states[k][1]), geometry, true)
+            offset += foot[1]
+            left = !left
+        end
+    end
+    return offsets, left_stance
 end
 
 """
