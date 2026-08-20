@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Velocity-controlled biped · Dionysos</title><meta name="title" content="Velocity-controlled biped · Dionysos"/><meta property="og:title" content="Velocity-controlled biped · Dionysos"/><meta property="twitter:title" content="Velocity-controlled biped · Dionysos"/><meta name="description" content="Documentation for Dionysos."/><meta property="og:description" content="Documentation for Dionysos."/><meta property="twitter:description" content="Documentation for Dionysos."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/documentercitations/citations-hover.css" rel="stylesheet" type="text/css"/><link href="../../assets/documentercitations/citations.css" rel="stylesheet" type="text/css"/><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/><script src="../../assets/documentercitations/citations-data.js"></script><script src="../../assets/documentercitations/citations-hover.js"></script><script src="../../assets/documentercitations/citations-backlinks.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="Dionysos logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="Dionysos logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Dionysos</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/abstraction-based-control/">Abstraction-based control</a></li><li><a class="tocitem" href="../../manual/overview/">Overview</a></li><li><a class="tocitem" href="../../manual/discrete-algorithms/">Discrete synthesis algorithms</a></li></ul></li><li><a class="tocitem" href="../getting_started/">Getting Started</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/">Overview</a></li><li><a class="tocitem" href="../path_planning/">Path planning</a></li><li><a class="tocitem" href="../unicycle_robot/">Unicycle robot</a></li><li><a class="tocitem" href="../dcdc_converter/">DC-DC converter</a></li><li><a class="tocitem" href="../thermostat/">Thermostat</a></li><li><a class="tocitem" href="../integrator_ltl/">Integrator</a></li><li class="is-active"><a class="tocitem" href>Velocity-controlled biped</a><ul class="internal"><li><a class="tocitem" href="#The-model-and-its-assumptions"><span>The model and its assumptions</span></a></li><li><a class="tocitem" href="#Forward-kinematics"><span>Forward kinematics</span></a></li><li><a class="tocitem" href="#Discretization:-an-abstraction-that-is-a-bisimulation"><span>Discretization: an abstraction that is a bisimulation</span></a></li><li><a class="tocitem" href="#Physical-constraints,-pulled-back-to-joint-space"><span>Physical constraints, pulled back to joint space</span></a></li><li><a class="tocitem" href="#The-objective:-place-the-swing-foot-on-the-target-foothold"><span>The objective: place the swing foot on the target foothold</span></a></li><li><a class="tocitem" href="#The-JuMP-model"><span>The JuMP model</span></a></li><li><a class="tocitem" href="#The-acceleration-constraint"><span>The acceleration constraint</span></a></li><li><a class="tocitem" href="#Visualizing-the-footstep"><span>Visualizing the footstep</span></a></li><li><a class="tocitem" href="#What-is-certified,-and-what-is-not"><span>What is certified, and what is not</span></a></li></ul></li></ul></li><li><span class="tocitem">Solver families</span><ul><li><a class="tocitem" href="../gol_lazar_belta/">Gol–Lazar–Belta</a></li><li><a class="tocitem" href="../lazy_ellipsoids_abstraction/">Lazy ellipsoids</a></li><li><a class="tocitem" href="../trajectory_certification/">Trajectory certification</a></li><li><a class="tocitem" href="../state_feedback_pwa/">State-feedback PWA</a></li></ul></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../reference/Dionysos/">Dionysos</a></li><li><a class="tocitem" href="../../reference/Mapping/">Mapping</a></li><li><a class="tocitem" href="../../reference/Optim/">Optim</a></li><li><a class="tocitem" href="../../reference/Problem/">Problem</a></li><li><a class="tocitem" href="../../reference/Symbolic/">Symbolic</a></li><li><a class="tocitem" href="../../reference/System/">System</a></li><li><a class="tocitem" href="../../reference/Utils/">Utils</a></li><li><a class="tocitem" href="../../reference/Wrapper/">Wrapper</a></li></ul></li><li><span class="tocitem">Developer Docs</span><ul><li><a class="tocitem" href="../../developers/setup/">Set up</a></li><li><a class="tocitem" href="../../developers/conventions/">Conventions</a></li><li><a class="tocitem" href="../../developers/examples/">Adding an example</a></li><li><a class="tocitem" href="../../developers/git/">Git</a></li></ul></li><li><a class="tocitem" href="../../bibliography/">Bibliography</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Velocity-controlled biped</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Velocity-controlled biped</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/dionysos-dev/Dionysos.jl/blob/master/docs/src/examples/jump/biped_velocity_control.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Velocity-controlled-biped:-a-certified-footstep"><a class="docs-heading-anchor" href="#Velocity-controlled-biped:-a-certified-footstep">Velocity-controlled biped: a certified footstep</a><a id="Velocity-controlled-biped:-a-certified-footstep-1"></a><a class="docs-heading-anchor-permalink" href="#Velocity-controlled-biped:-a-certified-footstep" title="Permalink"></a></h1><h2 id="The-model-and-its-assumptions"><a class="docs-heading-anchor" href="#The-model-and-its-assumptions">The model and its assumptions</a><a id="The-model-and-its-assumptions-1"></a><a class="docs-heading-anchor-permalink" href="#The-model-and-its-assumptions" title="Permalink"></a></h2><p>The robot is a planar biped: two legs (hip + knee joints each), the stance foot pinned at the origin. The <strong>state</strong> is the vector of the four joint angles <code>x = (θ₁, θ₂, θ₃, θ₄)</code> (stance hip, stance knee, swing hip, swing knee); every Cartesian quantity follows by forward kinematics. The <strong>input</strong> is the vector of commanded joint <em>velocities</em>, and the dynamics are the pure integrator</p><p class="math-container">\[\dot{x} = u .\]</p><p>This is a deliberate change of abstraction level compared to the 6-D/8-D torque-controlled models of the same robot: instead of certifying the multibody dynamics, we <strong>delegate the torque level to the motors&#39; low-level velocity controllers</strong> and certify the kinematic layer above them. The assumptions are:</p><ol><li>the low-level controllers track the commanded velocity within the sampling period. A bounded tracking error <code>ε</code> can later be re-imported as a disturbance: the abstraction then stops being a <strong>bisimulation</strong> and becomes an alternating simulation with a quantified margin — still sound, no longer exact;</li><li>the motion is quasi-static (balance is not part of the specification) and the stance foot stays pinned.</li></ol><p>The payoff: the state dimension halves (angles only — velocities are now inputs) and <code>f(x, u) = x + τ·u</code> is exact.</p><pre><code class="language-julia hljs">using StaticArrays
+using JuMP
+using Symbolics, MathOptSymbolicAD # compile the ∂ dynamics of the front-end
+using Dionysos
+import LazySets
+import Plots
+
+const DI = Dionysos
+const MP = DI.Mapping
+const ST = DI.System</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.System</code></pre><h2 id="Forward-kinematics"><a class="docs-heading-anchor" href="#Forward-kinematics">Forward kinematics</a><a id="Forward-kinematics-1"></a><a class="docs-heading-anchor-permalink" href="#Forward-kinematics" title="Permalink"></a></h2><p>Segment lengths follow the canonical robot constants. The swing-foot position is the only map the constraints need; the plotting helper reuses the intermediate joints.</p><pre><code class="language-julia hljs">const L1 = 0.20125 # hip → knee
+const L2 = 0.172   # knee → foot
+
+function joint_positions(θ::SVector{4})
+    knee_s = L2 * SVector(-sin(θ[1] + θ[2]), cos(θ[1] + θ[2]))     # stance knee
+    hip = knee_s + L1 * SVector(-sin(θ[1]), cos(θ[1]))
+    knee_w = hip + L1 * SVector(sin(θ[3]), -cos(θ[3]))             # swing knee
+    foot = knee_w + L2 * SVector(sin(θ[3] + θ[4]), -cos(θ[3] + θ[4]))
+    return (; knee_s, hip, knee_w, foot)
+end
+
+swing_foot(θ::SVector{4}) = joint_positions(θ).foot</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">swing_foot (generic function with 1 method)</code></pre><h2 id="Discretization:-an-abstraction-that-is-a-bisimulation"><a class="docs-heading-anchor" href="#Discretization:-an-abstraction-that-is-a-bisimulation">Discretization: an abstraction that is a bisimulation</a><a id="Discretization:-an-abstraction-that-is-a-bisimulation-1"></a><a class="docs-heading-anchor-permalink" href="#Discretization:-an-abstraction-that-is-a-bisimulation" title="Permalink"></a></h2><p>Pick the input grid so that one sampling period moves the state by a whole number of cells: <code>τ · du = dx</code>. Every admissible input then translates the state grid exactly onto itself, so the reach set of a cell <em>is</em> a cell — no over-approximation, no spurious transition. The abstraction is then a <strong>bisimulation</strong> of the concrete system rather than merely an alternating simulation, which is what makes the <code>CENTER_SIMULATION</code> approximation mode legitimate here: propagating the cell centre is unsound in general, and exact under this choice of grids.</p><p>(&quot;Commensurable grids&quot; below is the ordinary mathematical sense of the word — the ratio <code>dx / (τ·du)</code> is an integer. The term of art is the <em>result</em>: bisimulation.)</p><pre><code class="language-julia hljs">dx, τ = 0.1, 0.1
+du = dx / τ                       # one speed notch; u ∈ {-du, 0, du} per joint
+state_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(dx, dx, dx, dx))
+input_grid = MP.GridFree(SVector(0.0, 0.0, 0.0, 0.0), SVector(du, du, du, du))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dionysos.Mapping.GridFree{4, Float64}([0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0])</code></pre><h2 id="Physical-constraints,-pulled-back-to-joint-space"><a class="docs-heading-anchor" href="#Physical-constraints,-pulled-back-to-joint-space">Physical constraints, pulled back to joint space</a><a id="Physical-constraints,-pulled-back-to-joint-space-1"></a><a class="docs-heading-anchor-permalink" href="#Physical-constraints,-pulled-back-to-joint-space" title="Permalink"></a></h2><p>The constraints are not on the state: they are on the swing foot, a nonlinear image of it,</p><p class="math-container">\[g : \mathbb{R}^4 \to \mathbb{R}^2, \qquad g(θ) = \text{swing foot position}.\]</p><p>The abstraction, however, reasons about <em>cells</em>. So each constraint must be pulled back: a grid cell is dropped from the state space when some configuration inside it could violate the constraint. Testing the cell centre alone would be unsound — the obstacle preimage is a thin shell that crosses cells without containing their centres, and a trajectory would then walk straight through it.</p><h3 id="The-Lipschitz-bound"><a class="docs-heading-anchor" href="#The-Lipschitz-bound">The Lipschitz bound</a><a id="The-Lipschitz-bound-1"></a><a class="docs-heading-anchor-permalink" href="#The-Lipschitz-bound" title="Permalink"></a></h3><p>What makes a centre test sound is a bound on how far <code>g</code> can move inside one cell. For a cell of half-widths <code>h/2</code> centred at <code>c</code>,</p><p class="math-container">\[\|g(θ) - g(c)\|_\infty \;\le\; \sum_i L_i \, \frac{h_i}{2} \;=:\; \mathrm{dev},
+\qquad L_i = \sup \left| \frac{\partial g}{\partial θ_i} \right| .\]</p><p>The <code>Lᵢ</code> are read off the kinematic chain, no differentiation required — each joint rotates everything below it, so the foot moves at most the length of that sub-chain per radian:</p><ul><li><code>θ₁</code> (stance hip) rotates both stance segments, lever <code>L1 + L2</code>;</li><li><code>θ₂</code> (stance knee) rotates only the stance shank, lever <code>L2</code>;</li><li><code>θ₃</code> (swing hip) rotates both swing segments, lever <code>L1 + L2</code>;</li><li><code>θ₄</code> (swing knee) rotates only the swing shank, lever <code>L2</code>.</li></ul><p>Hence <code>L = (L1+L2, L2, L1+L2, L2)</code>, and the whole leg being rigid below each joint, the bound is tight up to the <code>∞</code>-norm relaxation.</p><h3 id="Removing-cells-soundly"><a class="docs-heading-anchor" href="#Removing-cells-soundly">Removing cells soundly</a><a id="Removing-cells-soundly-1"></a><a class="docs-heading-anchor-permalink" href="#Removing-cells-soundly" title="Permalink"></a></h3><p>With that bound, two constraints are carved out of the state space:</p><ul><li><strong>the ground</strong>, <code>g(θ)_y ≥ 0</code> — active along the <em>entire</em> swing, since the foot travels at floor level from behind the robot to the foothold. It is a closed contact constraint (the target foothold lies <em>on</em> the floor), so a cell is removed only when every configuration in it is surely below ground, <code>g(c)_y &lt; -\mathrm{dev}</code>. Boundary cells are deliberately kept, accurate to the grid resolution;</li><li><strong>a Cartesian obstacle</strong> <code>O</code> — a cell is removed as soon as <em>some</em> configuration in it might reach it:<p class="math-container">\[\text{remove } C \iff \big( g(c) \oplus [-\mathrm{dev}, \mathrm{dev}]^2 \big) \cap O \neq \emptyset .\]</p>Contrapositive, which is the certificate: a <strong>kept</strong> cell satisfies <code>g(θ) ∉ O</code> for <em>every</em> <code>θ</code> in it.</li></ul><p>The margin is also an honest feasibility detector. At <code>dx = 0.1</code> it is <code>dev ≈ 5.5 cm</code>; an obstacle sitting under the swing path then provably disconnects the free space, and no controller exists at this resolution — stepping over one needs a finer grid and a wider joint range (that run is <code>examples/BipedRobot/biped_4d_velocity.jl</code>, ≈ 2.5 M cells). Here the obstacle is placed just behind the start, so the run stays a few seconds; the ground, which is the constraint that actually shapes this motion, is carved all the same.</p><pre><code class="language-julia hljs">obstacle =
+    LazySets.VPolygon([SVector(-0.39, 0.0), SVector(-0.35, 0.02), SVector(-0.31, 0.0)])
+
+x_bar = 0.6
+X_box = LazySets.Hyperrectangle(;
+    low = SVector(-x_bar, -x_bar, -x_bar, -x_bar),
+    high = SVector(x_bar, x_bar, x_bar, x_bar),
+)
+
+grad = SVector(L1 + L2, L2, L1 + L2, L2)
+dev = sum(grad .* MP.get_h(state_grid) ./ 2)
+
+# `MP.cells_where` collects grid cells by predicate into a `MP.CellUnion` — a
+# cell-aligned set whose discretization is exact, so a hole removes exactly its
+# own cells and a target is recovered exactly. `MP.image_blocked_cells(g, L, …)`
+# packages this same Lipschitz pullback for any nonlinear image map; it is
+# spelled out here to keep every ingredient visible.
+removed = MP.cells_where(state_grid, X_box) do pos
+    foot = swing_foot(SVector{4}(MP.get_coord_by_pos(state_grid, pos)))
+    below_ground = foot[2] &lt; -dev
+    hits_obstacle =
+        !Dionysos.Utils.is_disjoint(
+            LazySets.Hyperrectangle(foot, SVector(dev, dev)),
+            obstacle,
+        )
+    return below_ground || hits_obstacle
+end
+length(removed)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1774</code></pre><h3 id="Between-two-samples"><a class="docs-heading-anchor" href="#Between-two-samples">Between two samples</a><a id="Between-two-samples-1"></a><a class="docs-heading-anchor-permalink" href="#Between-two-samples" title="Permalink"></a></h3><p>Carving certifies the <em>cells</em>; the abstraction only ever checks the state at sampling instants. What forbids the trajectory from cutting a corner <strong>between</strong> two samples is a second, independent ingredient — and the two together are what make the run sound.</p><p>For <code>ẋ = u</code> the inter-sample trajectory is the straight segment joining two consecutive states. Two regimes:</p><ul><li><strong>one cell per axis per step</strong> (<code>τ·|u| ≤ h</code>, the case below): the segment cannot leave the union of the source and target cells, both certified, so nothing more is needed. <code>MP.intersample_safe_time_step</code> returns the largest <code>τ</code> respecting this;</li><li><strong>larger inputs</strong>, which move several cells per step: the segment then crosses intermediate cells that no endpoint check ever looks at. <code>MP.cells_on_segment</code> enumerates exactly those crossed cells, and <code>MP.swept_input_filter</code> keeps a transition only when <em>all</em> of them are admissible. That is what lets the input alphabet carry several speeds without giving up soundness.</li></ul><p>Bounding <code>τ</code> by the obstacle <em>width</em> instead — the natural first idea — is not sound: it prevents stepping fully over an obstacle, yet still allows grazing a corner between two free endpoints.</p><pre><code class="language-julia hljs">MP.cells_on_segment(
+    state_grid,
+    SVector(0.0, 0.0, 0.0, 0.0),
+    SVector(0.2, 0.1, 0.0, 0.0), # a two-cell step along θ₁, one along θ₂
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">4-element Vector{NTuple{4, Int64}}:
+ (0, 0, 0, 0)
+ (1, 0, 0, 0)
+ (1, 1, 0, 0)
+ (2, 1, 0, 0)</code></pre><h2 id="The-objective:-place-the-swing-foot-on-the-target-foothold"><a class="docs-heading-anchor" href="#The-objective:-place-the-swing-foot-on-the-target-foothold">The objective: place the swing foot on the target foothold</a><a id="The-objective:-place-the-swing-foot-on-the-target-foothold-1"></a><a class="docs-heading-anchor-permalink" href="#The-objective:-place-the-swing-foot-on-the-target-foothold" title="Permalink"></a></h2><p>The target is the set of configurations whose swing foot lies on the foothold — a 2-D manifold in the 4-D joint space. Sweeping the stance angles and solving the swing leg&#39;s two-link inverse kinematics (elbow-down) enumerates it; quantizing to grid cells (deduplicated) gives the target set.</p><pre><code class="language-julia hljs">foothold = SVector(0.2, 0.0)
+
+target_cells = Set{NTuple{4, Int}}()
+for θ1 in range(-x_bar, x_bar; step = dx / 3), θ2 in range(-x_bar, x_bar; step = dx / 3)
+    hip = joint_positions(SVector(θ1, θ2, 0.0, 0.0)).hip
+    d = foothold - hip
+    c4 = (d[1]^2 + d[2]^2 - L1^2 - L2^2) / (2 * L1 * L2)
+    -1.0 &lt;= c4 &lt;= 1.0 || continue
+    θ4 = -acos(c4)
+    θ3 = atan(d[1], -d[2]) - atan(L2 * sin(θ4), L1 + L2 * cos(θ4))
+    θ = SVector(θ1, θ2, θ3, θ4)
+    all(abs.(θ) .&lt;= x_bar) || continue
+    push!(target_cells, MP.get_pos_by_coord(state_grid, θ))
+end
+target_set = MP.CellUnion(state_grid, target_cells)
+length(target_cells)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">76</code></pre><h2 id="The-JuMP-model"><a class="docs-heading-anchor" href="#The-JuMP-model">The JuMP model</a><a id="The-JuMP-model-1"></a><a class="docs-heading-anchor-permalink" href="#The-JuMP-model" title="Permalink"></a></h2><p>Everything above becomes a few declarative lines: variables with bounds, the integrator dynamics through <code>∂</code>, the carved region through <code>∉</code>, the target through <code>Final</code>, and the discretization through solver attributes.</p><pre><code class="language-julia hljs">x0 = SVector(0.2, 0.0, -0.2, 0.0)
+
+model = Model(Dionysos.Optimizer)
+@variable(model, -x_bar &lt;= x[i = 1:4] &lt;= x_bar, start = x0[i])
+@variable(model, -du &lt;= u[1:4] &lt;= du)
+@constraint(model, [i = 1:4], ∂(x[i]) == u[i])
+@constraint(model, x ∉ removed)
+@constraint(model, x in Final(target_set))
+
+set_attribute(model, &quot;time_step&quot;, τ)
+set_attribute(model, &quot;state_grid&quot;, state_grid)
+set_attribute(model, &quot;input_grid&quot;, input_grid)
+set_attribute(
+    model,
+    &quot;approx_mode&quot;,
+    DI.Optim.Abstraction.UniformGridAbstraction.CENTER_SIMULATION,
+)
+
+optimize!(model)
+get_attribute(model, &quot;success&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">true</code></pre><p>Closed loop of this unconstrained controller, to compare against the slew-rate-limited one below:</p><pre><code class="language-julia hljs">controller_free = get_attribute(model, &quot;concrete_controller&quot;)
+discrete_time_system = get_attribute(model, &quot;discrete_time_system&quot;)
+
+reached(xk) = xk ∈ target_set
+traj_free = ST.get_closed_loop_trajectory(
+    discrete_time_system,
+    controller_free,
+    x0,
+    100;
+    stopping = reached,
+)
+xs_free = collect(ST.states(traj_free))
+(length(xs_free) - 1, reached(xs_free[end]))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(5, true)</code></pre><h2 id="The-acceleration-constraint"><a class="docs-heading-anchor" href="#The-acceleration-constraint">The acceleration constraint</a><a id="The-acceleration-constraint-1"></a><a class="docs-heading-anchor-permalink" href="#The-acceleration-constraint" title="Permalink"></a></h2><p>Because the inputs are velocities, bounding the difference between <em>consecutive</em> inputs is an <strong>acceleration (slew-rate) limit</strong> — precisely what makes the command trackable by the motors, closing the loop with assumption 1. The value function of this constrained synthesis lives on (state, input) <em>pairs</em> (the classical turn-restricted shortest path), and the controller is dynamic: its memory is the previously played input. (<code>OPDS.BoundedInputVariation</code>.) Here: at most one speed notch of change per joint per step, starting from and ramping down to rest.</p><pre><code class="language-julia hljs">rest = SVector(0.0, 0.0, 0.0, 0.0)
+slew = DI.Optim.DiscreteSystems.BoundedInputVariation(
+    (u1, u2) -&gt; maximum(abs.(u1 - u2)),
+    du;
+    target_input = rest,
+    initial_input = rest,
+)
+set_attribute(model, &quot;bounded_input_variation&quot;, slew)
+optimize!(model)
+get_attribute(model, &quot;success&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">true</code></pre><p>Closed loop of the constrained controller — a few steps longer than the unconstrained one: the difference is the acceleration ramps.</p><pre><code class="language-julia hljs">controller = get_attribute(model, &quot;concrete_controller&quot;)
+traj = ST.get_closed_loop_trajectory(
+    discrete_time_system,
+    controller,
+    x0,
+    100;
+    stopping = reached,
+)
+xs = collect(ST.states(traj))
+us = collect(ST.inputs(traj))
+(length(xs) - 1, reached(xs[end]))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(5, true)</code></pre><pre><code class="language-julia hljs">maximum(maximum(abs.(us[k + 1] - us[k])) for k in 1:(length(us) - 1))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>The measured maximum input variation sits exactly at the bound: the constraint is active and satisfied along the whole run.</p><h2 id="Visualizing-the-footstep"><a class="docs-heading-anchor" href="#Visualizing-the-footstep">Visualizing the footstep</a><a id="Visualizing-the-footstep-1"></a><a class="docs-heading-anchor-permalink" href="#Visualizing-the-footstep" title="Permalink"></a></h2><pre><code class="language-julia hljs">function draw_robot!(fig, θ::SVector{4})
+    p = joint_positions(θ)
+    Plots.plot!(
+        fig,
+        [0.0, p.knee_s[1], p.hip[1]],
+        [0.0, p.knee_s[2], p.hip[2]];
+        lw = 4,
+        marker = :circle,
+        color = :steelblue,
+        label = &quot;&quot;,
+    )
+    Plots.plot!(
+        fig,
+        [p.hip[1], p.knee_w[1], p.foot[1]],
+        [p.hip[2], p.knee_w[2], p.foot[2]];
+        lw = 4,
+        marker = :circle,
+        color = :indianred,
+        label = &quot;&quot;,
+    )
+    return fig
+end
+
+fig = Plots.plot(; aspect_ratio = :equal, legend = false, xlims = (-0.6, 0.6))
+Plots.plot!(fig, [-0.6, 0.6], [0.0, 0.0]; color = :black, lw = 1, label = &quot;&quot;)
+Plots.plot!(fig, obstacle; color = :black, alpha = 0.8, label = &quot;&quot;)
+Plots.scatter!(fig, [foothold[1]], [foothold[2]]; marker = :xcross, color = :green)
+for (k, xk) in enumerate(xs)
+    (k % 4 == 1 || k == length(xs)) &amp;&amp; draw_robot!(fig, xk)
+end
+fig</code></pre><img src="4a7cf6cd.svg" alt="Example block output"/><p>The blue stance leg stays planted, the red swing leg travels from behind to the green foothold.</p><p>The same trajectory as an animation, with the state and input panels beside it — the swing angles <code>(θ₃, θ₄)</code> and the velocities commanded to them:</p><pre><code class="language-julia hljs">function system_plot!(fig, xk, uk)
+    Plots.plot!(fig, [-0.6, 0.6], [0.0, 0.0]; color = :black, lw = 1, label = &quot;&quot;)
+    Plots.plot!(fig, obstacle; color = :black, alpha = 0.8, label = &quot;&quot;)
+    Plots.scatter!(fig, [foothold[1]], [foothold[2]]; marker = :xcross, color = :green)
+    draw_robot!(fig, SVector{4}(xk))
+    Plots.plot!(fig; xlims = (-0.6, 0.6), ylims = (-0.05, 0.5))
+    return fig
+end
+
+anim = DI.animate_trajectory_dashboard(
+    system_plot!,
+    traj;
+    Δt = τ,
+    xdims = (3, 4),
+    udims = (3, 4),
+    xlabel_state = &quot;θ3 (swing hip)&quot;,
+    ylabel_state = &quot;θ4 (swing knee)&quot;,
+    xlabel_input = &quot;u3 (swing hip)&quot;,
+    ylabel_input = &quot;u4 (swing knee)&quot;,
+    title = &quot;Certified footstep&quot;,
+)
+Plots.gif(anim; fps = 8)</code></pre><img src="1f25a25b.gif" alt="Example block output"/><h2 id="What-is-certified,-and-what-is-not"><a class="docs-heading-anchor" href="#What-is-certified,-and-what-is-not">What is certified, and what is not</a><a id="What-is-certified,-and-what-is-not-1"></a><a class="docs-heading-anchor-permalink" href="#What-is-certified,-and-what-is-not" title="Permalink"></a></h2><p><strong>Certified</strong>: the closed-loop joint trajectory reaches the target foothold manifold, never drives the swing foot into the obstacle or below the ground — at sampling instants <em>and</em> in between — and respects the input slew-rate limit with rest-to-rest ramps.</p><p><strong>Assumed</strong>: the low-level velocity tracking (assumption 1) and the quasi-static regime (assumption 2). Quantifying the tracking error and re-importing it as a bounded disturbance is the natural next step — the growth-bound machinery accepts it directly, at the price of an abstraction that is no longer a bisimulation but remains sound.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../integrator_ltl/">« Integrator</a><a class="docs-footer-nextpage" href="../gol_lazar_belta/">Gol–Lazar–Belta »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 20 August 2026 16:31">Thursday 20 August 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
