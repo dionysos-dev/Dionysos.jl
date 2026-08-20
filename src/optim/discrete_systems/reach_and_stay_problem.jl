@@ -55,7 +55,9 @@ end
 # ------------------------------------------------------------
 # Maximal controlled invariant subset of safe_cells ∪ floor_cells.
 #
-# `floor_cells` are protected from removal. In Algorithm (3),
+# `floor_cells` are protected from removal. In Algorithm 3 of
+# Li & Liu, "Robustly Complete Synthesis of Memoryless Controllers for
+# Nonlinear Systems with Reach-and-Stay Specifications" (IEEE TAC, 2020),
 # this is used with:
 #
 #     safe_cells  = Ω
@@ -152,12 +154,17 @@ function _add_one_control_to_target!(contr, autom, cells::BitVector, target_set:
 end
 
 # ------------------------------------------------------------
-# ◇□ (the default): Algorithm (3) from the paper.
+# ◇□ (the default): Algorithm 3 of Li & Liu, "Robustly Complete Synthesis of Memoryless
+# Controllers for Nonlinear Systems with Reach-and-Stay Specifications" (IEEE TAC, 2020).
 #
 # The nested μ/ν fixed point. The inner ν recomputes the invariant inside `Ω ∪ Y_i` — the
 # target *together with* what is already winning — so a target cell may be certified by
 # leaving the target into won territory and coming back. Finitely many such departures are
 # allowed, which is exactly what ◇□ means and why this winning set is the larger one.
+#
+# The controller comes out *memoryless* — the paper's title — because of when inputs are
+# chosen, not because of the fixed point itself: `_add_one_control_to_target!` fixes one
+# input per cell at the iteration where that cell is first won, and never revises it.
 # ------------------------------------------------------------
 
 function _solve_eventually_always(autom, T, S, I, early_stop)
