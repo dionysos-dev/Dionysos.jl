@@ -1,3 +1,7 @@
+```@meta
+CurrentModule = Dionysos.Optim.DiscreteSystems
+```
+
 # Discrete synthesis algorithms
 
 Once a system has been abstracted into a finite automaton, the control problem becomes a
