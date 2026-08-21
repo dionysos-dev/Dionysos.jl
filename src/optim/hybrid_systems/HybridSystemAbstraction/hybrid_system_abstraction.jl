@@ -25,6 +25,7 @@ include("hybrid_symbolic_builder.jl")
 include("alternating_simulation_problem.jl")
 include("optimal_control_problem.jl")
 include("safety_problem.jl")
+include("reach_and_stay_problem.jl")
 
 """
     Optimizer{T} <: Dionysos.Optim.AbstractionControlOptimizer
@@ -57,6 +58,7 @@ Return a fresh control sub-solver matching the type of the concrete `problem`. S
 """
 control_solver_for(::PR.OptimalControlProblem) = OptimizerOptimalControlProblem()
 control_solver_for(::PR.SafetyProblem) = OptimizerSafetyProblem()
+control_solver_for(::PR.ReachAndStayProblem) = OptimizerReachAndStayProblem()
 control_solver_for(problem) = error("Unsupported problem type: $(typeof(problem))")
 
 function OP.set_concrete_problem!(

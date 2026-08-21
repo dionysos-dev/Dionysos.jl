@@ -96,6 +96,7 @@ function build_abstract_problem(
     abstract_initial_set = [q0]
 
     abstract_safe_set = SY.states_satisfying(abstract_system, concrete_problem.safe_set)
+    _check_nonempty(abstract_safe_set, "safe")
 
     return PR.SafetyProblem(
         SY.get_automaton(abstract_system),

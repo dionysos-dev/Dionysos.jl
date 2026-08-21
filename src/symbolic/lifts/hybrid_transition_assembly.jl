@@ -166,8 +166,15 @@ function build_symbolic_automaton(
     mode_models,
     input_mapping::GlobalInputMap,
 )
-    @assert !isempty(transition_list) "Transition list cannot be empty"
     @assert !isempty(mode_models) "Mode models cannot be empty"
+    # An assertion here reports only that a vector is empty. The cause is always upstream — every
+    # mode discretized to nothing, or every guard and every mode transition was dropped — and a
+    # model that gets this far deserves to be told which.
+    isempty(transition_list) && error(
+        "The abstraction has no transitions at all: no mode produced a successor and no switch " *
+        "survived its guard. Check that each mode's `state_grid` and `time_step` give the " *
+        "dynamics room to move a cell, and that the guards intersect their source mode.",
+    )
 
     estimated_states = sum(get_n_state(m) for m in mode_models)
 

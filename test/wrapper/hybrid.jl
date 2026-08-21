@@ -265,10 +265,18 @@ end
         set_attribute(m, "time_step", 0.5)
         set_attribute(m, "approx_mode", AB.UniformGridAbstraction.CENTER_SIMULATION)
     end
+    # Wide enough to contain whole cells: on a 0.5 grid an `INNER` target needs a cell centre at
+    # least half a step inside it, and `[1.0, 1.5]²` — which this used to ask for — admits only a
+    # centre at 1.25, which is not a grid point. The target discretized to nothing and the test
+    # still passed, because it only checks that the abstraction was built.
     @constraint(
         b,
-        [x, y] in
-        Final(LazySets.Hyperrectangle(; low = SVector(1.0, 1.0), high = SVector(1.5, 1.5)))
+        [x, y] in Final(
+            LazySets.Hyperrectangle(;
+                low = SVector(0.75, 0.75),
+                high = SVector(1.75, 1.75),
+            ),
+        )
     )
 
     add_transition!(model, a => b) do t
@@ -416,6 +424,110 @@ end
 
     traj = Dionysos.simulate(model, (SVector(0.0), 1); nsteps = 40)
     @test all(x ∈ safe for x in ST.states(traj))
+end
+
+@testset "a mode without an `Always` set is unconstrained, not forbidden" begin
+    # Writing `Always` on one mode used to leave every other mode out of the `HybridSpec`
+    # entirely, and an absent mode does not satisfy the spec — so the specification silently
+    # outlawed every mode it was not written on. A mode nobody constrained is now bounded by its
+    # own state set instead.
+    band = LazySets.Hyperrectangle(; low = SVector(18.0), high = SVector(24.0))
+
+    model, off, _on = thermostat_model()
+    @constraint(off, [model[:T]] in Always(band))
+    problem, _ = lowered(model)
+
+    @test problem isa PR.SafetyProblem
+    @test sort(collect(keys(problem.safe_set.per_mode))) == [1, 2]
+    @test PR.satisfies(problem.safe_set, SVector(20.0), 1)
+    @test PR.satisfies(problem.safe_set, SVector(20.0), 2)     # was `false`
+    # The mode that *was* constrained still is: the band, not its whole 17–25 range.
+    @test !PR.satisfies(problem.safe_set, SVector(17.5), 1)
+    # The unconstrained mode keeps its own bounds, so it is not unbounded either.
+    @test !PR.satisfies(problem.safe_set, SVector(26.0), 2)
+end
+
+@testset "`EventuallyAlways` on a mode reaches the solver" begin
+    # It used to be parsed onto the mode and then dropped: `build_hybrid_problem` read only
+    # `FINAL` and `ALWAYS`, so a model carrying both `Always` and `EventuallyAlways` lowered to
+    # the identical `SafetyProblem` and was solved for half its specification.
+    band = LazySets.Hyperrectangle(; low = SVector(17.5), high = SVector(24.5))
+    settle = LazySets.Hyperrectangle(; low = SVector(20.0), high = SVector(22.0))
+
+    safety, _ = lowered(let (m, off, on) = thermostat_model()
+        for k in (off, on)
+            @constraint(k, [m[:T]] in Always(band))
+        end
+        m
+    end)
+    @test safety isa PR.SafetyProblem
+
+    ras, _ = lowered(let (m, off, on) = thermostat_model()
+        for k in (off, on)
+            @constraint(k, [m[:T]] in Always(band))
+            @constraint(k, [m[:T]] in EventuallyAlways(settle))
+        end
+        m
+    end)
+    @test ras isa PR.ReachAndStayProblem
+    @test ras.target_set isa PR.HybridSpec
+    @test ras.safe_set isa PR.HybridSpec
+    @test PR.satisfies(ras.target_set, SVector(21.0), 1)
+    @test !PR.satisfies(ras.target_set, SVector(23.0), 1)
+    @test !ras.stay_on_first_entry
+
+    # The flag travels from the marker to the problem.
+    strict, _ = lowered(
+        let (m, off, on) = thermostat_model()
+            for k in (off, on)
+                @constraint(k, [m[:T]] in EventuallyAlways(settle; stay_on_first_entry = true))
+            end
+            m
+        end,
+    )
+    @test strict.stay_on_first_entry
+    # With no `Always` the run is safe anywhere: the safe set is each mode's own state set.
+    @test PR.satisfies(strict.safe_set, SVector(17.2), 1)
+
+    # `◇□ T` already reaches `T`; asking for both is a contradiction worth naming.
+    @test_throws ErrorException lowered(
+        let (m, off, on) = thermostat_model()
+            @constraint(off, [m[:T]] in Final(settle))
+            @constraint(on, [m[:T]] in EventuallyAlways(settle))
+            m
+        end,
+    )
+end
+
+@testset "end-to-end: hybrid reach-and-stay" begin
+    # The band has to contain an equilibrium the input grid can actually hold. With `u` gridded
+    # at 0.25 the heater's steady states are 18 + 20u = 23, 28, … °C, so 23 is the only one
+    # inside the 17–25 domain: a band ending *at* 23 is one the abstraction cannot certify
+    # staying in, and the winning set comes back empty.
+    model, off, on = thermostat_model()
+    settle = LazySets.Hyperrectangle(; low = SVector(21.0), high = SVector(25.0))
+    for m in (off, on)
+        @constraint(m, [model[:T]] in EventuallyAlways(settle))
+        set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+        set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+        set_attribute(m, "time_step", 0.5)
+        set_attribute(m, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+        set_attribute(m, "jacobian_bound", u -> SMatrix{1, 1}(-0.1))
+    end
+
+    optimize!(model)
+    @test is_solved_and_feasible(model)
+
+    winning = get_attribute(model, "winning_set")
+    @test winning !== nothing
+    @test !isempty(winning)
+
+    # The run settles into the band and holds it. `stopping` is overridden because the default
+    # stops on arrival, which is where a `◇□` run gets interesting.
+    traj = Dionysos.simulate(model, (SVector(18.0), 1); nsteps = 120, stopping = _ -> false)
+    states = collect(ST.states(traj))
+    @test length(states) == 121          # the run is not cut short by an undefined control
+    @test all(x ∈ settle for x in states[(end - 20):end])
 end
 
 end # module TestMain

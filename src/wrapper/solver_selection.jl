@@ -44,7 +44,7 @@ end
 
 function supports_problem(
     ::Type{<:HybridAbstraction},
-    ::Type{<:Union{PR.OptimalControlProblem, PR.SafetyProblem}},
+    ::Type{<:Union{PR.OptimalControlProblem, PR.SafetyProblem, PR.ReachAndStayProblem}},
 )
     return true
 end

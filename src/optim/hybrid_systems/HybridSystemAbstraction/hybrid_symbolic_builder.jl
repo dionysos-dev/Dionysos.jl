@@ -84,7 +84,7 @@ function build_mode_symbolic_models(
     for (i, mode_id) in enumerate(mode_ids)
         mode_system = HybridSystems.mode(hs, mode_id)
         physicals[i], clocks[i] =
-            _mode_physical_and_clock(mode_system, optimizer_kwargs_dict[i])
+            _mode_physical_and_clock(mode_system, optimizer_kwargs_dict[i], mode_id)
 
         source = _abstraction_source(shared, physicals, optimizer_kwargs_dict, i)
         bases[i] = if source === nothing
@@ -144,13 +144,31 @@ function _validate_shared_abstraction(physicals, kwargs, i, j)
     return
 end
 
+# An empty abstract set is not infeasibility: it means the set fell between the cells, and
+# reporting it as `LOCALLY_INFEASIBLE` sends the user looking for a control problem that is not
+# there. `INNER` inclusion needs a cell to sit *entirely* inside the set, so a region thinner than
+# one cell discretizes to nothing however reachable it is.
+function _check_nonempty(states, what::AbstractString)
+    isempty(states) && error(
+        "The $what set contains no abstract state: every cell of the abstraction lies at " *
+        "least partly outside it. Widen the set or refine the grid — this is a " *
+        "discretization gap, not an infeasible problem.",
+    )
+    return
+end
+
 # A mode is either a plain physical system (time-free) or a `VectorContinuousSystem`
 # pairing physical dynamics `systems[1]` with a clock subsystem `systems[2]`.
-function _mode_physical_and_clock(mode_system, kwargs)
+function _mode_physical_and_clock(mode_system, kwargs, mode_id = 0)
     if mode_system isa ST.VectorContinuousSystem
-        clock =
-            SY.ClockAbstraction(mode_system.systems[2], get(kwargs, "time_step", nothing))
-        return mode_system.systems[1], clock
+        tstep = get(kwargs, "time_step", nothing)
+        # Without this the `nothing` reaches `ClockAbstraction(::…, ::Float64)` and raises a
+        # `MethodError` naming neither the mode nor the option.
+        tstep isa Float64 || error(
+            "Mode $mode_id carries a clock but no `time_step`, which is what discretizes its " *
+            "time axis. Set it on the mode, or on the model for every mode.",
+        )
+        return mode_system.systems[1], SY.ClockAbstraction(mode_system.systems[2], tstep)
     else
         return mode_system, nothing
     end

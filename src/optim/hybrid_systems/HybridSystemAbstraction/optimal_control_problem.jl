@@ -139,11 +139,13 @@ function build_abstract_problem(
     abstract_initial_set = [q0]
 
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
+    _check_nonempty(abstract_target_set, "target")
 
     concrete_safe_set = concrete_problem.safe_set
     abstract_safe_set =
         concrete_safe_set === nothing ? nothing :
         SY.states_satisfying(abstract_system, concrete_safe_set)
+    abstract_safe_set === nothing || _check_nonempty(abstract_safe_set, "safe")
 
     return PR.OptimalControlProblem(
         SY.get_automaton(abstract_system),

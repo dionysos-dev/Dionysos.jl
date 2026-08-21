@@ -93,6 +93,10 @@ function _simulate_hybrid(model::Optimizer, controller, aug0, nsteps, stopping)
         stopping
     elseif problem isa PR.SafetyProblem
         aug -> !HSA.safe(problem, aug)
+    elseif problem isa PR.ReachAndStayProblem
+        # Same rule as the continuous path (`_stopping_for`): stop on arrival. For `◇□` that
+        # hides the staying, so pass `stopping = _ -> false` to watch a run settle.
+        aug -> HSA.reached(problem, aug) || !PR.satisfies(problem.safe_set, aug...)
     elseif problem isa PR.OptimalControlProblem && problem.safe_set !== nothing
         aug -> HSA.reached(problem, aug) || !PR.satisfies(problem.safe_set, aug...)
     else
