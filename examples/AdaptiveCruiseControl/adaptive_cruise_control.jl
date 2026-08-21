@@ -1,4 +1,4 @@
-# Adaptive cruise control — one abstraction, three specifications.
+# Adaptive cruise control — one abstraction, two specifications.
 #
 # The plant is a longitudinal point mass following a car travelling at a constant speed; the
 # state is `(gap, ego speed)` and the input is an acceleration. The abstraction is built once
@@ -106,23 +106,18 @@ plot!(
 display(fig)
 
 # ------------------------------------------------------------
-# 2. Reach and stay: the set-point is out of reach
+# 2. Reach and stay: cruise at the set-point, or follow the lead
 # ------------------------------------------------------------
 
-# 24 m/s behind a car doing 13.89 m/s closes any gap in the envelope in finite time, so no
-# controller can hold the set-point band. The abstraction is what proves it.
-cruise_only = ACC.reach_and_stay_problem(; params = params, _T_ = ACC.cruise_set(params))
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), cruise_only)
-MOI.optimize!(optimizer)
-println("reach-and-stay, set-point only: ", MOI.get(optimizer, MOI.TerminationStatus()))
-
-# "Cruise at the set-point *or* follow the lead" is what an adaptive cruise controller is
-# actually asked to do, and that one is feasible.
+# The disjunction is the specification, not a convenience. With the set-point at 24 m/s behind a
+# car doing 13.89, the cruise half is unreachable — every gap in the envelope closes in finite
+# time — so the run settles in the follow half. Handing the cruise band over on its own returns
+# `LOCALLY_INFEASIBLE`, which is the benchmark proving something true rather than failing.
 #
-# `gap_high` is what makes this a *following distance* rather than a floor. Left open, sitting
-# 90 m back at the lead's own speed already satisfies "matched speed at a safe gap", and the
-# ego never closes it. Capped, the ego has to overspeed, catch up, and then settle — the
-# behaviour worth watching.
+# `gap_high` is what makes the follow half a *following distance* rather than a floor. Left
+# open, sitting 90 m back at the lead's own speed already satisfies "matched speed at a safe
+# gap", and the ego never closes it. Capped, the ego has to overspeed, catch up, and then
+# settle — the behaviour worth watching.
 settle = UT.set_union([ACC.cruise_set(params), ACC.follow_set(params; gap_high = 45.0)])
 ras_problem = ACC.reach_and_stay_problem(; params = params, _I_ = _I_, _T_ = settle)
 MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), ras_problem)
@@ -148,48 +143,23 @@ let xs = collect(ST.states(ras_traj))
     )
 end
 
+winning_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("winning_set"))
+
 fig = plot(; xlabel = "gap [m]", ylabel = "ego speed [m/s]", legend = :bottomright)
 plot!(fig, ras_problem)
+plot!(
+    fig,
+    (winning_set, XMapping);
+    color = :yellow,
+    linecolor = :yellow,
+    label = "Winning set",
+)
 plot!(fig, ras_traj; ms = 2.0, color = :blue)
 display(fig)
 
-# ------------------------------------------------------------
-# 3. Reach-avoid: settle behind the lead, never tailgating on the way
-# ------------------------------------------------------------
-
-reach_avoid = ACC.optimal_control_problem(;
-    params = params,
-    _I_ = _I_,
-    _T_ = ACC.follow_set(params; gap_high = 45.0),
-)
-MOI.set(optimizer, MOI.RawOptimizerAttribute("concrete_problem"), reach_avoid)
-MOI.optimize!(optimizer)
-println("reach-avoid: ", MOI.get(optimizer, MOI.TerminationStatus()))
-
-reach_controller = MOI.get(optimizer, MOI.RawOptimizerAttribute("concrete_controller"))
-controllable_set = MOI.get(optimizer, MOI.RawOptimizerAttribute("controllable_set"))
-
-reached(x) = x ∈ reach_avoid.target_set
-traj = ST.get_closed_loop_trajectory(
-    discrete_time_system,
-    reach_controller,
-    x0,
-    200;
-    stopping = reached,
-)
-println("settled in ", length(collect(ST.states(traj))) - 1, " steps")
-
-fig = plot(; xlabel = "gap [m]", ylabel = "ego speed [m/s]", legend = :bottomright)
-plot!(fig, reach_avoid)
-plot!(
-    fig,
-    (controllable_set, XMapping);
-    color = :yellow,
-    linecolor = :yellow,
-    label = "Controllable set",
-)
-plot!(fig, traj; ms = 2.0, color = :blue)
-display(fig)
+# There is no reachability-only run here on purpose. Reach-and-stay already has to reach, and
+# it keeps going once it arrives; dropping the stay half would only stop the trajectory at
+# first entry and show less.
 
 # ------------------------------------------------------------
 # The road view
@@ -197,7 +167,7 @@ display(fig)
 
 anim = Dionysos.animate_trajectory_dashboard(
     ACC.system_plot!(; params = params),
-    traj;
+    ras_traj;
     xdims = (1, 2),
     udims = (1,),
     Δt = Δt,
