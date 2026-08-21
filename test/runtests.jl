@@ -78,6 +78,7 @@ const TEST_FILES = [
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
+    ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # Input slew-rate constrained synthesis (pair-keyed Dijkstra).
     ("./optim/discrete_systems/bounded_input_variation.jl",),

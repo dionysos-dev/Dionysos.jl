@@ -33,7 +33,7 @@ against the worst case the discretization admits.
 | Reachability ``\Diamond \mathcal{T}``, unit cost | `OptimizerOptimalControlProblem` | backward attractor by breadth-first layers; a ``(q,u)`` pair is enabled when its counter of not-yet-won successors hits zero | ``O(E + nm)`` | [gradel2002automata](@cite), [rungger2016scots](@cite) |
 | Reach-avoid ``\mathcal{S} \,\mathcal{U}\, \mathcal{T}``, general cost | `OptimizerOptimalControlProblem` | Dijkstra on the AND/OR graph — the same counter turns an OR-relaxation into the worst case over successors | ``O((E + nm)\log n)`` | [dijkstra1959note](@cite), [knuth1977generalization](@cite) |
 | Reach-avoid with **bounded input variation** ``d(u^-,u) \le \Delta`` | `BoundedInputVariation` | turn-restricted shortest path: Dijkstra on the **line graph**, nodes are ``(q,u)`` pairs | ``O((Em + nm^2)\log(nm))`` | [caldwell1961turn](@cite) |
-| Reach-and-stay ``\Diamond\Box\,\mathcal{T}`` | `OptimizerReachAndStayProblem` | nested ``\mu Y.\,\nu Z`` fixed point, one input fixed per newly-won cell | ``O(n(E + nm))`` | [li2020robustly](@cite), [emerson1986efficient](@cite) |
+| Reach-and-stay ``\Diamond\Box\,\mathcal{T}`` | `OptimizerReachAndStayProblem` | nested ``\mu Y.\,\nu Z`` fixed point, one input fixed per newly-won cell | ``O(r(E + nm))``, ``r`` = invariant refinements; ``O(E + nm)`` for `stay_on_first_entry` | [li2020robustly](@cite), [emerson1986efficient](@cite) |
 | Co-safe LTL ``\varphi`` | `OptimizerCoSafeLTLProblem` | product with a deterministic monitor, then reachability on the product | ``O(\lvert Q_\varphi \rvert\,(E + nm))`` | [kupferman2001model](@cite), [baier2008principles](@cite), [duret2022spot](@cite) |
 
 Complexities are for the dense ``n \times m`` tables the solvers allocate by default; the
@@ -135,6 +135,19 @@ computed inside the target **alone** and never widened, so the run stays put fro
 it first arrives. Its winning set is smaller, and target cells outside the core are excluded
 from the reachability phase — being in the target while only able to continue by leaving it
 would break the very property the variant exists to enforce.
+
+Both variants reach the core through the same counter-based attractor as the reachability
+solvers above, so the approach costs ``O(E + nm)`` however deep it runs. That matters more here
+than the shared machinery suggests: the ``\mu`` iteration wins one layer of states at a time,
+so computing each layer by re-evaluating ``\mathrm{Pre}`` over the whole automaton would make
+the approach ``O(\text{depth} \cdot E)`` — and depth is a property of the *plant*, not of the
+specification. A car-following abstraction whose gap closes by centimetres per step runs
+hundreds of layers deep and paid for every one of them.
+
+What remains per-round in the ``\Diamond\Box`` variant is the inner ``\nu`` fixed point, which
+is recomputed whenever the invariant core grows. The number of such refinements ``r`` is
+bounded by ``n`` but is in practice small — it counts how many times a departure into
+newly-won territory enlarges the core, not how far away the initial states are.
 
 ## Co-safe LTL — product with a monitor
 

@@ -23,33 +23,67 @@ OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 MOI.is_empty(optimizer::OptimizerReachAndStayProblem) = optimizer.problem === nothing
 
 # ------------------------------------------------------------
-# Controlled predecessor:
-# Pre(Y | S) = {q in S | exists u, Post(q,u) subset Y}
+# Backward attractor: grow `won` with every state that can be forced into it in finitely many
+# steps without leaving `safe`.
+#
+# `counter[q, u]` holds how many successors of the pair are not yet won, so a pair becomes
+# usable exactly when it reaches zero and every transition is touched once over the whole
+# computation: `O(E + nm)`. This replaces a per-layer `Pre(Y | S)` sweep, which re-walked all
+# `E` transitions for every layer — on a domain whose reachability runs hundreds of layers
+# deep, `O(depth ⋅ E)`. It is the device the reach-avoid solver already uses.
+#
+# A pair with no transition at all keeps its initial count of zero and is never decremented, so
+# it is never enabled — the `Post(q,u) ≠ ∅` half of the controlled predecessor comes for free.
+#
+# Every newly won cell takes the input that won it. That is the memoryless choice Li & Liu
+# require — fixed at the layer the cell first enters the winning set, never revised — and it is
+# free, the enabling pair being known already. `no_control` names cells that may be won but
+# must not be given one here, because they are the caller's to assign.
+#
+# `seen` is what guards the counters, and it is deliberately not `won`: a counter may only be
+# decremented once per transition, ever. A cell can be won here in one round and then join the
+# invariant core in the next, and relaxing it a second time would drop some predecessor's count
+# to zero while a successor of that pair was still unwon — a strictly larger, unsound winning
+# set. Callers keep `seen` across rounds and seed only cells it does not already hold.
+#
+# `frontier` is consumed. `stop` is polled once per layer, for `early_stop`.
 # ------------------------------------------------------------
 
-function _compute_seed(autom, Y::BitVector, S::BitVector, seen_pairs::BitMatrix)
-    nstates = SY.get_n_state(autom)
-    seed = falses(nstates)
+function _attract!(
+    contr,
+    autom,
+    won::BitVector,
+    seen::BitVector,
+    frontier::Vector{Int},
+    safe::BitVector,
+    counter,
+    no_control::BitVector,
+    stop,
+)
+    next = Int[]
 
-    fill!(seen_pairs, false)
+    while !isempty(frontier)
+        empty!(next)
 
-    for target in eachindex(Y)
-        Y[target] || continue
-        for (source, symbol) in SY.pre(autom, target)
-            S[source] || continue
-            seen_pairs[source, symbol] && continue
+        for target in frontier
+            for (source, symbol) in SY.pre(autom, target)
+                seen[source] && continue
+                safe[source] || continue
 
-            seen_pairs[source, symbol] = true
-
-            dests = SY.post(autom, source, symbol)
-
-            if !isempty(dests) && all(d -> Y[d], dests)
-                seed[source] = true
+                if decrease_counter!(counter, source, symbol) == 0
+                    seen[source] = true
+                    won[source] = true
+                    push!(next, source)
+                    no_control[source] || add_control!(contr, source, symbol)
+                end
             end
         end
+
+        frontier, next = next, frontier
+        stop !== nothing && stop() && break
     end
 
-    return seed
+    return won
 end
 
 # ------------------------------------------------------------
@@ -92,6 +126,17 @@ function _invariant_with_floor(
     end
 
     nsymbolslist = _compute_nsymbolslist(pairstable)
+
+    # Same dead-state seeding as `compute_largest_invariant_set`. Floor cells stay protected:
+    # a pair with no transition is never enabled by `_attract!` either, so a floor cell — which
+    # had to be won through one — always has a pair.
+    @inbounds for q in 1:nstates
+        if safeset[q] && !floor_cells[q] && nsymbolslist[q] == 0
+            safeset[q] = false
+            unsafeset[q] = true
+        end
+    end
+
     nextunsafeset = falses(nstates)
 
     while true
@@ -163,25 +208,27 @@ end
 # allowed, which is exactly what ◇□ means and why this winning set is the larger one.
 #
 # The controller comes out *memoryless* — the paper's title — because of when inputs are
-# chosen, not because of the fixed point itself: `_add_one_control_to_target!` fixes one
-# input per cell at the iteration where that cell is first won, and never revises it.
+# chosen, not because of the fixed point itself. Each cell is given one input at the moment it
+# is first won and never revised: `_add_one_control_to_target!` for a target cell joining the
+# invariant core, `_attract!` for a cell reached on the way in.
 # ------------------------------------------------------------
 
 function _solve_eventually_always(autom, T, S, I, early_stop)
     nstates = SY.get_n_state(autom)
-    nsymbols = SY.get_n_input(autom)
 
     base_pairstable = _compute_base_pairstable(autom)
-    seen_pairs = falses(nstates, nsymbols)
+    counter = _counter_dense(autom)
 
     contr = _empty_control_table(nstates)
 
+    # `Y` accumulates rather than being rebuilt per round: `X∞` grows monotonically, so `Pre`
+    # of it does too, and the attractor below only ever adds. Keeping one `counter` across
+    # rounds is what makes the whole outer loop cost `O(E + nm)` in total instead of per round.
     Y = falses(nstates)
     X_prev = falses(nstates)
+    seen = falses(nstates)
 
     while true
-        Y_old = copy(Y)
-
         # Inner ν fixed point:
         # X∞_{i+1} = maximal controlled invariant inside Ω ∪ Y_i
         X_star, _ = _invariant_with_floor(autom, T, Y, base_pairstable)
@@ -190,22 +237,36 @@ function _solve_eventually_always(autom, T, S, I, early_stop)
         new_stay_cells = X_star .& T .& .!X_prev
         _add_one_control_to_target!(contr, autom, new_stay_cells, X_star)
 
-        # Outer μ fixed point:
-        # Y_{i+1} = Pre(X∞_{i+1} | S)
-        Y_next = _compute_seed(autom, X_star, S, seen_pairs)
+        # Outer μ fixed point. Taking the whole attractor of `X∞_{i+1}` rather than a single
+        # `Pre` layer reaches the same limit — at the fixed point `Y ⊆ X∞`, so one `Pre` layer
+        # of `X∞` already contains the attractor — but in a handful of rounds instead of one
+        # per reachability layer.
+        # Seed with whatever `X∞` has gained, and only that — see `_attract!` on why a cell may
+        # be relaxed at most once. A core cell inside the safe set is winning by definition; it
+        # already carries an input, from `new_stay_cells` above if it is a target, from the
+        # round that first reached it otherwise.
+        won_before = count(Y)
 
-        # Controls for Y_{i+1} \ (Y_i ∪ Ω)
-        new_reach_cells = Y_next .& .!Y .& .!T
-        _add_one_control_to_target!(contr, autom, new_reach_cells, X_star)
+        frontier = Int[]
+        for q in 1:nstates
+            (X_star[q] && !seen[q]) || continue
+            seen[q] = true
+            push!(frontier, q)
+            S[q] && (Y[q] = true)
+        end
+        isempty(frontier) && break
 
-        Y = Y_next
+        # Ω is the caller's to control: a target cell earns its input from `new_stay_cells`
+        # above once it joins the invariant core, never a reach input from the attractor.
+        _attract!(contr, autom, Y, seen, frontier, S, counter, T, nothing)
+
         X_prev = X_star
 
         if early_stop && all(q -> Y[q], I)
             break
         end
 
-        Y == Y_old && break
+        count(Y) == won_before && break
     end
 
     return Y, contr
@@ -226,11 +287,8 @@ end
 
 function _solve_stay_on_first_entry(autom, T, S, I, early_stop)
     nstates = SY.get_n_state(autom)
-    nsymbols = SY.get_n_input(autom)
 
     base_pairstable = _compute_base_pairstable(autom)
-    seen_pairs = falses(nstates, nsymbols)
-
     contr = _empty_control_table(nstates)
 
     X_inf, _ = _invariant_with_floor(autom, T, falses(nstates), base_pairstable)
@@ -239,29 +297,29 @@ function _solve_stay_on_first_entry(autom, T, S, I, early_stop)
     # Reachability may not pass through the target outside its invariant core.
     S_reach = S .& .!(T .& .!X_inf)
 
-    Y = falses(nstates)
+    # The core is fixed here — computed once, never widened — so the whole reachability is one
+    # attractor rather than a fixed point that re-sweeps the automaton per layer. The core is
+    # won from the start, which is also what keeps it from being handed a reach input over the
+    # stay input it already has.
+    won = copy(X_inf)
+    stop = early_stop ? () -> all(q -> won[q], I) : nothing
 
-    while true
-        Y_old = copy(Y)
-
-        reach_target = X_inf .| Y
-        Y_next = _compute_seed(autom, reach_target, S_reach, seen_pairs)
-        Y_next .|= Y
-
-        new_reach_cells = Y_next .& .!Y .& .!X_inf
-        _add_one_control_to_target!(contr, autom, new_reach_cells, reach_target)
-
-        Y = Y_next
-
-        if early_stop && all(q -> Y[q], I)
-            break
-        end
-
-        Y == Y_old && break
-    end
+    # One pass, so `seen` and `won` start out the same; the core is both already winning and
+    # already relaxed.
+    _attract!(
+        contr,
+        autom,
+        won,
+        copy(X_inf),
+        findall(X_inf),
+        S_reach,
+        _counter_dense(autom),
+        falses(nstates),
+        stop,
+    )
 
     # The core is winning too: it is where the run ends up and stays.
-    return Y .| X_inf, contr
+    return won, contr
 end
 
 function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
