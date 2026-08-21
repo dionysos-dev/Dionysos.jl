@@ -204,15 +204,27 @@ band(v_c; ε = 0.5, margin = 5.0, gap_high = z_upp) = LazySets.Hyperrectangle(;
 
 target = UT.set_union([band(v_desired), band(v_lead; gap_high = 45.0)])
 
+# `stay_on_first_entry` picks which reading of "and stay" is required. Plain ◇□ lets the run
+# enter a band, leave it, and come back any finite number of times; `true` forbids those
+# departures. Settling into a cruising band and then dropping out of it is not what the task
+# asks for, so the stronger reading is the right one here — and it is also the cheaper one, being
+# an invariance solve followed by a reachability solve rather than the nested fixed point ◇□
+# needs.
+
 acc = Model(Dionysos.Optimizer)
-@variable(acc, z_low <= za <= z_upp, start = 90.0)
-@variable(acc, v_low <= va <= v_upp, start = 13.0)
+@variable(acc, z_low <= za <= z_upp)
+@variable(acc, v_low <= va <= v_upp)
 @variable(acc, -a_max <= aa <= a_max)
 
 @constraint(acc, ∂(za) == v_lead - va)
 @constraint(acc, ∂(va) == aa - (f0 + f1 * va + f2 * va^2) / m)
+
+far_behind =
+    LazySets.Hyperrectangle(; low = SVector(89.0, 12.8), high = SVector(91.0, 13.2))
+
+@constraint(acc, [za, va] in Start(far_behind))
 @constraint(acc, [za, va] in Always(safe))
-@constraint(acc, [za, va] in EventuallyAlways(target))
+@constraint(acc, [za, va] in EventuallyAlways(target; stay_on_first_entry = true))
 
 for (k, val) in (
     ("state_grid", MP.GridFree(SVector(0.0, 0.0), SVector(1.0, 0.2))),
@@ -235,12 +247,23 @@ termination_status(acc)
 
 @test is_solved_and_feasible(acc)     #src
 
+# The certificate this time is the **winning set**: every cell from which the union of bands can
+# be reached and then held, without leaving the headway region on the way.
+
+winning_set = get_attribute(acc, "winning_set")
+acc_mapping = DI.Symbolic.get_state_mapping(get_attribute(acc, "abstract_system"));
+
 # ## Closed loop
 #
 # Ninety metres back, travelling at about the lead's speed so the gap neither opens nor closes on
 # its own: whatever happens to it, the controller chose it.
+#
+# `simulate` stops on reaching the target by default, which for `◇□` would cut the run at the
+# moment it becomes interesting. `stopping` is overridden so the whole 160 steps are simulated
+# and the *staying* is visible.
 
-trajectory = Dionysos.simulate(acc, SVector(90.0, 13.0); nsteps = 160);
+trajectory =
+    Dionysos.simulate(acc, SVector(90.0, 13.0); nsteps = 160, stopping = _ -> false);
 
 #-
 
@@ -255,6 +278,13 @@ end
 
 fig = plot(; xlabel = "gap [m]", ylabel = "ego speed [m/s]", legend = :bottomright)
 plot!(fig, get_attribute(acc, "concrete_problem"))
+plot!(
+    fig,
+    (winning_set, acc_mapping);
+    color = :yellow,
+    linecolor = :yellow,
+    label = "Winning set",
+)
 plot!(fig, trajectory; ms = 2.0, color = :blue)
 
 # ## Visualisation
@@ -278,26 +308,14 @@ anim = Dionysos.animate_trajectory_dashboard(
     xdims = (1, 2),
     udims = (1,),
     Δt = 0.5,
-    frame_step = 2,
     xlabel_state = "gap [m]",
     ylabel_state = "ego speed [m/s]",
     xlabel_input = "time [s]",
     ylabel_input = "acceleration [m/s²]",
 );
-gif(anim; fps = 10)
+gif(anim; fps = 4)
 
-# ## One plant, two questions — and two abstractions
-#
-# The specification is part of the JuMP model, so asking a different question of the same plant
-# means a new model, and each one builds its own abstraction. Here that is the honest way to
-# show both specifications side by side, but it is paying twice for one thing: the plant, the
-# grid and the growth bound never changed.
-#
-# The abstraction is *cached against the system*, so the direct-MOI entry style can build it
-# once and then swap `concrete_problem` between a `SafetyProblem`, a `ReachAndStayProblem` and
-# an `OptimalControlProblem` without recomputing anything. That is what
-# `examples/AdaptiveCruiseControl/adaptive_cruise_control.jl` does, and why it exists next to
-# this page.
+
 #
 # ## References
 #
