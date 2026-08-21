@@ -315,7 +315,6 @@ anim = Dionysos.animate_trajectory_dashboard(
 );
 gif(anim; fps = 4)
 
-
 #
 # ## References
 #
