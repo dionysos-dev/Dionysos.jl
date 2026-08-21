@@ -2,6 +2,17 @@
 # Safety Control
 # ============================================================
 
+"""
+    OptimizerSafetyProblem{T} <: AbstractDionysosOptimizer
+
+Safety synthesis on a finite automaton: given a [`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem)
+whose system is an `AbstractAutomatonList`, compute the **maximal controlled-invariant subset** of
+the safe set.
+
+Set `"problem"`; read back `"controller"`, `"invariant_set"` and `"invariant_set_complement"`.
+The controller keeps *every* surviving input at each state, not one, so downstream code is free
+to choose among them.
+"""
 mutable struct OptimizerSafetyProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.SafetyProblem}
@@ -52,6 +63,17 @@ function compute_largest_invariant_set(autom::SY.AbstractAutomatonList, safelist
     end
 
     nsymbolslist = _compute_nsymbolslist(pairstable)
+
+    # The loop below removes a state only when a pair being *disabled* drops its count to
+    # zero, and a count that starts at zero never drops. A state every input drives out of the
+    # domain would therefore stay invariant forever, predecessors included. Seed it here.
+    @inbounds for q in 1:nstates
+        if safeset[q] && nsymbolslist[q] == 0
+            safeset[q] = false
+            unsafeset[q] = true
+        end
+    end
+
     nextunsafeset = falses(nstates)
 
     while true

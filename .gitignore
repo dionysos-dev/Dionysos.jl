@@ -40,3 +40,7 @@ research/TrajectoryCertificationOptimizer/*.gif
 # Regenerable outputs of the biped velocity-control driver
 examples/BipedRobot/*.png
 examples/BipedRobot/*.gif
+
+# Regenerable outputs of the adaptive-cruise-control driver
+examples/AdaptiveCruiseControl/*.png
+examples/AdaptiveCruiseControl/*.gif

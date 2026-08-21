@@ -185,6 +185,17 @@ const TOL = 1e-5
         @test worst_violation(DCDC.dynamic(), DCDC.jacobian_bound(), s.X, s.U) <= TOL
     end
 
+    @testset "AdaptiveCruiseControl" begin
+        include(joinpath(PROBLEMS, "AdaptiveCruiseControl", "adaptive_cruise_control.jl"))
+        s = AdaptiveCruiseControl.system()
+        @test worst_violation(
+            AdaptiveCruiseControl.dynamic(),
+            AdaptiveCruiseControl.jacobian_bound(),
+            s.X,
+            s.U,
+        ) <= TOL
+    end
+
     @testset "Thermostat" begin
         include(joinpath(PROBLEMS, "Thermostat", "thermostat_system.jl"))
         s = ThermostatSystem.system()

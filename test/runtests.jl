@@ -39,6 +39,8 @@ const TEST_FILES = [
     ("./problem/problems.jl",),
     # Every hand-written growth bound in `problems/`, checked against its own dynamics.
     ("./problems/growth_bounds.jl",),
+    # Car following: the model against the closed form its invariant set can be checked with.
+    ("./problems/adaptive_cruise_control.jl",),
     # 4-D velocity-controlled biped: kinematics, sound carving, exact lattice.
     ("./problems/biped_robot_4d.jl",),
     # Walking: the foot strike as a guarded reset, and the shared stance phases.
@@ -78,6 +80,7 @@ const TEST_FILES = [
     # Direct discrete-automaton controller synthesis (no abstraction build).
     ("./optim/discrete_systems/reachability.jl",),
     ("./optim/discrete_systems/reach_avoid.jl",),
+    ("./optim/discrete_systems/reach_and_stay.jl",),
     ("./optim/discrete_systems/safety.jl",),
     # Input slew-rate constrained synthesis (pair-keyed Dijkstra).
     ("./optim/discrete_systems/bounded_input_variation.jl",),

@@ -114,4 +114,30 @@ include(joinpath(dirname(dirname(pathof(Dionysos))), "test", "testsetup.jl"))
     @test x0_concrete isa SVector{2, Float64}
 end
 
+# The check above walks `domain(contr)`, so it cannot see a state that is in the invariant set
+# yet carries no control. That is exactly what a state with no outgoing transition used to
+# become: every input drives it out of the domain, it has no admissible pair to lose, and the
+# counter loop only removes a state when a pair being disabled drops its count to zero. It
+# survived, and dragged its predecessors along with it.
+@testset "states with no outgoing transition are not invariant" begin
+    autom = SY.IndexedAutomatonList(3, 1)
+    SY.add_transition!(autom, 1, 1, 1)   # 1 -> 1, the only genuinely invariant state
+    SY.add_transition!(autom, 2, 1, 1)   # 2 -> 1
+    # state 3 has no transition at all
+
+    contr, inv_set, inv_c = OPDS.compute_largest_invariant_set(autom, [1, 2, 3])
+
+    @test sort(collect(inv_set)) == [1, 2]
+    @test collect(inv_c) == [3]
+    @test !(3 in ST.domain(contr))
+
+    # A dead state must also take its predecessors with it when they have no other option.
+    chain = SY.IndexedAutomatonList(3, 1)
+    SY.add_transition!(chain, 1, 2, 1)   # 1 -> 2 -> 3, and 3 is dead
+    SY.add_transition!(chain, 2, 3, 1)
+
+    _, chain_inv, _ = OPDS.compute_largest_invariant_set(chain, [1, 2, 3])
+    @test isempty(collect(chain_inv))
+end
+
 end # module TestMain

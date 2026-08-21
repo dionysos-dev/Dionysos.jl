@@ -2,6 +2,26 @@
 # CoSafe LTL Control
 # ============================================================
 
+"""
+    OptimizerCoSafeLTLProblem{T} <: AbstractDionysosOptimizer
+
+Co-safe LTL synthesis on a finite automaton: given a
+[`CoSafeLTLProblem`](@ref Dionysos.Problem.CoSafeLTLProblem) whose system is an
+`AbstractAutomatonList`, build the synchronous product of the abstraction with a deterministic
+monitor over the atomic propositions, then run the reachability solver on that product with the
+monitor's accepting states as target.
+
+The monitor is an interface, not a fixed type: any object answering `step`, an initial state and
+a set of accepting states will do. Loading [Spot](https://spot.lre.epita.fr/) supplies one by
+translating an LTL formula.
+
+Because the strategy depends on the monitor state and not on the abstract state alone, the
+returned controller is **dynamic** — tabulated at construction time, so it stays plain
+serializable data even when the monitor is a closure.
+
+Set `"problem"`, optionally `"early_stop"`, `"sparse_input"`; read back `"controller"`,
+`"controllable_set"` and `"uncontrollable_set"`.
+"""
 mutable struct OptimizerCoSafeLTLProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.CoSafeLTLProblem}
