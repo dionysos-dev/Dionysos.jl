@@ -23,6 +23,7 @@ const ORDER = Dict(
         "path_planning",
         "unicycle_robot",
         "dcdc_converter",
+        "adaptive_cruise_control",
         "thermostat",
         "integrator_ltl",
         "biped_velocity_control",
