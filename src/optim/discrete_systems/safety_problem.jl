@@ -52,6 +52,17 @@ function compute_largest_invariant_set(autom::SY.AbstractAutomatonList, safelist
     end
 
     nsymbolslist = _compute_nsymbolslist(pairstable)
+
+    # The loop below removes a state only when a pair being *disabled* drops its count to
+    # zero, and a count that starts at zero never drops. A state every input drives out of the
+    # domain would therefore stay invariant forever, predecessors included. Seed it here.
+    @inbounds for q in 1:nstates
+        if safeset[q] && nsymbolslist[q] == 0
+            safeset[q] = false
+            unsafeset[q] = true
+        end
+    end
+
     nextunsafeset = falses(nstates)
 
     while true
