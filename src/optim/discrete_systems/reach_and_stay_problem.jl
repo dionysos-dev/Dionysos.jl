@@ -2,6 +2,20 @@
 # Reach-and-Stay Problem
 # ============================================================
 
+"""
+    OptimizerReachAndStayProblem{T} <: AbstractDionysosOptimizer
+
+Reach-and-stay synthesis on a finite automaton: given a
+[`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem) whose system is an
+`AbstractAutomatonList`, compute the winning set and a **memoryless** controller.
+
+The problem's `stay_on_first_entry` picks the algorithm. `false` is ◇□ in the literal sense and
+runs the nested μ/ν fixed point of Li & Liu; `true` forbids leaving the target once entered, and
+reduces to one invariance solve followed by one reachability solve.
+
+Set `"problem"`, optionally `"early_stop"`; read back `"controller"`, `"winning_set"` and
+`"winning_set_complement"`.
+"""
 mutable struct OptimizerReachAndStayProblem{T} <: AbstractDionysosOptimizer
     problem::Union{Nothing, PR.ReachAndStayProblem}
     early_stop::Bool

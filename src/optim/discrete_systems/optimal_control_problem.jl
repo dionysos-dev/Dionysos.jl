@@ -2,6 +2,22 @@
 # Optimal Control
 # ============================================================
 
+"""
+    OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
+
+Reach-avoid synthesis on a finite automaton: given an
+[`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) whose system is an
+`AbstractAutomatonList`, compute the controllable set and a controller reaching the target
+without leaving the safe set.
+
+Which algorithm runs depends on the cost: unit cost sweeps backward in breadth-first layers, a
+general nonnegative cost uses a priority queue. Setting `"bounded_input_variation"` instead
+routes the synthesis to [`compute_bounded_input_variation_controller`](@ref), which constrains
+*consecutive* inputs and returns a dynamic controller.
+
+Set `"problem"`, optionally `"early_stop"`, `"sparse_input"`, `"bounded_input_variation"`; read
+back `"controller"`, `"controllable_set"`, `"uncontrollable_set"` and `"value_function"`.
+"""
 mutable struct OptimizerOptimalControlProblem{T} <: AbstractDionysosOptimizer
     # inputs
     problem::Union{Nothing, PR.OptimalControlProblem}
