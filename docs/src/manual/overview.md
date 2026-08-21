@@ -66,27 +66,56 @@ Two abstraction-only problems parametrize the construction of a reusable abstrac
 control objective: [`AlternatingSimulationProblem`](@ref Dionysos.Problem.AlternatingSimulationProblem)
 and [`BisimulationQuotientProblem`](@ref Dionysos.Problem.BisimulationQuotientProblem).
 
-## Solvers
+## Discrete solvers
 
-**Abstraction-based solvers:**
+Once a system has been abstracted, the control problem is a graph problem, and these solvers take
+it from there. They consume an automaton, so they apply equally to an abstraction of a continuous
+system, a flattened hybrid product, or an automaton written by hand.
+
+Write ``n`` for the number of abstract states, ``m`` for the number of inputs and ``E`` for the
+number of transitions. Every algorithm below is built from the **controllable predecessor**
+
+```math
+\mathrm{Pre}(Y) = \{\, q \mid \exists u,\ \emptyset \neq \mathrm{Post}(q,u) \subseteq Y \,\}
+```
+
+— a state is winning if *some* input keeps *every* possible successor inside the set already won.
+The quantifier over successors is what makes a nondeterministic abstraction sound.
+
+| Solver | Problem | Algorithm | Complexity | Ref. |
+| :--- | :--- | :--- | :--- | :--- |
+| [`OptimizerSafetyProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerSafetyProblem) | [Safety](@ref Dionysos.Problem.SafetyProblem) | Maximal controlled-invariant set: greatest fixed point of ``\mathrm{Pre}``, removing a state once its last input is lost | ``O(E + nm)`` | [tabuada2009verification](@cite) |
+| [`OptimizerOptimalControlProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerOptimalControlProblem) | [Reach-avoid](@ref Dionysos.Problem.OptimalControlProblem), unit cost | Backward attractor in breadth-first layers; an input becomes usable once all its successors are won | ``O(E + nm)`` | [gradel2002automata](@cite) |
+| [`OptimizerOptimalControlProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerOptimalControlProblem) | [Reach-avoid](@ref Dionysos.Problem.OptimalControlProblem), general cost | Dijkstra on the AND/OR graph — the min-max dynamic program worst-case synthesis needs | ``O((E + nm)\log n)`` | [knuth1977generalization](@cite) |
+| [`BoundedInputVariation`](@ref Dionysos.Optim.DiscreteSystems.BoundedInputVariation) | [Reach-avoid](@ref Dionysos.Problem.OptimalControlProblem) with ``d(u^-,u) \le \Delta`` | Turn-restricted shortest path: Dijkstra on the line graph, whose nodes are ``(q,u)`` pairs | ``O((Em + nm^2)\log(nm))`` | [caldwell1961turn](@cite) |
+| [`OptimizerReachAndStayProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerReachAndStayProblem) | [Reach-and-stay](@ref Dionysos.Problem.ReachAndStayProblem) | Nested ``\mu Y.\,\nu Z`` fixed point, one input fixed per cell when it is first won | ``O(r(E + nm))`` | [li2020robustly](@cite) |
+| [`OptimizerCoSafeLTLProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerCoSafeLTLProblem) | [Co-safe LTL](@ref Dionysos.Problem.CoSafeLTLProblem) | Product with a deterministic monitor, then reachability on the product | ``O(\lvert Q_\varphi\rvert(E + nm))`` | [baier2008principles](@cite), [duret2022spot](@cite) |
+
+``r`` is the number of times the invariant core grows, and ``\lvert Q_\varphi\rvert`` the size of
+the monitor. Only the last two return a controller with memory.
+
+## Continuous solvers
+
+All abstraction-based: they discretize the state and input spaces, synthesize on the resulting
+automaton with a discrete solver, then concretize the controller back.
 
 | Solver | Discretization | Partition/Cover | Cell shape | Local controller | Reference |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | [Uniform grid abstraction](@ref Dionysos.Optim.Abstraction.UniformGridAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | [rungger2016scots](@cite) |
 | [Uniform ellipsoid abstraction](@ref Dionysos.Optim.Abstraction.UniformEllipsoidAbstraction.Optimizer) | Full | Cover | Ellipsoid | Piecewise affine | [egidio2022state](@cite) |
 | [Lazy ellipsoids abstraction](@ref Dionysos.Optim.Abstraction.LazyEllipsoidsAbstraction.Optimizer) | Partial | Cover | Ellipsoid | Piecewise affine | [calbert2024smart](@cite) |
-| [Hybrid system abstraction](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer) | Full | Partition | Hyperrectangle | Piecewise constant | — |
-| [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | — | Partition | [Semi-linear set](@ref Dionysos.Utils.SemiLinearSet) | — | — |
 
-**Non abstraction-based solvers:**
+## Hybrid solvers
 
-| Solver | Description | Reference |
-| :--- | :--- | :--- |
-| [Bemporad–Morari](@ref Dionysos.Optim.BemporadMorari.Optimizer) | Optimal control of hybrid systems via a mixed-integer quadratic program (MIQP). | [bemporad1999control](@cite) |
-| [Branch and bound](@ref Dionysos.Optim.BranchAndBound.Optimizer) | Optimal control of hybrid systems combining branch and bound with Q-functions refined by Lagrangian duality. | [legat2021abstraction](@cite) |
+For systems with several modes, guarded transitions and reset maps. The first two abstract, the
+last two attack the hybrid problem directly.
 
-Controller synthesis on an already-built automaton is available directly through the
-[discrete-system solvers](@ref "Discrete-system solvers").
+| Solver | Approach | Description | Reference |
+| :--- | :--- | :--- | :--- |
+| [Hybrid system abstraction](@ref Dionysos.Optim.Abstraction.HybridSystemAbstraction.Optimizer) | Abstraction | Per-mode grid abstraction, flattened into one automaton across the transitions. | — |
+| [PCLF bisimulation quotient](@ref "PCLF bisimulation quotient") | Abstraction | Exact quotient whose cells are [semi-linear sets](@ref Dionysos.Utils.SemiLinearSet), from a piecewise common Lyapunov function. | — |
+| [Bemporad–Morari](@ref Dionysos.Optim.BemporadMorari.Optimizer) | Direct | Optimal control via a mixed-integer quadratic program (MIQP). | [bemporad1999control](@cite) |
+| [Branch and bound](@ref Dionysos.Optim.BranchAndBound.Optimizer) | Direct | Branch and bound with Q-functions refined by Lagrangian duality. | [legat2021abstraction](@cite) |
 
 ## The solver interface
 

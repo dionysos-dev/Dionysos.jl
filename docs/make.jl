@@ -109,11 +109,7 @@ end
 
 const _PAGES = Any[
     "Home" => "index.md",
-    "Manual" => [
-        "manual/abstraction-based-control.md",
-        "manual/overview.md",
-        "manual/discrete-algorithms.md",
-    ],
+    "Manual" => ["manual/abstraction-based-control.md", "manual/overview.md"],
 ]
 
 has_page("getting_started") &&
