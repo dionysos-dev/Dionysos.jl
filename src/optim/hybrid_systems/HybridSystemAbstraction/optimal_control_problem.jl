@@ -96,6 +96,17 @@ function extract_results!(model::OptimizerOptimalControlProblem, abstract_optimi
     return
 end
 
+"""
+    get_abstract_transition_cost(abstract_system, concrete_transition_cost)
+
+Lift a transition cost written over concrete augmented states onto the abstraction, or `nothing`
+if the problem carries no cost.
+
+The returned closure is called by the discrete solver with `(abstract_state, abstract_input)` and
+concretizes both before delegating: a continuous input becomes the input of the state's own mode,
+while a mode switch becomes its switching label, so `cost((x, mode), "SWITCH 1 -> 2")` is how a
+model prices changing mode.
+"""
 function get_abstract_transition_cost(
     abstract_system::SY.HybridSymbolicModel,
     concrete_transition_cost,
