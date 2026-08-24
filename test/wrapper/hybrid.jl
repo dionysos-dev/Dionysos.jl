@@ -353,8 +353,11 @@ end
     @test problem.target_set isa PR.HybridSpec
     @test PR.satisfies(problem.target_set, SVector(22.0), 2)
     @test !PR.satisfies(problem.target_set, SVector(24.0), 2)
-    # The initial state is the augmented (x, mode) pair the hybrid solver expects.
-    @test problem.initial_set == (SVector(18.0), 1)
+    # The initial condition is mode-indexed too, so it is a set over the augmented state rather
+    # than the single `(x, mode)` point it used to collapse to.
+    @test problem.initial_set isa PR.HybridSpec
+    @test PR.satisfies(problem.initial_set, SVector(18.0), 1)
+    @test !PR.satisfies(problem.initial_set, SVector(18.0), 2)
 end
 
 @testset "end-to-end: a hybrid model solved from JuMP" begin
@@ -497,6 +500,94 @@ end
             m
         end,
     )
+end
+
+@testset "a switch that discretizes to nothing fails, and losses are reported" begin
+    # A guard no cell lies inside used to be a `@warn` and a `continue`: the modes ended up
+    # disconnected, and synthesis then answered — often `OPTIMAL` — for a system the user had
+    # not written. `INNER` inclusion needs a whole cell inside the guard, so an interval
+    # narrower than one cell discretizes to nothing.
+    function thin_guard(; width = 0.05)
+        model = direct_model(Dionysos.Optimizer())
+        set_attribute(model, "print_level", 0)
+        @variable(model, 0.0 <= x <= 4.0, start = 0.5)
+        @variable(model, -1.0 <= u <= 1.0)
+        @mode(model, a)
+        @mode(model, b)
+        for m in (a, b)
+            @constraint(m, ∂(x) == u)
+            @constraint(
+                m,
+                [x] in
+                Always(LazySets.Hyperrectangle(; low = SVector(0.0), high = SVector(4.0)))
+            )
+            set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+            set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+            set_attribute(m, "time_step", 0.5)
+        end
+        add_transition!(model, a => b) do t
+            return @constraint(t, 2.0 <= x <= 2.0 + width)
+        end
+        return model
+    end
+
+    @test_throws ErrorException optimize!(thin_guard(; width = 0.05))
+
+    # Wide enough to hold a cell, and the build report is clean.
+    model = thin_guard(; width = 1.5)
+    optimize!(model)
+    report = SY.build_report(get_attribute(model, "abstract_system"))
+    @test isempty(report)
+    @test isempty(report.dropped_resets)
+    @test isempty(report.inexact_resets)
+end
+
+@testset "a hybrid model starts from a set, not from its centre" begin
+    # `Start(S)` used to collapse to `LazySets.center(S)`: feasibility was decided for one point
+    # and every other state of the set the user declared went unsynthesized.
+    function banded(; start_low = 17.5, start_high = 19.5)
+        model, off, on = thermostat_model()
+        @constraint(
+            off,
+            [model[:T]] in Start(
+                LazySets.Hyperrectangle(;
+                    low = SVector(start_low),
+                    high = SVector(start_high),
+                ),
+            )
+        )
+        for m in (off, on)
+            @constraint(
+                m,
+                [model[:T]] in Always(
+                    LazySets.Hyperrectangle(; low = SVector(17.0), high = SVector(25.0)),
+                )
+            )
+            set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+            set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.25)))
+            set_attribute(m, "time_step", 0.5)
+            set_attribute(m, "approx_mode", AB.UniformGridAbstraction.GROWTH)
+            set_attribute(m, "jacobian_bound", u -> SMatrix{1, 1}(-0.1))
+        end
+        return model
+    end
+
+    problem, _ = lowered(banded())
+    @test problem.initial_set isa PR.HybridSpec
+    @test collect(keys(problem.initial_set.per_mode)) == [1]   # the mode carrying `Start`
+
+    model = banded()
+    optimize!(model)
+    @test is_solved_and_feasible(model)
+
+    abstract_system = get_attribute(model, "abstract_system")
+    q0s = SY.states_satisfying(abstract_system, WR.lower(backend(model)).initial_set)
+    @test length(q0s) > 1                     # the whole 2 °C band, not its midpoint
+    @test all(SY.get_concrete_state(abstract_system, q)[end] == 1 for q in q0s)
+
+    # A start outside every mode's domain is named as such, rather than reported as an
+    # infeasible control problem.
+    @test_throws ErrorException optimize!(banded(; start_low = 40.0, start_high = 41.0))
 end
 
 @testset "end-to-end: hybrid reach-and-stay" begin

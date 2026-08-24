@@ -133,10 +133,9 @@ function build_abstract_problem(
     concrete_problem::PR.OptimalControlProblem,
     abstract_system::SY.HybridSymbolicModel,
 )
-    concrete_initial_state = concrete_problem.initial_set # a unique augmented point
-    q0 = SY.get_abstract_state(abstract_system, concrete_initial_state)
-    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
-    abstract_initial_set = [q0]
+    abstract_initial_set =
+        _abstract_initial_states(abstract_system, concrete_problem.initial_set)
+    _check_initial_nonempty(abstract_initial_set)
 
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
     _check_nonempty(abstract_target_set, "target")

@@ -5,6 +5,33 @@ const HybridState = Tuple{Int, Int}
 const HybridTransition = Tuple{HybridState, HybridState, Int}
 
 """
+    HybridBuildReport
+
+What the hybrid composition had to discard while wiring the mode switches, per transition.
+
+A switch is built by discretizing the guard `INNER` and quantizing the reset image of each guard
+cell into the target mode, and both steps can lose cells. Losing *all* of them is an error — a
+transition that survives into the automaton with no switch is a model the user did not write —
+but a partial loss is legitimate and was previously only warned about. Recording it makes it
+inspectable from the built model, and assertable from a test.
+
+# Fields
+- `dropped_resets`: `transition_id => (dropped, total)` guard cells whose reset image fell
+  outside the target mode's domain.
+- `inexact_resets`: `transition_id => offset`, the largest relative distance between a reset
+  image and the cell centre it was snapped to. A non-zero entry means the reset is not
+  lattice-exact, and the abstraction may be unsound.
+"""
+struct HybridBuildReport
+    dropped_resets::Dict{Int, Tuple{Int, Int}}
+    inexact_resets::Dict{Int, Float64}
+end
+
+HybridBuildReport() = HybridBuildReport(Dict{Int, Tuple{Int, Int}}(), Dict{Int, Float64}())
+
+Base.isempty(r::HybridBuildReport) = isempty(r.dropped_resets) && isempty(r.inexact_resets)
+
+"""
     HybridSymbolicModel{Mods, A, G} <: AbstractSymbolicModel
 
 Symbolic abstraction of a hybrid system, composed from one `AbstractSymbolicModel`
@@ -19,15 +46,20 @@ wired into one automaton, with inputs unified through a [`GlobalInputMap`](@ref)
   `(local_state_id, mode_id)` pairs.
 - `automaton`: the flattened transition automaton.
 - `input_mapping`: the global input map.
+- `report`: the [`HybridBuildReport`](@ref) of what the switch wiring discarded.
 """
 struct HybridSymbolicModel{Mods, A, G} <: AbstractSymbolicModel
     mode_models::Mods
     flat::FlatIndex{HybridState}
     automaton::A
     input_mapping::G
+    report::HybridBuildReport
 end
 
 get_automaton(sym::HybridSymbolicModel) = sym.automaton
+
+"The [`HybridBuildReport`](@ref) of what building this model's mode switches discarded."
+build_report(sym::HybridSymbolicModel) = sym.report
 
 "The [`GlobalInputMap`](@ref) unifying the modes' inputs and the mode switches."
 get_global_input_map(sym::HybridSymbolicModel) = sym.input_mapping

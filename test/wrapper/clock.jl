@@ -160,8 +160,18 @@ end
     @test !PR.satisfies(problem.target_set, SVector(20.0), 1.9, 1)   # outside the window
     @test !PR.satisfies(problem.target_set, SVector(18.0), 1.0, 1)   # outside the target
 
-    # The initial state gains a time coordinate.
-    @test problem.initial_set == (SVector(18.0), 0.0, 1)
+    # The initial condition is a mode-indexed set, and on a clocked model it is pinned to the
+    # clock's starting step rather than spread over the whole time axis.
+    @test problem.initial_set isa PR.HybridSpec
+    start = problem.initial_set.per_mode[1]
+    @test start isa PR.TimedSpec
+    @test start.tmin == 0.0 && start.tmax == 0.0
+    # `start = 18.0` is a point, so its box is degenerate; `OUTER` is what still picks up the
+    # cell containing it.
+    @test start.base.incl_mode === UT.OUTER
+    @test LazySets.center(start.base.set) == SVector(18.0)
+    @test PR.satisfies(problem.initial_set, SVector(18.0), 0.0, 1)
+    @test !PR.satisfies(problem.initial_set, SVector(18.0), 0.0, 2)   # starts in mode 1
 end
 
 @testset "end-to-end: a clocked hybrid model solved from JuMP" begin

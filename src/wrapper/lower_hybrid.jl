@@ -396,23 +396,34 @@ function _clock_start(ir::ModelIR, clock::Int)
     return v.lower
 end
 
-# The augmented initial state — `(x, mode)`, or `(x, t, mode)` with a clock. The continuous
-# part is the centre of the declared initial box, since a hybrid problem starts from a point
-# rather than a region, and the mode is the one carrying a `start` constraint, defaulting to
-# the first.
-function _hybrid_initial_state(ir::ModelIR, x_idx::Vector{Int})
-    box = _coordinate_box(ir, x_idx, :start)
-    x0 = SVector{length(x_idx)}(LazySets.center(box)...)
-
-    starting = [k for k in mode_ids(ir) if any(e -> e.kind === START, ir.modes[k].specs)]
-    length(starting) <= 1 || error(
-        "Several modes carry a `start` constraint ($(starting)); the model can only begin in one.",
-    )
-    mode = isempty(starting) ? first(mode_ids(ir)) : starting[]
-
+# Where the model starts, as a mode-indexed set. It used to be the *centre* of the declared box,
+# so `Start(S)` meant "start at the middle of `S`" and a model reported `OPTIMAL` for one point
+# while the states around it — inside the set the user declared — went unsynthesized.
+#
+# `OUTER` because a controller has to handle every state the initial set touches, including the
+# cells it only clips. That is the reading the flat path uses too (`get_states_from_set(…,
+# MP.OUTER)`), and it is what keeps a `start = v` point, whose box is degenerate, from
+# discretizing to nothing.
+#
+# More than one mode may carry a `start`: with a set-valued initial condition, beginning in
+# either of two modes is a meaningful thing to ask for.
+function _hybrid_initial_spec(ir::ModelIR, x_idx::Vector{Int})
     clock = clock_index(ir)
-    clock === nothing && return (x0, mode)
-    return (x0, _clock_start(ir, clock), mode)
+    starting = [k for k in mode_ids(ir) if any(e -> e.kind === START, ir.modes[k].specs)]
+    isempty(starting) && (starting = [first(mode_ids(ir))])
+
+    pairs = map(starting) do k
+        m = ir.modes[k]
+        set = _mode_spec_set(ir, m, START, x_idx)
+        set === nothing && (set = _coordinate_box(ir, x_idx, :start))
+        spec = PR.StateSpec(set, UT.OUTER)
+        if clock !== nothing
+            t0 = _clock_start(ir, clock)
+            spec = PR.TimedSpec(spec, t0, t0)
+        end
+        return k => spec
+    end
+    return PR.HybridSpec(Dict(pairs))
 end
 
 # Every specification kind the hybrid lowering consumes. A kind absent from this list would be
@@ -443,7 +454,7 @@ function build_hybrid_problem(ir::ModelIR, backend; time_step = nothing)
     _reject_unhandled_specs(ir)
     x_idx = state_indices(ir)
     system = build_hybrid_system(ir, backend)
-    initial_state = _hybrid_initial_state(ir, x_idx)
+    initial_state = _hybrid_initial_spec(ir, x_idx)
 
     target = _hybrid_spec(ir, FINAL, x_idx)
     stay = _hybrid_spec(ir, EVENTUALLY_ALWAYS, x_idx)

@@ -111,8 +111,9 @@ function build_abstract_problem(
     concrete_problem::PR.ReachAndStayProblem,
     abstract_system::SY.HybridSymbolicModel,
 )
-    q0 = SY.get_abstract_state(abstract_system, concrete_problem.initial_set)
-    q0 <= 0 && error("Initial augmented state is outside the abstract system domain.")
+    abstract_initial_set =
+        _abstract_initial_states(abstract_system, concrete_problem.initial_set)
+    _check_initial_nonempty(abstract_initial_set)
 
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
     abstract_safe_set = SY.states_satisfying(abstract_system, concrete_problem.safe_set)
@@ -122,7 +123,7 @@ function build_abstract_problem(
 
     return PR.ReachAndStayProblem(
         SY.get_automaton(abstract_system),
-        [q0],
+        abstract_initial_set,
         abstract_target_set,
         abstract_safe_set,
         concrete_problem.time;
