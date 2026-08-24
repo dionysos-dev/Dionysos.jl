@@ -19,6 +19,15 @@ const SY = DI.Symbolic
 const OP = Dionysos.Optim
 const OPDS = OP.DiscreteSystems
 
+# The lifted-control template lives in `Optim`, shared with the uniform-grid family. Importing
+# the hooks by name means the methods below read as ordinary definitions.
+import Dionysos.Optim:
+    AbstractLiftedControlOptimizer,
+    build_abstract_problem,
+    abstract_optimizer_type,
+    configure_abstract_optimizer!,
+    extract_results!
+
 export Optimizer
 
 include("hybrid_symbolic_builder.jl")

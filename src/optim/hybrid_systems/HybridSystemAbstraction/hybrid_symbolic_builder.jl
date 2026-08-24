@@ -177,14 +177,19 @@ end
 # reporting it as `LOCALLY_INFEASIBLE` sends the user looking for a control problem that is not
 # there. `INNER` inclusion needs a cell to sit *entirely* inside the set, so a region thinner than
 # one cell discretizes to nothing however reachable it is.
-function _check_nonempty(states, what::AbstractString)
-    isempty(states) && error(
-        "The $what set contains no abstract state: every cell of the abstraction lies at " *
-        "least partly outside it. Widen the set or refine the grid — this is a " *
-        "discretization gap, not an infeasible problem.",
-    )
+function _check_nonempty(states, what::AbstractString, why::AbstractString)
+    isempty(states) && error("The $what set contains no abstract state: $why")
     return
 end
+
+# `INNER`: a cell must sit *entirely* inside the set, so a region thinner than one cell
+# discretizes to nothing however reachable it is.
+_check_nonempty(states, what::AbstractString) = _check_nonempty(
+    states,
+    what,
+    "every cell of the abstraction lies at least partly outside it. Widen the set or refine " *
+    "the grid — this is a discretization gap, not an infeasible problem.",
+)
 
 # The abstract states a problem may start from. The JuMP front-end gives a mode-indexed
 # `PR.HybridSpec`, so the initial condition is a *set*. A hand-built problem may instead give the
@@ -200,13 +205,12 @@ end
 
 # The initial set is discretized `OUTER`, so an empty result means something different: not that
 # the set fell between cells, but that it lies outside the abstraction's domain altogether.
-function _check_initial_nonempty(states)
-    isempty(states) && error(
-        "The initial set lies outside the abstraction's domain: no cell of any mode meets it. " *
-        "Check the `start` values against the mode's bounds, and which mode the model begins in.",
-    )
-    return
-end
+_check_initial_nonempty(states) = _check_nonempty(
+    states,
+    "initial",
+    "no cell of any mode meets it, so it lies outside the abstraction's domain. Check the " *
+    "`start` values against the mode's bounds, and which mode the model begins in.",
+)
 
 # A mode is either a plain physical system (time-free) or a `VectorContinuousSystem`
 # pairing physical dynamics `systems[1]` with a clock subsystem `systems[2]`.

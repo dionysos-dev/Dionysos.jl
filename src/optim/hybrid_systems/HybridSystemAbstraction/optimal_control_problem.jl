@@ -1,4 +1,19 @@
-mutable struct OptimizerOptimalControlProblem{T} <: OP.AbstractDionysosOptimizer
+"""
+    OptimizerOptimalControlProblem{T} <: Dionysos.Optim.AbstractLiftedControlOptimizer
+
+Reach(-avoid) sub-solver of the hybrid family: lifts an
+[`OptimalControlProblem`](@ref Dionysos.Problem.OptimalControlProblem) over a hybrid system onto
+the [`HybridSymbolicModel`](@ref Dionysos.Symbolic.HybridSymbolicModel) abstraction and solves it
+with the discrete
+[`OptimizerOptimalControlProblem`](@ref Dionysos.Optim.DiscreteSystems.OptimizerOptimalControlProblem).
+
+A transition cost given over concrete augmented states is translated by
+[`get_abstract_transition_cost`](@ref); mode switches reach it as their switching label.
+
+Set `"concrete_problem"` and `"abstract_system"`; read back `"abstract_controller"`,
+`"controllable_set"`, `"uncontrollable_set"` and `"abstract_value_function"`.
+"""
+mutable struct OptimizerOptimalControlProblem{T} <: AbstractLiftedControlOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.OptimalControlProblem}
     abstract_system::Union{Nothing, SY.HybridSymbolicModel}
@@ -39,13 +54,6 @@ end
 
 OptimizerOptimalControlProblem() = OptimizerOptimalControlProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerOptimalControlProblem) =
-    optimizer.concrete_problem === nothing
-
-function MOI.get(model::OptimizerOptimalControlProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec
-end
-
 function reset!(model::OptimizerOptimalControlProblem)
     model.abstract_optimizer = nothing
     model.abstract_problem = nothing
@@ -59,52 +67,32 @@ function reset!(model::OptimizerOptimalControlProblem)
     return model
 end
 
-function MOI.optimize!(optimizer::OptimizerOptimalControlProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerOptimalControlProblem) =
+    OPDS.OptimizerOptimalControlProblem
 
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
-
-    abs_sys = optimizer.abstract_system
-    concrete_problem = optimizer.concrete_problem
-
-    abstract_problem = build_abstract_problem(concrete_problem, abs_sys)
-    optimizer.abstract_problem = abstract_problem
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerOptimalControlProblem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("early_stop"),
-        optimizer.early_stop,
-    )
+function configure_abstract_optimizer!(
+    model::OptimizerOptimalControlProblem,
+    abstract_optimizer,
+)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("early_stop"), model.early_stop)
     MOI.set(
         abstract_optimizer,
         MOI.RawOptimizerAttribute("sparse_input"),
-        optimizer.sparse_input,
+        model.sparse_input,
     )
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
+    return
+end
 
-    MOI.optimize!(abstract_optimizer)
+function extract_results!(model::OptimizerOptimalControlProblem, abstract_optimizer)
+    model.controllable_set = abstract_optimizer.controllable_set
+    model.uncontrollable_set = abstract_optimizer.uncontrollable_set
+    model.value_fun_tab = abstract_optimizer.value_fun_tab
+    model.abstract_value_function = abstract_optimizer.value_function
 
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.controllable_set = abstract_optimizer.controllable_set
-    optimizer.uncontrollable_set = abstract_optimizer.uncontrollable_set
-    optimizer.value_fun_tab = abstract_optimizer.value_fun_tab
-    optimizer.abstract_value_function = abstract_optimizer.value_function
-    optimizer.success = abstract_optimizer.success
-
-    if optimizer.print_level >= 1 && !isempty(abstract_problem.initial_set)
-        q0 = abstract_problem.initial_set[1]
-        println("value init_state : ", optimizer.value_fun_tab[q0])
+    if model.print_level >= 1 && !isempty(model.abstract_problem.initial_set)
+        q0 = model.abstract_problem.initial_set[1]
+        println("value init_state : ", model.value_fun_tab[q0])
     end
-
-    optimizer.abstract_problem_time_sec = time() - t0
     return
 end
 
@@ -157,6 +145,11 @@ function build_abstract_problem(
     )
 end
 
-function reached(concrete_problem::PR.OptimalControlProblem, aug_state)
-    return PR.satisfies(concrete_problem.target_set, aug_state...)
-end
+"""
+    reached(problem, aug_state) -> Bool
+
+Whether the augmented state `(x[, t], mode)` has arrived in `problem`'s target. Both reach and
+reach-and-stay ask the same question of the same field, so they share the method.
+"""
+reached(problem::Union{PR.OptimalControlProblem, PR.ReachAndStayProblem}, aug_state) =
+    PR.satisfies(problem.target_set, aug_state...)

@@ -1,4 +1,18 @@
-mutable struct OptimizerSafetyProblem{T} <: OP.AbstractDionysosOptimizer
+"""
+    OptimizerSafetyProblem{T} <: Dionysos.Optim.AbstractLiftedControlOptimizer
+
+Safety sub-solver of the hybrid family: lifts a
+[`SafetyProblem`](@ref Dionysos.Problem.SafetyProblem) over a hybrid system onto the
+[`HybridSymbolicModel`](@ref Dionysos.Symbolic.HybridSymbolicModel) abstraction and computes the
+maximal controlled-invariant set on it.
+
+The safe set is mode-indexed ([`HybridSpec`](@ref Dionysos.Problem.HybridSpec)); a mode the
+specification says nothing about is bounded by its own state set rather than forbidden.
+
+Set `"concrete_problem"` and `"abstract_system"`; read back `"abstract_controller"`,
+`"invariant_set"` and `"invariant_set_complement"`.
+"""
+mutable struct OptimizerSafetyProblem{T} <: AbstractLiftedControlOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.SafetyProblem}
     abstract_system::Union{Nothing, SY.HybridSymbolicModel}
@@ -31,12 +45,6 @@ end
 
 OptimizerSafetyProblem() = OptimizerSafetyProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerSafetyProblem) = optimizer.concrete_problem === nothing
-
-function MOI.get(model::OptimizerSafetyProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec
-end
-
 function reset!(model::OptimizerSafetyProblem)
     model.abstract_optimizer = nothing
     model.abstract_problem = nothing
@@ -48,41 +56,19 @@ function reset!(model::OptimizerSafetyProblem)
     return model
 end
 
-function MOI.optimize!(optimizer::OptimizerSafetyProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerSafetyProblem) = OPDS.OptimizerSafetyProblem
 
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
+function configure_abstract_optimizer!(model::OptimizerSafetyProblem, ::Any)
+    model.print_level >= 1 && println("compute_largest_invariant_set! started")
+    return
+end
 
-    abstract_system = optimizer.abstract_system
-
-    abstract_problem = build_abstract_problem(optimizer.concrete_problem, abstract_system)
-    optimizer.abstract_problem = abstract_problem
-
-    optimizer.print_level >= 1 && println("compute_largest_invariant_set! started")
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerSafetyProblem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
-
-    MOI.optimize!(abstract_optimizer)
-
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.invariant_set = abstract_optimizer.invariant_set
-    optimizer.invariant_set_complement = abstract_optimizer.invariant_set_complement
-    optimizer.success = abstract_optimizer.success
-
-    if !isnothing(optimizer.invariant_set)
-        optimizer.print_level >= 1 &&
-            println("Invariant set size: $(length(optimizer.invariant_set))")
-    end
-
-    optimizer.abstract_problem_time_sec = time() - t0
+function extract_results!(model::OptimizerSafetyProblem, abstract_optimizer)
+    model.invariant_set = abstract_optimizer.invariant_set
+    model.invariant_set_complement = abstract_optimizer.invariant_set_complement
+    model.print_level >= 1 &&
+        model.invariant_set !== nothing &&
+        println("Invariant set size: $(length(model.invariant_set))")
     return
 end
 

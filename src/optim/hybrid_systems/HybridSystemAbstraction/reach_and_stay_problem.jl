@@ -1,5 +1,5 @@
 """
-    OptimizerReachAndStayProblem{T} <: Dionysos.Optim.AbstractDionysosOptimizer
+    OptimizerReachAndStayProblem{T} <: Dionysos.Optim.AbstractLiftedControlOptimizer
 
 Reach-and-stay sub-solver of the hybrid family: lifts a
 [`ReachAndStayProblem`](@ref Dionysos.Problem.ReachAndStayProblem) over a hybrid system onto the
@@ -15,7 +15,7 @@ which reading of *and stay* is enforced.
 Set `"concrete_problem"` and `"abstract_system"`; read back `"abstract_controller"`,
 `"winning_set"` and `"winning_set_complement"`.
 """
-mutable struct OptimizerReachAndStayProblem{T} <: OP.AbstractDionysosOptimizer
+mutable struct OptimizerReachAndStayProblem{T} <: AbstractLiftedControlOptimizer
     # Inputs
     concrete_problem::Union{Nothing, PR.ReachAndStayProblem}
     abstract_system::Union{Nothing, SY.HybridSymbolicModel}
@@ -50,13 +50,6 @@ end
 
 OptimizerReachAndStayProblem() = OptimizerReachAndStayProblem{Float64}()
 
-MOI.is_empty(optimizer::OptimizerReachAndStayProblem) =
-    optimizer.concrete_problem === nothing
-
-function MOI.get(model::OptimizerReachAndStayProblem, ::MOI.SolveTimeSec)
-    return model.abstract_problem_time_sec
-end
-
 function reset!(model::OptimizerReachAndStayProblem)
     model.abstract_optimizer = nothing
     model.abstract_problem = nothing
@@ -68,42 +61,22 @@ function reset!(model::OptimizerReachAndStayProblem)
     return model
 end
 
-function MOI.optimize!(optimizer::OptimizerReachAndStayProblem)
-    t0 = time()
+abstract_optimizer_type(::OptimizerReachAndStayProblem) = OPDS.OptimizerReachAndStayProblem
 
-    optimizer.abstract_system === nothing && error("abstract_system not set")
-    optimizer.concrete_problem === nothing && error("concrete_problem not set")
+function configure_abstract_optimizer!(
+    model::OptimizerReachAndStayProblem,
+    abstract_optimizer,
+)
+    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("early_stop"), model.early_stop)
+    return
+end
 
-    abstract_problem =
-        build_abstract_problem(optimizer.concrete_problem, optimizer.abstract_system)
-    optimizer.abstract_problem = abstract_problem
-
-    abstract_optimizer = MOI.instantiate(OPDS.OptimizerReachAndStayProblem)
-    MOI.set(abstract_optimizer, MOI.RawOptimizerAttribute("problem"), abstract_problem)
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("early_stop"),
-        optimizer.early_stop,
-    )
-    MOI.set(
-        abstract_optimizer,
-        MOI.RawOptimizerAttribute("print_level"),
-        optimizer.print_level,
-    )
-
-    MOI.optimize!(abstract_optimizer)
-
-    optimizer.abstract_optimizer = abstract_optimizer
-    optimizer.abstract_controller = abstract_optimizer.controller
-    optimizer.winning_set = abstract_optimizer.winning_set
-    optimizer.winning_set_complement = abstract_optimizer.winning_set_complement
-    optimizer.success = abstract_optimizer.success
-
-    optimizer.print_level >= 1 &&
-        optimizer.winning_set !== nothing &&
-        println("Winning set size: $(length(optimizer.winning_set))")
-
-    optimizer.abstract_problem_time_sec = time() - t0
+function extract_results!(model::OptimizerReachAndStayProblem, abstract_optimizer)
+    model.winning_set = abstract_optimizer.winning_set
+    model.winning_set_complement = abstract_optimizer.winning_set_complement
+    model.print_level >= 1 &&
+        model.winning_set !== nothing &&
+        println("Winning set size: $(length(model.winning_set))")
     return
 end
 
@@ -113,11 +86,10 @@ function build_abstract_problem(
 )
     abstract_initial_set =
         _abstract_initial_states(abstract_system, concrete_problem.initial_set)
-    _check_initial_nonempty(abstract_initial_set)
-
     abstract_target_set = SY.states_satisfying(abstract_system, concrete_problem.target_set)
     abstract_safe_set = SY.states_satisfying(abstract_system, concrete_problem.safe_set)
 
+    _check_initial_nonempty(abstract_initial_set)
     _check_nonempty(abstract_target_set, "target")
     _check_nonempty(abstract_safe_set, "safe")
 
@@ -129,9 +101,4 @@ function build_abstract_problem(
         concrete_problem.time;
         stay_on_first_entry = concrete_problem.stay_on_first_entry,
     )
-end
-
-"Whether the augmented state has arrived in the target — the stopping rule of a `◇□` run."
-function reached(concrete_problem::PR.ReachAndStayProblem, aug_state)
-    return PR.satisfies(concrete_problem.target_set, aug_state...)
 end

@@ -1,6 +1,7 @@
 module Optim
 
 include("optimizer_common.jl")
+include("lifted_control_optimizer.jl")
 
 include("discrete_systems/discrete_systems.jl")
 
