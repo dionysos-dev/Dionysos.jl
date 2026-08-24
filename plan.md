@@ -3,10 +3,11 @@
 > Addresses issue **#501**. Supersedes the Adaptive Cruise Control plan that lived here; that
 > work is merged and the old document is recoverable at `git show 9e729350f:plan.md`.
 
-> **Status — P0, P1 and P2 are built** (2026-08-21). F1, F2 (documentation half), F3, F9a, F9c,
-> F9e (partial), F9f and F9g are closed, and hybrid reach-and-stay works end to end. **F5 (initial
-> sets) is the one item of P1 not done** — see the note under P1. P3–P8 are untouched, and §5
-> recommends stopping after P4.
+> **Status — P0 through P4 are built** (2026-08-24), which is the whole programme §5 recommends.
+> F1, F2 (documentation half), F3, F5, F9a, F9b, F9c, F9e, F9f and F9g are closed; hybrid
+> reach-and-stay works end to end; the initial condition is a set; a switch that discretizes to
+> nothing now fails instead of silently disconnecting the modes; and the modes can be abstracted
+> in parallel. **P5–P8 remain, all gated on a driving example** (§5, decision 3).
 >
 > Building it turned up one thing the audit had not: the empty-abstract-set check added for F9g
 > fired immediately on the repository's own test suite. `test/wrapper/hybrid.jl`'s half-space-guard
@@ -74,12 +75,12 @@ That is a good architecture. Most of what follows is about the seams.
 | Environment-forced switch | ❌ **not expressible** | F2 |
 | Non-box guards | ✅ time-free only | `lower_hybrid.jl:171` |
 | Reset maps | ⚠️ sound only if lattice-exact | F4 |
-| Initial **set** | ❌ collapses to a point | F5 |
+| Initial **set** | ✅ *(was: collapsed to a point)* | F5, P1 |
 | Mode with no `Always` | ✅ unconstrained *(was: forbidden)* | F3, P1 |
+| Parallel mode abstraction | ✅ opt-in `parallel_modes` | F9b, P4 |
 | Clocks | ⚠️ exactly one, all modes or none | F6 |
 | Per-mode grids / time steps | ✅ | `optimizer.jl:223` |
 | Shared abstraction between modes | ✅ | `hybrid_symbolic_builder.jl:64` |
-| Parallel mode abstraction | ❌ sequential | F9 |
 
 ---
 
@@ -343,13 +344,14 @@ Per-kind defaults for a mode with no spec — empty for `FINAL`, the mode's whol
 `ALWAYS` (F3). Initial *sets* rather than the centre point, keeping the simulation start point
 separate (F5). Distinguish an empty abstract target/safe set from genuine infeasibility (F9g).
 
-**Done:** F3 (`_hybrid_spec` fills an absent mode with its own state set for `ALWAYS` only) and
-F9g (`_check_nonempty` in all three hybrid sub-solvers).
-**Not done — F5.** Deliberately left out: `_hybrid_initial_state` produces the augmented point
-that is *also* what `PR.satisfies` and the closed-loop simulation consume, so accepting a set
-means splitting one field into two across `build_hybrid_problem`, both sub-solvers'
-`build_abstract_problem`, and `results.jl`. It is a self-contained increment and it does not block
-anything else, so it is better done on its own than folded into the batch above.
+**Done.** F3 (`_hybrid_spec` fills an absent mode with its own state set, for `ALWAYS` only),
+F9g (`_check_nonempty` in all three hybrid sub-solvers), and F5 (`_hybrid_initial_spec` builds a
+mode-indexed `HybridSpec`, discretized `OUTER` so a `start = v` point still picks up its cell).
+
+F5 turned up a compatibility case the audit had missed: the biped hand-builds its problem with a
+raw `(x, mode)` augmented point rather than through the front-end, and that is a legitimate form
+— it is what `PR.satisfies` and the closed loop take. `_abstract_initial_states` accepts both,
+so the front-end gains sets without breaking direct-MOI callers.
 
 *Touches:* `lower_hybrid.jl` (`_hybrid_spec`, `_hybrid_initial_state`), `specifications.jl`,
 both hybrid `build_abstract_problem`s, `results.jl`. *Size:* small–medium.
@@ -371,7 +373,7 @@ the same field/`reset!`/`MOI.optimize!` boilerplate as `safety_problem.jl`), one
 one branch in `build_hybrid_problem` reading `EVENTUALLY_ALWAYS`. *Size:* small — call it ~100
 lines plus tests, most of it boilerplate rather than design. *Risk:* low. *Depends on:* P1.
 
-### P3 — Report, or refuse, what was dropped
+### P3 — Report, or refuse, what was dropped ✅
 
 Dropped switches, guard cells with no `INNER` representative, resets leaving the target domain,
 resets that are not lattice-exact (F9e). **Design question I ducked in the first draft:** a report
@@ -383,10 +385,32 @@ test can assert on them.
 *Size:* small. *Risk:* the hard-fail may break a model that is currently limping. That is the
 point, but it belongs in release notes.
 
-### P4 — Scale
+### P4 — Scale ✅ (measured, then F9b only)
 
 Lazy clock lift (F8); block-structured or sparse pair tables, plus `sparse_input` for the safety
 solver (F7); parallel mode abstraction (F9b), which is nearly free given the existing backends.
+
+**Measured first, as this phase required.** A ring of `M` two-dimensional modes, `0.25` grid:
+
+| modes | build s | synth s | nstates | nsymbols | pair table | pairs used |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2 | 6.24\* | 0.46 | 450 | 52 | 0.00 MB | 37.5 % |
+| 4 | 1.55 | 0.00 | 900 | 104 | 0.01 MB | 18.7 % |
+| 8 | 3.25 | 0.00 | 1800 | 208 | 0.05 MB | 9.2 % |
+
+\*includes first-call compilation.
+
+F7's arithmetic is **confirmed exactly** — the usable fraction of the pair table halves as the
+mode count doubles, tracking the predicted `1/M` — but the absolute size is 0.05 MB at eight
+modes, while building the modes dominates the wall clock and synthesis rounds to zero. So F7 and
+F8 are real and neither binds at any scale reachable today; **F9b is what was worth doing**, and
+it is what was done. Revisit F7/F8 when a model appears whose pair table is measured in
+gigabytes — the arithmetic in §3 says roughly 10⁷ states across eight modes.
+
+**Done:** F9b, opt-in via `parallel_modes`. Opt-in rather than default because a mode's own
+optimizer may use one of `Symbolic`'s threaded backends, and nesting the two oversubscribes.
+Validated by asserting an identical abstraction — states, inputs and the full transition set —
+against the sequential path, sharing included.
 
 Promoted above the modelling generalizations because these three have real consumers today — the
 biped is the largest hybrid model in the repository — and because all three are
