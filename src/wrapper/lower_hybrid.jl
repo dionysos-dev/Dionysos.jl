@@ -339,16 +339,21 @@ end
 # the neutral reading is the mode's own state set.
 _absent_mode_is_whole(kind::SpecKind) = kind === ALWAYS
 
-function _hybrid_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
+function _hybrid_spec(
+    ir::ModelIR,
+    kind::SpecKind,
+    x_idx::Vector{Int};
+    default_all::Bool = false,
+)
     clock = clock_index(ir)
     explicit = Dict{Int, Any}()
     for k in mode_ids(ir)
         set = _mode_spec_set(ir, ir.modes[k], kind, x_idx)
         set === nothing || (explicit[k] = set)
     end
-    isempty(explicit) && return nothing
+    isempty(explicit) && !default_all && return nothing
 
-    fill_absent = _absent_mode_is_whole(kind)
+    fill_absent = default_all || _absent_mode_is_whole(kind)
     pairs = Pair{Int, PR.AbstractSpecification}[]
     for k in mode_ids(ir)
         m = ir.modes[k]
@@ -363,15 +368,10 @@ function _hybrid_spec(ir::ModelIR, kind::SpecKind, x_idx::Vector{Int})
 end
 
 # The whole state space, mode by mode: the safe set of a reach-and-stay model that constrains
-# only where it must end up, not where it may pass through.
-function _whole_state_spec(ir::ModelIR, x_idx::Vector{Int})
-    clock = clock_index(ir)
-    pairs = map(mode_ids(ir)) do k
-        m = ir.modes[k]
-        return k => _mode_spec(ir, m, ALWAYS, _mode_box(ir, m, x_idx), clock)
-    end
-    return PR.HybridSpec(Dict(pairs))
-end
+# only where it must end up, not where it may pass through. Every mode defaulted is exactly what
+# `default_all` means, so this is `_hybrid_spec` with nothing written anywhere.
+_whole_state_spec(ir::ModelIR, x_idx::Vector{Int}) =
+    _hybrid_spec(ir, ALWAYS, x_idx; default_all = true)
 
 # `_hybrid_spec` hands back the sets, so the `EventuallyAlways` option is read separately. The
 # flag is written per mode; requiring agreement is better than letting one mode's reading win.
