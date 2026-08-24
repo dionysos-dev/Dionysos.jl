@@ -338,6 +338,18 @@ end
 
 Options set on the model itself apply to every mode unless a mode overrides them.
 
+Abstracting the modes dominates a hybrid build, and the modes are independent, so they can be
+built on separate threads. That option belongs to the hybrid solver rather than to a mode, and
+the solver is normally only chosen once the model is lowered — so name it first:
+
+```julia
+set_attribute(model, "solver", AB.HybridSystemAbstraction.Optimizer)
+set_attribute(model, "parallel_modes", true)
+```
+
+Leave it off if a mode's own abstraction already uses one of the threaded build backends;
+nesting the two oversubscribes rather than going faster.
+
 ### Clocks and timed specifications
 
 A clock is a variable whose dynamics is `∂(t) == 1` (running) or `∂(t) == 0` (frozen) — rule I2.

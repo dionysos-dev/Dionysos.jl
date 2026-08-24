@@ -59,7 +59,7 @@ end
 get_automaton(sym::HybridSymbolicModel) = sym.automaton
 
 "The [`HybridBuildReport`](@ref) of what building this model's mode switches discarded."
-build_report(sym::HybridSymbolicModel) = sym.report
+get_build_report(sym::HybridSymbolicModel) = sym.report
 
 "The [`GlobalInputMap`](@ref) unifying the modes' inputs and the mode switches."
 get_global_input_map(sym::HybridSymbolicModel) = sym.input_mapping

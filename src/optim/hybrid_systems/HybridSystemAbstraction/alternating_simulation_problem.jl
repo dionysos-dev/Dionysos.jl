@@ -102,7 +102,7 @@ function MOI.optimize!(optimizer::OptimizerAlternatingSimulationProblem)
         "$(HybridSystems.ntransitions(SY.get_automaton(optimizer.abstract_system))) transitions created",
     )
     optimizer.print_level >= 1 &&
-        _print_build_report(SY.build_report(optimizer.abstract_system))
+        _print_build_report(SY.get_build_report(optimizer.abstract_system))
 
     optimizer.abstraction_construction_time_sec = time() - t_ref
     return

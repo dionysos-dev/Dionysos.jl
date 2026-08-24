@@ -180,8 +180,27 @@ function MOI.set(model::Optimizer, attr::MOI.RawOptimizerAttribute, value)
         end
         return
     end
-    # Set before recording, so a rejected attribute is not replayed onto the next solver.
-    MOI.set(model.inner, attr, value)
+    # Set before recording, so a rejected attribute is not replayed onto the next solver. The
+    # cost is an ordering requirement: the solver is inferred from the *lowered* problem, so
+    # until `optimize!` runs, `model.inner` is the default one — and an option only the eventual
+    # solver knows is rejected here. `"solver"` set first installs it and lifts that.
+    try
+        MOI.set(model.inner, attr, value)
+    catch err
+        err isa MOI.UnsupportedAttribute || rethrow()
+        # Rethrown as the same MOI type — a caller catching `UnsupportedAttribute` must keep
+        # catching it — with the ordering spelled out, since "unsupported" reads as "this option
+        # does not exist" when the real answer is "not on this solver, not yet".
+        throw(
+            MOI.UnsupportedAttribute(
+                attr,
+                "$(typeof(model.inner)) has no such option. If it belongs to another solver " *
+                "family — a hybrid model's `parallel_modes`, say — name that solver first " *
+                "with `set_attribute(model, \"solver\", …)`: the solver is otherwise only " *
+                "chosen once the model is lowered. Otherwise check the spelling.",
+            ),
+        )
+    end
     push!(model.attributes, attr.name => value)
     return
 end
@@ -220,9 +239,19 @@ end
 # The hybrid solver abstracts each mode with its own sub-optimizer, configured through two
 # parallel vectors. Building them here is what lets the user write `set_attribute(mode, …)`
 # instead of assembling those vectors by hand.
+# Options belonging to the hybrid solver itself rather than to a mode's discretization.
+# `_configure_modes!` forwards every *other* model-level attribute to each mode's sub-optimizer —
+# that is what makes `set_attribute(model, "time_step", …)` apply to all modes — so without this
+# list a solver-level option would be handed to a sub-optimizer that has never heard of it, and
+# the model would fail deep inside the mode build rather than at the call that set it.
+const _HYBRID_SOLVER_OPTIONS = ("parallel_modes", "shared_abstraction")
+
 function _configure_modes!(model::Optimizer)
     ids = mode_ids(model.ir)
-    shared = Dict{String, Any}(name => value for (name, value) in model.attributes)
+    shared = Dict{String, Any}(
+        name => value for
+        (name, value) in model.attributes if !(name in _HYBRID_SOLVER_OPTIONS)
+    )
     # A mode whose only control is the switch has no continuous input, and its input space is
     # therefore zero-dimensional — a space with exactly one point, which is the "leave the switch
     # where it is" action that lets the state evolve. There is only one such grid, so the user

@@ -502,6 +502,37 @@ end
     )
 end
 
+@testset "a hybrid-solver option is reachable once the solver is named" begin
+    # The solver is inferred from the *lowered* problem, so until `optimize!` runs `model.inner`
+    # is the default one and an option only the hybrid solver knows is rejected. That is the
+    # ordering `set_attribute(model, "solver", …)` exists to lift — and the rejection has to say
+    # so, since otherwise the option looks unsupported rather than mistimed.
+    model, off, on = thermostat_model()
+    band = LazySets.Hyperrectangle(; low = SVector(17.0), high = SVector(25.0))
+    for m in (off, on)
+        @constraint(m, [model[:T]] in Always(band))
+        set_attribute(m, "state_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+        set_attribute(m, "input_grid", MP.GridFree(SVector(0.0), SVector(0.5)))
+        set_attribute(m, "time_step", 0.5)
+    end
+
+    err = try
+        set_attribute(model, "parallel_modes", true)
+        nothing
+    catch e
+        e
+    end
+    @test err !== nothing
+    # The rejection has to point at the fix, not merely say "unsupported".
+    @test occursin("\"solver\"", sprint(showerror, err))
+
+    # Named first, it lands — and the model still solves.
+    set_attribute(model, "solver", AB.HybridSystemAbstraction.Optimizer)
+    set_attribute(model, "parallel_modes", true)
+    optimize!(model)
+    @test is_solved_and_feasible(model)
+end
+
 @testset "a switch that discretizes to nothing fails, and losses are reported" begin
     # A guard no cell lies inside used to be a `@warn` and a `continue`: the modes ended up
     # disconnected, and synthesis then answered — often `OPTIMAL` — for a system the user had
@@ -536,7 +567,7 @@ end
     # Wide enough to hold a cell, and the build report is clean.
     model = thin_guard(; width = 1.5)
     optimize!(model)
-    report = SY.build_report(get_attribute(model, "abstract_system"))
+    report = SY.get_build_report(get_attribute(model, "abstract_system"))
     @test isempty(report)
     @test isempty(report.dropped_resets)
     @test isempty(report.inexact_resets)
